@@ -82,12 +82,14 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - **Who orders:** Claude recommends what to order; Gitesh orders in the game and says so; Claude logs it. *Since 2 Oct.*
 - **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
-  payment). An order is safe
-  when **0.5M stays in hand at the lowest point** after it. Prices include the cabin. *Since 7 Oct · why: the old surplus
-  rule ignored flight income during the week; on 7 Oct it said Kingfisher couldn't afford an A321neo when its real
-  lowest point was 6.29M.*
-  - The forecast leaves out a new aircraft's own lease (from about a week after it lands), a new route's slow start, and
-    planned refits. Say so with each recommendation; the 0.5M cushion is there for the first two.
+  payment). An order is safe when **0.5M stays in hand at the lowest point** after it. Prices include the cabin.
+  *Since 7 Oct · why: the old surplus rule ignored flight income during the week; on 7 Oct it said Kingfisher couldn't
+  afford an A321neo when its real lowest point was 6.29M.*
+  - **The order's own lease counts:** weekly, from 7 days after it arrives, taken as arriving the day it's ordered (the
+    most it could cost inside the 14 days). Its income and its crew's pay are left out; the profit it makes over its
+    crew pay is extra buffer. Several orders are tested together, each with its lease. *Since 8 Oct · why: the cushion
+    alone covered only one order's lease.*
+  - Planned refits are not in the forecast; say so with each recommendation.
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
 - **Order rotation:** each airline's orders rotate big market → more frequency → smaller feeders, kept flexible.
   *Since 2 Oct.*
