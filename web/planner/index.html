@@ -195,6 +195,8 @@ li.attg details summary{cursor:pointer;list-style:none}li.attg details summary::
 .sd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}.rpq{margin-left:auto;min-width:220px;padding:7px 10px;border-radius:9px;border:1px solid var(--line,#E4E8F2);font:inherit;font-size:13px}
 .rpcharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px;margin:6px 0 12px}.rpc{background:#F9FAFC;border-radius:12px;padding:10px 12px}.rpct{font-size:12.5px;font-weight:700;margin-bottom:4px}
 .rpsvg{width:100%;height:auto;display:block}
+.eqpreview{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40;background:#FFE7A8;color:#3A2A00;border:1px solid #E8B93B;padding:8px 12px;border-radius:10px;font:600 12.5px/1.35 Manrope,system-ui,sans-serif;box-shadow:0 4px 14px rgba(10,18,48,.18);max-width:calc(100vw - 24px)}
+.eqpreview a{color:#3A2A00;text-decoration:underline;margin-left:4px}
 .eqtoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9999;background:#0A1230;color:#fff;padding:12px 18px;border-radius:12px;font:600 13.5px/1.4 Manrope,system-ui,sans-serif;box-shadow:0 18px 40px -16px rgba(0,0,0,.5)}
 .capl{color:var(--ink,#0A1230);font-variant-numeric:tabular-nums;opacity:.8}.capl.low{color:#B4234B;opacity:1;font-weight:600}
 .qrow{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:10px} .qrow label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500} .qrow input{width:100%}
@@ -861,12 +863,38 @@ body.eq-home .view > .vh{display:none} body.eq-home .view .kpis{display:none}
 <div id="clocks" aria-label="Game time at the hubs"></div>
 <main id="view" class="view routes"></main>
 <div id="modalroot"></div>
+<script>
+// Decision #8: saving works only on the live address; every other address is a look-only preview.
+window.__eqPreview = !["equinox-alliance.com", "www.equinox-alliance.com"].includes(location.hostname);
+if (window.__eqPreview) document.addEventListener("DOMContentLoaded", () => {
+  const n = document.createElement("div"); n.className = "eqpreview"; n.setAttribute("role", "status");
+  n.innerHTML = 'Preview: changes here aren\'t saved. <a href="https://equinox-alliance.com/planner/">Open the live planner</a>';
+  document.body.appendChild(n);
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script>
 (function () {
   const SB_URL = "https://ulecwsyedvwcxgdzmhoq.supabase.co";
   const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZWN3c3llZHZ3Y3hnZHptaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTg5MzcsImV4cCI6MjEwNTc5NDkzN30.tC56dOgmPeYB3m58aDy4ADnnaZ3613P6MFp2pVXUj_Y";
-  const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "gander-auth" } }); window.__eqsb = sb;
+  // Decision #8: previews are look-only. Only the live address saves; any other address (a Cloudflare preview, a local
+  // test server) reads the live data but sends no changes. Sign-in still works. The guard below is the safety net under
+  // the planner's own checks: it stops every database or file write that isn't one of the read-only lookups.
+  const PREVIEW = window.__eqPreview;
+  const READ_ONLY_RPCS = new Set(["is_planner_user", "site_public"]);
+  const guardedFetch = (input, init = {}) => {
+    const method = String(init.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+    if (PREVIEW && method !== "GET" && method !== "HEAD") {
+      const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+      const rpc = (path.match(/^\/rest\/v1\/rpc\/([^/]+)/) || [])[1];
+      if ((path.startsWith("/rest/v1/") && !READ_ONLY_RPCS.has(rpc)) || path.startsWith("/storage/v1/")) {
+        console.warn("Preview: not sent to the database:", method, path);
+        return Promise.resolve(new Response(JSON.stringify({ code: "preview", error: "preview", message: "Preview: changes aren't saved" }), { status: 403, headers: { "content-type": "application/json" } }));
+      }
+    }
+    return fetch(input, init);
+  };
+  const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "gander-auth" }, global: { fetch: guardedFetch } }); window.__eqsb = sb;
   // once signed in (or after the session token refreshes), reload once so the route research loads with the fresh session
   sb.auth.onAuthStateChange((ev, session) => { if (session && !window.__eqDataLoaded && !sessionStorage.getItem("eq_data_reload")) { sessionStorage.setItem("eq_data_reload", "1"); location.reload(); } else if (session && window.__eqDataLoaded) sessionStorage.removeItem("eq_data_reload"); });
   window.__sb = sb;
@@ -950,7 +978,7 @@ body.eq-home .view > .vh{display:none} body.eq-home .view .kpis{display:none}
 <script>
 (function(){
   function tick(){ const n=new Date(), m=n.getUTCHours()*60+n.getUTCMinutes(); const i=document.querySelector("#terminator i"); if(i) i.style.left=(m/1440*100)+"%"; }
-  const ss=()=>{ const el=document.getElementById("savestate"); if(!el) return; const t=el.textContent||""; el.className=/NOT SAVED|failed/i.test(t)?"err":/saving|working/i.test(t)?"busy":/saved/i.test(t)?"ok":""; };
+  const ss=()=>{ const el=document.getElementById("savestate"); if(!el) return; const t=el.textContent||""; el.className=/preview/i.test(t)?"busy":/NOT SAVED|failed/i.test(t)?"err":/saving|working/i.test(t)?"busy":/saved/i.test(t)?"ok":""; };
   window.addEventListener("DOMContentLoaded",()=>{ tick(); setInterval(tick,60000); const el=document.getElementById("savestate"); if(el){ new MutationObserver(ss).observe(el,{childList:true,characterData:true,subtree:true}); ss(); } });
 })();
 </script>
@@ -1315,7 +1343,7 @@ function makeModel(DATA, state) {
     catch (e) { diag.cloud = "failed: " + ((e && (e.code || e.message)) || e); console.error("cloud save", e); return false; }
   }
   async function load() {
-    const local = lsGet();
+    const local = window.__eqPreview ? null : lsGet();   // a preview always starts from the live copy
     let cloud = false, remote = null;
     if (db) { try { const snap = await db.doc("planner/state").get(); if (snap.exists) { remote = normalize(snap.data()); diag.cloud = remote ? "ok" : "unreadable copy"; } else diag.cloud = "empty"; } catch (e) { remote = null; diag.cloud = "read failed: " + ((e && (e.code || e.message)) || e); } }
     else diag.cloud = "not available in this view";
@@ -1323,10 +1351,11 @@ function makeModel(DATA, state) {
     if (remote && local) { if (ts(local) > ts(remote)) { state = local; save(); } else { state = remote; cloud = true; cloudVer = ts(remote); } }
     else if (remote) { state = remote; cloud = true; cloudVer = ts(remote); }
     else if (local) { state = local; if (db) save(); }
-    ui.saving = db ? (cloud ? "saved · cloud" : "cloud ready") : (local ? "saved · this device" : "");
+    ui.saving = window.__eqPreview ? "preview · not saved" : db ? (cloud ? "saved · cloud" : "cloud ready") : (local ? "saved · this device" : "");
     M = makeModel(DATA, state);
   }
   function save() {
+    if (window.__eqPreview) { state.savedAt = Date.now(); ui.saving = "preview · not saved"; const pv = $("#savestate"); if (pv) pv.textContent = ui.saving; return; }
     state.savedAt = Date.now(); lsSet(); ui.saving = "saving";
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
@@ -1713,7 +1742,9 @@ function makeModel(DATA, state) {
     } catch (e) { diag.cloud = "loads read failed: " + ((e && (e.code || e.message)) || e); }
   }
   async function saveLoadsMonth(mo) {
-    loads[mo] = loads[mo] || {}; loads[mo].__savedAt = Date.now(); lsLoadsSet();
+    loads[mo] = loads[mo] || {}; loads[mo].__savedAt = Date.now();
+    if (window.__eqPreview) return false;
+    lsLoadsSet();
     if (!db) return false;
     try { await db.doc("loads/" + mo).set({ json: JSON.stringify(loads[mo]), savedAt: loads[mo].__savedAt }); return true; } catch (e) { diag.cloud = "loads save failed: " + ((e && (e.code || e.message)) || e); return false; }
   }
@@ -3062,6 +3093,7 @@ function renderPhotos() {
 }
 function eqRefresh() { const r = document.getElementById("ph-root"); if (r) r.innerHTML = eqPhotosHTML(); }
 async function eqUpload(code, file) {
+  if (window.__eqPreview) { alert("This is a preview, so changes here aren't saved. Make this change on the live planner at equinox-alliance.com."); return; }
   const card = document.querySelector(`[data-ph="${code}"]`); card && card.classList.add("ph-busy");
   try {
     const bmp = await createImageBitmap(file); const k = Math.min(1, 1600 / bmp.width); const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
@@ -3081,6 +3113,7 @@ async function eqUpload(code, file) {
   eqRefresh();
 }
 async function eqLogoUpload(al, file) {
+    if (window.__eqPreview) { alert("This is a preview, so changes here aren't saved. Make this change on the live planner at equinox-alliance.com."); return; }
     const card = document.querySelector(`[data-lg="${al}"]`); card && card.classList.add("ph-busy");
     try {
       const bmp = await createImageBitmap(file); const k = Math.min(1, 1200 / bmp.width); const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
@@ -3097,11 +3130,13 @@ async function eqLogoUpload(al, file) {
     eqRefresh();
   }
   async function eqLogoRemove(al) {
+    if (window.__eqPreview) { alert("This is a preview, so changes here aren't saved. Make this change on the live planner at equinox-alliance.com."); return; }
     if (!confirm(`Go back to the in-game logo for ${al}?`)) return;
     const old = (EQM.logos || {})[al]; const r = await window.__eqsb.rpc("site_remove_airline_logo", { p_airline: al }); if (r.error) { alert(r.error.message); return; }
     if (old && old.path) window.__eqsb.storage.from("site-photos").remove([old.path]); delete EQM.logos[al]; eqRefresh();
   }
 async function eqRemove(code) {
+  if (window.__eqPreview) { alert("This is a preview, so changes here aren't saved. Make this change on the live planner at equinox-alliance.com."); return; }
   if (!confirm(`Remove the photo for ${eqCity(code)}? The website goes back to the city photo or the plain card.`)) return;
   const old = EQM.airports[code]; const r = await window.__eqsb.rpc("site_remove_airport_photo", { p_code: code });
   if (r.error) { alert("Couldn't remove it: " + r.error.message); return; }
