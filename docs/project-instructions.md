@@ -6,7 +6,7 @@ Pan Am (JFK), Kingfisher (Delhi), Ryanair (Paris CDG and Amsterdam), Virgin Atla
 China Eastern (Shanghai) and Malaysia Airlines (Kuala Lumpur).
 
 Systems:
-- **Website and planner:** equinox-alliance.netlify.app (planner at /planner/, staff login).
+- **Website and planner:** equinox-alliance.com (planner at /planner/, staff login), on Cloudflare Pages.
 - **Database:** Supabase project `ulecwsyedvwcxgdzmhoq`. The nightly capture fills the game_* tables.
 - **Code and documents:** GitHub repository `GiteshJain/Equinox`.
 

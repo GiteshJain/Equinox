@@ -12,3 +12,5 @@ __pycache__/
 # live data stays in the database
 *.json.local
 data_exports/
+.wrangler/
+node_modules/

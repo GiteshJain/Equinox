@@ -1,0 +1,4 @@
+# Cloudflare Pages redirects (decision #7; replaces netlify.toml). Unknown paths outside the planner already fall back
+# to the home page, because the site has no 404.html.
+/planner     /planner/   301
+/planner/*   /planner/   200
