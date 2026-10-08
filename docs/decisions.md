@@ -17,7 +17,7 @@ Status: **decided**, **open**, or **dropped**.
 | # | Decision | Status |
 |---|---|---|
 | 7 | Hosting: move to Cloudflare Pages or stay on Netlify (paid tier); and our own domain name | **decided** 8 Oct 2026 |
-| 8 | Preview before live: every change gets a preview link; database changes tried on a copy first | open |
+| 8 | Preview before live: every change gets a preview link; database changes tried on a copy first | **decided** 8 Oct 2026 |
 | 9 | Automatic tests on every change, blocking anything that breaks | open |
 | 10 | Documentation: README, architecture notes, what each table means | open |
 | 11 | Proper roles (owner, staff, investors, public); no shared passwords; secrets out of scripts | open |
@@ -93,6 +93,14 @@ Status: **decided**, **open**, or **dropped**.
   change of host is invisible to readers. Option D (no domain) was chosen first and changed the same evening, before
   any link was shared or the sign-in settings were changed, so the address is set only once.
   Brief: `docs/briefs/2026-10-08-hosting.md`.
+- **8 Oct 2026 · #8 Preview before live.** Previews are look-only: they show the live data, but saving is switched
+  off on every address except `equinox-alliance.com` (and `www`). Every pull request that changes the database is
+  first rehearsed automatically: a GitHub Action restores last night's backup into a local copy, applies the change
+  and reports the result on the pull request. Claude applies it to live only after "merge". The Action reads the
+  backups with a read-only key that Gitesh holds as a GitHub secret. Reason: previews used the live database, so testing
+  one could save into the live planner, and database changes were tried first on live. This costs nothing and needs no
+  second database. A staging database or Supabase branching stays an option for the rebuild (#13, #17, #18).
+  Brief: `docs/briefs/2026-10-08-previews.md`.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
