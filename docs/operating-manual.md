@@ -28,8 +28,16 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - **No keys or passwords** in the repository, files or chat. Keys live in the database or as GitHub secrets.
   *Since 8 Oct.*
 - **Opus for everything,** business decisions included. *Since 8 Oct.*
-- **One chat per kind of work:** scheduling, the Saturday review, the monthly work, and building, all inside the
-  Equinox project. *Since 8 Oct (#3).*
+- **One chat per kind of work,** all inside the Equinox project. *Since 8 Oct (#3).* If Gitesh asks a question that
+  belongs to another chat, say which chat in one line and don't answer it there. *Since 8 Oct · why: each chat keeps
+  its own thread of context.*
+
+  | Chat | Covers |
+  |---|---|
+  | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
+  | Saturday review | Weekly report, connection audit, newsroom roundup, fare plan, the weekly review |
+  | Monthly | Monthly report, gander monthly, strategy (bases, focus cities, holdings, long-term direction), Netlify credits |
+  | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *Since early Oct.*
 
@@ -73,7 +81,8 @@ Every rule in force for the equinox. group, with the date it started and why. De
   No plan card at order time. *Since 2 Oct.*
 - **Who orders:** Claude recommends what to order; Gitesh orders in the game and says so; Claude logs it. *Since 2 Oct.*
 - **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
-  profit from the last day's bank statement, minus every scheduled lease payment and week-end closing. An order is safe
+  profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
+  payment). An order is safe
   when **0.5M stays in hand at the lowest point** after it. Prices include the cabin. *Since 7 Oct · why: the old surplus
   rule ignored flight income during the week; on 7 Oct it said Kingfisher couldn't afford an A321neo when its real
   lowest point was 6.29M.*
@@ -179,7 +188,10 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - Passengers book each direction separately; no location-based demand.
 - Maintenance need depends on take-offs and landings as well as hours, and can be done at any airport with a long
   enough ground gap.
-- An aircraft's first lease payment falls 7 days after it arrives; an order needs only its price up front.
+- An aircraft's first lease payment falls 7 days after it arrives, then weekly; an order needs only its price up front.
+  Weekly leases seen in the captures: A321neo about 0.24M, XLR 0.29M, E195 0.18M, A350 0.72M.
+- The week-end closing is the airline's weekly salary payment. The game's advance figure can lag when staff are added:
+  Virgin's 8 Oct closing was listed at 0.56M and paid at 0.71M.
 - Aircraft fly to their first departure automatically once scheduled.
 - The game runs standard time all year: JFK −5, London 0, Paris and Amsterdam +1, Delhi +5:30.
 - Subsidiaries don't work with the game's demand model, so we don't use them.
@@ -194,6 +206,7 @@ Kept so they don't come back. Newest first.
 | 8 Oct | Ask before every Netlify deploy | Pull requests; "merge" makes it live |
 | 8 Oct | Fable for business decisions | Opus for everything |
 | 8 Oct | Weekly report and roundup on Mondays | Saturdays |
+| 8 Oct | Monthly staff-salary review | The nightly capture sets salaries to 10% above the country average |
 | 7 Oct | Surplus = cash − fixed costs due in the next 7 days | The cash forecast (§3) |
 | 7 Oct | Every aircraft flies at least 10 hours a day | As much as possible, no floor (§4) |
 | 7 Oct | A newsroom post per aircraft | One weekly roundup |
