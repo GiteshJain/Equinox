@@ -96,7 +96,8 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - **Hubs first:** each main hub reaches **750 weekly departures** before the airline opens a new hub, unless the new
   hub is contested: a rival with over 250 departures a week there, or over 2 a day on a route we'd open with. Ryanair is
   exempt. Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
-  Atlanta or Phoenix, SFO and SEA. *Since 5 Oct · settings in the planner (growth rules).*
+  Atlanta or Phoenix, SFO and SEA. *Since 5 Oct, confirmed 8 Oct as the only test for opening a new base · settings in
+  the planner (growth rules).*
 
 ## 4. Scheduling
 - **How it runs:** once aircraft have arrived, one airline at a time. Claude gives the background (loads, money,
@@ -207,6 +208,7 @@ Kept so they don't come back. Newest first.
 | 8 Oct | Fable for business decisions | Opus for everything |
 | 8 Oct | Weekly report and roundup on Mondays | Saturdays |
 | 8 Oct | Monthly staff-salary review | The nightly capture sets salaries to 10% above the country average |
+| 8 Oct | A new base waits until there's money for 2–3 aircraft | Hubs first: the main hub reaches 750 weekly departures (§3) |
 | 7 Oct | Surplus = cash − fixed costs due in the next 7 days | The cash forecast (§3) |
 | 7 Oct | Every aircraft flies at least 10 hours a day | As much as possible, no floor (§4) |
 | 7 Oct | A newsroom post per aircraft | One weekly roundup |
