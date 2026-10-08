@@ -1802,7 +1802,7 @@ function makeModel(DATA, state) {
     if (bad) out.push(`${bad} rotation${bad > 1 ? "s" : ""} off wave`);
     return out;
   }
-  const MONTHLY = [{ id: "salaries", label: "Staff salaries" }];
+  const MONTHLY = [];   // per-airline monthly checks (staff salaries dropped 8 Oct: the nightly capture sets them)
   const MONTHLY_GROUP = [{ id: "netlify", label: "Netlify credits", hint: "app.netlify.com → team → Billing: production deploys cost 15 credits each out of 300 a month; ask Claude to batch changes if it's running high" }];
   const addMonths = (s, n) => { const [y, m, d] = s.split("-").map(Number); const x = new Date(y, m - 1 + n, d); if (x.getDate() !== d) x.setDate(0); return iso(x); };
   function monthlyStatus(al, task) { const last = ((state.monthly || {})[al] || {})[task]; if (!last) return { last: null, due: today(), status: "due" };
@@ -1926,16 +1926,7 @@ function makeModel(DATA, state) {
         <td style="text-align:right"><button class="${s.status === "due" ? "primary sm" : "secondary sm"}" data-monthly="Equinox|${task.id}">Mark checked</button></td></tr>`; }
     return `<div class="board"><h3 class="rh">Monthly checks <span class="note">once a month · ${dueN ? dueN + " due now" : "all up to date"}</span></h3>
       <table class="tbl"><tr><th>Airline</th><th>Check</th><th>Last done</th><th>Status</th><th></th></tr>${rows}</table>
-      <div class="note">Staff salaries: review each staff group's pay in the game and adjust where it has fallen behind. Netlify credits: ${MONTHLY_GROUP[0].hint}. Marking a check sets the next one a month later.</div></div>`;
-  }
-  function reserveRows() {   // 15% of each airline's fleet value, flying and on order
-    const norm = s => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const price = {}; for (const t of state.ref.types) if (t.priceM) price[norm(t.name)] = +t.priceM;
-    return airlines().map(al => { const regs = new Set(); let val = 0, n = 0, missing = 0;
-      const add = (reg, type) => { if (regs.has(reg)) return; regs.add(reg); n++; const p = price[norm(type)]; if (p) val += p; else missing++; };
-      for (const t of state.tails) if (t.airline === al) add(t.id, t.type);
-      for (const d of state.deliveries || []) if (d.airline === al) add(d.reg, d.type);
-      return { al, n, val, res: val * 0.15, missing }; });
+      <div class="note">Netlify credits: ${MONTHLY_GROUP[0].hint}. Marking a check sets the next one a month later.</div></div>`;
   }
   function cashFor(al) {   // latest reported cash and the one before it
     const days = Object.keys(state.cash || {}).filter(d => state.cash[d] && state.cash[d][al] != null).sort();
@@ -1944,20 +1935,7 @@ function makeModel(DATA, state) {
   }
   const BUY_TYPES = al => al === "Ryanair" ? ["A321 NEO LIGHT", "E195-E2"] : ["A320NEO LIGHT", "A321 NEO LIGHT", "E195-E2", "A321XLR", "A350-900ULR"];
   const SHORT_TYPE = { "A320NEO LIGHT": "A320neo", "A321 NEO LIGHT": "A321neo", "E195-E2": "E195", "A321XLR": "XLR", "A350-900ULR": "A350" };
-  function buyingPower() {   // surplus = cash − fixed costs due in the next 7 days (as reported); an order needs only its price up front — its first lease payment falls 7 days after it arrives
-    const R = reserveRows(); const price = n => { const t = state.ref.types.find(x => x.name === n); return t && t.priceM ? +t.priceM : null; };
-    return R.map(r => { const c = cashFor(r.al); const fx = c && state.fixed7 && state.fixed7[c.date] && state.fixed7[c.date][r.al] != null ? +state.fixed7[c.date][r.al] : null;
-      const fixed = fx != null ? fx : r.val * 0.10; const est = fx == null;
-      const spent = c ? (state.capex || []).filter(x => x.airline === r.al && x.date > c.date).reduce((a, x) => a + (+x.amountM || 0), 0) : 0;   // orders placed since that cash was reported
-      const head = c ? c.v - fixed - spent : null;
-      const need = BUY_TYPES(r.al).map(n => ({ n, short: SHORT_TYPE[n] || n, p: price(n) })).filter(x => x.p).map(x => Object.assign(x, { cabin: cabinCostM(DEFAULT_CABIN(r.al, x.n)), need: x.p + cabinCostM(DEFAULT_CABIN(r.al, x.n)) }));   // price plus its first cabin
-      const can = head == null ? [] : need.filter(x => head >= x.need).map(x => Object.assign(x, { count: Math.floor(head / x.need) }));
-      const cheapest = need.slice().sort((a, b) => a.need - b.need)[0];
-      const perDay = c && c.prev != null && c.prevDate ? (c.v - c.prev) / Math.max(1, dayDiff(c.prevDate, c.date)) : null;
-      const eta = head != null && cheapest && head < cheapest.need && perDay > 0 ? Math.ceil((cheapest.need - head) / perDay) : null;
-      return Object.assign(r, { cash: c, head, can, cheapest, perDay, eta, fixed, est, spent }); });
-  }
-  const SPEND_ORDER = "each airline rotates its orders: big market → frequency → smaller feeder → repeat · opening a new base counts as a big-market move once there's money for 2–3 aircraft";
+  const SPEND_ORDER = "each airline rotates its orders: big market → frequency → smaller feeder → repeat · opening a new base counts as a big-market move, once the main hub reaches 750 weekly departures (Ryanair exempt)";
   const MOVES = { big: "Big market", freq: "Frequency", feeder: "Smaller feeder" }, CYCLE = ["big", "freq", "feeder"];
   function lastMove(al) { return (state.growthLog || []).filter(x => x.airline === al).sort((a, b) => String(a.date).localeCompare(String(b.date))).at(-1) || null; }
   function nextMove(al) { const l = lastMove(al); return l ? CYCLE[(CYCLE.indexOf(l.move) + 1) % CYCLE.length] : "big"; }
@@ -2017,7 +1995,6 @@ function makeModel(DATA, state) {
     out.rof = out.profit != null && out.flyVal ? out.profit * 7 / out.flyVal * 100 : null;          // % of fleet value earned per week
     out.payback = out.perAc > 0 && out.avgPrice ? out.avgPrice / out.perAc : null;                 // days for one aircraft to earn its price
     out.fundEvery = out.profit > 0 && out.avgPrice ? out.avgPrice / out.profit : null;               // days of profit to buy another aircraft
-    const b = buyingPower().find(x => x.al === al); out.buy = b; if (b && b.head != null && b.cheapest && b.head < b.cheapest.need && out.profit > 0) out.eta = Math.ceil((b.cheapest.need - b.head) / out.profit);
     return out;
   }
   function barChart(pts, opt) {   // pts: [{ x, y, tip }]; one bar per reported interval, zero line, optional average line
@@ -2036,14 +2013,14 @@ function makeModel(DATA, state) {
     const all = airlines().map(finStats); const sel = ui.finAl && all.find(x => x.al === ui.finAl) ? ui.finAl : all[0].al; const A = all.find(x => x.al === sel);
     const sg = (v, d = 2) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(d) + "M"; const kk = v => (v >= 0 ? "+" : "−") + Math.round(Math.abs(v) * 1000) + "k";
     const dd = n => n == null ? "—" : n < 1 ? "under a day" : Math.round(n) + " day" + (Math.round(n) === 1 ? "" : "s");
-    const card = x => { const b = x.buy || {}; const gF = x.flightsNow - x.flightsThen, gT = x.flying - x.tailsThen;
+    const card = x => { const gF = x.flightsNow - x.flightsThen, gT = x.flying - x.tailsThen;
       return `<button class="fcard ${x.al === sel ? "on" : ""}" data-final="${esc(x.al)}"><div class="fch">${lv(x.al)}<b>${esc(x.al)}</b>${spark(x.iv)}</div>
         <div class="fbig ${x.profit < 0 ? "neg" : ""}">${x.profit == null ? "—" : sg(x.profit) + '<span class="fu"> a day</span>'}</div><div class="fsub">${x.profit == null ? "needs two nights of cash" : `profit, ${x.early ? "early read over " + x.span + " day" + (x.span === 1 ? "" : "s") : "last 7 days"}`}</div>
         <dl><dt>Per aircraft</dt><dd>${x.perAc == null ? "—" : kk(x.perAc) + " a day"}</dd><dt>Return on fleet</dt><dd>${x.rof == null ? "—" : (x.rof >= 0 ? "" : "−") + Math.abs(x.rof).toFixed(1) + "% a week"}</dd>
           <dt>An aircraft pays back in</dt><dd>${dd(x.payback)}</dd><dt>Funds a new aircraft every</dt><dd>${dd(x.fundEvery)}</dd>
           <dt>Fleet</dt><dd>${x.flying} flying${gT ? ` <span class="pos">+${gT} this week</span>` : ""}${x.onOrder ? ` · ${x.onOrder} on order` : ""}</dd><dt>Flights a day</dt><dd>${x.flightsNow}${gF ? ` <span class="pos">+${gF} this week</span>` : ""}</dd>
           <dt>Average load, 7 days</dt><dd>${x.load7 == null ? "—" : "≈" + Math.round(x.load7) + "%"}</dd>
-          <dt>Next order</dt><dd>${fcNext(x.al) || (b.can && b.can.length ? `<span class="pill ok sm">can order ${b.can.map(c => c.short).slice(0, 2).join(" or ")}</span>` : b.head == null ? "—" : x.eta ? "~" + dd(x.eta) : "not yet")}</dd></dl></button>`; };
+          <dt>Next order</dt><dd>${fcNext(x.al)}</dd></dl></button>`; };
     let h = groupOverviewHtml() + `<div class="fgrid">${all.map(card).join("")}</div>`;
     // detail for the selected airline
     const iv = A.iv; const L7 = iv.slice(-14);
@@ -2088,9 +2065,9 @@ function makeModel(DATA, state) {
     { const B = airlines().map(al => ({ al, now: orderNow(al) })).filter(b => b.now.length);
       h += `<div class="gptr">${B.length ? B.map(b => `<span class="pill ok">${esc(b.al)} can order now: ${esc(b.now.join(", "))}</span>`).join(" ") : '<span class="dim">No airline can safely order an aircraft yet.</span>'} <button class="link" data-goto="finance">The cash forecast and order dates are on the Review tab →</button></div>`; }
     h += hubProgressHtml();
-    { const BP = buyingPower();
+    {
       h += `<h4 class="gh">Next move for each airline <span class="note">${esc(SPEND_ORDER)} · skip a move that has nothing ready · log each order so the rotation moves on</span></h4><table class="tbl gtbl nmv"><tr><th>Airline</th><th>Last move</th><th>Next</th><th>Best options for that move</th><th>Money</th><th>Log an order as</th></tr>`;
-      for (const al of airlines()) { const c = moveCandidates(al); let nx = nextMove(al); for (let k = 0; k < 3 && !c[nx].length; k++) nx = CYCLE[(CYCLE.indexOf(nx) + 1) % 3]; const lm = lastMove(al); const b = BP.find(x => x.al === al) || {};
+      for (const al of airlines()) { const c = moveCandidates(al); let nx = nextMove(al); for (let k = 0; k < 3 && !c[nx].length; k++) nx = CYCLE[(CYCLE.indexOf(nx) + 1) % 3]; const lm = lastMove(al);
         const opts = c[nx].slice(0, 4).map(x => `<span class="opt"><button class="link" data-goto="routes" data-goroute="${esc(x.r.key)}">${x.r.hub}–${x.r.dest}</button><span class="stars">${"★".repeat(x.r.stars)}</span><span class="sz">${x.size}</span></span>`).join("");
         h += `<tr><td>${lv(al)}<b>${esc(al)}</b></td><td>${lm ? `${MOVES[lm.move]} <span class="dim">${niceDate(lm.date)}</span>` : '<span class="dim">—</span>'}</td><td><span class="pill ${nx === "big" ? "warn" : nx === "freq" ? "ok" : "mute"}">${MOVES[nx]}</span></td><td>${opts || '<span class="dim">nothing ready</span>'}${c[nx].length > 4 ? ` <span class="dim">+${c[nx].length - 4} more</span>` : ""}</td>
           <td>${orderNow(al).length ? `<span class="pill ok sm">can order</span>` : '<span class="dim">not yet</span>'}</td><td class="n"><span class="logseg">${CYCLE.map(m => `<button data-gmove="${esc(al)}|${m}" title="Log an order for ${esc(al)} as a ${MOVES[m].toLowerCase()} move">${{ big: "Big", freq: "Frequency", feeder: "Feeder" }[m]}</button>`).join("")}</span></td></tr>`; }
@@ -2183,6 +2160,13 @@ function makeModel(DATA, state) {
   // ---- growth forecast: cash for the next 14 days from the captured balance, flight profit and scheduled payments ----
   const CUSHION = 0.5;   // M kept in hand at the lowest point after an order
   const DAYMS = 864e5;
+  const LEASE_PCT = 0.10;   // weekly lease is about 10% of the order price in every capture so far; used only for a type never leased yet
+  function leaseM(name) {   // weekly lease of an aircraft type: the highest payment seen in the captured events, else ≈10% of its price
+    const norm = s => String(s || "").toUpperCase().replace(/AIRBUS/g, "").replace(/EMBRAER/g, "E").replace(/[^A-Z0-9]/g, ""), key = norm(name); let m = 0;
+    for (const e of CAP.events) { const g = /Leasing payment for [^(]*\(([^)]+)\)/i.exec(e.descr || ""); if (g && norm(g[1]) === key && +e.debit > 0) m = Math.max(m, +e.debit / 1e6); }
+    if (m) return { m, seen: true };
+    const t = state.ref.types.find(x => x.name === name); return { m: t && t.priceM ? +t.priceM * LEASE_PCT : 0, seen: false };
+  }
   function flightsPerDay(al) { return state.freqs.reduce((a, f) => { const r = M.routeMap.get(f.routeKey); return r && r.airline === al ? a + (f.noBack ? 2 : 1) * String(f.days || "1234567").length / 7 : a; }, 0); }
   function cashForecast(al) {
     const b = CAP.bal.filter(x => x.airline === al).sort((x, y) => String(y.captured_at).localeCompare(String(x.captured_at)))[0]; if (!b || !CAP_HOME[al]) return null;
@@ -2197,26 +2181,28 @@ function makeModel(DATA, state) {
     const pts = [...new Set([...pay.map(p => p.t), ...Array.from({ length: 15 }, (_, i) => t0 + i * DAYMS)])].sort((a, b) => a - b).map(t => ({ t, v: bal(t) }));
     const low = pts.reduce((m, p) => p.v < m.v ? p : m, pts[0]);
     const cause = pay.filter(p => p.t === low.t).sort((a, b) => b.m - a.m)[0] || pay.filter(p => p.t <= low.t && p.t > low.t - DAYMS).sort((a, b) => b.m - a.m)[0];   // the payment that makes the dip
-    const safe = BUY_TYPES(al).map(n => { const t = state.ref.types.find(x => x.name === n); const pr = t && t.priceM ? +t.priceM : 0; if (!pr) return null; const P = pr + cabinCostM(DEFAULT_CABIN(al, n));
-      for (let d = 0; d <= 14; d++) { const td = t0 + d * DAYMS; const mn = Math.min(bal(td), ...pts.filter(p => p.t >= td).map(p => p.v)); if (mn - P >= CUSHION) return { short: SHORT_TYPE[n] || n, P, d, t: td }; }
-      return { short: SHORT_TYPE[n] || n, P, d: null }; }).filter(Boolean);
+    // an order placed at td stays safe if, at every point from td on, cash minus its price (with cabin) and its own weekly lease
+    // (first paid 7 days after arrival, taken as the day it's ordered: the most it can cost inside the 14 days) keeps the cushion
+    const fits = (td, n, P, L) => [{ t: td, v: bal(td) }, ...pts.filter(p => p.t >= td)].every(p => p.v - n * (P + L * ((p.t >= td + 7 * DAYMS) + (p.t >= td + 14 * DAYMS))) >= CUSHION);
+    const safe = BUY_TYPES(al).map(n => { const t = state.ref.types.find(x => x.name === n); const pr = t && t.priceM ? +t.priceM : 0; if (!pr) return null; const P = pr + cabinCostM(DEFAULT_CABIN(al, n)), ls = leaseM(n), L = ls.m;
+      for (let d = 0; d <= 14; d++) { const td = t0 + d * DAYMS; if (fits(td, 1, P, L)) { let k = 1; if (d === 0) while (k < 9 && fits(td, k + 1, P, L)) k++; return { short: SHORT_TYPE[n] || n, P, L, leaseSeen: ls.seen, d, t: td, n: k }; } }
+      return { short: SHORT_TYPE[n] || n, P, L, leaseSeen: ls.seen, d: null }; }).filter(Boolean);
     return { cash0, t0, opsDay, perFlight, fpd, pay, pts, low, cause, safe, payWeek: pay.filter(p => p.t <= t0 + 7 * DAYMS).reduce((a, p) => a + p.m, 0) };
   }
   const fcDay = t => { const d = new Date(t); return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }); };
   const fcWhat = s => /Week-end closing/i.test(s) ? "the week-end closing" : (/Leasing payment for ([A-Z0-9-]+)/i.exec(s) || [])[1] ? "the lease for " + /Leasing payment for ([A-Z0-9-]+)/i.exec(s)[1] : "a payment";
-  function orderNow(al) {   // types an airline can safely order today
-    const fc = cashForecast(al); if (fc && fc.safe) return fc.safe.filter(x => x.d === 0).sort((a, b) => b.P - a.P).map(x => x.short);
-    const b = buyingPower().find(x => x.al === al); return b && b.can ? b.can.map(x => x.short) : [];
+  function orderNow(al) {   // types an airline can safely order today, from the cash forecast only
+    const fc = cashForecast(al); return fc && fc.safe ? fc.safe.filter(x => x.d === 0).sort((a, b) => b.P - a.P).map(x => x.short) : [];
   }
   function fcNext(al) {   // short "next order" line for the Finance cards
-    const fc = cashForecast(al); if (!fc || !fc.safe) return "";
+    const fc = cashForecast(al); if (!fc) return `<span class="dim">needs a capture</span>`; if (!fc.safe) return `<span class="dim">needs ${esc(fc.missing || "a capture")}</span>`;
     const ok = fc.safe.filter(x => x.d != null).sort((a, b) => a.d - b.d || b.P - a.P); if (!ok.length) return `<span class="dim">not in the next 14 days</span>`;
     const now = ok.filter(x => x.d === 0); if (now.length) return `<span class="pill ok sm">can order ${now.sort((a, b) => b.P - a.P).slice(0, 2).map(x => x.short).join(" or ")}</span>`;
     return `${ok[0].short} safe from ${fcDay(ok[0].t)}`;
   }
   function forecastBoard(al) {
     const fc = cashForecast(al);
-    let h = `<div class="board"><h3 class="rh">Cash, next 14 days <span class="note">captured cash + flight profit from the last day's bank statement − every scheduled lease payment and week-end closing (repeated weekly beyond what the game lists) · an order is "safe" when ${CUSHION.toFixed(1)}M stays in hand at the lowest point afterwards</span></h3>`;
+    let h = `<div class="board"><h3 class="rh">Cash, next 14 days <span class="note">captured cash + flight profit from the last day's bank statement − every scheduled lease payment and week-end closing (repeated weekly beyond what the game lists) · an order is "safe" when ${CUSHION.toFixed(1)}M stays in hand at the lowest point afterwards, counting its own weekly lease from 7 days after it arrives (taken as the day it's ordered)</span></h3>`;
     if (!fc) return h + `<div class="dim">Needs a capture for ${esc(al)}: balance sheet, events and bank statement.</div></div>`;
     if (fc.missing) return h + `<div class="dim">Cash ${fc.cash0.toFixed(2)}M captured. The forecast also needs ${esc(fc.missing)}.</div></div>`;
     const W = 900, H = 190, pad = 34, t1 = fc.t0 + 14 * DAYMS, vs = fc.pts.map(p => p.v), lo = Math.min(0, ...vs, CUSHION), hi = Math.max(...vs) * 1.08 + 0.01;
@@ -2231,7 +2217,7 @@ function makeModel(DATA, state) {
       ${fc.pay.map(p => `<line x1="${X(p.t)}" x2="${X(p.t)}" y1="${H - 22}" y2="${H - 28 - Math.min(14, p.m * 12)}" stroke="${p.repeat ? "#C3C9D9" : "#8B96A8"}" stroke-width="2"><title>${esc(fcDay(p.t))} · ${p.m.toFixed(2)}M · ${esc(fcWhat(p.what))}${p.repeat ? " (expected, weekly)" : ""}</title></line>`).join("")}
       <circle cx="${X(fc.low.t)}" cy="${Y(fc.low.v)}" r="4.5" fill="${fc.low.v < CUSHION ? "#B4234B" : "#3B3FD8"}"/><text x="${Math.min(W - pad - 60, X(fc.low.t) + 8)}" y="${Y(fc.low.v) + 15}" font-size="11" fill="#0A1230">low ${fc.low.v.toFixed(2)}M</text>
       <text x="${X(fc.t0) + 4}" y="${Y(fc.cash0) - 7}" font-size="11" fill="#0A1230">${fc.cash0.toFixed(2)}M</text></svg>`;
-    const safe = fc.safe.map(x => `<span class="pill ${x.d === 0 ? "ok" : x.d != null ? "mute" : "warn"} sm">${esc(x.short)} (${x.P.toFixed(2)}M with cabin): ${x.d === 0 ? "now" : x.d != null ? "from " + esc(fcDay(x.t)) : "not within 14 days"}</span>`).join(" ");
+    const safe = fc.safe.map(x => `<span class="pill ${x.d === 0 ? "ok" : x.d != null ? "mute" : "warn"} sm">${esc(x.short)} (${x.P.toFixed(2)}M with cabin, lease ${x.L.toFixed(2)}M a week${x.leaseSeen ? "" : " est."}): ${x.d === 0 ? "now" + (x.n > 1 ? `, up to ${x.n}${x.n >= 9 ? "+" : ""}` : "") : x.d != null ? "from " + esc(fcDay(x.t)) : "not within 14 days"}</span>`).join(" ");
     h += svg + `<div class="fcfacts"><span>Cash at capture <b>${fc.cash0.toFixed(2)}M</b> <span class="dim">(${esc(fcDay(fc.t0))} ${new Date(fc.t0).toISOString().slice(11, 16)} UTC)</span></span>
       <span>Flight profit <b>${fc.opsDay >= 0 ? "+" : "−"}${Math.abs(fc.opsDay).toFixed(2)}M a day</b> <span class="dim">before leases · ${Math.round(fc.perFlight * 1000)}k a flight × ${fc.fpd.toFixed(0)} flights</span></span>
       <span>Payments, next 7 days <b>${fc.payWeek.toFixed(2)}M</b></span>
@@ -2964,7 +2950,6 @@ function makeModel(DATA, state) {
     // upcoming
     const up = tailChecks().filter(c => c.status === "upcoming"); const byDay = {}; for (const c of up) (byDay[c.due] = byDay[c.due] || []).push(c.t.id);
     const byDel = {}; for (const d of deliveryRows()) if (d.status === "on order" && d.due && d.inDays <= 7) (byDel[d.due] = byDel[d.due] || []).push(d.reg + (d.plan ? " (" + d.plan + ")" : ""));
-    const nextMonthly = [...als.map(al => monthlyStatus(al, "salaries").due), monthlyStatus("Equinox", "netlify").due].filter(Boolean).sort()[0];
     const events = [];
     for (const [d, ids] of Object.entries(byDay)) events.push({ date: d, time: "", type: "check", text: ids.join(", "), sort: d + "T0000" });
     // deliveries are listed in "Aircraft on order" under the map, not in Coming up
