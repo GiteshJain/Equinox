@@ -9,7 +9,7 @@ Status: **decided**, **open**, or **dropped**.
 | 1 | Private GitHub repository `equinox` as the single home for code, database changes, scripts, tests and docs | **decided** 8 Oct 2026 |
 | 2 | Building through Claude Code and the repository: every change as a reviewable pull request | **decided** 8 Oct 2026 |
 | 3 | A claude.ai "Equinox" project with its own instructions and reference files | **decided** 8 Oct 2026 |
-| 4 | Operating manual and decision log: every rule and the reason behind each decision in one place | open |
+| 4 | Operating manual and decision log: every rule and the reason behind each decision in one place | **decided** 8 Oct 2026 |
 | 5 | A standard decision brief (background, options, growth and profit side by side, risks, recommendation) | open |
 | 6 | Backups now, and where they are kept (there are none on the current database plan) | open |
 
@@ -63,6 +63,14 @@ Status: **decided**, **open**, or **dropped**.
   known about Equinox keeps applying. Existing Equinox chats are moved into it (Add to project) so they stay searchable;
   from then on, a new chat per kind of work: scheduling, the Saturday review, the monthly work, and building. The
   project's instructions are kept in `docs/project-instructions.md`.
+- **8 Oct 2026 · #4 Operating manual.** Every rule in force lives in one file, `docs/operating-manual.md`, with the
+  date it started and the reason, plus a list of retired rules so they don't come back. A copy sits in the Equinox
+  project's files so every chat reads it. Where the manual and memory disagree, the manual wins; memory is background
+  only. When a rule changes in any chat, that chat updates the manual (and the project copy) in the same turn and moves
+  the old rule to Retired; agreed rule changes are committed directly, like decision-log entries. The project
+  instructions become a short pointer to the manual. This file stays the log of foundation decisions. Reason: rules
+  were spread across memory, the planner, to-do notes and the instructions; the main memory file was full and held
+  old rules next to new ones, and a scheduling chat used the retired surplus method to recommend orders.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
