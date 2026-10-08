@@ -18,6 +18,9 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh
   approves by saying "merge"; merging is what makes it live. *Since 8 Oct (decision #2) · why: the code's only copy
   was the live site, and a workspace reset wiped the working copy.*
+- **Hosting:** the website and planner are on Cloudflare Pages (free plan) at `equinox-alliance.pages.dev`; merging to
+  `main` publishes them, and Cloudflare builds a preview of every pull request. The schedule check is a Pages Function
+  (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with unlimited deploys and previews.*
 - **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*
@@ -170,7 +173,7 @@ Every rule in force for the equinox. group, with the date it started and why. De
   the code repository. The planner warns on Home if there's no good copy from the last 30 hours. To recover, see the
   README in `equinox-backups`. *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
-  strategy session, and the Netlify credits check. *Since 8 Oct.*
+  strategy session. *Since 8 Oct.*
 
 ## 8. Writing, website and newsroom
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options
@@ -219,6 +222,7 @@ Kept so they don't come back. Newest first.
 | 8 Oct | Fable for business decisions | Opus for everything |
 | 8 Oct | Weekly report and roundup on Mondays | Saturdays |
 | 8 Oct | Monthly staff-salary review | The nightly capture sets salaries to 10% above the country average |
+| 8 Oct | Monthly Netlify credits check | The site moved to Cloudflare's free plan (#7) |
 | 8 Oct | A new base waits until there's money for 2–3 aircraft | Hubs first: the main hub reaches 750 weekly departures (§3) |
 | 7 Oct | Surplus = cash − fixed costs due in the next 7 days | The cash forecast (§3) |
 | 7 Oct | Every aircraft flies at least 10 hours a day | As much as possible, no floor (§4) |

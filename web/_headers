@@ -1,0 +1,11 @@
+# Cloudflare Pages headers (decision #7; replaces netlify.toml). The schedule function sets its own headers.
+/*
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+
+/
+  Cache-Control: no-cache
+
+/planner/*
+  Cache-Control: no-cache

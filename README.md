@@ -5,7 +5,8 @@ the database structure, the scripts that build reports and plans, and the nightl
 
 | Folder | What's in it |
 |---|---|
-| `web/` | The public website and the planner (`web/planner/`), as deployed today |
+| `web/` | The public website and the planner (`web/planner/`), published by Cloudflare Pages from `main` |
+| `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
 | `database/migrations/` | Every database change, in the order it was applied |
 | `database/current/` | Today's definitions of all database functions and views (the source of truth until the rebuild) |
 | `scripts/` | Weekly report, newsletter, world scanner, schedule optimiser |

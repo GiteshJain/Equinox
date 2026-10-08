@@ -1803,7 +1803,7 @@ function makeModel(DATA, state) {
     return out;
   }
   const MONTHLY = [];   // per-airline monthly checks (staff salaries dropped 8 Oct: the nightly capture sets them)
-  const MONTHLY_GROUP = [{ id: "netlify", label: "Netlify credits", hint: "app.netlify.com → team → Billing: production deploys cost 15 credits each out of 300 a month; ask Claude to batch changes if it's running high" }];
+  const MONTHLY_GROUP = [];   // group-wide monthly checks (the Netlify credits check ended 8 Oct: the site moved to Cloudflare Pages)
   const addMonths = (s, n) => { const [y, m, d] = s.split("-").map(Number); const x = new Date(y, m - 1 + n, d); if (x.getDate() !== d) x.setDate(0); return iso(x); };
   function monthlyStatus(al, task) { const last = ((state.monthly || {})[al] || {})[task]; if (!last) return { last: null, due: today(), status: "due" };
     const due = addMonths(last, 1); return { last, due, status: today() >= due ? "due" : "ok" }; }
@@ -1926,7 +1926,7 @@ function makeModel(DATA, state) {
         <td style="text-align:right"><button class="${s.status === "due" ? "primary sm" : "secondary sm"}" data-monthly="Equinox|${task.id}">Mark checked</button></td></tr>`; }
     return `<div class="board"><h3 class="rh">Monthly checks <span class="note">once a month · ${dueN ? dueN + " due now" : "all up to date"}</span></h3>
       <table class="tbl"><tr><th>Airline</th><th>Check</th><th>Last done</th><th>Status</th><th></th></tr>${rows}</table>
-      <div class="note">Netlify credits: ${MONTHLY_GROUP[0].hint}. Marking a check sets the next one a month later.</div></div>`;
+      <div class="note">Marking a check sets the next one a month later.</div></div>`;
   }
   function cashFor(al) {   // latest reported cash and the one before it
     const days = Object.keys(state.cash || {}).filter(d => state.cash[d] && state.cash[d][al] != null).sort();
