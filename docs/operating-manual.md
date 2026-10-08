@@ -18,9 +18,11 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh
   approves by saying "merge"; merging is what makes it live. *Since 8 Oct (decision #2) · why: the code's only copy
   was the live site, and a workspace reset wiped the working copy.*
-- **Hosting:** the website and planner are on Cloudflare Pages (free plan) at `equinox-alliance.pages.dev`; merging to
-  `main` publishes them, and Cloudflare builds a preview of every pull request. The schedule check is a Pages Function
-  (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with unlimited deploys and previews.*
+- **Hosting:** the website and planner are on Cloudflare Pages (free plan) at `equinox-alliance.com`, our own domain,
+  registered at Cloudflare at cost and renewing automatically each October. `equinox-alliance.pages.dev` also works.
+  Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
+  The schedule check is a Pages Function (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with
+  unlimited deploys and previews; our own address survives any future change of host.*
 - **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*
@@ -44,7 +46,7 @@ Every rule in force for the equinox. group, with the date it started and why. De
   |---|---|
   | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
   | Saturday review | Weekly report, connection audit, newsroom roundup, fare plan, the weekly review |
-  | Monthly | Monthly report, gander monthly, strategy (bases, focus cities, holdings, long-term direction), Netlify credits |
+  | Monthly | Monthly report, gander monthly, strategy (bases, focus cities, holdings, long-term direction) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *Since early Oct.*
