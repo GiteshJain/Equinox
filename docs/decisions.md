@@ -78,12 +78,13 @@ Status: **decided**, **open**, or **dropped**.
   rule, logging an order, marking a to-do) is not a decision and gets no brief. Reason: almost every decision spends
   cash or opportunity (an aircraft's hours, a hub's slots), so each deserves full attention; leading with the answer
   keeps it readable on a phone.
-- **8 Oct 2026 · #6 Backups.** A nightly copy of the whole database (all tables, sign-in users, the migration record)
-  and the site's files goes to a separate private repository, `equinox-backups`, run by a GitHub Action after the
-  nightly capture. Each copy is restored into an empty database to prove it works, and each night's result is
-  reported. The backup job lives in that repository (it holds the database secret); the code repository never holds
-  live data. Supabase stays on the free plan; its paid plan stays decision #17. Reason: there were no backups at all,
-  the whole planner is one overwritten row, and this costs nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
+- **8 Oct 2026 · #6 Backups.** A nightly copy of the whole database (every table except the key tables, plus the
+  migration record; sign-in data is left out on purpose) and the site's files goes to a separate private repository,
+  `equinox-backups`, run by a GitHub Action after the nightly capture. Each copy is restored into an empty database
+  to prove it works, and each night's result is reported. The backup job lives in that repository (it holds the
+  database secret); the code repository never holds live data. Supabase stays on the free plan; its paid plan stays
+  decision #17. Reason: there were no backups at all, the whole planner is one overwritten row, and this costs
+  nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
 - **8 Oct 2026 · #7 Hosting.** The website and planner move from Netlify to Cloudflare Pages (free plan), at our own
   domain `equinox-alliance.com` (option B), deployed from the repository: merging to `main` publishes, and every pull
   request gets a preview. The domain is registered at Cloudflare at cost (about $10.46 a year, renewing automatically);
