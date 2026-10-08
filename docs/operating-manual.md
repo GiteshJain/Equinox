@@ -165,6 +165,9 @@ Every rule in force for the equinox. group, with the date it started and why. De
   - the weekly review together, including the fare plan.
 
   *Since 5–8 Oct.*
+- **Every night, after the capture:** an automatic backup copies the database and the site's files to the private
+  repository `equinox-backups`, restores the copy to prove it works, and reports the result. Live data never goes into
+  the code repository. *Since 8 Oct (#6), being set up · why: there were no backups, and the planner is one row.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session, and the Netlify credits check. *Since 8 Oct.*
 

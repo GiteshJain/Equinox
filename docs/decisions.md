@@ -11,7 +11,7 @@ Status: **decided**, **open**, or **dropped**.
 | 3 | A claude.ai "Equinox" project with its own instructions and reference files | **decided** 8 Oct 2026 |
 | 4 | Operating manual and decision log: every rule and the reason behind each decision in one place | **decided** 8 Oct 2026 |
 | 5 | A standard decision brief (background, options, growth and profit side by side, risks, recommendation) | **decided** 8 Oct 2026 |
-| 6 | Backups now, and where they are kept (there are none on the current database plan) | open |
+| 6 | Backups now, and where they are kept (there are none on the current database plan) | **decided** 8 Oct 2026 |
 
 ## Step 2 — Foundations (decide before any building)
 | # | Decision | Status |
@@ -78,6 +78,12 @@ Status: **decided**, **open**, or **dropped**.
   rule, logging an order, marking a to-do) is not a decision and gets no brief. Reason: almost every decision spends
   cash or opportunity (an aircraft's hours, a hub's slots), so each deserves full attention; leading with the answer
   keeps it readable on a phone.
+- **8 Oct 2026 · #6 Backups.** A nightly copy of the whole database (all tables, sign-in users, the migration record)
+  and the site's files goes to a separate private repository, `equinox-backups`, run by a GitHub Action after the
+  nightly capture. Each copy is restored into an empty database to prove it works, and each night's result is
+  reported. The backup job lives in that repository (it holds the database secret); the code repository never holds
+  live data. Supabase stays on the free plan; its paid plan stays decision #17. Reason: there were no backups at all,
+  the whole planner is one overwritten row, and this costs nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
