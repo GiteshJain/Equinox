@@ -16,7 +16,7 @@ Status: **decided**, **open**, or **dropped**.
 ## Step 2 — Foundations (decide before any building)
 | # | Decision | Status |
 |---|---|---|
-| 7 | Hosting: move to Cloudflare Pages or stay on Netlify (paid tier); and our own domain name | open |
+| 7 | Hosting: move to Cloudflare Pages or stay on Netlify (paid tier); and our own domain name | **decided** 8 Oct 2026 |
 | 8 | Preview before live: every change gets a preview link; database changes tried on a copy first | open |
 | 9 | Automatic tests on every change, blocking anything that breaks | open |
 | 10 | Documentation: README, architecture notes, what each table means | open |
@@ -84,6 +84,12 @@ Status: **decided**, **open**, or **dropped**.
   reported. The backup job lives in that repository (it holds the database secret); the code repository never holds
   live data. Supabase stays on the free plan; its paid plan stays decision #17. Reason: there were no backups at all,
   the whole planner is one overwritten row, and this costs nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
+- **8 Oct 2026 · #7 Hosting.** The website and planner move from Netlify to Cloudflare Pages (free plan), at
+  `equinox-alliance.pages.dev`, deployed from the repository: merging to `main` publishes, and every pull request gets
+  a preview. No domain for now (option D); one can be added later without rework, for example if the planner-only
+  version for other players goes ahead. Netlify's $9-a-month plan is cancelled once the switch is done. Reason: free
+  hosting with unlimited deploys and previews instead of 15 credits per deploy, and no links have been shared yet, so
+  the address can change at no cost. Brief: `docs/briefs/2026-10-08-hosting.md`.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
