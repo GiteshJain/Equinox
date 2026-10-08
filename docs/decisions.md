@@ -8,7 +8,7 @@ Status: **decided**, **open**, or **dropped**.
 |---|---|---|
 | 1 | Private GitHub repository `equinox` as the single home for code, database changes, scripts, tests and docs | **decided** 8 Oct 2026 |
 | 2 | Building through Claude Code and the repository: every change as a reviewable pull request | **decided** 8 Oct 2026 |
-| 3 | A claude.ai "Equinox" project with its own instructions and reference files | open |
+| 3 | A claude.ai "Equinox" project with its own instructions and reference files | **decided** 8 Oct 2026 |
 | 4 | Operating manual and decision log: every rule and the reason behind each decision in one place | open |
 | 5 | A standard decision brief (background, options, growth and profit side by side, risks, recommendation) | open |
 | 6 | Backups now, and where they are kept (there are none on the current database plan) | open |
@@ -59,3 +59,7 @@ Status: **decided**, **open**, or **dropped**.
   what makes it live, replacing the old "ask before any deploy" step. Any change can be undone by reverting its pull
   request. Data-only changes (plan cards, to-dos, notes) still go straight into the planner. Decision-log entries for
   decisions already agreed in chat are committed directly.
+- **8 Oct 2026 · #3 Equinox project.** A claude.ai project named "Equinox" with memory connected, so everything already
+  known about Equinox keeps applying. Existing Equinox chats are moved into it (Add to project) so they stay searchable;
+  from then on, a new chat per kind of work: scheduling, the Saturday review, the monthly work, and building. The
+  project's instructions are kept in `docs/project-instructions.md`.
