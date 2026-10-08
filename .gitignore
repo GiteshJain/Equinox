@@ -1,0 +1,14 @@
+# secrets and local files never go into the repository
+.env
+.env.*
+*.key
+.capture_key
+.ingest_secret
+.sb_anon
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+# live data stays in the database
+*.json.local
+data_exports/

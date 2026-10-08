@@ -1,0 +1,37 @@
+# Reconstructed on 8 Oct 2026 from the live site's behaviour (the original was lost with a workspace reset).
+# To verify against the source copy Netlify kept of deploy 6ac731b5d4c34c02a329f9c3.
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/game-schedule"
+  to = "/.netlify/functions/game-schedule"
+  status = 200
+
+[[redirects]]
+  from = "/planner"
+  to = "/planner/"
+  status = 301
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/planner/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
