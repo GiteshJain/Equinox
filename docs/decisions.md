@@ -10,7 +10,7 @@ Status: **decided**, **open**, or **dropped**.
 | 2 | Building through Claude Code and the repository: every change as a reviewable pull request | **decided** 8 Oct 2026 |
 | 3 | A claude.ai "Equinox" project with its own instructions and reference files | **decided** 8 Oct 2026 |
 | 4 | Operating manual and decision log: every rule and the reason behind each decision in one place | **decided** 8 Oct 2026 |
-| 5 | A standard decision brief (background, options, growth and profit side by side, risks, recommendation) | open |
+| 5 | A standard decision brief (background, options, growth and profit side by side, risks, recommendation) | **decided** 8 Oct 2026 |
 | 6 | Backups now, and where they are kept (there are none on the current database plan) | open |
 
 ## Step 2 — Foundations (decide before any building)
@@ -71,6 +71,13 @@ Status: **decided**, **open**, or **dropped**.
   instructions become a short pointer to the manual. This file stays the log of foundation decisions. Reason: rules
   were spread across memory, the planner, to-do notes and the instructions; the main memory file was full and held
   old rules next to new ones, and a scheduling chat used the retired surplus method to recommend orders.
+- **8 Oct 2026 · #5 Decision brief.** Every decision gets the full brief (option A), in every chat: decision and
+  recommendation first, then an options table (growth, profit a week, cash at the lowest point, opportunity cost, risk,
+  easy to undo), the background with sources and competition, scenarios and the risk of waiting, and what would change
+  the recommendation. Each brief is saved in `docs/briefs/`. Applying an existing rule (a retime under the connection
+  rule, logging an order, marking a to-do) is not a decision and gets no brief. Reason: almost every decision spends
+  cash or opportunity (an aircraft's hours, a hub's slots), so each deserves full attention; leading with the answer
+  keeps it readable on a phone.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across

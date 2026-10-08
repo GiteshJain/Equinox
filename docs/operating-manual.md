@@ -23,6 +23,11 @@ Every rule in force for the equinox. group, with the date it started and why. De
   he reports back. *Since 30 Sep.*
 - **One-week aircraft checks are Gitesh's,** done in the game (the flights really run as scheduled, no issues). Claude
   never marks them checked. *Since 2 Oct.*
+- **Every decision gets the full brief** (format in `docs/briefs/README.md`): decision and recommendation first; then
+  an options table with growth, profit a week, cash at the lowest point, opportunity cost, risk and whether it's easy to
+  undo; then the background with sources and competition, scenarios and the risk of waiting, and what would change the
+  recommendation. Save it in `docs/briefs/`. Applying an existing rule is not a decision and gets no brief.
+  *Since 8 Oct (#5) · why: almost every decision spends cash or opportunity, so each deserves full attention.*
 - **Facts first.** Pull the numbers from the database and captures before advising, and say where they came from.
   Never guess a current fact. *Since 8 Oct.*
 - **No keys or passwords** in the repository, files or chat. Keys live in the database or as GitHub secrets.
