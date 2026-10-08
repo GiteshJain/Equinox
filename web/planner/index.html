@@ -2116,7 +2116,7 @@ function makeModel(DATA, state) {
     return h;
   }
   // ================= CAPTURE (data sent by the one-click capture from the game) =================
-  const CAP = { runs: [], loads: {}, bal: [], events: [], ops: {}, pnl: [], at: 0, err: "" };   // loads keyed "date|Airline|flight number"
+  const CAP = { runs: [], loads: {}, bal: [], events: [], ops: {}, pnl: [], backup: [], backupLoaded: false, at: 0, err: "" };   // loads keyed "date|Airline|flight number"
   const CAP_KINDS = [["loads", "Loads"], ["statement", "Statement"], ["events", "Events"], ["pnl", "Income"], ["balance", "Balance"]];
   const CAP_HOME = { "Pan American": "JFK", "Kingfisher": "DEL", "Ryanair": "CDG", "Virgin Atlantic": "LGW", "China Eastern": "PVG", "Malaysia Airlines": "KUL" };   // the events page shows times at the airline's home
   const utcDay = (n = 0) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
@@ -2135,6 +2135,8 @@ function makeModel(DATA, state) {
       CAP.runs = runs; CAP.loads = {};
       for (const r of lds) CAP.loads[r.flight_date + "|" + r.airline + "|" + String(r.code || "").replace(/^\D+/, "").trim()] = r;
       const seen = new Set(); CAP.bal = bal.filter(b => { const k = b.airline + "|" + b.captured_on; if (seen.has(k)) return false; seen.add(k); return true; });   // latest capture per airline and day
+      try { const { data, error } = await sb.from("backup_runs").select("ran_at,kind,ok,tables,rows,files,bytes,note").order("ran_at", { ascending: false }).limit(10);   // the nightly backup's results (decision #6)
+        if (!error) { CAP.backup = data || []; CAP.backupLoaded = true; } } catch (e) {}
       CAP.events = evs; CAP.at = Date.now(); CAP.err = ""; return true;
     } catch (e) { CAP.err = (e && e.message) || String(e); CAP.at = Date.now(); return false; }
   }
@@ -2408,7 +2410,13 @@ function makeModel(DATA, state) {
       const miss = CAP_KINDS.filter(([k]) => !run(al, k, d0)).map(k => k[1]);
       h += `<tr><td>${lv(al)}<b>${esc(al)}</b></td>${cells}<td class="num">${nFl(al, d0) || "—"}</td><td class="num">${nFl(al, d1) || "—"}</td><td>${miss.length === CAP_KINDS.length ? `<span class="pill warn">not captured</span>` : miss.length ? `<span class="pill warn">missing ${esc(miss.join(", "))}</span>` : `<span class="pill ok">complete</span>`}</td></tr>`;
     }
-    return h + `</table><div class="note">Flights are counted by their departure date (local time), as the game lists them.</div></div>`;
+    return h + `</table><div class="note">Flights are counted by their departure date (local time), as the game lists them.</div>${backupLine()}</div>`;
+  }
+  function backupLine() {   // last night's backup, from the backup job's own report
+    if (!CAP.backupLoaded) return ""; const b = CAP.backup.find(x => x.kind !== "test"); if (!b) return `<div class="note">Backup: no copy yet. The first runs tonight.</div>`;
+    const when = `${niceDate(String(b.ran_at).slice(0, 10))} ${String(b.ran_at).slice(11, 16)} UTC`;
+    return b.ok ? `<div class="note">Backup: copied ${esc(when)} · ${b.tables ?? "?"} tables, ${b.rows != null ? Number(b.rows).toLocaleString("en-US") : "?"} rows, ${b.files ?? "?"} files · restore check passed</div>`
+      : `<div class="note"><span class="pill bad sm">Backup failed</span> ${esc(when)} · ${esc(String(b.note || "").slice(0, 200))}</div>`;
   }
   function renderReview() {
     const r = state.ref; if (!ui.lfDate) ui.lfDate = new Date().toISOString().slice(0, 10);   // the report pulled today (UTC) completes today's departures if (!ui.lfAirline) ui.lfAirline = "";
@@ -2900,7 +2908,7 @@ function makeModel(DATA, state) {
       ${done.length || older ? `<details class="tdone"><summary>${done.length} done in the last 7 days${older ? ` · ${older} older hidden` : ""}</summary><ul class="todo">${done.map(item).join("")}</ul></details>` : ""}</div>`;
   }
   // ---- needs attention, grouped: one line per kind, opening to its items
-  const ATT_KIND = { capture: "Capture", todo: "To-dos", check: "One-week checks due", maint: "Maintenance", turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix", order: "Can order", monthly: "Monthly checks", interline: "Interline" };
+  const ATT_KIND = { capture: "Capture", backup: "Backup", todo: "To-dos", check: "One-week checks due", maint: "Maintenance", turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix", order: "Can order", monthly: "Monthly checks", interline: "Interline" };
   const attKind = a => { const k = (a.key || "").split("|")[0]; if (ATT_KIND[k]) return k;
     const t = a.text || ""; return /one-week check/.test(t) ? "check" : /check due/.test(t) ? "monthly" : /short turn|wrong position/.test(t) ? "turn" : /night ban/.test(t) ? "ban" : /used twice/.test(t) ? "clash" : /the cap is/.test(t) ? "cap" : /nterline/.test(t) ? "interline" : "other"; };
   function attGrouped(att) {
@@ -2945,6 +2953,9 @@ function makeModel(DATA, state) {
       const capAls = airlines().filter(a => CAP_HOME[a]), old = capAls.map(a => ({ a, h: last[a] ? (Date.now() - last[a]) / 36e5 : null })).filter(x => x.h == null || x.h > 26);
       if (old.length) { const worst = Math.max(...old.map(x => x.h == null ? 99 : x.h));
         att.push({ key: "capture|" + today(), cls: worst > 48 ? "bad" : "warn", view: "review", text: old.length === capAls.length ? `No capture for ${worst >= 99 ? "over 2 days" : Math.round(worst) + " hours"}: open the game and press Capture all airlines` : `Not captured for over a day: ${old.map(x => x.a).join(", ")}. Press Capture all airlines in the game` }); } }
+    if (CAP.backupLoaded) { const B = CAP.backup.filter(b => b.kind !== "test"), good = B.find(b => b.ok), hrs = good ? (Date.now() - Date.parse(good.ran_at)) / 36e5 : null;
+      if (hrs == null || hrs > 30) att.push({ key: "backup|" + today(), cls: hrs == null && !B.length ? "mute" : hrs == null || hrs > 54 ? "bad" : "warn", view: "review",
+        text: good ? `Backup: last good copy ${Math.round(hrs)} hours ago${B[0] && !B[0].ok ? " (the last run failed)" : ""}` : B.length ? "Backup: no good copy yet (the last run failed)" : "Backup: no copy yet; the first runs tonight" }); }
     for (const al of als) { const now = orderNow(al); if (now.length) att.push({ key: "order|" + al + "|" + today(), cls: "ok", view: "finance", text: `${al} can safely order: ${now.join(", ")}` }); }
     for (const td of (state.todos || [])) if (!td.done && td.date && td.date <= today()) att.push({ key: "todo|" + td.id, cls: td.date < today() ? "bad" : "warn", text: `To-do${td.date < today() ? " (overdue)" : ""}: ${td.title}`, view: "home" });
     // upcoming
