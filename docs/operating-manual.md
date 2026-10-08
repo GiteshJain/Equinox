@@ -167,7 +167,8 @@ Every rule in force for the equinox. group, with the date it started and why. De
   *Since 5–8 Oct.*
 - **Every night, after the capture:** an automatic backup copies the database and the site's files to the private
   repository `equinox-backups`, restores the copy to prove it works, and reports the result. Live data never goes into
-  the code repository. *Since 8 Oct (#6), being set up · why: there were no backups, and the planner is one row.*
+  the code repository. The planner warns on Home if there's no good copy from the last 30 hours. To recover, see the
+  README in `equinox-backups`. *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session, and the Netlify credits check. *Since 8 Oct.*
 
