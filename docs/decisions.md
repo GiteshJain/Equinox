@@ -63,3 +63,10 @@ Status: **decided**, **open**, or **dropped**.
   known about Equinox keeps applying. Existing Equinox chats are moved into it (Add to project) so they stay searchable;
   from then on, a new chat per kind of work: scheduling, the Saturday review, the monthly work, and building. The
   project's instructions are kept in `docs/project-instructions.md`.
+
+## Ideas to weigh when their decisions come up
+- **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
+  several worlds, often only one or two airlines per player, no AI required. To weigh at #11 (roles: separate accounts
+  with their own data) and #14 (multi-world). Implication if adopted: design the data model for many players, worlds
+  and small groups from the start, with Equinox as one account and the website as a layer on top. AirlineSim's
+  permission would be needed before opening it to others.
