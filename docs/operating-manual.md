@@ -30,6 +30,11 @@ Every rule in force for the equinox. group, with the date it started and why. De
   sets the live migration record to the file's version, so the repository and live keep the same list.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
+- **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
+  every planner screen, look-only previews and the planner's key numbers against saved answers; every website page).
+  **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
+  meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
+  update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*
 - **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*

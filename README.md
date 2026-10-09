@@ -11,7 +11,7 @@ the database structure, the scripts that build reports and plans, and the nightl
 | `database/current/` | Today's definitions of all database functions and views (the source of truth until the rebuild) |
 | `scripts/` | Weekly report, newsletter, world scanner, schedule optimiser |
 | `capture/` | The one-button capture userscript and the bookmark (keys are placeholders) |
-| `tests/` | Browser tests for the planner |
+| `tests/` | The automatic checks run on every pull request (see `tests/README.md`) |
 | `docs/` | Decisions, design and the operating manual |
 
 **Never committed:** keys, passwords and live game data. Keys live in the database or as GitHub secrets;
