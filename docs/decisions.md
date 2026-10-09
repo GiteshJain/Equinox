@@ -26,6 +26,7 @@ Status: **decided**, **open**, or **dropped**.
 ## Step 3 — Data model (decide before the data-model build)
 | # | Decision | Status |
 |---|---|---|
+| 26 | Where building happens: Claude Code sessions for the rebuild, this chat for decisions (decide first, after a trial build) | open |
 | 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | open |
 | 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | open |
 | 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | open |
@@ -109,6 +110,9 @@ Status: **decided**, **open**, or **dropped**.
   game data in the code repository" (never the database, keys or sign-in data). Reason: nothing ran by itself, and 9 of
   the 11 tests depended on files lost in the reset. No lock on `main` (that needs GitHub Pro and would force every rule
   change through a pull request). Brief: `docs/briefs/2026-10-08-tests.md`.
+- **8 Oct 2026 · Added #26.** Whether building moves to Claude Code. Reason: from #13 the work is large and splits
+  into many pull requests, and one long chat loses detail as it fills up. Decided before #13 with a full brief and one
+  trial build done together. Until then, decisions and the small builds (#10 to #12) stay in this chat.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
