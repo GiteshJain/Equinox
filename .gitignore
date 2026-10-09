@@ -14,3 +14,5 @@ __pycache__/
 data_exports/
 .wrangler/
 node_modules/
+# a downloaded backup copy (database/backup/download.sh .backup) is live data
+.backup/

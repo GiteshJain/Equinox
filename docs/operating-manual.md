@@ -18,7 +18,8 @@ data-only changes still go into `planner_state`.
 - **#13:** the planner's data moves into proper tables. The old planner runs on an adapter until #18.
 - **#14:** every row carries its world and airline, and each world's rules are data.
 - **#15:** a change log and daily snapshots.
-- **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.
+- **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2. Backups are moving
+  first, ahead of the rest (§7).
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
@@ -218,10 +219,15 @@ Details and open points: `docs/decisions.md`.
   - the weekly review together, including the fare plan.
 
   *Since 5–8 Oct.*
-- **Every night, after the capture:** an automatic backup copies the database and the site's files to the private
-  repository `equinox-backups`, restores the copy to prove it works, and reports the result. Live data never goes into
-  the code repository (small test samples aside, see §1). The planner warns on Home if there's no good copy from the last 30 hours. To recover, see the
-  README in `equinox-backups`. *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
+- **Every night, after the capture:** an automatic backup copies the database and the site's files, restores the copy
+  to prove it works, uploads it to Cloudflare R2 and reports the result. Each night's copy is kept 30 days. The
+  month's first is kept for good, in R2 and as a file on a GitHub release in the private repository `equinox-backups`,
+  where the backup job lives. Until the move's last step (`equinox-backups` PR 3), each copy is also still committed
+  there. The database rehearsal reads last night's copy from R2 with a read-only key. Live data never goes into the
+  code repository (small test samples aside, see §1). The planner warns on Home if there's no good copy from the last
+  30 hours. To recover, see the README in `equinox-backups`. *Copies in R2 since 9 Oct (#16) · why: the single backup
+  file would pass GitHub's 50 MB warning around late November and its 100 MB limit around December or January.*
+  *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session. *Since 8 Oct.*
 
@@ -272,6 +278,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 9 Oct | Backups are kept as commits in the private repository `equinox-backups`, and the rehearsal reads them there with a GitHub key | Copies in Cloudflare R2: nightly for 30 days, monthly for good, plus a monthly GitHub release (§7, #16). Why: the single backup file was heading for GitHub's size limits |
 | 8 Oct | No game data at all in the code repository | Small dated test samples allowed in `tests/fixtures/` (#9) |
 | 8 Oct | Ask before every Netlify deploy | Pull requests; "merge" makes it live |
 | 8 Oct | Fable for business decisions | Opus for everything |

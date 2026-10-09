@@ -36,7 +36,7 @@ file. How the parts fit together: `docs/architecture.md`.
 
 ## backup_runs
 
-*Table.* One row per run of the nightly backup (decision #6): when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied. Written by the backup job in equinox-backups. Read by the planner's Capture board and the backup line on Home.
+*Table.* One row per run of the nightly backup (decision #6): when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied. The copies live in Cloudflare R2 (decision #16): each night's is kept 30 days, and the month's first is kept for good, also as a file on a monthly GitHub release in equinox-backups. Written by the backup job in equinox-backups. Read by the planner's Capture board and the backup line on Home.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -50,6 +50,7 @@ file. How the parts fit together: `docs/architecture.md`.
 | `bytes` | bigint |  |
 | `commit_sha` | text | The equinox-backups commit holding that night's copy |
 | `note` | text |  |
+| `object_key` | text | R2 key of that run's copy (from 9 Oct; earlier runs have commit_sha) |
 
 **Access:** backup job writes backup_runs: insert for postgres; planner staff read backup_runs: select for authenticated.
 

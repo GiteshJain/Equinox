@@ -9,7 +9,7 @@ result, with anything that failed, is posted as a comment on the pull request. W
 | Schedule check | `schedule_test.mjs` | The real `/api/game-schedule` function reads a saved game page right: the session cookie, the airline, all 48 flights and their fields, plus clear errors for bad links and game errors. |
 | Planner | `planner_test.py` | Every screen, each airline's Review page and the main pop-ups open with no errors. Previews save nothing while the live address saves. Loads by hand save only the days they change. The numbers that matter match the saved answers, and the leases match the manual. |
 | Website | `site_test.py` | Every public page opens with its content and no errors, and `/planner` reaches the planner. |
-| Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8): database changes applied to a copy of last night's backup, then every test in `database/tests/` run on that copy and rolled back. |
+| Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8): database changes applied to a copy of last night's backup (downloaded from Cloudflare R2 and checked), then every test in `database/tests/` run on that copy and rolled back. |
 
 Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.56 and its Chromium, and Node 22).
 
@@ -20,6 +20,21 @@ backup by `fixtures/make_sample.sh`. The tests freeze the clock at that moment, 
 
 These are the one exception to "no game data in the code repository" (decision #9). They are small and dated, and
 never hold the database, keys or sign-in data.
+
+**Getting a backup to make a sample from.** The nightly copies are in the Cloudflare R2 bucket `equinox-backups`
+(decision #16). You need the AWS CLI, jq and the R2 reader key (read-only). From the repository root:
+
+```bash
+export R2_ENDPOINT="https://<account id>.r2.cloudflarestorage.com"
+export AWS_ACCESS_KEY_ID="<reader key id>" AWS_SECRET_ACCESS_KEY="<reader secret>"
+bash database/backup/download.sh .backup   # latest.json, then the copy it names: checks the SHA-256 and unpacks it
+bash tests/fixtures/make_sample.sh .backup 2026-10-08T21:00:00Z
+rm -rf .backup                             # git ignores .backup/, but don't keep live data around
+```
+
+For an older night, download `nightly/equinox-backup-<date>T<time>Z.tar.gz` (kept 30 days) or
+`monthly/<YYYY-MM>.tar.gz` (kept for good) together with its `.sha256`, into one folder and with the same names. Check
+it with `sha256sum -c <file>.sha256`, then unpack it with `tar -xzf <file> -C <new folder>`.
 
 ## When an answer changes
 - **Unintended:** the check caught a bug, so fix it.

@@ -9,7 +9,7 @@ Run by the database rehearsal (#8) on every pull request that changes the databa
 import difflib, json, pathlib, sys
 
 GUIDE = pathlib.Path(__file__).resolve().parent.parent / "docs" / "data.md"
-NEVER_BACKED_UP = {"ingest_secret", "capture_keys", "report_access"}   # equinox-backups scripts/config.sh
+NEVER_BACKED_UP = {"ingest_secret", "capture_keys", "report_access"}   # SECRET_TABLES in database/backup/config.sh
 
 
 def render(d):

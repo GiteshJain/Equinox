@@ -1,7 +1,7 @@
 # Rehearses a pull request's database changes on a copy of last night's backup (decision #8).
-# Runs when a pull request adds or changes a migration or a database test, or changes this check. The result is
-# posted on the pull request; Claude applies a change to the live database only after it passes here and Gitesh says
-# "merge".
+# Runs when a pull request adds or changes a migration or a database test, or changes this check. The copy comes from
+# Cloudflare R2, read with a read-only key (decision #16). The result is posted on the pull request; Claude applies a
+# change to the live database only after it passes here and Gitesh says "merge".
 name: Database rehearsal
 
 on:
@@ -10,6 +10,7 @@ on:
       - "database/migrations/**"
       - "database/tests/**"
       - "database/rehearse.sh"
+      - "database/backup/**"
       - "database/describe.*"
       - "docs/data.md"
       - ".github/workflows/database-rehearsal.yml"
@@ -30,29 +31,23 @@ jobs:
       run:
         shell: bash   # bash -eo pipefail: a failing script fails its step even though its output goes through tee
     env:
-      BACKUPS_KEY: ${{ secrets.BACKUPS_READ_TOKEN }}   # read-only key for equinox-backups, held as a secret
       LOG: ${{ github.workspace }}/../rehearsal.log
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # to compare with the base branch
 
-      - name: Check the read-only key is set up
-        if: env.BACKUPS_KEY == ''
-        run: |
-          echo "The read-only key for the backups isn't set up yet (secret BACKUPS_READ_TOKEN; see the planner's To-do board)." | tee -a "$LOG"
-          exit 1
-
-      - name: Get last night's backup
-        uses: actions/checkout@v4
-        with:
-          repository: GiteshJain/equinox-backups
-          token: ${{ secrets.BACKUPS_READ_TOKEN }}
-          path: .backup
-          fetch-depth: 1
-          sparse-checkout: |
-            db
-            scripts
+      # Reads latest.json in R2, downloads the copy it names, checks its SHA-256 and unpacks it into .backup/ (db/,
+      # files/, MANIFEST.md, and latest.json, which says which night it is). Fails with a plain message if the R2
+      # reader keys aren't set up. The log names R2 keys (object names) only, never the endpoint or keys.
+      - name: Get last night's backup from R2
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_READ_ACCESS_KEY_ID }}       # the R2 reader key (read-only)
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_READ_SECRET_ACCESS_KEY }}
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required   # newer AWS CLIs add checksums that R2 can refuse
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: bash database/backup/download.sh .backup 2>&1 | tee -a "$LOG"
 
       - uses: supabase/setup-cli@v1
         with:
@@ -79,7 +74,7 @@ jobs:
             if [ "${{ job.status }}" = "success" ]; then echo "**Database rehearsal: passed**"; else echo "**Database rehearsal: failed**"; fi
             echo
             echo '```'
-            grep -vE '^\s*$' "$LOG" 2>/dev/null | sed -E 's#postgres(ql)?://[^[:space:]]*#[database]#g' | tail -n 60 || echo "no output: see the run's log"
+            grep -vE '^\s*$' "$LOG" 2>/dev/null | sed -E 's#postgres(ql)?://[^[:space:]]*#[database]#g; s#(https?://)?[[:alnum:].-]*\.r2\.cloudflarestorage\.com#[R2]#g' | tail -n 60 || echo "no output: see the run's log"
             echo '```'
           } > "$RUNNER_TEMP/comment.md"
           gh pr comment "${{ github.event.pull_request.number }}" --body-file "$RUNNER_TEMP/comment.md"

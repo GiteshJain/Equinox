@@ -86,7 +86,10 @@ Status: **decided**, **open**, or **dropped**.
   database secret); the code repository never holds live data. Supabase stays on the free plan; its paid plan stays
   decision #17. Reason: there were no backups at all, the whole planner is one overwritten row, and this costs
   nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
-  *Changes with #16 (9 Oct):* backups and archives move to Cloudflare R2 when that's built; until then this stands.
+  *Changes with #16 (9 Oct):* each night's copy goes to Cloudflare R2, kept 30 days; the month's first is kept for
+  good, in R2 and as a GitHub release file in `equinox-backups`. The rehearsal reads the copies from R2. The move is
+  complete once `equinox-backups` stops committing copies to git (its PR 3); until then they still go there too.
+  Archives move to R2 with the rest of #16. Spec: `docs/specs/2026-10-09-backups-to-r2.md`.
 - **8 Oct 2026 · #7 Hosting.** The website and planner move from Netlify to Cloudflare Pages (free plan), at our own
   domain `equinox-alliance.com` (option B), deployed from the repository: merging to `main` publishes, and every pull
   request gets a preview. The domain is registered at Cloudflare at cost (about $10.46 a year, renewing automatically);
@@ -103,7 +106,9 @@ Status: **decided**, **open**, or **dropped**.
   one could save into the live planner, and database changes were tried first on live. This costs nothing and needs no
   second database. A staging database or Supabase branching stays an option for the rebuild (#13, #17, #18).
   Brief: `docs/briefs/2026-10-08-previews.md`.
-  *Changes with #16 (9 Oct):* the rehearsal will read last night's backup from R2 once backups move there.
+  *Changes with #16 (9 Oct):* built. The rehearsal reads last night's backup from Cloudflare R2 with a read-only R2
+  key: `latest.json` names the copy, and its SHA-256 is checked before use. The GitHub key (`BACKUPS_READ_TOKEN`) is
+  no longer used.
 - **8 Oct 2026 · #9 Automatic tests.** Every pull request runs automatic checks: every planner screen opens with a
   saved day of data, key numbers match known answers (cash forecast and leases, route profit, fare plan, Review cards),
   the website pages and the schedule check work, no keys or passwords are in the code, plus the database rehearsal

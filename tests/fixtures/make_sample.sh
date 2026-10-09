@@ -3,7 +3,10 @@
 # moment in time, saved as tests/fixtures/sample_<date>.json.gz. Small and dated; never keys or sign-in data (the backup
 # leaves those out, and the secrets check runs over the result).
 #
-# Usage: tests/fixtures/make_sample.sh <equinox-backups checkout> <moment, UTC, e.g. 2026-10-08T21:00:00Z>
+# Usage: tests/fixtures/make_sample.sh <unpacked backup folder> <moment, UTC, e.g. 2026-10-08T21:00:00Z>
+# The folder holds db/ from a backup copy. The copies are in Cloudflare R2 (decision #16): get the latest with
+# database/backup/download.sh <folder> and the R2 reader key, which downloads latest.json and the copy it names, checks
+# the SHA-256 and unpacks it. tests/README.md has the steps, and how to get an older night.
 # Needs Docker, the Supabase CLI and psql 17 (or 16). Run from the repository root.
 set -euo pipefail
 backup=$(cd "$1" && pwd); at=$2
