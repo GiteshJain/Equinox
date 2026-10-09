@@ -279,13 +279,21 @@ An independent review of #1 to #16 and #26 together. Status of each point:
    - the old repository's history;
    - report PDFs in a private bucket the backup includes;
    - a second copy of archives outside Cloudflare.
-2. **Bring scheduled jobs (#22) and job monitoring (#23) forward.** #15's nightly snapshots and #16's monthly archive
+2. **Settled 9 Oct as part of #15 and #16** (Gitesh: it's the how of decisions already made, so Claude's call):
+   - the nightly snapshot and clean-ups run on Supabase's own scheduler (`pg_cron`), with a timed fallback at
+     10:00 UTC marked incomplete;
+   - the monthly archive runs in the nightly backup job with its existing keys, deleting only through a guarded
+     function after both copies are checked;
+   - every job writes to a `job_runs` table, and the planner warns on Home when one is late or failed.
+
+   Brief: `docs/briefs/2026-10-09-jobs.md`. As raised: **Bring scheduled jobs (#22) and job monitoring (#23) forward.** #15's nightly snapshots and #16's monthly archive
    need something to run them (`pg_cron` is available but not switched on), credentials narrower than the full database
    address (#11 kept no automation account), and a warning when they don't run. The first archive is due 1 Dec.
 3. **Done 9 Oct, in #17:** adapter saves are tried on a full local copy of Supabase in the checks. As raised: **Widen
    #17:** how the adapter's saves are tried before live, since previews can't save. That's either a second free
    Supabase project or the paid plan's test copies.
-4. **A 7th airline before #13 lands:** the old code marks a loads day complete at 6 airlines. Fix it now in one line,
+4. **Settled 9 Oct:** a note on the 31 Oct holdings to-do; if a 7th airline is added before #13 lands, that line is
+   fixed first. As raised: **A 7th airline before #13 lands:** the old code marks a loads day complete at 6 airlines. Fix it now in one line,
    or put a note on the 31 Oct holdings to-do.
 
 **Carried into the #13 design document** (no separate decision):
