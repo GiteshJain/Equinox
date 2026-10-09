@@ -73,3 +73,64 @@ create or replace view public.game_ops_recent as
     round((EXTRACT(epoch FROM (max(lt) - min(ts))) / (3600)::numeric), 1) AS hours
    FROM w
   GROUP BY airline;
+
+create or replace view public.flight_legs_local with (security_invoker = true) as
+ SELECT l.id,
+    l.world_id,
+    l.airline_id,
+    l.rotation_id,
+    l.leg_no,
+    l.flight_no,
+    ((al.iata_code || ' '::text) || l.flight_no) AS flight_code,
+    l.origin_code,
+    l.dest_code,
+    l.aircraft_id,
+    l.days_utc,
+    l.dep_utc_min,
+    l.block_min,
+    x.dep_local_min,
+    to_char((make_time((x.dep_local_min / 60), (x.dep_local_min % 60), (0)::double precision))::interval, 'HH24:MI'::text) AS dep_local,
+    x.days_local,
+    x.arr_local_min,
+    to_char((make_time((x.arr_local_min / 60), (x.arr_local_min % 60), (0)::double precision))::interval, 'HH24:MI'::text) AS arr_local,
+    x.arr_local_day_offset,
+    x.arr_utc_min,
+    x.arr_utc_day_offset
+   FROM (((((((((flight_legs l
+     JOIN airlines al ON ((al.id = l.airline_id)))
+     LEFT JOIN airports ao ON ((ao.code = l.origin_code)))
+     LEFT JOIN world_airports wo ON (((wo.world_id = l.world_id) AND (wo.airport_code = l.origin_code))))
+     LEFT JOIN airports ad ON ((ad.code = l.dest_code)))
+     LEFT JOIN world_airports wd ON (((wd.world_id = l.world_id) AND (wd.airport_code = l.dest_code))))
+     CROSS JOIN LATERAL ( SELECT (round((COALESCE(wo.utc_offset_override, ao.utc_offset) * (60)::numeric)))::integer AS dep_off,
+            (round((COALESCE(wd.utc_offset_override, ad.utc_offset) * (60)::numeric)))::integer AS arr_off) o)
+     CROSS JOIN LATERAL ( SELECT (l.dep_utc_min + o.dep_off) AS dep_l,
+            (l.dep_utc_min + l.block_min) AS arr_u,
+            ((l.dep_utc_min + l.block_min) + o.arr_off) AS arr_l) m)
+     CROSS JOIN LATERAL ( SELECT (floor(((m.dep_l)::numeric / 1440.0)))::integer AS dep_shift) s)
+     CROSS JOIN LATERAL ( SELECT (((m.dep_l % 1440) + 1440) % 1440) AS dep_local_min,
+                CASE
+                    WHEN (s.dep_shift IS NOT NULL) THEN ( SELECT array_agg(q.wd ORDER BY q.wd) AS array_agg
+                       FROM ( SELECT (((((((d.d - 1) + s.dep_shift) % 7) + 7) % 7) + 1))::smallint AS wd
+                               FROM unnest(l.days_utc) d(d)) q)
+                    ELSE NULL::smallint[]
+                END AS days_local,
+            (((m.arr_l % 1440) + 1440) % 1440) AS arr_local_min,
+            ((floor(((m.arr_l)::numeric / 1440.0)))::integer - s.dep_shift) AS arr_local_day_offset,
+            ((m.arr_u)::integer % 1440) AS arr_utc_min,
+            (floor(((m.arr_u)::numeric / 1440.0)))::integer AS arr_utc_day_offset) x);
+
+create or replace view public.flight_no_clashes with (security_invoker = true) as
+ SELECT f.world_id,
+    f.airline_id,
+    f.flight_no,
+    f.flight_code,
+    w.weekday,
+    (count(*))::integer AS legs,
+    array_agg(f.id ORDER BY f.id) AS leg_ids,
+    array_agg(f.aircraft_id ORDER BY f.id) AS aircraft_ids
+   FROM (flight_legs_local f
+     CROSS JOIN LATERAL unnest(COALESCE(f.days_local, f.days_utc)) w(weekday))
+  WHERE (f.flight_no IS NOT NULL)
+  GROUP BY f.world_id, f.airline_id, f.flight_no, f.flight_code, w.weekday
+ HAVING (count(*) > 1);

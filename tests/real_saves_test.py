@@ -23,7 +23,10 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
    After each save the other planner table is untouched and no table's row count changed (database/backup/counts.sql).
 4. The guard: signed in as the account that isn't staff, through the data API directly, planner_state reads no rows,
    and the planner's own write (an upsert) and save_loads() are refused; the tables don't change.
-5. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
+5. The new planner tables (#13): signed out and as the account that isn't staff, through the data API, every new table
+   and view reads no rows (signed out, the read itself is refused) and a write to each table is refused; no table's
+   row count changes.
+6. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
 Prints one line per step (ok/FAIL), and no row contents beyond ids and the names of the fields that changed, because the
@@ -44,6 +47,13 @@ DB = os.environ.get("LOCAL_DB_URL", "postgresql://postgres:postgres@127.0.0.1:54
 SKIP = os.environ.get("SECRET_TABLES", "public.ingest_secret,public.capture_keys,public.report_access")
 LOAD = 61                         # the load typed for one flight (under 95%, so the planner keeps it)
 BOOKKEEPING = {"savedAt", "version"}
+# The planner tables of #13 (migration 20261009210000_planner_tables.sql): staff only, closed to everyone else
+NEW_TABLES = ("worlds", "groups", "airlines", "airline_bases", "airline_aircraft_types", "countries", "airports",
+              "world_airports", "aircraft_types", "cabin_configs", "aircraft", "aircraft_cabin_keeps", "markets",
+              "service_profiles", "routes", "rotations", "flight_legs", "plan_cards", "plan_card_legs", "todos",
+              "todo_items", "growth_log", "spending_log", "fare_plan", "interline_agreements", "monthly_checks",
+              "dismissals", "cash_entries", "load_entries", "load_days", "settings", "world_rules", "change_log")
+NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
 failures = []
 
 
@@ -451,6 +461,29 @@ def guard(env, email, password):
     return problems + count_changes(n0, n1)
 
 
+def guard_new_tables(env, email, password):
+    """Signed out (the public key alone) and as the account that isn't staff: each new table and view reads no rows,
+    and adding a row to each table is refused. Answers only, never rows."""
+    n0 = counts()
+    missing = [t for t in NEW_TABLES if f"public.{t}" not in n0]
+    problems = [f"no such table on the copy: {', '.join(missing)}"] if missing else []
+    for who, token in (("signed out", None), ("not staff", token_for(env, email, password))):
+        for t in NEW_TABLES + NEW_VIEWS:
+            code, body = http(env, "GET", f"/rest/v1/{t}?select=*&limit=5", token=token)
+            if who == "signed out" and code not in (401, 403, 404):
+                problems.append(f"{who}: reading {t} wasn't refused (answer {code})")
+            elif code == 200 and json.loads(body) != []:
+                problems.append(f"{who}: read {len(json.loads(body))} row(s) of {t}")
+            elif code not in (200, 401, 403, 404):
+                problems.append(f"{who}: reading {t} answered {code}")
+        for t in NEW_TABLES:
+            row = {"op": "insert"} if t == "change_log" else {"created_at": "2026-10-09T00:00:00Z"}
+            code, _ = http(env, "POST", f"/rest/v1/{t}", row, token=token, prefer="return=minimal")
+            if code not in (401, 403):
+                problems.append(f"{who}: adding a row to {t} wasn't refused (answer {code})")
+    return problems + count_changes(n0, counts())
+
+
 async def main():
     facts = planner_facts()
     if not facts:
@@ -516,6 +549,13 @@ async def main():
     except Exception as e:
         problems = [why(e)]
     step(not problems, "guard: an account that isn't staff reads no planner_state rows, and its writes are refused", problems)
+
+    try:
+        problems = guard_new_tables(env, *other)
+    except Exception as e:
+        problems = [why(e)]
+    step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES)} new tables and {len(NEW_VIEWS)} views "
+                       "read no rows, and adding a row to each is refused", problems)
 
     stopped = ", ".join(sorted(pl.stopped)) or "nothing"
     problems = (["reached: " + ", ".join(sorted(set(pl.outside)))] if pl.outside else []) + \

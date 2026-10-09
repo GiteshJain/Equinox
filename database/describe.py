@@ -13,17 +13,20 @@ NEVER_BACKED_UP = {"ingest_secret", "capture_keys", "report_access"}   # SECRET_
 
 
 def render(d):
-    rel, fns = d["relations"], d["functions"]
+    rel = d["relations"]
+    fns = [f for f in d["functions"] if f.get("schema", "public") == "public"]
+    internal = [f for f in d["functions"] if f.get("schema", "public") == "private"]
     out = ["# The database, table by table", "",
            "Generated from the database's own descriptions by `database/describe.py`. Don't edit by hand: change the",
            "description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this",
            "file. How the parts fit together: `docs/architecture.md`.", "",
            f"{sum(r['kind'] == 'table' for r in rel)} tables, {sum(r['kind'] == 'view' for r in rel)} views and "
-           f"{len(fns)} functions, all in Supabase's `public` schema. Website photos and logos are files in the "
-           "`site-photos` storage bucket, not tables.", "", "## Contents", ""]
+           f"{len(fns)} functions, all in Supabase's `public` schema"
+           + (f", plus {len(internal)} internal functions in `private`" if internal else "")
+           + ". Website photos and logos are files in the `site-photos` storage bucket, not tables.", "", "## Contents", ""]
     for r in rel:
         out.append(f"- [`{r['name']}`](#{r['name'].replace('_', '-')}) ({r['kind']}): {(r['description'] or '').split('. ')[0].rstrip('.')}")
-    out += ["- [Functions](#functions)", ""]
+    out += ["- [Functions](#functions)"] + (["- [Internal functions](#internal-functions)"] if internal else []) + [""]
     for r in rel:
         out += [f"## {r['name']}", "", f"*{r['kind'].capitalize()}.* {r['description'] or '**No description.**'}", ""]
         if r["name"] in NEVER_BACKED_UP:
@@ -41,17 +44,26 @@ def render(d):
     out += ["## Functions", "",
             "*Runs as owner* means the function can do what its caller couldn't do directly, so it checks permission itself.",
             "", "| Function | Returns | Who can call it | What it does |", "|---|---|---|---|"]
-    for f in fns:
-        who = ", ".join(sorted(f["callable_by"] or [])) or "internal only"
-        out.append(f"| `{f['name']}({f['args']})` | {f['returns']} | {who}{' · runs as owner' if f['definer'] else ''} | "
-                   f"{f['description'] or '**No description.**'} |")
+    out += [function_row(f) for f in fns]
+    if internal:
+        out += ["", "## Internal functions", "",
+                "In the `private` schema, which the data API doesn't expose (#13): trigger functions and helpers that only "
+                "the database itself and postgres use.", "",
+                "| Function | Returns | Who can call it | What it does |", "|---|---|---|---|"]
+        out += [function_row(f, "private.") for f in internal]
     return "\n".join(out) + "\n"
+
+
+def function_row(f, prefix=""):
+    who = ", ".join(sorted(f["callable_by"] or [])) or "internal only"
+    return (f"| `{prefix}{f['name']}({f['args']})` | {f['returns']} | {who}{' · runs as owner' if f['definer'] else ''} | "
+            f"{f['description'] or '**No description.**'} |")
 
 
 def main():
     d = json.loads(sys.stdin.read())
     missing = [f"{r['kind']} {r['name']}" for r in d["relations"] if not r["description"]]
-    missing += [f"function {f['name']}({f['args']})" for f in d["functions"] if not f["description"]]
+    missing += [f"function {f.get('schema', 'public')}.{f['name']}({f['args']})" for f in d["functions"] if not f["description"]]
     text = render(d)
     if "--check" not in sys.argv:
         GUIDE.write_text(text)
