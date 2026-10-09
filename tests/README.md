@@ -10,9 +10,20 @@ result, with anything that failed, is posted as a comment on the pull request. W
 | Planner | `planner_test.py` | Every screen, each airline's Review page and the main pop-ups open with no errors. Previews save nothing while the live address saves. Loads by hand save only the days they change. The numbers that matter match the saved answers, and the leases match the manual. |
 | Website | `site_test.py` | Every public page opens with its content and no errors, and `/planner` reaches the planner. |
 | Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8), when the database or the planner changes: last night's backup (downloaded from Cloudflare R2 and checked) restored into a full local Supabase (database, data API and sign-in); the database changes applied to it; every test in `database/tests/` run on that copy and rolled back; then the real saves. |
-| Real saves | `real_saves_test.py` | Run by the rehearsal as its last step, not by `run_all.sh`: it needs Docker and the backup (#17). The pull request's own planner, at its live address and with its real Supabase library, signs in as a test staff user through its own form and saves into the copy: ticks a to-do, changes a plan card's title, types a load. After each save the tables are read back: only the intended field changed, and no table's row count. An account that isn't staff reads no rows and can't write. No request leaves the runner. |
+| Real saves | `real_saves_test.py` | Run by the rehearsal as its last step, not by `run_all.sh`: it needs Docker and the backup (#17). The pull request's own planner, at its live address and with its real Supabase library, signs in as a test staff user through its own form and saves into the copy: ticks a to-do, changes a plan card's title, types a load. After each save the tables are read back: only the intended field changed, and no table's row count. An account that isn't staff reads no rows and can't write. Signed out and as that account, through the data API, each of #13's new planner tables and views reads no rows and refuses a new row. No request leaves the runner. |
 
 Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.56 and its Chromium, and Node 22).
+
+## Database tests
+Each file in `database/tests/` runs on the rehearsal's copy, after the new migrations, in a transaction that is rolled
+back. A failed check stops with an error that says which.
+
+| Test | What it proves |
+|---|---|
+| `loads_merge_test.sql` | Loads saves merge the days they change instead of replacing the month; the capture moves the month's saved time on |
+| `planner_tables_access_test.sql` | #13's planner tables: RLS and one staff rule per action on each; anon gets nothing; authenticated reads them all and writes all but `change_log`; an account that isn't staff reads no rows and can't write; staff can; new objects in `public` aren't given away by default |
+| `planner_tables_change_log_test.sql` | Every add, change and removal is logged with who made it (and nothing when nothing changed); logging can be switched off only by postgres; `private.restore_row()` puts a row back |
+| `planner_tables_rules_test.sql` | The reference rows; design §4's worked example reads back in local time; the checks on weekdays, times and a leg's direction; flight-number clashes; rows can't point into another world; every foreign key has an index |
 
 ## Real saves (#17)
 The rehearsal starts Supabase's database, data API and sign-in, and nothing else, then restores the backup. The test

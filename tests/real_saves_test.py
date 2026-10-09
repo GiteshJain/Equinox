@@ -462,25 +462,27 @@ def guard(env, email, password):
 
 
 def guard_new_tables(env, email, password):
-    """Signed out (the public key alone) and as the account that isn't staff: each new table and view reads no rows,
-    and adding a row to each table is refused. Answers only, never rows."""
+    """Signed out (the public key alone) and as the account that isn't staff, through the data API: each new table and
+    view reads no rows (signed out, anon has no grant at all, so the read is refused: 401; not staff, the staff rules
+    leave nothing: 200 and []), and adding a row to each table is refused (401 signed out, 403 not staff). Prints
+    answers only, never rows."""
     n0 = counts()
     missing = [t for t in NEW_TABLES if f"public.{t}" not in n0]
     problems = [f"no such table on the copy: {', '.join(missing)}"] if missing else []
-    for who, token in (("signed out", None), ("not staff", token_for(env, email, password))):
+    for who, token, refused in (("signed out", None, 401), ("not staff", token_for(env, email, password), 403)):
         for t in NEW_TABLES + NEW_VIEWS:
             code, body = http(env, "GET", f"/rest/v1/{t}?select=*&limit=5", token=token)
-            if who == "signed out" and code not in (401, 403, 404):
-                problems.append(f"{who}: reading {t} wasn't refused (answer {code})")
+            if who == "signed out" and code != 401:
+                problems.append(f"{who}: reading {t} wasn't refused (answer {code}, expected 401)")
+            elif who == "not staff" and code != 200:
+                problems.append(f"{who}: reading {t} answered {code}, expected 200 with no rows")
             elif code == 200 and json.loads(body) != []:
                 problems.append(f"{who}: read {len(json.loads(body))} row(s) of {t}")
-            elif code not in (200, 401, 403, 404):
-                problems.append(f"{who}: reading {t} answered {code}")
         for t in NEW_TABLES:
             row = {"op": "insert"} if t == "change_log" else {"created_at": "2026-10-09T00:00:00Z"}
             code, _ = http(env, "POST", f"/rest/v1/{t}", row, token=token, prefer="return=minimal")
-            if code not in (401, 403):
-                problems.append(f"{who}: adding a row to {t} wasn't refused (answer {code})")
+            if code != refused:
+                problems.append(f"{who}: adding a row to {t} wasn't refused (answer {code}, expected {refused})")
     return problems + count_changes(n0, counts())
 
 
