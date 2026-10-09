@@ -1193,6 +1193,3 @@ begin
   perform set_config('equinox.change_log', '', true), set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
 end
 $reference$;
-
--- DELIBERATE FAILURE, to be removed in the next commit: a new table left readable by anon
-grant select on table public.todos to anon;
