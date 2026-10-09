@@ -84,4 +84,4 @@ A trigger means a brief at the next weekly review, not an automatic upgrade.
 - Live database, 9 Oct: size 21 MB; 57 stored files, 2.9 MB.
 
 ## Outcome
-Open: waiting for Gitesh's decision.
+9 Oct 2026: Gitesh chose **B**. The paid-plan triggers and the monthly usage check are in the manual (§1 and §7).

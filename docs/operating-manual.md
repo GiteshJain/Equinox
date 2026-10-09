@@ -18,7 +18,9 @@ data-only changes still go into `planner_state`.
 - **#13:** the planner's data moves into proper tables. The old planner runs on an adapter until #18.
 - **#14:** every row carries its world and airline, and each world's rules are data.
 - **#15:** a change log and daily snapshots.
-- **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2. Backups are moving
+- **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.
+- **#17:** the checks try real saves on a full local Supabase loaded from last night's backup (the first #13 pull
+  request). Backups are moving
   first, ahead of the rest (§7).
 Details and open points: `docs/decisions.md`.
 
@@ -33,6 +35,15 @@ Details and open points: `docs/decisions.md`.
   Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
   The schedule check is a Pages Function (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with
   unlimited deploys and previews; our own address survives any future change of host.*
+- **Supabase stays on the free plan.** We move to the paid plan ($25 a month) only on a trigger, and each trigger means a
+  brief at the next weekly review, not an automatic upgrade:
+  - the database passes 350 MB;
+  - egress passes 4 GB in a month;
+  - the free plan gets paused or limited despite daily activity;
+  - a feature we decide we need is paid-only.
+
+  *Since 9 Oct (#17) · why: our own backups, #16's small database, daily activity and the local test copy already cover
+  what the paid plan adds, and it's over the $10-a-month limit.*
 - **Preview before live:** previews are look-only. They show the live data, but saving works only on
   `equinox-alliance.com`; anywhere else the planner says "preview · not saved". Every pull request that changes the
   database is rehearsed by the *Database rehearsal* check on a copy of last night's backup, which posts the result on
@@ -229,7 +240,8 @@ Details and open points: `docs/decisions.md`.
   file would pass GitHub's 50 MB warning around late November and its 100 MB limit around December or January.*
   *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
-  strategy session. *Since 8 Oct.*
+  strategy session. *Since 8 Oct.* Also, until #23's monitoring shows it: a look at Supabase's usage page (database
+  size and egress) against the paid-plan triggers in §1. *Since 9 Oct (#17).*
 
 ## 8. Writing, website and newsroom
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options

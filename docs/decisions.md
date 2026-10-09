@@ -31,7 +31,7 @@ Status: **decided**, **open**, or **dropped**.
 | 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | **decided** 9 Oct 2026 |
 | 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | **decided** 9 Oct 2026 |
 | 16 | Data growth: daily summaries kept forever, detail archived after a few months | **decided** 9 Oct 2026 |
-| 17 | Database plan: when to move Supabase to its paid tier (backups, no pausing, branch databases) | open |
+| 17 | Database plan: when to move Supabase to its paid tier (backups, no pausing, branch databases) | **decided** 9 Oct 2026 |
 
 ## Step 4 — Applications (decide before the planner rebuild)
 | # | Decision | Status |
@@ -248,6 +248,21 @@ Status: **decided**, **open**, or **dropped**.
   pass GitHub's 100 MB limit around January. With one row per flight and one month of detail, the database stays small
   even at many times today's fleet. OneDrive and Google Drive were ruled out: their sign-in tokens need renewing, so
   unattended uploads quietly stop. Brief: `docs/briefs/2026-10-09-data-growth.md`.
+- **9 Oct 2026 · #17 Database plan and testing saves.** Option B. Stay on Supabase's free plan. On every pull request,
+  the rehearsal starts a full local Supabase (database, data API and sign-in), loads last night's backup and lets the
+  planner checks save into it for real, then checks the tables. It's built as the first #13 pull request, before the
+  adapter.
+  - **Move to the paid plan only on a trigger,** each one meaning a brief at the next weekly review, not an automatic
+    upgrade:
+    - the database passes 350 MB;
+    - egress passes 4 GB in a month;
+    - the free plan gets paused or limited despite daily activity;
+    - a feature we decide we need is paid-only.
+  - **Until #23's monitoring shows it,** the first-Saturday monthly work includes a look at Supabase's usage page.
+
+  Reason: the paid plan ($25 a month, over the $10 limit) adds space, backups, no pausing and test copies, which #16,
+  our own backups, the nightly activity and the local copy already cover. Testing on a local copy catches a save bug
+  before it reaches live data, which previews can't. Brief: `docs/briefs/2026-10-09-database-plan.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:
@@ -267,8 +282,9 @@ An independent review of #1 to #16 and #26 together. Status of each point:
 2. **Bring scheduled jobs (#22) and job monitoring (#23) forward.** #15's nightly snapshots and #16's monthly archive
    need something to run them (`pg_cron` is available but not switched on), credentials narrower than the full database
    address (#11 kept no automation account), and a warning when they don't run. The first archive is due 1 Dec.
-3. **Widen #17:** how the adapter's saves are tried before live, since previews can't save. That's either a second
-   free Supabase project or the paid plan's test copies.
+3. **Done 9 Oct, in #17:** adapter saves are tried on a full local copy of Supabase in the checks. As raised: **Widen
+   #17:** how the adapter's saves are tried before live, since previews can't save. That's either a second free
+   Supabase project or the paid plan's test copies.
 4. **A 7th airline before #13 lands:** the old code marks a loads day complete at 6 airlines. Fix it now in one line,
    or put a note on the 31 Oct holdings to-do.
 
