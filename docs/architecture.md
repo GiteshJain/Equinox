@@ -82,7 +82,7 @@ flowchart LR
 | When | What | Where to see it |
 |---|---|---|
 | Each evening, Chicago time | Gitesh's capture, all six airlines in one press | Planner → Check → Capture |
-| 07:17 UTC daily (about 02:17 in Chicago) | Nightly backup and restore check | Planner Home (backup line); `backup_runs` |
+| 07:17 UTC daily (about 02:17 in Chicago; GitHub can start it hours late, as on 9 Oct at 14:20 UTC) | Nightly backup and restore check | Planner Home (backup line); `backup_runs` |
 | Every pull request | Checks; database rehearsal if the database changes; a Cloudflare preview | Comments and checks on the pull request |
 | Every merge to `main` | Cloudflare publishes the site and planner; the checks run again on `main` | equinox-alliance.com |
 | Saturdays | Weekly report and review (Saturday review chat) | The investor library on the website |

@@ -12,6 +12,15 @@ Every rule in force for the equinox. group, with the date it started and why. De
 
 ---
 
+## Decided, not yet built
+Until each is built and merged, the rules below stand as they are. In particular, plan cards, to-dos and other
+data-only changes still go into `planner_state`.
+- **#13:** the planner's data moves into proper tables. The old planner runs on an adapter until #18.
+- **#14:** every row carries its world and airline, and each world's rules are data.
+- **#15:** a change log and daily snapshots.
+- **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.
+Details and open points: `docs/decisions.md`.
+
 ## 1. How we work
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
   before raising the next. No building on Claude's initiative. *Since 7 Oct · why: keeps every build approved.*
@@ -27,7 +36,10 @@ Every rule in force for the equinox. group, with the date it started and why. De
   `equinox-alliance.com`; anywhere else the planner says "preview · not saved". Every pull request that changes the
   database is rehearsed by the *Database rehearsal* check on a copy of last night's backup, which posts the result on
   the pull request. Claude asks for "merge" only once it passes. After the merge, Claude applies the change to live and
-  sets the live migration record to the file's version, so the repository and live keep the same list.
+  sets the live migration record to the file's version, so the repository and live keep the same list. A change that
+  removes something (dropping a table, rule or column) can't be applied from the chat, because Supabase's approval
+  never reaches Gitesh. He runs that file in Supabase's SQL editor, and Claude then records and checks it. *Since 9 Oct
+  · why: the loads fix's two removed access rules were cancelled three times from the chat.*
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;

@@ -86,6 +86,7 @@ Status: **decided**, **open**, or **dropped**.
   database secret); the code repository never holds live data. Supabase stays on the free plan; its paid plan stays
   decision #17. Reason: there were no backups at all, the whole planner is one overwritten row, and this costs
   nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
+  *Changes with #16 (9 Oct):* backups and archives move to Cloudflare R2 when that's built; until then this stands.
 - **8 Oct 2026 · #7 Hosting.** The website and planner move from Netlify to Cloudflare Pages (free plan), at our own
   domain `equinox-alliance.com` (option B), deployed from the repository: merging to `main` publishes, and every pull
   request gets a preview. The domain is registered at Cloudflare at cost (about $10.46 a year, renewing automatically);
@@ -102,6 +103,7 @@ Status: **decided**, **open**, or **dropped**.
   one could save into the live planner, and database changes were tried first on live. This costs nothing and needs no
   second database. A staging database or Supabase branching stays an option for the rebuild (#13, #17, #18).
   Brief: `docs/briefs/2026-10-08-previews.md`.
+  *Changes with #16 (9 Oct):* the rehearsal will read last night's backup from R2 once backups move there.
 - **8 Oct 2026 · #9 Automatic tests.** Every pull request runs automatic checks: every planner screen opens with a
   saved day of data, key numbers match known answers (cash forecast and leases, route profit, fare plan, Review cards),
   the website pages and the schedule check work, no keys or passwords are in the code, plus the database rehearsal
@@ -242,7 +244,45 @@ Status: **decided**, **open**, or **dropped**.
   even at many times today's fleet. OneDrive and Google Drive were ruled out: their sign-in tokens need renewing, so
   unattended uploads quietly stop. Brief: `docs/briefs/2026-10-09-data-growth.md`.
 
-## Ideas to weigh when their decisions come up
+## Found in the 9 Oct consistency check
+An independent review of #1 to #16 and #26 together. Status of each point:
+
+**Needs Gitesh's decision, before the #13 design:**
+1. **Move backups to R2 now, not with the rebuild.** The single backup file reaches GitHub's 50 MB warning around late
+   November and its 100 MB block around December or January. The move also covers:
+   - the rehearsal's scripts;
+   - the test-sample maker;
+   - the `backup_runs` commit field;
+   - the 29 Dec key renewal to-do;
+   - the old repository's history;
+   - report PDFs in a private bucket the backup includes;
+   - a second copy of archives outside Cloudflare.
+2. **Bring scheduled jobs (#22) and job monitoring (#23) forward.** #15's nightly snapshots and #16's monthly archive
+   need something to run them (`pg_cron` is available but not switched on), credentials narrower than the full database
+   address (#11 kept no automation account), and a warning when they don't run. The first archive is due 1 Dec.
+3. **Widen #17:** how the adapter's saves are tried before live, since previews can't save. That's either a second
+   free Supabase project or the paid plan's test copies.
+4. **A 7th airline before #13 lands:** the old code marks a loads day complete at 6 airlines. Fix it now in one line,
+   or put a note on the 31 Oct holdings to-do.
+
+**Carried into the #13 design document** (no separate decision):
+- **Who made a change (#15):** every writer (planner, Claude, capture, scripts) sets who it is for the session, since
+  database roles alone can't tell them apart. The first data load runs with logging off.
+- **What "a day" means:**
+  - the game dates flights by local departure;
+  - the evening capture crosses midnight UTC;
+  - snapshots are taken when a world's capture is complete, with a timed fallback marked incomplete.
+- **Backfill order:** per-flight rows and route summaries are built from the statement lines kept since 6 Oct before
+  the 14-day limit starts. Lines not tied to a flight (leases, salaries, purchases, refits) get their own home.
+- **One source for rule numbers:** at the #13 merge, the manual's §3, §4 and §9 figures point to the world's rules in
+  the data, as §5 already does for fares.
+- **World rules include #12's items:** interline between our own airlines, the salary step and the scanner, each
+  allowed or not per world.
+- **Access:** every new table and view follows the staff rule, with a test that a signed-out visitor reads nothing.
+- **Cut-over:** `planner_state` stops accepting writes, and other chats' data-only changes (plan cards, to-dos) go to
+  the new tables. Manual §1 is updated then.
+- **Archives keep their table layout version,** since #18 will change the tables.
+
 - **Dropped 9 Oct 2026 at #14: a shared, planner-only version for other players** (raised 8 Oct 2026): no
   website, airlines across several worlds, often only one or two airlines per player, no AI required. To weigh at #11 (roles: separate accounts
   with their own data) and #14 (multi-world). Implication if adopted: design the data model for many players, worlds

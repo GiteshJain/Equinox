@@ -121,7 +121,7 @@ unnecessary.
 **B, risks and how they're handled:**
 - **The archive deletes rows before they're safe.** The job writes the file, reads it back, checks row counts, commits
   it to GitHub and confirms the commit before deleting anything. Last night's backup also still holds those rows.
-- **The archive job doesn't run** (like this morning's skipped backup). The database just grows a little more until
+- **The archive job doesn't run, or runs late** (GitHub started 9 Oct's 07:17 UTC backup at 14:20 UTC). The database just grows a little more until
   the next run. Monitoring (#23) shows it.
 - **A question needs detail older than 3 months.** Claude loads that month back into a scratch table; it takes minutes,
   not seconds. The planner itself only shows 3 months of detail.
