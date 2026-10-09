@@ -1,6 +1,6 @@
 # The automatic checks (decision #9): keys and passwords, the schedule check, the planner (every screen, look-only
 # previews, known answers) and the website, on every pull request and every change to main. A red result means no
-# merge: Claude never asks for or makes one while it's red. The result, with what failed, is posted as "Checks: results".
+# merge: Claude never asks for or makes one while it's red. The result, with what failed, is posted on the pull request.
 name: Checks
 
 on:
@@ -10,7 +10,8 @@ on:
 
 permissions:
   contents: read
-  checks: write   # posts "Checks: results" with the details
+  pull-requests: write   # posts the result, with what failed, on the pull request
+  issues: write
 
 concurrency:
   group: checks-${{ github.ref }}
@@ -42,22 +43,27 @@ jobs:
       - name: Run the checks
         run: bash tests/run_all.sh 2>&1 | tee "$RUNNER_TEMP/checks.log"
 
-      - name: Post the result
-        if: always()
+      - name: Post the result on the pull request
+        if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           log="$RUNNER_TEMP/checks.log"
-          if [ "${{ job.status }}" = "success" ]; then conclusion=success; title="All checks passed"; else conclusion=failure; title="Checks failed: no merge until they pass"; fi
           {
+            echo "<!-- equinox-checks -->"
+            if [ "${{ job.status }}" = "success" ]; then echo "**Checks: all passed**"; else echo "**Checks: failed. No merge until they pass**"; fi
+            echo
+            echo "Commit ${GITHUB_SHA:0:7} · $(date -u '+%d %b %H:%M UTC')"
+            echo
             echo '```'
             sed -n '/^=== Summary/,$p' "$log" 2>/dev/null
-            echo
-            grep -A12 '^FAIL' "$log" 2>/dev/null | head -n 120
+            if grep -q '^FAIL' "$log" 2>/dev/null; then echo; grep -A12 '^FAIL' "$log" | head -n 120; fi
             echo '```'
-          } > "$RUNNER_TEMP/summary.md"
-          gh api "repos/${{ github.repository }}/check-runs" -f name="Checks: results" -f head_sha="$SHA" \
-            -f status=completed -f conclusion="$conclusion" -f "output[title]=$title" \
-            -f "output[summary]=$(head -c 60000 "$RUNNER_TEMP/summary.md")" > /dev/null
+          } > "$RUNNER_TEMP/comment.md"
+          # one comment per pull request, updated on every run
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | select(.body | contains("<!-- equinox-checks -->")) | .id' | tail -n 1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null
+          else gh api "repos/$REPO/issues/$PR/comments" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null; fi

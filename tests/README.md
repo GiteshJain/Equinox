@@ -1,7 +1,7 @@
 # Automatic checks
 
 Decision #9. GitHub runs these on every pull request and every change to `main` (`.github/workflows/checks.yml`). The
-result is posted on the pull request as **Checks: results**. While any check is red, nothing is merged.
+result, with anything that failed, is posted as a comment on the pull request. While any check is red, nothing is merged.
 
 | Check | File | What it proves |
 |---|---|---|
