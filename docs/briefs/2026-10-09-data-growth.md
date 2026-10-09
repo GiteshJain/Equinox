@@ -65,6 +65,53 @@ loaded back when a question needs it.
 - **The #13 design can also store statement lines more compactly.** The same long descriptions repeat on thousands of
   lines.
 
+## Benefits and risks in more detail
+(Added 9 Oct at Gitesh's request.)
+
+**What happens at the limits:**
+- **Database over 500 MB on the free plan:** Supabase puts the project into read-only mode. The capture can't store
+  anything and the planner can't save, so it's an outage. The ways out are upgrading on the spot, or deleting data by
+  hand.
+- **A backup file over 100 MB:** GitHub refuses the push and the nightly backup fails. The planner warns after 30
+  hours, but there's no new copy until the file is split.
+- **Restores get slower as the database grows:** the nightly restore check and the database rehearsal on every pull
+  request both rebuild the whole database. The rehearsal's limit is 20 minutes.
+
+**B, benefits:**
+- Stays on the free plan; the upgrade becomes a choice (#17), not an emergency.
+- Planner screens and reports read 3 months, not all history.
+- Backups and restores stay quick.
+- Nothing is thrown away.
+
+**B, risks and how they're handled:**
+- **The archive deletes rows before they're safe.** The job writes the file, reads it back, checks row counts, commits
+  it to GitHub and confirms the commit before deleting anything. Last night's backup also still holds those rows.
+- **The archive job doesn't run** (like this morning's skipped backup). The database just grows a little more until
+  the next run. Monitoring (#23) shows it.
+- **A question needs detail older than 3 months.** Claude loads that month back into a scratch table; it takes minutes,
+  not seconds. The planner itself only shows 3 months of detail.
+- **The summaries miss a question nobody thought of.** The archives keep everything, so a new summary can be worked out
+  from them later.
+- **One more job to look after.** It's about one pull request, and the backup split is needed anyway.
+
+**The settings within B:**
+- **Window:** 3 months keeps the database at about 150 to 250 MB at today's fleet. 6 months is about 300 to 350 MB,
+  which runs over 500 MB once the fleet doubles. 12 months needs the paid plan.
+- **Where archives live:** in the private backups repository (recommended: already private, already backed by GitHub,
+  about 40 MB a year compressed), or in Supabase file storage (1 GB free, but then the same project holds data and
+  archive).
+- **Change log:** 12 months in the database, then archived the same way.
+
+**A, benefits:** no archive job; every detail is always one query away.
+**A, risks:** read-only mode some time between February and June 2027; the backup failing around January; slower
+restores and rehearsals; then the upgrade and the backup fix in a hurry.
+
+**C, benefits:** a full year of flight-by-flight detail on hand. **Risks:** about $25 a month from the point the
+database passes 500 MB, for detail nothing reads today.
+
+**D, benefits:** the simplest and smallest. **Risks:** it can't be undone. Old detail then lives only in old nightly
+backups, which is awkward to search, and is gone if that history is ever trimmed.
+
 ## Scenarios and the risk of waiting
 - **The fleet doubles** (59 aircraft were delivered from 28 Sep to 9 Oct):
   - under A, the free plan fills in about four months and the backup breaks sooner;
@@ -86,6 +133,8 @@ loaded back when a question needs it.
 - `equinox-backups`, 8–9 Oct: `db/data.sql` 5.5 MB at 20:30 UTC on 8 Oct, 6.5 MB at 03:53 UTC on 9 Oct.
 - GitHub, "About large files on GitHub" (blocks over 100 MiB, warns over 50 MiB; repositories ideally under 1 GB):
   https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github
+- Supabase, "Understanding database and disk size" (free plan projects go read-only over 500 MB):
+  https://supabase.com/docs/guides/platform/database-size
 - Supabase pricing (free plan 500 MB database and 1 GB file storage; paid plan from $25 a month with 8 GB):
   https://supabase.com/pricing
 
