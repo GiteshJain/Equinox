@@ -74,4 +74,5 @@ It costs $0 and about half a day. It matters most for #26: every new Claude Code
   come from): add it to B as a fifth document, about another hour.
 
 ## Outcome
-Open: waiting for Gitesh's decision.
+**8 Oct 2026: B decided, plus the fifth document,** a plain-language guide to the planner's screens and where their
+numbers come from.

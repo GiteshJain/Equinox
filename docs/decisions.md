@@ -19,7 +19,7 @@ Status: **decided**, **open**, or **dropped**.
 | 7 | Hosting: move to Cloudflare Pages or stay on Netlify (paid tier); and our own domain name | **decided** 8 Oct 2026 |
 | 8 | Preview before live: every change gets a preview link; database changes tried on a copy first | **decided** 8 Oct 2026 |
 | 9 | Automatic tests on every change, blocking anything that breaks | **decided** 8 Oct 2026 |
-| 10 | Documentation: README, architecture notes, what each table means | open |
+| 10 | Documentation: README, architecture notes, what each table means | **decided** 8 Oct 2026 |
 | 11 | Proper roles (owner, staff, investors, public); no shared passwords; secrets out of scripts | open |
 | 12 | Game-rules exposure: how the capture and the salary step act in the game | open |
 
@@ -110,6 +110,18 @@ Status: **decided**, **open**, or **dropped**.
   game data in the code repository" (never the database, keys or sign-in data). Reason: nothing ran by itself, and 9 of
   the 11 tests depended on files lost in the reset. No lock on `main` (that needs GitHub Pro and would force every rule
   change through a pull request). Brief: `docs/briefs/2026-10-08-tests.md`.
+- **8 Oct 2026 · #10 Documentation.** Five documents, kept current:
+  1. a one-page map of how the pieces fit (`docs/architecture.md`, copied into the project files);
+  2. a description on every database table, view and function, stored in the database, with a table guide generated
+     from them (`docs/data.md`);
+  3. how to run each script (`scripts/README.md`);
+  4. the README as a front door;
+  5. a plain-language guide to the planner's screens for Gitesh (`docs/planner-guide.md`).
+
+  Every pull request that changes how something works updates the docs in the same pull request. The database
+  rehearsal fails if a table, view or function has no description, or if the table guide no longer matches. Reason:
+  nothing explained how the parts connect or what the tables hold, so every new chat or session rediscovered it, and
+  #26's Claude Code sessions start with no memory. Brief: `docs/briefs/2026-10-08-documentation.md`.
 - **8 Oct 2026 · Added #26.** Whether building moves to Claude Code. Reason: from #13 the work is large and splits
   into many pull requests, and one long chat loses detail as it fills up. Decided before #13 with a full brief and one
   trial build done together. Until then, decisions and the small builds (#10 to #12) stay in this chat.
