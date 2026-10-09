@@ -18,6 +18,9 @@ everything; builds follow a spec from the Building chat in the Equinox project.
   function, and a test in `database/tests/` when they change how something behaves. The *Database rehearsal* check
   tries them on last night's backup and runs the tests there. Never change the live database: the Building chat
   applies a change only after "merge".
+- **For database work, read `.claude/skills/supabase-postgres-best-practices/SKILL.md`** and the rule files it points
+  to. Supabase's skills are in `.claude/skills/`; where they differ from these rules, these rules win
+  (`.claude/skills/README.md`).
 - **Update the docs in the same pull request** when how something works changes (the list is in the manual, §1).
 - **Never commit keys, passwords or live game data.** Placeholders like `__CAPTURE_KEY__` mark where keys go. Small,
   dated samples in `tests/fixtures/` are the one exception.
