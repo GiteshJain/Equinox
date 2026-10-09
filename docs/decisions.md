@@ -190,6 +190,10 @@ Status: **decided**, **open**, or **dropped**.
   guesses return days and re-uploads 194 KB on every click. Today (87 aircraft, 17 days of data, one user) is the
   cheapest moment the fundamentals will ever be fixed, and the adapter avoids rewriting a planner that #18 replaces.
   Brief: `docs/briefs/2026-10-08-data-model.md`.
+  Design approved 9 Oct 2026: `docs/design/2026-10-09-data-model.md`. Its four choices (§11) were Claude's call at
+  Gitesh's request: switch over after 3 clean nights side by side; keep scan totals per airport and market for good;
+  the tables hold the rule numbers, with a check against the old planner's copies; a save keeps the parts that
+  don't clash with a newer change.
 - **9 Oct 2026 · #14 Worlds, groups and airlines.** Option C, without accounts for other players. In the #13 tables:
   - every row carries its world, and its airline where it has one;
   - airlines are rows with a stable ID and the game's ID in that world. The same brand in two worlds is two airlines;
