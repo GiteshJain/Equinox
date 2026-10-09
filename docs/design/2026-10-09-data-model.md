@@ -1,6 +1,7 @@
-# The planner's data in proper tables: design for approval (decision #13)
+# The planner's data in proper tables: design (decision #13)
 
-*9 Oct 2026. For Gitesh's approval before anything is built (#13). Shaped by #14 (worlds and airlines), #15 (history),
+*9 Oct 2026. Approved by Gitesh when merged; nothing is built before that (#13). The four choices in §11 were
+Claude's call, at his request. Shaped by #14 (worlds and airlines), #15 (history),
 #16 (data growth), #17 (testing saves) and the jobs brief (`docs/briefs/2026-10-09-jobs.md`).*
 
 ## 1. Summary for Gitesh
@@ -24,7 +25,9 @@ unchanged on screen, through an adapter.
 - Saves write only what changed, so a tab that's out of date can't wipe newer edits.
 - Every change is kept 12 months. The daily history starts at once, filled back to 29 Sep.
 
-**What you approve:** this design, and the four choices in §11.
+**What you approve:** this design. The four choices in §11 were my call, at your request: switch after 3 clean
+nights; keep scan totals per airport and market; the tables hold the rule numbers, with a check against the old
+planner's copies; and a save keeps the parts that don't clash.
 
 **Build:** about ten pull requests, one at a time (§10): test copy → tables → capture data → data load → adapter (run
 beside the old row first) → history → jobs → website and scripts → switch-over → report PDFs.
@@ -88,7 +91,7 @@ beside the old row first) → history → jobs → website and scripts → switc
 The planner, website, scripts and checks all read the same rows instead of rebuilding flights seven ways.
 
 **Settings and world rules are data** (#14): the manual's rule numbers, the planner's constants and Gander's house
-rules become rows (§3.7). The old planner keeps its own copies in its code until #18 (§11, question 3).
+rules become rows (§3.7). The old planner keeps its own copies in its code until #18 (§11, choice 3).
 
 **Money** is `numeric(14,2)` in AS$: never millions, never floating point. The adapter converts to the planner's
 millions (`amountM`) and back. Percentages are `numeric(5,1)`.
@@ -581,7 +584,7 @@ adapter:
    another tab. With no base (the planner pushing a copy from the browser's own storage), the save's own time is used;
 4. writes the rest, and answers `reload: true` if it skipped anything, so the tab picks up the newer data.
 
-So a click touching other rows is kept, and a newer change is never overwritten (question 4 offers the stricter way).
+So a click touching other rows is kept, and a newer change is never overwritten (§11, choice 4).
 
 **Cash and next-7-day costs.** The old planner copies cash into its JSON from the capture (`applyCaptureCash`) and
 lets Gitesh type it (Manual entry). The getter returns the capture's figure from `capture_cash`, unless a
@@ -665,7 +668,7 @@ with `equinox.change_log = off` and `equinox.actor = migration`.
   tables through the adapter, in mirror mode (no skipping, since the old row is still the truth). A failure is
   recorded in `job_runs` and never blocks the save. The capture keeps writing `planner_loads` as today until the
   switch-over. A nightly job compares `planner_state_get()` and `planner_loads_get()` with the old rows. The
-  switch-over waits for the agreed number of clean nights (question 1).
+  switch-over waits for 3 clean nights in a row (§11, choice 1).
 
 **Rollback:**
 - before the switch-over: nothing reads the new tables, so revert, or drop the side-by-side trigger;
@@ -690,27 +693,31 @@ Supabase's SQL editor, as manual §1 requires; the pull request says which file.
 | 9 | **Switch-over:** the planner's storage shim moves to the adapter; `planner_state` and `planner_loads` frozen; side-by-side removed; manual §1, §3, §4, §7 and §9, the map and the table guide updated; a new test sample | Planner checks pass with real saves; the rollback is rehearsed on the copy |
 | 10 | **Report PDFs to a private storage bucket** (#16), independent of the rest | The investor library and gander monthly still download |
 
-## 11. Open questions for Gitesh
+## 11. Choices made
+Gitesh asked on 9 Oct whether any of these needed him. None does: each follows from what #13 to #17 already
+decided, and each can be changed later. So they were Claude's call. The chosen option is marked.
+
 1. **How long old and new run side by side before the switch.**
    - A. Switch as soon as the checks pass.
-   - **B. After 3 nights in a row with no difference on live (recommended).** Real use catches what tests miss, for a
+   - **B. After 3 nights in a row with no difference on live. Chosen.** Real use catches what tests miss, for a
      few days' wait.
    - C. After a week.
 2. **How much of each world scan to keep for good.**
-   - **A. Each airline's totals, per airport and per market (recommended).** Roughly 5 to 15 MB a year with weekly
+   - **A. Each airline's totals, per airport and per market. Chosen.** Roughly 5 to 15 MB a year with weekly
      scans, enough for market share by airport and by market. The full schedules stay in the monthly archives for
      anything else.
    - B. Also each airline's weekly departures per city pair, for route-level trends kept for good: roughly 20 to
      50 MB a year more.
 
-   Both sizes are estimates from the scan's 800 KB of schedules; the build measures them on the 6 Oct scan.
+   Both sizes are estimates from the scan's 800 KB of schedules; the build measures them on the 6 Oct scan. A fits
+   #16 (summaries kept, detail archived), and B can still be built later from the archived schedules.
 3. **The rule numbers the old planner keeps in its code** (the 0.5M cushion, 750 departures, growth thresholds,
    airline codes and colours, the types each airline may buy).
    - **A. The tables are the source; the old planner keeps its copies until #18, and a check fails if the two ever
-     differ (recommended).** No rewrite of a planner #18 replaces.
+     differ. Chosen.** No rewrite of a planner #18 replaces.
    - B. Change the old planner to read them from the tables now: more edits that #18 throws away.
 4. **When a save meets a newer change.**
-   - **A. Keep the rows that don't clash, skip the ones that do, and reload (recommended).** Your click survives
+   - **A. Keep the rows that don't clash, skip the ones that do, and reload. Chosen.** Your click survives
      unless it hit the very row that changed.
    - B. Refuse the whole save and reload, as today: simpler, but the click is lost.
 
