@@ -1,0 +1,102 @@
+# Build spec: nightly backups to Cloudflare R2 — 9 Oct 2026
+
+**Why:** decision #16 moves backups out of the `equinox-backups` git repository into Cloudflare R2. The 9 Oct
+consistency check (`docs/decisions.md`, point 1) brought it forward, because the single dump file `db/data.sql`
+reaches GitHub's 50 MB warning around late November and its 100 MB push limit around December or January. It doesn't
+depend on the data-model rebuild (#13).
+
+**Outcome when done:**
+- Each night's copy goes to R2, kept 30 days.
+- One copy a month is kept for good in R2, plus a second copy outside Cloudflare as a GitHub release file in
+  `equinox-backups`.
+- The rehearsal (#8) and the test-sample maker read from R2.
+- The backups repository holds only the job's code.
+- Nothing about what's backed up, the restore check or the planner's backup warning changes.
+
+## Set up by Gitesh first (planner To-do)
+- An R2 bucket `equinox-backups`, with a lifecycle rule that deletes `nightly/` after 30 days.
+- Two bucket-scoped R2 tokens:
+  - writer (Object Read & Write);
+  - reader (Object Read only).
+- Secrets:
+  - `equinox-backups`: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (the writer);
+  - `Equinox`: `R2_ENDPOINT`, `R2_READ_ACCESS_KEY_ID`, `R2_READ_SECRET_ACCESS_KEY` (the reader).
+
+  `R2_ENDPOINT` is `https://<account id>.r2.cloudflarestorage.com`.
+
+## Three pull requests, in this order
+Each is merged only after the previous one is live and checked.
+
+### PR 1 — `equinox-backups`: upload to R2 as well (still committing to git)
+1. After the restore check, pack `db/`, `files/` and `MANIFEST.md` into `equinox-backup-<YYYY-MM-DD>T<HHMM>Z.tar.gz`,
+   using the run's own UTC time. Write a `.sha256` beside it.
+2. Upload with the AWS CLI (pre-installed on GitHub's runners), using `--endpoint-url "$R2_ENDPOINT"`, region `auto`
+   and the writer keys:
+   - **nightly runs:** to `nightly/<file>`;
+   - **manual runs:** to `nightly/` too (same retention);
+   - **dry runs (pull requests):** to `test/<file>`, then delete it after the check below, which proves the keys and
+     the bucket work.
+3. Verify each upload. The object's size must match, and a download's SHA-256 must match the local one. If either
+   fails, the job fails, so `backup_runs` records ok = false and the planner warns.
+4. **Monthly copy:** if `monthly/<YYYY-MM>.tar.gz` doesn't exist yet in R2, copy this run's file there (never expires).
+   Then attach the same file to a GitHub release `backup-<YYYY-MM>` in this repository with the run's `GITHUB_TOKEN`
+   (the job already has `contents: write`). Create the release if missing; skip if the asset is already there.
+5. Write `latest.json` to the bucket root: `{key, sha256, bytes, ran_at, kind}`. Readers use it to find last night's
+   copy without listing the bucket.
+6. Keep committing to git for now, so the rehearsal keeps working until PR 2.
+7. Tell the logs and the dry-run comment where the copy went, as an R2 key, never the endpoint or keys.
+
+**Check:** the dry run on the PR passes, with the test upload, verification and deletion. After merge, the push run
+puts the first `nightly/` copy, `monthly/2026-10.tar.gz`, `latest.json` and the `backup-2026-10` release in place.
+
+### PR 2 — `Equinox`: rehearsal and sample maker read from R2; record where each copy is
+1. **Migration:**
+   - add `backup_runs.object_key text`, with a description: "R2 key of that run's copy (from 9 Oct; earlier runs have
+     commit_sha)";
+   - update the table's description to say copies live in R2;
+   - add a database test if behaviour changes (it doesn't here, so it's a description only).
+2. **Move the two scripts the rehearsal takes from the backups repository** into this repository at `database/backup/`:
+   `config.sh` (`SECRET_TABLES`, `PROJECT_REF`) and `counts.sql`. The rehearsal then needs no GitHub token. The
+   backups repository keeps its own copies for its job.
+3. **`database-rehearsal.yml`:**
+   - replace the private-repository checkout with a step that reads `latest.json` using the reader keys, downloads
+     that file, checks its SHA-256 and unpacks it into `.backup/`;
+   - fail with a clear message if the R2 secrets are missing;
+   - drop `BACKUPS_READ_TOKEN`;
+   - `rehearse.sh` keeps its interface (a folder holding `db/`), but sources `database/backup/config.sh` and
+     `database/backup/counts.sql`, and prints the backup's date from `latest.json`, not git.
+4. **`tests/fixtures/make_sample.sh`:** takes an unpacked backup folder as before. `tests/README.md` says how to get
+   one from R2.
+5. **Docs:**
+   - `docs/architecture.md`: the map, the schedule table (07:17 UTC can start hours late) and the keys table (the R2
+     keys, with `BACKUPS_READ_TOKEN` retired);
+   - `docs/operating-manual.md` §1 (backups now in R2; move the GitHub-backups rule to *Retired rules* with the date);
+   - `docs/decisions.md` (#6 and #8 notes say it's built);
+   - `README.md` and `tests/README.md`;
+   - `docs/data.md` is regenerated by the rehearsal.
+
+**Check:** the PR's own *Database rehearsal* run restores from R2 and passes, along with the automatic checks. After
+merge, Claude applies the migration and records it.
+
+### PR 3 — `equinox-backups`: stop committing data
+1. `report.sh` writes `object_key` (from the upload step) and leaves `commit_sha` empty.
+2. Remove the "Commit the copy" step. Add `db/`, `files/` and `MANIFEST.md` to `.gitignore` and remove them from the
+   repository's current files. Git history keeps the copies of 8 and 9 Oct; nothing is rewritten.
+3. Rewrite `README.md`:
+   - where copies live (R2 nightly for 30 days, monthly for good, a monthly GitHub release);
+   - restoring from R2 or from a release (download, check SHA-256, unpack, then the same psql steps);
+   - the three R2 secrets.
+4. Planner To-do: retire the 29 Dec `BACKUPS_READ_TOKEN` renewal. Gitesh deletes that token on GitHub and its secret
+   on `Equinox`.
+
+**Check:** the dry run passes. After merge, the next run commits nothing to git, `backup_runs` has an `object_key`, and
+the planner's backup line is green.
+
+## Rules for the helper
+- Follow `CLAUDE.md`.
+- Never print or commit an endpoint, key or connection string. Logs show R2 keys (object names) only.
+- Branches and pull requests only. Never merge, and never change the live database.
+- Small, plain-language pull request descriptions, saying what changed, why and how it was tested.
+- **Out of scope:** report PDFs leaving the database, archives, and the snapshot and archive jobs (#16, #22). When
+  report PDFs move to a private bucket later, `backup.sh` must start copying private buckets; note it in the README
+  as a known follow-up.
