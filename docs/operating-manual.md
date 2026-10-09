@@ -23,6 +23,13 @@ Every rule in force for the equinox. group, with the date it started and why. De
   Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
   The schedule check is a Pages Function (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with
   unlimited deploys and previews; our own address survives any future change of host.*
+- **Preview before live:** previews are look-only. They show the live data, but saving works only on
+  `equinox-alliance.com`; anywhere else the planner says "preview · not saved". Every pull request that changes the
+  database is rehearsed by the *Database rehearsal* check on a copy of last night's backup, which posts the result on
+  the pull request. Claude asks for "merge" only once it passes. After the merge, Claude applies the change to live and
+  sets the live migration record to the file's version, so the repository and live keep the same list.
+  *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
+  changes were tried first on live.*
 - **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*

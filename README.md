@@ -7,7 +7,7 @@ the database structure, the scripts that build reports and plans, and the nightl
 |---|---|
 | `web/` | The public website and the planner (`web/planner/`), published by Cloudflare Pages from `main` |
 | `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
-| `database/migrations/` | Every database change, in the order it was applied |
+| `database/migrations/` | Every database change, in the order it was applied. `database/rehearse.sh` tries new ones on a copy of last night's backup (run on every pull request that changes the database) |
 | `database/current/` | Today's definitions of all database functions and views (the source of truth until the rebuild) |
 | `scripts/` | Weekly report, newsletter, world scanner, schedule optimiser |
 | `capture/` | The one-button capture userscript and the bookmark (keys are placeholders) |
