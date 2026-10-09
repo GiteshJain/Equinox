@@ -54,7 +54,7 @@ flowchart LR
 | **Repository** | All code, database changes, tests and documents. Every change is a pull request that Gitesh approves with "merge" (#2). | GitHub `GiteshJain/Equinox` |
 | **Backups** | A nightly copy of the database and files, restored each night to prove it works (#6). | GitHub `GiteshJain/equinox-backups` (private) |
 | **Checks** | On every pull request: no keys, the schedule check, every planner screen and its key numbers, every website page (#9). The database rehearsal runs when the database changes (#8). | `.github/workflows/`, `tests/`, `database/rehearse.sh` |
-| **Claude** | The Equinox project in Claude: four chats (Scheduling, Saturday review, Monthly, Building), the manual and decisions in the project files, and a Supabase connection. | claude.ai |
+| **Claude** | The Equinox project in Claude: four chats (Scheduling, Saturday review, Monthly, Building), the manual and decisions in the project files, and a Supabase connection. Big builds go to a helper with a fresh memory, which starts from `CLAUDE.md` (#26). | claude.ai |
 
 ## How data moves
 1. **Each evening** Gitesh presses *Capture all airlines* in the game. For each airline, `capture_ingest()` checks the
@@ -72,7 +72,7 @@ flowchart LR
    `site_content` (photos, logos, markets), `site_posts` and `site_reports`. Investor pages and reports need the
    password (`site_investor()`, `site_report()`).
 4. **Claude's scripts** read through the `export_*` functions and write through `ingest_snapshot()`, `site_admin()` and
-   `planner_data_set()`, using the ingest secret (to be replaced at #11).
+   `planner_data_set()`, using the ingest secret (kept as it is by #11).
 5. **Every night** the backup copies the database (except the key tables and sign-in data) and the photo files to
    `equinox-backups`, restores the copy, and records the result in `backup_runs`, which the planner shows.
 
@@ -93,7 +93,7 @@ flowchart LR
 |---|---|---|
 | Supabase public (anon) key | In the website and planner code. It's public by design, and access is controlled by the database's rules. | Everything that talks to the database |
 | Capture key | Gitesh's copy of the userscript; only its hash is in `capture_keys` | The capture |
-| Ingest secret | `ingest_secret` table; Claude's scripts read it from a file in Claude's workspace (`~/.ingest_secret`) | Claude's scripts (#11 replaces it with proper roles) |
+| Ingest secret | `ingest_secret` table; Claude's scripts read it from a file in Claude's workspace (`~/.ingest_secret`) | Claude's scripts (#11 kept it as it is) |
 | Investor password | Its hash is in `report_access` | Investor page and reports |
 | `SUPABASE_DB_URL` | GitHub secret on `equinox-backups` | The nightly backup |
 | `BACKUPS_READ_TOKEN` (expires 5 Jan 2027) | GitHub secret on `Equinox` | The database rehearsal reads last night's backup |

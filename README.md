@@ -8,6 +8,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | To understand | Read |
 |---|---|
 | How the pieces fit together, what runs when, where keys are kept, what to do when something breaks | [`docs/architecture.md`](docs/architecture.md) |
+| How a Claude session works on this repository | [`CLAUDE.md`](CLAUDE.md) |
 | What each planner screen shows and where its numbers come from | [`docs/planner-guide.md`](docs/planner-guide.md) |
 | What each database table, view and function holds or does | [`docs/data.md`](docs/data.md) (generated from the database) |
 | The rules everyone works by | [`docs/operating-manual.md`](docs/operating-manual.md) |

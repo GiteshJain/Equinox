@@ -7,7 +7,7 @@ The Python scripts Claude runs for the weekly report, gander monthly, the world 
 - **Fixed paths.** They read and write files in `/home/claude/` and the current folder.
 - **Two key files.** `~/.sb_anon` holds the public Supabase key, which is also in the planner's code.
   `~/.ingest_secret` holds the ingest secret, taken from the `ingest_secret` table. Neither file is ever committed.
-  Recreate them in a new workspace before running a script. Decision #11 replaces the ingest secret with proper roles.
+  Recreate them in a new workspace before running a script. Decision #11 keeps the ingest secret as it is.
 - **Hand-made inputs.** Some inputs aren't made by any script yet. Where each one comes from is listed below.
 - **To be cleaned up:** these points are for #22 (scheduled jobs). Until then, run the scripts the way this page says.
 
