@@ -116,4 +116,9 @@ for other players across several worlds, no website, no AI.
   https://forums.airlinesim.aero/t/how-to-know-when-a-new-server-will-be-open/27702
 
 ## Outcome
-Open: waiting for Gitesh's decision.
+9 Oct 2026: Gitesh chose **C, without accounts**. The shared version for other players is dropped. He added two
+points:
+- worlds have different rules, so each world's rules are data;
+- some worlds allow only a single airline, so nothing may assume several.
+
+Both are in the decision log. No manual change yet: the rules about how data is kept change when the #13 build merges.

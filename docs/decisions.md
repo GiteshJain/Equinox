@@ -28,7 +28,7 @@ Status: **decided**, **open**, or **dropped**.
 |---|---|---|
 | 26 | Where building happens: in this chat or in Claude Code sessions | **decided** 8 Oct 2026 |
 | 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | **decided** 9 Oct 2026 |
-| 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | open |
+| 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | **decided** 9 Oct 2026 |
 | 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | open |
 | 16 | Data growth: daily summaries kept forever, detail archived after a few months | open |
 | 17 | Database plan: when to move Supabase to its paid tier (backups, no pausing, branch databases) | open |
@@ -183,10 +183,31 @@ Status: **decided**, **open**, or **dropped**.
   guesses return days and re-uploads 194 KB on every click. Today (87 aircraft, 17 days of data, one user) is the
   cheapest moment the fundamentals will ever be fixed, and the adapter avoids rewriting a planner that #18 replaces.
   Brief: `docs/briefs/2026-10-08-data-model.md`.
+- **9 Oct 2026 · #14 Worlds, groups and airlines.** Option C, without accounts for other players. In the #13 tables:
+  - every row carries its world, and its airline where it has one;
+  - airlines are rows with a stable ID and the game's ID in that world. The same brand in two worlds is two airlines;
+  - groups are rows in a world with an owner (Gitesh): ours, plus rival players' groups for competitor analysis.
+
+  Settings are data, not code: hubs, banks, connection times, markets and fares, curfews, interline partners,
+  aircraft each airline may buy, growth-rule thresholds and the website's airline descriptions.
+  - **Each world's rules are data too,** because worlds differ (Gitesh, 9 Oct). That covers house rules (holdings
+    allowed, low-demand and per-country limits, LCC limits, departures per airport) and game settings (demand model,
+    treaties, starting capital). Gander's rules are the first set, and the planner's checks read them from there.
+  - **A world can have a single airline.** Nothing may assume several: group screens, cross-airline connections and
+    interline between our own airlines work with one.
+  - **The capture** reads its airlines for the world it runs in and matches them by game ID. A day is complete when
+    all of that world's airlines are in, not 6.
+  - **On screen,** nothing changes until there's a second world; then a world switcher appears. The website shows one
+    group.
+
+  Reason: the group can grow past six in Gander (two low-demand holdings planned), worlds end or change (short-term
+  worlds reset after 8 to 10 months; Gander runs as long as its owners keep it), and adding a world to tables already
+  full of data would mean migrating every table and query. The shared planner-only version for other players is
+  dropped, so no accounts or per-player access rules. Brief: `docs/briefs/2026-10-09-worlds-and-groups.md`.
 
 ## Ideas to weigh when their decisions come up
-- **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
-  several worlds, often only one or two airlines per player, no AI required. To weigh at #11 (roles: separate accounts
+- **Dropped 9 Oct 2026 at #14: a shared, planner-only version for other players** (raised 8 Oct 2026): no
+  website, airlines across several worlds, often only one or two airlines per player, no AI required. To weigh at #11 (roles: separate accounts
   with their own data) and #14 (multi-world). Implication if adopted: design the data model for many players, worlds
   and small groups from the start, with Equinox as one account and the website as a layer on top. AirlineSim's
   permission would be needed before opening it to others.
