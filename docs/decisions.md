@@ -29,7 +29,7 @@ Status: **decided**, **open**, or **dropped**.
 | 26 | Where building happens: in this chat or in Claude Code sessions | **decided** 8 Oct 2026 |
 | 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | **decided** 9 Oct 2026 |
 | 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | **decided** 9 Oct 2026 |
-| 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | open |
+| 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | **decided** 9 Oct 2026 |
 | 16 | Data growth: daily summaries kept forever, detail archived after a few months | open |
 | 17 | Database plan: when to move Supabase to its paid tier (backups, no pausing, branch databases) | open |
 
@@ -204,6 +204,21 @@ Status: **decided**, **open**, or **dropped**.
   worlds reset after 8 to 10 months; Gander runs as long as its owners keep it), and adding a world to tables already
   full of data would mean migrating every table and query. The shared planner-only version for other players is
   dropped, so no accounts or per-player access rules. Brief: `docs/briefs/2026-10-09-worlds-and-groups.md`.
+- **9 Oct 2026 · #15 History.** Option C, built with #13:
+  - **A change log:** every change to the planner's tables (aircraft, flights, routes, plans, to-dos, settings, world
+    rules) is kept with old and new values, the time, and who made it (the planner, Claude, the capture or a script).
+    The capture's own tables are left out, since they're dated already.
+  - **Daily snapshots,** taken each night by a database job and kept for good:
+    - per airline: aircraft by type, weekly departures and seats, destinations, cash, fixed costs for the next 7 days,
+      average load, the day's profit;
+    - per world scan: each airline's weekly departures and destinations, for market share. The summary is kept even
+      when the scan's detail is cleared.
+  - **Backfill** from what's kept: cash from 29 Sep, flights flown from 6 Oct, the 6 Oct scan, and the fleet from
+    delivery dates.
+  - **One condition on #13:** the adapter saves only the rows that actually changed.
+
+  Reason: no history of plans, fleet or departures exists today, and history can't be made up later. With tables, a
+  change is a few small rows, not a 194 KB copy. Brief: `docs/briefs/2026-10-09-history.md`.
 
 ## Ideas to weigh when their decisions come up
 - **Dropped 9 Oct 2026 at #14: a shared, planner-only version for other players** (raised 8 Oct 2026): no
