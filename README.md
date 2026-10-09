@@ -24,6 +24,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
 | `database/migrations/` | Every database change, in the order it was applied |
 | `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |
+| `database/tests/` | Database tests, run by `rehearse.sh` on the copy of last night's backup and rolled back afterwards |
 | `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
 | `scripts/` | Weekly report, gander monthly, world scanner, schedule optimiser |
 | `capture/` | The one-button capture userscript and the bookmark (keys are placeholders) |

@@ -4,7 +4,7 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-22 tables, 2 views and 23 functions, all in Supabase's `public` schema. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+22 tables, 2 views and 24 functions, all in Supabase's `public` schema. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
@@ -291,7 +291,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## planner_loads
 
-*Table.* Daily loads as the planner keeps them, one JSON document per month. Written by the planner and by apply_loads_from_capture() after each loads capture. Read by the planner and export_for_report().
+*Table.* Daily loads as the planner keeps them, one JSON document per month. Written only by save_loads() (the planner) and apply_loads_from_capture() (after each loads capture), both of which merge days rather than replace the month. Read by the planner and export_for_report().
 
 | Column | Type | Notes |
 |---|---|---|
@@ -300,7 +300,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `saved_at` | bigint |  |
 | `updated_at` | timestamp with time zone |  |
 
-**Access:** planner users insert loads: insert for authenticated; planner users read loads: select for authenticated; planner users update loads: update for authenticated.
+**Access:** planner users read loads: select for authenticated.
 
 **Triggers:** planner_loads_touch.
 
@@ -420,7 +420,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 | Function | Returns | Who can call it | What it does |
 |---|---|---|---|
-| `apply_loads_from_capture(p_airline text)` | jsonb | authenticated · runs as owner | Copies the last 3 days of captured loads for one airline into planner_loads. Called by capture_ingest() after each loads page. |
+| `apply_loads_from_capture(p_airline text)` | jsonb | authenticated · runs as owner | Copies the last 3 days of captured loads for one airline into planner_loads and moves the month's saved_at on, so browsers pick them up. Called by capture_ingest() after each loads page. |
 | `as_num(p text)` | numeric | anon, authenticated | Turns game text such as 1,234.5 AS$ into a number (null when there is none). |
 | `auto_confirm_planner_user()` | trigger | internal only · runs as owner | Trigger on sign-up: confirms the email straight away when it is on planner_users. |
 | `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, stores the page (raw pages kept 14 days), parses it with parse_capture(), and after a loads page updates planner_loads. |
@@ -432,6 +432,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `is_planner_user()` | boolean | authenticated · runs as owner | True when the signed-in email is on planner_users. Used by the access rules, the planner and the Photos functions. |
 | `parse_capture(p_id bigint)` | jsonb | authenticated · runs as owner | Parses one raw capture page into game_statement, game_events, game_loads, game_pnl or game_balance, depending on its kind. |
 | `planner_data_set(p_secret text, p_key text, p_value jsonb)` | jsonb | anon, authenticated · runs as owner | Replaces one planner_data entry. Needs the ingest secret. |
+| `save_loads(p_month text, p_days jsonb)` | jsonb | authenticated · runs as owner | The planner's only way to save loads: merges the days it changed into one month of planner_loads (a day's whole entry, or single flights set and cleared), leaves every other day as it is, and returns the merged month. Planner staff only. |
 | `save_script(p_secret text, p_name text, p_content text)` | jsonb | anon, authenticated · runs as owner | Stores a copy of a script in planner_scripts, from before the repository existed. Needs the ingest secret. |
 | `site_admin(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Publishes website content: newsroom posts, reports and site content. Needs the ingest secret. |
 | `site_investor(p_password text)` | jsonb | anon, authenticated · runs as owner | The investor page's data, when the password matches report_access. |

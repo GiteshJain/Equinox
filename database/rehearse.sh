@@ -9,7 +9,8 @@
 #    the live database's record as of last night.
 # 3. Applies them in order, each in its own transaction, stopping at the first failure.
 # 4. Prints the row count of every table that changed, plus any table added or removed.
-# 5. Checks the descriptions (decision #10): every table, view and function has one, and docs/data.md matches the
+# 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back.
+# 6. Checks the descriptions (decision #10): every table, view and function has one, and docs/data.md matches the
 #    database. With WRITE_DOCS=1 it rewrites docs/data.md instead (run that locally after changing a description).
 # Only table names, counts, descriptions and error messages are printed. The copy exists only on the runner while this runs.
 set -euo pipefail
@@ -85,6 +86,21 @@ if [ $status -eq 0 ] && [ ${#pending[@]} -gt 0 ]; then
   echo "== rehearsal passed: the change(s) apply cleanly to last night's data"
 elif [ $status -ne 0 ]; then
   echo "== rehearsal FAILED: fix the change before it goes to live"
+fi
+
+if [ $status -eq 0 ]; then
+  tests=(database/tests/*.sql)
+  if [ -e "${tests[0]}" ]; then echo "== database tests (each rolled back afterwards)"; fi
+  for t in "${tests[@]}"; do
+    [ -e "$t" ] || continue
+    if out=$(psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c 'begin' -f "$t" -c 'rollback' 2>&1); then
+      echo "ok    $(basename "$t")"
+    else
+      echo "FAIL  $(basename "$t")"
+      echo "$out" | grep -E 'ERROR|DETAIL|CONTEXT' | sed 's/^/      /' | head -n 6
+      status=1
+    fi
+  done
 fi
 
 if [ $status -eq 0 ]; then

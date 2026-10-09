@@ -3,7 +3,9 @@
 1. Every screen opens: all nine screens, each airline's Review page and the main pop-ups (route, aircraft, plan card)
    open with no errors and show content.
 2. Look-only previews (#8): on a preview address a change saves nothing and says so; on the live address it saves.
-3. Known answers: the numbers on the screens that matter (Home, the group and each airline's Review page with the cash
+3. Loads by hand: on an airline's Review page, a typed day and a paste from the game each save, and send only the days
+   they changed, through save_loads() (fix of 9 Oct: the buttons did nothing there, and saves rewrote whole months).
+4. Known answers: the numbers on the screens that matter (Home, the group and each airline's Review page with the cash
    forecast, route profit and fare plan, the Check lists, hub connections, aircraft, interline) match the saved answers in
    tests/fixtures/planner_numbers.expected.json. A difference prints exactly what changed. After an intended change,
    run with --update and commit the new answers with the change, saying why they moved.
@@ -86,6 +88,42 @@ async def screens(pg, errors):
         await pg.keyboard.press("Escape"); await go(pg, "home")
 
 
+LOADS_WRITES = "JSON.stringify(window.__WRITES.filter(w => w.rpc === 'save_loads' || w.t === 'planner_loads'))"
+
+
+async def manual_loads(p, port):
+    b, pg, errors = await open_planner(p, port, live=True)
+    pg.on("dialog", lambda d: asyncio.ensure_future(d.dismiss()))
+    day = await pg.evaluate("new Date().toISOString().slice(0, 10)")
+    await go(pg, "finance")
+    await pg.evaluate("document.querySelector('[data-final]').click()"); await settle(pg)
+    if not await pg.evaluate("!!document.getElementById('lfsave')"):
+        check(False, "loads by hand: the form is on the Review page"); await b.close(); return
+    # a whole day typed in
+    await pg.evaluate("document.querySelector('[data-q]').value = '1001 60'; document.getElementById('lfsave').click()")
+    await settle(pg)
+    w = json.loads(await pg.evaluate(LOADS_WRITES))
+    sent = w[0]["args"] if len(w) == 1 and w[0].get("rpc") == "save_loads" else {}
+    days = sent.get("p_days", {})
+    ok = sent.get("p_month") == day[:7] and list(days) == [day] and "f" in days[day] and days[day].get("done") is True
+    check(ok, "loads by hand: a typed day saves only that day, through save_loads", f"writes: {json.dumps(w)[:400]}")
+    # a paste from the game: one flight under 95% (set) and one full (cleared)
+    dm = f"{day[8:10]}.{day[5:7]}."
+    paste = "\n".join([f"KF 1008\tVT-AAE\tAMS\t{dm} 02:45 LT\tDEL\t{dm} 10:00 LT\t500\t100 / 150\t900\t10 / 12\t--\t--\t--\t--",
+                        f"KF 1009\tVT-AAE\tDEL\t{dm} 12:00 LT\tAMS\t{dm} 18:00 LT\t500\t150 / 150\t900\t12 / 12\t--\t--\t--\t--"])
+    await pg.evaluate("t => { const d = document.querySelector('details.lfpaste'); d.open = true; document.getElementById('lfpaste-in').value = t; document.getElementById('lfpaste-read').click(); }", paste)
+    await settle(pg)
+    await pg.evaluate("window.__WRITES.length = 0; document.getElementById('lfpaste-save').click()"); await settle(pg)
+    w = json.loads(await pg.evaluate(LOADS_WRITES))
+    sent = w[0]["args"] if len(w) == 1 and w[0].get("rpc") == "save_loads" else {}
+    d = sent.get("p_days", {}).get(day, {})
+    ok = (list(sent.get("p_days", {})) == [day] and d.get("set") == {"Kingfisher|1008": 68} and d.get("del") == ["Kingfisher|1009"]
+          and "f" not in d)
+    check(ok, "loads by hand: a paste sets and clears single flights only, through save_loads", f"writes: {json.dumps(w)[:400]}")
+    check(not errors, "loads by hand: no errors", "\n".join(errors[:5]))
+    await b.close()
+
+
 async def look_only(p, port):
     for live in (False, True):
         name = "live address: a change saves" if live else "preview address: a change saves nothing and says so"
@@ -143,6 +181,7 @@ async def main():
             check(not errors, "no errors while reading the numbers", "\n".join(dict.fromkeys(errors[:10])))
             await b.close()
             await part("look-only previews", look_only(p, port))
+            await part("loads by hand", manual_loads(p, port))
     leases_named(got)
     compare(got)
     print(f"\n{len(failures)} planner check(s) failed" if failures else "\nplanner: all passed")

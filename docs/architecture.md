@@ -64,7 +64,8 @@ flowchart LR
    - payments ahead go to `game_events`;
    - the balance sheet goes to `game_balance` (account 2800 is cash);
    - the income statement goes to `game_pnl`;
-   - loads go to `game_loads`, and are copied into the planner's month documents (`planner_loads`).
+   - loads go to `game_loads`, and are copied into the planner's month documents (`planner_loads`). The
+     planner's own load saves go through `save_loads()`, which merges only the days it changed.
 2. **The planner** reads those tables when a staff member signs in. Route profit, the 14-day cash forecast, growth
    signals and the daily load report are all calculated in the browser. Plans and to-dos are saved back to
    `planner_state`.
