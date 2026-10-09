@@ -19,7 +19,7 @@ for f in S['freqs']:
     al,h,d=f['routeKey'].split('|')
     if f.get('depHub') and f.get('arrDest'): legs.append(dict(fr=h,to=d,dep=(hm(f['depHub'])-off(h)*60)%1440,arr=(hm(f['arrDest'])-off(d)*60)%1440))
     if f.get('depDest') and f.get('arrHub'): legs.append(dict(fr=d,to=h,dep=(hm(f['depDest'])-off(d)*60)%1440,arr=(hm(f['arrHub'])-off(h)*60)%1440))
-def conns(new, H, buf=10):
+def conns(new, H, buf=0):
     m=MCT.get(H,90)+buf; n=0; allL=legs+new
     for i in [l for l in allL if l['to']==H]:
         for o in [l for l in allL if l['fr']==H]:
