@@ -62,8 +62,8 @@ def main():
         findings += scan(f, raw.decode("utf-8", "replace"))
         scanned += 1
     if findings:
-        print(f"Keys or passwords found ({len(findings)}):")
-        print("\n".join("  " + x for x in findings))
+        print("\n".join("FAIL  " + x for x in findings))
+        print(f"\n{len(findings)} key(s) or password(s) found: remove them, and change any real one")
         sys.exit(1)
     print(f"No keys or passwords in {scanned} files.")
 

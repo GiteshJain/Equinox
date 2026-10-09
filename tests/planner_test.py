@@ -88,21 +88,18 @@ async def screens(pg, errors):
 
 async def look_only(p, port):
     for live in (False, True):
+        name = "live address: a change saves" if live else "preview address: a change saves nothing and says so"
         b, pg, errors = await open_planner(p, port, live=live)
         await go(pg, "home")
         box = "input[data-tododone]"
         if not await pg.evaluate(f"!!document.querySelector('{box}')"):
-            await pg.evaluate("document.querySelector('[data-view=home]').click()")
+            check(False, name, "no to-do to tick on Home"); await b.close(); continue
         await pg.click(box); await pg.wait_for_timeout(900)
         writes = await pg.evaluate("window.__WRITES.map(w => w.t || w.rpc || 'file')")
         label = await pg.evaluate("document.getElementById('savestate').textContent")
         notice = await pg.evaluate("!!document.querySelector('.eqpreview')")
-        if live:
-            check("planner_state" in writes and not notice and "preview" not in label, "live address: a change saves",
-                  f"writes {writes}, indicator '{label}', notice {notice}")
-        else:
-            check(writes == [] and notice and "preview" in label, "preview address: a change saves nothing and says so",
-                  f"writes {writes}, indicator '{label}', notice {notice}")
+        ok = ("planner_state" in writes and not notice and "preview" not in label) if live else (writes == [] and notice and "preview" in label)
+        check(ok, name, f"writes {writes}, indicator '{label}', notice {notice}")
         await b.close()
 
 
@@ -127,15 +124,25 @@ def compare(got):
         check(False, f"same answer: {key}", "\n".join(diff[:40]) + ("\n..." if len(diff) > 40 else ""))
 
 
+async def part(name, coro):
+    try:
+        return await coro
+    except Exception as e:   # a broken screen can stop a part halfway; report it and carry on with the rest
+        check(False, f"{name} ran to the end", f"{type(e).__name__}: {str(e).splitlines()[0][:300]}")
+
+
 async def main():
+    got = {}
     with serve() as port:
         async with async_playwright() as p:
             b, pg, errors = await open_planner(p, port, live=True)
-            await screens(pg, errors)
-            got = await readout(pg)
-            check(not errors, "no errors while reading the numbers", "\n".join(errors[:10]))
+            await part("screens", screens(pg, errors))
             await b.close()
-            await look_only(p, port)
+            b, pg, errors = await open_planner(p, port, live=True)
+            got = await part("reading the numbers", readout(pg)) or {}
+            check(not errors, "no errors while reading the numbers", "\n".join(dict.fromkeys(errors[:10])))
+            await b.close()
+            await part("look-only previews", look_only(p, port))
     leases_named(got)
     compare(got)
     print(f"\n{len(failures)} planner check(s) failed" if failures else "\nplanner: all passed")

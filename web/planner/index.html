@@ -2722,7 +2722,7 @@ function makeModel(DATA, state) {
     if (IL_YES[cc]) return { kind: "interline", label: "interline · " + IL_YES[cc] };
     return { kind: "nonet", label: "no network" };
   }
-  function interlineRows() { undefinedThing.x;   // TEMPORARY deliberate break   // one row per airline × Interline country it flies into or has planned
+  function interlineRows() {   // one row per airline × Interline country it flies into or has planned
     const rows = {}; const add = (airline, ap, rtDay, planned) => { const cc = ctryOf(ap); if (!cc || ilClass(cc, airline).kind !== "interline") return;
       const k = airline + "|" + cc; const r = rows[k] = rows[k] || { airline, cc, airports: {}, rtDay: 0, planned: true }; r.airports[ap] = (r.airports[ap] || 0) + rtDay; r.rtDay += rtDay; if (!planned) r.planned = false; };
     for (const f of state.freqs) { const rt = M.routeMap.get(f.routeKey); if (!rt) continue; const c = M.computeFreq(f); const rtDay = c ? c.rtWk / 7 : 0; for (const ap of [rt.dest, rt.hub]) add(rt.airline, ap, rtDay, false); }
