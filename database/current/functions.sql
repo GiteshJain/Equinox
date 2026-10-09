@@ -514,3 +514,224 @@ CREATE OR REPLACE FUNCTION public.touch_updated_at()
 AS $function$
 begin new.updated_at = now(); return new; end $function$
 ;
+
+-- ===== private schema (decision #13): trigger functions and helpers, not exposed by the data API =====
+
+-- private.check_leg_route()
+CREATE OR REPLACE FUNCTION private.check_leg_route()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare r record;
+begin
+  select ro.hub_code, ro.dest_code into r
+    from public.rotations rot join public.routes ro on ro.id = rot.route_id
+   where rot.id = new.rotation_id;
+  -- no rotation found: the foreign key refuses a rotation that doesn't exist, and the access rules refuse a caller who
+  -- can't read it
+  if not found then return new; end if;
+  if (new.leg_no = 1 and (new.origin_code, new.dest_code) is distinct from (r.hub_code, r.dest_code))
+     or (new.leg_no = 2 and (new.origin_code, new.dest_code) is distinct from (r.dest_code, r.hub_code)) then
+    raise exception 'flight leg % of rotation % flies % to %, but its route is % to % (leg 1 leaves the hub, leg 2 returns to it)',
+      new.leg_no, new.rotation_id, new.origin_code, new.dest_code, r.hub_code, r.dest_code
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end
+$function$
+
+;
+
+-- private.check_route_legs()
+CREATE OR REPLACE FUNCTION private.check_route_legs()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare bad bigint;
+begin
+  select l.id into bad
+    from public.flight_legs l
+    join public.rotations rot on rot.id = l.rotation_id
+    join public.routes ro on ro.id = rot.route_id
+   where (case when tg_table_name = 'routes' then ro.id else rot.id end) = new.id
+     and ((l.leg_no = 1 and (l.origin_code, l.dest_code) is distinct from (ro.hub_code, ro.dest_code))
+       or (l.leg_no = 2 and (l.origin_code, l.dest_code) is distinct from (ro.dest_code, ro.hub_code)))
+   limit 1;
+  if bad is not null then
+    raise exception 'this change to % % would leave flight leg % not matching its route', tg_table_name, new.id, bad
+      using errcode = 'check_violation';
+  end if;
+  return null;
+end
+$function$
+
+;
+
+-- private.is_weekday_set(p_days smallint[])
+CREATE OR REPLACE FUNCTION private.is_weekday_set(p_days smallint[])
+ RETURNS boolean
+ LANGUAGE sql
+ IMMUTABLE PARALLEL SAFE
+ SET search_path TO ''
+AS $function$
+  select p_days is not null
+     and cardinality(p_days) between 1 and 7
+     and array_ndims(p_days) = 1
+     and p_days = array(select distinct d from unnest(p_days) as d where d between 1 and 7 order by d)
+$function$
+
+;
+
+-- private.log_change()
+CREATE OR REPLACE FUNCTION private.log_change()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  -- the role the change was made as: authenticated through the data API, postgres for Claude, jobs and migrations
+  v_role text := coalesce(nullif(current_setting('role', true), 'none'), session_user);
+  v_oldrow jsonb;
+  v_newrow jsonb;
+  v_old jsonb;
+  v_new jsonb;
+  v_key jsonb;
+  v_world bigint;
+  v_actor text := nullif(current_setting('equinox.actor', true), '');
+  v_detail text := nullif(current_setting('equinox.actor_detail', true), '');
+begin
+  -- the data load switches logging off; honoured only for postgres, so the website and planner can't
+  if current_setting('equinox.change_log', true) = 'off' and session_user = 'postgres' and v_role = 'postgres' then
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then v_oldrow := to_jsonb(old); end if;
+  if tg_op <> 'DELETE' then v_newrow := to_jsonb(new); end if;
+  if tg_op = 'UPDATE' then
+    -- only the columns that changed, ignoring updated_at; nothing at all when nothing changed
+    select jsonb_object_agg(n.key, v_oldrow -> n.key), jsonb_object_agg(n.key, n.value)
+      into v_old, v_new
+      from jsonb_each(v_newrow) as n
+     where n.key <> 'updated_at' and n.value is distinct from (v_oldrow -> n.key);
+    if v_new is null then return null; end if;
+  else
+    v_old := v_oldrow;   -- a delete keeps the whole old row
+    v_new := v_newrow;   -- an insert keeps the whole new row
+  end if;
+  -- the row's primary key, e.g. {"id": 812}
+  select jsonb_object_agg(a.attname, coalesce(v_newrow, v_oldrow) -> a.attname::text)
+    into v_key
+    from pg_catalog.pg_index i
+    cross join lateral unnest(i.indkey::smallint[]) as k(attnum)
+    join pg_catalog.pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum
+   where i.indrelid = tg_relid and i.indisprimary;
+  v_world := (coalesce(v_newrow, v_oldrow) ->> (case when tg_table_name = 'worlds' then 'id' else 'world_id' end))::bigint;
+  -- who: whatever the writer named for its transaction; if nothing, planner for a signed-in user, otherwise unset
+  if v_actor is null then
+    v_actor := case when auth.uid() is not null then 'planner' else 'unset' end;
+  elsif v_actor not in ('planner', 'claude', 'capture', 'script', 'job', 'migration', 'unset') then
+    v_detail := concat_ws(' · ', 'named itself ' || v_actor, v_detail);   -- nothing is refused
+    v_actor := 'unset';
+  end if;
+  insert into public.change_log (world_id, table_name, row_key, op, old_values, new_values, actor, actor_detail, db_role, txid)
+  values (v_world, tg_table_name, v_key, lower(tg_op), v_old, v_new, v_actor, v_detail, v_role, pg_catalog.txid_current());
+  return null;
+end
+$function$
+
+;
+
+-- private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_rel regclass;
+  v_keys text[];
+  v_cols text[];
+  v_match text;
+  v_cur jsonb;
+  v_state jsonb;
+  e record;
+begin
+  -- only tables the change log covers
+  if not exists (select 1 from pg_catalog.pg_trigger t join pg_catalog.pg_class c on c.oid = t.tgrelid
+                  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+                 where n.nspname = 'public' and c.relname = p_table
+                   and t.tgfoid = 'private.log_change()'::pg_catalog.regprocedure) then
+    raise exception 'restore_row: % is not a table the change log covers', p_table;
+  end if;
+  v_rel := pg_catalog.format('public.%I', p_table)::pg_catalog.regclass;
+  select array_agg(a.attname::text order by k.ord) into v_keys
+    from pg_catalog.pg_index i
+    cross join lateral unnest(i.indkey::smallint[]) with ordinality as k(attnum, ord)
+    join pg_catalog.pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum
+   where i.indrelid = v_rel and i.indisprimary;
+  if p_row_key is null or jsonb_typeof(p_row_key) <> 'object'
+     or (select count(*) from jsonb_object_keys(p_row_key)) <> cardinality(v_keys)
+     or exists (select 1 from unnest(v_keys) as k where not p_row_key ? k) then
+    raise exception 'restore_row: the row key must name exactly the primary key of %: %', p_table, v_keys;
+  end if;
+  select array_agg(a.attname::text order by a.attnum) into v_cols
+    from pg_catalog.pg_attribute a
+   where a.attrelid = v_rel and a.attnum > 0 and not a.attisdropped and a.attgenerated = '';
+  -- (key columns) = (the same columns read from the given key)
+  v_match := pg_catalog.format('(%s) = (select %s from jsonb_populate_record(null::%s, $1) k)',
+    (select string_agg(pg_catalog.format('t.%I', c), ', ') from unnest(v_keys) as c),
+    (select string_agg(pg_catalog.format('k.%I', c), ', ') from unnest(v_keys) as c), v_rel);
+
+  execute pg_catalog.format('select to_jsonb(t) from %s t where %s', v_rel, v_match) into v_cur using p_row_key;
+  -- replay the log backwards, newest first, down to the moment asked for
+  v_state := v_cur;
+  for e in select op, old_values from public.change_log
+            where table_name = p_table and row_key = p_row_key and changed_at > p_as_of
+            order by changed_at desc, id desc loop
+    if e.op = 'insert' then v_state := null;                                       -- it didn't exist before
+    elsif e.op = 'delete' then v_state := e.old_values;                            -- it was there, whole
+    else v_state := coalesce(v_state, '{}'::jsonb) || coalesce(e.old_values, '{}'::jsonb);   -- undo the changed columns
+    end if;
+  end loop;
+
+  if v_state is null then
+    if v_cur is not null then
+      execute pg_catalog.format('delete from %s t where %s', v_rel, v_match) using p_row_key;
+    end if;
+  elsif v_cur is null then
+    execute pg_catalog.format('insert into %s (%s) overriding system value select %s from jsonb_populate_record(null::%s, $1) r',
+      v_rel, (select string_agg(pg_catalog.format('%I', c), ', ') from unnest(v_cols) as c),
+      (select string_agg(pg_catalog.format('r.%I', c), ', ') from unnest(v_cols) as c), v_rel) using v_state;
+  elsif v_state is distinct from v_cur then
+    execute pg_catalog.format('update %s t set (%s) = (select %s from jsonb_populate_record(null::%s, $2) r) where %s',
+      v_rel, (select string_agg(pg_catalog.format('%I', c), ', ') from unnest(v_cols) as c where c <> all (v_keys)),
+      (select string_agg(pg_catalog.format('r.%I', c), ', ') from unnest(v_cols) as c where c <> all (v_keys)),
+      v_rel, v_match) using p_row_key, v_state;
+  end if;
+  return v_state;
+end
+$function$
+
+;
+
+-- private.set_updated_at()
+CREATE OR REPLACE FUNCTION private.set_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if tg_op = 'INSERT' then
+    new.updated_at := now();
+  elsif (to_jsonb(new) - 'updated_at') is distinct from (to_jsonb(old) - 'updated_at') then
+    new.updated_at := now();
+  else
+    new.updated_at := old.updated_at;   -- an update that changes nothing leaves the row as it was
+  end if;
+  return new;
+end
+$function$
+
+;

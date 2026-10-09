@@ -1,5 +1,6 @@
 -- Everything the table guide (docs/data.md) is made from, as one JSON document: every table, view and function in the
--- public schema with its description, columns, access rules and triggers. Used by database/describe.py (decision #10).
+-- public schema with its description, columns, access rules and triggers, and the internal functions in the private
+-- schema (#13), which the data API doesn't expose. Used by database/describe.py (decision #10).
 select json_build_object(
   'relations', (
     select coalesce(json_agg(r order by r.name collate "C"), '[]') from (
@@ -14,10 +15,10 @@ select json_build_object(
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind in ('r', 'p', 'v', 'm')) r),
   'functions', (
-    select coalesce(json_agg(f order by f.name collate "C", f.args collate "C"), '[]') from (
-      select p.proname as name, pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as returns,
+    select coalesce(json_agg(f order by f.schema collate "C" desc, f.name collate "C", f.args collate "C"), '[]') from (
+      select n.nspname as schema, p.proname as name, pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as returns,
              obj_description(p.oid, 'pg_proc') as description, p.prosecdef as definer,
              (select json_agg(distinct r.rolname::text) from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) x
                 join pg_roles r on r.oid = x.grantee where x.privilege_type = 'EXECUTE' and r.rolname in ('anon', 'authenticated')) as callable_by
-      from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public') f)
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private')) f)
 );
