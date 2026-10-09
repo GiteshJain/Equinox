@@ -1,0 +1,70 @@
+# The automatic checks (decision #9): keys and passwords, the schedule check, the planner (every screen, look-only
+# previews, known answers) and the website, on every pull request and every change to main. A red result means no
+# merge: Claude never asks for or makes one while it's red. The result, with what failed, is posted on the pull request.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write   # posts the result, with what failed, on the pull request
+  issues: write
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install the test browser
+        run: |
+          pip install -q playwright==1.56.0
+          python -m playwright install --with-deps chromium > /dev/null
+
+      - name: Run the checks
+        run: bash tests/run_all.sh 2>&1 | tee "$RUNNER_TEMP/checks.log"
+
+      - name: Post the result on the pull request
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          log="$RUNNER_TEMP/checks.log"
+          {
+            echo "<!-- equinox-checks -->"
+            if [ "${{ job.status }}" = "success" ]; then echo "**Checks: all passed**"; else echo "**Checks: failed. No merge until they pass**"; fi
+            echo
+            echo "Commit ${HEAD_SHA:0:7} · $(date -u '+%d %b %H:%M UTC')"
+            echo
+            echo '```'
+            sed -n '/^=== Summary/,$p' "$log" 2>/dev/null
+            if grep -q '^FAIL' "$log" 2>/dev/null; then echo; grep -A12 '^FAIL' "$log" | head -n 120; fi
+            echo '```'
+          } > "$RUNNER_TEMP/comment.md"
+          # one comment per pull request, updated on every run
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | select(.body | contains("<!-- equinox-checks -->")) | .id' | tail -n 1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null
+          else gh api "repos/$REPO/issues/$PR/comments" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null; fi
