@@ -179,4 +179,10 @@ backups, which is awkward to search, and is gone if that history is ever trimmed
   https://supabase.com/pricing
 
 ## Outcome
-Open: waiting for Gitesh's decision.
+9 Oct 2026: Gitesh chose **E** with a shorter window: "after 1 month only summary is ok".
+- Detail is archived once it's more than one full calendar month old, so the monthly report keeps the whole previous
+  month.
+- Archiving rather than deleting, and the change log at 12 months, are Claude's defaults, open to change.
+- Budget up to $10 a month.
+
+#6 and #8 change when the backups move to R2. No manual change until that's built.

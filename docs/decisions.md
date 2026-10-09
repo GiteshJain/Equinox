@@ -30,7 +30,7 @@ Status: **decided**, **open**, or **dropped**.
 | 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | **decided** 9 Oct 2026 |
 | 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | **decided** 9 Oct 2026 |
 | 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | **decided** 9 Oct 2026 |
-| 16 | Data growth: daily summaries kept forever, detail archived after a few months | open |
+| 16 | Data growth: daily summaries kept forever, detail archived after a few months | **decided** 9 Oct 2026 |
 | 17 | Database plan: when to move Supabase to its paid tier (backups, no pausing, branch databases) | open |
 
 ## Step 4 — Applications (decide before the planner rebuild)
@@ -219,6 +219,28 @@ Status: **decided**, **open**, or **dropped**.
 
   Reason: no history of plans, fleet or departures exists today, and history can't be made up later. With tables, a
   change is a few small rows, not a 194 KB copy. Brief: `docs/briefs/2026-10-09-history.md`.
+- **9 Oct 2026 · #16 Data growth.** Option E, with one month of detail (Gitesh, 9 Oct: "after 1 month only summary
+  is ok"):
+  - **One row per flight** for money and loads, in place of about 9 statement lines per flight. Raw statement lines
+    and raw pages are kept 14 days for checking.
+  - **Summaries kept for good:** per airline per day (#15), per route per day (flights, passengers, seats, revenue,
+    costs, profit), each world scan's market summary, and the income statement and balance sheet.
+  - **Detail** (per-flight rows, full scan schedules, payments ahead) stays in the database until it's more than one
+    full calendar month old, so the monthly report always has the whole previous month. October's detail stays until
+    1 December. Then it's archived and deleted from the database.
+  - **The change log** (#15, your edits) is kept 12 months, since it's small, then archived the same way.
+  - **Archives and nightly backups move to Cloudflare R2:** free up to 10 GB, then $0.015 per GB a month; 30 nightly
+    copies plus one a month kept. This changes #6 (backups leave the GitHub repository; GitHub keeps the code) and #8
+    (the rehearsal reads last night's backup from R2 with a read-only key). The archive job checks each file before
+    deleting anything.
+  - **Report PDFs** move out of the database into file storage.
+  - **Budget:** up to $10 a month (Gitesh). Expected cost is $0 for years.
+
+  Reason: the bank statement is about 9 lines per flight and two thirds of all growth. At today's pace the free plan's
+  500 MB would fill between February and June 2027 (the project then goes read-only), and the single backup file would
+  pass GitHub's 100 MB limit around January. With one row per flight and one month of detail, the database stays small
+  even at many times today's fleet. OneDrive and Google Drive were ruled out: their sign-in tokens need renewing, so
+  unattended uploads quietly stop. Brief: `docs/briefs/2026-10-09-data-growth.md`.
 
 ## Ideas to weigh when their decisions come up
 - **Dropped 9 Oct 2026 at #14: a shared, planner-only version for other players** (raised 8 Oct 2026): no
