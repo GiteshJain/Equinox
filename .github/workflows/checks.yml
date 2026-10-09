@@ -50,13 +50,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           log="$RUNNER_TEMP/checks.log"
           {
             echo "<!-- equinox-checks -->"
             if [ "${{ job.status }}" = "success" ]; then echo "**Checks: all passed**"; else echo "**Checks: failed. No merge until they pass**"; fi
             echo
-            echo "Commit ${GITHUB_SHA:0:7} · $(date -u '+%d %b %H:%M UTC')"
+            echo "Commit ${HEAD_SHA:0:7} · $(date -u '+%d %b %H:%M UTC')"
             echo
             echo '```'
             sed -n '/^=== Summary/,$p' "$log" 2>/dev/null
