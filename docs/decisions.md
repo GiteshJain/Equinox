@@ -21,7 +21,7 @@ Status: **decided**, **open**, or **dropped**.
 | 9 | Automatic tests on every change, blocking anything that breaks | **decided** 8 Oct 2026 |
 | 10 | Documentation: README, architecture notes, what each table means | **decided** 8 Oct 2026 |
 | 11 | Proper roles (owner, staff, investors, public); no shared passwords; secrets out of scripts | **decided** 8 Oct 2026 |
-| 12 | Game-rules exposure: how the capture and the salary step act in the game | open |
+| 12 | Game-rules exposure: how the capture and the salary step act in the game | **decided** 8 Oct 2026 |
 
 ## Step 3 — Data model (decide before the data-model build)
 | # | Decision | Status |
@@ -139,6 +139,19 @@ Status: **decided**, **open**, or **dropped**.
 
   Revisit with proper roles if a second person ever needs access, or at #14 if the planner-only version for other
   players goes ahead. Brief, with the fuller options: `docs/briefs/2026-10-08-roles.md`.
+- **8 Oct 2026 · #12 Game rules.** Nothing changes. These all stay:
+  - the interlines between the six airlines;
+  - the capture and its salary step;
+  - the world scanner and the schedule check.
+
+  Reason: Gander is an exclusive world, where the owner sets the rules "to the extent they desire" and AirlineSim
+  doesn't check game rules, only the limits built into the game (AirlineSim's page on exclusive worlds). In a public
+  world they wouldn't be allowed:
+  - rule 2.3 forbids co-operation between one player's holdings, and players read it as covering interlining;
+  - simulogics terms §5.3 forbids scripts for "automated usage or control of the game".
+
+  Revisit if the world's owner changes its rules, or if any of this is ever used in a public world.
+  Brief: `docs/briefs/2026-10-08-game-rules.md`.
 - **8 Oct 2026 · Added #26.** Whether building moves to Claude Code. Reason: from #13 the work is large and splits
   into many pull requests, and one long chat loses detail as it fills up. Decided before #13 with a full brief and one
   trial build done together. Until then, decisions and the small builds (#10 to #12) stay in this chat.

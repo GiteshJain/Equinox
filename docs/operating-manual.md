@@ -241,6 +241,10 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - Aircraft fly to their first departure automatically once scheduled.
 - The game runs standard time all year: JFK −5, London 0, Paris and Amsterdam +1, Delhi +5:30.
 - Subsidiaries don't work with the game's demand model, so we don't use them.
+- **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
+  game. That's why the interlines between our six airlines, the capture with its salary step, and the world scanner are
+  fine here (#12). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings, and
+  terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
 
 ---
 

@@ -106,4 +106,9 @@ The downside of a penalty, which can fall on all six airlines at once, is far bi
 - **If they say the capture isn't allowed:** move to D, with loads typed in by hand, as before 7 Oct.
 
 ## Outcome
-Open: waiting for Gitesh's decision.
+**8 Oct 2026: no change.** Gitesh: Gander is an exclusive world, so these rules don't apply to us. Checked:
+AirlineSim's page on exclusive worlds says the owner can set or relax game rules "to the extent they desire", and that
+AirlineSim won't check rules such as naming or stock exchanges. Only limits built into the game stay, for example the
+number of holdings per account. Rule 2.3 isn't built in: the game allowed the interlines. So the interlines, the
+capture, the salary step, the scanner and the schedule check all stay. The analysis above still applies in any public
+world. Source: https://www.airlinesim.aero/blog/2018/09/02/exclusive-game-worlds
