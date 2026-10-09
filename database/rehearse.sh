@@ -2,10 +2,11 @@
 # Rehearses database changes on a copy of last night's backup before they reach the live database (decision #8).
 #
 # Usage: database/rehearse.sh <folder holding an unpacked backup: db/, and latest.json if present> [base branch]
-# Run by .github/workflows/database-rehearsal.yml on every pull request that touches database/migrations/. The workflow
-# gets the folder from Cloudflare R2 with database/backup/download.sh (decision #16).
+# Run by .github/workflows/database-rehearsal.yml on every pull request that touches database/migrations/ or the
+# planner. The workflow gets the folder from Cloudflare R2 with database/backup/download.sh (decision #16).
 #
-# 1. Restores the backup into an empty local Supabase database (Docker), the same way the nightly restore check does.
+# 1. Restores the backup into an empty local Supabase (Docker): the database, the data API and sign-in, with nothing
+#    else started (#17). The database is restored the same way the nightly restore check does.
 # 2. Finds the changes still to apply: migration files whose version isn't in the restored migration record, which is
 #    the live database's record as of last night.
 # 3. Applies them in order, each in its own transaction, stopping at the first failure.
@@ -13,7 +14,11 @@
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back.
 # 6. Checks the descriptions (decision #10): every table, view and function has one, and docs/data.md matches the
 #    database. With WRITE_DOCS=1 it rewrites docs/data.md instead (run that locally after changing a description).
-# Only table names, counts, descriptions and error messages are printed. The copy exists only on the runner while this runs.
+# 7. Real saves (#17), only if 1 to 6 passed: the data API reloads its schema, then tests/real_saves_test.py opens the
+#    pull request's planner, signs in as a test staff user and saves into the copy for real, and reads the tables back.
+#    Needs Python with Playwright 1.56 (and its Chromium) and Node 22 (npm), as the workflow installs.
+# Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
+# its test users exist only on the runner while this runs.
 set -euo pipefail
 export LC_ALL=C   # sort, join and comm agree on order
 backup=$(cd "$1" && pwd)
@@ -35,7 +40,14 @@ echo "== restoring last night's backup ($made)"
 cd "$work"
 supabase init < /dev/null > /dev/null
 sed -i 's/^major_version = .*/major_version = 17/' supabase/config.toml   # same Postgres version as the live database
-supabase db start > "$work/start.log" 2>&1 || { tail -n 20 "$work/start.log"; exit 1; }
+# Only what the planner calls: the database, sign-in (gotrue), the data API (postgrest) and the gateway in front of them
+# (kong). Everything else the CLI can start is left out; the list is read from the CLI so a new service stays out too.
+services=$(supabase start --help 2> /dev/null | sed -n 's/.*--exclude.*\[\([a-z0-9,_-]*\)\].*/\1/p' | head -n 1)
+[ -n "$services" ] || services="gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor"
+leave_out=$(tr ',' '\n' <<< "$services" | grep -vxF -e gotrue -e postgrest -e kong | paste -sd, -)
+# the CLI prints the local keys when it starts: they stay in start.log, and are taken out if it is ever shown
+hide_keys() { sed -E 's/eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*/[key]/g; s/sb_(secret|publishable)_[A-Za-z0-9_-]+/[key]/g; s/((key|secret)[^:=]*[:=][[:space:]"]*)[^[:space:]",]+/\1[key]/Ig'; }
+supabase start -x "$leave_out" > "$work/start.log" 2>&1 || { tail -n 20 "$work/start.log" | hide_keys; exit 1; }
 trap 'supabase stop --no-backup --workdir "$work" > /dev/null 2>&1 || true' EXIT   # stop the copy however this ends
 cd "$here"
 grep -v 'cli_login_postgres' "$backup/db/roles.sql" > "$work/roles.sql" || true   # the CLI makes this role itself
@@ -116,5 +128,36 @@ if [ $status -eq 0 ]; then
   echo "== descriptions and the table guide (decision #10)"
   flag=--check; [ "${WRITE_DOCS:-0}" = 1 ] && flag=
   psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/describe.sql | python3 database/describe.py $flag || status=1
+fi
+
+# Real saves (#17): the pull request's planner saves into the copy. The local address and keys go to the test in a file
+# only this user can read; they are never printed.
+real_saves() {
+  local env="$work/local.env" api anon code tries=0 rc=0
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  api=$(sed -n 's/^API_URL="\(.*\)"$/\1/p' "$env"); anon=$(sed -n 's/^ANON_KEY="\(.*\)"$/\1/p' "$env")
+  # the data API read the database's tables when it started, before the restore: reload them, then wait until it serves
+  # a restored table (any answer but "not found", "schema not loaded" or no answer at all)
+  psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c "notify pgrst, 'reload schema'" > /dev/null
+  while :; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $anon" "$api/rest/v1/planner_state?select=id&limit=1" || true)
+    case "$code" in 200|401|403) break ;; esac
+    tries=$((tries + 1))
+    if [ $tries -ge 60 ]; then rc=1; break; fi
+    sleep 1
+  done
+  if [ $rc -ne 0 ]; then
+    echo "FAIL  the data API didn't answer within a minute of reloading (last answer: ${code:-none})"
+  else
+    echo "the data API reloaded and answers for the restored tables (after ${tries}s)"
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/real_saves_test.py || rc=$?
+  fi
+  rm -f "$env"
+  return $rc
+}
+if [ $status -eq 0 ]; then
+  echo "== real saves: the pull request's planner, signed in as test staff, saving into the copy (#17)"
+  real_saves || status=1
 fi
 exit $status

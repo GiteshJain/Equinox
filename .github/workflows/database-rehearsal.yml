@@ -1,7 +1,10 @@
-# Rehearses a pull request's database changes on a copy of last night's backup (decision #8).
-# Runs when a pull request adds or changes a migration or a database test, or changes this check. The copy comes from
-# Cloudflare R2, read with a read-only key (decision #16). The result is posted on the pull request; Claude applies a
-# change to the live database only after it passes here and Gitesh says "merge".
+# Rehearses a pull request's database changes on a copy of last night's backup (decision #8), then lets the pull
+# request's own planner sign in and save for real into that copy (#17).
+# Runs when a pull request adds or changes a migration or a database test, changes the planner (a planner change can
+# break saving) or the real-saves test, or changes this check. The copy comes from Cloudflare R2, read with a read-only
+# key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
+# result is posted on the pull request; Claude applies a change to the live database only after it passes here and
+# Gitesh says "merge".
 name: Database rehearsal
 
 on:
@@ -13,6 +16,9 @@ on:
       - "database/backup/**"
       - "database/describe.*"
       - "docs/data.md"
+      - "web/planner/**"
+      - "tests/real_saves_test.py"
+      - "tests/harness.py"
       - ".github/workflows/database-rehearsal.yml"
 
 permissions:
@@ -60,6 +66,20 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
           sudo apt-get install -y -qq postgresql-client-17 > /dev/null
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      # For the real saves (#17): the browser that opens the planner, and npm for the planner's own Supabase library
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install the test browser
+        run: |
+          pip install -q playwright==1.56.0
+          python -m playwright install --with-deps chromium > /dev/null
 
       - name: Rehearse the changes
         run: bash database/rehearse.sh .backup "${{ github.base_ref }}" 2>&1 | tee -a "$LOG"
