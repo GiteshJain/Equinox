@@ -97,7 +97,7 @@ flowchart LR
 | Investor password | Its hash is in `report_access` | Investor page and reports |
 | `SUPABASE_DB_URL` | GitHub secret on `equinox-backups` | The nightly backup |
 | `BACKUPS_READ_TOKEN` (expires 5 Jan 2027) | GitHub secret on `Equinox` | The database rehearsal reads last night's backup |
-| Staff passwords | Supabase sign-in (not in any table or backup) | The planner |
+| Your password | Supabase sign-in (not in any table or backup). Sign-ups are off (#11), so yours is the only account | The planner |
 
 ## When something breaks
 

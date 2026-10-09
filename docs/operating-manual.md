@@ -60,6 +60,9 @@ Every rule in force for the equinox. group, with the date it started and why. De
   Never guess a current fact. *Since 8 Oct.*
 - **No keys or passwords** in the repository, files or chat. Keys live in the database or as GitHub secrets.
   *Since 8 Oct.*
+- **No one can sign up:** sign-ups are off in Supabase, and the only account is Gitesh's. Giving someone access means
+  turning them on briefly, or inviting from Supabase's dashboard, and then proper roles (see #11's brief).
+  *Since 8 Oct (#11) · why: there will never be other staff; a stray account could read every route's profit.*
 - **Test samples are the one exception to "no game data in the code repository":** small, dated samples of game data
   in `tests/fixtures/` for the automatic checks. Never the database, keys or sign-in data. *Since 8 Oct (#9) · why:
   checks need fixed data to compare exact answers.*

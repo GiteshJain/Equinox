@@ -20,7 +20,7 @@ Status: **decided**, **open**, or **dropped**.
 | 8 | Preview before live: every change gets a preview link; database changes tried on a copy first | **decided** 8 Oct 2026 |
 | 9 | Automatic tests on every change, blocking anything that breaks | **decided** 8 Oct 2026 |
 | 10 | Documentation: README, architecture notes, what each table means | **decided** 8 Oct 2026 |
-| 11 | Proper roles (owner, staff, investors, public); no shared passwords; secrets out of scripts | open |
+| 11 | Proper roles (owner, staff, investors, public); no shared passwords; secrets out of scripts | **decided** 8 Oct 2026 |
 | 12 | Game-rules exposure: how the capture and the salary step act in the game | open |
 
 ## Step 3 — Data model (decide before the data-model build)
@@ -122,17 +122,28 @@ Status: **decided**, **open**, or **dropped**.
   rehearsal fails if a table, view or function has no description, or if the table guide no longer matches. Reason:
   nothing explained how the parts connect or what the tables hold, so every new chat or session rediscovered it, and
   #26's Claude Code sessions start with no memory. Brief: `docs/briefs/2026-10-08-documentation.md`.
+- **8 Oct 2026 · #11 Roles and access.** Sign-ups are switched off in Supabase ("Allow new users to sign up"), so no
+  one can create an account. The only account is Gitesh's, and a test sign-up is refused. Nothing else changes:
+  - the capture key (hashed, revocable);
+  - the one investor password (hashed);
+  - the ingest secret for Claude's scripts;
+  - the public website.
+
+  Reason: there will never be other staff, and the only likely risk was a stray account reading every route's profit
+  through the two views that skip the staff check. With sign-ups off, the only signed-in account is Gitesh's.
+  Accepted as they are:
+  - the plain-text ingest secret (reading it already needs database access);
+  - the two views and the two internal capture steps open to any signed-in account;
+  - Supabase's advisor warnings about functions callable without signing in. Each checks a key or password, or is
+    public by design.
+
+  Revisit with proper roles if a second person ever needs access, or at #14 if the planner-only version for other
+  players goes ahead. Brief, with the fuller options: `docs/briefs/2026-10-08-roles.md`.
 - **8 Oct 2026 · Added #26.** Whether building moves to Claude Code. Reason: from #13 the work is large and splits
   into many pull requests, and one long chat loses detail as it fills up. Decided before #13 with a full brief and one
   trial build done together. Until then, decisions and the small builds (#10 to #12) stay in this chat.
 
 ## Ideas to weigh when their decisions come up
-- **For #11, found 8 Oct 2026 while documenting the database.**
-  - The views `game_flight_pnl` and `game_ops_recent` run as their owner, so any signed-in account, not only staff on
-    `planner_users`, can read flight profit through them. Staff-only is `is_planner_user()`.
-  - Supabase's advisor lists 13 functions that run as owner and that anyone can call. Most of them check the ingest
-    secret or a password themselves.
-  - Every table grants anon and authenticated all rights by default, and row-level security is what protects them.
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
   several worlds, often only one or two airlines per player, no AI required. To weigh at #11 (roles: separate accounts
   with their own data) and #14 (multi-world). Implication if adopted: design the data model for many players, worlds
