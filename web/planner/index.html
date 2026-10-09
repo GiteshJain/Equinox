@@ -2191,7 +2191,7 @@ function makeModel(DATA, state) {
     return parts.length ? ` <span class="capl${r.eco != null && +r.eco < 85 ? " low" : ""}">${parts.join(" · ")}</span>` : "";
   }
   // ---- growth forecast: cash for the next 14 days from the captured balance, flight profit and scheduled payments ----
-  const CUSHION = 0.5;   // M kept in hand at the lowest point after an order
+  const CUSHION = 0.9;   // TEMPORARY deliberate break   // M kept in hand at the lowest point after an order
   const DAYMS = 864e5;
   const LEASE_PCT = 0.10;   // weekly lease is about 10% of the order price in every capture so far; used only for a type never leased yet
   function leaseM(name) {   // weekly lease of an aircraft type: the highest payment seen in the captured events, else ≈10% of its price
@@ -2722,7 +2722,7 @@ function makeModel(DATA, state) {
     if (IL_YES[cc]) return { kind: "interline", label: "interline · " + IL_YES[cc] };
     return { kind: "nonet", label: "no network" };
   }
-  function interlineRows() {   // one row per airline × Interline country it flies into or has planned
+  function interlineRows() { undefinedThing.x;   // TEMPORARY deliberate break   // one row per airline × Interline country it flies into or has planned
     const rows = {}; const add = (airline, ap, rtDay, planned) => { const cc = ctryOf(ap); if (!cc || ilClass(cc, airline).kind !== "interline") return;
       const k = airline + "|" + cc; const r = rows[k] = rows[k] || { airline, cc, airports: {}, rtDay: 0, planned: true }; r.airports[ap] = (r.airports[ap] || 0) + rtDay; r.rtDay += rtDay; if (!planned) r.planned = false; };
     for (const f of state.freqs) { const rt = M.routeMap.get(f.routeKey); if (!rt) continue; const c = M.computeFreq(f); const rtDay = c ? c.rtWk / 7 : 0; for (const ap of [rt.dest, rt.hub]) add(rt.airline, ap, rtDay, false); }
