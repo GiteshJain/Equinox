@@ -46,7 +46,7 @@ services=$(supabase start --help 2> /dev/null | sed -n 's/.*--exclude.*\[\([a-z0
 [ -n "$services" ] || services="gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor"
 leave_out=$(tr ',' '\n' <<< "$services" | grep -vxF -e gotrue -e postgrest -e kong | paste -sd, -)
 # the CLI prints the local keys when it starts: they stay in start.log, and are taken out if it is ever shown
-hide_keys() { sed -E 's/eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*/[key]/g; s/sb_(secret|publishable)_[A-Za-z0-9_-]+/[key]/g; s/(secret[^:=]*[:=][[:space:]"]*)[^[:space:]"]+/\1[key]/Ig'; }
+hide_keys() { sed -E 's/eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*/[key]/g; s/sb_(secret|publishable)_[A-Za-z0-9_-]+/[key]/g; s/((key|secret)[^:=]*[:=][[:space:]"]*)[^[:space:]",]+/\1[key]/Ig'; }
 supabase start -x "$leave_out" > "$work/start.log" 2>&1 || { tail -n 20 "$work/start.log" | hide_keys; exit 1; }
 trap 'supabase stop --no-backup --workdir "$work" > /dev/null 2>&1 || true' EXIT   # stop the copy however this ends
 cd "$here"
@@ -133,9 +133,9 @@ fi
 # Real saves (#17): the pull request's planner saves into the copy. The local address and keys go to the test in a file
 # only this user can read; they are never printed.
 real_saves() {
-  local env="$work/local.env" api anon code tries=0
+  local env="$work/local.env" api anon code tries=0 rc=0
   (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
-    || { echo "FAIL  couldn't read the local copy's address and keys"; return 1; }
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   api=$(sed -n 's/^API_URL="\(.*\)"$/\1/p' "$env"); anon=$(sed -n 's/^ANON_KEY="\(.*\)"$/\1/p' "$env")
   # the data API read the database's tables when it started, before the restore: reload them, then wait until it serves
   # a restored table (any answer but "not found", "schema not loaded" or no answer at all)
@@ -144,11 +144,17 @@ real_saves() {
     code=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $anon" "$api/rest/v1/planner_state?select=id&limit=1" || true)
     case "$code" in 200|401|403) break ;; esac
     tries=$((tries + 1))
-    if [ $tries -ge 60 ]; then echo "FAIL  the data API didn't answer within a minute of reloading (last answer: ${code:-none})"; return 1; fi
+    if [ $tries -ge 60 ]; then rc=1; break; fi
     sleep 1
   done
-  echo "the data API reloaded the restored tables (${tries}s)"
-  LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/real_saves_test.py
+  if [ $rc -ne 0 ]; then
+    echo "FAIL  the data API didn't answer within a minute of reloading (last answer: ${code:-none})"
+  else
+    echo "the data API reloaded and answers for the restored tables (after ${tries}s)"
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/real_saves_test.py || rc=$?
+  fi
+  rm -f "$env"
+  return $rc
 }
 if [ $status -eq 0 ]; then
   echo "== real saves: the pull request's planner, signed in as test staff, saving into the copy (#17)"

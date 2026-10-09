@@ -301,7 +301,7 @@ async def tick_todo(pl, s0, l0, n0):
     problems = []
     if s1["saved_at"] <= s0["saved_at"]:
         problems.append("planner_state wasn't saved (saved_at didn't move)")
-    if t1.get("id") != tid or t1.get("done") is not False or not t1.get("doneAt"):   # DELIBERATE FAILURE, to be removed
+    if t1.get("id") != tid or t1.get("done") is not True or not t1.get("doneAt"):
         problems.append(f"the to-do isn't saved as done (done: {t1.get('done')!r}, doneAt set: {bool(t1.get('doneAt'))})")
     other = [d for d in diff if d not in want | BOOKKEEPING]
     if other:
