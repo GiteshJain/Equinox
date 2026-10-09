@@ -244,7 +244,7 @@ First rows for Gander. At the switch-over the manual's figures point here (check
 |---|---|---|
 | §3 cash forecast | `order_cushion` → 500000; `lease_estimate_pct` → 10 (only for a type never leased) | settings |
 | §3 hubs first | `hub_first_departures` → 750; `contested_rival_weekly` → 250; `contested_rival_daily` → 2; Ryanair `hub_first_exempt` → true | settings, airline override |
-| §4 connections | `connection_buffer_min` → 10; `connection_max_wait_h` → 8; `bank_arrival_window_min` → 60; `bank_departure_window_min` → 60; `bank_buffer_min` → 0 | settings |
+| §4 connections | `connection_buffer_min` → 0; `connection_max_wait_h` → 8; `bank_arrival_window_min` → 60; `bank_departure_window_min` → 60; `bank_buffer_min` → 0 | settings |
 | §4 scheduling | `second_daily_gap_h` → 3; `turn_margin_min` → 10 (10–15; 5 tolerated); `maintenance_min_pct` → 100; `maintenance_target_pct` → 105; `maint_min_ground_min` → 120; `block_allowance_min` → 25 (speeds in `aircraft_types.cruise_kmh`); `legal_gap_h` → 2 | settings |
 | §5 fares | `fare_launch_pct` → 100; Ryanair → 85 (per-market prices in `markets`) | settings, airline override |
 | Check → Growth | the growth-signal thresholds in the code and in `planner_meta.growthRules` | settings |
@@ -725,9 +725,10 @@ decided, and each can be changed later. So they were Claude's call. The chosen o
 - Flight numbers repeat on alternate days (Kingfisher 1001/1002 on two aircraft), so there's no unique constraint on
   them (§3.4).
 - The return's weekdays are still worked out by the old planner's rule while it's in use (§4).
-- **The connection buffer differs between tools:** the manual says connection time + 10 minutes, the planner's bank
-  check uses a buffer of 0 (`ref.consts.buf`) and its connection count uses the connection time alone, while the
-  optimiser adds 10. The settings hold today's values unchanged; which is right belongs to the Scheduling chat.
+- **The connection buffer differed between tools:** the manual said connection time + 10 minutes, the planner's bank
+  check used a buffer of 0 (`ref.consts.buf`) and its connection count the connection time alone, while the
+  optimiser added 10. Settled 9 Oct by Gitesh: no margin, the minimum connection time is enough (manual §4). The
+  setting is 0; the optimiser changes to match in its own pull request.
 - The planner copies captured cash into its own JSON, and its "today" mixes the browser's date with UTC (Manual entry
   uses UTC). The adapter keeps the planner's date keys; the new tables use capture days (§2).
 - `game_balance.captured_on` is the UTC date, a day after Gitesh's evening (§2).

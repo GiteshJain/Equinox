@@ -177,9 +177,10 @@ Details and open points: `docs/decisions.md`.
   the game and presses File; the planner checks each card against the game. *Since 2 Oct.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
-- **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time + 10 minutes
-  before the departures it feeds, and departures leave within 8 hours of the arrivals they collect. Every new plan card
-  and every retime is checked at both ends. *Since 6 Oct, updated 7 Oct.*
+- **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time before the
+  departures it feeds, with no extra margin, and departures leave within 8 hours of the arrivals they collect. Every
+  new plan card and every retime is checked at both ends. *Since 6 Oct, updated 7 Oct; margin dropped 9 Oct · why:
+  Gitesh: as long as it's over the minimum connection time, it's good.*
 - **Use each aircraft as much as possible.** No fixed floor on flying hours; options show hours a day next to
   connections, and check whether one more short rotation fits. *Since 7 Oct.*
 - **Night slots are fine.** *Since 27 Sep · why: the game's demand ignores time of day, and captures show night
@@ -290,6 +291,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 9 Oct | A connection needs the minimum connection time + 10 minutes | The minimum connection time alone (§4). Why: the extra 10 minutes isn't needed; the planner already counted without it, while the manual and the optimiser added it |
 | 9 Oct | Backups are kept as commits in the private repository `equinox-backups`, and the rehearsal reads them there with a GitHub key | Copies in Cloudflare R2: nightly for 30 days, monthly for good, plus a monthly GitHub release (§7, #16). Why: the single backup file was heading for GitHub's size limits |
 | 8 Oct | No game data at all in the code repository | Small dated test samples allowed in `tests/fixtures/` (#9) |
 | 8 Oct | Ask before every Netlify deploy | Pull requests; "merge" makes it live |
