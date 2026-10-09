@@ -35,6 +35,17 @@ Every rule in force for the equinox. group, with the date it started and why. De
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*
+- **Documentation stays current:** every pull request that changes how something works updates the documents in the
+  same pull request:
+  - the map, `docs/architecture.md` (and its project copy, `claude/architecture.md`);
+  - the planner guide, `docs/planner-guide.md`;
+  - `scripts/README.md`;
+  - `database/current/`, for a changed function or view;
+  - the README.
+
+  Every new table, view or function gets a description in its migration. The database rehearsal fails without one, and
+  regenerates and checks the table guide, `docs/data.md`. A new chat or session starts from the map.
+  *Since 8 Oct (#10) · why: nothing explained how the parts connect, so every new chat rediscovered it.*
 - **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*

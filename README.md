@@ -1,18 +1,39 @@
 # equinox.
 
-Everything behind the equinox. airline group in AirlineSim (Gander world): the public website, the staff planner,
-the database structure, the scripts that build reports and plans, and the nightly game capture.
+Everything behind the equinox. airline group in AirlineSim's Gander world: the public website and staff planner at
+equinox-alliance.com, the database behind them, the nightly game capture, and the scripts that build reports and plans.
+
+## Start here
+
+| To understand | Read |
+|---|---|
+| How the pieces fit together, what runs when, where keys are kept, what to do when something breaks | [`docs/architecture.md`](docs/architecture.md) |
+| What each planner screen shows and where its numbers come from | [`docs/planner-guide.md`](docs/planner-guide.md) |
+| What each database table, view and function holds or does | [`docs/data.md`](docs/data.md) (generated from the database) |
+| The rules everyone works by | [`docs/operating-manual.md`](docs/operating-manual.md) |
+| Why things are the way they are | [`docs/decisions.md`](docs/decisions.md) and the briefs in [`docs/briefs/`](docs/briefs/) |
+| How to run the report, newsletter, scanner and optimiser scripts | [`scripts/README.md`](scripts/README.md) |
+| The automatic checks | [`tests/README.md`](tests/README.md) |
+
+## Folders
 
 | Folder | What's in it |
 |---|---|
 | `web/` | The public website and the planner (`web/planner/`), published by Cloudflare Pages from `main` |
 | `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
-| `database/migrations/` | Every database change, in the order it was applied. `database/rehearse.sh` tries new ones on a copy of last night's backup (run on every pull request that changes the database) |
-| `database/current/` | Today's definitions of all database functions and views (the source of truth until the rebuild) |
-| `scripts/` | Weekly report, newsletter, world scanner, schedule optimiser |
+| `database/migrations/` | Every database change, in the order it was applied |
+| `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |
+| `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
+| `scripts/` | Weekly report, gander monthly, world scanner, schedule optimiser |
 | `capture/` | The one-button capture userscript and the bookmark (keys are placeholders) |
-| `tests/` | The automatic checks run on every pull request (see `tests/README.md`) |
-| `docs/` | Decisions, design and the operating manual |
+| `tests/` | The automatic checks run on every pull request |
+| `docs/` | The map, the planner guide, the table guide, the manual, the decisions and their briefs |
+
+## How changes are made
+Every code change is a pull request. The checks run on it, Cloudflare builds a preview (look-only), and database
+changes are rehearsed on a copy of last night's backup. Gitesh approves with "merge", and merging publishes it. Every
+pull request that changes how something works updates these documents in the same pull request. Data-only changes
+(plan cards, to-dos) go straight into the planner. Decisions #2, #8 and #9 have the detail.
 
 **Never committed:** keys, passwords and live game data. Keys live in the database or as GitHub secrets;
 placeholders like `__CAPTURE_KEY__` mark where they are filled in. The one exception is small, dated samples of game
