@@ -127,6 +127,12 @@ Status: **decided**, **open**, or **dropped**.
   trial build done together. Until then, decisions and the small builds (#10 to #12) stay in this chat.
 
 ## Ideas to weigh when their decisions come up
+- **For #11, found 8 Oct 2026 while documenting the database.**
+  - The views `game_flight_pnl` and `game_ops_recent` run as their owner, so any signed-in account, not only staff on
+    `planner_users`, can read flight profit through them. Staff-only is `is_planner_user()`.
+  - Supabase's advisor lists 13 functions that run as owner and that anyone can call. Most of them check the ingest
+    secret or a password themselves.
+  - Every table grants anon and authenticated all rights by default, and row-level security is what protects them.
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
   several worlds, often only one or two airlines per player, no AI required. To weigh at #11 (roles: separate accounts
   with their own data) and #14 (multi-world). Implication if adopted: design the data model for many players, worlds
