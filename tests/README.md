@@ -9,9 +9,27 @@ result, with anything that failed, is posted as a comment on the pull request. W
 | Schedule check | `schedule_test.mjs` | The real `/api/game-schedule` function reads a saved game page right: the session cookie, the airline, all 48 flights and their fields, plus clear errors for bad links and game errors. |
 | Planner | `planner_test.py` | Every screen, each airline's Review page and the main pop-ups open with no errors. Previews save nothing while the live address saves. Loads by hand save only the days they change. The numbers that matter match the saved answers, and the leases match the manual. |
 | Website | `site_test.py` | Every public page opens with its content and no errors, and `/planner` reaches the planner. |
-| Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8): database changes applied to a copy of last night's backup (downloaded from Cloudflare R2 and checked), then every test in `database/tests/` run on that copy and rolled back. |
+| Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8), when the database or the planner changes: last night's backup (downloaded from Cloudflare R2 and checked) restored into a full local Supabase (database, data API and sign-in); the database changes applied to it; every test in `database/tests/` run on that copy and rolled back; then the real saves. |
+| Real saves | `real_saves_test.py` | Run by the rehearsal as its last step, not by `run_all.sh`: it needs Docker and the backup (#17). The pull request's own planner, at its live address and with its real Supabase library, signs in as a test staff user through its own form and saves into the copy: ticks a to-do, changes a plan card's title, types a load. After each save the tables are read back: only the intended field changed, and no table's row count. An account that isn't staff reads no rows and can't write. No request leaves the runner. |
 
 Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.56 and its Chromium, and Node 22).
+
+## Real saves (#17)
+The rehearsal starts Supabase's database, data API and sign-in, and nothing else, then restores the backup. The test
+makes two throwaway users through the local sign-in (one in `planner_users`, one not). The planner's requests for the
+live Supabase address are answered by the local copy, with the local key in place of the live one; its Supabase
+library is the version it names, from npm. Every other outside request is stopped, and the test fails if anything
+reached the network except the local server.
+- **Plan card title:** the planner has no field for it, so the test uses Reference → Data: export, change the title,
+  import. That saves the whole document, which also proves an export and import change nothing else.
+- **Typed load:** typing a day under Loads by hand replaces that day's whole entry with what's in the boxes (only
+  flights under 95%). So the test types on the latest recent day with no loads yet, where nothing else can change.
+- **The items** (the first open to-do, the first plan card, the day and flight) are picked from the restored data each
+  run. `savedAt` and `version` may change with any save; a missing field counts the same as an empty (null) one.
+- The log is posted on the pull request, so it shows ids and the names of changed fields only, never rows or keys.
+
+To try it on your machine (Docker, the Supabase CLI, psql 17, Python with Playwright, Node): get a backup as below,
+then `bash database/rehearse.sh .backup`.
 
 ## The sample
 `fixtures/sample_<date>.json.gz` is what the planner and website read at one moment (`frozen_at`), taken from a nightly
