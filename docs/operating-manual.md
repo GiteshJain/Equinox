@@ -222,8 +222,8 @@ Details and open points: `docs/decisions.md`.
 - **Every night, after the capture:** an automatic backup copies the database and the site's files, restores the copy
   to prove it works, uploads it to Cloudflare R2 and reports the result. Each night's copy is kept 30 days. The
   month's first is kept for good, in R2 and as a file on a GitHub release in the private repository `equinox-backups`,
-  where the backup job lives. Until the move's last step (`equinox-backups` PR 3), each copy is also still committed
-  there. The database rehearsal reads last night's copy from R2 with a read-only key. Live data never goes into the
+  where the backup job lives. Copies no longer go into git. Each run's R2 key is recorded in `backup_runs`. The
+  database rehearsal reads last night's copy from R2 with a read-only key. Live data never goes into the
   code repository (small test samples aside, see §1). The planner warns on Home if there's no good copy from the last
   30 hours. To recover, see the README in `equinox-backups`. *Copies in R2 since 9 Oct (#16) · why: the single backup
   file would pass GitHub's 50 MB warning around late November and its 100 MB limit around December or January.*

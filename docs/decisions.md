@@ -87,9 +87,9 @@ Status: **decided**, **open**, or **dropped**.
   decision #17. Reason: there were no backups at all, the whole planner is one overwritten row, and this costs
   nothing. Brief: `docs/briefs/2026-10-08-backups.md`.
   *Changes with #16 (9 Oct):* each night's copy goes to Cloudflare R2, kept 30 days; the month's first is kept for
-  good, in R2 and as a GitHub release file in `equinox-backups`. The rehearsal reads the copies from R2. The move is
-  complete once `equinox-backups` stops committing copies to git (its PR 3); until then they still go there too.
-  Archives move to R2 with the rest of #16. Spec: `docs/specs/2026-10-09-backups-to-r2.md`.
+  good, in R2 and as a GitHub release file in `equinox-backups`. The rehearsal reads the copies from R2. Built and
+  complete on 9 Oct: `equinox-backups` #3 and #4, `Equinox` #11. Copies no longer go into git. Archives move to R2 with
+  the rest of #16. Spec: `docs/specs/2026-10-09-backups-to-r2.md`.
 - **8 Oct 2026 · #7 Hosting.** The website and planner move from Netlify to Cloudflare Pages (free plan), at our own
   domain `equinox-alliance.com` (option B), deployed from the repository: merging to `main` publishes, and every pull
   request gets a preview. The domain is registered at Cloudflare at cost (about $10.46 a year, renewing automatically);
@@ -253,7 +253,9 @@ Status: **decided**, **open**, or **dropped**.
 An independent review of #1 to #16 and #26 together. Status of each point:
 
 **Needs Gitesh's decision, before the #13 design:**
-1. **Move backups to R2 now, not with the rebuild.** The single backup file reaches GitHub's 50 MB warning around late
+1. **Done 9 Oct:** backups moved to R2 (`equinox-backups` #3 and #4, `Equinox` #11). Report PDFs in a private bucket,
+   and a second copy of archives, come with the rest of #16. As raised: **Move backups to R2 now, not with the
+   rebuild.** The single backup file reaches GitHub's 50 MB warning around late
    November and its 100 MB block around December or January. The move also covers:
    - the rehearsal's scripts;
    - the test-sample maker;
