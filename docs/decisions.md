@@ -26,7 +26,7 @@ Status: **decided**, **open**, or **dropped**.
 ## Step 3 — Data model (decide before the data-model build)
 | # | Decision | Status |
 |---|---|---|
-| 26 | Where building happens: Claude Code sessions for the rebuild, this chat for decisions (decide first, after a trial build) | open |
+| 26 | Where building happens: in this chat or in Claude Code sessions | **decided** 8 Oct 2026 |
 | 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | open |
 | 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | open |
 | 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | open |
@@ -155,6 +155,20 @@ Status: **decided**, **open**, or **dropped**.
 - **8 Oct 2026 · Added #26.** Whether building moves to Claude Code. Reason: from #13 the work is large and splits
   into many pull requests, and one long chat loses detail as it fills up. Decided before #13 with a full brief and one
   trial build done together. Until then, decisions and the small builds (#10 to #12) stay in this chat.
+- **8 Oct 2026 · #26 Where building happens.** Option C: building stays in the Equinox project.
+  - Decisions and reviews happen in the Building chat.
+  - Each sizeable build gets a written spec and goes to a helper that starts with a fresh memory. It reads
+    `CLAUDE.md`, the map and the manual, writes the code, runs the checks and opens the pull request.
+  - The Building chat reviews the pull request against the spec and the checks before asking for "merge".
+  - A new Building chat starts at each step (4 and 5), once anything worth carrying is in the repository or the
+    project files.
+  - A short `CLAUDE.md` in the repository points every session to the map and the manual.
+
+  No separate trial: the first #13 build is the trial, reviewed afterwards. Reason: the problem was memory, not tools.
+  This chat already runs on the same cloud machinery as Claude Code, and the old Building chat lost detail when it
+  filled. A fresh helper per build fixes that with no extra steps for Gitesh and no second place to follow. Claude Code
+  sessions (option B) stay a 15-minute switch if C struggles; revisit Claude Code Projects (D) if it reaches the
+  account. Brief: `docs/briefs/2026-10-08-building.md`.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across

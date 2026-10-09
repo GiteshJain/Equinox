@@ -46,6 +46,13 @@ Every rule in force for the equinox. group, with the date it started and why. De
   Every new table, view or function gets a description in its migration. The database rehearsal fails without one, and
   regenerates and checks the table guide, `docs/data.md`. A new chat or session starts from the map.
   *Since 8 Oct (#10) · why: nothing explained how the parts connect, so every new chat rediscovered it.*
+- **Big builds go to a fresh helper.** Decisions and reviews stay in the Building chat. Each sizeable build gets a
+  written spec (what, why, which files, what the checks should show) and goes to a helper that starts with a fresh
+  memory: it reads `CLAUDE.md`, the map and the manual, writes the code, runs the checks and opens the pull request.
+  Claude reviews it against the spec and the checks before asking for "merge". Small fixes can be made directly in the
+  chat. A new Building chat starts at each step of the decision list, once anything worth carrying is in the
+  repository or the project files. *Since 8 Oct (#26) · why: the old Building chat lost detail as it filled; a clean
+  memory per build fixes that with no extra steps.*
 - **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*
