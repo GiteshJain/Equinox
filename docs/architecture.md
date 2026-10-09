@@ -104,7 +104,6 @@ flowchart LR
 | `SUPABASE_DB_URL` | GitHub secret on `equinox-backups` | The nightly backup |
 | R2 writer key: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (Object Read & Write, the `equinox-backups` bucket only) | GitHub secrets on `equinox-backups` | The nightly backup uploads its copy to R2 |
 | R2 reader key: `R2_ENDPOINT`, `R2_READ_ACCESS_KEY_ID`, `R2_READ_SECRET_ACCESS_KEY` (Object Read only, the `equinox-backups` bucket only) | GitHub secrets on `Equinox` | The database rehearsal reads last night's copy; also used to get a copy for a test sample (`tests/README.md`) |
-| `BACKUPS_READ_TOKEN` (expires 5 Jan 2027) | GitHub secret on `Equinox` | Retired from the database rehearsal on 9 Oct: it reads from R2 now. Nothing else uses it. Gitesh deletes the key and this secret (planner To-do); the 29 Dec renewal is no longer needed |
 | Your password | Supabase sign-in (not in any table or backup). Sign-ups are off (#11), so yours is the only account | The planner |
 
 ## When something breaks
