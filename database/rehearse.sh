@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Rehearses database changes on a copy of last night's backup before they reach the live database (decision #8).
 #
-# Usage: database/rehearse.sh <folder holding the equinox-backups checkout> [base branch]
-# Run by .github/workflows/database-rehearsal.yml on every pull request that touches database/migrations/.
+# Usage: database/rehearse.sh <folder holding an unpacked backup: db/, and latest.json if present> [base branch]
+# Run by .github/workflows/database-rehearsal.yml on every pull request that touches database/migrations/. The workflow
+# gets the folder from Cloudflare R2 with database/backup/download.sh (decision #16).
 #
 # 1. Restores the backup into an empty local Supabase database (Docker), the same way the nightly restore check does.
 # 2. Finds the changes still to apply: migration files whose version isn't in the restored migration record, which is
@@ -20,9 +21,17 @@ base=${2:-main}
 LOCAL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 here=$(pwd)
 work=$(mktemp -d)
-source "$backup/scripts/config.sh"   # SECRET_TABLES: never in the backup, so never counted
+source database/backup/config.sh   # SECRET_TABLES: never in the backup, so never counted
 
-echo "== restoring last night's backup ($(git -C "$backup" log -1 --format='%s, %cd' --date=format:'%d %b %H:%M UTC'))"
+# which night the copy is from: latest.json, saved beside the copy when it was downloaded from R2
+made="unknown date"
+if [ -f "$backup/latest.json" ]; then
+  ran_at=$(jq -r '.ran_at // empty' "$backup/latest.json" 2> /dev/null || true)
+  key=$(jq -r '.key // empty' "$backup/latest.json" 2> /dev/null || true)
+  if [ -n "$ran_at" ]; then made=$(date -u -d "$ran_at" +'%d %b %H:%M UTC' 2> /dev/null || echo "$ran_at"); fi
+  if [ -n "$key" ]; then made="$made, $key"; fi
+fi
+echo "== restoring last night's backup ($made)"
 cd "$work"
 supabase init < /dev/null > /dev/null
 sed -i 's/^major_version = .*/major_version = 17/' supabase/config.toml   # same Postgres version as the live database
@@ -41,7 +50,7 @@ psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 \
   -f "$backup/db/schema.sql" -c 'SET session_replication_role = replica' -f "$backup/db/data.sql" > /dev/null
 psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 \
   -f "$backup/db/history_schema.sql" -f "$backup/db/history_data.sql" > /dev/null
-count() { psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -v skip="$SECRET_TABLES" -f "$backup/scripts/counts.sql" | sort; }
+count() { psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -v skip="$SECRET_TABLES" -f database/backup/counts.sql | sort; }
 count > "$work/before.txt"
 echo "restored: $(wc -l < "$work/before.txt") tables, $(awk '{s+=$2} END {print s+0}' "$work/before.txt") rows"
 

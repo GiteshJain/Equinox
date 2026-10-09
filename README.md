@@ -25,6 +25,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | `database/migrations/` | Every database change, in the order it was applied |
 | `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |
 | `database/tests/` | Database tests, run by `rehearse.sh` on the copy of last night's backup and rolled back afterwards |
+| `database/backup/` | `download.sh` gets last night's backup from Cloudflare R2 for the rehearsal (or for a new test sample); `config.sh` and `counts.sql` are copies of the backup job's settings and row counts |
 | `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
 | `scripts/` | Weekly report, gander monthly, world scanner, schedule optimiser |
 | `capture/` | The one-button capture userscript and the bookmark (keys are placeholders) |
@@ -33,12 +34,16 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 
 ## How changes are made
 Every code change is a pull request. The checks run on it, Cloudflare builds a preview (look-only), and database
-changes are rehearsed on a copy of last night's backup. Gitesh approves with "merge", and merging publishes it. Every
-pull request that changes how something works updates these documents in the same pull request. Data-only changes
-(plan cards, to-dos) go straight into the planner. Decisions #2, #8 and #9 have the detail.
+changes are rehearsed on a copy of last night's backup, read from Cloudflare R2. Gitesh approves with "merge", and
+merging publishes it. Every pull request that changes how something works updates these documents in the same pull
+request. Data-only changes (plan cards, to-dos) go straight into the planner. Decisions #2, #8 and #9 have the detail.
 
 **Never committed:** keys, passwords and live game data. Keys live in the database or as GitHub secrets;
 placeholders like `__CAPTURE_KEY__` mark where they are filled in. The one exception is small, dated samples of game
 data in `tests/fixtures/` for the automatic checks (decision #9), never the database, keys or sign-in data.
+
+**Backups** live outside this repository. The private repository `equinox-backups` runs the nightly backup and puts
+each copy in Cloudflare R2. Each night's copy is kept 30 days. The month's first is kept for good, in R2 and as a file
+on a GitHub release in `equinox-backups` (decisions #6 and #16). Its README says how to restore.
 
 Recovered into this repository on 8 Oct 2026 from the live site, the database and Netlify, after a workspace reset.
