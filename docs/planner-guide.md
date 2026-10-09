@@ -101,6 +101,7 @@ Open an airline for its own page:
 - **Fare plan:** the fare changes to make in the game. The next capture spots each one. It's reviewed together on
   Saturdays.
 - **Manual entry:** only if a night's capture failed. Type the cash, fixed costs and loads by hand.
+  Loads typed or pasted here change only the days and flights you enter; captured days stay as they are.
 
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*

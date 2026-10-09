@@ -15,8 +15,9 @@ everything; builds follow a spec from the Building chat in the Equinox project.
   merge while one is red. Every bug fixed gets a test. If a change is meant to move a number, update the saved answers
   and say in the pull request which moved and why.
 - **Database changes** are a new file in `database/migrations/`, with a description on every new table, view and
-  function. The *Database rehearsal* check tries them on last night's backup. Never change the live database: the
-  Building chat applies a change only after "merge".
+  function, and a test in `database/tests/` when they change how something behaves. The *Database rehearsal* check
+  tries them on last night's backup and runs the tests there. Never change the live database: the Building chat
+  applies a change only after "merge".
 - **Update the docs in the same pull request** when how something works changes (the list is in the manual, §1).
 - **Never commit keys, passwords or live game data.** Placeholders like `__CAPTURE_KEY__` mark where keys go. Small,
   dated samples in `tests/fixtures/` are the one exception.

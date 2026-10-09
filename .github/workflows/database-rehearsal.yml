@@ -1,12 +1,14 @@
 # Rehearses a pull request's database changes on a copy of last night's backup (decision #8).
-# Runs when a pull request adds or changes a migration, or changes this check. The result is posted on the pull
-# request; Claude applies a change to the live database only after it passes here and Gitesh says "merge".
+# Runs when a pull request adds or changes a migration or a database test, or changes this check. The result is
+# posted on the pull request; Claude applies a change to the live database only after it passes here and Gitesh says
+# "merge".
 name: Database rehearsal
 
 on:
   pull_request:
     paths:
       - "database/migrations/**"
+      - "database/tests/**"
       - "database/rehearse.sh"
       - "database/describe.*"
       - "docs/data.md"

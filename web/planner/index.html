@@ -1737,16 +1737,22 @@ function makeModel(DATA, state) {
     loads = lsLoadsGet(); loadsVer++;
     if (!db) return;
     try { const snap = await db.collection("loads").get();
-      for (const d of snap.docs) { const v = d.data(); if (v && typeof v.json === "string") { try { const mo = JSON.parse(v.json); const cur = loads[d.id] || {}; loads[d.id] = (v.savedAt || 0) >= (cur.__savedAt || 0) ? mo : cur; } catch (e) { } } }
+      for (const d of snap.docs) { const v = d.data(); if (v && typeof v.json === "string") { try { const mo = JSON.parse(v.json); const cur = loads[d.id] || {}; if ((v.savedAt || 0) >= (cur.__savedAt || 0)) { mo.__savedAt = v.savedAt || 0; loads[d.id] = mo; } else loads[d.id] = cur; } catch (e) { } } }
       lsLoadsSet();
     } catch (e) { diag.cloud = "loads read failed: " + ((e && (e.code || e.message)) || e); }
   }
-  async function saveLoadsMonth(mo) {
+  // Sends only the days changed here, and the database merges them into the month (save_loads), so a save can't wipe days
+  // captured since this page loaded. days: { "YYYY-MM-DD": { f } replaces that day's flights, or { set, del } sets and
+  // clears single flights; plus done and savedAt when they change }. Takes back the merged month.
+  async function saveLoadsDays(mo, days) {
     loads[mo] = loads[mo] || {}; loads[mo].__savedAt = Date.now();
     if (window.__eqPreview) return false;
     lsLoadsSet();
-    if (!db) return false;
-    try { await db.doc("loads/" + mo).set({ json: JSON.stringify(loads[mo]), savedAt: loads[mo].__savedAt }); return true; } catch (e) { diag.cloud = "loads save failed: " + ((e && (e.code || e.message)) || e); return false; }
+    const sb = window.__eqsb; if (!sb || !db) return false;
+    try { const { data, error } = await sb.rpc("save_loads", { p_month: mo, p_days: days }); if (error) throw error;
+      if (data && data.json) { loads[mo] = data.json; loads[mo].__savedAt = Number(data.saved_at) || loads[mo].__savedAt; lsLoadsSet(); loadsVer++; }
+      return true;
+    } catch (e) { diag.cloud = "loads save failed: " + ((e && (e.code || e.message)) || e); return false; }
   }
   // every flight departing on a given local date
   function flightsOn(date) {
@@ -2525,11 +2531,13 @@ function makeModel(DATA, state) {
       commit(); return true; }
     if (t.id === "lfpaste-read") { ui.lfPasteText = ($("#lfpaste-in") || {}).value || ""; ui.lfParsed = parseLoadPaste(ui.lfPasteText); render(); return true; }
     if (t.id === "lfpaste-clear") { ui.lfPasteText = ""; ui.lfParsed = null; render(); return true; }
-    if (t.id === "lfpaste-save") { const P = ui.lfParsed || []; const months = new Set(); const mark = new Set([...document.querySelectorAll("[data-lfmark]")].filter(x => x.checked).map(x => x.dataset.lfmark));
+    if (t.id === "lfpaste-save") { const P = ui.lfParsed || []; const mark = new Set([...document.querySelectorAll("[data-lfmark]")].filter(x => x.checked).map(x => x.dataset.lfmark));
+      const send = {}; const patch = d => { const mo = monthOf(d); send[mo] = send[mo] || {}; return send[mo][d] = send[mo][d] || { set: {}, del: [] }; };
       for (const x of P) { const mo = monthOf(x.date); loads[mo] = loads[mo] || {}; const day = loads[mo][x.date] = loads[mo][x.date] || { done: false, f: {} }; day.f = day.f || {};
-        if (x.pct < 95) day.f[x.key] = x.pct; else delete day.f[x.key]; months.add(mo); }
-      for (const d of mark) { const mo = monthOf(d); loads[mo] = loads[mo] || {}; const day = loads[mo][d] = loads[mo][d] || { done: false, f: {} }; day.done = true; day.savedAt = Date.now(); months.add(mo); }
-      loadsVer++; Promise.all([...months].map(saveLoadsMonth)).then(() => { ui.lfParsed = null; ui.lfPasteText = ""; render(); }); return true; }
+        if (x.pct < 95) { day.f[x.key] = x.pct; patch(x.date).set[x.key] = x.pct; } else { delete day.f[x.key]; patch(x.date).del.push(x.key); } }
+      for (const d of mark) { const mo = monthOf(d); loads[mo] = loads[mo] || {}; const day = loads[mo][d] = loads[mo][d] || { done: false, f: {} }; day.done = true; day.savedAt = Date.now();
+        Object.assign(patch(d), { done: true, savedAt: day.savedAt }); }
+      loadsVer++; Promise.all(Object.keys(send).map(mo => saveLoadsDays(mo, send[mo]))).then(() => { ui.lfParsed = null; ui.lfPasteText = ""; render(); }); return true; }
     if (t.dataset.lfday) { ui.lfDate = addDays(ui.lfDate, +t.dataset.lfday); render(); return true; }
     if (t.dataset.lfal !== undefined) { ui.lfAirline = t.dataset.lfal; render(); return true; }
     if (t.id === "lfsave") {
@@ -2541,7 +2549,7 @@ function makeModel(DATA, state) {
           if (!valid.has(key)) unknown.push(al.split(" ")[0] + " " + no); next[key] = Math.min(94, Math.max(0, Math.round(val))); } }
       day.f = next; day.done = true; day.savedAt = Date.now(); loadsVer++;
       if (unknown.length) alert("Saved, but these flight numbers don't operate that day in the planner, so they won't count: " + unknown.join(", "));
-      ui.saving = "saving"; saveLoadsMonth(mo).then(ok => { ui.saving = ok ? "saved · cloud" : "saved · this device only"; render(); }); render(); return true; }
+      ui.saving = "saving"; saveLoadsDays(mo, { [ui.lfDate]: { f: next, done: true, savedAt: day.savedAt } }).then(ok => { ui.saving = ok ? "saved · cloud" : "saved · this device only"; render(); }); render(); return true; }
     if (t.id === "gcheck") { runGameCheck(); return true; }
     if (t.dataset.gcfix) { const [al, k] = t.dataset.gcfix.split("|"); const x = gameCheck.res[al]; if (x && applyGameFix(al, x.issues[+k])) { refreshGameCheck(al); commit(); } return true; }
     if (t.dataset.gcfixall) { const al = t.dataset.gcfixall; const x = gameCheck.res[al]; if (!x) return true; let n = 0; for (const i of x.issues.filter(i => i.fix)) if (applyGameFix(al, i)) n++; if (n) { refreshGameCheck(al); commit(); } return true; }
@@ -3338,6 +3346,8 @@ document.addEventListener("click", e => { const b = e.target.closest && e.target
     if (t.dataset.final) { ui.finAl = t.dataset.final; render(); return; }
     if (t.dataset.gmove) { const [al, mv] = t.dataset.gmove.split("|"); state.growthLog = state.growthLog || []; state.growthLog.push({ date: today(), airline: al, move: mv, note: "logged in the planner" }); commit(); return; }
     if (ui.view === "review" && reviewClick(t)) return;
+    // the "Loads by hand" form sits on each airline's Review page; its buttons are handled with the Check screen's
+    if (ui.view === "finance" && (/^lf(save|paste-read|paste-clear|paste-save)$/.test(t.id || "") || t.dataset.lfday) && reviewClick(t)) return;
     if (t.id === "timemode") { state.ref.timeMode = isUTC() ? "local" : "utc"; commit(); return; }
     if (t.id === "add-route-btn") { ui.addingRoute = !ui.addingRoute; render(); return; }
     if (t.id === "r-cancel") { ui.addingRoute = false; render(); return; }

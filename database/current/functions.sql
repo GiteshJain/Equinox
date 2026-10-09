@@ -6,10 +6,11 @@ CREATE OR REPLACE FUNCTION public.apply_loads_from_capture(p_airline text)
  SET search_path TO 'public'
 AS $function$
 declare d record; mon text; cur jsonb; day jsonb; f jsonb; n int := 0; alnames int;
+  ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
 begin
   for d in select distinct flight_date from public.game_loads where airline = p_airline and flight_date >= current_date - 3 loop
     mon := to_char(d.flight_date, 'YYYY-MM');
-    select json::jsonb into cur from public.planner_loads where month = mon; cur := coalesce(cur, '{}'::jsonb);
+    select json::jsonb into cur from public.planner_loads where month = mon for update; cur := coalesce(cur, '{}'::jsonb);
     day := coalesce(cur->(d.flight_date::text), '{}'::jsonb);
     f := coalesce(day->'f', '{}'::jsonb);
     -- economy load per flight, keyed the way the planner keys its reports: "Airline|flight number"
@@ -19,7 +20,9 @@ begin
     select count(distinct airline) into alnames from public.game_loads where flight_date = d.flight_date;
     day := day || jsonb_build_object('done', alnames >= 6, 'captured', now(), 'source', 'capture');
     cur := jsonb_set(cur, array[d.flight_date::text], day, true);
-    insert into public.planner_loads(month, json) values (mon, cur::text) on conflict (month) do update set json = excluded.json;
+    -- saved_at moves on, so a browser holding an older copy of the month takes this one when it next loads
+    insert into public.planner_loads(month, json, saved_at) values (mon, cur::text, ms)
+      on conflict (month) do update set json = excluded.json, saved_at = excluded.saved_at;
     n := n + 1;
   end loop;
   return jsonb_build_object('days', n);
@@ -288,6 +291,42 @@ begin
   if not exists (select 1 from public.ingest_secret where secret = p_secret) then raise exception 'not allowed'; end if;
   insert into public.planner_data(key, value) values (p_key, p_value) on conflict (key) do update set value = excluded.value, updated_at = now();
   return jsonb_build_object('ok', true, 'bytes', length(p_value::text));
+end $function$
+;
+
+-- save_loads(p_month text, p_days jsonb)
+CREATE OR REPLACE FUNCTION public.save_loads(p_month text, p_days jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare cur jsonb; d text; p jsonb; day jsonb; f jsonb;
+  ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+begin
+  if not public.is_planner_user() then raise exception 'only planner staff can save loads' using errcode = '42501'; end if;
+  if p_month is null or p_month !~ '^\d{4}-\d{2}$' then raise exception 'month must be YYYY-MM, got %', p_month; end if;
+  if jsonb_typeof(p_days) is distinct from 'object' then raise exception 'days must be an object keyed by date'; end if;
+  insert into public.planner_loads(month, json, saved_at) values (p_month, '{}', 0) on conflict (month) do nothing;
+  select json::jsonb into cur from public.planner_loads where month = p_month for update;
+  cur := coalesce(cur, '{}'::jsonb) - '__savedAt';   -- a browser-only marker that older saves wrote into the document
+  for d, p in select key, value from jsonb_each(p_days) loop
+    if d !~ ('^' || p_month || '-\d{2}$') then raise exception 'day % is not in month %', d, p_month; end if;
+    if jsonb_typeof(p) is distinct from 'object' then raise exception 'day % must be an object', d; end if;
+    day := coalesce(cur->d, '{"done": false, "f": {}}'::jsonb);
+    if p ? 'f' then
+      f := coalesce(p->'f', '{}'::jsonb);                                         -- the whole day's entry, as typed
+    else
+      f := (coalesce(day->'f', '{}'::jsonb) || coalesce(p->'set', '{}'::jsonb))   -- single flights: set these ...
+           - array(select jsonb_array_elements_text(coalesce(p->'del', '[]'::jsonb)));   -- ... and clear these
+    end if;
+    day := jsonb_set(day, '{f}', f, true);
+    if p ? 'done' then day := day || jsonb_build_object('done', p->'done'); end if;
+    if p ? 'savedAt' then day := day || jsonb_build_object('savedAt', p->'savedAt'); end if;
+    cur := jsonb_set(cur, array[d], day, true);
+  end loop;
+  update public.planner_loads set json = cur::text, saved_at = ms where month = p_month;
+  return jsonb_build_object('month', p_month, 'json', cur, 'saved_at', ms);
 end $function$
 ;
 

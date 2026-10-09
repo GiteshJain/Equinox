@@ -7,9 +7,9 @@ result, with anything that failed, is posted as a comment on the pull request. W
 |---|---|---|
 | No keys or passwords | `check_secrets.py` | Nothing in the repository, test samples included, looks like a real key, a database password or a filled-in capture key. The public "anon" key and placeholders are allowed. |
 | Schedule check | `schedule_test.mjs` | The real `/api/game-schedule` function reads a saved game page right: the session cookie, the airline, all 48 flights and their fields, plus clear errors for bad links and game errors. |
-| Planner | `planner_test.py` | Every screen, each airline's Review page and the main pop-ups open with no errors. Previews save nothing while the live address saves. The numbers that matter match the saved answers, and the leases match the manual. |
+| Planner | `planner_test.py` | Every screen, each airline's Review page and the main pop-ups open with no errors. Previews save nothing while the live address saves. Loads by hand save only the days they change. The numbers that matter match the saved answers, and the leases match the manual. |
 | Website | `site_test.py` | Every public page opens with its content and no errors, and `/planner` reaches the planner. |
-| Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8): database changes applied to a copy of last night's backup. |
+| Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8): database changes applied to a copy of last night's backup, then every test in `database/tests/` run on that copy and rolled back. |
 
 Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.56 and its Chromium, and Node 22).
 
