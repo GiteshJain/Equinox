@@ -136,4 +136,5 @@ Details go in a design document for approval before any table is built. In outli
 - The chat where the foundation plan began ("MAIN OLD").
 
 ## Outcome
-Open: waiting for Gitesh's decision.
+9 Oct 2026: Gitesh chose **C**. A design document comes first for approval; the build starts once #14 to #17 are
+decided. No manual change yet: the rules about where planner data lives change when the build merges.

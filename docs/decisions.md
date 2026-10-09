@@ -27,7 +27,7 @@ Status: **decided**, **open**, or **dropped**.
 | # | Decision | Status |
 |---|---|---|
 | 26 | Where building happens: in this chat or in Claude Code sessions | **decided** 8 Oct 2026 |
-| 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | open |
+| 13 | Planner data into proper tables, with a cleaner model (IDs, UTC times, each flight leg as a row) | **decided** 9 Oct 2026 |
 | 14 | Multi-world, multi-group: everything keyed by world, group and airline; settings as data, not code | open |
 | 15 | History: every change kept, plus daily snapshots of fleet, departures, cash and market share | open |
 | 16 | Data growth: daily summaries kept forever, detail archived after a few months | open |
@@ -169,6 +169,20 @@ Status: **decided**, **open**, or **dropped**.
   filled. A fresh helper per build fixes that with no extra steps for Gitesh and no second place to follow. Claude Code
   sessions (option B) stay a 15-minute switch if C struggles; revisit Claude Code Projects (D) if it reaches the
   account. Brief: `docs/briefs/2026-10-08-building.md`.
+- **9 Oct 2026 · #13 Planner data into proper tables.** Option C: the planner's data moves out of the one
+  `planner_state` row into proper tables with a clean model now:
+  - one copy of everything, stable IDs, airlines by code;
+  - one row per flight leg, with times in UTC;
+  - settings as data;
+  - cash and loads read from the capture's tables instead of stored copies.
+
+  The current planner keeps working unchanged through an adapter: one database function builds today's JSON from the
+  tables, and one splits its saves back. Old and new are tested against each other, and the old row stays frozen as a
+  fallback until #18 is done. A design document comes first for approval. The build starts once #14 to #17 are
+  decided, since they shape the tables. Reason: the one-row model rebuilds flights seven different ways, keys on names,
+  guesses return days and re-uploads 194 KB on every click. Today (87 aircraft, 17 days of data, one user) is the
+  cheapest moment the fundamentals will ever be fixed, and the adapter avoids rewriting a planner that #18 replaces.
+  Brief: `docs/briefs/2026-10-08-data-model.md`.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
