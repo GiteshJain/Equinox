@@ -15,6 +15,7 @@ the database structure, the scripts that build reports and plans, and the nightl
 | `docs/` | Decisions, design and the operating manual |
 
 **Never committed:** keys, passwords and live game data. Keys live in the database or as GitHub secrets;
-placeholders like `__CAPTURE_KEY__` mark where they are filled in.
+placeholders like `__CAPTURE_KEY__` mark where they are filled in. The one exception is small, dated samples of game
+data in `tests/fixtures/` for the automatic checks (decision #9), never the database, keys or sign-in data.
 
 Recovered into this repository on 8 Oct 2026 from the live site, the database and Netlify, after a workspace reset.

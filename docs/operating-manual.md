@@ -44,6 +44,9 @@ Every rule in force for the equinox. group, with the date it started and why. De
   Never guess a current fact. *Since 8 Oct.*
 - **No keys or passwords** in the repository, files or chat. Keys live in the database or as GitHub secrets.
   *Since 8 Oct.*
+- **Test samples are the one exception to "no game data in the code repository":** small, dated samples of game data
+  in `tests/fixtures/` for the automatic checks. Never the database, keys or sign-in data. *Since 8 Oct (#9) · why:
+  checks need fixed data to compare exact answers.*
 - **Opus for everything,** business decisions included. *Since 8 Oct.*
 - **One chat per kind of work,** all inside the Equinox project. *Since 8 Oct (#3).* If Gitesh asks a question that
   belongs to another chat, say which chat in one line and don't answer it there. *Since 8 Oct · why: each chat keeps
@@ -179,7 +182,7 @@ Every rule in force for the equinox. group, with the date it started and why. De
   *Since 5–8 Oct.*
 - **Every night, after the capture:** an automatic backup copies the database and the site's files to the private
   repository `equinox-backups`, restores the copy to prove it works, and reports the result. Live data never goes into
-  the code repository. The planner warns on Home if there's no good copy from the last 30 hours. To recover, see the
+  the code repository (small test samples aside, see §1). The planner warns on Home if there's no good copy from the last 30 hours. To recover, see the
   README in `equinox-backups`. *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session. *Since 8 Oct.*
@@ -227,6 +230,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 8 Oct | No game data at all in the code repository | Small dated test samples allowed in `tests/fixtures/` (#9) |
 | 8 Oct | Ask before every Netlify deploy | Pull requests; "merge" makes it live |
 | 8 Oct | Fable for business decisions | Opus for everything |
 | 8 Oct | Weekly report and roundup on Mondays | Saturdays |

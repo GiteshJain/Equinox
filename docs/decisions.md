@@ -18,7 +18,7 @@ Status: **decided**, **open**, or **dropped**.
 |---|---|---|
 | 7 | Hosting: move to Cloudflare Pages or stay on Netlify (paid tier); and our own domain name | **decided** 8 Oct 2026 |
 | 8 | Preview before live: every change gets a preview link; database changes tried on a copy first | **decided** 8 Oct 2026 |
-| 9 | Automatic tests on every change, blocking anything that breaks | open |
+| 9 | Automatic tests on every change, blocking anything that breaks | **decided** 8 Oct 2026 |
 | 10 | Documentation: README, architecture notes, what each table means | open |
 | 11 | Proper roles (owner, staff, investors, public); no shared passwords; secrets out of scripts | open |
 | 12 | Game-rules exposure: how the capture and the salary step act in the game | open |
@@ -101,6 +101,14 @@ Status: **decided**, **open**, or **dropped**.
   one could save into the live planner, and database changes were tried first on live. This costs nothing and needs no
   second database. A staging database or Supabase branching stays an option for the rebuild (#13, #17, #18).
   Brief: `docs/briefs/2026-10-08-previews.md`.
+- **8 Oct 2026 · #9 Automatic tests.** Every pull request runs automatic checks: every planner screen opens with a
+  saved day of data, key numbers match known answers (cash forecast and leases, route profit, fare plan, Review cards),
+  the website pages and the schedule check work, no keys or passwords are in the code, plus the database rehearsal
+  (#8). A red check blocks the merge by rule: Claude never asks for, or makes, a merge while one fails. Every bug fixed
+  gets a test. Small dated samples of game data are allowed in `tests/fixtures/` for this, the one exception to "no
+  game data in the code repository" (never the database, keys or sign-in data). Reason: nothing ran by itself, and 9 of
+  the 11 tests depended on files lost in the reset. No lock on `main` (that needs GitHub Pro and would force every rule
+  change through a pull request). Brief: `docs/briefs/2026-10-08-tests.md`.
 
 ## Ideas to weigh when their decisions come up
 - **A shared, planner-only version for other players** (raised 8 Oct 2026, not decided): no website, airlines across
