@@ -481,7 +481,7 @@ AS $function$
 declare d record; mon text; cur jsonb; day jsonb; f jsonb; n int := 0; v_name text; v_world bigint;
   ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
 begin
-  select a.planner_name, a.world_id into v_name, v_world from public.airlines a where a.id = p_airline_id;
+  select coalesce(a.planner_name, a.public_name, a.game_name, a.game_id::text), a.world_id into v_name, v_world from public.airlines a where a.id = p_airline_id;
   for d in select distinct g.game_date from public.game_flights g
             where g.airline_id = p_airline_id and g.flight_no is not null and g.game_date >= current_date - 3 loop
     mon := to_char(d.game_date, 'YYYY-MM');
@@ -771,7 +771,7 @@ begin
   if v_al is null then
     return jsonb_build_object('ok', false, 'error', 'not an airline of this capture key''s world: ' || coalesce(p_airline, '(none)'));
   end if;
-  select a.planner_name into v_name from public.airlines a where a.id = v_al;
+  select coalesce(a.planner_name, a.public_name, a.game_name, a.game_id::text) into v_name from public.airlines a where a.id = v_al;
   insert into public.game_capture_raw (world_id, airline_id, airline, kind, page_url, rows, captured_at)
   values (p_world_id, v_al, v_name, p_kind, p_page, coalesce(p_rows, '[]'::jsonb), p_at)
   returning id into v_rid;
