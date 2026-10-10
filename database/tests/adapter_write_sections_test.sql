@@ -14,6 +14,23 @@ create function pg_temp.differs(p_old jsonb, p_new jsonb) returns text language 
     from (select private.planner_place(d.path) as place, count(*) as n from private.planner_json_diff(p_old, p_new) d
            where d.kind = 'differs' group by 1) x
 $$;
+-- what the rows keep in extra (beyond each aircraft's place in the lists): a save must not need it for what the
+-- columns hold, or a writer that drops something would still read back unchanged
+create function pg_temp.extras() returns table (section text, item text, key text) language sql as $$
+  select 'tails', a.registration, e.key from public.aircraft a, jsonb_each(coalesce(a.extra -> 'tail', '{}'::jsonb)) e
+  union all select 'deliveries', a.registration, e.key from public.aircraft a, jsonb_each(coalesce(a.extra -> 'delivery', '{}'::jsonb)) e
+  union all select 'freqs', r.legacy_key, e.key from public.rotations r, jsonb_each(r.extra) e
+  union all select 'plans', a.registration, e.key from public.plan_cards p join public.aircraft a on a.id = p.aircraft_id, jsonb_each(p.extra) e
+  union all select 'todos', t.legacy_key, e.key from public.todos t, jsonb_each(t.extra) e
+  union all select 'farePlan', f.legacy_key, e.key from public.fare_plan f, jsonb_each(f.extra) e
+$$;
+create function pg_temp.extras_new(p_since jsonb) returns text language sql as $$
+  select string_agg(x.section || '.' || x.key || ' (' || x.item || ')', ', ' order by x.section, x.key, x.item)
+    from (select * from pg_temp.extras() except select s ->> 0, s ->> 1, s ->> 2 from jsonb_array_elements(p_since) s) x
+$$;
+create function pg_temp.extras_now() returns jsonb language sql as $$
+  select coalesce(jsonb_agg(jsonb_build_array(section, item, key)), '[]'::jsonb) from pg_temp.extras()
+$$;
 create temporary table t_doc (k text primary key, v jsonb) on commit drop;
 
 -- ---------------------------------------------------------------- 1. round trip
@@ -40,7 +57,7 @@ $test$;
 do $test$
 declare d jsonb := (public.planner_state_get() ->> 'json')::jsonb; v_log bigint := coalesce((select max(id) from public.change_log), 0);
   r jsonb; g jsonb; bad text; i int; k text; al text; hub text; dest text; reg text; fid text; v jsonb; leg1 record; leg2 record;
-  v_tables text;
+  v_tables text; v_extras jsonb := pg_temp.extras_now();
 begin
   -- an aircraft: the first tail's maintenance note and the first delivery's plan note
   assert jsonb_array_length(d -> 'tails') > 0 and jsonb_array_length(d -> 'deliveries') > 0, 'the copy has no tails or deliveries';
@@ -102,6 +119,8 @@ begin
   g := (public.planner_state_get() ->> 'json')::jsonb;
   bad := pg_temp.differs(d, g);
   assert bad is null, 'after the save, planner_state_get() differs from what was saved at: ' || bad;
+  bad := pg_temp.extras_new(v_extras);
+  assert bad is null, 'the save kept in extra what the columns should hold: ' || bad;
 
   -- the return leaves the day after the outbound lands (local days at each end)
   select * into leg1 from public.flight_legs_local l join public.rotations r2 on r2.id = l.rotation_id where r2.legacy_key = fid and l.leg_no = 1;
@@ -118,9 +137,9 @@ begin
   select string_agg(t.table_name || ' ' || t.n, ', ' order by t.table_name) into v_tables
     from (select table_name, count(*) as n from public.change_log where id > v_log group by 1) t;
   assert v_tables is not null, 'the save wrote no change-log row';
-  raise notice 'each section: % items changed through planner_state_put() and read back unchanged (the return the next day); logged as planner: %',
+  raise notice 'each section: % items changed through planner_state_put() and read back unchanged, nothing new kept in extra (the return the next day); logged as planner: %',
     r ->> 'applied', v_tables;
-  insert into t_doc values ('changed', d);
+  insert into t_doc values ('changed', d), ('extras', pg_temp.extras_now());
 end
 $test$;
 
@@ -144,7 +163,13 @@ begin
   r := private.planner_apply(w, d, 'mirror', null, null, 'planner', 'whole-document test');
   bad := pg_temp.differs(d, (public.planner_state_get() ->> 'json')::jsonb);
   assert bad is null, 'the whole document saved into emptied tables doesn''t come back: ' || bad;
-  raise notice 'the whole document saved into emptied tables comes back unchanged: % items, % ms',
+  -- and it needs exactly the extras the loader needed, no more
+  bad := pg_temp.extras_new((select v from t_doc where k = 'extras'));
+  assert bad is null, 'the whole document saved into emptied tables kept more in extra than the loader did: ' || bad;
+  assert jsonb_array_length(pg_temp.extras_now()) = jsonb_array_length((select v from t_doc where k = 'extras')),
+    'the whole document saved into emptied tables kept less in extra than the loader did';
+  raise notice 'the whole document saved into emptied tables comes back unchanged, with the loader''s extras (%): % items, % ms',
+    coalesce((select string_agg(x ->> 0 || '.' || (x ->> 2), ', ') from jsonb_array_elements((select v from t_doc where k = 'extras')) x), 'none'),
     r ->> 'applied', round(extract(epoch from clock_timestamp() - t0) * 1000);
 end
 $test$;
