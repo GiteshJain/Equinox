@@ -3,7 +3,8 @@
 -- back. A failed check stops with an error that says where (ids, paths and counts, never values).
 --   1. A save of planner_state (a to-do ticked, as the planner saves it) is copied into the tables (actor planner,
 --      detail mirror) and the comparison is ok: one job_runs row each. A tab opened before the evening's capture and
---      saved after it is compared ok too; a typed figure the mirror didn't store fails the comparison.
+--      saved after it is compared ok too; a typed figure the mirror didn't store fails the comparison. Two blank cabin
+--      layouts are both kept; a code listed twice fails the comparison, named first in its note.
 --   2. Loads: save_loads() as staff writes load_entries and load_days itself (actor planner, detail save_loads), and the
 --      capture's loads step is followed too; each write's comparison is ok.
 --   3. The trigger never blocks a save: with the mirror made to fail on purpose, planner_state and planner_loads still
@@ -105,6 +106,43 @@ begin
 end
 $test$;
 alter table public.cash_entries drop constraint side_by_side_test_cash;
+
+-- ---------------------------------------------------------------- 1c. a code the planner lists twice
+-- Two cabin layouts with the same blank code (as "Add config" adds them) are both kept. Two with the same code that
+-- isn't blank stay unsupported: the tables keep the first, and the comparison's note says so first, plainly.
+do $test$
+declare d jsonb; v_job bigint; j record; v_code text; v_blank int := (select count(*) from public.cabin_configs where code = 'NEW');
+begin
+  select p.json::jsonb into d from public.planner_state p where p.id = 'main';
+  v_code := d #>> '{ref,configs,0,code}';
+  v_job := (select max(id) from public.job_runs);
+  update public.planner_state
+     set json = jsonb_set(d, '{ref,configs}', (d #> '{ref,configs}')
+                          || '[{"code": "NEW", "type": "", "cabin": "", "seats": 0}, {"code": "NEW", "type": "", "cabin": "", "seats": 0}]')::text,
+         saved_at = saved_at + 1000
+   where id = 'main';
+  perform pg_temp.commit_triggers();
+  for j in select * from pg_temp.jobs_since(v_job) loop
+    assert j.status = 'ok', format('%s after two blank layouts were added: %s', j.job, j.note);
+  end loop;
+  assert (select count(*) from public.cabin_configs where code = 'NEW') = v_blank + 2, 'the two blank layouts aren''t two rows';
+
+  v_job := (select max(id) from public.job_runs);
+  update public.planner_state
+     set json = jsonb_set(d, '{ref,configs}', (d #> '{ref,configs}')
+                          || jsonb_build_array((d #> '{ref,configs,0}') || '{"note": "side by side: the same code twice"}'))::text,
+         saved_at = saved_at + 1000
+   where id = 'main';
+  perform pg_temp.commit_triggers();
+  select * into j from pg_temp.jobs_since(v_job) where job = 'adapter_check';
+  assert j.status = 'failed' and j.note like format('duplicate code %s in ref.configs; planner_state differs at: %%', v_code),
+    'a code listed twice isn''t named first in the comparison''s note: ' || coalesce(j.note, 'no row');
+  -- back as it was
+  update public.planner_state set json = d::text, saved_at = saved_at + 1000 where id = 'main';
+  perform pg_temp.commit_triggers();
+  insert into t_said values (5, format('two blank layouts both kept, comparison ok; a code listed twice fails it, named first ("duplicate code %s in ref.configs")', v_code));
+end
+$test$;
 
 -- ---------------------------------------------------------------- 2. loads: save_loads() and the capture's loads step
 do $$ begin perform set_config('request.jwt.claims',
@@ -223,7 +261,7 @@ begin
     'the failed loads mirror wasn''t recorded';
   assert exists (select 1 from pg_temp.jobs_since(v_job) where job = 'adapter_check' and status = 'failed' and note like '%.f.{flight}%'),
     'the loads comparison after a failed mirror didn''t fail at the flight';
-  insert into t_said values (5, 'the trigger never blocks a save: with the mirror made to fail, planner_state and planner_loads saved, and failed mirror and comparison rows say where');
+  insert into t_said values (6, 'the trigger never blocks a save: with the mirror made to fail, planner_state and planner_loads saved, and failed mirror and comparison rows say where');
 end
 $test$;
 alter table public.todos drop constraint side_by_side_test_fails;
@@ -257,7 +295,7 @@ begin
   assert (select clean from public.adapter_check_days where world_id = w and day = '2099-06-08') = false
      and (select comparisons from public.adapter_check_days where world_id = w and day = '2099-06-10') = 1,
     'adapter_check_days counts wrong';
-  insert into t_said values (6, 'clean days counted right over hand-made rows (a clean day, a day with a failure, one with only a mirror, one with nothing)');
+  insert into t_said values (7, 'clean days counted right over hand-made rows (a clean day, a day with a failure, one with only a mirror, one with nothing)');
 end
 $test$;
 
@@ -333,8 +371,8 @@ do $test$
 begin
   raise notice '%', (select line from t_said where part = 0);
   raise notice '%', (select string_agg(line, '; ' order by part) from t_said where part between 1 and 3);
-  raise notice '%', (select string_agg(line, '; ' order by part) from t_said where part between 4 and 5);
+  raise notice '%', (select string_agg(line, '; ' order by part) from t_said where part between 4 and 6);
   raise notice '%; access: job_runs and adapter_check_days read by staff only, written by nobody signed in, adapter_clean_days() staff only',
-    (select line from t_said where part = 6);
+    (select line from t_said where part = 7);
 end
 $test$;
