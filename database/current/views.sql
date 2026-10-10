@@ -1,3 +1,15 @@
+create or replace view public.adapter_check_days with (security_invoker = true) as
+ SELECT world_id,
+    for_day AS day,
+    count(*) FILTER (WHERE (job = 'adapter_check'::text)) AS comparisons,
+    count(*) FILTER (WHERE ((job = 'adapter_check'::text) AND (status = 'failed'::text))) AS comparisons_failed,
+    count(*) FILTER (WHERE (job = 'adapter_mirror'::text)) AS mirrors,
+    count(*) FILTER (WHERE ((job = 'adapter_mirror'::text) AND (status = 'failed'::text))) AS mirrors_failed,
+    ((count(*) FILTER (WHERE (job = 'adapter_check'::text)) > 0) AND (count(*) FILTER (WHERE (status = 'failed'::text)) = 0)) AS clean
+   FROM job_runs j
+  WHERE ((job = ANY (ARRAY['adapter_mirror'::text, 'adapter_check'::text])) AND (for_day IS NOT NULL))
+  GROUP BY world_id, for_day;
+
 create or replace view public.capture_cash with (security_invoker = true) as
  WITH bal AS (
          SELECT DISTINCT ON (b.airline_id, b.captured_on) b.world_id,

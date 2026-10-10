@@ -4,10 +4,11 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-57 tables, 6 views and 28 functions, all in Supabase's `public` schema, plus 49 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+58 tables, 7 views and 32 functions, all in Supabase's `public` schema, plus 73 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
+- [`adapter_check_days`](#adapter-check-days) (view): Per world and capture day, the side by side's runs (design §9): how many comparisons and mirrors, how many failed, and whether the day is clean (at least one comparison and nothing failed)
 - [`aircraft`](#aircraft) (table): Each aircraft from order to delivery to service to retirement, one row each
 - [`aircraft_cabin_keeps`](#aircraft-cabin-keeps) (table): "Keep this cabin" decisions: the aircraft keeps its cabin although its routes call for this one, until they call for a different cabin
 - [`aircraft_types`](#aircraft-types) (table): Aircraft types and their figures in a world: seats, cruise speed, turns, maintenance, price
@@ -45,6 +46,7 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`growth_log`](#growth-log) (table): Moves logged under the order rotation: big, freq or feeder
 - [`ingest_secret`](#ingest-secret) (table): The shared secret that Claude's scripts send to the export, ingest, script and site-admin functions
 - [`interline_agreements`](#interline-agreements) (table): Interline status per airline and country: to sign, signed, declined, or no partner there
+- [`job_runs`](#job-runs) (table): One row per run of every job (design §3.11): when it started and finished, ok or failed, the day or month it was for, a note and the details
 - [`load_days`](#load-days) (table): A load day's flags typed in the planner (whether the day is complete)
 - [`load_entries`](#load-entries) (table): Economy loads typed by hand, per flight and game date
 - [`markets`](#markets) (table): Each airline's markets with their default aircraft, cabin and fares
@@ -73,6 +75,20 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`worlds`](#worlds) (table): One row per AirlineSim world we play in (decision #14)
 - [Functions](#functions)
 - [Internal functions](#internal-functions)
+
+## adapter_check_days
+
+*View.* Per world and capture day, the side by side's runs (design §9): how many comparisons and mirrors, how many failed, and whether the day is clean (at least one comparison and nothing failed). adapter_clean_days() counts the clean days in a row. Shows the caller only what it may read.
+
+| Column | Type | Notes |
+|---|---|---|
+| `world_id` | bigint |  |
+| `day` | date | The capture day (design §2: 10:00 to 10:00 UTC) |
+| `comparisons` | bigint |  |
+| `comparisons_failed` | bigint |  |
+| `mirrors` | bigint |  |
+| `mirrors_failed` | bigint |  |
+| `clean` | boolean | At least one comparison, and no comparison or mirror failed |
 
 ## aircraft
 
@@ -881,6 +897,25 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 **Triggers:** log_change, set_updated_at.
 
+## job_runs
+
+*Table.* One row per run of every job (design §3.11): when it started and finished, ok or failed, the day or month it was for, a note and the details. From #13's pull request 5: adapter_mirror (a save of the old planner rows copied into the tables) and adapter_check (the getters compared with the row just saved). backup_runs moves in with pull request 7. Staff read it; only the database's own functions and postgres write it. Not in the change log.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint |  |
+| `job` | text | backup, snapshot, snapshot_fallback, cleanup, archive, adapter_mirror or adapter_check |
+| `world_id` | bigint | The world it ran for, if any |
+| `started_at` | timestamp with time zone |  |
+| `finished_at` | timestamp with time zone |  |
+| `status` | text | running, ok, failed or incomplete |
+| `for_day` | date | The day it was for: for the side by side, the capture day it ran in (design §2: 10:00 to 10:00 UTC) |
+| `for_month` | date | The month it was for (its first day), e.g. an archive's |
+| `note` | text | What happened, in a line: for a failed comparison, where it differed (paths with list places as [] and keys as {}) |
+| `details` | jsonb | What a job records about itself: for adapter_check the paths that differed (up to 200), why a cash or next-7-day figure wasn't allowed, the allowed differences used and how long it took; for adapter_mirror the rows written |
+
+**Access:** staff read: select for authenticated.
+
 ## load_days
 
 *Table.* A load day's flags typed in the planner (whether the day is complete). Replaces the day flags in planner_loads.
@@ -1027,7 +1062,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 **Access:** planner users read loads: select for authenticated.
 
-**Triggers:** planner_loads_touch.
+**Triggers:** adapter_mirror, planner_loads_touch.
 
 ## planner_meta
 
@@ -1066,7 +1101,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 **Access:** planner users insert state: insert for authenticated; planner users read state: select for authenticated; planner users update state: update for authenticated.
 
-**Triggers:** planner_state_touch.
+**Triggers:** adapter_mirror, planner_state_touch.
 
 ## planner_users
 
@@ -1367,6 +1402,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 | Function | Returns | Who can call it | What it does |
 |---|---|---|---|
+| `adapter_clean_days(p_world_id bigint, p_as_of timestamp with time zone)` | integer | authenticated | How many clean days in a row the side by side has had (design §11, choice 1: the switch-over waits for 3), counted back from the capture day p_as_of falls in (default now; that day counts once it has a run, and a day still under way with none doesn't break the run). A day with no comparison, or with any failed mirror or comparison, ends the run. Pull request 9 reads it. Staff and postgres only. |
 | `apply_loads_from_capture(p_airline text)` | jsonb | internal only · runs as owner | Retired by #13 (pull request 3): the loads step is private.apply_loads_from_capture(), which this now calls for the default world's airline of that name. No longer callable by signed-in accounts once 20261009230100_capture_data_removals.sql has run; kept until #18. |
 | `as_num(p text)` | numeric | anon, authenticated | Turns game text such as 1,234.5 AS$ into a number (null when there is none). |
 | `auto_confirm_planner_user()` | trigger | internal only · runs as owner | Trigger on sign-up: confirms the email straight away when it is on planner_users. |
@@ -1380,10 +1416,13 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `is_planner_user()` | boolean | authenticated · runs as owner | True when the signed-in email is on planner_users. Used by the access rules, the planner and the Photos functions. |
 | `parse_capture(p_id bigint)` | jsonb | internal only · runs as owner | Retired by #13 (pull request 3): the parsing is private.capture_page(), which this now calls. No longer callable by signed-in accounts once 20261009230100_capture_data_removals.sql has run; kept until #18. |
 | `planner_data_set(p_secret text, p_key text, p_value jsonb)` | jsonb | anon, authenticated · runs as owner | Replaces one planner_data entry. Needs the ingest secret. |
+| `planner_item_delete(p_section text, p_key text)` | jsonb | authenticated · runs as owner | Removes one item of the planner's document through the same code as a save (design §8). As planner_item_put(). Staff and postgres only; runs as owner and checks the caller itself. |
+| `planner_item_put(p_section text, p_key text, p_value jsonb)` | jsonb | authenticated · runs as owner | Sets one item of the planner's document, in today's JSON shape, through the same code as a save (design §8): for other chats' data-only changes (a plan card, a to-do, a frequency ...). Section and key as private.planner_doc_with_item() describes; plan-card and frequency times are local, stored in UTC. The change log names whoever the caller set (equinox.actor), or planner for a signed-in user. Answers {saved_at, applied, skipped, reload}. Staff and postgres only; runs as owner and checks the caller itself. |
 | `planner_loads_get(p_world_id bigint)` | TABLE(month text, "json" text, saved_at bigint) | authenticated | Today's planner_loads documents built from game_flights, load_entries and load_days (design §8): one row per month, like planner_loads. Per flight and per day's flags, the latest write wins, captured or typed. Staff only. Not read by the planner yet. |
 | `planner_state_get(p_world_id bigint)` | jsonb | authenticated | Today's planner_state document built from the tables (design §8): {json: the document as text, saved_at: planner_state_version()}. Every list in the old planner's order; cash and next-7-day costs from the capture unless typed; anything the tables have no column for from the row's extra. Staff only. Not read by the planner yet: pull request 9 switches it over. |
+| `planner_state_put(p_json text, p_saved_at bigint, p_base bigint, p_client text)` | jsonb | authenticated · runs as owner | Saves the old planner's document into the tables (design §8), writing only the rows that changed. Takes a lock per world; skips any item someone else (another actor, or another tab than p_client) changed after p_base, or after p_saved_at when there is no base (§11, choice 4); writes the rest as actor planner with the tab in actor_detail. Answers {saved_at (server time, planner_state_version()), applied, skipped, reload (true when anything was skipped), skipped_items}. Staff and postgres only; runs as owner and checks the caller itself. Not called by the planner yet: pull request 9 switches it over. |
 | `planner_state_version(p_world_id bigint)` | bigint | authenticated | The time of the latest logged change to a world's planner tables (or to airports and countries), in milliseconds, never earlier than the old planner_state row's last save: what the planner checks before each save (design §8). Staff only. Default: the default world. |
-| `save_loads(p_month text, p_days jsonb)` | jsonb | authenticated · runs as owner | The planner's only way to save loads: merges the days it changed into one month of planner_loads (a day's whole entry, or single flights set and cleared), leaves every other day as it is, and returns the merged month. Planner staff only. |
+| `save_loads(p_month text, p_days jsonb)` | jsonb | authenticated · runs as owner | Saves the planner's loads typed by hand: merges only the days given into the month's planner_loads document (a whole day's flights with f, or single flights with set and del, plus done and savedAt), so days captured since the page loaded aren't lost, and returns the merged month (migration 20261009120000). Since #13's pull request 5 it also writes those days to load_entries and load_days (actor planner, detail save_loads); a failure there is recorded in job_runs and never stops the save. Planner staff only; runs as owner. |
 | `save_script(p_secret text, p_name text, p_content text)` | jsonb | anon, authenticated · runs as owner | Stores a copy of a script in planner_scripts, from before the repository existed. Needs the ingest secret. |
 | `site_admin(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Publishes website content: newsroom posts, reports and site content. Needs the ingest secret. |
 | `site_investor(p_password text)` | jsonb | anon, authenticated · runs as owner | The investor page's data, when the password matches report_access. |
@@ -1402,8 +1441,13 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 
 | Function | Returns | Who can call it | What it does |
 |---|---|---|---|
+| `private.adapter_mirror_loads()` | trigger | internal only · runs as owner | Trigger on planner_loads, the side by side (design §9), run when the writing transaction commits (the capture writes a month once per day): copies the month's days as they then stand into load_entries and load_days and compares planner_loads_get()'s month with them. One job_runs row each; catches every error. Runs as owner to write job_runs. Removed at the switch-over (pull request 9). |
+| `private.adapter_mirror_state()` | trigger | internal only · runs as owner | Trigger on planner_state, the side by side (design §9), run when the saving transaction commits: copies the row as it then stands into the tables (mirror mode, actor planner, detail mirror) and compares planner_state_get() with it (private.planner_state_check). One job_runs row each (adapter_mirror, adapter_check): ok, or failed with where in note and the paths in details. Catches every error, so the save always goes through. Runs as owner to write job_runs. Removed at the switch-over (pull request 9). |
+| `private.adapter_seen(p_key text)` | boolean | internal only | Whether this version of an old row was already copied and compared in this transaction, and marks it so: the side-by-side triggers run at commit once per write, and the first does the work. |
 | `private.airport_offset_min(p_world_id bigint, p_code text)` | integer | internal only | An airport's UTC offset in a world, in minutes: coalesce(world_airports.utc_offset_override, airports.utc_offset). Null while it isn't known (the airports are loaded by #13's pull request 4). |
 | `private.apply_loads_from_capture(p_airline_id bigint)` | jsonb | internal only | The loads step, as before: the last 3 days of an airline's captured loads into planner_loads (economy load per flight, keyed "Airline|number") and the month's saved_at moved on, so browsers pick them up. A day is done once its capture day is complete for the whole world (private.capture_day_complete), and a day already done stays done. |
+| `private.caller_is_staff()` | boolean | internal only | True for planner staff (their sign-in) and for postgres itself (Claude, jobs, migrations), the way the getters decide. Used by the write functions that run as owner. |
+| `private.capex_key(p_airline text, p_day date, p_kind text, p_amount numeric, p_note text)` | text | internal only | What a money-spent entry says (airline, date, kind, amount in AS$, note) as one text, the same from the planner's document and from a spending_log row: the entries have no id, so identical ones are interchangeable (design §8). |
 | `private.capture_day(p_world_id bigint, p_at timestamp with time zone)` | date | internal only | The capture day a moment belongs to (design §2): the UTC date of the moment minus capture_day_starts_utc (10:00 until set), so one evening's capture is one day, named after the evening. |
 | `private.capture_day_complete(p_world_id bigint, p_day date)` | boolean | internal only | Completeness by world (design §7): true when every active airline of our groups in that world has all five pages (statement, events, income statement, balance sheet, loads) in that capture day. Not a count to 6, so a 7th airline must be captured too. |
 | `private.capture_day_start(p_world_id bigint, p_day date)` | timestamp with time zone | internal only | When a world's capture day starts, in UTC: the day plus the setting capture_day_starts_utc (10:00 until it is set), design §2. |
@@ -1419,8 +1463,10 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.fill_flight_links(p_world_id bigint)` | jsonb | internal only | The route and aircraft of a world's captured flights that don't have them yet: the route by the schedule's leg with that number and direction, else the airline's route that way or the other way; the aircraft by the registration the loads page or the statement names. |
 | `private.fill_flight_times(p_airline_id bigint)` | integer | internal only | Fills an airline's loads rows' dep_at and arr_at where the airports' offsets have become known since they were captured. |
 | `private.fold_statement(p_airline_id bigint, p_minutes timestamp with time zone[])` | integer | internal only | Folds an airline's statement lines in the given minutes into game_flights (one row per flight block, matched by minute and block) and game_payments (every other line), and ties each flight line to its flight (game_statement.flight_id). Blocks that changed since are taken apart and folded again; a flight already matched keeps its loads. Run after every statement page, and by the backfill for every minute. |
+| `private.growth_key(p_airline text, p_day date, p_move text, p_note text)` | text | internal only | What a growth move says (airline, date, move, note) as one text, the same from the planner's document and from a growth_log row (design §8). |
 | `private.is_payment_line(p_descr text, p_blk integer)` | boolean | internal only | True for a statement line that never belongs to a flight: a lease, salaries, a deposit, a purchase, a refit or a cabin, or a line the parser put in block 0. |
 | `private.is_weekday_set(p_days smallint[])` | boolean | authenticated | True for a set of ISO weekdays as the schedule stores them: 1 (Monday) to 7 (Sunday), sorted, no repeats, at least one. Used by the checks on flight_legs.days_utc and plan_card_legs.days_utc. |
+| `private.job_run_add(p_job text, p_world_id bigint, p_started_at timestamp with time zone, p_status text, p_note text, p_details jsonb)` | bigint | internal only | Adds one finished job_runs row: the job, its world, when it started (and finished: now), ok or failed, the note and details; for_day is the capture day it started in. |
 | `private.json_date(p jsonb)` | date | internal only | A date written YYYY-MM-DD in the old planner's JSON; null for anything else or a day that doesn't exist. Used by the loader. |
 | `private.json_int(p jsonb)` | bigint | internal only | A whole number from the old planner's JSON (a flight number, seats, minutes); null when it isn't one. Used by the loader. |
 | `private.json_num(p jsonb)` | numeric | internal only | A number from the old planner's JSON: a JSON number, or text that is plainly a number; null for anything else. Used by the loader. |
@@ -1436,6 +1482,7 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.load_planner_reference(p_world_id bigint, s jsonb, p_growth jsonb)` | jsonb | internal only | Loader step: aircraft types, cabin layouts, markets, service profiles, hubs and focus cities, the types each airline may buy (BUY_TYPES), and the first settings and world rules (design §3.7), from planner_state.ref, planner_meta.growthRules, the manual and the planner's code constants. |
 | `private.load_planner_tidy(p_world_id bigint, s jsonb, d jsonb, p_mct jsonb)` | jsonb | internal only | Loader step, on a second run: removes the rows the old planner no longer has, or retires an aircraft the capture's flights or payments still point at, and turns a route back into a research route once nothing adds or edits it. |
 | `private.load_planner_work(p_world_id bigint, s jsonb)` | jsonb | internal only | Loader step: plan cards and their legs (in UTC), to-dos and their steps, growth moves, money spent, the fare plan, interline, monthly checks and dismissed alerts. |
+| `private.loads_mirror_days(p_world_id bigint, p_days jsonb, p_at timestamp with time zone)` | jsonb | internal only | Makes the tables give back the given loads days as planner_loads has them (design §8): each flight whose load the getter shows differently becomes a load_entries row stamped p_at (null clears it), and a day whose done or savedAt differs a load_days row. Days not given are left alone. Used by save_loads() and the side by side. |
 | `private.loads_times(p_world_id bigint, p_game_date date, p_dep_local text, p_arr_local text, p_origin text, p_dest text, OUT dep_at timestamp with time zone, OUT arr_at timestamp with time zone)` | record | internal only | A loads row's scheduled departure and arrival as moments, from the local times and the airports' offsets (design §3.8, §4): arrival is departure plus the block worked out from the local times. Null while an offset isn't known. |
 | `private.local_to_utc(p_date date, p_time text, p_offset_min integer)` | timestamp with time zone | internal only | A local date and clock time ("07:30") at a fixed offset in minutes, as a moment. Null if any part is missing. |
 | `private.log_change()` | trigger | internal only · runs as owner | Trigger on every planner table (decision #15): writes one change_log row per row added, changed or removed, naming the writer from equinox.actor and equinox.actor_detail, or planner for a signed-in user and unset otherwise. An update logs only the columns that changed, and nothing when nothing changed. Skipped when equinox.change_log is off, which only postgres can do. Runs as owner, so the log can be written while it stays read-only. |
@@ -1443,8 +1490,24 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.merge_flight(p_money_id bigint, p_loads_id bigint)` | boolean | internal only | Joins one money-only game_flights row and one loads-only row into one flight: the loads columns move into the money row, and the loads row goes. |
 | `private.payment_kind(p_descr text)` | text | internal only | The kind of a statement line that isn't tied to a flight (game_payments.kind): lease, salaries ("Payment of employee salaries", the week-end closing), deposit, purchase, refit (a configuration), cabin, or other. |
 | `private.payment_registration(p_descr text)` | text | internal only | The aircraft a payment names, e.g. B-0161 from "Leasing rate for B-0161". Null when it names none. |
+| `private.planner_apply(p_world_id bigint, p_doc jsonb, p_mode text, p_base timestamp with time zone, p_client text, p_actor text, p_detail text)` | jsonb | internal only | Saves a planner document into a world's tables, writing only the rows of the items that differ (design §8): a lock per world; the document and the tables as items; in mode save, items someone else changed after p_base are skipped (§11, choice 4); mode mirror (the side by side) and item (planner_item_put) skip nothing; the rest written as p_actor with p_detail (left as set when p_actor is null). Returns {applied, skipped, skipped_items, rows, doc}. |
+| `private.planner_apply_extra(p_world_id bigint)` | jsonb | internal only | Save step, last: builds the document again and keeps in extra, as saved, any key of a written tail, delivery, frequency, plan card, to-do or fare plan that the columns don't give back (the loader's last step, for the items just written). Returns the document as the tables now give it. |
+| `private.planner_apply_fleet(p_world_id bigint)` | jsonb | internal only | Save step: one aircraft row per changed registration from its tail and its delivery, with each list's place in extra kept in step with the document's order. |
+| `private.planner_apply_flights(p_world_id bigint)` | jsonb | internal only | Save step: changed frequencies as a rotation and two legs in UTC, exactly as the loader works them out (design §4), and changed plan cards with their legs in UTC. |
+| `private.planner_apply_money(p_world_id bigint)` | jsonb | internal only | Save step: cash and next-7-day figures (design §8): a cash_entries row holds a figure only where it differs from the capture's (rounded as the planner rounds), in AS$, and goes once both agree again. |
+| `private.planner_apply_places(p_world_id bigint)` | jsonb | internal only | Save step: the airports and countries the changed items name, by their code only, so nothing that names them is refused (as the loader does). |
+| `private.planner_apply_reference(p_world_id bigint)` | jsonb | internal only | Save step: ref's types, cabin layouts, services, markets, constants (as settings, depCap as the house rule), time mode, hubs and focus cities, and what the world says about their airports (connection times, night bans, offsets), for the changed items only, with the loader's rules. A type, layout or service renamed in place keeps its row. |
+| `private.planner_apply_routes(p_world_id bigint)` | jsonb | internal only | Save step: the routes the changed routesAdded, routeEdits and routeCabin items, frequencies and fare plans name. Added routes take their figures from routesAdded; a research route keeps its own, and one no longer added takes the research's again (planner_data). |
+| `private.planner_apply_tidy(p_world_id bigint)` | jsonb | internal only | Save step, after the others: aircraft in neither list (retired where the capture or money spent still point at them, else removed or taken out of the lists), routes nothing names any more and the research doesn't have, and ref entries no longer listed, unless something still uses them. |
+| `private.planner_apply_work(p_world_id bigint, p_keep_order boolean)` | jsonb | internal only | Save step: changed to-dos and their steps, fare plans, interline, monthly checks, dismissed alerts, kept cabins, money spent and growth moves. Entries without an id are added and removed by what they say; when the stored order no longer matches the document's, the rest of the list is written again in order (unless p_keep_order is false). |
+| `private.planner_doc_with_item(p_doc jsonb, p_section text, p_key text, p_value jsonb)` | jsonb | internal only | A planner document with one item set, or removed (p_value null), in today's JSON shape. Sections: plans, routeEdits, routeCabin, interline, dismissed, cabinKeep by key; cash and fixed7 by date ({airline: millions}); monthly by airline ({task: date}); tails, deliveries, freqs, todos and farePlan by id; routesAdded by Airline|HUB|DEST; ref.hubs by Airline|CODE, ref.types by name, ref.configs and ref.services by code (set in place, or added at the end); ref.markets, ref.curfews, ref.utcOverrides, ref.gameLinks and ref.consts by key; ref.timeMode alone; capex and growthLog by place in the list (0 first; no key adds at the end). |
 | `private.planner_extra(p_item jsonb, p_known text[], p_old_extra jsonb)` | jsonb | internal only | What an old list item keeps in its row's extra: the keys its table has no column for, plus the earlier load's stand-ins that still hold (a value the columns can't give back exactly, or null for a key the item doesn't have). |
+| `private.planner_items(p_doc jsonb)` | TABLE(section text, key text, grp text, pos integer, item jsonb) | internal only | A planner document as items, the unit a save changes and a clash is decided on (design §8's table): tails, deliveries, frequencies, to-dos and fare plans by id; plan cards, route edits, route cabins, interline, dismissed alerts and kept cabins by key; routes added by airline|hub|destination; monthly checks by airline|task; cash and next-7-day figures by date|airline; each ref list entry (hubs by airline|code, types by name, configs and services by code) and each key of ref's maps; money spent and growth moves by what they say and which of the identical ones they are. With each item's place in its list. |
+| `private.planner_json_diff(p_old jsonb, p_new jsonb, p_path text, p_key text, p_in_list boolean)` | TABLE(path text, kind text) | internal only | private.planner_json_differences() with a shortcut: two equal values (numbers by value, keys in any order) are passed over without walking into them, so on a whole document it is many times faster. The only kind it can leave out is "numbers by value", which is allowed anyway: the differences that count are the same. |
 | `private.planner_json_differences(p_old jsonb, p_new jsonb, p_path text, p_key text, p_in_list boolean)` | TABLE(path text, kind text) | internal only | Compares an old planner document with one built from the tables (design §9): one row per difference, with its path and kind. The allowed kinds: a missing key equals null, numbers by value, flight numbers as text, a tail with no status equals "Active", savedAt and version (key order never shows: jsonb keeps none). Anything else is "differs". Used by the loader and the rehearsal's tests. |
+| `private.planner_place(p_path text)` | text | internal only | Where a difference is, without the parts that change from item to item: list places as [], the keys of keyed sections as {}, a loads day as {day} and its flights as {flight}. For job_runs notes. |
+| `private.planner_state_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)` | TABLE(path text, kind text, why text) | internal only | A planner_state document against the one built from the tables, with exactly the differences the tests allow (planner_load_state_test.sql): design §9's, plus "cash/fixed7 captured after the planner last saved", only where the built figure is the capture's and that airline's balance for the date (or, for fixed7, an event it counts) was captured after p_saved_at. One row per difference: its path, its kind ('differs' when not allowed) and, for a money figure not allowed, why (dates and airlines only). |
+| `private.planner_touched(p_world_id bigint, p_since timestamp with time zone, p_client text)` | TABLE(section text, key text) | internal only | The items someone else changed after a moment (design §8): every change_log row of the world since, except those this tab made (actor planner, detail p_client), traced back to the planner items it belongs to, under its old and new names. With no client, every later change counts. |
 | `private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)` | jsonb | internal only | Puts one row of a logged table back as it was at a moment, by replaying change_log backwards: re-adds a removed row with its own key, undoes changes, or removes a row added since. The restore is logged like any change. For Claude, as postgres: start with the equinox.actor line (design §6). |
 | `private.set_updated_at()` | trigger | internal only | Trigger on every planner table: sets updated_at when a row is added or really changes, and leaves it as it was when an update changes nothing. |
 | `private.shift_weekdays(p smallint[], p_days integer)` | smallint[] | internal only | ISO weekdays moved by whole days (−1: each a day earlier, Monday becomes Sunday), sorted. Turns local weekdays into UTC ones and back (design §4). |

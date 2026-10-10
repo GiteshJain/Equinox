@@ -96,7 +96,8 @@ begin
   assert bad is null, 'authenticated can write views: ' || bad;
 
   -- the private schema: closed to the data API's roles; its functions closed to public and anon; only the change-log
-  -- trigger runs as owner; each has a fixed, empty search path
+  -- trigger and the side-by-side triggers (#13 pull request 5: they write job_runs, which stays read-only to everyone
+  -- else) run as owner; each has a fixed, empty search path
   assert not has_schema_privilege('anon', 'private', 'usage'), 'anon can use the private schema';
   assert not has_schema_privilege('authenticated', 'private', 'usage'), 'authenticated can use the private schema';
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p where p.pronamespace = 'private'::regnamespace
@@ -107,7 +108,7 @@ begin
      and has_function_privilege('authenticated', p.oid, 'execute') and p.proname <> 'is_weekday_set';
   assert bad is null, 'functions authenticated can run: ' || bad;
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p where p.pronamespace = 'private'::regnamespace
-     and p.prosecdef <> (p.proname = 'log_change');
+     and p.prosecdef <> (p.proname in ('log_change', 'adapter_mirror_state', 'adapter_mirror_loads'));
   assert bad is null, 'runs as owner when it shouldn''t, or the other way round: ' || bad;
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p where p.pronamespace = 'private'::regnamespace
      and not coalesce('search_path=""' = any (p.proconfig), false);
