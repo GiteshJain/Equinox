@@ -1341,7 +1341,7 @@ function makeModel(DATA, state) {
     try {
       // the server writes only what changed, and skips anything someone else changed since this tab's base (#13, design §8)
       const sent = state.savedAt;
-      const r = await db.doc("planner/state").set({ json: JSON.stringify(state), savedAt: state.savedAt, version: 2, base: null });
+      const r = await db.doc("planner/state").set({ json: JSON.stringify(state), savedAt: state.savedAt, version: 2, base: cloudVer || null });
       if (r && r.saved_at != null) { cloudVer = Number(r.saved_at) || cloudVer; if (state.savedAt === sent) { state.savedAt = cloudVer; lsSet(); } }   // server time from now on
       diag.cloud = "ok"; diag.lastCloud = Date.now();
       if (r && r.reload) {   // a newer change to the same item was saved elsewhere: the rest was saved, that item wasn't
