@@ -49,6 +49,9 @@ Status: **decided**, **open**, or **dropped**.
 | 24 | Ready-made data views for recurring questions (airline briefing, route profit, hub progress) | open |
 | 25 | Using the $100 a month in API credits for unattended jobs, with a spending cap | open |
 
+Parked with #25 (10 Oct, Gitesh): Fable as a decision helper. Opus gathers the data, and a Fable helper decides from a
+short summary. Decide once the #13 builds are done. Until then Opus is used for everything (preference of 8 Oct).
+
 ## Decision log
 - **8 Oct 2026 · #1 Repository.** Private repository `equinox` on GitHub. Reason: the code's only copy was the live
   site, and a workspace reset wiped the working copy that morning.
