@@ -667,7 +667,7 @@ with `equinox.change_log = off` and `equinox.actor = migration`.
 - **Side by side on live** (PR 5 to PR 9): a trigger on `planner_state` copies every save of the old row into the
   tables through the adapter, in mirror mode (no skipping, since the old row is still the truth). A failure is
   recorded in `job_runs` and never blocks the save. The capture keeps writing `planner_loads` as today until the
-  switch-over. A nightly job compares `planner_state_get()` and `planner_loads_get()` with the old rows. The
+  switch-over. After each save of the old rows, `planner_state_get()` and `planner_loads_get()` are compared with them (a `job_runs` row each; changed 10 Oct from a nightly job, so no scheduler is needed before PR 7). The
   switch-over waits for 3 clean nights in a row (§11, choice 1).
 
 **Rollback:**
@@ -686,7 +686,7 @@ Supabase's SQL editor, as manual §1 requires; the pull request says which file.
 | 2 | **The tables**, empty: everything in §3 with RLS, grants, descriptions, the change-log trigger and the `private` schema; reference rows for Gander and our airlines | A signed-out visitor reads nothing; the log names its writer; every description is there |
 | 3 | **Capture data:** `game_flights`, `game_payments`, ids on the capture tables; `capture_ingest` matches airlines by game ID (and still accepts the old names until the new userscript is in) and checks completeness by world; `capture_airlines()` and a userscript that reads its airlines from it (Gitesh reinstalls it with his key: a to-do); compatibility views; backfill since 6 Oct | Old and new views agree on last night's copy; the capture works on saved pages |
 | 4 | **Data load and the adapter's read side:** the loader, `planner_state_get`, `planner_state_version`, `planner_loads_get` | The getter equals today's JSON on the sample and on last night's copy |
-| 5 | **The adapter's write side:** `planner_state_put`, `save_loads` rewritten, `planner_item_put`/`_delete`, the side-by-side trigger and the nightly comparison | A round trip writes nothing; real saves change only the intended rows; live stays equal night after night |
+| 5 | **The adapter's write side:** `planner_state_put`, `save_loads` rewritten, `planner_item_put`/`_delete`, the side-by-side trigger, the comparison after each save, and `job_runs` | A round trip writes nothing; real saves change only the intended rows; live stays equal night after night |
 | 6 | **History:** `airline_days`, `route_days`, the scan tables renamed and split (moved here from 3 on 9 Oct, so the scan's functions change once), scan summaries, the snapshot on a complete capture, backfill | Backfilled days match the known cash and flights |
 | 7 | **Jobs:** `pg_cron` on; `job_runs` and the `backup_runs` view; the 10:00 fallback; clean-ups (statement clean-up off until PR 3's backfill is checked on live); archive manifest and guarded delete; the archive step in `equinox-backups`; Home warnings | Jobs run on the copy; `archive_delete` refuses a wrong month, count or checksum |
 | 8 | **Website and scripts:** `site_public`, `site_investor`, `export_*`, `planner_data_set`, `site_admin` and the Photos functions on the tables; the website reads airline text from the data | Website checks pass; outputs equal today's |
