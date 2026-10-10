@@ -1445,8 +1445,8 @@ $function$;
 
 -- ---------- 4f. cash and next-7-day costs typed by hand, or kept from before the capture (design §8, §9 step 3)
 -- Every stored figure the capture doesn't give back exactly (capture_cash, rounded as the planner rounds) becomes a
--- cash_entries row, in AS$. A next-7-day figure the planner doesn't have although the capture does is kept as 0, which
--- the planner never shows.
+-- cash_entries row, in AS$. A figure the planner doesn't have yet, although the capture does, gets no row: the planner
+-- copies the capture in itself when it next opens (applyCaptureCash), and the getter shows the capture's figure.
 create or replace function private.load_planner_money(p_world_id bigint, s jsonb, p_saved_at timestamptz)
  returns jsonb
  language plpgsql
@@ -1474,14 +1474,14 @@ begin
       from public.capture_cash cc where cc.world_id = w),
   pairs as (
     select coalesce(st.airline_id, fx.airline_id, cap.airline_id) as airline_id, coalesce(st.day, fx.day, cap.day) as day,
-           st.m as st_cash, fx.m as st_fixed, cap.cash_m, cap.fixed_m, st.airline_id is not null as has_cash
+           st.m as st_cash, fx.m as st_fixed, cap.cash_m, cap.fixed_m
       from st
       full join fx on fx.airline_id = st.airline_id and fx.day = st.day
       full join cap on cap.airline_id = coalesce(st.airline_id, fx.airline_id) and cap.day = coalesce(st.day, fx.day))
   insert into pg_temp.t_load_cash
   select p.airline_id, p.day,
          case when p.st_cash is not null and p.st_cash is distinct from p.cash_m then round(p.st_cash * 1000000, 2) end,
-         case when p.st_fixed is distinct from p.fixed_m then round(coalesce(p.st_fixed, 0) * 1000000, 2) end
+         case when p.st_fixed is not null and p.st_fixed is distinct from p.fixed_m then round(p.st_fixed * 1000000, 2) end
     from pairs p
    where p.day is not null and abs(coalesce(p.st_cash, 0)) < 1000000 and abs(coalesce(p.st_fixed, 0)) < 1000000;
   delete from pg_temp.t_load_cash where cash is null and fixed_next7 is null;
