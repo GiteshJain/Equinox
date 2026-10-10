@@ -45,7 +45,7 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`groups`](#groups) (table): A player's airlines in a world: ours (equinox.) and rival players' groups
 - [`growth_log`](#growth-log) (table): Moves logged under the order rotation: big, freq or feeder
 - [`ingest_secret`](#ingest-secret) (table): The shared secret that Claude's scripts send to the export, ingest, script and site-admin functions
-- [`interline_agreements`](#interline-agreements) (table): Interline status per airline and country: to sign, signed, declined, or no partner there
+- [`interline_agreements`](#interline-agreements) (table): Interline status per airline and country: not contacted yet, to sign, signed, declined, or no partner there
 - [`job_runs`](#job-runs) (table): One row per run of every job (design §3.11): when it started and finished, ok or failed, the day or month it was for, a note and the details
 - [`load_days`](#load-days) (table): A load day's flags typed in the planner (whether the day is complete)
 - [`load_entries`](#load-entries) (table): Economy loads typed by hand, per flight and game date
@@ -877,7 +877,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## interline_agreements
 
-*Table.* Interline status per airline and country: to sign, signed, declined, or no partner there. Replaces the planner's interline.
+*Table.* Interline status per airline and country: not contacted yet, to sign, signed, declined, or no partner there. Replaces the planner's interline.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -885,7 +885,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `world_id` | bigint |  |
 | `airline_id` | bigint |  |
 | `country_code` | text |  |
-| `status` | text | to_sign, signed, declined or nopartner |
+| `status` | text | to_sign, signed, declined or nopartner; empty = not contacted yet (the planner's record has no status) |
 | `partner` | text | The partner as the game names it, e.g. Emirates (41) |
 | `partner_airline_id` | bigint | The partner, once it is in airlines |
 | `decided_on` | date |  |
@@ -1169,11 +1169,12 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `removed_note` | text |  |
 | `city_override` | text | Typed in the planner; null = the research value |
 | `distance_override_km` | integer | Typed in the planner; null = the research value |
-| `market_override_id` | bigint | Typed in the planner; null = the research value |
+| `market_override_id` | bigint | Chosen in the planner; null = the research value, or no market when market_cleared |
 | `stars_override` | smallint | Typed in the planner; null = the research value |
 | `cabin_choice` | text | The cabin chosen for the route (the planner's routeCabin) |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
+| `market_cleared` | boolean | The planner's route edit clears the market (its market ""): the route has no market, whatever the research says. market_override_id is then empty |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
@@ -1506,7 +1507,7 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.planner_json_diff(p_old jsonb, p_new jsonb, p_path text, p_key text, p_in_list boolean)` | TABLE(path text, kind text) | internal only | private.planner_json_differences() with a shortcut: two equal values (numbers by value, keys in any order) are passed over without walking into them, so on a whole document it is many times faster. The only kind it can leave out is "numbers by value", which is allowed anyway: the differences that count are the same. |
 | `private.planner_json_differences(p_old jsonb, p_new jsonb, p_path text, p_key text, p_in_list boolean)` | TABLE(path text, kind text) | internal only | Compares an old planner document with one built from the tables (design §9): one row per difference, with its path and kind. The allowed kinds: a missing key equals null, numbers by value, flight numbers as text, a tail with no status equals "Active", savedAt and version (key order never shows: jsonb keeps none). Anything else is "differs". Used by the loader and the rehearsal's tests. |
 | `private.planner_place(p_path text)` | text | internal only | Where a difference is, without the parts that change from item to item: list places as [], the keys of keyed sections as {}, a loads day as {day} and its flights as {flight}. For job_runs notes. |
-| `private.planner_state_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)` | TABLE(path text, kind text, why text) | internal only | A planner_state document against the one built from the tables, with exactly the differences the tests allow (planner_load_state_test.sql): design §9's, plus "cash/fixed7 captured after the planner last saved", only where the built figure is the capture's and that airline's balance for the date (or, for fixed7, an event it counts) was captured after p_saved_at. One row per difference: its path, its kind ('differs' when not allowed) and, for a money figure not allowed, why (dates and airlines only). |
+| `private.planner_state_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)` | TABLE(path text, kind text, why text) | internal only | A planner_state document against the one built from the tables, for the side by side: the differences the tests allow (planner_load_state_test.sql), design §9's plus "cash/fixed7 captured after the planner last saved", and, for these comparisons only, "cash/fixed7 captured, not in the saved document" (a tab opened before the evening's capture and saved after it). Both only where the built figure is the capture's: the first when that airline's balance for the date (or, for fixed7, an event it counts) was captured after p_saved_at; the second, whatever the timing, when the saved document has no entry for that airline and date. A figure the saved document has that the tables don't give back still fails. One row per difference: its path, its kind ('differs' when not allowed) and, for a money figure not allowed, why (dates and airlines only). |
 | `private.planner_touched(p_world_id bigint, p_since timestamp with time zone, p_client text)` | TABLE(section text, key text) | internal only | The items someone else changed after a moment (design §8): every change_log row of the world since, except those this tab made (actor planner, detail p_client), traced back to the planner items it belongs to, under its old and new names. With no client, every later change counts. |
 | `private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)` | jsonb | internal only | Puts one row of a logged table back as it was at a moment, by replaying change_log backwards: re-adds a removed row with its own key, undoes changes, or removes a row added since. The restore is logged like any change. For Claude, as postgres: start with the equinox.actor line (design §6). |
 | `private.set_updated_at()` | trigger | internal only | Trigger on every planner table: sets updated_at when a row is added or really changes, and leaves it as it was when an update changes nothing. |

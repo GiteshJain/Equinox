@@ -409,7 +409,8 @@ begin
   if w is null then raise exception 'no such world: %', p_world_id; end if;
   v_ver := public.planner_state_version(w);
 
-  -- ---------- ref: hubs, consts, types, configs, services, markets, curfews, utcOverrides, timeMode, gameLinks
+  -- ---------- ref: hubs, consts, types, configs (a layout with no type or cabin yet has "", as the planner adds one),
+  -- services, markets, curfews, utcOverrides, timeMode, gameLinks
   v_ref := jsonb_build_object(
     'hubs', (select coalesce(jsonb_agg(
                jsonb_build_object('code', b.airport_code, 'airline', al.planner_name, 'role', b.role,
@@ -442,8 +443,9 @@ begin
                 'greens', t.ground_keep_min, 'priceM', trim_scale(t.price / 1000000))) order by t.id), '[]'::jsonb)
                 from public.aircraft_types t where t.world_id = w),
     'configs', (select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
-                  'code', c.code, 'type', t.name, 'cabin', c.cabin, 'seats', c.seats, 'c', c.business_seats,
-                  'y', c.economy_seats, 'costM', trim_scale(c.cost / 1000000), 'note', c.note)) order by c.id), '[]'::jsonb)
+                  'code', c.code, 'type', coalesce(t.name, ''), 'cabin', coalesce(c.cabin, ''), 'seats', c.seats,
+                  'c', c.business_seats, 'y', c.economy_seats, 'costM', trim_scale(c.cost / 1000000),
+                  'note', c.note)) order by c.id), '[]'::jsonb)
                   from public.cabin_configs c left join public.aircraft_types t on t.id = c.aircraft_type_id
                  where c.world_id = w),
     'services', (select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
@@ -596,20 +598,22 @@ begin
     left join public.airlines ral on ral.id = ro.airline_id
    where f.world_id = w;
 
-  -- ---------- routes added, route edits, route cabins
+  -- ---------- routes added (a route with no market has ""), route edits (market "" when the edit clears it), route
+  -- cabins
   select coalesce(jsonb_agg(jsonb_build_array(al.planner_name, r.hub_code, r.dest_code, r.city, r.country_label, r.distance_km,
-                                              m.name, r.stars) order by r.id), '[]'::jsonb)
+                                              coalesce(m.name, ''), r.stars) order by r.id), '[]'::jsonb)
     into v_added
     from public.routes r join public.airlines al on al.id = r.airline_id left join public.markets m on m.id = r.market_id
    where r.world_id = w and r.source = 'added';
   select coalesce(jsonb_object_agg(al.planner_name || '|' || r.hub_code || '|' || r.dest_code,
            jsonb_strip_nulls(jsonb_build_object('removed', case when r.removed then true end, 'note', r.removed_note,
-             'city', r.city_override, 'dist', r.distance_override_km, 'market', mo.name, 'stars', r.stars_override))), '{}'::jsonb)
+             'city', r.city_override, 'dist', r.distance_override_km,
+             'market', case when r.market_cleared then '' else mo.name end, 'stars', r.stars_override))), '{}'::jsonb)
     into v_edits
     from public.routes r join public.airlines al on al.id = r.airline_id left join public.markets mo on mo.id = r.market_override_id
    where r.world_id = w
      and (r.removed or r.removed_note is not null or r.city_override is not null or r.distance_override_km is not null
-          or r.market_override_id is not null or r.stars_override is not null);
+          or r.market_override_id is not null or r.market_cleared or r.stars_override is not null);
   select coalesce(jsonb_object_agg(al.planner_name || '|' || r.hub_code || '|' || r.dest_code, r.cabin_choice), '{}'::jsonb)
     into v_cabin
     from public.routes r join public.airlines al on al.id = r.airline_id
@@ -2947,7 +2951,8 @@ begin
                           excluded.fare_from, excluded.proposed_on, excluded.status, excluded.reason, excluded.extra);
   get diagnostics n = row_count; v_out := v_out || jsonb_build_object('fare_plan', n);
 
-  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign
+  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign; a record with no status (the
+  -- planner's "not contacted") has none
   with src as (
     select al.id as airline_id, substr(e.key, strpos(e.key, '|') + 1) as cc, e.value as v
       from jsonb_each(case when jsonb_typeof(s -> 'interline') = 'object' then s -> 'interline' else '{}'::jsonb end) e
@@ -2955,7 +2960,8 @@ begin
      where jsonb_typeof(e.value) = 'object' and exists (select 1 from public.countries c where c.code = substr(e.key, strpos(e.key, '|') + 1)))
   insert into public.interline_agreements as x (world_id, airline_id, country_code, status, partner, decided_on, note)
   select w, src.airline_id, src.cc,
-         case when src.v ->> 'status' in ('signed', 'declined', 'nopartner') then src.v ->> 'status' else 'to_sign' end,
+         case when src.v ->> 'status' in ('signed', 'declined', 'nopartner') then src.v ->> 'status'
+              when src.v ->> 'status' is not null then 'to_sign' end,
          src.v ->> 'partner', private.json_date(src.v -> 'date'), src.v ->> 'notes'
     from src
   on conflict (airline_id, country_code) do update set status = excluded.status, partner = excluded.partner,
@@ -2986,6 +2992,7 @@ begin
   return v_out;
 end
 $function$
+
 ;
 
 -- private.loads_mirror_days(p_world_id bigint, p_days jsonb, p_at timestamp with time zone)
@@ -3998,7 +4005,7 @@ begin
 
   insert into public.routes as x (world_id, airline_id, hub_code, dest_code, city, country_label, distance_km, market_id, stars,
                                   source, removed, removed_note, city_override, distance_override_km, market_override_id,
-                                  stars_override, cabin_choice)
+                                  market_cleared, stars_override, cabin_choice)
   select w, r.airline_id, r.hub, r.dest,
          case when s.keep then old.city else s.src ->> 3 end,
          case when s.keep then old.country_label else s.src ->> 4 end,
@@ -4009,6 +4016,7 @@ begin
          coalesce(r.edit -> 'removed' = 'true'::jsonb, false), r.edit ->> 'note', r.edit ->> 'city',
          (select v::int from private.json_int(r.edit -> 'dist') v where abs(v) < 2000000000),
          (select m.id from public.markets m where m.airline_id = r.airline_id and m.name = r.edit ->> 'market'),
+         coalesce(r.edit ->> 'market' = '', false),
          (select v::smallint from private.json_int(r.edit -> 'stars') v where abs(v) < 32000),
          case when r.cabin #>> '{}' in ('Standard', 'Leisure', 'Leisure Plus', 'Comfort') then r.cabin #>> '{}' end
     from pg_temp.t_pa_routes r
@@ -4021,13 +4029,13 @@ begin
     distance_km = excluded.distance_km, market_id = excluded.market_id, stars = excluded.stars, source = excluded.source,
     removed = excluded.removed, removed_note = excluded.removed_note, city_override = excluded.city_override,
     distance_override_km = excluded.distance_override_km, market_override_id = excluded.market_override_id,
-    stars_override = excluded.stars_override, cabin_choice = excluded.cabin_choice
+    market_cleared = excluded.market_cleared, stars_override = excluded.stars_override, cabin_choice = excluded.cabin_choice
   where (x.city, x.country_label, x.distance_km, x.market_id, x.stars, x.source, x.removed, x.removed_note, x.city_override,
-         x.distance_override_km, x.market_override_id, x.stars_override, x.cabin_choice)
+         x.distance_override_km, x.market_override_id, x.market_cleared, x.stars_override, x.cabin_choice)
         is distinct from (excluded.city, excluded.country_label, excluded.distance_km, excluded.market_id, excluded.stars,
                           excluded.source, excluded.removed, excluded.removed_note, excluded.city_override,
-                          excluded.distance_override_km, excluded.market_override_id, excluded.stars_override,
-                          excluded.cabin_choice);
+                          excluded.distance_override_km, excluded.market_override_id, excluded.market_cleared,
+                          excluded.stars_override, excluded.cabin_choice);
   get diagnostics n = row_count;
   return jsonb_build_object('routes', n);
 end
@@ -4180,7 +4188,8 @@ begin
     get diagnostics n = row_count; v_out := v_out || jsonb_build_object('fare_plan', n);
   end if;
 
-  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign
+  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign; a record with no status (the planner's
+  -- "not contacted") has none
   if exists (select 1 from pg_temp.t_pa where section = 'interline' and state = 'changed') then
     delete from public.interline_agreements x using pg_temp.t_pa p, public.airlines al
      where p.section = 'interline' and p.state = 'changed' and p.new_item is null
@@ -4188,7 +4197,8 @@ begin
        and x.airline_id = al.id and x.country_code = substr(p.key, strpos(p.key, '|') + 1);
     insert into public.interline_agreements as x (world_id, airline_id, country_code, status, partner, decided_on, note)
     select w, al.id, substr(p.key, strpos(p.key, '|') + 1),
-           case when v ->> 'status' in ('signed', 'declined', 'nopartner') then v ->> 'status' else 'to_sign' end,
+           case when v ->> 'status' in ('signed', 'declined', 'nopartner') then v ->> 'status'
+                when v ->> 'status' is not null then 'to_sign' end,
            v ->> 'partner', private.json_date(v -> 'date'), v ->> 'notes'
       from pg_temp.t_pa p cross join lateral (select p.new_item as v) i
       join public.airlines al on al.world_id = w and al.planner_name = split_part(p.key, '|', 1)
@@ -4688,23 +4698,29 @@ AS $function$
       from entries e
       left join public.airlines al on al.planner_name = e.airline and al.world_id = p_world_id
       left join public.capture_cash cc on cc.airline_id = al.id and cc.day = private.json_date(to_jsonb(e.day))),
+  -- how each entry is allowed: 'late' (captured after the planner last saved), 'not saved' (the saved document has no
+  -- entry), or not at all (null)
   judged as (
-    select m.*, coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure
-                         and (m.cash_at > to_timestamp(p_saved_at / 1000.0)
-                              or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0))), false) as late
+    select m.*,
+           case when not coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure, false) then null
+                when m.cash_at > to_timestamp(p_saved_at / 1000.0)
+                     or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0)) then 'late'
+                when coalesce(m.had, 'null'::jsonb) = 'null'::jsonb then 'not saved' end as how
       from money m)
   select d.path, d.kind, null::text from d where d.kind <> 'differs'
   union all
   select d.path,
-         case when exists (select 1 from judged j where j.path = d.path) and not exists (select 1 from judged j where j.path = d.path and not j.late)
-              then 'cash/fixed7 captured after the planner last saved' else 'differs' end,
+         case when not exists (select 1 from judged j where j.path = d.path)
+                   or exists (select 1 from judged j where j.path = d.path and j.how is null) then 'differs'
+              when exists (select 1 from judged j where j.path = d.path and j.how = 'late') then 'cash/fixed7 captured after the planner last saved'
+              else 'cash/fixed7 captured, not in the saved document' end,
          (select string_agg(format('%s %s %s (%s; %s)', j.sec, j.day, j.airline,
                    case when j.had is null then 'only in the tables' when j.got is null then 'only in planner_state' else 'the figure differs' end,
                    case when j.cash_at is null then 'no capture that date'
                         when j.figure is distinct from (case when jsonb_typeof(j.got) = 'number' then (j.got #>> '{}')::numeric end) then 'not the capture''s figure'
                         when j.cash_at > to_timestamp(p_saved_at / 1000.0) then 'captured after the planner last saved'
                         else 'captured before the planner last saved' end), ', ' order by j.sec, j.day, j.airline)
-            from judged j where j.path = d.path and not j.late)
+            from judged j where j.path = d.path and j.how is null)
     from d where d.kind = 'differs'
 $function$
 

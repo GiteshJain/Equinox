@@ -7,6 +7,8 @@
 --      frequency including its return day, a plan card's legs, a to-do and its steps, a route added and a route edit,
 --      money spent and a growth move, an interline, a monthly check, a dismissal, ref values (a constant and a hub's
 --      banks) and a typed cash figure. Every change-log row it wrote names actor planner and the tab.
+--   2b. Values the old planner writes that pull request 4's getter didn't give back, each saved and read back: a route
+--      added with no market, a route edit that clears the market, an interline record with no status, a new cabin layout.
 --   3. The whole document saved into emptied planner tables gives it back, so every writer is tried on real data.
 
 create function pg_temp.differs(p_old jsonb, p_new jsonb) returns text language sql as $$
@@ -140,6 +142,65 @@ begin
   raise notice 'each section: % items changed through planner_state_put() and read back unchanged, nothing new kept in extra (the return the next day); logged as planner: %',
     r ->> 'applied', v_tables;
   insert into t_doc values ('changed', d), ('extras', pg_temp.extras_now());
+end
+$test$;
+
+-- ---------------------------------------------------------------- 2b. values the old getter couldn't give back
+-- Four values the old planner writes in ordinary use (the Building chat's call, 10 Oct), each saved on its own and read
+-- back unchanged: a route added with no market (as when a plan card is filed onto a route the research doesn't have), a
+-- route edit that clears the market, an interline record with no status (a new one, and one losing its status), and a
+-- new cabin layout as the planner adds it.
+do $test$
+declare d jsonb := (select v from t_doc where k = 'changed'); v_log bigint := coalesce((select max(id) from public.change_log), 0);
+  v_extras jsonb := (select v from t_doc where k = 'extras'); r jsonb; bad text; al text; al_id bigint; hub text; dest text;
+  rk text; c record; n int := 0;
+begin
+  select al2.planner_name, al2.id, b.airport_code into al, al_id, hub
+    from public.airline_bases b join public.airlines al2 on al2.id = b.airline_id order by b.id limit 1;
+  dest := (select a.code from public.airports a
+            where a.code not in (select r2.dest_code from public.routes r2 where r2.airline_id = al_id and r2.hub_code = hub)
+              and a.code <> hub and a.utc_offset is not null order by a.code limit 1);
+  select al2.planner_name || '|' || r2.hub_code || '|' || r2.dest_code into rk
+    from public.routes r2 join public.airlines al2 on al2.id = r2.airline_id
+   where r2.source = 'research' and not r2.removed and r2.removed_note is null and r2.city_override is null
+     and r2.distance_override_km is null and r2.market_override_id is null and not r2.market_cleared and r2.stars_override is null
+   order by r2.id limit 1;
+  assert dest is not null and rk is not null, 'the copy has no airport for a new route or no research route to edit';
+  for c in select * from (values
+      (1, 'a route added with no market', 'routesAdded',
+       jsonb_build_array(jsonb_build_array(al, hub, dest, dest, '', 1500, '', 3))),
+      (2, 'a route edit that clears the market', 'routeEdits', jsonb_build_object(rk, '{"market": ""}'::jsonb)),
+      (3, 'an interline record with no status', 'interline',
+       jsonb_build_object(al || '|YY', '{"partner": "Adapter test (2)", "date": "2026-10-10", "notes": "adapter section test"}'::jsonb)),
+      (4, 'an interline record losing its status', 'interline',
+       jsonb_build_object(al || '|ZZ', '{"partner": "Adapter test (1)", "date": "2026-10-10", "notes": "adapter section test"}'::jsonb)),
+      (5, 'a new cabin layout', 'ref.configs', '[{"code": "NEW", "type": "", "cabin": "", "seats": 0}]'::jsonb)) as x(i, what, section, v)
+    order by 1 loop
+    d := case c.section when 'routesAdded' then jsonb_set(d, '{routesAdded}', coalesce(d -> 'routesAdded', '[]') || c.v)
+                        when 'ref.configs' then jsonb_set(d, '{ref,configs}', coalesce(d #> '{ref,configs}', '[]') || c.v)
+                        else jsonb_set(d, array[c.section], coalesce(d -> c.section, '{}') || c.v) end;
+    r := public.planner_state_put(d::text, (extract(epoch from clock_timestamp()) * 1000)::bigint, null, 'section-test-tab');
+    assert (r ->> 'skipped')::int = 0 and (r ->> 'applied')::int = 1,
+      format('%s: the save applied %s and skipped %s items, expected 1 and none', c.what, r ->> 'applied', r ->> 'skipped');
+    bad := pg_temp.differs(d, (public.planner_state_get() ->> 'json')::jsonb);
+    assert bad is null, format('%s: after the save, planner_state_get() differs from what was saved at: %s', c.what, bad);
+    n := n + 1;
+  end loop;
+  assert (select market_id is null from public.routes where airline_id = al_id and hub_code = hub and dest_code = dest and source = 'added'),
+    'the route added with no market has one';
+  assert (select market_cleared and market_override_id is null from public.routes r2 join public.airlines al2 on al2.id = r2.airline_id
+           where al2.planner_name || '|' || r2.hub_code || '|' || r2.dest_code = rk), 'the route edit didn''t clear the market';
+  assert (select count(*) from public.interline_agreements where airline_id = al_id and country_code in ('YY', 'ZZ') and status is null) = 2,
+    'the interline records with no status have one';
+  assert (select aircraft_type_id is null and cabin is null and seats = 0 from public.cabin_configs where code = 'NEW'),
+    'the new cabin layout wasn''t stored as blank';
+  bad := pg_temp.extras_new(v_extras);
+  assert bad is null, 'the saves kept in extra what the columns should hold: ' || bad;
+  assert not exists (select 1 from public.change_log where id > v_log and (actor <> 'planner' or actor_detail is distinct from 'section-test-tab')),
+    'a change-log row of these saves doesn''t name actor planner and the tab';
+  raise notice 'values the old getter couldn''t give back, % saves read back unchanged: a route added with no market, a route edit that clears the market, an interline record with no status (new, and one losing its status), a new blank cabin layout',
+    n;
+  update t_doc set v = d where k = 'changed';
 end
 $test$;
 

@@ -2,9 +2,12 @@
 -- Design: docs/design/2026-10-09-data-model.md (§3.11, §6, §8, §9, §11 choices 1 and 4). Spec:
 -- docs/specs/2026-10-10-adapter-write-side.md.
 --
--- Adds, and removes or revokes nothing that exists (so there is no file for Gitesh to run):
+-- Adds, and removes or revokes nothing that exists. Its one removal, interline_agreements.status no longer required, is
+-- 20261010200000_interline_status_optional.sql, which Gitesh runs first.
 --   1. job_runs (design §3.11): one row per run of every job. This pull request writes adapter_mirror and adapter_check
 --      rows; moving backup_runs in waits for pull request 7;
+--   1b. four values the old planner writes that pull request 4's getter didn't give back: routes.market_cleared, and
+--      planner_state_get() and the loader's work step again with those changes;
 --   2. comparing a planner document with the tables, with exactly the differences the tests allow;
 --   3. the item engine: a planner document split into items (a tail, a frequency, a to-do, a cash figure ...), the items
 --      that differ from the tables, and writers that change only those rows. planner_state_put(), planner_item_put()
@@ -15,8 +18,8 @@
 --      tables (actor planner, detail mirror) and compares the getters with it. Each mirror and each comparison is one
 --      job_runs row; a failure is recorded and never stops the save. adapter_check_days and adapter_clean_days() count
 --      the clean days for pull request 9;
---   6. the tables catch up with every save since pull request 4 (private.load_planner() once more), then side by side
---      starts;
+--   6. the tables catch up with every save since pull request 4 (private.load_planner() once more, then a mirror of
+--      planner_state for what the loader can't store), then side by side starts;
 --   7. access and descriptions.
 -- Apply it when no capture is running.
 
@@ -52,6 +55,543 @@ as $function$
   values (p_job, p_world_id, p_started_at, clock_timestamp(), p_status,
           case when p_world_id is not null then private.capture_day(p_world_id, p_started_at) end, p_note, p_details)
   returning id
+$function$;
+
+-- ============================================================ 1b. values the getter couldn't give back
+-- Four values the old planner writes in ordinary use that the tables and getter of pull request 4 didn't give back, so
+-- every comparison after one would fail and the clean days would never add up (the Building chat's call, 10 Oct):
+--   a route added with no market (routesAdded's "": filing a plan card onto a route the research doesn't have, or
+--   adding a route without choosing one); a route edit that clears the market (routeEdits' market ""); an interline
+--   record with no status yet (the planner's "not contacted", with a partner, date or note typed; status may be empty
+--   since 20261010200000_interline_status_optional.sql, which Gitesh runs first); and a new cabin layout as the planner
+--   adds it ({code: "NEW", type: "", cabin: "", seats: 0}).
+-- The getter and the loader's work step are pull request 4's, with only those changes. The loader's network step
+-- doesn't know market_cleared; the catch-up's mirror (section 7) sets it.
+alter table public.routes add column market_cleared boolean not null default false;
+alter table public.routes add constraint routes_market_cleared_check check (not (market_cleared and market_override_id is not null));
+
+-- Today's planner_state document, built from the tables: {json: the document as text, saved_at}. Its savedAt is
+-- planner_state_version(). Every list keeps the old planner's order; anything the tables have no column for comes back
+-- from the row's extra.
+create or replace function public.planner_state_get(p_world_id bigint default null)
+ returns jsonb
+ language plpgsql
+ stable
+ security invoker
+ set search_path to ''
+as $function$
+declare
+  w bigint; v_host text; v_ver bigint;
+  v_ref jsonb; v_tails jsonb; v_deliveries jsonb; v_freqs jsonb; v_plans jsonb; v_todos jsonb; v_fare jsonb;
+  v_added jsonb; v_edits jsonb; v_cabin jsonb; v_monthly jsonb; v_interline jsonb; v_dismissed jsonb; v_keep jsonb;
+  v_cash jsonb; v_fixed jsonb; v_capex jsonb; v_growth jsonb; v_doc jsonb;
+begin
+  if not (current_user = 'postgres' or public.is_planner_user()) then
+    raise exception 'only planner staff can read the planner' using errcode = '42501';
+  end if;
+  select x.id, x.game_host into w, v_host from public.worlds x where x.id = p_world_id or (p_world_id is null and x.is_default);
+  if w is null then raise exception 'no such world: %', p_world_id; end if;
+  v_ver := public.planner_state_version(w);
+
+  -- ---------- ref: hubs, consts, types, configs (a layout with no type or cabin yet has "", as the planner adds one),
+  -- services, markets, curfews, utcOverrides, timeMode, gameLinks
+  v_ref := jsonb_build_object(
+    'hubs', (select coalesce(jsonb_agg(
+               jsonb_build_object('code', b.airport_code, 'airline', al.planner_name, 'role', b.role,
+                                  'block', b.flight_no_from, 'lastUsed', b.last_flight_no)
+               || jsonb_strip_nulls(jsonb_build_object(
+                    'banks', (select jsonb_agg(coalesce(to_char(t, 'HH24:MI'), '') order by o) from unnest(b.bank_times) with ordinality as u(t, o)),
+                    'mct', trim_scale(wa.mct_min / 60.0),
+                    'hold', b.hold_note,
+                    'parent', pb.airport_code))
+               order by b.position, b.id), '[]'::jsonb)
+               from public.airline_bases b
+               join public.airlines al on al.id = b.airline_id
+               left join public.airline_bases pb on pb.id = b.parent_base_id
+               left join public.world_airports wa on wa.world_id = w and wa.airport_code = b.airport_code
+              where b.world_id = w),
+    'consts', (select coalesce(jsonb_object_agg(m.k, s.value order by m.k), '{}'::jsonb)
+                 from (values ('buf', 'bank_buffer_min'), ('ovh', 'block_allowance_min'), ('arrwin', 'bank_arrival_window_min'),
+                              ('depwin', 'bank_departure_window_min'), ('maxWait', 'connection_max_wait_h'),
+                              ('legalGap', 'legal_gap_h'), ('turnMargin', 'turn_margin_min'),
+                              ('maintMinGround', 'maint_min_ground_min'), ('leeway', 'load_leeway_days'),
+                              ('lfWindow', 'load_window_days')) as m(k, setting)
+                 join public.settings s on s.world_id = w and s.airline_id is null and s.key = m.setting
+                -- the old planner stores these two only once they are typed; at its own defaults it leaves them out
+                where not (m.k = 'leeway' and s.value = '7'::jsonb) and not (m.k = 'lfWindow' and s.value = '14'::jsonb))
+              || coalesce((select jsonb_build_object('depCap', r.value -> 'value') from public.world_rules r
+                            where r.world_id = w and r.key = 'departures_per_airport_week' and r.value ? 'value'), '{}'::jsonb),
+    'types', (select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                'name', t.name, 'family', t.family_no, 'seats', t.seats_max, 'cruise', t.cruise_kmh, 'minTurn', t.min_turn_min,
+                'gap', trim_scale(t.gap_target_h), 'mHour', trim_scale(t.maint_per_hour), 'mCycle', trim_scale(t.maint_per_cycle),
+                'greens', t.ground_keep_min, 'priceM', trim_scale(t.price / 1000000))) order by t.id), '[]'::jsonb)
+                from public.aircraft_types t where t.world_id = w),
+    'configs', (select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                  'code', c.code, 'type', coalesce(t.name, ''), 'cabin', coalesce(c.cabin, ''), 'seats', c.seats,
+                  'c', c.business_seats, 'y', c.economy_seats, 'costM', trim_scale(c.cost / 1000000),
+                  'note', c.note)) order by c.id), '[]'::jsonb)
+                  from public.cabin_configs c left join public.aircraft_types t on t.id = c.aircraft_type_id
+                 where c.world_id = w),
+    'services', (select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                   'code', p.code, 'airline', coalesce(al.planner_name, 'Legacy'), 'upTo', p.up_to_km, 'note', p.note))
+                   order by p.id), '[]'::jsonb)
+                   from public.service_profiles p left join public.airlines al on al.id = p.airline_id
+                  where p.world_id = w),
+    'markets', (select coalesce(jsonb_object_agg(al.planner_name || '|' || m.name,
+                  jsonb_build_object('config', c.code, 'aircraft', t.name, 'priceY', trim_scale(m.fare_y_pct),
+                                     'priceJ', trim_scale(m.fare_j_pct))), '{}'::jsonb)
+                  from public.markets m
+                  join public.airlines al on al.id = m.airline_id
+                  left join public.cabin_configs c on c.id = m.default_config_id
+                  left join public.aircraft_types t on t.id = m.default_type_id
+                 where m.world_id = w),
+    'curfews', (select coalesce(jsonb_object_agg(wa.airport_code,
+                  to_char(wa.night_ban_from, 'HH24:MI') || '-' || to_char(wa.night_ban_to, 'HH24:MI')), '{}'::jsonb)
+                  from public.world_airports wa
+                 where wa.world_id = w and wa.night_ban_from is not null and wa.night_ban_to is not null),
+    'utcOverrides', (select coalesce(jsonb_object_agg(wa.airport_code, trim_scale(wa.utc_offset_override)), '{}'::jsonb)
+                       from public.world_airports wa where wa.world_id = w and wa.utc_offset_override is not null),
+    'timeMode', (select s.value from public.settings s where s.world_id = w and s.airline_id is null and s.key = 'planner_time_mode'),
+    'gameLinks', (select coalesce(jsonb_object_agg(al.planner_name,
+                    'https://' || v_host || '/app/info/enterprises/' || al.game_id || '?tab=3'), '{}'::jsonb)
+                    from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
+                   where al.world_id = w and g.kind = 'ours' and al.planner_name is not null));
+
+  -- ---------- tails and deliveries: one aircraft row each, in each list's own order (kept in extra)
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+           'id', a.registration, 'airline', al.planner_name, 'base', coalesce(a.base_code, ''),
+           'type', coalesce(t.name, ''), 'config', coalesce(c.code, ''), 'status', 'Active',
+           'maint', a.maintenance_note, 'checkedOn', a.checked_on::text, 'schedChangedOn', a.schedule_changed_on::text))
+           || coalesce(a.extra -> 'tail', '{}'::jsonb)
+           order by (a.extra ->> 'tails_index')::int, a.id), '[]'::jsonb)
+    into v_tails
+    from public.aircraft a
+    join public.airlines al on al.id = a.airline_id
+    left join public.aircraft_types t on t.id = a.aircraft_type_id
+    left join public.cabin_configs c on c.id = a.cabin_config_id
+   where a.world_id = w and a.extra ? 'tails_index';
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+           'reg', a.registration, 'airline', al.planner_name,
+           'utc', to_char(a.delivery_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI"Z"'),
+           'date', a.ordered_on::text, 'base', a.order_base_code, 'type', t.name, 'config', c.code, 'plan', a.order_note))
+           || coalesce(a.extra -> 'delivery', '{}'::jsonb)
+           order by (a.extra ->> 'deliveries_index')::int, a.id), '[]'::jsonb)
+    into v_deliveries
+    from public.aircraft a
+    join public.airlines al on al.id = a.airline_id
+    left join public.aircraft_types t on t.id = a.aircraft_type_id
+    left join public.cabin_configs c on c.id = a.order_config_id
+   where a.world_id = w and a.extra ? 'deliveries_index';
+
+  -- ---------- freqs: a rotation and its two legs back in local time (design §4)
+  select coalesce(jsonb_agg(f.j order by f.id), '[]'::jsonb) into v_freqs
+    from (
+      select r.id,
+             jsonb_strip_nulls(jsonb_build_object(
+               'id', r.legacy_key,
+               'routeKey', al.planner_name || '|' || ro.hub_code || '|' || ro.dest_code,
+               'days', (select string_agg(d::text, '' order by d) from unnest(x.days_local) as d),
+               'tail', coalesce(ac.registration, ''),
+               'noOut', coalesce(l1.flight_no::text, ''),
+               'noBack', coalesce(l2.flight_no::text, ''),
+               'depHub', coalesce(to_char(make_time(x.dep_hub / 60, x.dep_hub % 60, 0), 'HH24:MI'), ''),
+               'arrDest', coalesce(to_char(make_time(x.arr_dest / 60, x.arr_dest % 60, 0), 'HH24:MI'), ''),
+               'depDest', coalesce(to_char(make_time(x.dep_dest / 60, x.dep_dest % 60, 0), 'HH24:MI'), ''),
+               'arrHub', coalesce(to_char(make_time(x.arr_hub / 60, x.arr_hub % 60, 0), 'HH24:MI'), ''),
+               'service', r.service_code,
+               'price', trim_scale(r.fare_pct),
+               'launched', r.launched_on::text,
+               'notes', r.note))
+             || r.extra as j
+        from public.rotations r
+        join public.routes ro on ro.id = r.route_id
+        join public.airlines al on al.id = r.airline_id
+        left join public.flight_legs l1 on l1.rotation_id = r.id and l1.leg_no = 1
+        left join public.flight_legs l2 on l2.rotation_id = r.id and l2.leg_no = 2
+        left join public.aircraft ac on ac.id = coalesce(l1.aircraft_id, l2.aircraft_id)
+        left join public.airports ah on ah.code = ro.hub_code
+        left join public.world_airports wh on wh.world_id = w and wh.airport_code = ro.hub_code
+        left join public.airports ad on ad.code = ro.dest_code
+        left join public.world_airports wd on wd.world_id = w and wd.airport_code = ro.dest_code
+        -- each end's offset in minutes; an airport whose offset isn't known counts as UTC, as the planner counts it
+        cross join lateral (select round(coalesce(wh.utc_offset_override, ah.utc_offset, 0) * 60)::int as oh,
+                                   round(coalesce(wd.utc_offset_override, ad.utc_offset, 0) * 60)::int as od) o
+        cross join lateral (
+          select (((l1.dep_utc_min + o.oh) % 1440) + 1440) % 1440 as dep_hub,
+                 (((l1.dep_utc_min + l1.block_min + o.od) % 1440) + 1440) % 1440 as arr_dest,
+                 (((l2.dep_utc_min + o.od) % 1440) + 1440) % 1440 as dep_dest,
+                 (((l2.dep_utc_min + l2.block_min + o.oh) % 1440) + 1440) % 1440 as arr_hub,
+                 -- the old planner keeps the outbound's local weekdays at the hub
+                 dl.days_local
+            from (select case when l1.dep_utc_min is null then l1.days_utc
+                              else array(select distinct ((((d - 1 + floor((l1.dep_utc_min + o.oh) / 1440.0)::int) % 7) + 7) % 7 + 1)::smallint
+                                           from unnest(l1.days_utc) as d order by 1) end as days_local) dl) x
+       where r.world_id = w) f;
+
+  -- ---------- plans: one card per aircraft, its legs back in local time
+  select coalesce(jsonb_object_agg(a.registration,
+           jsonb_strip_nulls(jsonb_build_object('base', p.base_code, 'title', p.title, 'note', p.note))
+           || jsonb_build_object('legs', (
+                select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                         'no', coalesce(l.flight_no::text, ''),
+                         'from', l.origin_code, 'to', l.dest_code,
+                         'dep', coalesce(to_char(make_time(y.dep / 60, y.dep % 60, 0), 'HH24:MI'), ''),
+                         'arr', coalesce(to_char(make_time(y.arr / 60, y.arr % 60, 0), 'HH24:MI'), ''),
+                         'block', coalesce((l.block_min / 60)::text || ':' || lpad((l.block_min % 60)::text, 2, '0'), ''),
+                         'svc', l.service_code)) order by l.position), '[]'::jsonb)
+                  from public.plan_card_legs l
+                  left join public.airports ao on ao.code = l.origin_code
+                  left join public.world_airports wo on wo.world_id = w and wo.airport_code = l.origin_code
+                  left join public.airports ad on ad.code = l.dest_code
+                  left join public.world_airports wd on wd.world_id = w and wd.airport_code = l.dest_code
+                  cross join lateral (select round(coalesce(wo.utc_offset_override, ao.utc_offset, 0) * 60)::int as oo,
+                                             round(coalesce(wd.utc_offset_override, ad.utc_offset, 0) * 60)::int as od) o
+                  cross join lateral (select (((l.dep_utc_min + o.oo) % 1440) + 1440) % 1440 as dep,
+                                             (((l.dep_utc_min + l.block_min + o.od) % 1440) + 1440) % 1440 as arr) y
+                 where l.plan_card_id = p.id))
+           || p.extra), '{}'::jsonb)
+    into v_plans
+    from public.plan_cards p join public.aircraft a on a.id = p.aircraft_id
+   where p.world_id = w;
+
+  -- ---------- todos
+  select coalesce(jsonb_agg(
+           jsonb_strip_nulls(jsonb_build_object(
+             'id', t.legacy_key, 'title', t.title, 'date', t.due_on::text, 'done', t.done, 'note', t.note,
+             'doneAt', to_char(t.done_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+                       || case when to_char(t.done_at at time zone 'UTC', 'MS') = '000' then '' else '.' || to_char(t.done_at at time zone 'UTC', 'MS') end || 'Z',
+             'created', to_char(t.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+                       || case when to_char(t.created_at at time zone 'UTC', 'MS') = '000' then '' else '.' || to_char(t.created_at at time zone 'UTC', 'MS') end || 'Z'))
+           || jsonb_build_object('items', (select coalesce(jsonb_agg(to_jsonb(i.body) order by i.position), '[]'::jsonb)
+                                             from public.todo_items i where i.todo_id = t.id))
+           || t.extra
+           order by t.id), '[]'::jsonb)
+    into v_todos
+    from public.todos t where t.world_id = w;
+
+  -- ---------- fare plan
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+           'id', f.legacy_key, 'airline', al.planner_name,
+           'routeKey', ral.planner_name || '|' || ro.hub_code || '|' || ro.dest_code,
+           'cls', f.cabin_class, 'pct', trim_scale(f.change_pct), 'from', trim_scale(f.fare_from),
+           'proposed', f.proposed_on::text, 'status', f.status, 'why', f.reason)) || f.extra order by f.id), '[]'::jsonb)
+    into v_fare
+    from public.fare_plan f
+    join public.airlines al on al.id = f.airline_id
+    left join public.routes ro on ro.id = f.route_id
+    left join public.airlines ral on ral.id = ro.airline_id
+   where f.world_id = w;
+
+  -- ---------- routes added (a route with no market has ""), route edits (market "" when the edit clears it), route
+  -- cabins
+  select coalesce(jsonb_agg(jsonb_build_array(al.planner_name, r.hub_code, r.dest_code, r.city, r.country_label, r.distance_km,
+                                              coalesce(m.name, ''), r.stars) order by r.id), '[]'::jsonb)
+    into v_added
+    from public.routes r join public.airlines al on al.id = r.airline_id left join public.markets m on m.id = r.market_id
+   where r.world_id = w and r.source = 'added';
+  select coalesce(jsonb_object_agg(al.planner_name || '|' || r.hub_code || '|' || r.dest_code,
+           jsonb_strip_nulls(jsonb_build_object('removed', case when r.removed then true end, 'note', r.removed_note,
+             'city', r.city_override, 'dist', r.distance_override_km,
+             'market', case when r.market_cleared then '' else mo.name end, 'stars', r.stars_override))), '{}'::jsonb)
+    into v_edits
+    from public.routes r join public.airlines al on al.id = r.airline_id left join public.markets mo on mo.id = r.market_override_id
+   where r.world_id = w
+     and (r.removed or r.removed_note is not null or r.city_override is not null or r.distance_override_km is not null
+          or r.market_override_id is not null or r.market_cleared or r.stars_override is not null);
+  select coalesce(jsonb_object_agg(al.planner_name || '|' || r.hub_code || '|' || r.dest_code, r.cabin_choice), '{}'::jsonb)
+    into v_cabin
+    from public.routes r join public.airlines al on al.id = r.airline_id
+   where r.world_id = w and r.cabin_choice is not null;
+
+  -- ---------- monthly checks, interline, dismissed alerts, kept cabins
+  select coalesce(jsonb_object_agg(x.name, x.tasks), '{}'::jsonb) into v_monthly
+    from (select coalesce(al.planner_name, 'Equinox') as name, jsonb_object_agg(m.task, m.last_done_on) as tasks
+            from public.monthly_checks m left join public.airlines al on al.id = m.airline_id
+           where m.world_id = w group by 1) x;
+  select coalesce(jsonb_object_agg(al.planner_name || '|' || i.country_code, jsonb_strip_nulls(jsonb_build_object(
+           'status', case i.status when 'to_sign' then 'requested' else i.status end,
+           'partner', i.partner, 'date', i.decided_on::text, 'notes', i.note))), '{}'::jsonb)
+    into v_interline
+    from public.interline_agreements i join public.airlines al on al.id = i.airline_id
+   where i.world_id = w;
+  select coalesce(jsonb_object_agg(d.alert_key, d.dismissed_on), '{}'::jsonb) into v_dismissed
+    from public.dismissals d where d.world_id = w;
+  select coalesce(jsonb_object_agg(a.registration || '|' || k.cabin, jsonb_strip_nulls(jsonb_build_object('date', k.decided_on))), '{}'::jsonb)
+    into v_keep
+    from public.aircraft_cabin_keeps k join public.aircraft a on a.id = k.aircraft_id
+   where k.world_id = w;
+
+  -- ---------- cash and next-7-day costs, in millions: the capture's figure unless a cash_entries row says otherwise
+  -- (design §8); rounded as the planner rounds (Math.round to 0.01M); next-7-day costs only when above zero
+  with pairs as (
+    select coalesce(e.airline_id, cc.airline_id) as airline_id, coalesce(e.day, cc.day) as day,
+           coalesce(e.cash / 1000000, floor(cc.cash / 10000 + 0.5) / 100) as cash_m,
+           coalesce(e.fixed_next7, cc.fixed_next7) as fixed_raw,
+           e.fixed_next7 is not null as fixed_typed
+      from (select * from public.cash_entries where world_id = w) e
+      full join (select * from public.capture_cash where world_id = w) cc on cc.airline_id = e.airline_id and cc.day = e.day),
+  named as (
+    select al.planner_name, p.day::text as day, trim_scale(p.cash_m) as cash_m,
+           case when p.fixed_raw > 0 then trim_scale(case when p.fixed_typed then p.fixed_raw / 1000000
+                                                          else floor(p.fixed_raw / 10000 + 0.5) / 100 end) end as fixed_m
+      from pairs p join public.airlines al on al.id = p.airline_id)
+  select (select coalesce(jsonb_object_agg(x.day, x.v), '{}'::jsonb)
+            from (select day, jsonb_object_agg(planner_name, cash_m) as v from named where cash_m is not null group by day) x),
+         (select coalesce(jsonb_object_agg(x.day, x.v), '{}'::jsonb)
+            from (select day, jsonb_object_agg(planner_name, fixed_m) as v from named where fixed_m is not null group by day) x)
+    into v_cash, v_fixed;
+
+  -- ---------- money spent and growth moves, in the old order
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+           'date', s.spent_on::text, 'note', s.note, 'airline', al.planner_name, 'amountM', trim_scale(s.amount / 1000000),
+           -- orders were logged without a kind
+           'kind', case when s.kind <> 'order' then s.kind end)) order by s.id), '[]'::jsonb)
+    into v_capex
+    from public.spending_log s join public.airlines al on al.id = s.airline_id where s.world_id = w;
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+           'date', g.logged_on::text, 'move', g.move, 'note', g.note, 'airline', al.planner_name)) order by g.id), '[]'::jsonb)
+    into v_growth
+    from public.growth_log g join public.airlines al on al.id = g.airline_id where g.world_id = w;
+
+  v_doc := jsonb_build_object(
+    'version', 2, 'savedAt', v_ver, 'ref', v_ref, 'tails', v_tails, 'deliveries', v_deliveries, 'freqs', v_freqs,
+    'plans', v_plans, 'todos', v_todos, 'farePlan', v_fare, 'routesAdded', v_added, 'routeEdits', v_edits,
+    'routeCabin', v_cabin, 'monthly', v_monthly, 'interline', v_interline, 'dismissed', v_dismissed,
+    'cabinKeep', v_keep, 'cash', v_cash, 'fixed7', v_fixed, 'capex', v_capex, 'growthLog', v_growth);
+  return jsonb_build_object('json', v_doc::text, 'saved_at', v_ver);
+end
+$function$;
+
+
+-- Loader step: to-dos and their steps, fare plan, interline, monthly checks, dismissed alerts, kept cabins
+create or replace function private.load_planner_work(p_world_id bigint, s jsonb)
+ returns jsonb
+ language plpgsql
+ set search_path to ''
+as $function$
+declare w bigint := p_world_id; n int; v_out jsonb := '{}'::jsonb;
+  k_plan text[] := array['base', 'title', 'note', 'legs'];
+  k_todo text[] := array['id', 'title', 'date', 'done', 'doneAt', 'created', 'note', 'items'];
+  k_fare text[] := array['id', 'airline', 'routeKey', 'cls', 'pct', 'from', 'proposed', 'status', 'why'];
+begin
+  -- ---- plan cards (plans, keyed by registration) and their legs, in UTC like flight legs
+  with src as (
+    select e.key as reg, e.value as v, a.id as aircraft_id, a.airline_id, old.extra as old_extra
+      from jsonb_each(case when jsonb_typeof(s -> 'plans') = 'object' then s -> 'plans' else '{}'::jsonb end) e
+      join public.aircraft a on a.world_id = w and a.registration = e.key
+      left join public.plan_cards old on old.aircraft_id = a.id
+     where jsonb_typeof(e.value) = 'object')
+  insert into public.plan_cards as x (world_id, airline_id, aircraft_id, base_code, title, note, extra)
+  select w, src.airline_id, src.aircraft_id, (select a.code from public.airports a where a.code = src.v ->> 'base'),
+         src.v ->> 'title', src.v ->> 'note', private.planner_extra(src.v, k_plan, src.old_extra)
+    from src order by src.reg
+  on conflict (aircraft_id) do update set airline_id = excluded.airline_id, base_code = excluded.base_code,
+    title = excluded.title, note = excluded.note, extra = excluded.extra
+  where (x.airline_id, x.base_code, x.title, x.note, x.extra)
+        is distinct from (excluded.airline_id, excluded.base_code, excluded.title, excluded.note, excluded.extra);
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('plan_cards', n);
+  with src as (
+    select p.id as plan_card_id, (e.ord)::int as position, l,
+           (select a.code from public.airports a where a.code = l ->> 'from') as origin,
+           (select a.code from public.airports a where a.code = l ->> 'to') as dest
+      from jsonb_each(case when jsonb_typeof(s -> 'plans') = 'object' then s -> 'plans' else '{}'::jsonb end) pe
+      join public.aircraft a on a.world_id = w and a.registration = pe.key
+      join public.plan_cards p on p.aircraft_id = a.id
+      cross join lateral jsonb_array_elements(case when jsonb_typeof(pe.value -> 'legs') = 'array' then pe.value -> 'legs' else '[]'::jsonb end) with ordinality as e(l, ord)
+     where jsonb_typeof(l) = 'object'),
+  timed as (
+    select src.*, private.clock_min(src.l ->> 'dep') as dep,
+           (select m[1]::int * 60 + m[2]::int from regexp_match(btrim(src.l ->> 'block'), '^(\d{1,3}):([0-5]\d)$') m) as block,
+           round(coalesce(wo.utc_offset_override, ao.utc_offset, 0) * 60)::int as oo
+      from src
+      left join public.airports ao on ao.code = src.origin
+      left join public.world_airports wo on wo.world_id = w and wo.airport_code = src.origin)
+  insert into public.plan_card_legs as x (world_id, plan_card_id, position, flight_no, origin_code, dest_code, dep_utc_min,
+                                          block_min, service_code)
+  select w, t.plan_card_id, t.position,
+         (select v::int from private.json_int(t.l -> 'no') v where v between 0 and 2000000000), t.origin, t.dest,
+         case when t.dep is not null then ((t.dep - t.oo) % 1440 + 1440) % 1440 end,
+         case when t.block < 32000 then t.block end, t.l ->> 'svc'
+    from timed t order by t.plan_card_id, t.position
+  on conflict (plan_card_id, position) do update set flight_no = excluded.flight_no, origin_code = excluded.origin_code,
+    dest_code = excluded.dest_code, dep_utc_min = excluded.dep_utc_min, block_min = excluded.block_min,
+    service_code = excluded.service_code
+  where (x.flight_no, x.origin_code, x.dest_code, x.dep_utc_min, x.block_min, x.service_code)
+        is distinct from (excluded.flight_no, excluded.origin_code, excluded.dest_code, excluded.dep_utc_min,
+                          excluded.block_min, excluded.service_code);
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('plan_card_legs', n);
+  delete from public.plan_card_legs x using public.plan_cards p, public.aircraft a
+   where x.plan_card_id = p.id and p.world_id = w and a.id = p.aircraft_id
+     and x.position > coalesce(jsonb_array_length(case when jsonb_typeof(s #> array['plans', a.registration, 'legs']) = 'array'
+                                                       then s #> array['plans', a.registration, 'legs'] end), 0);
+
+  -- ---- to-dos and their steps
+  with src as (
+    select distinct on (v ->> 'id') v ->> 'id' as k, v, e.ord
+      from jsonb_array_elements(case when jsonb_typeof(s -> 'todos') = 'array' then s -> 'todos' else '[]'::jsonb end) with ordinality as e(v, ord)
+     where jsonb_typeof(v) = 'object' and coalesce(v ->> 'id', '') <> ''
+     order by v ->> 'id', e.ord)
+  insert into public.todos as x (world_id, legacy_key, title, due_on, done, done_at, note, created_at, extra)
+  select w, src.k, coalesce(src.v ->> 'title', ''), private.json_date(src.v -> 'date'), coalesce(src.v -> 'done' = 'true'::jsonb, false),
+         private.json_ts(src.v -> 'doneAt'), src.v ->> 'note',
+         -- a to-do with no creation time of its own keeps the one it was first loaded with
+         coalesce(private.json_ts(src.v -> 'created'), old.created_at, now()),
+         private.planner_extra(src.v, k_todo, old.extra)
+    from src left join public.todos old on old.world_id = w and old.legacy_key = src.k
+   order by src.ord
+  on conflict (world_id, legacy_key) do update set title = excluded.title, due_on = excluded.due_on, done = excluded.done,
+    done_at = excluded.done_at, note = excluded.note, created_at = excluded.created_at, extra = excluded.extra
+  where (x.title, x.due_on, x.done, x.done_at, x.note, x.created_at, x.extra)
+        is distinct from (excluded.title, excluded.due_on, excluded.done, excluded.done_at, excluded.note,
+                          excluded.created_at, excluded.extra);
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('todos', n);
+  with src as (
+    select t.id as todo_id, (e.ord)::int as position, case when jsonb_typeof(i) = 'string' then i #>> '{}' else i::text end as body
+      from jsonb_array_elements(case when jsonb_typeof(s -> 'todos') = 'array' then s -> 'todos' else '[]'::jsonb end) v
+      join public.todos t on t.world_id = w and t.legacy_key = v ->> 'id'
+      cross join lateral jsonb_array_elements(case when jsonb_typeof(v -> 'items') = 'array' then v -> 'items' else '[]'::jsonb end) with ordinality as e(i, ord))
+  insert into public.todo_items as x (world_id, todo_id, position, body)
+  select w, src.todo_id, src.position, src.body from src order by src.todo_id, src.position
+  on conflict (todo_id, position) do update set body = excluded.body where x.body is distinct from excluded.body;
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('todo_items', n);
+  delete from public.todo_items x using public.todos t
+   where x.todo_id = t.id and t.world_id = w
+     and x.position > coalesce((select jsonb_array_length(v -> 'items')
+                                  from jsonb_array_elements(case when jsonb_typeof(s -> 'todos') = 'array' then s -> 'todos' else '[]'::jsonb end) v
+                                 where v ->> 'id' = t.legacy_key and jsonb_typeof(v -> 'items') = 'array' limit 1), 0);
+
+  -- ---- growth moves (growthLog) and money spent (capex): no ids, so identical entries are interchangeable (design §8)
+  if to_regclass('pg_temp.t_load_log') is null then
+    create temporary table t_load_log (kind text, ord bigint, airline_id bigint, day date, a text, b numeric,
+                                                    note text, aircraft_id bigint, occ bigint) on commit drop;
+  end if;
+  truncate pg_temp.t_load_log;
+  insert into pg_temp.t_load_log
+  select 'growth', e.ord, al.id, private.json_date(v -> 'date'), v ->> 'move', null, v ->> 'note', null, null
+    from jsonb_array_elements(case when jsonb_typeof(s -> 'growthLog') = 'array' then s -> 'growthLog' else '[]'::jsonb end) with ordinality as e(v, ord)
+    join public.airlines al on al.world_id = w and al.planner_name = v ->> 'airline'
+   where v ->> 'move' in ('big', 'freq', 'feeder') and private.json_date(v -> 'date') is not null;
+  insert into pg_temp.t_load_log
+  select 'spending', e.ord, al.id, private.json_date(v -> 'date'),
+         -- the orders were logged without a kind (design §3.6)
+         case when v ->> 'kind' in ('order', 'cabin', 'loss') then v ->> 'kind' else 'order' end,
+         round(private.json_num(v -> 'amountM') * 1000000, 2), v ->> 'note',
+         -- the aircraft, where the note starts with one of the airline's registrations
+         (select a.id from public.aircraft a where a.world_id = w and a.airline_id = al.id
+             and a.registration = split_part(btrim(coalesce(v ->> 'note', '')), ' ', 1)), null
+    from jsonb_array_elements(case when jsonb_typeof(s -> 'capex') = 'array' then s -> 'capex' else '[]'::jsonb end) with ordinality as e(v, ord)
+    join public.airlines al on al.world_id = w and al.planner_name = v ->> 'airline'
+   where private.json_date(v -> 'date') is not null and abs(private.json_num(v -> 'amountM')) < 1000000;
+  update pg_temp.t_load_log l set occ = x.occ
+    from (select kind, ord, row_number() over (partition by kind, airline_id, day, a, b, note order by ord) as occ from pg_temp.t_load_log) x
+   where x.kind = l.kind and x.ord = l.ord;
+  with cur as (select g.*, row_number() over (partition by g.airline_id, g.logged_on, g.move, g.note order by g.id) as occ
+                 from public.growth_log g where g.world_id = w)
+  delete from public.growth_log g using cur
+   where g.id = cur.id
+     and not exists (select 1 from pg_temp.t_load_log l
+                      where l.kind = 'growth' and (l.airline_id, l.day, l.a, l.note, l.occ)
+                                                  is not distinct from (cur.airline_id, cur.logged_on, cur.move, cur.note, cur.occ));
+  insert into public.growth_log (world_id, airline_id, logged_on, move, note)
+  select w, l.airline_id, l.day, l.a, l.note from pg_temp.t_load_log l
+   where l.kind = 'growth'
+     and not exists (select 1 from (select g.*, row_number() over (partition by g.airline_id, g.logged_on, g.move, g.note order by g.id) as occ
+                                      from public.growth_log g where g.world_id = w) cur
+                      where (cur.airline_id, cur.logged_on, cur.move, cur.note, cur.occ)
+                            is not distinct from (l.airline_id, l.day, l.a, l.note, l.occ))
+   order by l.ord;
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('growth_log', n);
+  with cur as (select s2.*, row_number() over (partition by s2.airline_id, s2.spent_on, s2.kind, s2.amount, s2.note order by s2.id) as occ
+                 from public.spending_log s2 where s2.world_id = w)
+  delete from public.spending_log x using cur
+   where x.id = cur.id
+     and not exists (select 1 from pg_temp.t_load_log l
+                      where l.kind = 'spending' and (l.airline_id, l.day, l.a, l.b, l.note, l.occ)
+                                                    is not distinct from (cur.airline_id, cur.spent_on, cur.kind, cur.amount, cur.note, cur.occ));
+  insert into public.spending_log (world_id, airline_id, spent_on, amount, kind, aircraft_id, note)
+  select w, l.airline_id, l.day, l.b, l.a, l.aircraft_id, l.note from pg_temp.t_load_log l
+   where l.kind = 'spending'
+     and not exists (select 1 from (select s2.*, row_number() over (partition by s2.airline_id, s2.spent_on, s2.kind, s2.amount, s2.note order by s2.id) as occ
+                                      from public.spending_log s2 where s2.world_id = w) cur
+                      where (cur.airline_id, cur.spent_on, cur.kind, cur.amount, cur.note, cur.occ)
+                            is not distinct from (l.airline_id, l.day, l.a, l.b, l.note, l.occ))
+   order by l.ord;
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('spending_log', n);
+  update public.spending_log x set aircraft_id = l.aircraft_id
+    from (select s2.*, row_number() over (partition by s2.airline_id, s2.spent_on, s2.kind, s2.amount, s2.note order by s2.id) as occ
+            from public.spending_log s2 where s2.world_id = w) cur
+    join pg_temp.t_load_log l on l.kind = 'spending' and (l.airline_id, l.day, l.a, l.b, l.note, l.occ)
+                                 is not distinct from (cur.airline_id, cur.spent_on, cur.kind, cur.amount, cur.note, cur.occ)
+   where x.id = cur.id and x.aircraft_id is distinct from l.aircraft_id;
+
+  -- ---- fare plan
+  with src as (
+    select distinct on (v ->> 'id') v ->> 'id' as k, v, e.ord
+      from jsonb_array_elements(case when jsonb_typeof(s -> 'farePlan') = 'array' then s -> 'farePlan' else '[]'::jsonb end) with ordinality as e(v, ord)
+     where jsonb_typeof(v) = 'object' and coalesce(v ->> 'id', '') <> ''
+     order by v ->> 'id', e.ord)
+  insert into public.fare_plan as x (world_id, airline_id, route_id, legacy_key, cabin_class, change_pct, fare_from,
+                                     proposed_on, status, reason, extra)
+  select w, al.id,
+         (select r.id from public.routes r join public.airlines ra on ra.id = r.airline_id
+           where r.world_id = w and ra.planner_name || '|' || r.hub_code || '|' || r.dest_code = src.v ->> 'routeKey'),
+         src.k, case when src.v ->> 'cls' in ('economy', 'business', 'first') then src.v ->> 'cls' end,
+         (select v from private.json_num(src.v -> 'pct') v where abs(v) < 10000),
+         (select v from private.json_num(src.v -> 'from') v where abs(v) < 1000000000000),
+         private.json_date(src.v -> 'proposed'), case when src.v ->> 'status' = 'dropped' then 'dropped' else 'planned' end,
+         src.v ->> 'why', private.planner_extra(src.v, k_fare, old.extra)
+    from src
+    join public.airlines al on al.world_id = w and al.planner_name = src.v ->> 'airline'
+    left join public.fare_plan old on old.world_id = w and old.legacy_key = src.k
+   order by src.ord
+  on conflict (world_id, legacy_key) do update set airline_id = excluded.airline_id, route_id = excluded.route_id,
+    cabin_class = excluded.cabin_class, change_pct = excluded.change_pct, fare_from = excluded.fare_from,
+    proposed_on = excluded.proposed_on, status = excluded.status, reason = excluded.reason, extra = excluded.extra
+  where (x.airline_id, x.route_id, x.cabin_class, x.change_pct, x.fare_from, x.proposed_on, x.status, x.reason, x.extra)
+        is distinct from (excluded.airline_id, excluded.route_id, excluded.cabin_class, excluded.change_pct,
+                          excluded.fare_from, excluded.proposed_on, excluded.status, excluded.reason, excluded.extra);
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('fare_plan', n);
+
+  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign; a record with no status (the
+  -- planner's "not contacted") has none
+  with src as (
+    select al.id as airline_id, substr(e.key, strpos(e.key, '|') + 1) as cc, e.value as v
+      from jsonb_each(case when jsonb_typeof(s -> 'interline') = 'object' then s -> 'interline' else '{}'::jsonb end) e
+      join public.airlines al on al.world_id = w and al.planner_name = split_part(e.key, '|', 1)
+     where jsonb_typeof(e.value) = 'object' and exists (select 1 from public.countries c where c.code = substr(e.key, strpos(e.key, '|') + 1)))
+  insert into public.interline_agreements as x (world_id, airline_id, country_code, status, partner, decided_on, note)
+  select w, src.airline_id, src.cc,
+         case when src.v ->> 'status' in ('signed', 'declined', 'nopartner') then src.v ->> 'status'
+              when src.v ->> 'status' is not null then 'to_sign' end,
+         src.v ->> 'partner', private.json_date(src.v -> 'date'), src.v ->> 'notes'
+    from src
+  on conflict (airline_id, country_code) do update set status = excluded.status, partner = excluded.partner,
+    decided_on = excluded.decided_on, note = excluded.note
+  where (x.status, x.partner, x.decided_on, x.note) is distinct from (excluded.status, excluded.partner, excluded.decided_on, excluded.note);
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('interline_agreements', n);
+
+  -- ---- monthly checks: "Equinox" is the group as a whole
+  with src as (
+    select case when m.key = 'Equinox' then null else al.id end as airline_id, t.key as task, private.json_date(t.value) as day
+      from jsonb_each(case when jsonb_typeof(s -> 'monthly') = 'object' then s -> 'monthly' else '{}'::jsonb end) m
+      left join public.airlines al on al.world_id = w and al.planner_name = m.key
+      cross join lateral jsonb_each(case when jsonb_typeof(m.value) = 'object' then m.value else '{}'::jsonb end) t
+     where m.key = 'Equinox' or al.id is not null)
+  insert into public.monthly_checks as x (world_id, airline_id, task, last_done_on)
+  select w, src.airline_id, src.task, src.day from src
+  on conflict on constraint monthly_checks_world_airline_task_key do update set last_done_on = excluded.last_done_on
+  where x.last_done_on is distinct from excluded.last_done_on;
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('monthly_checks', n);
+
+  -- ---- Home's dismissed alerts
+  insert into public.dismissals as x (world_id, alert_key, dismissed_on)
+  select w, e.key, private.json_date(e.value)
+    from jsonb_each(case when jsonb_typeof(s -> 'dismissed') = 'object' then s -> 'dismissed' else '{}'::jsonb end) e
+  on conflict (world_id, alert_key) do update set dismissed_on = excluded.dismissed_on
+  where x.dismissed_on is distinct from excluded.dismissed_on;
+  get diagnostics n = row_count; v_out := v_out || jsonb_build_object('dismissals', n);
+  return v_out;
+end
 $function$;
 
 -- ============================================================ 2. comparing
@@ -132,13 +672,16 @@ as $function$
            '^\$\.\d{4}-\d{2}-\d{2}', '$.{day}'), '\.f\..+$', '.f.{flight}')
 $function$;
 
--- A planner_state document against the one built from the tables, with exactly the differences the tests allow
--- (database/tests/planner_load_state_test.sql): design §9's, plus "cash/fixed7 captured after the planner last saved"
--- (the Building chat's call, 10 Oct). That one holds only for a cash or fixed7 entry whose built figure equals the
--- capture's (capture_cash, rounded as the planner rounds) and whose capture came after p_saved_at: for cash, that
--- airline's balance for the date; for fixed7, that balance or any of the events the figure counts. One row per
--- difference: its path, its kind ('differs' for any that isn't allowed) and, for a cash or fixed7 figure that isn't
--- allowed, why (dates and airlines, never figures).
+-- A planner_state document against the one built from the tables, for the side by side: the differences the tests
+-- allow (database/tests/planner_load_state_test.sql), design §9's plus "cash/fixed7 captured after the planner last
+-- saved" (the Building chat's call, 10 Oct), and one more for a planner tab opened before the evening's capture and saved
+-- after it (the Building chat's call, 10 Oct, for these comparisons only): "cash/fixed7 captured, not in the saved
+-- document". Both hold only for a cash or fixed7 entry whose built figure equals the capture's (capture_cash, rounded as
+-- the planner rounds). The first, when the capture came after p_saved_at: for cash, that airline's balance for the date;
+-- for fixed7, that balance or any of the events the figure counts. The second, whatever the timing, when the saved
+-- document has no entry for that airline and date. A figure the saved document has and the tables don't give back
+-- still fails (a typed figure not stored). One row per difference: its path, its kind ('differs' for any that isn't
+-- allowed) and, for a cash or fixed7 figure that isn't allowed, why (dates and airlines, never figures).
 create or replace function private.planner_state_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)
  returns table (path text, kind text, why text)
  language sql
@@ -170,23 +713,29 @@ as $function$
       from entries e
       left join public.airlines al on al.planner_name = e.airline and al.world_id = p_world_id
       left join public.capture_cash cc on cc.airline_id = al.id and cc.day = private.json_date(to_jsonb(e.day))),
+  -- how each entry is allowed: 'late' (captured after the planner last saved), 'not saved' (the saved document has no
+  -- entry), or not at all (null)
   judged as (
-    select m.*, coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure
-                         and (m.cash_at > to_timestamp(p_saved_at / 1000.0)
-                              or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0))), false) as late
+    select m.*,
+           case when not coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure, false) then null
+                when m.cash_at > to_timestamp(p_saved_at / 1000.0)
+                     or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0)) then 'late'
+                when coalesce(m.had, 'null'::jsonb) = 'null'::jsonb then 'not saved' end as how
       from money m)
   select d.path, d.kind, null::text from d where d.kind <> 'differs'
   union all
   select d.path,
-         case when exists (select 1 from judged j where j.path = d.path) and not exists (select 1 from judged j where j.path = d.path and not j.late)
-              then 'cash/fixed7 captured after the planner last saved' else 'differs' end,
+         case when not exists (select 1 from judged j where j.path = d.path)
+                   or exists (select 1 from judged j where j.path = d.path and j.how is null) then 'differs'
+              when exists (select 1 from judged j where j.path = d.path and j.how = 'late') then 'cash/fixed7 captured after the planner last saved'
+              else 'cash/fixed7 captured, not in the saved document' end,
          (select string_agg(format('%s %s %s (%s; %s)', j.sec, j.day, j.airline,
                    case when j.had is null then 'only in the tables' when j.got is null then 'only in planner_state' else 'the figure differs' end,
                    case when j.cash_at is null then 'no capture that date'
                         when j.figure is distinct from (case when jsonb_typeof(j.got) = 'number' then (j.got #>> '{}')::numeric end) then 'not the capture''s figure'
                         when j.cash_at > to_timestamp(p_saved_at / 1000.0) then 'captured after the planner last saved'
                         else 'captured before the planner last saved' end), ', ' order by j.sec, j.day, j.airline)
-            from judged j where j.path = d.path and not j.late)
+            from judged j where j.path = d.path and j.how is null)
     from d where d.kind = 'differs'
 $function$;
 
@@ -716,8 +1265,9 @@ $function$;
 
 -- Routes: what the planner added, edited or chose a cabin for (routesAdded, routeEdits, routeCabin), and any route a
 -- changed frequency or fare plan names. A route added in the planner takes its figures from routesAdded; otherwise a
--- research route keeps its own, and one that stops being added takes the research's again (planner_data). Routes
--- nothing names any more are removed in private.planner_apply_tidy(), once frequencies and fare plans are written.
+-- research route keeps its own, and one that stops being added takes the research's again (planner_data). An edit's
+-- market "" clears the route's market (market_cleared). Routes nothing names any more are removed in
+-- private.planner_apply_tidy(), once frequencies and fare plans are written.
 create or replace function private.planner_apply_routes(p_world_id bigint)
  returns jsonb
  language plpgsql
@@ -769,7 +1319,7 @@ begin
 
   insert into public.routes as x (world_id, airline_id, hub_code, dest_code, city, country_label, distance_km, market_id, stars,
                                   source, removed, removed_note, city_override, distance_override_km, market_override_id,
-                                  stars_override, cabin_choice)
+                                  market_cleared, stars_override, cabin_choice)
   select w, r.airline_id, r.hub, r.dest,
          case when s.keep then old.city else s.src ->> 3 end,
          case when s.keep then old.country_label else s.src ->> 4 end,
@@ -780,6 +1330,7 @@ begin
          coalesce(r.edit -> 'removed' = 'true'::jsonb, false), r.edit ->> 'note', r.edit ->> 'city',
          (select v::int from private.json_int(r.edit -> 'dist') v where abs(v) < 2000000000),
          (select m.id from public.markets m where m.airline_id = r.airline_id and m.name = r.edit ->> 'market'),
+         coalesce(r.edit ->> 'market' = '', false),
          (select v::smallint from private.json_int(r.edit -> 'stars') v where abs(v) < 32000),
          case when r.cabin #>> '{}' in ('Standard', 'Leisure', 'Leisure Plus', 'Comfort') then r.cabin #>> '{}' end
     from pg_temp.t_pa_routes r
@@ -792,13 +1343,13 @@ begin
     distance_km = excluded.distance_km, market_id = excluded.market_id, stars = excluded.stars, source = excluded.source,
     removed = excluded.removed, removed_note = excluded.removed_note, city_override = excluded.city_override,
     distance_override_km = excluded.distance_override_km, market_override_id = excluded.market_override_id,
-    stars_override = excluded.stars_override, cabin_choice = excluded.cabin_choice
+    market_cleared = excluded.market_cleared, stars_override = excluded.stars_override, cabin_choice = excluded.cabin_choice
   where (x.city, x.country_label, x.distance_km, x.market_id, x.stars, x.source, x.removed, x.removed_note, x.city_override,
-         x.distance_override_km, x.market_override_id, x.stars_override, x.cabin_choice)
+         x.distance_override_km, x.market_override_id, x.market_cleared, x.stars_override, x.cabin_choice)
         is distinct from (excluded.city, excluded.country_label, excluded.distance_km, excluded.market_id, excluded.stars,
                           excluded.source, excluded.removed, excluded.removed_note, excluded.city_override,
-                          excluded.distance_override_km, excluded.market_override_id, excluded.stars_override,
-                          excluded.cabin_choice);
+                          excluded.distance_override_km, excluded.market_override_id, excluded.market_cleared,
+                          excluded.stars_override, excluded.cabin_choice);
   get diagnostics n = row_count;
   return jsonb_build_object('routes', n);
 end
@@ -1119,7 +1670,8 @@ begin
     get diagnostics n = row_count; v_out := v_out || jsonb_build_object('fare_plan', n);
   end if;
 
-  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign
+  -- ---- interline, keyed "Airline|country": the planner's "requested" is to_sign; a record with no status (the planner's
+  -- "not contacted") has none
   if exists (select 1 from pg_temp.t_pa where section = 'interline' and state = 'changed') then
     delete from public.interline_agreements x using pg_temp.t_pa p, public.airlines al
      where p.section = 'interline' and p.state = 'changed' and p.new_item is null
@@ -1127,7 +1679,8 @@ begin
        and x.airline_id = al.id and x.country_code = substr(p.key, strpos(p.key, '|') + 1);
     insert into public.interline_agreements as x (world_id, airline_id, country_code, status, partner, decided_on, note)
     select w, al.id, substr(p.key, strpos(p.key, '|') + 1),
-           case when v ->> 'status' in ('signed', 'declined', 'nopartner') then v ->> 'status' else 'to_sign' end,
+           case when v ->> 'status' in ('signed', 'declined', 'nopartner') then v ->> 'status'
+                when v ->> 'status' is not null then 'to_sign' end,
            v ->> 'partner', private.json_date(v -> 'date'), v ->> 'notes'
       from pg_temp.t_pa p cross join lateral (select p.new_item as v) i
       join public.airlines al on al.world_id = w and al.planner_name = split_part(p.key, '|', 1)
@@ -2008,12 +2561,23 @@ end
 $function$;
 
 -- ============================================================ 7. catch up, then side by side starts
--- The tables catch up with every save since pull request 4 (logged as migration, the change log off), and one
--- comparison of each old row is recorded, so the first job_runs rows say where things stand at the switch-on.
+-- The tables catch up with every save since pull request 4 (logged as migration, the change log off), then
+-- planner_state is copied in as the side by side copies it, for what the loader can't store (a route edit that clears
+-- the market; logged as migration), and one comparison of each old row is recorded, so the first job_runs rows say
+-- where things stand at the switch-on.
 do $catchup$
 declare w bigint := (select x.id from public.worlds x where x.is_default); t0 timestamptz; v_n int; v_note text; r record;
+  v_res jsonb;
 begin
   perform private.load_planner(w);
+  t0 := clock_timestamp();
+  v_res := private.planner_apply(w, (select p.json::jsonb from public.planner_state p where p.id = 'main'), 'mirror', null, null,
+                                 'migration', '20261010210000_adapter_write_side');
+  perform private.job_run_add('adapter_mirror', w, t0, 'ok',
+    'planner_state at the switch-on: ' || case when (v_res ->> 'applied')::int = 0 then 'nothing to copy'
+                                               else 'copied ' || (v_res ->> 'applied') || ' item(s)' end,
+    jsonb_build_object('table', 'planner_state', 'items', (v_res ->> 'applied')::int, 'rows', v_res -> 'rows',
+                       'migration', '20261010210000_adapter_write_side'));
   begin
     t0 := clock_timestamp();
     with c as (select * from private.planner_state_check(w, (select p.json::jsonb from public.planner_state p where p.id = 'main'),
@@ -2072,6 +2636,8 @@ revoke all on function private.job_run_add(text, bigint, timestamptz, text, text
   from public, anon, authenticated;
 
 -- ============================================================ 9. descriptions (decision #10)
+comment on column public.routes.market_cleared is 'The planner''s route edit clears the market (its market ""): the route has no market, whatever the research says. market_override_id is then empty';
+comment on column public.routes.market_override_id is 'Chosen in the planner; null = the research value, or no market when market_cleared';
 comment on table public.job_runs is 'One row per run of every job (design §3.11): when it started and finished, ok or failed, the day or month it was for, a note and the details. From #13''s pull request 5: adapter_mirror (a save of the old planner rows copied into the tables) and adapter_check (the getters compared with the row just saved). backup_runs moves in with pull request 7. Staff read it; only the database''s own functions and postgres write it. Not in the change log.';
 comment on column public.job_runs.job is 'backup, snapshot, snapshot_fallback, cleanup, archive, adapter_mirror or adapter_check';
 comment on column public.job_runs.world_id is 'The world it ran for, if any';
@@ -2094,7 +2660,7 @@ comment on function public.save_loads(text, jsonb) is 'Saves the planner''s load
 comment on function private.job_run_add(text, bigint, timestamp with time zone, text, text, jsonb) is 'Adds one finished job_runs row: the job, its world, when it started (and finished: now), ok or failed, the note and details; for_day is the capture day it started in.';
 comment on function private.planner_json_diff(jsonb, jsonb, text, text, boolean) is 'private.planner_json_differences() with a shortcut: two equal values (numbers by value, keys in any order) are passed over without walking into them, so on a whole document it is many times faster. The only kind it can leave out is "numbers by value", which is allowed anyway: the differences that count are the same.';
 comment on function private.planner_place(text) is 'Where a difference is, without the parts that change from item to item: list places as [], the keys of keyed sections as {}, a loads day as {day} and its flights as {flight}. For job_runs notes.';
-comment on function private.planner_state_check(bigint, jsonb, bigint, jsonb) is 'A planner_state document against the one built from the tables, with exactly the differences the tests allow (planner_load_state_test.sql): design §9''s, plus "cash/fixed7 captured after the planner last saved", only where the built figure is the capture''s and that airline''s balance for the date (or, for fixed7, an event it counts) was captured after p_saved_at. One row per difference: its path, its kind (''differs'' when not allowed) and, for a money figure not allowed, why (dates and airlines only).';
+comment on function private.planner_state_check(bigint, jsonb, bigint, jsonb) is 'A planner_state document against the one built from the tables, for the side by side: the differences the tests allow (planner_load_state_test.sql), design §9''s plus "cash/fixed7 captured after the planner last saved", and, for these comparisons only, "cash/fixed7 captured, not in the saved document" (a tab opened before the evening''s capture and saved after it). Both only where the built figure is the capture''s: the first when that airline''s balance for the date (or, for fixed7, an event it counts) was captured after p_saved_at; the second, whatever the timing, when the saved document has no entry for that airline and date. A figure the saved document has that the tables don''t give back still fails. One row per difference: its path, its kind (''differs'' when not allowed) and, for a money figure not allowed, why (dates and airlines only).';
 comment on function private.capex_key(text, date, text, numeric, text) is 'What a money-spent entry says (airline, date, kind, amount in AS$, note) as one text, the same from the planner''s document and from a spending_log row: the entries have no id, so identical ones are interchangeable (design §8).';
 comment on function private.growth_key(text, date, text, text) is 'What a growth move says (airline, date, move, note) as one text, the same from the planner''s document and from a growth_log row (design §8).';
 comment on function private.planner_items(jsonb) is 'A planner document as items, the unit a save changes and a clash is decided on (design §8''s table): tails, deliveries, frequencies, to-dos and fare plans by id; plan cards, route edits, route cabins, interline, dismissed alerts and kept cabins by key; routes added by airline|hub|destination; monthly checks by airline|task; cash and next-7-day figures by date|airline; each ref list entry (hubs by airline|code, types by name, configs and services by code) and each key of ref''s maps; money spent and growth moves by what they say and which of the identical ones they are. With each item''s place in its list.';

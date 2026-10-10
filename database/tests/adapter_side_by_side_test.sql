@@ -2,7 +2,8 @@
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says where (ids, paths and counts, never values).
 --   1. A save of planner_state (a to-do ticked, as the planner saves it) is copied into the tables (actor planner,
---      detail mirror) and the comparison is ok: one job_runs row each.
+--      detail mirror) and the comparison is ok: one job_runs row each. A tab opened before the evening's capture and
+--      saved after it is compared ok too; a typed figure the mirror didn't store fails the comparison.
 --   2. Loads: save_loads() as staff writes load_entries and load_days itself (actor planner, detail save_loads), and the
 --      capture's loads step is followed too; each write's comparison is ok.
 --   3. The trigger never blocks a save: with the mirror made to fail on purpose, planner_state and planner_loads still
@@ -58,6 +59,52 @@ begin
   insert into t_said values (1, format('a planner_state save (to-do %s ticked): copied as one change to todos (planner, mirror), comparison ok', tid));
 end
 $test$;
+
+-- ---------------------------------------------------------------- 1b. a planner tab opened before the evening's capture
+-- Saved after the capture, its document has no figure for a date the capture filled since: the comparison allows it,
+-- since the tables give the capture's figure, whatever the timing (the Building chat's call, 10 Oct). A typed figure the
+-- mirror failed to store still fails the comparison.
+alter table public.cash_entries add constraint side_by_side_test_cash check (cash is distinct from 4321000);
+do $test$
+declare w bigint := (select id from public.worlds where is_default); d jsonb; v_job bigint; j record; al text; al_id bigint;
+  day date := '2099-07-01'; v_saved bigint;
+begin
+  select a.planner_name, a.id into al, al_id from public.airlines a join public.groups g on g.id = a.group_id
+   where a.world_id = w and g.kind = 'ours' and a.active order by a.position limit 1;
+  select p.json::jsonb into d from public.planner_state p where p.id = 'main';
+  assert d #> array['cash', day::text] is null and d #> array['fixed7', day::text] is null, 'the copy''s planner already has the test date';
+  -- the evening's capture: that airline's balance for that date, captured an hour before the tab saves
+  insert into public.game_balance (airline, captured_on, account, amount, captured_at, world_id, airline_id, capture_day)
+  values (al, day, '2800 Bank account', 1234567, now() - interval '1 hour', w, al_id, day);
+  -- the tab, opened before it, saves a to-do's title
+  v_saved := greatest((select saved_at from public.planner_state where id = 'main') + 1000, (extract(epoch from clock_timestamp()) * 1000)::bigint);
+  v_job := (select max(id) from public.job_runs);
+  update public.planner_state set json = jsonb_set(d, '{todos,0,title}', to_jsonb('stale tab: ' || (d #>> '{todos,0,title}')))::text,
+         saved_at = v_saved
+   where id = 'main';
+  perform pg_temp.commit_triggers();
+  for j in select * from pg_temp.jobs_since(v_job) loop
+    assert j.status = 'ok', format('%s after a stale tab''s save: %s', j.job, j.note);
+  end loop;
+  select * into j from pg_temp.jobs_since(v_job) where job = 'adapter_check';
+  assert (j.details -> 'allowed' ->> 'cash/fixed7 captured, not in the saved document')::int >= 1,
+    'the stale tab''s comparison was ok without the allowance for a capture not in the saved document: ' || coalesce((j.details -> 'allowed')::text, 'no row');
+
+  -- the same tab types a figure for that date, and the mirror fails to store it (the check above)
+  v_job := (select max(id) from public.job_runs);
+  update public.planner_state
+     set json = jsonb_set(json::jsonb, '{cash}', coalesce(json::jsonb -> 'cash', '{}') || jsonb_build_object(day::text, jsonb_build_object(al, 4.321)))::text,
+         saved_at = saved_at + 1000
+   where id = 'main';
+  perform pg_temp.commit_triggers();
+  assert (select status from pg_temp.jobs_since(v_job) where job = 'adapter_mirror') = 'failed', 'the mirror stored the figure it was made to fail on';
+  select * into j from pg_temp.jobs_since(v_job) where job = 'adapter_check';
+  assert j.status = 'failed' and j.note like '%$.cash.{}%' and j.details -> 'cash' ->> 0 like format('cash %s %s (the figure differs;%%', day, al),
+    'a typed figure the mirror didn''t store didn''t fail the comparison: ' || coalesce(j.note, 'no row');
+  insert into t_said values (4, 'a tab opened before the evening''s capture and saved after it: the capture''s figure the document doesn''t have yet is allowed, comparison ok; a typed figure the mirror didn''t store fails it');
+end
+$test$;
+alter table public.cash_entries drop constraint side_by_side_test_cash;
 
 -- ---------------------------------------------------------------- 2. loads: save_loads() and the capture's loads step
 do $$ begin perform set_config('request.jwt.claims',
@@ -176,7 +223,7 @@ begin
     'the failed loads mirror wasn''t recorded';
   assert exists (select 1 from pg_temp.jobs_since(v_job) where job = 'adapter_check' and status = 'failed' and note like '%.f.{flight}%'),
     'the loads comparison after a failed mirror didn''t fail at the flight';
-  insert into t_said values (4, 'the trigger never blocks a save: with the mirror made to fail, planner_state and planner_loads saved, and failed mirror and comparison rows say where');
+  insert into t_said values (5, 'the trigger never blocks a save: with the mirror made to fail, planner_state and planner_loads saved, and failed mirror and comparison rows say where');
 end
 $test$;
 alter table public.todos drop constraint side_by_side_test_fails;
@@ -210,7 +257,7 @@ begin
   assert (select clean from public.adapter_check_days where world_id = w and day = '2099-06-08') = false
      and (select comparisons from public.adapter_check_days where world_id = w and day = '2099-06-10') = 1,
     'adapter_check_days counts wrong';
-  insert into t_said values (5, 'clean days counted right over hand-made rows (a clean day, a day with a failure, one with only a mirror, one with nothing)');
+  insert into t_said values (6, 'clean days counted right over hand-made rows (a clean day, a day with a failure, one with only a mirror, one with nothing)');
 end
 $test$;
 
@@ -286,8 +333,8 @@ do $test$
 begin
   raise notice '%', (select line from t_said where part = 0);
   raise notice '%', (select string_agg(line, '; ' order by part) from t_said where part between 1 and 3);
-  raise notice '%', (select line from t_said where part = 4);
+  raise notice '%', (select string_agg(line, '; ' order by part) from t_said where part between 4 and 5);
   raise notice '%; access: job_runs and adapter_check_days read by staff only, written by nobody signed in, adapter_clean_days() staff only',
-    (select line from t_said where part = 5);
+    (select line from t_said where part = 6);
 end
 $test$;

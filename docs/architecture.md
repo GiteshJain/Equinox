@@ -82,7 +82,10 @@ flowchart LR
    `planner_state`.
    - **Side by side** (#13, pull requests 5 to 9): when a save of `planner_state` or `planner_loads` commits, a
      trigger copies it into the planner tables (actor `planner`, detail `mirror`, only the rows that changed) and
-     compares `planner_state_get()` or `planner_loads_get()` with it, allowing only the differences the tests allow.
+     compares `planner_state_get()` or `planner_loads_get()` with it, allowing only the differences the tests allow,
+     plus one for a planner tab opened before the evening's capture and saved after it: a cash or next-7-day figure
+     the saved document doesn't have yet, where the tables give the capture's. A figure the document has and the
+     tables don't give back still fails.
      Each copy (`adapter_mirror`) and each comparison (`adapter_check`) is one `job_runs` row: ok, or failed with where
      it differed. A failure is recorded and never stops the save. The switch-over waits for 3 clean days in a row
      (`adapter_clean_days()`, per capture day in `adapter_check_days`).
