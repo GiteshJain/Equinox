@@ -220,8 +220,10 @@ Details and open points: `docs/decisions.md`.
 
 ## 7. Recurring work
 - **Every evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments, and
-  sets staff salaries to 10% above the country average. Loads are typed in by hand only if a capture fails.
-  *Since 7–8 Oct.*
+  nothing else. Loads are typed in by hand only if a capture fails. *Since 7–8 Oct; salaries taken out 10 Oct.*
+- **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
+  the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
+  nightly adjustment of all six airlines was inflating salaries.*
 - **Every Saturday:**
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
@@ -280,7 +282,7 @@ Details and open points: `docs/decisions.md`.
 - The game runs standard time all year: JFK −5, London 0, Paris and Amsterdam +1, Delhi +5:30.
 - Subsidiaries don't work with the game's demand model, so we don't use them.
 - **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
-  game. That's why the interlines between our six airlines, the capture with its salary step, and the world scanner are
+  game. That's why the interlines between our six airlines, the capture and the salary script, and the world scanner are
   fine here (#12). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings, and
   terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
 
@@ -291,6 +293,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 10 Oct | The nightly capture sets every airline's salaries to 10% above the country average | A separate salary script, run by hand on one airline at a time (§7). Why: Gitesh suspects the nightly run on all six was inflating salaries |
 | 9 Oct | A connection needs the minimum connection time + 10 minutes | The minimum connection time alone (§4). Why: the extra 10 minutes isn't needed; the planner already counted without it, while the manual and the optimiser added it |
 | 9 Oct | Backups are kept as commits in the private repository `equinox-backups`, and the rehearsal reads them there with a GitHub key | Copies in Cloudflare R2: nightly for 30 days, monthly for good, plus a monthly GitHub release (§7, #16). Why: the single backup file was heading for GitHub's size limits |
 | 8 Oct | No game data at all in the code repository | Small dated test samples allowed in `tests/fixtures/` (#9) |

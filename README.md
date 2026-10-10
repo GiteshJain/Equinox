@@ -29,7 +29,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | `database/backup/` | `download.sh` gets last night's backup from Cloudflare R2 for the rehearsal (or for a new test sample); `config.sh` and `counts.sql` are copies of the backup job's settings and row counts |
 | `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
 | `scripts/` | Weekly report, gander monthly, world scanner, schedule optimiser |
-| `capture/` | The one-button capture userscript and the bookmark (keys are placeholders) |
+| `capture/` | The one-button capture userscript, the bookmark (keys are placeholders) and the salary userscript (one airline, by hand) |
 | `tests/` | The automatic checks run on every pull request |
 | `docs/` | The map, the planner guide, the table guide, the manual, the decisions and their briefs |
 
