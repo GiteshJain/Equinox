@@ -258,7 +258,7 @@ begin
                left join public.airline_bases pb on pb.id = b.parent_base_id
                left join public.world_airports wa on wa.world_id = w and wa.airport_code = b.airport_code
               where b.world_id = w),
-    'consts', (select jsonb_object_agg(m.k, s.value order by m.k)
+    'consts', (select coalesce(jsonb_object_agg(m.k, s.value order by m.k), '{}'::jsonb)
                  from (values ('buf', 'bank_buffer_min'), ('ovh', 'block_allowance_min'), ('arrwin', 'bank_arrival_window_min'),
                               ('depwin', 'bank_departure_window_min'), ('maxWait', 'connection_max_wait_h'),
                               ('legalGap', 'legal_gap_h'), ('turnMargin', 'turn_margin_min'),
@@ -369,10 +369,10 @@ begin
                  (((l2.dep_utc_min + o.od) % 1440) + 1440) % 1440 as dep_dest,
                  (((l2.dep_utc_min + l2.block_min + o.oh) % 1440) + 1440) % 1440 as arr_hub,
                  -- the old planner keeps the outbound's local weekdays at the hub
-                 private_days.days_local
+                 dl.days_local
             from (select case when l1.dep_utc_min is null then l1.days_utc
                               else array(select distinct ((((d - 1 + floor((l1.dep_utc_min + o.oh) / 1440.0)::int) % 7) + 7) % 7 + 1)::smallint
-                                           from unnest(l1.days_utc) as d order by 1) end as days_local) private_days) x
+                                           from unnest(l1.days_utc) as d order by 1) end as days_local) dl) x
        where r.world_id = w) f;
 
   -- ---------- plans: one card per aircraft, its legs back in local time
