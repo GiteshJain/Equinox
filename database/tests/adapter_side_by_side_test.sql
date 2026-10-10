@@ -24,6 +24,8 @@ begin
 end
 $$;
 create temporary table t_mark (k text primary key, v bigint) on commit drop;
+-- what each part checked, printed at the end as four lines (the rehearsal shows a test's first four), speed first
+create temporary table t_said (part int primary key, line text) on commit drop;
 insert into public.planner_users (email) values ('side-by-side-staff@example.com') on conflict do nothing;
 
 -- ---------------------------------------------------------------- 1. a planner_state save
@@ -53,7 +55,7 @@ begin
                     and not (l.new_values ?| array['title', 'note', 'due_on', 'extra'])),
     'the mirror didn''t write exactly the ticked to-do''s done and done_at, as planner (mirror)';
   insert into t_mark values ('state job', v_job);
-  raise notice 'a planner_state save (to-do % ticked): mirrored as one change to todos (planner, mirror); comparison ok', tid;
+  insert into t_said values (1, format('a planner_state save (to-do %s ticked): copied as one change to todos (planner, mirror), comparison ok', tid));
 end
 $test$;
 
@@ -97,7 +99,7 @@ begin
   for j in select * from pg_temp.jobs_since(v_job) loop
     assert j.status = 'ok', format('%s after the capture''s loads step: %s', j.job, j.note);
   end loop;
-  raise notice 'loads: save_loads() wrote load_entries itself (planner, save_loads) and its comparison was ok; the capture''s loads step: % comparison(s), all ok', n;
+  insert into t_said values (2, format('save_loads() wrote load_entries itself (planner, save_loads), comparison ok; the capture''s loads step: %s comparison(s), all ok', n));
 end
 $test$;
 
@@ -135,7 +137,7 @@ begin
   end loop;
   assert (select done = false and entered_at >= now() from public.load_days where world_id = w and game_date = d),
     'the old row''s flag wasn''t copied in again';
-  raise notice 'part-way through a capture, once every airline has flown a day, the mirror copies the old row''s flag in again and the comparison is ok';
+  insert into t_said values (3, 'part-way through a capture, the old row''s day flag is copied in again and the comparison is ok');
 end
 $test$;
 do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
@@ -174,7 +176,7 @@ begin
     'the failed loads mirror wasn''t recorded';
   assert exists (select 1 from pg_temp.jobs_since(v_job) where job = 'adapter_check' and status = 'failed' and note like '%.f.{flight}%'),
     'the loads comparison after a failed mirror didn''t fail at the flight';
-  raise notice 'the trigger never blocks a save: with the mirror made to fail, planner_state and planner_loads saved, and failed mirror and comparison rows say where';
+  insert into t_said values (4, 'the trigger never blocks a save: with the mirror made to fail, planner_state and planner_loads saved, and failed mirror and comparison rows say where');
 end
 $test$;
 alter table public.todos drop constraint side_by_side_test_fails;
@@ -208,7 +210,7 @@ begin
   assert (select clean from public.adapter_check_days where world_id = w and day = '2099-06-08') = false
      and (select comparisons from public.adapter_check_days where world_id = w and day = '2099-06-10') = 1,
     'adapter_check_days counts wrong';
-  raise notice 'clean days: counted right over hand-made rows (a clean day, a day with a failure, a day with only a mirror, a day with nothing)';
+  insert into t_said values (5, 'clean days counted right over hand-made rows (a clean day, a day with a failure, one with only a mirror, one with nothing)');
 end
 $test$;
 
@@ -234,8 +236,8 @@ begin
   end loop;
   execute 'alter table public.planner_state enable trigger adapter_mirror';
   added := (select min(x) from unnest(with_ms) x) - (select min(x) from unnest(without_ms) x);
-  raise notice 'speed on the copy (best of 3): a planner save takes % ms with the trigger, % ms without: % ms added',
-    round((select min(x) from unnest(with_ms) x)), round((select min(x) from unnest(without_ms) x), 1), round(added);
+  insert into t_said values (0, format('speed on the copy (best of 3): a planner save takes %s ms with the trigger, %s ms without: %s ms added',
+    round((select min(x) from unnest(with_ms) x)), round((select min(x) from unnest(without_ms) x), 1), round(added)));
   assert added < 300, format('the trigger adds %s ms to a planner save, more than the 300 ms allowed', round(added));
 end
 $test$;
@@ -278,4 +280,14 @@ begin
 end
 $test$;
 reset role;
-do $$ begin raise notice 'access: job_runs and adapter_check_days read by staff only, written by nobody signed in; adapter_clean_days() staff only'; end $$;
+
+-- ---------------------------------------------------------------- what was checked, in four lines
+do $test$
+begin
+  raise notice '%', (select line from t_said where part = 0);
+  raise notice '%', (select string_agg(line, '; ' order by part) from t_said where part between 1 and 3);
+  raise notice '%', (select line from t_said where part = 4);
+  raise notice '%; access: job_runs and adapter_check_days read by staff only, written by nobody signed in, adapter_clean_days() staff only',
+    (select line from t_said where part = 5);
+end
+$test$;
