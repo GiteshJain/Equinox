@@ -13,8 +13,8 @@ select 'rows: stmt ' || (select count(*) from public.game_statement) || ', loads
     || ', stmt ts ' || (select min(ts)::date || '..' || max(ts)::date from public.game_statement);
 -- statement descriptions, masked
 with s as (
-  select regexp_replace(regexp_replace(regexp_replace(descr, '\([A-Z]{3}-[A-Z]{3}\)', '(R)', 'g'),
-           '\m[A-Z0-9]{1,2}-[A-Z0-9]{2,6}\M|\mN[0-9]{1,5}[A-Z]{0,2}\M', 'REG', 'g'), '[0-9]+', '#', 'g') shape,
+  select regexp_replace(regexp_replace(regexp_replace(regexp_replace(descr, '\([A-Z]{3}-[A-Z]{3}\)', '(R)', 'g'),
+           '\m[A-Z0-9]{1,2}-[A-Z0-9]{2,6}\M|\mN[0-9]{1,5}[A-Z]{0,2}\M', 'REG', 'g'), '[0-9]+', '#', 'g'), ' in [A-Z]{3}$', ' in APT') shape,
          blk, side from public.game_statement)
 select 'descr [' || side || ' blk' || case when blk = 0 then '0' else '+' end || '] ' || shape || ' : ' || count(*)
   from s group by shape, side, blk = 0 order by count(*) desc;
@@ -66,3 +66,15 @@ select 'events event_time ' || t || ' : ' || count(*) from (select regexp_replac
 select 'planner_data utc entries: ' || coalesce((select count(*) from public.planner_data, jsonb_object_keys(value -> 'utc') where key = 'DATA')::text, 'none');
 select 'routes in loads without utc: ' || count(distinct origin) from public.game_loads l
  where not exists (select 1 from public.planner_data d where d.key = 'DATA' and d.value -> 'utc' ? l.origin);
+
+-- per capture day (UTC date of capture time minus 10 hours): airlines with all five kinds
+select 'capture day ' || d || ': ' || count(*) filter (where k = 5) || ' airlines with all five pages, ' || count(*) || ' with any'
+  from (select airline, ((captured_at - interval '10 hours') at time zone 'UTC')::date d, count(distinct kind) filter (where kind in ('statement','events','pnl','balance','loads')) k
+          from public.game_capture_raw group by 1, 2) x group by d order by d;
+select 'statement lines by first-captured hour bucket vs. first raw page: before ' || count(*) filter (where s.captured_at < r.first_at - interval '1 minute')
+    || ', after ' || count(*) filter (where s.captured_at >= r.first_at - interval '1 minute')
+  from public.game_statement s join (select airline, min(captured_at) first_at from public.game_capture_raw where kind = 'statement' group by airline) r using (airline);
+select 'loads rows captured before the first raw loads page: ' || count(*) filter (where l.captured_at < r.first_at - interval '1 minute') || ' of ' || count(*)
+  from public.game_loads l join (select airline, min(captured_at) first_at from public.game_capture_raw where kind = 'loads' group by airline) r using (airline);
+select 'events rows captured before the first raw events page: ' || count(*) filter (where e.captured_at < r.first_at - interval '1 minute') || ' of ' || count(*)
+  from public.game_events e join (select airline, min(captured_at) first_at from public.game_capture_raw where kind = 'events' group by airline) r using (airline);

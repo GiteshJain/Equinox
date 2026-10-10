@@ -104,7 +104,7 @@ if [ -e "${saved[0]}" ]; then
 fi
 if [ -f database/diagnose_capture.sql ]; then   # TEMPORARY (capture-data build): counts and masked shapes only
   echo "== diagnostics (temporary)"
-  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/diagnose_capture.sql 2>&1 | head -n 150 || true
+  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/diagnose_capture.sql 2>&1 | head -n 200 || true
 fi
 
 if [ $status -ne 0 ]; then pending=(); echo "== the outputs couldn't be saved, so the changes weren't tried"
