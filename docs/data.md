@@ -4,7 +4,7 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-57 tables, 5 views and 25 functions, all in Supabase's `public` schema, plus 28 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+57 tables, 6 views and 28 functions, all in Supabase's `public` schema, plus 49 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
@@ -17,6 +17,7 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`airports`](#airports) (table): Every airport in the route research: city, country, position and UTC offset as the game gives them, the same in every world (a world's own corrections are in world_airports)
 - [`backup_runs`](#backup-runs) (table): One row per run of the nightly backup (decision #6): when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied
 - [`cabin_configs`](#cabin-configs) (table): Cabin layouts (e.g
+- [`capture_cash`](#capture-cash) (view): Cash and the next 7 days' payments per airline and capture date, from the capture, worked out as the planner does today: the latest balance of account 2800 that date, and the debits the events page lists for the 7 days after it was captured
 - [`capture_keys`](#capture-keys) (table): Hashed keys that let the in-game capture send data
 - [`cash_entries`](#cash-entries) (table): Cash and the next 7 days' fixed costs, in AS$, typed by hand or kept from before the capture: only figures the capture doesn't give
 - [`change_log`](#change-log) (table): Every change to the planner's tables (decision #15): which row, added, changed or removed, the old and new values (for a change, only the columns that changed), when, and who
@@ -96,7 +97,7 @@ file. How the parts fit together: `docs/architecture.md`.
 | `schedule_changed_on` | date | When its schedule last changed, which restarts the one-week check |
 | `maintenance_note` | text | The planner's maint |
 | `retired_on` | date |  |
-| `extra` | jsonb | For the adapter only: any field the old planner adds that the table doesn't know, so nothing is dropped. Expected empty |
+| `extra` | jsonb | For the adapter only: tails_index and deliveries_index, the aircraft's place in the old planner's two lists; and under tail and delivery, any field of those items the table can't give back. Expected otherwise empty |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
 
@@ -223,7 +224,7 @@ file. How the parts fit together: `docs/architecture.md`.
 
 ## airports
 
-*Table.* Every airport in the route research: city, country, position and UTC offset as the game gives them, the same in every world (a world's own corrections are in world_airports). Replaces planner_data.coords and planner_data.utc. Holds only our six home airports' codes until the planner's data moves (#13).
+*Table.* Every airport in the route research: city, country, position and UTC offset as the game gives them, the same in every world (a world's own corrections are in world_airports). Loaded from planner_data.coords and planner_data.utc, plus code-only rows for any other airport the planner names (#13, pull request 4).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -282,6 +283,19 @@ file. How the parts fit together: `docs/architecture.md`.
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
 **Triggers:** log_change, set_updated_at.
+
+## capture_cash
+
+*View.* Cash and the next 7 days' payments per airline and capture date, from the capture, worked out as the planner does today: the latest balance of account 2800 that date, and the debits the events page lists for the 7 days after it was captured. What planner_state_get() shows unless cash_entries says otherwise. Shows the caller only what it may read.
+
+| Column | Type | Notes |
+|---|---|---|
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `day` | date | The capture date as the planner keys it: game_balance.captured_on, the UTC date |
+| `cash` | numeric | Cash, AS$: the balance of account 2800 |
+| `fixed_next7` | numeric | AS$ the events page lists as payments in the 7 days after the balance was captured; null when none |
+| `cash_at` | timestamp with time zone | When the balance was captured |
 
 ## capture_keys
 
@@ -560,8 +574,8 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `posted_at` | timestamp with time zone | The statement's time for the flight, its actual departure, UTC; null on a loads-only row |
 | `statement_blk` | smallint | The statement's block number in that minute (game_statement.blk) |
 | `statement_routes` | smallint | How many routes the block's lines name; 1 for a normal flight, and only those are matched to loads |
-| `route_id` | bigint | The route, once routes are loaded (#13, pull request 4) |
-| `aircraft_id` | bigint | The aircraft, once aircraft are loaded (#13, pull request 4) |
+| `route_id` | bigint | The route, by the schedule's leg with that number and direction, else by its airports (filled by private.fill_flight_links) |
+| `aircraft_id` | bigint | The aircraft, by the registration the loads page or the statement names (filled by private.fill_flight_links) |
 | `registration` | text | The aircraft as the loads page names it |
 | `maint_registration` | text | The aircraft named by the statement's maintenance line (only some flights have one): game_flight_pnl.tail |
 | `status` | text | As the loads page shows it: finished or inflight so far |
@@ -1366,6 +1380,9 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `is_planner_user()` | boolean | authenticated · runs as owner | True when the signed-in email is on planner_users. Used by the access rules, the planner and the Photos functions. |
 | `parse_capture(p_id bigint)` | jsonb | internal only · runs as owner | Retired by #13 (pull request 3): the parsing is private.capture_page(), which this now calls. No longer callable by signed-in accounts once 20261009230100_capture_data_removals.sql has run; kept until #18. |
 | `planner_data_set(p_secret text, p_key text, p_value jsonb)` | jsonb | anon, authenticated · runs as owner | Replaces one planner_data entry. Needs the ingest secret. |
+| `planner_loads_get(p_world_id bigint)` | TABLE(month text, "json" text, saved_at bigint) | authenticated | Today's planner_loads documents built from game_flights, load_entries and load_days (design §8): one row per month, like planner_loads. Per flight and per day's flags, the latest write wins, captured or typed. Staff only. Not read by the planner yet. |
+| `planner_state_get(p_world_id bigint)` | jsonb | authenticated | Today's planner_state document built from the tables (design §8): {json: the document as text, saved_at: planner_state_version()}. Every list in the old planner's order; cash and next-7-day costs from the capture unless typed; anything the tables have no column for from the row's extra. Staff only. Not read by the planner yet: pull request 9 switches it over. |
+| `planner_state_version(p_world_id bigint)` | bigint | authenticated | The time of the latest logged change to a world's planner tables (or to airports and countries), in milliseconds, never earlier than the old planner_state row's last save: what the planner checks before each save (design §8). Staff only. Default: the default world. |
 | `save_loads(p_month text, p_days jsonb)` | jsonb | authenticated · runs as owner | The planner's only way to save loads: merges the days it changed into one month of planner_loads (a day's whole entry, or single flights set and cleared), leaves every other day as it is, and returns the merged month. Planner staff only. |
 | `save_script(p_secret text, p_name text, p_content text)` | jsonb | anon, authenticated · runs as owner | Stores a copy of a script in planner_scripts, from before the repository existed. Needs the ingest secret. |
 | `site_admin(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Publishes website content: newsroom posts, reports and site content. Needs the ingest secret. |
@@ -1397,11 +1414,28 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.capture_store(p_world_id bigint, p_airline text, p_kind text, p_page text, p_rows jsonb, p_at timestamp with time zone, p_loads_step boolean)` | jsonb | internal only | Stores one page for an airline of the given world and parses it, at the given capture time, and says whether that capture day is now complete. Refuses a page for an airline outside the world. capture_ingest() calls it with now(); the tests replay saved pages with their own times. |
 | `private.check_leg_route()` | trigger | internal only | Trigger on flight_legs: refuses a leg whose airports don't match its rotation's route in its direction (leg 1 from the hub to the destination, leg 2 back). |
 | `private.check_route_legs()` | trigger | internal only | Trigger on routes and rotations: refuses changing a route's airports, or a rotation's route, when its flight legs would no longer match. |
+| `private.clock_min(p text)` | integer | internal only | A local clock time as the old planner reads it ("07:30" or "7:30", up to 23:59), as minutes after midnight; null for anything else. |
 | `private.fill_due_at(p_airline_id bigint)` | integer | internal only | Fills an airline's game_events.due_at once its home airport's offset is known. |
+| `private.fill_flight_links(p_world_id bigint)` | jsonb | internal only | The route and aircraft of a world's captured flights that don't have them yet: the route by the schedule's leg with that number and direction, else the airline's route that way or the other way; the aircraft by the registration the loads page or the statement names. |
 | `private.fill_flight_times(p_airline_id bigint)` | integer | internal only | Fills an airline's loads rows' dep_at and arr_at where the airports' offsets have become known since they were captured. |
 | `private.fold_statement(p_airline_id bigint, p_minutes timestamp with time zone[])` | integer | internal only | Folds an airline's statement lines in the given minutes into game_flights (one row per flight block, matched by minute and block) and game_payments (every other line), and ties each flight line to its flight (game_statement.flight_id). Blocks that changed since are taken apart and folded again; a flight already matched keeps its loads. Run after every statement page, and by the backfill for every minute. |
 | `private.is_payment_line(p_descr text, p_blk integer)` | boolean | internal only | True for a statement line that never belongs to a flight: a lease, salaries, a deposit, a purchase, a refit or a cabin, or a line the parser put in block 0. |
 | `private.is_weekday_set(p_days smallint[])` | boolean | authenticated | True for a set of ISO weekdays as the schedule stores them: 1 (Monday) to 7 (Sunday), sorted, no repeats, at least one. Used by the checks on flight_legs.days_utc and plan_card_legs.days_utc. |
+| `private.json_date(p jsonb)` | date | internal only | A date written YYYY-MM-DD in the old planner's JSON; null for anything else or a day that doesn't exist. Used by the loader. |
+| `private.json_int(p jsonb)` | bigint | internal only | A whole number from the old planner's JSON (a flight number, seats, minutes); null when it isn't one. Used by the loader. |
+| `private.json_num(p jsonb)` | numeric | internal only | A number from the old planner's JSON: a JSON number, or text that is plainly a number; null for anything else. Used by the loader. |
+| `private.json_object_or_empty(p text)` | jsonb | internal only | Stored JSON text read safely as an object; {} when it isn't one. Used by the loader for planner_state and planner_loads. |
+| `private.json_ts(p jsonb)` | timestamp with time zone | internal only | A moment written the ISO way in the old planner's JSON (2026-09-29T17:53:16.155Z); null for anything else. Used by the loader. |
+| `private.load_planner(p_world_id bigint)` | jsonb | internal only | Fills a world's planner tables from the old planner's storage (only the default world has any): planner_state, planner_loads, planner_data, site_content.mct, planner_meta.growthRules and the planner's code constants (design §9 step 3). Runs as migration with the change log off. Run again, it brings the tables in line with today's planner_state, keeping the ids that exist and touching nothing that didn't change. Returns the rows each step wrote and the keys kept in extra. |
+| `private.load_planner_extra(p_world_id bigint, s jsonb)` | jsonb | internal only | Loader step, last: builds the document with planner_state_get() and keeps in extra, as the old document has it, any key of a tail, delivery, frequency, plan card, to-do or fare plan that the columns don't give back (beyond the differences design §9 allows). Returns how often each key was kept. Expected: none. |
+| `private.load_planner_fleet(p_world_id bigint, s jsonb)` | jsonb | internal only | Loader step: one aircraft row per registration from the old planner's tails and deliveries (today's type, cabin and base from the tail; as ordered from the delivery; each list's order in extra), and the "keep this cabin" decisions. |
+| `private.load_planner_loads(p_world_id bigint)` | jsonb | internal only | Loader step: every load in planner_loads the capture doesn't give back becomes a load_entries row (null where a captured flight was cleared), and a day's flags a load_days row where the planner saved the day, the capture didn't write it, or its done differs from the capture's. |
+| `private.load_planner_money(p_world_id bigint, s jsonb, p_saved_at timestamp with time zone)` | jsonb | internal only | Loader step: every cash and next-7-day figure the old planner holds that the capture doesn't give back exactly (capture_cash, rounded as the planner rounds) becomes a cash_entries row, in AS$. |
+| `private.load_planner_network(p_world_id bigint, s jsonb, d jsonb)` | jsonb | internal only | Loader step: routes (research, added, edits, route cabins) and each frequency as a rotation and two flight legs in UTC (design §4): weekdays and times from the local ones, the return's day by the old planner's rule, block times from the typed times. |
+| `private.load_planner_places(p_world_id bigint, s jsonb, d jsonb, p_mct jsonb)` | jsonb | internal only | Loader step: countries and airports from the route research (planner_data), every other airport the planner names by its code, and what the world says about them (connection times from ref.hubs and site_content.mct, night bans from ref.curfews, ref.utcOverrides) into world_airports. |
+| `private.load_planner_reference(p_world_id bigint, s jsonb, p_growth jsonb)` | jsonb | internal only | Loader step: aircraft types, cabin layouts, markets, service profiles, hubs and focus cities, the types each airline may buy (BUY_TYPES), and the first settings and world rules (design §3.7), from planner_state.ref, planner_meta.growthRules, the manual and the planner's code constants. |
+| `private.load_planner_tidy(p_world_id bigint, s jsonb, d jsonb, p_mct jsonb)` | jsonb | internal only | Loader step, on a second run: removes the rows the old planner no longer has, or retires an aircraft the capture's flights or payments still point at, and turns a route back into a research route once nothing adds or edits it. |
+| `private.load_planner_work(p_world_id bigint, s jsonb)` | jsonb | internal only | Loader step: plan cards and their legs (in UTC), to-dos and their steps, growth moves, money spent, the fare plan, interline, monthly checks and dismissed alerts. |
 | `private.loads_times(p_world_id bigint, p_game_date date, p_dep_local text, p_arr_local text, p_origin text, p_dest text, OUT dep_at timestamp with time zone, OUT arr_at timestamp with time zone)` | record | internal only | A loads row's scheduled departure and arrival as moments, from the local times and the airports' offsets (design §3.8, §4): arrival is departure plus the block worked out from the local times. Null while an offset isn't known. |
 | `private.local_to_utc(p_date date, p_time text, p_offset_min integer)` | timestamp with time zone | internal only | A local date and clock time ("07:30") at a fixed offset in minutes, as a moment. Null if any part is missing. |
 | `private.log_change()` | trigger | internal only · runs as owner | Trigger on every planner table (decision #15): writes one change_log row per row added, changed or removed, naming the writer from equinox.actor and equinox.actor_detail, or planner for a signed-in user and unset otherwise. An update logs only the columns that changed, and nothing when nothing changed. Skipped when equinox.change_log is off, which only postgres can do. Runs as owner, so the log can be written while it stays read-only. |
@@ -1409,7 +1443,11 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.merge_flight(p_money_id bigint, p_loads_id bigint)` | boolean | internal only | Joins one money-only game_flights row and one loads-only row into one flight: the loads columns move into the money row, and the loads row goes. |
 | `private.payment_kind(p_descr text)` | text | internal only | The kind of a statement line that isn't tied to a flight (game_payments.kind): lease, salaries ("Payment of employee salaries", the week-end closing), deposit, purchase, refit (a configuration), cabin, or other. |
 | `private.payment_registration(p_descr text)` | text | internal only | The aircraft a payment names, e.g. B-0161 from "Leasing rate for B-0161". Null when it names none. |
+| `private.planner_extra(p_item jsonb, p_known text[], p_old_extra jsonb)` | jsonb | internal only | What an old list item keeps in its row's extra: the keys its table has no column for, plus the earlier load's stand-ins that still hold (a value the columns can't give back exactly, or null for a key the item doesn't have). |
+| `private.planner_json_differences(p_old jsonb, p_new jsonb, p_path text, p_key text, p_in_list boolean)` | TABLE(path text, kind text) | internal only | Compares an old planner document with one built from the tables (design §9): one row per difference, with its path and kind. The allowed kinds: a missing key equals null, numbers by value, flight numbers as text, a tail with no status equals "Active", savedAt and version (key order never shows: jsonb keeps none). Anything else is "differs". Used by the loader and the rehearsal's tests. |
 | `private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)` | jsonb | internal only | Puts one row of a logged table back as it was at a moment, by replaying change_log backwards: re-adds a removed row with its own key, undoes changes, or removes a row added since. The restore is logged like any change. For Claude, as postgres: start with the equinox.actor line (design §6). |
 | `private.set_updated_at()` | trigger | internal only | Trigger on every planner table: sets updated_at when a row is added or really changes, and leaves it as it was when an update changes nothing. |
+| `private.shift_weekdays(p smallint[], p_days integer)` | smallint[] | internal only | ISO weekdays moved by whole days (−1: each a day earlier, Monday becomes Sunday), sorted. Turns local weekdays into UTC ones and back (design §4). |
 | `private.statement_blocks(p_airline_id bigint, p_minutes timestamp with time zone[])` | TABLE(ts timestamp with time zone, blk integer, is_flight boolean, route text, routes_n integer, pax integer, tail text, pax_income numeric, cargo_income numeric, fuel numeric, onboard numeric, handling numeric, landing numeric, atc numeric, maintenance numeric, income_total numeric, cost_total numeric, captured_at timestamp with time zone) | internal only | An airline's statement lines in the given minutes, grouped by minute and block (blk) as game_flight_pnl has always grouped them, leaving out payments: money by type, the route, passengers, the maintenance line's aircraft, and whether the block is a flight (any flight line or route) or only payments. |
 | `private.statement_category(p_descr text)` | text | internal only | The type of a bank-statement line (pax_income, cargo_income, fuel, onboard, handling, landing, atc, maintenance or other), as game_flight_pnl has always counted them. |
+| `private.weekday_set(p text)` | smallint[] | internal only | The weekdays in an old frequency's days ("135"), as the old planner reads them: the digits 1 to 7, each once, sorted. Null when there are none. |

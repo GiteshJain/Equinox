@@ -10,8 +10,10 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
    request for the live Supabase host is answered by the local copy instead, with the live public key swapped for the
    local one. The planner's Supabase library, the exact version it names, comes from npm and is served in place of the
    CDN copy. Any other outside request is stopped.
-3. It signs in through the planner's own form as staff (opening it must save nothing), then saves three things, one at
-   a time, and after each reads the tables with psql:
+3. It signs in through the planner's own form as staff (opening it must save nothing, except the planner's own copy of a
+   capture taken after it last saved: cash and fixed7 figures equal to the capture's, as planner_load_state_test.sql
+   allows them; the Building chat's call, 10 Oct), then saves three things, one at a time, and after each reads the
+   tables with psql:
    - ticks the first open to-do as done: planner_state changes only in that to-do's done and doneAt;
    - changes the first plan card's title. The planner has no field for that, so it goes through the planner's own
      backup screen (Reference > Data: export, change the title, import), which saves the whole document:
@@ -24,10 +26,13 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
 4. The guard: signed in as the account that isn't staff, through the data API directly, planner_state reads no rows,
    and the planner's own write (an upsert) and save_loads() are refused; the tables don't change.
 5. The new planner tables (#13) and the capture's new tables and views (game_flights, game_payments, and game_loads,
-   game_flight_pnl and game_ops_recent, now views over them): signed out and as the account that isn't staff, through
-   the data API, every one reads no rows (signed out, the read itself is refused) and a write to each table is refused;
-   no table's row count changes.
-6. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
+   game_flight_pnl and game_ops_recent, now views over them, and capture_cash): signed out and as the account that isn't
+   staff, through the data API, every one reads no rows (signed out, the read itself is refused) and a write to each
+   table is refused; no table's row count changes.
+6. The adapter's read side (#13, pull request 4): through the data API, planner_state_get(), planner_state_version()
+   and planner_loads_get() refuse a signed-out caller and the account that isn't staff, and give staff the same
+   documents psql gets.
+7. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
 Prints one line per step (ok/FAIL), and no row contents beyond ids and the names of the fields that changed, because the
@@ -58,7 +63,9 @@ NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
 # The capture data in the new model (migration 20261009230000_capture_data.sql): staff read them, nobody else, and only the
 # capture's functions write the tables
 CAPTURE_TABLES = ("game_flights", "game_payments")
-CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent")
+CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent", "capture_cash")
+# The adapter's read side (migration 20261010120000_planner_data_load.sql): staff only
+GETTERS = ("planner_state_get", "planner_state_version", "planner_loads_get")
 failures = []
 
 
@@ -186,6 +193,48 @@ def changed(a, b, path=""):
             return [f"{path} (length)"]
         return [c for i, (x, y) in enumerate(zip(a, b)) for c in changed(x, y, f"{path}[{i}]")]
     return [] if a == b and isinstance(a, bool) == isinstance(b, bool) else [path]   # 2 equals 2.0, but true isn't 1
+
+
+def capture_figures():
+    """Per airline (planner name) and date, the capture's cash and next-7-day figures in millions, rounded as the planner
+    rounds them (capture_cash), and when the balance and the latest event the figure counts were captured (ms)."""
+    out = psql("""select coalesce(json_agg(json_build_object('airline', al.planner_name, 'day', cc.day,
+                    'cash', floor(cc.cash / 10000 + 0.5) / 100,
+                    'fixed7', case when cc.fixed_next7 > 0 then floor(cc.fixed_next7 / 10000 + 0.5) / 100 end,
+                    'cash_at', floor(extract(epoch from cc.cash_at) * 1000),
+                    'events_at', (select floor(extract(epoch from max(e.captured_at)) * 1000) from public.game_events e
+                                   where e.airline_id = cc.airline_id and e.debit > 0
+                                     and e.due_at > cc.cash_at and e.due_at <= cc.cash_at + interval '7 days'))), '[]')
+                  from public.capture_cash cc join public.airlines al on al.id = cc.airline_id
+                 where cc.world_id = (select w.id from public.worlds w where w.is_default)""").strip()
+    return {(r["airline"], r["day"]): r for r in json.loads(out)}
+
+
+def copied_capture(s0, s1, figures):
+    """Of the paths that changed between two planner_state reads, those that are the planner's own copy of a capture taken
+    after it last saved (applyCaptureCash, on opening): a cash or fixed7 figure equal to the capture's, whose balance
+    for that date (or, for fixed7, an event it counts) was captured after s0 was saved. Returns them and how many
+    figures they hold. Removed figures never count."""
+    copied, n = set(), 0
+    for path in changed(s0["doc"], s1["doc"]):
+        m = re.match(r"^(cash|fixed7)\.(\d{4}-\d{2}-\d{2})(?:\.(.+))?$", path)
+        if not m:
+            continue
+        sec, day, al = m.groups()
+        now = (s1["doc"].get(sec) or {}).get(day)
+        was = (s0["doc"].get(sec) or {}).get(day)
+        if not isinstance(now, dict) or (al is None and isinstance(was, dict) and set(was) - set(now)):
+            continue
+        ok = True
+        for a in ([al] if al else list(now)):
+            v, f = now.get(a), figures.get((a, day))
+            ok = ok and isinstance(v, (int, float)) and not isinstance(v, bool) and f is not None and f[sec] is not None \
+                and abs(v - float(f[sec])) < 1e-9 \
+                and (f["cash_at"] > s0["saved_at"] or (sec == "fixed7" and (f["events_at"] or 0) > s0["saved_at"]))
+        if ok:
+            copied.add(path)
+            n += 1 if al else len(now)
+    return copied, n
 
 
 def count_changes(before, after, allow=()):
@@ -492,6 +541,34 @@ def guard_new_tables(env, email, password):
     return problems + count_changes(n0, counts())
 
 
+def guard_getters(env, staff, other):
+    """Through the data API: each getter refuses a signed-out caller (401) and the account that isn't staff (403), and
+    gives staff (200) the same answer as psql, as postgres. Prints answers only, never documents."""
+    problems = []
+    for who, token, expected in (("signed out", None, 401), ("not staff", token_for(env, *other), 403)):
+        for g in GETTERS:
+            code, _ = http(env, "POST", f"/rest/v1/rpc/{g}", {}, token=token)
+            if code != expected:
+                problems.append(f"{who}: {g}() answered {code}, expected {expected}")
+    token = token_for(env, *staff)
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_state_get", {}, token=token)
+    mine = json.loads(psql("select public.planner_state_get()::text"))
+    if code != 200:
+        problems.append(f"staff: planner_state_get() answered {code}")
+    elif json.loads(json.loads(body)["json"]) != json.loads(mine["json"]):
+        problems.append("staff: planner_state_get() gave another document than psql")
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_loads_get", {}, token=token)
+    mine = json.loads(psql("select coalesce(json_agg(json_build_object('month', month, 'json', json::json) order by month), '[]') from public.planner_loads_get()"))
+    if code != 200:
+        problems.append(f"staff: planner_loads_get() answered {code}")
+    elif sorted(([r["month"], json.loads(r["json"])] for r in json.loads(body)), key=lambda x: x[0]) != [[r["month"], r["json"]] for r in mine]:
+        problems.append("staff: planner_loads_get() gave other months than psql")
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_state_version", {}, token=token)
+    if code != 200 or json.loads(body) != int(psql("select public.planner_state_version()").strip()):
+        problems.append(f"staff: planner_state_version() answered {code}, or another time than psql")
+    return problems
+
+
 async def main():
     facts = planner_facts()
     if not facts:
@@ -529,12 +606,17 @@ async def main():
                 await pl.open()
                 await pl.sign_in(*staff)
                 s, l = read_state(), read_loads()
-                problems = list(pl.errors)
+                problems, n_copied = list(pl.errors), 0
                 if s != s0:
-                    problems.append("opening the planner saved planner_state by itself: " + (", ".join(changed(s0["doc"], s["doc"])[:12]) or "saved_at"))
+                    # the planner copies a capture taken after it last saved into planner_state itself when it opens
+                    copied, n_copied = copied_capture(s0, s, capture_figures())
+                    rest = [d for d in changed(s0["doc"], s["doc"]) if d not in BOOKKEEPING and d not in copied]
+                    if rest or not copied:
+                        problems.append("opening the planner saved planner_state by itself: " + (", ".join(rest[:12]) or "saved_at"))
                 if months_changed(l0, l):
                     problems.append("opening the planner changed planner_loads: " + ", ".join(months_changed(l0, l)))
-                step(not problems, "sign in as test staff through the planner's own form (live address; opening it saved nothing)", problems)
+                step(not problems, "sign in as test staff through the planner's own form (live address; opening it saved nothing"
+                     + (f" but its own copy of {n_copied} cash/fixed7 figures captured after it last saved" if n_copied else "") + ")", problems)
                 signed_in = True
             except Exception as e:
                 step(False, "sign in as test staff through the planner's own form", [why(e)] + pl.errors[:3])
@@ -565,6 +647,13 @@ async def main():
     step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES)} new tables and "
                        f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS)} views (the capture's included) read no rows, and adding a row "
                        "to each is refused", problems)
+
+    try:
+        problems = guard_getters(env, staff, other)
+    except Exception as e:
+        problems = [why(e)]
+    step(not problems, "the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
+                       "planner_loads_get() are refused; staff get what psql gets", problems)
 
     stopped = ", ".join(sorted(pl.stopped)) or "nothing"
     problems = (["reached: " + ", ".join(sorted(set(pl.outside)))] if pl.outside else []) + \
