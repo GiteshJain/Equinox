@@ -6,9 +6,12 @@
 -- capture tables. The result must equal what was there: game_flights (its loads side and its money side),
 -- game_payments, game_events, game_balance, game_pnl and the statement lines. Twice: with the airline named as today's
 -- userscript names it, then by its game ID as the new userscript sends it.
--- Only rows the kept pages can produce are compared: once older pages have rolled off, a row from before the oldest kept
--- page of its kind (for that airline) can't be rebuilt from them. On the night this pull request was rehearsed, every
--- row was (the oldest page was the first capture).
+-- Two allowances, both because the replay can only rebuild what the kept pages hold:
+--   - Rows from before the oldest kept page of their kind (for that airline) aren't compared once older pages have
+--     rolled off. On the night this pull request was rehearsed, nothing had: every row is compared.
+--   - A capture time is compared only where it is a kept page's time. Two fixes re-read pages after they arrived (the
+--     statement blocks on 8 Oct re-read every statement page; the full loads columns on 7 Oct re-read one loads page),
+--     so those rows carry the re-read's time, which no page has. Everything else about them must match.
 
 -- what the backfill and the capture wrote, by natural keys (ids, row times and flight ids aside)
 create temporary table t_was_loads on commit drop as
@@ -18,12 +21,13 @@ create temporary table t_was_loads on commit drop as
     from public.game_flights where flight_no is not null;
 create temporary table t_was_money on commit drop as
   select airline_id, posted_at, statement_blk, statement_routes, maint_registration, statement_pax, pax_income, cargo_income,
-         fuel, onboard, handling, landing, atc, maintenance, income_total, cost_total, profit, money_captured_at, origin_code, dest_code
+         fuel, onboard, handling, landing, atc, maintenance, income_total, cost_total, profit, origin_code, dest_code,
+         money_captured_at
     from public.game_flights where posted_at is not null;
 create temporary table t_was_payments on commit drop as
   select world_id, airline_id, paid_at, kind, registration, aircraft_id, descr, amount, side, occ, statement_blk from public.game_payments;
 create temporary table t_was_statement on commit drop as
-  select world_id, airline_id, airline, ts, descr, amount, side, route, pax, occ, blk, captured_at, flight_id is null as payment
+  select world_id, airline_id, airline, ts, descr, amount, side, route, pax, occ, blk, flight_id is null as payment, captured_at
     from public.game_statement;
 create temporary table t_was_events on commit drop as select * from public.game_events;
 create temporary table t_was_balance on commit drop as select * from public.game_balance;
@@ -35,7 +39,8 @@ create temporary table t_pages on commit drop as
    where r.kind <> 'html';
 create temporary table t_kept on commit drop as
   select airline_id, kind, min(captured_at) as since from t_pages group by airline_id, kind;
-create temporary table t_report (pass text, part text, n bigint) on commit drop;
+-- n: rows that differ; counted: whether a difference fails the test (false only for the re-read times, reported)
+create temporary table t_report (pass text, part text, n bigint, counted boolean not null default true) on commit drop;
 
 -- empties the capture tables, replays every page with the airline named one way, and compares
 create function pg_temp.replay(p_pass text) returns void language plpgsql as $replay$
@@ -50,39 +55,60 @@ begin
   end loop;
   insert into t_report values (p_pass, 'pages that failed', failed);
 
-  -- statement lines: those from the kept pages' time on (an airline whose lines all came back is compared in full)
-  create temporary table t_full on commit drop as
-    select k.airline_id from t_kept k where k.kind = 'statement'
-       and not exists (select airline_id, ts, descr, amount, occ from t_was_statement w where w.airline_id = k.airline_id
-                       except
-                       select airline_id, ts, descr, amount, occ from public.game_statement s where s.airline_id = k.airline_id);
+  create temporary table t_now_statement on commit drop as
+    select world_id, airline_id, airline, ts, descr, amount, side, route, pax, occ, blk, flight_id is null as payment, captured_at
+      from public.game_statement;
+  create temporary table t_now_money on commit drop as
+    select airline_id, posted_at, statement_blk, statement_routes, maint_registration, statement_pax, pax_income, cargo_income,
+           fuel, onboard, handling, landing, atc, maintenance, income_total, cost_total, profit, origin_code, dest_code,
+           money_captured_at
+      from public.game_flights where posted_at is not null;
+  create temporary table t_now_loads on commit drop as
+    select airline_id, game_date, flight_no, dep_local, origin_code, dest_code, arr_local, dep_at, arr_at, registration, status,
+           eco_pax, eco_seats, eco_fare, eco_pct, bus_pax, bus_seats, bus_fare, bus_pct, fst_pax, fst_seats, fst_fare, fst_pct,
+           cargo_units, cargo_cap, cargo_rate, cargo_pct, loads_captured_at
+      from public.game_flights where flight_no is not null;
+
+  -- from when the statement can be rebuilt: everything, for an airline whose lines all came back; otherwise from its
+  -- oldest kept page
   create temporary table t_stmt_since on commit drop as
-    select k.airline_id, case when exists (select 1 from t_full f where f.airline_id = k.airline_id) then '-infinity'::timestamptz
-                              else k.since end as since
+    select k.airline_id,
+           case when not exists (select airline_id, ts, descr, amount, occ from t_was_statement w where w.airline_id = k.airline_id
+                                 except
+                                 select airline_id, ts, descr, amount, occ from t_now_statement s where s.airline_id = k.airline_id)
+                then '-infinity'::timestamptz else k.since end as since
       from t_kept k where k.kind = 'statement';
+
+  -- statement lines: every column but the capture time
   insert into t_report select p_pass, 'statement lines', count(*) from (
-    (select w.* from t_was_statement w join t_stmt_since k using (airline_id) where w.ts >= k.since
+    (select w.world_id, w.airline_id, w.airline, w.ts, w.descr, w.amount, w.side, w.route, w.pax, w.occ, w.blk, w.payment
+       from t_was_statement w join t_stmt_since k using (airline_id) where w.ts >= k.since
      except all
-     select s.world_id, s.airline_id, s.airline, s.ts, s.descr, s.amount, s.side, s.route, s.pax, s.occ, s.blk, s.captured_at, s.flight_id is null
-       from public.game_statement s)
+     select world_id, airline_id, airline, ts, descr, amount, side, route, pax, occ, blk, payment from t_now_statement)
     union all
-    (select s.world_id, s.airline_id, s.airline, s.ts, s.descr, s.amount, s.side, s.route, s.pax, s.occ, s.blk, s.captured_at, s.flight_id is null
-       from public.game_statement s join t_stmt_since k using (airline_id) where s.ts >= k.since
+    (select s.world_id, s.airline_id, s.airline, s.ts, s.descr, s.amount, s.side, s.route, s.pax, s.occ, s.blk, s.payment
+       from t_now_statement s join t_stmt_since k using (airline_id) where s.ts >= k.since
      except all
-     select * from t_was_statement)) x;
+     select world_id, airline_id, airline, ts, descr, amount, side, route, pax, occ, blk, payment from t_was_statement)) x;
+  -- flights' money: every column but the capture time
   insert into t_report select p_pass, 'flights: money', count(*) from (
-    (select w.* from t_was_money w join t_stmt_since k using (airline_id) where w.posted_at >= k.since
+    (select w.airline_id, w.posted_at, w.statement_blk, w.statement_routes, w.maint_registration, w.statement_pax, w.pax_income,
+            w.cargo_income, w.fuel, w.onboard, w.handling, w.landing, w.atc, w.maintenance, w.income_total, w.cost_total, w.profit,
+            w.origin_code, w.dest_code
+       from t_was_money w join t_stmt_since k using (airline_id) where w.posted_at >= k.since
      except all
      select airline_id, posted_at, statement_blk, statement_routes, maint_registration, statement_pax, pax_income, cargo_income,
-            fuel, onboard, handling, landing, atc, maintenance, income_total, cost_total, profit, money_captured_at, origin_code, dest_code
-       from public.game_flights where posted_at is not null)
+            fuel, onboard, handling, landing, atc, maintenance, income_total, cost_total, profit, origin_code, dest_code
+       from t_now_money)
     union all
-    (select f.airline_id, f.posted_at, f.statement_blk, f.statement_routes, f.maint_registration, f.statement_pax, f.pax_income,
-            f.cargo_income, f.fuel, f.onboard, f.handling, f.landing, f.atc, f.maintenance, f.income_total, f.cost_total, f.profit,
-            f.money_captured_at, f.origin_code, f.dest_code
-       from public.game_flights f join t_stmt_since k using (airline_id) where f.posted_at >= k.since
+    (select n.airline_id, n.posted_at, n.statement_blk, n.statement_routes, n.maint_registration, n.statement_pax, n.pax_income,
+            n.cargo_income, n.fuel, n.onboard, n.handling, n.landing, n.atc, n.maintenance, n.income_total, n.cost_total, n.profit,
+            n.origin_code, n.dest_code
+       from t_now_money n join t_stmt_since k using (airline_id) where n.posted_at >= k.since
      except all
-     select * from t_was_money)) x;
+     select airline_id, posted_at, statement_blk, statement_routes, maint_registration, statement_pax, pax_income, cargo_income,
+            fuel, onboard, handling, landing, atc, maintenance, income_total, cost_total, profit, origin_code, dest_code
+       from t_was_money)) x;
   insert into t_report select p_pass, 'payments', count(*) from (
     (select w.* from t_was_payments w join t_stmt_since k using (airline_id) where w.paid_at >= k.since
      except all
@@ -92,19 +118,49 @@ begin
        from public.game_payments p join t_stmt_since k using (airline_id) where p.paid_at >= k.since
      except all
      select * from t_was_payments)) x;
-  -- loads rows: those last written from the kept pages' time on
+  -- flights' loads: those last written from the kept pages' time on, every column but the capture time
   insert into t_report select p_pass, 'flights: loads', count(*) from (
-    (select w.* from t_was_loads w join t_kept k on k.airline_id = w.airline_id and k.kind = 'loads' where w.loads_captured_at >= k.since
+    (select w.airline_id, w.game_date, w.flight_no, w.dep_local, w.origin_code, w.dest_code, w.arr_local, w.dep_at, w.arr_at,
+            w.registration, w.status, w.eco_pax, w.eco_seats, w.eco_fare, w.eco_pct, w.bus_pax, w.bus_seats, w.bus_fare, w.bus_pct,
+            w.fst_pax, w.fst_seats, w.fst_fare, w.fst_pct, w.cargo_units, w.cargo_cap, w.cargo_rate, w.cargo_pct
+       from t_was_loads w join t_kept k on k.airline_id = w.airline_id and k.kind = 'loads' where w.loads_captured_at >= k.since
      except all
      select airline_id, game_date, flight_no, dep_local, origin_code, dest_code, arr_local, dep_at, arr_at, registration, status,
             eco_pax, eco_seats, eco_fare, eco_pct, bus_pax, bus_seats, bus_fare, bus_pct, fst_pax, fst_seats, fst_fare, fst_pct,
-            cargo_units, cargo_cap, cargo_rate, cargo_pct, loads_captured_at from public.game_flights where flight_no is not null)
+            cargo_units, cargo_cap, cargo_rate, cargo_pct from t_now_loads)
     union all
     (select airline_id, game_date, flight_no, dep_local, origin_code, dest_code, arr_local, dep_at, arr_at, registration, status,
             eco_pax, eco_seats, eco_fare, eco_pct, bus_pax, bus_seats, bus_fare, bus_pct, fst_pax, fst_seats, fst_fare, fst_pct,
-            cargo_units, cargo_cap, cargo_rate, cargo_pct, loads_captured_at from public.game_flights where flight_no is not null
+            cargo_units, cargo_cap, cargo_rate, cargo_pct from t_now_loads
      except all
-     select * from t_was_loads)) x;
+     select airline_id, game_date, flight_no, dep_local, origin_code, dest_code, arr_local, dep_at, arr_at, registration, status,
+            eco_pax, eco_seats, eco_fare, eco_pct, bus_pax, bus_seats, bus_fare, bus_pct, fst_pax, fst_seats, fst_fare, fst_pct,
+            cargo_units, cargo_cap, cargo_rate, cargo_pct from t_was_loads)) x;
+
+  -- capture times: where the time recorded is a kept page's time, the replay gives the same; a time no page has came
+  -- from a later re-read and is only reported
+  insert into t_report
+  select p_pass, 'statement lines: capture time' || case when kept then '' else ' (re-read since, not compared)' end, count(*), kept
+    from (select exists (select 1 from t_pages p where p.airline_id = w.airline_id and p.kind = 'statement' and p.captured_at = w.captured_at) as kept
+            from t_was_statement w
+            join t_now_statement s on (s.airline_id, s.ts, s.descr, s.amount, s.occ) = (w.airline_id, w.ts, w.descr, w.amount, w.occ)
+           where s.captured_at is distinct from w.captured_at) x
+   group by kept;
+  insert into t_report
+  select p_pass, 'flights: money capture time' || case when kept then '' else ' (re-read since, not compared)' end, count(*), kept
+    from (select exists (select 1 from t_pages p where p.airline_id = w.airline_id and p.kind = 'statement' and p.captured_at = w.money_captured_at) as kept
+            from t_was_money w
+            join t_now_money n on (n.airline_id, n.posted_at, n.statement_blk) = (w.airline_id, w.posted_at, w.statement_blk)
+           where n.money_captured_at is distinct from w.money_captured_at) x
+   group by kept;
+  insert into t_report
+  select p_pass, 'flights: loads capture time' || case when kept then '' else ' (re-read since, not compared)' end, count(*), kept
+    from (select exists (select 1 from t_pages p where p.airline_id = w.airline_id and p.kind = 'loads' and p.captured_at = w.loads_captured_at) as kept
+            from t_was_loads w
+            join t_now_loads n on (n.airline_id, n.game_date, n.flight_no, n.dep_local) = (w.airline_id, w.game_date, w.flight_no, w.dep_local)
+           where n.loads_captured_at is distinct from w.loads_captured_at) x
+   group by kept;
+
   -- events, balance sheet, income statement: rows first written from the kept pages' time on (a row first written
   -- before then is left out on both sides)
   insert into t_report select p_pass, 'events', count(*) from (
@@ -132,20 +188,24 @@ begin
       where not exists (select 1 from t_was_pnl w join t_kept k on k.airline_id = w.airline_id and k.kind = 'pnl'
                          where w.captured_at < k.since and w.airline = g.airline and w.captured_on = g.captured_on and w.line = g.line)
      except all select * from t_was_pnl)) x;
-  drop table t_stmt_since;
-  drop table t_full;
+  drop table t_stmt_since; drop table t_now_statement; drop table t_now_money; drop table t_now_loads;
 end
 $replay$;
 
 do $test$
-declare bad text; v_pages bigint;
+declare bad text; v_pages bigint; v_reread text;
 begin
   select count(*) into v_pages from t_pages;
   perform pg_temp.replay('name');
   perform pg_temp.replay('game id');
-  select string_agg(r.pass || ': ' || r.part || ' ' || r.n, '; ' order by r.pass, r.part) into bad from t_report r where r.n > 0;
+  select string_agg(r.pass || ': ' || r.part || ' ' || r.n, '; ' order by r.pass, r.part) into bad from t_report r where r.n > 0 and r.counted;
   assert bad is null, 'the replay differs from the backfill (rows that differ): ' || bad;
-  raise notice 'replay: % pages, by name and by game ID, gave the same rows as the backfill (% flights'' money, % loads rows, % payments compared)',
-    v_pages, (select count(*) from t_was_money), (select count(*) from t_was_loads), (select count(*) from t_was_payments);
+  select string_agg(r.part || ' ' || r.n, ', ' order by r.part) into v_reread from t_report r where r.pass = 'name' and not r.counted;
+  raise notice 'replay: % pages, by name and by game ID, gave the same rows as the backfill (% flights'' money, % loads rows, % payments, % statement lines compared)',
+    v_pages, (select count(*) from t_was_money), (select count(*) from t_was_loads), (select count(*) from t_was_payments),
+    (select count(*) from t_was_statement);
+  if v_reread is not null then
+    raise notice 'replay: capture times from a later re-read, which no page has, not compared: %', v_reread;
+  end if;
 end
 $test$;
