@@ -10,16 +10,27 @@ result, with anything that failed, is posted as a comment on the pull request. W
 | Planner | `planner_test.py` | Every screen, each airline's Review page and the main pop-ups open with no errors. Previews save nothing while the live address saves. Loads by hand save only the days they change. The numbers that matter match the saved answers, and the leases match the manual. |
 | Website | `site_test.py` | Every public page opens with its content and no errors, and `/planner` reaches the planner. |
 | Database rehearsal | `../database/rehearse.sh` | Separate workflow (#8), when the database or the planner changes: last night's backup (downloaded from Cloudflare R2 and checked) restored into a full local Supabase (database, data API and sign-in); the database changes applied to it; every test in `database/tests/` run on that copy and rolled back; then the real saves. |
-| Real saves | `real_saves_test.py` | Run by the rehearsal as its last step, not by `run_all.sh`: it needs Docker and the backup (#17). The pull request's own planner, at its live address and with its real Supabase library, signs in as a test staff user through its own form and saves into the copy: ticks a to-do, changes a plan card's title, types a load. After each save the tables are read back: only the intended field changed, and no table's row count. An account that isn't staff reads no rows and can't write. Signed out and as that account, through the data API, each of #13's new planner tables and views reads no rows and refuses a new row. No request leaves the runner. |
+| Real saves | `real_saves_test.py` | Run by the rehearsal as its last step, not by `run_all.sh`: it needs Docker and the backup (#17). The pull request's own planner, at its live address and with its real Supabase library, signs in as a test staff user through its own form and saves into the copy: ticks a to-do, changes a plan card's title, types a load. After each save the tables are read back: only the intended field changed, and no table's row count. An account that isn't staff reads no rows and can't write. Signed out and as that account, through the data API, each of #13's new planner tables and views, and the capture's new tables and views, reads no rows and refuses a new row. No request leaves the runner. |
 
 Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.56 and its Chromium, and Node 22).
 
 ## Database tests
 Each file in `database/tests/` runs on the rehearsal's copy, after the new migrations, in a transaction that is rolled
-back. A failed check stops with an error that says which.
+back. A failed check stops with an error that says which. A passing test's notices (counts, never rows) are printed
+under its `ok`.
+
+**Before and after.** The files in `database/tests/before/` run before the new migrations and save chosen outputs into
+the schema `rehearsal_before` (the data API, the row counts and the table guide don't look at it), so a test can
+compare them afterwards. `capture_outputs.sql` saves the three capture views, `export_capture()` (every captured row),
+`export_for_report('planner')`, `site_public()` and `planner_loads`.
 
 | Test | What it proves |
 |---|---|
+| `capture_data_access_test.sql` | Signed out (anon) holds nothing on any table or view in `public`; `game_flights` and `game_payments` have RLS and one staff read rule, and authenticated may only read them; the capture views are `security_invoker` and read-only; the capture's internal functions are closed, `parse_capture()` and `apply_loads_from_capture()` retired; every capture row carries its world and airline; every foreign key on the capture tables has an index; an account that isn't staff reads no rows |
+| `capture_data_compat_test.sql` | Once the capture data lives in `game_flights` and `game_payments`: `game_loads`, `game_flight_pnl` and `game_ops_recent` return the same rows as before, row by row; `export_capture()`, `export_for_report('planner')` and `site_public()` the same JSON; `planner_loads` unchanged; every statement line is in exactly one place (a flight or a payment) |
+| `capture_data_ingest_test.sql` | `capture_airlines()` and `capture_ingest()` with the capture key, signed out: by game ID and by today's names; a wrong key, a wrong kind and an airline of another world are refused; the capture day runs 10:00 to 10:00 UTC; a day is complete only when every active airline of the world has all five pages (a 7th airline included), and `planner_loads` follows |
+| `capture_data_matching_test.sql` | Money joins loads by route and time (design §3.8), on hand-made pages: a flight posted late, a block whose loads come the next evening, two flights close together on one route, one flight number flown on alternate days by two aircraft. On the copy, with the airports' offsets loaded from the planner's research: matching changes none of the views, every pair keeps the rules, and no pair that could only go one way is left |
+| `capture_data_replay_test.sql` | Every raw page the copy keeps, replayed through the new capture path (by name, then by game ID) into emptied capture tables, gives exactly the rows the backfill gave |
 | `loads_merge_test.sql` | Loads saves merge the days they change instead of replacing the month; the capture moves the month's saved time on |
 | `planner_tables_access_test.sql` | #13's planner tables: RLS and one staff rule per action on each; anon gets nothing; authenticated reads them all and writes all but `change_log`; an account that isn't staff reads no rows and can't write; staff can; new objects in `public` aren't given away by default |
 | `planner_tables_change_log_test.sql` | Every add, change and removal is logged with who made it (and nothing when nothing changed); logging can be switched off only by postgres; `private.restore_row()` puts a row back |

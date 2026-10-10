@@ -1,79 +1,3 @@
-create or replace view public.game_flight_pnl as
- WITH lines AS (
-         SELECT game_statement.airline,
-            game_statement.ts,
-            game_statement.blk,
-            game_statement.descr,
-            game_statement.amount,
-            game_statement.side,
-                CASE
-                    WHEN (game_statement.descr = 'Passenger transport income'::text) THEN 'pax_income'::text
-                    WHEN (game_statement.descr = 'Cargo transport income'::text) THEN 'cargo_income'::text
-                    WHEN (game_statement.descr ~~ 'Fuel%'::text) THEN 'fuel'::text
-                    WHEN (game_statement.descr ~~ 'On-board services%'::text) THEN 'onboard'::text
-                    WHEN ((game_statement.descr ~~ 'Aircraft handling%'::text) OR (game_statement.descr ~~ 'Passenger handling%'::text) OR (game_statement.descr ~~ 'Cargo logistic%'::text)) THEN 'handling'::text
-                    WHEN (game_statement.descr ~~ 'Airport landing fee%'::text) THEN 'landing'::text
-                    WHEN (game_statement.descr ~~ 'Air traffic control fee%'::text) THEN 'atc'::text
-                    WHEN (game_statement.descr ~~ 'Maintenance of%'::text) THEN 'maintenance'::text
-                    ELSE 'other'::text
-                END AS cat
-           FROM game_statement
-          WHERE ((COALESCE(game_statement.blk, 1) > 0) AND (game_statement.descr !~~* 'Leasing rate%'::text) AND (game_statement.descr !~~* 'Week-end closing%'::text) AND (game_statement.descr !~~* '%deposit%'::text) AND (game_statement.descr !~~* '%purchase%'::text) AND (game_statement.descr !~~* '%cabin%'::text) AND (game_statement.descr !~~* '%configuration%'::text))
-        )
- SELECT airline,
-    ts,
-    blk,
-    max("substring"(descr, '\(([A-Z]{3}-[A-Z]{3})\)'::text)) AS route,
-    count(DISTINCT "substring"(descr, '\(([A-Z]{3}-[A-Z]{3})\)'::text)) AS routes_n,
-    max(("substring"(descr, 'Passenger handling of (\d+) passengers'::text))::integer) AS pax,
-    max("substring"(descr, 'Maintenance of ([A-Z0-9-]+)'::text)) AS tail,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'pax_income'::text)), (0)::numeric) AS pax_income,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'cargo_income'::text)), (0)::numeric) AS cargo_income,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'fuel'::text)), (0)::numeric) AS fuel,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'onboard'::text)), (0)::numeric) AS onboard,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'handling'::text)), (0)::numeric) AS handling,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'landing'::text)), (0)::numeric) AS landing,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'atc'::text)), (0)::numeric) AS atc,
-    COALESCE(sum(amount) FILTER (WHERE (cat = 'maintenance'::text)), (0)::numeric) AS maintenance,
-    COALESCE(sum(
-        CASE
-            WHEN (side = 'C'::text) THEN amount
-            ELSE (- amount)
-        END), (0)::numeric) AS profit
-   FROM lines
-  GROUP BY airline, ts, blk;
-
-create or replace view public.game_ops_recent as
- WITH last AS (
-         SELECT game_statement.airline,
-            max(game_statement.ts) AS lt
-           FROM game_statement
-          GROUP BY game_statement.airline
-        ), w AS (
-         SELECT s.airline,
-            s.ts,
-            s.descr,
-            s.amount,
-            s.side,
-            s.route,
-            s.pax,
-            s.captured_at,
-            s.occ,
-            s.blk,
-            l.lt
-           FROM (game_statement s
-             JOIN last l USING (airline))
-          WHERE ((s.ts > (l.lt - '24:00:00'::interval)) AND (s.descr !~~* 'Leasing rate%'::text) AND (s.descr !~~* 'Week-end closing%'::text) AND (s.descr !~~* '%deposit%'::text) AND (s.descr !~~* '%purchase%'::text) AND (s.descr !~~* '%cabin%'::text) AND (s.descr !~~* '%configuration%'::text))
-        )
- SELECT airline,
-    max(lt) AS last_ts,
-    count(*) FILTER (WHERE (descr = 'Passenger transport income'::text)) AS flights,
-    COALESCE(sum(amount) FILTER (WHERE (side = 'C'::text)), (0)::numeric) AS income,
-    COALESCE(sum(amount) FILTER (WHERE (side = 'D'::text)), (0)::numeric) AS costs,
-    round((EXTRACT(epoch FROM (max(lt) - min(ts))) / (3600)::numeric), 1) AS hours
-   FROM w
-  GROUP BY airline;
-
 create or replace view public.flight_legs_local with (security_invoker = true) as
  SELECT l.id,
     l.world_id,
@@ -134,3 +58,161 @@ create or replace view public.flight_no_clashes with (security_invoker = true) a
   WHERE (f.flight_no IS NOT NULL)
   GROUP BY f.world_id, f.airline_id, f.flight_no, f.flight_code, w.weekday
  HAVING (count(*) > 1);
+
+create or replace view public.game_flight_pnl with (security_invoker = true) as
+ WITH money AS (
+         SELECT f.airline_id,
+            f.posted_at AS ts,
+            (f.statement_blk)::integer AS blk,
+            (f.statement_routes)::integer AS routes_n,
+                CASE
+                    WHEN (f.statement_routes > 0) THEN ((f.origin_code || '-'::text) || f.dest_code)
+                    ELSE NULL::text
+                END AS route,
+            f.statement_pax AS pax,
+            f.maint_registration AS tail,
+            f.pax_income,
+            f.cargo_income,
+            f.fuel,
+            f.onboard,
+            f.handling,
+            f.landing,
+            f.atc,
+            f.maintenance,
+            f.income_total AS income,
+            f.cost_total AS costs
+           FROM game_flights f
+          WHERE (f.posted_at IS NOT NULL)
+        UNION ALL
+         SELECT p.airline_id,
+            p.paid_at,
+            (p.statement_blk)::integer AS statement_blk,
+            0,
+            NULL::text,
+            NULL::integer,
+            NULL::text,
+            NULL::numeric,
+            NULL::numeric,
+            NULL::numeric,
+            NULL::numeric,
+            NULL::numeric,
+            NULL::numeric,
+            NULL::numeric,
+            NULL::numeric,
+                CASE
+                    WHEN (p.side = 'C'::text) THEN p.amount
+                    ELSE (0)::numeric
+                END AS "case",
+                CASE
+                    WHEN (p.side = 'C'::text) THEN (0)::numeric
+                    ELSE p.amount
+                END AS amount
+           FROM game_payments p
+          WHERE ((COALESCE((p.statement_blk)::integer, 1) > 0) AND (p.descr !~~* 'Leasing rate%'::text) AND (p.descr !~~* 'Week-end closing%'::text) AND (p.descr !~~* '%deposit%'::text) AND (p.descr !~~* '%purchase%'::text) AND (p.descr !~~* '%cabin%'::text) AND (p.descr !~~* '%configuration%'::text))
+        )
+ SELECT al.planner_name AS airline,
+    m.ts,
+    m.blk,
+    max(m.route) AS route,
+    (COALESCE(max(m.routes_n), 0))::bigint AS routes_n,
+    max(m.pax) AS pax,
+    max(m.tail) AS tail,
+    trim_scale(COALESCE(sum(m.pax_income), (0)::numeric)) AS pax_income,
+    trim_scale(COALESCE(sum(m.cargo_income), (0)::numeric)) AS cargo_income,
+    trim_scale(COALESCE(sum(m.fuel), (0)::numeric)) AS fuel,
+    trim_scale(COALESCE(sum(m.onboard), (0)::numeric)) AS onboard,
+    trim_scale(COALESCE(sum(m.handling), (0)::numeric)) AS handling,
+    trim_scale(COALESCE(sum(m.landing), (0)::numeric)) AS landing,
+    trim_scale(COALESCE(sum(m.atc), (0)::numeric)) AS atc,
+    trim_scale(COALESCE(sum(m.maintenance), (0)::numeric)) AS maintenance,
+    trim_scale((sum(m.income) - sum(m.costs))) AS profit
+   FROM (money m
+     JOIN airlines al ON ((al.id = m.airline_id)))
+  GROUP BY m.airline_id, al.planner_name, m.ts, m.blk;
+
+create or replace view public.game_loads with (security_invoker = true) as
+ SELECT al.planner_name AS airline,
+    f.game_date AS flight_date,
+    ((al.iata_code || ' '::text) || f.flight_no) AS code,
+    f.dep_local AS dep_time,
+    f.registration AS tail,
+    f.origin_code AS origin,
+    f.dest_code AS dest,
+    f.arr_local AS arr_time,
+    (f.eco_pct)::numeric AS eco,
+    (f.bus_pct)::numeric AS bus,
+    (f.fst_pct)::numeric AS fst,
+    (f.cargo_pct)::numeric AS cargo,
+    f.status,
+    f.loads_captured_at AS captured_at,
+    f.eco_pax,
+    f.eco_seats,
+    trim_scale(f.eco_fare) AS eco_fare,
+    f.bus_pax,
+    f.bus_seats,
+    trim_scale(f.bus_fare) AS bus_fare,
+    f.fst_pax,
+    f.fst_seats,
+    trim_scale(f.fst_fare) AS fst_fare,
+    f.cargo_units,
+    f.cargo_cap,
+    trim_scale(f.cargo_rate) AS cargo_rate
+   FROM (game_flights f
+     JOIN airlines al ON ((al.id = f.airline_id)))
+  WHERE (f.flight_no IS NOT NULL);
+
+create or replace view public.game_ops_recent with (security_invoker = true) as
+ WITH money AS (
+         SELECT f.airline_id,
+            f.posted_at AS ts,
+            f.income_total AS income,
+            f.cost_total AS costs,
+            ((f.pax_income IS NOT NULL))::integer AS flights
+           FROM game_flights f
+          WHERE (f.posted_at IS NOT NULL)
+        UNION ALL
+         SELECT p.airline_id,
+            p.paid_at,
+                CASE
+                    WHEN (p.side = 'C'::text) THEN p.amount
+                    ELSE (0)::numeric
+                END AS "case",
+                CASE
+                    WHEN (p.side = 'C'::text) THEN (0)::numeric
+                    ELSE p.amount
+                END AS amount,
+            0
+           FROM game_payments p
+          WHERE ((p.descr !~~* 'Leasing rate%'::text) AND (p.descr !~~* 'Week-end closing%'::text) AND (p.descr !~~* '%deposit%'::text) AND (p.descr !~~* '%purchase%'::text) AND (p.descr !~~* '%cabin%'::text) AND (p.descr !~~* '%configuration%'::text))
+        ), last AS (
+         SELECT x.airline_id,
+            max(x.ts) AS lt
+           FROM ( SELECT f.airline_id,
+                    f.posted_at AS ts
+                   FROM game_flights f
+                  WHERE (f.posted_at IS NOT NULL)
+                UNION ALL
+                 SELECT p.airline_id,
+                    p.paid_at
+                   FROM game_payments p) x
+          GROUP BY x.airline_id
+        ), w AS (
+         SELECT m.airline_id,
+            m.ts,
+            m.income,
+            m.costs,
+            m.flights,
+            l.lt
+           FROM (money m
+             JOIN last l ON ((l.airline_id = m.airline_id)))
+          WHERE (m.ts > (l.lt - '24:00:00'::interval))
+        )
+ SELECT al.planner_name AS airline,
+    max(w.lt) AS last_ts,
+    sum(w.flights) AS flights,
+    trim_scale(COALESCE(sum(w.income), (0)::numeric)) AS income,
+    trim_scale(COALESCE(sum(w.costs), (0)::numeric)) AS costs,
+    round((EXTRACT(epoch FROM (max(w.lt) - min(w.ts))) / (3600)::numeric), 1) AS hours
+   FROM (w
+     JOIN airlines al ON ((al.id = w.airline_id)))
+  GROUP BY w.airline_id, al.planner_name;

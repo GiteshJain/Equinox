@@ -6,7 +6,7 @@ insert into public.planner_users (email) values ('rehearsal@example.com') on con
 do $$ begin perform set_config('request.jwt.claims', '{"email": "rehearsal@example.com", "role": "authenticated"}', true); end $$;
 
 do $test$
-declare r jsonb; j jsonb; saved bigint; before bigint; refused boolean; mon text := to_char(current_date, 'YYYY-MM');
+declare r jsonb; j jsonb; saved bigint; before bigint; refused boolean; al bigint; mon text := to_char(current_date, 'YYYY-MM');
 begin
   -- A month with two captured days, as the capture writes them, plus the marker older browser saves left behind.
   delete from public.planner_loads where month = '2099-01';
@@ -46,11 +46,17 @@ begin
   begin perform public.save_loads('January', '{}'); refused := false; exception when others then refused := true; end;
   assert refused, 'a month that is not YYYY-MM was accepted';
 
-  -- 5. The capture moves saved_at on (the bug) and keeps what is already in the day.
+  -- 5. The capture moves saved_at on (the bug) and keeps what is already in the day. Since #13's pull request 3 the
+  --    loads step reads game_flights, for an airline of ours: a test airline with one captured flight.
   select saved_at into before from public.planner_loads where month = mon;
-  insert into public.game_loads (airline, flight_date, code, dep_time, eco)
-    values ('Rehearsal Air', current_date, 'RH 9001', '10:00', 55);
-  r := public.apply_loads_from_capture('Rehearsal Air');
+  insert into public.airlines (world_id, group_id, game_id, planner_name, iata_code)
+  select g.world_id, g.id, 999901, 'Rehearsal Air', 'RH'
+    from public.groups g join public.worlds w on w.id = g.world_id and w.is_default
+   where g.kind = 'ours' order by g.id limit 1
+  returning id into al;
+  insert into public.game_flights (world_id, airline_id, game_date, flight_no, dep_local, eco_pct, loads_captured_at)
+  select a.world_id, a.id, current_date, 9001, '10:00', 55, now() from public.airlines a where a.id = al;
+  r := private.apply_loads_from_capture(al);
   select saved_at, json::jsonb into saved, j from public.planner_loads where month = mon;
   assert saved > coalesce(before, 0), 'the capture did not move the month''s saved_at on';
   assert j #>> array[current_date::text, 'f', 'Rehearsal Air|9001'] = '55', 'the capture did not add its flight';

@@ -23,9 +23,10 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
    After each save the other planner table is untouched and no table's row count changed (database/backup/counts.sql).
 4. The guard: signed in as the account that isn't staff, through the data API directly, planner_state reads no rows,
    and the planner's own write (an upsert) and save_loads() are refused; the tables don't change.
-5. The new planner tables (#13): signed out and as the account that isn't staff, through the data API, every new table
-   and view reads no rows (signed out, the read itself is refused) and a write to each table is refused; no table's
-   row count changes.
+5. The new planner tables (#13) and the capture's new tables and views (game_flights, game_payments, and game_loads,
+   game_flight_pnl and game_ops_recent, now views over them): signed out and as the account that isn't staff, through
+   the data API, every one reads no rows (signed out, the read itself is refused) and a write to each table is refused;
+   no table's row count changes.
 6. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
@@ -54,6 +55,10 @@ NEW_TABLES = ("worlds", "groups", "airlines", "airline_bases", "airline_aircraft
               "todo_items", "growth_log", "spending_log", "fare_plan", "interline_agreements", "monthly_checks",
               "dismissals", "cash_entries", "load_entries", "load_days", "settings", "world_rules", "change_log")
 NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
+# The capture data in the new model (migration 20261009230000_capture_data.sql): staff read them, nobody else, and only the
+# capture's functions write the tables
+CAPTURE_TABLES = ("game_flights", "game_payments")
+CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent")
 failures = []
 
 
@@ -467,10 +472,11 @@ def guard_new_tables(env, email, password):
     leave nothing: 200 and []), and adding a row to each table is refused (401 signed out, 403 not staff). Prints
     answers only, never rows."""
     n0 = counts()
-    missing = [t for t in NEW_TABLES if f"public.{t}" not in n0]
+    tables, views = NEW_TABLES + CAPTURE_TABLES, NEW_VIEWS + CAPTURE_VIEWS
+    missing = [t for t in tables if f"public.{t}" not in n0]
     problems = [f"no such table on the copy: {', '.join(missing)}"] if missing else []
     for who, token, refused in (("signed out", None, 401), ("not staff", token_for(env, email, password), 403)):
-        for t in NEW_TABLES + NEW_VIEWS:
+        for t in tables + views:
             code, body = http(env, "GET", f"/rest/v1/{t}?select=*&limit=5", token=token)
             if who == "signed out" and code != 401:
                 problems.append(f"{who}: reading {t} wasn't refused (answer {code}, expected 401)")
@@ -478,7 +484,7 @@ def guard_new_tables(env, email, password):
                 problems.append(f"{who}: reading {t} answered {code}, expected 200 with no rows")
             elif code == 200 and json.loads(body) != []:
                 problems.append(f"{who}: read {len(json.loads(body))} row(s) of {t}")
-        for t in NEW_TABLES:
+        for t in tables:
             row = {"op": "insert"} if t == "change_log" else {"created_at": "2026-10-09T00:00:00Z"}
             code, _ = http(env, "POST", f"/rest/v1/{t}", row, token=token, prefer="return=minimal")
             if code != refused:
@@ -556,8 +562,9 @@ async def main():
         problems = guard_new_tables(env, *other)
     except Exception as e:
         problems = [why(e)]
-    step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES)} new tables and {len(NEW_VIEWS)} views "
-                       "read no rows, and adding a row to each is refused", problems)
+    step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES)} new tables and "
+                       f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS)} views (the capture's included) read no rows, and adding a row "
+                       "to each is refused", problems)
 
     stopped = ", ".join(sorted(pl.stopped)) or "nothing"
     problems = (["reached: " + ", ".join(sorted(set(pl.outside)))] if pl.outside else []) + \
