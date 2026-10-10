@@ -10,8 +10,10 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
    request for the live Supabase host is answered by the local copy instead, with the live public key swapped for the
    local one. The planner's Supabase library, the exact version it names, comes from npm and is served in place of the
    CDN copy. Any other outside request is stopped.
-3. It signs in through the planner's own form as staff (opening it must save nothing), then saves three things, one at
-   a time, and after each reads the tables with psql:
+3. It signs in through the planner's own form as staff (opening it must save nothing, except the planner's own copy of a
+   capture taken after it last saved: cash and fixed7 figures equal to the capture's, as planner_load_state_test.sql
+   allows them; the Building chat's call, 10 Oct), then saves three things, one at a time, and after each reads the
+   tables with psql:
    - ticks the first open to-do as done: planner_state changes only in that to-do's done and doneAt;
    - changes the first plan card's title. The planner has no field for that, so it goes through the planner's own
      backup screen (Reference > Data: export, change the title, import), which saves the whole document:
@@ -191,6 +193,48 @@ def changed(a, b, path=""):
             return [f"{path} (length)"]
         return [c for i, (x, y) in enumerate(zip(a, b)) for c in changed(x, y, f"{path}[{i}]")]
     return [] if a == b and isinstance(a, bool) == isinstance(b, bool) else [path]   # 2 equals 2.0, but true isn't 1
+
+
+def capture_figures():
+    """Per airline (planner name) and date, the capture's cash and next-7-day figures in millions, rounded as the planner
+    rounds them (capture_cash), and when the balance and the latest event the figure counts were captured (ms)."""
+    out = psql("""select coalesce(json_agg(json_build_object('airline', al.planner_name, 'day', cc.day,
+                    'cash', floor(cc.cash / 10000 + 0.5) / 100,
+                    'fixed7', case when cc.fixed_next7 > 0 then floor(cc.fixed_next7 / 10000 + 0.5) / 100 end,
+                    'cash_at', floor(extract(epoch from cc.cash_at) * 1000),
+                    'events_at', (select floor(extract(epoch from max(e.captured_at)) * 1000) from public.game_events e
+                                   where e.airline_id = cc.airline_id and e.debit > 0
+                                     and e.due_at > cc.cash_at and e.due_at <= cc.cash_at + interval '7 days'))), '[]')
+                  from public.capture_cash cc join public.airlines al on al.id = cc.airline_id
+                 where cc.world_id = (select w.id from public.worlds w where w.is_default)""").strip()
+    return {(r["airline"], r["day"]): r for r in json.loads(out)}
+
+
+def copied_capture(s0, s1, figures):
+    """Of the paths that changed between two planner_state reads, those that are the planner's own copy of a capture taken
+    after it last saved (applyCaptureCash, on opening): a cash or fixed7 figure equal to the capture's, whose balance
+    for that date (or, for fixed7, an event it counts) was captured after s0 was saved. Returns them and how many
+    figures they hold. Removed figures never count."""
+    copied, n = set(), 0
+    for path in changed(s0["doc"], s1["doc"]):
+        m = re.match(r"^(cash|fixed7)\.(\d{4}-\d{2}-\d{2})(?:\.(.+))?$", path)
+        if not m:
+            continue
+        sec, day, al = m.groups()
+        now = (s1["doc"].get(sec) or {}).get(day)
+        was = (s0["doc"].get(sec) or {}).get(day)
+        if not isinstance(now, dict) or (al is None and isinstance(was, dict) and set(was) - set(now)):
+            continue
+        ok = True
+        for a in ([al] if al else list(now)):
+            v, f = now.get(a), figures.get((a, day))
+            ok = ok and isinstance(v, (int, float)) and not isinstance(v, bool) and f is not None and f[sec] is not None \
+                and abs(v - float(f[sec])) < 1e-9 \
+                and (f["cash_at"] > s0["saved_at"] or (sec == "fixed7" and (f["events_at"] or 0) > s0["saved_at"]))
+        if ok:
+            copied.add(path)
+            n += 1 if al else len(now)
+    return copied, n
 
 
 def count_changes(before, after, allow=()):
@@ -562,12 +606,17 @@ async def main():
                 await pl.open()
                 await pl.sign_in(*staff)
                 s, l = read_state(), read_loads()
-                problems = list(pl.errors)
+                problems, n_copied = list(pl.errors), 0
                 if s != s0:
-                    problems.append("opening the planner saved planner_state by itself: " + (", ".join(changed(s0["doc"], s["doc"])[:12]) or "saved_at"))
+                    # the planner copies a capture taken after it last saved into planner_state itself when it opens
+                    copied, n_copied = copied_capture(s0, s, capture_figures())
+                    rest = [d for d in changed(s0["doc"], s["doc"]) if d not in BOOKKEEPING and d not in copied]
+                    if rest or not copied:
+                        problems.append("opening the planner saved planner_state by itself: " + (", ".join(rest[:12]) or "saved_at"))
                 if months_changed(l0, l):
                     problems.append("opening the planner changed planner_loads: " + ", ".join(months_changed(l0, l)))
-                step(not problems, "sign in as test staff through the planner's own form (live address; opening it saved nothing)", problems)
+                step(not problems, "sign in as test staff through the planner's own form (live address; opening it saved nothing"
+                     + (f" but its own copy of {n_copied} cash/fixed7 figures captured after it last saved" if n_copied else "") + ")", problems)
                 signed_in = True
             except Exception as e:
                 step(False, "sign in as test staff through the planner's own form", [why(e)] + pl.errors[:3])
