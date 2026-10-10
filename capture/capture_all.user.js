@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.3
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then sets every salary to 10% above the country average (pressing adjust for each).
+// @version      1.4
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
@@ -32,39 +32,6 @@
     r = await send(id, "loads", rowsOf(document), location.pathname); log(name + " · loads " + (r.rows ?? r.error) + " flights");
   }
   const onLoads = () => location.pathname.includes("/app/com/loads");
-  // ---- salaries: every position to 10% above the country average, pressing "adjust" for each change
-  const SALARY_FACTOR = 1.10;
-  const onSalaryPage = () => /Employee overview/i.test(document.body.textContent) && /Country average/i.test(document.body.textContent);
-  function findSalaryLink() {
-    const links = [...document.querySelectorAll("a[href]")];
-    const pick = re => links.find(a => re.test(a.textContent.trim()));
-    const a = pick(/^employee overview$/i) || pick(/employee overview/i) || pick(/^employees$/i) || pick(/personnel|staff/i);
-    return a ? new URL(a.getAttribute("href"), location.href).href : null;
-  }
-  function salaryRows() {
-    const out = [];
-    for (const tr of document.querySelectorAll("table tr")) {
-      const input = tr.querySelector("input[type=text], input[type=number], input:not([type])"); if (!input) continue;
-      const btn = [...tr.querySelectorAll("button, input[type=submit], input[type=button], a")].find(b => /^\s*adjust\s*$/i.test(b.textContent || b.value || "")); if (!btn) continue;   // not "adjust all"
-      const cells = [...tr.children], i = cells.findIndex(td => td.contains(btn));
-      const avgCell = cells.slice(i + 1).find(td => /^\s*[\d,.]+\s*AS\$\s*$/.test(td.textContent)); if (!avgCell) continue;   // the country average comes right after the adjust button
-      const avg = +avgCell.textContent.replace(/[^\d]/g, ""); if (!avg) continue;
-      out.push({ input, btn, avg, target: Math.round(avg * SALARY_FACTOR), cur: +String(input.value).replace(/[^\d]/g, "") });
-    }
-    return out;
-  }
-  async function adjustSalaries() {   // one position at a time; if "adjust" reloads the page, the run carries on from the reloaded page
-    for (let guard = 0; guard < 40; guard++) {
-      const todo = salaryRows().find(r => Math.abs(r.cur - r.target) > 1);
-      if (!todo) return true;
-      const st = get(); if (st) { st.salaryChanged = (st.salaryChanged || 0) + 1; set(st); }
-      todo.input.focus(); todo.input.value = String(todo.target);
-      todo.input.dispatchEvent(new Event("input", { bubbles: true })); todo.input.dispatchEvent(new Event("change", { bubbles: true }));
-      todo.btn.click();
-      await new Promise(r => setTimeout(r, 2500));
-    }
-    return true;
-  }
   function setFilter() {   // -24h until now only, load factor on, "less than or equal", 100%
     const q = n => document.querySelector('[name="' + n + '"]'); const fire = el => el.dispatchEvent(new Event("change", { bubbles: true }));
     const tick = (n, v) => { const el = q(n); if (el && el.checked !== v) { el.checked = v; fire(el); } };
@@ -85,13 +52,7 @@
     if (s.phase === "filter" && onLoads()) { setFilter(); s.phase = "capture"; set(s); await new Promise(r => setTimeout(r, 1500));
       const upd = [...document.querySelectorAll("a")].find(a => /Update Results/.test(a.textContent)); if (upd) { upd.click(); setTimeout(() => { const t = get(); if (t && t.phase === "capture") step(); }, 4000); } else { log("No Update Results link; capturing as is"); step(); } return; }
     if (s.phase === "capture" && onLoads()) { try { await captureCurrent(id, name); } catch (e) { log(name + " · problem: " + e.message); }
-      const t = get() || s; const url = t.salaryUrl || findSalaryLink(); t.phase = "salary"; t.salaryChanged = 0; t.salaryTried = false;
-      if (url) { t.salaryUrl = url; t.salaryTried = true; set(t); location.href = url; } else { set(t); log(name + " · salaries: couldn't find the Employee overview page"); nextAirline(); }
-      return; }
-    if (s.phase === "salary") {
-      if (onSalaryPage()) { await adjustSalaries(); const t = get() || s; log(name + " · salaries: " + (t.salaryChanged ? t.salaryChanged + " adjusted to 10% above the country average" : "already 10% above the country average")); nextAirline(); return; }
-      if (!s.salaryTried && s.salaryUrl) { s.salaryTried = true; set(s); location.href = s.salaryUrl; return; }
-      log(name + " · salaries: Employee overview page not found"); nextAirline(); return; }
+      nextAirline(); return; }
     if (s.phase === "home") { log("Done: all " + airlinesOf(s).length + " airlines captured. Back on the airline you started with."); panel().onclick = () => { panel().remove(); clear(); }; clear(); return; }
   }
   function addButton() {
