@@ -1082,7 +1082,6 @@ begin
       join public.todos t on t.world_id = w and t.legacy_key = p.key
       cross join lateral jsonb_array_elements(case when jsonb_typeof(p.new_item -> 'items') = 'array' then p.new_item -> 'items' else '[]'::jsonb end) with ordinality as e(i, ord)
      where p.section = 'todos' and p.state = 'changed' and p.new_item is not null
-       and e.ord > 1   -- DELIBERATE FAILURE, to be reverted: a to-do's first step is dropped
      order by t.id, e.ord
     on conflict (todo_id, position) do update set body = excluded.body where x.body is distinct from excluded.body;
     get diagnostics n = row_count; v_out := v_out || jsonb_build_object('todo_items', n);
