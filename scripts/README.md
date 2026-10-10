@@ -49,9 +49,15 @@ while; run it in slices with `[from] [to]` if needed.
 | `planning/plan.py` | Builds a day's schedule for an aircraft. It tries every order of the given destinations and every start time, and keeps the plan that makes the most connections at the hub. Connections count from the airport's minimum connection time, with no extra margin, up to 8 hours (manual §4). It respects night bans, the maintenance time the day needs, and keeps a second daily at least 3 hours from the first. Block times are fitted to 468 of our flights on 7 Oct: exact to the minute for about 93%, never more than 2 minutes out. | `~/real_state.json` (the planner's state), `~/data.json` (route research), `~/.sb_anon` (it reads minimum connection times from `site_public()`) | Printed plans: connections, hours a day, maintenance share and each leg's times |
 
 ## Where the inputs come from
-- **`planner.json`, `real_state.json`:** the planner's state, from `export_for_report('planner')` or from Supabase
-  (`planner_state`).
-- **`data.json`:** the planner's route research, from `export_planner_data()`.
+- **`planner.json`, `real_state.json`:** the planner's state, from `export_for_report('planner')`, which builds it from
+  the planner tables (#13, pull request 8). Don't read the `planner_state` row directly: the switch-over freezes it.
+- **`data.json`:** the planner's route research, from `export_planner_data()`. To change it, `planner_data_set()` (key
+  `DATA`) writes it to `planner_data` and to the `countries`, `airports` and `routes` tables, only the rows that
+  change, and answers what changed. A new UTC offset for an airport our flights use is held back and named: tell the
+  Building chat, since those flights need re-timing (design §4).
+- **Connection times** (`plan.py`): `site_public()`'s `content.mct`, which comes from `world_airports`. To change them,
+  `site_admin()` with kind `content`, key `mct` and the whole map `{airport code: minutes}` (whole minutes; an airport
+  left out loses its time).
 - **`airports_oa.csv`:** OurAirports' public airport data (ourairports.com/data), for names, countries and
   coordinates.
 - **`land110.geojson`:** Natural Earth's public 1:110m land outline, for the newsletter map.

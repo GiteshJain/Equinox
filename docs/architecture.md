@@ -15,6 +15,7 @@ flowchart LR
   subgraph Supabase["Supabase: database, sign-in, files"]
     I["capture_ingest()"] --> R[(game_capture_raw)] --> P["private.capture_page()"] --> T[("game_flights, game_payments,<br/>game_statement, events,<br/>balance, income statement")]
     PS[(planner_state<br/>planner_loads<br/>planner_data)]
+    PT[("planner tables<br/>airlines, aircraft, routes,<br/>flight legs, plan cards ...")]
     S[(site_content<br/>site_posts<br/>site_reports)]
     F["site_public() and<br/>other functions"]
     B[[site-photos bucket]]
@@ -34,7 +35,9 @@ flowchart LR
   G --> C --> I
   T --> PL
   PS <--> PL
-  PS --> F
+  PS -- "side by side" --> PT
+  T --> PT
+  PT --> F
   S --> F --> W
   B --> W
   GS --> G
@@ -49,10 +52,10 @@ flowchart LR
 
 | Part | What it is | Where |
 |---|---|---|
-| **Website** | The public airline site: home, flights, destinations, live network, our airlines, newsroom, investors, gander monthly. A single page that reads everything from `site_public()`. | `web/index.html`, `web/assets/`; served by Cloudflare Pages at equinox-alliance.com |
+| **Website** | The public airline site: home, flights, destinations, live network, our airlines, newsroom, investors, gander monthly. A single page that reads everything from `site_public()`, our airlines' names, colours and text included (its own copy is only a fallback). | `web/index.html`, `web/assets/`; served by Cloudflare Pages at equinox-alliance.com |
 | **Planner** | The staff tool: routes, aircraft, hubs, the nightly capture's numbers, the cash forecast, to-dos. One HTML file. It keeps its own state in one database row (`planner_state`), saved 0.3 seconds after every change. Previews are look-only (#8). | `web/planner/index.html`, at equinox-alliance.com/planner/ |
 | **Schedule check** | Reads an airline's public schedule from the game and returns it as JSON; the planner's Check screen compares it with the plan. | `functions/api/game-schedule.js`, a Cloudflare Pages Function at `/api/game-schedule` |
-| **Database** | Supabase project `ulecwsyedvwcxgdzmhoq` (free plan): 58 tables, 7 views and 32 functions in `public`, 75 internal functions in `private` (which the data API doesn't expose), staff sign-in, and the `site-photos` file bucket. 32 of the tables are the planner's data in proper tables (#13: worlds, airlines, aircraft, routes, flight legs, plan cards, to-dos, settings and more), loaded from `planner_state` and the rest by `private.load_planner()` (#13, pull request 4). The planner still reads and saves `planner_state` until the switch-over; the adapter's getters, `planner_state_get()` and `planner_loads_get()`, already build its documents from the tables, and its write side, `planner_state_put()`, `planner_item_put()` and `planner_item_delete()`, saves into them, writing only what changed (#13, pull request 5). Side by side until the switch-over: every save of `planner_state` or `planner_loads` is copied into the tables when it commits, and the getters are compared with it; each copy and each comparison is a row in `job_runs`, and `adapter_clean_days()` counts the clean days. Every change to the tables is recorded in `change_log`, with who made it. The capture's data is in the new model already: one row per flown flight (`game_flights`) and the payments not tied to a flight (`game_payments`), each with its world and airline. Nothing signed out can read any table or view; the website, the investor page, the capture and the scripts go through functions. | supabase.com; tables in `docs/data.md`; every change in `database/migrations/` |
+| **Database** | Supabase project `ulecwsyedvwcxgdzmhoq` (free plan): 58 tables, 7 views and 32 functions in `public`, 77 internal functions in `private` (which the data API doesn't expose), staff sign-in, and the `site-photos` file bucket. 32 of the tables are the planner's data in proper tables (#13: worlds, airlines, aircraft, routes, flight legs, plan cards, to-dos, settings and more), loaded from `planner_state` and the rest by `private.load_planner()` (#13, pull request 4). The planner still reads and saves `planner_state` until the switch-over; the adapter's getters, `planner_state_get()` and `planner_loads_get()`, already build its documents from the tables, and its write side, `planner_state_put()`, `planner_item_put()` and `planner_item_delete()`, saves into them, writing only what changed (#13, pull request 5). Side by side until the switch-over: every save of `planner_state` or `planner_loads` is copied into the tables when it commits, and the getters are compared with it; each copy and each comparison is a row in `job_runs`, and `adapter_clean_days()` counts the clean days. Every change to the tables is recorded in `change_log`, with who made it. The capture's data is in the new model already: one row per flown flight (`game_flights`) and the payments not tied to a flight (`game_payments`), each with its world and airline. Nothing signed out can read any table or view; the website, the investor page, the capture and the scripts go through functions. | supabase.com; tables in `docs/data.md`; every change in `database/migrations/` |
 | **Capture** | A userscript in Gitesh's browser. It asks the database which airlines to capture (`capture_airlines()`, the capture key's world), then one button captures each airline's events, bank statement (last 3 days), income statement, balance sheet and loads, sends them to `capture_ingest()` by the airline's game ID. It doesn't touch salaries. The older userscript (sending names) and the bookmark still work. A second userscript, "Salaries: this airline", sets the open airline's salaries to 10% above the country average when Gitesh presses it (manual §7); it never talks to the database. | `capture/capture_all.user.js` (the key is a placeholder in the repository), `capture/salary_adjust.user.js` |
 | **Scripts** | Python scripts Claude runs for the weekly report, gander monthly, the world scan and the schedule optimiser. | `scripts/`, how to run them in `scripts/README.md` |
 | **Repository** | All code, database changes, tests and documents. Every change is a pull request that Gitesh approves with "merge" (#2). | GitHub `GiteshJain/Equinox` |
@@ -90,11 +93,17 @@ flowchart LR
      it differed. A failure is recorded and never stops the save. `adapter_clean_days()` counts clean days in a row
      (per capture day in `adapter_check_days`); since 10 Oct the switch-over doesn't wait for a number of them, only
      for no failure outstanding.
-3. **The website** calls `site_public()`, which builds everything public from `planner_state` (hubs, schedules),
-   `site_content` (photos, logos, markets), `site_posts` and `site_reports`. Investor pages and reports need the
-   password (`site_investor()`, `site_report()`).
-4. **Claude's scripts** read through the `export_*` functions and write through `ingest_snapshot()`, `site_admin()` and
-   `planner_data_set()`, using the ingest secret (kept as it is by #11).
+3. **The website** calls `site_public()`, which builds everything public from the planner tables (#13, pull request 8:
+   hubs, aircraft, schedules, signed interlines, our airlines' names, colours and text, and the connection times from
+   `world_airports`), `site_content` (photos, logos), `site_posts` and `site_reports`. Investor pages and reports need
+   the password (`site_investor()`, whose cash and next-7-day costs are the getter's and whose money spent is
+   `spending_log`; `site_report()`). Nothing outside the planner's own path reads `planner_state` or `planner_loads`
+   any more; the switch-over (pull request 9) freezes them.
+4. **Claude's scripts** read through the `export_*` functions (`export_for_report('planner')` gives the planner's two
+   documents as the getters build them from the tables) and write through `ingest_snapshot()`, `site_admin()` (its
+   connection times go to `world_airports`) and `planner_data_set()` (the route research goes to `planner_data`, which
+   the old planner reads, and to `countries`, `airports` and `routes`, only the rows that change), using the ingest
+   secret (kept as it is by #11).
 5. **Every night** the backup copies the database (except the key tables and sign-in data) and the photo files,
    restores the copy, uploads it to Cloudflare R2 and records the result in `backup_runs`, which the planner shows.
    `latest.json` in R2 names the newest copy; the database rehearsal reads it to find last night's copy.
