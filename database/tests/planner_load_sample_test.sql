@@ -9,7 +9,9 @@
 --   1. private.load_planner() and the capture's matching run on it;
 --   2. planner_state_get() equals the sample's planner_state, and planner_loads_get() its loads, with only the
 --      differences design §9 allows (printed with how often);
---   3. design §4's worked example, Kingfisher's DEL-JFK frequency z5qbaeg, as stored.
+--   3. design §4's worked example, Kingfisher's DEL-JFK frequency z5qbaeg, as stored;
+--   4. site_public(), built from the tables since pull request 8, gives exactly the sample's site_public for the parts
+--      the planner's data makes: hubs, aircraft, frequencies, signed interlines and connection times (design §9).
 \set sample `gzip -dc tests/fixtures/sample_2026-10-08.json.gz`
 create temporary table t_sample on commit drop as select :'sample'::jsonb as j;
 \unset sample
@@ -156,5 +158,20 @@ begin
      and v.arr_utc_min = 109 and v.arr_utc_day_offset = 1,
     'z5qbaeg''s return doesn''t read back as Mon, Wed, Fri 07:30 -> 07:19 the next day, landing 01:49 UTC';
   raise notice 'sample: DEL-JFK z5qbaeg is design §4''s example exactly: leg 1 {2,4,7} 20:00 UTC, 799 min; leg 2 {1,3,5} 12:30 UTC, 799 min';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 4. site_public() on the sample (pull request 8)
+do $test$
+declare j jsonb := (select j from t_sample); a jsonb := public.site_public(); bad text; k text;
+begin
+  for k in select unnest(array['hubs', 'tails', 'freqs', 'interline']) loop
+    if a -> k is distinct from j -> 'site_public' -> k then bad := concat_ws(', ', bad, k); end if;
+  end loop;
+  if a -> 'content' -> 'mct' is distinct from j -> 'site_public' -> 'content' -> 'mct' then bad := concat_ws(', ', bad, 'content.mct'); end if;
+  assert bad is null, 'on the sample, site_public() differs from its site_public at: ' || bad;
+  raise notice 'sample: site_public() gives its site_public exactly (% hubs, % aircraft, % frequencies, % signed interlines, % connection times)',
+    jsonb_array_length(a -> 'hubs'), jsonb_array_length(a -> 'tails'), jsonb_array_length(a -> 'freqs'),
+    jsonb_array_length(a -> 'interline'), (select count(*) from jsonb_object_keys(a -> 'content' -> 'mct'));
 end
 $test$;

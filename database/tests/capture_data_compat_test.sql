@@ -6,9 +6,10 @@
 --      One allowed change, from 20261010180000 (10 Oct): payments that aren't flights (salaries above all) leave the
 --      two money views. game_flight_pnl may lose whole rows that are exactly such a payment's block, and
 --      game_ops_recent's costs and income may drop by exactly those payments within its 24 hours. Nothing else.
---   2. export_capture() (every captured row), export_for_report('planner') and site_public(): the same JSON, the rows
---      of each list in any order. export_capture()'s pnl and ops come straight from the two money views: they must
---      equal those views as they are now.
+--   2. export_capture() (every captured row): the same JSON, the rows of each list in any order. Its pnl and ops come
+--      straight from the two money views: they must equal those views as they are now. (export_for_report('planner')
+--      and site_public() were compared here until pull request 8 made them read the tables; website_scripts_outputs_test.sql
+--      compares them now, with the differences that pull request allows.)
 --   3. planner_loads: unchanged.
 --   4. Every statement line is in exactly one place: tied to a flight in game_flights, or a payment in game_payments;
 --      every row of the old loads table (game_loads_before_13) is in game_loads.
@@ -99,10 +100,8 @@ begin
     union all
     (select to_jsonb(o) from public.game_ops_recent o except all select value from jsonb_array_elements(a -> 'ops'))) x;
   assert n = 0, format('export_capture() ops differs from game_ops_recent in %s rows', n);
-  assert public.export_for_report(s, 'planner') = (select value from rehearsal_before.outputs where name = 'export_for_report planner'),
-    'export_for_report(''planner'') differs from before';
-  assert public.site_public() = (select value from rehearsal_before.outputs where name = 'site_public'),
-    'site_public() differs from before';
+  -- export_for_report('planner') and site_public() read the tables since pull request 8: website_scripts_outputs_test.sql
+  -- compares them with before, allowing site_public()'s new airlines key and the getters' differences
   delete from public.ingest_secret where secret = s;
 
   -- 3. planner_loads

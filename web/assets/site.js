@@ -2,7 +2,9 @@
 (() => {
 "use strict";
 const SB_URL = "https://ulecwsyedvwcxgdzmhoq.supabase.co", SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZWN3c3llZHZ3Y3hnZHptaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTg5MzcsImV4cCI6MjEwNTc5NDkzN30.tC56dOgmPeYB3m58aDy4ADnnaZ3613P6MFp2pVXUj_Y";
-const AL = {
+// Our airlines' names, codes, colours and text. Since #13 (pull request 8) they come from the data, site_public().airlines
+// (the airlines table): this copy is only the fallback for a feed without them.
+let AL = {
   "Pan American": { name: "Pan Am", slug: "pan-am", code: "AW", color: "#2A8FD8", photo: "New York", region: "North America and across the Atlantic",
     blurb: "Pan Am is the group's airline for North America and the Atlantic. From New York JFK it connects the United States with Europe, Mexico and the Caribbean, and feeds the rest of the group through London and Paris.",
     role: "Transatlantic and the Americas" },
@@ -22,7 +24,10 @@ const AL = {
     blurb: "Malaysia Airlines connects China, India and South-East Asia through its Kuala Lumpur hub, linking around forty cities.",
     role: "South-East Asia and the KUL connecting hub" }
 };
-const ORDER = ["Pan American", "Virgin Atlantic", "Ryanair", "Kingfisher", "China Eastern", "Malaysia Airlines"];
+// The site's own order, west to east. The data's order (airlines.position) is the planner's, which differs, so the site
+// keeps this one for the airlines it names; any other airline in the data follows, in the data's order.
+const SITE_ORDER = ["Pan American", "Virgin Atlantic", "Ryanair", "Kingfisher", "China Eastern", "Malaysia Airlines"];
+let ORDER = SITE_ORDER.slice();
 const TYPE_SEATS = { "Airbus A321neo": 190, "Airbus A320neo": 165, "Airbus A321XLR": 160, "Airbus A350-900": 300, "Embraer E195-E2": 124 };
 const TYPE = { "A321 NEO LIGHT": "Airbus A321neo", "A320NEO LIGHT": "Airbus A320neo", "A321XLR": "Airbus A321XLR", "A350-900ULR": "Airbus A350-900", "E195-E2": "Embraer E195-E2" };
 const CITYPHOTO = { JFK: "New York", LGA: "New York", EWR: "New York", LHR: "London", LGW: "London", CDG: "Paris", AMS: "Amsterdam", DEL: "Delhi", BOM: "Mumbai", PVG: "Shanghai", PEK: "Beijing", PKX: "Beijing", KUL: "Kuala Lumpur", HKG: "Hong Kong", BKK: "Bangkok", DMK: "Bangkok", BCN: "Barcelona", FCO: "Rome", IST: "Istanbul", DPS: "Bali", HND: "Tokyo", NRT: "Tokyo", COK: "Kochi", CGK: "Jakarta", CAI: "Cairo", MAD: "Madrid", LIS: "Lisbon", ORD: "Chicago", EDI: "Edinburgh", DUB: "Dublin", VCE: "Venice", PRG: "Prague", HGH: "Hangzhou", GOI: "Goa", HKT: "Phuket", SIN: "Singapore" };
@@ -66,7 +71,22 @@ async function load() {
     if (!r.ok) throw new Error("data " + r.status);
     data = await r.json(); try { sessionStorage.setItem("eq_site_v1", JSON.stringify({ t: Date.now(), d: data })); } catch (e) {}
   }
-  const a = await apP; AP = a.ap; COUNTRIES = a.countries; D = data; MEDIA = (D.content && D.content.media) || MEDIA; derive();
+  const a = await apP; AP = a.ap; COUNTRIES = a.countries; D = data; MEDIA = (D.content && D.content.media) || MEDIA; useAirlines(D.airlines); derive();
+}
+// The airlines from the data, when the feed has them; a field the data leaves empty keeps the copy's value.
+function useAirlines(list) {
+  if (!Array.isArray(list)) return;
+  const al = {}, at = {};
+  list.forEach((a, i) => {
+    if (!a || !a.key) return; const c = AL[a.key] || {};
+    al[a.key] = { name: a.name || c.name || a.key, slug: a.slug || c.slug || String(a.name || a.key).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      code: a.code || c.code || "", color: a.color || c.color || "#9AA4BF", photo: a.photo || c.photo || "", region: a.region || c.region || "",
+      blurb: a.blurb || c.blurb || "", role: a.role || c.role || "" };
+    at[a.key] = i;
+  });
+  if (!Object.keys(al).length) return;
+  const rank = k => SITE_ORDER.includes(k) ? SITE_ORDER.indexOf(k) : SITE_ORDER.length + at[k];
+  AL = al; ORDER = Object.keys(al).sort((x, y) => rank(x) - rank(y));
 }
 function derive() {
   const tails = Object.fromEntries(D.tails.map(t => [t.id, t]));

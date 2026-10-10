@@ -4,7 +4,7 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-58 tables, 7 views and 32 functions, all in Supabase's `public` schema, plus 75 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+58 tables, 7 views and 32 functions, all in Supabase's `public` schema, plus 77 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
@@ -64,7 +64,7 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`routes`](#routes) (table): Every route an airline could fly, has added or has removed: the route research and the routes added in the planner, with the planner's overrides (null = the research value; research refreshes never touch them)
 - [`service_profiles`](#service-profiles) (table): On-board service by distance (S1, S2, …)
 - [`settings`](#settings) (table): Our own planning choices as data (decision #14): the manual's rule numbers, thresholds and display choices for a world, with per-airline overrides
-- [`site_content`](#site-content) (table): Website content kept as data, one row per key: media (destination photos and airline logos), markets, and mct (minimum connection times, also used by the schedule optimiser)
+- [`site_content`](#site-content) (table): Website content kept as data, one row per key: media (destination photos and airline logos), markets, and mct (minimum connection times, also used by the schedule optimiser; since #13's pull request 8 site_admin() writes them to world_airports too, and site_public() reads them from there, so this copy is kept only for the adapter until the switch-over)
 - [`site_posts`](#site-posts) (table): Newsroom posts on the website
 - [`site_reports`](#site-reports) (table): Investor reports and gander monthly issues, each with its status (upcoming or published) and its PDF
 - [`spending_log`](#spending-log) (table): Money spent, in AS$: aircraft orders, cabins and refits, losses
@@ -206,7 +206,7 @@ file. How the parts fit together: `docs/architecture.md`.
 
 ## airlines
 
-*Table.* Every airline we track in a world: our own, and from #13's capture work the rivals the world scan sees (their columns about our airlines stay null). Game ID, codes, home airport, colours and the website's text, which today are copied in the planner (CODE_AL, CAP_HOME, AIRLINE_ORDER, LIVERY), the website (AL, ORDER) and the capture. The game link is worked out from worlds.game_host and game_id.
+*Table.* Every airline we track in a world: our own, and from #13's capture work the rivals the world scan sees (their columns about our airlines stay null). Game ID, codes, home airport, colours and the website's text, which today are copied in the planner (CODE_AL, CAP_HOME, AIRLINE_ORDER, LIVERY) and the capture. The website reads them from site_public().airlines (its own copy is only a fallback), and the Photos screen checks airlines against them. The game link is worked out from worlds.game_host and game_id.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -240,7 +240,7 @@ file. How the parts fit together: `docs/architecture.md`.
 
 ## airports
 
-*Table.* Every airport in the route research: city, country, position and UTC offset as the game gives them, the same in every world (a world's own corrections are in world_airports). Loaded from planner_data.coords and planner_data.utc, plus code-only rows for any other airport the planner names (#13, pull request 4).
+*Table.* Every airport in the route research: city, country, position and UTC offset as the game gives them, the same in every world (a world's own corrections are in world_airports). Loaded from planner_data.coords and planner_data.utc, plus code-only rows for any other airport the planner names (#13, pull request 4); kept in step with the research by planner_data_set() since pull request 8.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -371,7 +371,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## countries
 
-*Table.* Country names by ISO code (-- for unknown). The same in every world. Replaces planner_data.countries.
+*Table.* Country names by ISO code (-- for unknown). The same in every world. Replaces planner_data.countries; kept in step with the research by planner_data_set().
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1039,7 +1039,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## planner_data
 
-*Table.* The route research the planner is built on, in one row (key DATA): routes, airport coordinates, UTC offsets and countries. Written by planner_data_set(). Read by the planner when it opens, and by export_planner_data().
+*Table.* The route research the planner is built on, in one row (key DATA): routes, airport coordinates, UTC offsets and countries. Written by planner_data_set(), which also writes countries, airports and routes. Read by the planner when it opens (until #18), the adapter and export_planner_data().
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1051,7 +1051,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## planner_loads
 
-*Table.* Daily loads as the planner keeps them, one JSON document per month. Written only by save_loads() (the planner) and apply_loads_from_capture() (after each loads capture), both of which merge days rather than replace the month. Read by the planner and export_for_report().
+*Table.* Daily loads as the planner keeps them, one JSON document per month. Written only by save_loads() (the planner) and apply_loads_from_capture() (after each loads capture), both of which merge days rather than replace the month. Read by the planner, and by the adapter until the switch-over freezes it (#13, pull request 9); export_for_report() reads planner_loads_get() instead (pull request 8).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1090,7 +1090,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## planner_state
 
-*Table.* The whole planner in one JSON row (id main): plan cards, to-dos, aircraft, frequencies, deliveries, the fare plan, interline and reference data. Written by the planner on every change, and by Claude for data-only changes. Read by the planner, site_public(), site_investor() and export_for_report(). To be split into proper tables at decision #13.
+*Table.* The whole planner in one JSON row (id main): plan cards, to-dos, aircraft, frequencies, deliveries, the fare plan, interline and reference data. Written by the planner on every change, and by Claude for data-only changes. Read by the planner, and by the adapter (side by side and the loader) until the switch-over freezes it (#13, pull request 9). The website and scripts read the tables instead (pull request 8).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1150,7 +1150,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## routes
 
-*Table.* Every route an airline could fly, has added or has removed: the route research and the routes added in the planner, with the planner's overrides (null = the research value; research refreshes never touch them). Replaces planner_data.routes, routesAdded, routeEdits and routeCabin.
+*Table.* Every route an airline could fly, has added or has removed: the route research and the routes added in the planner, with the planner's overrides (null = the research value; research refreshes never touch them). Replaces planner_data.routes, routesAdded, routeEdits and routeCabin. The research's own figures are kept in step by planner_data_set().
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1224,7 +1224,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## site_content
 
-*Table.* Website content kept as data, one row per key: media (destination photos and airline logos), markets, and mct (minimum connection times, also used by the schedule optimiser). Written by site_admin() and the planner's Photos screen. Read by site_public() and site_investor().
+*Table.* Website content kept as data, one row per key: media (destination photos and airline logos), markets, and mct (minimum connection times, also used by the schedule optimiser; since #13's pull request 8 site_admin() writes them to world_airports too, and site_public() reads them from there, so this copy is kept only for the adapter until the switch-over). Written by site_admin() and the planner's Photos screen. Read by site_public() and site_investor().
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1273,7 +1273,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## spending_log
 
-*Table.* Money spent, in AS$: aircraft orders, cabins and refits, losses. Replaces the planner's capex.
+*Table.* Money spent, in AS$: aircraft orders, cabins and refits, losses. Replaces the planner's capex. Read by site_investor().
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1335,7 +1335,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## world_airports
 
-*Table.* What a world says about an airport, only where there is something to say: minimum connection time, night ban, a corrected UTC offset, closure. An airport's offset in a world is coalesce(utc_offset_override, airports.utc_offset). Replaces site_content.mct, ref.hubs[].mct, ref.curfews and ref.utcOverrides.
+*Table.* What a world says about an airport, only where there is something to say: minimum connection time, night ban, a corrected UTC offset, closure. An airport's offset in a world is coalesce(utc_offset_override, airports.utc_offset). Replaces site_content.mct, ref.hubs[].mct, ref.curfews and ref.utcOverrides. Connection times are written by the planner (a hub's) and by site_admin() (the whole map), and read by site_public() as content.mct.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1411,13 +1411,13 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `capture_airlines(p_key text)` | jsonb | anon, authenticated · runs as owner | For the capture userscript, with the capture key: the key's world and its active airlines of our groups (game ID, name, code), in display order, so the userscript doesn't keep its own list. |
 | `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game's ID or, from older userscripts, by name, and refuses one outside the key's world; keeps the raw page 14 days and parses it (private.capture_page): bank statement into game_flights and game_payments, loads into game_flights, and planner_loads as before. Answers with the capture day and whether it is complete. |
 | `export_capture(p_secret text, p_days integer)` | jsonb | anon, authenticated · runs as owner | Exports recent capture data for Claude's scripts, exactly as before #13: profit per flight, loads, payments ahead, cash, the last 24 hours and capture runs, from the compatibility views. Needs the ingest secret. |
-| `export_for_report(p_secret text, p_kind text, p_arg text)` | jsonb | anon, authenticated · runs as owner | Exports world-scan snapshots, airlines, airports and the planner for the weekly report and gander monthly. Needs the ingest secret. |
+| `export_for_report(p_secret text, p_kind text, p_arg text)` | jsonb | anon, authenticated · runs as owner | Exports for the weekly report and gander monthly: world-scan snapshots, a scan's airlines and airports, and the planner ({state, loads}: today's planner_state and planner_loads documents, built from the tables by planner_state_get() and planner_loads_get()). Needs the ingest secret. |
 | `export_planner_data(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exports planner_data for scripts. Needs the ingest secret. |
 | `export_repo_bootstrap(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exported the stored scripts when the repository was created (decision #1). Needs the ingest secret. |
 | `ingest_snapshot(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Receives the world scanner's results (start, airlines, airports, finish) into the game_snapshot tables. Needs the ingest secret. |
 | `is_planner_user()` | boolean | authenticated · runs as owner | True when the signed-in email is on planner_users. Used by the access rules, the planner and the Photos functions. |
 | `parse_capture(p_id bigint)` | jsonb | internal only · runs as owner | Retired by #13 (pull request 3): the parsing is private.capture_page(), which this now calls. No longer callable by signed-in accounts once 20261009230100_capture_data_removals.sql has run; kept until #18. |
-| `planner_data_set(p_secret text, p_key text, p_value jsonb)` | jsonb | anon, authenticated · runs as owner | Replaces one planner_data entry. Needs the ingest secret. |
+| `planner_data_set(p_secret text, p_key text, p_value jsonb)` | jsonb | anon, authenticated · runs as owner | Replaces one planner_data entry (the old planner reads its route research there until #18). For the research (key DATA) it also writes countries, airports and routes, only the rows that change (private.research_apply(); change log actor script unless the caller named itself), and answers what changed under tables. Needs the ingest secret. |
 | `planner_item_delete(p_section text, p_key text)` | jsonb | authenticated · runs as owner | Removes one item of the planner's document through the same code as a save (design §8). As planner_item_put(). Staff and postgres only; runs as owner and checks the caller itself. |
 | `planner_item_put(p_section text, p_key text, p_value jsonb)` | jsonb | authenticated · runs as owner | Sets one item of the planner's document, in today's JSON shape, through the same code as a save (design §8): for other chats' data-only changes (a plan card, a to-do, a frequency ...). Section and key as private.planner_doc_with_item() describes; plan-card and frequency times are local, stored in UTC. The change log names whoever the caller set (equinox.actor), or planner for a signed-in user. Answers {saved_at, applied, skipped, reload}. Staff and postgres only; runs as owner and checks the caller itself. |
 | `planner_loads_get(p_world_id bigint)` | TABLE(month text, "json" text, saved_at bigint) | authenticated | Today's planner_loads documents built from game_flights, load_entries and load_days (design §8): one row per month, like planner_loads. Per flight and per day's flags, the latest write wins, captured or typed. Staff only. Not read by the planner yet. |
@@ -1426,14 +1426,14 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `planner_state_version(p_world_id bigint)` | bigint | authenticated | The time of the latest logged change to a world's planner tables (or to airports and countries), in milliseconds, never earlier than the old planner_state row's last save: what the planner checks before each save (design §8). Staff only. Default: the default world. |
 | `save_loads(p_month text, p_days jsonb)` | jsonb | authenticated · runs as owner | Saves the planner's loads typed by hand: merges only the days given into the month's planner_loads document (a whole day's flights with f, or single flights with set and del, plus done and savedAt), so days captured since the page loaded aren't lost, and returns the merged month (migration 20261009120000). Since #13's pull request 5 it also writes those days to load_entries and load_days (actor planner, detail save_loads); a failure there is recorded in job_runs and never stops the save. Planner staff only; runs as owner. |
 | `save_script(p_secret text, p_name text, p_content text)` | jsonb | anon, authenticated · runs as owner | Stores a copy of a script in planner_scripts, from before the repository existed. Needs the ingest secret. |
-| `site_admin(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Publishes website content: newsroom posts, reports and site content. Needs the ingest secret. |
-| `site_investor(p_password text)` | jsonb | anon, authenticated · runs as owner | The investor page's data, when the password matches report_access. |
+| `site_admin(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Publishes website content: newsroom posts, reports and site content. Content mct (minimum connection times, {airport code: minutes}) also sets world_airports, which site_public() reads (private.world_mct_set(); change log actor script unless the caller named itself); site_content.mct is kept too, for the adapter until the switch-over. Needs the ingest secret. |
+| `site_investor(p_password text)` | jsonb | anon, authenticated · runs as owner | The investor page's data, when the password matches report_access: cash and next-7-day costs as planner_state_get() gives them (the capture's figure unless typed by hand), money spent from spending_log, markets from site_content, and the investor reports list. Runs as owner. |
 | `site_newsletter(p_id bigint)` | jsonb | anon, authenticated · runs as owner | A published gander monthly issue, with its PDF. |
-| `site_public()` | jsonb | anon, authenticated · runs as owner | Everything the public website shows (hubs, schedules, posts, the reports list, photos and logos), built from planner_state, site_content, site_posts and site_reports. |
+| `site_public()` | jsonb | anon, authenticated · runs as owner | Everything the public website shows, in one call: hubs and focus cities an airline flies from, aircraft flying, the week's frequencies (local times), signed interlines, posts, the reports list, site_content (photos, logos) and the minimum connection times (content.mct), built from the tables (#13, pull request 8), plus our airlines (names, codes, colours, the website's text, display order) from airlines. Same answer as before #13, apart from airlines and updated_at (when the planner's data last changed). No bank or transfer times, cabin layouts or aircraft on order (6 Oct). Anyone may call it; runs as owner. |
 | `site_remove_airline_logo(p_airline text)` | jsonb | authenticated · runs as owner | The planner's Photos screen: goes back to the in-game logo for an airline. Staff only. |
 | `site_remove_airport_photo(p_code text)` | jsonb | authenticated · runs as owner | The planner's Photos screen: removes a destination photo. Staff only. |
 | `site_report(p_id bigint, p_password text)` | jsonb | anon, authenticated · runs as owner | One investor report with its PDF, when the password matches report_access. |
-| `site_set_airline_logo(p_airline text, p_url text, p_path text)` | jsonb | authenticated · runs as owner | The planner's Photos screen: sets an airline's logo after the upload. Staff only. |
+| `site_set_airline_logo(p_airline text, p_url text, p_path text)` | jsonb | authenticated · runs as owner | The planner's Photos screen: sets an airline's logo after the upload, for one of our airlines in airlines (by the planner's name for it). Staff only. |
 | `site_set_airport_photo(p_code text, p_url text, p_credit text, p_path text)` | jsonb | authenticated · runs as owner | The planner's Photos screen: sets a destination photo and its credit after the upload. Staff only. |
 | `touch_updated_at()` | trigger | anon, authenticated | Trigger: sets updated_at on every update to planner_state and planner_loads. |
 
@@ -1512,9 +1512,11 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.planner_ref_blank(p_section text, p_code text)` | boolean | internal only | Whether a type's name, or a cabin layout's or service's code, is blank: the planner's placeholder for a new row (New type, NEW, S5) or empty. Blank codes may repeat; such an entry is told apart by its place in the list. |
 | `private.planner_state_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)` | TABLE(path text, kind text, why text) | internal only | A planner_state document against the one built from the tables, for the side by side: the differences the tests allow (planner_load_state_test.sql), design §9's plus "cash/fixed7 captured after the planner last saved", and, for these comparisons only, "cash/fixed7 captured, not in the saved document" (a tab opened before the evening's capture and saved after it). Both only where the built figure is the capture's: the first when that airline's balance for the date (or, for fixed7, an event it counts) was captured after p_saved_at; the second, whatever the timing, when the saved document has no entry for that airline and date. A figure the saved document has that the tables don't give back still fails. One row per difference: its path, its kind ('differs' when not allowed) and, for a money figure not allowed, why (dates and airlines only). |
 | `private.planner_touched(p_world_id bigint, p_since timestamp with time zone, p_client text)` | TABLE(section text, key text) | internal only | The items someone else changed after a moment (design §8): every change_log row of the world since, except those this tab made (actor planner, detail p_client), traced back to the planner items it belongs to, under its old and new names. With no client, every later change counts. |
+| `private.research_apply(p_world_id bigint, p_doc jsonb)` | jsonb | internal only | planner_data_set()'s step for the route research (planner_data DATA: routes, coords, utc, countries): writes countries, airports and a world's research routes, only the rows that change, by the loader's rules. Added routes and the planner's overrides are never touched; a research route no longer listed goes unless something points at it or it carries an edit. A new UTC offset for an airport that flights or plan-card legs use (with no world correction) is held back and named, since their UTC times were worked out with the old one (design §4). A part missing from the document leaves its rows alone. Returns how many rows each part changed. |
 | `private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)` | jsonb | internal only | Puts one row of a logged table back as it was at a moment, by replaying change_log backwards: re-adds a removed row with its own key, undoes changes, or removes a row added since. The restore is logged like any change. For Claude, as postgres: start with the equinox.actor line (design §6). |
 | `private.set_updated_at()` | trigger | internal only | Trigger on every planner table: sets updated_at when a row is added or really changes, and leaves it as it was when an update changes nothing. |
 | `private.shift_weekdays(p smallint[], p_days integer)` | smallint[] | internal only | ISO weekdays moved by whole days (−1: each a day earlier, Monday becomes Sunday), sorted. Turns local weekdays into UTC ones and back (design §4). |
 | `private.statement_blocks(p_airline_id bigint, p_minutes timestamp with time zone[])` | TABLE(ts timestamp with time zone, blk integer, is_flight boolean, route text, routes_n integer, pax integer, tail text, pax_income numeric, cargo_income numeric, fuel numeric, onboard numeric, handling numeric, landing numeric, atc numeric, maintenance numeric, income_total numeric, cost_total numeric, captured_at timestamp with time zone) | internal only | An airline's statement lines in the given minutes, grouped by minute and block (blk) as game_flight_pnl has always grouped them, leaving out payments: money by type, the route, passengers, the maintenance line's aircraft, and whether the block is a flight (any flight line or route) or only payments. |
 | `private.statement_category(p_descr text)` | text | internal only | The type of a bank-statement line (pax_income, cargo_income, fuel, onboard, handling, landing, atc, maintenance or other), as game_flight_pnl has always counted them. |
 | `private.weekday_set(p text)` | smallint[] | internal only | The weekdays in an old frequency's days ("135"), as the old planner reads them: the digits 1 to 7, each once, sorted. Null when there are none. |
+| `private.world_mct_set(p_world_id bigint, p_mct jsonb)` | jsonb | internal only | site_admin()'s step for content mct: a world's minimum connection times from the whole map {airport code: minutes}, into world_airports.mct_min; times of airports the map no longer lists are cleared, and a row nothing else describes goes. Refuses anything but airport codes with whole minutes, 0 to 1440. Returns how many were set, cleared and removed. |
