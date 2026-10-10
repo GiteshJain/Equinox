@@ -22,7 +22,11 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
      latest recent day with no loads yet: that month's planner_loads row has the typed load for that day and flight,
      and every other day and month is unchanged.
    savedAt and version are bookkeeping and may change, and saved_at must move forward. A missing key counts as null.
-   After each save the other planner table is untouched and no table's row count changed (database/backup/counts.sql).
+   After each save the other planner table is untouched and no table's row count changed (database/backup/counts.sql),
+   apart from job_runs and change_log, which the side by side writes, and load_entries and load_days for a typed load.
+   Side by side (#13, pull request 5): after each save the tables changed in exactly the intended rows (the to-do's
+   done and done_at; the plan card's title; the flight's typed load and the day's flags), the change log names actor
+   planner (detail mirror, or save_loads for a typed load), and the save's mirror and comparison rows in job_runs are ok.
 4. The guard: signed in as the account that isn't staff, through the data API directly, planner_state reads no rows,
    and the planner's own write (an upsert) and save_loads() are refused; the tables don't change.
 5. The new planner tables (#13) and the capture's new tables and views (game_flights, game_payments, and game_loads,
@@ -32,6 +36,9 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
 6. The adapter's read side (#13, pull request 4): through the data API, planner_state_get(), planner_state_version()
    and planner_loads_get() refuse a signed-out caller and the account that isn't staff, and give staff the same
    documents psql gets.
+   The write side (pull request 5): planner_state_put(), planner_item_put(), planner_item_delete() and
+   adapter_clean_days() refuse both too; staff put and remove one item (a dismissed alert) through the data API, logged
+   as planner. job_runs and adapter_check_days join the tables and views of step 5.
 7. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
@@ -60,6 +67,12 @@ NEW_TABLES = ("worlds", "groups", "airlines", "airline_bases", "airline_aircraft
               "todo_items", "growth_log", "spending_log", "fare_plan", "interline_agreements", "monthly_checks",
               "dismissals", "cash_entries", "load_entries", "load_days", "settings", "world_rules", "change_log")
 NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
+# The adapter's write side (migration 20261010210000_adapter_write_side.sql): its jobs table and view, staff read only
+JOB_TABLES = ("job_runs",)
+JOB_VIEWS = ("adapter_check_days",)
+WRITERS = ("planner_state_put", "planner_item_put", "planner_item_delete", "adapter_clean_days")
+# Tables the side by side may add rows to on any save (its job rows and the change log)
+SIDE_BY_SIDE = {"public.job_runs", "public.change_log"}
 # The capture data in the new model (migration 20261009230000_capture_data.sql): staff read them, nobody else, and only the
 # capture's functions write the tables
 CAPTURE_TABLES = ("game_flights", "game_payments")
@@ -237,6 +250,36 @@ def copied_capture(s0, s1, figures):
     return copied, n
 
 
+def marks():
+    """Where the change log and job_runs stand, so a save's own rows can be told apart."""
+    return json.loads(psql("select json_build_object('log', coalesce((select max(id) from public.change_log), 0), "
+                           "'job', coalesce((select max(id) from public.job_runs), 0))").strip())
+
+
+def side_by_side(mark, intended, detail):
+    """After a save: the change-log rows since the mark (the side by side's copy into the tables) are all ones the save
+    should have made (intended(row)), name actor planner with the given detail, and the save's mirror and comparison
+    rows in job_runs are ok. Returns the problems and how many rows were written. Prints tables, ids and field names,
+    and a failed job's note (paths only), never values."""
+    rows = json.loads(psql(f"""select coalesce(json_agg(json_build_object('table', l.table_name, 'op', l.op, 'id', l.row_key ->> 'id',
+                                  'fields', (select coalesce(json_agg(k order by k), '[]') from jsonb_object_keys(
+                                               case when l.op = 'update' then l.new_values else '{{}}'::jsonb end) k),
+                                  'actor', l.actor, 'detail', l.actor_detail) order by l.id), '[]')
+                                 from public.change_log l where l.id > {int(mark['log'])}""").strip())
+    jobs = json.loads(psql(f"""select coalesce(json_agg(json_build_object('job', job, 'status', status, 'note', note) order by id), '[]')
+                                 from public.job_runs where id > {int(mark['job'])}""").strip())
+    problems = [] if rows else ["the tables didn't change"]
+    for r in rows:
+        if not intended(r):
+            problems.append(f"the tables changed beyond the save: {r['table']} {r['op']} {r['id'] or ''} ({', '.join(r['fields']) or 'whole row'})")
+        if r["actor"] != "planner" or r["detail"] != detail:
+            problems.append(f"a change-log row names {r['actor']} ({r['detail']}), not planner ({detail})")
+    if not {"adapter_mirror", "adapter_check"} <= {j["job"] for j in jobs}:
+        problems.append("job_runs has no mirror or no comparison for the save")
+    problems += [f"{j['job']} {j['status']}: {j['note']}"[:300] for j in jobs if j["status"] != "ok"]
+    return problems, len(rows)
+
+
 def count_changes(before, after, allow=()):
     return [f"row count changed: {t}: {before.get(t, 'none')} -> {after.get(t, 'none')}"
             for t in sorted(set(before) | set(after)) if before.get(t) != after.get(t) and t not in allow]
@@ -355,6 +398,8 @@ async def tick_todo(pl, s0, l0, n0):
     k = await pl.pg.evaluate("id => [...document.querySelectorAll('input[data-tododone]')].findIndex(x => x.dataset.tododone === id)", tid)
     if k < 0:
         return name, ["the first open to-do isn't on Home"]
+    mark = marks()
+    row_id = psql("select id from public.todos where legacy_key = :'k' and world_id = (select id from public.worlds where is_default)", k=tid).strip()
     await pl.pg.locator("input[data-tododone]").nth(k).click()
     await wait_for(read_state, lambda s: s["saved_at"] > s0["saved_at"])
     await settle(pl.pg, 800)
@@ -372,8 +417,13 @@ async def tick_todo(pl, s0, l0, n0):
         problems.append("other fields changed in planner_state: " + ", ".join(other[:12]))
     if months_changed(l0, l1):
         problems.append("planner_loads changed: " + ", ".join(months_changed(l0, l1)))
-    problems += count_changes(n0, n1)
-    return f"{name}: {', '.join(d.split('.', 1)[1] for d in diff if d in want) or 'nothing'} changed", problems
+    problems += count_changes(n0, n1, allow=SIDE_BY_SIDE)
+    # the side by side: that to-do's done and done_at (and doneAt in extra, when its milliseconds are 000)
+    more, n = side_by_side(mark, lambda r: r["table"] == "todos" and r["op"] == "update" and r["id"] == row_id
+                           and set(r["fields"]) <= {"done", "done_at", "extra"}, "mirror")
+    problems += more
+    return (f"{name}: {', '.join(d.split('.', 1)[1] for d in diff if d in want) or 'nothing'} changed; mirrored as {n} change(s) "
+            "to todos (planner, mirror), comparison ok"), problems
 
 
 async def retitle_plan(pl, s0, l0, n0):
@@ -395,6 +445,9 @@ async def retitle_plan(pl, s0, l0, n0):
     title = f"{plans[reg].get('title') or reg} · real-saves check {secrets.token_hex(3)}"
     exported["plans"][reg]["title"] = title
     await pg.evaluate("t => { document.getElementById('io').value = t; }", json.dumps(exported, indent=1))
+    mark = marks()
+    card_id = psql("""select c.id from public.plan_cards c join public.aircraft a on a.id = c.aircraft_id
+                       where a.registration = :'r' and a.world_id = (select id from public.worlds where is_default)""", r=reg).strip()
     await pg.click("#imp")
     await wait_for(read_state, lambda s: s["saved_at"] > s0["saved_at"])
     await settle(pg, 800)
@@ -413,8 +466,13 @@ async def retitle_plan(pl, s0, l0, n0):
         problems.append("other fields changed in planner_state: " + ", ".join(other[:12]))
     if months_changed(l0, l1):
         problems.append("planner_loads changed: " + ", ".join(months_changed(l0, l1)))
-    problems += count_changes(n0, n1)
-    return f"{name}: {', '.join(d.split('.', 2)[2] for d in diff if d in want) or 'nothing'} changed", problems
+    problems += count_changes(n0, n1, allow=SIDE_BY_SIDE)
+    # the side by side: that plan card's title only
+    more, n = side_by_side(mark, lambda r: r["table"] == "plan_cards" and r["op"] == "update" and r["id"] == card_id
+                           and r["fields"] == ["title"], "mirror")
+    problems += more
+    return (f"{name}: {', '.join(d.split('.', 2)[2] for d in diff if d in want) or 'nothing'} changed; mirrored as {n} change(s) "
+            "to plan_cards (planner, mirror), comparison ok"), problems
 
 
 async def pick_flight(pg, l0):
@@ -462,6 +520,7 @@ async def type_load(pl, s0, l0, n0):
     if (await box.input_value()).strip():
         return name, ["the chosen day already has loads in the box"]
     await box.fill(f"{no} {LOAD}")
+    mark = marks()
     await pg.click("#lfsave")
     await wait_for(read_loads, lambda l: mo in l and (mo not in l0 or l[mo]["saved_at"] > l0[mo]["saved_at"]))
     await settle(pg, 800)
@@ -483,9 +542,18 @@ async def type_load(pl, s0, l0, n0):
     if s1["raw"] != s0["raw"] or s1["saved_at"] != s0["saved_at"]:
         problems.append("planner_state changed: " + (", ".join(changed(s0["doc"], s1["doc"])[:12]) or "saved_at only"))
     new_month = mo not in l0 and int(n1.get("public.planner_loads", 0)) == int(n0.get("public.planner_loads", 0)) + 1
-    problems += count_changes(n0, n1, allow={"public.planner_loads"} if new_month else ())
+    problems += count_changes(n0, n1, allow=SIDE_BY_SIDE | {"public.load_entries", "public.load_days"}
+                              | ({"public.planner_loads"} if new_month else set()))
     problems += [f"the planner said: {m}" for m in pl.dialogs[d0:]]
-    return name, problems
+    # the new storage: save_loads() itself writes the typed load and the day's flags, and nothing else changes
+    more, n = side_by_side(mark, lambda r: r["table"] in ("load_entries", "load_days"), "save_loads")
+    problems += more
+    typed = psql("""select e.eco_pct from public.load_entries e join public.airlines a on a.id = e.airline_id
+                     where a.planner_name = :'al' and a.world_id = (select id from public.worlds where is_default)
+                       and e.game_date = :'day'::date and e.flight_no = :'no'::int""", al=al, day=iso, no=no).strip()
+    if not typed or float(typed) != LOAD:
+        problems.append("load_entries doesn't have the typed load for that flight and day")
+    return f"{name}: saved by save_loads() to load_entries and load_days too ({n} change(s), planner, save_loads), comparison ok", problems
 
 
 def guard(env, email, password):
@@ -521,7 +589,7 @@ def guard_new_tables(env, email, password):
     leave nothing: 200 and []), and adding a row to each table is refused (401 signed out, 403 not staff). Prints
     answers only, never rows."""
     n0 = counts()
-    tables, views = NEW_TABLES + CAPTURE_TABLES, NEW_VIEWS + CAPTURE_VIEWS
+    tables, views = NEW_TABLES + CAPTURE_TABLES + JOB_TABLES, NEW_VIEWS + CAPTURE_VIEWS + JOB_VIEWS
     missing = [t for t in tables if f"public.{t}" not in n0]
     problems = [f"no such table on the copy: {', '.join(missing)}"] if missing else []
     for who, token, refused in (("signed out", None, 401), ("not staff", token_for(env, email, password), 403)):
@@ -534,7 +602,7 @@ def guard_new_tables(env, email, password):
             elif code == 200 and json.loads(body) != []:
                 problems.append(f"{who}: read {len(json.loads(body))} row(s) of {t}")
         for t in tables:
-            row = {"op": "insert"} if t == "change_log" else {"created_at": "2026-10-09T00:00:00Z"}
+            row = {"op": "insert"} if t == "change_log" else {"job": "backup"} if t == "job_runs" else {"created_at": "2026-10-09T00:00:00Z"}
             code, _ = http(env, "POST", f"/rest/v1/{t}", row, token=token, prefer="return=minimal")
             if code != refused:
                 problems.append(f"{who}: adding a row to {t} wasn't refused (answer {code}, expected {refused})")
@@ -567,6 +635,43 @@ def guard_getters(env, staff, other):
     if code != 200 or json.loads(body) != int(psql("select public.planner_state_version()").strip()):
         problems.append(f"staff: planner_state_version() answered {code}, or another time than psql")
     return problems
+
+
+def guard_writers(env, staff, other):
+    """Through the data API: the adapter's write functions and adapter_clean_days() refuse a signed-out caller (401) and
+    the account that isn't staff (403); staff put one item (a dismissed alert) and remove it again, both logged as
+    planner, role authenticated. Prints answers only."""
+    problems, n0 = [], counts()
+    calls = (("planner_state_put", {"p_json": "{}", "p_saved_at": None, "p_base": None, "p_client": "real-saves"}),
+             ("planner_item_put", {"p_section": "dismissed", "p_key": "real-saves|refused", "p_value": "2026-10-10"}),
+             ("planner_item_delete", {"p_section": "dismissed", "p_key": "real-saves|refused"}),
+             ("adapter_clean_days", {}))
+    for who, token, expected in (("signed out", None, 401), ("not staff", token_for(env, *other), 403)):
+        for g, body in calls:
+            code, _ = http(env, "POST", f"/rest/v1/rpc/{g}", body, token=token)
+            if code != expected:
+                problems.append(f"{who}: {g}() answered {code}, expected {expected}")
+    token = token_for(env, *staff)
+    key = f"real-saves|{secrets.token_hex(3)}"
+    doc = lambda: json.loads(json.loads(psql("select public.planner_state_get()::text"))["json"])
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_item_put", {"p_section": "dismissed", "p_key": key, "p_value": "2026-10-10"}, token=token)
+    if code != 200 or json.loads(body).get("applied") != 1:
+        problems.append(f"staff: planner_item_put() answered {code}")
+    elif (doc().get("dismissed") or {}).get(key) != "2026-10-10":
+        problems.append("staff: the item put through the data API isn't in planner_state_get()")
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_item_delete", {"p_section": "dismissed", "p_key": key}, token=token)
+    if code != 200 or json.loads(body).get("applied") != 1:
+        problems.append(f"staff: planner_item_delete() answered {code}")
+    elif key in (doc().get("dismissed") or {}):
+        problems.append("staff: the item removed through the data API is still in planner_state_get()")
+    logged = psql("""select count(*) from public.change_log where table_name = 'dismissals' and row_key ->> 'alert_key' = :'k'
+                      and actor = 'planner' and db_role = 'authenticated'""", k=key).strip()
+    if logged != "2":
+        problems.append(f"staff: the item's put and removal logged {logged} time(s) as planner (authenticated), expected 2")
+    code, body = http(env, "POST", "/rest/v1/rpc/adapter_clean_days", {}, token=token)
+    if code != 200 or not isinstance(json.loads(body), int):
+        problems.append(f"staff: adapter_clean_days() answered {code}")
+    return problems + count_changes(n0, counts(), allow=SIDE_BY_SIDE)
 
 
 async def main():
@@ -644,9 +749,9 @@ async def main():
         problems = guard_new_tables(env, *other)
     except Exception as e:
         problems = [why(e)]
-    step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES)} new tables and "
-                       f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS)} views (the capture's included) read no rows, and adding a row "
-                       "to each is refused", problems)
+    step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES)} new tables and "
+                       f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's and job_runs included) read no rows, "
+                       "and adding a row to each is refused", problems)
 
     try:
         problems = guard_getters(env, staff, other)
@@ -654,6 +759,13 @@ async def main():
         problems = [why(e)]
     step(not problems, "the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
                        "planner_loads_get() are refused; staff get what psql gets", problems)
+
+    try:
+        problems = guard_writers(env, staff, other)
+    except Exception as e:
+        problems = [why(e)]
+    step(not problems, "the adapter's write side: signed out and not staff, " + ", ".join(f"{w}()" for w in WRITERS)
+                       + " are refused; staff put and remove an item through the data API, logged as planner", problems)
 
     stopped = ", ".join(sorted(pl.stopped)) or "nothing"
     problems = (["reached: " + ", ".join(sorted(set(pl.outside)))] if pl.outside else []) + \
