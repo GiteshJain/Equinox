@@ -33,16 +33,21 @@ begin
   -- a cash or next-7-day figure: which date and airline, which side has it, and whether the capture's balance came
   -- after the planner last saved (the planner copies a capture in only when it next opens)
   if bad is not null then
-    select '; cash and next-7-day figures: ' || string_agg(format('%s %s %s (%s%s)', x.m[1], x.m[2], x.m[3],
-             case when not coalesce(v_old -> x.m[1] -> x.m[2] ? x.m[3], false) then 'only in the getter'
+    -- (a whole date differs when one side has none of its figures)
+    select '; cash and next-7-day figures: ' || string_agg(format('%s %s %s (%s%s)', x.m[1], x.m[2], coalesce(x.m[3], 'every airline'),
+             case when x.m[3] is null and not coalesce(v_old -> x.m[1] ? x.m[2], false) then 'only in the getter'
+                  when x.m[3] is null and not coalesce(v_new -> x.m[1] ? x.m[2], false) then 'only in planner_state'
+                  when x.m[3] is null then 'the figures differ'
+                  when not coalesce(v_old -> x.m[1] -> x.m[2] ? x.m[3], false) then 'only in the getter'
                   when not coalesce(v_new -> x.m[1] -> x.m[2] ? x.m[3], false) then 'only in planner_state' else 'the figure differs' end,
-             coalesce((select case when cc.cash_at > to_timestamp(p.saved_at / 1000.0) then '; captured after the planner last saved'
-                                   else '; captured before the planner last saved' end
+             coalesce((select format('; %s of %s airlines'' balances captured after the planner last saved',
+                                     count(*) filter (where cc.cash_at > to_timestamp(p.saved_at / 1000.0)), count(*))
                          from public.capture_cash cc join public.airlines al on al.id = cc.airline_id
                          cross join public.planner_state p
-                        where p.id = 'main' and al.planner_name = x.m[3] and cc.day::text = x.m[2]), '; no capture')), ', ')
+                        where p.id = 'main' and (x.m[3] is null or al.planner_name = x.m[3]) and cc.day::text = x.m[2]
+                       having count(*) > 0), '; no capture that date')), ', ')
       into cash_why
-      from (select regexp_match(d.path, '^\$\.(cash|fixed7)\.([^.]+)\.(.+)$') as m
+      from (select regexp_match(d.path, '^\$\.(cash|fixed7)\.([^.]+)(?:\.(.+))?$') as m
               from private.planner_json_differences(v_old, v_new) d where d.kind = 'differs') x
      where x.m is not null;
     bad := bad || coalesce(cash_why, '');
