@@ -1685,6 +1685,9 @@ begin
   where (x.eco_pct, x.entered_at) is distinct from (excluded.eco_pct, excluded.entered_at);
   get diagnostics n = row_count;
 
+  -- a day whose flags the getter shows differently: stamped again even when the row already says the same, since a
+  -- capture since then is what makes the getter differ (it counts the day complete once every airline has flown it,
+  -- while the capture's loads step waits for all of the capture day's pages)
   insert into public.load_days as x (world_id, game_date, done, saved_at_ms, entered_at)
   select w, t.day, coalesce(t.v -> 'done' = 'true'::jsonb, false), private.json_int(t.v -> 'savedAt'), p_at
     from pg_temp.t_lm_days t
@@ -1692,7 +1695,7 @@ begin
       or (t.v -> 'savedAt') is distinct from (t.got -> 'savedAt')
   on conflict (world_id, game_date) do update set done = excluded.done, saved_at_ms = excluded.saved_at_ms,
     entered_at = excluded.entered_at
-  where (x.done, x.saved_at_ms) is distinct from (excluded.done, excluded.saved_at_ms);
+  where (x.done, x.saved_at_ms, x.entered_at) is distinct from (excluded.done, excluded.saved_at_ms, excluded.entered_at);
   get diagnostics m = row_count;
   return jsonb_build_object('load_entries', n, 'load_days', m);
 end

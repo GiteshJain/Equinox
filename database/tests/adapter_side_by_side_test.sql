@@ -100,6 +100,44 @@ begin
   raise notice 'loads: save_loads() wrote load_entries itself (planner, save_loads) and its comparison was ok; the capture''s loads step: % comparison(s), all ok', n;
 end
 $test$;
+
+-- the bug the first rehearsal found: part-way through an evening's capture, once every airline has flown a day, the getter
+-- counts it complete while the capture's loads step waits for all of the capture day's pages; the mirror must copy the
+-- old row's flag in again even though its load_days row already says the same
+do $test$
+declare w bigint := (select id from public.worlds where is_default); mon text := to_char(current_date + 20, 'YYYY-MM');
+  d date := current_date + 20; v_job bigint; j record; first_al bigint;
+begin
+  insert into public.planner_loads (month, json, saved_at) values (mon, jsonb_build_object(d::text, '{"done": false, "f": {}}'::jsonb)::text, 1)
+  on conflict (month) do update set json = (coalesce(public.planner_loads.json::jsonb, '{}') || jsonb_build_object(d::text, '{"done": false, "f": {}}'::jsonb))::text;
+  perform pg_temp.commit_triggers();
+  insert into public.load_days (world_id, game_date, done, saved_at_ms, entered_at) values (w, d, false, null, now() - interval '1 day')
+  on conflict (world_id, game_date) do update set done = false, saved_at_ms = null, entered_at = now() - interval '1 day';
+  -- every active airline has flown the day, each with its own loads page; the first one comes in now
+  insert into public.game_flights (world_id, airline_id, game_date, flight_no, dep_local, eco_pct, loads_captured_at)
+  select w, a.id, d, 9800 + a.position, '06:00', 50, now() - interval '1 hour' from public.airlines a join public.groups g on g.id = a.group_id
+   where a.world_id = w and a.active and g.kind = 'ours';
+  update public.planner_loads set json = (json::jsonb || jsonb_build_object(d::text, jsonb_build_object('done', false, 'f',
+           (select jsonb_object_agg(a.planner_name || '|' || (9800 + a.position), 50) from public.airlines a join public.groups g on g.id = a.group_id
+             where a.world_id = w and a.active and g.kind = 'ours'))))::text
+   where month = mon;
+  perform pg_temp.commit_triggers();
+  first_al := (select a.id from public.airlines a join public.groups g on g.id = a.group_id where a.world_id = w and a.active and g.kind = 'ours' order by a.position limit 1);
+  update public.game_flights set loads_captured_at = now() where airline_id = first_al and game_date = d;
+  v_job := (select max(id) from public.job_runs);
+  -- the loads step for that airline (as private.apply_loads_from_capture writes a day, which looks back only 3 days)
+  update public.planner_loads set json = jsonb_set(json::jsonb, array[d::text], (json::jsonb -> d::text) || jsonb_build_object('captured', now(), 'source', 'capture'))::text,
+         saved_at = saved_at + 1
+   where month = mon;
+  perform pg_temp.commit_triggers();
+  for j in select * from pg_temp.jobs_since(v_job) loop
+    assert j.status = 'ok', format('%s part-way through a capture, once every airline has flown the day: %s', j.job, j.note);
+  end loop;
+  assert (select done = false and entered_at >= now() from public.load_days where world_id = w and game_date = d),
+    'the old row''s flag wasn''t copied in again';
+  raise notice 'part-way through a capture, once every airline has flown a day, the mirror copies the old row''s flag in again and the comparison is ok';
+end
+$test$;
 do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
 
 -- ---------------------------------------------------------------- 3. the trigger never blocks a save
