@@ -24,10 +24,13 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
 4. The guard: signed in as the account that isn't staff, through the data API directly, planner_state reads no rows,
    and the planner's own write (an upsert) and save_loads() are refused; the tables don't change.
 5. The new planner tables (#13) and the capture's new tables and views (game_flights, game_payments, and game_loads,
-   game_flight_pnl and game_ops_recent, now views over them): signed out and as the account that isn't staff, through
-   the data API, every one reads no rows (signed out, the read itself is refused) and a write to each table is refused;
-   no table's row count changes.
-6. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
+   game_flight_pnl and game_ops_recent, now views over them, and capture_cash): signed out and as the account that isn't
+   staff, through the data API, every one reads no rows (signed out, the read itself is refused) and a write to each
+   table is refused; no table's row count changes.
+6. The adapter's read side (#13, pull request 4): through the data API, planner_state_get(), planner_state_version()
+   and planner_loads_get() refuse a signed-out caller and the account that isn't staff, and give staff the same
+   documents psql gets.
+7. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
 Prints one line per step (ok/FAIL), and no row contents beyond ids and the names of the fields that changed, because the
@@ -58,7 +61,9 @@ NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
 # The capture data in the new model (migration 20261009230000_capture_data.sql): staff read them, nobody else, and only the
 # capture's functions write the tables
 CAPTURE_TABLES = ("game_flights", "game_payments")
-CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent")
+CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent", "capture_cash")
+# The adapter's read side (migration 20261010120000_planner_data_load.sql): staff only
+GETTERS = ("planner_state_get", "planner_state_version", "planner_loads_get")
 failures = []
 
 
@@ -492,6 +497,34 @@ def guard_new_tables(env, email, password):
     return problems + count_changes(n0, counts())
 
 
+def guard_getters(env, staff, other):
+    """Through the data API: each getter refuses a signed-out caller (401) and the account that isn't staff (403), and
+    gives staff (200) the same answer as psql, as postgres. Prints answers only, never documents."""
+    problems = []
+    for who, token, expected in (("signed out", None, 401), ("not staff", token_for(env, *other), 403)):
+        for g in GETTERS:
+            code, _ = http(env, "POST", f"/rest/v1/rpc/{g}", {}, token=token)
+            if code != expected:
+                problems.append(f"{who}: {g}() answered {code}, expected {expected}")
+    token = token_for(env, *staff)
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_state_get", {}, token=token)
+    mine = json.loads(psql("select public.planner_state_get()::text"))
+    if code != 200:
+        problems.append(f"staff: planner_state_get() answered {code}")
+    elif json.loads(json.loads(body)["json"]) != json.loads(mine["json"]):
+        problems.append("staff: planner_state_get() gave another document than psql")
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_loads_get", {}, token=token)
+    mine = json.loads(psql("select coalesce(json_agg(json_build_object('month', month, 'json', json::json) order by month), '[]') from public.planner_loads_get()"))
+    if code != 200:
+        problems.append(f"staff: planner_loads_get() answered {code}")
+    elif sorted(([r["month"], json.loads(r["json"])] for r in json.loads(body)), key=lambda x: x[0]) != [[r["month"], r["json"]] for r in mine]:
+        problems.append("staff: planner_loads_get() gave other months than psql")
+    code, body = http(env, "POST", "/rest/v1/rpc/planner_state_version", {}, token=token)
+    if code != 200 or json.loads(body) != int(psql("select public.planner_state_version()").strip()):
+        problems.append(f"staff: planner_state_version() answered {code}, or another time than psql")
+    return problems
+
+
 async def main():
     facts = planner_facts()
     if not facts:
@@ -565,6 +598,13 @@ async def main():
     step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES)} new tables and "
                        f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS)} views (the capture's included) read no rows, and adding a row "
                        "to each is refused", problems)
+
+    try:
+        problems = guard_getters(env, staff, other)
+    except Exception as e:
+        problems = [why(e)]
+    step(not problems, "the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
+                       "planner_loads_get() are refused; staff get what psql gets", problems)
 
     stopped = ", ".join(sorted(pl.stopped)) or "nothing"
     problems = (["reached: " + ", ".join(sorted(set(pl.outside)))] if pl.outside else []) + \
