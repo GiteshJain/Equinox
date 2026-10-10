@@ -90,7 +90,7 @@ as $function$
                    join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                   where g.kind = 'ours' and a.active and a.planner_name is not null),
     -- hubs and focus cities an airline of theirs flies from: code, airline and role only (no banks, no connection times)
-    'hubs', (select coalesce(jsonb_agg(jsonb_build_object('code', b.airport_code, 'airline', al.planner_name, 'role', upper(b.role))   -- DELIBERATE FAILURE: the tests must catch this; removed in the next commit
+    'hubs', (select coalesce(jsonb_agg(jsonb_build_object('code', b.airport_code, 'airline', al.planner_name, 'role', b.role)
                                        order by b.position, b.id), '[]'::jsonb)
                from w
                join public.airline_bases b on b.world_id = w.id
