@@ -1,8 +1,9 @@
 -- The planner's data in the tables, and the adapter's read side (#13 build, pull request 4; design §8, §9). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says where (paths and counts, never values).
---   1. planner_state_get() equals planner_state, and planner_loads_get() every month of planner_loads, with only the
---      differences design §9 allows; each allowed difference used is printed with how often.
+--   1. planner_loads_get() equals every month of planner_loads, with only the differences design §9 allows; each
+--      allowed difference used is printed with how often. (planner_state_get() against planner_state is
+--      planner_load_state_test.sql.)
 --   2. The keys kept in extra (expected: none, beyond each aircraft's place in the old planner's two lists).
 --   3. Running the loader a second time changes no rows, and the documents stay the same.
 --   4. Speed: how long each getter takes on the copy.
@@ -20,44 +21,12 @@ create function pg_temp.places(p_old jsonb, p_new jsonb) returns table (kind tex
 $$;
 create temporary table t_pl (k text primary key, v jsonb) on commit drop;
 
--- ---------------------------------------------------------------- 1. the getters equal today's storage
+-- ---------------------------------------------------------------- 1. the loads documents equal today's
 do $test$
-declare v_old jsonb; v_new jsonb; bad text; cash_why text; used text; n_months int; n_days int;
+declare bad text; used text; n_months int; n_days int;
 begin
-  select p.json::jsonb into v_old from public.planner_state p where p.id = 'main';
-  assert v_old is not null, 'the copy has no planner_state row to compare with';
-  v_new := (public.planner_state_get() ->> 'json')::jsonb;
-  insert into t_pl values ('state', v_new),
+  insert into t_pl values ('state', (public.planner_state_get() ->> 'json')::jsonb),
     ('loads', (select jsonb_object_agg(g.month, g.json::jsonb) from public.planner_loads_get() g));
-  select string_agg(place || ' ×' || n, ', ' order by place) into bad from pg_temp.places(v_old, v_new) where kind = 'differs';
-  -- a cash or next-7-day figure: which date and airline, which side has it, and whether the capture's balance came
-  -- after the planner last saved (the planner copies a capture in only when it next opens)
-  if bad is not null then
-    -- (a whole date differs when one side has none of its figures)
-    select '; cash and next-7-day figures: ' || string_agg(format('%s %s %s (%s%s)', x.m[1], x.m[2], coalesce(x.m[3], 'every airline'),
-             case when x.m[3] is null and not coalesce(v_old -> x.m[1] ? x.m[2], false) then 'only in the getter'
-                  when x.m[3] is null and not coalesce(v_new -> x.m[1] ? x.m[2], false) then 'only in planner_state'
-                  when x.m[3] is null then 'the figures differ'
-                  when not coalesce(v_old -> x.m[1] -> x.m[2] ? x.m[3], false) then 'only in the getter'
-                  when not coalesce(v_new -> x.m[1] -> x.m[2] ? x.m[3], false) then 'only in planner_state' else 'the figure differs' end,
-             coalesce((select format('; %s of %s airlines'' balances captured after the planner last saved',
-                                     count(*) filter (where cc.cash_at > to_timestamp(p.saved_at / 1000.0)), count(*))
-                         from public.capture_cash cc join public.airlines al on al.id = cc.airline_id
-                         cross join public.planner_state p
-                        where p.id = 'main' and (x.m[3] is null or al.planner_name = x.m[3]) and cc.day::text = x.m[2]
-                       having count(*) > 0), '; no capture that date')), ', ')
-      into cash_why
-      from (select regexp_match(d.path, '^\$\.(cash|fixed7)\.([^.]+)(?:\.(.+))?$') as m
-              from private.planner_json_differences(v_old, v_new) d where d.kind = 'differs') x
-     where x.m is not null;
-    bad := bad || coalesce(cash_why, '');
-  end if;
-  assert bad is null, 'planner_state_get() differs from planner_state at: ' || bad;
-  select string_agg(kind || ' ×' || n || ' (' || places || ')', '; ' order by kind) into used
-    from (select kind, sum(n) as n, string_agg(place, ', ' order by place) as places from pg_temp.places(v_old, v_new) group by kind) x;
-  raise notice 'planner_state_get() equals planner_state (% tails, % frequencies, % plan cards, % to-dos); allowed differences used: %',
-    jsonb_array_length(v_old -> 'tails'), jsonb_array_length(v_old -> 'freqs'),
-    (select count(*) from jsonb_object_keys(v_old -> 'plans')), jsonb_array_length(v_old -> 'todos'), coalesce(used, 'none');
 
   -- loads: every month, day and flight
   select string_agg(coalesce(o.month, n.month), ', ') into bad
@@ -115,6 +84,8 @@ begin
   assert bad is null, 'running the loader a second time changed rows: ' || bad;
   assert (public.planner_state_get() ->> 'json')::jsonb = (select v from t_pl where k = 'state'),
     'planner_state_get() changed after the loader ran a second time';
+  assert (select jsonb_object_agg(g.month, g.json::jsonb) from public.planner_loads_get() g) = (select v from t_pl where k = 'loads'),
+    'planner_loads_get() changed after the loader ran a second time';
   -- (rows removed would show as a difference in the documents; rows added would carry this transaction's xmin)
   for i in 1 .. 3 loop
     t0 := clock_timestamp(); perform public.planner_state_get(); v_state := v_state || extract(epoch from clock_timestamp() - t0) * 1000;
