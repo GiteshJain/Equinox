@@ -990,6 +990,10 @@ begin
   perform private.capture_refresh(w.id) from public.worlds w;
 end
 $money$;
+-- DELIBERATE FAILURE, removed in the next commit: one statement block left out of game_flights
+update public.game_statement set flight_id = null
+ where flight_id = (select min(id) from public.game_flights where posted_at is not null and flight_no is null);
+delete from public.game_flights where id = (select min(id) from public.game_flights where posted_at is not null and flight_no is null);
 
 -- ============================================================ 6. game_loads becomes a view; the compatibility views (§3.12, §3.13)
 -- The table keeps its rows under a new name until #18; the view takes its name in the same transaction, so nothing
