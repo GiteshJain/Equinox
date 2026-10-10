@@ -130,7 +130,7 @@ create or replace view public.game_flight_pnl with (security_invoker = true) as
                     ELSE p.amount
                 END AS amount
            FROM game_payments p
-          WHERE ((COALESCE((p.statement_blk)::integer, 1) > 0) AND (p.descr !~~* 'Leasing rate%'::text) AND (p.descr !~~* 'Week-end closing%'::text) AND (p.descr !~~* '%deposit%'::text) AND (p.descr !~~* '%purchase%'::text) AND (p.descr !~~* '%cabin%'::text) AND (p.descr !~~* '%configuration%'::text))
+          WHERE ((COALESCE((p.statement_blk)::integer, 1) > 0) AND (p.kind = 'other'::text))
         )
  SELECT al.planner_name AS airline,
     m.ts,
@@ -205,7 +205,7 @@ create or replace view public.game_ops_recent with (security_invoker = true) as
                 END AS amount,
             0
            FROM game_payments p
-          WHERE ((p.descr !~~* 'Leasing rate%'::text) AND (p.descr !~~* 'Week-end closing%'::text) AND (p.descr !~~* '%deposit%'::text) AND (p.descr !~~* '%purchase%'::text) AND (p.descr !~~* '%cabin%'::text) AND (p.descr !~~* '%configuration%'::text))
+          WHERE (p.kind = 'other'::text)
         ), last AS (
          SELECT x.airline_id,
             max(x.ts) AS lt
