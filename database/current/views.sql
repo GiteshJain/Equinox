@@ -1,3 +1,25 @@
+create or replace view public.capture_cash with (security_invoker = true) as
+ WITH bal AS (
+         SELECT DISTINCT ON (b.airline_id, b.captured_on) b.world_id,
+            b.airline_id,
+            b.captured_on,
+            b.amount,
+            b.captured_at
+           FROM game_balance b
+          WHERE (b.account ~~ '2800%'::text)
+          ORDER BY b.airline_id, b.captured_on, b.captured_at DESC
+        )
+ SELECT world_id,
+    airline_id,
+    captured_on AS day,
+    amount AS cash,
+    ( SELECT sum(e.debit) AS sum
+           FROM game_events e
+          WHERE ((e.airline_id = bal.airline_id) AND (e.debit > (0)::numeric) AND (e.due_at > bal.captured_at) AND (e.due_at <= (bal.captured_at + '7 days'::interval)))) AS fixed_next7,
+    captured_at AS cash_at
+   FROM bal
+  WHERE (amount IS NOT NULL);
+
 create or replace view public.flight_legs_local with (security_invoker = true) as
  SELECT l.id,
     l.world_id,

@@ -1879,9 +1879,6 @@ begin
   perform private.load_planner(w);
   perform private.capture_refresh(w);
   perform private.fill_flight_links(w);
-  -- DELIBERATE FAILURE, to be removed: one leg's departure a minute late, which the tests must catch
-  update public.flight_legs set dep_utc_min = (dep_utc_min + 1) % 1440
-   where id = (select min(l.id) from public.flight_legs l where l.dep_utc_min is not null);
 end
 $load$;
 
