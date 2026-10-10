@@ -627,7 +627,7 @@ with `equinox.change_log = off` and `equinox.actor = migration`.
 1. **Reference rows** (PR 2): Gander; the equinox. group, owned by Gitesh; our six airlines with their game IDs,
    codes, home airports, colours and website text, from `capture_all.user.js`, the planner's constants and `site.js`.
 2. **Capture data** (PR 3): `game_flights` from every statement line since 6 Oct, plus the loads rows; non-flight
-   lines into `game_payments`; ids on the other capture tables; scan tables renamed and split. **This happens before
+   lines into `game_payments`; ids on the other capture tables (the scan tables are renamed and split with the history, PR 6). **This happens before
    the 14-day statement clean-up is ever switched on.**
 3. **The planner's data** (PR 4), from `planner_state`, `planner_loads`, `planner_data`, `site_content.mct`,
    `planner_meta.growthRules` and the code constants:
@@ -684,10 +684,10 @@ Supabase's SQL editor, as manual §1 requires; the pull request says which file.
 |---|---|---|
 | 1 | **Full local Supabase in the checks** (#17): the rehearsal starts the database, data API and sign-in with last night's copy; the planner checks sign in as a test staff user and save for real | Saves can be tested before live |
 | 2 | **The tables**, empty: everything in §3 with RLS, grants, descriptions, the change-log trigger and the `private` schema; reference rows for Gander and our airlines | A signed-out visitor reads nothing; the log names its writer; every description is there |
-| 3 | **Capture data:** `game_flights`, `game_payments`, ids on the capture tables, scans split; `capture_ingest` matches airlines by game ID (and still accepts the old names until the new userscript is in) and checks completeness by world; `capture_airlines()` and a userscript that reads its airlines from it (Gitesh reinstalls it with his key: a to-do); compatibility views; backfill since 6 Oct | Old and new views agree on last night's copy; the capture works on saved pages |
+| 3 | **Capture data:** `game_flights`, `game_payments`, ids on the capture tables; `capture_ingest` matches airlines by game ID (and still accepts the old names until the new userscript is in) and checks completeness by world; `capture_airlines()` and a userscript that reads its airlines from it (Gitesh reinstalls it with his key: a to-do); compatibility views; backfill since 6 Oct | Old and new views agree on last night's copy; the capture works on saved pages |
 | 4 | **Data load and the adapter's read side:** the loader, `planner_state_get`, `planner_state_version`, `planner_loads_get` | The getter equals today's JSON on the sample and on last night's copy |
 | 5 | **The adapter's write side:** `planner_state_put`, `save_loads` rewritten, `planner_item_put`/`_delete`, the side-by-side trigger and the nightly comparison | A round trip writes nothing; real saves change only the intended rows; live stays equal night after night |
-| 6 | **History:** `airline_days`, `route_days`, scan summaries, the snapshot on a complete capture, backfill | Backfilled days match the known cash and flights |
+| 6 | **History:** `airline_days`, `route_days`, the scan tables renamed and split (moved here from 3 on 9 Oct, so the scan's functions change once), scan summaries, the snapshot on a complete capture, backfill | Backfilled days match the known cash and flights |
 | 7 | **Jobs:** `pg_cron` on; `job_runs` and the `backup_runs` view; the 10:00 fallback; clean-ups (statement clean-up off until PR 3's backfill is checked on live); archive manifest and guarded delete; the archive step in `equinox-backups`; Home warnings | Jobs run on the copy; `archive_delete` refuses a wrong month, count or checksum |
 | 8 | **Website and scripts:** `site_public`, `site_investor`, `export_*`, `planner_data_set`, `site_admin` and the Photos functions on the tables; the website reads airline text from the data | Website checks pass; outputs equal today's |
 | 9 | **Switch-over:** the planner's storage shim moves to the adapter; `planner_state` and `planner_loads` frozen; side-by-side removed; manual §1, §3, §4, §7 and §9, the map and the table guide updated; a new test sample | Planner checks pass with real saves; the rollback is rehearsed on the copy |
