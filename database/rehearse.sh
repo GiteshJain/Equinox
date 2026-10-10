@@ -84,7 +84,31 @@ if git rev-parse --verify -q "origin/$base" > /dev/null; then
 fi
 
 status=0
-if [ ${#pending[@]} -eq 0 ]; then echo "== no new database changes: nothing to rehearse"
+# Outputs saved before the changes (database/tests/before/*.sql), so a test can compare them afterwards: for example, a
+# view rebuilt on new tables must return the same rows as before. Each file runs in its own transaction and writes only
+# into the schema rehearsal_before, which the data API, the row counts and the table guide don't look at.
+saved=(database/tests/before/*.sql)
+if [ -e "${saved[0]}" ]; then
+  echo "== saving outputs before the changes (into rehearsal_before)"
+  psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c 'drop schema if exists rehearsal_before cascade' \
+    -c 'create schema rehearsal_before' > /dev/null
+  for f in "${saved[@]}"; do
+    if out=$(psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 -f "$f" 2>&1); then
+      echo "ok    $(basename "$f")"
+    else
+      echo "FAIL  $(basename "$f")"
+      echo "$out" | grep -E 'ERROR|DETAIL|CONTEXT' | sed 's/^/      /' | head -n 6
+      status=1
+    fi
+  done
+fi
+if [ -f database/diagnose_capture.sql ]; then   # TEMPORARY (capture-data build): counts and masked shapes only
+  echo "== diagnostics (temporary)"
+  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/diagnose_capture.sql 2>&1 | head -n 150 || true
+fi
+
+if [ $status -ne 0 ]; then pending=(); echo "== the outputs couldn't be saved, so the changes weren't tried"
+elif [ ${#pending[@]} -eq 0 ]; then echo "== no new database changes: nothing to rehearse"
 else echo "== applying ${#pending[@]} new change(s) to the copy"; fi
 for f in "${pending[@]}"; do
   start=$(date +%s%N)
