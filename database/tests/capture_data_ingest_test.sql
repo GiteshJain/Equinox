@@ -8,8 +8,10 @@
 --      stored for it); a key of another world can't send our airlines' pages.
 --   3. The capture day (design §2): 10:00 UTC to 10:00 UTC, named after the evening.
 --   4. Completeness by world (design §7): a day is complete when every active airline of our groups has all five pages;
---      a 7th active airline makes it incomplete until it is captured too, and planner_loads' done follows. A day
---      already done stays done.
+--      a 7th active airline makes it incomplete until it is captured too. A loads day's done follows (design §8's one
+--      rule, public.loads_day_captured): in planner_loads_get(), and in the capture's loads step, run with the freeze
+--      lifted as a rollback lifts it (since the switch-over, #13 pull request 9, it leaves the frozen planner_loads
+--      alone). A day already done stays done in planner_loads.
 
 create temporary table t_i (k text primary key, v text) on commit drop;
 grant select on t_i to anon;
@@ -115,11 +117,14 @@ begin
     from (values ('statement'), ('events'), ('pnl'), ('balance'), ('loads')) k (kind);
   assert private.capture_day_complete(w, d), 'the day isn''t complete once the 7th airline was captured';
 
-  -- planner_loads' done follows: a day (today, so the loads step looks at it) not done until the 7th airline is in
+  -- a loads day's done follows: a day (today, so the loads step looks at it) not done until the 7th airline is in; the
+  -- getter and the capture's loads step agree (the loads step writes planner_loads only with the freeze lifted)
+  if private.planner_frozen_since('public.planner_loads'::regclass) is not null then perform private.unfreeze_planner_state(); end if;
   today := (now() at time zone 'UTC')::date; mon := to_char(today, 'YYYY-MM');
   select id into kf from public.airlines where world_id = w and game_id = 113;
   delete from public.game_capture_raw where captured_at >= private.capture_day_start(w, today) and captured_at < private.capture_day_start(w, today) + interval '1 day';
   update public.planner_loads set json = (json::jsonb - today::text)::text where month = mon;
+  delete from public.load_days where world_id = w and game_date = today;
   insert into public.game_flights (world_id, airline_id, game_date, flight_no, dep_local, eco_pct, loads_captured_at)
   values (w, kf, today, 9901, '23:59', 50, now()) on conflict do nothing;
   insert into public.game_capture_raw (world_id, airline_id, airline, kind, rows, captured_at)
@@ -131,12 +136,16 @@ begin
   select json::jsonb into j from public.planner_loads where month = mon;
   assert j #> array[today::text, 'done'] = 'false'::jsonb, 'planner_loads marks a day done without the 7th airline: ' || coalesce(j #>> array[today::text, 'done'], 'missing');
   assert j #> array[today::text, 'f', 'Kingfisher|9901'] = '50'::jsonb, 'the loads step didn''t add the flight';
+  assert (select g.json::jsonb #> array[today::text, 'done'] from public.planner_loads_get(w) g where g.month = mon) = 'false'::jsonb,
+    'planner_loads_get() marks a day done without the 7th airline';
   insert into public.game_capture_raw (world_id, airline_id, airline, kind, rows, captured_at)
   select w, al7, 'Seventh Air', k.kind, '[]', private.capture_day_start(w, today) + interval '13 hours'
     from (values ('statement'), ('events'), ('pnl'), ('balance'), ('loads')) k (kind);
   perform private.apply_loads_from_capture(kf);
   select json::jsonb into j from public.planner_loads where month = mon;
   assert j #> array[today::text, 'done'] = 'true'::jsonb, 'planner_loads doesn''t mark the day done once every airline is in';
+  assert (select g.json::jsonb #> array[today::text, 'done'] from public.planner_loads_get(w) g where g.month = mon) = 'true'::jsonb,
+    'planner_loads_get() doesn''t mark the day done once every airline is in';
   -- a day already done stays done
   delete from public.game_capture_raw where airline_id = al7;
   perform private.apply_loads_from_capture(kf);

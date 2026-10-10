@@ -6,9 +6,9 @@ and each airline's page, the newsroom and an article, investors, about, gander m
 link into the planner.
 
 Every page is opened twice (#13, pull request 8): on the feed site_public() gives since then, which carries our airlines
-(names, codes, colours, text and order, from the airlines table), and on the sample's own feed, which doesn't, so the
-website's own copy is used. Both show the airlines in the site's order; with the airlines in the feed, the text comes
-from the feed.
+(names, codes, colours, text and order, from the airlines table), and on the feed without them, so the website's own
+copy is used (the sample's own feed, with its airlines key taken out when it has one: samples made since pull request 9
+have it). Both show the airlines in the site's order; with the airlines in the feed, the text comes from the feed.
 
 Usage: python3 tests/site_test.py
 """
@@ -52,8 +52,7 @@ def check(ok, name, detail=""):
 
 async def main():
     S = sample()
-    old = S["site_public"]
-    assert "airlines" not in old, "the sample's feed already has airlines: the fallback isn't tested any more"
+    old = {k: v for k, v in S["site_public"].items() if k != "airlines"}   # the feed without our airlines: the fallback
     feeds = [("feed with airlines", dict(old, airlines=FEED_AIRLINES)), ("old feed, no airlines", old)]
     slugs = ["pan-am", "virgin-atlantic", "ryanair", "kingfisher", "china-eastern", "malaysia-airlines"]
     post = old["posts"][0]["slug"]

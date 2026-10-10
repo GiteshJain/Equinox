@@ -1,8 +1,13 @@
 """Real saves (decision #17): the pull request's own planner, signed in as a test staff user, saves for real into a full
 local copy of Supabase restored from last night's backup, and the tables are read back afterwards.
 
-Run by database/rehearse.sh as its last step, once the restore, the pending changes and the SQL tests have passed. It
-needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
+Run by database/rehearse.sh, once the restore, the pending changes and the SQL tests have passed. It needs that copy
+(Docker and the backup), so it isn't part of tests/run_all.sh. Since the switch-over (#13, pull request 9) the planner
+reads and saves the tables through the adapter, and it runs in one of two phases (REAL_SAVES_PHASE):
+  - after (the default): on the copy with every pending change, this pull request's included;
+  - before: on the copy with only the changes live already has. Cloudflare publishes the planner when a pull request is
+    merged and its migration is applied afterwards, so the new planner must also save into the database as it is until
+    then (the rehearsal's pass 0, when a pull request changes both).
 
 1. Test users: two accounts made through the local sign-in's admin API, with throwaway passwords made here: one added
    to planner_users (staff), one not. They exist only in the copy.
@@ -10,45 +15,46 @@ needs that copy (Docker and the backup), so it isn't part of tests/run_all.sh.
    request for the live Supabase host is answered by the local copy instead, with the live public key swapped for the
    local one. The planner's Supabase library, the exact version it names, comes from npm and is served in place of the
    CDN copy. Any other outside request is stopped.
-3. It signs in through the planner's own form as staff (opening it must save nothing, except the planner's own copy of a
-   capture taken after it last saved: cash and fixed7 figures equal to the capture's, as planner_load_state_test.sql
-   allows them; the Building chat's call, 10 Oct), then saves three things, one at a time, and after each reads the
-   tables with psql:
-   - ticks the first open to-do as done: planner_state changes only in that to-do's done and doneAt;
+3. It signs in through the planner's own form as staff. Opening it saves nothing: no table changes (no change-log row),
+   and the old rows (planner_state, planner_loads) stay as they were.
+4. It saves three things through the adapter, one at a time, and after each reads the copy with psql:
+   - ticks the first open to-do: planner_state_get() changes only in that to-do's done and doneAt, and the tables in
+     exactly that row (todos: done, done_at), logged as actor planner with the tab's ID;
    - changes the first plan card's title. The planner has no field for that, so it goes through the planner's own
-     backup screen (Reference > Data: export, change the title, import), which saves the whole document:
-     planner_state changes only in that title;
-   - types a load for one flight on the Review page (Manual entry > Loads by hand, saved through save_loads()), on the
-     latest recent day with no loads yet: that month's planner_loads row has the typed load for that day and flight,
-     and every other day and month is unchanged.
-   savedAt and version are bookkeeping and may change, and saved_at must move forward. A missing key counts as null.
-   After each save the other planner table is untouched and no table's row count changed (database/backup/counts.sql),
-   apart from job_runs and change_log, which the side by side writes, and load_entries and load_days for a typed load.
-   Side by side (#13, pull request 5): after each save the tables changed in exactly the intended rows (the to-do's
-   done and done_at; the plan card's title; the flight's typed load and the day's flags), the change log names actor
-   planner (detail mirror, or save_loads for a typed load), and the save's mirror and comparison rows in job_runs are ok.
-4. The guard: signed in as the account that isn't staff, through the data API directly, planner_state reads no rows,
-   and the planner's own write (an upsert) and save_loads() are refused; the tables don't change.
-5. The new planner tables (#13) and the capture's new tables and views (game_flights, game_payments, and game_loads,
-   game_flight_pnl and game_ops_recent, now views over them, and capture_cash): signed out and as the account that isn't
-   staff, through the data API, every one reads no rows (signed out, the read itself is refused) and a write to each
-   table is refused; no table's row count changes.
-6. The adapter's read side (#13, pull request 4): through the data API, planner_state_get(), planner_state_version()
-   and planner_loads_get() refuse a signed-out caller and the account that isn't staff, and give staff the same
-   documents psql gets.
-   The write side (pull request 5): planner_state_put(), planner_item_put(), planner_item_delete() and
-   adapter_clean_days() refuse both too; staff put and remove one item (a dismissed alert) through the data API, logged
-   as planner. job_runs and adapter_check_days join the tables and views of step 5.
-7. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
+     backup screen (Reference > Data: export, change the title, import), which saves the whole document: only that
+     title changes (plan_cards.title), logged the same way;
+   - types a load for one flight on the Review page (Manual entry > Loads by hand, through save_loads()), on the latest
+     recent day with no loads yet in planner_loads_get(): that day, and only that day, has the typed load and is done;
+     load_entries and load_days change, logged as planner (save_loads).
+   savedAt and version are bookkeeping and may change. A missing key counts as null. After each save planner_state is
+   as it was (the planner no longer writes it) and no table's row count changed but change_log's (and the load tables'
+   for a typed load).
+   After: planner_loads is as it was too, and no job_runs row is written (the side by side is gone).
+   Before: save_loads() still writes planner_loads (that day only), and the side by side copies and compares it, ok.
+Only after:
+5. The old rows refuse a direct write: as postgres "frozen since <date>; write to the tables"; as staff through the data
+   API, refused. Neither changes.
+6. Two tabs: two pages load the same version. The first ticks a to-do; the second, still showing it unticked, saves a
+   new title for that to-do (a clash) and for another (no clash) through its backup screen. The second keeps its other
+   title, skips the clashing one, reloads with the message naming it, and then saves that to-do's title from what it
+   reloaded, without another reload.
+7. A preview address reads through the getters and saves nothing: no write reaches the copy, no table changes.
+8. The guards: the account that isn't staff reads no planner_state rows and its writes are refused; signed out and as
+   that account, the new tables and views read nothing and refuse a new row; the getters, the write functions and
+   adapter_clean_days() refuse both; staff put and remove one item through the data API, logged as planner.
+9. Rollback: private.unfreeze_planner_state() makes planner_state and planner_loads equal the getters exactly; the old
+   planner code (the last planner that saved planner_state itself, commit OLD_PLANNER, served the same way) then signs
+   in and saves a to-do tick into planner_state, which the side by side copies into the tables, comparison ok.
+10. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
 Prints one line per step (ok/FAIL), and no row contents beyond ids and the names of the fields that changed, because the
 log is posted on the pull request. Never prints the local keys or the test passwords.
 
-Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV (a file holding `supabase status -o env`), LOCAL_DB_URL and
-SECRET_TABLES. Usage: python3 tests/real_saves_test.py
+Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV (a file holding `supabase status -o env`), LOCAL_DB_URL,
+SECRET_TABLES and REAL_SAVES_PHASE (before or after). Usage: python3 tests/real_saves_test.py
 """
-import asyncio, datetime, json, os, re, secrets, subprocess, sys, tarfile, tempfile, time, urllib.error, urllib.request
+import asyncio, datetime, json, os, re, secrets, shutil, subprocess, sys, tarfile, tempfile, time, urllib.error, urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 from harness import ROOT, WEB, LIVE_HOST, serve, settle, go
@@ -58,6 +64,10 @@ PLANNER = WEB / "planner" / "index.html"
 COUNTS = ROOT / "database" / "backup" / "counts.sql"
 DB = os.environ.get("LOCAL_DB_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres")
 SKIP = os.environ.get("SECRET_TABLES", "public.ingest_secret,public.capture_keys,public.report_access")
+PHASE = os.environ.get("REAL_SAVES_PHASE", "after")
+BEFORE = PHASE == "before"
+# the last planner that saved planner_state itself (as pull request 8 left it): what a rollback of the switch-over reverts to
+OLD_PLANNER = "eb4c3efe2276b387429d579a8b262110b2e9fbf7"
 LOAD = 61                         # the load typed for one flight (under 95%, so the planner keeps it)
 BOOKKEEPING = {"savedAt", "version"}
 # The planner tables of #13 (migration 20261009210000_planner_tables.sql): staff only, closed to everyone else
@@ -71,14 +81,14 @@ NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
 JOB_TABLES = ("job_runs",)
 JOB_VIEWS = ("adapter_check_days",)
 WRITERS = ("planner_state_put", "planner_item_put", "planner_item_delete", "adapter_clean_days")
-# Tables the side by side may add rows to on any save (its job rows and the change log)
-SIDE_BY_SIDE = {"public.job_runs", "public.change_log"}
 # The capture data in the new model (migration 20261009230000_capture_data.sql): staff read them, nobody else, and only the
 # capture's functions write the tables
 CAPTURE_TABLES = ("game_flights", "game_payments")
 CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent", "capture_cash")
 # The adapter's read side (migration 20261010120000_planner_data_load.sql): staff only
 GETTERS = ("planner_state_get", "planner_state_version", "planner_loads_get")
+# The adapter's writes, as the planner calls them
+SAVES = ("planner_state_put", "save_loads", "planner_item_put", "planner_item_delete")
 failures = []
 
 
@@ -95,8 +105,8 @@ def why(e):
 
 
 # ---------- what the planner itself names: the live address, its public key and its Supabase library ----------
-def planner_facts():
-    html = PLANNER.read_text()
+def planner_facts(html=None):
+    html = html or PLANNER.read_text()
     url = re.search(r'const SB_URL = "(https://[^"]+)"', html)
     key = re.search(r'const SB_KEY = "([^"]+)"', html)
     lib = re.search(r'<script src="(https://cdn\.jsdelivr\.net/npm/@supabase/supabase-js@([0-9][0-9A-Za-z.-]*)/dist/umd/supabase\.js)"', html)
@@ -147,18 +157,25 @@ def counts():
     return dict(line.rsplit(" ", 1) for line in r.stdout.splitlines() if line.strip())
 
 
-def read_state():
-    out = psql("select json_build_object('json', json, 'saved_at', saved_at) from public.planner_state where id = 'main'").strip()
-    if not out:
-        raise RuntimeError("the copy has no planner_state row")
-    row = json.loads(out)
-    return {"doc": json.loads(row["json"]), "raw": row["json"], "saved_at": int(row["saved_at"])}
+def read_doc():
+    """The planner's document as it reads it: planner_state_get()."""
+    g = json.loads(psql("select public.planner_state_get()::text").strip())
+    return {"doc": json.loads(g["json"]), "saved_at": int(g["saved_at"])}
 
 
 def read_loads():
+    """The planner's loads as it reads them: planner_loads_get(), by month."""
     out = psql("select coalesce(json_object_agg(month, json_build_object('json', json, 'saved_at', saved_at)), '{}') "
-               "from public.planner_loads").strip()
-    return {m: {"doc": json.loads(r["json"]), "raw": r["json"], "saved_at": int(r["saved_at"])} for m, r in json.loads(out).items()}
+               "from public.planner_loads_get()").strip()
+    return {m: {"doc": json.loads(r["json"]), "saved_at": int(r["saved_at"])} for m, r in json.loads(out).items()}
+
+
+def read_old():
+    """The old rows as they stand: planner_state and every planner_loads month (text and saved_at)."""
+    out = psql("""select json_build_object(
+                    'state', (select json_build_object('json', json, 'saved_at', saved_at) from public.planner_state where id = 'main'),
+                    'loads', coalesce((select json_object_agg(month, json_build_object('json', json, 'saved_at', saved_at)) from public.planner_loads), '{}'))""").strip()
+    return json.loads(out)
 
 
 _opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))   # straight to the copy, never through a proxy
@@ -208,75 +225,37 @@ def changed(a, b, path=""):
     return [] if a == b and isinstance(a, bool) == isinstance(b, bool) else [path]   # 2 equals 2.0, but true isn't 1
 
 
-def capture_figures():
-    """Per airline (planner name) and date, the capture's cash and next-7-day figures in millions, rounded as the planner
-    rounds them (capture_cash), and when the balance and the latest event the figure counts were captured (ms)."""
-    out = psql("""select coalesce(json_agg(json_build_object('airline', al.planner_name, 'day', cc.day,
-                    'cash', floor(cc.cash / 10000 + 0.5) / 100,
-                    'fixed7', case when cc.fixed_next7 > 0 then floor(cc.fixed_next7 / 10000 + 0.5) / 100 end,
-                    'cash_at', floor(extract(epoch from cc.cash_at) * 1000),
-                    'events_at', (select floor(extract(epoch from max(e.captured_at)) * 1000) from public.game_events e
-                                   where e.airline_id = cc.airline_id and e.debit > 0
-                                     and e.due_at > cc.cash_at and e.due_at <= cc.cash_at + interval '7 days'))), '[]')
-                  from public.capture_cash cc join public.airlines al on al.id = cc.airline_id
-                 where cc.world_id = (select w.id from public.worlds w where w.is_default)""").strip()
-    return {(r["airline"], r["day"]): r for r in json.loads(out)}
-
-
-def copied_capture(s0, s1, figures):
-    """Of the paths that changed between two planner_state reads, those that are the planner's own copy of a capture taken
-    after it last saved (applyCaptureCash, on opening): a cash or fixed7 figure equal to the capture's, whose balance
-    for that date (or, for fixed7, an event it counts) was captured after s0 was saved. Returns them and how many
-    figures they hold. Removed figures never count."""
-    copied, n = set(), 0
-    for path in changed(s0["doc"], s1["doc"]):
-        m = re.match(r"^(cash|fixed7)\.(\d{4}-\d{2}-\d{2})(?:\.(.+))?$", path)
-        if not m:
-            continue
-        sec, day, al = m.groups()
-        now = (s1["doc"].get(sec) or {}).get(day)
-        was = (s0["doc"].get(sec) or {}).get(day)
-        if not isinstance(now, dict) or (al is None and isinstance(was, dict) and set(was) - set(now)):
-            continue
-        ok = True
-        for a in ([al] if al else list(now)):
-            v, f = now.get(a), figures.get((a, day))
-            ok = ok and isinstance(v, (int, float)) and not isinstance(v, bool) and f is not None and f[sec] is not None \
-                and abs(v - float(f[sec])) < 1e-9 \
-                and (f["cash_at"] > s0["saved_at"] or (sec == "fixed7" and (f["events_at"] or 0) > s0["saved_at"]))
-        if ok:
-            copied.add(path)
-            n += 1 if al else len(now)
-    return copied, n
-
-
 def marks():
     """Where the change log and job_runs stand, so a save's own rows can be told apart."""
     return json.loads(psql("select json_build_object('log', coalesce((select max(id) from public.change_log), 0), "
                            "'job', coalesce((select max(id) from public.job_runs), 0))").strip())
 
 
-def side_by_side(mark, intended, detail):
-    """After a save: the change-log rows since the mark (the side by side's copy into the tables) are all ones the save
-    should have made (intended(row)), name actor planner with the given detail, and the save's mirror and comparison
-    rows in job_runs are ok. Returns the problems and how many rows were written. Prints tables, ids and field names,
-    and a failed job's note (paths only), never values."""
-    rows = json.loads(psql(f"""select coalesce(json_agg(json_build_object('table', l.table_name, 'op', l.op, 'id', l.row_key ->> 'id',
+def log_since(mark):
+    """The change-log rows since the mark: table, op, id, the names of the fields an update changed, actor and detail."""
+    return json.loads(psql(f"""select coalesce(json_agg(json_build_object('table', l.table_name, 'op', l.op, 'id', l.row_key ->> 'id',
                                   'fields', (select coalesce(json_agg(k order by k), '[]') from jsonb_object_keys(
                                                case when l.op = 'update' then l.new_values else '{{}}'::jsonb end) k),
                                   'actor', l.actor, 'detail', l.actor_detail) order by l.id), '[]')
                                  from public.change_log l where l.id > {int(mark['log'])}""").strip())
-    jobs = json.loads(psql(f"""select coalesce(json_agg(json_build_object('job', job, 'status', status, 'note', note) order by id), '[]')
+
+
+def jobs_since(mark):
+    return json.loads(psql(f"""select coalesce(json_agg(json_build_object('job', job, 'status', status, 'note', note) order by id), '[]')
                                  from public.job_runs where id > {int(mark['job'])}""").strip())
+
+
+def logged(mark, intended, detail):
+    """After a save: the change-log rows since the mark are all ones the save should have made (intended(row)), and name
+    actor planner with the given detail. Returns the problems and how many rows there were. Prints tables, ids and field
+    names, never values."""
+    rows = log_since(mark)
     problems = [] if rows else ["the tables didn't change"]
     for r in rows:
         if not intended(r):
             problems.append(f"the tables changed beyond the save: {r['table']} {r['op']} {r['id'] or ''} ({', '.join(r['fields']) or 'whole row'})")
         if r["actor"] != "planner" or r["detail"] != detail:
             problems.append(f"a change-log row names {r['actor']} ({r['detail']}), not planner ({detail})")
-    if not {"adapter_mirror", "adapter_check"} <= {j["job"] for j in jobs}:
-        problems.append("job_runs has no mirror or no comparison for the save")
-    problems += [f"{j['job']} {j['status']}: {j['note']}"[:300] for j in jobs if j["status"] != "ok"]
     return problems, len(rows)
 
 
@@ -287,6 +266,26 @@ def count_changes(before, after, allow=()):
 
 def months_changed(a, b, skip=()):
     return [m for m in sorted(set(a) | set(b)) if m not in skip and a.get(m) != b.get(m)]
+
+
+def old_rows_problems(o0, o1, loads_month=None, loads_day=None):
+    """The old rows after a save: planner_state as it was; planner_loads as it was, except (before the switch-over) the
+    typed day of its month."""
+    problems = []
+    if o1["state"] != o0["state"]:
+        problems.append("planner_state changed (the planner no longer writes it)")
+    for m in sorted(set(o0["loads"]) | set(o1["loads"])):
+        a, b = o0["loads"].get(m), o1["loads"].get(m)
+        if a == b:
+            continue
+        if m != loads_month:
+            problems.append(f"planner_loads {m} changed")
+            continue
+        ja, jb = json.loads((a or {}).get("json") or "{}"), json.loads(b["json"])
+        other = [d for d in sorted(set(ja) | set(jb)) if d not in (loads_day, "__savedAt") and ja.get(d) != jb.get(d)]
+        if other:
+            problems.append(f"planner_loads {m} changed on other days: {', '.join(other[:8])}")
+    return problems
 
 
 async def wait_for(read, moved, seconds=20):
@@ -304,6 +303,7 @@ class Planner:
     def __init__(self, p, port, env, facts, lib_js):
         self.p, self.port, self.env, self.f, self.lib = p, port, env, facts, lib_js
         self.copy = 0            # requests for the live Supabase host, answered by the local copy
+        self.rpcs = []           # the functions it called on the copy, in order
         self.served = 0          # times the planner's library was served from npm's copy
         self.local = 0           # requests to the local server
         self.stopped = set()     # hosts whose requests were stopped
@@ -312,7 +312,7 @@ class Planner:
         self.dialogs = []        # alerts the planner showed (dismissed)
         self.b = self.api = None
 
-    async def open(self):
+    async def open(self, host=LIVE_HOST):
         # belt and braces: any name but the planner's own address fails to resolve, and no proxy is used
         rules = f"MAP {LIVE_HOST} 127.0.0.1:{self.port}, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost"
         self.b = await self.p.chromium.launch(args=[f"--host-resolver-rules={rules}", "--no-proxy-server"])
@@ -325,9 +325,9 @@ class Planner:
         self.pg = pg = await ctx.new_page()
         pg.on("pageerror", lambda e: self.errors.append("page error: " + str(e)[:200]))
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
-              if m.type == "error" and "Failed to load resource" not in m.text else None)
+              if m.type == "error" and "Failed to load resource" not in m.text and "Preview: not sent" not in m.text else None)
         pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
-        await pg.goto(f"http://{LIVE_HOST}:{self.port}/planner/")
+        await pg.goto(f"http://{host}:{self.port}/planner/")
         return pg
 
     async def route(self, r):
@@ -335,6 +335,9 @@ class Planner:
         live, host = self.f["live_url"], urlsplit(r.request.url)
         if u.startswith(live + "/"):
             self.copy += 1
+            m = re.match(r"^/rest/v1/rpc/([^/?]+)", u[len(live):])
+            if m:
+                self.rpcs.append(m[1])
             key, anon = self.f["live_key"], self.env["ANON_KEY"]
             headers = {k: v.replace(key, anon) for k, v in (await req.all_headers()).items()
                        if not k.startswith(":") and k.lower() not in ("host", "content-length", "connection", "accept-encoding", "cookie")}
@@ -373,22 +376,26 @@ class Planner:
         if self.api:
             await self.api.dispose()
 
-    async def sign_in(self, email, password):
+    async def sign_in(self, email, password, preview=False):
         pg = self.pg
         await pg.wait_for_selector("#g-email", timeout=30000)
         await pg.fill("#g-email", email)
         await pg.fill("#g-pass", password)
         await pg.click("#g-in")
         # it reloads once after signing in (so the route research loads with the session), then reads the copy
-        await pg.wait_for_function("""() => window.__eqDataLoaded === true && window.__eqPreview === false
+        state = "/preview/" if preview else "/cloud/"
+        await pg.wait_for_function(f"""() => window.__eqDataLoaded === true && window.__eqPreview === {'true' if preview else 'false'}
             && (!document.getElementById('gate') || document.getElementById('gate').style.display === 'none')
-            && /cloud/.test((document.getElementById('savestate') || {}).textContent || '')""", timeout=60000)
+            && {state}.test((document.getElementById('savestate') || {{}}).textContent || '')""", timeout=60000)
         await settle(pg, 1500)
+
+    async def tab(self):
+        return await self.pg.evaluate("window.__eqTab || ''")
 
 
 # ---------- the three saves ----------
-async def tick_todo(pl, s0, l0, n0):
-    todos = s0["doc"].get("todos") or []
+async def tick_todo(pl, d0, l0, o0, n0):
+    todos = d0["doc"].get("todos") or []
     i = next((i for i, t in enumerate(todos) if isinstance(t, dict) and not t.get("done")), None)
     if i is None:
         return "tick a to-do", ["last night's data has no open to-do to tick"]
@@ -398,81 +405,87 @@ async def tick_todo(pl, s0, l0, n0):
     k = await pl.pg.evaluate("id => [...document.querySelectorAll('input[data-tododone]')].findIndex(x => x.dataset.tododone === id)", tid)
     if k < 0:
         return name, ["the first open to-do isn't on Home"]
-    mark = marks()
+    mark, tab = marks(), await pl.tab()
     row_id = psql("select id from public.todos where legacy_key = :'k' and world_id = (select id from public.worlds where is_default)", k=tid).strip()
     await pl.pg.locator("input[data-tododone]").nth(k).click()
-    await wait_for(read_state, lambda s: s["saved_at"] > s0["saved_at"])
+    await wait_for(read_doc, lambda d: ((d["doc"].get("todos") or [{}] * (i + 1))[i] or {}).get("done") is True)
     await settle(pl.pg, 800)
-    s1, l1, n1 = read_state(), read_loads(), counts()
+    d1, l1, o1, n1 = read_doc(), read_loads(), read_old(), counts()
     want = {f"todos[{i}].done", f"todos[{i}].doneAt"}
-    diff = changed(s0["doc"], s1["doc"])
-    t1 = (s1["doc"].get("todos") or [])[i] if len(s1["doc"].get("todos") or []) > i else {}
+    diff = changed(d0["doc"], d1["doc"])
+    t1 = (d1["doc"].get("todos") or [])[i] if len(d1["doc"].get("todos") or []) > i else {}
     problems = []
-    if s1["saved_at"] <= s0["saved_at"]:
-        problems.append("planner_state wasn't saved (saved_at didn't move)")
     if t1.get("id") != tid or t1.get("done") is not True or not t1.get("doneAt"):
         problems.append(f"the to-do isn't saved as done (done: {t1.get('done')!r}, doneAt set: {bool(t1.get('doneAt'))})")
     other = [d for d in diff if d not in want | BOOKKEEPING]
     if other:
-        problems.append("other fields changed in planner_state: " + ", ".join(other[:12]))
+        problems.append("other fields changed in planner_state_get(): " + ", ".join(other[:12]))
     if months_changed(l0, l1):
-        problems.append("planner_loads changed: " + ", ".join(months_changed(l0, l1)))
-    problems += count_changes(n0, n1, allow=SIDE_BY_SIDE)
-    # the side by side: that to-do's done and done_at (and doneAt in extra, when its milliseconds are 000)
-    more, n = side_by_side(mark, lambda r: r["table"] == "todos" and r["op"] == "update" and r["id"] == row_id
-                           and set(r["fields"]) <= {"done", "done_at", "extra"}, "mirror")
+        problems.append("planner_loads_get() changed: " + ", ".join(months_changed(l0, l1)))
+    problems += old_rows_problems(o0, o1)
+    problems += count_changes(n0, n1, allow={"public.change_log"})
+    more, n = logged(mark, lambda r: r["table"] == "todos" and r["op"] == "update" and r["id"] == row_id
+                     and set(r["fields"]) <= {"done", "done_at", "extra"}, tab)
     problems += more
-    return (f"{name}: {', '.join(d.split('.', 1)[1] for d in diff if d in want) or 'nothing'} changed; mirrored as {n} change(s) "
-            "to todos (planner, mirror), comparison ok"), problems
+    problems += [f"a job_runs row: {j['job']}" for j in jobs_since(mark)]
+    return (f"{name}: {', '.join(d.split('.', 1)[1] for d in diff if d in want) or 'nothing'} changed; {n} change(s) to todos "
+            f"(planner, the tab's ID); planner_state unchanged"), problems
 
 
-async def retitle_plan(pl, s0, l0, n0):
-    plans = s0["doc"].get("plans") or {}
-    if not plans:
-        return "change a plan card's title", ["last night's data has no plan card"]
-    reg = next(iter(plans))
-    name = f"change a plan card's title ({reg})"
-    pg = pl.pg
+async def export_doc(pg):
     await go(pg, "ref")
     if not await pg.evaluate("(document.querySelector('details.rsec[data-rsec=\"Data\"]') || {}).open === true"):
         await pg.click("details.rsec[data-rsec='Data'] > summary")
         await settle(pg, 300)
     async with pg.expect_download(timeout=30000) as dl:
         await pg.click("#exp")
-    exported = json.loads(Path(await (await dl.value).path()).read_text())
+    return json.loads(Path(await (await dl.value).path()).read_text())
+
+
+async def import_doc(pg, doc):
+    await pg.evaluate("t => { document.getElementById('io').value = t; }", json.dumps(doc, indent=1))
+    await pg.click("#imp")
+
+
+async def retitle_plan(pl, d0, l0, o0, n0):
+    plans = d0["doc"].get("plans") or {}
+    if not plans:
+        return "change a plan card's title", ["last night's data has no plan card"]
+    reg = next(iter(plans))
+    name = f"change a plan card's title ({reg})"
+    pg = pl.pg
+    exported = await export_doc(pg)
     if reg not in (exported.get("plans") or {}):
         return name, ["the planner's export has no such plan card"]
     title = f"{plans[reg].get('title') or reg} · real-saves check {secrets.token_hex(3)}"
     exported["plans"][reg]["title"] = title
-    await pg.evaluate("t => { document.getElementById('io').value = t; }", json.dumps(exported, indent=1))
-    mark = marks()
+    mark, tab = marks(), await pl.tab()
     card_id = psql("""select c.id from public.plan_cards c join public.aircraft a on a.id = c.aircraft_id
                        where a.registration = :'r' and a.world_id = (select id from public.worlds where is_default)""", r=reg).strip()
-    await pg.click("#imp")
-    await wait_for(read_state, lambda s: s["saved_at"] > s0["saved_at"])
+    await import_doc(pg, exported)
+    await wait_for(read_doc, lambda d: ((d["doc"].get("plans") or {}).get(reg) or {}).get("title") == title)
     await settle(pg, 800)
-    s1, l1, n1 = read_state(), read_loads(), counts()
+    d1, l1, o1, n1 = read_doc(), read_loads(), read_old(), counts()
     want = {f"plans.{reg}.title"}
-    diff = changed(s0["doc"], s1["doc"])
+    diff = changed(d0["doc"], d1["doc"])
     problems = []
     if await pg.evaluate("(document.getElementById('io') || {}).value || ''") != "Imported.":
         problems.append("the planner didn't take its own export back")
-    if s1["saved_at"] <= s0["saved_at"]:
-        problems.append("planner_state wasn't saved (saved_at didn't move)")
-    if ((s1["doc"].get("plans") or {}).get(reg) or {}).get("title") != title:
-        problems.append("the new title isn't in planner_state")
+    if ((d1["doc"].get("plans") or {}).get(reg) or {}).get("title") != title:
+        problems.append("the new title isn't in planner_state_get()")
     other = [d for d in diff if d not in want | BOOKKEEPING]
     if other:
-        problems.append("other fields changed in planner_state: " + ", ".join(other[:12]))
+        problems.append("other fields changed in planner_state_get(): " + ", ".join(other[:12]))
     if months_changed(l0, l1):
-        problems.append("planner_loads changed: " + ", ".join(months_changed(l0, l1)))
-    problems += count_changes(n0, n1, allow=SIDE_BY_SIDE)
-    # the side by side: that plan card's title only
-    more, n = side_by_side(mark, lambda r: r["table"] == "plan_cards" and r["op"] == "update" and r["id"] == card_id
-                           and r["fields"] == ["title"], "mirror")
+        problems.append("planner_loads_get() changed: " + ", ".join(months_changed(l0, l1)))
+    problems += old_rows_problems(o0, o1)
+    problems += count_changes(n0, n1, allow={"public.change_log"})
+    more, n = logged(mark, lambda r: r["table"] == "plan_cards" and r["op"] == "update" and r["id"] == card_id
+                     and r["fields"] == ["title"], tab)
     problems += more
-    return (f"{name}: {', '.join(d.split('.', 2)[2] for d in diff if d in want) or 'nothing'} changed; mirrored as {n} change(s) "
-            "to plan_cards (planner, mirror), comparison ok"), problems
+    problems += [f"a job_runs row: {j['job']}" for j in jobs_since(mark)]
+    return (f"{name}: {', '.join(d.split('.', 2)[2] for d in diff if d in want) or 'nothing'} changed; {n} change(s) to "
+            "plan_cards (planner, the tab's ID); planner_state unchanged"), problems
 
 
 async def pick_flight(pg, l0):
@@ -498,8 +511,8 @@ async def pick_flight(pg, l0):
     return None
 
 
-async def type_load(pl, s0, l0, n0):
-    pg, d0 = pl.pg, len(pl.dialogs)
+async def type_load(pl, d0, l0, o0, n0):
+    pg, dl0 = pl.pg, len(pl.dialogs)
     got = await pick_flight(pg, l0)
     if not got:
         return "type a load", ["no day in the last two weeks or the next week is free of loads and has a flight in the planner"]
@@ -522,42 +535,236 @@ async def type_load(pl, s0, l0, n0):
     await box.fill(f"{no} {LOAD}")
     mark = marks()
     await pg.click("#lfsave")
-    await wait_for(read_loads, lambda l: mo in l and (mo not in l0 or l[mo]["saved_at"] > l0[mo]["saved_at"]))
+    await wait_for(read_loads, lambda l: ((l.get(mo) or {}).get("doc", {}).get(iso) or {}).get("f") == {key: LOAD})
     await settle(pg, 800)
-    l1, s1, n1 = read_loads(), read_state(), counts()
+    l1, d1, o1, n1 = read_loads(), read_doc(), read_old(), counts()
     problems = []
-    if mo not in l1 or (mo in l0 and l1[mo]["saved_at"] <= l0[mo]["saved_at"]):
-        problems.append("planner_loads wasn't saved (saved_at didn't move)")
-    else:
-        a, b = (l0.get(mo) or {"doc": {}})["doc"], l1[mo]["doc"]
-        entry = b.get(iso) if isinstance(b.get(iso), dict) else {}
-        if entry.get("f") != {key: LOAD} or entry.get("done") is not True:
-            problems.append(f"the day isn't saved as typed (flights saved: {', '.join(sorted(entry.get('f') or {})) or 'none'}; "
-                            f"done: {entry.get('done')!r})")
-        other = [d for d in sorted(set(a) | set(b)) if d not in (iso, "__savedAt") and a.get(d) != b.get(d)]
-        if other:
-            problems.append("other days changed: " + ", ".join(other[:12]))
+    a, b = (l0.get(mo) or {"doc": {}})["doc"], (l1.get(mo) or {"doc": {}})["doc"]
+    entry = b.get(iso) if isinstance(b.get(iso), dict) else {}
+    if entry.get("f") != {key: LOAD} or entry.get("done") is not True:
+        problems.append(f"the day isn't saved as typed in planner_loads_get() (flights: {', '.join(sorted(entry.get('f') or {})) or 'none'}; "
+                        f"done: {entry.get('done')!r})")
+    other = [x for x in sorted(set(a) | set(b)) if x != iso and a.get(x) != b.get(x)]
+    if other:
+        problems.append("other days changed: " + ", ".join(other[:12]))
     if months_changed(l0, l1, skip={mo}):
         problems.append("other months changed: " + ", ".join(months_changed(l0, l1, skip={mo})))
-    if s1["raw"] != s0["raw"] or s1["saved_at"] != s0["saved_at"]:
-        problems.append("planner_state changed: " + (", ".join(changed(s0["doc"], s1["doc"])[:12]) or "saved_at only"))
-    new_month = mo not in l0 and int(n1.get("public.planner_loads", 0)) == int(n0.get("public.planner_loads", 0)) + 1
-    problems += count_changes(n0, n1, allow=SIDE_BY_SIDE | {"public.load_entries", "public.load_days"}
-                              | ({"public.planner_loads"} if new_month else set()))
-    problems += [f"the planner said: {m}" for m in pl.dialogs[d0:]]
-    # the new storage: save_loads() itself writes the typed load and the day's flags, and nothing else changes
-    more, n = side_by_side(mark, lambda r: r["table"] in ("load_entries", "load_days"), "save_loads")
+    diff = [x for x in changed(d0["doc"], d1["doc"]) if x not in BOOKKEEPING]
+    if diff:
+        problems.append("planner_state_get() changed: " + ", ".join(diff[:12]))
+    # before the switch-over save_loads() still writes planner_loads (that day only), and the side by side follows it
+    problems += old_rows_problems(o0, o1, loads_month=mo if BEFORE else None, loads_day=iso)
+    new_month = BEFORE and mo not in o0["loads"] and int(n1.get("public.planner_loads", 0)) == int(n0.get("public.planner_loads", 0)) + 1
+    allow = {"public.change_log", "public.load_entries", "public.load_days"} | ({"public.job_runs"} if BEFORE else set()) \
+        | ({"public.planner_loads"} if new_month else set())
+    problems += count_changes(n0, n1, allow=allow)
+    problems += [f"the planner said: {m}" for m in pl.dialogs[dl0:]]
+    more, n = logged(mark, lambda r: r["table"] in ("load_entries", "load_days"), "save_loads")
     problems += more
+    jobs = jobs_since(mark)
+    if BEFORE:
+        if not {"adapter_mirror", "adapter_check"} <= {j["job"] for j in jobs}:
+            problems.append("job_runs has no mirror or no comparison for the planner_loads write")
+        problems += [f"{j['job']} {j['status']}: {j['note']}"[:300] for j in jobs if j["status"] != "ok"]
+    else:
+        problems += [f"a job_runs row: {j['job']}" for j in jobs]
     typed = psql("""select e.eco_pct from public.load_entries e join public.airlines a on a.id = e.airline_id
                      where a.planner_name = :'al' and a.world_id = (select id from public.worlds where is_default)
                        and e.game_date = :'day'::date and e.flight_no = :'no'::int""", al=al, day=iso, no=no).strip()
     if not typed or float(typed) != LOAD:
         problems.append("load_entries doesn't have the typed load for that flight and day")
-    return f"{name}: saved by save_loads() to load_entries and load_days too ({n} change(s), planner, save_loads), comparison ok", problems
+    return (f"{name}: saved by save_loads() to load_entries and load_days ({n} change(s), planner, save_loads); "
+            + ("planner_loads that day too, its side-by-side comparison ok" if BEFORE else "planner_loads unchanged")), problems
 
 
+# ---------- after the switch-over only ----------
+def frozen_rows(env, staff):
+    """The old rows refuse a direct write: as postgres with the freeze's message; as staff through the data API."""
+    problems, o0 = [], read_old()
+    for sql in ("update public.planner_state set saved_at = saved_at where id = 'main'",
+                "insert into public.planner_loads (month, json, saved_at) values ('2099-12', '{}', 1)"):
+        r = subprocess.run(["psql", DB, "-X", "-At", "-q", "-v", "ON_ERROR_STOP=1", "-c", sql], capture_output=True, text=True, timeout=60)
+        if r.returncode == 0 or not re.search(r"frozen since .+; write to the tables", r.stderr):
+            problems.append("as postgres, " + ("an update of planner_state" if sql.startswith("update") else "an insert into planner_loads")
+                            + " wasn't refused with \"frozen since ...; write to the tables\"")
+    token = token_for(env, *staff)
+    code, _ = http(env, "POST", "/rest/v1/planner_state", {"id": "main", "json": "{}", "saved_at": 1}, token=token,
+                   prefer="resolution=merge-duplicates,return=minimal")
+    if code not in (401, 403):
+        problems.append(f"as staff through the data API, writing planner_state wasn't refused (answer {code})")
+    if read_old() != o0:
+        problems.append("an old row changed")
+    since = psql("select private.planner_frozen_since('public.planner_state'::regclass)").strip()
+    return problems, since
+
+
+async def two_tabs(p, port, env, facts, lib, staff):
+    """Two pages load the same version; the first ticks to-do X; the second, still showing X unticked, saves new titles for
+    X (a clash) and Y (no clash). It keeps Y, skips X, reloads with the message naming X; then saves X's title from what
+    it reloaded, without another reload."""
+    d0 = read_doc()
+    open_ids = [t.get("id") for t in d0["doc"].get("todos") or [] if isinstance(t, dict) and not t.get("done") and t.get("id")]
+    if len(open_ids) < 2:
+        return "two tabs", ["last night's data has fewer than two open to-dos"]
+    x, y = open_ids[0], open_ids[1]
+    a, b = Planner(p, port, env, facts, lib), Planner(p, port, env, facts, lib)
+    problems = []
+    try:
+        await a.open(); await a.sign_in(*staff)
+        await b.open(); await b.sign_in(*staff)
+        tab_a, tab_b = await a.tab(), await b.tab()
+        if not tab_a or tab_a == tab_b:
+            problems.append("the two pages don't have two tab IDs")
+        # the second page's view, as it loaded it (before the first saves)
+        stale = await export_doc(b.pg)
+        # the first page ticks X
+        await go(a.pg, "home")
+        k = await a.pg.evaluate("id => [...document.querySelectorAll('input[data-tododone]')].findIndex(z => z.dataset.tododone === id)", x)
+        if k < 0:
+            return "two tabs", ["the first open to-do isn't on Home"]
+        await a.pg.locator("input[data-tododone]").nth(k).click()
+        await wait_for(read_doc, lambda d: next((t for t in d["doc"].get("todos") or [] if t.get("id") == x), {}).get("done") is True)
+        await settle(a.pg, 800)
+        # the second page, from its stale view: X's title (clashes with the first page's tick) and Y's (doesn't)
+        mark = marks()
+        tx, ty = f"two tabs {secrets.token_hex(3)}: X", f"two tabs {secrets.token_hex(3)}: Y"
+        for t in stale.get("todos") or []:
+            if t.get("id") == x:
+                t["title"] = tx
+            if t.get("id") == y:
+                t["title"] = ty
+        await import_doc(b.pg, stale)
+        try:
+            await b.pg.wait_for_selector(".eqtoast", timeout=20000)
+            toast = await b.pg.evaluate("(document.querySelector('.eqtoast') || {}).textContent || ''")
+        except Exception:
+            toast = ""
+        await settle(b.pg, 800)
+        d1 = read_doc()
+        t_x = next((t for t in d1["doc"].get("todos") or [] if t.get("id") == x), {})
+        t_y = next((t for t in d1["doc"].get("todos") or [] if t.get("id") == y), {})
+        if t_x.get("done") is not True or t_x.get("title") == tx:
+            problems.append("the clashing to-do isn't as the first page left it (the second overwrote it, or the tick is gone)")
+        if t_y.get("title") != ty:
+            problems.append("the second page's change to the other to-do wasn't kept")
+        if "Newer changes were saved elsewhere" not in toast or f"todos {x}" not in toast:
+            problems.append(f"the second page didn't reload with the message naming the skipped to-do (it said: {toast[:160]!r})")
+        b_view = await export_doc(b.pg)
+        if next((t for t in b_view.get("todos") or [] if t.get("id") == x), {}).get("done") is not True:
+            problems.append("the second page didn't reload the first page's tick")
+        rows = log_since(mark)
+        if any(r["actor"] != "planner" or r["detail"] != tab_b for r in rows):
+            problems.append("the second page's save isn't logged as planner with its tab's ID")
+        # now, from what it reloaded, the second page saves X's title: no clash, no reload
+        await settle(b.pg, 4800)   # the message goes after 4.5 s
+        tx2 = f"two tabs {secrets.token_hex(3)}: X again"
+        for t in b_view.get("todos") or []:
+            if t.get("id") == x:
+                t["title"] = tx2
+        await import_doc(b.pg, b_view)
+        await wait_for(read_doc, lambda d: next((t for t in d["doc"].get("todos") or [] if t.get("id") == x), {}).get("title") == tx2, seconds=15)
+        await settle(b.pg, 1200)
+        if next((t for t in read_doc()["doc"].get("todos") or [] if t.get("id") == x), {}).get("title") != tx2:
+            problems.append("after reloading, the second page couldn't save the to-do it had been told to make again")
+        if await b.pg.evaluate("!!document.querySelector('.eqtoast')"):
+            problems.append("after reloading, the second page was told to reload again")
+        problems += a.errors + b.errors
+    finally:
+        await a.close(); await b.close()
+    return f"two tabs: the second kept its other to-do, skipped the one the first had ticked, reloaded naming it (todos {x}), then saved it", problems
+
+
+async def preview(p, port, env, facts, lib, staff):
+    """At a preview address the planner reads through the getters and saves nothing."""
+    pv = Planner(p, port, env, facts, lib)
+    problems, n0, mark = [], counts(), marks()
+    try:
+        await pv.open(host="127.0.0.1")
+        await pv.sign_in(*staff, preview=True)
+        await go(pv.pg, "home")
+        box = pv.pg.locator("input[data-tododone]")
+        if await box.count():
+            await box.first.click()
+            await settle(pv.pg, 1500)
+        else:
+            problems.append("no to-do to tick on Home")
+        read = sorted(set(pv.rpcs) & set(GETTERS))
+        if "planner_state_get" not in read or "planner_loads_get" not in read:
+            problems.append(f"the preview didn't read through the getters (it called {', '.join(sorted(set(pv.rpcs))) or 'nothing'})")
+        sent = [r for r in pv.rpcs if r in SAVES]
+        if sent:
+            problems.append("the preview sent a save to the copy: " + ", ".join(sent))
+        if log_since(mark):
+            problems.append("the tables changed")
+        problems += count_changes(n0, counts())
+        problems += pv.errors
+    finally:
+        await pv.close()
+    return f"a preview address reads through the getters ({', '.join(sorted(set(pv.rpcs) & set(GETTERS)))}) and saves nothing", problems, pv
+
+
+async def rollback(p, env, lib, staff):
+    """private.unfreeze_planner_state(), then the old planner code (the base branch's) signs in and ticks a to-do."""
+    problems = []
+    res = json.loads(psql("select private.unfreeze_planner_state()::text").strip())
+    g, o = json.loads(psql("select public.planner_state_get()::text").strip()), read_old()
+    if json.loads(o["state"]["json"]) != json.loads(g["json"]) or int(o["state"]["saved_at"]) != int(g["saved_at"]):
+        problems.append("after private.unfreeze_planner_state(), planner_state isn't planner_state_get() exactly")
+    gl = read_loads()
+    bad = [m for m in gl if m not in o["loads"] or json.loads(o["loads"][m]["json"]) != gl[m]["doc"] or int(o["loads"][m]["saved_at"]) != gl[m]["saved_at"]]
+    if bad:
+        problems.append("after private.unfreeze_planner_state(), these planner_loads months aren't the getter's: " + ", ".join(bad))
+    # the old planner, as the base branch has it
+    shown = subprocess.run(["git", "show", f"{OLD_PLANNER}:web/planner/index.html"], capture_output=True, text=True, cwd=ROOT)
+    if shown.returncode:
+        return "rollback", problems + [f"couldn't read the old planner (commit {OLD_PLANNER[:7]})"], None
+    old_facts = planner_facts(shown.stdout)
+    if not old_facts or "planner_state_put" in shown.stdout:
+        return "rollback", problems + [f"commit {OLD_PLANNER[:7]}'s planner isn't the old one"], None
+    if old_facts["lib_version"] != planner_facts()["lib_version"]:
+        lib = library(old_facts["lib_version"])
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        shutil.copytree(WEB, tmp / "web")
+        (tmp / "web" / "planner" / "index.html").write_text(shown.stdout)
+        with serve(root=tmp / "web") as port:
+            old = Planner(p, port, env, old_facts, lib)
+            try:
+                await old.open()
+                await old.sign_in(*staff)
+                s0 = read_old()["state"]
+                d0 = json.loads(s0["json"])
+                open_ids = [t.get("id") for t in d0.get("todos") or [] if isinstance(t, dict) and not t.get("done") and t.get("id")]
+                if not open_ids:
+                    return "rollback", problems + ["no open to-do left for the old planner to tick"], old
+                await go(old.pg, "home")
+                k = await old.pg.evaluate("id => [...document.querySelectorAll('input[data-tododone]')].findIndex(z => z.dataset.tododone === id)", open_ids[0])
+                mark = marks()
+                await old.pg.locator("input[data-tododone]").nth(k).click()
+                s1 = await wait_for(lambda: read_old()["state"], lambda s: next((t for t in json.loads(s["json"]).get("todos") or []
+                                                                                 if t.get("id") == open_ids[0]), {}).get("done") is True)
+                await settle(old.pg, 1500)
+                if int(s1["saved_at"]) <= int(s0["saved_at"]):
+                    problems.append("the old planner's save didn't reach planner_state")
+                jobs = jobs_since(mark)
+                if not {"adapter_mirror", "adapter_check"} <= {j["job"] for j in jobs}:
+                    problems.append("the side by side didn't copy and compare the old planner's save")
+                problems += [f"{j['job']} {j['status']}: {j['note']}"[:300] for j in jobs if j["status"] != "ok"]
+                if next((t for t in read_doc()["doc"].get("todos") or [] if t.get("id") == open_ids[0]), {}).get("done") is not True:
+                    problems.append("the old planner's tick didn't reach the tables")
+                problems += old.errors
+            finally:
+                await old.close()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return (f"rollback: private.unfreeze_planner_state() (frozen since {res.get('was_frozen_since')}) made planner_state and "
+            f"{res.get('planner_loads_months')} planner_loads month(s) the getters' exactly; the old planner ({OLD_PLANNER[:7]}) then signed "
+            "in and ticked a to-do into planner_state, copied into the tables, comparison ok"), problems, old
+
+
+# ---------- the guards ----------
 def guard(env, email, password):
-    s0, l0, n0 = read_state(), read_loads(), counts()
+    o0, n0 = read_old(), counts()
     token = token_for(env, email, password)
     problems = []
     if is_planner_user(env, token):
@@ -571,16 +778,13 @@ def guard(env, email, password):
                    prefer="resolution=merge-duplicates,return=minimal")
     if code not in (401, 403):
         problems.append(f"writing planner_state wasn't refused (answer {code})")
-    month = (sorted(l0) or [datetime.date.today().isoformat()[:7]])[-1]
+    month = (sorted(o0["loads"]) or [datetime.date.today().isoformat()[:7]])[-1]
     code, _ = http(env, "POST", "/rest/v1/rpc/save_loads", {"p_month": month, "p_days": {}}, token=token)
     if code not in (401, 403):
         problems.append(f"save_loads() wasn't refused (answer {code})")
-    s1, l1, n1 = read_state(), read_loads(), counts()
-    if s1 != s0:
-        problems.append("planner_state changed")
-    if l1 != l0:
-        problems.append("planner_loads changed")
-    return problems + count_changes(n0, n1)
+    if read_old() != o0:
+        problems.append("an old row changed")
+    return problems + count_changes(n0, counts())
 
 
 def guard_new_tables(env, email, password):
@@ -664,18 +868,19 @@ def guard_writers(env, staff, other):
         problems.append(f"staff: planner_item_delete() answered {code}")
     elif key in (doc().get("dismissed") or {}):
         problems.append("staff: the item removed through the data API is still in planner_state_get()")
-    logged = psql("""select count(*) from public.change_log where table_name = 'dismissals' and row_key ->> 'alert_key' = :'k'
-                      and actor = 'planner' and db_role = 'authenticated'""", k=key).strip()
-    if logged != "2":
-        problems.append(f"staff: the item's put and removal logged {logged} time(s) as planner (authenticated), expected 2")
+    logged_n = psql("""select count(*) from public.change_log where table_name = 'dismissals' and row_key ->> 'alert_key' = :'k'
+                        and actor = 'planner' and db_role = 'authenticated'""", k=key).strip()
+    if logged_n != "2":
+        problems.append(f"staff: the item's put and removal logged {logged_n} time(s) as planner (authenticated), expected 2")
     code, body = http(env, "POST", "/rest/v1/rpc/adapter_clean_days", {}, token=token)
     if code != 200 or not isinstance(json.loads(body), int):
         problems.append(f"staff: adapter_clean_days() answered {code}")
-    return problems + count_changes(n0, counts(), allow=SIDE_BY_SIDE)
+    return problems + count_changes(n0, counts(), allow={"public.change_log"})
 
 
 async def main():
     facts = planner_facts()
+    print(f"phase: {'before this pull request''s database changes' if BEFORE else 'after every pending database change'}", flush=True)
     if not facts:
         step(False, "the planner names its Supabase address, public key and library",
              ["not found in web/planner/index.html, so the planner can't be pointed at the copy without changing it"])
@@ -703,25 +908,26 @@ async def main():
     if problems:
         sys.exit(1)
 
+    planners = []
     with serve() as port:
         async with async_playwright() as p:
             pl = Planner(p, port, env, facts, lib)
+            planners.append(pl)
             try:
-                s0, l0 = read_state(), read_loads()
+                o0, n0, mark = read_old(), counts(), marks()
                 await pl.open()
                 await pl.sign_in(*staff)
-                s, l = read_state(), read_loads()
-                problems, n_copied = list(pl.errors), 0
-                if s != s0:
-                    # the planner copies a capture taken after it last saved into planner_state itself when it opens
-                    copied, n_copied = copied_capture(s0, s, capture_figures())
-                    rest = [d for d in changed(s0["doc"], s["doc"]) if d not in BOOKKEEPING and d not in copied]
-                    if rest or not copied:
-                        problems.append("opening the planner saved planner_state by itself: " + (", ".join(rest[:12]) or "saved_at"))
-                if months_changed(l0, l):
-                    problems.append("opening the planner changed planner_loads: " + ", ".join(months_changed(l0, l)))
-                step(not problems, "sign in as test staff through the planner's own form (live address; opening it saved nothing"
-                     + (f" but its own copy of {n_copied} cash/fixed7 figures captured after it last saved" if n_copied else "") + ")", problems)
+                problems = list(pl.errors)
+                if read_old() != o0:
+                    problems.append("opening the planner changed planner_state or planner_loads")
+                rows = log_since(mark)
+                if rows:
+                    problems.append("opening the planner changed the tables: " + ", ".join(sorted({r['table'] for r in rows})))
+                problems += count_changes(n0, counts())
+                if not {"planner_state_get", "planner_loads_get"} <= set(pl.rpcs):
+                    problems.append(f"it didn't read through the getters (it called {', '.join(sorted(set(pl.rpcs))) or 'nothing'})")
+                step(not problems, "sign in as test staff through the planner's own form (live address; it read planner_state_get() and "
+                                   "planner_loads_get(), and opening it saved nothing)", problems)
                 signed_in = True
             except Exception as e:
                 step(False, "sign in as test staff through the planner's own form", [why(e)] + pl.errors[:3])
@@ -730,48 +936,65 @@ async def main():
                 for label, save in (("tick a to-do", tick_todo), ("change a plan card's title", retitle_plan), ("type a load", type_load)):
                     e0 = len(pl.errors)
                     try:
-                        s, l, n = read_state(), read_loads(), counts()
-                        label, problems = await save(pl, s, l, n)
+                        label, problems = await save(pl, read_doc(), read_loads(), read_old(), counts())
                     except Exception as e:
                         problems = [why(e)]
                     problems += pl.errors[e0:]
                     step(not problems, label, problems)
+                sent = sorted(set(pl.rpcs) & set(SAVES))
+                step(set(sent) == {"planner_state_put", "save_loads"},
+                     f"the planner saved only through the adapter ({', '.join(sent) or 'nothing'})", [f"it called: {', '.join(sorted(set(pl.rpcs)))}"])
             await asyncio.sleep(0.5)
             await pl.close()
 
-    try:
-        problems = guard(env, *other)
-    except Exception as e:
-        problems = [why(e)]
-    step(not problems, "guard: an account that isn't staff reads no planner_state rows, and its writes are refused", problems)
+            if not BEFORE:
+                try:
+                    problems, since = frozen_rows(env, staff)
+                except Exception as e:
+                    problems, since = [why(e)], "?"
+                step(not problems, f"the old rows refuse a direct write (\"frozen since {since}; write to the tables\" as postgres; refused "
+                                   "as staff through the data API) and stay as they were", problems)
+                try:
+                    label, problems = await two_tabs(p, port, env, facts, lib, staff)
+                except Exception as e:
+                    label, problems = "two tabs", [why(e)]
+                step(not problems, label, problems)
+                try:
+                    label, problems, pv = await preview(p, port, env, facts, lib, staff)
+                    planners.append(pv)
+                except Exception as e:
+                    label, problems = "a preview address saves nothing", [why(e)]
+                step(not problems, label, problems)
 
-    try:
-        problems = guard_new_tables(env, *other)
-    except Exception as e:
-        problems = [why(e)]
-    step(not problems, f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES)} new tables and "
-                       f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's and job_runs included) read no rows, "
-                       "and adding a row to each is refused", problems)
+    if not BEFORE:
+        for label, check in (("guard: an account that isn't staff reads no planner_state rows, and its writes are refused", lambda: guard(env, *other)),
+                             (f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES)} new tables and "
+                              f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's and job_runs included) read no rows, "
+                              "and adding a row to each is refused", lambda: guard_new_tables(env, *other)),
+                             ("the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
+                              "planner_loads_get() are refused; staff get what psql gets", lambda: guard_getters(env, staff, other)),
+                             ("the adapter's write side: signed out and not staff, " + ", ".join(f"{w}()" for w in WRITERS)
+                              + " are refused; staff put and remove an item through the data API, logged as planner", lambda: guard_writers(env, staff, other))):
+            try:
+                problems = check()
+            except Exception as e:
+                problems = [why(e)]
+            step(not problems, label, problems)
+        async with async_playwright() as p:
+            try:
+                label, problems, old = await rollback(p, env, lib, staff)
+                if old:
+                    planners.append(old)
+            except Exception as e:
+                label, problems = "rollback", [why(e)]
+            step(not problems, label, problems)
 
-    try:
-        problems = guard_getters(env, staff, other)
-    except Exception as e:
-        problems = [why(e)]
-    step(not problems, "the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
-                       "planner_loads_get() are refused; staff get what psql gets", problems)
-
-    try:
-        problems = guard_writers(env, staff, other)
-    except Exception as e:
-        problems = [why(e)]
-    step(not problems, "the adapter's write side: signed out and not staff, " + ", ".join(f"{w}()" for w in WRITERS)
-                       + " are refused; staff put and remove an item through the data API, logged as planner", problems)
-
-    stopped = ", ".join(sorted(pl.stopped)) or "nothing"
-    problems = (["reached: " + ", ".join(sorted(set(pl.outside)))] if pl.outside else []) + \
+    outside = sorted({h for x in planners for h in x.outside})
+    stopped = ", ".join(sorted({h for x in planners for h in x.stopped})) or "nothing"
+    problems = (["reached: " + ", ".join(outside)] if outside else []) + \
                ([] if pl.copy and pl.served else ["the planner never reached the copy, or never loaded the served library"])
-    step(not problems, f"nothing went outside ({pl.copy} requests answered by the copy, the library served from npm, "
-                       f"{pl.local} from the local server; stopped: {stopped})", problems)
+    step(not problems, f"nothing went outside ({sum(x.copy for x in planners)} requests answered by the copy, the library served from npm, "
+                       f"{sum(x.local for x in planners)} from the local server; stopped: {stopped})", problems)
     print(f"\n{len(failures)} real-saves step(s) failed" if failures else "\nreal saves: all passed", flush=True)
     sys.exit(1 if failures else 0)
 

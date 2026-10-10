@@ -2,7 +2,9 @@
 
 1. Every screen opens: all nine screens, each airline's Review page and the main pop-ups (route, aircraft, plan card)
    open with no errors and show content.
-2. Look-only previews (#8): on a preview address a change saves nothing and says so; on the live address it saves.
+2. Look-only previews (#8): on a preview address a change saves nothing and says so; on the live address it saves,
+   through the adapter (#13, pull request 9): planner_state_put() with the whole document, the tab's ID and as base the
+   saved_at it loaded from planner_state_get(); nothing is written to the old rows.
 3. Loads by hand: on an airline's Review page, a typed day and a paste from the game each save, and send only the days
    they changed, through save_loads() (fix of 9 Oct: the buttons did nothing there, and saves rewrote whole months).
 4. Known answers: the numbers on the screens that matter (Home, the group and each airline's Review page with the cash
@@ -13,7 +15,7 @@
 Usage: python3 tests/planner_test.py [--update]
 """
 import asyncio, difflib, json, re, sys
-from harness import FIX, serve, open_planner, go, settle
+from harness import FIX, serve, open_planner, go, settle, sample
 from playwright.async_api import async_playwright
 
 EXPECTED = FIX / "planner_numbers.expected.json"
@@ -125,19 +127,31 @@ async def manual_loads(p, port):
 
 
 async def look_only(p, port):
+    saved = sample()["planner_state"].get("savedAt") or 1
     for live in (False, True):
-        name = "live address: a change saves" if live else "preview address: a change saves nothing and says so"
+        name = ("live address: a change saves, through planner_state_put() with the tab's ID and the loaded saved_at as base"
+                if live else "preview address: a change saves nothing and says so")
         b, pg, errors = await open_planner(p, port, live=live)
         await go(pg, "home")
         box = "input[data-tododone]"
         if not await pg.evaluate(f"!!document.querySelector('{box}')"):
             check(False, name, "no to-do to tick on Home"); await b.close(); continue
+        tid = await pg.evaluate(f"document.querySelector('{box}').dataset.tododone")
         await pg.click(box); await pg.wait_for_timeout(900)
         writes = await pg.evaluate("window.__WRITES.map(w => w.t || w.rpc || 'file')")
+        put = await pg.evaluate("(window.__WRITES.filter(w => w.rpc === 'planner_state_put').pop() || {}).args || null")
+        tab = await pg.evaluate("window.__eqTab || ''")
         label = await pg.evaluate("document.getElementById('savestate').textContent")
         notice = await pg.evaluate("!!document.querySelector('.eqpreview')")
-        ok = ("planner_state" in writes and not notice and "preview" not in label) if live else (writes == [] and notice and "preview" in label)
-        check(ok, name, f"writes {writes}, indicator '{label}', notice {notice}")
+        if live:
+            doc = json.loads(put["p_json"]) if put and put.get("p_json") else {}
+            todo = next((t for t in doc.get("todos") or [] if t.get("id") == tid), {})
+            ok = (set(writes) == {"planner_state_put"} and todo.get("done") is True and put.get("p_client") == tab and tab.startswith("tab-")
+                  and put.get("p_base") == saved and not notice and "preview" not in label)
+        else:
+            ok = writes == [] and notice and "preview" in label
+        check(ok, name, f"writes {writes}, base {put and put.get('p_base')} (loaded {saved}), tab {'set' if tab else 'none'}, "
+                        f"indicator '{label}', notice {notice}")
         await b.close()
 
 

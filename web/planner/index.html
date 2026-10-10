@@ -881,7 +881,7 @@ if (window.__eqPreview) document.addEventListener("DOMContentLoaded", () => {
   // test server) reads the live data but sends no changes. Sign-in still works. The guard below is the safety net under
   // the planner's own checks: it stops every database or file write that isn't one of the read-only lookups.
   const PREVIEW = window.__eqPreview;
-  const READ_ONLY_RPCS = new Set(["is_planner_user", "site_public"]);
+  const READ_ONLY_RPCS = new Set(["is_planner_user", "site_public", "planner_state_get", "planner_loads_get", "planner_state_version"]);
   const guardedFetch = (input, init = {}) => {
     const method = String(init.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
     if (PREVIEW && method !== "GET" && method !== "HEAD") {
@@ -899,15 +899,19 @@ if (window.__eqPreview) document.addEventListener("DOMContentLoaded", () => {
   sb.auth.onAuthStateChange((ev, session) => { if (session && !window.__eqDataLoaded && !sessionStorage.getItem("eq_data_reload")) { sessionStorage.setItem("eq_data_reload", "1"); location.reload(); } else if (session && window.__eqDataLoaded) sessionStorage.removeItem("eq_data_reload"); });
   window.__sb = sb;
   let authResolve; const authReady = new Promise(r => (authResolve = r));
-  const map = path => { const [col, id] = path.split("/"); return col === "planner" ? { t: "planner_state", k: "id", id: "main" } : { t: "planner_loads", k: "month", id }; };
+  // #13 (pull request 9, design §8): the planner reads and saves the tables through the adapter. The planner document
+  // is planner_state_get() and planner_state_put(), the loads planner_loads_get(). The tab's ID is made once per page
+  // load; each save sends as its base the saved_at this tab last loaded or saved, and the server keeps what doesn't clash.
+  const TAB = "tab-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8); window.__eqTab = TAB;
+  const fail = error => { throw { code: error.code, message: error.message }; };
   const dbAdapter = {
-    doc(path) { const m = map(path); return {
-      async get() { const { data, error } = await sb.from(m.t).select("json,saved_at").eq(m.k, m.id).maybeSingle(); if (error) throw { code: error.code, message: error.message };
-        return { exists: !!data, data: () => (data ? { json: data.json, savedAt: Number(data.saved_at) || 0, version: 2 } : undefined) }; },
-      async set(v) { const row = { [m.k]: m.id, json: v.json, saved_at: Math.round(v.savedAt || Date.now()) }; const { error } = await sb.from(m.t).upsert(row); if (error) throw { code: error.code, message: error.message }; }
+    doc() { return {
+      async get() { const { data, error } = await sb.rpc("planner_state_get"); if (error) fail(error); const ok = !!(data && typeof data.json === "string");
+        return { exists: ok, data: () => (ok ? { json: data.json, savedAt: Number(data.saved_at) || 0, version: 2 } : undefined) }; },
+      async set(v) { const { data, error } = await sb.rpc("planner_state_put", { p_json: v.json, p_saved_at: Math.round(v.savedAt || Date.now()), p_base: v.base || null, p_client: TAB }); if (error) fail(error); return data || {}; }
     }; },
     collection(name) { return { async get() { if (name !== "loads") return { docs: [] };
-      const { data, error } = await sb.from("planner_loads").select("month,json,saved_at"); if (error) throw { code: error.code, message: error.message };
+      const { data, error } = await sb.rpc("planner_loads_get"); if (error) fail(error);
       return { docs: (data || []).map(r => ({ id: r.month, data: () => ({ json: r.json, savedAt: Number(r.saved_at) || 0 }) })) }; } }; }
   };
   const downloads = { async save({ filename, data }) { const b = new Blob([data], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); } };
@@ -1330,16 +1334,21 @@ function makeModel(DATA, state) {
   function lsGet() { try { const v = localStorage.getItem("gander-planner"); return v ? normalize(JSON.parse(v)) : null; } catch (e) { diag.device = "unavailable: " + e.message; return null; } }
   function lsSet() { try { localStorage.setItem("gander-planner", JSON.stringify(state)); diag.device = "ok"; diag.lastDevice = Date.now(); } catch (e) { diag.device = "failed: " + e.message; } }
   let cloudVer = 0;   // saved time of the cloud copy this tab last loaded or wrote
-  async function cloudSavedAt() { const sb = window.__eqsb; if (!sb || !db) return null; try { const { data } = await sb.from("planner_state").select("saved_at").eq("id", "main").maybeSingle(); return data ? Number(data.saved_at) || 0 : null; } catch (e) { return null; } }
+  async function cloudSavedAt() { const sb = window.__eqsb; if (!sb || !db) return null; try { const { data, error } = await sb.rpc("planner_state_version"); return error || data == null ? null : Number(data) || 0; } catch (e) { return null; } }
   async function reloadFromCloud() { try { const snap = await db.doc("planner/state").get(); if (!snap.exists) return false; const remote = normalize(snap.data()); if (!remote) return false; state = remote; cloudVer = remote.savedAt || 0; lsSet(); M = makeModel(DATA, state); render(); return true; } catch (e) { return false; } }
   async function cloudWrite() {
     if (!db) return false;
     try {
-      const remote = await cloudSavedAt();
-      if (remote && cloudVer && remote > cloudVer + 500) {   // a newer copy was saved elsewhere since this tab loaded: keep it
-        if (await reloadFromCloud()) { toast("Newer changes were saved elsewhere, so the planner reloaded them. Your last change wasn't saved: please make it again."); diag.cloud = "ok"; return true; }
+      // the server writes only what changed, and skips anything someone else changed since this tab's base (#13, design §8)
+      const sent = state.savedAt;
+      const r = await db.doc("planner/state").set({ json: JSON.stringify(state), savedAt: state.savedAt, version: 2, base: cloudVer || null });
+      if (r && r.saved_at != null) { cloudVer = Number(r.saved_at) || cloudVer; if (state.savedAt === sent) { state.savedAt = cloudVer; lsSet(); } }   // server time from now on
+      diag.cloud = "ok"; diag.lastCloud = Date.now();
+      if (r && r.reload) {   // a newer change to the same item was saved elsewhere: the rest was saved, that item wasn't
+        const items = Array.isArray(r.skipped_items) ? r.skipped_items : [];
+        if (await reloadFromCloud()) toast("Newer changes were saved elsewhere, so the planner reloaded them. Your last change wasn't saved: please make it again" + (items.length ? " (" + items.join(", ") + ")" : "") + ".");
       }
-      await db.doc("planner/state").set({ json: JSON.stringify(state), savedAt: state.savedAt, version: 2 }); cloudVer = state.savedAt; diag.cloud = "ok"; diag.lastCloud = Date.now(); return true; }
+      return true; }
     catch (e) { diag.cloud = "failed: " + ((e && (e.code || e.message)) || e); console.error("cloud save", e); return false; }
   }
   async function load() {

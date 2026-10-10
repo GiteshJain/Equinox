@@ -1,10 +1,13 @@
--- Side by side on live (#13 build, pull request 5; design §9): the triggers on planner_state and planner_loads. Run by
+-- Side by side (#13 build, pull request 5; design §9): the triggers on planner_state and planner_loads. Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says where (ids, paths and counts, never values).
+-- The switch-over (pull request 9) took the side by side away; a rollback puts it back. So this test first rolls back
+-- inside its own transaction (private.unfreeze_planner_state()) and checks the side by side as the rollback leaves it.
 --   1. A save of planner_state (a to-do ticked, as the planner saves it) is copied into the tables (actor planner,
 --      detail mirror) and the comparison is ok: one job_runs row each. A tab opened before the evening's capture and
---      saved after it is compared ok too; a typed figure the mirror didn't store fails the comparison. Two blank cabin
---      layouts are both kept; a code listed twice fails the comparison, named first in its note.
+--      saved after it now fails the comparison where its document lacks the capture's figure (the cash allowances ended
+--      at the switch-over); a typed figure the mirror didn't store fails it too. Two blank cabin layouts are both kept;
+--      a code listed twice fails the comparison, named first in its note.
 --   2. Loads: save_loads() as staff writes load_entries and load_days itself (actor planner, detail save_loads), and the
 --      capture's loads step is followed too; each write's comparison is ok.
 --   3. The trigger never blocks a save: with the mirror made to fail on purpose, planner_state and planner_loads still
@@ -29,6 +32,10 @@ create temporary table t_mark (k text primary key, v bigint) on commit drop;
 -- what each part checked, printed at the end as four lines (the rehearsal shows a test's first four), speed first
 create temporary table t_said (part int primary key, line text) on commit drop;
 insert into public.planner_users (email) values ('side-by-side-staff@example.com') on conflict do nothing;
+-- the side by side as a rollback puts it back
+do $$ begin
+  if private.planner_frozen_since('public.planner_state'::regclass) is not null then perform private.unfreeze_planner_state(); end if;
+end $$;
 
 -- ---------------------------------------------------------------- 1. a planner_state save
 do $test$
@@ -62,9 +69,10 @@ end
 $test$;
 
 -- ---------------------------------------------------------------- 1b. a planner tab opened before the evening's capture
--- Saved after the capture, its document has no figure for a date the capture filled since: the comparison allows it,
--- since the tables give the capture's figure, whatever the timing (the Building chat's call, 10 Oct). A typed figure the
--- mirror failed to store still fails the comparison.
+-- Saved after the capture, its document has no figure for a date the capture filled since. Until the switch-over the
+-- comparison allowed it (the Building chat's call, 10 Oct); the cash allowances ended with the switch-over, so after a
+-- rollback it fails there, at that date's cash (the mirror itself is ok). A typed figure the mirror failed to store
+-- fails the comparison too.
 alter table public.cash_entries add constraint side_by_side_test_cash check (cash is distinct from 4321000);
 do $test$
 declare w bigint := (select id from public.worlds where is_default); d jsonb; v_job bigint; j record; al text; al_id bigint;
@@ -84,12 +92,10 @@ begin
          saved_at = v_saved
    where id = 'main';
   perform pg_temp.commit_triggers();
-  for j in select * from pg_temp.jobs_since(v_job) loop
-    assert j.status = 'ok', format('%s after a stale tab''s save: %s', j.job, j.note);
-  end loop;
+  assert (select status from pg_temp.jobs_since(v_job) where job = 'adapter_mirror') = 'ok', 'the stale tab''s save wasn''t copied';
   select * into j from pg_temp.jobs_since(v_job) where job = 'adapter_check';
-  assert (j.details -> 'allowed' ->> 'cash/fixed7 captured, not in the saved document')::int >= 1,
-    'the stale tab''s comparison was ok without the allowance for a capture not in the saved document: ' || coalesce((j.details -> 'allowed')::text, 'no row');
+  assert j.status = 'failed' and j.note like '%$.cash.{}%' and not (j.details -> 'allowed') ? 'cash/fixed7 captured, not in the saved document',
+    'a stale tab''s document without the capture''s figure didn''t fail the comparison at that date''s cash: ' || coalesce(j.note, 'no row');
 
   -- the same tab types a figure for that date, and the mirror fails to store it (the check above)
   v_job := (select max(id) from public.job_runs);
@@ -102,10 +108,12 @@ begin
   select * into j from pg_temp.jobs_since(v_job) where job = 'adapter_check';
   assert j.status = 'failed' and j.note like '%$.cash.{}%' and j.details -> 'cash' ->> 0 like format('cash %s %s (the figure differs;%%', day, al),
     'a typed figure the mirror didn''t store didn''t fail the comparison: ' || coalesce(j.note, 'no row');
-  insert into t_said values (4, 'a tab opened before the evening''s capture and saved after it: the capture''s figure the document doesn''t have yet is allowed, comparison ok; a typed figure the mirror didn''t store fails it');
+  insert into t_said values (4, 'a tab opened before the evening''s capture and saved after it: copied, and its comparison fails at that date''s cash (the allowance ended at the switch-over); a typed figure the mirror didn''t store fails it too');
 end
 $test$;
 alter table public.cash_entries drop constraint side_by_side_test_cash;
+-- the test's capture goes again, so the parts below don't meet its figure (no allowance takes it any more)
+delete from public.game_balance where captured_on = '2099-07-01' and account = '2800 Bank account' and amount = 1234567;
 
 -- ---------------------------------------------------------------- 1c. a code the planner lists twice
 -- Two cabin layouts with the same blank code (as "Add config" adds them) are both kept. Two with the same code that
@@ -188,41 +196,39 @@ begin
 end
 $test$;
 
--- the bug the first rehearsal found: part-way through an evening's capture, once every airline has flown a day, the getter
--- counts it complete while the capture's loads step waits for all of the capture day's pages; the mirror must copy the
--- old row's flag in again even though its load_days row already says the same
+-- part-way through an evening's capture (the bug the first rehearsal found: the getter and the capture's loads step used
+-- different rules for a day's done, so the mirror had to copy the old row's flag in again). Since the switch-over both
+-- follow one rule (public.loads_day_captured): with every airline's flights of the day captured only the evening
+-- before, and the first airline's loads page of the day in, both say the day isn't done, and the comparison finds no
+-- difference in it.
 do $test$
 declare w bigint := (select id from public.worlds where is_default); mon text := to_char(current_date + 20, 'YYYY-MM');
-  d date := current_date + 20; v_job bigint; j record; first_al bigint;
+  d date := current_date + 20; v_job bigint; j record; first_al bigint; v_start timestamptz;
 begin
-  insert into public.planner_loads (month, json, saved_at) values (mon, jsonb_build_object(d::text, '{"done": false, "f": {}}'::jsonb)::text, 1)
-  on conflict (month) do update set json = (coalesce(public.planner_loads.json::jsonb, '{}') || jsonb_build_object(d::text, '{"done": false, "f": {}}'::jsonb))::text;
-  perform pg_temp.commit_triggers();
-  insert into public.load_days (world_id, game_date, done, saved_at_ms, entered_at) values (w, d, false, null, now() - interval '1 day')
-  on conflict (world_id, game_date) do update set done = false, saved_at_ms = null, entered_at = now() - interval '1 day';
-  -- every active airline has flown the day, each with its own loads page; the first one comes in now
+  v_start := (d + time '10:00') at time zone 'UTC';
+  -- a test airline of ours, so its loads step touches only the test day
+  insert into public.airlines (world_id, group_id, game_id, planner_name, iata_code, active)
+  select w, g.id, 999031, 'Side Test Air', 'ST', true from public.groups g where g.world_id = w and g.kind = 'ours' order by g.id limit 1
+  returning id into first_al;
   insert into public.game_flights (world_id, airline_id, game_date, flight_no, dep_local, eco_pct, loads_captured_at)
-  select w, a.id, d, 9800 + a.position, '06:00', 50, now() - interval '1 hour' from public.airlines a join public.groups g on g.id = a.group_id
+  select w, a.id, d, 9800 + (a.id % 100)::int, '06:00', 50, v_start - interval '6 hours' from public.airlines a join public.groups g on g.id = a.group_id
    where a.world_id = w and a.active and g.kind = 'ours';
-  update public.planner_loads set json = (json::jsonb || jsonb_build_object(d::text, jsonb_build_object('done', false, 'f',
-           (select jsonb_object_agg(a.planner_name || '|' || (9800 + a.position), 50) from public.airlines a join public.groups g on g.id = a.group_id
-             where a.world_id = w and a.active and g.kind = 'ours'))))::text
-   where month = mon;
-  perform pg_temp.commit_triggers();
-  first_al := (select a.id from public.airlines a join public.groups g on g.id = a.group_id where a.world_id = w and a.active and g.kind = 'ours' order by a.position limit 1);
-  update public.game_flights set loads_captured_at = now() where airline_id = first_al and game_date = d;
+  insert into public.game_capture_raw (world_id, airline_id, airline, kind, rows, captured_at)
+  values (w, first_al, 'side by side test', 'loads', '[]', v_start + interval '12 hours');
+  update public.game_flights set loads_captured_at = v_start + interval '12 hours' where airline_id = first_al and game_date = d;
   v_job := (select max(id) from public.job_runs);
-  -- the loads step for that airline (as private.apply_loads_from_capture writes a day, which looks back only 3 days)
-  update public.planner_loads set json = jsonb_set(json::jsonb, array[d::text], (json::jsonb -> d::text) || jsonb_build_object('captured', now(), 'source', 'capture'))::text,
-         saved_at = saved_at + 1
-   where month = mon;
+  perform private.apply_loads_from_capture(first_al);
   perform pg_temp.commit_triggers();
+  -- (the hand-made day differs in its stamps and in the flights only the evening before's capture wrote, which this test
+  -- skips; what matters here is the day's done)
   for j in select * from pg_temp.jobs_since(v_job) loop
-    assert j.status = 'ok', format('%s part-way through a capture, once every airline has flown the day: %s', j.job, j.note);
+    assert j.note not like '%.done%' and (j.job <> 'adapter_mirror' or j.status = 'ok'), format('%s part-way through a capture: %s', j.job, j.note);
   end loop;
-  assert (select done = false and entered_at >= now() from public.load_days where world_id = w and game_date = d),
-    'the old row''s flag wasn''t copied in again';
-  insert into t_said values (3, 'part-way through a capture, the old row''s day flag is copied in again and the comparison is ok');
+  assert exists (select 1 from pg_temp.jobs_since(v_job) where job = 'adapter_check'), 'part-way through a capture, the loads step wasn''t compared';
+  assert (select json::jsonb #> array[d::text, 'done'] from public.planner_loads where month = mon) = 'false'::jsonb
+     and (select g.json::jsonb #> array[d::text, 'done'] from public.planner_loads_get(w) g where g.month = mon) = 'false'::jsonb,
+    'part-way through a capture, the capture''s loads step or the getter says the day is done';
+  insert into t_said values (3, 'part-way through a capture, the capture''s loads step and the getter both say the day isn''t done (one rule), and the comparison finds no difference in it');
 end
 $test$;
 do $$ begin perform set_config('request.jwt.claims', '', true); end $$;

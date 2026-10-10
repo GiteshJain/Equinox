@@ -6,15 +6,75 @@
 --   1. site_public(): exactly the same, apart from its new airlines key and updated_at; the 6 Oct limits hold (no
 --      bank or transfer times, cabin layouts or aircraft on order) and airlines is our active airlines;
 --   2. site_investor() (a throwaway password) and site_report() for one report: the same, except that cash and
---      next-7-day costs are now the getter's, so they may differ from the old row only as the side by side allows
---      (private.planner_state_check: the capture's figure for a date captured after the planner last saved, or one
---      the saved document doesn't have yet);
---   3. export_for_report('planner'): the same two documents, with only the differences the side by side allows
+--      next-7-day costs are now the getter's, so they may differ from the old row only as the side by side allowed
+--      (the capture's figure for a date captured after the planner last saved, or one the saved document doesn't have
+--      yet);
+--   3. export_for_report('planner'): the same two documents, with only the differences the side by side allowed
 --      (design §9: savedAt and version, a missing key equals null, numbers by value, flight numbers as text, a tail
 --      with no status equals "Active", and the cash and next-7-day ones above);
 --   4. export_planner_data(): the same. (export_capture() is compared in capture_data_compat_test.sql; site_admin() has
 --      no read kinds.)
 -- Each allowed difference used is printed with how often.
+-- The "before" outputs come from the old rows when last night's backup is older than pull request 8, and those lag
+-- behind the capture. The switch-over (pull request 9) made the side by side's comparison strict, so this test keeps
+-- its own copy of the comparison as pull request 5 left it (pg_temp.old_rows_check), for outputs made from the old rows.
+
+create function pg_temp.old_rows_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)
+ returns table (path text, kind text, why text)
+ language sql
+ stable
+as $function$
+  with d as (select x.path, x.kind from private.planner_json_diff(p_old, p_new) x),
+  x as (
+    select d.path, m[1] as sec, m[2] as day, m[3] as airline
+      from d cross join lateral regexp_match(d.path, '^\$\.(cash|fixed7)\.([^.]+)(?:\.(.+))?$') as m
+     where d.kind = 'differs' and m is not null),
+  -- every entry behind a difference there, one per airline and date (a whole date differs when one side has none)
+  entries as (
+    select x.path, x.sec, x.day, x.airline from x where x.airline is not null
+    union
+    select x.path, x.sec, x.day, k.airline from x
+      cross join lateral (select jsonb_object_keys(case when jsonb_typeof(p_new #> array[x.sec, x.day]) = 'object' then p_new #> array[x.sec, x.day] else '{}'::jsonb end)
+                          union
+                          select jsonb_object_keys(case when jsonb_typeof(p_old #> array[x.sec, x.day]) = 'object' then p_old #> array[x.sec, x.day] else '{}'::jsonb end)) as k(airline)
+     where x.airline is null),
+  money as (
+    select e.path, e.sec, e.day, e.airline, p_old #> array[e.sec, e.day, e.airline] as had, p_new #> array[e.sec, e.day, e.airline] as got,
+           cc.cash_at,
+           case when e.sec = 'cash' then floor(cc.cash / 10000 + 0.5) / 100
+                when cc.fixed_next7 > 0 then floor(cc.fixed_next7 / 10000 + 0.5) / 100 end as figure,
+           (select max(ev.captured_at) from public.game_events ev
+             where ev.airline_id = cc.airline_id and ev.debit > 0
+               and ev.due_at > cc.cash_at and ev.due_at <= cc.cash_at + interval '7 days') as events_at
+      from entries e
+      left join public.airlines al on al.planner_name = e.airline and al.world_id = p_world_id
+      left join public.capture_cash cc on cc.airline_id = al.id and cc.day = private.json_date(to_jsonb(e.day))),
+  -- how each entry is allowed: 'late' (captured after the planner last saved), 'not saved' (the saved document has no
+  -- entry), or not at all (null)
+  judged as (
+    select m.*,
+           case when not coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure, false) then null
+                when m.cash_at > to_timestamp(p_saved_at / 1000.0)
+                     or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0)) then 'late'
+                when coalesce(m.had, 'null'::jsonb) = 'null'::jsonb then 'not saved' end as how
+      from money m)
+  select d.path, d.kind, null::text from d where d.kind <> 'differs'
+  union all
+  select d.path,
+         case when not exists (select 1 from judged j where j.path = d.path)
+                   or exists (select 1 from judged j where j.path = d.path and j.how is null) then 'differs'
+              when exists (select 1 from judged j where j.path = d.path and j.how = 'late') then 'cash/fixed7 captured after the planner last saved'
+              else 'cash/fixed7 captured, not in the saved document' end,
+         (select string_agg(format('%s %s %s (%s; %s)', j.sec, j.day, j.airline,
+                   case when j.had is null then 'only in the tables' when j.got is null then 'only in planner_state' else 'the figure differs' end,
+                   case when j.cash_at is null then 'no capture that date'
+                        when j.figure is distinct from (case when jsonb_typeof(j.got) = 'number' then (j.got #>> '{}')::numeric end) then 'not the capture''s figure'
+                        when j.cash_at > to_timestamp(p_saved_at / 1000.0) then 'captured after the planner last saved'
+                        else 'captured before the planner last saved' end), ', ' order by j.sec, j.day, j.airline)
+            from judged j where j.path = d.path and j.how is null)
+    from d where d.kind = 'differs'
+$function$;
+
 
 do $test$
 declare
@@ -34,10 +94,13 @@ begin
   -- ---------------------------------------------------------------- 1. site_public()
   a := public.site_public();
   b := (select value from rehearsal_before.site_outputs where name = 'site_public');
-  if (a - array['airlines', 'updated_at']) is distinct from (b - 'updated_at') then
+  -- (a backup taken after pull request 8 already has the airlines key: then it must be the same too)
+  if (a - array['airlines', 'updated_at']) is distinct from (b - array['airlines', 'updated_at'])
+     or (b ? 'airlines' and a -> 'airlines' is distinct from b -> 'airlines') then
     select string_agg(x.place || ' (' || x.kind || ') ×' || x.n, ', ' order by x.place) into bad
       from (select private.planner_place(d.path) as place, d.kind, count(*) as n
-              from private.planner_json_diff(b - 'updated_at', a - array['airlines', 'updated_at']) d group by 1, 2) x;
+              from private.planner_json_diff(b - 'updated_at' - case when b ? 'airlines' then '' else 'airlines' end,
+                                             a - 'updated_at' - case when b ? 'airlines' then '' else 'airlines' end) d group by 1, 2) x;
     raise exception 'site_public() differs from before, apart from airlines and updated_at, at: %', coalesce(bad, 'the whole answer');
   end if;
   assert jsonb_typeof(a -> 'updated_at') = 'string', 'site_public() has no updated_at';
@@ -76,16 +139,16 @@ begin
   b := (select value from rehearsal_before.site_outputs where name = 'site_investor');
   assert a ->> 'ok' = 'true' and b ->> 'ok' = 'true', 'site_investor() didn''t take the throwaway password, before or after';
   select string_agg(private.planner_place(c.path) || coalesce(' (' || c.why || ')', ''), ', ' order by c.path) into bad
-    from private.planner_state_check(w, jsonb_build_object('cash', b -> 'cash', 'fixed7', b -> 'fixed7'), v_saved,
+    from pg_temp.old_rows_check(w, jsonb_build_object('cash', b -> 'cash', 'fixed7', b -> 'fixed7'), v_saved,
                                      jsonb_build_object('cash', a -> 'cash', 'fixed7', a -> 'fixed7')) c
    where c.kind = 'differs';
-  assert bad is null, 'site_investor()''s cash or next-7-day costs differ from before by more than the side by side allows: ' || bad;
+  assert bad is null, 'site_investor()''s cash or next-7-day costs differ from before by more than the side by side allowed: ' || bad;
   select string_agg(private.planner_place(d.path), ', ' order by d.path) into bad
     from private.planner_json_diff(b - array['cash', 'fixed7'], a - array['cash', 'fixed7']) d where d.kind = 'differs';
   assert bad is null, 'site_investor() differs from before at: ' || bad;
   select string_agg(x.kind || ' ×' || x.n, '; ' order by x.kind) into used
     from (select c.kind, count(*) as n
-            from (select c.kind from private.planner_state_check(w, jsonb_build_object('cash', b -> 'cash', 'fixed7', b -> 'fixed7'), v_saved,
+            from (select c.kind from pg_temp.old_rows_check(w, jsonb_build_object('cash', b -> 'cash', 'fixed7', b -> 'fixed7'), v_saved,
                                                                   jsonb_build_object('cash', a -> 'cash', 'fixed7', a -> 'fixed7')) c
                   union all
                   select d.kind from private.planner_json_diff(b - array['cash', 'fixed7'], a - array['cash', 'fixed7']) d) c
@@ -103,7 +166,7 @@ begin
   assert (select array_agg(k order by k) from jsonb_object_keys(a) k) = '{loads,state}', 'export_for_report(''planner'') isn''t {state, loads}';
   select string_agg(x.place || ' ×' || x.n, ', ' order by x.place), string_agg(x.why, '; ') into bad, why
     from (select private.planner_place(c.path) as place, count(*) as n, string_agg(c.why, '; ') as why
-            from private.planner_state_check(w, b -> 'state', v_saved, a -> 'state') c where c.kind = 'differs' group by 1) x;
+            from pg_temp.old_rows_check(w, b -> 'state', v_saved, a -> 'state') c where c.kind = 'differs' group by 1) x;
   assert bad is null, 'export_for_report(''planner'') state differs from before at: ' || bad || coalesce('; cash and next-7-day figures: ' || why, '');
   select string_agg(coalesce(o.key, n.key), ', ') into bad
     from jsonb_each(b -> 'loads') o full join jsonb_each(a -> 'loads') n on n.key = o.key where o.key is null or n.key is null;
@@ -116,7 +179,7 @@ begin
   select count(*) into n_months from jsonb_object_keys(a -> 'loads');
   select string_agg(x.kind || ' ×' || x.n, '; ' order by x.kind) into used
     from (select y.kind, count(*) as n
-            from (select c.kind from private.planner_state_check(w, b -> 'state', v_saved, a -> 'state') c
+            from (select c.kind from pg_temp.old_rows_check(w, b -> 'state', v_saved, a -> 'state') c
                   union all
                   select d.kind from jsonb_each(b -> 'loads') o join jsonb_each(a -> 'loads') n on n.key = o.key
                          cross join lateral private.planner_json_diff(o.value, n.value) d) y

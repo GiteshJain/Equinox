@@ -12,6 +12,8 @@
 --   3. design §4's worked example, Kingfisher's DEL-JFK frequency z5qbaeg, as stored;
 --   4. site_public(), built from the tables since pull request 8, gives exactly the sample's site_public for the parts
 --      the planner's data makes: hubs, aircraft, frequencies, signed interlines and connection times (design §9).
+-- Since the switch-over (#13, pull request 9) planner_state and planner_loads are frozen; loading the sample into them
+-- lifts the freeze first, as a rollback does (private.unfreeze_planner_state()), inside this test's transaction.
 \set sample `gzip -dc tests/fixtures/sample_2026-10-08.json.gz`
 create temporary table t_sample on commit drop as select :'sample'::jsonb as j;
 \unset sample
@@ -30,6 +32,7 @@ $$;
 do $load$
 declare j jsonb := (select j from t_sample); w bigint := (select id from public.worlds where is_default);
 begin
+  if private.planner_frozen_since('public.planner_state'::regclass) is not null then perform private.unfreeze_planner_state(); end if;
   perform set_config('equinox.change_log', 'off', true), set_config('equinox.actor', 'migration', true);
   delete from public.game_statement; delete from public.game_payments; delete from public.game_flights;
   delete from public.game_events; delete from public.game_balance; delete from public.game_pnl; delete from public.game_capture_raw;

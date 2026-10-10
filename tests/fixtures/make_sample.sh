@@ -7,6 +7,10 @@
 # The folder holds db/ from a backup copy. The copies are in Cloudflare R2 (decision #16): get the latest with
 # database/backup/download.sh <folder> and the R2 reader key, which downloads latest.json and the copy it names, checks
 # the SHA-256 and unpacks it. tests/README.md has the steps, and how to get an older night.
+# Since the switch-over (#13, pull request 9) the planner reads the tables through the adapter, so the sample is made the
+# same way (tests/fixtures/sample.sql): the copy first gets every change in database/migrations/ the backup doesn't have
+# yet, as the database rehearsal does, then the getters build the planner's document and loads. The rehearsal can make a
+# sample too, from its own copy (tests/README.md).
 # Needs Docker, the Supabase CLI and psql 17 (or 16). Run from the repository root.
 set -euo pipefail
 backup=$(cd "$1" && pwd); at=$2
@@ -17,34 +21,25 @@ out="tests/fixtures/sample_${at:0:10}.json.gz"
 cd "$work"; supabase init < /dev/null > /dev/null
 sed -i 's/^major_version = .*/major_version = 17/' supabase/config.toml
 supabase db start > "$work/start.log" 2>&1 || { tail -n 20 "$work/start.log"; exit 1; }
+trap 'supabase stop --no-backup --workdir "$work" > /dev/null 2>&1 || true' EXIT
 cd "$here"
 grep -v 'cli_login_postgres' "$backup/db/roles.sql" > "$work/roles.sql" || true
 psql "$LOCAL" -X -q -b -f "$work/roles.sql" > /dev/null 2>&1 || true
+psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 \
+  -c "alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role" \
+  -c "alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated, service_role" \
+  -c "alter default privileges for role postgres in schema public revoke all on functions from anon, authenticated, service_role" > /dev/null
 psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 \
   -f "$backup/db/schema.sql" -c 'SET session_replication_role = replica' -f "$backup/db/data.sql" > /dev/null
 
-# the same reads the planner makes (web/planner/index.html, capture board) with "today" = the chosen moment
-psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -v at="$at" <<'SQL' | gzip -9 > "$out"
-with t as (select :'at'::timestamptz as at, (:'at'::timestamptz at time zone 'utc')::date as d),
-bal as (select airline, captured_on, amount, captured_at from game_balance, t
-        where account like '2800%' and captured_on >= t.d - 7 order by captured_at desc)
-select json_build_object(
-  'frozen_at', (select at from t),
-  'made_from', 'nightly backup, read as of ' || (select at from t),
-  'planner_state', (select json::json from planner_state where id = 'main'),
-  'planner_loads', (select coalesce(json_agg(json_build_object('month', month, 'json', json, 'saved_at', saved_at)), '[]') from planner_loads),
-  'planner_data', (select value from planner_data where key = 'DATA'),
-  'site_public', (select public.site_public()),
-  'tables', json_build_object(
-    'game_capture_raw', (select coalesce(json_agg(r order by r.captured_at desc), '[]') from (select airline, kind, captured_at from game_capture_raw, t where captured_at >= (t.d - 2)::timestamptz) r),
-    'game_loads', (select coalesce(json_agg(r), '[]') from (select airline,flight_date,code,tail,origin,dest,dep_time,arr_time,eco,bus,fst,cargo,eco_pax,eco_seats,bus_pax,bus_seats,fst_pax,fst_seats,eco_fare,bus_fare from game_loads, t where flight_date >= t.d - 9) r),
-    'game_flight_pnl', (select coalesce(json_agg(r), '[]') from (select airline,ts,blk,route,routes_n,pax,tail,pax_income,cargo_income,fuel,onboard,handling,landing,atc,maintenance,profit from game_flight_pnl, t where ts >= (t.d - 8)::timestamptz) r),
-    'game_balance', (select coalesce(json_agg(bal), '[]') from bal),
-    'game_events', (select coalesce(json_agg(r), '[]') from (select airline,event_date,event_time,debit,descr from game_events, t
-        where event_date >= coalesce((select min(captured_on) from bal), t.d - 7) and event_date <= t.d + 16) r),
-    'game_ops_recent', (select coalesce(json_agg(r), '[]') from (select airline,flights,income,costs,hours,last_ts from game_ops_recent) r),
-    'backup_runs', (select coalesce(json_agg(r order by r.ran_at desc), '[]') from (select ran_at,kind,ok,tables,rows,files,bytes,note from backup_runs order by ran_at desc limit 10) r)
-  ));
-SQL
-supabase stop --no-backup --workdir "$work" > /dev/null 2>&1 || true
+# the changes the backup doesn't have yet (by version, as database/rehearse.sh finds them)
+psql "$LOCAL" -X -At -c "select version from supabase_migrations.schema_migrations" | sort > "$work/applied.txt"
+for f in database/migrations/*.sql; do
+  v=$(basename "$f" | cut -d_ -f1)
+  grep -qx "$v" "$work/applied.txt" && continue
+  psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 -f "$f" > /dev/null || { echo "couldn't apply $(basename "$f")"; exit 1; }
+  echo "applied $(basename "$f")"
+done
+
+psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -v at="$at" -f tests/fixtures/sample.sql | gzip -9n > "$out"
 echo "wrote $out ($(du -h "$out" | cut -f1))"
