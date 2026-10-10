@@ -242,6 +242,38 @@ AS $function$
 $function$
 ;
 
+-- loads_day_captured(p_world_id bigint, p_day date)
+CREATE OR REPLACE FUNCTION public.loads_day_captured(p_world_id bigint, p_day date)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare v_from timestamptz;
+begin
+  if not (current_user = 'postgres' or public.is_planner_user()) then
+    raise exception 'only planner staff can read the planner' using errcode = '42501';
+  end if;
+  -- the date's capture day starts at capture_day_starts_utc (design §2)
+  v_from := (p_day + coalesce((select (s.value #>> '{}')::time from public.settings s
+                               where s.world_id = p_world_id and s.airline_id is null and s.key = 'capture_day_starts_utc'),
+                              time '10:00')) at time zone 'UTC';
+  return exists (select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                  where a.world_id = p_world_id and a.active and g.kind = 'ours')
+     and not exists (
+           select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+            where a.world_id = p_world_id and a.active and g.kind = 'ours'
+              and not exists (select 1 from public.game_flights f
+                               where f.airline_id = a.id and f.game_date = p_day and f.flight_no is not null
+                                 and f.loads_captured_at >= v_from)
+              and not exists (select 1 from public.game_capture_raw r
+                               where r.airline_id = a.id and r.kind = 'loads'
+                                 and r.captured_at >= v_from and r.captured_at < v_from + interval '1 day'));
+end
+$function$
+;
+
+
 -- parse_capture(p_id bigint)
 CREATE OR REPLACE FUNCTION public.parse_capture(p_id bigint)
  RETURNS jsonb
@@ -394,10 +426,8 @@ begin
       from days d
       left join public.load_days ld on ld.world_id = w and ld.game_date = d.day
       left join day_stamp ds on ds.day = d.day
-      -- every active airline of the world has loads for the date
-      cross join lateral (select not exists (select 1 from ours o
-                                              where o.active and not exists (select 1 from flown f
-                                                                              where f.airline_id = o.id and f.game_date = d.day)) as complete) c)
+      -- the one rule (design §8): every active airline of the world was captured for that date
+      cross join lateral (select public.loads_day_captured(w, d.day) as complete) c)
   select to_char(dd.day, 'YYYY-MM'),
          jsonb_object_agg(dd.day::text, dd.j)::text,
          coalesce(floor(extract(epoch from max(dd.at)) * 1000)::bigint, 0)
@@ -706,7 +736,7 @@ CREATE OR REPLACE FUNCTION public.planner_state_put(p_json text, p_saved_at bigi
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-declare w bigint; v_doc jsonb; v_res jsonb;
+declare w bigint; v_doc jsonb; v_res jsonb; v_since timestamptz;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can save the planner' using errcode = '42501'; end if;
   begin
@@ -716,8 +746,9 @@ begin
   end;
   if jsonb_typeof(v_doc) is distinct from 'object' then raise exception 'the planner document isn''t a JSON object' using errcode = '22023'; end if;
   select x.id into w from public.worlds x where x.is_default;
-  v_res := private.planner_apply(w, v_doc, 'save', to_timestamp(coalesce(p_base, p_saved_at) / 1000.0), nullif(p_client, ''),
-                                 'planner', nullif(p_client, ''));
+  -- the last microsecond of the base's millisecond (exact interval arithmetic, no floating point)
+  v_since := timestamptz 'epoch' + (coalesce(p_base, p_saved_at) + 1) * interval '1 millisecond' - interval '1 microsecond';
+  v_res := private.planner_apply(w, v_doc, 'save', v_since, nullif(p_client, ''), 'planner', nullif(p_client, ''));
   return jsonb_build_object('saved_at', public.planner_state_version(w), 'applied', v_res -> 'applied',
                             'skipped', v_res -> 'skipped', 'reload', (v_res ->> 'skipped')::int > 0,
                             'skipped_items', v_res -> 'skipped_items');
@@ -755,15 +786,23 @@ CREATE OR REPLACE FUNCTION public.save_loads(p_month text, p_days jsonb)
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-declare cur jsonb; d text; p jsonb; day jsonb; f jsonb; v_days jsonb := '{}'::jsonb; w bigint;
+declare cur jsonb; d text; p jsonb; day jsonb; f jsonb; v_days jsonb := '{}'::jsonb; w bigint; v_saved bigint;
   ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
   v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);
+  v_frozen boolean := private.planner_frozen_since('public.planner_loads'::regclass) is not null;
 begin
   if not public.is_planner_user() then raise exception 'only planner staff can save loads' using errcode = '42501'; end if;
   if p_month is null or p_month !~ '^\d{4}-\d{2}$' then raise exception 'month must be YYYY-MM, got %', p_month; end if;
   if jsonb_typeof(p_days) is distinct from 'object' then raise exception 'days must be an object keyed by date'; end if;
-  insert into public.planner_loads (month, json, saved_at) values (p_month, '{}', 0) on conflict (month) do nothing;
-  select pl.json::jsonb into cur from public.planner_loads pl where pl.month = p_month for update;
+  select x.id into w from public.worlds x where x.is_default;
+  if v_frozen then
+    -- two saves of one month queue instead of racing
+    perform pg_advisory_xact_lock(hashtextextended('equinox loads ' || p_month, w));
+    select g.json::jsonb into cur from public.planner_loads_get(w) g where g.month = p_month;
+  else
+    insert into public.planner_loads (month, json, saved_at) values (p_month, '{}', 0) on conflict (month) do nothing;
+    select pl.json::jsonb into cur from public.planner_loads pl where pl.month = p_month for update;
+  end if;
   cur := coalesce(cur, '{}'::jsonb) - '__savedAt';   -- a browser-only marker that older saves wrote into the document
   for d, p in select e.key, e.value from jsonb_each(p_days) e loop
     if d !~ ('^' || p_month || '-\d{2}$') then raise exception 'day % is not in month %', d, p_month; end if;
@@ -781,7 +820,15 @@ begin
     cur := jsonb_set(cur, array[d], day, true);
     v_days := v_days || jsonb_build_object(d, day);
   end loop;
-  select x.id into w from public.worlds x where x.is_default;
+
+  if v_frozen then
+    perform set_config('equinox.actor', 'planner', true), set_config('equinox.actor_detail', 'save_loads', true);
+    perform private.loads_mirror_days(w, v_days, now());
+    perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
+    select g.json::jsonb, g.saved_at into cur, v_saved from public.planner_loads_get(w) g where g.month = p_month;
+    return jsonb_build_object('month', p_month, 'json', coalesce(cur, '{}'::jsonb), 'saved_at', coalesce(v_saved, ms));
+  end if;
+
   begin
     perform set_config('equinox.actor', 'planner', true), set_config('equinox.actor_detail', 'save_loads', true);
     perform private.loads_mirror_days(w, v_days, now());
@@ -1267,6 +1314,9 @@ AS $function$
 declare d record; mon text; cur jsonb; day jsonb; f jsonb; n int := 0; v_name text; v_world bigint;
   ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
 begin
+  if private.planner_frozen_since('public.planner_loads'::regclass) is not null then
+    return jsonb_build_object('days', 0);
+  end if;
   select coalesce(a.planner_name, a.public_name, a.game_name, a.game_id::text), a.world_id into v_name, v_world from public.airlines a where a.id = p_airline_id;
   for d in select distinct g.game_date from public.game_flights g
             where g.airline_id = p_airline_id and g.flight_no is not null and g.game_date >= current_date - 3 loop
@@ -1279,7 +1329,7 @@ begin
      where g.airline_id = p_airline_id and g.flight_no is not null and g.game_date = d.game_date and g.eco_pct is not null;
     day := jsonb_set(day, '{f}', coalesce(day -> 'f', '{}'::jsonb) || f, true);
     day := day || jsonb_build_object('done', coalesce(day -> 'done' = 'true'::jsonb, false)
-                                             or private.capture_day_complete(v_world, d.game_date),
+                                             or public.loads_day_captured(v_world, d.game_date),
                                      'captured', now(), 'source', 'capture');
     cur := jsonb_set(cur, array[d.game_date::text], day, true);
     -- saved_at moves on, so a browser holding an older copy of the month takes this one when it next loads
@@ -1290,7 +1340,6 @@ begin
   return jsonb_build_object('days', n);
 end
 $function$
-
 ;
 
 -- private.caller_is_staff()
@@ -1826,6 +1875,36 @@ $function$
 
 ;
 
+-- private.freeze_planner_state()
+CREATE OR REPLACE FUNCTION private.freeze_planner_state()
+ RETURNS text
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_since text := coalesce(private.planner_frozen_since('public.planner_state'::regclass),
+                                 private.planner_frozen_since('public.planner_loads'::regclass),
+                                 to_char(now() at time zone 'UTC', 'YYYY-MM-DD HH24:MI') || ' UTC');
+  t text;
+begin
+  foreach t in array array['planner_state', 'planner_loads'] loop
+    if private.planner_frozen_since(('public.' || t)::regclass) is not null then
+      continue;
+    elsif exists (select 1 from pg_catalog.pg_trigger x where x.tgrelid = ('public.' || t)::regclass and x.tgname = 'planner_frozen') then
+      execute format('alter table public.%I enable trigger planner_frozen', t);   -- switched off by hand: on again
+    else
+      execute format('create trigger planner_frozen before insert or update or delete or truncate on public.%I '
+                     'for each statement execute function private.planner_frozen(%L)', t, v_since);
+      execute format('comment on trigger planner_frozen on public.%I is %L', t,
+                     'The switch-over (#13, design §8): refuses every write to the old row, "frozen since ' || v_since
+                     || '; write to the tables". private.unfreeze_planner_state() lifts it.');
+    end if;
+  end loop;
+  return v_since;
+end
+$function$
+;
+
+
 -- private.growth_key(p_airline text, p_day date, p_move text, p_note text)
 CREATE OR REPLACE FUNCTION private.growth_key(p_airline text, p_day date, p_move text, p_note text)
  RETURNS text
@@ -2207,9 +2286,8 @@ begin
     select d.*,
            exists (select 1 from public.game_flights f join ours on ours.id = f.airline_id
                     where f.flight_no is not null and f.game_date = d.day) as captured,
-           not exists (select 1 from ours o where o.active
-                        and not exists (select 1 from public.game_flights f
-                                         where f.airline_id = o.id and f.flight_no is not null and f.game_date = d.day)) as complete
+           -- the getter's done for a captured day: the one rule (public.loads_day_captured)
+           public.loads_day_captured(w, d.day) as complete
       from days d)
   insert into pg_temp.t_load_days
   select j.day, coalesce(j.v -> 'done' = 'true'::jsonb, false), private.json_int(j.v -> 'savedAt'), j.stamp
@@ -4713,6 +4791,36 @@ AS $function$
 $function$
 ;
 
+-- private.planner_frozen()
+CREATE OR REPLACE FUNCTION private.planner_frozen()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  raise exception 'frozen since %; write to the tables', tg_argv[0]
+    using errcode = '42501',
+          detail = format('%s is the old planner''s storage, kept unchanged as the fallback since the switch-over (#13, design §8).', tg_table_name),
+          hint = 'The planner saves through planner_state_put() and save_loads(). A data-only change goes through planner_item_put() or plain SQL after the equinox.actor line (manual §1). private.unfreeze_planner_state() undoes the switch-over.';
+end
+$function$
+;
+
+
+-- private.planner_frozen_since(p_table regclass)
+CREATE OR REPLACE FUNCTION private.planner_frozen_since(p_table regclass)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select split_part(encode(t.tgargs, 'escape'), '\000', 1)
+    from pg_catalog.pg_trigger t
+   where t.tgrelid = p_table and t.tgname = 'planner_frozen' and t.tgenabled <> 'D'
+$function$
+;
+
+
 -- private.planner_items(p_doc jsonb)
 CREATE OR REPLACE FUNCTION private.planner_items(p_doc jsonb)
  RETURNS TABLE(section text, key text, grp text, pos integer, item jsonb)
@@ -4969,39 +5077,21 @@ AS $function$
     select e.path, e.sec, e.day, e.airline, p_old #> array[e.sec, e.day, e.airline] as had, p_new #> array[e.sec, e.day, e.airline] as got,
            cc.cash_at,
            case when e.sec = 'cash' then floor(cc.cash / 10000 + 0.5) / 100
-                when cc.fixed_next7 > 0 then floor(cc.fixed_next7 / 10000 + 0.5) / 100 end as figure,
-           (select max(ev.captured_at) from public.game_events ev
-             where ev.airline_id = cc.airline_id and ev.debit > 0
-               and ev.due_at > cc.cash_at and ev.due_at <= cc.cash_at + interval '7 days') as events_at
+                when cc.fixed_next7 > 0 then floor(cc.fixed_next7 / 10000 + 0.5) / 100 end as figure
       from entries e
       left join public.airlines al on al.planner_name = e.airline and al.world_id = p_world_id
-      left join public.capture_cash cc on cc.airline_id = al.id and cc.day = private.json_date(to_jsonb(e.day))),
-  -- how each entry is allowed: 'late' (captured after the planner last saved), 'not saved' (the saved document has no
-  -- entry), or not at all (null)
-  judged as (
-    select m.*,
-           case when not coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure, false) then null
-                when m.cash_at > to_timestamp(p_saved_at / 1000.0)
-                     or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0)) then 'late'
-                when coalesce(m.had, 'null'::jsonb) = 'null'::jsonb then 'not saved' end as how
-      from money m)
-  select d.path, d.kind, null::text from d where d.kind <> 'differs'
-  union all
-  select d.path,
-         case when not exists (select 1 from judged j where j.path = d.path)
-                   or exists (select 1 from judged j where j.path = d.path and j.how is null) then 'differs'
-              when exists (select 1 from judged j where j.path = d.path and j.how = 'late') then 'cash/fixed7 captured after the planner last saved'
-              else 'cash/fixed7 captured, not in the saved document' end,
-         (select string_agg(format('%s %s %s (%s; %s)', j.sec, j.day, j.airline,
-                   case when j.had is null then 'only in the tables' when j.got is null then 'only in planner_state' else 'the figure differs' end,
-                   case when j.cash_at is null then 'no capture that date'
-                        when j.figure is distinct from (case when jsonb_typeof(j.got) = 'number' then (j.got #>> '{}')::numeric end) then 'not the capture''s figure'
-                        when j.cash_at > to_timestamp(p_saved_at / 1000.0) then 'captured after the planner last saved'
-                        else 'captured before the planner last saved' end), ', ' order by j.sec, j.day, j.airline)
-            from judged j where j.path = d.path and j.how is null)
-    from d where d.kind = 'differs'
+      left join public.capture_cash cc on cc.airline_id = al.id and cc.day = private.json_date(to_jsonb(e.day)))
+  select d.path, d.kind,
+         case when d.kind = 'differs' then
+           (select string_agg(format('%s %s %s (%s; %s)', m.sec, m.day, m.airline,
+                     case when m.had is null then 'only in the tables' when m.got is null then 'only in planner_state' else 'the figure differs' end,
+                     case when m.cash_at is null then 'no capture that date'
+                          when m.figure is distinct from (case when jsonb_typeof(m.got) = 'number' then (m.got #>> '{}')::numeric end) then 'not the capture''s figure'
+                          when m.cash_at > to_timestamp(p_saved_at / 1000.0) then 'captured after the planner last saved'
+                          else 'captured before the planner last saved' end), ', ' order by m.sec, m.day, m.airline)
+              from money m where m.path = d.path) end
+    from d
 $function$
-
 ;
 
 -- private.planner_touched(p_world_id bigint, p_since timestamp with time zone, p_client text)
@@ -5439,6 +5529,46 @@ AS $function$
 $function$
 
 ;
+
+-- private.unfreeze_planner_state()
+CREATE OR REPLACE FUNCTION private.unfreeze_planner_state()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare w bigint := (select x.id from public.worlds x where x.is_default);
+  v_since text := coalesce(private.planner_frozen_since('public.planner_state'::regclass),
+                           private.planner_frozen_since('public.planner_loads'::regclass));
+  g jsonb; n_months int;
+begin
+  -- no planner save or item put runs meanwhile
+  perform pg_advisory_xact_lock(hashtextextended('equinox planner world', w));
+  drop trigger if exists planner_frozen on public.planner_state;
+  drop trigger if exists planner_frozen on public.planner_loads;
+  g := public.planner_state_get(w);
+  insert into public.planner_state (id, json, saved_at) values ('main', g ->> 'json', (g ->> 'saved_at')::bigint)
+  on conflict (id) do update set json = excluded.json, saved_at = excluded.saved_at;
+  insert into public.planner_loads (month, json, saved_at)
+  select l.month, l.json, l.saved_at from public.planner_loads_get(w) l
+  on conflict (month) do update set json = excluded.json, saved_at = excluded.saved_at;
+  get diagnostics n_months = row_count;
+  grant insert, update on table public.planner_state to authenticated;
+  -- the side by side again (after the writes above, so they aren't copied back)
+  if not exists (select 1 from pg_catalog.pg_trigger x where x.tgrelid = 'public.planner_state'::regclass and x.tgname = 'adapter_mirror') then
+    create constraint trigger adapter_mirror after insert or update on public.planner_state
+      deferrable initially deferred for each row execute function private.adapter_mirror_state();
+  end if;
+  if not exists (select 1 from pg_catalog.pg_trigger x where x.tgrelid = 'public.planner_loads'::regclass and x.tgname = 'adapter_mirror') then
+    create constraint trigger adapter_mirror after insert or update on public.planner_loads
+      deferrable initially deferred for each row execute function private.adapter_mirror_loads();
+  end if;
+  return jsonb_build_object('was_frozen_since', v_since, 'planner_state_saved_at', (g ->> 'saved_at')::bigint,
+                            'planner_loads_months', n_months, 'side_by_side', 'on',
+                            'next', 'revert the switch-over''s pull request, then reload every open planner tab');
+end
+$function$
+;
+
 
 -- private.weekday_set(p text)
 CREATE OR REPLACE FUNCTION private.weekday_set(p text)

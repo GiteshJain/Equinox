@@ -880,7 +880,7 @@ def guard_writers(env, staff, other):
 
 async def main():
     facts = planner_facts()
-    print(f"phase: {'before this pull request''s database changes' if BEFORE else 'after every pending database change'}", flush=True)
+    print("phase: " + ("before this pull request's database changes" if BEFORE else "after every pending database change"), flush=True)
     if not facts:
         step(False, "the planner names its Supabase address, public key and library",
              ["not found in web/planner/index.html, so the planner can't be pointed at the copy without changing it"])

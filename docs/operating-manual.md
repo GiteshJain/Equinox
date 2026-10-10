@@ -13,9 +13,10 @@ Every rule in force for the equinox. group, with the date it started and why. De
 ---
 
 ## Decided, not yet built
-Until each is built and merged, the rules below stand as they are. In particular, plan cards, to-dos and other
-data-only changes still go into `planner_state`.
-- **#13:** the planner's data moves into proper tables. The old planner runs on an adapter until #18.
+Until each is built and merged, the rules below stand as they are.
+- **#13:** the planner's data moves into proper tables. Built up to the switch-over (pull request 9, 10 Oct): the old
+  planner reads and saves the tables through an adapter until #18, and `planner_state` and `planner_loads` are frozen
+  as the fallback (§1). Still to come: history (snapshots), jobs and the report storage.
 - **#14:** every row carries its world and airline, and each world's rules are data.
 - **#15:** a change log and daily snapshots.
 - **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.
@@ -55,7 +56,8 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  every planner screen, look-only previews and the planner's key numbers against saved answers; every website page).
+  every planner screen, look-only previews and the planner's key numbers against saved answers; every website page;
+  the old planner's rule numbers against `settings` and `world_rules`).
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*
@@ -77,7 +79,19 @@ Details and open points: `docs/decisions.md`.
   chat. A new Building chat starts at each step of the decision list, once anything worth carrying is in the
   repository or the project files. *Since 8 Oct (#26) · why: the old Building chat lost detail as it filled; a clean
   memory per build fixes that with no extra steps.*
-- **Data-only changes go straight in:** plan cards, to-dos, notes, logs. *Since 8 Oct (#2).*
+- **Data-only changes go straight in, to the tables:** plan cards, to-dos, notes, logs. Either through
+  `planner_item_put(section, key, value)` (or `planner_item_delete(section, key)`), in the planner's own JSON shape,
+  plan-card and frequency times local as the planner shows them; or plain SQL on the tables. Either way the same call
+  starts with `select set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', '<chat>', true);`
+  so the change log names the chat (design §6). `planner_state` and `planner_loads` are frozen and refuse every write;
+  the planner shows a change the next time it loads. *Since 8 Oct (#2); to the tables since 10 Oct (#13, pull request
+  9) · why: the planner reads the tables now, so a change to the old row would never be seen.*
+- **Rule numbers have one source:** the database's `settings` (our own choices, with an airline's override where it
+  has one) and `world_rules` (Gander's house rules, game settings and #12's permissions). The figures in §3, §4, §5 and
+  §9 name their row; a rule change updates the row and this manual together. Until #18 the old planner also keeps
+  copies in its code, and the automatic checks fail if the two ever differ (`tests/rule_numbers_test.py`), so a
+  change to one of those needs a planner pull request too. *Since 10 Oct (#13, pull request 9; design §11, choice 3) ·
+  why: the same number lived in the manual, the planner and the scripts, and drifted (the connection buffer, 9 Oct).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*
 - **One-week aircraft checks are Gitesh's,** done in the game (the flights really run as scheduled, no issues). Claude
@@ -152,13 +166,15 @@ Details and open points: `docs/decisions.md`.
 - **Who orders:** Claude recommends what to order; Gitesh orders in the game and says so; Claude logs it. *Since 2 Oct.*
 - **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
-  payment). An order is safe when **0.5M stays in hand at the lowest point** after it. Prices include the cabin.
+  payment). An order is safe when **0.5M stays in hand at the lowest point** after it (`settings.order_cushion`).
+  Prices include the cabin.
   *Since 7 Oct · why: the old surplus rule ignored flight income during the week; on 7 Oct it said Kingfisher couldn't
   afford an A321neo when its real lowest point was 6.29M.*
   - **The order's own lease counts:** weekly, from 7 days after it arrives, taken as arriving the day it's ordered (the
     most it could cost inside the 14 days). Its income and its crew's pay are left out; the profit it makes over its
-    crew pay is extra buffer. Several orders are tested together, each with its lease. *Since 8 Oct · why: the cushion
-    alone covered only one order's lease.*
+    crew pay is extra buffer. Several orders are tested together, each with its lease. A type never leased yet is
+    taken at 10% of its price a week (`settings.lease_estimate_pct`). *Since 8 Oct · why: the cushion alone covered
+    only one order's lease.*
   - Planned refits are not in the forecast; say so with each recommendation.
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
 - **Order rotation:** each airline's orders rotate big market → more frequency → smaller feeders, kept flexible.
@@ -168,8 +184,10 @@ Details and open points: `docs/decisions.md`.
 - **Hubs first:** each main hub reaches **750 weekly departures** before the airline opens a new hub, unless the new
   hub is contested: a rival with over 250 departures a week there, or over 2 a day on a route we'd open with. Ryanair is
   exempt. Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
-  Atlanta or Phoenix, SFO and SEA. *Since 5 Oct, confirmed 8 Oct as the only test for opening a new base · settings in
-  the planner (growth rules).*
+  Atlanta or Phoenix, SFO and SEA. The numbers are `settings.hub_first_departures` (750),
+  `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'
+  thresholds are the `growth_*` and `pattern_*` settings. *Since 5 Oct, confirmed 8 Oct as the only test for opening a
+  new base.*
 
 ## 4. Scheduling
 - **How it runs:** once aircraft have arrived, one airline at a time. Claude gives the background (loads, money,
@@ -177,21 +195,26 @@ Details and open points: `docs/decisions.md`.
   the game and presses File; the planner checks each card against the game. *Since 2 Oct.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
-- **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time before the
-  departures it feeds, with no extra margin, and departures leave within 8 hours of the arrivals they collect. Every
-  new plan card and every retime is checked at both ends. *Since 6 Oct, updated 7 Oct; margin dropped 9 Oct · why:
-  Gitesh: as long as it's over the minimum connection time, it's good.*
+- **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
+  (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
+  0), and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`). Every new plan card
+  and every retime is checked at both ends. *Since 6 Oct, updated 7 Oct; margin dropped 9 Oct · why: Gitesh: as long as
+  it's over the minimum connection time, it's good.*
 - **Use each aircraft as much as possible.** No fixed floor on flying hours; options show hours a day next to
   connections, and check whether one more short rotation fits. *Since 7 Oct.*
 - **Night slots are fine.** *Since 27 Sep · why: the game's demand ignores time of day, and captures show night
   departures sell as well as daytime ones.*
-- **Maintenance at or above 100% is firm** (aim for 105%). *Since 28 Sep.*
-- **Turns:** the game's turnaround plus a 10–15 minute margin; 5 minutes is tolerated only on the busiest aircraft where
-  15 won't fit. *Since 25 Sep · why: room for delays and slot availability.*
-- **A second daily** on a route sits at least 3 hours from the existing flight. *Date not recorded.*
-- **Block time** = 25 minutes + distance ÷ speed: A321neo and XLR 840 km/h, E195 831, A320neo 839, A350 911.
-- **Three banks per hub;** bank times are in the planner (Reference → hubs). Connections come first; an unbanked flight
-  still earns. *Since 23 Sep.*
+- **Maintenance at or above 100% is firm** (aim for 105%; `settings.maintenance_min_pct` and
+  `maintenance_target_pct`). *Since 28 Sep.*
+- **Turns:** the game's turnaround plus a 10–15 minute margin (`settings.turn_margin_min`, 10); 5 minutes is tolerated
+  only on the busiest aircraft where 15 won't fit. *Since 25 Sep · why: room for delays and slot availability.*
+- **A second daily** on a route sits at least 3 hours from the existing flight (`settings.second_daily_gap_h`). *Date
+  not recorded.*
+- **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A321neo and XLR 840 km/h, E195 831,
+  A320neo 839, A350 911 (`aircraft_types.cruise_kmh`).
+- **Three banks per hub;** bank times are in `airline_bases.bank_times` (the planner's Reference → hubs), the bank
+  windows in `settings.bank_arrival_window_min` and `bank_departure_window_min`. Connections come first; an unbanked
+  flight still earns. *Since 23 Sep.*
 - **New airlines launch short-haul,** one daily rotation per route, breadth first. *Since 26 Sep.*
 - **Everything flies direct:** no tag (fifth or eighth freedom) flights. *Since 20 Sep.*
 - **Ryanair stays inside the game's EU zone:** EU-27, the UK, Norway, Switzerland and Iceland. Turkey, Morocco, the
@@ -202,9 +225,10 @@ Details and open points: `docs/decisions.md`.
 ## 5. Cabins and fares
 - **Cabin follows the market default,** whatever the aircraft. Defaults per market are in the planner
   (Reference → markets). A refit costs about 0.2M with no time out of service. *Since 2 Oct.*
-- **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only. Weak routes get
-  cut rather than launched cheap. Prices per market are in the planner. *Since 20–21 Sep · why: every lane ran full at
-  lower fares, and launching low then raising across 50 routes is too much work.*
+- **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
+  (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. Prices per
+  market are in the planner (`markets`). *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low
+  then raising across 50 routes is too much work.*
 - **Fare changes are occasional tests** through the planner's fare plan, reviewed together once a week at the Saturday
   review. They never appear in Needs attention. *Since 28 Sep and 8 Oct.*
 
@@ -220,7 +244,9 @@ Details and open points: `docs/decisions.md`.
 
 ## 7. Recurring work
 - **Every evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments, and
-  nothing else. Loads are typed in by hand only if a capture fails. *Since 7–8 Oct; salaries taken out 10 Oct.*
+  nothing else, straight into the tables (`game_flights` and the rest); a day's loads count as complete once every
+  active airline has been captured for it. Loads are typed in by hand (Review → Manual entry) only if a capture fails.
+  *Since 7–8 Oct; salaries taken out 10 Oct; into the tables only since 10 Oct (#13, pull request 9).*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
   nightly adjustment of all six airlines was inflating salaries.*
@@ -259,16 +285,21 @@ Details and open points: `docs/decisions.md`.
   once inside. *Since 6 Oct.*
 
 ## 9. Game rules and mechanics (Gander)
+Each figure here is a `world_rules` row for Gander (§1, one source): the house rules (kind `house`), the mechanics
+(kind `game`) and #12's permissions (kind `permission`).
+
 **House rules**
 - Up to 8 holdings per player: 6, plus 2 in low-demand countries. At most 1 US, 1 China, 2 EU and 1 LCC. Holdings fly
   from their founding country (LCCs exempt); hubs can move within it. 45M starting capital per holding.
-- 5,000 departures a week per player per airport, rising to 8,000 after three months.
-- At least 5 minutes between departures on the same route.
-- Fare floor: 60% of standard wherever another player flies the route, including our own airlines.
-- At most 30 fifth/eighth-freedom routes per airline; alliances capped at 30.
-- A newly claimed brand must have a route flying within 14 days.
+  (`holdings_max`, `low_demand_holdings`, `holdings_per_country`, `lcc_holdings_max`, `starting_capital`.)
+- 5,000 departures a week per player per airport, rising to 8,000 after three months (`departures_per_airport_week`).
+- At least 5 minutes between departures on the same route (`same_route_gap_min`).
+- Fare floor: 60% of standard wherever another player flies the route, including our own airlines (`fare_floor_pct`).
+- At most 30 fifth/eighth-freedom routes per airline; alliances capped at 30 (`freedom_routes_max`, `alliance_max`).
+- A newly claimed brand must have a route flying within 14 days (`new_brand_route_days`).
 
-**Mechanics**
+**Mechanics** (`demand_model`, `time_zones`, `subsidiaries_work`; the world's traffic rights, `treaties`, are still to
+be copied from the game's settings page)
 - Demand is per airport, not per city: Heathrow, Gatwick and Stansted are separate markets.
 - Departure time of day doesn't affect demand; it matters only for connections.
 - Passengers book each direction separately; no location-based demand.
@@ -283,8 +314,9 @@ Details and open points: `docs/decisions.md`.
 - Subsidiaries don't work with the game's demand model, so we don't use them.
 - **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
   game. That's why the interlines between our six airlines, the capture and the salary script, and the world scanner are
-  fine here (#12). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings, and
-  terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
+  fine here (#12; the `permission` rows `interline_own_airlines`, `capture_salary_step`, `world_scanner`,
+  `schedule_check`). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings,
+  and terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
 
 ---
 
@@ -293,6 +325,8 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 10 Oct | Data-only changes (plan cards, to-dos, notes, logs) go into `planner_state` | Into the tables, through `planner_item_put()` or plain SQL after the `equinox.actor` line (§1). Why: the switch-over (#13, pull request 9) froze `planner_state`; the planner reads the tables |
+| 10 Oct | Rule numbers live in the planner (Reference, growth rules) and in this manual | One source: `settings` and `world_rules`, checked against the old planner's code (§1). Why: copies drifted |
 | 10 Oct | The nightly capture sets every airline's salaries to 10% above the country average | A separate salary script, run by hand on one airline at a time (§7). Why: Gitesh suspects the nightly run on all six was inflating salaries |
 | 9 Oct | A connection needs the minimum connection time + 10 minutes | The minimum connection time alone (§4). Why: the extra 10 minutes isn't needed; the planner already counted without it, while the manual and the optimiser added it |
 | 9 Oct | Backups are kept as commits in the private repository `equinox-backups`, and the rehearsal reads them there with a GitHub key | Copies in Cloudflare R2: nightly for 30 days, monthly for good, plus a monthly GitHub release (§7, #16). Why: the single backup file was heading for GitHub's size limits |
