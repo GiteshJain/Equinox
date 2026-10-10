@@ -8,10 +8,12 @@
 # 1. Restores the backup into an empty local Supabase (Docker): the database, the data API and sign-in, with nothing
 #    else started (#17). The database is restored the same way the nightly restore check does.
 # 2. Finds the changes still to apply: migration files whose version isn't in the restored migration record, which is
-#    the live database's record as of last night.
+#    the live database's record as of last night. Before applying them, runs database/tests/before/*.sql, which save
+#    chosen outputs into the schema rehearsal_before, so a test can compare them afterwards.
 # 3. Applies them in order, each in its own transaction, stopping at the first failure.
 # 4. Prints the row count of every table that changed, plus any table added or removed.
-# 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back.
+# 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
+#    passing test says it checked (its notices: counts, never rows).
 # 6. Checks the descriptions (decision #10): every table, view and function has one, and docs/data.md matches the
 #    database. With WRITE_DOCS=1 it rewrites docs/data.md instead (run that locally after changing a description).
 # 7. Real saves (#17), only if 1 to 6 passed: the data API reloads its schema, then tests/real_saves_test.py opens the
@@ -102,10 +104,6 @@ if [ -e "${saved[0]}" ]; then
     fi
   done
 fi
-if [ -f database/diagnose_capture.sql ]; then   # TEMPORARY (capture-data build): counts and masked shapes only
-  echo "== diagnostics (temporary)"
-  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/diagnose_capture.sql 2>&1 | head -n 200 || true
-fi
 
 if [ $status -ne 0 ]; then pending=(); echo "== the outputs couldn't be saved, so the changes weren't tried"
 elif [ ${#pending[@]} -eq 0 ]; then echo "== no new database changes: nothing to rehearse"
@@ -140,6 +138,8 @@ if [ $status -eq 0 ]; then
     [ -e "$t" ] || continue
     if out=$(psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c 'begin' -f "$t" -c 'rollback' 2>&1); then
       echo "ok    $(basename "$t")"
+      # what the test says it checked (counts only, never rows), for the pull request
+      echo "$out" | sed -n 's/^.*NOTICE:  \(.*\)$/      \1/p' | grep -v 'all checks passed' | head -n 4 || true
     else
       echo "FAIL  $(basename "$t")"
       echo "$out" | grep -E 'ERROR|DETAIL|CONTEXT' | sed 's/^/      /' | head -n 6

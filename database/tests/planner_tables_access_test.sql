@@ -32,18 +32,11 @@ begin
   select string_agg(v.name, ', ') into bad from t_views v where to_regclass('public.' || v.name) is null;
   assert bad is null, 'missing views: ' || bad;
 
-  -- a signed-out visitor reads nothing: no table or view in public is readable by anon. The exception is the 22 tables
-  -- from before #13, which still have the select that Supabase's old defaults gave anon. Their RLS is on with no rule
-  -- for anon, so it reads no rows from them; taking the grant away is a removal that this pull request may not make
-  -- (spec §2), raised in pull request 16 for its own change. Any other table or view, new ones included, fails here.
+  -- a signed-out visitor reads nothing: no table or view in public is readable by anon. Since #13's pull request 3
+  -- (20261009230100_capture_data_removals.sql) that holds for the 22 tables from before #13 too, with no exception.
   select string_agg(c.relname, ', ' order by c.relname) into bad
     from pg_class c join pg_namespace s on s.oid = c.relnamespace
-   where s.nspname = 'public' and c.relkind in ('r', 'p', 'v', 'm') and has_table_privilege('anon', c.oid, 'select')
-     and c.relname <> all (array[
-       'backup_runs', 'capture_keys', 'game_balance', 'game_capture_raw', 'game_events', 'game_loads', 'game_pnl',
-       'game_snapshot_airlines', 'game_snapshot_airports', 'game_snapshots', 'game_statement', 'ingest_secret',
-       'planner_data', 'planner_loads', 'planner_meta', 'planner_scripts', 'planner_state', 'planner_users',
-       'report_access', 'site_content', 'site_posts', 'site_reports']);
+   where s.nspname = 'public' and c.relkind in ('r', 'p', 'v', 'm') and has_table_privilege('anon', c.oid, 'select');
   assert bad is null, 'anon can read these tables and views in public: ' || bad;
   select string_agg(c.relname, ', ' order by c.relname) into bad
     from pg_class c join pg_namespace s on s.oid = c.relnamespace

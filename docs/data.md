@@ -4,7 +4,7 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-55 tables, 4 views and 24 functions, all in Supabase's `public` schema, plus 6 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+57 tables, 5 views and 25 functions, all in Supabase's `public` schema, plus 28 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
@@ -26,17 +26,20 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`flight_legs`](#flight-legs) (table): One row per flight in the schedule, in UTC (design §4): departure minute, UTC weekdays and block time
 - [`flight_legs_local`](#flight-legs-local) (view): Each flight leg with its flight code (KF 1001) and its times as the game shows them: local departure and arrival and local weekdays, plus the arrival in UTC and its day offset
 - [`flight_no_clashes`](#flight-no-clashes) (view): An airline's flight number used by two or more legs departing on the same weekday (local at the origin, as the planner's check counts it)
-- [`game_balance`](#game-balance) (table): The balance-sheet page from the nightly capture: one row per airline, account and day
-- [`game_capture_raw`](#game-capture-raw) (table): Every page the capture sent, as rows of cells before parsing
-- [`game_events`](#game-events) (table): Payments the game lists ahead on the events page: leases, the week-end closing (salaries) and deliveries
-- [`game_flight_pnl`](#game-flight-pnl) (view): Each captured flight's income and costs by type (fuel, handling, on-board services, landing, air traffic control, maintenance) and its profit, built from the bank statement
-- [`game_loads`](#game-loads) (table): Every captured flight, with passengers, seats and fares by class and cargo
-- [`game_ops_recent`](#game-ops-recent) (view): Each airline's last 24 hours of flying from the bank statement: flights, income, costs and block hours
-- [`game_pnl`](#game-pnl) (table): The game's income statement per airline and day, for the current, last and total periods
+- [`game_balance`](#game-balance) (table): The balance-sheet page from the nightly capture: one row per airline, account and UTC date
+- [`game_capture_raw`](#game-capture-raw) (table): Every page the capture sent, as rows of cells before parsing, with its world and airline
+- [`game_events`](#game-events) (table): Payments the game lists ahead on the events page: leases, salaries and deliveries
+- [`game_flight_pnl`](#game-flight-pnl) (view): Each statement block's income and costs by type and its profit, as before #13, from game_flights and the payments the old view counted with flights (salaries)
+- [`game_flights`](#game-flights) (table): One row per flown flight (decision #16, design §3.8): its loads from the loads page and its money from the bank statement, matched by route and time
+- [`game_loads`](#game-loads) (view): Today's game_loads, from game_flights: every captured flight with passengers, seats, fares and loads by class and cargo, in the columns the planner (Check: daily load report, growth signals; Review: fare changes) and export_capture() read
+- [`game_loads_before_13`](#game-loads-before-13) (table): Retired by #13 (pull request 3): the loads table as it stood when its rows moved into game_flights
+- [`game_ops_recent`](#game-ops-recent) (view): Each airline's last 24 hours before its latest statement line, as before #13: flights, income, costs and hours, from game_flights and game_payments
+- [`game_payments`](#game-payments) (table): Bank-statement lines not tied to a flight: leases, salaries, purchases, deposits, cabins, refits, and lines in a minute with no flight
+- [`game_pnl`](#game-pnl) (table): The game's income statement per airline and UTC date, for the current, last and total periods
 - [`game_snapshot_airlines`](#game-snapshot-airlines) (table): World scan: every airline in Gander with its full schedule at the time of a scan
 - [`game_snapshot_airports`](#game-snapshot-airports) (table): World scan: every airport's details, the airlines stationed there and its news at the time of a scan
 - [`game_snapshots`](#game-snapshots) (table): One row per world scan: when it ran, the week, its status and a note
-- [`game_statement`](#game-statement) (table): Bank-statement lines from the capture: every income and cost, most of them tied to one flight
+- [`game_statement`](#game-statement) (table): Bank-statement lines from the capture, as the game lists them
 - [`groups`](#groups) (table): A player's airlines in a world: ours (equinox.) and rival players' groups
 - [`growth_log`](#growth-log) (table): Moves logged under the order rotation: big, freq or feeder
 - [`ingest_secret`](#ingest-secret) (table): The shared secret that Claude's scripts send to the export, ingest, script and site-admin functions
@@ -282,7 +285,7 @@ file. How the parts fit together: `docs/architecture.md`.
 
 ## capture_keys
 
-*Table.* Hashed keys that let the in-game capture send data. Only hashes are stored. Written by hand when a key is issued. Read by capture_ingest().
+*Table.* Hashed keys that let the in-game capture send data. Only hashes are stored. Each key belongs to one world (world_id): a page for an airline outside it is refused. Written by hand when a key is issued. Read by capture_ingest() and capture_airlines().
 
 Never leaves the database: left out of the nightly backup on purpose.
 
@@ -292,6 +295,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `label` | text |  |
 | `key_hash` | text |  |
 | `created_at` | timestamp with time zone |  |
+| `world_id` | bigint | The world the key captures; name it when issuing a key |
 
 **Access:** no policies, so only the database's own functions and the server can read or write it.
 
@@ -461,21 +465,24 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## game_balance
 
-*Table.* The balance-sheet page from the nightly capture: one row per airline, account and day. Account 2800 is cash. Written by parse_capture(). Read by the planner (Review: the group today, Cash next 14 days) and export_capture().
+*Table.* The balance-sheet page from the nightly capture: one row per airline, account and UTC date. Account 2800 is cash. Written by the capture (private.capture_page). Read by the planner (Review: the group today, Cash next 14 days) and export_capture().
 
 | Column | Type | Notes |
 |---|---|---|
 | `airline` | text |  |
-| `captured_on` | date |  |
+| `captured_on` | date | The UTC date of the capture, as the old planner reads it (an evening's capture can fall on the next UTC date) |
 | `account` | text | Account number and name as the game shows them; 2800 is cash |
 | `amount` | numeric |  |
 | `captured_at` | timestamp with time zone |  |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `capture_day` | date | The capture day (design §2): the evening of the capture that last wrote the row |
 
 **Access:** planner staff read game_balance: select for authenticated.
 
 ## game_capture_raw
 
-*Table.* Every page the capture sent, as rows of cells before parsing. Kept 14 days, while the parsed tables keep everything. Written by capture_ingest(). Read by parse_capture() and the planner's Capture board (when each airline was last captured).
+*Table.* Every page the capture sent, as rows of cells before parsing, with its world and airline. Kept 14 days. Written by capture_ingest(). Read by private.capture_page(), completeness (private.capture_day_complete) and the planner's Capture board.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -485,12 +492,14 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `page_url` | text |  |
 | `captured_at` | timestamp with time zone |  |
 | `rows` | jsonb | The page's table rows, each a list of cell texts |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
 
 **Access:** planner staff read game_capture_raw: select for authenticated.
 
 ## game_events
 
-*Table.* Payments the game lists ahead on the events page: leases, the week-end closing (salaries) and deliveries. Written by parse_capture(). Read by the planner's cash forecast (Review: Cash, next 14 days), which also takes each type's lease from here.
+*Table.* Payments the game lists ahead on the events page: leases, salaries and deliveries. Written by the capture (private.capture_page). Read by the planner's cash forecast (Review: Cash, next 14 days), which also takes each type's lease from here.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -502,12 +511,15 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `credit` | numeric |  |
 | `balance` | numeric |  |
 | `captured_at` | timestamp with time zone |  |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `due_at` | timestamp with time zone | When it falls due, from the local time at the airline's home airport; null while that airport's offset isn't known (filled once the airports are loaded) |
 
 **Access:** planner staff read game_events: select for authenticated.
 
 ## game_flight_pnl
 
-*View.* Each captured flight's income and costs by type (fuel, handling, on-board services, landing, air traffic control, maintenance) and its profit, built from the bank statement. Read by the planner (Review: route profit, aircraft) and export_capture().
+*View.* Each statement block's income and costs by type and its profit, as before #13, from game_flights and the payments the old view counted with flights (salaries). Read by the planner (Review: route profit, aircraft) and export_capture(). Shows the caller only what it may read.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -528,9 +540,104 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `maintenance` | numeric |  |
 | `profit` | numeric |  |
 
+## game_flights
+
+*Table.* One row per flown flight (decision #16, design §3.8): its loads from the loads page and its money from the bank statement, matched by route and time. Until a block and a loads row are matched (or when one never comes), a row holds only one side: money-only rows have no flight number, loads-only rows no statement time. Written by the capture (private.capture_page); read through game_loads and game_flight_pnl. Kept one full calendar month, then archived.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint |  |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `game_date` | date | The local date at departure, as the loads page shows it |
+| `flight_no` | integer | From the loads page, e.g. 1001 (shown as KF 1001); null on a money-only row, since the statement names no flight |
+| `origin_code` | text |  |
+| `dest_code` | text |  |
+| `dep_local` | text | Departure, local clock time as the game shows it, e.g. 07:30 |
+| `arr_local` | text | Arrival, local clock time as the game shows it |
+| `dep_at` | timestamp with time zone | Scheduled departure, from the local time and the origin's offset (null while the offset isn't known); on a money-only row, the statement time |
+| `arr_at` | timestamp with time zone | Scheduled arrival: departure plus the block from the local times (null while an offset isn't known) |
+| `posted_at` | timestamp with time zone | The statement's time for the flight, its actual departure, UTC; null on a loads-only row |
+| `statement_blk` | smallint | The statement's block number in that minute (game_statement.blk) |
+| `statement_routes` | smallint | How many routes the block's lines name; 1 for a normal flight, and only those are matched to loads |
+| `route_id` | bigint | The route, once routes are loaded (#13, pull request 4) |
+| `aircraft_id` | bigint | The aircraft, once aircraft are loaded (#13, pull request 4) |
+| `registration` | text | The aircraft as the loads page names it |
+| `maint_registration` | text | The aircraft named by the statement's maintenance line (only some flights have one): game_flight_pnl.tail |
+| `status` | text | As the loads page shows it: finished or inflight so far |
+| `eco_pax` | integer |  |
+| `eco_seats` | integer |  |
+| `eco_fare` | numeric(14,2) | AS$ (bus_fare, fst_fare and cargo_rate likewise) |
+| `eco_pct` | smallint | Economy load, percent, as the game shows it (bus_pct, fst_pct and cargo_pct likewise). Stored, not worked out: the game's cargo figure differs from units ÷ capacity on some flights |
+| `bus_pax` | integer |  |
+| `bus_seats` | integer |  |
+| `bus_fare` | numeric(14,2) |  |
+| `bus_pct` | smallint |  |
+| `fst_pax` | integer |  |
+| `fst_seats` | integer |  |
+| `fst_fare` | numeric(14,2) |  |
+| `fst_pct` | smallint |  |
+| `cargo_units` | integer |  |
+| `cargo_cap` | integer |  |
+| `cargo_rate` | numeric(14,2) |  |
+| `cargo_pct` | smallint |  |
+| `pax_income` | numeric(14,2) | AS$, from the statement (cargo_income, fuel, onboard, handling, landing, atc and maintenance likewise); null when the block has no such line |
+| `cargo_income` | numeric(14,2) |  |
+| `fuel` | numeric(14,2) |  |
+| `onboard` | numeric(14,2) |  |
+| `handling` | numeric(14,2) |  |
+| `landing` | numeric(14,2) |  |
+| `atc` | numeric(14,2) |  |
+| `maintenance` | numeric(14,2) |  |
+| `income_total` | numeric(14,2) | Every line of the block on the income side, AS$ |
+| `cost_total` | numeric(14,2) | Every line of the block on the cost side, AS$ |
+| `profit` | numeric(14,2) | income_total − cost_total, AS$ |
+| `statement_pax` | integer | Passengers named on the statement (passenger handling) |
+| `loads_captured_at` | timestamp with time zone | When the loads page last wrote the row |
+| `money_captured_at` | timestamp with time zone | When the block's newest statement line was first captured |
+| `created_at` | timestamp with time zone |  |
+| `updated_at` | timestamp with time zone |  |
+
+**Access:** staff read: select for authenticated.
+
+**Triggers:** set_updated_at.
+
 ## game_loads
 
-*Table.* Every captured flight, with passengers, seats and fares by class and cargo. Written by parse_capture() from the loads page. Read by the planner (Check: daily load report, growth signals; Review: fare changes), apply_loads_from_capture() and export_capture().
+*View.* Today's game_loads, from game_flights: every captured flight with passengers, seats, fares and loads by class and cargo, in the columns the planner (Check: daily load report, growth signals; Review: fare changes) and export_capture() read. Shows the caller only what it may read.
+
+| Column | Type | Notes |
+|---|---|---|
+| `airline` | text |  |
+| `flight_date` | date |  |
+| `code` | text |  |
+| `dep_time` | text |  |
+| `tail` | text |  |
+| `origin` | text |  |
+| `dest` | text |  |
+| `arr_time` | text |  |
+| `eco` | numeric |  |
+| `bus` | numeric |  |
+| `fst` | numeric |  |
+| `cargo` | numeric |  |
+| `status` | text |  |
+| `captured_at` | timestamp with time zone |  |
+| `eco_pax` | integer |  |
+| `eco_seats` | integer |  |
+| `eco_fare` | numeric |  |
+| `bus_pax` | integer |  |
+| `bus_seats` | integer |  |
+| `bus_fare` | numeric |  |
+| `fst_pax` | integer |  |
+| `fst_seats` | integer |  |
+| `fst_fare` | numeric |  |
+| `cargo_units` | integer |  |
+| `cargo_cap` | integer |  |
+| `cargo_rate` | numeric |  |
+
+## game_loads_before_13
+
+*Table.* Retired by #13 (pull request 3): the loads table as it stood when its rows moved into game_flights. Nothing writes or reads it; the name game_loads is now a view. Kept so a revert can put it back, until #18.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -565,7 +672,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## game_ops_recent
 
-*View.* Each airline's last 24 hours of flying from the bank statement: flights, income, costs and block hours. Read by the planner (Review: the group today; the cash forecast's flight profit) and export_capture().
+*View.* Each airline's last 24 hours before its latest statement line, as before #13: flights, income, costs and hours, from game_flights and game_payments. Read by the planner (Review: the group today; the cash forecast's flight profit) and export_capture(). Shows the caller only what it may read.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -576,9 +683,34 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `costs` | numeric |  |
 | `hours` | numeric |  |
 
+## game_payments
+
+*Table.* Bank-statement lines not tied to a flight: leases, salaries, purchases, deposits, cabins, refits, and lines in a minute with no flight. One row per statement line. Written by the capture (private.fold_statement). Kept for good.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint |  |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `paid_at` | timestamp with time zone | The statement's time, UTC |
+| `kind` | text | lease, salaries, purchase, deposit, cabin, refit or other |
+| `registration` | text | The aircraft the line names, e.g. from "Leasing rate for B-0161" |
+| `aircraft_id` | bigint | The aircraft, once aircraft are loaded (#13, pull request 4) |
+| `descr` | text |  |
+| `amount` | numeric(14,2) | AS$ |
+| `side` | text | D for a cost, C for income |
+| `occ` | integer | Tells apart identical lines posted in the same minute |
+| `statement_blk` | smallint | The statement's block number (game_statement.blk), so game_flight_pnl and game_ops_recent count the payments they always counted (salaries) where they always did |
+| `created_at` | timestamp with time zone |  |
+| `updated_at` | timestamp with time zone |  |
+
+**Access:** staff read: select for authenticated.
+
+**Triggers:** set_updated_at.
+
 ## game_pnl
 
-*Table.* The game's income statement per airline and day, for the current, last and total periods. Written by parse_capture(). Not read by any screen yet; kept for reports.
+*Table.* The game's income statement per airline and UTC date, for the current, last and total periods. Written by the capture (private.capture_page). Not read by any screen yet; kept for reports.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -589,6 +721,9 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `last_p` | numeric |  |
 | `total_p` | numeric |  |
 | `captured_at` | timestamp with time zone |  |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `capture_day` | date | The capture day (design §2): the evening of the capture that last wrote the row |
 
 **Access:** planner staff read game_pnl: select for authenticated.
 
@@ -639,7 +774,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## game_statement
 
-*Table.* Bank-statement lines from the capture: every income and cost, most of them tied to one flight. The source of route profit. Written by parse_capture(). Read by the views game_flight_pnl and game_ops_recent.
+*Table.* Bank-statement lines from the capture, as the game lists them. Each line is folded into a flight (flight_id) in game_flights or into game_payments. Kept 14 days for checking, once the clean-up is switched on (#13, pull request 7). Written by the capture (private.capture_page).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -653,6 +788,9 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `captured_at` | timestamp with time zone |  |
 | `occ` | integer | Tells apart identical lines posted in the same minute |
 | `blk` | integer | Groups the lines of one flight when several flights post in the same minute |
+| `world_id` | bigint |  |
+| `airline_id` | bigint |  |
+| `flight_id` | bigint | The game_flights row the line was folded into; null for a payment (game_payments) |
 
 **Access:** planner staff read game_statement: select for authenticated.
 
@@ -1215,17 +1353,18 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 | Function | Returns | Who can call it | What it does |
 |---|---|---|---|
-| `apply_loads_from_capture(p_airline text)` | jsonb | authenticated · runs as owner | Copies the last 3 days of captured loads for one airline into planner_loads and moves the month's saved_at on, so browsers pick them up. Called by capture_ingest() after each loads page. |
+| `apply_loads_from_capture(p_airline text)` | jsonb | internal only · runs as owner | Retired by #13 (pull request 3): the loads step is private.apply_loads_from_capture(), which this now calls for the default world's airline of that name. No longer callable by signed-in accounts once 20261009230100_capture_data_removals.sql has run; kept until #18. |
 | `as_num(p text)` | numeric | anon, authenticated | Turns game text such as 1,234.5 AS$ into a number (null when there is none). |
 | `auto_confirm_planner_user()` | trigger | internal only · runs as owner | Trigger on sign-up: confirms the email straight away when it is on planner_users. |
-| `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, stores the page (raw pages kept 14 days), parses it with parse_capture(), and after a loads page updates planner_loads. |
-| `export_capture(p_secret text, p_days integer)` | jsonb | anon, authenticated · runs as owner | Exports recent capture data for Claude's scripts. Needs the ingest secret. |
+| `capture_airlines(p_key text)` | jsonb | anon, authenticated · runs as owner | For the capture userscript, with the capture key: the key's world and its active airlines of our groups (game ID, name, code), in display order, so the userscript doesn't keep its own list. |
+| `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game's ID or, from older userscripts, by name, and refuses one outside the key's world; keeps the raw page 14 days and parses it (private.capture_page): bank statement into game_flights and game_payments, loads into game_flights, and planner_loads as before. Answers with the capture day and whether it is complete. |
+| `export_capture(p_secret text, p_days integer)` | jsonb | anon, authenticated · runs as owner | Exports recent capture data for Claude's scripts, exactly as before #13: profit per flight, loads, payments ahead, cash, the last 24 hours and capture runs, from the compatibility views. Needs the ingest secret. |
 | `export_for_report(p_secret text, p_kind text, p_arg text)` | jsonb | anon, authenticated · runs as owner | Exports world-scan snapshots, airlines, airports and the planner for the weekly report and gander monthly. Needs the ingest secret. |
 | `export_planner_data(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exports planner_data for scripts. Needs the ingest secret. |
 | `export_repo_bootstrap(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exported the stored scripts when the repository was created (decision #1). Needs the ingest secret. |
 | `ingest_snapshot(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Receives the world scanner's results (start, airlines, airports, finish) into the game_snapshot tables. Needs the ingest secret. |
 | `is_planner_user()` | boolean | authenticated · runs as owner | True when the signed-in email is on planner_users. Used by the access rules, the planner and the Photos functions. |
-| `parse_capture(p_id bigint)` | jsonb | authenticated · runs as owner | Parses one raw capture page into game_statement, game_events, game_loads, game_pnl or game_balance, depending on its kind. |
+| `parse_capture(p_id bigint)` | jsonb | internal only · runs as owner | Retired by #13 (pull request 3): the parsing is private.capture_page(), which this now calls. No longer callable by signed-in accounts once 20261009230100_capture_data_removals.sql has run; kept until #18. |
 | `planner_data_set(p_secret text, p_key text, p_value jsonb)` | jsonb | anon, authenticated · runs as owner | Replaces one planner_data entry. Needs the ingest secret. |
 | `save_loads(p_month text, p_days jsonb)` | jsonb | authenticated · runs as owner | The planner's only way to save loads: merges the days it changed into one month of planner_loads (a day's whole entry, or single flights set and cleared), leaves every other day as it is, and returns the merged month. Planner staff only. |
 | `save_script(p_secret text, p_name text, p_content text)` | jsonb | anon, authenticated · runs as owner | Stores a copy of a script in planner_scripts, from before the repository existed. Needs the ingest secret. |
@@ -1246,9 +1385,31 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 
 | Function | Returns | Who can call it | What it does |
 |---|---|---|---|
+| `private.airport_offset_min(p_world_id bigint, p_code text)` | integer | internal only | An airport's UTC offset in a world, in minutes: coalesce(world_airports.utc_offset_override, airports.utc_offset). Null while it isn't known (the airports are loaded by #13's pull request 4). |
+| `private.apply_loads_from_capture(p_airline_id bigint)` | jsonb | internal only | The loads step, as before: the last 3 days of an airline's captured loads into planner_loads (economy load per flight, keyed "Airline|number") and the month's saved_at moved on, so browsers pick them up. A day is done once its capture day is complete for the whole world (private.capture_day_complete), and a day already done stays done. |
+| `private.capture_day(p_world_id bigint, p_at timestamp with time zone)` | date | internal only | The capture day a moment belongs to (design §2): the UTC date of the moment minus capture_day_starts_utc (10:00 until set), so one evening's capture is one day, named after the evening. |
+| `private.capture_day_complete(p_world_id bigint, p_day date)` | boolean | internal only | Completeness by world (design §7): true when every active airline of our groups in that world has all five pages (statement, events, income statement, balance sheet, loads) in that capture day. Not a count to 6, so a 7th airline must be captured too. |
+| `private.capture_day_start(p_world_id bigint, p_day date)` | timestamp with time zone | internal only | When a world's capture day starts, in UTC: the day plus the setting capture_day_starts_utc (10:00 until it is set), design §2. |
+| `private.capture_find_airline(p_world_id bigint, p_airline text)` | bigint | internal only | The airline a capture page is for, among the airlines of our groups in the key's world: by the game's ID (the userscript from version 1.3), or by name as the older userscript and the bookmark send it (the names matched since 7 Oct). Null when none or more than one fits, so the page is refused. |
+| `private.capture_key_world(p_key text)` | bigint | internal only | The world a capture key belongs to (capture_keys.world_id), or null for a key that doesn't match. |
+| `private.capture_page(p_raw_id bigint)` | jsonb | internal only | Parses one stored capture page into the capture tables, using the page's own capture time throughout: statement lines into game_statement, folded into game_flights and game_payments; events into game_events (with due_at where known); loads into game_flights; the income statement and balance sheet into game_pnl and game_balance (with capture_day). Then money and loads are matched. |
+| `private.capture_refresh(p_world_id bigint)` | jsonb | internal only | For every airline of our groups in a world: fills flight times and events' due_at that have become known, then matches money to loads. Run once after the airports are loaded (#13, pull request 4); the capture does the same for one airline after each page. |
+| `private.capture_store(p_world_id bigint, p_airline text, p_kind text, p_page text, p_rows jsonb, p_at timestamp with time zone, p_loads_step boolean)` | jsonb | internal only | Stores one page for an airline of the given world and parses it, at the given capture time, and says whether that capture day is now complete. Refuses a page for an airline outside the world. capture_ingest() calls it with now(); the tests replay saved pages with their own times. |
 | `private.check_leg_route()` | trigger | internal only | Trigger on flight_legs: refuses a leg whose airports don't match its rotation's route in its direction (leg 1 from the hub to the destination, leg 2 back). |
 | `private.check_route_legs()` | trigger | internal only | Trigger on routes and rotations: refuses changing a route's airports, or a rotation's route, when its flight legs would no longer match. |
+| `private.fill_due_at(p_airline_id bigint)` | integer | internal only | Fills an airline's game_events.due_at once its home airport's offset is known. |
+| `private.fill_flight_times(p_airline_id bigint)` | integer | internal only | Fills an airline's loads rows' dep_at and arr_at where the airports' offsets have become known since they were captured. |
+| `private.fold_statement(p_airline_id bigint, p_minutes timestamp with time zone[])` | integer | internal only | Folds an airline's statement lines in the given minutes into game_flights (one row per flight block, matched by minute and block) and game_payments (every other line), and ties each flight line to its flight (game_statement.flight_id). Blocks that changed since are taken apart and folded again; a flight already matched keeps its loads. Run after every statement page, and by the backfill for every minute. |
+| `private.is_payment_line(p_descr text, p_blk integer)` | boolean | internal only | True for a statement line that never belongs to a flight: a lease, salaries, a deposit, a purchase, a refit or a cabin, or a line the parser put in block 0. |
 | `private.is_weekday_set(p_days smallint[])` | boolean | authenticated | True for a set of ISO weekdays as the schedule stores them: 1 (Monday) to 7 (Sunday), sorted, no repeats, at least one. Used by the checks on flight_legs.days_utc and plan_card_legs.days_utc. |
+| `private.loads_times(p_world_id bigint, p_game_date date, p_dep_local text, p_arr_local text, p_origin text, p_dest text, OUT dep_at timestamp with time zone, OUT arr_at timestamp with time zone)` | record | internal only | A loads row's scheduled departure and arrival as moments, from the local times and the airports' offsets (design §3.8, §4): arrival is departure plus the block worked out from the local times. Null while an offset isn't known. |
+| `private.local_to_utc(p_date date, p_time text, p_offset_min integer)` | timestamp with time zone | internal only | A local date and clock time ("07:30") at a fixed offset in minutes, as a moment. Null if any part is missing. |
 | `private.log_change()` | trigger | internal only · runs as owner | Trigger on every planner table (decision #15): writes one change_log row per row added, changed or removed, naming the writer from equinox.actor and equinox.actor_detail, or planner for a signed-in user and unset otherwise. An update logs only the columns that changed, and nothing when nothing changed. Skipped when equinox.change_log is off, which only postgres can do. Runs as owner, so the log can be written while it stays read-only. |
+| `private.match_flights(p_airline_id bigint)` | integer | internal only | Matches an airline's money-only and loads-only game_flights rows (design §3.8): per route, in time order so two flights on one route never swap, a block pairs with a loads row whose scheduled departure is 30 minutes after to 3 hours before the statement time, of the same aircraft where the statement names one; the most pairs win, then the smallest total gap. Unpaired rows wait for their partner. Needs the airports' offsets. |
+| `private.merge_flight(p_money_id bigint, p_loads_id bigint)` | boolean | internal only | Joins one money-only game_flights row and one loads-only row into one flight: the loads columns move into the money row, and the loads row goes. |
+| `private.payment_kind(p_descr text)` | text | internal only | The kind of a statement line that isn't tied to a flight (game_payments.kind): lease, salaries ("Payment of employee salaries", the week-end closing), deposit, purchase, refit (a configuration), cabin, or other. |
+| `private.payment_registration(p_descr text)` | text | internal only | The aircraft a payment names, e.g. B-0161 from "Leasing rate for B-0161". Null when it names none. |
 | `private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)` | jsonb | internal only | Puts one row of a logged table back as it was at a moment, by replaying change_log backwards: re-adds a removed row with its own key, undoes changes, or removes a row added since. The restore is logged like any change. For Claude, as postgres: start with the equinox.actor line (design §6). |
 | `private.set_updated_at()` | trigger | internal only | Trigger on every planner table: sets updated_at when a row is added or really changes, and leaves it as it was when an update changes nothing. |
+| `private.statement_blocks(p_airline_id bigint, p_minutes timestamp with time zone[])` | TABLE(ts timestamp with time zone, blk integer, is_flight boolean, route text, routes_n integer, pax integer, tail text, pax_income numeric, cargo_income numeric, fuel numeric, onboard numeric, handling numeric, landing numeric, atc numeric, maintenance numeric, income_total numeric, cost_total numeric, captured_at timestamp with time zone) | internal only | An airline's statement lines in the given minutes, grouped by minute and block (blk) as game_flight_pnl has always grouped them, leaving out payments: money by type, the route, passengers, the maintenance line's aircraft, and whether the block is a flight (any flight line or route) or only payments. |
+| `private.statement_category(p_descr text)` | text | internal only | The type of a bank-statement line (pax_income, cargo_income, fuel, onboard, handling, landing, atc, maintenance or other), as game_flight_pnl has always counted them. |
