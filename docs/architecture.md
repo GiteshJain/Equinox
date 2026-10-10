@@ -87,8 +87,9 @@ flowchart LR
      the saved document doesn't have yet, where the tables give the capture's. A figure the document has and the
      tables don't give back still fails.
      Each copy (`adapter_mirror`) and each comparison (`adapter_check`) is one `job_runs` row: ok, or failed with where
-     it differed. A failure is recorded and never stops the save. The switch-over waits for 3 clean days in a row
-     (`adapter_clean_days()`, per capture day in `adapter_check_days`).
+     it differed. A failure is recorded and never stops the save. `adapter_clean_days()` counts clean days in a row
+     (per capture day in `adapter_check_days`); since 10 Oct the switch-over doesn't wait for a number of them, only
+     for no failure outstanding.
 3. **The website** calls `site_public()`, which builds everything public from `planner_state` (hubs, schedules),
    `site_content` (photos, logos, markets), `site_posts` and `site_reports`. Investor pages and reports need the
    password (`site_investor()`, `site_report()`).

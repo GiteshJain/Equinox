@@ -196,7 +196,9 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   Design approved 9 Oct 2026: `docs/design/2026-10-09-data-model.md`. Its four choices (§11) were Claude's call at
   Gitesh's request: switch over after 3 clean nights side by side; keep scan totals per airport and market for good;
   the tables hold the rule numbers, with a check against the old planner's copies; a save keeps the parts that
-  don't clash with a newer change.
+  don't clash with a newer change. 10 Oct, Gitesh: no waiting for 3 clean days; the switch-over goes as soon as it's
+  built, after the website and scripts read the tables (build order now 8, 9, then 6, 7, 10). The comparison runs
+  until then, and a failure found before the switch is fixed first.
 - **9 Oct 2026 · #14 Worlds, groups and airlines.** Option C, without accounts for other players. In the #13 tables:
   - every row carries its world, and its airline where it has one;
   - airlines are rows with a stable ID and the game's ID in that world. The same brand in two worlds is two airlines;

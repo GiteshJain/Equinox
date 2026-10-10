@@ -668,7 +668,7 @@ with `equinox.change_log = off` and `equinox.actor = migration`.
   tables through the adapter, in mirror mode (no skipping, since the old row is still the truth). A failure is
   recorded in `job_runs` and never blocks the save. The capture keeps writing `planner_loads` as today until the
   switch-over. After each save of the old rows, `planner_state_get()` and `planner_loads_get()` are compared with them (a `job_runs` row each; changed 10 Oct from a nightly job, so no scheduler is needed before PR 7). The
-  switch-over waits for 3 clean nights in a row (§11, choice 1).
+  switch-over was to wait for 3 clean nights in a row (§11, choice 1); since 10 Oct it goes as soon as PR 8 and PR 9 are built, with no failure outstanding.
 
 **Rollback:**
 - before the switch-over: nothing reads the new tables, so revert, or drop the side-by-side trigger;
@@ -699,8 +699,11 @@ decided, and each can be changed later. So they were Claude's call. The chosen o
 
 1. **How long old and new run side by side before the switch.**
    - A. Switch as soon as the checks pass.
-   - **B. After 3 nights in a row with no difference on live. Chosen.** Real use catches what tests miss, for a
+   - **B. After 3 nights in a row with no difference on live. Chosen 9 Oct.** Real use catches what tests miss, for a
      few days' wait.
+   - **Changed 10 Oct by Gitesh: no waiting for clean days.** The switch-over (PR 9) goes as soon as it's built,
+     after PR 8 (the website and scripts must read the tables before the old row freezes). The comparison keeps
+     running until then, and a failure found before the switch is fixed first.
    - C. After a week.
 2. **How much of each world scan to keep for good.**
    - **A. Each airline's totals, per airport and per market. Chosen.** Roughly 5 to 15 MB a year with weekly
