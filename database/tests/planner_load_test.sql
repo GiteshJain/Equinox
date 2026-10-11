@@ -9,6 +9,20 @@
 --   4. Speed: how long each getter takes on the copy.
 --   5. Who may call them: signed out nobody; signed in but not staff, refused; staff get the same documents as postgres.
 
+-- Since the switch-over (#13, pull request 9) the old rows are frozen. The night they freeze (during this rehearsal,
+-- database/tests/before/switch_over_before.sql) they still equal the getters, and are compared as before; on any night
+-- after, the old rows are older than the tables by design, so they aren't (switch_over_test.sql checks the rollback's
+-- copy instead).
+create function pg_temp.old_rows_current() returns boolean language plpgsql as $$
+declare v boolean;
+begin
+  if private.planner_frozen_since('public.planner_state'::regclass) is null then return true; end if;
+  if to_regclass('rehearsal_before.planner_frozen') is null then return false; end if;
+  execute 'select not frozen from rehearsal_before.planner_frozen' into v;
+  return coalesce(v, false);
+end
+$$;
+
 -- the differences between two documents, by where they are: list positions as [], keys of keyed sections as {}
 create function pg_temp.places(p_old jsonb, p_new jsonb) returns table (kind text, place text, n bigint) language sql as $$
   select d.kind,
@@ -27,6 +41,11 @@ declare bad text; used text; n_months int; n_days int;
 begin
   insert into t_pl values ('state', (public.planner_state_get() ->> 'json')::jsonb),
     ('loads', (select jsonb_object_agg(g.month, g.json::jsonb) from public.planner_loads_get() g));
+  if not pg_temp.old_rows_current() then
+    raise notice 'planner_loads frozen since % (before last night''s backup): older than the tables by design, not compared; switch_over_test.sql compares the rollback''s copy',
+      private.planner_frozen_since('public.planner_loads'::regclass);
+    return;
+  end if;
 
   -- loads: every month, day and flight
   select string_agg(coalesce(o.month, n.month), ', ') into bad
@@ -71,6 +90,9 @@ do $test$
 declare w bigint := (select id from public.worlds where is_default); v_res jsonb; bad text; n bigint; t text;
   t0 timestamptz; v_state numeric[] := '{}'; v_loads numeric[] := '{}'; v_ver numeric[] := '{}'; i int;
 begin
+  -- (a second run reads the old rows: on a night after the switch-over they are older than the tables, so it would
+  -- write them back; it runs only while they are current)
+  if pg_temp.old_rows_current() then
   v_res := private.load_planner(w);
   -- no row of any planner table, nor of the events whose due times it fills, was written by the second run
   for t in select unnest(array['worlds', 'groups', 'airlines', 'airline_bases', 'airline_aircraft_types', 'countries', 'airports',
@@ -87,13 +109,14 @@ begin
   assert (select jsonb_object_agg(g.month, g.json::jsonb) from public.planner_loads_get() g) = (select v from t_pl where k = 'loads'),
     'planner_loads_get() changed after the loader ran a second time';
   -- (rows removed would show as a difference in the documents; rows added would carry this transaction's xmin)
+  end if;
   for i in 1 .. 3 loop
     t0 := clock_timestamp(); perform public.planner_state_get(); v_state := v_state || extract(epoch from clock_timestamp() - t0) * 1000;
     t0 := clock_timestamp(); perform count(*) from public.planner_loads_get(); v_loads := v_loads || extract(epoch from clock_timestamp() - t0) * 1000;
     t0 := clock_timestamp(); perform public.planner_state_version(); v_ver := v_ver || extract(epoch from clock_timestamp() - t0) * 1000;
   end loop;
-  raise notice 'the loader a second time changed no rows; speed on the copy (best of 3): planner_state_get() % ms, planner_loads_get() % ms, planner_state_version() % ms',
-    round((select min(x) from unnest(v_state) x)), round((select min(x) from unnest(v_loads) x), 1), round((select min(x) from unnest(v_ver) x), 2);
+  raise notice '%speed on the copy (best of 3): planner_state_get() % ms, planner_loads_get() % ms, planner_state_version() % ms',
+    case when pg_temp.old_rows_current() then 'the loader a second time changed no rows; ' else '' end, round((select min(x) from unnest(v_state) x)), round((select min(x) from unnest(v_loads) x), 1), round((select min(x) from unnest(v_ver) x), 2);
 end
 $test$;
 

@@ -1,14 +1,16 @@
--- Nothing outside the planner's own path reads the old rows any more (#13 build, pull request 8): before the switch-over
--- (pull request 9) freezes planner_state and planner_loads, every function and view that names them must be one that
--- the switch-over deals with. Run by database/rehearse.sh on the copy of last night's backup, after the new migrations,
--- inside a transaction that is rolled back.
+-- Nothing outside the planner's own path reads the old rows any more (#13 build, pull request 8), and since the
+-- switch-over (pull request 9) they are frozen: every function and view that names planner_state or planner_loads must
+-- be one that deals with the freeze or a rollback. Run by database/rehearse.sh on the copy of last night's backup, after
+-- the new migrations, inside a transaction that is rolled back.
 --   1. No function (pg_proc, every schema but Postgres' own) and no view names planner_state or planner_loads, except:
---      - the adapter: planner_state_version() (never earlier than the old row's last save), save_loads() (still writes
---        the old month documents), the loader (private.load_planner, private.load_planner_loads) and the side by side's
---        comparison (private.planner_state_check, in a message);
---      - the side by side's triggers (private.adapter_mirror_state, private.adapter_mirror_loads);
---      - the capture's loads step (private.apply_loads_from_capture), which keeps the old planner's month documents
---        current until the switch-over.
+--      - the adapter: planner_state_version() (never earlier than the old row's last save), save_loads() (writes the
+--        old month documents only after a rollback), the loader (private.load_planner, private.load_planner_loads) and
+--        the side by side's comparison (private.planner_state_check, in a message);
+--      - the side by side's triggers (private.adapter_mirror_state, private.adapter_mirror_loads), attached again only
+--        by a rollback;
+--      - the capture's loads step (private.apply_loads_from_capture), which leaves planner_loads alone while it is
+--        frozen;
+--      - the freeze and the rollback (private.freeze_planner_state, private.unfreeze_planner_state).
 --      Anything else is listed and fails.
 --   2. Who may call the functions this pull request changed is as before: the website's and the investor page's signed
 --      out, the scripts' signed out with the ingest secret, the Photos screen's signed in; each runs as owner with an
@@ -20,7 +22,7 @@ do $test$
 declare bad text; v_allowed text[] := array[
     'public.planner_state_version', 'public.save_loads', 'private.load_planner', 'private.load_planner_loads',
     'private.planner_state_check', 'private.adapter_mirror_state', 'private.adapter_mirror_loads',
-    'private.apply_loads_from_capture'];
+    'private.apply_loads_from_capture', 'private.freeze_planner_state', 'private.unfreeze_planner_state'];
   v_named text;
 begin
   -- ---------------------------------------------------------------- 1. no reader left
@@ -40,7 +42,7 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname not in ('pg_catalog', 'information_schema') and n.nspname not like 'pg\_%'
      and p.prosrc ~ '\m(planner_state|planner_loads)\M';
-  raise notice 'no function or view outside the adapter, the side by side and the capture''s loads step names planner_state or planner_loads (those that do: %)',
+  raise notice 'no function or view outside the adapter, the side by side, the capture''s loads step and the freeze names planner_state or planner_loads (those that do: %)',
     coalesce(v_named, 'none');
 
   -- ---------------------------------------------------------------- 2. who may call them

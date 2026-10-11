@@ -2,7 +2,11 @@
 
 1. Every screen opens: all nine screens, each airline's Review page and the main pop-ups (route, aircraft, plan card)
    open with no errors and show content.
-2. Look-only previews (#8): on a preview address a change saves nothing and says so; on the live address it saves.
+2. Look-only previews (#8): on a preview address a change saves nothing and says so; on the live address it saves,
+   through the adapter (#13, pull request 9): planner_state_put() with the whole document, the tab's ID and as base the
+   saved_at it loaded from planner_state_get(); nothing is written to the old rows.
+   A copy the planner kept in the browser after a failed save is pushed from the base stored with it (#13, pull request
+   9); one with nothing unsaved isn't pushed; an older planner's copy, with no base, is pushed with none, as before.
 3. Loads by hand: on an airline's Review page, a typed day and a paste from the game each save, and send only the days
    they changed, through save_loads() (fix of 9 Oct: the buttons did nothing there, and saves rewrote whole months).
 4. Known answers: the numbers on the screens that matter (Home, the group and each airline's Review page with the cash
@@ -13,7 +17,7 @@
 Usage: python3 tests/planner_test.py [--update]
 """
 import asyncio, difflib, json, re, sys
-from harness import FIX, serve, open_planner, go, settle
+from harness import FIX, serve, open_planner, go, settle, sample
 from playwright.async_api import async_playwright
 
 EXPECTED = FIX / "planner_numbers.expected.json"
@@ -125,19 +129,70 @@ async def manual_loads(p, port):
 
 
 async def look_only(p, port):
+    saved = sample()["planner_state"].get("savedAt") or 1
     for live in (False, True):
-        name = "live address: a change saves" if live else "preview address: a change saves nothing and says so"
+        name = ("live address: a change saves, through planner_state_put() with the tab's ID and the loaded saved_at as base"
+                if live else "preview address: a change saves nothing and says so")
         b, pg, errors = await open_planner(p, port, live=live)
         await go(pg, "home")
         box = "input[data-tododone]"
         if not await pg.evaluate(f"!!document.querySelector('{box}')"):
             check(False, name, "no to-do to tick on Home"); await b.close(); continue
+        tid = await pg.evaluate(f"document.querySelector('{box}').dataset.tododone")
         await pg.click(box); await pg.wait_for_timeout(900)
         writes = await pg.evaluate("window.__WRITES.map(w => w.t || w.rpc || 'file')")
+        put = await pg.evaluate("(window.__WRITES.filter(w => w.rpc === 'planner_state_put').pop() || {}).args || null")
+        tab = await pg.evaluate("window.__eqTab || ''")
         label = await pg.evaluate("document.getElementById('savestate').textContent")
         notice = await pg.evaluate("!!document.querySelector('.eqpreview')")
-        ok = ("planner_state" in writes and not notice and "preview" not in label) if live else (writes == [] and notice and "preview" in label)
-        check(ok, name, f"writes {writes}, indicator '{label}', notice {notice}")
+        if live:
+            doc = json.loads(put["p_json"]) if put and put.get("p_json") else {}
+            todo = next((t for t in doc.get("todos") or [] if t.get("id") == tid), {})
+            ok = (set(writes) == {"planner_state_put"} and todo.get("done") is True and put.get("p_client") == tab and tab.startswith("tab-")
+                  and put.get("p_base") == saved and not notice and "preview" not in label)
+        else:
+            ok = writes == [] and notice and "preview" in label
+        check(ok, name, f"writes {writes}, base {put and put.get('p_base')} (loaded {saved}), tab {'set' if tab else 'none'}, "
+                        f"indicator '{label}', notice {notice}")
+        await b.close()
+
+
+async def stored_copies(p, port):
+    """A copy the planner kept in the browser because a cloud save failed (#13, pull request 9) carries the base it was
+    made from: with a change the cloud never got (its savedAt isn't that base), it is pushed from that base, so the
+    server keeps whatever changed elsewhere since; with nothing unsaved, the cloud's copy is taken and nothing is sent.
+    An older planner's copy, with no base, is pushed with none when it is the later one, as before."""
+    S = sample()
+    saved = S["planner_state"].get("savedAt") or 1
+    tid = next((t.get("id") for t in S["planner_state"].get("todos") or [] if not t.get("done")), None)
+    if not tid:
+        check(False, "a copy kept in the browser", "the sample has no open to-do"); return
+
+    def copy(base, saved_at):
+        d = json.loads(json.dumps(S["planner_state"]))
+        for t in d["todos"]:
+            if t.get("id") == tid:
+                t["done"] = True
+        d["savedAt"] = saved_at
+        if base is not None:
+            d["__base"] = base
+        return d
+    for name, stored, want in (
+            ("a copy kept in the browser with an unsaved change is pushed from the base stored with it", copy(saved - 5000, saved + 60000), saved - 5000),
+            ("a copy kept in the browser with its base and nothing unsaved isn't pushed: the cloud's copy is taken", copy(saved - 5000, saved - 5000), "nothing"),
+            ("an older planner's copy, with no base, is pushed with none when it is the later one, as before", copy(None, saved + 60000), None)):
+        b, pg, errors = await open_planner(p, port, live=True, stored=stored)
+        await pg.wait_for_timeout(900)
+        puts = await pg.evaluate("window.__WRITES.filter(w => w.rpc === 'planner_state_put').map(w => w.args)")
+        if want == "nothing":
+            ticked = await pg.evaluate("id => { const x = [...document.querySelectorAll('input[data-tododone]')].find(e => e.dataset.tododone === id); return x ? x.checked : null; }", tid)
+            ok, detail = not puts and ticked is False, f"{len(puts)} save(s) sent; the to-do shown {'ticked' if ticked else 'unticked' if ticked is False else 'nowhere'}"
+        else:
+            first = puts[0] if puts else {}
+            todo = next((t for t in json.loads(first.get("p_json") or "{}").get("todos") or [] if t.get("id") == tid), {})
+            ok = bool(puts) and first.get("p_base") == want and todo.get("done") is True
+            detail = f"{len(puts)} save(s) sent; base {first.get('p_base')} (want {want}); the unsaved tick {'sent' if todo.get('done') else 'not sent'}"
+        check(ok and not errors, name, detail + (f"; errors {errors[:3]}" if errors else ""))
         await b.close()
 
 
@@ -181,6 +236,7 @@ async def main():
             check(not errors, "no errors while reading the numbers", "\n".join(dict.fromkeys(errors[:10])))
             await b.close()
             await part("look-only previews", look_only(p, port))
+            await part("copies kept in the browser", stored_copies(p, port))
             await part("loads by hand", manual_loads(p, port))
     leases_named(got)
     compare(got)

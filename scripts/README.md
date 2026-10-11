@@ -50,7 +50,8 @@ while; run it in slices with `[from] [to]` if needed.
 
 ## Where the inputs come from
 - **`planner.json`, `real_state.json`:** the planner's state, from `export_for_report('planner')`, which builds it from
-  the planner tables (#13, pull request 8). Don't read the `planner_state` row directly: the switch-over freezes it.
+  the planner tables (#13, pull request 8). Don't read the `planner_state` row directly: it has been frozen since the
+  switch-over (pull request 9) and no longer changes.
 - **`data.json`:** the planner's route research, from `export_planner_data()`. To change it, `planner_data_set()` (key
   `DATA`) writes it to `planner_data` and to the `countries`, `airports` and `routes` tables, only the rows that
   change, and answers what changed. A new UTC offset for an airport our flights use is held back and named: tell the

@@ -1,6 +1,10 @@
 -- Loads saves merge instead of replacing the month (the fix of 9 Oct 2026, migration 20261009120000).
 -- Run by database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that
 -- is rolled back. A failed check stops with an error that says which.
+-- Since the switch-over (#13, pull request 9) planner_loads is frozen and save_loads() merges into the tables instead
+-- (database/tests/switch_over_test.sql checks the same merges there). This test lifts the freeze first, as a rollback
+-- does (private.unfreeze_planner_state()), and checks that save_loads() and the capture still merge into planner_loads
+-- then, as before.
 
 insert into public.planner_users (email) values ('rehearsal@example.com') on conflict do nothing;
 do $$ begin perform set_config('request.jwt.claims', '{"email": "rehearsal@example.com", "role": "authenticated"}', true); end $$;
@@ -8,6 +12,7 @@ do $$ begin perform set_config('request.jwt.claims', '{"email": "rehearsal@examp
 do $test$
 declare r jsonb; j jsonb; saved bigint; before bigint; refused boolean; al bigint; mon text := to_char(current_date, 'YYYY-MM');
 begin
+  if private.planner_frozen_since('public.planner_loads'::regclass) is not null then perform private.unfreeze_planner_state(); end if;
   -- A month with two captured days, as the capture writes them, plus the marker older browser saves left behind.
   delete from public.planner_loads where month = '2099-01';
   insert into public.planner_loads (month, json, saved_at) values ('2099-01',

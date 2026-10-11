@@ -1,7 +1,7 @@
 """Shared setup for the automatic checks (decision #9).
 
-- serve(): serves web/ on a local port the way Cloudflare does (the _redirects rules, and the home page for any other
-  unknown address), in a background thread.
+- serve(): serves web/ (or another copy of it, root=) on a local port the way Cloudflare does (the _redirects rules,
+  and the home page for any other unknown address), in a background thread.
 - open_planner(): opens the planner in headless Chromium with the database replaced by the frozen sample
   (tests/fixtures/sample_*.json.gz), the clock frozen at the sample's moment, and every outside request blocked.
   live=True opens it at equinox-alliance.com (mapped to the local server) so it behaves as the live planner; False
@@ -29,8 +29,10 @@ def schedule_fixture():
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
+    root = WEB
+
     def __init__(self, *a, **k):
-        super().__init__(*a, directory=str(WEB), **k)
+        super().__init__(*a, directory=str(self.root), **k)
 
     def log_message(self, *a):
         pass
@@ -41,16 +43,17 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
             self.send_response(301); self.send_header("Location", "/planner/"); self.end_headers(); return
         if path.startswith("/planner/"):                        # _redirects: /planner/* -> the planner (200)
             self.path = "/planner/index.html"
-        elif not (WEB / path.lstrip("/")).is_file() and "." not in path.rsplit("/", 1)[-1]:
+        elif not (self.root / path.lstrip("/")).is_file() and "." not in path.rsplit("/", 1)[-1]:
             self.path = "/index.html"                           # no 404.html: Cloudflare serves the home page
         return super().do_GET()
 
 
 @contextlib.contextmanager
-def serve():
+def serve(root=WEB):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), _Handler)
+    handler = type("Handler", (_Handler,), {"root": pathlib.Path(root)})
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
     t = threading.Thread(target=httpd.serve_forever, daemon=True); t.start()
     try:
         yield port
@@ -58,16 +61,27 @@ def serve():
         httpd.shutdown()
 
 
-# A stand-in for the Supabase client: answers the planner's reads from the sample and records every write.
+# A stand-in for the Supabase client: answers the planner's reads from the sample and records every write. Since the
+# switch-over (#13, pull request 9) the planner reads its document and loads through the adapter's getters
+# (planner_state_get, planner_loads_get, planner_state_version) and saves through planner_state_put and save_loads, so
+# those are answered here; the old rows' tables are no longer read.
 STUB = r"""
 (() => {
   const S = window.__SAMPLE;
-  const T = Object.assign({}, S.tables, {
-    planner_state: [{ id: "main", json: JSON.stringify(S.planner_state), saved_at: S.planner_state.savedAt || 1 }],
-    planner_loads: S.planner_loads,
-  });
+  const T = Object.assign({}, S.tables);
+  const SAVED = S.planner_state.savedAt || 1;
+  const READS = {
+    site_public: () => S.site_public,
+    is_planner_user: () => true,
+    planner_state_get: () => ({ json: JSON.stringify(S.planner_state), saved_at: SAVED }),
+    planner_loads_get: () => S.planner_loads,
+    planner_state_version: () => SAVED,
+  };
+  const ANSWERS = {   // what the database answers a save with
+    planner_state_put: () => ({ saved_at: Date.now(), applied: 1, skipped: 0, reload: false, skipped_items: [] }),
+  };
   window.__WRITES = [];
-  const write = (what) => { window.__WRITES.push(what); return Promise.resolve({ data: null, error: null }); };
+  const write = (what) => { window.__WRITES.push(what); const a = what.rpc && ANSWERS[what.rpc]; return Promise.resolve({ data: a ? a() : null, error: null }); };
   function from(t) {
     let rows = (T[t] || []).slice();
     const q = {
@@ -88,8 +102,7 @@ STUB = r"""
   const session = { access_token: "t", user: { email: "staff@example.com" } };
   const client = {
     from,
-    rpc: async (n, args) => n === "site_public" ? { data: S.site_public, error: null }
-      : n === "is_planner_user" ? { data: true, error: null } : write({ rpc: n, args }),
+    rpc: async (n, args) => READS[n] ? { data: READS[n](), error: null } : write({ rpc: n, args }),
     storage: { from: (b) => ({ upload: (p) => write({ upload: p }), remove: (p) => write({ remove: p }),
       getPublicUrl: (p) => ({ data: { publicUrl: "https://example.com/" + p } }) }) },
     auth: { getSession: async () => ({ data: { session }, error: null }), getUser: async () => ({ data: { user: session.user }, error: null }),
@@ -103,11 +116,15 @@ STUB = r"""
 LIVE_HOST = "equinox-alliance.com"
 
 
-async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000):
-    """Returns (browser, page, errors). errors collects page errors and console errors as they happen."""
+async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000, stored=None):
+    """Returns (browser, page, errors). errors collects page errors and console errors as they happen. stored: a copy
+    of the planner to leave in the browser's storage before it opens (as a tab that couldn't reach the cloud leaves it)."""
     b = await p.chromium.launch(args=[f"--host-resolver-rules=MAP {LIVE_HOST} 127.0.0.1:{port}"])
     ctx = await b.new_context(viewport={"width": width, "height": height}, timezone_id="UTC", locale="en-US")
     await ctx.add_init_script("localStorage.setItem('gander-auth', JSON.stringify({access_token:'t'}));")
+    if stored is not None:   # once per tab, before the planner's own scripts
+        await ctx.add_init_script("if (!sessionStorage.getItem('stored-copy')) { sessionStorage.setItem('stored-copy', '1'); "
+                                  f"localStorage.setItem('gander-planner', {json.dumps(json.dumps(stored))}); }}")
     pg = await ctx.new_page()
     errors = []
     pg.on("pageerror", lambda e: errors.append("page error: " + str(e)[:300]))

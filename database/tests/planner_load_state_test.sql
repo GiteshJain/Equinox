@@ -13,6 +13,20 @@
 -- Each allowed difference used is printed with how often. Any other difference fails, and a cash or next-7-day figure
 -- that fails is named (date and airline) with the side that has it and when it was captured.
 
+-- Since the switch-over (#13, pull request 9) the old rows are frozen. The night they freeze (during this rehearsal,
+-- database/tests/before/switch_over_before.sql) they still equal the getters, and are compared as before; on any night
+-- after, the old rows are older than the tables by design, so they aren't (switch_over_test.sql checks the rollback's
+-- copy instead).
+create function pg_temp.old_rows_current() returns boolean language plpgsql as $$
+declare v boolean;
+begin
+  if private.planner_frozen_since('public.planner_state'::regclass) is null then return true; end if;
+  if to_regclass('rehearsal_before.planner_frozen') is null then return false; end if;
+  execute 'select not frozen from rehearsal_before.planner_frozen' into v;
+  return coalesce(v, false);
+end
+$$;
+
 -- a difference's place: list positions as [], keys of keyed sections as {}
 create function pg_temp.place(p_path text) returns text language sql immutable as $$
   select regexp_replace(regexp_replace(p_path, '\[\d+\]', '[]', 'g'),
@@ -22,6 +36,11 @@ $$;
 do $test$
 declare v_old jsonb; v_new jsonb; v_saved timestamptz; bad text; cash_why text; used text; v_late bigint; v_late_places text;
 begin
+  if not pg_temp.old_rows_current() then
+    raise notice 'planner_state frozen since % (before last night''s backup): older than the tables by design, not compared; switch_over_test.sql compares the rollback''s copy',
+      private.planner_frozen_since('public.planner_state'::regclass);
+    return;
+  end if;
   select p.json::jsonb, to_timestamp(p.saved_at / 1000.0) into v_old, v_saved from public.planner_state p where p.id = 'main';
   assert v_old is not null, 'the copy has no planner_state row to compare with';
   v_new := (public.planner_state_get() ->> 'json')::jsonb;
