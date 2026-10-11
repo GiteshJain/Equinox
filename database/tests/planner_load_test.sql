@@ -128,6 +128,8 @@ begin
    where not exists (select 1 from pg_temp.retimed() r
                       where d.path in ('$.cash.' || r.day || '.' || r.airline, '$.fixed7.' || r.day || '.' || r.airline));
   assert bad is null, 'planner_state_get() changed after the loader ran a second time, at: ' || bad;
+  -- (what staff must get in 5 is the document as it now stands)
+  update t_pl set v = (public.planner_state_get() ->> 'json')::jsonb where k = 'state';
   assert (select jsonb_object_agg(g.month, g.json::jsonb) from public.planner_loads_get() g) = (select v from t_pl where k = 'loads'),
     'planner_loads_get() changed after the loader ran a second time';
   -- (rows removed would show as a difference in the documents; rows added would carry this transaction's xmin)
