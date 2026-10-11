@@ -6,6 +6,10 @@
 --      One allowed change, from 20261010180000 (10 Oct): payments that aren't flights (salaries above all) leave the
 --      two money views. game_flight_pnl may lose whole rows that are exactly such a payment's block, and
 --      game_ops_recent's costs and income may drop by exactly those payments within its 24 hours. Nothing else.
+--      Whether the change shows depends on the backup: one older than 20261010180000 still has those payments in its
+--      "before" figures, a newer one doesn't. So each row is accepted either way (#13 pull request 6): game_flight_pnl
+--      losing no rows, or only such blocks; a game_ops_recent row unchanged, or lower by exactly those payments. A
+--      hand-made airline shows both paths (and that a figure off by anything else fails), whatever the backup's age.
 --   2. export_capture() (every captured row): the same JSON, the rows of each list in any order. Its pnl and ops come
 --      straight from the two money views: they must equal those views as they are now. One allowed change, from
 --      20261011120000 (#13 pull request 6): a balance row's captured_at may move later, to the capture that gave its
@@ -16,8 +20,51 @@
 --   4. Every statement line is in exactly one place: tied to a flight in game_flights, or a payment in game_payments;
 --      every row of the old loads table (game_loads_before_13) is in game_loads.
 
+-- One game_ops_recent row against its figures from before the pending changes, from either side of 20261010180000:
+-- 'unchanged' (the backup already had it: the same costs, income and hours), 'salaries left out' (it didn't: costs and
+-- income lower by exactly the payments the old wording let in, within its 24 hours; the hours may move then), or null.
+create function pg_temp.ops_path(a_costs numeric, a_income numeric, a_hours numeric, b_costs numeric, b_income numeric,
+                                 b_hours numeric, p_debit numeric, p_credit numeric) returns text language sql immutable as $$
+  select case when (a_costs, a_income, a_hours) is not distinct from (b_costs, b_income, b_hours) then 'unchanged'
+              when coalesce(p_debit, 0) + coalesce(p_credit, 0) > 0
+                   and (a_costs, a_income) is not distinct from (b_costs - coalesce(p_debit, 0), b_income - coalesce(p_credit, 0))
+                then 'salaries left out' end
+$$;
+
+-- both paths on a hand-made airline: a flight and a salary line in its 24 hours. game_ops_recent leaves the salary out;
+-- "before" figures that still had it (a backup older than 20261010180000) and figures that didn't (a newer one) are
+-- both accepted; one off by anything else is not.
+do $case$
+declare al bigint; w bigint; t timestamptz := '2099-02-01 12:00+00'; r record;
+begin
+  insert into public.airlines (world_id, group_id, game_id, planner_name, iata_code)
+  select g.world_id, g.id, 999903, 'Compat Test Air', 'CQ'
+    from public.groups g join public.worlds wd on wd.id = g.world_id and wd.is_default
+   where g.kind = 'ours' order by g.id limit 1
+  returning id, world_id into al, w;
+  insert into public.game_flights (world_id, airline_id, posted_at, statement_blk, statement_routes, dep_at, pax_income, income_total, cost_total)
+  values (w, al, t - interval '2 hours', 1, 1, t - interval '2 hours', 1000, 1000, 400);
+  insert into public.game_payments (world_id, airline_id, paid_at, kind, descr, amount, side, occ, statement_blk)
+  values (w, al, t - interval '1 hour', 'salaries', 'Payment of employee salaries', 300, 'D', 1, 1);
+  select * into r from public.game_ops_recent where airline = 'Compat Test Air';
+  assert r.costs = 400 and r.income = 1000, format('game_ops_recent counts the salary line: costs %s, income %s', r.costs, r.income);
+  assert pg_temp.ops_path(r.costs, r.income, r.hours, r.costs + 300, r.income, r.hours, 300, 0) = 'salaries left out',
+    'before figures that still had the salary line (an older backup) aren''t accepted';
+  assert pg_temp.ops_path(r.costs, r.income, r.hours, r.costs, r.income, r.hours, 300, 0) = 'unchanged',
+    'before figures that already left it out (a newer backup) aren''t accepted';
+  assert pg_temp.ops_path(r.costs, r.income, r.hours, r.costs + 250, r.income, r.hours, 300, 0) is null
+     and pg_temp.ops_path(r.costs, r.income, r.hours, r.costs + 300, r.income, r.hours, 0, 0) is null
+     and pg_temp.ops_path(r.costs, r.income, r.hours + 1, r.costs, r.income, r.hours, 300, 0) is null,
+    'figures off by something other than the salary lines are accepted';
+  delete from public.game_payments where airline_id = al;
+  delete from public.game_flights where airline_id = al;
+  delete from public.airlines where id = al;
+  raise notice 'game_ops_recent from either side of 20261010180000 (a hand-made airline): before figures with the salary line in, or already without it, both accepted; off by anything else, refused';
+end
+$case$;
+
 do $test$
-declare n bigint; bad text; s text := 'compat-test-' || gen_random_uuid(); a jsonb; b jsonb; k text; n_later bigint; n_earlier bigint;
+declare n bigint; bad text; s text := 'compat-test-' || gen_random_uuid(); v_paths text; a jsonb; b jsonb; k text; n_later bigint; n_earlier bigint;
 begin
   assert to_regclass('rehearsal_before.outputs') is not null,
     'the outputs from before the changes weren''t saved (database/tests/before/capture_outputs.sql)';
@@ -52,8 +99,8 @@ begin
   raise notice 'game_flight_pnl: % statement blocks before; % payment blocks left out (salaries and the like), every other block the same',
     (select count(*) from rehearsal_before.game_flight_pnl), n;
 
-  -- game_ops_recent: the same rows, except that costs and income drop by exactly the payments the old wording let in
-  -- (salaries under their new label) within each airline's 24 hours; its hours may move only then
+  -- game_ops_recent: the same rows, either unchanged or with costs and income lower by exactly the payments the old
+  -- wording let in (salaries under their new label) within each airline's 24 hours, as pg_temp.ops_path() says
   with left_out as (
     select al.planner_name as airline,
            coalesce(sum(case when p.side = 'C' then 0 else p.amount end), 0) as debit,
@@ -71,10 +118,24 @@ begin
     left join left_out o on o.airline = b.airline
    where a.airline is null or b.airline is null
       or a.last_ts is distinct from b.last_ts or a.flights is distinct from b.flights
-      or a.costs is distinct from b.costs - coalesce(o.debit, 0)
-      or a.income is distinct from b.income - coalesce(o.credit, 0)
-      or (o.airline is null and a.hours is distinct from b.hours);
+      or pg_temp.ops_path(a.costs, a.income, a.hours, b.costs, b.income, b.hours, o.debit, o.credit) is null;
   assert bad is null, 'game_ops_recent differs from before by more than the payments it now leaves out, for: ' || bad;
+  with left_out as (
+    select al.planner_name as airline,
+           coalesce(sum(case when p.side = 'C' then 0 else p.amount end), 0) as debit,
+           coalesce(sum(case when p.side = 'C' then p.amount else 0 end), 0) as credit
+      from rehearsal_before.game_ops_recent b
+      join public.airlines al on al.planner_name = b.airline
+      join public.game_payments p on p.airline_id = al.id
+     where p.kind <> 'other' and p.paid_at > b.last_ts - interval '24 hours' and p.paid_at <= b.last_ts
+       and p.descr not ilike 'Leasing rate%' and p.descr not ilike 'Week-end closing%' and p.descr not ilike '%deposit%'
+       and p.descr not ilike '%purchase%' and p.descr not ilike '%cabin%' and p.descr not ilike '%configuration%'
+     group by al.planner_name)
+  select string_agg(x.path || ' ' || x.n, ', ' order by x.path) into v_paths
+    from (select pg_temp.ops_path(a.costs, a.income, a.hours, b.costs, b.income, b.hours, o.debit, o.credit) as path, count(*) as n
+            from rehearsal_before.game_ops_recent b join public.game_ops_recent a using (airline)
+            left join left_out o on o.airline = b.airline group by 1) x;
+  raise notice 'game_ops_recent: every airline the same as before, or lower by exactly the salary lines (%)', v_paths;
 
   -- 2. the functions' JSON (each list compared as a set of rows, since the order of a list was never fixed)
   insert into public.ingest_secret (secret) values (s);

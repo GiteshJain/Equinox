@@ -7,7 +7,9 @@ reads and saves the tables through the adapter, and it runs in one of two phases
   - after (the default): on the copy with every pending change, this pull request's included;
   - before: on the copy with only the changes live already has. Cloudflare publishes the planner when a pull request is
     merged and its migration is applied afterwards, so the new planner must also save into the database as it is until
-    then (the rehearsal's pass 0, when a pull request changes both).
+    then (the rehearsal's pass 0, when a pull request changes both). Live has had the switch-over since 11 Oct, so this
+    copy has it too, and the saves are judged as live behaves: through the adapter, the old rows frozen (#13 pull
+    request 6). The side by side is expected only on a copy whose old rows aren't frozen (after a rollback).
 
 1. Test users: two accounts made through the local sign-in's admin API, with throwaway passwords made here: one added
    to planner_users (staff), one not. They exist only in the copy.
@@ -29,8 +31,9 @@ reads and saves the tables through the adapter, and it runs in one of two phases
    savedAt and version are bookkeeping and may change. A missing key counts as null. After each save planner_state is
    as it was (the planner no longer writes it) and no table's row count changed but change_log's (and the load tables'
    for a typed load).
-   After: planner_loads is as it was too, and no job_runs row is written (the side by side is gone).
-   Before: save_loads() still writes planner_loads (that day only), and the side by side copies and compares it, ok.
+   With the old rows frozen, as on live since the switch-over (both phases): planner_loads is as it was too, and no
+   job_runs row is written (the side by side is gone). Only on a copy that isn't frozen (after a rollback):
+   save_loads() still writes planner_loads (that day only), and the side by side copies and compares it, ok.
 Only after:
 5. The old rows refuse a direct write: as postgres "frozen since <date>; write to the tables"; as staff through the data
    API, refused. Neither changes.
@@ -44,7 +47,8 @@ Only after:
    gets the new title, and the page reloads with the message naming X.
 8. A preview address reads through the getters and saves nothing: no write reaches the copy, no table changes.
 9. The guards: the account that isn't staff reads no planner_state rows and its writes are refused; signed out and as
-   that account, the new tables and views read nothing and refuse a new row; the getters, the write functions and
+   that account, the new tables and views (the history and the world scans' included, since #13 pull request 6) read
+   nothing and refuse a new row; the getters, the write functions and
    adapter_clean_days() refuse both; staff put and remove one item through the data API, logged as planner.
 10. Rollback: private.unfreeze_planner_state() makes planner_state and planner_loads equal the getters exactly; the old
    planner code (the last planner that saved planner_state itself, commit OLD_PLANNER, served the same way) then signs
@@ -89,6 +93,10 @@ WRITERS = ("planner_state_put", "planner_item_put", "planner_item_delete", "adap
 # capture's functions write the tables
 CAPTURE_TABLES = ("game_flights", "game_payments")
 CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent", "capture_cash")
+# The daily history and the world scans (migration 20261011120000_history.sql): staff read them, nobody else, and only the
+# database's own functions write them
+HISTORY_TABLES = ("airline_days", "route_days", "game_scans", "game_scan_airlines", "game_scan_schedules", "game_scan_airports",
+                  "scan_airline_airports", "scan_airline_markets")
 # The adapter's read side (migration 20261010120000_planner_data_load.sql): staff only
 GETTERS = ("planner_state_get", "planner_state_version", "planner_loads_get")
 # The adapter's writes, as the planner calls them
@@ -272,9 +280,14 @@ def months_changed(a, b, skip=()):
     return [m for m in sorted(set(a) | set(b)) if m not in skip and a.get(m) != b.get(m)]
 
 
+def loads_frozen():
+    """Whether the copy's planner_loads is frozen (the switch-over's trigger), as on live since 11 Oct."""
+    return psql("select private.planner_frozen_since('public.planner_loads'::regclass) is not null").strip() == "t"
+
+
 def old_rows_problems(o0, o1, loads_month=None, loads_day=None):
-    """The old rows after a save: planner_state as it was; planner_loads as it was, except (before the switch-over) the
-    typed day of its month."""
+    """The old rows after a save: planner_state as it was; planner_loads as it was, except (while it isn't frozen, as
+    after a rollback) the typed day of its month."""
     problems = []
     if o1["state"] != o0["state"]:
         problems.append("planner_state changed (the planner no longer writes it)")
@@ -571,17 +584,20 @@ async def type_load(pl, d0, l0, o0, n0):
     diff = [x for x in changed(d0["doc"], d1["doc"]) if x not in BOOKKEEPING]
     if diff:
         problems.append("planner_state_get() changed: " + ", ".join(diff[:12]))
-    # before the switch-over save_loads() still writes planner_loads (that day only), and the side by side follows it
-    problems += old_rows_problems(o0, o1, loads_month=mo if BEFORE else None, loads_day=iso)
-    new_month = BEFORE and mo not in o0["loads"] and int(n1.get("public.planner_loads", 0)) == int(n0.get("public.planner_loads", 0)) + 1
-    allow = {"public.change_log", "public.load_entries", "public.load_days"} | ({"public.job_runs"} if BEFORE else set()) \
+    # save_loads() writes planner_loads (that day only), and the side by side follows it, only while the old rows aren't
+    # frozen (after a rollback); with them frozen, as on live since the switch-over, it writes the tables alone. Either
+    # phase: pass 0's copy has every migration live has, the switch-over included (#13 pull request 6).
+    side = not loads_frozen()
+    problems += old_rows_problems(o0, o1, loads_month=mo if side else None, loads_day=iso)
+    new_month = side and mo not in o0["loads"] and int(n1.get("public.planner_loads", 0)) == int(n0.get("public.planner_loads", 0)) + 1
+    allow = {"public.change_log", "public.load_entries", "public.load_days"} | ({"public.job_runs"} if side else set()) \
         | ({"public.planner_loads"} if new_month else set())
     problems += count_changes(n0, n1, allow=allow)
     problems += [f"the planner said: {m}" for m in pl.dialogs[dl0:]]
     more, n = logged(mark, lambda r: r["table"] in ("load_entries", "load_days"), "save_loads")
     problems += more
     jobs = jobs_since(mark)
-    if BEFORE:
+    if side:
         if not {"adapter_mirror", "adapter_check"} <= {j["job"] for j in jobs}:
             problems.append("job_runs has no mirror or no comparison for the planner_loads write")
         problems += [f"{j['job']} {j['status']}: {j['note']}"[:300] for j in jobs if j["status"] != "ok"]
@@ -593,7 +609,7 @@ async def type_load(pl, d0, l0, o0, n0):
     if not typed or float(typed) != LOAD:
         problems.append("load_entries doesn't have the typed load for that flight and day")
     return (f"{name}: saved by save_loads() to load_entries and load_days ({n} change(s), planner, save_loads); "
-            + ("planner_loads that day too, its side-by-side comparison ok" if BEFORE else "planner_loads unchanged")), problems
+            + ("planner_loads that day too, its side-by-side comparison ok" if side else "planner_loads unchanged (frozen), no job_runs row")), problems
 
 
 # ---------- after the switch-over only ----------
@@ -902,7 +918,7 @@ def guard_new_tables(env, email, password):
     leave nothing: 200 and []), and adding a row to each table is refused (401 signed out, 403 not staff). Prints
     answers only, never rows."""
     n0 = counts()
-    tables, views = NEW_TABLES + CAPTURE_TABLES + JOB_TABLES, NEW_VIEWS + CAPTURE_VIEWS + JOB_VIEWS
+    tables, views = NEW_TABLES + CAPTURE_TABLES + JOB_TABLES + HISTORY_TABLES, NEW_VIEWS + CAPTURE_VIEWS + JOB_VIEWS
     missing = [t for t in tables if f"public.{t}" not in n0]
     problems = [f"no such table on the copy: {', '.join(missing)}"] if missing else []
     for who, token, refused in (("signed out", None, 401), ("not staff", token_for(env, email, password), 403)):
@@ -915,7 +931,8 @@ def guard_new_tables(env, email, password):
             elif code == 200 and json.loads(body) != []:
                 problems.append(f"{who}: read {len(json.loads(body))} row(s) of {t}")
         for t in tables:
-            row = {"op": "insert"} if t == "change_log" else {"job": "backup"} if t == "job_runs" else {"created_at": "2026-10-09T00:00:00Z"}
+            row = {"op": "insert"} if t == "change_log" else {"job": "backup"} if t == "job_runs" \
+                else {"world_id": 1} if t in HISTORY_TABLES else {"created_at": "2026-10-09T00:00:00Z"}
             code, _ = http(env, "POST", f"/rest/v1/{t}", row, token=token, prefer="return=minimal")
             if code != refused:
                 problems.append(f"{who}: adding a row to {t} wasn't refused (answer {code}, expected {refused})")
@@ -989,7 +1006,9 @@ def guard_writers(env, staff, other):
 
 async def main():
     facts = planner_facts()
-    print("phase: " + ("before this pull request's database changes" if BEFORE else "after every pending database change"), flush=True)
+    print("phase: " + ("before this pull request's database changes" if BEFORE else "after every pending database change")
+          + "; the copy's old rows " + ("are frozen, as on live since the switch-over" if loads_frozen() else "aren't frozen (as after a rollback)"),
+          flush=True)
     if not facts:
         step(False, "the planner names its Supabase address, public key and library",
              ["not found in web/planner/index.html, so the planner can't be pointed at the copy without changing it"])
@@ -1082,8 +1101,8 @@ async def main():
 
     if not BEFORE:
         for label, check in (("guard: an account that isn't staff reads no planner_state rows, and its writes are refused", lambda: guard(env, *other)),
-                             (f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES)} new tables and "
-                              f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's and job_runs included) read no rows, "
+                             (f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES) + len(HISTORY_TABLES)} new tables and "
+                              f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's, job_runs, the history and the world scans' included) read no rows, "
                               "and adding a row to each is refused", lambda: guard_new_tables(env, *other)),
                              ("the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
                               "planner_loads_get() are refused; staff get what psql gets", lambda: guard_getters(env, staff, other)),

@@ -8,8 +8,9 @@
 # 0. Before this pull request's own database changes (#13, pull request 9): Cloudflare publishes the planner when a pull
 #    request is merged, and its database changes are applied afterwards, so when a pull request both changes the planner
 #    and adds migrations, its planner must also save into the database as live has it now. The copy is restored (as in
-#    1), given only the changes live already has, and the real saves (7) run there with REAL_SAVES_PHASE=before. Then the
-#    copy is thrown away and everything below runs on a fresh one.
+#    1), given only the changes live already has, and the real saves (7) run there with REAL_SAVES_PHASE=before (since
+#    the switch-over that copy has the old rows frozen, as live does, and the saves are judged so). Then the copy is
+#    thrown away and everything below runs on a fresh one.
 # 1. Restores the backup into an empty local Supabase (Docker): the database, the data API and sign-in, with nothing
 #    else started (#17). The database is restored the same way the nightly restore check does.
 # 2. Finds the changes still to apply: migration files whose version isn't in the restored migration record, which is
