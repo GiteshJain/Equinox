@@ -29,10 +29,7 @@ begin
     a := public.export_for_report(s, split_part(o.name, ' ', 1), split_part(o.name, ' ', 2));
     if a is distinct from o.value then
       if (select array_agg(e order by e::text) from jsonb_array_elements(a) e) = (select array_agg(e order by e::text) from jsonb_array_elements(o.value) e) then
-        raise exception 'export_for_report(''%'') has the same entries as before, in another order (before: %)', o.name,
-          case when (select bool_and(x.id >= coalesce(x.prev, x.id)) from (select (e ->> 'id')::int as id, lag((e ->> 'id')::int) over (order by i) as prev
-                                                                              from jsonb_array_elements(o.value) with ordinality y(e, i)) x)
-               then 'by game ID' else 'not by game ID' end;
+        raise exception 'export_for_report(''%'') has the same entries as before, in another order', o.name;
       end if;
       raise exception 'export_for_report(''%'') differs from before (% entries before, % now)', o.name, jsonb_array_length(o.value), jsonb_array_length(a);
     end if;
@@ -193,12 +190,12 @@ begin
             from public.scan_airline_markets m join public.airlines al on al.id = m.airline_id where m.scan_id = v_id)
          = '{"999555 Transatlantic": [9, 1], "113 South Asia–North America": [3, 1]}'::jsonb,
     'the market summaries sent again didn''t replace the first ones';
-  -- and the report gets the scan back as it was sent: airlines by game ID, with their schedules
+  -- and the report gets the scan back as it was sent: the airlines in the order sent, with their schedules
   insert into public.ingest_secret (secret) values (s) on conflict do nothing;
   a := public.export_for_report(s, 'airlines', v_id::text);
-  assert jsonb_array_length(a) = 2 and (a -> 0 ->> 'id')::int = 113 and (a -> 1 ->> 'id')::int = 999555
-     and a -> 1 -> 'flights' = (select flights from public.game_scan_schedules where scan_id = v_id and airline_id = v_rival)
-     and a -> 1 ->> 'name' = 'History Test Rival' and (a -> 1 ->> 'n_weekly')::int = 15,
+  assert jsonb_array_length(a) = 2 and (a -> 0 ->> 'id')::int = 999555 and (a -> 1 ->> 'id')::int = 113
+     and a -> 0 -> 'flights' = (select flights from public.game_scan_schedules where scan_id = v_id and airline_id = v_rival)
+     and a -> 0 ->> 'name' = 'History Test Rival' and (a -> 0 ->> 'n_weekly')::int = 15,
     'export_for_report(''airlines'') doesn''t give the scan back as sent';
   a := public.export_for_report(s, 'airports', v_id::text);
   assert jsonb_array_length(a) = 1 and a -> 0 ->> 'code' = 'JFK' and a -> 0 -> 'info' = '{"size": "huge"}'::jsonb

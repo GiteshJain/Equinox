@@ -327,14 +327,19 @@ select distinct on (x.game_id) s.world_id, x.game_id, nullif(btrim(x.name), '')
  order by x.game_id, s.taken_at desc, x.pri
 on conflict (world_id, game_id) do nothing;
 
--- 3c. game_snapshot_airlines -> game_scan_airlines: each airline's totals in a scan, with its world and airline
+-- 3c. game_snapshot_airlines -> game_scan_airlines: each airline's totals in a scan, with its world and airline. Its
+--     position is the order the scan stored the rows in (the table's own order, which export_for_report() has always
+--     listed them in, unsorted), taken before the update below moves the rows.
 alter table public.game_snapshot_airlines rename to game_scan_airlines;
 alter table public.game_scan_airlines rename column snapshot_id to scan_id;
-alter table public.game_scan_airlines add column world_id bigint, add column airline_id bigint;
-update public.game_scan_airlines a set world_id = s.world_id, airline_id = al.id
-  from public.game_scans s, public.airlines al
- where s.id = a.scan_id and al.world_id = s.world_id and al.game_id = a.enterprise_id;
+alter table public.game_scan_airlines add column world_id bigint, add column airline_id bigint, add column position int;
+update public.game_scan_airlines a set world_id = s.world_id, airline_id = al.id, position = o.pos
+  from (select x.ctid as row_at, row_number() over (partition by x.scan_id order by x.ctid)::int as pos
+          from public.game_scan_airlines x) o,
+       public.game_scans s, public.airlines al
+ where a.ctid = o.row_at and s.id = a.scan_id and al.world_id = s.world_id and al.game_id = a.enterprise_id;
 alter table public.game_scan_airlines alter column world_id set not null, alter column airline_id set not null,
+  alter column position set not null,
   add constraint game_scan_airlines_scan_world_fkey foreign key (scan_id, world_id) references public.game_scans (id, world_id) on delete cascade,
   add constraint game_scan_airlines_airline_fkey foreign key (airline_id, world_id) references public.airlines (id, world_id),
   add constraint game_scan_airlines_scan_airline_key unique (scan_id, airline_id);
@@ -355,19 +360,19 @@ create index game_scan_schedules_airline_scan_idx on public.game_scan_schedules 
 insert into public.game_scan_schedules (scan_id, world_id, airline_id, flights)
 select a.scan_id, a.world_id, a.airline_id, a.flights from public.game_scan_airlines a;
 
--- 3e. game_snapshot_airports -> game_scan_airports, with its world. The world is added as a constant default and the
---     default then dropped, so the table isn't rewritten and its rows keep the order export_for_report() lists them in.
+-- 3e. game_snapshot_airports -> game_scan_airports, with its world, and its position: the order the scan stored the
+--     rows in, as for the airlines (export_for_report() has always listed them in the table's own order).
 alter table public.game_snapshot_airports rename to game_scan_airports;
 alter table public.game_scan_airports rename column snapshot_id to scan_id;
 alter table public.game_scan_airports rename column code to airport_code;
 alter table public.game_scan_airports rename column airport_id to game_airport_id;
-do $world$
-begin
-  execute format('alter table public.game_scan_airports add column world_id bigint not null default %s',
-                 (select w.id from public.worlds w where w.is_default));
-end
-$world$;
-alter table public.game_scan_airports alter column world_id drop default,
+alter table public.game_scan_airports add column world_id bigint, add column position int;
+update public.game_scan_airports a set world_id = s.world_id, position = o.pos
+  from (select x.ctid as row_at, row_number() over (partition by x.scan_id order by x.ctid)::int as pos
+          from public.game_scan_airports x) o,
+       public.game_scans s
+ where a.ctid = o.row_at and s.id = a.scan_id;
+alter table public.game_scan_airports alter column world_id set not null, alter column position set not null,
   add constraint game_scan_airports_scan_world_fkey foreign key (scan_id, world_id) references public.game_scans (id, world_id) on delete cascade;
 
 -- 3f. the summaries kept for good (§11 choice 2)
@@ -771,9 +776,10 @@ begin
     end if;
     if p_kind = 'airline' then
       v_al := private.scan_airline(v_world, (p_payload ->> 'enterprise_id')::int, p_payload ->> 'name');
-      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports)
+      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position)
       values (v_scan, v_world, (p_payload ->> 'enterprise_id')::int, v_al, p_payload ->> 'name',
-              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int)
+              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int,
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airlines y where y.scan_id = v_scan))
       on conflict (scan_id, enterprise_id) do update set airline_id = excluded.airline_id, name = excluded.name,
         n_flights = excluded.n_flights, n_weekly = excluded.n_weekly, n_airports = excluded.n_airports;
       insert into public.game_scan_schedules as x (scan_id, world_id, airline_id, flights)
@@ -785,9 +791,10 @@ begin
       perform private.scan_airline(v_world, (st ->> 'enterprise_id')::int, st ->> 'name')
          from jsonb_array_elements(case when jsonb_typeof(p_payload -> 'stations') = 'array' then p_payload -> 'stations' else '[]'::jsonb end) st
         where (st ->> 'enterprise_id') ~ '^\d{1,9}$';
-      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news)
+      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news, position)
       values (v_scan, v_world, p_payload ->> 'code', (p_payload ->> 'airport_id')::int, p_payload -> 'info',
-              p_payload -> 'stations', p_payload -> 'news')
+              p_payload -> 'stations', p_payload -> 'news',
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airports y where y.scan_id = v_scan))
       on conflict (scan_id, airport_code) do update set game_airport_id = excluded.game_airport_id, info = excluded.info,
         stations = excluded.stations, news = excluded.news;
       v_res := jsonb_build_object('ok', true);
@@ -819,9 +826,9 @@ begin
 end
 $function$;
 
--- The weekly report's and gander monthly's reads, with the same answers as before: the scans, a scan's airlines (by
--- game ID, the order the scanner reads them in, each with its schedule: null once the schedule is archived) and its
--- airports (in the order the scan stored them); the planner's two documents as pull request 8 left them.
+-- The weekly report's and gander monthly's reads, with the same answers as before: the scans, a scan's airlines (each
+-- with its schedule: null once the schedule is archived) and its airports, each in the order the scan stored them; the
+-- planner's two documents as pull request 8 left them.
 create or replace function public.export_for_report(p_secret text, p_kind text, p_arg text default null)
  returns jsonb
  language plpgsql
@@ -835,12 +842,13 @@ begin
               from public.game_scans s);
   elsif p_kind = 'airlines' then
     return (select coalesce(jsonb_agg(jsonb_build_object('id', a.enterprise_id, 'name', a.name, 'flights', sc.flights, 'n_weekly', a.n_weekly)
-                                      order by a.enterprise_id), '[]'::jsonb)
+                                      order by a.position, a.enterprise_id), '[]'::jsonb)
               from public.game_scan_airlines a
               left join public.game_scan_schedules sc on sc.scan_id = a.scan_id and sc.airline_id = a.airline_id
              where a.scan_id = p_arg::bigint);
   elsif p_kind = 'airports' then
-    return (select coalesce(jsonb_agg(jsonb_build_object('code', a.airport_code, 'info', a.info, 'stations', a.stations, 'news', a.news)), '[]'::jsonb)
+    return (select coalesce(jsonb_agg(jsonb_build_object('code', a.airport_code, 'info', a.info, 'stations', a.stations, 'news', a.news)
+                                      order by a.position, a.airport_code), '[]'::jsonb)
               from public.game_scan_airports a where a.scan_id = p_arg::bigint);
   elsif p_kind = 'planner' then
     -- today's two documents, built from the tables by the adapter's getters (design §8)
@@ -965,6 +973,8 @@ comment on column public.game_scan_airlines.n_flights is 'Flights in its schedul
 comment on column public.game_scan_airlines.n_weekly is 'Departures a week';
 comment on column public.game_scan_airlines.n_airports is 'Airports it serves';
 comment on column public.game_scan_airlines.airline_id is 'The airline (airlines, by game ID): every airline a scan sees has a row';
+comment on column public.game_scan_airlines.position is 'The order the scan stored the airline in; export_for_report() lists a scan''s airlines in it, as it always has';
+comment on column public.game_scan_airports.position is 'The order the scan stored the airport in; export_for_report() lists a scan''s airports in it, as it always has';
 comment on table public.game_scan_schedules is 'Each airline''s full schedule in a world scan (design §3.9): one JSON list per airline, each flight as [code, number, from, to, weekdays, departure, arrival, aircraft type, operator]. Kept one month, then archived (#13 pull request 7). Written by ingest_snapshot(). Read by export_for_report() and the airport summaries (private.scan_summarise).';
 comment on table public.game_scan_airports is 'Each scanned airport''s page in a world scan (design §3.9; was game_snapshot_airports): its details, the airlines stationed there and its news. Kept one month, then archived (#13 pull request 7). Written by ingest_snapshot(). Read by export_for_report().';
 comment on column public.game_scan_airports.airport_code is 'IATA code';
@@ -990,7 +1000,7 @@ comment on function private.scan_airline(bigint, integer, text) is 'The airlines
 comment on function private.scan_summarise(bigint) is 'Builds a world scan''s airport summaries (scan_airline_airports) from its schedules: per airline and airport, departures a week and destinations. Run when a scan finishes; a scan whose schedules were archived keeps what it has. Returns the rows written.';
 comment on function public.capture_ingest(text, text, text, text, jsonb) is 'Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game''s ID or, from older userscripts, by name, and refuses one outside the key''s world; keeps the raw page 14 days and parses it (private.capture_store, private.capture_page): bank statement into game_flights and game_payments, loads into game_flights. Answers with the capture day and whether it is complete; the page that completes the world''s capture for the day also takes the daily snapshot (airline_days, route_days) and answers with it.';
 comment on function public.ingest_snapshot(text, text, jsonb) is 'Receives the world scanner''s results (start, airlines, airports, finish) into game_scans, game_scan_airlines, game_scan_schedules and game_scan_airports; finish builds the scan''s airport summaries. Kind markets takes the weekly report''s market summaries for a scan (scan_airline_markets). Every airline a scan sees gets an airlines row (change log actor script). Same kinds, payloads and answers as before #13. Needs the ingest secret.';
-comment on function public.export_for_report(text, text, text) is 'Exports for the weekly report and gander monthly: the world scans (snapshots), a scan''s airlines (with their schedules) and airports, from game_scans and its tables with the same answers as before #13, and the planner ({state, loads}: today''s planner_state and planner_loads documents, built from the tables by planner_state_get() and planner_loads_get()). Needs the ingest secret.';
+comment on function public.export_for_report(text, text, text) is 'Exports for the weekly report and gander monthly: the world scans (snapshots), a scan''s airlines (with their schedules) and airports, each in the order the scan stored them, from game_scans and its tables with the same answers as before #13, and the planner ({state, loads}: today''s planner_state and planner_loads documents, built from the tables by planner_state_get() and planner_loads_get()). Needs the ingest secret.';
 comment on column public.game_balance.captured_at is 'When the capture that gave the figures was taken (the latest capture that UTC date, since #13 pull request 6)';
 comment on column public.game_pnl.captured_at is 'When the capture that gave the figures was taken (the latest capture that UTC date, since #13 pull request 6)';
 comment on column public.game_balance.capture_day is 'The capture day (design §2): the evening of the capture that gave the figures';

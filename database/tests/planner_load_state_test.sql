@@ -10,6 +10,11 @@
 --   - and whose capture came after planner_state's last save: for cash, that airline's balance for the date; for
 --     fixed7, that balance (the 7 days are counted from it, so the planner can't have worked the figure out before it
 --     existed) or any of the events the figure counts.
+-- And one more, from #13 pull request 6 (the two-captures fix, 20261011120000): "cash/fixed7 re-timed by the two-captures
+-- fix". A balance captured twice on one UTC date used to keep the first capture's time with the second's figures; it now
+-- carries the second's time, so the 7 days of payments are counted from it. Allowed only for an entry whose getter
+-- figure equals the capture's, of an airline and date whose cash balance that fix re-timed (database/tests/before/
+-- history_before.sql saved the times before).
 -- Each allowed difference used is printed with how often. Any other difference fails, and a cash or next-7-day figure
 -- that fails is named (date and airline) with the side that has it and when it was captured.
 
@@ -27,6 +32,16 @@ begin
 end
 $$;
 
+-- airlines and dates whose cash balance the two-captures fix re-timed (#13 pull request 6), from the times saved before
+create function pg_temp.retimed() returns table (airline text, day date) language plpgsql as $$
+begin
+  if to_regclass('rehearsal_before.game_balance_times') is null then return; end if;
+  return query execute 'select o.airline, o.captured_on from rehearsal_before.game_balance_times o
+                          join public.game_balance b on (b.airline, b.captured_on, b.account) = (o.airline, o.captured_on, o.account)
+                         where o.account like ''2800%'' and b.captured_at > o.captured_at';
+end
+$$;
+
 -- a difference's place: list positions as [], keys of keyed sections as {}
 create function pg_temp.place(p_path text) returns text language sql immutable as $$
   select regexp_replace(regexp_replace(p_path, '\[\d+\]', '[]', 'g'),
@@ -35,6 +50,7 @@ $$;
 
 do $test$
 declare v_old jsonb; v_new jsonb; v_saved timestamptz; bad text; cash_why text; used text; v_late bigint; v_late_places text;
+  v_retimed bigint; v_retimed_places text;
 begin
   if not pg_temp.old_rows_current() then
     raise notice 'planner_state frozen since % (before last night''s backup): older than the tables by design, not compared; switch_over_test.sql compares the rollback''s copy',
@@ -72,16 +88,19 @@ begin
     from entries e
     left join public.airlines al on al.planner_name = e.airline and al.world_id = (select id from public.worlds where is_default)
     left join public.capture_cash cc on cc.airline_id = al.id and cc.day = private.json_date(to_jsonb(e.day));
-  alter table t_money add column late boolean;
+  alter table t_money add column late boolean, add column retimed boolean;
   update t_money set late = jsonb_typeof(got) = 'number' and figure is not null and (got #>> '{}')::numeric = figure
-                            and (cash_at > v_saved or (sec = 'fixed7' and events_at > v_saved));
+                            and (cash_at > v_saved or (sec = 'fixed7' and events_at > v_saved)),
+                     retimed = jsonb_typeof(got) = 'number' and figure is not null and (got #>> '{}')::numeric = figure
+                               and exists (select 1 from pg_temp.retimed() r where r.airline = t_money.airline
+                                             and r.day = private.json_date(to_jsonb(t_money.day)));
 
   -- what remains: every other difference, and any cash or fixed7 path with an entry that isn't allowed
   select string_agg(pg_temp.place(t.path) || ' ×' || t.n, ', ' order by pg_temp.place(t.path)) into bad
     from (select d.path, count(*) as n from t_diff d
            where d.kind = 'differs'
              and (not exists (select 1 from t_money m where m.path = d.path)
-                  or exists (select 1 from t_money m where m.path = d.path and not m.late))
+                  or exists (select 1 from t_money m where m.path = d.path and not m.late and not m.retimed))
            group by d.path) t;
   if bad is not null then
     select '; cash and next-7-day figures: ' || string_agg(format('%s %s %s (%s; %s)', m.sec, m.day, m.airline,
@@ -91,17 +110,20 @@ begin
                   when m.cash_at > v_saved then 'captured after the planner last saved'
                   else 'captured before the planner last saved' end), ', ' order by m.sec, m.day, m.airline)
       into cash_why
-      from t_money m where not m.late;
+      from t_money m where not m.late and not m.retimed;
     bad := bad || coalesce(cash_why, '');
   end if;
   assert bad is null, 'planner_state_get() differs from planner_state at: ' || bad;
 
   select count(*), string_agg(distinct '$.' || sec || '.{}.{}', ', ') into v_late, v_late_places from t_money where late;
+  select count(*), string_agg(distinct '$.' || sec || '.{}.{}', ', ') into v_retimed, v_retimed_places from t_money where retimed and not late;
   select string_agg(x.kind || ' ×' || x.n || ' (' || x.places || ')', '; ' order by x.kind) into used
     from (select y.kind, sum(y.n) as n, string_agg(y.place, ', ' order by y.place) as places
             from (select d.kind, pg_temp.place(d.path) as place, count(*) as n from t_diff d where d.kind <> 'differs' group by 1, 2
                   union all
-                  select 'cash/fixed7 captured after the planner last saved', v_late_places, v_late where v_late > 0) y
+                  select 'cash/fixed7 captured after the planner last saved', v_late_places, v_late where v_late > 0
+                  union all
+                  select 'cash/fixed7 re-timed by the two-captures fix', v_retimed_places, v_retimed where v_retimed > 0) y
            group by y.kind) x;
   raise notice 'planner_state_get() equals planner_state (% tails, % frequencies, % plan cards, % to-dos); allowed differences used: %',
     jsonb_array_length(v_old -> 'tails'), jsonb_array_length(v_old -> 'freqs'),

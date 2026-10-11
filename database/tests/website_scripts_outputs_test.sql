@@ -17,7 +17,19 @@
 -- Each allowed difference used is printed with how often.
 -- The "before" outputs come from the old rows when last night's backup is older than pull request 8, and those lag
 -- behind the capture. The switch-over (pull request 9) made the side by side's comparison strict, so this test keeps
--- its own copy of the comparison as pull request 5 left it (pg_temp.old_rows_check), for outputs made from the old rows.
+-- its own copy of the comparison as pull request 5 left it (pg_temp.old_rows_check), for outputs made from the old rows,
+-- with one more allowance from #13 pull request 6: a cash or next-7-day figure that is the capture's, for an airline and
+-- date whose cash balance the two-captures fix re-timed (its 7 days now count from the capture that gave the cash).
+
+-- airlines and dates whose cash balance the two-captures fix re-timed (#13 pull request 6), from the times saved before
+create function pg_temp.retimed() returns table (airline text, day date) language plpgsql as $$
+begin
+  if to_regclass('rehearsal_before.game_balance_times') is null then return; end if;
+  return query execute 'select o.airline, o.captured_on from rehearsal_before.game_balance_times o
+                          join public.game_balance b on (b.airline, b.captured_on, b.account) = (o.airline, o.captured_on, o.account)
+                         where o.account like ''2800%'' and b.captured_at > o.captured_at';
+end
+$$;
 
 create function pg_temp.old_rows_check(p_world_id bigint, p_old jsonb, p_saved_at bigint, p_new jsonb)
  returns table (path text, kind text, why text)
@@ -56,7 +68,8 @@ as $function$
            case when not coalesce(jsonb_typeof(m.got) = 'number' and m.figure is not null and (m.got #>> '{}')::numeric = m.figure, false) then null
                 when m.cash_at > to_timestamp(p_saved_at / 1000.0)
                      or (m.sec = 'fixed7' and m.events_at > to_timestamp(p_saved_at / 1000.0)) then 'late'
-                when coalesce(m.had, 'null'::jsonb) = 'null'::jsonb then 'not saved' end as how
+                when coalesce(m.had, 'null'::jsonb) = 'null'::jsonb then 'not saved'
+                when exists (select 1 from pg_temp.retimed() r where r.airline = m.airline and r.day = private.json_date(to_jsonb(m.day))) then 'retimed' end as how
       from money m)
   select d.path, d.kind, null::text from d where d.kind <> 'differs'
   union all
@@ -64,6 +77,7 @@ as $function$
          case when not exists (select 1 from judged j where j.path = d.path)
                    or exists (select 1 from judged j where j.path = d.path and j.how is null) then 'differs'
               when exists (select 1 from judged j where j.path = d.path and j.how = 'late') then 'cash/fixed7 captured after the planner last saved'
+              when exists (select 1 from judged j where j.path = d.path and j.how = 'retimed') then 'cash/fixed7 re-timed by the two-captures fix'
               else 'cash/fixed7 captured, not in the saved document' end,
          (select string_agg(format('%s %s %s (%s; %s)', j.sec, j.day, j.airline,
                    case when j.had is null then 'only in the tables' when j.got is null then 'only in planner_state' else 'the figure differs' end,

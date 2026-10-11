@@ -811,6 +811,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `n_airports` | integer | Airports it serves |
 | `world_id` | bigint |  |
 | `airline_id` | bigint | The airline (airlines, by game ID): every airline a scan sees has a row |
+| `position` | integer | The order the scan stored the airline in; export_for_report() lists a scan's airlines in it, as it always has |
 
 **Access:** staff read: select for authenticated.
 
@@ -827,6 +828,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `stations` | jsonb | The airlines stationed there with their departures a week: [{enterprise_id, name, weekly, alliance, interline}] |
 | `news` | jsonb |  |
 | `world_id` | bigint |  |
+| `position` | integer | The order the scan stored the airport in; export_for_report() lists a scan's airports in it, as it always has |
 
 **Access:** staff read: select for authenticated.
 
@@ -1519,7 +1521,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `capture_airlines(p_key text)` | jsonb | anon, authenticated · runs as owner | For the capture userscript, with the capture key: the key's world and its active airlines of our groups (game ID, name, code), in display order, so the userscript doesn't keep its own list. |
 | `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game's ID or, from older userscripts, by name, and refuses one outside the key's world; keeps the raw page 14 days and parses it (private.capture_store, private.capture_page): bank statement into game_flights and game_payments, loads into game_flights. Answers with the capture day and whether it is complete; the page that completes the world's capture for the day also takes the daily snapshot (airline_days, route_days) and answers with it. |
 | `export_capture(p_secret text, p_days integer)` | jsonb | anon, authenticated · runs as owner | Exports recent capture data for Claude's scripts, exactly as before #13: profit per flight, loads, payments ahead, cash, the last 24 hours and capture runs, from the compatibility views. Needs the ingest secret. |
-| `export_for_report(p_secret text, p_kind text, p_arg text)` | jsonb | anon, authenticated · runs as owner | Exports for the weekly report and gander monthly: the world scans (snapshots), a scan's airlines (with their schedules) and airports, from game_scans and its tables with the same answers as before #13, and the planner ({state, loads}: today's planner_state and planner_loads documents, built from the tables by planner_state_get() and planner_loads_get()). Needs the ingest secret. |
+| `export_for_report(p_secret text, p_kind text, p_arg text)` | jsonb | anon, authenticated · runs as owner | Exports for the weekly report and gander monthly: the world scans (snapshots), a scan's airlines (with their schedules) and airports, each in the order the scan stored them, from game_scans and its tables with the same answers as before #13, and the planner ({state, loads}: today's planner_state and planner_loads documents, built from the tables by planner_state_get() and planner_loads_get()). Needs the ingest secret. |
 | `export_planner_data(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exports planner_data for scripts. Needs the ingest secret. |
 | `export_repo_bootstrap(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exported the stored scripts when the repository was created (decision #1). Needs the ingest secret. |
 | `ingest_snapshot(p_secret text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | Receives the world scanner's results (start, airlines, airports, finish) into game_scans, game_scan_airlines, game_scan_schedules and game_scan_airports; finish builds the scan's airport summaries. Kind markets takes the weekly report's market summaries for a scan (scan_airline_markets). Every airline a scan sees gets an airlines row (change log actor script). Same kinds, payloads and answers as before #13. Needs the ingest secret. |

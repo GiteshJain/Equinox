@@ -154,12 +154,13 @@ begin
               from public.game_scans s);
   elsif p_kind = 'airlines' then
     return (select coalesce(jsonb_agg(jsonb_build_object('id', a.enterprise_id, 'name', a.name, 'flights', sc.flights, 'n_weekly', a.n_weekly)
-                                      order by a.enterprise_id), '[]'::jsonb)
+                                      order by a.position, a.enterprise_id), '[]'::jsonb)
               from public.game_scan_airlines a
               left join public.game_scan_schedules sc on sc.scan_id = a.scan_id and sc.airline_id = a.airline_id
              where a.scan_id = p_arg::bigint);
   elsif p_kind = 'airports' then
-    return (select coalesce(jsonb_agg(jsonb_build_object('code', a.airport_code, 'info', a.info, 'stations', a.stations, 'news', a.news)), '[]'::jsonb)
+    return (select coalesce(jsonb_agg(jsonb_build_object('code', a.airport_code, 'info', a.info, 'stations', a.stations, 'news', a.news)
+                                      order by a.position, a.airport_code), '[]'::jsonb)
               from public.game_scan_airports a where a.scan_id = p_arg::bigint);
   elsif p_kind = 'planner' then
     -- today's two documents, built from the tables by the adapter's getters (design §8)
@@ -228,9 +229,10 @@ begin
     end if;
     if p_kind = 'airline' then
       v_al := private.scan_airline(v_world, (p_payload ->> 'enterprise_id')::int, p_payload ->> 'name');
-      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports)
+      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position)
       values (v_scan, v_world, (p_payload ->> 'enterprise_id')::int, v_al, p_payload ->> 'name',
-              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int)
+              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int,
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airlines y where y.scan_id = v_scan))
       on conflict (scan_id, enterprise_id) do update set airline_id = excluded.airline_id, name = excluded.name,
         n_flights = excluded.n_flights, n_weekly = excluded.n_weekly, n_airports = excluded.n_airports;
       insert into public.game_scan_schedules as x (scan_id, world_id, airline_id, flights)
@@ -242,9 +244,10 @@ begin
       perform private.scan_airline(v_world, (st ->> 'enterprise_id')::int, st ->> 'name')
          from jsonb_array_elements(case when jsonb_typeof(p_payload -> 'stations') = 'array' then p_payload -> 'stations' else '[]'::jsonb end) st
         where (st ->> 'enterprise_id') ~ '^\d{1,9}$';
-      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news)
+      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news, position)
       values (v_scan, v_world, p_payload ->> 'code', (p_payload ->> 'airport_id')::int, p_payload -> 'info',
-              p_payload -> 'stations', p_payload -> 'news')
+              p_payload -> 'stations', p_payload -> 'news',
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airports y where y.scan_id = v_scan))
       on conflict (scan_id, airport_code) do update set game_airport_id = excluded.game_airport_id, info = excluded.info,
         stations = excluded.stations, news = excluded.news;
       v_res := jsonb_build_object('ok', true);
