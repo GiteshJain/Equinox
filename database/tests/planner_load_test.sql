@@ -5,7 +5,11 @@
 --      allowed difference used is printed with how often. (planner_state_get() against planner_state is
 --      planner_load_state_test.sql.)
 --   2. The keys kept in extra (expected: none, beyond each aircraft's place in the old planner's two lists).
---   3. Running the loader a second time changes no rows, and the documents stay the same.
+--   3. Running the loader a second time changes no rows, and the documents stay the same. One exception, from #13 pull
+--      request 6: where the two-captures fix re-timed an airline's cash balance for a date, the capture's next-7-day
+--      figure can differ from the one the old planner stored (it now counts from the capture that gave the cash), so the
+--      second run keeps the old planner's figure as a cash_entries row for that airline and date, and the getter shows
+--      it there; nothing else.
 --   4. Speed: how long each getter takes on the copy.
 --   5. Who may call them: signed out nobody; signed in but not staff, refused; staff get the same documents as postgres.
 
@@ -34,6 +38,16 @@ create function pg_temp.places(p_old jsonb, p_new jsonb) returns table (kind tex
    group by 1, 2
 $$;
 create temporary table t_pl (k text primary key, v jsonb) on commit drop;
+
+-- airlines and dates whose cash balance the two-captures fix re-timed (#13 pull request 6), from the times saved before
+create function pg_temp.retimed() returns table (airline text, day date) language plpgsql as $$
+begin
+  if to_regclass('rehearsal_before.game_balance_times') is null then return; end if;
+  return query execute 'select o.airline, o.captured_on from rehearsal_before.game_balance_times o
+                          join public.game_balance b on (b.airline, b.captured_on, b.account) = (o.airline, o.captured_on, o.account)
+                         where o.account like ''2800%'' and b.captured_at > o.captured_at';
+end
+$$;
 
 -- ---------------------------------------------------------------- 1. the loads documents equal today's
 do $test$
@@ -100,12 +114,22 @@ begin
                                'service_profiles', 'routes', 'rotations', 'flight_legs', 'plan_cards', 'plan_card_legs', 'todos',
                                'todo_items', 'growth_log', 'spending_log', 'fare_plan', 'interline_agreements', 'monthly_checks',
                                'dismissals', 'cash_entries', 'load_entries', 'load_days', 'settings', 'world_rules', 'game_events']) loop
-    execute format('select count(*) from public.%I where xmin = pg_current_xact_id()::xid', t) into n;
+    execute format('select count(*) from public.%I x where x.xmin = pg_current_xact_id()::xid', t) into n;
+    if t = 'cash_entries' then   -- (the two-captures fix's dates, as above)
+      select count(*) into n from public.cash_entries x join public.airlines al on al.id = x.airline_id
+       where x.xmin = pg_current_xact_id()::xid
+         and not exists (select 1 from pg_temp.retimed() r where r.airline = al.planner_name and r.day = x.day);
+    end if;
     if n > 0 then bad := concat_ws(', ', bad, t || ' ' || n); end if;
   end loop;
   assert bad is null, 'running the loader a second time changed rows: ' || bad;
-  assert (public.planner_state_get() ->> 'json')::jsonb = (select v from t_pl where k = 'state'),
-    'planner_state_get() changed after the loader ran a second time';
+  select string_agg(d.path, ', ') into bad
+    from private.planner_json_differences((select v from t_pl where k = 'state'), (public.planner_state_get() ->> 'json')::jsonb) d
+   where not exists (select 1 from pg_temp.retimed() r
+                      where d.path in ('$.cash.' || r.day || '.' || r.airline, '$.fixed7.' || r.day || '.' || r.airline));
+  assert bad is null, 'planner_state_get() changed after the loader ran a second time, at: ' || bad;
+  -- (what staff must get in 5 is the document as it now stands)
+  update t_pl set v = (public.planner_state_get() ->> 'json')::jsonb where k = 'state';
   assert (select jsonb_object_agg(g.month, g.json::jsonb) from public.planner_loads_get() g) = (select v from t_pl where k = 'loads'),
     'planner_loads_get() changed after the loader ran a second time';
   -- (rows removed would show as a difference in the documents; rows added would carry this transaction's xmin)

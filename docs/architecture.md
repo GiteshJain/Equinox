@@ -14,6 +14,7 @@ flowchart LR
   end
   subgraph Supabase["Supabase: database, sign-in, files"]
     I["capture_ingest()"] --> R[(game_capture_raw)] --> P["private.capture_page()"] --> T[("game_flights, game_payments,<br/>game_statement, events,<br/>balance, income statement")]
+    T -- "when the evening's capture<br/>is complete" --> HD[("daily history<br/>airline_days, route_days")]
     PS[("planner_state, planner_loads<br/>(frozen fallback)<br/>planner_data")]
     PT[("planner tables<br/>airlines, aircraft, routes,<br/>flight legs, plan cards ...")]
     AD["the adapter<br/>planner_state_get / _put,<br/>planner_loads_get, save_loads"]
@@ -35,6 +36,7 @@ flowchart LR
   end
   G --> C --> I
   T --> PL
+  PT --> HD
   PL <--> AD <--> PT
   PS -. "route research" .-> PL
   T --> PT
@@ -56,7 +58,7 @@ flowchart LR
 | **Website** | The public airline site: home, flights, destinations, live network, our airlines, newsroom, investors, gander monthly. A single page that reads everything from `site_public()`, our airlines' names, colours and text included (its own copy is only a fallback). | `web/index.html`, `web/assets/`; served by Cloudflare Pages at equinox-alliance.com |
 | **Planner** | The staff tool: routes, aircraft, hubs, the nightly capture's numbers, the cash forecast, to-dos. One HTML file. It reads its document and loads from the planner tables through the adapter (`planner_state_get()`, `planner_loads_get()`) and saves 0.3 seconds after every change through `planner_state_put()`, which writes only what changed; a save that meets someone else's newer change to the same item skips that item, keeps the rest and reloads (#13, pull request 9). Previews are look-only (#8): they read through the same getters and save nothing. | `web/planner/index.html`, at equinox-alliance.com/planner/ |
 | **Schedule check** | Reads an airline's public schedule from the game and returns it as JSON; the planner's Check screen compares it with the plan. | `functions/api/game-schedule.js`, a Cloudflare Pages Function at `/api/game-schedule` |
-| **Database** | Supabase project `ulecwsyedvwcxgdzmhoq` (free plan): 58 tables, 7 views and 33 functions in `public`, 81 internal functions in `private` (which the data API doesn't expose), staff sign-in, and the `site-photos` file bucket. 32 of the tables are the planner's data in proper tables (#13: worlds, airlines, aircraft, routes, flight legs, plan cards, to-dos, settings and more), loaded from the old storage by `private.load_planner()` (#13, pull request 4). Since the switch-over (pull request 9) they are the truth: the planner reads and saves them through the adapter (getters `planner_state_get()`, `planner_loads_get()`, `planner_state_version()`; writes `planner_state_put()`, `save_loads()`, and for other chats `planner_item_put()` and `planner_item_delete()`), writing only what changed. The old rows, `planner_state` and `planner_loads`, are frozen: every write is refused ("frozen since <date>; write to the tables"), and they stay as the fallback until #18; `private.unfreeze_planner_state()` undoes the switch-over in one step. Every change to the tables is recorded in `change_log`, with who made it. The rule numbers are rows too (`settings`, `world_rules`), and a check keeps the old planner's copies equal to them. The capture's data is in the new model already: one row per flown flight (`game_flights`) and the payments not tied to a flight (`game_payments`), each with its world and airline. Nothing signed out can read any table or view; the website, the investor page, the capture and the scripts go through functions. | supabase.com; tables in `docs/data.md`; every change in `database/migrations/` |
+| **Database** | Supabase project `ulecwsyedvwcxgdzmhoq` (free plan): 63 tables, 7 views and 33 functions in `public`, 89 internal functions in `private` (which the data API doesn't expose), staff sign-in, and the `site-photos` file bucket. 32 of the tables are the planner's data in proper tables (#13: worlds, airlines, aircraft, routes, flight legs, plan cards, to-dos, settings and more), loaded from the old storage by `private.load_planner()` (#13, pull request 4). Since the switch-over (pull request 9) they are the truth: the planner reads and saves them through the adapter (getters `planner_state_get()`, `planner_loads_get()`, `planner_state_version()`; writes `planner_state_put()`, `save_loads()`, and for other chats `planner_item_put()` and `planner_item_delete()`), writing only what changed. The old rows, `planner_state` and `planner_loads`, are frozen: every write is refused ("frozen since <date>; write to the tables"), and they stay as the fallback until #18; `private.unfreeze_planner_state()` undoes the switch-over in one step. Every change to the tables is recorded in `change_log`, with who made it. The rule numbers are rows too (`settings`, `world_rules`), and a check keeps the old planner's copies equal to them. The capture's data is in the new model already: one row per flown flight (`game_flights`) and the payments not tied to a flight (`game_payments`), each with its world and airline. The daily history is kept for good (#15, #13 pull request 6): `airline_days` (each airline's fleet, schedule and cash each evening, and each UTC day's flights, passengers, money and payments) and `route_days` (per route, direction and day), filled back to 29 Sep. The world scans are `game_scans` and its tables, with each airline's totals and its departures per airport and per market kept for good (`scan_airline_airports`, `scan_airline_markets`). Nothing signed out can read any table or view; the website, the investor page, the capture and the scripts go through functions. | supabase.com; tables in `docs/data.md`; every change in `database/migrations/` |
 | **Capture** | A userscript in Gitesh's browser. It asks the database which airlines to capture (`capture_airlines()`, the capture key's world), then one button captures each airline's events, bank statement (last 3 days), income statement, balance sheet and loads, sends them to `capture_ingest()` by the airline's game ID. It doesn't touch salaries. The older userscript (sending names) and the bookmark still work. A second userscript, "Salaries: this airline", sets the open airline's salaries to 10% above the country average when Gitesh presses it (manual §7); it never talks to the database. | `capture/capture_all.user.js` (the key is a placeholder in the repository), `capture/salary_adjust.user.js` |
 | **Scripts** | Python scripts Claude runs for the weekly report, gander monthly, the world scan and the schedule optimiser. | `scripts/`, how to run them in `scripts/README.md` |
 | **Repository** | All code, database changes, tests and documents. Every change is a pull request that Gitesh approves with "merge" (#2). | GitHub `GiteshJain/Equinox` |
@@ -75,7 +77,15 @@ flowchart LR
      A row stays one-sided until its partner arrives (the statement covers 3 days, the loads page 24 hours);
    - payments ahead go to `game_events`;
    - the balance sheet goes to `game_balance` (account 2800 is cash), the income statement to `game_pnl`, each with
-     its capture day (the evening it was taken, 10:00 to 10:00 UTC);
+     its capture day (the evening it was taken, 10:00 to 10:00 UTC). A second capture the same UTC date replaces a
+     row's figures and its time together (since #13 pull request 6), so the cash forecast times the cash it shows by
+     the capture that gave it;
+   - **the daily snapshot:** the page that completes the world's capture for the day (every active airline of ours has
+     all five pages) also takes the snapshot (`private.take_snapshot()`): each airline's fleet, weekly schedule and
+     cash into `airline_days`, and the flights, passengers, money and payments of that UTC day and the two before
+     (recomputed, since a late capture can still add to them) into `airline_days` and `route_days`; one `job_runs` row.
+     A second complete capture the same evening takes it again. With no complete capture there is no snapshot yet
+     (the 10:00 UTC fallback comes with #13 pull request 7);
    - the views `game_loads`, `game_flight_pnl` (profit per flight) and `game_ops_recent` (the last 24 hours) give
      the planner and the scripts exactly what the old tables gave;
    - the planner's loads come from those rows: `planner_loads_get()` builds the old month documents from
@@ -103,7 +113,10 @@ flowchart LR
    `spending_log`; `site_report()`). Nothing reads `planner_state` or `planner_loads` any more; the switch-over (pull
    request 9) froze them.
 4. **Claude's scripts** read through the `export_*` functions (`export_for_report('planner')` gives the planner's two
-   documents as the getters build them from the tables) and write through `ingest_snapshot()`, `site_admin()` (its
+   documents as the getters build them from the tables; its scan kinds read `game_scans` and its tables) and write
+   through `ingest_snapshot()` (the world scan, which also adds every airline it sees to `airlines` and builds the
+   scan's airport summaries; and the weekly report's market summaries, kind `markets`, sent by
+   `scripts/report/analyze.py`), `site_admin()` (its
    connection times go to `world_airports`) and `planner_data_set()` (the route research goes to `planner_data`, which
    the old planner reads, and to `countries`, `airports` and `routes`, only the rows that change), using the ingest
    secret (kept as it is by #11).
@@ -115,7 +128,7 @@ flowchart LR
 
 | When | What | Where to see it |
 |---|---|---|
-| Each evening, Chicago time | Gitesh's capture, all of the world's airlines in one press | Planner → Check → Capture |
+| Each evening, Chicago time | Gitesh's capture, all of the world's airlines in one press; its last page takes the daily snapshot | Planner → Check → Capture; `airline_days`, `job_runs` (job `snapshot`) |
 | Every save of the planner | `planner_state_put()` or `save_loads()`: only the rows that changed, each in `change_log` with the tab's ID (or `save_loads`) | `change_log` (actor `planner`) |
 | 07:17 UTC daily (about 02:17 in Chicago; GitHub can start it hours late, as on 9 Oct at 14:20 UTC) | Nightly backup, restore check and upload to R2 (the month's first copy is also kept in `monthly/` and on a GitHub release) | Planner Home (backup line); `backup_runs` |
 | Every pull request | Checks; database rehearsal, with real saves, if the database or the planner changes; a Cloudflare preview | Comments and checks on the pull request |

@@ -1,4 +1,4 @@
-import json, csv, collections, math, datetime
+import json, csv, collections, math, datetime, os
 A=json.load(open('airlines.json')); AP=json.load(open('airports.json')); P=json.load(open('planner.json'))
 S=P['state']; LOADS=P['loads']
 OURS={112:'Ryanair',113:'Kingfisher',114:'Pan Am',203:'Virgin',208:'China Eastern',210:'Malaysia'}
@@ -44,6 +44,14 @@ SEATS={'32Q':190,'32N':165,'CS3':135,'7M8':172,'7MX':200,'319':135,'738':170,'7M
 def seats(t):
     if not t or t.endswith('F') or t in ('ATF','ABX','74Y','77X','76X'): return 0
     return SEATS.get(t,150)
+def market_summaries(A):   # per airline and market: passenger departures a week and city pairs, as the market table below counts them (kept for good in scan_airline_markets)
+    out=collections.defaultdict(lambda:[0,set()])
+    for a in A:
+        for f in a['flights'] or []:
+            n=len(f[4])
+            if not n or seats(f[7])==0: continue
+            k=(a['id'],market(f[2],f[3])); out[k][0]+=n; out[k][1].add(frozenset((f[2],f[3])))
+    return [{"enterprise_id":i,"market":m,"weekly_departures":w,"city_pairs":len(p)} for (i,m),(w,p) in sorted(out.items(), key=lambda kv:kv[0])]
 # ---------- world markets
 mk=collections.defaultdict(lambda: collections.defaultdict(lambda:[0,0]))   # market -> airline -> [flights/wk, seats/wk]
 pairs=collections.defaultdict(lambda: collections.defaultdict(int))        # undirected pair -> airline -> flights/wk
@@ -150,3 +158,10 @@ for m in mtab[:40]:
     if m['our_seats']>0: print(f"{m['market']:34s} seats/wk {m['seats']:>9,} ours {m['our_share']*100:5.1f}% rank {m['rank_ours']} of {m['n_airlines']} | top: " + ", ".join(f"{n} {s*100:.0f}%" for n,_,s in m['top'][:4]))
 print("unknown share:", next((m['seats'] for m in mtab if m['market']=='Unknown'),0))
 print("our world rank:", [(r, n, w) for r,n,w in json.load(open('results.json'))['our_rank']])
+# the scan's market summaries, kept for good (scan_airline_markets): sent for the scan pull.py downloaded (scan.json)
+if os.path.exists('scan.json'):
+    try:
+        import scan_markets
+        print("market summaries for scan", json.load(open('scan.json'))['id'], ":", scan_markets.send(json.load(open('scan.json'))['id'], market_summaries(A)))
+    except Exception as e:
+        print("market summaries NOT sent:", e, "(run scan_markets.py <scan id> later)")

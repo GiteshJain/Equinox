@@ -151,13 +151,17 @@ begin
   if not exists (select 1 from public.ingest_secret s where s.secret = p_secret) then raise exception 'not allowed'; end if;
   if p_kind = 'snapshots' then
     return (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'taken_at', s.taken_at, 'week', s.week, 'status', s.status) order by s.id), '[]'::jsonb)
-              from public.game_snapshots s);
+              from public.game_scans s);
   elsif p_kind = 'airlines' then
-    return (select coalesce(jsonb_agg(jsonb_build_object('id', a.enterprise_id, 'name', a.name, 'flights', a.flights, 'n_weekly', a.n_weekly)), '[]'::jsonb)
-              from public.game_snapshot_airlines a where a.snapshot_id = p_arg::bigint);
+    return (select coalesce(jsonb_agg(jsonb_build_object('id', a.enterprise_id, 'name', a.name, 'flights', sc.flights, 'n_weekly', a.n_weekly)
+                                      order by a.position, a.enterprise_id), '[]'::jsonb)
+              from public.game_scan_airlines a
+              left join public.game_scan_schedules sc on sc.scan_id = a.scan_id and sc.airline_id = a.airline_id
+             where a.scan_id = p_arg::bigint);
   elsif p_kind = 'airports' then
-    return (select coalesce(jsonb_agg(jsonb_build_object('code', a.code, 'info', a.info, 'stations', a.stations, 'news', a.news)), '[]'::jsonb)
-              from public.game_snapshot_airports a where a.snapshot_id = p_arg::bigint);
+    return (select coalesce(jsonb_agg(jsonb_build_object('code', a.airport_code, 'info', a.info, 'stations', a.stations, 'news', a.news)
+                                      order by a.position, a.airport_code), '[]'::jsonb)
+              from public.game_scan_airports a where a.scan_id = p_arg::bigint);
   elsif p_kind = 'planner' then
     -- today's two documents, built from the tables by the adapter's getters (design §8)
     return jsonb_build_object('state', (public.planner_state_get() ->> 'json')::jsonb,
@@ -204,31 +208,76 @@ CREATE OR REPLACE FUNCTION public.ingest_snapshot(p_secret text, p_kind text, p_
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO ''
 AS $function$
-declare v_id bigint;
+declare v_world bigint; v_scan bigint; v_al bigint; v_res jsonb; n int := 0;
+  v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);
 begin
-  if not exists (select 1 from public.ingest_secret where secret = p_secret) then raise exception 'not allowed'; end if;
+  if not exists (select 1 from public.ingest_secret s where s.secret = p_secret) then raise exception 'not allowed'; end if;
+  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets') then raise exception 'unknown kind'; end if;
+  perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), 'script'), true),
+          set_config('equinox.actor_detail', coalesce(nullif(v_detail, ''), 'ingest_snapshot'), true);
   if p_kind = 'start' then
-    insert into public.game_snapshots(week, note) values (p_payload->>'week', p_payload->>'note') returning id into v_id;
-    return jsonb_build_object('snapshot_id', v_id);
-  elsif p_kind = 'airline' then
-    insert into public.game_snapshot_airlines(snapshot_id, enterprise_id, name, flights, n_flights, n_weekly, n_airports)
-    values ((p_payload->>'snapshot_id')::bigint, (p_payload->>'enterprise_id')::int, p_payload->>'name', coalesce(p_payload->'flights','[]'::jsonb),
-            (p_payload->>'n_flights')::int, (p_payload->>'n_weekly')::int, (p_payload->>'n_airports')::int)
-    on conflict (snapshot_id, enterprise_id) do update set name = excluded.name, flights = excluded.flights, n_flights = excluded.n_flights, n_weekly = excluded.n_weekly, n_airports = excluded.n_airports;
-    return jsonb_build_object('ok', true);
-  elsif p_kind = 'airport' then
-    insert into public.game_snapshot_airports(snapshot_id, code, airport_id, info, stations, news)
-    values ((p_payload->>'snapshot_id')::bigint, p_payload->>'code', (p_payload->>'airport_id')::int, p_payload->'info', p_payload->'stations', p_payload->'news')
-    on conflict (snapshot_id, code) do update set airport_id = excluded.airport_id, info = excluded.info, stations = excluded.stations, news = excluded.news;
-    return jsonb_build_object('ok', true);
-  elsif p_kind = 'finish' then
-    update public.game_snapshots set status = 'done', note = coalesce(p_payload->>'note', note) where id = (p_payload->>'snapshot_id')::bigint;
-    return jsonb_build_object('ok', true);
+    select x.id into v_world from public.worlds x where x.is_default;
+    insert into public.game_scans (world_id, week, note) values (v_world, p_payload ->> 'week', p_payload ->> 'note')
+    returning id into v_scan;
+    v_res := jsonb_build_object('snapshot_id', v_scan);
+  else
+    select s.id, s.world_id into v_scan, v_world from public.game_scans s where s.id = (p_payload ->> 'snapshot_id')::bigint;
+    if v_scan is null and p_kind <> 'finish' then
+      raise exception 'no such scan: %', coalesce(p_payload ->> 'snapshot_id', '(none)');
+    end if;
+    if p_kind = 'airline' then
+      v_al := private.scan_airline(v_world, (p_payload ->> 'enterprise_id')::int, p_payload ->> 'name');
+      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position)
+      values (v_scan, v_world, (p_payload ->> 'enterprise_id')::int, v_al, p_payload ->> 'name',
+              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int,
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airlines y where y.scan_id = v_scan))
+      on conflict (scan_id, enterprise_id) do update set airline_id = excluded.airline_id, name = excluded.name,
+        n_flights = excluded.n_flights, n_weekly = excluded.n_weekly, n_airports = excluded.n_airports;
+      insert into public.game_scan_schedules as x (scan_id, world_id, airline_id, flights)
+      values (v_scan, v_world, v_al, coalesce(p_payload -> 'flights', '[]'::jsonb))
+      on conflict (scan_id, airline_id) do update set flights = excluded.flights;
+      v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'airport' then
+      -- the airlines stationed there are airlines the scan saw too
+      perform private.scan_airline(v_world, (st ->> 'enterprise_id')::int, st ->> 'name')
+         from jsonb_array_elements(case when jsonb_typeof(p_payload -> 'stations') = 'array' then p_payload -> 'stations' else '[]'::jsonb end) st
+        where (st ->> 'enterprise_id') ~ '^\d{1,9}$';
+      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news, position)
+      values (v_scan, v_world, p_payload ->> 'code', (p_payload ->> 'airport_id')::int, p_payload -> 'info',
+              p_payload -> 'stations', p_payload -> 'news',
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airports y where y.scan_id = v_scan))
+      on conflict (scan_id, airport_code) do update set game_airport_id = excluded.game_airport_id, info = excluded.info,
+        stations = excluded.stations, news = excluded.news;
+      v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'finish' then
+      if v_scan is not null then
+        update public.game_scans set status = 'done', note = coalesce(p_payload ->> 'note', note) where id = v_scan;
+        perform private.scan_summarise(v_scan);
+      end if;
+      v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'markets' then
+      if jsonb_typeof(p_payload -> 'markets') is distinct from 'array' then
+        raise exception 'markets: the payload needs a list, markets: [{enterprise_id, market, weekly_departures, city_pairs}]';
+      end if;
+      perform private.scan_airline(v_world, x.game_id, null)
+         from (select distinct (m ->> 'enterprise_id')::int as game_id from jsonb_array_elements(p_payload -> 'markets') m
+                where (m ->> 'enterprise_id') ~ '^\d{1,9}$') x;
+      delete from public.scan_airline_markets where scan_id = v_scan;
+      insert into public.scan_airline_markets (scan_id, world_id, airline_id, market, weekly_departures, city_pairs)
+      select v_scan, v_world, al.id, m ->> 'market', (m ->> 'weekly_departures')::int, (m ->> 'city_pairs')::int
+        from jsonb_array_elements(p_payload -> 'markets') m
+        join public.airlines al on al.world_id = v_world and al.game_id = (m ->> 'enterprise_id')::int
+       where (m ->> 'enterprise_id') ~ '^\d{1,9}$' and coalesce(m ->> 'market', '') <> '';
+      get diagnostics n = row_count;
+      v_res := jsonb_build_object('ok', true, 'rows', n);
+    end if;
   end if;
-  raise exception 'unknown kind';
-end $function$
+  perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
+  return v_res;
+end
+$function$
 ;
 
 -- is_planner_user()
@@ -1567,11 +1616,13 @@ begin
     for row_ in select * from jsonb_array_elements(r.rows) loop
       c := array(select jsonb_array_elements_text(row_));
       if array_length(c, 1) < 3 or c[2] !~ 'AS\$' then continue; end if;
-      insert into public.game_pnl (world_id, airline_id, airline, captured_on, capture_day, line, current_p, last_p, total_p, captured_at)
+      -- the figures and their time from the same capture: the latest
+      insert into public.game_pnl as x (world_id, airline_id, airline, captured_on, capture_day, line, current_p, last_p, total_p, captured_at)
       values (r.world_id, r.airline_id, r.airline, v_today, v_day, c[1], public.as_num(c[2]), public.as_num(c[3]),
               public.as_num(c[array_length(c, 1)]), v_at)
       on conflict (airline, captured_on, line) do update set current_p = excluded.current_p, last_p = excluded.last_p,
-        total_p = excluded.total_p, capture_day = excluded.capture_day;
+        total_p = excluded.total_p, capture_day = excluded.capture_day, captured_at = excluded.captured_at
+      where excluded.captured_at >= x.captured_at;
       n := n + 1;
     end loop;
 
@@ -1579,16 +1630,21 @@ begin
     v_day := private.capture_day(r.world_id, v_at);
     for row_ in select * from jsonb_array_elements(r.rows) loop
       c := array(select jsonb_array_elements_text(row_));
+      -- the figures and their time from the same capture: the latest
       if array_length(c, 1) >= 3 and c[1] ~ '^\d{3,4}$' then
-        insert into public.game_balance (world_id, airline_id, airline, captured_on, capture_day, account, amount, captured_at)
+        insert into public.game_balance as x (world_id, airline_id, airline, captured_on, capture_day, account, amount, captured_at)
         values (r.world_id, r.airline_id, r.airline, v_today, v_day, c[1] || ' ' || c[2], public.as_num(c[3]), v_at)
-        on conflict (airline, captured_on, account) do update set amount = excluded.amount, capture_day = excluded.capture_day;
+        on conflict (airline, captured_on, account) do update set amount = excluded.amount, capture_day = excluded.capture_day,
+          captured_at = excluded.captured_at
+        where excluded.captured_at >= x.captured_at;
         n := n + 1;
       end if;
       if array_length(c, 1) >= 6 and c[4] ~ '^\d{3,4}$' then
-        insert into public.game_balance (world_id, airline_id, airline, captured_on, capture_day, account, amount, captured_at)
+        insert into public.game_balance as x (world_id, airline_id, airline, captured_on, capture_day, account, amount, captured_at)
         values (r.world_id, r.airline_id, r.airline, v_today, v_day, c[4] || ' ' || c[5], public.as_num(c[6]), v_at)
-        on conflict (airline, captured_on, account) do update set amount = excluded.amount, capture_day = excluded.capture_day;
+        on conflict (airline, captured_on, account) do update set amount = excluded.amount, capture_day = excluded.capture_day,
+          captured_at = excluded.captured_at
+        where excluded.captured_at >= x.captured_at;
         n := n + 1;
       end if;
     end loop;
@@ -1625,7 +1681,8 @@ CREATE OR REPLACE FUNCTION private.capture_store(p_world_id bigint, p_airline te
  LANGUAGE plpgsql
  SET search_path TO ''
 AS $function$
-declare v_al bigint; v_name text; v_rid bigint; v_res jsonb; v_day date;
+declare v_al bigint; v_name text; v_rid bigint; v_res jsonb; v_day date; v_complete boolean; v_snap jsonb;
+  t0 timestamptz;
 begin
   v_al := private.capture_find_airline(p_world_id, p_airline);
   if v_al is null then
@@ -1643,7 +1700,24 @@ begin
     v_res := jsonb_build_object('ok', false, 'airline', v_name, 'error', 'parse: ' || sqlerrm, 'raw_id', v_rid);   -- the raw rows stay for inspection
   end;
   v_day := private.capture_day(p_world_id, p_at);
-  return v_res || jsonb_build_object('capture_day', v_day, 'day_complete', private.capture_day_complete(p_world_id, v_day));
+  v_complete := private.capture_day_complete(p_world_id, v_day);
+  -- the daily snapshot, when this page completes the day's capture (design §7)
+  if v_complete and p_kind in ('statement', 'events', 'pnl', 'balance', 'loads') and private.snapshot_due(p_world_id, v_day, p_at) then
+    t0 := clock_timestamp();
+    begin
+      v_snap := private.take_snapshot(p_world_id, v_day, p_at, 'capture');
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('snapshot', p_world_id, t0, clock_timestamp(), 'ok', v_day,
+              format('capture complete: %s airline(s), %s route day(s)', v_snap ->> 'airlines', v_snap ->> 'route_days'), v_snap);
+    exception when others then
+      v_snap := jsonb_build_object('ok', false, 'error', sqlerrm);
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('snapshot', p_world_id, t0, clock_timestamp(), 'failed', v_day, 'snapshot: ' || sqlerrm,
+              jsonb_build_object('at', p_at, 'source', 'capture'));
+    end;
+  end if;
+  return v_res || jsonb_build_object('capture_day', v_day, 'day_complete', v_complete)
+         || case when v_snap is null then '{}'::jsonb else jsonb_build_object('snapshot', v_snap) end;
 end
 $function$
 
@@ -1913,6 +1987,176 @@ CREATE OR REPLACE FUNCTION private.growth_key(p_airline text, p_day date, p_move
  SET search_path TO ''
 AS $function$
   select jsonb_build_array(p_airline, p_day, p_move, p_note)::text
+$function$
+
+;
+
+-- private.history_cash(p_world_id bigint, p_day date, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.history_cash(p_world_id bigint, p_day date, p_at timestamp with time zone)
+ RETURNS TABLE(airline_id bigint, cash numeric, fixed_next7 numeric, cash_at timestamp with time zone)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with ours as (
+    select a.id from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours'),
+  bal as (
+    select distinct on (b.airline_id) b.airline_id, b.amount, b.captured_at
+      from public.game_balance b
+     where b.world_id = p_world_id and b.capture_day = p_day and b.account like '2800%' and b.amount is not null
+       and b.captured_at <= p_at
+     order by b.airline_id, b.captured_at desc)
+  select o.id,
+         case when bal.airline_id is not null then bal.amount else ce.cash end,
+         case when bal.airline_id is not null
+              then (select sum(e.debit) from public.game_events e
+                     where e.airline_id = o.id and e.debit > 0 and e.due_at > bal.captured_at
+                       and e.due_at <= bal.captured_at + interval '7 days')
+              else ce.fixed_next7 end,
+         bal.captured_at
+    from ours o
+    left join bal on bal.airline_id = o.id
+    left join public.cash_entries ce on ce.airline_id = o.id and ce.day = p_day
+$function$
+
+;
+
+-- private.history_fleet(p_world_id bigint, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.history_fleet(p_world_id bigint, p_at timestamp with time zone)
+ RETURNS TABLE(airline_id bigint, aircraft_by_type jsonb, aircraft_total integer, on_order integer)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with ours as (
+    select a.id from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours'),
+  ac as (
+    select x.airline_id, coalesce(t.name, '(no type)') as type_name, x.ordered_on, x.status, x.delivery_at,
+           x.status = 'retired' and (x.retired_on is null or x.retired_on <= (p_at at time zone 'UTC')::date) as gone
+      from public.aircraft x left join public.aircraft_types t on t.id = x.aircraft_type_id
+     where x.world_id = p_world_id),
+  st as (
+    select ac.airline_id, ac.type_name,
+           not ac.gone and ac.status <> 'on_order' and (ac.delivery_at is null or ac.delivery_at <= p_at) as flying,
+           not ac.gone and (ac.status = 'on_order' or ac.delivery_at > p_at)
+             and (ac.ordered_on is null or ac.ordered_on <= (p_at at time zone 'UTC')::date) as ordered
+      from ac),
+  by_type as (
+    select s.airline_id, s.type_name, count(*)::int as n from st s where s.flying group by s.airline_id, s.type_name)
+  select o.id,
+         coalesce((select jsonb_object_agg(b.type_name, b.n) from by_type b where b.airline_id = o.id), '{}'::jsonb),
+         (select count(*)::int from st s where s.airline_id = o.id and s.flying),
+         (select count(*)::int from st s where s.airline_id = o.id and s.ordered)
+    from ours o
+$function$
+
+;
+
+-- private.history_flows(p_world_id bigint, p_from date, p_to date)
+CREATE OR REPLACE FUNCTION private.history_flows(p_world_id bigint, p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare n_routes int := 0; n_days int := 0;
+begin
+  if p_from is null or p_to is null or p_to < p_from then
+    return jsonb_build_object('route_days', 0, 'airline_days', 0);
+  end if;
+  if to_regclass('pg_temp.t_history_rows') is null then
+    create temporary table t_history_rows (airline_id bigint, route_id bigint, origin_code text, dest_code text, day date,
+      is_flight boolean, has_loads boolean, pax int, seats int, eco_pax int, eco_seats int, eco_fare numeric, income numeric,
+      costs numeric) on commit drop;
+  end if;
+  truncate pg_temp.t_history_rows;
+  insert into pg_temp.t_history_rows
+  select f.airline_id, f.route_id, nullif(f.origin_code, ''), nullif(f.dest_code, ''),
+         coalesce((f.dep_at at time zone 'UTC')::date, f.game_date),
+         f.flight_no is not null or f.pax_income is not null, f.flight_no is not null,
+         case when f.flight_no is not null then coalesce(f.eco_pax, 0) + coalesce(f.bus_pax, 0) + coalesce(f.fst_pax, 0)
+              else f.statement_pax end,
+         case when f.flight_no is not null then coalesce(f.eco_seats, 0) + coalesce(f.bus_seats, 0) + coalesce(f.fst_seats, 0) end,
+         case when f.flight_no is not null then f.eco_pax end, case when f.flight_no is not null then f.eco_seats end,
+         f.eco_fare, f.income_total, f.cost_total
+    from public.game_flights f
+   where f.world_id = p_world_id
+     and f.dep_at >= (p_from::timestamp at time zone 'UTC') and f.dep_at < ((p_to + 1)::timestamp at time zone 'UTC')
+  union all
+  select f.airline_id, f.route_id, nullif(f.origin_code, ''), nullif(f.dest_code, ''), f.game_date, true, true,
+         coalesce(f.eco_pax, 0) + coalesce(f.bus_pax, 0) + coalesce(f.fst_pax, 0),
+         coalesce(f.eco_seats, 0) + coalesce(f.bus_seats, 0) + coalesce(f.fst_seats, 0),
+         f.eco_pax, f.eco_seats, f.eco_fare, f.income_total, f.cost_total
+    from public.game_flights f
+   where f.world_id = p_world_id and f.dep_at is null and f.flight_no is not null and f.game_date between p_from and p_to;
+
+  delete from public.route_days r where r.world_id = p_world_id and r.day between p_from and p_to;
+  insert into public.route_days (world_id, airline_id, route_id, origin_code, dest_code, day, flights, passengers, seats,
+                                 revenue, costs, profit, eco_fare_avg)
+  select p_world_id, x.airline_id, max(x.route_id), x.origin_code, x.dest_code, x.day, count(*)::int,
+         sum(x.pax)::int, sum(x.seats)::int,
+         coalesce(sum(x.income), 0), coalesce(sum(x.costs), 0), coalesce(sum(x.income), 0) - coalesce(sum(x.costs), 0),
+         round(coalesce(sum(x.eco_fare * x.eco_pax) filter (where x.eco_pax > 0)
+                          / nullif(sum(x.eco_pax) filter (where x.eco_pax > 0 and x.eco_fare is not null), 0),
+                        avg(x.eco_fare)), 2)
+    from pg_temp.t_history_rows x
+   where x.is_flight and x.origin_code is not null and x.dest_code is not null
+   group by x.airline_id, x.origin_code, x.dest_code, x.day;
+  get diagnostics n_routes = row_count;
+
+  update public.airline_days a
+     set flights_flown = coalesce(v.flights, 0), passengers = coalesce(v.pax, 0), seats_flown = coalesce(v.seats, 0),
+         load_pct = round(100.0 * v.loads_pax / nullif(v.seats, 0), 1),
+         eco_load_pct = round(100.0 * v.eco_pax / nullif(v.eco_seats, 0), 1),
+         revenue = coalesce(v.income, 0), flight_costs = coalesce(v.costs, 0),
+         flight_profit = coalesce(v.income, 0) - coalesce(v.costs, 0),
+         leases_paid = coalesce(p.leases, 0), salaries_paid = coalesce(p.salaries, 0), purchases_paid = coalesce(p.purchases, 0)
+    from public.airline_days d
+    left join lateral (
+      select count(*) filter (where x.is_flight) as flights,
+             sum(x.pax) filter (where x.is_flight) as pax,
+             sum(x.seats) filter (where x.is_flight and x.has_loads) as seats,
+             sum(x.pax) filter (where x.is_flight and x.has_loads) as loads_pax,
+             sum(x.eco_pax) filter (where x.is_flight and x.has_loads) as eco_pax,
+             sum(x.eco_seats) filter (where x.is_flight and x.has_loads) as eco_seats,
+             sum(x.income) as income, sum(x.costs) as costs
+        from pg_temp.t_history_rows x where x.airline_id = d.airline_id and x.day = d.day) v on true
+    left join lateral (
+      select sum(case when y.side = 'C' then -y.amount else y.amount end) filter (where y.kind = 'lease') as leases,
+             sum(case when y.side = 'C' then -y.amount else y.amount end) filter (where y.kind = 'salaries') as salaries,
+             sum(case when y.side = 'C' then -y.amount else y.amount end)
+               filter (where y.kind in ('purchase', 'deposit', 'cabin', 'refit')) as purchases
+        from public.game_payments y
+       where y.airline_id = d.airline_id
+         and y.paid_at >= (d.day::timestamp at time zone 'UTC') and y.paid_at < ((d.day + 1)::timestamp at time zone 'UTC')) p on true
+   where a.airline_id = d.airline_id and a.day = d.day and d.world_id = p_world_id and d.day between p_from and p_to;
+  get diagnostics n_days = row_count;
+  truncate pg_temp.t_history_rows;
+  return jsonb_build_object('route_days', n_routes, 'airline_days', n_days);
+end
+$function$
+
+;
+
+-- private.history_schedule(p_world_id bigint, p_day date)
+CREATE OR REPLACE FUNCTION private.history_schedule(p_world_id bigint, p_day date)
+ RETURNS TABLE(airline_id bigint, weekly_departures integer, weekly_seats integer, destinations integer)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select r.airline_id, sum(cardinality(l.days_utc))::int,
+         sum(cardinality(l.days_utc) * coalesce(c.seats, t.seats_max, 0))::int,
+         count(distinct ro.dest_code)::int
+    from public.rotations r
+    join public.routes ro on ro.id = r.route_id
+    join public.flight_legs l on l.rotation_id = r.id
+    left join public.aircraft a on a.id = l.aircraft_id
+    left join public.cabin_configs c on c.id = a.cabin_config_id
+    left join public.aircraft_types t on t.id = a.aircraft_type_id
+   where r.world_id = p_world_id and (r.launched_on is null or r.launched_on <= p_day)
+   group by r.airline_id
 $function$
 
 ;
@@ -5450,6 +5694,60 @@ $function$
 
 ;
 
+-- private.scan_airline(p_world_id bigint, p_game_id integer, p_name text)
+CREATE OR REPLACE FUNCTION private.scan_airline(p_world_id bigint, p_game_id integer, p_name text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_id bigint; v_name text := nullif(btrim(p_name), '');
+begin
+  if p_game_id is null then return null; end if;
+  select a.id into v_id from public.airlines a where a.world_id = p_world_id and a.game_id = p_game_id;
+  if v_id is null then
+    insert into public.airlines (world_id, game_id, game_name) values (p_world_id, p_game_id, v_name)
+    on conflict (world_id, game_id) do nothing
+    returning id into v_id;
+    if v_id is null then
+      select a.id into v_id from public.airlines a where a.world_id = p_world_id and a.game_id = p_game_id;
+    end if;
+  elsif v_name is not null then
+    update public.airlines a set game_name = v_name
+     where a.id = v_id and a.game_name is distinct from v_name
+       and not exists (select 1 from public.groups g where g.id = a.group_id and g.kind = 'ours');
+  end if;
+  return v_id;
+end
+$function$
+
+;
+
+-- private.scan_summarise(p_scan_id bigint)
+CREATE OR REPLACE FUNCTION private.scan_summarise(p_scan_id bigint)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare n int := 0;
+begin
+  if not exists (select 1 from public.game_scan_schedules s where s.scan_id = p_scan_id) then return 0; end if;
+  delete from public.scan_airline_airports where scan_id = p_scan_id;
+  insert into public.scan_airline_airports (scan_id, world_id, airline_id, airport_code, weekly_departures, destinations)
+  select s.scan_id, s.world_id, s.airline_id, f ->> 2,
+         sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')))::int,
+         count(distinct nullif(f ->> 3, ''))::int
+    from public.game_scan_schedules s
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(s.flights) = 'array' then s.flights else '[]'::jsonb end) f
+   where s.scan_id = p_scan_id and jsonb_typeof(f) = 'array' and coalesce(f ->> 2, '') <> ''
+     and regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g') <> ''
+   group by s.scan_id, s.world_id, s.airline_id, f ->> 2;
+  get diagnostics n = row_count;
+  return n;
+end
+$function$
+
+;
+
 -- private.set_updated_at()
 CREATE OR REPLACE FUNCTION private.set_updated_at()
  RETURNS trigger
@@ -5479,6 +5777,31 @@ CREATE OR REPLACE FUNCTION private.shift_weekdays(p smallint[], p_days integer)
 AS $function$
   select array(select distinct ((((d - 1 + p_days) % 7) + 7) % 7 + 1)::smallint from unnest(p) as d order by 1)
 $function$
+;
+
+-- private.snapshot_due(p_world_id bigint, p_day date, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.snapshot_due(p_world_id bigint, p_day date, p_at timestamp with time zone)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with ours as (
+    select a.id from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours'),
+  span as (
+    select private.capture_day_start(p_world_id, p_day) as from_at,
+           (select max(d.taken_at) from public.airline_days d
+             where d.world_id = p_world_id and d.day = p_day and d.source = 'capture') as last_at)
+  select exists (select 1 from ours)
+     and not exists (
+       select 1 from ours o, span
+        where (select count(distinct r.kind) from public.game_capture_raw r
+                where r.airline_id = o.id and r.kind in ('statement', 'events', 'pnl', 'balance', 'loads')
+                  and r.captured_at >= span.from_at and r.captured_at < span.from_at + interval '1 day'
+                  and (span.last_at is null or r.captured_at > span.last_at) and r.captured_at <= p_at) < 5)
+$function$
+
 ;
 
 -- private.statement_blocks(p_airline_id bigint, p_minutes timestamp with time zone[])
@@ -5526,6 +5849,44 @@ AS $function$
     when p_descr like 'Air traffic control fee%' then 'atc'
     when p_descr like 'Maintenance of%' then 'maintenance'
     else 'other' end
+$function$
+
+;
+
+-- private.take_snapshot(p_world_id bigint, p_day date, p_at timestamp with time zone, p_source text, p_flows boolean)
+CREATE OR REPLACE FUNCTION private.take_snapshot(p_world_id bigint, p_day date, p_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_source text DEFAULT 'capture'::text, p_flows boolean DEFAULT true)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_at timestamptz := coalesce(p_at, now()); v_complete boolean; n int; v_flows jsonb;
+begin
+  if p_source is null or p_source not in ('capture', 'fallback', 'backfill') then
+    raise exception 'take_snapshot: source must be capture, fallback or backfill, not %', coalesce(p_source, 'null');
+  end if;
+  v_complete := private.capture_day_complete(p_world_id, p_day);
+  insert into public.airline_days as x (world_id, airline_id, day, complete, source, taken_at, aircraft_by_type,
+         aircraft_total, on_order, weekly_departures, weekly_seats, destinations, cash, fixed_next7, cash_at)
+  select p_world_id, a.id, p_day, v_complete, p_source, v_at, coalesce(f.aircraft_by_type, '{}'::jsonb),
+         coalesce(f.aircraft_total, 0), coalesce(f.on_order, 0), coalesce(s.weekly_departures, 0),
+         coalesce(s.weekly_seats, 0), coalesce(s.destinations, 0), c.cash, c.fixed_next7, c.cash_at
+    from public.airlines a
+    join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+    left join private.history_fleet(p_world_id, v_at) f on f.airline_id = a.id
+    left join private.history_schedule(p_world_id, p_day) s on s.airline_id = a.id
+    left join private.history_cash(p_world_id, p_day, v_at) c on c.airline_id = a.id
+   where a.world_id = p_world_id and a.active and g.kind = 'ours' and (a.founded_on is null or a.founded_on <= p_day)
+  on conflict (airline_id, day) do update set
+    complete = excluded.complete, source = excluded.source, taken_at = excluded.taken_at,
+    aircraft_by_type = excluded.aircraft_by_type, aircraft_total = excluded.aircraft_total, on_order = excluded.on_order,
+    weekly_departures = excluded.weekly_departures, weekly_seats = excluded.weekly_seats,
+    destinations = excluded.destinations, cash = excluded.cash, fixed_next7 = excluded.fixed_next7, cash_at = excluded.cash_at
+  where x.source <> 'capture' or excluded.source = 'capture';
+  get diagnostics n = row_count;
+  if p_flows then v_flows := private.history_flows(p_world_id, p_day - 2, p_day); end if;
+  return jsonb_build_object('day', p_day, 'source', p_source, 'complete', v_complete, 'at', v_at, 'airlines', n)
+         || coalesce(v_flows, '{}'::jsonb);
+end
 $function$
 
 ;
