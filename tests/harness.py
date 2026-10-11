@@ -116,11 +116,15 @@ STUB = r"""
 LIVE_HOST = "equinox-alliance.com"
 
 
-async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000):
-    """Returns (browser, page, errors). errors collects page errors and console errors as they happen."""
+async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000, stored=None):
+    """Returns (browser, page, errors). errors collects page errors and console errors as they happen. stored: a copy
+    of the planner to leave in the browser's storage before it opens (as a tab that couldn't reach the cloud leaves it)."""
     b = await p.chromium.launch(args=[f"--host-resolver-rules=MAP {LIVE_HOST} 127.0.0.1:{port}"])
     ctx = await b.new_context(viewport={"width": width, "height": height}, timezone_id="UTC", locale="en-US")
     await ctx.add_init_script("localStorage.setItem('gander-auth', JSON.stringify({access_token:'t'}));")
+    if stored is not None:   # once per tab, before the planner's own scripts
+        await ctx.add_init_script("if (!sessionStorage.getItem('stored-copy')) { sessionStorage.setItem('stored-copy', '1'); "
+                                  f"localStorage.setItem('gander-planner', {json.dumps(json.dumps(stored))}); }}")
     pg = await ctx.new_page()
     errors = []
     pg.on("pageerror", lambda e: errors.append("page error: " + str(e)[:300]))

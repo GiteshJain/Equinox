@@ -38,14 +38,18 @@ Only after:
    new title for that to-do (a clash) and for another (no clash) through its backup screen. The second keeps its other
    title, skips the clashing one, reloads with the message naming it, and then saves that to-do's title from what it
    reloaded, without another reload.
-7. A preview address reads through the getters and saves nothing: no write reaches the copy, no table changes.
-8. The guards: the account that isn't staff reads no planner_state rows and its writes are refused; signed out and as
+7. A copy kept offline: a page loses the network and saves new titles for to-dos X and Y through its backup screen, so
+   the browser keeps a copy with the version it had loaded (its base). A second page ticks X. The first page's tab is
+   closed and opened again online: it pushes the copy from that stored base, so X keeps the tick and its old title, Y
+   gets the new title, and the page reloads with the message naming X.
+8. A preview address reads through the getters and saves nothing: no write reaches the copy, no table changes.
+9. The guards: the account that isn't staff reads no planner_state rows and its writes are refused; signed out and as
    that account, the new tables and views read nothing and refuse a new row; the getters, the write functions and
    adapter_clean_days() refuse both; staff put and remove one item through the data API, logged as planner.
-9. Rollback: private.unfreeze_planner_state() makes planner_state and planner_loads equal the getters exactly; the old
+10. Rollback: private.unfreeze_planner_state() makes planner_state and planner_loads equal the getters exactly; the old
    planner code (the last planner that saved planner_state itself, commit OLD_PLANNER, served the same way) then signs
    in and saves a to-do tick into planner_state, which the side by side copies into the tables, comparison ok.
-10. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
+11. Nothing went outside: no request reached the live Supabase host or any address other than the local server, the
    local data API and the served library.
 
 Prints one line per step (ok/FAIL), and no row contents beyond ids and the names of the fields that changed, because the
@@ -310,19 +314,26 @@ class Planner:
         self.outside = []        # responses that came over the network from anywhere but the local server: must stay empty
         self.errors = []         # page errors and console errors, as they happen
         self.dialogs = []        # alerts the planner showed (dismissed)
-        self.b = self.api = None
+        self.puts = []           # what it sent planner_state_put (the arguments)
+        self.offline = False     # True: its requests for the live Supabase host fail, as if the network were down
+        self.cut = 0             # requests that failed that way
+        self.b = self.api = self.ctx = None
 
     async def open(self, host=LIVE_HOST):
         # belt and braces: any name but the planner's own address fails to resolve, and no proxy is used
         rules = f"MAP {LIVE_HOST} 127.0.0.1:{self.port}, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost"
         self.b = await self.p.chromium.launch(args=[f"--host-resolver-rules={rules}", "--no-proxy-server"])
         self.api = await self.p.request.new_context()
-        ctx = await self.b.new_context(viewport={"width": 1440, "height": 1000}, timezone_id="UTC", locale="en-US",
-                                       service_workers="block", accept_downloads=True)
+        self.ctx = ctx = await self.b.new_context(viewport={"width": 1440, "height": 1000}, timezone_id="UTC", locale="en-US",
+                                                  service_workers="block", accept_downloads=True)
         await ctx.route("**/*", self.route)
         await ctx.route_web_socket(re.compile(".*"), self.socket)
         ctx.on("response", lambda r: asyncio.ensure_future(self.where(r)))
-        self.pg = pg = await ctx.new_page()
+        return await self.page(host)
+
+    async def page(self, host=LIVE_HOST):
+        """Opens the planner in a new tab of the same browser, which shares its storage (the sign-in and the planner's copy)."""
+        self.pg = pg = await self.ctx.new_page()
         pg.on("pageerror", lambda e: self.errors.append("page error: " + str(e)[:200]))
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text and "Preview: not sent" not in m.text else None)
@@ -333,11 +344,19 @@ class Planner:
     async def route(self, r):
         req, u = r.request, r.request.url
         live, host = self.f["live_url"], urlsplit(r.request.url)
-        if u.startswith(live + "/"):
+        if u.startswith(live + "/") and self.offline:
+            self.cut += 1
+            await r.abort("internetdisconnected")
+        elif u.startswith(live + "/"):
             self.copy += 1
             m = re.match(r"^/rest/v1/rpc/([^/?]+)", u[len(live):])
             if m:
                 self.rpcs.append(m[1])
+                if m[1] == "planner_state_put":
+                    try:
+                        self.puts.append(json.loads(req.post_data or "{}"))
+                    except Exception:
+                        self.puts.append({})
             key, anon = self.f["live_key"], self.env["ANON_KEY"]
             headers = {k: v.replace(key, anon) for k, v in (await req.all_headers()).items()
                        if not k.startswith(":") and k.lower() not in ("host", "content-length", "connection", "accept-encoding", "cookie")}
@@ -674,6 +693,96 @@ async def two_tabs(p, port, env, facts, lib, staff):
     return f"two tabs: the second kept its other to-do, skipped the one the first had ticked, reloaded naming it (todos {x}), then saved it", problems
 
 
+def todo(doc, tid):
+    return next((t for t in doc.get("todos") or [] if isinstance(t, dict) and t.get("id") == tid), {})
+
+
+async def offline_copy(p, port, env, facts, lib, staff, seen):
+    """A page loses the network and saves new titles for to-dos X and Y through its backup screen, so it keeps a copy in
+    the browser with the version it had loaded (its base). A second page ticks X. The first page's tab is closed and opened
+    again online: it pushes the copy from the stored base, so X keeps the tick and its old title, Y gets the new title, and
+    the page reloads with the message naming X."""
+    d0 = read_doc()
+    open_ids = [t.get("id") for t in d0["doc"].get("todos") or [] if isinstance(t, dict) and not t.get("done") and t.get("id")]
+    if len(open_ids) < 2:
+        return "a copy kept offline", ["the copy has fewer than two open to-dos left"]
+    x, y = open_ids[0], open_ids[1]
+    a, b = Planner(p, port, env, facts, lib), Planner(p, port, env, facts, lib)
+    seen += [a, b]
+    problems = []
+    try:
+        await a.open(); await a.sign_in(*staff)
+        await b.open(); await b.sign_in(*staff)
+        loaded = read_doc()["saved_at"]          # the version both pages loaded (opening saves nothing)
+        mine = await export_doc(a.pg)
+        # the first page loses the network and saves new titles for X and Y: the cloud save fails, the browser keeps a copy
+        e0, a.offline = len(a.errors), True
+        tx, ty = f"offline {secrets.token_hex(3)}: X", f"offline {secrets.token_hex(3)}: Y"
+        todo(mine, x)["title"], todo(mine, y)["title"] = tx, ty
+        await import_doc(a.pg, mine)
+        await a.pg.wait_for_function("/this device only/.test((document.getElementById('savestate') || {}).textContent || '')", timeout=20000)
+        kept = await a.pg.evaluate("""() => { const c = JSON.parse(localStorage.getItem('gander-planner') || '{}');
+            return { base: c.__base, savedAt: c.savedAt, titles: (c.todos || []).map(t => t.title) }; }""")
+        if kept["base"] != loaded or kept["savedAt"] == kept["base"] or not {tx, ty} <= set(kept["titles"]):
+            problems.append(f"the browser's copy doesn't hold the offline change with the version it was made from "
+                            f"(base {kept['base']}, loaded {loaded}; savedAt {'equals' if kept['savedAt'] == kept['base'] else 'differs from'} the base)")
+        if not a.cut:
+            problems.append("the first page's save reached the copy while offline")
+        if read_doc()["saved_at"] != loaded:
+            problems.append("the tables changed while the first page was offline")
+        await a.pg.close()                       # its tab closes while still offline (the save on leaving fails too)
+        problems += [e for e in a.errors[e0:] if "cloud save" not in e]
+        # the second page ticks X
+        await go(b.pg, "home")
+        k = await b.pg.evaluate("id => [...document.querySelectorAll('input[data-tododone]')].findIndex(z => z.dataset.tododone === id)", x)
+        if k < 0:
+            return "a copy kept offline", problems + ["the to-do isn't on Home"]
+        await b.pg.locator("input[data-tododone]").nth(k).click()
+        await wait_for(read_doc, lambda d: todo(d["doc"], x).get("done") is True)
+        await settle(b.pg, 800)
+        # the first page's tab opens again, online: it pushes its copy from the stored base
+        a.offline, mark, n0, e1 = False, marks(), len(a.puts), len(a.errors)
+        await a.page()
+        try:
+            await a.pg.wait_for_selector(".eqtoast", timeout=30000)
+            toast = await a.pg.evaluate("(document.querySelector('.eqtoast') || {}).textContent || ''")
+        except Exception:
+            toast = ""
+        await settle(a.pg, 800)
+        sent = a.puts[n0:]
+        if not sent or sent[0].get("p_base") != kept["base"]:
+            problems.append(f"the copy wasn't pushed from the base stored with it (it sent base {sent[0].get('p_base') if sent else 'nothing'}, "
+                            f"stored {kept['base']})")
+        d1 = read_doc()
+        if todo(d1["doc"], x).get("done") is not True or todo(d1["doc"], x).get("title") == tx:
+            problems.append("the newer change to X didn't survive (the copy overwrote it, or the tick is gone)")
+        if todo(d1["doc"], y).get("title") != ty:
+            problems.append("the copy's change to Y didn't land")
+        if "Newer changes were saved elsewhere" not in toast or f"todos {x}" not in toast:
+            problems.append(f"the page didn't reload with the message naming X (it said: {toast[:160]!r})")
+        view = await export_doc(a.pg)
+        if todo(view, x).get("done") is not True or todo(view, y).get("title") != ty:
+            problems.append("after reloading, the page doesn't show X ticked and Y's new title")
+        tab = await a.tab()
+        rows = log_since(mark)
+        if any(r["actor"] != "planner" or r["detail"] != tab for r in rows):
+            problems.append("the push isn't logged as planner with the reopened tab's ID")
+        ids = {t: psql("select id from public.todos where legacy_key = :'k' and world_id = (select id from public.worlds where is_default)", k=t).strip()
+               for t in (x, y)}
+        if not any(r["table"] == "todos" and r["id"] == ids[y] and "title" in r["fields"] for r in rows):
+            problems.append("no change-log row for Y's title")
+        if any(r["table"] == "todos" and r["id"] == ids[x] for r in rows):
+            problems.append("X's row changed in the push")
+        after = await a.pg.evaluate("(() => { const c = JSON.parse(localStorage.getItem('gander-planner') || '{}'); return c.__base === c.savedAt && c.__base > 0; })()")
+        if not after:
+            problems.append("after the reload, the browser's copy isn't marked as saved (its base isn't its savedAt)")
+        problems += a.errors[e1:] + b.errors
+    finally:
+        await a.close(); await b.close()
+    return (f"a copy kept offline: pushed later from the base stored with it, the newer tick on todos {x} survived, "
+            f"the other to-do's change landed, and the page reloaded naming todos {x}"), problems
+
+
 async def preview(p, port, env, facts, lib, staff):
     """At a preview address the planner reads through the getters and saves nothing."""
     pv = Planner(p, port, env, facts, lib)
@@ -958,6 +1067,11 @@ async def main():
                     label, problems = await two_tabs(p, port, env, facts, lib, staff)
                 except Exception as e:
                     label, problems = "two tabs", [why(e)]
+                step(not problems, label, problems)
+                try:
+                    label, problems = await offline_copy(p, port, env, facts, lib, staff, planners)
+                except Exception as e:
+                    label, problems = "a copy kept offline", [why(e)]
                 step(not problems, label, problems)
                 try:
                     label, problems, pv = await preview(p, port, env, facts, lib, staff)

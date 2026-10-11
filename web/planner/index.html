@@ -1332,7 +1332,10 @@ function makeModel(DATA, state) {
   }
   const diag = { device: "", cloud: "", lastCloud: 0, lastDevice: 0 };
   function lsGet() { try { const v = localStorage.getItem("gander-planner"); return v ? normalize(JSON.parse(v)) : null; } catch (e) { diag.device = "unavailable: " + e.message; return null; } }
-  function lsSet() { try { localStorage.setItem("gander-planner", JSON.stringify(state)); diag.device = "ok"; diag.lastDevice = Date.now(); } catch (e) { diag.device = "failed: " + e.message; } }
+  // the browser's copy carries the base it was made from: the last server saved_at this tab knew (#13, pull request 9).
+  // A copy whose savedAt isn't that base holds a change the cloud never got; it is pushed later from that base.
+  function lsSet() { try { localStorage.setItem("gander-planner", JSON.stringify(Object.assign({}, state, { __base: cloudVer || null }))); diag.device = "ok"; diag.lastDevice = Date.now(); } catch (e) { diag.device = "failed: " + e.message; } }
+  function lsBase() { try { const b = Number(JSON.parse(localStorage.getItem("gander-planner") || "{}").__base); return b > 0 ? b : null; } catch (e) { return null; } }   // null: no base stored (an older planner's copy)
   let cloudVer = 0;   // saved time of the cloud copy this tab last loaded or wrote
   async function cloudSavedAt() { const sb = window.__eqsb; if (!sb || !db) return null; try { const { data, error } = await sb.rpc("planner_state_version"); return error || data == null ? null : Number(data) || 0; } catch (e) { return null; } }
   async function reloadFromCloud() { try { const snap = await db.doc("planner/state").get(); if (!snap.exists) return false; const remote = normalize(snap.data()); if (!remote) return false; state = remote; cloudVer = remote.savedAt || 0; lsSet(); M = makeModel(DATA, state); render(); return true; } catch (e) { return false; } }
@@ -1357,9 +1360,13 @@ function makeModel(DATA, state) {
     if (db) { try { const snap = await db.doc("planner/state").get(); if (snap.exists) { remote = normalize(snap.data()); diag.cloud = remote ? "ok" : "unreadable copy"; } else diag.cloud = "empty"; } catch (e) { remote = null; diag.cloud = "read failed: " + ((e && (e.code || e.message)) || e); } }
     else diag.cloud = "not available in this view";
     const ts = s => (s && s.savedAt) || 0;
-    if (remote && local) { if (ts(local) > ts(remote)) { state = local; save(); } else { state = remote; cloud = true; cloudVer = ts(remote); } }
+    // A browser copy that carries a base holds a change the cloud never got when its savedAt isn't that base: it is pushed
+    // from that base, so the server keeps what changed elsewhere since and asks for a reload. Without a base (an older
+    // planner's copy), the later copy wins, as before.
+    const base = local ? lsBase() : null, unsaved = !!local && (base ? ts(local) !== base : ts(local) > ts(remote));
+    if (remote && local) { if (unsaved) { state = local; cloudVer = base || 0; save(); } else { state = remote; cloud = true; cloudVer = ts(remote); } }
     else if (remote) { state = remote; cloud = true; cloudVer = ts(remote); }
-    else if (local) { state = local; if (db) save(); }
+    else if (local) { state = local; cloudVer = base || 0; if (db) save(); }
     ui.saving = window.__eqPreview ? "preview · not saved" : db ? (cloud ? "saved · cloud" : "cloud ready") : (local ? "saved · this device" : "");
     M = makeModel(DATA, state);
   }

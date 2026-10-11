@@ -90,7 +90,9 @@ flowchart LR
    `planner`, the tab's ID in the change log), only the rows that changed. Each save sends the version the tab last
    loaded or saved (`planner_state_version()`, the time of the latest change) as its base: a row someone else changed
    since is skipped, the rest is kept, and the planner reloads with a message naming what it skipped (design §11,
-   choice 4).
+   choice 4). When a save can't reach the cloud, the browser keeps a copy with that base; the next time the planner
+   opens online it pushes the copy from the stored base, so a newer change made elsewhere meanwhile still wins. A copy
+   from an older planner, with no base stored, is pushed only when it is newer than the cloud's, as before.
    - **The side by side** (#13, pull requests 5 to 9) ran until the switch-over: each save of the old rows was copied
      into the tables and compared, a `job_runs` row each. It ended with the switch-over, which froze the old rows; a
      rollback (`private.unfreeze_planner_state()`) puts it back.
