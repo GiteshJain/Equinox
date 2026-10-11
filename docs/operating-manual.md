@@ -183,13 +183,16 @@ Details and open points: `docs/decisions.md`.
   *Since 2 Oct.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
   routes. *Since 8 Oct.*
-- **Hubs first:** each main hub reaches **750 weekly departures** before the airline opens a new hub, unless the new
-  hub is contested: a rival with over 250 departures a week there, or over 2 a day on a route we'd open with. Ryanair is
-  exempt. Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
+- **Hubs first:** until an airline's main hub reaches **750 weekly departures**, every new aircraft goes to the main hub.
+  Any other base, whether new or already open (second hubs and focus cities alike), gets an aircraft only to fly
+  contested routes: a rival with over 250 departures a week at that base, or over 2 a day on the route itself. A base
+  that is contested for one route (Manchester for Amsterdam, say) doesn't open its other routes. Ryanair is exempt.
+  Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
   Atlanta or Phoenix, SFO and SEA. The numbers are `settings.hub_first_departures` (750),
   `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'
   thresholds are the `growth_*` and `pattern_*` settings. *Since 5 Oct, confirmed 8 Oct as the only test for opening a
-  new base.*
+  new base; extended to bases already open 11 Oct · why: Gitesh: grow the main hub before any other base. G-AADU was
+  nearly planned at Manchester on uncontested routes, which the old wording allowed.*
 
 ## 4. Scheduling
 - **How it runs:** once aircraft have arrived, one airline at a time. Claude gives the background (loads, money,
@@ -346,6 +349,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 11 Oct | Hubs first covers only opening a new hub; a base already open can grow on any route | Every new aircraft goes to the main hub until it reaches 750 weekly departures; other bases, open or new, only for contested routes (§3). Why: Gitesh, when G-AADU was nearly planned at Manchester on uncontested routes |
 | 10 Oct | Data-only changes (plan cards, to-dos, notes, logs) go into `planner_state` | Into the tables, through `planner_item_put()` or plain SQL after the `equinox.actor` line (§1). Why: the switch-over (#13, pull request 9) froze `planner_state`; the planner reads the tables |
 | 10 Oct | Rule numbers live in the planner (Reference, growth rules) and in this manual | One source: `settings` and `world_rules`, checked against the old planner's code (§1). Why: copies drifted |
 | 10 Oct | The nightly capture sets every airline's salaries to 10% above the country average | A separate salary script, run by hand on one airline at a time (§7). Why: Gitesh suspects the nightly run on all six was inflating salaries |
