@@ -484,7 +484,7 @@ begin
   v_label := p_table || ' ' || to_char(p_month, 'YYYY-MM');
   execute format('lock table public.%I in share row exclusive mode', p_table);
   v_kept := private.archive_kept_from(p_table, (now() at time zone 'UTC')::date);
-  if p_month >= v_kept then
+  if p_month > v_kept then
     v_reasons := v_reasons || format('%s is inside the kept window (%s keeps %s, from %s on)', to_char(p_month, 'YYYY-MM'),
       p_table, case when p_table = 'change_log' then 'the last 12 full months' else 'one full calendar month' end, to_char(v_kept, 'YYYY-MM'));
   end if;
