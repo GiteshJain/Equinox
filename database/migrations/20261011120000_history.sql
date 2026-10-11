@@ -160,7 +160,9 @@ begin
       if array_length(c, 1) >= 3 and c[1] ~ '^\d{3,4}$' then
         insert into public.game_balance as x (world_id, airline_id, airline, captured_on, capture_day, account, amount, captured_at)
         values (r.world_id, r.airline_id, r.airline, v_today, v_day, c[1] || ' ' || c[2], public.as_num(c[3]), v_at)
-        on conflict (airline, captured_on, account) do update set amount = excluded.amount, capture_day = excluded.capture_day;   -- DELIBERATE FAILURE: the old rule, to see the test catch it
+        on conflict (airline, captured_on, account) do update set amount = excluded.amount, capture_day = excluded.capture_day,
+          captured_at = excluded.captured_at
+        where excluded.captured_at >= x.captured_at;
         n := n + 1;
       end if;
       if array_length(c, 1) >= 6 and c[4] ~ '^\d{3,4}$' then
