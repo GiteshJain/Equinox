@@ -17,7 +17,8 @@ Until each is built and merged, the rules below stand as they are.
 - **#13:** the planner's data moves into proper tables. Built up to the switch-over (pull request 9, 10 Oct): the old
   planner reads and saves the tables through an adapter until #18, and `planner_state` and `planner_loads` are frozen
   as the fallback (§1). The daily history (pull request 6, 11 Oct) is taken when an evening's capture is complete,
-  filled back to 29 Sep. Still to come: jobs (the 10:00 UTC fallback, clean-ups, the archive) and the report storage.
+  filled back to 29 Sep. The automatic jobs (pull request 7: the 10:00 UTC fallback, the clean-ups, the monthly
+  archive, Home's warnings) are in §7. Still to come: the report storage.
 - **#14:** every row carries its world and airline, and each world's rules are data.
 - **#15:** a change log and daily snapshots.
 - **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.
@@ -269,6 +270,25 @@ Details and open points: `docs/decisions.md`.
   30 hours. To recover, see the README in `equinox-backups`. *Copies in R2 since 9 Oct (#16) · why: the single backup
   file would pass GitHub's 50 MB warning around late November and its 100 MB limit around December or January.*
   *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
+- **Every day, inside the database (Supabase's scheduler, `pg_cron`; no key leaves the database):**
+  - **10:00 UTC, the snapshot fallback:** if no complete capture took the daily snapshot for the evening just ended, the
+    job takes it anyway, marked incomplete, with each airline's cash from its latest balance; it also fills any day
+    since the history began that has none.
+  - **10:20 UTC, the clean-ups:** raw capture pages older than 14 days are deleted. Statement lines older than 14 days
+    are deleted only while `settings.statement_cleanup_enabled` is true, and only once every one is in `game_flights`
+    or `game_payments`. It ships switched off; the Building chat switches it on after checking the per-flight backfill
+    on live.
+- **Every night, after the backup: the monthly archive.** Detail more than one full calendar month old (each flight,
+  payments ahead, world-scan schedules and airport pages; the change log after 12 months) is exported to R2 and to
+  that month's release in `equinox-backups`, both copies are read back and checked, and only then deleted, through a
+  guarded database function that refuses anything else. Only the first night on or after the 1st has work to do
+  (October leaves on 1 December); a month that fails is tried again the next night. The daily history (`airline_days`,
+  `route_days`) and the scan summaries stay for good.
+- **Every job writes a row to `job_runs`,** and the planner's Home warns when the last good backup is more than 30 hours
+  old, the latest snapshot is more than 30 hours old (or the 10:00 UTC job hasn't run for 30 hours: the scheduler may
+  have stopped; restart it from Supabase's settings), the month's archive hasn't run by the 3rd, or any job's last run
+  failed. *Since 11 Oct (#13 pull request 7, the jobs brief) · why: the daily record needs a fallback, the capture
+  tables their clean-ups, #16 its archive before 1 Dec, and a job that fails must be seen.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session. *Since 8 Oct.* Also, until #23's monitoring shows it: a look at Supabase's usage page (database
   size and egress) against the paid-plan triggers in §1. *Since 9 Oct (#17).*

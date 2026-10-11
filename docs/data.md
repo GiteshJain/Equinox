@@ -4,7 +4,7 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-63 tables, 7 views and 33 functions, all in Supabase's `public` schema, plus 89 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+63 tables, 8 views and 33 functions, all in Supabase's `public` schema, plus 103 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
@@ -17,7 +17,8 @@ file. How the parts fit together: `docs/architecture.md`.
 - [`airline_days`](#airline-days) (table): The daily history (decision #15, design §3.10, §7): one row per airline of our groups per capture day (design §2: the evening it was taken, 10:00 to 10:00 UTC), kept for good
 - [`airlines`](#airlines) (table): Every airline we track in a world: our own, and from #13's capture work the rivals the world scan sees (their columns about our airlines stay null)
 - [`airports`](#airports) (table): Every airport in the route research: city, country, position and UTC offset as the game gives them, the same in every world (a world's own corrections are in world_airports)
-- [`backup_runs`](#backup-runs) (table): One row per run of the nightly backup (decision #6): when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied
+- [`backup_runs`](#backup-runs) (view): The nightly backup's runs (decision #6), in the shape the backup job and the planner have always used: when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied, with the copy's R2 key
+- [`backup_runs_before_13`](#backup-runs-before-13) (table): Retired by #13 (pull request 7): the backup runs table as it stood when its rows moved into job_runs (job backup)
 - [`cabin_configs`](#cabin-configs) (table): Cabin layouts (e.g
 - [`capture_cash`](#capture-cash) (view): Cash and the next 7 days' payments per airline and capture date, from the capture, worked out as the planner does today: the latest balance of account 2800 that date, and the debits the events page lists for the 7 days after it was captured
 - [`capture_keys`](#capture-keys) (table): Hashed keys that let the in-game capture send data
@@ -299,7 +300,27 @@ file. How the parts fit together: `docs/architecture.md`.
 
 ## backup_runs
 
-*Table.* One row per run of the nightly backup (decision #6): when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied. The copies live in Cloudflare R2 (decision #16): each night's is kept 30 days, and the month's first is kept for good, also as a file on a monthly GitHub release in equinox-backups. Written by the backup job in equinox-backups. Read by the planner's Capture board and the backup line on Home.
+*View.* The nightly backup's runs (decision #6), in the shape the backup job and the planner have always used: when, which kind (nightly, manual or test), whether it worked, and how many tables, rows, files and bytes it copied, with the copy's R2 key. Since #13 pull request 7 a view of job_runs (job backup); an insert (scripts/report.sh in equinox-backups) becomes a job_runs row, so the job works whatever the deploy order. The old table is backup_runs_before_13. Read by the planner's Capture board and the backup warnings on Home. Shows the caller only what it may read.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | The job_runs row's id |
+| `ran_at` | timestamp with time zone | When the run reported (job_runs.started_at) |
+| `kind` | text | nightly, manual or test (a pull request's dry run) |
+| `ok` | boolean | Whether the whole run worked (job_runs.status ok) |
+| `tables` | integer | Tables copied (job_runs.details) |
+| `rows` | bigint | Rows copied (job_runs.details) |
+| `files` | integer | Site files copied (job_runs.details) |
+| `bytes` | bigint | Size of the copy before packing (job_runs.details) |
+| `commit_sha` | text | The equinox-backups commit holding that night's copy (8 and 9 Oct, before R2) |
+| `note` | text | For a failed run, the end of its log (job_runs.note) |
+| `object_key` | text | R2 key of that run's copy (from 9 Oct; earlier runs have commit_sha) |
+
+**Triggers:** backup_runs_insert.
+
+## backup_runs_before_13
+
+*Table.* Retired by #13 (pull request 7): the backup runs table as it stood when its rows moved into job_runs (job backup). Nothing writes or reads it; the name backup_runs is now a view. Kept so a revert can put it back, until #18.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -315,7 +336,7 @@ file. How the parts fit together: `docs/architecture.md`.
 | `note` | text |  |
 | `object_key` | text | R2 key of that run's copy (from 9 Oct; earlier runs have commit_sha) |
 
-**Access:** backup job writes backup_runs: insert for postgres; planner staff read backup_runs: select for authenticated.
+**Access:** planner staff read backup_runs: select for authenticated.
 
 ## cabin_configs
 
@@ -552,7 +573,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## game_capture_raw
 
-*Table.* Every page the capture sent, as rows of cells before parsing, with its world and airline. Kept 14 days. Written by capture_ingest(). Read by private.capture_page(), completeness (private.capture_day_complete) and the planner's Capture board.
+*Table.* Every page the capture sent, as rows of cells before parsing, with its world and airline. Kept 14 days: the 10:20 UTC clean-up (private.job_cleanup, #13 pull request 7) deletes older pages. Written by capture_ingest(). Read by private.capture_page(), completeness (private.capture_day_complete) and the planner's Capture board.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -862,7 +883,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## game_statement
 
-*Table.* Bank-statement lines from the capture, as the game lists them. Each line is folded into a flight (flight_id) in game_flights or into game_payments. Kept 14 days for checking, once the clean-up is switched on (#13, pull request 7). Written by the capture (private.capture_page).
+*Table.* Bank-statement lines from the capture, as the game lists them. Each line is folded into a flight (flight_id) in game_flights or into game_payments. Kept 14 days for checking once the statement clean-up is switched on (settings.statement_cleanup_enabled; the 10:20 UTC job deletes older lines only once every one is in game_flights or game_payments). Written by the capture (private.capture_page).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -957,7 +978,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 
 ## job_runs
 
-*Table.* One row per run of every job (design §3.11): when it started and finished, ok or failed, the day or month it was for, a note and the details. From #13's pull request 5: adapter_mirror (a save of the old planner rows copied into the tables) and adapter_check (the getters compared with the row just saved). backup_runs moves in with pull request 7. Staff read it; only the database's own functions and postgres write it. Not in the change log.
+*Table.* One row per run of every job (design §3.11): when it started and finished, ok or failed, the day or month it was for, a note and the details. The nightly backup (backup, through the backup_runs view, since #13 pull request 7, with every earlier run moved in), the daily snapshot (snapshot, by the capture; snapshot_fallback, the 10:00 UTC job), the 10:20 UTC clean-ups (cleanup) and the monthly archive (archive, one row per table and month, from the backup job); from #13's pull request 5 to the switch-over, the side by side (adapter_mirror, adapter_check). The planner's Home warns from it. Staff read it; only the database's own functions and postgres write it. Not in the change log.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -967,10 +988,10 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `started_at` | timestamp with time zone |  |
 | `finished_at` | timestamp with time zone |  |
 | `status` | text | running, ok, failed or incomplete |
-| `for_day` | date | The day it was for: for the side by side, the capture day it ran in (design §2: 10:00 to 10:00 UTC) |
-| `for_month` | date | The month it was for (its first day), e.g. an archive's |
+| `for_day` | date | The day it was for: a snapshot's capture day (design §2: 10:00 to 10:00 UTC), or the capture day it ran in |
+| `for_month` | date | The month it was for (its first day): an archive's, the month archived |
 | `note` | text | What happened, in a line: for a failed comparison, where it differed (paths with list places as [] and keys as {}) |
-| `details` | jsonb | What a job records about itself: for adapter_check the paths that differed (up to 200), why a cash or next-7-day figure wasn't allowed, the allowed differences used and how long it took; for adapter_mirror the rows written |
+| `details` | jsonb | What a job records about itself: for backup its kind, tables, rows, files, bytes and the copy's R2 key; for snapshot_fallback the day, whether it took the snapshot, and the missed days it filled; for cleanup what it deleted; for archive the table, rows, checksum, the files in R2 and on the release, and the layout version; for adapter_check the paths that differed (up to 200), why a cash or next-7-day figure wasn't allowed, the allowed differences used and how long it took; for adapter_mirror the rows written |
 
 **Access:** staff read: select for authenticated.
 
@@ -1519,7 +1540,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `as_num(p text)` | numeric | anon, authenticated | Turns game text such as 1,234.5 AS$ into a number (null when there is none). |
 | `auto_confirm_planner_user()` | trigger | internal only · runs as owner | Trigger on sign-up: confirms the email straight away when it is on planner_users. |
 | `capture_airlines(p_key text)` | jsonb | anon, authenticated · runs as owner | For the capture userscript, with the capture key: the key's world and its active airlines of our groups (game ID, name, code), in display order, so the userscript doesn't keep its own list. |
-| `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game's ID or, from older userscripts, by name, and refuses one outside the key's world; keeps the raw page 14 days and parses it (private.capture_store, private.capture_page): bank statement into game_flights and game_payments, loads into game_flights. Answers with the capture day and whether it is complete; the page that completes the world's capture for the day also takes the daily snapshot (airline_days, route_days) and answers with it. |
+| `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game's ID or, from older userscripts, by name, and refuses one outside the key's world; keeps the raw page (the 10:20 UTC clean-up deletes it after 14 days) and parses it (private.capture_store, private.capture_page): bank statement into game_flights and game_payments, loads into game_flights. Answers with the capture day and whether it is complete; the page that completes the world's capture for the day also takes the daily snapshot (airline_days, route_days) and answers with it. |
 | `export_capture(p_secret text, p_days integer)` | jsonb | anon, authenticated · runs as owner | Exports recent capture data for Claude's scripts, exactly as before #13: profit per flight, loads, payments ahead, cash, the last 24 hours and capture runs, from the compatibility views. Needs the ingest secret. |
 | `export_for_report(p_secret text, p_kind text, p_arg text)` | jsonb | anon, authenticated · runs as owner | Exports for the weekly report and gander monthly: the world scans (snapshots), a scan's airlines (with their schedules) and airports, each in the order the scan stored them, from game_scans and its tables with the same answers as before #13, and the planner ({state, loads}: today's planner_state and planner_loads documents, built from the tables by planner_state_get() and planner_loads_get()). Needs the ingest secret. |
 | `export_planner_data(p_secret text)` | jsonb | anon, authenticated · runs as owner | Exports planner_data for scripts. Needs the ingest secret. |
@@ -1559,6 +1580,17 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.adapter_seen(p_key text)` | boolean | internal only | Whether this version of an old row was already copied and compared in this transaction, and marks it so: the side-by-side triggers run at commit once per write, and the first does the work. |
 | `private.airport_offset_min(p_world_id bigint, p_code text)` | integer | internal only | An airport's UTC offset in a world, in minutes: coalesce(world_airports.utc_offset_override, airports.utc_offset). Null while it isn't known (the airports are loaded by #13's pull request 4). |
 | `private.apply_loads_from_capture(p_airline_id bigint)` | jsonb | internal only | The capture's loads step. Since the switch-over (#13, pull request 9), while planner_loads is frozen, it does nothing: the loads are in game_flights, where planner_loads_get() reads them. Unfrozen (after a rollback) it copies the last 3 days of an airline's captured loads into planner_loads as before, a day done once every active airline was captured for that date (loads_day_captured, the getter's rule) and staying done. |
+| `private.archive_check_args(p_month date, p_table text)` | void | internal only | Refuses a table the archive may not touch, or a month not given as its first day. Used by every archive function. |
+| `private.archive_checksum(p_month date, p_table text, OUT rows bigint, OUT checksum text)` | record | internal only | A table's month: its row count and the md5 of every row as Postgres prints it (timezone UTC, ISO dates), joined by newlines, in primary-key order. |
+| `private.archive_delete(p_month date, p_table text, p_expected_count bigint, p_checksum text)` | jsonb | internal only | The guarded delete (design §7), the only way the archive removes rows: refuses a table not listed, a month inside the kept window, a count or checksum that no longer matches, and for game_flights a month whose flights aren't all in route_days or that statement lines still point at, naming every reason in one refusal. Otherwise deletes exactly those rows (checked again as they go), records the run in job_runs (job archive, for_month) and answers with what it deleted and the row's id. Locks the table against writes while it works. postgres only. |
+| `private.archive_due(p_as_of date)` | TABLE(table_name text, month date, rows bigint) | internal only | What the monthly archive has to do (design §7): each table's months older than its kept window that still have rows, with their row counts, oldest first. Called by the archive step in equinox-backups every night (it runs on the first night on or after the 1st, and again each night until nothing is due). p_as_of: the day, default today in UTC (for the checks). postgres only. |
+| `private.archive_kept_from(p_table text, p_as_of date)` | date | internal only | The first month a table still keeps on a day (design §7): everything before it may be archived. For one month kept, on any day of December it is November, so October may go. |
+| `private.archive_manifest(p_month date, p_table text)` | jsonb | internal only | The manifest the archive step stores beside a table's month (design §7): row count, checksum (private.archive_checksum), the table's layout (columns and types) and the latest migration version, whether the month is due, and the export query. postgres only. |
+| `private.archive_order(p_table text, p_as text)` | text | internal only | A table's primary key as an order for the archive, text columns in byte order (collate "C"), so the order and the checksum are the same on any database. |
+| `private.archive_select(p_month date, p_table text)` | text | internal only | The query the archive step (equinox-backups) exports a table's month with, in the same transaction as the manifest: every column, in primary-key order. postgres only. |
+| `private.archive_tables()` | TABLE(table_name text, month_of text, keep_months integer) | internal only | The tables the monthly archive may delete from (design §7), what decides a row's month, and how many full calendar months each keeps: game_flights, game_events, game_scan_schedules and game_scan_airports one; change_log 12. |
+| `private.archive_where(p_month date, p_table text, p_as text)` | text | internal only | A table's month as a condition on the table under an alias: one rule for the manifest, the export and the delete. game_flights by dep_at in UTC (by the game's date where dep_at isn't known, as the daily history counts it), game_events by event_date, the scan tables by their scan's time, change_log by changed_at. |
+| `private.backup_runs_insert()` | trigger | internal only | Instead-of-insert trigger on the backup_runs view (design §3.12): turns the backup job's row into a job_runs row (job backup; ok or failed; its kind, counts, R2 key and commit in details) and answers with its id and time. Refuses a kind other than nightly, manual or test, or no ok, as the old table did. |
 | `private.caller_is_staff()` | boolean | internal only | True for planner staff (their sign-in) and for postgres itself (Claude, jobs, migrations), the way the getters decide. Used by the write functions that run as owner. |
 | `private.capex_key(p_airline text, p_day date, p_kind text, p_amount numeric, p_note text)` | text | internal only | What a money-spent entry says (airline, date, kind, amount in AS$, note) as one text, the same from the planner's document and from a spending_log row: the entries have no id, so identical ones are interchangeable (design §8). |
 | `private.capture_day(p_world_id bigint, p_at timestamp with time zone)` | date | internal only | The capture day a moment belongs to (design §2): the UTC date of the moment minus capture_day_starts_utc (10:00 until set), so one evening's capture is one day, named after the evening. |
@@ -1584,7 +1616,9 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.history_schedule(p_world_id bigint, p_day date)` | TABLE(airline_id bigint, weekly_departures integer, weekly_seats integer, destinations integer) | internal only | The daily history's schedule as it stood on a day, per airline: departures and seats a week and destinations, from the flight legs of every rotation launched by that day (one with no launch date from the start), assuming nothing was dropped. |
 | `private.is_payment_line(p_descr text, p_blk integer)` | boolean | internal only | True for a statement line that never belongs to a flight: a lease, salaries, a deposit, a purchase, a refit or a cabin, or a line the parser put in block 0. |
 | `private.is_weekday_set(p_days smallint[])` | boolean | authenticated | True for a set of ISO weekdays as the schedule stores them: 1 (Monday) to 7 (Sunday), sorted, no repeats, at least one. Used by the checks on flight_legs.days_utc and plan_card_legs.days_utc. |
+| `private.job_cleanup(p_at timestamp with time zone)` | jsonb | internal only | The 10:20 UTC job (pg_cron equinox-cleanup; design §7): per world, deletes raw pages (game_capture_raw) older than 14 days, and, while settings.statement_cleanup_enabled is true, statement lines older than 14 days, only once every one is in game_flights or game_payments (counted first; otherwise none goes and the run fails, saying how many aren't). One job_runs row per world (cleanup), failed with the error rather than raised. p_at: the run's moment, default now (for the checks). |
 | `private.job_run_add(p_job text, p_world_id bigint, p_started_at timestamp with time zone, p_status text, p_note text, p_details jsonb)` | bigint | internal only | Adds one finished job_runs row: the job, its world, when it started (and finished: now), ok or failed, the note and details; for_day is the capture day it started in. |
+| `private.job_snapshot_fallback(p_at timestamp with time zone)` | jsonb | internal only | The 10:00 UTC job (pg_cron equinox-snapshot-fallback; design §7): for each world with active airlines of ours, takes the snapshot of the capture day just ended if it has none (private.take_snapshot, source fallback; cash with no balance that capture day and none typed from the latest balance before it), and of any earlier day since the history began that has none. A day with a snapshot is left alone. One job_runs row per world (snapshot_fallback), failed with the error rather than raised. p_at: the run's moment, default now (for the checks). |
 | `private.json_date(p jsonb)` | date | internal only | A date written YYYY-MM-DD in the old planner's JSON; null for anything else or a day that doesn't exist. Used by the loader. |
 | `private.json_int(p jsonb)` | bigint | internal only | A whole number from the old planner's JSON (a flight number, seats, minutes); null when it isn't one. Used by the loader. |
 | `private.json_num(p jsonb)` | numeric | internal only | A number from the old planner's JSON: a JSON number, or text that is plainly a number; null for anything else. Used by the loader. |
@@ -1634,6 +1668,7 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)` | jsonb | internal only | Puts one row of a logged table back as it was at a moment, by replaying change_log backwards: re-adds a removed row with its own key, undoes changes, or removes a row added since. The restore is logged like any change. For Claude, as postgres: start with the equinox.actor line (design §6). |
 | `private.scan_airline(p_world_id bigint, p_game_id integer, p_name text)` | bigint | internal only | The airlines row of an airline a world scan saw, by game ID, added when new (design §3.9: rivals can then be placed in groups); a rival's game_name follows the game, ours are left alone. Null without a game ID. |
 | `private.scan_summarise(p_scan_id bigint)` | integer | internal only | Builds a world scan's airport summaries (scan_airline_airports) from its schedules: per airline and airport, departures a week and destinations. Run when a scan finishes; a scan whose schedules were archived keeps what it has. Returns the rows written. |
+| `private.schedule_jobs()` | jsonb | internal only | Schedules the two database jobs with pg_cron, by name, so it can run again safely: equinox-snapshot-fallback at 10:00 UTC (private.job_snapshot_fallback) and equinox-cleanup at 10:20 UTC (private.job_cleanup). Run by migration 20261011150000_jobs, and again after a full restore (the backup copies no schedules). Answers with the jobs as the scheduler has them. |
 | `private.set_updated_at()` | trigger | internal only | Trigger on every planner table: sets updated_at when a row is added or really changes, and leaves it as it was when an update changes nothing. |
 | `private.shift_weekdays(p smallint[], p_days integer)` | smallint[] | internal only | ISO weekdays moved by whole days (−1: each a day earlier, Monday becomes Sunday), sorted. Turns local weekdays into UTC ones and back (design §4). |
 | `private.snapshot_due(p_world_id bigint, p_day date, p_at timestamp with time zone)` | boolean | internal only | Whether a page at p_at completes a world's capture for the day: every active airline of our groups has all five pages since the day started, or since the last snapshot taken from a complete capture that day. So one snapshot per complete capture, taken by its last page. |

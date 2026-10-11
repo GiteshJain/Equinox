@@ -13,10 +13,15 @@
    forecast, route profit and fare plan, the Check lists, hub connections, aircraft, interline) match the saved answers in
    tests/fixtures/planner_numbers.expected.json. A difference prints exactly what changed. After an intended change,
    run with --update and commit the new answers with the change, saying why they moved.
+5. Home's job warnings (#13 pull request 7, design §7): with job_runs and backup_runs as the stand-in answers them,
+   Home warns when the last good backup is more than 30 hours old or its last run failed, when the latest snapshot is
+   more than 30 hours old or the 10:00 UTC job hasn't run for 30 hours, when the month's archive hasn't run by the 3rd,
+   and when any job's last run failed (naming it and its note; the archive per table and month), and shows none of
+   these when all is well.
 
 Usage: python3 tests/planner_test.py [--update]
 """
-import asyncio, difflib, json, re, sys
+import asyncio, datetime, difflib, json, re, sys
 from harness import FIX, serve, open_planner, go, settle, sample
 from playwright.async_api import async_playwright
 
@@ -196,6 +201,68 @@ async def stored_copies(p, port):
         await b.close()
 
 
+def _ago(hours):
+    """A moment this many hours before the sample's frozen clock, as the database sends it."""
+    t = datetime.datetime.fromisoformat(sample()["frozen_at"]) - datetime.timedelta(hours=hours)
+    return t.astimezone(datetime.timezone.utc).isoformat()
+
+
+def _run(job, hours, status="ok", note=None, **extra):
+    return dict({"job": job, "status": status, "started_at": _ago(hours), "finished_at": _ago(hours - 0.01),
+                 "for_month": None, "note": note or f"{job} {status}", "details": {}}, **extra)
+
+
+# Home's warnings for the automatic jobs (#13 pull request 7, design §7), from job_runs and backup_runs as the stand-in
+# answers them, with the clock at the sample's moment (10 Oct 13:37 UTC, past the 3rd): (scenario, tables, the
+# warnings Home must show, as the start of each line). "All is well" must show none of them.
+GOOD_JOBS = [_run("cleanup", 3.3), _run("snapshot_fallback", 3.6, details={"taken": False}), _run("snapshot", 10),
+             _run("cleanup", 27.3, "failed", "clean-up: an earlier failure, fixed since"), _run("snapshot_fallback", 27.6),
+             _run("archive", 222, details={"table": "game_flights"}, for_month="2026-08-01"),
+             _run("archive", 222.5, "failed", "an earlier try", details={"table": "game_flights"}, for_month="2026-08-01")]
+GOOD_BACKUPS = [{"ran_at": _ago(5), "kind": "nightly", "ok": True, "tables": 70, "rows": 20000, "files": 57, "bytes": 1, "note": None},
+                {"ran_at": _ago(2), "kind": "test", "ok": False, "tables": 70, "rows": 20000, "files": 57, "bytes": 1, "note": "a dry run failed"}]
+JOB_WORDS = ("Backup:", "Daily snapshot", "Nightly jobs", "Monthly archive", "Clean-up", "10:00 UTC snapshot job")
+JOB_SCENARIOS = [
+    ("all is well (a dry run failed, an earlier clean-up failed and was fixed, the archive ran on the 1st)",
+     {"job_runs": GOOD_JOBS, "backup_runs": GOOD_BACKUPS}, []),
+    ("the last good backup more than 30 hours old",
+     {"job_runs": GOOD_JOBS, "backup_runs": [dict(GOOD_BACKUPS[0], ran_at=_ago(40))]}, ["Backup: last good copy 40 hours ago"]),
+    ("the backup's last run failed",
+     {"job_runs": GOOD_JOBS, "backup_runs": [dict(GOOD_BACKUPS[0], ran_at=_ago(1), ok=False, note="restore check failed: a table is missing")] + GOOD_BACKUPS},
+     ["Backup: the last run failed (Sat, Oct 10 12:37 UTC): restore check failed: a table is missing"]),
+    ("the latest snapshot more than 30 hours old (the capture and the 10:00 UTC job both stopped)",
+     {"job_runs": [r for r in GOOD_JOBS if not r["job"].startswith("snapshot")] + [_run("snapshot", 40), _run("snapshot_fallback", 33.6)]},
+     ["Daily snapshot: the last was 34 hours ago", "Nightly jobs: the 10:00 UTC job last ran 34 hours ago"]),
+    ("the 10:00 UTC job not run for over 30 hours while the capture still takes its snapshots (the scheduler stopped)",
+     {"job_runs": [r for r in GOOD_JOBS if r["job"] != "snapshot_fallback"] + [_run("snapshot_fallback", 51.6)]},
+     ["Nightly jobs: the 10:00 UTC job last ran 52 hours ago"]),
+    ("the month's archive not run by the 3rd",
+     {"job_runs": [r for r in GOOD_JOBS if r["job"] != "archive"] + [_run("archive", 920, details={"table": "game_events"}, for_month="2026-07-01")]},
+     ["Monthly archive: hasn't run this month (the nightly backup runs it from the 1st; last ran Wed, Sep 2"]),
+    ("jobs whose last run failed: the clean-up, the 10:00 UTC job, one table and month of the archive",
+     {"job_runs": [_run("cleanup", 3.2, "failed", "statement lines: 3 of the 120 older than 14 days aren't in game_flights or game_payments, so none were deleted"),
+                   _run("snapshot_fallback", 3.5, "failed", "snapshot fallback: division by zero"),
+                   _run("archive", 100, "failed", "game_events 2026-08: the copy on the GitHub release didn't match (SHA-256)",
+                        details={"table": "game_events"}, for_month="2026-08-01")] + GOOD_JOBS},
+     ["Clean-up (10:20 UTC): the last run failed (Sat, Oct 10 10:25 UTC): statement lines: 3 of the 120 older than 14 days aren't in game_flights or game_payments, so none were deleted",
+      "10:00 UTC snapshot job: the last run failed (Sat, Oct 10 10:07 UTC): snapshot fallback: division by zero",
+      "Monthly archive (game_events 2026-08): the last run failed (Tue, Oct 6 09:37 UTC): game_events 2026-08: the copy on the GitHub release didn't match (SHA-256)"]),
+]
+
+
+async def job_warnings(p, port):
+    for name, tables, want in JOB_SCENARIOS:
+        b, pg, errors = await open_planner(p, port, live=False, tables=tables)
+        await go(pg, "home")
+        lines = await pg.evaluate("[...document.querySelectorAll('#view ul.att button.link')].map(b => b.textContent.replace(/\\s+/g, ' ').trim())")
+        shown = [x for x in lines if x.startswith(JOB_WORDS)]
+        missing = [w for w in want if not any(x.startswith(w) for x in shown)]
+        extra = [x for x in shown if not any(x.startswith(w) for w in want)]
+        check(not missing and not extra and not errors, f"Home's job warnings: {name}",
+              f"missing: {missing}; not expected: {extra}; errors: {errors[:3]}")
+        await b.close()
+
+
 def leases_named(got):
     text = json.dumps({k: v for k, v in got.items() if "Cash, next 14 days" in k})
     missing = [f"{t} {v}" for t, v in LEASES.items() if t in text and f"lease {v}" not in text]
@@ -238,6 +305,7 @@ async def main():
             await part("look-only previews", look_only(p, port))
             await part("copies kept in the browser", stored_copies(p, port))
             await part("loads by hand", manual_loads(p, port))
+            await part("Home's job warnings", job_warnings(p, port))
     leases_named(got)
     compare(got)
     print(f"\n{len(failures)} planner check(s) failed" if failures else "\nplanner: all passed")

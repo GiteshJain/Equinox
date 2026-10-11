@@ -85,9 +85,10 @@ NEW_TABLES = ("worlds", "groups", "airlines", "airline_bases", "airline_aircraft
               "todo_items", "growth_log", "spending_log", "fare_plan", "interline_agreements", "monthly_checks",
               "dismissals", "cash_entries", "load_entries", "load_days", "settings", "world_rules", "change_log")
 NEW_VIEWS = ("flight_legs_local", "flight_no_clashes")
-# The adapter's write side (migration 20261010210000_adapter_write_side.sql): its jobs table and view, staff read only
+# The adapter's write side (migration 20261010210000_adapter_write_side.sql): its jobs table and view, staff read only;
+# and backup_runs, a view of job_runs since the jobs (migration 20261011150000_jobs.sql)
 JOB_TABLES = ("job_runs",)
-JOB_VIEWS = ("adapter_check_days",)
+JOB_VIEWS = ("adapter_check_days", "backup_runs")
 WRITERS = ("planner_state_put", "planner_item_put", "planner_item_delete", "adapter_clean_days")
 # The capture data in the new model (migration 20261009230000_capture_data.sql): staff read them, nobody else, and only the
 # capture's functions write the tables
