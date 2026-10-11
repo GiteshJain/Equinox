@@ -2169,7 +2169,7 @@ function makeModel(DATA, state) {
     return h;
   }
   // ================= CAPTURE (data sent by the one-click capture from the game) =================
-  const CAP = { runs: [], loads: {}, bal: [], events: [], ops: {}, pnl: [], backup: [], backupLoaded: false, at: 0, err: "" };   // loads keyed "date|Airline|flight number"
+  const CAP = { runs: [], loads: {}, bal: [], events: [], ops: {}, pnl: [], backup: [], backupLoaded: false, jobs: [], archiveLast: null, jobsLoaded: false, at: 0, err: "" };   // loads keyed "date|Airline|flight number"
   const CAP_KINDS = [["loads", "Loads"], ["statement", "Statement"], ["events", "Events"], ["pnl", "Income"], ["balance", "Balance"]];
   const CAP_HOME = { "Pan American": "JFK", "Kingfisher": "DEL", "Ryanair": "CDG", "Virgin Atlantic": "LGW", "China Eastern": "PVG", "Malaysia Airlines": "KUL" };   // the events page shows times at the airline's home
   const utcDay = (n = 0) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
@@ -2190,6 +2190,9 @@ function makeModel(DATA, state) {
       const seen = new Set(); CAP.bal = bal.filter(b => { const k = b.airline + "|" + b.captured_on; if (seen.has(k)) return false; seen.add(k); return true; });   // latest capture per airline and day
       try { const { data, error } = await sb.from("backup_runs").select("ran_at,kind,ok,tables,rows,files,bytes,note").order("ran_at", { ascending: false }).limit(10);   // the nightly backup's results (decision #6)
         if (!error) { CAP.backup = data || []; CAP.backupLoaded = true; } } catch (e) {}
+      try { const J = await sb.from("job_runs").select("job,status,started_at,finished_at,for_month,note,details").in("job", ["snapshot", "snapshot_fallback", "cleanup", "archive"]).gte("started_at", new Date(Date.now() - 40 * 864e5).toISOString()).order("started_at", { ascending: false }).limit(500);   // the automatic jobs (#13 pull request 7), for Home's warnings
+        const A = await sb.from("job_runs").select("started_at").eq("job", "archive").order("started_at", { ascending: false }).limit(1);
+        if (!J.error && !A.error) { CAP.jobs = J.data || []; CAP.archiveLast = (A.data || [])[0] || null; CAP.jobsLoaded = true; } } catch (e) {}
       CAP.events = evs; CAP.at = Date.now(); CAP.err = ""; return true;
     } catch (e) { CAP.err = (e && e.message) || String(e); CAP.at = Date.now(); return false; }
   }
@@ -2963,7 +2966,7 @@ function makeModel(DATA, state) {
       ${done.length || older ? `<details class="tdone"><summary>${done.length} done in the last 7 days${older ? ` · ${older} older hidden` : ""}</summary><ul class="todo">${done.map(item).join("")}</ul></details>` : ""}</div>`;
   }
   // ---- needs attention, grouped: one line per kind, opening to its items
-  const ATT_KIND = { capture: "Capture", backup: "Backup", todo: "To-dos", check: "One-week checks due", maint: "Maintenance", turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix", order: "Can order", monthly: "Monthly checks", interline: "Interline" };
+  const ATT_KIND = { capture: "Capture", backup: "Backup", jobs: "Nightly jobs", todo: "To-dos", check: "One-week checks due", maint: "Maintenance", turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix", order: "Can order", monthly: "Monthly checks", interline: "Interline" };
   const attKind = a => { const k = (a.key || "").split("|")[0]; if (ATT_KIND[k]) return k;
     const t = a.text || ""; return /one-week check/.test(t) ? "check" : /check due/.test(t) ? "monthly" : /short turn|wrong position/.test(t) ? "turn" : /night ban/.test(t) ? "ban" : /used twice/.test(t) ? "clash" : /the cap is/.test(t) ? "cap" : /nterline/.test(t) ? "interline" : "other"; };
   function attGrouped(att) {
@@ -3010,7 +3013,17 @@ function makeModel(DATA, state) {
         att.push({ key: "capture|" + today(), cls: worst > 48 ? "bad" : "warn", view: "review", text: old.length === capAls.length ? `No capture for ${worst >= 99 ? "over 2 days" : Math.round(worst) + " hours"}: open the game and press Capture all airlines` : `Not captured for over a day: ${old.map(x => x.a).join(", ")}. Press Capture all airlines in the game` }); } }
     if (CAP.backupLoaded) { const B = CAP.backup.filter(b => b.kind !== "test"), good = B.find(b => b.ok), hrs = good ? (Date.now() - Date.parse(good.ran_at)) / 36e5 : null;
       if (hrs == null || hrs > 30) att.push({ key: "backup|" + today(), cls: hrs == null && !B.length ? "mute" : hrs == null || hrs > 54 ? "bad" : "warn", view: "review",
-        text: good ? `Backup: last good copy ${Math.round(hrs)} hours ago${B[0] && !B[0].ok ? " (the last run failed)" : ""}` : B.length ? "Backup: no good copy yet (the last run failed)" : "Backup: no copy yet; the first runs tonight" }); }
+        text: good ? `Backup: last good copy ${Math.round(hrs)} hours ago${B[0] && !B[0].ok ? " (the last run failed)" : ""}` : B.length ? "Backup: no good copy yet (the last run failed)" : "Backup: no copy yet; the first runs tonight" });
+      else if (B[0] && !B[0].ok) { const n = String(B[0].note || "no note"); att.push({ key: "backup|failed|" + B[0].ran_at, cls: "bad", view: "review", text: `Backup: the last run failed (${niceDate(String(B[0].ran_at).slice(0, 10))} ${String(B[0].ran_at).slice(11, 16)} UTC): ${n.length > 160 ? "…" + n.slice(-160) : n}` }); } }
+    // the automatic jobs (#13 pull request 7, design §7), from job_runs: a late snapshot or 10:00 UTC run, the month's archive not run by the 3rd, a job whose last run failed
+    if (CAP.jobsLoaded) { const J = CAP.jobs, ago = t => (Date.now() - Date.parse(t)) / 36e5, when = t => `${niceDate(String(t).slice(0, 10))} ${String(t).slice(11, 16)} UTC`, m0 = new Date().toISOString().slice(0, 7) + "-01T00:00:00Z";
+      const snap = J.find(j => (j.job === "snapshot" || j.job === "snapshot_fallback") && (j.status === "ok" || j.status === "incomplete")), fb = J.find(j => j.job === "snapshot_fallback");   // the capture's snapshot, or the 10:00 UTC job taking or finding it
+      if (snap && ago(snap.started_at) > 30) att.push({ key: "jobs|snapshot|" + today(), cls: ago(snap.started_at) > 54 ? "bad" : "warn", view: "review", text: `Daily snapshot: the last was ${Math.round(ago(snap.started_at))} hours ago (the evening's capture takes it; the 10:00 UTC job when the capture didn't)` });
+      if (fb && ago(fb.started_at) > 30) att.push({ key: "jobs|scheduler|" + today(), cls: "warn", view: "review", text: `Nightly jobs: the 10:00 UTC job last ran ${Math.round(ago(fb.started_at))} hours ago; the database's scheduler may have stopped (restart it from Supabase's settings)` });
+      if (new Date().getUTCDate() >= 3 && CAP.archiveLast && Date.parse(CAP.archiveLast.started_at) < Date.parse(m0)) att.push({ key: "jobs|archive|" + m0.slice(0, 7), cls: "warn", view: "review", text: `Monthly archive: hasn't run this month (the nightly backup runs it from the 1st; last ran ${when(CAP.archiveLast.started_at)})` });
+      const last = {}, NAME = { snapshot: "Daily snapshot", snapshot_fallback: "10:00 UTC snapshot job", cleanup: "Clean-up (10:20 UTC)", archive: "Monthly archive" };
+      for (const j of J) { const k = j.job === "archive" ? `archive|${(j.details || {}).table || ""}|${j.for_month || ""}` : j.job; if (j.status !== "running" && !last[k]) last[k] = j; }   // each job's last run; the archive's per table and month
+      for (const j of Object.values(last)) if (j.status === "failed") att.push({ key: "jobs|failed|" + j.job + "|" + j.started_at, cls: "bad", view: "review", text: `${NAME[j.job] || j.job}${j.job === "archive" && (j.details || {}).table ? " (" + j.details.table + " " + String(j.for_month || "").slice(0, 7) + ")" : ""}: the last run failed (${when(j.started_at)}): ${String(j.note || "no note").slice(0, 200)}` }); }
     for (const al of als) { const now = orderNow(al); if (now.length) att.push({ key: "order|" + al + "|" + today(), cls: "ok", view: "finance", text: `${al} can safely order: ${now.join(", ")}` }); }
     for (const td of (state.todos || [])) if (!td.done && td.date && td.date <= today()) att.push({ key: "todo|" + td.id, cls: td.date < today() ? "bad" : "warn", text: `To-do${td.date < today() ? " (overdue)" : ""}: ${td.title}`, view: "home" });
     // upcoming

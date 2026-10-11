@@ -108,7 +108,6 @@ begin
     return jsonb_build_object('ok', false, 'error', 'bad kind');
   end if;
   perform set_config('equinox.actor', 'capture', true);
-  delete from public.game_capture_raw where captured_at < now() - interval '14 days';   -- raw pages kept 14 days
   return private.capture_store(v_world, p_airline, p_kind, p_page, p_rows, now());
 end
 $function$
@@ -1391,6 +1390,315 @@ end
 $function$
 ;
 
+-- private.archive_check_args(p_month date, p_table text)
+CREATE OR REPLACE FUNCTION private.archive_check_args(p_month date, p_table text)
+ RETURNS void
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+begin
+  if p_table is null or not exists (select 1 from private.archive_tables() t where t.table_name = p_table) then
+    raise exception 'archive refused: % is not a table the archive may touch (design §7: %)', coalesce(p_table, 'null'),
+      (select string_agg(t.table_name, ', ') from private.archive_tables() t) using errcode = '42501';
+  end if;
+  if p_month is null or p_month <> date_trunc('month', p_month)::date then
+    raise exception 'archive refused: the month must be given as its first day (e.g. 2026-10-01), not %', coalesce(p_month::text, 'null')
+      using errcode = '22023';
+  end if;
+end
+$function$
+;
+
+-- private.archive_checksum(p_month date, p_table text, OUT rows bigint, OUT checksum text)
+CREATE OR REPLACE FUNCTION private.archive_checksum(p_month date, p_table text, OUT rows bigint, OUT checksum text)
+ RETURNS record
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+ SET "TimeZone" TO 'UTC'
+ SET "DateStyle" TO 'ISO, YMD'
+ SET "IntervalStyle" TO 'postgres'
+ SET extra_float_digits TO '1'
+ SET bytea_output TO 'hex'
+AS $function$
+begin
+  perform private.archive_check_args(p_month, p_table);
+  execute format('select count(*), md5(coalesce(string_agg(t::text, E''\n'' order by %s), '''')) from public.%I t where %s',
+                 private.archive_order(p_table, 't'), p_table, private.archive_where(p_month, p_table, 't'))
+     into rows, checksum;
+end
+$function$
+;
+
+-- private.archive_delete(p_month date, p_table text, p_expected_count bigint, p_checksum text)
+CREATE OR REPLACE FUNCTION private.archive_delete(p_month date, p_table text, p_expected_count bigint, p_checksum text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+ SET "TimeZone" TO 'UTC'
+ SET "DateStyle" TO 'ISO, YMD'
+ SET "IntervalStyle" TO 'postgres'
+ SET extra_float_digits TO '1'
+ SET bytea_output TO 'hex'
+AS $function$
+declare
+  t0 timestamptz := clock_timestamp(); v_kept date; c record; v_reasons text[] := '{}'; n bigint; v_deleted bigint;
+  v_sum text; v_version text; v_job bigint; v_label text;
+begin
+  perform private.archive_check_args(p_month, p_table);
+  v_label := p_table || ' ' || to_char(p_month, 'YYYY-MM');
+  execute format('lock table public.%I in share row exclusive mode', p_table);
+  v_kept := private.archive_kept_from(p_table, (now() at time zone 'UTC')::date);
+  if p_month >= v_kept then
+    v_reasons := v_reasons || format('%s is inside the kept window (%s keeps %s, from %s on)', to_char(p_month, 'YYYY-MM'),
+      p_table, case when p_table = 'change_log' then 'the last 12 full months' else 'one full calendar month' end, to_char(v_kept, 'YYYY-MM'));
+  end if;
+  select * into c from private.archive_checksum(p_month, p_table);
+  if p_expected_count is distinct from c.rows then
+    v_reasons := v_reasons || format('the count doesn''t match (%s expected, %s there now)', coalesce(p_expected_count::text, 'none'), c.rows);
+  end if;
+  if p_checksum is distinct from c.checksum then
+    v_reasons := v_reasons || 'the checksum doesn''t match (the rows changed since the manifest)'::text;
+  end if;
+  if p_table = 'game_flights' then
+    -- every flight of the month is in route_days, as many per route and day as game_flights has (history_flows's rule)
+    execute format($q$
+      with f as (
+        select x.airline_id, x.origin_code, x.dest_code, coalesce((x.dep_at at time zone 'UTC')::date, x.game_date) as day, count(*) as n
+          from public.game_flights x
+         where %s and (x.flight_no is not null or x.pax_income is not null)
+           and coalesce(x.origin_code, '') <> '' and coalesce(x.dest_code, '') <> ''
+         group by 1, 2, 3, 4)
+      select count(*) from f
+        left join public.route_days r on r.airline_id = f.airline_id and r.origin_code = f.origin_code
+                                     and r.dest_code = f.dest_code and r.day = f.day
+       where r.flights is distinct from f.n::int$q$, private.archive_where(p_month, p_table, 'x')) into n;
+    if n > 0 then
+      v_reasons := v_reasons || format('%s route day(s) of the month aren''t in route_days as game_flights has them (run private.history_flows() for the month first)', n);
+    end if;
+    execute format('select count(*) from public.game_statement s join public.game_flights x on x.id = s.flight_id where %s',
+                   private.archive_where(p_month, p_table, 'x')) into n;
+    if n > 0 then
+      v_reasons := v_reasons || format('%s statement line(s) still point at these flights (the statement clean-up removes them after 14 days once it is switched on)', n);
+    end if;
+  end if;
+  if cardinality(v_reasons) > 0 then
+    raise exception 'archive_delete refused %: %', v_label, array_to_string(v_reasons, '; ') using errcode = 'P0001';
+  end if;
+
+  -- the delete, checking the rows it removes against the manifest's count and checksum
+  execute format('with d as (delete from public.%I t where %s returning t.*) select count(*), md5(coalesce(string_agg(d::text, E''\n'' order by %s), '''')) from d',
+                 p_table, private.archive_where(p_month, p_table, 't'), private.archive_order(p_table, 'd'))
+     into v_deleted, v_sum;
+  if v_deleted <> p_expected_count or v_sum <> p_checksum then
+    raise exception 'archive_delete stopped %: the rows it was deleting weren''t the manifest''s (% rows); nothing was deleted', v_label, v_deleted;
+  end if;
+  if to_regclass('supabase_migrations.schema_migrations') is not null then
+    execute 'select max(version) from supabase_migrations.schema_migrations' into v_version;
+  end if;
+  insert into public.job_runs (job, started_at, finished_at, status, for_month, note, details)
+  values ('archive', t0, clock_timestamp(), 'ok', p_month,
+          format('%s: %s row(s) archived and deleted', v_label, v_deleted),
+          jsonb_build_object('table', p_table, 'month', to_char(p_month, 'YYYY-MM'), 'rows', v_deleted, 'checksum', v_sum,
+                             'migration_version', v_version))
+  returning id into v_job;
+  return jsonb_build_object('table', p_table, 'month', to_char(p_month, 'YYYY-MM'), 'deleted', v_deleted, 'job_run_id', v_job);
+end
+$function$
+;
+
+-- private.archive_due(p_as_of date)
+CREATE OR REPLACE FUNCTION private.archive_due(p_as_of date DEFAULT NULL::date)
+ RETURNS TABLE(table_name text, month date, rows bigint)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+ SET "TimeZone" TO 'UTC'
+AS $function$
+  with k as (
+    select t.table_name, private.archive_kept_from(t.table_name, coalesce(p_as_of, (now() at time zone 'UTC')::date)) as kept_from
+      from private.archive_tables() t)
+  select x.table_name, x.month, x.rows from (
+    select 'game_flights' as table_name, date_trunc('month', coalesce(f.dep_at at time zone 'UTC', f.game_date::timestamp))::date as month, count(*) as rows
+      from public.game_flights f, k
+     where k.table_name = 'game_flights' and coalesce(f.dep_at at time zone 'UTC', f.game_date::timestamp) < k.kept_from::timestamp
+     group by 2
+    union all
+    select 'game_events', date_trunc('month', e.event_date)::date, count(*)
+      from public.game_events e, k
+     where k.table_name = 'game_events' and e.event_date < k.kept_from
+     group by 2
+    union all
+    select 'game_scan_schedules', date_trunc('month', s.taken_at at time zone 'UTC')::date, count(*)
+      from public.game_scan_schedules x join public.game_scans s on s.id = x.scan_id, k
+     where k.table_name = 'game_scan_schedules' and s.taken_at < k.kept_from::timestamp at time zone 'UTC'
+     group by 2
+    union all
+    select 'game_scan_airports', date_trunc('month', s.taken_at at time zone 'UTC')::date, count(*)
+      from public.game_scan_airports x join public.game_scans s on s.id = x.scan_id, k
+     where k.table_name = 'game_scan_airports' and s.taken_at < k.kept_from::timestamp at time zone 'UTC'
+     group by 2
+    union all
+    select 'change_log', date_trunc('month', c.changed_at at time zone 'UTC')::date, count(*)
+      from public.change_log c, k
+     where k.table_name = 'change_log' and c.changed_at < k.kept_from::timestamp at time zone 'UTC'
+     group by 2) x
+   order by x.month, x.table_name
+$function$
+;
+
+-- private.archive_kept_from(p_table text, p_as_of date)
+CREATE OR REPLACE FUNCTION private.archive_kept_from(p_table text, p_as_of date)
+ RETURNS date
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select (date_trunc('month', p_as_of) - make_interval(months => t.keep_months))::date
+    from private.archive_tables() t where t.table_name = p_table
+$function$
+;
+
+-- private.archive_manifest(p_month date, p_table text)
+CREATE OR REPLACE FUNCTION private.archive_manifest(p_month date, p_table text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+ SET "TimeZone" TO 'UTC'
+ SET "DateStyle" TO 'ISO, YMD'
+ SET "IntervalStyle" TO 'postgres'
+ SET extra_float_digits TO '1'
+ SET bytea_output TO 'hex'
+AS $function$
+declare c record; v_version text; v_kept date := private.archive_kept_from(p_table, (now() at time zone 'UTC')::date);
+begin
+  perform private.archive_check_args(p_month, p_table);
+  select * into c from private.archive_checksum(p_month, p_table);
+  if to_regclass('supabase_migrations.schema_migrations') is not null then
+    execute 'select max(version) from supabase_migrations.schema_migrations' into v_version;
+  end if;
+  return jsonb_build_object(
+    'table', p_table, 'month', to_char(p_month, 'YYYY-MM'), 'rows', c.rows, 'checksum', c.checksum,
+    'checksum_method', 'md5 of every row as Postgres prints it (timezone UTC, datestyle ISO), joined by newlines, in primary-key order',
+    'primary_key_order', private.archive_order(p_table, 't'),
+    'month_of', (select t.month_of from private.archive_tables() t where t.table_name = p_table),
+    'kept_from', to_char(v_kept, 'YYYY-MM'), 'due', p_month < v_kept,
+    'layout', (select jsonb_agg(jsonb_build_object('column', a.attname, 'type', format_type(a.atttypid, a.atttypmod),
+                                                   'not_null', a.attnotnull, 'generated', a.attgenerated <> '',
+                                                   'identity', a.attidentity <> '') order by a.attnum)
+                 from pg_catalog.pg_attribute a
+                where a.attrelid = ('public.' || p_table)::regclass and a.attnum > 0 and not a.attisdropped),
+    'migration_version', v_version,
+    'query', private.archive_select(p_month, p_table),
+    'made_at', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'));
+end
+$function$
+;
+
+-- private.archive_order(p_table text, p_as text)
+CREATE OR REPLACE FUNCTION private.archive_order(p_table text, p_as text)
+ RETURNS text
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare a text := quote_ident(p_as);
+begin
+  return case p_table
+    when 'game_flights' then format('%1$s.id', a)
+    when 'game_events' then format('%1$s.airline collate "C", %1$s.event_date, %1$s.event_time collate "C", %1$s.descr collate "C"', a)
+    when 'game_scan_schedules' then format('%1$s.scan_id, %1$s.airline_id', a)
+    when 'game_scan_airports' then format('%1$s.scan_id, %1$s.airport_code collate "C"', a)
+    when 'change_log' then format('%1$s.id', a)
+  end;
+end
+$function$
+;
+
+-- private.archive_select(p_month date, p_table text)
+CREATE OR REPLACE FUNCTION private.archive_select(p_month date, p_table text)
+ RETURNS text
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+begin
+  perform private.archive_check_args(p_month, p_table);
+  return format('select t.* from public.%I t where %s order by %s', p_table, private.archive_where(p_month, p_table, 't'),
+                private.archive_order(p_table, 't'));
+end
+$function$
+;
+
+-- private.archive_tables()
+CREATE OR REPLACE FUNCTION private.archive_tables()
+ RETURNS TABLE(table_name text, month_of text, keep_months integer)
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select * from (values ('game_flights', 'dep_at (UTC); the game''s date where dep_at isn''t known', 1),
+                        ('game_events', 'event_date', 1),
+                        ('game_scan_schedules', 'the scan''s time (game_scans.taken_at, UTC)', 1),
+                        ('game_scan_airports', 'the scan''s time (game_scans.taken_at, UTC)', 1),
+                        ('change_log', 'changed_at (UTC)', 12)) v(table_name, month_of, keep_months)
+$function$
+;
+
+-- private.archive_where(p_month date, p_table text, p_as text)
+CREATE OR REPLACE FUNCTION private.archive_where(p_month date, p_table text, p_as text)
+ RETURNS text
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  f text := quote_literal(to_char(p_month, 'YYYY-MM-DD') || ' 00:00:00+00') || '::timestamptz';
+  t text := quote_literal(to_char((p_month + interval '1 month')::date, 'YYYY-MM-DD') || ' 00:00:00+00') || '::timestamptz';
+  fd text := quote_literal(to_char(p_month, 'YYYY-MM-DD')) || '::date';
+  td text := quote_literal(to_char((p_month + interval '1 month')::date, 'YYYY-MM-DD')) || '::date';
+  a text := quote_ident(p_as);
+begin
+  perform private.archive_check_args(p_month, p_table);
+  return case p_table
+    when 'game_flights' then format('((%1$s.dep_at >= %2$s and %1$s.dep_at < %3$s) or (%1$s.dep_at is null and %1$s.game_date >= %4$s and %1$s.game_date < %5$s))', a, f, t, fd, td)
+    when 'game_events' then format('(%1$s.event_date >= %2$s and %1$s.event_date < %3$s)', a, fd, td)
+    when 'game_scan_schedules' then format('exists (select 1 from public.game_scans s where s.id = %1$s.scan_id and s.taken_at >= %2$s and s.taken_at < %3$s)', a, f, t)
+    when 'game_scan_airports' then format('exists (select 1 from public.game_scans s where s.id = %1$s.scan_id and s.taken_at >= %2$s and s.taken_at < %3$s)', a, f, t)
+    when 'change_log' then format('(%1$s.changed_at >= %2$s and %1$s.changed_at < %3$s)', a, f, t)
+  end;
+end
+$function$
+;
+
+-- private.backup_runs_insert()
+CREATE OR REPLACE FUNCTION private.backup_runs_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_at timestamptz := coalesce(new.ran_at, now()); v_id bigint;
+begin
+  if new.kind is null or new.kind not in ('nightly', 'manual', 'test') then
+    raise exception 'backup_runs: kind must be nightly, manual or test, not %', coalesce(new.kind, 'null') using errcode = '23514';
+  end if;
+  if new.ok is null then
+    raise exception 'backup_runs: ok is required' using errcode = '23502';
+  end if;
+  insert into public.job_runs (job, started_at, finished_at, status, note, details)
+  values ('backup', v_at, v_at, case when new.ok then 'ok' else 'failed' end, new.note,
+          jsonb_strip_nulls(jsonb_build_object('kind', new.kind, 'tables', new.tables, 'rows', new.rows, 'files', new.files,
+                                               'bytes', new.bytes, 'commit_sha', new.commit_sha, 'object_key', new.object_key)))
+  returning id into v_id;
+  new.id := v_id;
+  new.ran_at := v_at;
+  return new;
+end
+$function$
+;
+
 -- private.caller_is_staff()
 CREATE OR REPLACE FUNCTION private.caller_is_staff()
  RETURNS boolean
@@ -2188,6 +2496,75 @@ $function$
 
 ;
 
+-- private.job_cleanup(p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.job_cleanup(p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_at timestamptz := coalesce(p_at, now()); v_cut timestamptz := coalesce(p_at, now()) - interval '14 days'; w record;
+  t0 timestamptz; n_raw int; v_on boolean; n_old bigint; n_tied bigint; n_paid bigint; n_del int; v_status text;
+  v_note text; v_details jsonb; v_out jsonb := '[]'::jsonb;
+begin
+  perform set_config('equinox.actor', 'job', true), set_config('equinox.actor_detail', 'cleanup', true);
+  for w in select x.id from public.worlds x
+            where exists (select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                           where a.world_id = x.id and a.active and g.kind = 'ours')
+               or exists (select 1 from public.game_capture_raw r where r.world_id = x.id)
+            order by x.id loop
+    t0 := clock_timestamp(); n_del := 0; v_status := 'ok';
+    begin
+      delete from public.game_capture_raw r where r.world_id = w.id and r.captured_at < v_cut;
+      get diagnostics n_raw = row_count;
+
+      v_on := coalesce((select (s.value #>> '{}')::boolean from public.settings s
+                         where s.world_id = w.id and s.airline_id is null and s.key = 'statement_cleanup_enabled'), false);
+      select count(*), count(*) filter (where s.flight_id is not null),
+             count(*) filter (where s.flight_id is null
+                                and exists (select 1 from public.game_payments p
+                                             where p.airline_id = s.airline_id and p.paid_at = s.ts and p.descr = s.descr
+                                               and p.amount = s.amount and p.occ = s.occ))
+        into n_old, n_tied, n_paid
+        from public.game_statement s
+       where s.world_id = w.id and s.ts < v_cut;
+      if not v_on then
+        v_note := format('statement lines: switched off (settings.statement_cleanup_enabled), %s older than 14 days kept', n_old);
+      elsif n_old = 0 then
+        v_note := 'statement lines: none older than 14 days';
+      elsif n_old <> n_tied + n_paid then
+        v_status := 'failed';
+        v_note := format('statement lines: %s of the %s older than 14 days aren''t in game_flights or game_payments, so none were deleted',
+                         n_old - n_tied - n_paid, n_old);
+      else
+        delete from public.game_statement s
+         where s.world_id = w.id and s.ts < v_cut
+           and (s.flight_id is not null
+                or exists (select 1 from public.game_payments p
+                            where p.airline_id = s.airline_id and p.paid_at = s.ts and p.descr = s.descr
+                              and p.amount = s.amount and p.occ = s.occ));
+        get diagnostics n_del = row_count;
+        v_note := format('statement lines: %s deleted (older than 14 days; %s in game_flights, %s in game_payments)', n_del, n_tied, n_paid);
+      end if;
+      v_note := format('raw pages: %s deleted (older than 14 days); ', n_raw) || v_note;
+      v_details := jsonb_build_object('before', v_cut, 'raw_deleted', n_raw, 'statement_enabled', v_on,
+                                      'statement_old', n_old, 'statement_in_flights', n_tied, 'statement_in_payments', n_paid,
+                                      'statement_deleted', n_del);
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('cleanup', w.id, t0, clock_timestamp(), v_status, private.capture_day(w.id, v_at), v_note, v_details);
+      v_out := v_out || jsonb_build_object('world_id', w.id, 'status', v_status, 'note', v_note) || v_details;
+    exception when others then
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('cleanup', w.id, t0, clock_timestamp(), 'failed', private.capture_day(w.id, v_at), 'clean-up: ' || sqlerrm,
+              jsonb_build_object('before', v_cut, 'sqlstate', sqlstate));
+      v_out := v_out || jsonb_build_object('world_id', w.id, 'status', 'failed', 'note', sqlerrm);
+    end;
+  end loop;
+  return v_out;
+end
+$function$
+;
+
 -- private.job_run_add(p_job text, p_world_id bigint, p_started_at timestamp with time zone, p_status text, p_note text, p_details jsonb)
 CREATE OR REPLACE FUNCTION private.job_run_add(p_job text, p_world_id bigint, p_started_at timestamp with time zone, p_status text, p_note text, p_details jsonb)
  RETURNS bigint
@@ -2200,6 +2577,83 @@ AS $function$
   returning id
 $function$
 
+;
+
+-- private.job_snapshot_fallback(p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.job_snapshot_fallback(p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_at timestamptz := coalesce(p_at, now()); w record; t0 timestamptz; v_last date; v_first date; d date;
+  v_moment timestamptz; v_snap jsonb; n int; v_filled date[]; v_taken boolean; v_complete boolean; v_airlines int;
+  v_routes int; v_earlier int; v_had text; v_note text; v_details jsonb; v_out jsonb := '[]'::jsonb;
+begin
+  perform set_config('equinox.actor', 'job', true), set_config('equinox.actor_detail', 'snapshot_fallback', true);
+  for w in select x.id from public.worlds x
+            where exists (select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                           where a.world_id = x.id and a.active and g.kind = 'ours')
+            order by x.id loop
+    t0 := clock_timestamp(); v_filled := '{}'; v_taken := false; v_complete := null; v_airlines := 0; v_routes := 0;
+    v_earlier := 0; v_last := null;
+    begin
+      v_last := private.capture_day(w.id, v_at) - 1;
+      select min(ad.day) into v_first from public.airline_days ad where ad.world_id = w.id;
+      v_first := least(coalesce(v_first, v_last), v_last);
+      select string_agg(distinct ad.source, ', ') into v_had from public.airline_days ad where ad.world_id = w.id and ad.day = v_last;
+      for d in select g::date from generate_series(v_first, v_last, interval '1 day') g
+                where not exists (select 1 from public.airline_days ad where ad.world_id = w.id and ad.day = g::date)
+                order by 1 loop
+        -- the snapshot stands for the end of that capture day (or now, for a run before the day ends)
+        v_moment := least(private.capture_day_start(w.id, d + 1), v_at);
+        v_snap := private.take_snapshot(w.id, d, v_moment, 'fallback');
+        update public.airline_days ad
+           set cash = b.amount, cash_at = b.captured_at,
+               fixed_next7 = (select sum(e.debit) from public.game_events e
+                               where e.airline_id = ad.airline_id and e.debit > 0 and e.due_at > b.captured_at
+                                 and e.due_at <= b.captured_at + interval '7 days')
+          from (select distinct on (x.airline_id) x.airline_id, x.amount, x.captured_at
+                  from public.game_balance x
+                 where x.world_id = w.id and x.account like '2800%' and x.amount is not null and x.captured_at <= v_moment
+                 order by x.airline_id, x.captured_at desc) b
+         where ad.world_id = w.id and ad.day = d and ad.source = 'fallback' and ad.cash is null and b.airline_id = ad.airline_id;
+        get diagnostics n = row_count;
+        if d = v_last then
+          v_taken := true; v_complete := (v_snap ->> 'complete')::boolean; v_airlines := (v_snap ->> 'airlines')::int;
+          v_routes := coalesce((v_snap ->> 'route_days')::int, 0); v_earlier := n;
+        else
+          v_filled := v_filled || d;
+        end if;
+      end loop;
+      v_note := case when v_taken
+                     then format('%s: no complete capture, so the fallback took the snapshot (%s airline(s)%s%s)',
+                                 to_char(v_last, 'DD Mon'), v_airlines,
+                                 case when v_complete then '; the capture was complete' else '; capture incomplete' end,
+                                 case when v_earlier > 0 then format('; cash from an earlier balance for %s', v_earlier) else '' end)
+                     else format('%s: the snapshot was already there (%s)', to_char(v_last, 'DD Mon'),
+                                 case v_had when 'capture' then 'taken by the capture' when 'fallback' then 'taken by an earlier run'
+                                            else coalesce(v_had, 'none') end) end
+                || case when cardinality(v_filled) > 0
+                        then format('; filled %s missed day(s): %s', cardinality(v_filled),
+                                    (select string_agg(to_char(x, 'DD Mon'), ', ' order by x) from unnest(v_filled) x))
+                        else '' end;
+      v_details := jsonb_build_object('day', v_last, 'taken', v_taken, 'complete', v_complete, 'airlines', v_airlines,
+                                      'route_days', v_routes, 'cash_from_earlier_balance', v_earlier,
+                                      'filled', to_jsonb(v_filled), 'at', v_at);
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('snapshot_fallback', w.id, t0, clock_timestamp(), 'ok', v_last, v_note, v_details);
+      v_out := v_out || jsonb_build_object('world_id', w.id, 'status', 'ok', 'note', v_note) || v_details;
+    exception when others then
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('snapshot_fallback', w.id, t0, clock_timestamp(), 'failed', v_last, 'snapshot fallback: ' || sqlerrm,
+              jsonb_build_object('at', v_at, 'sqlstate', sqlstate));
+      v_out := v_out || jsonb_build_object('world_id', w.id, 'status', 'failed', 'note', sqlerrm);
+    end;
+  end loop;
+  return v_out;
+end
+$function$
 ;
 
 -- private.json_date(p jsonb)
@@ -5746,6 +6200,22 @@ begin
 end
 $function$
 
+;
+
+-- private.schedule_jobs()
+CREATE OR REPLACE FUNCTION private.schedule_jobs()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  perform cron.schedule('equinox-snapshot-fallback', '0 10 * * *', 'select private.job_snapshot_fallback()');
+  perform cron.schedule('equinox-cleanup', '20 10 * * *', 'select private.job_cleanup()');
+  return (select jsonb_agg(jsonb_build_object('job', j.jobname, 'schedule', j.schedule, 'command', j.command, 'active', j.active)
+                           order by j.jobname)
+            from cron.job j where j.jobname like 'equinox-%');
+end
+$function$
 ;
 
 -- private.set_updated_at()

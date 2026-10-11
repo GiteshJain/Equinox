@@ -16,7 +16,10 @@ after every change. On a preview address it saves nothing and says **preview · 
 - **Aircraft on order:** aircraft not yet delivered and when each arrives. **File into planner** appears once one has
   arrived.
 - **Needs attention:** things to act on, grouped by kind:
-  - the capture and the backup;
+  - the capture and the backup (no good copy for 30 hours, or the last run failed);
+  - **Nightly jobs** (#13): the daily snapshot more than 30 hours old, the 10:00 UTC job not run for 30 hours (the
+    database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
+    with its note;
   - to-dos and one-week checks due;
   - maintenance, turns and positions, night bans;
   - flight numbers used twice, airport departure caps, routes to fix;

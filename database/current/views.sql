@@ -10,6 +10,21 @@ create or replace view public.adapter_check_days with (security_invoker = true) 
   WHERE ((job = ANY (ARRAY['adapter_mirror'::text, 'adapter_check'::text])) AND (for_day IS NOT NULL))
   GROUP BY world_id, for_day;
 
+create or replace view public.backup_runs with (security_invoker = true) as
+ SELECT id,
+    started_at AS ran_at,
+    (details ->> 'kind'::text) AS kind,
+    (status = 'ok'::text) AS ok,
+    ((details ->> 'tables'::text))::integer AS tables,
+    ((details ->> 'rows'::text))::bigint AS rows,
+    ((details ->> 'files'::text))::integer AS files,
+    ((details ->> 'bytes'::text))::bigint AS bytes,
+    (details ->> 'commit_sha'::text) AS commit_sha,
+    note,
+    (details ->> 'object_key'::text) AS object_key
+   FROM job_runs j
+  WHERE (job = 'backup'::text);
+
 create or replace view public.capture_cash with (security_invoker = true) as
  WITH bal AS (
          SELECT DISTINCT ON (b.airline_id, b.captured_on) b.world_id,

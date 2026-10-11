@@ -16,7 +16,8 @@
 # 2. Finds the changes still to apply: migration files whose version isn't in the restored migration record, which is
 #    the live database's record as of last night. Before applying them, runs database/tests/before/*.sql, which save
 #    chosen outputs into the schema rehearsal_before, so a test can compare them afterwards.
-# 3. Applies them in order, each in its own transaction, stopping at the first failure. With SAMPLE_DIR set, then makes
+# 3. Applies them in order, each in its own transaction, stopping at the first failure, then pauses any job they schedule
+#    on the copy (pg_cron), so none runs during the tests (passes 0 and 3). With SAMPLE_DIR set, then makes
 #    a test sample from the copy (tests/fixtures/sample.sql, at the backup's moment) into that folder.
 # 4. Prints the row count of every table that changed, plus any table added or removed.
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
@@ -104,6 +105,21 @@ apply_files() {
   done
 }
 
+# The copy is a test, so jobs that the changes schedule on it (pg_cron, #13 pull request 7) are paused: none may run in
+# the middle of the tests or the real saves. A backup carries pg_cron but never its schedules, so only a copy that gets
+# the jobs' migration here has any. Their state as the changes left them is kept in rehearsal_before.cron_jobs, where
+# database/tests/jobs_test.sql reads it.
+pause_jobs() {
+  local n
+  n=$(psql "$LOCAL" -X -At -c "select count(*) from cron.job" 2> /dev/null) || return 0
+  [ "${n:-0}" -gt 0 ] || return 0
+  psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c "create schema if not exists rehearsal_before" \
+    -c "drop table if exists rehearsal_before.cron_jobs" \
+    -c "create table rehearsal_before.cron_jobs as select jobname, schedule, command, username, database, active from cron.job" \
+    -c "select cron.alter_job(jobid, active := false) from cron.job" > /dev/null || return 1
+  echo "the copy's scheduled jobs are paused for the tests: $(psql "$LOCAL" -X -At -c "select string_agg(jobname || ' (' || schedule || ')', ', ' order by jobname) from rehearsal_before.cron_jobs")"
+}
+
 # Real saves (#17): the pull request's planner saves into the copy. The local address and keys go to the test in a file
 # only this user can read; they are never printed. $1: the phase (before or after this pull request's own changes).
 real_saves() {
@@ -149,7 +165,7 @@ if [ -s "$work/ours.txt" ] && [ -n "$planner_changed" ]; then
   else
     mapfile -t before_files < <(pending_files "without ours")
     [ ${#before_files[@]} -eq 0 ] || echo "applying the ${#before_files[@]} change(s) live already has"
-    if apply_files "${before_files[@]}"; then
+    if apply_files "${before_files[@]}" && pause_jobs; then
       real_saves before || status=1
     else
       status=1
@@ -197,7 +213,7 @@ fi
 if [ $status -ne 0 ]; then pending=(); echo "== the outputs couldn't be saved, so the changes weren't tried"
 elif [ ${#pending[@]} -eq 0 ]; then echo "== no new database changes: nothing to rehearse"
 else echo "== applying ${#pending[@]} new change(s) to the copy"; fi
-if [ $status -eq 0 ] && [ ${#pending[@]} -gt 0 ]; then apply_files "${pending[@]}" || status=1; fi
+if [ $status -eq 0 ] && [ ${#pending[@]} -gt 0 ]; then apply_files "${pending[@]}" && pause_jobs || status=1; fi
 
 if [ $status -eq 0 ] && [ ${#pending[@]} -gt 0 ]; then
   count > "$work/after.txt"

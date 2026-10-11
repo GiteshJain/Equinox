@@ -116,9 +116,10 @@ STUB = r"""
 LIVE_HOST = "equinox-alliance.com"
 
 
-async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000, stored=None):
+async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000, stored=None, tables=None):
     """Returns (browser, page, errors). errors collects page errors and console errors as they happen. stored: a copy
-    of the planner to leave in the browser's storage before it opens (as a tab that couldn't reach the cloud leaves it)."""
+    of the planner to leave in the browser's storage before it opens (as a tab that couldn't reach the cloud leaves it).
+    tables: tables the stand-in answers with instead of the sample's (e.g. {"job_runs": [...]}), for one page."""
     b = await p.chromium.launch(args=[f"--host-resolver-rules=MAP {LIVE_HOST} 127.0.0.1:{port}"])
     ctx = await b.new_context(viewport={"width": width, "height": height}, timezone_id="UTC", locale="en-US")
     await ctx.add_init_script("localStorage.setItem('gander-auth', JSON.stringify({access_token:'t'}));")
@@ -130,6 +131,8 @@ async def open_planner(p, port, live=True, path="/planner/", width=1440, height=
     pg.on("pageerror", lambda e: errors.append("page error: " + str(e)[:300]))
     pg.on("console", lambda m: errors.append("console: " + m.text[:300]) if m.type == "error" and "Failed to load resource" not in m.text else None)
     S = sample()
+    if tables:
+        S = dict(S, tables=dict(S["tables"], **tables))
     stub_js = "window.__SAMPLE=" + json.dumps(S) + ";" + STUB
     data_rows = json.dumps([{"value": S["planner_data"]}])
 
