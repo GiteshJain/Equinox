@@ -7,7 +7,9 @@
 --      two money views. game_flight_pnl may lose whole rows that are exactly such a payment's block, and
 --      game_ops_recent's costs and income may drop by exactly those payments within its 24 hours. Nothing else.
 --   2. export_capture() (every captured row): the same JSON, the rows of each list in any order. Its pnl and ops come
---      straight from the two money views: they must equal those views as they are now. (export_for_report('planner')
+--      straight from the two money views: they must equal those views as they are now. One allowed change, from
+--      20261011120000 (#13 pull request 6): a balance row's captured_at may move later, to the capture that gave its
+--      figures (two captures on one UTC date); its figures may not change. (export_for_report('planner')
 --      and site_public() were compared here until pull request 8 made them read the tables; website_scripts_outputs_test.sql
 --      compares them now, with the differences that pull request allows.)
 --   3. planner_loads: unchanged.
@@ -15,7 +17,7 @@
 --      every row of the old loads table (game_loads_before_13) is in game_loads.
 
 do $test$
-declare n bigint; bad text; s text := 'compat-test-' || gen_random_uuid(); a jsonb; b jsonb; k text;
+declare n bigint; bad text; s text := 'compat-test-' || gen_random_uuid(); a jsonb; b jsonb; k text; n_later bigint; n_earlier bigint;
 begin
   assert to_regclass('rehearsal_before.outputs') is not null,
     'the outputs from before the changes weren''t saved (database/tests/before/capture_outputs.sql)';
@@ -83,11 +85,22 @@ begin
   for k in select jsonb_object_keys(b) loop
     continue when k in ('pnl', 'ops');   -- checked against the views below
     select count(*) into n from (
-      (select value from jsonb_array_elements(a -> k) except all select value from jsonb_array_elements(b -> k))
+      (select value - case when k = 'balance' then 'captured_at' else '' end from jsonb_array_elements(a -> k)
+       except all select value - case when k = 'balance' then 'captured_at' else '' end from jsonb_array_elements(b -> k))
       union all
-      (select value from jsonb_array_elements(b -> k) except all select value from jsonb_array_elements(a -> k))) x;
+      (select value - case when k = 'balance' then 'captured_at' else '' end from jsonb_array_elements(b -> k)
+       except all select value - case when k = 'balance' then 'captured_at' else '' end from jsonb_array_elements(a -> k))) x;
     assert n = 0, format('export_capture() %s differs from before in %s rows', k, n);
   end loop;
+  -- the balance rows' capture times: the same, or later (the two-captures fix of 20261011120000), never earlier
+  select count(*) filter (where (na.value ->> 'captured_at')::timestamptz > (nb.value ->> 'captured_at')::timestamptz),
+         count(*) filter (where (na.value ->> 'captured_at')::timestamptz < (nb.value ->> 'captured_at')::timestamptz)
+    into n_later, n_earlier
+    from jsonb_array_elements(a -> 'balance') na
+    join jsonb_array_elements(b -> 'balance') nb
+      on (na.value ->> 'airline', na.value ->> 'captured_on', na.value ->> 'account') = (nb.value ->> 'airline', nb.value ->> 'captured_on', nb.value ->> 'account');
+  assert n_earlier = 0, format('export_capture() balance: %s rows'' capture times moved earlier', n_earlier);
+  raise notice 'export_capture(): every part the same as before; % balance rows carry their figures'' own (later) capture time since the two-captures fix', n_later;
   select count(*) into n from (
     (select value from jsonb_array_elements(a -> 'pnl') except all
      select to_jsonb(f) from public.game_flight_pnl f where f.ts >= now() - make_interval(days => 3650))

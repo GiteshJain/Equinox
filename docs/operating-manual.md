@@ -16,7 +16,8 @@ Every rule in force for the equinox. group, with the date it started and why. De
 Until each is built and merged, the rules below stand as they are.
 - **#13:** the planner's data moves into proper tables. Built up to the switch-over (pull request 9, 10 Oct): the old
   planner reads and saves the tables through an adapter until #18, and `planner_state` and `planner_loads` are frozen
-  as the fallback (§1). Still to come: history (snapshots), jobs and the report storage.
+  as the fallback (§1). The daily history (pull request 6, 11 Oct) is taken when an evening's capture is complete,
+  filled back to 29 Sep. Still to come: jobs (the 10:00 UTC fallback, clean-ups, the archive) and the report storage.
 - **#14:** every row carries its world and airline, and each world's rules are data.
 - **#15:** a change log and daily snapshots.
 - **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.

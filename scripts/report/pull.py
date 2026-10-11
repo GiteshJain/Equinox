@@ -6,5 +6,6 @@ def ex(kind, arg=None):
 snaps=ex('snapshots'); print("snapshots:", snaps)
 sid=str(max(s['id'] for s in snaps if s['status']=='done'))
 json.dump(ex('airlines', sid), open('airlines.json','w')); json.dump(ex('airports', sid), open('airports.json','w')); json.dump(ex('planner'), open('planner.json','w'))
+json.dump({"id": int(sid)}, open('scan.json','w'))   # which scan these are: analyze.py sends its market summaries for it
 import os
-for f in ('airlines.json','airports.json','planner.json'): print(f, os.path.getsize(f))
+for f in ('airlines.json','airports.json','planner.json','scan.json'): print(f, os.path.getsize(f))

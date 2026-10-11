@@ -44,7 +44,8 @@ Only after:
    gets the new title, and the page reloads with the message naming X.
 8. A preview address reads through the getters and saves nothing: no write reaches the copy, no table changes.
 9. The guards: the account that isn't staff reads no planner_state rows and its writes are refused; signed out and as
-   that account, the new tables and views read nothing and refuse a new row; the getters, the write functions and
+   that account, the new tables and views (the history and the world scans' included, since #13 pull request 6) read
+   nothing and refuse a new row; the getters, the write functions and
    adapter_clean_days() refuse both; staff put and remove one item through the data API, logged as planner.
 10. Rollback: private.unfreeze_planner_state() makes planner_state and planner_loads equal the getters exactly; the old
    planner code (the last planner that saved planner_state itself, commit OLD_PLANNER, served the same way) then signs
@@ -89,6 +90,10 @@ WRITERS = ("planner_state_put", "planner_item_put", "planner_item_delete", "adap
 # capture's functions write the tables
 CAPTURE_TABLES = ("game_flights", "game_payments")
 CAPTURE_VIEWS = ("game_loads", "game_flight_pnl", "game_ops_recent", "capture_cash")
+# The daily history and the world scans (migration 20261011120000_history.sql): staff read them, nobody else, and only the
+# database's own functions write them
+HISTORY_TABLES = ("airline_days", "route_days", "game_scans", "game_scan_airlines", "game_scan_schedules", "game_scan_airports",
+                  "scan_airline_airports", "scan_airline_markets")
 # The adapter's read side (migration 20261010120000_planner_data_load.sql): staff only
 GETTERS = ("planner_state_get", "planner_state_version", "planner_loads_get")
 # The adapter's writes, as the planner calls them
@@ -902,7 +907,7 @@ def guard_new_tables(env, email, password):
     leave nothing: 200 and []), and adding a row to each table is refused (401 signed out, 403 not staff). Prints
     answers only, never rows."""
     n0 = counts()
-    tables, views = NEW_TABLES + CAPTURE_TABLES + JOB_TABLES, NEW_VIEWS + CAPTURE_VIEWS + JOB_VIEWS
+    tables, views = NEW_TABLES + CAPTURE_TABLES + JOB_TABLES + HISTORY_TABLES, NEW_VIEWS + CAPTURE_VIEWS + JOB_VIEWS
     missing = [t for t in tables if f"public.{t}" not in n0]
     problems = [f"no such table on the copy: {', '.join(missing)}"] if missing else []
     for who, token, refused in (("signed out", None, 401), ("not staff", token_for(env, email, password), 403)):
@@ -915,7 +920,8 @@ def guard_new_tables(env, email, password):
             elif code == 200 and json.loads(body) != []:
                 problems.append(f"{who}: read {len(json.loads(body))} row(s) of {t}")
         for t in tables:
-            row = {"op": "insert"} if t == "change_log" else {"job": "backup"} if t == "job_runs" else {"created_at": "2026-10-09T00:00:00Z"}
+            row = {"op": "insert"} if t == "change_log" else {"job": "backup"} if t == "job_runs" \
+                else {"world_id": 1} if t in HISTORY_TABLES else {"created_at": "2026-10-09T00:00:00Z"}
             code, _ = http(env, "POST", f"/rest/v1/{t}", row, token=token, prefer="return=minimal")
             if code != refused:
                 problems.append(f"{who}: adding a row to {t} wasn't refused (answer {code}, expected {refused})")
@@ -1082,8 +1088,8 @@ async def main():
 
     if not BEFORE:
         for label, check in (("guard: an account that isn't staff reads no planner_state rows, and its writes are refused", lambda: guard(env, *other)),
-                             (f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES)} new tables and "
-                              f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's and job_runs included) read no rows, "
+                             (f"guard: signed out and not staff, the {len(NEW_TABLES) + len(CAPTURE_TABLES) + len(JOB_TABLES) + len(HISTORY_TABLES)} new tables and "
+                              f"{len(NEW_VIEWS) + len(CAPTURE_VIEWS) + len(JOB_VIEWS)} views (the capture's, job_runs, the history and the world scans' included) read no rows, "
                               "and adding a row to each is refused", lambda: guard_new_tables(env, *other)),
                              ("the adapter's read side: signed out and not staff, planner_state_get(), planner_state_version() and "
                               "planner_loads_get() are refused; staff get what psql gets", lambda: guard_getters(env, staff, other)),
