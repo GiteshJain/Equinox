@@ -81,7 +81,9 @@ Details and open points: `docs/decisions.md`.
   sets the live migration record to the file's version, so the repository and live keep the same list. A change that
   removes something (dropping a table, rule or column) can't be applied from the chat, because Supabase's approval
   never reaches Gitesh. He runs that file in Supabase's SQL editor, and Claude then records and checks it. *Since 9 Oct
-  · why: the loads fix's two removed access rules were cancelled three times from the chat.*
+  · why: the loads fix's two removed access rules were cancelled three times from the chat.* **If applying any change
+  from the chat comes back "cancelled", Claude tries once more, then gives Gitesh the file's link to run in the SQL
+  editor the same way.** *Since 12 Oct · why: `planner_save()`, which only adds a function, was cancelled twice.*
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
