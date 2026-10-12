@@ -29,6 +29,10 @@ Until each is built and merged, the rules below stand as they are.
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
+- **Deferred, on a trigger:** Cloudflare's cache in front of the website's data (#20, option C). A brief in the
+  Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
+  or Supabase's egress passes 4 GB in a month with the website a large part of it. *Since 12 Oct · why (Gitesh): the
+  call is small and the traffic light; splitting or caching it now gains nothing yet.*
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
@@ -311,8 +315,9 @@ Details and open points: `docs/decisions.md`.
   tables their clean-ups, #16 its archive before 1 Dec, and a job that fails must be seen.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session. *Since 8 Oct.* Also, until #23's monitoring shows it: a look at Supabase's usage page (database
-  size, egress, and the report PDFs' size in `site_reports`) against the triggers in §1. *Since 9 Oct (#17); the PDFs
-  since 12 Oct.*
+  size, egress, and the report PDFs' size in `site_reports`) against the triggers in §1, and the size of
+  `site_public()` and the website's calls a day against #20's triggers (*Decided, not yet built*). *Since 9 Oct (#17);
+  the PDFs and the website since 12 Oct.*
 
 ## 8. Writing, website and newsroom
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options

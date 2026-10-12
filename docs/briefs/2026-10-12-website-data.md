@@ -90,4 +90,5 @@ They're looked at with the monthly usage check (manual §7), and by #23's monito
 - Decision #17's triggers (manual §1); the 8 Oct list (Building chat, item 13).
 
 ## Outcome
-Open.
+12 Oct 2026: Gitesh chose **A**, with the triggers above. Recorded in `docs/decisions.md` and the manual's *Decided,
+not yet built* (deferred, on a trigger).

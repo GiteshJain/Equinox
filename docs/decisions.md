@@ -38,7 +38,7 @@ Status: **decided**, **open**, or **dropped**.
 |---|---|---|
 | 18 | Planner rebuilt as a proper app, screen by screen; which framework | **decided** 12 Oct 2026 |
 | 19 | One shared library for block times, connections, maintenance and the rules | **decided** 12 Oct 2026 |
-| 20 | Website data served in smaller pieces | open |
+| 20 | Website data served in smaller pieces | **decided** 12 Oct 2026 |
 
 ## Step 5 — Operations (decide before the jobs and monitoring build)
 | # | Decision | Status |
@@ -310,6 +310,17 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   rule; the optimiser typed in its rule numbers and used the A321neo's maintenance figures for every type; and the cash
   forecast existed only in the planner's screen code. Planning needs instant answers on the page; captured figures
   need the captured data, which the database already holds. Brief: `docs/briefs/2026-10-12-shared-library.md`.
+- **12 Oct 2026 · #20 Website data in smaller pieces.** Option A: not now. The website keeps its one call,
+  `site_public()`. On any of these triggers, a brief in the Building chat for option C (Cloudflare's cache in front,
+  asking Supabase at most once a minute):
+  - `site_public()` passes 500 KB;
+  - the website's calls pass 1,000 a day;
+  - Supabase's egress passes 4 GB in a month with the website a large part of it.
+
+  Reason: the call is 109 KB and about 40 a day reach Supabase, under 5% of the free plan's egress with the photos.
+  #13 already moved it onto the tables, which was the original concern, and splitting would save 30 to 60 KB on some
+  pages. Nothing else waits on it. Noted, not decided: 86 photos and videos load straight from other sites.
+  Brief: `docs/briefs/2026-10-12-website-data.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:
