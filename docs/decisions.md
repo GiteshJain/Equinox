@@ -291,6 +291,9 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   code; and each opening downloads about 1.8 MB whatever screen is open, while each save sends the whole 230 KB
   document. React because helpers start with a fresh memory (#26) and it's the most used and most stable way of
   writing; Svelte (D) was the close second. Brief: `docs/briefs/2026-10-12-planner-rebuild.md`.
+  Design approved 12 Oct 2026 (pull request #26), with #19: `docs/design/2026-10-12-planner-app.md`. Its six choices
+  (§14) were Claude's call: same features plus phones until the switch; import and clear go, export stays; no copy on
+  the device; all or nothing per action; the screen order; the new planner's files under `/app/`.
 - **12 Oct 2026 · #19 One home for each calculation.** Option D: each calculation lives in exactly one place, picked
   by what it's for.
   - **Rules used while editing a plan** go in one TypeScript library (`lib/rules/`): block times, turns, connections
