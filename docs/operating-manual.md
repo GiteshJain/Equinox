@@ -19,6 +19,9 @@ Until each is built and merged, the rules below stand as they are.
   each world's rules as data; the change log and the daily history; one row per flight, a month of detail, then the
   monthly archive; backups and archives in Cloudflare R2; real saves tested on a local copy of last night's backup.
   The automatic jobs are in §7.
+- **#18, decided 12 Oct:** the planner is rebuilt in React with TypeScript at `/planner/next/`, screen by screen, each
+  checked against the old screen's numbers. Until `/planner/` switches over, the old planner and the adapter stay
+  as they are.
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*

@@ -157,4 +157,6 @@ into the new one, so nothing is built twice. It would go in the manual (§1).
 - Cloudflare Pages build watch paths: https://developers.cloudflare.com/pages/configuration/build-watch-paths/
 
 ## Outcome
-Open.
+12 Oct 2026: Gitesh chose **C**, React with TypeScript. Recorded in `docs/decisions.md` and the manual's *Decided, not
+yet built*. Still open: what changes the old planner may get during the rebuild (Gitesh asked why it should change at
+all).

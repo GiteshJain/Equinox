@@ -36,7 +36,7 @@ Status: **decided**, **open**, or **dropped**.
 ## Step 4 — Applications (decide before the planner rebuild)
 | # | Decision | Status |
 |---|---|---|
-| 18 | Planner rebuilt as a proper app, screen by screen; which framework | open |
+| 18 | Planner rebuilt as a proper app, screen by screen; which framework | **decided** 12 Oct 2026 |
 | 19 | One shared library for block times, connections, maintenance and the rules | open |
 | 20 | Website data served in smaller pieces | open |
 
@@ -273,6 +273,22 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   Reason: the paid plan ($25 a month, over the $10 limit) adds space, backups, no pausing and test copies, which #16,
   our own backups, the nightly activity and the local copy already cover. Testing on a local copy catches a save bug
   before it reaches live data, which previews can't. Brief: `docs/briefs/2026-10-09-database-plan.md`.
+- **12 Oct 2026 · #18 The planner rebuilt as a proper app.** Option C: React with TypeScript, built with Vite and
+  published by Cloudflare Pages.
+  - The new planner grows at `/planner/next/` beside the old one: first the shell (sign-in, look-only previews, reading
+    and saving the tables directly, one row per save, a clash check), then the calculations moved out of the screens,
+    then one screen per pull request.
+  - Each screen must show the same numbers as the old one on the same data, and work on a phone.
+  - Types are generated from the database, so a renamed or dropped column fails the checks.
+  - `/planner/` switches to the new planner once every screen has passed and Gitesh is happy with it; the old one
+    moves to `/planner/old/`. Then the adapter, `planner_state`, `planner_loads`, the renamed old tables and the
+    rule-number cross-check are removed.
+  - The shell starts once #19 and #20 are decided, since both shape it.
+
+  Reason: the planner is one 584 KB file; any change redraws the whole screen; the cash forecast sits in the screen
+  code; and each opening downloads about 1.8 MB whatever screen is open, while each save sends the whole 230 KB
+  document. React because helpers start with a fresh memory (#26) and it's the most used and most stable way of
+  writing; Svelte (D) was the close second. Brief: `docs/briefs/2026-10-12-planner-rebuild.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:
