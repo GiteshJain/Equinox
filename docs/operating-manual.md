@@ -46,6 +46,8 @@ Details and open points: `docs/decisions.md`.
 
   *Since 12 Oct (first said 8 Oct) · why (Gitesh): no game changes until the building is done, and nothing is built
   twice.* Ends when `/planner/` switches to the new planner.
+- **Say first when something will take more than 5 minutes,** with roughly how long, before starting it (a helper's
+  build, a long check run, a big data job). *Since 12 Oct (Gitesh).*
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
   before raising the next. No building on Claude's initiative. *Since 7 Oct · why: keeps every build approved.*
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh
