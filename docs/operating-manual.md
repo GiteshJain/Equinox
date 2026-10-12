@@ -28,6 +28,16 @@ Until each is built and merged, the rules below stand as they are.
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
+- **The game is paused until the new planner is done (#18).** Gitesh's only game task is the evening capture (§7).
+  - No scheduling, orders, retimes, fare changes, interline actions or salary runs. The 15 A321neos that arrived 6 to
+    9 Oct wait on their plan cards; the schedules already in the game keep flying.
+  - The Saturday review (its report and the newsroom roundup) and the monthly work wait too. The automatic jobs
+    (backups, snapshots, clean-ups, the archive) keep running.
+  - **The old planner is frozen:** no changes at all to `web/planner/index.html`, and no data-only changes by Claude.
+    If a rule number has to change before the switch-over, the rule-number cross-check is removed instead.
+
+  *Since 12 Oct (first said 8 Oct) · why (Gitesh): no game changes until the building is done, and nothing is built
+  twice.* Ends when `/planner/` switches to the new planner.
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
   before raising the next. No building on Claude's initiative. *Since 7 Oct · why: keeps every build approved.*
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh

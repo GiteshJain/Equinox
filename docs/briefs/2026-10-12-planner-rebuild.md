@@ -158,5 +158,5 @@ into the new one, so nothing is built twice. It would go in the manual (§1).
 
 ## Outcome
 12 Oct 2026: Gitesh chose **C**, React with TypeScript. Recorded in `docs/decisions.md` and the manual's *Decided, not
-yet built*. Still open: what changes the old planner may get during the rebuild (Gitesh asked why it should change at
-all).
+yet built*. Same day: the game is paused until the new planner is done, with the evening capture the only game task,
+so the old planner is frozen with no exceptions (manual §1). The proposed "fixes only" rule above is replaced by that.
