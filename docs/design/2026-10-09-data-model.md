@@ -691,7 +691,7 @@ Supabase's SQL editor, as manual §1 requires; the pull request says which file.
 | 7 | **Jobs:** `pg_cron` on; `job_runs` and the `backup_runs` view; the 10:00 fallback; clean-ups (statement clean-up off until PR 3's backfill is checked on live); archive manifest and guarded delete; the archive step in `equinox-backups`; Home warnings | Jobs run on the copy; `archive_delete` refuses a wrong month, count or checksum |
 | 8 | **Website and scripts:** `site_public`, `site_investor`, `export_*`, `planner_data_set`, `site_admin` and the Photos functions on the tables; the website reads airline text from the data | Website checks pass; outputs equal today's |
 | 9 | **Switch-over:** the planner's storage shim moves to the adapter; `planner_state` and `planner_loads` frozen; side-by-side removed; manual §1, §3, §4, §7 and §9, the map and the table guide updated; a new test sample | Planner checks pass with real saves; the rollback is rehearsed on the copy |
-| 10 | **Report PDFs to a private storage bucket** (#16), independent of the rest | The investor library and gander monthly still download |
+| 10 | **Report PDFs to a private storage bucket** (#16), independent of the rest. *Deferred 12 Oct (Gitesh) until they reach 50 MB or the database passes 350 MB (manual §1).* | The investor library and gander monthly still download |
 
 ## 11. Choices made
 Gitesh asked on 9 Oct whether any of these needed him. None does: each follows from what #13 to #17 already

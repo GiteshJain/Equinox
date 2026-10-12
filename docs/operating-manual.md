@@ -14,17 +14,14 @@ Every rule in force for the equinox. group, with the date it started and why. De
 
 ## Decided, not yet built
 Until each is built and merged, the rules below stand as they are.
-- **#13:** the planner's data moves into proper tables. Built up to the switch-over (pull request 9, 10 Oct): the old
-  planner reads and saves the tables through an adapter until #18, and `planner_state` and `planner_loads` are frozen
-  as the fallback (§1). The daily history (pull request 6, 11 Oct) is taken when an evening's capture is complete,
-  filled back to 29 Sep. The automatic jobs (pull request 7: the 10:00 UTC fallback, the clean-ups, the monthly
-  archive, Home's warnings) are in §7. Still to come: the report storage.
-- **#14:** every row carries its world and airline, and each world's rules are data.
-- **#15:** a change log and daily snapshots.
-- **#16:** one row per flight, one month of detail, and archives and backups to Cloudflare R2.
-- **#17:** the checks try real saves on a full local Supabase loaded from last night's backup (the first #13 pull
-  request). Backups are moving
-  first, ahead of the rest (§7).
+- **#13 to #17 are built** (9 to 11 Oct): the planner's data in proper tables, read and saved through an adapter until
+  #18, with `planner_state` and `planner_loads` frozen as the fallback (§1); every row keyed by world and airline, with
+  each world's rules as data; the change log and the daily history; one row per flight, a month of detail, then the
+  monthly archive; backups and archives in Cloudflare R2; real saves tested on a local copy of last night's backup.
+  The automatic jobs are in §7.
+- **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
+  they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
+  year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
@@ -44,6 +41,9 @@ Details and open points: `docs/decisions.md`.
   - egress passes 4 GB in a month;
   - the free plan gets paused or limited despite daily activity;
   - a feature we decide we need is paid-only.
+
+  The report PDFs move out of the database into private file storage when they reach 50 MB, or with the 350 MB
+  trigger, whichever comes first (#16, deferred 12 Oct). The monthly usage check (§7) looks at their size too.
 
   *Since 9 Oct (#17) · why: our own backups, #16's small database, daily activity and the local test copy already cover
   what the paid plan adds, and it's over the $10-a-month limit.*
@@ -294,7 +294,8 @@ Details and open points: `docs/decisions.md`.
   tables their clean-ups, #16 its archive before 1 Dec, and a job that fails must be seen.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
   strategy session. *Since 8 Oct.* Also, until #23's monitoring shows it: a look at Supabase's usage page (database
-  size and egress) against the paid-plan triggers in §1. *Since 9 Oct (#17).*
+  size, egress, and the report PDFs' size in `site_reports`) against the triggers in §1. *Since 9 Oct (#17); the PDFs
+  since 12 Oct.*
 
 ## 8. Writing, website and newsroom
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options

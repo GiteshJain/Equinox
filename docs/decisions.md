@@ -249,7 +249,8 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
     copies plus one a month kept. This changes #6 (backups leave the GitHub repository; GitHub keeps the code) and #8
     (the rehearsal reads last night's backup from R2 with a read-only key). The archive job checks each file before
     deleting anything.
-  - **Report PDFs** move out of the database into file storage.
+  - **Report PDFs** move out of the database into file storage. *Deferred 12 Oct (Gitesh):* they stay in the database
+    until they reach 50 MB or the database passes 350 MB; 1.5 MB today, about 50 MB a year.
   - **Budget:** up to $10 a month (Gitesh). Expected cost is $0 for years.
 
   Reason: the bank statement is about 9 lines per flight and two thirds of all growth. At today's pace the free plan's
