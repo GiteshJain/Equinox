@@ -78,7 +78,11 @@ function RouteError() {
   return <main className="view"><ErrorBox error="Something went wrong on this screen. Reload the page to try again." /></main>;
 }
 
-export const router = createBrowserRouter([
+// The router's base ends in a slash, so Home's own address is /planner/next/ as Cloudflare serves it (React Router
+// builds Home's link as the base itself). main.tsx moves a bare /planner/next to it before the router starts.
+export const ROUTER_BASENAME = BASENAME + "/";
+
+export const createPlannerRouter = () => createBrowserRouter([
   {
     path: "/",
     element: <Root />,
@@ -91,4 +95,4 @@ export const router = createBrowserRouter([
       { path: "*", element: <NotFound /> },
     ],
   },
-], { basename: BASENAME });
+], { basename: ROUTER_BASENAME });
