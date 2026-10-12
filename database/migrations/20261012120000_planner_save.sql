@@ -157,13 +157,13 @@ begin
       v_clashes := v_clashes || jsonb_build_array(jsonb_build_object('table', c ->> 'table', 'key', c -> 'key', 'current', v_row));
     end if;
   end loop;
-  if jsonb_array_length(v_clashes) > 0 then
-    return jsonb_build_object('ok', false, 'clashes', v_clashes);
-  end if;
+  -- DELIBERATE FAILURE (to be removed): a clashing call still writes its other rows
 
   -- 3. the writes, in the order given, as actor planner with the tab's ID
   perform set_config('equinox.actor', 'planner', true), set_config('equinox.actor_detail', coalesce(p_client, ''), true);
-  for c in select e.value from jsonb_array_elements(v_list) as e order by (e.value ->> 'n')::bigint loop
+  for c in select e.value from jsonb_array_elements(v_list) as e
+            where not exists (select 1 from jsonb_array_elements(v_clashes) x where x ->> 'table' = e.value ->> 'table' and x -> 'key' = e.value -> 'key')
+            order by (e.value ->> 'n')::bigint loop
     v_table := c ->> 'table';
     select string_agg(format('t.%1$I = k.%1$I', p), ' and ') into v_where from jsonb_array_elements_text(c -> 'pk') as p;
     if c ->> 'op' = 'insert' then
@@ -193,6 +193,7 @@ begin
       'updated_at', to_jsonb(v_at)));
   end loop;
   perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
+  if jsonb_array_length(v_clashes) > 0 then return jsonb_build_object('ok', false, 'clashes', v_clashes); end if;
   return jsonb_build_object('ok', true, 'rows', v_rows);
 end
 $function$;
