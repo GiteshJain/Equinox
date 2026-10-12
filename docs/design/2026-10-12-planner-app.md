@@ -1,0 +1,271 @@
+# The new planner and its calculations: design (decisions #18 and #19)
+
+*12 Oct 2026. Approved by Gitesh when merged; nothing is built before that. The choices in §14 are Claude's call
+unless he changes them. Based on #18 (React with TypeScript, screen by screen at `/planner/next/`), #19 (planning rules
+in a TypeScript library, captured figures in the database) and #20 (the website keeps its one call). While this is
+built the game is paused and the old planner frozen (manual §1).*
+
+## 1. Summary for Gitesh
+**The answer:** a new planner, built in React with TypeScript, grows at `equinox-alliance.com/planner/next/` beside
+the old one. It reads the tables directly and saves one change at a time. The calculations move out of the screens:
+- **planning rules** (block times, turns, connections, maintenance) into one library the planner, the website, the
+  optimiser and Claude all use;
+- **figures from the capture** (cash forecast, route profit, growth signals, hub progress) into the database.
+
+Each new screen must show the same figures as the old one on the same data before it's merged.
+
+**What changes for you:**
+- Nothing until you open `/planner/next/`. The old planner stays at `/planner/` until you say switch.
+- Every screen works on your phone.
+- Each screen loads only what it shows, and each change saves on its own.
+- Two things go: importing or clearing the whole planner (Reference → Data), and the copy kept on this device when a
+  save fails (§14).
+
+**What you approve:** this design, including the choices in §14.
+
+**One step for you, at the first pull request's merge:** a build command in Cloudflare's settings (§3).
+
+**Build:** 14 pull requests, one at a time (§13):
+- 1: the shell;
+- 2 to 4: the calculations;
+- 5 to 12: the screens;
+- 13: the switch;
+- 14: the clean-up.
+
+## 2. Principles
+- **Same features, then more.** The new planner does what the old one does, on a phone too, and nothing new until
+  after the switch. Ideas that come up meanwhile go on a list in the decision log.
+- **One home for each calculation (#19).** A figure is worked out in exactly one place: the planning library or the
+  database. Screens only display.
+- **Same numbers, proven.** Each screen's figures are compared with the old planner's on last night's copy, at the
+  same moment, before its merge (§10).
+- **One source for rule numbers.** The library and the database read `settings`, `world_rules`, `aircraft_types` and
+  `world_airports`; nothing is typed into code.
+- **Small loads, small saves.** A screen asks for its own rows; a change sends its own rows.
+- **Nothing assumes six airlines or one world (#14).** Airlines come from `airlines`; a world switcher appears only
+  when there's a second world.
+
+## 3. Where the code lives, and how it's built
+**In the repository:**
+
+| Folder | What |
+|---|---|
+| `app/planner/` | The new planner: `src/screens/` (one folder per screen), `src/data/` (reading and saving), `src/ui/` (shared parts: tables, cards, the map), `src/db/types.ts` (generated, §5) |
+| `lib/rules/` | The planning library (§7): `src/`, its tests, `cases/`, and `cli.ts` |
+| `package.json` (root) | One set of dependencies with a lock file. Scripts: `build`, `typecheck`, `test`, `lint` |
+| `.nvmrc` | Node 22, for Cloudflare's build and the checks |
+
+**Main parts:** React 19, TypeScript, Vite 8, React Router, TanStack Query (loading and caching data), Vitest (unit
+tests) and ESLint with React's hook rules. Versions are pinned in the lock file. A chart or map library is added only
+when a screen's spec needs one.
+
+**Built output (not committed):**
+- `web/app/`: the new planner's page and files;
+- `web/assets/rules.js`: the library, for the website's trip search.
+
+**Cloudflare:** the build command becomes `npm ci && npm run build`; the output folder stays `web`. Gitesh sets it
+once in Cloudflare's dashboard (Workers & Pages → equinox-alliance → Settings → Build) when the first pull request
+merges. Every deploy then runs the build, previews included. If a build fails, Cloudflare keeps the last good
+version live; the checks run the same build on every pull request, so a broken one can't merge.
+
+**Addresses.** On Cloudflare, `_redirects` rules win over files, and `/planner/*` already sends everything to the old
+planner. So the new planner's files live under `/app/`, and only its page is mapped:
+
+```
+/planner/next     /planner/next/    301
+/planner/next/*   /app/index.html   200
+/planner          /planner/         301
+/planner/*        /planner/         200
+```
+
+The two new lines go above the old ones. The new planner's own addresses are `/planner/next/routes`,
+`/planner/next/review/VS` and so on. `_headers` gives `/app/assets/*` a year's caching, since their names change with
+every build, and keeps `/app/index.html` uncached.
+
+## 4. Sign-in, previews and access
+- **Sign-in:** the same Supabase sign-in and staff check (`is_planner_user()`). Sign-ups stay off (#11).
+- **Look-only previews (#8):** saving works only on `equinox-alliance.com` and `www`. Anywhere else the planner says
+  "preview · not saved" and sends no writes.
+- **Reading:** straight from the tables and views, under their existing staff rules.
+- **Writing:** only through `planner_save()` (§6) and the existing photo functions.
+
+## 5. Reading data
+- **Types from the database.** `app/planner/src/db/types.ts` is generated by `supabase gen types typescript` and
+  committed. The rehearsal regenerates it on last night's copy after the pull request's migrations and fails if it
+  differs. A migration that renames or drops a column must update the types in the same pull request, and the
+  planner must still build.
+- **Per screen.** Each screen asks for what it shows (§9), through TanStack Query, which keeps a screen's data while
+  you move around and reloads it when it's stale or after a save.
+  - The route research loads one airline at a time.
+  - Captured figures come from the database functions in §8, not raw rows.
+- **Rules at start.** One call, `rules_input(world)` (§7), gives the library everything it needs: the settings, world
+  rules, aircraft types, airports (connection times, time zones, night bans) and every planned leg.
+- **Time.** Stored times are UTC. The screens show local or UTC times, as the old planner's toggle does
+  (`settings.planner_time_mode`).
+
+## 6. Saving
+**One database function, `planner_save(p_changes jsonb, p_client text)`.** Each action you take (tick a to-do, move a
+departure, edit a plan card) sends one call with every row it changes.
+- **Inside:**
+  - the actor is `planner`, and the tab's ID goes in the change log (#15);
+  - each change names its table, its key, the operation and its values;
+  - an update or delete also sends the row's `updated_at` as it was loaded.
+- **All or nothing per action.** If any row was changed elsewhere since it was loaded, nothing in that call is
+  written. The answer returns those rows as they are now, and the planner shows them, says what clashed and lets you
+  redo it. Other actions are separate calls, so they still land. This follows #13's rule (design §11, choice 4) at
+  the level of a single action.
+- **Answer:** the new or changed rows with their keys and `updated_at`.
+- **Access:** staff only, runs as owner with an empty search path, writes only the planner tables on its list, and
+  relies on the tables' own checks. Same pattern as `planner_state_put()`. Every one of the 32 planner tables already
+  has `updated_at`, set on each change.
+- **Saves happen as you go**, as now, with the state shown in the header: saving, saved, or "not saved" with a retry.
+  Nothing is kept on the device (§14).
+- **Photos** keep their existing functions (`site_set_airline_logo()` and the rest).
+
+## 7. The planning library (#19)
+**`lib/rules/`, TypeScript, no screen code.** It works on plain data and returns plain data.
+
+| Part | What it works out | Replaces |
+|---|---|---|
+| `time` | Local and UTC times from each airport's offset (standard time all year, manual §9) | The old planner's `utcOf`, the optimiser's `off` |
+| `block` | Block minutes = `block_allowance_min` + distance ÷ the type's `cruise_kmh` (manual §4) | `blockMin`; the optimiser's `block`; the report's 846 km/h formula |
+| `turns` | Whether a turn fits: the type's `min_turn_min` + `turn_margin_min` | Turn checks in the old planner and the optimiser |
+| `connections` | Valid connections at an airport between `mct_min` and `connection_max_wait_h`, and the check at both ends of a leg | The Hubs screen's connections; the optimiser's `conns`; the website's `findTrips` window |
+| `banks` | Bank windows from `airline_bases.bank_times` and the bank settings | `bankWindows` |
+| `maintenance` | Usable ground time against the need (cycles × `maint_per_cycle` + hours × `maint_per_hour`), as a share | `maintFor`; the optimiser's A321-only figures |
+| `schedule` | The second-daily gap, the same-route gap, night bans, flight numbers used twice, departures per airport | The old planner's attention checks |
+| `positions` | Where each aircraft is at a given moment, for the live map | The old planner's and website's map code |
+| `optimiser` | The best day's schedule for an aircraft, by connections, then maintenance | `scripts/planning/plan.py`, retired |
+
+- **Inputs:** one `Rules` object built from `rules_input(world)`, a database function that returns the rows above in
+  one call. Staff can call it, and scripts through `export_for_report()` with kind `rules`.
+- **For Claude and the scripts:** `node lib/rules/dist/cli.js <command> <input.json>` (block, connections,
+  maintenance, check a plan card, optimise), answering in JSON.
+- **For the website:** the build writes `web/assets/rules.js`, which the trip search loads. It switches to the
+  8-hour rule (#19), with the window read from `site_public()`.
+- **Tests:**
+  - `lib/rules/cases/` holds inputs and answers, run on every pull request;
+  - the old planner's saved answers (`tests/fixtures/planner_numbers.expected.json`) must come out the same where
+    they cover a rule;
+  - cases for figures that exist in both homes (block hours a day per aircraft, weekly departures per airport) are
+    also run by a database test.
+
+## 8. Captured figures in the database (#19)
+**Functions in `public`**, each with an `as of` moment (now by default) so tests can freeze time. Staff can call them;
+Claude calls them through its Supabase connection; scripts through `export_for_report()`.
+
+| Function | What it gives | Replaces |
+|---|---|---|
+| `cash_forecast(airline, orders, as_of)` | Captured cash, flight profit a day, every scheduled payment for 14 days, the lowest point, and whether 0.5M stays in hand (`order_cushion`). Each order to test is counted with its own lease from 7 days after arrival (`lease_estimate_pct` for a type never leased), manual §3 | The old planner's `cashForecast`; the report's surplus |
+| `airline_cards(world, as_of)` | Review's card for each airline: profit a day, per aircraft, return on fleet, payback, funds an aircraft every, fleet, flights, load, next order | Review's cards |
+| `airline_profit(airline, as_of)` | Profit for each day between captures (change in cash plus that day's order payments) | Review's profit chart |
+| `route_profit(airline, days, as_of)` | Each route over 1, 3 or 7 days, marked add a flight, raise fares or hold | `routeProfit` |
+| `aircraft_profit(airline, days, as_of)` | Each aircraft's flight profit a day, less its lease | Review → Aircraft |
+| `growth_signals(world, as_of)` | Ready for another flight, raise fares, fix or reduce, losing after their lease, from the `growth_*` and `pattern_*` settings | The Check screen's growth lists |
+| `hub_progress(world, as_of)` | Each main hub's weekly departures against `hub_first_departures`, and each base's contested status from the latest world scan (`contested_rival_*`) | Growth → main hubs; hubs first (manual §3) |
+| `capture_status(world)` | What the capture collected for each airline and when | Check → Capture (it read raw pages) |
+| `fare_changes(airline, as_of)` | Fare changes seen in the captures, with the load before and after | Review → Fare changes |
+
+- These are the figures #24's data views will build on; #24 itself stays a step 5 decision.
+- **Tests:** in the rehearsal, each function's answer on last night's copy is compared with the old planner's on the
+  same copy at the same moment. In `database/tests/`, hand-made cases cover the edges: no capture, an order never
+  leased, a payment day.
+
+## 9. The screens
+Each screen is rebuilt whole, in the old planner's order of use, with the same names on screen.
+
+| Screen | Reads | Library | Database |
+|---|---|---|---|
+| Home | Aircraft, legs, airports, to-dos, `job_runs`, `backup_runs` | Live map positions; attention checks (maintenance, turns, night bans, flight numbers, airport caps) | Average load; when an airline can order |
+| Routes | One airline's routes, market defaults, rotations and legs | Block times; connections at both ends while editing | Loads per route |
+| Tails | Aircraft and their legs | Legs a week, block hours a day, maintenance | — |
+| Hubs | Legs at the hub (all our airlines), banks, connection times | Bank windows; connections; city pairs linked | — |
+| Check | Aircraft checks, cabins, one day's flights; the schedule check | Game check comparison | Capture status, growth signals, hub progress |
+| Review | Fare plan, manual entries | — | Cards, profit, cash forecast, route and aircraft profit, fare changes |
+| Interline | Interline agreements, countries | — | — |
+| Photos | Logos and photos | — | — |
+| Reference | Bases and banks, aircraft types, cabins, markets, service profiles, removed routes, night bans, time zones, game schedules | — | — |
+
+- **The look stays:** today's colours, fonts and globe, from shared styles. The world outline and logos come from
+  the website's files (`web/assets/world.js`, `logos.js`), no longer embedded in the planner.
+- **Phones:** every screen works at 380 px wide, and the page never scrolls sideways. Wide parts (the Hubs grid) scroll
+  inside their own box.
+- **Unbuilt screens** show a link to the same screen in the old planner, until they're rebuilt.
+
+## 10. Checks
+**On every pull request (*Checks*, a few minutes):** keys and passwords as now; then `npm ci`, the type check, lint,
+the library's tests and the build. The old planner's checks keep running until the clean-up.
+
+**In the rehearsal (now also when `app/` or `lib/` changes),** on last night's copy in a full local Supabase:
+- the types are regenerated and must match;
+- **side by side:** the old and new planners open at the same frozen moment, signed in as the test staff user. Every
+  rebuilt screen's figures (marked `data-figure` with the same names as the saved answers) must equal the old
+  planner's, and §8's functions must equal the old planner's figures;
+- **real saves through `planner_save()`:** tick a to-do, move a leg, edit a plan card. Only the intended rows change,
+  logged as planner with the tab; two tabs clash and the second is told; a preview address saves nothing;
+- **phones:** each rebuilt screen at 380 px wide, with no sideways scroll and no errors.
+
+The rehearsal's limit stays 30 minutes; if it nears it, the side by side moves into its own job.
+
+## 11. Rollout and the switch
+1. Screens land one by one at `/planner/next/`. You can open any rebuilt screen there; the old planner stays at
+   `/planner/`.
+2. When every screen has passed, you use `/planner/next/` for a few days, with captures as usual.
+3. **The switch,** when you say so: `/planner/*` points at the new planner, the old one moves to `/planner/old/`, and
+   the planner guide is rewritten. Going back is one `_redirects` change.
+
+## 12. The clean-up
+When you're happy, a last pull request removes:
+- the old planner and its checks (`web/planner/index.html`, `tests/planner_test.py`, the old real-saves test);
+- the adapter (`planner_state_get()`, `planner_state_put()`, `planner_loads_get()`, `save_loads()`,
+  `planner_state_version()`, `planner_item_put()`, `planner_item_delete()`) and the freeze and side-by-side functions;
+- `planner_state`, `planner_loads`, `planner_meta`, `planner_data` and the renamed old tables (#13 design §3.13);
+- the rule-number cross-check (`tests/rule_numbers_test.py`);
+- `export_for_report('planner')`'s old-format documents, once pull request 4 has moved the scripts off them.
+
+**Data-only changes from other chats then go through `planner_save()`** or plain SQL after the actor line (manual §1,
+updated then). The removals are a file you run in Supabase's SQL editor (manual §1). Archives keep their table layout
+version (#16).
+
+## 13. Build order
+Each pull request gets a spec from the Building chat and goes to a fresh helper (#26).
+
+| # | Pull request | Decision |
+|---|---|---|
+| 1 | **The shell:** build setup, `/planner/next/`, sign-in, previews, navigation with links for unbuilt screens, types, `planner_save()`, the new checks | #18 |
+| 2 | **The planning library**, `rules_input()` and the command | #19 |
+| 3 | **The captured figures** in the database (§8) | #19 |
+| 4 | **Callers onto them:** the optimiser on the library; the weekly report on the database figures and tables (no surplus, no group totals, airlines from `airlines`); the website's trip search on `rules.js` | #19 |
+| 5 | Home | #18 |
+| 6 | Routes | #18 |
+| 7 | Tails | #18 |
+| 8 | Hubs | #18 |
+| 9 | Check | #18 |
+| 10 | Review: cards, the airline page, profit and the cash forecast | #18 |
+| 11 | Review: route profit, aircraft, fare changes, fare plan, manual entry | #18 |
+| 12 | Interline, Photos, Reference | #18 |
+| 13 | The switch | #18 |
+| 14 | The clean-up | #18 |
+
+## 14. Choices made
+Claude's call, as with #13's; any of them can be changed before the merge.
+1. **Same features, plus phones; nothing new until after the switch.** Keeps the comparison exact and the build
+   short.
+2. **Import and clear go from Reference → Data; export stays** (JSON of the tables, CSV of the legs). The nightly
+   backup and per-row undo (`private.restore_row()`) are the safety net, and a whole-document import doesn't fit
+   tables.
+3. **No copy on the device.** A save that can't reach the database stays on screen as "not saved" with a retry;
+   nothing is pushed later on its own. Stale saves from a browser overwrote captured loads (fixed 9 Oct), the device
+   copy needed its own fix (10 Oct), and pushing old changes later is how newer ones get overwritten.
+4. **All or nothing per action** (§6), so a frequency's two legs, or a card and its legs, never half-save.
+5. **Screen order** as §13. The game is paused, so the order is about building blocks, not urgency: Home first
+   because it uses the most shared parts.
+6. **The new planner's files live under `/app/`** (§3), because Cloudflare's redirects would otherwise send them to
+   the old planner.
+
+## 15. What this design does not do
+- **No new features** (§14, choice 1), and no world switcher until there's a second world.
+- **No change to the website** beyond the trip search's rules (#20 keeps its one call).
+- **No change to the capture, the jobs or the backups.** Step 5 (#21 to #25) is decided after this.
+- **No change to the tables' shape** beyond what §6 to §8 need. The tables move only if a screen's spec needs it,
+  with a migration and the types updated together.
