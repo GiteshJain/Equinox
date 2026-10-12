@@ -28,6 +28,11 @@
 # 7. Real saves (#17), only if 1 to 6 passed: the data API reloads its schema, then tests/real_saves_test.py opens the
 #    pull request's planner, signs in as a test staff user and saves into the copy for real, and reads the tables back.
 #    Needs Python with Playwright 1.56 (and its Chromium) and Node 22 (npm), as the workflow installs.
+# 8. The new planner (#18, design §10), only if 1 to 6 passed: its types are generated again from the copy (after every
+#    pending change) with the local Supabase CLI and must equal app/planner/src/db/types.ts; the generated file is kept
+#    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the new planner is built
+#    (npm ci, npm run build), and tests/planner_next_test.py opens it at its live address on the copy, signs in, reads
+#    and saves through planner_save(). Runs before the real saves, whose last step (the rollback) changes the copy.
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -122,27 +127,69 @@ pause_jobs() {
 
 # Real saves (#17): the pull request's planner saves into the copy. The local address and keys go to the test in a file
 # only this user can read; they are never printed. $1: the phase (before or after this pull request's own changes).
-real_saves() {
-  local env="$work/local.env" api anon code tries=0 rc=0
-  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
-    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
-  api=$(sed -n 's/^API_URL="\(.*\)"$/\1/p' "$env"); anon=$(sed -n 's/^ANON_KEY="\(.*\)"$/\1/p' "$env")
-  # the data API read the database's tables when it started, before the restore: reload them, then wait until it serves
-  # a restored table (any answer but "not found", "schema not loaded" or no answer at all)
+# The data API read the database's tables when it started, before the restore and the changes: reload them, then wait
+# until it serves a restored table (any answer but "not found", "schema not loaded" or no answer at all). $1: the env
+# file from `supabase status -o env`.
+reload_api() {
+  local api anon code tries=0
+  api=$(sed -n 's/^API_URL="\(.*\)"$/\1/p' "$1"); anon=$(sed -n 's/^ANON_KEY="\(.*\)"$/\1/p' "$1")
   psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c "notify pgrst, 'reload schema'" > /dev/null
   while :; do
     code=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $anon" "$api/rest/v1/planner_state?select=id&limit=1" || true)
     case "$code" in 200|401|403) break ;; esac
     tries=$((tries + 1))
-    if [ $tries -ge 60 ]; then rc=1; break; fi
+    if [ $tries -ge 60 ]; then echo "FAIL  the data API didn't answer within a minute of reloading (last answer: ${code:-none})"; return 1; fi
     sleep 1
   done
-  if [ $rc -ne 0 ]; then
-    echo "FAIL  the data API didn't answer within a minute of reloading (last answer: ${code:-none})"
-  else
-    echo "the data API reloaded and answers for the restored tables (after ${tries}s)"
+  echo "the data API reloaded and answers for the restored tables (after ${tries}s)"
+}
+
+real_saves() {
+  local env="$work/local.env" rc=0
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
     LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" REAL_SAVES_PHASE="$1" \
       python3 tests/real_saves_test.py || rc=$?
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
+# The new planner (#18): its types from the copy, then the planner built and opened on the copy. The local address and
+# keys go to the test in a file only this user can read, as for the real saves; they are never printed.
+TYPES_FILE=app/planner/src/db/types.ts
+new_planner() {
+  local env="$work/local.env" gen="$work/types.ts" rc=0
+  echo "== the new planner's types, generated from the copy (design §5)"
+  if ! supabase gen types typescript --local --schema public --workdir "$work" > "$gen" 2> "$work/gen.log"; then
+    echo "FAIL  supabase gen types couldn't read the copy"
+    tail -n 5 "$work/gen.log" | hide_keys | sed 's/^/      /'
+    return 1
+  fi
+  if [ -n "${TYPES_DIR:-}" ]; then mkdir -p "$TYPES_DIR" && cp "$gen" "$TYPES_DIR/types.ts"; fi
+  if cmp -s "$gen" "$TYPES_FILE"; then
+    echo "ok    $TYPES_FILE matches the copy ($(wc -l < "$gen") lines)"
+  else
+    echo "FAIL  $TYPES_FILE doesn't match the types generated from the copy; commit the generated file (the run's planner-types artifact)"
+    diff -u "$TYPES_FILE" "$gen" | sed -n '3,40p' | sed 's/^/      /'
+    rc=1
+  fi
+  echo "== the new planner, built and opened on the copy (#18)"
+  if ! (npm ci --no-audit --no-fund > "$work/npm.log" 2>&1 && npm run build >> "$work/npm.log" 2>&1); then
+    echo "FAIL  the new planner didn't build"
+    tail -n 15 "$work/npm.log" | sed 's/^/      /'
+    return 1
+  fi
+  echo "built: web/app/ ($(find web/app -type f | wc -l) files)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/planner_next_test.py || rc=1
+  else
+    rc=1
   fi
   rm -f "$env"
   return $rc
@@ -263,6 +310,10 @@ if [ $status -eq 0 ]; then
   echo "== descriptions and the table guide (decision #10)"
   flag=--check; [ "${WRITE_DOCS:-0}" = 1 ] && flag=
   psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/describe.sql | python3 database/describe.py $flag || status=1
+fi
+
+if [ $status -eq 0 ]; then
+  new_planner || status=1
 fi
 
 if [ $status -eq 0 ]; then

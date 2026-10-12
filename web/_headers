@@ -7,5 +7,19 @@
 /
   Cache-Control: no-cache
 
+# The old planner, and the new planner's addresses (/planner/next and everything below it, which _redirects maps to
+# the new planner's page): never cached, so a merge shows at once. Header rules match the address asked for, so this one
+# line covers both.
 /planner/*
   Cache-Control: no-cache
+
+# The new planner's files (#18, design §3): the page is never cached; everything in assets/ has a new name with every
+# build, so it's cached for a year.
+/app/
+  Cache-Control: no-cache
+
+/app/index.html
+  Cache-Control: no-cache
+
+/app/assets/*
+  Cache-Control: public, max-age=31536000, immutable
