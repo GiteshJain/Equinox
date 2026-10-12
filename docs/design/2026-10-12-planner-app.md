@@ -73,12 +73,14 @@ planner. So the new planner's files live under `/app/`, and only its page is map
 
 ```
 /planner/next     /planner/next/    301
-/planner/next/*   /app/index.html   200
+/planner/next/*   /app/             200
 /planner          /planner/         301
 /planner/*        /planner/         200
 ```
 
-The two new lines go above the old ones. The new planner's own addresses are `/planner/next/routes`,
+The two new lines go above the old ones. The target is the folder, `/app/`, not `/app/index.html`: Cloudflare drops a
+200 rule that points at a path ending in `/index.html` as a loop, and the old planner's line would then take over
+(found by the shell's build, pull request #27, 12 Oct). The new planner's own addresses are `/planner/next/routes`,
 `/planner/next/review/VS` and so on. `_headers` gives `/app/assets/*` a year's caching, since their names change with
 every build, and keeps `/app/index.html` uncached.
 
