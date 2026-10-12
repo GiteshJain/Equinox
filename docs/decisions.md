@@ -37,7 +37,7 @@ Status: **decided**, **open**, or **dropped**.
 | # | Decision | Status |
 |---|---|---|
 | 18 | Planner rebuilt as a proper app, screen by screen; which framework | **decided** 12 Oct 2026 |
-| 19 | One shared library for block times, connections, maintenance and the rules | open |
+| 19 | One shared library for block times, connections, maintenance and the rules | **decided** 12 Oct 2026 |
 | 20 | Website data served in smaller pieces | open |
 
 ## Step 5 — Operations (decide before the jobs and monitoring build)
@@ -291,6 +291,25 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   code; and each opening downloads about 1.8 MB whatever screen is open, while each save sends the whole 230 KB
   document. React because helpers start with a fresh memory (#26) and it's the most used and most stable way of
   writing; Svelte (D) was the close second. Brief: `docs/briefs/2026-10-12-planner-rebuild.md`.
+- **12 Oct 2026 · #19 One home for each calculation.** Option D: each calculation lives in exactly one place, picked
+  by what it's for.
+  - **Rules used while editing a plan** go in one TypeScript library (`lib/rules/`): block times, turns, connections
+    at both ends, bank windows, maintenance, the second-daily gap and night bans. The new planner, the website's trip
+    search, the optimiser (rewritten on it) and Claude (through a small command) all run it.
+  - **Figures worked out from what the capture recorded** go in the database: the cash forecast (orders to test as an
+    input), route profit, growth signals and hub progress. The planner, the report scripts and Claude in every chat
+    read the same rows.
+  - The numbers stay in `settings`, `world_rules` and `aircraft_types`. One shared set of test cases checks the
+    library and the database, plus the old planner's saved answers.
+  - The weekly report moves to the database's cash forecast (no surplus, no group totals) and reads our airlines from
+    `airlines`. The website's trip search uses the 8-hour connection rule instead of its own 10 hours.
+  - Built as step 2 of #18's rollout, in about three pull requests.
+
+  Reason: the same rules had drifted between copies. The weekly report still used the surplus rule and group totals
+  retired on 7 Oct, and a different block-time formula; the website allowed 10-hour connections against the 8-hour
+  rule; the optimiser typed in its rule numbers and used the A321neo's maintenance figures for every type; and the cash
+  forecast existed only in the planner's screen code. Planning needs instant answers on the page; captured figures
+  need the captured data, which the database already holds. Brief: `docs/briefs/2026-10-12-shared-library.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:

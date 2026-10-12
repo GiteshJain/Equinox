@@ -22,6 +22,10 @@ Until each is built and merged, the rules below stand as they are.
 - **#18, decided 12 Oct:** the planner is rebuilt in React with TypeScript at `/planner/next/`, screen by screen, each
   checked against the old screen's numbers. Until `/planner/` switches over, the old planner and the adapter stay
   as they are.
+- **#19, decided 12 Oct:** one home for each calculation. Planning rules (block times, turns, connections, maintenance)
+  in one TypeScript library; figures from the capture (cash forecast, route profit, growth signals, hub progress) in
+  the database. Until it's built, the figures in §3 and §4 are worked out as they are now, and the weekly report's
+  surplus figure must not be used (it stays paused with the game).
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*

@@ -107,4 +107,5 @@ connections, that becomes a setting of its own.
   (block time, connections); decision #14 (nothing assumes six airlines).
 
 ## Outcome
-Open.
+12 Oct 2026: Gitesh chose **D**, with the website's trip search on the 8-hour rule. Recorded in `docs/decisions.md`
+and the manual's *Decided, not yet built*.
