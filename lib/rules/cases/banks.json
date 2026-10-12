@@ -1,0 +1,126 @@
+{
+  "part": "banks",
+  "note": "HUB's banks leave at 06:00, 14:00 and 22:00 (local = UTC); its minimum connection time is 60 minutes. AAA (Other Air's hub, UTC+1) has one bank at 08:00 and 75 minutes. FOC is a focus city.",
+  "cases": [
+    {
+      "name": "a hub's bank windows: departures for an hour from each bank, arrivals in the hour before the minimum connection time",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "banks", "airport": "HUB"},
+      "answer": [
+        {"n": 1, "dep": "06:00", "dep_end": "07:00", "arr_start": "04:00", "arr_end": "05:00"},
+        {"n": 2, "dep": "14:00", "dep_end": "15:00", "arr_start": "12:00", "arr_end": "13:00"},
+        {"n": 3, "dep": "22:00", "dep_end": "23:00", "arr_start": "20:00", "arr_end": "21:00"}
+      ]
+    },
+    {
+      "name": "the bank buffer moves the arrival window earlier",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "input": {"settings": {"bank_buffer_min": 15}},
+      "ask": {"what": "banks", "airport": "HUB"},
+      "answer": [{"n": 1, "arr_start": "03:45", "arr_end": "04:45"}, {"n": 2, "arr_start": "11:45", "arr_end": "12:45"}, {"n": 3, "arr_start": "19:45", "arr_end": "20:45"}]
+    },
+    {
+      "name": "an empty slot keeps the banks' numbers",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "input": {
+        "airline_bases": [{"id": 1, "airline_id": 1, "airport_code": "HUB", "role": "hub", "bank_times": [null, "09:00", null, "17:00"], "flight_no_from": 1000, "position": 1}]
+      },
+      "ask": {"what": "banks", "airport": "HUB"},
+      "answer": [{"n": 2, "dep": "09:00", "arr_start": "07:00", "arr_end": "08:00"}, {"n": 4, "dep": "17:00", "arr_start": "15:00", "arr_end": "16:00"}]
+    },
+    {
+      "name": "a departure at the start of a bank's window collects it",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_departure", "airport": "HUB", "local": "06:00"},
+      "answer": {"n": 1}
+    },
+    {
+      "name": "a departure at the end of the window still does",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_departure", "airport": "HUB", "local": "07:00"},
+      "answer": {"n": 1}
+    },
+    {
+      "name": "a minute after the window it floats",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_departure", "airport": "HUB", "local": "07:01"},
+      "answer": {"n": 0}
+    },
+    {
+      "name": "a departure window across midnight: 00:00 is still the 22:00 bank",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "input": {"settings": {"bank_departure_window_min": 120}},
+      "ask": {"what": "bank_of_departure", "airport": "HUB", "local": "00:00"},
+      "answer": {"n": 3}
+    },
+    {
+      "name": "a departure window across midnight: 00:01 floats",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "input": {"settings": {"bank_departure_window_min": 120}},
+      "ask": {"what": "bank_of_departure", "airport": "HUB", "local": "00:01"},
+      "answer": {"n": 0}
+    },
+    {
+      "name": "an arrival inside the window feeds the bank",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_arrival", "airport": "HUB", "local": "04:30"},
+      "answer": {"n": 1, "status": "in", "wait_min": 90, "need_min": 60, "early_by_min": 0}
+    },
+    {
+      "name": "an arrival exactly the minimum connection time before the bank feeds it",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_arrival", "airport": "HUB", "local": "05:00"},
+      "answer": {"n": 1, "status": "in", "wait_min": 60}
+    },
+    {
+      "name": "an arrival before the window feeds the bank early, within the 8 hours",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_arrival", "airport": "HUB", "local": "02:00"},
+      "answer": {"n": 1, "status": "early", "wait_min": 240, "early_by_min": 120}
+    },
+    {
+      "name": "an arrival a minute too late for a bank, with the next more than 8 hours off, feeds none",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_arrival", "airport": "HUB", "local": "05:01"},
+      "answer": {"n": 0, "status": "late", "wait_min": 539}
+    },
+    {
+      "name": "each airport's own minimum connection time: 75 minutes before AAA's 08:00 bank feeds it",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_arrival", "airport": "AAA", "local": "06:45"},
+      "answer": {"n": 1, "status": "in", "wait_min": 75, "need_min": 75}
+    },
+    {
+      "name": "each airport's own minimum connection time: 74 minutes before it feeds none",
+      "rule": "manual §4: bank times in airline_bases.bank_times; windows from bank_arrival_window_min, bank_departure_window_min and bank_buffer_min",
+      "ask": {"what": "bank_of_arrival", "airport": "AAA", "local": "06:46"},
+      "answer": {"n": 0, "status": "late", "wait_min": null}
+    },
+    {"name": "a focus city has no banks", "rule": "manual §2 (focus cities); the old planner's bankWindows", "ask": {"what": "banks", "airport": "FOC"}, "answer": []},
+    {
+      "name": "a departure from a focus city collects no bank",
+      "rule": "the old planner's waveAt",
+      "ask": {"what": "bank_of_departure", "airport": "FOC", "local": "06:00"},
+      "answer": {"n": 0}
+    },
+    {
+      "name": "connections at a focus city with no banks: one row, every connection",
+      "rule": "the old planner's hubConnections",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "AAA", "dest_code": "FOC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 86},
+          {"id": 2, "airline_id": 1, "origin_code": "FOC", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 45}
+        ]
+      },
+      "ask": {"what": "connections", "airport": "FOC"},
+      "answer": {
+        "airport": "FOC",
+        "base": {"role": "focus"},
+        "banks": [],
+        "limits": {"mct_min": 45},
+        "city_pairs": [{"from": "AAA", "to": "HUB", "gap_min": 114, "bank": 0}],
+        "by_bank": [{"n": 0, "dep_local_min": null, "arriving_from": ["AAA"], "leaving_to": ["HUB"], "city_pairs": 1}]
+      }
+    }
+  ]
+}

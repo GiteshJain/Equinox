@@ -1,0 +1,57 @@
+{
+  "part": "positions",
+  "note": "Monday 12 October 2026. T-001 flies HUB–AAA–HUB every day; T-002 only Sunday 23:00 HUB to AAA; T-003 and O-001 have no flights.",
+  "input": {
+    "flight_legs": [
+      {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+      {"id": 3, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 2, "days_utc": [7], "dep_utc_min": 1380, "block_min": 120}
+    ]
+  },
+  "cases": [
+    {
+      "name": "Monday 06:30: T-001 is 30 of 75 minutes into its flight; T-002 sits at AAA since Monday 01:00",
+      "rule": "the old planner's and the website's map code: in the air while the share flown is strictly between 0 and 1",
+      "ask": {"what": "positions", "at": "2026-10-12T06:30:00Z"},
+      "answer": [
+        {"registration": "T-001", "state": "air", "leg_id": 1, "from": "HUB", "to": "AAA", "share": 0.4, "at": null},
+        {"registration": "T-002", "state": "ground", "at": "AAA", "since_utc": 60, "until_utc": 10020},
+        {"registration": "T-003", "state": "idle", "at": "FOC"},
+        {"registration": "O-001", "state": "idle", "at": "AAA"}
+      ]
+    },
+    {
+      "name": "Monday 00:30: T-002 is 90 of 120 minutes into Sunday's 23:00, across Sunday into Monday",
+      "rule": "the old planner's and the website's map code: in the air while the share flown is strictly between 0 and 1",
+      "ask": {"what": "positions", "at": "2026-10-12T00:30:00Z"},
+      "answer": [
+        {"registration": "T-001", "state": "ground", "at": "HUB", "since_utc": 9225, "until_utc": 360},
+        {"registration": "T-002", "state": "air", "leg_id": 3, "share": 0.75},
+        {"registration": "T-003", "state": "idle", "at": "FOC"},
+        {"registration": "O-001", "state": "idle", "at": "AAA"}
+      ]
+    },
+    {
+      "name": "on the ground between two flights: at AAA from 07:15 until 08:30",
+      "rule": "the old planner's and the website's map code: in the air while the share flown is strictly between 0 and 1",
+      "ask": {"what": "positions", "at": "2026-10-12T08:00:00Z"},
+      "answer": [
+        {"registration": "T-001", "state": "ground", "at": "AAA", "since_utc": 435, "until_utc": 510},
+        {"registration": "T-002", "state": "ground"},
+        {"registration": "T-003", "state": "idle", "at": "FOC"},
+        {"registration": "O-001", "state": "idle", "at": "AAA"}
+      ]
+    },
+    {
+      "name": "at the minute of departure it is still on the ground",
+      "rule": "the old planner's and the website's map code: in the air while the share flown is strictly between 0 and 1",
+      "ask": {"what": "positions", "at": "2026-10-12T06:00:00Z"},
+      "answer": [
+        {"registration": "T-001", "state": "ground", "at": "HUB", "since_utc": 9225, "until_utc": 360},
+        {"registration": "T-002"},
+        {"registration": "T-003", "state": "idle", "at": "FOC"},
+        {"registration": "O-001", "state": "idle", "at": "AAA"}
+      ]
+    }
+  ]
+}

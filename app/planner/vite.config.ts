@@ -2,6 +2,7 @@
 //   npm run build   builds app/planner into web/app/ (emptied first), served under /app/
 //   npm test        runs the unit tests (Vitest)
 // Paths are relative to the repository root, where npm runs the scripts.
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
@@ -11,6 +12,9 @@ export default defineConfig({
   // files live under /app/ and only its page is mapped to /planner/next/ (design §3, choice 6).
   base: "/app/",
   plugins: [react()],
+  // The planning library (decision #19, design §7), imported from its source as "@rules" (tsconfig.json's paths say the
+  // same for the type check). No screen uses it yet; pull request 5 onwards do.
+  resolve: { alias: { "@rules": fileURLToPath(new URL("../../lib/rules/src/index.ts", import.meta.url)) } },
   build: {
     outDir: "../../web/app",
     emptyOutDir: true,

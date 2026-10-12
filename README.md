@@ -15,6 +15,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | The rules everyone works by | [`docs/operating-manual.md`](docs/operating-manual.md) |
 | Why things are the way they are | [`docs/decisions.md`](docs/decisions.md) and the briefs in [`docs/briefs/`](docs/briefs/) |
 | How to run the report, newsletter, scanner and optimiser scripts | [`scripts/README.md`](scripts/README.md) |
+| How the planning rules are worked out, and the command that runs them | [`lib/rules/README.md`](lib/rules/README.md) |
 | The automatic checks | [`tests/README.md`](tests/README.md) |
 
 ## Folders
@@ -23,6 +24,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 |---|---|
 | `web/` | The public website and the planner (`web/planner/`), published by Cloudflare Pages from `main` |
 | `app/planner/` | The new planner (React with TypeScript, #18), being built at `/planner/next/`. Build it with `npm ci && npm run build` (Node 22) into `web/app/`, which isn't committed; Cloudflare builds it on every deploy |
+| `lib/rules/` | The planning library (TypeScript, #19): block times, turns, connections, banks, maintenance, the schedule checks, positions and the optimiser, read from the database's `rules_input()`. The same build writes its command to `lib/rules/dist/` (not committed); how to use it in `lib/rules/README.md` |
 | `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
 | `database/migrations/` | Every database change, in the order it was applied |
 | `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |

@@ -1,0 +1,54 @@
+{
+  "part": "turns",
+  "note": "A turn fits when the ground time is at least the type's min_turn_min plus turn_margin_min (manual §4). The A321neo here turns in 66 minutes, so it needs 76.",
+  "cases": [
+    {
+      "name": "exactly the turnaround plus the margin fits",
+      "rule": "manual §4: the game's turnaround plus a 10–15 minute margin",
+      "ask": { "what": "turn", "type": "A321 NEO LIGHT", "ground_min": 76 },
+      "answer": { "min_turn_min": 66, "need_min": 76, "ok": true, "short": false, "tight": false }
+    },
+    {
+      "name": "a minute under the margin is tight",
+      "rule": "manual §4",
+      "ask": { "what": "turn", "type": "A321 NEO LIGHT", "ground_min": 75 },
+      "answer": { "ok": false, "short": false, "tight": true }
+    },
+    {
+      "name": "exactly the game's turnaround is tight, not short",
+      "rule": "manual §4",
+      "ask": { "what": "turn", "type": "A321 NEO LIGHT", "ground_min": 66 },
+      "answer": { "ok": false, "short": false, "tight": true }
+    },
+    {
+      "name": "under the game's turnaround is short",
+      "rule": "manual §4",
+      "ask": { "what": "turn", "type": "A321 NEO LIGHT", "ground_min": 65 },
+      "answer": { "ok": false, "short": true, "tight": false }
+    },
+    {
+      "name": "an airline's own margin wins over the world's (15 minutes: 81 needed)",
+      "rule": "settings.turn_margin_min, with an airline's override",
+      "input": {
+        "airlines": [
+          { "id": 1, "iata_code": "TA", "position": 1, "active": true, "settings": { "turn_margin_min": 15 } },
+          { "id": 2, "iata_code": "OA", "position": 2, "active": true }
+        ]
+      },
+      "ask": { "what": "turn", "type": "A321 NEO LIGHT", "ground_min": 80, "airline_id": 1 },
+      "answer": { "need_min": 81, "ok": false, "tight": true }
+    },
+    {
+      "name": "the other airline keeps the world's margin",
+      "rule": "settings.turn_margin_min",
+      "input": {
+        "airlines": [
+          { "id": 1, "iata_code": "TA", "position": 1, "active": true, "settings": { "turn_margin_min": 15 } },
+          { "id": 2, "iata_code": "OA", "position": 2, "active": true }
+        ]
+      },
+      "ask": { "what": "turn", "type": "A321 NEO LIGHT", "ground_min": 80, "airline_id": 2 },
+      "answer": { "need_min": 76, "ok": true }
+    }
+  ]
+}

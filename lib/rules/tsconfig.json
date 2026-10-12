@@ -1,0 +1,21 @@
+{
+  // The planning library (decision #19, design §7): strict TypeScript, type-checked with its tests by `npm run typecheck`. `npm run build:rules` compiles src/ (without the tests) into dist/ (tsconfig.build.json). The library itself uses no Node or browser API; only src/cli.ts reads files (it names Node's types itself), and lint keeps the rest pure.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}

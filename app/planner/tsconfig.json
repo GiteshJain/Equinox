@@ -14,7 +14,8 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": { "@rules": ["../../lib/rules/src/index.ts"] }
   },
   "include": ["src", "vite.config.ts"]
 }

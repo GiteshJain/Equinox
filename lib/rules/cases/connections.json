@@ -1,0 +1,168 @@
+{
+  "part": "connections",
+  "note": "Legs with their block times stored and no rotation, so only the connection rule is at work. HUB's minimum connection time is 60 minutes, AAA's 75; BBB has none (90).",
+  "input": {
+    "flight_legs": [
+      {"id": 1, "airline_id": 2, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 75},
+      {"id": 2, "airline_id": 1, "origin_code": "HUB", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 615, "block_min": 425},
+      {"id": 3, "airline_id": 1, "origin_code": "HUB", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 614, "block_min": 425},
+      {"id": 4, "airline_id": 1, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1035, "block_min": 505},
+      {"id": 5, "airline_id": 1, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1036, "block_min": 505},
+      {"id": 6, "airline_id": 1, "origin_code": "HUB", "dest_code": "FOC", "days_utc": [1, 3, 5], "dep_utc_min": 615, "block_min": 45},
+      {"id": 7, "airline_id": 1, "origin_code": "DDD", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1290, "block_min": 125},
+      {"id": 8, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 40, "block_min": 75},
+      {"id": 9, "airline_id": 1, "origin_code": "DDD", "dest_code": "HUB", "days_utc": [7], "dep_utc_min": 1290, "block_min": 125},
+      {"id": 10, "airline_id": 1, "origin_code": "HUB", "dest_code": "NBN", "days_utc": [1], "dep_utc_min": 45, "block_min": 55},
+      {"id": 12, "airline_id": 2, "origin_code": "BBB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1130, "block_min": 400},
+      {"id": 13, "airline_id": 2, "origin_code": "BBB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1129, "block_min": 400},
+      {"id": 14, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 15, "airline_id": 2, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 420},
+      {"id": 16, "airline_id": 2, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 509, "block_min": 420},
+      {"id": 17, "airline_id": 1, "origin_code": "HUB", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 625, "block_min": 425},
+      {"id": 18, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 75},
+      {"id": 19, "airline_id": 1, "origin_code": "CCC", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 300, "block_min": 120},
+      {"id": 20, "airline_id": 1, "origin_code": "BBB", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 0, "block_min": 420}
+    ]
+  },
+  "cases": [
+    {
+      "name": "exactly at the minimum connection time connects (60 minutes at HUB)",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 2},
+      "answer": {"days": 7, "of": 7, "gap_min": 60}
+    },
+    {
+      "name": "one minute under the minimum doesn't",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 3},
+      "answer": null
+    },
+    {
+      "name": "exactly 8 hours connects",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 4},
+      "answer": {"days": 7, "of": 7, "gap_min": 480}
+    },
+    {
+      "name": "one minute over 8 hours doesn't",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 5},
+      "answer": null
+    },
+    {
+      "name": "it connects only on the days both fly (3 of 7)",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 6},
+      "answer": {"days": 3, "of": 7, "gap_min": 60}
+    },
+    {
+      "name": "across midnight UTC: landing 23:35, leaving 00:40 the next day",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 7, "departure_leg_id": 8},
+      "answer": {"days": 7, "of": 7, "gap_min": 65}
+    },
+    {
+      "name": "across Sunday into Monday: landing Sunday 23:35, leaving Monday 00:45",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 9, "departure_leg_id": 10},
+      "answer": {"days": 1, "of": 1, "gap_min": 70}
+    },
+    {
+      "name": "an airport with no minimum connection time uses 90 minutes: exactly 90 connects",
+      "rule": "spec §5: 90 minutes only where mct_min is empty",
+      "ask": {"what": "link", "arrival_leg_id": 2, "departure_leg_id": 12},
+      "answer": {"days": 7, "of": 7, "gap_min": 90}
+    },
+    {
+      "name": "an airport with no minimum connection time: 89 minutes doesn't",
+      "rule": "spec §5",
+      "ask": {"what": "link", "arrival_leg_id": 2, "departure_leg_id": 13},
+      "answer": null
+    },
+    {
+      "name": "each airport's own minimum: exactly 75 minutes at AAA connects",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 14, "departure_leg_id": 15},
+      "answer": {"days": 7, "of": 7, "gap_min": 75}
+    },
+    {
+      "name": "each airport's own minimum: 74 minutes at AAA doesn't",
+      "rule": "manual §4: at least the airport's minimum connection time (world_airports.mct_min) before the departure, with no extra margin (connection_buffer_min), and within connection_max_wait_h",
+      "ask": {"what": "link", "arrival_leg_id": 14, "departure_leg_id": 16},
+      "answer": null
+    },
+    {
+      "name": "a buffer in settings adds to the minimum: 60 no longer connects",
+      "rule": "settings.connection_buffer_min",
+      "input": {"settings": {"connection_buffer_min": 10}},
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 2},
+      "answer": null
+    },
+    {
+      "name": "a buffer in settings adds to the minimum: 70 does",
+      "rule": "settings.connection_buffer_min",
+      "input": {"settings": {"connection_buffer_min": 10}},
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 17},
+      "answer": {"days": 7, "of": 7, "gap_min": 70}
+    },
+    {
+      "name": "the longest wait is read from settings: at 6 hours, 8 hours doesn't connect",
+      "rule": "settings.connection_max_wait_h",
+      "input": {"settings": {"connection_max_wait_h": 6}},
+      "ask": {"what": "link", "arrival_leg_id": 1, "departure_leg_id": 4},
+      "answer": null
+    },
+    {
+      "name": "onward flights: every departure it makes, by local departure time, never back where it came from",
+      "rule": "the old planner's onward",
+      "ask": {"what": "onward", "leg_id": 1},
+      "answer": [
+        {"leg_id": 2, "days": 7, "of": 7, "gap_min": 60},
+        {"leg_id": 6, "days": 3, "of": 7, "gap_min": 60},
+        {"leg_id": 17, "days": 7, "of": 7, "gap_min": 70},
+        {"leg_id": 4, "days": 7, "of": 7, "gap_min": 480}
+      ]
+    },
+    {
+      "name": "feeders: every arrival in time for it, by local arrival time, never from where it is going",
+      "rule": "the old planner's feeders",
+      "ask": {"what": "feeders", "leg_id": 2},
+      "answer": [{"leg_id": 19, "days": 7, "of": 7, "gap_min": 195}, {"leg_id": 1, "days": 7, "of": 7, "gap_min": 60}]
+    },
+    {
+      "name": "connections at a hub across our airlines: the city pairs, each at its shortest, and the banks they connect in",
+      "rule": "manual §4 and §6 (our airlines interline); the old planner's hubConnections",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 2, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 195, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "DDD", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 625, "block_min": 125},
+          {"id": 3, "airline_id": 1, "origin_code": "HUB", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 390, "block_min": 425},
+          {"id": 4, "airline_id": 1, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 855, "block_min": 505},
+          {"id": 5, "airline_id": 1, "origin_code": "HUB", "dest_code": "NBN", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 55}
+        ]
+      },
+      "ask": {"what": "connections", "airport": "HUB"},
+      "answer": {
+        "airport": "HUB",
+        "limits": {"mct_min": 60, "mct_source": "airport", "buffer_min": 0, "min_min": 60, "max_min": 480},
+        "arrivals": 2,
+        "departures": 3,
+        "connections": [
+          {"arrival_leg_id": 1, "departure_leg_id": 3, "gap_min": 120},
+          {"arrival_leg_id": 1, "departure_leg_id": 5, "gap_min": 330},
+          {"arrival_leg_id": 2, "departure_leg_id": 4, "gap_min": 105}
+        ],
+        "city_pairs": [
+          {"from": "AAA", "to": "BBB", "gap_min": 120, "bank": 1, "arrival_leg_id": 1, "departure_leg_id": 3},
+          {"from": "AAA", "to": "NBN", "gap_min": 330, "bank": 1},
+          {"from": "DDD", "to": "CCC", "gap_min": 105, "bank": 2}
+        ],
+        "by_bank": [
+          {"n": 1, "dep_local_min": 360, "arriving_from": ["AAA"], "leaving_to": ["BBB"], "city_pairs": 2},
+          {"n": 2, "dep_local_min": 840, "arriving_from": ["DDD"], "leaving_to": ["CCC"], "city_pairs": 1},
+          {"n": 0, "dep_local_min": null, "arriving_from": [], "leaving_to": ["NBN"], "city_pairs": 0}
+        ]
+      }
+    }
+  ]
+}

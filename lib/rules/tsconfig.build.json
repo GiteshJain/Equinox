@@ -1,0 +1,12 @@
+{
+  // `npm run build:rules` (part of `npm run build`): src/ compiled into dist/, which git ignores. Run the command with node lib/rules/dist/cli.js.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": false
+  },
+  "include": ["src"]
+}

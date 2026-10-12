@@ -1,0 +1,74 @@
+{
+  "part": "block",
+  "note": "Block time = block_allowance_min + distance ÷ the type's cruise_kmh, rounded (manual §4). A leg with block_min stored uses it.",
+  "cases": [
+    {
+      "name": "25 + 700 km ÷ 840 km/h × 60 = 75 minutes",
+      "rule": "manual §4",
+      "ask": { "what": "block", "origin": "HUB", "dest": "AAA", "type": "A321 NEO LIGHT" },
+      "answer": { "distance_km": 700, "distance_source": "route", "cruise_kmh": 840, "allowance_min": 25, "block_min": 75 }
+    },
+    {
+      "name": "the same either way round",
+      "rule": "manual §4",
+      "ask": { "what": "block", "origin": "AAA", "dest": "HUB", "type": "A321 NEO LIGHT" },
+      "answer": { "block_min": 75 }
+    },
+    {
+      "name": "each type at its own speed: 840 km at the E195's 831 km/h is 85.65, so 86",
+      "rule": "manual §4; aircraft_types.cruise_kmh",
+      "ask": { "what": "block", "origin": "FOC", "dest": "AAA", "type": "E195-E2" },
+      "answer": { "distance_km": 840, "cruise_kmh": 831, "block_min": 86 }
+    },
+    {
+      "name": "the allowance is read from settings: at 30 minutes, 80",
+      "rule": "settings.block_allowance_min",
+      "input": { "settings": { "block_allowance_min": 30 } },
+      "ask": { "what": "block", "origin": "HUB", "dest": "AAA", "type": "A321 NEO LIGHT" },
+      "answer": { "allowance_min": 30, "block_min": 80 }
+    },
+    {
+      "name": "a type's name is matched as the planner matches it (capitals and digits only)",
+      "rule": "the old planner's typeOf",
+      "ask": { "what": "block", "origin": "HUB", "dest": "AAA", "type": "a321neolight" },
+      "answer": { "type": "A321 NEO LIGHT", "block_min": 75 }
+    },
+    {
+      "name": "no route: the great circle between the airports, 6,583 km, so 495",
+      "rule": "manual §4",
+      "ask": { "what": "block", "origin": "AAA", "dest": "CCC", "type": "A321 NEO LIGHT" },
+      "answer": { "distance_km": 6583, "distance_source": "great circle", "block_min": 495 }
+    },
+    {
+      "name": "a leg with block_min stored uses it",
+      "rule": "flight_legs.block_min, from the game's times",
+      "input": { "flight_legs": [{ "id": 1, "airline_id": 1, "rotation_id": null, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": 360, "block_min": 80 }] },
+      "ask": { "what": "leg_block", "leg_id": 1 },
+      "answer": { "minutes": 80, "source": "stored" }
+    },
+    {
+      "name": "a leg without block_min gets the estimate for its route and its aircraft's type",
+      "rule": "manual §4",
+      "input": {
+        "rotations": [{ "id": 1, "airline_id": 1, "route_id": 1 }],
+        "flight_legs": [{ "id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": 360, "block_min": null }]
+      },
+      "ask": { "what": "leg_block", "leg_id": 1 },
+      "answer": { "minutes": 75, "source": "estimate" }
+    },
+    {
+      "name": "a type with no cruise speed is refused, not guessed",
+      "rule": "nothing typed into code (design §2)",
+      "input": { "aircraft_types": [{ "id": 1, "name": "A321 NEO LIGHT", "cruise_kmh": null, "min_turn_min": 66, "maint_per_cycle": 27.6, "maint_per_hour": 1.7, "ground_keep_min": 72 }] },
+      "ask": { "what": "block", "origin": "HUB", "dest": "AAA", "type": "A321 NEO LIGHT" },
+      "answer": { "error": "no cruise_kmh" }
+    },
+    {
+      "name": "a missing allowance is an error, not a default",
+      "rule": "nothing typed into code (design §2)",
+      "input": { "settings": { "block_allowance_min": null } },
+      "ask": { "what": "block", "origin": "HUB", "dest": "AAA", "type": "A321 NEO LIGHT" },
+      "answer": { "error": "settings.block_allowance_min" }
+    }
+  ]
+}

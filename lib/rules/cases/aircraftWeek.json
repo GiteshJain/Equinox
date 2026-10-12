@@ -1,0 +1,302 @@
+{
+  "part": "aircraftWeek",
+  "note": "T-001 is an A321neo with a turnaround of 66 minutes (76 with the margin) and a target maintenance gap of 4 hours.",
+  "cases": [
+    {
+      "name": "a busy day as a week: legs a week, block hours a day, routes and gaps at the type's target",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 212,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 424,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 636,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 848,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1060,
+            "block_min": 120
+          }
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {
+        "week": {
+          "registration": "T-001",
+          "type": "A321 NEO LIGHT",
+          "legs_week": 42,
+          "block_min_week": 5040,
+          "block_hours_day": 12,
+          "routes": 1,
+          "route_ids": [1],
+          "gaps_at_target": 7,
+          "estimated_legs": 0
+        }
+      }
+    },
+    {
+      "name": "the first departure of the week and its turn",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 212,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 424,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 636,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 848,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1060,
+            "block_min": 120
+          }
+        ]
+      },
+      "ask": {"what": "aircraft_leg", "registration": "T-001", "index": 0},
+      "answer": {
+        "leg_id": 1,
+        "day_utc": 1,
+        "dep_utc": 0,
+        "arr_utc": 120,
+        "ground_min": 92,
+        "overlap": false,
+        "position_ok": true,
+        "turn": {"ok": true, "short": false, "tight": false}
+      }
+    },
+    {
+      "name": "a leg across midnight UTC lands on the next day and turns there",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1380, "block_min": 120},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 180, "block_min": 120}
+        ]
+      },
+      "ask": {"what": "aircraft_leg", "registration": "T-001", "index": 1},
+      "answer": {"leg_id": 1, "day_utc": 1, "dep_utc": 1380, "arr_utc": 1500, "dep_local": 1380, "arr_local": 1560, "ground_min": 120, "turn": {"ok": true}}
+    },
+    {
+      "name": "across midnight UTC: legs a week and block hours a day",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1380, "block_min": 120},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 180, "block_min": 120}
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"week": {"legs_week": 14, "block_min_week": 1680, "block_hours_day": 4}}
+    },
+    {
+      "name": "across Sunday into Monday: Sunday 23:00 lands Monday 01:00 and turns for Monday's 03:00",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [7], "dep_utc_min": 1380, "block_min": 120},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": 180, "block_min": 120}
+        ]
+      },
+      "ask": {"what": "aircraft_leg", "registration": "T-001", "index": 1},
+      "answer": {"leg_id": 1, "day_utc": 7, "dep_utc": 10020, "arr_utc": 60, "ground_min": 120, "overlap": false, "position_ok": true}
+    },
+    {
+      "name": "a short turn: 45 minutes, under the game's 66",
+      "rule": "the old planner's legsForTail and the Tails screen; manual §4",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 75},
+          {"id": 3, "airline_id": 1, "origin_code": "DDD", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 125}
+        ]
+      },
+      "ask": {"what": "aircraft_leg", "registration": "T-001", "index": 0},
+      "answer": {"leg_id": 1, "ground_min": 45, "turn": {"ok": false, "short": true}}
+    },
+    {
+      "name": "the next leg starts somewhere else",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 75},
+          {"id": 3, "airline_id": 1, "origin_code": "DDD", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 125}
+        ]
+      },
+      "ask": {"what": "aircraft_leg", "registration": "T-001", "index": 1},
+      "answer": {"leg_id": 2, "ground_min": 145, "position_ok": false}
+    },
+    {
+      "name": "the next leg leaves before this one lands: an overlap, not a turn",
+      "rule": "the old planner's legsForTail and the Tails screen",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 420, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "aircraft_leg", "registration": "T-001", "index": 0},
+      "answer": {"leg_id": 1, "overlap": true, "turn": null}
+    },
+    {
+      "name": "a leg without block_min stored is placed with the estimate",
+      "rule": "the old planner's legsForTail and the Tails screen; manual §4",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 360,
+            "block_min": null
+          }
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"week": {"legs_week": 7, "block_min_week": 525, "estimated_legs": 7}}
+    }
+  ]
+}

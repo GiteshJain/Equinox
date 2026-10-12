@@ -19,3 +19,6 @@ node_modules/
 
 # the new planner, built by npm run build (decision #18); Cloudflare and the checks build it themselves
 web/app/
+
+# the planning library, built by npm run build (decision #19); run the command from it (node lib/rules/dist/cli.js)
+lib/rules/dist/

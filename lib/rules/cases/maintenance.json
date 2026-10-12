@@ -1,0 +1,489 @@
+{
+  "part": "maintenance",
+  "note": "T-001 is an A321neo: 27.6 minutes a cycle, 1.7 a block hour, 72 kept at each end; maint_min_ground_min is 120.",
+  "cases": [
+    {
+      "name": "a ground gap a minute under maint_min_ground_min doesn't count (191 − 72 = 119)",
+      "rule": "manual §4: maintenance at or above 100% is firm, aim for 105%; need = cycles × maint_per_cycle + block hours × maint_per_hour; have = each ground gap beyond ground_keep_min, when that is at least maint_min_ground_min",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 0, "block_min": 600},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 680, "block_min": 569}
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"ratio": 0, "pct": 0, "have_min_week": 0, "need_min_week": 618.2516666666668, "level": "bad"}}
+    },
+    {
+      "name": "exactly maint_min_ground_min counts (192 − 72 = 120 a day)",
+      "rule": "manual §4: maintenance at or above 100% is firm, aim for 105%; need = cycles × maint_per_cycle + block hours × maint_per_hour; have = each ground gap beyond ground_keep_min, when that is at least maint_min_ground_min",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 0, "block_min": 600},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 680, "block_min": 568}
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"ratio": 1.3591060102688006, "pct": 136, "have_min_week": 840, "have_min_day": 120, "need_min_week": 618.0533333333335, "level": "ok"}}
+    },
+    {
+      "name": "between 100% and 105% is a warning: 188 ÷ 186 a day",
+      "rule": "manual §4: maintenance at or above 100% is firm, aim for 105%; need = cycles × maint_per_cycle + block hours × maint_per_hour; have = each ground gap beyond ground_keep_min, when that is at least maint_min_ground_min",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 212,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 424,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 636,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 848,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1060,
+            "block_min": 120
+          }
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"ratio": 1.010752688172043, "pct": 101, "need_min_day": 186, "have_min_day": 188, "level": "warn", "min_pct": 100, "target_pct": 105}}
+    },
+    {
+      "name": "under 100% is bad: 148 ÷ 186 a day",
+      "rule": "manual §4: maintenance at or above 100% is firm, aim for 105%; need = cycles × maint_per_cycle + block hours × maint_per_hour; have = each ground gap beyond ground_keep_min, when that is at least maint_min_ground_min",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 220,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 440,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 660,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 880,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1100,
+            "block_min": 120
+          }
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"ratio": 0.7956989247311828, "pct": 80, "level": "bad"}}
+    },
+    {
+      "name": "the firm minimum is read from settings: at 102%, 101% is bad",
+      "rule": "settings.maintenance_min_pct",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 212,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 424,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 636,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 848,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1060,
+            "block_min": 120
+          }
+        ],
+        "settings": {"maintenance_min_pct": 102}
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"pct": 101, "level": "bad", "min_pct": 102}}
+    },
+    {
+      "name": "a type without its maintenance figures gets no figure, not a guess",
+      "rule": "design §2: nothing typed into code",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 212,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 424,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 636,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 848,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1060,
+            "block_min": 120
+          }
+        ],
+        "aircraft_types": [{"id": 1, "name": "A321 NEO LIGHT", "cruise_kmh": 840, "min_turn_min": 66, "maint_per_cycle": null, "maint_per_hour": 1.7, "ground_keep_min": 72}]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"ratio": null}}
+    },
+    {
+      "name": "an aircraft with no flights has no figure",
+      "rule": "manual §4: maintenance at or above 100% is firm, aim for 105%; need = cycles × maint_per_cycle + block hours × maint_per_hour; have = each ground gap beyond ground_keep_min, when that is at least maint_min_ground_min",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 1}],
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 0,
+            "block_min": 120
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "rotation_id": 1,
+            "leg_no": 2,
+            "flight_no": 1002,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 212,
+            "block_min": 120
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 1,
+            "flight_no": 1003,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 424,
+            "block_min": 120
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "rotation_id": 2,
+            "leg_no": 2,
+            "flight_no": 1004,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 636,
+            "block_min": 120
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 1,
+            "flight_no": 1005,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 848,
+            "block_min": 120
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "rotation_id": 3,
+            "leg_no": 2,
+            "flight_no": 1006,
+            "origin_code": "AAA",
+            "dest_code": "HUB",
+            "aircraft_id": 1,
+            "days_utc": [1, 2, 3, 4, 5, 6, 7],
+            "dep_utc_min": 1060,
+            "block_min": 120
+          }
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-002"},
+      "answer": {"maintenance": {"ratio": null, "reason": "no flights"}}
+    },
+    {
+      "name": "a gap of more than 156 hours counts (the old planner took it for an overlap)",
+      "rule": "manual §4: maintenance at or above 100% is firm, aim for 105%; need = cycles × maint_per_cycle + block hours × maint_per_hour; have = each ground gap beyond ground_keep_min, when that is at least maint_min_ground_min; the one change from the old planner's maintFor",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [7], "dep_utc_min": 1380, "block_min": 120},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": 180, "block_min": 120}
+        ]
+      },
+      "ask": {"what": "aircraft", "registration": "T-001"},
+      "answer": {"maintenance": {"ratio": 155.61290322580646, "have_min_week": 9648, "need_min_week": 62}}
+    }
+  ]
+}
