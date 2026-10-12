@@ -7,6 +7,21 @@ Most numbers come from **last night's capture**, the *Capture all airlines* butt
 The plans (plan cards, frequencies, aircraft, to-dos) are what you and Claude entered. The planner saves itself a moment
 after every change. On a preview address it saves nothing and says **preview · not saved** (#8).
 
+## The new planner, at /planner/next/
+*Being rebuilt screen by screen (#18). Use the planner at /planner/ until you say switch.*
+- **What's there so far:** sign in with the same email and password as the planner. An account that isn't staff is
+  signed out with **This account doesn't have access to the planner.**
+- **The header:** the nine screens in the same order, **Local** / **UTC** (it starts as the planner's setting and
+  remembers your choice on this device), the save state and **Sign out**. On a phone the screens sit on their own row,
+  which you swipe sideways.
+- **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
+  so closing the tab loses an unsaved change) or **preview · not saved**.
+- **Each screen** says it's still in the old planner, with a link there. Home also lists our airlines in their order,
+  with their colours, and the time of the latest change to the planner's data.
+- **Saving** (once screens are rebuilt): each change is saved on its own. If someone changed the same thing since you
+  opened it, nothing in that change is saved; the screen shows what's there now and says what changed.
+- Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
+
 ## Home: Overview
 *The whole network at a glance.*
 - **Key figures:** aircraft, routes flying, flights a day, seats a day, and the **average economy load** over the last

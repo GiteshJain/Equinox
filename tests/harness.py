@@ -1,7 +1,9 @@
 """Shared setup for the automatic checks (decision #9).
 
 - serve(): serves web/ (or another copy of it, root=) on a local port the way Cloudflare does (the _redirects rules,
-  and the home page for any other unknown address), in a background thread.
+  and the home page for any other unknown address), in a background thread. The new planner (#18): /planner/next goes
+  to /planner/next/, and /planner/next/ and everything below it give its page (web/app/index.html, built by
+  `npm run build`); /app/... gives its files; /planner/ and below still give the old planner.
 - open_planner(): opens the planner in headless Chromium with the database replaced by the frozen sample
   (tests/fixtures/sample_*.json.gz), the clock frozen at the sample's moment, and every outside request blocked.
   live=True opens it at equinox-alliance.com (mapped to the local server) so it behaves as the live planner; False
@@ -39,10 +41,18 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
-        if path == "/planner":                                  # _redirects: /planner -> /planner/ (301)
+        if path == "/planner/next":                             # _redirects: /planner/next -> /planner/next/ (301)
+            self.send_response(301); self.send_header("Location", "/planner/next/"); self.end_headers(); return
+        if path.startswith("/planner/next/"):                   # _redirects: /planner/next/* -> the new planner's page (200)
+            self.path = "/app/index.html"
+        elif path == "/app/index.html":                         # Cloudflare sends a page's index.html to its folder (308)
+            self.send_response(308); self.send_header("Location", "/app/"); self.end_headers(); return
+        elif path == "/planner":                                # _redirects: /planner -> /planner/ (301)
             self.send_response(301); self.send_header("Location", "/planner/"); self.end_headers(); return
-        if path.startswith("/planner/"):                        # _redirects: /planner/* -> the planner (200)
+        elif path.startswith("/planner/"):                      # _redirects: /planner/* -> the planner (200)
             self.path = "/planner/index.html"
+        elif path.endswith("/") and (self.root / path.lstrip("/") / "index.html").is_file():
+            self.path = path + "index.html"                     # a folder's page, e.g. /app/
         elif not (self.root / path.lstrip("/")).is_file() and "." not in path.rsplit("/", 1)[-1]:
             self.path = "/index.html"                           # no 404.html: Cloudflare serves the home page
         return super().do_GET()

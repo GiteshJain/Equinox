@@ -3,7 +3,8 @@
 Opens every page of the site on the frozen sample, with the clock frozen at its moment and nothing reaching the real
 database, and checks each one shows its content with no errors: home, flights, destinations, live network, our airlines
 and each airline's page, the newsroom and an article, investors, about, gander monthly, an unknown address, and the
-link into the planner.
+link into the planner. Then the new planner (#18) at /planner/next/: its sign-in form, its files from /app/, no errors;
+and the old planner still at /planner/.
 
 Every page is opened twice (#13, pull request 8): on the feed site_public() gives since then, which carries our airlines
 (names, codes, colours, text and order, from the airlines table), and on the feed without them, so the website's own
@@ -13,7 +14,8 @@ have it). Both show the airlines in the site's order; with the airlines in the f
 Usage: python3 tests/site_test.py
 """
 import asyncio, contextlib, json, sys
-from harness import serve, sample
+from urllib.parse import urlsplit
+from harness import WEB, serve, sample
 from playwright.async_api import async_playwright
 
 failures = []
@@ -48,6 +50,54 @@ def check(ok, name, detail=""):
     print(("ok    " if ok else "FAIL  ") + name + ("" if ok or not detail else "\n      " + detail))
     if not ok:
         failures.append(name)
+
+
+async def new_planner(b, port):
+    """The new planner (#18) as Cloudflare serves it (tests/harness.py follows web/_redirects): /planner/next/ opens its
+    sign-in form, its files come from /app/, with no errors and no request outside the local server; a screen's own
+    address gives the same page; /planner/ still opens the old planner. Built by `npm run build` (tests/run_all.sh runs
+    it first). Signed out, it reads nothing, so nothing is answered for it."""
+    print("--- the new planner at /planner/next/")
+    if not (WEB / "app" / "index.html").is_file():
+        check(False, "the new planner is built (web/app/index.html)", "run npm ci && npm run build first")
+        return
+    ctx = await b.new_context(viewport={"width": 1280, "height": 900}, timezone_id="UTC", locale="en-US")
+    pg = await ctx.new_page(); errors, files, outside = [], [], []
+    pg.on("pageerror", lambda e: errors.append("page error: " + str(e)[:300]))
+    pg.on("console", lambda m: errors.append("console: " + m.text[:300]) if m.type == "error" and "Failed to load resource" not in m.text else None)
+    pg.on("response", lambda r: files.append((urlsplit(r.url).path, r.status)) if f":{port}/app/" in r.url else None)
+
+    async def route(r):
+        u = r.request.url
+        if f":{port}/" in u or u.startswith("data:"):
+            await r.continue_()
+        else:
+            outside.append(urlsplit(u).hostname or u[:40])
+            await r.abort()
+    await pg.route("**/*", route)
+    resp = await pg.goto(f"http://127.0.0.1:{port}/planner/next")
+    with contextlib.suppress(Exception):
+        await pg.wait_for_selector("#g-email", timeout=15000)
+    form = await pg.evaluate("!!document.querySelector('#g-email') && !!document.querySelector('#g-pass') && !!document.querySelector('#g-in')")
+    check(resp.status == 200 and urlsplit(resp.url).path == "/planner/next/" and form and not errors,
+          "the new planner: /planner/next opens /planner/next/ with its sign-in form, and no errors",
+          f"status {resp.status} at {resp.url}, sign-in form {'shown' if form else 'missing'}, errors {errors}")
+    js = [p for p, s in files if p.startswith("/app/assets/") and p.endswith(".js")]
+    css = [p for p, s in files if p.startswith("/app/assets/") and p.endswith(".css")]
+    bad = [f"{p} ({s})" for p, s in files if s != 200]
+    check(js and css and not bad, f"the new planner: its files load from /app/ ({len(js)} script(s), {len(css)} stylesheet(s))",
+          f"loaded {files}, failed {bad}")
+    check(not outside or set(outside) <= {"fonts.googleapis.com", "fonts.gstatic.com"},
+          "the new planner: signed out, it asks nothing of the database (only the fonts were stopped)", f"stopped: {sorted(set(outside))}")
+    resp = await pg.goto(f"http://127.0.0.1:{port}/planner/next/review/VS")
+    with contextlib.suppress(Exception):
+        await pg.wait_for_selector("#g-email", timeout=15000)
+    check(resp.status == 200 and await pg.evaluate("!!document.querySelector('#g-email')"),
+          "the new planner: a screen's own address (/planner/next/review/VS) gives the same page")
+    resp = await pg.goto(f"http://127.0.0.1:{port}/planner/")
+    old = await pg.evaluate("!!document.querySelector('header nav button[data-view=routes]') && document.title === 'equinox. planner'")
+    check(resp.status == 200 and old, "the old planner still opens at /planner/", f"status {resp.status}")
+    await ctx.close()
 
 
 async def main():
@@ -106,6 +156,7 @@ async def main():
                     r = await pg.goto(f"http://127.0.0.1:{port}/planner")
                     check(r.url.endswith("/planner/") and r.status == 200, "the planner link reaches the planner", f"ended at {r.url} ({r.status})")
                 await ctx.close()
+            await new_planner(b, port)
             await b.close()
     print(f"\n{len(failures)} website check(s) failed" if failures else "\nwebsite: all passed")
     sys.exit(1 if failures else 0)

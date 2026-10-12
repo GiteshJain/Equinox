@@ -16,3 +16,6 @@ data_exports/
 node_modules/
 # a downloaded backup copy (database/backup/download.sh .backup) is live data
 .backup/
+
+# the new planner, built by npm run build (decision #18); Cloudflare and the checks build it themselves
+web/app/

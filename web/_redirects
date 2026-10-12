@@ -1,4 +1,10 @@
 # Cloudflare Pages redirects (decision #7; replaces netlify.toml). Unknown paths outside the planner already fall back
 # to the home page, because the site has no 404.html.
+# The new planner (#18, design §3): its files live under /app/ (built into web/app/), and only its page is mapped here,
+# above the old planner's lines, which would otherwise take /planner/next/ too. The page is /app/, not /app/index.html:
+# Cloudflare drops a rule that proxies to a path ending in /index.html as an infinite loop (it redirects that file to
+# /app/), and the old planner's line would then serve /planner/next/.
+/planner/next     /planner/next/    301
+/planner/next/*   /app/             200
 /planner     /planner/   301
 /planner/*   /planner/   200

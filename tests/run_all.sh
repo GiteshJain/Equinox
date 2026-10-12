@@ -10,8 +10,19 @@ run() {
   if "$@"; then summary+=("passed  $name"); else summary+=("FAILED  $name"); status=1; fi
   echo
 }
+# The new planner (#18, design §10): the same install and build Cloudflare runs, so a pull request that wouldn't build
+# can't merge. It builds into web/app/, which the website check then opens at /planner/next/.
+new_planner() {
+  local step
+  for step in "npm ci --no-audit --no-fund" "npm run typecheck" "npm run lint" "npm test" "npm run build"; do
+    echo "--- $step"
+    $step || { echo "FAIL  $step"; return 1; }
+  done
+  echo "ok    new planner: npm ci, typecheck, lint, test and build all passed"
+}
 run "No keys or passwords" python3 tests/check_secrets.py
 run "Schedule check" node tests/schedule_test.mjs
+run "New planner: types, lint, unit tests, build" new_planner
 run "Planner: screens, look-only previews, known answers" python3 tests/planner_test.py
 run "Website" python3 tests/site_test.py
 run "Rule numbers: the planner's code against settings and world_rules" python3 tests/rule_numbers_test.py

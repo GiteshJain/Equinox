@@ -22,6 +22,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | Folder | What's in it |
 |---|---|
 | `web/` | The public website and the planner (`web/planner/`), published by Cloudflare Pages from `main` |
+| `app/planner/` | The new planner (React with TypeScript, #18), being built at `/planner/next/`. Build it with `npm ci && npm run build` (Node 22) into `web/app/`, which isn't committed; Cloudflare builds it on every deploy |
 | `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
 | `database/migrations/` | Every database change, in the order it was applied |
 | `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |

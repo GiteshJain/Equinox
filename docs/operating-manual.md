@@ -56,6 +56,10 @@ Details and open points: `docs/decisions.md`.
   Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
   The schedule check is a Pages Function (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with
   unlimited deploys and previews; our own address survives any future change of host.*
+  - **The build:** Cloudflare runs `if [ -f package.json ]; then npm ci && npm run build; fi` before it publishes,
+    output folder `web`, Node 22 (`.nvmrc`). It builds the new planner (`app/planner/`) into `web/app/`, served under
+    `/app/` with its page at `/planner/next/`. A build that fails leaves the last good version live. *Since 12 Oct (#18,
+    build pull request 1) · why: the new planner is a React app that has to be built; the checks run the same build.*
 - **Supabase stays on the free plan.** We move to the paid plan ($25 a month) only on a trigger, and each trigger means a
   brief at the next weekly review, not an automatic upgrade:
   - the database passes 350 MB;
@@ -79,8 +83,11 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  every planner screen, look-only previews and the planner's key numbers against saved answers; every website page;
-  the old planner's rule numbers against `settings` and `world_rules`).
+  the new planner's install, type check, lint, unit tests and build; every planner screen, look-only previews and the
+  planner's key numbers against saved answers; every website page and the new planner's sign-in at `/planner/next/`;
+  the old planner's rule numbers against `settings` and `world_rules`). When the database or either planner changes,
+  the *Database rehearsal* also generates the new planner's types again from the copy (they must match the committed
+  `app/planner/src/db/types.ts`) and has the new planner sign in, read and save on the copy.
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*
