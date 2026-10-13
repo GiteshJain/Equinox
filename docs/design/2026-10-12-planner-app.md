@@ -274,3 +274,14 @@ Claude's call, as with #13's; any of them can be changed before the merge.
 - **No change to the capture, the jobs or the backups.** Step 5 (#21 to #25) is decided after this.
 - **No change to the tables' shape** beyond what §6 to §8 need. The tables move only if a screen's spec needs it,
   with a migration and the types updated together.
+
+## 16. Follow-ups found during the build
+Kept as the old planner has them so the side-by-side figures match; each is for after the switch (§11), unless it
+starts to matter sooner.
+- **Event and load times ignore an airport's UTC correction** (`world_airports.utc_offset_override`) in the captured
+  figures, as the old planner does; its schedules use it. No airport has a correction on 12 Oct, so nothing is
+  affected. Found by pull request #29.
+- **The cabin an order comes with** is worked out from the cabin names, where the old planner kept a list in its code.
+  They agree on every type today; make it data. Found by pull request #29.
+- **Ryanair has no main base marked** in `airline_bases`; its home falls back to `airlines.home_airport_code` (CDG),
+  as the old planner does. It's exempt from hubs first, so nothing is affected. Found by pull request #29.
