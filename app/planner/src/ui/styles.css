@@ -134,8 +134,100 @@ button{font:inherit}
   font:500 13px/1.45 var(--font);box-shadow:0 18px 40px -18px rgba(10,18,48,.6);overflow-wrap:anywhere}
 .message button{margin-left:auto;background:none;border:0;color:#C9D1EA;cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
 
+/* ---------- shared parts (src/ui/): boards, pills, the airline mark, buttons, tables, the attention list ----------
+   As the old planner's last layer draws them (web/planner/index.html, "pass 2"). */
+.board{background:var(--surface);border:0;border-radius:var(--r-panel);box-shadow:var(--shadow);padding:22px 24px;margin:0 0 18px;min-width:0}
+.rh{margin:0 0 14px;font:600 19px/1.25 var(--font-d);letter-spacing:-.016em;color:var(--ink)}
+.rh .note{font:400 13px/1.4 var(--font);letter-spacing:-.003em;margin-left:10px;color:var(--muted)}
+.note{color:var(--muted);font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:980px;font:550 12px/1.5 var(--font);margin-left:6px;white-space:nowrap}
+.pill.ok{background:rgba(52,199,89,.14);color:#1A7F37} .pill.warn{background:rgba(255,159,10,.17);color:#985200}
+.pill.bad{background:rgba(255,59,48,.12);color:#C4141C} .pill.mute{background:var(--fill);color:var(--muted)}
+.pill.sm{font-size:11px;padding:1px 7px}
+.lv{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--lv,#8B96A8);flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.almark{vertical-align:middle}
+button.secondary{background:var(--fill);color:var(--ink);border:0;border-radius:980px;padding:8px 15px;font:500 13.5px/1.1 var(--font);cursor:pointer}
+button.secondary:hover{background:var(--fill-2)} button.secondary:disabled{opacity:.55;cursor:default}
+button.link,a.link{background:none;border:0;color:var(--violet);font:500 13px/1.4 var(--font);cursor:pointer;padding:0;text-decoration:none}
+button.link:hover,a.link:hover{text-decoration:underline}
+.primary.sm,.secondary.sm,.danger.sm{padding:5px 11px;font-size:12.5px;margin-top:0;border-radius:980px}
+a.primary{display:inline-block;text-decoration:none;color:#fff}
+button.danger{background:#C4141C;color:#fff;border:0;cursor:pointer;font:600 12.5px/1.1 var(--font)}
+.mf{display:inline-flex;align-items:center;gap:6px;border:0;background:var(--fill);color:var(--ink);border-radius:980px;padding:5px 12px;
+  font:500 12.5px/1.25 var(--font);cursor:pointer}
+.mf:hover{background:var(--fill-2)} .mf.on{background:var(--ink);color:#fff} .mf .lv{width:8px;height:8px}
+.mleg{display:flex;gap:6px;flex-wrap:wrap}
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+.tbl th{text-align:left;color:var(--muted);font:500 12px/1.3 var(--font);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--line-2)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .pill{margin-left:0}
+.att{list-style:none;margin:0;padding:0}
+.att li{display:flex;align-items:center;gap:8px;padding:11px 0 11px 18px;border-bottom:1px solid var(--line-2);position:relative;font-size:13.5px}
+.att li:last-child{border-bottom:0}
+.att li::before{content:"";position:absolute;left:0;top:50%;margin-top:-4px;width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.att li.bad::before{background:#E5486F} .att li.warn::before{background:#F6B44B} .att li.ok::before{background:#3DBE84}
+.att li .link{flex:1;min-width:0;text-align:left;color:var(--ink);font-size:13.5px;overflow-wrap:anywhere}
+.att li .link:hover{color:var(--violet)}
+.att li.attg{display:block}
+.att li.attg details summary{cursor:pointer;list-style:none} .att li.attg details summary::-webkit-details-marker{display:none}
+ul.att.sub{margin:6px 0 2px 10px}
+.dismiss{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--faint);font-size:16px;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.dismiss:hover{background:var(--fill);color:var(--ink)}
+.confirm{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none;font-size:12.5px}
+.confirm .cq{color:var(--bad);font-weight:600}
+details.gsec{background:var(--group);border:0;border-radius:var(--r-card);margin:0 0 8px}
+details.gsec>summary{cursor:pointer;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;list-style:none}
+details.gsec>summary::-webkit-details-marker{display:none}
+details.gsec .gtbl{background:#fff;border-top:1px solid var(--line-2);border-radius:0 0 var(--r-card) var(--r-card)}
+details.gsec .gtbl th,details.gsec .gtbl td{padding:6px 12px}
+.gsum{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.gchip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:980px;background:var(--fill);font-size:12.5px}
+.evt{display:inline-block;font:600 11.5px/1.4 var(--font);border-radius:980px;padding:2px 8px;background:var(--fill);color:var(--muted);margin-right:6px}
+.evt.check{background:rgba(255,159,10,.15);color:#985200} .evt.todo{background:rgba(175,82,222,.13);color:#7A33A8}
+
+/* ---------- Home ---------- */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.kpi{background:var(--surface);border-radius:var(--r-panel);box-shadow:var(--shadow);padding:18px 20px;min-width:0}
+.kv{font:650 32px/1 var(--font-d);letter-spacing:-.028em;color:var(--ink)}
+.kl{color:var(--muted);font-size:13px;margin-top:8px}
+.mapb{padding:18px 20px 14px}
+.maph{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.maph .rh{margin:0}
+.globewrap{position:relative;border-radius:16px;overflow:hidden;background:radial-gradient(120% 120% at 50% 40%,#16245A 0%,#0A1230 70%)}
+canvas.globe{display:block;width:100%;height:440px;touch-action:none;cursor:grab}
+canvas.globe:active{cursor:grabbing}
+.globe-off{padding:28px 18px;color:#C9D1EA;font-size:13.5px;background:#0A1230;border-radius:16px}
+.globewrap .globe-off{position:absolute;inset:auto 0 0 0;background:rgba(10,18,48,.85)}
+.hgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;margin-bottom:0}
+.hiddenline{margin-bottom:6px}
+.upf{margin:2px 0 8px}
+th.when{width:170px}
+.todob{margin-bottom:18px}
+ul.todo{list-style:none;margin:0 0 10px;padding:0}
+ul.todo>li{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line-2)}
+ul.todo>li:last-child{border-bottom:0}
+ul.todo .tbody{flex:1;min-width:0;overflow-wrap:anywhere}
+ul.todo ol{margin:6px 0 0 18px;padding:0;font-size:13px}
+ul.todo ol li{margin:2px 0}
+ul.todo>li.due .ttl b{color:#B35900} ul.todo>li.late .ttl b{color:#C4141C}
+ul.todo>li.done{opacity:.55} ul.todo>li.done .ttl b{text-decoration:line-through}
+.tchk input{width:18px;height:18px;margin-top:2px}
+.tadd{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.tadd input,.tadd textarea{font:500 13.5px/1.3 var(--font);color:var(--ink);background:#F1F3F8;border:1px solid var(--line);border-radius:10px;padding:8px 11px;min-width:0}
+.tadd #todo-title{flex:1 1 240px} .tadd #todo-date{flex:0 1 160px}
+.tadd textarea{flex:1 1 100%;resize:vertical}
+.tdone{margin-top:10px} .tdone summary{cursor:pointer;color:var(--muted);font-size:12.5px}
+
 /* ---------- small screens ---------- */
 @media (max-width:860px){
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .kv{font-size:24px}
+  .hgrid{grid-template-columns:minmax(0,1fr)}
+  .board{padding:18px 16px;border-radius:18px}
+  canvas.globe{height:340px}
+  .rh .note{display:block;margin:4px 0 0}
   .eq-header{flex-wrap:wrap;border-radius:22px;padding:8px 10px 8px 16px;gap:8px 12px}
   .brand .eqtag{display:none}
   .eq-nav{order:3;flex:1 1 100%}
@@ -146,5 +238,11 @@ button{font:inherit}
 }
 @media (max-width:420px){
   .tm{padding:5px 8px} .savestate{font-size:11.5px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} .kpi{padding:14px 14px} .kv{font-size:22px} .kl{font-size:12px}
+  .kpi:last-child{grid-column:1 / -1}
+  canvas.globe{height:280px}
+  .mapb{padding:14px 12px 12px}
+  .tadd #todo-title,.tadd #todo-date{flex:1 1 100%}
+  th.when{width:auto}
 }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }

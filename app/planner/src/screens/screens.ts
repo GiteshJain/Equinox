@@ -33,6 +33,19 @@ export function screenRoute(s: Screen): string {
   return `/${s.path}`;
 }
 
+/**
+ * Where something is fixed, inside the planner's router: a screen, opened at an aircraft (/tails/N001AW) or at one
+ * airline's route (/routes/PA/JFK-ORD, /review/PA/JFK-ORD), or at a part of Home (/#todo). A screen not rebuilt yet
+ * shows its link to the old planner; each takes these addresses as it's rebuilt.
+ */
+export function itemRoute(id: ScreenId, at: { tail?: string; airline?: string | null; hub?: string; dest?: string; hash?: string } = {}): string {
+  const s = screen(id);
+  if (id === "home") return at.hash ? `/#${at.hash}` : "/";
+  if (at.tail) return `/${s.path}/${encodeURIComponent(at.tail)}`;
+  if (at.airline && at.hub && at.dest) return `/${s.path}/${encodeURIComponent(at.airline)}/${encodeURIComponent(at.hub + "-" + at.dest)}`;
+  return `/${s.path}`;
+}
+
 /** Which screen an address belongs to: its first part after /planner/next/, so /planner/next/review/VS is Review.
  * Null for an address outside the planner or a part that isn't a screen. */
 export function screenForPath(pathname: string): Screen | null {

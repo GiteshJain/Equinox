@@ -1,0 +1,625 @@
+"""The new planner's Home side by side with the old Home on the rehearsal's copy (decision #18, build pull request 5,
+spec docs/specs/2026-10-13-home.md §3): the pull request's own new planner (built into web/app/) and the old planner
+(web/planner/), both at their live addresses, signed in as the same test staff user, at the same frozen moment, reading
+a full local copy of Supabase restored from last night's backup.
+
+Run by database/rehearse.sh, last (after the captured figures). Like tests/captured_figures_test.py it uses
+tests/real_saves_test.py's helpers and request mapping, needs the copy, so it isn't part of tests/run_all.sh, and
+nothing goes outside.
+
+1. The moment: the copy's latest capture plus one hour, to the millisecond, as tests/captured_figures_test.py takes it.
+   The captured figures read typed loads and day flags only as entered by then, while the old planner reads every one,
+   so those entered later are set aside while the test runs and put back when it ends.
+2. The old Home, opened as captured_figures_test.py opens the old planner (with its hook, from a copy of web/; the
+   planner in web/planner/ is unchanged), its clock frozen at the moment; once it has read the capture, the backups
+   and the jobs it draws Home again, and its boards are read from the page.
+3. The new Home at the same moment, signed in through its own form; its boards are read from the page (data-figure and
+   its data attributes). Opening either planner writes nothing.
+4. Side by side: the key figures, aircraft on order (each airline's count and summary, each aircraft's row), needs
+   attention (how many, how many dismissed, the groups in their order, and every item's group, words, seriousness,
+   link and dismissal key), coming up (every row) and the to-do board (the open ones with their dates and steps, the
+   ones done in the last 7 days, how many older) must equal the old Home's. A difference fails and names the board,
+   the item and both values, unless it is a known difference (KNOWN below, each with its rule), which is printed with
+   how often it was used and both values.
+5. Real saves in the new Home, by its own buttons: tick the first open to-do; add one with two steps; the old planner,
+   opened again, shows the same to-do board; delete the new one (the planner asks in the page, never a browser
+   dialog); dismiss an item of needs attention with ×; the old planner shows it dismissed too; show again; the old
+   planner shows none dismissed. Each writes exactly its rows, logged as planner with the tab's ID.
+6. A preview address (127.0.0.1) shows Home, and a tick, an add and a dismiss there send no write.
+7. At 380 px wide Home has no sideways scroll and no errors; a screenshot at 380 px and one at 1280 px go to
+   HOME_SCREENS_DIR (the run's home-screens artifact), when it's set.
+8. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
+
+Prints registrations, airport codes, counts and the boards' words, never anything else from the rows, since the log is
+posted on the pull request. Never prints the local keys or the test password.
+
+Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV, LOCAL_DB_URL, SECRET_TABLES and HOME_SCREENS_DIR.
+Usage: python3 tests/home_side_by_side_test.py
+"""
+import asyncio, atexit, json, os, re, secrets, shutil, sys, tempfile
+from collections import Counter
+from pathlib import Path
+from harness import ROOT, WEB, LIVE_HOST, serve, settle
+from playwright.async_api import async_playwright
+import real_saves_test as rs
+from real_saves_test import (count_changes, counts, is_planner_user, library, local_env, log_since, make_user, marks, planner_facts,
+                             psql, token_for, why)
+import planner_next_test as pn
+from captured_figures_test import HOOK, HOOK_BEFORE, HELD, put_back, set_aside
+
+SCREENS_DIR = os.environ.get("HOME_SCREENS_DIR")
+WORLD = "(select w.id from public.worlds w order by w.is_default desc, w.id limit 1)"
+# the old planner's screens by its own names, and the new planner's for the same screen
+OLD_VIEW = {"home": "home", "routes": "routes", "tails": "tails", "hub": "hubs", "review": "check", "finance": "review",
+            "interline": "interline", "photos": "photos", "ref": "reference"}
+failures = []
+
+# Where the new Home follows its spec and the old Home did otherwise. Each is allowed only where its test says, and
+# printed with how often it was used and both values.
+KNOWN = {
+    "average load": {
+        "rule": "spec §2: the average load comes from airline_cards(): each airline's average economy load over its last 7 days of "
+                "captures (Review's figure; the tile shows their average). The old Home averaged every captured flight of the "
+                "last 8 days across the group.",
+        "used": 0, "where": []},
+    "interline": {
+        "rule": "the old Home's interline line comes from its own list of interline countries (IL_YES and the rest), which has no "
+                "home outside the old planner's code yet (decision #19); the new Home leaves it out until the Interline screen "
+                "(build pull request 12) gives it one.",
+        "used": 0, "where": []},
+    "order on a tie": {
+        "rule": "aircraft that tie (the same check day, the same delivery time) are in the old planner's list order, kept only in "
+                "the adapter's extra; the new planner orders them by aircraft id. The same aircraft, in another order.",
+        "used": 0, "where": []},
+}
+
+
+def step(ok, name, problems=()):
+    print(("ok    " if ok else "FAIL  ") + name, flush=True)
+    for p in ([] if ok else list(problems)[:30]):
+        print("      " + p, flush=True)
+    if not ok:
+        failures.append(name)
+
+
+def known(name, where):
+    KNOWN[name]["used"] += 1
+    KNOWN[name]["where"].append(where)
+
+
+# ---------- reading the two Homes ----------
+OLD_HOME = r"""() => {
+  const T = e => (e ? e.textContent.replace(/\s+/g, " ").trim() : "");
+  const boards = [...document.querySelectorAll("#view .board")];
+  const titled = t => boards.find(b => { const h = b.querySelector(":scope > h3.rh, :scope > .maph h3.rh"); return h && T(h).startsWith(t); });
+  const out = { kpis: [...document.querySelectorAll("#view .kpis .kpi")].map(T) };
+  const oob = document.querySelector("#view .oob");
+  out.onOrder = oob ? { chips: [...oob.querySelectorAll(".gsum .gchip")].map(T), groups: [...oob.querySelectorAll("details.gsec")].map(d => ({
+      summary: T(d.querySelector("summary")),
+      rows: [...d.querySelectorAll("tr[id^='oo-']")].map(tr => { const td = [...tr.querySelectorAll("td")];
+        return { cells: td.slice(0, 6).map(T), file: !!tr.querySelector("[data-planfile]"), noCard: /no plan card/.test(T(td[6])) }; }) })) } : null;
+  const att = titled("Needs attention");
+  const top = att.querySelector(":scope > ul.att");
+  out.attention = {
+    note: T(att.querySelector("h3 .note")),
+    hidden: T([...att.querySelectorAll(":scope > .dim")].find(x => /dismissed/.test(x.textContent))),
+    top: top ? [...top.children].map(li => li.classList.contains("attg") ? "group: " + T(li.querySelector("summary b")) + " · " + li.querySelectorAll("ul.sub > li").length
+                                                                       : "item: " + T(li.querySelector("button.link"))) : [],
+    items: top ? [...top.querySelectorAll("li:not(.attg)")].map(li => { const b = li.querySelector("button.link"), g = li.closest("li.attg");
+      return { group: g ? T(g.querySelector("summary b")) : "", cls: li.className.trim(), text: T(b), view: b.dataset.goto || "",
+               tail: b.dataset.gotail || "", route: b.dataset.goroute || "", key: (li.querySelector("[data-dismiss]") || {dataset: {}}).dataset.dismiss || "" }; }) : [],
+  };
+  const up = titled("Coming up");
+  out.comingUp = [...up.querySelectorAll("table.tbl tr")].filter(tr => tr.querySelector("td")).map(tr => [...tr.querySelectorAll("td")].map(T));
+  const todo = document.querySelector("#view .todob");
+  const item = li => ({ key: (li.querySelector("[data-tododone]") || {dataset: {}}).dataset.tododone || "", title: T(li.querySelector(".ttl b")),
+    when: T(li.querySelector(".ttl .dim")), steps: [...li.querySelectorAll("ol > li")].map(T), done: !!(li.querySelector("input[type=checkbox]") || {}).checked });
+  out.todo = { note: T(todo.querySelector("h3 .note")), open: [...todo.querySelectorAll(":scope > ul.todo > li")].map(item),
+    done: [...todo.querySelectorAll("details.tdone ul.todo > li")].map(item), fold: T(todo.querySelector("details.tdone summary")) };
+  return out;
+}"""
+
+NEW_HOME = r"""() => {
+  const T = e => (e ? e.textContent.replace(/\s+/g, " ").trim() : "");
+  const out = { kpis: [...document.querySelectorAll('[data-figure="home: key figures"]')].map(T) };
+  const oob = document.querySelector('[data-figure="home: aircraft on order"]');
+  out.onOrder = oob ? { chips: [...oob.querySelectorAll(".gsum .gchip")].map(T), groups: [...oob.querySelectorAll("details.gsec")].map(d => ({
+      summary: T(d.querySelector("summary")),
+      rows: [...d.querySelectorAll("tr[data-oo-row]")].map(tr => { const td = [...tr.querySelectorAll("td")];
+        return { cells: td.slice(0, 6).map(T), file: !!tr.querySelector("[data-file-into-planner]"), noCard: /no plan card/.test(T(td[6])) }; }) })) } : null;
+  const att = document.querySelector('[data-figure="home: needs attention"]');
+  const top = att.querySelector(":scope > ul.att");
+  out.attention = {
+    note: T(att.querySelector("h3 .note")),
+    hidden: T(att.querySelector("[data-dismissed]")),
+    top: top ? [...top.children].map(li => li.classList.contains("attg") ? "group: " + T(li.querySelector("summary b")) + " · " + li.querySelectorAll("ul.sub > li").length
+                                                                       : "item: " + T(li.querySelector(".link"))) : [],
+    items: [...att.querySelectorAll("[data-att-item]")].map(li => { const g = li.closest("li.attg");
+      return { group: g ? T(g.querySelector("summary b")) : "", cls: li.dataset.cls, text: T(li.querySelector(".link")), view: li.dataset.screen,
+               tail: li.dataset.tail, route: li.dataset.route, key: li.dataset.attKey, href: li.querySelector(".link").getAttribute("href") }; }),
+  };
+  out.comingUp = [...document.querySelectorAll("#coming-up tr[data-up]")].map(tr => [...tr.querySelectorAll("td")].map(T));
+  const todo = document.querySelector("#todo");
+  const item = li => ({ key: li.dataset.todo, title: T(li.querySelector(".ttl b")), when: T(li.querySelector(".ttl .dim")),
+    steps: [...li.querySelectorAll("ol > li")].map(T), done: li.dataset.done === "yes" });
+  out.todo = { note: T(todo.querySelector("h3 .note")), open: [...todo.querySelectorAll("[data-todo-list=open] > li")].map(item),
+    done: [...todo.querySelectorAll("[data-todo-list=done] > li")].map(item), fold: T(todo.querySelector("details.tdone summary")) };
+  return out;
+}"""
+
+
+def comma_set(s):
+    return sorted(x.strip() for x in s.split(","))
+
+
+def compare(old, new):
+    """Problems, board by board: each names the board, the item and both values."""
+    p = []
+    # key figures
+    if len(old["kpis"]) != len(new["kpis"]):
+        p.append(f"key figures: the old Home shows {len(old['kpis'])}, the new {len(new['kpis'])}")
+    for i, (o, n) in enumerate(zip(old["kpis"], new["kpis"])):
+        if o == n:
+            continue
+        if i == 4 and re.sub(r"≈\d+%", "", o) == re.sub(r"≈\d+%", "", n):
+            known("average load", f"old {o.split('%')[0]}%, new {n.split('%')[0]}%")
+            continue
+        p.append(f"key figures: figure {i + 1}: old {o!r}, new {n!r}")
+
+    # aircraft on order
+    oo, no = old["onOrder"], new["onOrder"]
+    if (oo is None) != (no is None):
+        p.append(f"aircraft on order: the old Home {'has' if oo else 'has no'} board, the new {'has' if no else 'has no'}")
+    elif oo:
+        if oo["chips"] != no["chips"]:
+            p.append(f"aircraft on order: airlines and counts: old {oo['chips']}, new {no['chips']}")
+        for og, ng in zip(oo["groups"], no["groups"]):
+            if og["summary"] != ng["summary"]:
+                p.append(f"aircraft on order: summary: old {og['summary']!r}, new {ng['summary']!r}")
+            if og["rows"] != ng["rows"]:
+                if sorted(map(json.dumps, og["rows"])) == sorted(map(json.dumps, ng["rows"])):
+                    known("order on a tie", "aircraft on order: " + og["summary"].split(" ", 2)[0])
+                else:
+                    for i, (a, b) in enumerate(zip(og["rows"], ng["rows"])):
+                        if a != b:
+                            p.append(f"aircraft on order: row {i + 1} ({a['cells'][0]}): old {a}, new {b}")
+                    if len(og["rows"]) != len(ng["rows"]):
+                        p.append(f"aircraft on order: {og['summary'][:30]}: old {len(og['rows'])} rows, new {len(ng['rows'])}")
+        if len(oo["groups"]) != len(no["groups"]):
+            p.append(f"aircraft on order: old {len(oo['groups'])} airlines, new {len(no['groups'])}")
+
+    # needs attention
+    oa, na = old["attention"], new["attention"]
+    o_items, n_items = list(oa["items"]), list(na["items"])
+    # the interline line (known): taken out of the old list before comparing, the counts adjusted
+    il = [x for x in o_items if x["key"].startswith("Interline:") or x["text"].startswith("Interline:")]
+    for x in il:
+        known("interline", x["text"])
+        o_items.remove(x)
+    o_note = oa["note"]
+    if il:
+        n_old = len(oa["items"]) - len(il)
+        o_note = f"{n_old} item{'' if n_old == 1 else 's'}" if n_old else "nothing right now"
+    if o_note != na["note"]:
+        p.append(f"needs attention: how many: old {oa['note']!r}, new {na['note']!r}")
+    if oa["hidden"] != na["hidden"]:
+        p.append(f"needs attention: dismissed: old {oa['hidden']!r}, new {na['hidden']!r}")
+    o_top = [t for t in oa["top"] if not t.startswith("item: Interline:")]
+    if o_top != na["top"]:
+        p.append(f"needs attention: the groups in their order: old {o_top}, new {na['top']}")
+    norm = lambda x: (x["group"], x["cls"], x["text"], OLD_VIEW.get(x["view"], x["view"]) if "href" not in x else x["view"], x["tail"], x["route"], x["key"])
+    oc, nc = Counter(norm(x) for x in o_items), Counter(norm(x) for x in n_items)
+    for k in sorted((oc - nc).keys(), key=str):
+        p.append(f"needs attention: only the old Home has: group {k[0] or '(alone)'}, {k[1]}, {k[2]!r}, link {k[3]} {k[4]}{k[5]}, key {k[6]!r}")
+    for k in sorted((nc - oc).keys(), key=str):
+        p.append(f"needs attention: only the new Home has: group {k[0] or '(alone)'}, {k[1]}, {k[2]!r}, link {k[3]} {k[4]}{k[5]}, key {k[6]!r}")
+    if not (oc - nc) and not (nc - oc) and [norm(x) for x in o_items] != [norm(x) for x in n_items]:
+        groups = {norm(x)[0] for x, y in zip(o_items, n_items) if norm(x) != norm(y)}
+        if groups <= {"Maintenance", "Turns and positions", "One-week checks due"}:
+            known("order on a tie", "needs attention: " + ", ".join(sorted(groups)))
+        else:
+            p.append(f"needs attention: the same items in another order, in {', '.join(sorted(groups))}")
+
+    # coming up
+    if len(old["comingUp"]) != len(new["comingUp"]):
+        p.append(f"coming up: old {len(old['comingUp'])} rows, new {len(new['comingUp'])}")
+    for i, (o, n) in enumerate(zip(old["comingUp"], new["comingUp"])):
+        if o == n:
+            continue
+        if o[0] == n[0] and o[1].split(" ", 1)[0] == "Check" == n[1].split(" ", 1)[0] and comma_set(o[1][6:]) == comma_set(n[1][6:]):
+            known("order on a tie", "coming up " + o[0].split(" ·")[0])
+            continue
+        p.append(f"coming up: row {i + 1}: old {o}, new {n}")
+
+    # the to-do board
+    ot, nt = old["todo"], new["todo"]
+    for part in ("note", "fold"):
+        if ot[part] != nt[part]:
+            p.append(f"to-do: {part}: old {ot[part]!r}, new {nt[part]!r}")
+    for part in ("open", "done"):
+        if ot[part] != nt[part]:
+            ok_, nk_ = [x["key"] for x in ot[part]], [x["key"] for x in nt[part]]
+            if ok_ != nk_:
+                p.append(f"to-do: the {part} ones (ids, in order): old {ok_}, new {nk_}")
+            for a, b in zip(ot[part], nt[part]):
+                if a != b and a["key"] == b["key"]:
+                    p.append(f"to-do {a['key']}: old {a}, new {b}")
+    return p
+
+
+def summary(h):
+    a = h["attention"]
+    return (f"{len(h['kpis'])} key figures ({' · '.join(h['kpis'])}); aircraft on order: {', '.join(h['onOrder']['chips']) if h['onOrder'] else 'none'}; "
+            f"needs attention: {a['note']}{', ' + a['hidden'] if a['hidden'] else ''} ({'; '.join(a['top'][:14])}); "
+            f"coming up: {len(h['comingUp'])} rows; to-do: {h['todo']['note']}")
+
+
+# ---------- the planners ----------
+def web_copy(dest):
+    """A copy of web/ (the new planner's build included) with the hook added to the old planner, before its boot."""
+    root = Path(dest) / "web"
+    shutil.copytree(WEB, root)
+    page = root / "planner" / "index.html"
+    html = page.read_text()
+    if html.count(HOOK_BEFORE) != 1:
+        raise RuntimeError("the old planner's boot line isn't where the test expects it")
+    page.write_text(html.replace(HOOK_BEFORE, HOOK + HOOK_BEFORE, 1))
+    return root
+
+
+class OldHome(rs.Planner):
+    """The old planner (real_saves_test.py's), its clock frozen at the moment before its scripts run."""
+
+    def __init__(self, *a, moment, **k):
+        super().__init__(*a, **k)
+        self.moment = moment
+
+    async def page(self, host=LIVE_HOST):
+        self.pg = pg = await self.ctx.new_page()
+        await pg.clock.set_fixed_time(self.moment)
+        pg.on("pageerror", lambda e: self.errors.append("page error: " + str(e)[:200]))
+        pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
+              if m.type == "error" and "Failed to load resource" not in m.text else None)
+        pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
+        await pg.goto(f"http://{host}:{self.port}/planner/")
+        return pg
+
+    async def home(self):
+        """Once the old planner has read the capture, the backups and the jobs, Home drawn again and read."""
+        pg = self.pg
+        await pg.wait_for_function("() => window.__eqOld && window.__eqOld('CAP.at') > 0 && window.__eqOld('CAP.backupLoaded') "
+                                   "&& window.__eqOld('CAP.jobsLoaded')", timeout=60000)
+        await pg.evaluate("() => window.__eqOld('ui.view = \"home\"; render(); true')")
+        await settle(pg, 800)
+        return await pg.evaluate(OLD_HOME)
+
+    async def reopen(self):
+        """The old planner opened again in a new tab (signed in already), as Gitesh would look after a change."""
+        await self.pg.close()
+        await self.page()
+        await self.pg.wait_for_function("() => window.__eqDataLoaded === true", timeout=60000)
+        return await self.home()
+
+
+async def new_home(pl):
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=90000)
+    await settle(pl.pg, 600)
+    return await pl.pg.evaluate(NEW_HOME)
+
+
+async def saved(pl, mark=None, rows=0):
+    """Waits until the copy's change log has the save's rows (when a mark is given), then until the new planner's header
+    says saved (or preview · not saved) again."""
+    if mark is not None:
+        await rs.wait_for(lambda: log_since(mark), lambda got: len(got) >= rows, seconds=30)
+    await settle(pl.pg, 400)
+    await pl.pg.wait_for_function("() => /^(saved|preview · not saved)$/.test((document.querySelector('[data-save-state]') || {}).textContent || '')",
+                                  timeout=30000)
+    await settle(pl.pg, 600)
+
+
+def logged_only(mark, want, client):
+    """The change-log rows since the mark are exactly want (a Counter of (table, op)), each logged as planner with the
+    tab's ID. Returns the problems and the rows."""
+    rows = log_since(mark)
+    got = Counter((r["table"], r["op"]) for r in rows)
+    problems = [] if got == want else [f"the tables changed by {dict(got)}, expected {dict(want)}"]
+    problems += [f"a change-log row names {r['actor']} ({r['detail']}), not planner (the tab's ID)" for r in rows
+                 if r["actor"] != "planner" or r["detail"] != client]
+    return problems, rows
+
+
+# ---------- 5. real saves in the new Home ----------
+async def real_saves(new, old, tag):
+    out = []
+    pg = new.pg
+    client = await pg.evaluate("window.__eqPlanner.client")
+
+    # tick the first open to-do
+    first = await pg.evaluate("(document.querySelector('[data-todo-list=open] > li') || {dataset: {}}).dataset.todo || ''")
+    problems = []
+    if not first:
+        out.append(("tick a to-do", ["the new Home shows no open to-do"]))
+    else:
+        tid = int(psql(f"select id from public.todos where world_id = {WORLD} and coalesce(legacy_key, id::text) = :'k'", k=first).strip())
+        before = pn.todo_row(tid)
+        n0, mark = counts(), marks()
+        await pg.click(f"[data-todo-list=open] > li[data-todo='{first}'] input[type=checkbox]")
+        await saved(new, mark, 1)
+        after = pn.todo_row(tid)
+        problems, _ = logged_only(mark, Counter({("todos", "update"): 1}), client)
+        if not (after and after.get("done") is True and after.get("done_at")):
+            problems.append("the to-do isn't done in the copy")
+        other = sorted(k for k in set(before) | set(after or {}) if k not in ("done", "done_at", "updated_at") and before.get(k) != (after or {}).get(k))
+        if other:
+            problems.append("other columns changed: " + ", ".join(other))
+        problems += count_changes(n0, counts(), allow={"public.change_log"})
+        if not await pg.evaluate(f"!!document.querySelector(\"[data-todo-list=done] > li[data-todo='{first}']\")"):
+            problems.append("the new Home doesn't show it done")
+        out.append((f"tick the first open to-do ({first}) by its box: done and done_at in exactly that row, logged as planner with the tab's ID", problems))
+
+    # add one with two steps
+    title = f"Home side by side {tag}"
+    n0, mark = counts(), marks()
+    await pg.fill("#todo-title", title)
+    await pg.fill("#todo-steps", "First step\nSecond step")
+    await pg.click("#todo-add")
+    await saved(new, mark, 3)
+    await pg.wait_for_function(f"[...document.querySelectorAll('[data-todo-list=open] .ttl b')].some(b => b.textContent === {json.dumps(title)})", timeout=30000)
+    problems, _ = logged_only(mark, Counter({("todos", "insert"): 1, ("todo_items", "insert"): 2}), client)
+    row = json.loads(psql(f"""select coalesce((select json_build_object('id', t.id, 'key', t.legacy_key, 'due', t.due_on,
+                                 'steps', (select json_agg(i.body order by i.position) from public.todo_items i where i.todo_id = t.id))
+                                 from public.todos t where t.world_id = {WORLD} and t.title = :'t'), 'null')""", t=title).strip())
+    if not row:
+        problems.append("the new to-do isn't in the copy")
+    else:
+        if row["steps"] != ["First step", "Second step"]:
+            problems.append(f"its steps in the copy are {row['steps']}")
+        if not re.fullmatch(r"t[0-9a-z]+", row["key"] or ""):
+            problems.append(f"its old-planner id isn't made as the old planner makes one: {row['key']!r}")
+    problems += count_changes(n0, counts(), allow={"public.change_log", "public.todos", "public.todo_items"})
+    out.append((f"add a to-do with two steps by the form: one to-do and its two steps, as one action, logged as planner with the tab's ID", problems))
+
+    # the old planner shows the same to-do board
+    o, n = await old.reopen(), await new_home(new)
+    diff = [x for x in compare(o, n) if x.startswith("to-do")]
+    if row and not any(t["title"] == title and t["steps"] == ["First step", "Second step"] for t in o["todo"]["open"]):
+        diff.append("the old planner doesn't show the new to-do with its two steps")
+    out.append(("the old planner, opened again, shows the same to-do board (the ticked one done, the new one with its steps)", diff))
+
+    # delete it: asked in the page, never a browser dialog
+    problems = []
+    if row:
+        n0, mark, d0 = counts(), marks(), len(new.dialogs)
+        sel = f"[data-todo-list=open] > li[data-todo='{row['key']}']"
+        await pg.click(f"{sel} button.dismiss")
+        await pg.wait_for_selector(f"{sel} [data-confirm]", timeout=10000)
+        if "Delete this to-do?" not in (await pg.text_content(f"{sel} [data-confirm]") or ""):
+            problems.append("the question in the page isn't \"Delete this to-do?\"")
+        await pg.click(f"{sel} [data-confirm-yes]")
+        await saved(new, mark, 3)
+        await pg.wait_for_selector(sel, state="detached", timeout=30000)
+        p2, _ = logged_only(mark, Counter({("todos", "delete"): 1, ("todo_items", "delete"): 2}), client)
+        problems += p2
+        if len(new.dialogs) > d0:
+            problems.append("a browser dialog was opened: " + "; ".join(new.dialogs[d0:]))
+        if psql(f"select count(*) from public.todos where id = {int(row['id'])}").strip() != "0":
+            problems.append("the to-do is still in the copy")
+    else:
+        problems.append("there was no new to-do to delete")
+    out.append(("delete it: the page asks \"Delete this to-do?\" in itself (no browser dialog); the to-do and its two steps go as one action, logged as planner with the tab's ID", problems))
+
+    # dismiss an item of needs attention, then show again
+    await pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")
+    item = await pg.evaluate("(() => { const li = document.querySelector('#attention [data-att-item]'); return li ? {key: li.dataset.attKey, text: li.querySelector('.link').textContent} : null })()")
+    problems = []
+    if not item:
+        out.append(("dismiss an item of needs attention", ["the new Home lists nothing to dismiss"]))
+        return out
+    hidden0 = int(await pg.evaluate("(document.querySelector('#attention [data-dismissed]') || {dataset: {dismissed: '0'}}).dataset.dismissed"))
+    n0, mark = counts(), marks()
+    await pg.locator("#attention [data-att-item]").first.locator("button.dismiss").click()
+    await saved(new, mark, 1)
+    await pg.wait_for_function(f"(document.querySelector('#attention [data-dismissed]') || {{dataset: {{}}}}).dataset.dismissed === '{hidden0 + 1}'", timeout=30000)
+    problems, _ = logged_only(mark, Counter({("dismissals", "insert"): 1}), client)
+    if psql(f"select count(*) from public.dismissals where world_id = {WORLD} and alert_key = :'k'", k=item["key"]).strip() != "1":
+        problems.append("the dismissal isn't in the copy under the item's key")
+    problems += count_changes(n0, counts(), allow={"public.change_log", "public.dismissals"})
+    o, n = await old.reopen(), await new_home(new)
+    if o["attention"]["hidden"] != n["attention"]["hidden"]:
+        problems.append(f"the old planner says {o['attention']['hidden']!r}, the new {n['attention']['hidden']!r}")
+    if any(x["key"] == item["key"] for x in o["attention"]["items"]):
+        problems.append("the old planner still lists the item")
+    out.append((f"dismiss \"{item['text'][:60]}\" with ×: one dismissal under the old planner's key, logged as planner with the tab's ID; "
+                f"the old planner, opened again, shows it dismissed too ({n['attention']['hidden']})", problems))
+
+    rows = int(psql(f"select count(*) from public.dismissals where world_id = {WORLD}").strip())
+    n0, mark = counts(), marks()
+    await pg.click("#attention [data-show-again]")
+    await saved(new, mark, rows)
+    await pg.wait_for_function("!document.querySelector('#attention [data-dismissed]')", timeout=30000)
+    problems, _ = logged_only(mark, Counter({("dismissals", "delete"): rows}), client)
+    if psql(f"select count(*) from public.dismissals where world_id = {WORLD}").strip() != "0":
+        problems.append("dismissals are left in the copy")
+    o = await old.reopen()
+    if o["attention"]["hidden"]:
+        problems.append(f"the old planner still says {o['attention']['hidden']!r}")
+    out.append((f"show again: every dismissal ({rows}) goes, as one action, logged as planner with the tab's ID; the old planner, opened again, shows none dismissed", problems))
+    return out
+
+
+# ---------- 6. a preview ----------
+async def preview(p, port, env, facts, staff, moment, seen):
+    pv = pn.Planner(p, port, env, facts)
+    seen.append(pv)
+    problems = []
+    try:
+        await pv.open(host="127.0.0.1", moment=moment)
+        await pv.sign_in(*staff)
+        n0, mark = counts(), marks()
+        await pv.pg.click("[data-todo-list=open] > li input[type=checkbox]")
+        await pv.pg.fill("#todo-title", "preview check")
+        await pv.pg.click("#todo-add")
+        await pv.pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")
+        if await pv.pg.evaluate("!!document.querySelector('#attention [data-att-item] button.dismiss')"):
+            await pv.pg.click("#attention [data-att-item] button.dismiss")
+        await settle(pv.pg, 1200)
+        state = await pv.pg.evaluate("(document.querySelector('[data-save-state]') || {}).textContent")
+        if state != "preview · not saved":
+            problems.append(f"the header says {state!r}, not \"preview · not saved\"")
+        if "planner_save" in pv.rpcs:
+            problems.append("the preview sent planner_save() to the copy")
+        if log_since(mark):
+            problems.append("the tables changed")
+        problems += count_changes(n0, counts()) + pv.errors
+    finally:
+        await pv.close()
+    return f"a preview address shows Home and a tick, an add and a dismiss there send no write (it called {', '.join(sorted(set(pv.rpcs))) or 'nothing'})", problems
+
+
+# ---------- 7. a phone, and the screenshots ----------
+async def phone(p, port, env, facts, staff, moment, seen):
+    ph = pn.Planner(p, port, env, facts, width=380, height=800)
+    seen.append(ph)
+    problems = []
+    try:
+        await ph.open(moment=moment)
+        await ph.sign_in(*staff)
+        await settle(ph.pg, 1500)
+        over = await ph.pg.evaluate("Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth")
+        if over > 0:
+            problems.append(f"the page scrolls sideways by {over} px at 380 px wide")
+        globe = await ph.pg.evaluate("(document.querySelector('[data-globe]') || {dataset: {}}).dataset.globe || 'none'")
+        if SCREENS_DIR:
+            Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
+            await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / "home-380.png"), full_page=True)
+        problems += ph.errors
+    finally:
+        await ph.close()
+    return f"at 380 px wide Home has no sideways scroll and no errors (the globe: {globe})", problems
+
+
+async def main():
+    facts = planner_facts()
+    nfacts = pn.planner_facts()
+    if not facts or not nfacts:
+        step(False, "both planners name their Supabase address and public key", ["not found in web/planner/index.html or app/planner/src/data/config.ts"])
+        sys.exit(1)
+    if not pn.PAGE.is_file():
+        step(False, "the new planner is built", ["web/app/index.html is missing: run npm ci && npm run build first"])
+        sys.exit(1)
+    try:
+        env = local_env()
+        lib_js = library(facts["lib_version"])
+    except Exception as e:
+        step(False, "set up: the copy's address and the old planner's Supabase library", [why(e)])
+        sys.exit(1)
+
+    # ---------- 1. the moment, and the copy as it stood then
+    moment = psql("select to_char((max(captured_at) + interval '1 hour') at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') from public.game_capture_raw").strip()
+    try:
+        held = set_aside(psql, moment)
+        atexit.register(lambda: put_back(psql, held))
+        problems = []
+    except Exception as e:
+        held, problems = {}, [why(e)]
+    step(not problems, f"the moment: {moment} (the copy's latest capture plus one hour); typed loads and day flags entered after it set aside until "
+         "the test ends (" + ", ".join(f"{t}: {len(json.loads(held.get(t) or '[]'))}" for t in HELD) + ")", problems)
+    if problems:
+        sys.exit(1)
+
+    tag = secrets.token_hex(4)
+    staff = (f"home-staff-{tag}@example.com", secrets.token_urlsafe(18))
+    try:
+        make_user(env, *staff)
+        psql("insert into public.planner_users (email) values (:'email')", email=staff[0])
+        problems = [] if is_planner_user(env, token_for(env, *staff)) else ["public.is_planner_user() isn't true for the staff user"]
+    except Exception as e:
+        problems = [why(e)]
+    if problems:
+        step(False, "a test staff user, made through the copy's sign-in", problems)
+        sys.exit(1)
+
+    work = Path(tempfile.mkdtemp(prefix="home-side-by-side-"))
+    seen = []
+    try:
+        root = web_copy(work)
+        with serve(root) as port:
+            async with async_playwright() as p:
+                # ---------- 2 and 3. both Homes at the moment
+                old = OldHome(p, port, env, facts, lib_js, moment=moment)
+                new = pn.Planner(p, port, env, nfacts, width=1280, height=900)
+                seen += [old, new]
+                o = n = None
+                try:
+                    n0, mark = counts(), marks()
+                    await old.open()
+                    await old.sign_in(*staff)
+                    o = await old.home()
+                    await new.open(moment=moment)
+                    await new.sign_in(*staff)
+                    n = await new_home(new)
+                    problems = list(old.errors) + list(new.errors)
+                    if log_since(mark):
+                        problems.append("opening the planners changed the tables")
+                    problems += count_changes(n0, counts())
+                    if abs(await new.pg.evaluate("Date.now()") - rs_ms(moment)) > 1000:
+                        problems.append("the new planner's clock isn't frozen at the moment")
+                except Exception as e:
+                    problems = [why(e)] + old.errors[:3] + new.errors[:3]
+                step(o is not None and n is not None and not problems,
+                     f"both planners opened at the moment, signed in as test staff; opening them wrote nothing", problems)
+                if o is None or n is None:
+                    sys.exit(1)
+                print("      the old Home: " + summary(o), flush=True)
+                print("      the new Home: " + summary(n), flush=True)
+                if SCREENS_DIR:
+                    Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
+                    await new.pg.screenshot(path=str(Path(SCREENS_DIR) / "home-1280.png"), full_page=True)
+
+                # ---------- 4. side by side
+                problems = compare(o, n)
+                hrefs = sorted({x["href"] for x in n["attention"]["items"]})
+                step(not problems, f"side by side, every board equals the old Home's: key figures, aircraft on order, needs attention "
+                     f"({len(n['attention']['items'])} items with their groups, words, seriousness, links and keys), coming up "
+                     f"({len(n['comingUp'])} rows) and the to-do board ({len(n['todo']['open'])} open, {len(n['todo']['done'])} done this week)", problems)
+                print("      the new Home's links: " + ", ".join(hrefs[:12]) + (" …" if len(hrefs) > 12 else ""), flush=True)
+                for k, v in KNOWN.items():
+                    if v["used"]:
+                        print(f"      known difference used {v['used']}x: {k}: {v['rule']} ({'; '.join(v['where'][:6])})", flush=True)
+
+                # ---------- 5. real saves
+                try:
+                    for label, problems in await real_saves(new, old, tag):
+                        step(not problems, label, problems + new.errors + old.errors)
+                except Exception as e:
+                    step(False, "real saves in the new Home", [why(e)] + new.errors[:3] + old.errors[:3])
+                await old.close()
+                await new.close()
+
+                # ---------- 6 and 7
+                for check in (preview, phone):
+                    try:
+                        label, problems = await check(p, port, env, nfacts, staff, moment, seen)
+                    except Exception as e:
+                        label, problems = check.__name__, [why(e)]
+                    step(not problems, label, problems)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # ---------- 8. nothing went outside
+    outside = sorted({h for x in seen for h in x.outside})
+    stopped = ", ".join(sorted({h for x in seen for h in x.stopped})) or "nothing"
+    step(not outside, f"nothing went outside ({sum(x.copy for x in seen)} requests answered by the copy, {sum(x.local for x in seen)} "
+                      f"from the local server; stopped: {stopped})", ["reached: " + ", ".join(outside)] if outside else [])
+    print(f"\n{len(failures)} Home side-by-side step(s) failed" if failures else "\nHome side by side: all passed", flush=True)
+    sys.exit(1 if failures else 0)
+
+
+def rs_ms(iso):
+    from captured_figures_test import ms
+    return ms(iso)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

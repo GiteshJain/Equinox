@@ -1,7 +1,7 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, banks, block, buildRules, card, connections, maintenance, optimiser, positions, schedule, time, turns, findType,
+  aircraftWeek, banks, block, buildRules, card, connections, maintenance, optimiser, positions, schedule, summary, time, turns, findType,
   type Card, type Json, type Rules, type RulesInput,
 } from "../src/index.js";
 
@@ -110,6 +110,8 @@ export function ask(input: RulesInput, q: Ask): unknown {
     }
     case "positions":
       return positions.positionsAt(rules, str(q.at, "at"));
+    case "key_figures":
+      return summary.keyFigures(rules);
     case "optimise": {
       const [from, to] = str(q.start, "start").split("-");
       return optimiser.optimise(rules, {

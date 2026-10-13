@@ -1842,7 +1842,7 @@ isOneToOne: false
 { Args: { "p_airline_id": number,"p_as_of"?: string,"p_days"?: number }; Returns: Json
                            },
 "rules_input":
-{ Args: { "p_world_id"?: number }; Returns: Json
+{ Args: { "p_routes"?: string,"p_world_id"?: number }; Returns: Json
                            },
 "save_loads":
 { Args: { "p_days": Json,"p_month": string }; Returns: Json

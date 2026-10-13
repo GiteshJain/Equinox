@@ -1,8 +1,8 @@
 # The planning library (`lib/rules/`)
 
 The planning rules in one place (decision #19, design `docs/design/2026-10-12-planner-app.md` §7): block times,
-turns, connections, banks, maintenance, an aircraft's week, the schedule checks, where each aircraft is, and the
-optimiser. The new planner, the website's trip search, the optimiser and Claude all use it, so they all give the same
+turns, connections, banks, maintenance, an aircraft's week, the schedule checks, where each aircraft is, the key
+figures for the planner's Home, and the optimiser. The new planner, the website's trip search, the optimiser and Claude all use it, so they all give the same
 answer. The rules themselves are in the manual (§4 and §9); this is how they are worked out.
 
 - **Plain data in, plain data out.** No screen code, no clock, no network: a moment is always an argument. Lint
@@ -39,6 +39,7 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `aircraftWeek` | An aircraft's week, as the Tails screen shows it: legs a week, block hours a day, routes, each departure with its ground time, turn and position | `aircraftWeek.forAircraft(rules, "T-001").block_hours_day` → 12 |
 | `schedule` | Night bans hit, a second daily too close (`second_daily_gap_h`, and the game's `same_route_gap_min`), flight numbers used twice, departures a week per airport against the cap, the next free flight-number pair at a base | `schedule.nextFlightNumbers(rules, hub)` → 1009 / 1010 |
 | `positions` | Where each aircraft is at a moment: in the air with the share flown, or on the ground since its last landing | `positions.positionsAt(rules, "2026-10-12T06:30:00Z")` → T-001 in the air, 40% of the way |
+| `summary` | The key figures on the planner's Home (#18 build pull request 5), for the group and each airline: aircraft in service (status active), routes flying (those with a rotation), flights a day (each departure by an aircraft in service, ÷ 7) and seats a day (those departures' seats: the aircraft's cabin layout, else its type's `seats_max`, ÷ 7) | `summary.keyFigures(rules).flights_day` → 3.14 on `cases/summary.json` (22 departures a week) |
 | `optimiser` | The best day's schedule for one aircraft from a base and some destinations: every order and start time, feasible against night bans, maintenance, the second-daily gap and turns; best by connections at the base (and any extra hubs), then maintenance | `optimiser.optimise(rules, {base: "HUB", destinations: ["AAA", "DDD"], ...}).best.order` → `["DDD", "AAA"]` |
 
 Two more: `card.checkCard()` checks a plan card's legs against every rule above, at both ends, and `airport` gives an

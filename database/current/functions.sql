@@ -662,6 +662,13 @@ declare
   v_at timestamptz;
   v_clashes jsonb := '[]'::jsonb;
   v_rows jsonb := '[]'::jsonb;
+  -- "as" and "from": the names given to inserts so far (name -> its primary key column), and, while writing, the key
+  -- each named insert made (name -> value)
+  v_as text;
+  v_take jsonb;
+  v_named jsonb := '{}'::jsonb;
+  v_made jsonb := '{}'::jsonb;
+  f record;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can save the planner' using errcode = '42501'; end if;
   if jsonb_typeof(p_changes) is distinct from 'array' then
@@ -685,8 +692,10 @@ begin
     end if;
     v_key := c -> 'key';
     v_vals := c -> 'values';
+    v_take := c -> 'from';
     if v_key = 'null'::jsonb then v_key := null; end if;
     if v_vals = 'null'::jsonb then v_vals := null; end if;
+    if v_take = 'null'::jsonb then v_take := null; end if;
     if v_key is not null and jsonb_typeof(v_key) <> 'object' then
       raise exception 'planner_save: change %: key must be an object, e.g. {"id": 812}', i using errcode = '22023';
     end if;
@@ -701,6 +710,28 @@ begin
     select array_agg(a.attname::text) into v_cols
       from pg_catalog.pg_attribute a
      where a.attrelid = format('public.%I', v_table)::regclass and a.attnum > 0 and not a.attisdropped;
+
+    -- "from": columns whose value is the key of a row an earlier insert in this call makes (it names that row with "as")
+    if v_take is not null then
+      if jsonb_typeof(v_take) <> 'object' or v_take = '{}'::jsonb then
+        raise exception 'planner_save: change %: from must be an object of columns, e.g. {"todo_id": "new-todo"}', i using errcode = '22023';
+      end if;
+      if v_op = 'delete' then
+        raise exception 'planner_save: change %: a delete takes no from', i using errcode = '22023';
+      end if;
+      for f in select e.key, e.value from jsonb_each(v_take) as e loop
+        if jsonb_typeof(f.value) <> 'string' or not (v_named ? (f.value #>> '{}')) then
+          raise exception 'planner_save: change %: from names %, which no earlier insert in this call is called (as)', i, f.value
+            using errcode = '22023';
+        end if;
+        if not (f.key = any (v_cols)) then
+          raise exception 'planner_save: change %: % has no column %', i, v_table, f.key using errcode = '22023';
+        end if;
+        if f.key = 'updated_at' or coalesce(v_vals, '{}'::jsonb) ? f.key then
+          raise exception 'planner_save: change %: % is given both in values and in from', i, f.key using errcode = '22023';
+        end if;
+      end loop;
+    end if;
 
     if v_op in ('update', 'delete') then
       if v_key is null
@@ -734,7 +765,7 @@ begin
         raise exception 'planner_save: change %: an insert needs values', i using errcode = '22023';
       end if;
     elsif v_op = 'update' then
-      if coalesce(v_vals, '{}'::jsonb) = '{}'::jsonb then
+      if coalesce(v_vals, '{}'::jsonb) = '{}'::jsonb and v_take is null then
         raise exception 'planner_save: change %: an update needs values', i using errcode = '22023';
       end if;
     elsif coalesce(v_vals, '{}'::jsonb) <> '{}'::jsonb then
@@ -749,8 +780,30 @@ begin
     if coalesce(v_vals, '{}'::jsonb) ? 'updated_at' then
       raise exception 'planner_save: change %: updated_at is set by the database', i using errcode = '22023';
     end if;
+
+    -- "as": an insert names the row it makes, for a later change's "from"; its table needs a one-column key
+    if c ? 'as' and c -> 'as' <> 'null'::jsonb then
+      v_as := c ->> 'as';
+      if jsonb_typeof(c -> 'as') <> 'string' or v_as = '' then
+        raise exception 'planner_save: change %: as must be a name, e.g. "new-todo"', i using errcode = '22023';
+      end if;
+      if v_op <> 'insert' then
+        raise exception 'planner_save: change %: only an insert can be named (as)', i using errcode = '22023';
+      end if;
+      if v_named ? v_as then
+        raise exception 'planner_save: change %: the name % is used twice', i, v_as using errcode = '22023';
+      end if;
+      if coalesce(array_length(v_pk, 1), 0) <> 1 then
+        raise exception 'planner_save: change %: % is keyed by more than one column, so no other change can take its key', i, v_table
+          using errcode = '22023';
+      end if;
+      v_named := v_named || jsonb_build_object(v_as, v_pk[1]);
+    else
+      v_as := null;
+    end if;
     v_list := v_list || jsonb_build_array(jsonb_build_object('n', i, 'table', v_table, 'op', v_op, 'key', v_key,
-                                                             'values', v_vals, 'base', c ->> 'base', 'pk', to_jsonb(v_pk)));
+                                                             'values', v_vals, 'base', c ->> 'base', 'pk', to_jsonb(v_pk),
+                                                             'as', v_as, 'from', v_take));
   end loop;
 
   -- 2. the rows to change or remove, locked in one order (table, then key) so two saves can't deadlock, each checked
@@ -775,19 +828,24 @@ begin
   perform set_config('equinox.actor', 'planner', true), set_config('equinox.actor_detail', coalesce(p_client, ''), true);
   for c in select e.value from jsonb_array_elements(v_list) as e order by (e.value ->> 'n')::bigint loop
     v_table := c ->> 'table';
+    -- the values, with each "from" column given the key its named insert made
+    v_vals := coalesce(c -> 'values', '{}'::jsonb);
+    if jsonb_typeof(c -> 'from') = 'object' then
+      v_vals := v_vals || (select jsonb_object_agg(e.key, v_made -> (e.value #>> '{}')) from jsonb_each(c -> 'from') as e);
+    end if;
     select string_agg(format('t.%1$I = k.%1$I', p), ' and ') into v_where from jsonb_array_elements_text(c -> 'pk') as p;
     if c ->> 'op' = 'insert' then
       select string_agg(format('%I', k), ', ' order by k), string_agg(format('r.%I', k), ', ' order by k)
-        into v_names, v_from from jsonb_object_keys(c -> 'values') as k;
+        into v_names, v_from from jsonb_object_keys(v_vals) as k;
       execute format('insert into public.%1$I as t (%2$s) select %3$s from pg_catalog.jsonb_populate_record(null::public.%1$I, $1) r '
                      'returning to_jsonb(t), t.updated_at', v_table, v_names, v_from)
-         into v_row, v_at using c -> 'values';
+         into v_row, v_at using v_vals;
     elsif c ->> 'op' = 'update' then
-      select string_agg(format('%1$I = r.%1$I', k), ', ' order by k) into v_names from jsonb_object_keys(c -> 'values') as k;
+      select string_agg(format('%1$I = r.%1$I', k), ', ' order by k) into v_names from jsonb_object_keys(v_vals) as k;
       execute format('update public.%1$I t set %2$s from pg_catalog.jsonb_populate_record(null::public.%1$I, $1) r, '
                      'pg_catalog.jsonb_populate_record(null::public.%1$I, $2) k where %3$s returning to_jsonb(t), t.updated_at',
                      v_table, v_names, v_where)
-         into v_row, v_at using c -> 'values', c -> 'key';
+         into v_row, v_at using v_vals, c -> 'key';
     else
       execute format('delete from public.%1$I t using pg_catalog.jsonb_populate_record(null::public.%1$I, $1) k where %2$s '
                      'returning to_jsonb(t)', v_table, v_where)
@@ -796,6 +854,9 @@ begin
     end if;
     if v_row is null then
       raise exception 'planner_save: change %: the row wasn''t there to %', c ->> 'n', c ->> 'op';
+    end if;
+    if c ->> 'as' is not null then
+      v_made := v_made || jsonb_build_object(c ->> 'as', v_row -> (c -> 'pk' ->> 0));
     end if;
     v_rows := v_rows || jsonb_build_array(jsonb_build_object(
       'table', v_table, 'op', c ->> 'op',
@@ -1164,8 +1225,8 @@ $function$
 
 ;
 
--- rules_input(p_world_id bigint)
-CREATE OR REPLACE FUNCTION public.rules_input(p_world_id bigint DEFAULT NULL::bigint)
+-- rules_input(p_world_id bigint, p_routes text)
+CREATE OR REPLACE FUNCTION public.rules_input(p_world_id bigint DEFAULT NULL::bigint, p_routes text DEFAULT 'all'::text)
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
@@ -1175,7 +1236,7 @@ begin
   if not private.caller_is_staff() then
     raise exception 'only planner staff can read the planning rules' using errcode = '42501';
   end if;
-  return private.rules_input_doc(p_world_id);
+  return private.rules_input_doc(p_world_id, p_routes);
 end
 $function$
 ;
@@ -7748,8 +7809,8 @@ $function$
 
 ;
 
--- private.rules_input_doc(p_world_id bigint)
-CREATE OR REPLACE FUNCTION private.rules_input_doc(p_world_id bigint)
+-- private.rules_input_doc(p_world_id bigint, p_routes text)
+CREATE OR REPLACE FUNCTION private.rules_input_doc(p_world_id bigint, p_routes text DEFAULT 'all'::text)
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE
@@ -7759,11 +7820,19 @@ declare
   w bigint;
   v_name text;
 begin
+  if p_routes is null or p_routes not in ('all', 'flown') then
+    raise exception 'rules_input: p_routes must be all or flown, not %', coalesce(p_routes, 'null') using errcode = '22023';
+  end if;
   select x.id, x.name into w, v_name from public.worlds x where x.id = p_world_id or (p_world_id is null and x.is_default);
   if w is null then raise exception 'no such world: %', coalesce(p_world_id::text, 'no default world') using errcode = '22023'; end if;
   return (
     with
-    -- the airlines the planning rows name, and every airline of our groups
+    -- the routes the document holds: every route that isn't removed, or with 'flown' only those that have rotations
+    rts as (
+      select r.* from public.routes r
+       where r.world_id = w and not r.removed
+         and (p_routes = 'all' or exists (select 1 from public.rotations ro where ro.route_id = r.id))),
+    -- the airlines the planning rows name, and every airline of our groups (the same with 'all' and 'flown')
     named(id) as (
       select b.airline_id from public.airline_bases b where b.world_id = w
       union select a.airline_id from public.aircraft a where a.world_id = w
@@ -7772,10 +7841,10 @@ begin
       union select l.airline_id from public.flight_legs l where l.world_id = w
       union select al.id from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
              where al.world_id = w and g.kind = 'ours'),
-    -- every airport a route that isn't removed, a leg, a base or an aircraft's base uses
+    -- every airport the document's routes, a leg, a base or an aircraft's base uses
     codes(code) as (
-      select r.hub_code from public.routes r where r.world_id = w and not r.removed
-      union select r.dest_code from public.routes r where r.world_id = w and not r.removed
+      select r.hub_code from rts r
+      union select r.dest_code from rts r
       union select l.origin_code from public.flight_legs l where l.world_id = w
       union select l.dest_code from public.flight_legs l where l.world_id = w
       union select b.airport_code from public.airline_bases b where b.world_id = w
@@ -7830,9 +7899,8 @@ begin
                     'id', r.id, 'airline_id', r.airline_id, 'hub_code', r.hub_code, 'dest_code', r.dest_code,
                     'distance_km', coalesce(r.distance_override_km, r.distance_km),
                     'market_id', m.id, 'market', m.name) order by r.id), '[]'::jsonb)
-                   from public.routes r
-                   left join public.markets m on m.id = case when r.market_cleared then null else coalesce(r.market_override_id, r.market_id) end
-                  where r.world_id = w and not r.removed),
+                   from rts r
+                   left join public.markets m on m.id = case when r.market_cleared then null else coalesce(r.market_override_id, r.market_id) end),
       'rotations', (select coalesce(jsonb_agg(jsonb_build_object(
                        'id', r.id, 'airline_id', r.airline_id, 'route_id', r.route_id, 'legacy_key', r.legacy_key) order by r.id), '[]'::jsonb)
                       from public.rotations r where r.world_id = w),

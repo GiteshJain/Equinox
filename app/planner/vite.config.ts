@@ -13,7 +13,7 @@ export default defineConfig({
   base: "/app/",
   plugins: [react()],
   // The planning library (decision #19, design §7), imported from its source as "@rules" (tsconfig.json's paths say the
-  // same for the type check). No screen uses it yet; pull request 5 onwards do.
+  // same for the type check). Home uses it since pull request 5, and every rebuilt screen after it.
   resolve: { alias: { "@rules": fileURLToPath(new URL("../../lib/rules/src/index.ts", import.meta.url)) } },
   build: {
     outDir: "../../web/app",
@@ -28,10 +28,14 @@ export default defineConfig({
             { name: "react", test: /node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/ },
             { name: "supabase", test: /node_modules[\\/]@supabase[\\/]/ },
             { name: "query", test: /node_modules[\\/]@tanstack[\\/]/ },
+            // three.js, for Home's globe: loaded only when Home opens (screens/home/Globe.tsx imports the scene)
+            { name: "three", test: /node_modules[\\/]three[\\/]/ },
           ],
         },
       },
     },
+    // three.js is about 540 kB on its own (136 kB as sent); it's loaded only on Home, so it may pass the usual 500 kB note
+    chunkSizeWarningLimit: 600,
   },
   test: {
     include: ["src/**/*.test.{ts,tsx}"],

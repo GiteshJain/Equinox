@@ -1,0 +1,60 @@
+{
+  "part": "summary",
+  "note": "Home's key figures (#18 build pull request 5). T-001 (layout of 200 seats) flies HUB–AAA–HUB daily: 14 departures; T-003 (no layout: its type's 146) flies FOC–AAA–FOC on three days: 6; T-002 (a layout with no seat count) flies HUB–NBN–HUB on Sundays: 2; O-001 is still on order and its rotation on AAA–BBB doesn't count towards flights or seats, though the route is flying.",
+  "input": {
+    "cabin_configs": [
+      {"id": 1, "code": "321-LEI", "aircraft_type_id": 1, "seats": 200},
+      {"id": 2, "code": "321-NEW", "aircraft_type_id": 1, "seats": null}
+    ],
+    "aircraft": [
+      {"id": 1, "registration": "T-001", "airline_id": 1, "aircraft_type_id": 1, "cabin_config_id": 1, "base_code": "HUB", "status": "active"},
+      {"id": 2, "registration": "T-002", "airline_id": 1, "aircraft_type_id": 1, "cabin_config_id": 2, "base_code": "HUB", "status": "active"},
+      {"id": 3, "registration": "T-003", "airline_id": 1, "aircraft_type_id": 2, "base_code": "FOC", "status": "active"},
+      {"id": 4, "registration": "O-001", "airline_id": 2, "aircraft_type_id": 1, "base_code": "AAA", "status": "on_order"}
+    ],
+    "rotations": [
+      {"id": 1, "airline_id": 1, "route_id": 1},
+      {"id": 2, "airline_id": 1, "route_id": 5},
+      {"id": 3, "airline_id": 2, "route_id": 7},
+      {"id": 4, "airline_id": 1, "route_id": 6}
+    ],
+    "flight_legs": [
+      {"id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 2, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+      {"id": 3, "airline_id": 1, "rotation_id": 2, "leg_no": 1, "flight_no": 2001, "origin_code": "FOC", "dest_code": "AAA", "aircraft_id": 3, "days_utc": [1, 3, 5], "dep_utc_min": 600, "block_min": 90},
+      {"id": 4, "airline_id": 1, "rotation_id": 2, "leg_no": 2, "flight_no": 2002, "origin_code": "AAA", "dest_code": "FOC", "aircraft_id": 3, "days_utc": [1, 3, 5], "dep_utc_min": 780, "block_min": 90},
+      {"id": 5, "airline_id": 2, "rotation_id": 3, "leg_no": 1, "flight_no": 3001, "origin_code": "AAA", "dest_code": "BBB", "aircraft_id": 4, "days_utc": [2], "dep_utc_min": 600, "block_min": 500},
+      {"id": 6, "airline_id": 2, "rotation_id": 3, "leg_no": 2, "flight_no": 3002, "origin_code": "BBB", "dest_code": "AAA", "aircraft_id": 4, "days_utc": [3], "dep_utc_min": 120, "block_min": 480},
+      {"id": 7, "airline_id": 1, "rotation_id": 4, "leg_no": 1, "flight_no": 1003, "origin_code": "HUB", "dest_code": "NBN", "aircraft_id": 2, "days_utc": [7], "dep_utc_min": 600, "block_min": 60},
+      {"id": 8, "airline_id": 1, "rotation_id": 4, "leg_no": 2, "flight_no": 1004, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 2, "days_utc": [7], "dep_utc_min": 720, "block_min": 60},
+      {"id": 9, "airline_id": 1, "rotation_id": 4, "leg_no": 2, "flight_no": 1006, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 2, "days_utc": [6], "dep_utc_min": null, "block_min": null}
+    ]
+  },
+  "cases": [
+    {
+      "name": "the group: 3 aircraft in service, 4 routes flying, 22 departures and 3,676 seats a week by the aircraft in service",
+      "rule": "the old planner's renderHome: tails, the routes with frequencies, legs a week ÷ 7, seats × round trips × 2 ÷ 7; a leg not yet timed doesn't fly",
+      "ask": {"what": "key_figures"},
+      "answer": {"aircraft": 3, "routes_flying": 4, "flights_day": 3.142857142857143, "seats_day": 525.1428571428571}
+    },
+    {
+      "name": "each airline: Other Air's route flies with an aircraft still on order, so it has a route but no aircraft, flights or seats",
+      "rule": "the same, per airline, in the input's order",
+      "ask": {"what": "key_figures"},
+      "answer": {"by_airline": [
+        {"airline_id": 1, "aircraft": 3, "routes_flying": 3, "flights_day": 3.142857142857143, "seats_day": 525.1428571428571},
+        {"airline_id": 2, "aircraft": 0, "routes_flying": 1, "flights_day": 0, "seats_day": 0}
+      ]}
+    },
+    {
+      "name": "a route counts once, however many rotations fly it; a rotation whose route isn't in the input doesn't count",
+      "rule": "routes flying: the routes with frequencies (the old planner's routesActive, a set of route keys)",
+      "input": {"rotations": [
+        {"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 2, "route_id": 7},
+        {"id": 4, "airline_id": 1, "route_id": 99}
+      ]},
+      "ask": {"what": "key_figures"},
+      "answer": {"routes_flying": 2}
+    }
+  ]
+}

@@ -12,6 +12,11 @@
 --   5. Signed out, refused; an account that isn't staff, refused; staff get what postgres gets.
 --   6. export_for_report(secret, 'rules'), signed out as the scripts call it, gives the same document (with and without
 --      the world's id); a wrong secret is refused.
+--   7. p_routes (#18 build pull request 5, spec docs/specs/2026-10-13-home.md §1): 'all' (the default) is unchanged, the
+--      document exactly as rules_input() gave it before this rehearsal's changes (database/tests/before/
+--      rules_input_before.sql); 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
+--      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
 create temporary table t_ri (k text primary key, v jsonb) on commit drop;
 grant select, insert, update on t_ri to authenticated, anon;
@@ -21,23 +26,103 @@ insert into public.planner_users (email) values ('rules-input-staff@example.com'
 do $test$
 begin
   assert (select p.prosecdef and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p
-           where p.oid = 'public.rules_input(bigint)'::regprocedure),
+           where p.oid = 'public.rules_input(bigint, text)'::regprocedure),
     'rules_input() doesn''t run as owner with an empty search path';
-  assert not has_function_privilege('anon', 'public.rules_input(bigint)', 'execute'), 'signed out, rules_input() can be called';
-  assert has_function_privilege('authenticated', 'public.rules_input(bigint)', 'execute'), 'signed in, rules_input() can''t be called';
+  assert not has_function_privilege('anon', 'public.rules_input(bigint, text)', 'execute'), 'signed out, rules_input() can be called';
+  assert has_function_privilege('authenticated', 'public.rules_input(bigint, text)', 'execute'), 'signed in, rules_input() can''t be called';
   assert not exists (select 1 from pg_proc p cross join aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-                      where p.oid in ('public.rules_input(bigint)'::regprocedure, 'private.rules_input_doc(bigint)'::regprocedure) and a.grantee = 0),
+                      where p.oid in ('public.rules_input(bigint, text)'::regprocedure, 'private.rules_input_doc(bigint, text)'::regprocedure) and a.grantee = 0),
     'everyone (PUBLIC) can call rules_input() or private.rules_input_doc()';
-  assert not has_function_privilege('anon', 'private.rules_input_doc(bigint)', 'execute')
-     and not has_function_privilege('authenticated', 'private.rules_input_doc(bigint)', 'execute'),
+  assert not has_function_privilege('anon', 'private.rules_input_doc(bigint, text)', 'execute')
+     and not has_function_privilege('authenticated', 'private.rules_input_doc(bigint, text)', 'execute'),
     'private.rules_input_doc() can be called from outside the database';
-  assert (select coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = 'private.rules_input_doc(bigint)'::regprocedure),
+  assert (select coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = 'private.rules_input_doc(bigint, text)'::regprocedure),
     'private.rules_input_doc() doesn''t have an empty search path';
-  assert obj_description('public.rules_input(bigint)'::regprocedure, 'pg_proc') is not null, 'rules_input() has no description';
-  assert obj_description('private.rules_input_doc(bigint)'::regprocedure, 'pg_proc') is not null, 'private.rules_input_doc() has no description';
+  assert obj_description('public.rules_input(bigint, text)'::regprocedure, 'pg_proc') is not null, 'rules_input() has no description';
+  assert obj_description('private.rules_input_doc(bigint, text)'::regprocedure, 'pg_proc') is not null, 'private.rules_input_doc() has no description';
   assert obj_description('public.export_for_report(text, text, text)'::regprocedure, 'pg_proc') like '%rules_input()%',
     'export_for_report()''s description doesn''t mention kind rules';
   raise notice 'who may call it: signed in only, runs as owner with an empty search path; its builder is internal; both described';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 7. p_routes: 'all' unchanged, 'flown' the lighter start
+-- (run second, so that its sizes are among the four notices the rehearsal's log shows for a test)
+do $test$
+declare
+  w bigint := (select x.id from public.worlds x where x.is_default);
+  d_all jsonb; d_flown jsonb; d_before jsonb; bad text; refused int := 0; v text;
+  n_routes int; n_codes int; n_removed int;
+begin
+  assert w is not null, 'the copy has no default world';
+  d_all := public.rules_input();
+  d_flown := public.rules_input(w, 'flown');
+  assert public.rules_input(w, 'all') = d_all and public.rules_input(null, 'all') = d_all, 'rules_input(world, all) differs from rules_input()';
+  -- 'all' is the document exactly as rules_input() gave it before this rehearsal's changes
+  select b.doc into d_before from rehearsal_before.rules_input b;
+  assert d_before is not null, 'rehearsal_before.rules_input is empty: the copy had no rules_input() before the changes';
+  assert d_all = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes';
+  assert (d_flown #>> '{world,id}')::bigint = w, 'flown: the document isn''t the default world''s';
+
+  -- 'flown': every route that isn't removed and has a rotation, and no other, each as 'all' has it
+  select count(*) into n_routes from public.routes r
+   where r.world_id = w and not r.removed and exists (select 1 from public.rotations ro where ro.route_id = r.id);
+  select string_agg(x.id::text, ', ') into bad from (
+    (select (e ->> 'id')::bigint as id from jsonb_array_elements(d_flown -> 'routes') e
+     except select r.id from public.routes r
+             where r.world_id = w and not r.removed and exists (select 1 from public.rotations ro where ro.route_id = r.id))
+    union all
+    (select r.id from public.routes r
+      where r.world_id = w and not r.removed and exists (select 1 from public.rotations ro where ro.route_id = r.id)
+     except select (e ->> 'id')::bigint from jsonb_array_elements(d_flown -> 'routes') e)) x;
+  assert bad is null, 'flown: the routes aren''t exactly those with rotations; these differ: ' || bad;
+  assert jsonb_array_length(d_flown -> 'routes') = n_routes, 'flown: a route is listed twice';
+  assert not exists (select 1 from public.rotations ro join public.routes r on r.id = ro.route_id
+                      where ro.world_id = w and not r.removed
+                        and not exists (select 1 from jsonb_array_elements(d_flown -> 'routes') e where (e ->> 'id')::bigint = r.id)),
+    'flown: a rotation''s route is missing';
+  select string_agg(e ->> 'id', ', ') into bad from jsonb_array_elements(d_flown -> 'routes') e
+   where not exists (select 1 from jsonb_array_elements(d_all -> 'routes') a where a = e);
+  assert bad is null, 'flown: these routes don''t read as all has them: ' || bad;
+  select count(distinct r.id) into n_removed from public.routes r
+   where r.world_id = w and r.removed and exists (select 1 from public.rotations ro where ro.route_id = r.id);
+
+  -- 'flown': exactly the airports a flown route, a leg, a base or an aircraft's base uses, each as 'all' has it
+  create temporary table t_ri_codes on commit drop as
+    select r.hub_code as code from public.routes r
+     where r.world_id = w and not r.removed and exists (select 1 from public.rotations ro where ro.route_id = r.id)
+    union select r.dest_code from public.routes r
+     where r.world_id = w and not r.removed and exists (select 1 from public.rotations ro where ro.route_id = r.id)
+    union select l.origin_code from public.flight_legs l where l.world_id = w
+    union select l.dest_code from public.flight_legs l where l.world_id = w
+    union select b.airport_code from public.airline_bases b where b.world_id = w
+    union select a.base_code from public.aircraft a where a.world_id = w and a.base_code is not null;
+  select count(*) into n_codes from t_ri_codes;
+  select string_agg(x.code, ', ') into bad from (
+    (select e ->> 'code' as code from jsonb_array_elements(d_flown -> 'airports') e except select c.code from t_ri_codes c)
+    union all
+    (select c.code from t_ri_codes c except select e ->> 'code' from jsonb_array_elements(d_flown -> 'airports') e)) x;
+  assert bad is null, 'flown: the airports aren''t exactly those the flown routes, legs, bases and aircraft use; these differ: ' || bad;
+  assert jsonb_array_length(d_flown -> 'airports') = n_codes, 'flown: an airport is listed twice';
+  select string_agg(e ->> 'code', ', ') into bad from jsonb_array_elements(d_flown -> 'airports') e
+   where not exists (select 1 from jsonb_array_elements(d_all -> 'airports') a where a = e);
+  assert bad is null, 'flown: these airports don''t read as all has them: ' || bad;
+
+  -- everything else is the same
+  select string_agg(k, ', ') into bad from (select jsonb_object_keys(d_all) as k union select jsonb_object_keys(d_flown)) x
+   where k not in ('routes', 'airports') and d_all -> k is distinct from d_flown -> k;
+  assert bad is null, 'flown: these parts differ from all, which they shouldn''t: ' || bad;
+
+  -- any other value is refused
+  foreach v in array array['some', 'FLOWN', ''] loop
+    begin perform public.rules_input(w, v); exception when invalid_parameter_value then refused := refused + 1; end;
+  end loop;
+  begin perform public.rules_input(w, null); exception when invalid_parameter_value then refused := refused + 1; end;
+  assert refused = 4, format('%s of 4 bad p_routes values were refused', refused);
+
+  raise notice 'p_routes: all is unchanged (% KB, % routes, % airports); flown is % KB: the % routes with rotations and the % airports they, the legs, the bases and the aircraft use, the rest the same (% removed routes have rotations; like all, flown leaves removed routes out); other values refused',
+    round(octet_length(d_all::text) / 1024.0), jsonb_array_length(d_all -> 'routes'), jsonb_array_length(d_all -> 'airports'),
+    round(octet_length(d_flown::text) / 1024.0), n_routes, n_codes, n_removed;
 end
 $test$;
 
