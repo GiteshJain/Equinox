@@ -147,6 +147,10 @@ class Planner:
             self.outside.append(urlsplit(res.url).hostname or "an unknown address")
 
     async def close(self):
+        if self.ctx:
+            # requests still on their way to the copy (Home reads more now: the hero, the map) end quietly when the browser
+            # closes, instead of printing a closed-page traceback from the route handler (Playwright's advice)
+            await self.ctx.unroute_all(behavior="ignoreErrors")
         if self.b:
             await self.b.close()
         if self.api:

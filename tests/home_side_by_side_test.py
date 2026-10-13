@@ -31,8 +31,9 @@ nothing goes outside.
    dialog); dismiss an item of needs attention with ×; the old planner shows it dismissed too; show again; the old
    planner shows none dismissed. Each writes exactly its rows, logged as planner with the tab's ID.
 6. A preview address (127.0.0.1) shows Home, and a tick, an add and a dismiss there send no write.
-7. At 380 px wide Home has no sideways scroll and no errors; screenshots of the new Home and of the old Home at 380 px
-   and at 1280 px go to HOME_SCREENS_DIR (the run's home-screens artifact), when it's set.
+7. At 380 px wide Home has no sideways scroll and no errors. The screenshots of the new Home and of the old Home at
+   380 px and at 1280 px are taken by step 4's look, each pair at the same width and moment, before step 5's saves; they
+   go to HOME_SCREENS_DIR (the run's home-screens artifact), when it's set.
 8. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints registrations, airport codes, counts and the boards' words, never anything else from the rows, since the log is
@@ -490,7 +491,7 @@ STYLES = """([pairs, props]) => pairs.map(([name, sel]) => { const el = document
 
 async def look(old, new):
     """The computed styles of each part of Home, the old planner's against the new's, at 1280 and at 380 px wide (both
-    pages the same width); the old Home's screenshots go with the new's into the artifact. Sizes that depend on the
+    pages the same width); both Homes' screenshots at each width go into the artifact. Sizes that depend on the
     content (widths, heights, a grid's columns) aren't compared; a gap only on flex or grid boxes, where it shows."""
     p, n_parts = [], 0
     for width, height in ((1280, 900), (380, 800)):
@@ -510,9 +511,10 @@ async def look(old, new):
                      if o[k] != x[k] and not (k == "gap" and "flex" not in o["display"] and "grid" not in o["display"]) and not (k == "grid-template-columns")]
             if diffs:
                 p.append(f"{width} px: {name}: " + "; ".join(diffs)[:600])
-        if SCREENS_DIR:
+        if SCREENS_DIR:   # both Homes at the same moment, width and state (before step 5's saves), so each pair compares
             Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
             await old.pg.screenshot(path=str(Path(SCREENS_DIR) / f"old-home-{width}.png"), full_page=True)
+            await new.pg.screenshot(path=str(Path(SCREENS_DIR) / f"home-{width}.png"), full_page=True)
     await old.pg.set_viewport_size({"width": 1440, "height": 1000})
     await new.pg.set_viewport_size({"width": 1280, "height": 900})
     return (f"the look: {len(LOOK)} parts of Home (the hero, the game clocks and the band, the map, aircraft on order, needs attention, coming up, "
@@ -755,9 +757,6 @@ async def phone(p, port, env, facts, staff, moment, seen):
         if over > 0:
             problems.append(f"the page scrolls sideways by {over} px at 380 px wide")
         globe = await ph.pg.evaluate("(document.querySelector('[data-globe]') || {dataset: {}}).dataset.globe || 'none'")
-        if SCREENS_DIR:
-            Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
-            await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / "home-380.png"), full_page=True)
         problems += ph.errors
     finally:
         await ph.close()
@@ -838,9 +837,6 @@ async def main():
                     sys.exit(1)
                 print("      the old Home: " + summary(o), flush=True)
                 print("      the new Home: " + summary(n), flush=True)
-                if SCREENS_DIR:
-                    Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
-                    await new.pg.screenshot(path=str(Path(SCREENS_DIR) / "home-1280.png"), full_page=True)
 
                 # ---------- 4. side by side
                 problems = compare(o, n)
