@@ -211,12 +211,8 @@ HUBP = {h["airline_id"]: h for h in (FIG.get("hub_progress") or {}).get("airline
 def finance_of(airline_id):
     f = FA.get(airline_id) or {}; c = CARDS.get(airline_id) or {}; fc = f.get("cash_forecast") or {}
     low = fc.get("lowest") or {}
-    # DELIBERATE FAILURE (to be reverted): cash taken from the old planner document instead of the figures
-    old = json.load(open("planner.json"))["state"].get("cash") or {} if os.path.exists("planner.json") else {}
-    key = next(a.get("planner_name") for a in OURS_ROWS if a["id"] == airline_id)
-    last = max((d for d in old if (old[d] or {}).get(key) is not None), default=None)
     return {"status": fc.get("status") or "no capture", "missing": fc.get("missing"),
-            "cash": old[last][key] if last else fc.get("cash"), "cash_at": fc.get("cash_at"),
+            "cash": fc.get("cash"), "cash_at": fc.get("cash_at"),
             "profit_day": c.get("profit_day"), "profit_span_days": c.get("span_days"), "early": c.get("early"),
             "per_aircraft_day": c.get("per_aircraft_day"), "load_7_days": c.get("load_7_days"),
             "flight_profit_day": fc.get("flight_profit_day"),
