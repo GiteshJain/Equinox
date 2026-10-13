@@ -232,7 +232,9 @@ function byCountry(rules: Rules, legs: readonly TimedLeg[], code: string): Count
 export function connectionsTable(rules: Rules, code: string, legs: readonly TimedLeg[] = timedLegs(rules)): HubConnections {
   const facts = rotationFacts(rules);
   const numbered = legs.filter((l) => shownNumber(l, facts) != null);
-  const ans = connectionsAt(rules, code, numbered);
+  // DELIBERATE FAILURE (to be reverted): connections allowed up to 9 hours instead of connection_max_wait_h
+  const nine: Rules = { ...rules, input: { ...rules.input, settings: { ...rules.input.settings, connection_max_wait_h: 9 } } };
+  const ans = connectionsAt(nine, code, numbered);
   const byId = new Map(numbered.map((l) => [l.id, l]));
   const pick = (ids: readonly number[]) => ids.flatMap((id) => byId.get(id) ?? []);
   const rows: HubConnectionRow[] = ans.by_bank.map((r) => {
