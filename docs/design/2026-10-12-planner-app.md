@@ -285,3 +285,10 @@ starts to matter sooner.
   They agree on every type today; make it data. Found by pull request #29.
 - **Ryanair has no main base marked** in `airline_bases`; its home falls back to `airlines.home_airport_code` (CDG),
   as the old planner does. It's exempt from hubs first, so nothing is affected. Found by pull request #29.
+- **The header's search box and Website button** are in the old planner's header but not yet the new one's. Add them
+  before the switch, once Routes and Tails exist to search. Found by pull request #31.
+- **Which city photo each airline card shows** is a list in the Home screen's code; `airlines.photo_city` should hold
+  it. With Photos (pull request 12). Found by pull request #31.
+- **"Flights today"** counts each leg on its own UTC day in the new planner; the old one used the hub's local weekday and
+  gave each return its outbound's days. On 11 Oct that was 467 against 466. The new count follows the stored legs and is
+  kept. Found by pull request #31.
