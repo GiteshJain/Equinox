@@ -452,13 +452,13 @@ async def popups(old, new, airlines, flown, route_ids):
             try:
                 await old.run("ui.view = 'home'; ui.modal = null; render(); true")
                 await old.run(f"ui.modal = {{kind: 'route', key: {json.dumps(key)}}}; render(); true")
-                await settle(old.pg, 150)
+                await old.pg.wait_for_timeout(200)   # drawn at once: no wait for the network (with settle() this step took 6 min on one run)
                 o = await old.pg.evaluate(READ_POPUP)
                 rid = route_ids[(al["name"], hub, dest)]
                 await new.pg.evaluate("id => document.querySelector(`svg.wmap .hits path.hit[data-route-id='${id}']`)"
                                       ".dispatchEvent(new MouseEvent('click', {bubbles: true}))", str(rid))
                 await new.pg.wait_for_selector(f"[data-route-popup='{hub}-{dest}'][data-popup-ready=yes]", timeout=30000)
-                await settle(new.pg, 150)
+                await new.pg.wait_for_timeout(200)
                 x = await new.pg.evaluate(READ_POPUP)
                 await new.pg.click(".modal .mx")
                 await new.pg.wait_for_selector(".modal", state="detached", timeout=10000)
