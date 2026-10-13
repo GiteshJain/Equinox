@@ -373,7 +373,7 @@ if [ $status -eq 0 ]; then
   rules_library || status=1
 fi
 
-# DELIBERATE FAILURE RUN (spec "Proving it"), reverted next commit: the side by side runs even though the database
-# tests failed, so both can be seen red in one run
-captured_figures || status=1
+if [ $status -eq 0 ]; then
+  captured_figures || status=1
+fi
 exit $status

@@ -467,7 +467,7 @@ create or replace function private.fig_lease_weeks(p_t timestamptz, p_td timesta
  stable
  set search_path to ''
 as $function$
-  select greatest(0, floor(extract(epoch from (p_t - (p_td + interval '336 hours'))) / 604800) + 1)::int   -- DELIBERATE FAILURE (spec "Proving it"): lease from 14 days, not 7; reverted next commit
+  select greatest(0, floor(extract(epoch from (p_t - (p_td + interval '168 hours'))) / 604800) + 1)::int
 $function$;
 
 -- cashForecast()'s fits(): an order of p_n at p_price (cabin included) placed at p_td stays safe if, at every point of the
