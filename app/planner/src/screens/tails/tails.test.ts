@@ -224,7 +224,7 @@ describe("filing", () => {
     // a card without the old planner's copy of its typed legs is left as it is
     expect(ch.map((c) => c.table)).not.toContain("plan_cards");
   });
-  it("drops the old planner's copy of the card's typed legs once they take the game's times, as its own save does", () => {
+  it("drops the old planner's copy of the card's typed legs once they take the game's times (it would show the old times)", () => {
     const kept = { ...card, extra: { legs: [{ no: "1201", days: "1234567" }], colour: "blue" } };
     const g = game([{ dep: "21:10", arr: "08:10" }, {}, {}, {}]);
     expect(filingChanges({ ...x, card: kept, game: g }).filter((c) => c.table === "plan_cards")).toEqual([

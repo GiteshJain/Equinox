@@ -58,6 +58,7 @@ failures = []
 started = time.monotonic()
 COPY = {}
 ARRIVAL = "the plan card's arrival"
+CARD_COPY = "the card's copy of its legs"
 
 KNOWN = {
     "block estimates": {
@@ -82,6 +83,14 @@ KNOWN = {
                 "its old block (plan_card_legs.block_min), so the card loses the game's arrival when it is read again; the new planner "
                 "stores the game's arrival (the spec: the card takes the game's times). Only block_min, only on a card leg whose "
                 "game block differs.",
+        "used": 0, "where": []},
+    CARD_COPY: {
+        "rule": "the old planner's storage keeps a plan card's legs whole in plan_cards.extra.legs when its leg rows can't give them "
+                "back as typed; filing with the game's times, the old card's legs gain the game's weekdays (and the game's arrival "
+                "beside the old block), so its save writes that copy. The new planner keeps the game's departure, arrival and "
+                "weekdays in the leg rows themselves (dep_utc_min, block_min, days_utc) and no copy; the old planner, opened "
+                "again, shows the card's legs with the same times and days either way (compared below). Only the card's "
+                "extra.legs and the one plan_cards update that writes it.",
         "used": 0, "where": []},
 }
 
@@ -489,9 +498,17 @@ def put_back(snap, ids):
 
 def compare_written(n, o, label, game_blocks_differ=()):
     p = []
-    for k in ("aircraft", "card", "rotations", "legs", "spending", "routes"):
+    for k in ("aircraft", "rotations", "legs", "spending", "routes"):
         if n[k] != o[k]:
             p.append(f"{label}: {k}: new {n[k]!r}, old {o[k]!r}"[:900])
+    # the card row: the same, but for the old planner's copy of its legs (known difference)
+    nc, oc = dict(n["card"] or {}), dict(o["card"] or {})
+    ne, oe = dict(nc.pop("extra", None) or {}), dict(oc.pop("extra", None) or {})
+    if "legs" in oe and "legs" not in ne:
+        known(CARD_COPY, f"{label}: card {oc.get('id')}: the old planner's copy of its {len(oe['legs'] or [])} legs")
+        oe.pop("legs")
+    if nc != oc or ne != oe:
+        p.append(f"{label}: the card: new {dict(nc, extra=ne)!r}, old {dict(oc, extra=oe)!r}"[:900])
     for a, b in zip(n["card_legs"], o["card_legs"]):
         for c in a:
             if a[c] == b.get(c):
@@ -508,6 +525,10 @@ def compare_written(n, o, label, game_blocks_differ=()):
 OLD_FREQS = """JSON.stringify(state.freqs.filter(f => f.tail === %s).map(f => ({ routeKey: f.routeKey, days: f.days, noOut: f.noOut, noBack: f.noBack,
   depHub: f.depHub, arrDest: f.arrDest, depDest: f.depDest, arrHub: f.arrHub, service: f.service, price: f.price, launched: f.launched }))
   .sort((a, b) => String(a.noOut).localeCompare(String(b.noOut))))"""
+# the card's legs as the old planner shows them: number, airports, times and days (no days = every day, as its check reads
+# them); the block is left out (known difference "the plan card's arrival": the arrival shown is the same)
+OLD_CARD_LEGS = """JSON.stringify((((state.plans || {})[%s] || {}).legs || []).map(L => ({ no: String(L.no), from: L.from, to: L.to, dep: L.dep,
+  arr: L.arr || "", days: String(L.days || "1234567").split("").sort().join("") })))"""
 
 
 def shift(hhmm, m):
@@ -598,6 +619,7 @@ async def filing(old, new, al, reg, aid, card_id):
             problems.append("the new planner didn't open the aircraft after filing it")
         await old.reopen()
         old_view_new = json.loads(await old.run(OLD_FREQS % json.dumps(reg)))
+        old_card_new = json.loads(await old.run(OLD_CARD_LEGS % json.dumps(reg)))
         in_tails = await old.run(f"state.tails.some(t => t.id === {json.dumps(reg)})")
         if not in_tails:
             problems.append("the old planner, opened again, doesn't list the aircraft among its tails")
@@ -618,12 +640,18 @@ async def filing(old, new, al, reg, aid, card_id):
         o_rows = written(aid, card_id, ids2)
         await old.reopen()
         old_view_old = json.loads(await old.run(OLD_FREQS % json.dumps(reg)))
+        old_card_old = json.loads(await old.run(OLD_CARD_LEGS % json.dumps(reg)))
         put_back(snap, ids2)
         problems += compare_written(n_rows, o_rows, mode, differ)
-        nc, oc = Counter((r["table"], r["op"]) for r in new_log), Counter((r["table"], r["op"]) for r in old_log)
+        if old_card_new != old_card_old:
+            problems.append(f"the old planner shows the card's legs after the new filing as {old_card_new}, after its own as {old_card_old}"[:900])
+        # the old planner's save writing its copy of the card's legs (known difference CARD_COPY) is the one change it may add
+        copy = "legs" in ((o_rows["card"] or {}).get("extra") or {}) and "legs" not in ((n_rows["card"] or {}).get("extra") or {})
+        old_log_cmp = [r for r in old_log if not (copy and r["table"] == "plan_cards" and r["op"] == "update" and list(r["fields"]) == ["extra"])]
+        nc, oc = Counter((r["table"], r["op"]) for r in new_log), Counter((r["table"], r["op"]) for r in old_log_cmp)
         if nc != oc:
             extra, fewer = oc - nc, nc - oc
-            rows = [f"{r['table']} {r['op']} {r['id']} ({', '.join(r['fields']) or 'whole row'})" for r in old_log if (r["table"], r["op"]) in extra] \
+            rows = [f"{r['table']} {r['op']} {r['id']} ({', '.join(r['fields']) or 'whole row'})" for r in old_log_cmp if (r["table"], r["op"]) in extra] \
                 + [f"new only: {r['table']} {r['op']} {r['id']} ({', '.join(r['fields']) or 'whole row'})" for r in new_log if (r["table"], r["op"]) in fewer]
             problems.append(f"the new filing changed {dict(nc)}, the old {dict(oc)}" + (f" (the difference: {'; '.join(rows)})" if rows else ""))
         if old_view_new != old_view_old:
@@ -634,7 +662,7 @@ async def filing(old, new, al, reg, aid, card_id):
                     + f": {n_rot} rotation(s) and {len(n_rows['legs'])} legs, the aircraft in service, {len(n_rows['spending'])} cabin fit(s)"
                     + (", the card's legs taking the game's times" if mode == "differs" else "")
                     + "; the same rows as the old planner's for the same card, logged as planner with the tab's ID; the old planner, opened again, "
-                      "shows the aircraft flying the same frequencies", problems))
+                      "shows the aircraft flying the same frequencies and the card's legs at the same times", problems))
     return out
 
 

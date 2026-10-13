@@ -607,8 +607,9 @@ export function filingChanges(x: FilingInput): Change[] {
       }
       if (Object.keys(values).length) out.push({ table: "plan_card_legs", op: "update", key: { id: L.row.id }, base: L.row.updated_at, values });
     });
-    // a copy of the card's typed legs the old planner's storage keeps (extra.legs) is out of date once they change: it goes,
-    // as the old planner's own save drops it (planner_state_put keeps it only while the legs are the same)
+    // a copy of the card's typed legs the old planner's storage keeps (extra.legs, which the old planner shows instead of
+    // the leg rows) is out of date once they change: it goes, and the old planner reads the legs from their rows. (The old
+    // planner's own save writes the copy afresh instead; the new planner keeps the times and days in the rows only.)
     const changed = x.legs.some((L, i) => { const g = x.game?.[i]; return !!g && !sameTimes(L, g); });
     if (changed && isObj(x.card.extra) && "legs" in x.card.extra) {
       const extra = { ...x.card.extra };
