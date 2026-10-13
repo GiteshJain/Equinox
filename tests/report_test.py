@@ -138,17 +138,15 @@ def main():
             seg = table[k:rows[n + 1][2] if n + 1 < len(rows) and rows[n + 1][2] > k else len(table)]
             fc = (fa.get(a["id"]) or {}).get("cash_forecast") or {}
             card = cards.get(a["id"]) or {}
-            want = [("cash", money(fc.get("cash"))), ("profit a day", signed(card.get("profit_day"))),
-                    ("lowest point", money((fc.get("lowest") or {}).get("balance"))), ("next order", next_order(card.get("next_order") or fc.get("next_order")))]
-            at, bad = len(name), []
-            for what, s in want:
-                w = seg.find(s, at)
-                if w < 0:
-                    bad.append(f"{what}: the sample's figures say {s!r}")
-                else:
-                    at = w + len(s)
-            check(not bad, f"{name}: cash {want[0][1]}, profit a day {want[1][1]}, lowest point {want[2][1]}, next order {want[3][1]!r}, as the sample's figures",
-                  "; ".join(bad) + f"; the row reads {seg[:300]!r}")
+            want = {"cash": money(fc.get("cash")), "profit a day": signed(card.get("profit_day")),
+                    "lowest point": money((fc.get("lowest") or {}).get("balance")), "next order": next_order(card.get("next_order") or fc.get("next_order"))}
+            # the row's cells in order: cash, profit a day, flight profit a day, lowest point, when ("11 Oct" or "—"), next order
+            t = seg[len(name):].split()
+            when = 1 if t[4:5] == ["—"] else 2
+            got = {"cash": " ".join(t[0:1]), "profit a day": " ".join(t[1:2]), "lowest point": " ".join(t[3:4]), "next order": " ".join(t[4 + when:])}
+            bad = [f"{k}: the PDF shows {got[k]!r}, the sample's figures say {want[k]!r}" for k in want if got[k] != want[k]]
+            check(not bad, f"{name}: cash {want['cash']}, profit a day {want['profit a day']}, lowest point {want['lowest point']}, "
+                           f"next order {want['next order']!r}, as the sample's figures", "; ".join(bad))
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print(f"\n{len(failures)} report check(s) failed" if failures else "\nweekly report: all passed", flush=True)
