@@ -27,7 +27,7 @@ interface CaseFile {
 
 const dir = new URL("../cases/", import.meta.url);
 const fixtures = new URL("../../../tests/fixtures/", import.meta.url);
-/** Case files made from the test sample (game data), kept in tests/fixtures/: the optimiser against plan.py (spec §4). */
+/** Case files made from the test sample (game data), kept in tests/fixtures/: the optimiser against plan.py's saved answer (spec §4). */
 const FIXTURE_CASES = ["optimiser_kul_2026-10-10.json"];
 const base = JSON.parse(readFileSync(new URL("_base.json", dir), "utf8")) as { input: RulesInput };
 const files: { label: string; url: URL }[] = [

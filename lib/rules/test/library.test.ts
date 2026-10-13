@@ -5,7 +5,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { RulesError, buildRules, card, positions, setting, settingNumber, worldRuleNumber, type RulesInput } from "../src/index.js";
+import { RulesError, buildRules, card, connections, positions, setting, settingNumber, worldRuleNumber, type RulesInput } from "../src/index.js";
+import * as browser from "../src/browser.js";
 import { run } from "../src/cli.js";
 import { mismatches } from "./match.js";
 import { mergeInput } from "./ask.js";
@@ -116,6 +117,24 @@ describe("the command (node lib/rules/dist/cli.js)", () => {
   it("reads the input also when saved as the data API answers it", () => {
     const wrapped = file("wrapped.json", [{ rules_input: JSON.parse(readFileSync(input, "utf8")) }]);
     expect(run(["block", wrapped, "HUB", "AAA", "A321 NEO LIGHT"])).toMatchObject({ block_min: 75 });
+  });
+});
+
+describe("the website's connection test (src/browser.ts, built into web/assets/rules.js)", () => {
+  const { isConnection, limitsFrom } = browser.connections;
+  it("is the library's own rule: the same limits as connectionLimits() for an airport with and without a minimum", () => {
+    const r = buildRules(world({ airports: [{ code: "HUB", utc_offset: 0, mct_min: 60 }, { code: "AAA", utc_offset: 0, mct_min: null }] }));
+    for (const code of ["HUB", "AAA"]) {
+      const lim = connections.connectionLimits(r, code);
+      expect(limitsFrom(r.airports.get(code)?.mct_min, settingNumber(r, "connection_max_wait_h"), settingNumber(r, "connection_buffer_min"))).toEqual(lim);
+    }
+    expect(browser.connections.isConnection).toBe(connections.isConnection);
+  });
+  it("counts from the airport's minimum (90 minutes where it has none) to the longest wait, both ends included", () => {
+    const at = limitsFrom(60, 8), none = limitsFrom(null, 8);
+    expect([isConnection(59, at), isConnection(60, at), isConnection(480, at), isConnection(481, at)]).toEqual([false, true, true, false]);
+    expect([none.mct_min, none.mct_source, isConnection(89, none), isConnection(90, none)]).toEqual([90, "default", false, true]);
+    expect(isConnection(540, limitsFrom(60, 10))).toBe(true);
   });
 });
 

@@ -22,3 +22,5 @@ web/app/
 
 # the planning library, built by npm run build (decision #19); run the command from it (node lib/rules/dist/cli.js)
 lib/rules/dist/
+# and its browser file for the website's trip search (design §7); Cloudflare and the checks build it themselves
+web/assets/rules.js

@@ -288,15 +288,20 @@ function wireSearch(root, onSubmit) {
 }
 function resolveCode(v) { const m = String(v).match(/\(([A-Z0-9]{3})\)/); if (m) return m[1]; const q = String(v).trim().toLowerCase(); const d = DEST.find(d => d.code.toLowerCase() === q) || DEST.find(d => d.city.toLowerCase() === q) || DEST.find(d => d.city.toLowerCase().startsWith(q)); return d ? d.code : String(v).trim().toUpperCase(); }
 
-// trip search: direct, one stop and two stops through group hubs, timed with real transfer windows
+// trip search: direct, one stop and two stops through group hubs, timed with real transfer windows. Every transfer uses
+// the planning library's connection test (web/assets/rules.js, #19): at least the airport's own minimum connection time
+// (from the game; 90 minutes where unknown) and at most the feed's connection_max_wait_h hours (manual §4; 8 on a feed
+// without it).
 function findTrips(A, B, dateStr) {
   const date = new Date(dateStr + "T00:00:00Z"); const w = (date.getUTCDay() + 6) % 7 + 1;
-  const hubSet = new Set(D.hubs.map(h => h.code)); const MCT = (D.content && D.content.mct) || {}; const mct = c => MCT[c] || 90;   // each airport's own minimum connection time (from the game), 1h30 where unknown
+  const hubSet = new Set(D.hubs.map(h => h.code)); const C = (D.content || {}); const MCT = C.mct || {};
+  const mw = C.connection_max_wait_h, maxWait = mw != null && mw !== "" && Number.isFinite(Number(mw)) ? Number(mw) : 8;
+  const R = window.EqRules.connections; const lim = c => R.limitsFrom(MCT[c], maxWait);
   const legAt = (l, dayOffset) => { const depU = dayOffset * 1440 + l.dep - off(l.from) * 60; return { l, depU, arrU: depU + l.dur }; };
   const fromA = LEGS.filter(l => l.from === A && l.days.has(w)).map(l => legAt(l, 0));
-  const next = (x, dest, wantTo) => {   // departures from x.l.to after arrival, within the transfer window
-    const out = [], arr = x.arrU, at = x.l.to, min = arr + mct(at), max = arr + 10 * 60;
-    for (const l of LEGS) { if (l.from !== at || l.to === x.l.from || (wantTo && l.to !== wantTo)) continue; for (let k = -1; k <= 2; k++) { const dayW = ((w - 1 + k) % 7 + 7) % 7 + 1; if (!l.days.has(dayW)) continue; const y = legAt(l, k); if (y.depU >= min && y.depU <= max) out.push(y); } }
+  const next = (x, dest, wantTo) => {   // departures from x.l.to after arrival that make a valid connection
+    const out = [], arr = x.arrU, at = x.l.to, L = lim(at);
+    for (const l of LEGS) { if (l.from !== at || l.to === x.l.from || (wantTo && l.to !== wantTo)) continue; for (let k = -1; k <= 2; k++) { const dayW = ((w - 1 + k) % 7 + 7) % 7 + 1; if (!l.days.has(dayW)) continue; const y = legAt(l, k); if (R.isConnection(y.depU - arr, L)) out.push(y); } }
     return out;
   };
   const trips = [];

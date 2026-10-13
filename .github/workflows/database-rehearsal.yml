@@ -33,6 +33,8 @@ on:
       - "tests/harness.py"
       - "tests/fixtures/make_sample.sh"
       - "tests/fixtures/sample.sql"
+      - "tests/fixtures/report_sample.sql"
+      - "tests/fixtures/report_sample.py"
       - ".github/workflows/database-rehearsal.yml"
 
 permissions:
@@ -99,7 +101,8 @@ jobs:
 
       # A pull request that changes how the test sample is made also gets a new one, made from the rehearsal's copy after
       # its changes (tests/README.md, "The sample"). It is kept as this run's artifact for a day, to be checked and
-      # committed; it is the same small sample of game data the repository may hold (decision #9), never keys.
+      # committed; it is the same small sample of game data the repository may hold (decision #9), never keys. The same
+      # for the weekly report's sample (tests/README.md, "The report sample"), kept as the report-sample artifact.
       # The new planner's types generated from the copy go to TYPES_DIR either way, kept as the planner-types artifact, so
       # a helper can fetch and commit them when they differ (design §5).
       - name: Rehearse the changes
@@ -110,6 +113,11 @@ jobs:
             unset SAMPLE_DIR
           else
             export SAMPLE_DIR="${{ runner.temp }}/sample"
+          fi
+          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/report_sample.sql tests/fixtures/report_sample.py; then
+            unset REPORT_SAMPLE_DIR
+          else
+            export REPORT_SAMPLE_DIR="${{ runner.temp }}/report-sample"
           fi
           bash database/rehearse.sh .backup "${{ github.base_ref }}" 2>&1 | tee -a "$LOG"
 
@@ -130,6 +138,16 @@ jobs:
         with:
           name: test-sample
           path: ${{ runner.temp }}/sample/*.json.gz
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Keep the new report sample
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-sample
+          path: ${{ runner.temp }}/report-sample/*.json.gz
           if-no-files-found: ignore
           retention-days: 1
 
