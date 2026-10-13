@@ -852,6 +852,15 @@ async def main():
 
                 # ---------- 4b. the hero, the clocks, the map and the airline cards; the map's other views; the loads; the look
                 try:
+                    # the cards' logos (the website's file) and hub-city photos (site_public()) come after the boards, in both
+                    await new.pg.wait_for_selector(".agrid[data-logos=ready][data-photos=ready]", timeout=30000)
+                    try:   # the old planner keeps no photos at all when the website has none: then there's nothing to wait for
+                        await old.pg.wait_for_function("() => window.__eqOld('!!eqMedia || !window.__eqsb')", timeout=20000)
+                    except Exception:
+                        pass
+                    await old.pg.evaluate("() => window.__eqOld('render(); true')")
+                    await settle(old.pg, 800)
+                    await settle(new.pg, 300)
                     op_, np_ = await old.pg.evaluate(PARTS, True), await new.pg.evaluate(PARTS, False)
                     problems = compare_parts(op_, np_)
                     m = np_["map"] or {"routes": [], "hubs": [], "airports": []}

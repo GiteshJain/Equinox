@@ -74,7 +74,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft }: {
     const deps = new Map<string, number>(), pts: LatLon[] = [];
     for (const r of flying) {
       if (r.airline_id !== id) continue;
-      deps.set(r.hub, (deps.get(r.hub) ?? 0) + (r.perDay * 7 || 1));
+      deps.set(r.hub, (deps.get(r.hub) ?? 0) + Math.round(r.perDay * 7));
       for (const c of [r.hub, r.dest]) { const p = places.get(c); if (p) pts.push(p.at); }
     }
     const hub = [...deps.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? rules.bases.find((b) => b.airline_id === id)?.airport_code;

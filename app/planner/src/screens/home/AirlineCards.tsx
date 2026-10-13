@@ -20,14 +20,14 @@ export const HUB_PHOTO: Record<string, string> = {
 export function AirlineCards({ cards, airlines, photos }: {
   cards: readonly AirlineCard[]; airlines: readonly HomeAirline[]; photos: Record<string, { url: string }> | undefined;
 }) {
-  const [logos, setLogos] = useState<Record<string, string>>({});
+  const [logos, setLogos] = useState<Record<string, string> | null>(null);
   useEffect(() => {
     let alive = true;
-    loadLogos().then((l) => { if (alive) setLogos(l); }).catch(() => undefined);
+    loadLogos().then((l) => { if (alive) setLogos(l); }).catch(() => { if (alive) setLogos({}); });
     return () => { alive = false; };
   }, []);
   return (
-    <div className="agrid" data-board="airline cards">
+    <div className="agrid" data-board="airline cards" data-logos={logos ? "ready" : "loading"} data-photos={photos ? "ready" : "loading"}>
       {airlines.map((a) => {
         const c = cards.find((x) => x.airline_id === a.id);
         if (!c) return null;
@@ -37,7 +37,7 @@ export function AirlineCards({ cards, airlines, photos }: {
         return (
           <div key={a.id} className={"acard" + (photo ? " eqphoto" : "")} style={style} data-acard={a.name}>
             <div className="ach">
-              {logos[a.name] ? <img className="alogo" src={logos[a.name]} alt={a.name} style={{ height: 23 }} />
+              {logos?.[a.name] ? <img className="alogo" src={logos[a.name]} alt={a.name} style={{ height: 23 }} />
                 : <><i className="lv" style={{ "--lv": a.color || "#8B96A8" } as CSSProperties} /><b>{a.name}</b></>}
               {c.flying ? <Pill kind="ok">flying</Pill> : <Pill kind="mute">not launched</Pill>}
             </div>
