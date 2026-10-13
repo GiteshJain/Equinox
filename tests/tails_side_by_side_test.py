@@ -1002,8 +1002,9 @@ async def main():
                             step(not problems, label, problems + new.errors[:3] + old.errors[:3])
                     except Exception as e:
                         step(False, f"filing {pick['reg']}", [why(e)] + new.errors[:3] + old.errors[:3])
-                    v = KNOWN[ARRIVAL]
-                    print(f"      known difference \"{ARRIVAL}\": used {v['used']} time(s)" + (f" (e.g. {'; '.join(v['where'][:3])})" if v["where"] else ""), flush=True)
+                    for k in (ARRIVAL, CARD_COPY):
+                        v = KNOWN[k]
+                        print(f"      known difference \"{k}\": used {v['used']} time(s)" + (f" (e.g. {'; '.join(v['where'][:3])})" if v["where"] else ""), flush=True)
                 else:
                     step(False, "filing an arrived aircraft from its plan card", ["the copy has no arrived aircraft waiting to be filed with a plan card of timed legs"])
 
