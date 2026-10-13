@@ -1,0 +1,60 @@
+{
+  "_about": "The weekly report's written text, by the Saturday review (scripts/README.md). build.py lays out what is here and leaves out any part that is missing or empty. Text may use <b>bold</b> and <i>italic</i>. Never type a figure that the database gives (cash, profit, the lowest point, next orders, route profit, growth signals, hubs first, markets): build.py prints those from results.json. Airlines in 'rivals' are keyed by their code (or their name). Every text below is an example of the format, not a real week.",
+  "week_line": "Example: one sentence on the week, written by the Saturday review, for example where growth is coming from and what limits it.",
+  "what_matters": [
+    "<b>Example headline.</b> A point the CEO should know, with its source: a market, a base, a rival's move.",
+    "<b>Another headline.</b> Each point is a short paragraph; the figures behind it are in the tables that follow."
+  ],
+  "decisions": [
+    {"decision": "Example decision", "recommendation": "What we recommend, in one or two sentences, and why.", "when": "Today"},
+    {"decision": "Another decision", "recommendation": "Each decision has its own brief in docs/briefs/; this is the summary.", "when": "Next week"}
+  ],
+  "performance": {
+    "title": "Example: a one-line headline for the money page.",
+    "notes": ["<b>What sits behind a number.</b> For example a payment day or a refit that explains a dip in profit."]
+  },
+  "network": {
+    "title": "Example: a one-line headline for the network page.",
+    "notes": ["<b>Planning:</b> how the week's aircraft were planned, and anything the routes' loads say."]
+  },
+  "markets": {
+    "title": "Example: a one-line headline for the markets page.",
+    "why": {"Intra-Europe": "Example: why this market matters to us."},
+    "notes": ["Example: a note under the markets tables."]
+  },
+  "hubs": {
+    "title": "Example: a one-line headline for the hubs page.",
+    "notes": ["Example: a note under the hubs and rivals."]
+  },
+  "rivals": {
+    "AW": "Example read: who Pan Am meets on its routes, and what that means.",
+    "VS": "Example read for Virgin Atlantic."
+  },
+  "moves": [
+    {"date": "Example date", "airline": "A rival", "move": "Opened a route or a base", "why": "Why it matters to us."}
+  ],
+  "risks": {
+    "title": "Example: the biggest risk this week, in one line.",
+    "rows": [
+      {"risk": "<b>Example risk.</b> What could go wrong, with its source.", "likelihood": "Medium", "impact": "High", "owner": "An airline", "action": "What we do about it."}
+    ]
+  },
+  "opportunities": {
+    "title": "Example: the best opportunity this week, in one line.",
+    "rows": [
+      {"opportunity": "<b>Example opportunity</b>", "size": "Its size", "where": "Where we are", "next": "The next move."}
+    ]
+  },
+  "plan": {
+    "title": "Example: how the plan went this week, in one line.",
+    "done": ["<b>Fleet:</b> example of what we did this week.", "<b>Network:</b> another example."],
+    "rotation": [
+      {"airline": "An airline", "moves": "The moves made this week (big market, frequency, feeder)", "next": "Its next move"}
+    ],
+    "coming_up": [
+      {"when": "Example date", "what": "What happens then."}
+    ],
+    "watch": ["Example: something to watch next week."]
+  },
+  "method": "Example: any note on method for this week."
+}
