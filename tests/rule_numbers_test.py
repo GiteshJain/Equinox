@@ -67,6 +67,11 @@ def planner_numbers(html, consts_given):
     out[("settings", "pattern_watch_under85_share", None)] = w85
     n3, full = find(r"else if \(p\.n >= (\d+) && share\(p\.full\) >= ([\d.]+)\)", "patterns: add", 2)
     out[("settings", "pattern_add_min_departures", None)], out[("settings", "pattern_add_full_share", None)] = n3, full
+    # Home's airport-cap warning (4,000 of the 5,000 cap) and the one-week check's week, settings since #18 build pull
+    # request 5 (airport_cap_warning_pct, aircraft_check_after_days)
+    warn, home_cap = find(r"if \(n >= (\d+)\) att\.push\(\{ cls: n >= (\d+) \? \"bad\"", "Home's airport-cap warning", 2)
+    out[("settings", "airport_cap_warning_pct", None)] = round(warn / home_cap * 100, 6)
+    out[("settings", "aircraft_check_after_days", None)] = find(r"const due = addDays\(last, (\d+)\);", "the one-week check's week (tailChecks)")
 
     # ref.consts as the planner merges them: defaultRef's, the fallbacks where it reads them, then what the getter gives
     m = re.search(r"consts: \{ ([^}]*) \}", html)
@@ -83,7 +88,7 @@ def planner_numbers(html, consts_given):
                    ("lfWindow", "load_window_days")):
         out[("settings", key, None)] = consts.get(k)
     out[("world_rules", "departures_per_airport_week.value", None)] = consts.get("depCap")
-    places = {"hub_first_departures (label)": bar, "patterns: watch needs": n2}
+    places = {"hub_first_departures (label)": bar, "patterns: watch needs": n2, "Home's airport cap": home_cap}
     return out, places
 
 
@@ -120,7 +125,7 @@ def read_sample():
     S = sample()
     if "settings" not in S or "world_rules" not in S:
         raise RuntimeError("the sample has no settings or world_rules (samples carry them since #13, pull request 9)")
-    return {"settings": S["settings"], "world_rules": S["world_rules"], "growth": (S.get("planner_meta") or {}).get("growthRules"),
+    return {"from": "sample", "settings": S["settings"], "world_rules": S["world_rules"], "growth": (S.get("planner_meta") or {}).get("growthRules"),
             "consts": ((S.get("planner_state") or {}).get("ref") or {}).get("consts")}
 
 
@@ -139,6 +144,12 @@ def table_numbers(d):
     return out
 
 
+# Settings added after the test sample was made (tests/fixtures/sample_2026-10-10.json.gz): without --db they can't be
+# in the sample's tables, so they're listed rather than failed; with --db (the rehearsal) they're compared as the rest.
+SINCE_SAMPLE = {"airport_cap_warning_pct": "13 Oct, #18 build pull request 5", "aircraft_check_after_days": "13 Oct, #18 build pull request 5"}
+after_sample = []
+
+
 def compare(d, html):
     """The differences, as lines; and how many numbers were compared."""
     code, _ = planner_numbers(html, d.get("consts"))
@@ -146,8 +157,11 @@ def compare(d, html):
     problems, n = [], 0
     for source, theirs in (("the planner's code", code), ("planner_meta.growthRules", meta_numbers(d.get("growth")))):
         for k, v in theirs.items():
-            n += 1
             label = f"{k[0]}.{k[1]}" + (f" ({k[2]})" if k[2] else "")
+            if k not in tables and d.get("from") == "sample" and k[1] in SINCE_SAMPLE:
+                after_sample.append(f"{label} ({SINCE_SAMPLE[k[1]]}; the planner's code has {v:g})")
+                continue
+            n += 1
             if k not in tables:
                 problems.append(f"{label}: not in the tables ({source} has {v})")
             elif tables[k] != v:
@@ -168,11 +182,16 @@ def main():
         if places["hub_first_departures (label)"] != code[("settings", "hub_first_departures", None)]:
             problems.append(f"the Hubs screen says {places['hub_first_departures (label)']:g} but its bars use "
                             f"{code[('settings', 'hub_first_departures', None)]:g}")
+        home_cap, cap = places["Home's airport cap"], code[("world_rules", "departures_per_airport_week.value", None)]
+        if home_cap != cap:
+            problems.append(f"Home warns against a cap of {home_cap:g}, but the planner's cap is {cap}")
         if places["patterns: watch needs"] != code[("settings", "pattern_min_departures", None)]:
             problems.append("load patterns: cut and watch need different numbers of departures")
     except Exception as e:
         problems, n = [f"{type(e).__name__}: {e}"], 0
     check(not problems, f"rule numbers: the old planner's {n} built-in numbers equal settings and world_rules ({where})", "\n".join(problems))
+    if after_sample:
+        print("      (settings newer than the test sample, so compared only on a database: " + "; ".join(sorted(set(after_sample))) + ")")
 
     # it would catch a change: one setting changed
     try:

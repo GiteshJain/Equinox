@@ -10,8 +10,9 @@ rule: nothing goes outside.
 
 1. Sign-in through the new planner's own form, as staff; the account that isn't staff is refused and signed out, with
    the old planner's message; opening the planner writes nothing (no change_log row, no table's row count changes).
-2. Home's placeholder shows the copy's airlines (our group's, in their position order, with their names and colours)
-   and the time of the latest change_log row.
+2. Home (build pull request 5) is no longer a placeholder: it opens with its boards (key figures, the network, needs
+   attention, coming up, the to-do board) and our airlines (our group's, in their position order, with their colours)
+   on the network's buttons. tests/home_side_by_side_test.py compares its figures with the old Home's.
 3. window.__eqPlanner.save() ticks the first open to-do: exactly that row changes (done, done_at), logged as actor
    planner with the tab's ID; the answer gives the row's new updated_at. A second save from that updated_at puts it
    back, so the next change needs no new read and the real saves that follow still find their open to-dos.
@@ -19,7 +20,7 @@ rule: nothing goes outside.
    carrying the first's title, and the second's change to another row in the same call isn't written either. The
    second tab shows the row as it is now and names it.
 5. A preview address (127.0.0.1) reads, says "preview · not saved", and sends no write.
-6. At 380 px wide, Home's placeholder and every placeholder screen have no sideways scroll and no errors.
+6. At 380 px wide, Home and the eight placeholder screens have no sideways scroll and no errors.
 7. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
@@ -87,24 +88,45 @@ class Planner:
         self.stopped = set()   # hosts whose requests were stopped
         self.outside = []      # responses that came over the network from anywhere but the local server: must stay empty
         self.errors = []       # page errors and console errors
+        self.dialogs = []      # browser dialogs it opened (dismissed): the planner asks in the page, so this stays empty
         self.b = self.api = self.ctx = self.pg = None
+        self.closing = False   # set by close()
+        self.inflight = 0      # requests on their way through route()
+        self.checks = []       # the address checks (where), awaited by close()
 
-    async def open(self, host=LIVE_HOST, path="/planner/next/"):
+    async def open(self, host=LIVE_HOST, path="/planner/next/", moment=None):
+        """Opens the planner; with a moment (ISO), its clock stays at that moment (tests/home_side_by_side_test.py)."""
         rules = f"MAP {LIVE_HOST} 127.0.0.1:{self.port}, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost"
         self.b = await self.p.chromium.launch(args=[f"--host-resolver-rules={rules}", "--no-proxy-server"])
         self.api = await self.p.request.new_context()
         self.ctx = await self.b.new_context(viewport=self.size, timezone_id="UTC", locale="en-US", service_workers="block")
         await self.ctx.route("**/*", self.route)
         await self.ctx.route_web_socket(re.compile(".*"), self.socket)
-        self.ctx.on("response", lambda r: asyncio.ensure_future(self.where(r)))
+        self.ctx.on("response", lambda r: self.checks.append(asyncio.ensure_future(self.where(r))))
         self.pg = await self.ctx.new_page()
+        if moment:
+            await self.pg.clock.set_fixed_time(moment)
         self.pg.on("pageerror", lambda e: self.errors.append("page error: " + str(e)[:200]))
         self.pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
                    if m.type == "error" and "Failed to load resource" not in m.text else None)
+        self.pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
         await self.pg.goto(f"http://{host}:{self.port}{path}")
         return self.pg
 
     async def route(self, r):
+        # Home reads more now (the hero, the map), so a request can still be on its way when the browser closes: close()
+        # lets it finish first, and an error once closing has begun is expected and dropped. Any other error is raised
+        # as before.
+        self.inflight += 1
+        try:
+            await self.forward(r)
+        except Exception:
+            if not self.closing:
+                raise
+        finally:
+            self.inflight -= 1
+
+    async def forward(self, r):
         req, u = r.request, r.request.url
         live, host = self.f["live_url"], urlsplit(u)
         if u.startswith(live + "/"):
@@ -141,8 +163,22 @@ class Planner:
             self.outside.append(urlsplit(res.url).hostname or "an unknown address")
 
     async def close(self):
+        """Closes the browser once the requests on their way have finished (up to 5 s), then waits (up to 5 s) for the
+        ones it cut off and for the address checks, so no call is left with an error no one reads (a closed-page
+        traceback in the log, after the test has passed)."""
+        for _ in range(50):
+            if not self.inflight:
+                break
+            await asyncio.sleep(0.1)
+        self.closing = True
         if self.b:
             await self.b.close()
+        for _ in range(50):
+            if not self.inflight:
+                break
+            await asyncio.sleep(0.1)
+        if self.checks:
+            await asyncio.gather(*self.checks, return_exceptions=True)
         if self.api:
             await self.api.dispose()
 
@@ -153,10 +189,10 @@ class Planner:
         await self.pg.click("#g-in")
 
     async def sign_in(self, email, password):
-        """Signs in through the new planner's own form and waits for Home's placeholder with its airlines."""
+        """Signs in through the new planner's own form and waits for Home with everything it reads."""
         await self.fill_sign_in(email, password)
-        await self.pg.wait_for_selector("[data-shell] [data-airlines] li", timeout=60000)
-        await self.pg.wait_for_function("window.__eqPlanner && document.querySelector('[data-latest-change]')", timeout=30000)
+        await self.pg.wait_for_selector("[data-shell] main[data-screen=home][data-home-ready=yes]", timeout=90000)
+        await self.pg.wait_for_function("!!window.__eqPlanner", timeout=30000)
         await settle(self.pg, 500)
 
     async def read(self, table, match):
@@ -213,27 +249,42 @@ async def refuse_other(p, port, env, facts, other, seen):
     return f"the account that isn't staff is refused and signed out (\"{NOT_STAFF}\"), and writes nothing", problems
 
 
-# ---------- 2. Home's placeholder ----------
-async def home_placeholder(pl):
+# ---------- 2. Home ----------
+async def home_opens(pl):
+    """Home is rebuilt (build pull request 5): no placeholder, its boards there (the hero, the map, needs attention,
+    coming up, the to-do board, a card for each of our airlines) and the game clocks under the header, our airlines on
+    the map's buttons in their order, with their colours. Its figures are compared with the old Home's by
+    tests/home_side_by_side_test.py."""
     want = json.loads(psql(f"""select coalesce(json_agg(json_build_object(
-            'game_id', a.game_id, 'name', coalesce(a.public_name, a.planner_name, a.game_name, 'Airline ' || a.game_id),
-            'color', coalesce(a.livery_color, '')) order by a.position nulls last, a.id), '[]')
+            'name', coalesce(a.planner_name, a.public_name, a.game_name, 'Airline ' || a.game_id),
+            'color', coalesce(a.livery_color, '#8B96A8')) order by a.position nulls last, a.id), '[]')
           from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
          where g.kind = 'ours' and a.world_id = {WORLD}""").strip())
-    got = await pl.pg.evaluate("""[...document.querySelectorAll('[data-airlines] [data-airline]')].map(li => ({
-        game_id: Number(li.dataset.airline), name: li.querySelector('.nm').textContent.trim(), color: li.dataset.color }))""")
-    latest = psql("select coalesce((extract(epoch from date_trunc('microseconds', max(changed_at))) * 1000000)::bigint::text, '') from public.change_log").strip()
-    shown = await pl.pg.evaluate("(document.querySelector('[data-latest-change]') || {}).dataset?.latestChange || ''")
+    got = await pl.pg.evaluate("""[...document.querySelectorAll('[data-board=network] .mleg .mf[title]')].map(b => ({
+        name: b.title, color: (b.querySelector('.lv') || {style: {getPropertyValue: () => ''}}).style.getPropertyValue('--lv').trim() }))""")
+    boards = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=home] [data-not-built]'),
+        figures: document.querySelectorAll('[data-figure="home: key figures"]').length,
+        network: !!document.querySelector('[data-board=network]'), attention: !!document.querySelector('[data-figure="home: needs attention"]'),
+        comingUp: !!document.querySelector('#coming-up'), todo: !!document.querySelector('#todo'), hero: !!document.querySelector('#eqhero'),
+        cards: document.querySelectorAll('.agrid .acard').length, clocks: document.querySelectorAll('#clocks .zc').length })""")
     problems = []
+    if boards["notBuilt"]:
+        problems.append("Home still shows the placeholder's line to the old planner")
+    if boards["figures"] != 5:
+        problems.append(f"{boards['figures']} key figure(s), expected 5")
+    problems += [f"no {k} board" for k in ("network", "attention", "comingUp", "todo", "hero") if not boards[k]]
+    if not boards["clocks"]:
+        problems.append("no game clocks under the header")
     if not want:
         problems.append("the copy has none of our airlines")
-    if [a["game_id"] for a in got] != [a["game_id"] for a in want]:
-        problems.append(f"airlines shown (game IDs, in order) {[a['game_id'] for a in got]}, the copy has {[a['game_id'] for a in want]}")
-    elif got != want:
-        problems.append("an airline's name or colour isn't the copy's: " + ", ".join(str(g["game_id"]) for g, w in zip(got, want) if g != w))
-    if not latest or not shown or micros(shown) != int(latest):
-        problems.append("the latest change shown isn't change_log's latest")
-    return f"Home's placeholder shows the copy's {len(want)} airlines in their order, with names and colours, and the latest change_log time", problems
+    if [a["name"] for a in got] != [a["name"] for a in want]:
+        problems.append(f"airlines on the network's buttons {[a['name'] for a in got]}, the copy has {[a['name'] for a in want]}")
+    elif [a["color"].lower() for a in got] != [a["color"].lower() for a in want]:
+        problems.append("an airline's colour isn't the copy's: " + ", ".join(g["name"] for g, w in zip(got, want) if g["color"].lower() != w["color"].lower()))
+    if boards["cards"] != len(want):
+        problems.append(f"{boards['cards']} airline card(s), the copy has {len(want)} of our airlines")
+    return (f"Home is rebuilt, not a placeholder: the hero, its key figures, the map, needs attention, coming up, the to-do board and "
+            f"the airline cards, with the copy's {len(want)} airlines in their order and colours, and the game clocks ({boards['clocks']} time zones)"), problems
 
 
 # ---------- 3. a to-do ticked through window.__eqPlanner.save() ----------
@@ -372,7 +423,7 @@ async def preview(p, port, env, facts, staff, seen):
         problems += count_changes(n0, counts()) + pv.errors
     finally:
         await pv.close()
-    return f"a preview address reads (our airlines shown) and sends no write (it called {', '.join(sorted(set(pv.rpcs))) or 'nothing'})", problems
+    return f"a preview address reads (Home shown) and sends no write (it called {', '.join(sorted(set(pv.rpcs))) or 'nothing'})", problems
 
 
 # ---------- 6. a phone ----------
@@ -392,14 +443,15 @@ async def phone(p, port, env, facts, staff, seen):
             path = await ph.pg.evaluate("location.pathname")
             if path != href:
                 problems.append(f"{sid}: its address is {path}, expected {href}")
-            if not await ph.pg.evaluate("!!document.querySelector('[data-not-built] a[href=\"/planner/\"]')"):
+            built = sid == "home"   # rebuilt (build pull request 5); the other eight are still placeholders
+            if built and not await ph.pg.evaluate("!!document.querySelector('main[data-screen=home][data-home-ready=yes]')"):
+                problems.append("home: it isn't ready at 380 px wide")
+            if not built and not await ph.pg.evaluate("!!document.querySelector('[data-not-built] a[href=\"/planner/\"]')"):
                 problems.append(f"{sid}: no line linking to the old planner")
             over = await ph.pg.evaluate(scroll)
             if over > 0:
                 problems.append(f"{sid}: the page scrolls sideways by {over} px at 380 px wide")
             problems += [f"{sid}: {e}" for e in ph.errors[e0:]]
-            if sid == "home" and not await ph.pg.evaluate("document.querySelectorAll('[data-airlines] li').length"):
-                problems.append("home: the airlines aren't shown at 380 px wide")
         await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/next/review/VS")
         await ph.pg.wait_for_selector("main[data-screen=review]", timeout=30000)
         if await ph.pg.evaluate(scroll) > 0:
@@ -407,7 +459,7 @@ async def phone(p, port, env, facts, staff, seen):
         problems += ph.errors
     finally:
         await ph.close()
-    return f"at 380 px wide, Home's placeholder and all {len(SCREENS) - 1} placeholder screens have no sideways scroll and no errors", problems
+    return f"at 380 px wide, Home and the {len(SCREENS) - 1} placeholder screens have no sideways scroll and no errors", problems
 
 
 async def main():
@@ -451,7 +503,7 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_placeholder, tick_todo):
+                for check in (home_opens, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

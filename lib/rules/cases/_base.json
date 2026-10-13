@@ -1,5 +1,5 @@
 {
-  "note": "The small world every case starts from, shaped as rules_input() answers. A case file's input, then a case's own, is laid over it: settings and world_rules merge key by key, any other key (a list) is replaced whole. The settings are Gander's as of 12 Oct 2026; the airports are made up. HUB is a hub with three banks (06:00, 14:00, 22:00) and a minimum connection time of 60 minutes; FOC a focus city; BBB has no minimum connection time of its own (90 minutes is used); DDD's offset is corrected by the world (5 → 5.5); NBN has a night ban that wraps past midnight.",
+  "note": "The small world every case starts from, shaped as rules_input() answers. A case file's input, then a case's own, is laid over it: settings and world_rules merge key by key, any other key (a list) is replaced whole. The settings are Gander's as of 12 Oct 2026 (with the two of 13 Oct: airport_cap_warning_pct and aircraft_check_after_days); the airports are made up. HUB is a hub with three banks (06:00, 14:00, 22:00) and a minimum connection time of 60 minutes; FOC a focus city; BBB has no minimum connection time of its own (90 minutes is used); DDD's offset is corrected by the world (5 → 5.5); NBN has a night ban that wraps past midnight.",
   "input": {
     "world": { "id": 1, "name": "Test world" },
     "settings": {
@@ -13,7 +13,9 @@
       "maint_min_ground_min": 120,
       "maintenance_min_pct": 100,
       "maintenance_target_pct": 105,
-      "second_daily_gap_h": 3
+      "second_daily_gap_h": 3,
+      "airport_cap_warning_pct": 80,
+      "aircraft_check_after_days": 7
     },
     "world_rules": {
       "departures_per_airport_week": { "value": 5000, "then": 8000, "after": "3 months" },

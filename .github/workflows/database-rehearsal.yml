@@ -1,8 +1,8 @@
 # Rehearses a pull request's database changes on a copy of last night's backup (decision #8), then lets the pull
 # request's own planners sign in and save for real into that copy (#17): the new planner at /planner/next/ (#18) through
 # planner_save(), after its types are generated again from the copy and compared with the committed ones, then the old one;
-# the planning library (#19) side by side with the old planner's Tails and Hubs on the copy; and the captured figures
-# (#19) side by side with the old planner's Review and Check.
+# the planning library (#19) side by side with the old planner's Tails and Hubs on the copy; the captured figures
+# (#19) side by side with the old planner's Review and Check; and the new planner's Home side by side with the old Home.
 # Runs when a pull request adds or changes a migration or a database test, changes either planner (a planner change can
 # break saving), the planning library (lib/) or their tests, or changes this check. The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
@@ -29,6 +29,7 @@ on:
       - "tests/real_saves_test.py"
       - "tests/rules_library_test.py"
       - "tests/captured_figures_test.py"
+      - "tests/home_side_by_side_test.py"
       - "tests/rule_numbers_test.py"
       - "tests/harness.py"
       - "tests/fixtures/make_sample.sh"
@@ -108,6 +109,7 @@ jobs:
       - name: Rehearse the changes
         env:
           TYPES_DIR: ${{ runner.temp }}/planner-types
+          HOME_SCREENS_DIR: ${{ runner.temp }}/home-screens   # the new Home and the old at 380 and 1280 px (#18 build pull request 5)
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -128,6 +130,18 @@ jobs:
         with:
           name: planner-types
           path: ${{ runner.temp }}/planner-types/types.ts
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # The new planner's Home and the old Home on the copy, at 380 and 1280 px wide (tests/home_side_by_side_test.py), for review: it shows
+      # live data, so it's kept three days only, like the types, and never committed
+      - name: Keep the screenshots of the new Home and the old
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: home-screens
+          path: ${{ runner.temp }}/home-screens/*.png
           if-no-files-found: ignore
           retention-days: 3
 

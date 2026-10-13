@@ -14,6 +14,7 @@ import { Review } from "./screens/review/Review";
 import { Routes } from "./screens/routes/Routes";
 import { SCREENS, type ScreenId } from "./screens/screens";
 import { Tails } from "./screens/tails/Tails";
+import { Band, Clocks } from "./ui/Clocks";
 import { ErrorBox } from "./ui/ErrorBox";
 import { Header } from "./ui/Header";
 import { Messages } from "./ui/Messages";
@@ -48,6 +49,8 @@ function Shell() {
   return (
     <div data-shell>
       <Header />
+      <Band />
+      <Clocks />
       <Outlet />
     </div>
   );

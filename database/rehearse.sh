@@ -46,6 +46,15 @@
 #    and prints each function's time. Of what the real saves changed (a to-do, a plan card's title, typed loads), only
 #    the typed loads count, and they were entered after the moment: the test sets aside loads and day flags typed after
 #    it, as the functions leave them out, and puts them back when it ends.
+# 11. The new planner's Home (#18 build pull request 5, spec docs/specs/2026-10-13-home.md §3), only if 1 to 10 passed,
+#    last because its saves change the copy: tests/home_side_by_side_test.py opens the old planner and the new one at the
+#    same frozen moment (the latest capture plus one hour), signed in as test staff, and compares every Home board (the
+#    hero, the clocks, the map and the airline cards included), the loads behind them to the decimal and the look
+#    (computed styles at 1280 and 380 px); then
+#    saves through the new Home's own buttons (a to-do ticked, added with two steps and deleted, an item dismissed and
+#    shown again) and checks the old planner shows the same; a preview saves nothing; at 380 px wide nothing scrolls
+#    sideways. Screenshots of the new Home and the old at 380 and 1280 px go to HOME_SCREENS_DIR (the run's
+#    home-screens artifact).
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -245,6 +254,23 @@ captured_figures() {
   return $rc
 }
 
+# The new planner's Home (#18 build pull request 5): side by side with the old Home on the copy, then its own saves. The
+# local address and keys go to the test in a file only this user can read, as for the real saves; they are never printed.
+home_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Home on the copy: side by side with the old Home, then saving through its own buttons (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" HOME_SCREENS_DIR="${HOME_SCREENS_DIR:-}" \
+      python3 tests/home_side_by_side_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -390,5 +416,9 @@ fi
 
 if [ $status -eq 0 ]; then
   captured_figures || status=1
+fi
+
+if [ $status -eq 0 ]; then
+  home_side_by_side || status=1
 fi
 exit $status

@@ -31,8 +31,10 @@ export type Row = { [column: string]: Json | undefined };
 /** A row's primary key, e.g. {id: 812}, or {world_id: 1, alert_key: "maint|B-0162"}. */
 export type Key = { [column: string]: Json };
 export type Values = { [column: string]: Json };
-/** One row of an action. base is the row's updated_at as read; an update and a delete need it. */
-export type Change = { table: PlannerTable; op: Op; key?: Key; base?: string; values?: Values };
+/** One row of an action. base is the row's updated_at as read; an update and a delete need it. An insert may name the
+ * row it makes (as), and a later change in the same action may take a column's value from that row's key (from: {column:
+ * name}), so a to-do and its steps are one action (planner_save(), migration 20261013200000_home.sql). */
+export type Change = { table: PlannerTable; op: Op; key?: Key; base?: string; values?: Values; as?: string; from?: { [column: string]: string } };
 
 export type SavedRow = { table: string; op: Op; key: Key; updated_at: string | null };
 export type Clash = { table: string; key: Key; current: Row | null };

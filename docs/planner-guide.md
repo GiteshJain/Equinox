@@ -13,13 +13,48 @@ after every change. On a preview address it saves nothing and says **preview · 
   signed out with **This account doesn't have access to the planner.**
 - **The header:** the nine screens in the same order, **Local** / **UTC** (it starts as the planner's setting and
   remembers your choice on this device), the save state and **Sign out**. On a phone the screens sit on their own row,
-  which you swipe sideways.
+  which you swipe sideways. Under it, on every screen, the **game clocks**: one per time zone of our bases, west to
+  east, with the time there, a dot for day or night and the bases' codes. (The old planner also has a band of the UTC
+  day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Each screen** says it's still in the old planner, with a link there. Home also lists our airlines in their order,
-  with their colours, and the time of the latest change to the planner's data.
-- **Saving** (once screens are rebuilt): each change is saved on its own. If someone changed the same thing since you
-  opened it, nothing in that change is saved; the screen shows what's there now and says what changed.
+- **Home is rebuilt** (13 Oct, build pull request 5); it shows what the old Home shows, from the same data and with the
+  same figures (below). **The other eight screens** still say they're in the old planner, with a link there, and a
+  link from Home to one of them (a needs-attention item, say) lands on that line.
+- **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
+  - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
+    aircraft in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes**
+    and the **average load, last 7 days**. It moves on each minute and turns slowly (not if your device asks for less
+    motion); drag it to turn it. The planning library works out the aircraft in the air and the flights from each
+    leg's own times, so near midnight UTC the counts can differ slightly from the old planner's, which reads each
+    route's local days.
+  - **The key figures** (aircraft, routes flying, flights a day, seats a day, the average economy load over 7 days) are
+    in the page but hidden, as on the old Home, where the globe's tiles stand in for them. The average load is the
+    database's: every flight the loads pages captured in the last 7 days, averaged, as the old Home works it out (or,
+    with none captured, every flight the load reports cover).
+  - **The network right now:** the map of every route in its airline's colour (wider the more flights a day), our bases
+    and the airports they reach, with night shaded as it is now. **+**, **−** and **⟲** zoom; the wheel zooms where it
+    points, and a zoomed map drags. An airline's button shows that airline, centred on its busiest base, with its routes
+    coloured by economy load over 7 days (green 95%+, amber 85–95, orange 70–85, red under 70, grey without loads).
+    **Planned** adds, dashed, the routes on the plan cards of aircraft not yet in service. Hover over a line or a dot to
+    name it; a route opens on its line in Routes, a planned route on its aircraft in Aircraft on order.
+  - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
+    plan. **File into planner** appears once one has arrived with a plan card, and opens the old planner for now: filing
+    moves into the new planner with Tails.
+  - **Needs attention:** grouped as on the old Home, each item linking to where it's fixed. **×** dismisses an item and
+    **show again** brings every dismissed item back; a dismissal shows in both planners. Airports are flagged from
+    80% of the game's departure cap (a setting, *airport_cap_warning_pct*). Routes to fix come from the captured profit;
+    with none captured, from the load patterns, as on the old Home. The interline line isn't there yet: its list of
+    countries is still only in the old planner, and comes with the Interline screen.
+  - **Coming up** (the next 14 days) and the **To-do** board, as on the old Home. One-week checks fall due a week after
+    an aircraft's latest launch or schedule change (a setting, *aircraft_check_after_days*). Tick a to-do when it's done;
+    add one with its steps, one a line; **×** deletes one after asking you in the page.
+  - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
+    route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
+    turns (or **clean**), with its home city's photo behind when the website has one. **Open fleet ›** opens the old
+    planner until Tails is rebuilt.
+- **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
+  change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
 
 ## Home: Overview

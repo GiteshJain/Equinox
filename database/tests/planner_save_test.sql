@@ -9,7 +9,14 @@
 --   3. All or nothing: a clash on one of two rows writes neither and answers with the clashing row as it is now; a row
 --      deleted since it was loaded is a clash (current null); an error from a table's own check writes nothing.
 --   4. Refused, writing nothing: a table not on the list, an unknown column, a missing base (update and delete), an
---      unknown op, a key that isn't the primary key, updated_at in the values, and changes that aren't a list.
+--      unknown op, a key that isn't the primary key, updated_at in the values, and changes that aren't a list. And
+--      (#18 build pull request 5) "as" and "from" used wrongly: as on an update, a name used twice, as on a table keyed
+--      by two columns, from naming no earlier insert (or a later one), from on a delete, from naming an unknown column,
+--      a column in both values and from.
+--   5. "as" and "from" (#18 build pull request 5, Home's to-dos): a new to-do and its two steps in one call, the steps
+--      taking the to-do's new id; each read back, answered with its key and updated_at, logged as planner with the tab.
+--      All or nothing: a step the table refuses writes neither the to-do nor the other step. Then the to-do and its
+--      steps are deleted in one call.
 -- Within this one transaction now() doesn't move, so the rows a change must visibly move are made first with an
 -- updated_at an hour back, as if they had been loaded in an earlier transaction.
 
@@ -249,8 +256,10 @@ set local role authenticated;
 do $test$
 declare y bigint := (select (v #>> '{}')::bigint from t_ps where k = 'y');
   y0 jsonb := (select to_jsonb(t.updated_at) from public.todos t where t.id = y);
-  c record; got text; n int := 0;
+  w bigint := (select (v #>> '{}')::bigint from t_ps where k = 'world');
+  td jsonb; c record; got text; n int := 0;
 begin
+  td := jsonb_build_object('world_id', w, 'title', 'planner_save test: refused', 'legacy_key', 'planner-save-test-refused-' || gen_random_uuid());
   for c in select * from (values
       ('a table not on the list (planner_users)', '[{"table": "planner_users", "op": "insert", "values": {"email": "x@example.com"}}]'::jsonb, 'isn''t one of the planner''s tables'),
       ('a table not on the list (change_log)', '[{"table": "change_log", "op": "delete", "key": {"id": 1}, "base": "2026-10-12T00:00:00Z"}]'::jsonb, 'isn''t one of the planner''s tables'),
@@ -263,6 +272,23 @@ begin
       ('a key that isn''t the primary key', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'update', 'key', '{"legacy_key": "x"}'::jsonb, 'base', y0, 'values', '{"title": "x"}'::jsonb)), 'must name exactly the primary key'),
       ('updated_at in the values', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'update', 'key', jsonb_build_object('id', y), 'base', y0, 'values', jsonb_build_object('updated_at', now()))), 'updated_at is set by the database'),
       ('changes that aren''t a list', '{"table": "todos"}'::jsonb, 'must be a JSON list'),
+      -- "as" and "from" used wrongly
+      ('as on an update', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'update', 'key', jsonb_build_object('id', y), 'base', y0, 'values', '{"title": "x"}'::jsonb, 'as', 't')), 'only an insert can be named'),
+      ('a name used twice', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'insert', 'values', td, 'as', 't'),
+                                              jsonb_build_object('table', 'todos', 'op', 'insert', 'values', td, 'as', 't')), 'is used twice'),
+      ('as on a table keyed by two columns', jsonb_build_array(jsonb_build_object('table', 'dismissals', 'op', 'insert',
+         'key', jsonb_build_object('world_id', w, 'alert_key', 'planner-save-test|as'), 'values', '{"dismissed_on": "2026-10-13"}'::jsonb, 'as', 'd')), 'keyed by more than one column'),
+      ('from naming no earlier insert', jsonb_build_array(jsonb_build_object('table', 'todo_items', 'op', 'insert',
+         'values', jsonb_build_object('world_id', w, 'position', 1, 'body', 'x'), 'from', '{"todo_id": "t"}'::jsonb)), 'which no earlier insert in this call is called'),
+      ('from naming a later insert', jsonb_build_array(
+         jsonb_build_object('table', 'todo_items', 'op', 'insert', 'values', jsonb_build_object('world_id', w, 'position', 1, 'body', 'x'), 'from', '{"todo_id": "t"}'::jsonb),
+         jsonb_build_object('table', 'todos', 'op', 'insert', 'values', td, 'as', 't')), 'which no earlier insert in this call is called'),
+      ('from on a delete', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'insert', 'values', td, 'as', 't'),
+         jsonb_build_object('table', 'todos', 'op', 'delete', 'key', jsonb_build_object('id', y), 'base', y0, 'from', '{"note": "t"}'::jsonb)), 'a delete takes no from'),
+      ('from naming an unknown column', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'insert', 'values', td, 'as', 't'),
+         jsonb_build_object('table', 'todo_items', 'op', 'insert', 'values', jsonb_build_object('world_id', w, 'position', 1, 'body', 'x'), 'from', '{"todo": "t"}'::jsonb)), 'has no column todo'),
+      ('a column in both values and from', jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'insert', 'values', td, 'as', 't'),
+         jsonb_build_object('table', 'todo_items', 'op', 'insert', 'values', jsonb_build_object('world_id', w, 'todo_id', y, 'position', 1, 'body', 'x'), 'from', '{"todo_id": "t"}'::jsonb)), 'given both in values and in from'),
       -- a good change first, then a bad one: the good one isn't written either
       ('a good change with a bad one', jsonb_build_array(
          jsonb_build_object('table', 'todos', 'op', 'update', 'key', jsonb_build_object('id', y), 'base', y0, 'values', '{"title": "planner_save test: refused"}'::jsonb),
@@ -286,7 +312,79 @@ do $test$
 begin
   assert not exists (select 1 from public.change_log l where l.id > (select (v #>> '{}')::bigint from t_ps where k = 'mark')),
     'a refused action wrote something';
-  raise notice 'refused, writing nothing: % cases (tables not on the list, an unknown column, a missing base for an update and a delete, an unknown op, a key that isn''t the primary key, updated_at in the values, changes that aren''t a list, a good change with a bad one)',
+  raise notice 'refused, writing nothing: % cases (tables not on the list, an unknown column, a missing base for an update and a delete, an unknown op, a key that isn''t the primary key, updated_at in the values, changes that aren''t a list, a good change with a bad one, as and from used wrongly)',
     (select v #>> '{}' from t_ps where k = 'refused');
+end
+$test$;
+
+-- ---------------------------------------------------------------- 5. "as" and "from": a to-do and its steps, one action
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub": "00000000-0000-4000-8000-0000000000e2", "email": "planner-save-staff@example.com", "role": "authenticated"}', true); end $$;
+set local role authenticated;
+do $test$
+declare r jsonb; w bigint := (select (v #>> '{}')::bigint from t_ps where k = 'world');
+  v_key text := 'planner-save-test-steps-' || gen_random_uuid(); v_key2 text := 'planner-save-test-steps-' || gen_random_uuid();
+  v_todo bigint; v_items bigint[]; failed boolean := false; v_changes jsonb;
+begin
+  -- a new to-do and its two steps in one call: the steps take the to-do's new id
+  r := public.planner_save(jsonb_build_array(
+         jsonb_build_object('table', 'todos', 'op', 'insert', 'as', 'new-todo',
+                            'values', jsonb_build_object('world_id', w, 'title', 'planner_save test: with steps', 'legacy_key', v_key, 'due_on', '2026-10-14')),
+         jsonb_build_object('table', 'todo_items', 'op', 'insert', 'from', '{"todo_id": "new-todo"}'::jsonb,
+                            'values', jsonb_build_object('world_id', w, 'position', 1, 'body', 'planner_save test: step one')),
+         jsonb_build_object('table', 'todo_items', 'op', 'insert', 'from', '{"todo_id": "new-todo"}'::jsonb,
+                            'values', jsonb_build_object('world_id', w, 'position', 2, 'body', 'planner_save test: step two'))),
+       'save-test-steps');
+  assert (r ->> 'ok')::boolean and jsonb_array_length(r -> 'rows') = 3, 'the to-do with its steps wasn''t saved: ' || coalesce(r::text, 'no answer');
+  v_todo := (r #>> '{rows,0,key,id}')::bigint;
+  assert exists (select 1 from public.todos t where t.id = v_todo and t.legacy_key = v_key and t.due_on = date '2026-10-14'),
+    'the new to-do doesn''t read back';
+  select array_agg(i.id order by i.position) into v_items from public.todo_items i where i.todo_id = v_todo;
+  assert (select array_agg(i.body order by i.position) from public.todo_items i where i.todo_id = v_todo)
+         = array['planner_save test: step one', 'planner_save test: step two'],
+    'the steps don''t read back under the new to-do, in order';
+  assert v_items = array[(r #>> '{rows,1,key,id}')::bigint, (r #>> '{rows,2,key,id}')::bigint]
+     and r #>> '{rows,1,table}' = 'todo_items' and (r #>> '{rows,1,updated_at}') is not null,
+    'the answer doesn''t give each step''s key and updated_at';
+
+  -- all or nothing: a step the table refuses (no body) writes neither the to-do nor the other step
+  begin
+    perform public.planner_save(jsonb_build_array(
+      jsonb_build_object('table', 'todos', 'op', 'insert', 'as', 't', 'values', jsonb_build_object('world_id', w, 'title', 'planner_save test: half', 'legacy_key', v_key2)),
+      jsonb_build_object('table', 'todo_items', 'op', 'insert', 'from', '{"todo_id": "t"}'::jsonb, 'values', jsonb_build_object('world_id', w, 'position', 1, 'body', 'fine')),
+      jsonb_build_object('table', 'todo_items', 'op', 'insert', 'from', '{"todo_id": "t"}'::jsonb, 'values', jsonb_build_object('world_id', w, 'position', 2, 'body', null))),
+      'save-test-steps');
+  exception when not_null_violation then failed := true;
+  end;
+  assert failed, 'a step with no body was accepted';
+  assert not exists (select 1 from public.todos t where t.legacy_key = v_key2), 'half of a refused to-do with steps was written';
+
+  -- the to-do and its steps deleted in one call, each from the updated_at it was read with
+  select jsonb_agg(jsonb_build_object('table', 'todo_items', 'op', 'delete', 'key', jsonb_build_object('id', i.id), 'base', i.updated_at) order by i.position)
+    into v_changes from public.todo_items i where i.todo_id = v_todo;
+  v_changes := v_changes || jsonb_build_array(jsonb_build_object('table', 'todos', 'op', 'delete', 'key', jsonb_build_object('id', v_todo),
+                                                                 'base', (select t.updated_at from public.todos t where t.id = v_todo)));
+  r := public.planner_save(v_changes, 'save-test-steps');
+  assert (r ->> 'ok')::boolean and jsonb_array_length(r -> 'rows') = 3, 'the to-do and its steps weren''t deleted: ' || r::text;
+  assert not exists (select 1 from public.todos t where t.id = v_todo) and not exists (select 1 from public.todo_items i where i.todo_id = v_todo),
+    'the deleted to-do or a step is still there';
+  insert into t_ps values ('steps_todo', to_jsonb(v_todo));
+end
+$test$;
+reset role;
+do $test$
+declare v_mark bigint := (select (v #>> '{}')::bigint from t_ps where k = 'mark'); v_todo text := (select v #>> '{}' from t_ps where k = 'steps_todo');
+  n int; bad int;
+begin
+  select count(*), count(*) filter (where l.actor is distinct from 'planner' or l.actor_detail is distinct from 'save-test-steps')
+    into n, bad from public.change_log l where l.id > v_mark;
+  assert bad = 0, format('%s of %s change-log row(s) aren''t actor planner, detail save-test-steps', bad, n);
+  assert (select array_agg(l.table_name || ' ' || l.op order by l.id) from public.change_log l where l.id > v_mark)
+         = array['todos insert', 'todo_items insert', 'todo_items insert', 'todo_items delete', 'todo_items delete', 'todos delete'],
+    'the change log isn''t the to-do and its two steps added, then the two steps and the to-do removed';
+  assert (select count(*) from public.change_log l where l.id > v_mark and l.table_name = 'todo_items' and l.op = 'insert'
+             and l.new_values ->> 'todo_id' = v_todo) = 2,
+    'the steps weren''t logged under the new to-do''s id';
+  raise notice 'as and from: a to-do and its two steps in one call, the steps under the to-do''s new id, each answered with its key and logged as planner with the tab; a step the table refused wrote nothing of its action; the to-do and its steps deleted in one call';
 end
 $test$;
