@@ -14,7 +14,8 @@ nothing goes outside.
    planner in web/planner/ is unchanged), its clock frozen at the moment; once it has read the capture, the backups
    and the jobs it draws Home again, and its boards are read from the page.
 3. The new Home at the same moment, signed in through its own form; its boards are read from the page (data-figure and
-   its data attributes). Opening either planner writes nothing.
+   its data attributes). Opening either planner writes nothing. Both ask for reduced motion, so the hero's globe holds
+   still (STILL below); the phone in step 7 keeps it turning.
 4. Side by side: the key figures, aircraft on order (each airline's count and summary, each aircraft's row), needs
    attention (how many, how many dismissed, the groups in their order, and every item's group, words, seriousness,
    link and dismissal key), coming up (every row) and the to-do board (the open ones with their dates and steps, the
@@ -23,8 +24,8 @@ nothing goes outside.
    colour and width), with the busiest airline picked (centred on it, its routes coloured by load) and with Planned,
    and the airline cards. The loads behind them must equal the old planner's to the decimal: the group's average
    economy load from airline_cards() (and its fallback from the load reports) and every route's 7-day loads from
-   route_loads(), against the old planner's own figures. The look: the computed styles of each part of Home, both pages
-   the same width, at 1280 and at 380 px. A difference fails and names the board, the item and both values, unless it
+   route_loads(), against the old planner's own figures. The look: the computed styles of each part of Home and of what
+   it draws by ::before (the folds' chevrons, the dots, the cards' bar), both pages the same width, at 1280 and 380 px. A difference fails and names the board, the item and both values, unless it
    is a known difference (KNOWN below, each with its rule), which is printed with how often it was used and both values.
 5. Real saves in the new Home, by its own buttons: tick the first open to-do; add one with two steps; the old planner,
    opened again, shows the same to-do board; delete the new one (the planner asks in the page, never a browser
@@ -62,12 +63,9 @@ failures = []
 
 # Where the new Home follows its spec and the old Home did otherwise. Each is allowed only where its test says, and
 # printed with how often it was used and both values.
+# (The average load was one, until the Building chat's review: airline_cards() now gives the old Home's own figure, every
+# captured flight of the group over the last 8 days, so it must be equal, and step 4's loads check it to the decimal.)
 KNOWN = {
-    "average load": {
-        "rule": "spec §2: the average load comes from airline_cards(): each airline's average economy load over its last 7 days of "
-                "captures (Review's figure; the tile shows their average). The old Home averaged every captured flight of the "
-                "last 8 days across the group.",
-        "used": 0, "where": []},
     "interline": {
         "rule": "the old Home's interline line comes from its own list of interline countries (IL_YES and the rest), which has no "
                 "home outside the old planner's code yet (decision #19); the new Home leaves it out until the Interline screen "
@@ -283,9 +281,6 @@ def compare(old, new):
     for i, (o, n) in enumerate(zip(old["kpis"], new["kpis"])):
         if o == n:
             continue
-        if i == 4 and re.sub(r"≈\d+%", "", o) == re.sub(r"≈\d+%", "", n):
-            known("average load", f"old {o.split('%')[0]}%, new {n.split('%')[0]}%")
-            continue
         p.append(f"key figures: figure {i + 1}: old {o!r}, new {n!r}")
 
     # aircraft on order
@@ -480,45 +475,63 @@ LOOK = [   # (part, the old planner's selector, the new planner's)
     ("base tag", "#view .hubtag.on", ".hubtag.on"), ("focus city tag", "#view .hubtag.fc", ".hubtag.fc"), ("card figures", "#view .acs", ".acs"),
     ("card figure", "#view .acs b", ".acs b"), ("card words", "#view .acs span", ".acs span"), ("card bases", "#view .acb", ".acb"),
     ("card pills", "#view .acf .pill", ".acf .pill"), ("Open fleet", "#view .acard .link", ".acard .link"),
+    # drawn by ::before: the folds' chevrons, the attention dots, the cards' colour bar, the clocks' day or night dot
+    ("airline row arrow", ".oob details.gsec > summary::before", "[data-figure='home: aircraft on order'] details.gsec > summary::before"),
+    ("done fold", "#view .todob details.tdone > summary", "#todo details.tdone > summary"),
+    ("done fold arrow", "#view .todob details.tdone > summary::before", "#todo details.tdone > summary::before"),
+    ("attention dot", "#view .hgrid .att > li::before", "#attention .att > li::before"),
+    ("card colour bar", "#view .acard::before", ".acard::before"), ("clock dot", "#clocks .zc::before", "#clocks .zc::before"),
 ]
 LOOK_PROPS = ["display", "position", "color", "background-color", "background-image", "font-family", "font-size", "font-weight", "font-stretch", "line-height",
               "letter-spacing", "font-variant-numeric", "font-feature-settings", "text-transform", "text-align", "white-space", "padding-top", "padding-right",
               "padding-bottom", "padding-left", "margin-top", "margin-bottom", "border-top-left-radius", "border-top-width", "border-top-color", "border-left-width",
               "box-shadow", "gap", "opacity", "fill", "stroke", "stroke-width", "r", "grid-template-columns", "flex-basis", "min-height"]
-STYLES = """([pairs, props]) => pairs.map(([name, sel]) => { const el = document.querySelector(sel); if (!el) return [name, null];
-  const cs = getComputedStyle(el); const o = {}; for (const p of props) o[p] = cs.getPropertyValue(p); return [name, o]; })"""
+# a part drawn by ::before or ::after has these too (its size, except the card's bar, which is as wide as the card)
+PSEUDO_PROPS = ["content", "transform", "width", "height", "margin-right", "background-size", "list-style-type"]
+SIZE_FREE = {"card colour bar"}
+# STILL: both planners here are opened asking for reduced motion, so the hero's globe is drawn once and holds still. A
+# full-page screenshot of the turning globe (WebGL drawn by the CPU on the runners) took 10 to 30 s and once timed out;
+# held still, under a second. The phone step (7) and tests/planner_next_test.py keep it turning.
+SHOT_MS = 90000
+STYLES = """([pairs, props, pprops]) => pairs.map(([name, sel]) => { const [s, pseudo] = sel.split(/(?=::(?:before|after)$)/);
+  const el = document.querySelector(s); if (!el) return [name, null];
+  const cs = getComputedStyle(el, pseudo || null); const o = {};
+  for (const p of (pseudo ? props.concat(pprops) : props)) o[p] = cs.getPropertyValue(p); return [name, o]; })"""
 
 
 async def look(old, new):
     """The computed styles of each part of Home, the old planner's against the new's, at 1280 and at 380 px wide (both
-    pages the same width); both Homes' screenshots at each width go into the artifact. Sizes that depend on the
-    content (widths, heights, a grid's columns) aren't compared; a gap only on flex or grid boxes, where it shows."""
+    pages the same width), and of what each draws by ::before (a fold's chevron, a dot, a bar) with its content, size
+    and turn; both Homes' screenshots at each width go into the artifact. Sizes that depend on the content (an
+    element's width and height, a grid's columns) aren't compared; a gap only on flex or grid boxes, where it shows."""
     p, n_parts = [], 0
     for width, height in ((1280, 900), (380, 800)):
         await old.pg.set_viewport_size({"width": width, "height": height})
         await new.pg.set_viewport_size({"width": width, "height": height})
         await settle(old.pg, 900)
         await settle(new.pg, 900)
-        os_ = dict(await old.pg.evaluate(STYLES, [[[n, o] for n, o, _ in LOOK], LOOK_PROPS]))
-        ns_ = dict(await new.pg.evaluate(STYLES, [[[n, s] for n, _, s in LOOK], LOOK_PROPS]))
+        os_ = dict(await old.pg.evaluate(STYLES, [[[n, o] for n, o, _ in LOOK], LOOK_PROPS, PSEUDO_PROPS]))
+        ns_ = dict(await new.pg.evaluate(STYLES, [[[n, s] for n, _, s in LOOK], LOOK_PROPS, PSEUDO_PROPS]))
         for name, _, _ in LOOK:
             o, x = os_.get(name), ns_.get(name)
             if o is None or x is None:
                 p.append(f"{width} px: {name}: {'the old Home has none' if o is None else ''}{' and ' if o is None and x is None else ''}{'the new Home has none' if x is None else ''}")
                 continue
             n_parts += 1
-            diffs = [f"{k} old {o[k]!r}, new {x[k]!r}" for k in LOOK_PROPS
-                     if o[k] != x[k] and not (k == "gap" and "flex" not in o["display"] and "grid" not in o["display"]) and not (k == "grid-template-columns")]
+            diffs = [f"{k} old {o[k]!r}, new {x[k]!r}" for k in o
+                     if o[k] != x[k] and not (k == "gap" and "flex" not in o["display"] and "grid" not in o["display"]) and not (k == "grid-template-columns")
+                     and not (name in SIZE_FREE and k in ("width", "height"))]
             if diffs:
                 p.append(f"{width} px: {name}: " + "; ".join(diffs)[:600])
         if SCREENS_DIR:   # both Homes at the same moment, width and state (before step 5's saves), so each pair compares
             Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
-            await old.pg.screenshot(path=str(Path(SCREENS_DIR) / f"old-home-{width}.png"), full_page=True)
-            await new.pg.screenshot(path=str(Path(SCREENS_DIR) / f"home-{width}.png"), full_page=True)
+            await old.pg.screenshot(path=str(Path(SCREENS_DIR) / f"old-home-{width}.png"), full_page=True, timeout=SHOT_MS)
+            await new.pg.screenshot(path=str(Path(SCREENS_DIR) / f"home-{width}.png"), full_page=True, timeout=SHOT_MS)
     await old.pg.set_viewport_size({"width": 1440, "height": 1000})
     await new.pg.set_viewport_size({"width": 1280, "height": 900})
     return (f"the look: {len(LOOK)} parts of Home (the hero, the game clocks and the band, the map, aircraft on order, needs attention, coming up, "
-            f"the to-do board, the airline cards) have the old Home's computed styles at 1280 and 380 px ({n_parts} compared)"), p
+            f"the to-do board, the airline cards, and what they draw by ::before) have the old Home's computed styles at 1280 and 380 px "
+            f"({n_parts} compared)"), p
 
 
 # ---------- the planners ----------
@@ -544,6 +557,7 @@ class OldHome(rs.Planner):
     async def page(self, host=LIVE_HOST):
         self.pg = pg = await self.ctx.new_page()
         await pg.clock.set_fixed_time(self.moment)
+        await pg.emulate_media(reduced_motion="reduce")   # as the new Home here (STILL)
         pg.on("pageerror", lambda e: self.errors.append("page error: " + str(e)[:200]))
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text else None)
@@ -821,6 +835,7 @@ async def main():
                     await old.sign_in(*staff)
                     o = await old.home()
                     await new.open(moment=moment)
+                    await new.pg.emulate_media(reduced_motion="reduce")   # STILL: set before Home and its globe are made
                     await new.sign_in(*staff)
                     n = await new_home(new)
                     problems = list(old.errors) + list(new.errors)

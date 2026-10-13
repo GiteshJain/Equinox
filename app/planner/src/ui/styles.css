@@ -188,6 +188,13 @@ ul.att.sub{margin:6px 0 2px 10px}
 details.gsec{background:var(--group);border:0;border-radius:var(--r-card);margin:0 0 8px}
 details.gsec>summary{cursor:pointer;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;list-style:none}
 details.gsec>summary::-webkit-details-marker{display:none}
+/* the old planner's chevron on every fold ("SF-style chevrons for every foldable"): points right, down when open */
+details.gsec>summary::before,details.tdone>summary::before{content:"";display:inline-block;flex:none;width:9px;height:9px;border:0;margin:0 6px 0 0;
+  background:no-repeat center/9px 9px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3 1.5 6.5 5 3 8.5' fill='none' stroke='%238E8E93' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  transform:none;transition:transform .18s ease}
+details.gsec[open]>summary::before,details.tdone[open]>summary::before{transform:rotate(90deg)}
+details.tdone>summary{list-style:none;display:flex;align-items:center}
+details.tdone>summary::-webkit-details-marker{display:none}
 details.gsec .gtbl{background:#fff;border-top:1px solid var(--line-2);border-radius:0 0 var(--r-card) var(--r-card)}
 details.gsec .gtbl th,details.gsec .gtbl td{padding:6px 12px}
 .gsum{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
