@@ -648,6 +648,49 @@ tr[data-tail]:hover td{background:rgba(0,0,0,.022)}
   .view.tails .fg label{flex:1 1 140px;min-width:0}
 }
 
+/* ---------- Hubs (#18 build pull request 8): the day strip and its bank windows, the hourly bars, the week grid, the
+   flight list and the connections, as the old planner's cascade leaves them (web/planner/index.html, both its style
+   sheets, in their order: an arrival's tick stays green even off wave, as there). ---------- */
+.legend{color:var(--muted);font-size:12.5px;margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin:0 4px 0 10px;vertical-align:middle}
+.sw.dep{background:var(--sky)} .sw.arr{background:#3DBE84} .sw.win{background:rgba(255,159,10,.2);border:1px solid #F6B44B}
+.strip{position:relative;height:40px;border-radius:9px;margin-bottom:12px;overflow:hidden;
+  background:linear-gradient(90deg,#E9E9EE 0%,#E9E9EE 22%,#F9F9FB 27%,#F9F9FB 73%,#E9E9EE 78%,#E9E9EE 100%)}
+.strip .win{position:absolute;top:0;height:100%;font-size:11.5px;font-weight:600;padding-left:5px;line-height:40px}
+.strip .win.dep{background:rgba(255,159,10,.20);color:#985200;box-shadow:inset 2px 0 0 #F6B44B}
+.strip .win.arr{background:rgba(52,199,89,.16)}
+.tick{position:absolute;top:6px;width:2px;height:28px;border-radius:1px;background:var(--sky)}
+.tick.off{background:var(--bad)}
+.tick.arr{background:#3DBE84}
+.hours{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;height:120px;align-items:end}
+.hr{position:relative;height:100%;display:flex;align-items:end;gap:1px;padding-bottom:18px}
+.hr .bar{flex:1;border-radius:3px 3px 0 0;min-height:0} .bar.dep{background:var(--sky)} .bar.arr{background:#3DBE84}
+.hr span{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:var(--faint)}
+.wgwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;border:0;border-radius:var(--r-card);background:#fff;box-shadow:0 0 0 1px var(--line-2)}
+.wg{border-collapse:collapse;font-size:10.5px}
+.wg th{font-weight:600;color:var(--muted);padding:4px 4px;text-align:left;border-bottom:1px solid var(--line);position:sticky;left:0;background:var(--surface)}
+.wg th.hh{position:static;border-left:1px solid var(--line-2);padding-left:4px}
+.wg td{text-align:center;padding:1px 0;border-bottom:1px solid var(--line-2);border-left:1px solid transparent;background:color-mix(in srgb, #4B3BA8 calc(var(--k,0) * 36%), #fff);
+  min-width:17px;width:17px;height:28px;vertical-align:middle;line-height:1.05}
+.wg td.hr{border-left-color:var(--line-2)} .wg td.sum{min-width:66px;white-space:nowrap;padding:0 8px}
+.wg td.wdep{box-shadow:inset 0 3px 0 #F6B44B} .wg td.warr{box-shadow:inset 0 3px 0 #3DBE84}
+.wg td .d,.wg td .a{display:block;font-weight:700} .wg td .d{color:var(--sky-ink)} .wg td .a{color:#1A7F37}
+.wg tr.cur th{color:var(--night);font-weight:700}
+.view.hub .board.note{margin:6px 0 18px}
+/* the flight list: a panel of its own, as the old .view > .tbl */
+.hubtbl{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-panel);box-shadow:var(--shadow);margin:0 0 18px}
+.hubtbl > .tbl{background:transparent}
+/* phones (design §9): nothing scrolls sideways at 380 px; the day strip with its hours and the week grid scroll inside their
+   own box, as do the two tables */
+.hubscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+@media (max-width:860px){
+  .view.hub .hubday{min-width:600px}
+  .view.hub .hours{height:84px}
+  .view.hub .tbl{font-size:12.5px} .view.hub .tbl td,.view.hub .tbl th{padding:7px 8px}
+  .view.hub .toolbar > .seg{overflow-x:auto;scrollbar-width:none;max-width:100%}
+  .view.hub .toolbar > .seg::-webkit-scrollbar{display:none}
+}
+
 /* ---------- small screens ---------- */
 @media (max-width:860px){
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .kv{font-size:24px}

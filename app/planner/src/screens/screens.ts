@@ -34,13 +34,15 @@ export function screenRoute(s: Screen): string {
 }
 
 /**
- * Where something is fixed, inside the planner's router: a screen, opened at an aircraft (/tails/N001AW) or at one
- * airline's route (/routes/PA/JFK-ORD, /review/PA/JFK-ORD), or at a part of Home (/#todo). A screen not rebuilt yet
- * shows its link to the old planner; each takes these addresses as it's rebuilt.
+ * Where something is fixed, inside the planner's router: a screen, opened at an aircraft (/tails/N001AW), at one
+ * airline's route (/routes/PA/JFK-ORD, /review/PA/JFK-ORD), at an airport's board on a day (/hubs/JFK?day=2, Monday
+ * being day 0 and left out), or at a part of Home (/#todo). A screen not rebuilt yet shows its link to the old planner;
+ * each takes these addresses as it's rebuilt.
  */
-export function itemRoute(id: ScreenId, at: { tail?: string; airline?: string | null; hub?: string; dest?: string; hash?: string } = {}): string {
+export function itemRoute(id: ScreenId, at: { tail?: string; airline?: string | null; hub?: string; dest?: string; day?: number; hash?: string } = {}): string {
   const s = screen(id);
   if (id === "home") return at.hash ? `/#${at.hash}` : "/";
+  if (id === "hubs" && at.hub) return `/${s.path}/${encodeURIComponent(at.hub)}${at.day ? `?day=${at.day}` : ""}`;
   if (at.tail) return `/${s.path}/${encodeURIComponent(at.tail)}`;
   if (at.airline && at.hub && at.dest) return `/${s.path}/${encodeURIComponent(at.airline)}/${encodeURIComponent(at.hub + "-" + at.dest)}`;
   return `/${s.path}`;

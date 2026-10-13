@@ -1,7 +1,7 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, banks, block, buildRules, card, checks, connections, frequency, maintenance, optimiser, positions, schedule, service, summary, tails, time, turns, findType,
+  aircraftWeek, banks, block, buildRules, card, checks, connections, frequency, hubs, maintenance, optimiser, positions, schedule, service, summary, tails, time, turns, findType,
   type Card, type CheckFacts, type FrequencyEnds, type Json, type LocalTimes, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
@@ -185,6 +185,21 @@ export function ask(input: RulesInput, q: Ask): unknown {
         off_wave: ac ? tails.offWave(rules, ac.id) : null,
       };
     }
+    // the Hubs screen (#18 build pull request 8): an airport's board on a day (0 = Monday), one slot of its week, its
+    // connections table, and one city pair from it (null when the pair isn't linked)
+    case "hub_board":
+      return hubs.board(rules, str(q.airport, "airport"), num(q.day, "day"));
+    case "hub_slot": {
+      const b = hubs.board(rules, str(q.airport, "airport"), 0);
+      const d = b.week[num(q.day, "day")], i = num(q.slot, "slot");
+      return { departures: d?.departures[i] ?? null, arrivals: d?.arrivals[i] ?? null, shading: b.slots[i] ?? null };
+    }
+    case "hub_connections":
+      return hubs.connectionsTable(rules, str(q.airport, "airport"));
+    case "hub_pair":
+      return hubs.connectionsTable(rules, str(q.airport, "airport")).pairs.find((p) => p.from === str(q.from, "from") && p.to === str(q.to, "to")) ?? null;
+    case "hub_airports":
+      return { airports: hubs.airports(rules) };
     case "great_circle":
       return { km: block.greatCircleBetween(q.a as { lat: number; lon: number }, q.b as { lat: number; lon: number }) };
     default:
