@@ -8,8 +8,8 @@
 // fix and the loads per route; the tables for the rest. Home only words and arranges them. It moves on with the clock
 // each minute.
 import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { checks as checkRules, positions, summary } from "@rules";
-import { OLD_PLANNER } from "../../data/config";
 import { useNow } from "../../data/clock";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
@@ -23,6 +23,7 @@ import { ErrorBox } from "../../ui/ErrorBox";
 import { Pill } from "../../ui/Pill";
 import { RoutePopup } from "../routes/RoutePopup";
 import { itemRoute } from "../screens";
+import { AircraftPopup } from "../tails/AircraftPopup";
 import { AirlineCards } from "./AirlineCards";
 import { homeAttention, type HomeAirline } from "./attention";
 import { comingUp, UP_LABEL, type UpEvent } from "./comingUp";
@@ -63,6 +64,16 @@ export function Home() {
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
   // the route pop-up a click on the map's route opens (Routes' RoutePopup, build pull request 6)
   const [popup, setPopup] = useState<number | null>(null);
+  // the aircraft pop-up an item about one aircraft opens, as on the old Home (Tails' AircraftPopup, build pull request 7),
+  // kept in the address (/planner/next/?aircraft=N001AW) so a link or the back button reopens it
+  const [search, setSearch] = useSearchParams();
+  const tailPopup = search.get("aircraft");
+  const setTailPopup = (reg: string | null) => setSearch((s) => {
+    const n = new URLSearchParams(s);
+    if (reg) n.set("aircraft", reg);
+    else n.delete("aircraft");
+    return n;
+  });
 
   const airlines: HomeAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
     id: a.id, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, code: a.iata_code, color: a.livery_color,
@@ -141,6 +152,7 @@ export function Home() {
 
         <NetworkMap rules={rules} airlines={airlines} now={now} worldId={w} aircraft={aircraftQ.data} onOpenRoute={setPopup} />
         {popup != null && rules ? <RoutePopup routeId={popup} rules={rules} airlines={airlines} onClose={() => setPopup(null)} /> : null}
+        {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
 
         {aircraftQ.data && rules && planCardsQ.data
           ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), airlines, now.getTime())} now={now.getTime()} />
@@ -158,7 +170,8 @@ export function Home() {
                       {hidden} dismissed · <button type="button" className="link" onClick={() => void showAgain()} data-show-again>show again</button>
                     </div>
                   ) : null}
-                  {shown.length ? <AttentionList items={shown} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)} />
+                  {shown.length ? <AttentionList items={shown} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)}
+                    onOpen={(a) => { if (!a.tail || a.route || a.screen !== "tails") return false; setTailPopup(a.tail); return true; }} />
                     : <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div>}
                 </>
               );
@@ -179,7 +192,7 @@ function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: nu
   if (!data.count) return null;
   return (
     <Board title="Aircraft on order" className="oob" figure="home: aircraft on order"
-      note={`${data.count} aircraft · "File into planner" appears once one arrives, and opens the old planner for now`}>
+      note={`${data.count} aircraft · "File into planner" appears once one arrives, and files it on Tails`}>
       <div className="gsum">
         {data.groups.map((g) => <span className="gchip" key={g.airline.id} data-oo-count={g.airline.name}><AirlineMark color={g.airline.color} />{g.airline.name} <b>{g.rows.length}</b></span>)}
       </div>
@@ -207,7 +220,7 @@ function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: nu
                       <td>{r.arrived ? <Pill kind="warn" small>arrived</Pill> : <span className="dim">{untilText(r.at, now)}</span>}</td>
                       <td>{r.base}</td>
                       <td className="dim">{r.plan}</td>
-                      <td className="n ooact">{r.hasCard ? (r.arrived ? <a className="primary sm" href={OLD_PLANNER} data-file-into-planner>File into planner</a> : null)
+                      <td className="n ooact">{r.hasCard ? (r.arrived ? <Link className="primary sm" to={"/tails?" + new URLSearchParams({ ...(g.airline.code ? { airline: g.airline.code } : {}), file: r.registration }).toString()} data-file-into-planner>File into planner</Link> : null)
                         : <span className="dim">no plan card</span>}</td>
                     </tr>
                   ))}

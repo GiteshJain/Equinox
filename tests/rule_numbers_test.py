@@ -72,6 +72,8 @@ def planner_numbers(html, consts_given):
     warn, home_cap = find(r"if \(n >= (\d+)\) att\.push\(\{ cls: n >= (\d+) \? \"bad\"", "Home's airport-cap warning", 2)
     out[("settings", "airport_cap_warning_pct", None)] = round(warn / home_cap * 100, 6)
     out[("settings", "aircraft_check_after_days", None)] = find(r"const due = addDays\(last, (\d+)\);", "the one-week check's week (tailChecks)")
+    # the old Tails' block-hours target among an aircraft's issues (tailIssues), a setting since #18 build pull request 7
+    out[("settings", "aircraft_block_target_h", None)] = find(r"if \(tl\.blockDay < (\d+)\) out\.push", "Tails' block-hours target (tailIssues)")
 
     # ref.consts as the planner merges them: defaultRef's, the fallbacks where it reads them, then what the getter gives
     m = re.search(r"consts: \{ ([^}]*) \}", html)
@@ -146,7 +148,8 @@ def table_numbers(d):
 
 # Settings added after the test sample was made (tests/fixtures/sample_2026-10-10.json.gz): without --db they can't be
 # in the sample's tables, so they're listed rather than failed; with --db (the rehearsal) they're compared as the rest.
-SINCE_SAMPLE = {"airport_cap_warning_pct": "13 Oct, #18 build pull request 5", "aircraft_check_after_days": "13 Oct, #18 build pull request 5"}
+SINCE_SAMPLE = {"airport_cap_warning_pct": "13 Oct, #18 build pull request 5", "aircraft_check_after_days": "13 Oct, #18 build pull request 5",
+                "aircraft_block_target_h": "13 Oct, #18 build pull request 7"}
 after_sample = []
 
 

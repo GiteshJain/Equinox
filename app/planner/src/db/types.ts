@@ -1809,6 +1809,9 @@ isOneToOne: false
 "loads_day_captured":
 { Args: { "p_day": string,"p_world_id": number }; Returns: boolean
                            },
+"order_cabin":
+{ Args: { "p_airline_id": number,"p_type_id": number }; Returns: Json
+                           },
 "parse_capture":
 { Args: { "p_id": number }; Returns: Json
                            },

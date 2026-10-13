@@ -63,6 +63,14 @@
 #    edited and removed; a frequency added, timed, re-timed and deleted; an offset changed and put back) and checks the
 #    old planner shows the same; a preview saves nothing; at 380 px nothing scrolls sideways. Screenshots of the new
 #    Routes and the old at 380 and 1280 px go to ROUTES_SCREENS_DIR (the run's routes-screens artifact).
+# 13. The new planner's Tails (#18 build pull request 7, spec docs/specs/2026-10-13-tails.md), only if 1 to 10 passed, after
+#    the Routes side by side and whatever it found: tests/tails_side_by_side_test.py opens the old planner and the new one
+#    at the same frozen moment, signed in as test staff, and compares every airline's list (with each filter), every
+#    aircraft's page and issues, the aircraft pop-up and the deliveries board with its plan cards; then files one arrived
+#    aircraft from its plan card in both (the game answered from a saved sample, matching and differing) and checks they
+#    write the same rows; adds, edits and removes a tail through the new Tails' own controls; a preview saves nothing; at
+#    380 px nothing scrolls sideways. Screenshots of the new Tails and the old at 380 and 1280 px go to
+#    TAILS_SCREENS_DIR (the run's tails-screens artifact).
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -296,6 +304,23 @@ routes_side_by_side() {
   return $rc
 }
 
+# The new planner's Tails (#18 build pull request 7): side by side with the old Tails on the copy, filing, then its own
+# saves. The local address and keys go to the test in a file only this user can read, as for the real saves; never printed.
+tails_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Tails on the copy: side by side with the old Tails, filing an aircraft in both, then saving through its own controls (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" TAILS_SCREENS_DIR="${TAILS_SCREENS_DIR:-}" \
+      python3 tests/tails_side_by_side_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -446,5 +471,6 @@ fi
 if [ $status -eq 0 ]; then
   home_side_by_side || status=1
   routes_side_by_side || status=1   # whatever Home found: its saves touch no route
+  tails_side_by_side || status=1    # whatever Routes found: its saves touch no aircraft in service, and it puts back what it changes
 fi
 exit $status

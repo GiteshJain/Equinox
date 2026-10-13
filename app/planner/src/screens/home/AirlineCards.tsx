@@ -3,10 +3,10 @@
 // dashed; filled once a route flies from them), its aircraft, routes, flights and block hours a day, the lowest
 // maintenance among its aircraft, short and tight turns or "clean", and "Open fleet ›". Every figure is the planning
 // library's (summary.airlineCards). Where the website has a photo of the airline's home city, the card shows it behind
-// (the old planner's hub-city photos, from site_public()). "Open fleet ›" opens the old planner until Tails is rebuilt.
+// (the old planner's hub-city photos, from site_public()). "Open fleet ›" opens the airline on Tails (build pull request 7).
 import { useEffect, useState, type CSSProperties } from "react";
+import { Link } from "react-router";
 import type { AirlineCard } from "@rules";
-import { OLD_PLANNER } from "../../data/config";
 import { Pill } from "../../ui/Pill";
 import { loadLogos } from "../../ui/siteFiles";
 import type { HomeAirline } from "./attention";
@@ -57,7 +57,7 @@ export function AirlineCards({ cards, airlines, photos }: {
               {c.tight_turns ? <Pill kind="warn">{c.tight_turns} tight turns</Pill> : null}
               {c.clean ? <Pill kind="ok">clean</Pill> : null}
             </div>
-            <a className="link" href={OLD_PLANNER} data-open-fleet={a.name}>Open fleet ›</a>
+            <Link className="link" to={"/tails" + (a.code ? "?airline=" + encodeURIComponent(a.code) : "")} data-open-fleet={a.name}>Open fleet ›</Link>
           </div>
         );
       })}

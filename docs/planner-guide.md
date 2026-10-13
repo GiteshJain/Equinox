@@ -18,9 +18,9 @@ after every change. On a preview address it saves nothing and says **preview · 
   day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Home and Routes are rebuilt** (13 Oct, build pull requests 5 and 6); each shows what the old screen shows, from the
-  same data and with the same figures (below). **The other seven screens** still say they're in the old planner, with
-  a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
+- **Home, Routes and Tails are rebuilt** (13 Oct, build pull requests 5 to 7); each shows what the old screen shows,
+  from the same data and with the same figures (below). **The other six screens** still say they're in the old planner,
+  with a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
 - **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
   - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
     aircraft in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes**
@@ -40,9 +40,9 @@ after every change. On a preview address it saves nothing and says **preview · 
     name it; a route opens its pop-up (its distance, demand, flights a day, loads, the load pattern's signal and each
     frequency, with **Open in Routes**), a planned route its aircraft in Aircraft on order.
   - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
-    plan. **File into planner** appears once one has arrived with a plan card, and opens the old planner for now: filing
-    moves into the new planner with Tails.
-  - **Needs attention:** grouped as on the old Home, each item linking to where it's fixed. **×** dismisses an item and
+    plan. **File into planner** appears once one has arrived with a plan card, and files it on Tails (below).
+  - **Needs attention:** grouped as on the old Home, each item linking to where it's fixed; an item about one aircraft
+    (its maintenance, turns or positions) opens its pop-up, as on the old Home. **×** dismisses an item and
     **show again** brings every dismissed item back; a dismissal shows in both planners. Airports are flagged from
     80% of the game's departure cap (a setting, *airport_cap_warning_pct*). Routes to fix come from the captured profit;
     with none captured, from the load patterns, as on the old Home. The interline line isn't there yet: its list of
@@ -52,8 +52,8 @@ after every change. On a preview address it saves nothing and says **preview · 
     add one with its steps, one a line; **×** deletes one after asking you in the page.
   - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
     route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
-    turns (or **clean**), with its home city's photo behind when the website has one. **Open fleet ›** opens the old
-    planner until Tails is rebuilt.
+    turns (or **clean**), with its home city's photo behind when the website has one. **Open fleet ›** opens the
+    airline on Tails.
 - **Routes in the new planner** looks and works as the old Routes:
   - **The list:** one airline at a time (its buttons at the top); search by destination; **Active only**; sort by
     stars, distance up or down, destination or load; **km from** and **km to**; and the chips for **Bases** (with a
@@ -80,6 +80,34 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
     type's speed, manual §4) is used, so it can differ by a few minutes from the old planner's, which it fitted to the
     times typed in.
+- **Tails in the new planner** looks and works as the old Tails:
+  - **The list:** one airline at a time; filters for **Base**, **Type** and **Flying**, **No flights** or **Needs a
+    look** (a short turn, a leg starting where the aircraft isn't, or maintenance under 105%), kept in the address. Each
+    aircraft's type, cabin, base, **Legs/wk**, **Block h/day**, **Maint.** (hover or tap for the hours) and **Routes**;
+    a red dot marks a short turn or a leg starting elsewhere. **Add a tail** adds one by hand at the end of the list;
+    **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it flies a
+    route. On a phone the list is a column of cards.
+  - **An aircraft** (its own address, such as /planner/next/tails/N001AW): its type, cabin, legs a week, block hours a
+    day, gap target, minimum turn, gaps at the target this week and maintenance; the fields that change it
+    (registration, type, base, cabin, the maintenance gap, notes; each saves when you leave it), **Delete aircraft…**
+    (its round trips go and it's retired, after asking in the page); every issue (as the old aircraft pop-up lists them:
+    under the block-hours target, short and tight turns, maintenance, legs starting elsewhere, the longest gap, rotations
+    off wave), or **schedule clean**; its week as bars in its base's local time, red where a turn is short or the next
+    leg starts elsewhere; and its legs by flight number with days, times, duration, the ground time to the next and the
+    turn or gap. The types offered are the ones the airline may have (Reference), and the cabins its kind of airline's.
+  - **Deliveries:** every aircraft with a delivery, for the airline and the base and type picked above: **Open** (on
+    order, or arrived and not scheduled), **On order**, **Arrived** or **Flying**, each with its date and time (UTC),
+    base, plan and status; **card** shows its plan card (title, base, each flight's number, route, times, block and
+    service).
+  - **File into planner** (on an arrived aircraft's plan card, or from Home): the planner reads the airline's schedule
+    from the game and compares each flight on the card. When every one is the same, it files at once. Otherwise it shows
+    each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with
+    **the game's times** (the card takes them too) or **the plan card's times**. Filing puts the aircraft in service,
+    logs its first cabin fit (its order's cabin, or the one an order of its type comes with, from the database), and
+    adds each flight with its return as a round trip, launched today. It then opens the aircraft.
+  - **The aircraft pop-up** (from Home's needs attention): its base, block hours a day, legs a week, maintenance, the
+    one-week check, every issue and its flights, with **Mark checked** and **Open in Tails**.
+  - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
@@ -124,6 +152,7 @@ after every change. On a preview address it saves nothing and says **preview · 
   it for the hours.
 - **Routes:** how many routes it flies.
 - Filter by base, type, and **Flying**, **No flights** or **Needs a look**. **Add a tail** adds an aircraft by hand.
+- Aircraft on order and filing them are on Home (**Aircraft on order**); in the new planner they're on Tails too.
 
 ## Hubs
 *Each base's day: banks, arrivals and departures, and which flights connect.*

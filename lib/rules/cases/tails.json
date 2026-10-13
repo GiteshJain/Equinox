@@ -1,0 +1,913 @@
+{
+ "part": "tails",
+ "note": "The Tails screen's issues for one aircraft (the old planner's tailIssues), in its order. T-001 and T-002 are A321neos (turnaround 66 minutes, 76 with the margin, target gap 4 h); T-003 an E195 (67 minutes, 3 h). HUB banks at 06:00, 14:00 and 22:00; FOC is a focus city; AAA is another airline's base.",
+ "cases": [
+  {
+   "name": "a clean aircraft: ten block hours a day, turns of 90 minutes, a night on the ground, every rotation in the banks: no issues",
+   "rule": "the old planner's tailIssues lists nothing; its list shows no red dot and Needs a look leaves it out",
+   "input": {
+    "rotations": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "route_id": 1
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "route_id": 1
+     }
+    ],
+    "flight_legs": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 1,
+      "flight_no": 1001,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 360,
+      "block_min": 150
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 2,
+      "flight_no": 1002,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 600,
+      "block_min": 150
+     },
+     {
+      "id": 3,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 1,
+      "flight_no": 1003,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 840,
+      "block_min": 150
+     },
+     {
+      "id": 4,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 2,
+      "flight_no": 1004,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 1080,
+      "block_min": 150
+     }
+    ]
+   },
+   "ask": {
+    "what": "tail_issues",
+    "registration": "T-001"
+   },
+   "answer": {
+    "issues": [],
+    "marked": false,
+    "needs_a_look": false,
+    "off_wave": []
+   }
+  },
+  {
+   "name": "eight block hours a day, a 60-minute turn (short), a 70-minute one (tight) and two legs a day that start where the aircraft isn't",
+   "rule": "tailIssues: under the block-hours target (aircraft_block_target_h), short turns (under min_turn_min), tight turns (under min_turn_min + turn_margin_min), legs starting elsewhere; each counted over the week, in that order",
+   "input": {
+    "rotations": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "route_id": 1
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "route_id": 5
+     }
+    ],
+    "flight_legs": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 1,
+      "flight_no": 1001,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 360,
+      "block_min": 120
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 2,
+      "flight_no": 1002,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 540,
+      "block_min": 120
+     },
+     {
+      "id": 3,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 1,
+      "flight_no": 2001,
+      "origin_code": "FOC",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 730,
+      "block_min": 120
+     },
+     {
+      "id": 4,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 2,
+      "flight_no": 2002,
+      "origin_code": "AAA",
+      "dest_code": "FOC",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 930,
+      "block_min": 120
+     }
+    ]
+   },
+   "ask": {
+    "what": "tail_issues",
+    "registration": "T-001"
+   },
+   "answer": {
+    "issues": [
+     {
+      "kind": "block_hours",
+      "block_hours_day": 8,
+      "target_h": 10
+     },
+     {
+      "kind": "short_turns",
+      "count": 7
+     },
+     {
+      "kind": "tight_turns",
+      "count": 7,
+      "margin_min": 10
+     },
+     {
+      "kind": "positions",
+      "count": 14
+     }
+    ],
+    "marked": true,
+    "needs_a_look": true,
+    "off_wave": []
+   }
+  },
+  {
+   "name": "an E195 shuttling all day: ten legs of an hour with 80-minute turns and two hours on the ground at night, so no ground time long enough for maintenance",
+   "rule": "tailIssues: maintenance under maintenance_min_pct (condition will fall), and the longest ground gap (2:00) under the type's gap_target_h (3 h); ten block hours a day is not under the target",
+   "input": {
+    "rotations": [
+     {
+      "id": 10,
+      "airline_id": 1,
+      "route_id": 8
+     },
+     {
+      "id": 11,
+      "airline_id": 1,
+      "route_id": 8
+     },
+     {
+      "id": 12,
+      "airline_id": 1,
+      "route_id": 8
+     },
+     {
+      "id": 13,
+      "airline_id": 1,
+      "route_id": 8
+     },
+     {
+      "id": 14,
+      "airline_id": 1,
+      "route_id": 8
+     }
+    ],
+    "flight_legs": [
+     {
+      "id": 20,
+      "airline_id": 1,
+      "rotation_id": 10,
+      "leg_no": 1,
+      "flight_no": 1101,
+      "origin_code": "HUB",
+      "dest_code": "FOC",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 0,
+      "block_min": 60
+     },
+     {
+      "id": 21,
+      "airline_id": 1,
+      "rotation_id": 10,
+      "leg_no": 2,
+      "flight_no": 1102,
+      "origin_code": "FOC",
+      "dest_code": "HUB",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 140,
+      "block_min": 60
+     },
+     {
+      "id": 22,
+      "airline_id": 1,
+      "rotation_id": 11,
+      "leg_no": 1,
+      "flight_no": 1103,
+      "origin_code": "HUB",
+      "dest_code": "FOC",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 280,
+      "block_min": 60
+     },
+     {
+      "id": 23,
+      "airline_id": 1,
+      "rotation_id": 11,
+      "leg_no": 2,
+      "flight_no": 1104,
+      "origin_code": "FOC",
+      "dest_code": "HUB",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 420,
+      "block_min": 60
+     },
+     {
+      "id": 24,
+      "airline_id": 1,
+      "rotation_id": 12,
+      "leg_no": 1,
+      "flight_no": 1105,
+      "origin_code": "HUB",
+      "dest_code": "FOC",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 560,
+      "block_min": 60
+     },
+     {
+      "id": 25,
+      "airline_id": 1,
+      "rotation_id": 12,
+      "leg_no": 2,
+      "flight_no": 1106,
+      "origin_code": "FOC",
+      "dest_code": "HUB",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 700,
+      "block_min": 60
+     },
+     {
+      "id": 26,
+      "airline_id": 1,
+      "rotation_id": 13,
+      "leg_no": 1,
+      "flight_no": 1107,
+      "origin_code": "HUB",
+      "dest_code": "FOC",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 840,
+      "block_min": 60
+     },
+     {
+      "id": 27,
+      "airline_id": 1,
+      "rotation_id": 13,
+      "leg_no": 2,
+      "flight_no": 1108,
+      "origin_code": "FOC",
+      "dest_code": "HUB",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 980,
+      "block_min": 60
+     },
+     {
+      "id": 28,
+      "airline_id": 1,
+      "rotation_id": 14,
+      "leg_no": 1,
+      "flight_no": 1109,
+      "origin_code": "HUB",
+      "dest_code": "FOC",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 1120,
+      "block_min": 60
+     },
+     {
+      "id": 29,
+      "airline_id": 1,
+      "rotation_id": 14,
+      "leg_no": 2,
+      "flight_no": 1110,
+      "origin_code": "FOC",
+      "dest_code": "HUB",
+      "aircraft_id": 3,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 1260,
+      "block_min": 60
+     }
+    ]
+   },
+   "ask": {
+    "what": "tail_issues",
+    "registration": "T-003"
+   },
+   "answer": {
+    "issues": [
+     {
+      "kind": "maintenance",
+      "level": "bad",
+      "pct": 0,
+      "min_pct": 100,
+      "target_pct": 105
+     },
+     {
+      "kind": "longest_gap",
+      "gap_min": 120,
+      "target_h": 3
+     }
+    ],
+    "marked": false,
+    "needs_a_look": true,
+    "off_wave": []
+   }
+  },
+  {
+   "name": "one rotation a day back at 13:30, with HUB banking only at 06:00: its arrival feeds no bank within 8 hours, so it's off wave",
+   "rule": "tailIssues: rotations off wave (the bank fit's level bad at either end, banks.wave), and four block hours a day under the target",
+   "input": {
+    "airline_bases": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "airport_code": "HUB",
+      "role": "hub",
+      "is_main": true,
+      "parent_base_id": null,
+      "bank_times": [
+       "06:00",
+       null,
+       null,
+       null
+      ],
+      "flight_no_from": 1000,
+      "last_flight_no": null,
+      "position": 1
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "airport_code": "FOC",
+      "role": "focus",
+      "is_main": false,
+      "parent_base_id": 1,
+      "parent_code": "HUB",
+      "bank_times": null,
+      "flight_no_from": 2000,
+      "last_flight_no": null,
+      "position": 2
+     },
+     {
+      "id": 3,
+      "airline_id": 2,
+      "airport_code": "AAA",
+      "role": "hub",
+      "is_main": true,
+      "parent_base_id": null,
+      "bank_times": [
+       "08:00",
+       null,
+       null,
+       null
+      ],
+      "flight_no_from": 3000,
+      "last_flight_no": null,
+      "position": 3
+     }
+    ],
+    "rotations": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "route_id": 1
+     }
+    ],
+    "flight_legs": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 1,
+      "flight_no": 1001,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 480,
+      "block_min": 120
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 2,
+      "flight_no": 1002,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 690,
+      "block_min": 120
+     }
+    ]
+   },
+   "ask": {
+    "what": "tail_issues",
+    "registration": "T-001"
+   },
+   "answer": {
+    "issues": [
+     {
+      "kind": "block_hours",
+      "block_hours_day": 4,
+      "target_h": 10
+     },
+     {
+      "kind": "off_wave",
+      "count": 1,
+      "rotation_ids": [
+       1
+      ]
+     }
+    ],
+    "marked": false,
+    "needs_a_look": false,
+    "off_wave": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "an aircraft with no flights: only the block hours (0 a day); nothing about maintenance or gaps",
+   "rule": "tailIssues on an empty week: flies 0.0 h a day; no maintenance figure and no longest gap without legs",
+   "input": {
+    "rotations": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "route_id": 1
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "route_id": 1
+     }
+    ],
+    "flight_legs": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 1,
+      "flight_no": 1001,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 360,
+      "block_min": 150
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 2,
+      "flight_no": 1002,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 600,
+      "block_min": 150
+     },
+     {
+      "id": 3,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 1,
+      "flight_no": 1003,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 840,
+      "block_min": 150
+     },
+     {
+      "id": 4,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 2,
+      "flight_no": 1004,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 1080,
+      "block_min": 150
+     }
+    ]
+   },
+   "ask": {
+    "what": "tail_issues",
+    "registration": "T-002"
+   },
+   "answer": {
+    "issues": [
+     {
+      "kind": "block_hours",
+      "block_hours_day": 0,
+      "target_h": 10
+     }
+    ],
+    "marked": false,
+    "needs_a_look": false,
+    "off_wave": []
+   }
+  },
+  {
+   "name": "the airline's own target (12 h) in place of the world's: the clean aircraft's ten hours a day are under it",
+   "rule": "aircraft_block_target_h, the airline's override where it has one",
+   "input": {
+    "airlines": [
+     {
+      "id": 1,
+      "iata_code": "TA",
+      "planner_name": "Test Air",
+      "position": 1,
+      "active": true,
+      "ours": true,
+      "settings": {
+       "aircraft_block_target_h": 12
+      }
+     },
+     {
+      "id": 2,
+      "iata_code": "OA",
+      "planner_name": "Other Air",
+      "position": 2,
+      "active": true,
+      "ours": true
+     }
+    ],
+    "rotations": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "route_id": 1
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "route_id": 1
+     }
+    ],
+    "flight_legs": [
+     {
+      "id": 1,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 1,
+      "flight_no": 1001,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 360,
+      "block_min": 150
+     },
+     {
+      "id": 2,
+      "airline_id": 1,
+      "rotation_id": 1,
+      "leg_no": 2,
+      "flight_no": 1002,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 600,
+      "block_min": 150
+     },
+     {
+      "id": 3,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 1,
+      "flight_no": 1003,
+      "origin_code": "HUB",
+      "dest_code": "AAA",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 840,
+      "block_min": 150
+     },
+     {
+      "id": 4,
+      "airline_id": 1,
+      "rotation_id": 2,
+      "leg_no": 2,
+      "flight_no": 1004,
+      "origin_code": "AAA",
+      "dest_code": "HUB",
+      "aircraft_id": 1,
+      "days_utc": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "dep_utc_min": 1080,
+      "block_min": 150
+     }
+    ]
+   },
+   "ask": {
+    "what": "tail_issues",
+    "registration": "T-001"
+   },
+   "answer": {
+    "issues": [
+     {
+      "kind": "block_hours",
+      "block_hours_day": 10,
+      "target_h": 12
+     }
+    ],
+    "marked": false,
+    "needs_a_look": false,
+    "off_wave": []
+   }
+  }
+ ]
+}
