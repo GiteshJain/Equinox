@@ -54,6 +54,10 @@ SCREENS_DIR = os.environ.get("ROUTES_SCREENS_DIR")
 WORLD = "(select w.id from public.worlds w order by w.is_default desc, w.id limit 1)"
 UTC_SAMPLE = 3        # flown routes per airline also compared in UTC
 POPUP_SAMPLE = 2      # flown routes per airline whose Home pop-up is compared
+# STILL: both planners ask for reduced motion before Home is first drawn, as tests/home_side_by_side_test.py does, so the
+# hero's globe holds still. Without it the pop-up step, on Home, took 5 to 6 minutes on two runs (once timing out)
+# against 70 seconds on the first, most likely the turning globe keeping the runner's processor busy. Nothing on Routes
+# moves.
 failures = []
 started = time.monotonic()
 COPY = {"mct_differs": {}, "est_routes": set(), "est_flights": set(), "loads": {}}   # what the copy holds: read_copy() and main()
@@ -161,6 +165,7 @@ class OldRoutes(rs.Planner):
     async def page(self, host=LIVE_HOST):
         self.pg = pg = await self.ctx.new_page()
         await pg.clock.set_fixed_time(self.moment)
+        await pg.emulate_media(reduced_motion="reduce")   # as the new planner here (STILL)
         pg.on("pageerror", lambda e: self.errors.append("page error: " + str(e)[:200]))
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text else None)
@@ -457,7 +462,7 @@ async def popups(old, new, airlines, flown, route_ids):
                 rid = route_ids[(al["name"], hub, dest)]
                 await new.pg.evaluate("id => document.querySelector(`svg.wmap .hits path.hit[data-route-id='${id}']`)"
                                       ".dispatchEvent(new MouseEvent('click', {bubbles: true}))", str(rid))
-                await new.pg.wait_for_selector(f"[data-route-popup='{hub}-{dest}'][data-popup-ready=yes]", timeout=30000)
+                await new.pg.wait_for_selector(f"[data-route-popup='{hub}-{dest}'][data-popup-ready=yes]", timeout=60000)
                 await new.pg.wait_for_timeout(200)
                 x = await new.pg.evaluate(READ_POPUP)
                 await new.pg.click(".modal .mx")
@@ -736,6 +741,7 @@ async def preview(p, port, env, facts, staff, moment, seen, al, route):
     problems = []
     try:
         await pv.open(host="127.0.0.1", moment=moment)
+        await pv.pg.emulate_media(reduced_motion="reduce")   # STILL
         await pv.sign_in(*staff)
         hub, dest = route
         await new_go(pv, f"/routes/{al['code']}/{hub}-{dest}", detail=f"{hub}-{dest}")
@@ -769,6 +775,7 @@ async def phone(p, port, env, facts, staff, moment, seen, al, route):
     scroll = "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth"
     try:
         await ph.open(moment=moment)
+        await ph.pg.emulate_media(reduced_motion="reduce")   # STILL
         await ph.sign_in(*staff)
         await new_go(ph, "/routes" + query({"airline": al["code"]}))
         if (over := await ph.pg.evaluate(scroll)) > 0:
@@ -919,6 +926,7 @@ async def main():
                     await old.sign_in(*staff)
                     await old.ready()
                     await new.open(moment=moment)
+                    await new.pg.emulate_media(reduced_motion="reduce")   # STILL
                     await new.sign_in(*staff)
                     await new_go(new, "/routes")
                     await set_mode(old, new, "local")
@@ -969,12 +977,14 @@ async def main():
                      problems + new.errors[:3] + old.errors[:3])
                 n_routes, _, problems = await routes_side_by_side(old, new, airlines, unflown, "not flown")
                 step(not problems, f"the first unflown route of each airline ({n_routes}): its header and the next free numbers equal the old Routes'", problems)
+                t = time.monotonic()
                 try:
                     n, problems = await popups(old, new, airlines, flown, route_ids)
                 except Exception as e:
                     n, problems = 0, [why(e)]
                 step(not problems and n > 0, f"the route pop-up Home's map opens equals the old one ({n} routes: distance, demand, flights a day, loads, "
-                     "signal, every frequency with its times, days, aircraft and bank fit, market and city, Open in Routes)", problems or ["no route compared"])
+                     "signal, every frequency with its times, days, aircraft and bank fit, market and city, Open in Routes) "
+                     f"({time.monotonic() - t:.0f} s)", problems or ["no route compared"])
                 for k, v in KNOWN.items():
                     where = f" (e.g. {'; '.join(v['where'][:4])})" if v["where"] else ""
                     print(f"      known difference \"{k}\": used {v['used']} time(s){where}. {v['rule']}"[:1800], flush=True)
