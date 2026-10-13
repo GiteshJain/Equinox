@@ -585,8 +585,8 @@ async def main():
                      f"({len(n['comingUp'])} rows) and the to-do board ({len(n['todo']['open'])} open, {len(n['todo']['done'])} done this week)", problems)
                 print("      the new Home's links: " + ", ".join(hrefs[:12]) + (" …" if len(hrefs) > 12 else ""), flush=True)
                 for k, v in KNOWN.items():
-                    if v["used"]:
-                        print(f"      known difference used {v['used']}x: {k}: {v['rule']} ({'; '.join(v['where'][:6])})", flush=True)
+                    where = f" ({'; '.join(v['where'][:6])})" if v["where"] else ""
+                    print(f"      known difference \"{k}\": used {v['used']} time(s){where}. {v['rule']}", flush=True)
 
                 # ---------- 5. real saves
                 try:
