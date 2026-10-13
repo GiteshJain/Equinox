@@ -459,6 +459,24 @@ $function$
 ;
 
 
+-- order_cabin(p_airline_id bigint, p_type_id bigint)
+CREATE OR REPLACE FUNCTION public.order_cabin(p_airline_id bigint, p_type_id bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_id bigint;
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the planner' using errcode = '42501'; end if;
+  v_id := private.fig_order_cabin(p_airline_id, p_type_id);
+  return (select jsonb_build_object('id', c.id, 'code', c.code, 'cabin', c.cabin, 'cost', c.cost, 'aircraft_type_id', c.aircraft_type_id)
+            from public.cabin_configs c where c.id = v_id);
+end
+$function$
+
+;
+
 -- parse_capture(p_id bigint)
 CREATE OR REPLACE FUNCTION public.parse_capture(p_id bigint)
  RETURNS jsonb

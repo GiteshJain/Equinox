@@ -1,7 +1,7 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, banks, block, buildRules, card, checks, connections, frequency, maintenance, optimiser, positions, schedule, service, summary, time, turns, findType,
+  aircraftWeek, banks, block, buildRules, card, checks, connections, frequency, maintenance, optimiser, positions, schedule, service, summary, tails, time, turns, findType,
   type Card, type CheckFacts, type FrequencyEnds, type Json, type LocalTimes, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
@@ -174,6 +174,17 @@ export function ask(input: RulesInput, q: Ask): unknown {
       return service.profileFor(q.profiles as unknown as ServiceProfile[], num(q.airline_id, "airline_id"), q.km as number | null);
     case "number_ranges":
       return { text: frequency.numberRanges(q.numbers as number[]) };
+    // the Tails screen's issues (#18 build pull request 7): in the old tailIssues' order, with the marks the list shows
+    case "tail_issues": {
+      const reg = str(q.registration, "registration");
+      const week = aircraftWeek.forAircraft(rules, reg);
+      const maint = maintenance.forAircraft(rules, reg, undefined, week);
+      const ac = rules.aircraftByRegistration.get(reg);
+      return {
+        issues: tails.issues(rules, reg), marked: week ? tails.marked(week) : null, needs_a_look: week ? tails.needsALook(week, maint) : null,
+        off_wave: ac ? tails.offWave(rules, ac.id) : null,
+      };
+    }
     case "great_circle":
       return { km: block.greatCircleBetween(q.a as { lat: number; lon: number }, q.b as { lat: number; lon: number }) };
     default:
