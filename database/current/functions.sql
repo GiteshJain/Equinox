@@ -2456,6 +2456,7 @@ CREATE OR REPLACE FUNCTION private.fig_airline_cards(p_world_id bigint, p_as_of 
  SET search_path TO ''
 AS $function$
 declare v_today date := (p_as_of at time zone 'UTC')::date; v_from date; v_ops jsonb;
+        v_leases jsonb := private.fig_lease_map(p_world_id, p_as_of);
 begin
   -- dayOps for every airline at once, from the first reported cash date (or a week back) to today
   select least(coalesce(min(c.day), v_today), v_today - 7) into v_from
@@ -2464,9 +2465,10 @@ begin
     from (select o.airline_id, jsonb_object_agg(o.day::text, jsonb_build_object('flights', o.flights, 'aircraft', o.aircraft, 'load', o.load)) as days
             from private.fig_day_ops(p_world_id, p_as_of, v_from, v_today) o group by o.airline_id) x;
   return (
-    with c as (
+    -- materialized: each airline's card, forecast and row worked out once (folded in, each use would work them out again)
+    with c as materialized (
       select al.*, private.fig_fin_stats(al.airline_id, p_as_of, v_ops) as card,
-             case when al.home_code is not null then private.fig_cash_forecast(al.airline_id, '[]'::jsonb, p_as_of) end as fc,
+             case when al.home_code is not null then private.fig_cash_forecast(al.airline_id, '[]'::jsonb, p_as_of, v_leases) end as fc,
              case when al.home_code is not null then private.fig_group_today(al.airline_id, p_as_of) end as today
         from private.fig_airlines(p_world_id) al)
     select jsonb_build_object(
@@ -2600,8 +2602,8 @@ $function$
 
 ;
 
--- private.fig_cash_forecast(p_airline_id bigint, p_orders jsonb, p_as_of timestamp with time zone)
-CREATE OR REPLACE FUNCTION private.fig_cash_forecast(p_airline_id bigint, p_orders jsonb, p_as_of timestamp with time zone)
+-- private.fig_cash_forecast(p_airline_id bigint, p_orders jsonb, p_as_of timestamp with time zone, p_lease_map jsonb)
+CREATE OR REPLACE FUNCTION private.fig_cash_forecast(p_airline_id bigint, p_orders jsonb, p_as_of timestamp with time zone, p_lease_map jsonb DEFAULT NULL::jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE
@@ -2679,10 +2681,7 @@ begin
 
   -- leaseM(): each type's weekly lease, the highest leasing payment seen for it in the events (any airline), else
   -- lease_estimate_pct of its price
-  select coalesce(jsonb_object_agg(x.k, x.m), '{}'::jsonb) into v_lease_map
-    from (select private.fig_type_key((regexp_match(e.descr, 'Leasing payment for [^(]*\(([^)]+)\)', 'i'))[1]) as k, max(e.amount) as m
-            from private.fig_events(w, p_as_of) e group by 1) x
-   where x.k <> '';
+  v_lease_map := coalesce(p_lease_map, private.fig_lease_map(w, p_as_of));
 
   -- each type the airline may buy (airline_aircraft_types): the first day in the next 14 it can be ordered and keep the
   -- cushion (fits() at the capture's moment on each day), with its price (cabin included) and its own lease; how many at
@@ -2695,14 +2694,18 @@ begin
       left join public.cabin_configs cc on cc.id = private.fig_order_cabin(p_airline_id, t.id)
      where aat.airline_id = p_airline_id and coalesce(t.price, 0) <> 0),
   tp as (select ty.*, ty.price + ty.cabin_cost as p, coalesce(ty.seen_lease, ty.price * v_pct) as l from ty),
-  pts as (select x.t, x.v from unnest(v_t, v_v) as x(t, v)),
-  ok as (select tp.id, d.d, bool_and(pts.v - (tp.p + tp.l * private.fig_lease_weeks(pts.t, v_t0 + d.d * interval '24 hours')) >= v_cushion) as fits
-           from tp cross join generate_series(0, 14) as d(d)
-           join pts on pts.t >= v_t0 + d.d * interval '24 hours'
-          group by tp.id, d.d),
+  -- for an order placed on day d, each point from then on and how many of its own lease payments have fallen by then
+  -- (worked out once for all types)
+  pw as materialized (
+    select d.d, x.t, x.v, private.fig_lease_weeks(x.t, v_t0 + d.d * interval '24 hours') as wk
+      from generate_series(0, 14) as d(d)
+      join unnest(v_t, v_v) as x(t, v) on x.t >= v_t0 + d.d * interval '24 hours'),
+  ok as (select tp.id, pw.d, bool_and(pw.v - (tp.p + tp.l * pw.wk) >= v_cushion) as fits
+           from tp cross join pw
+          group by tp.id, pw.d),
   first_day as (select ok.id, min(ok.d) filter (where ok.fits) as d from ok group by ok.id),
-  most as (select tp.id, least(9, floor(min((pts.v - v_cushion) / (tp.p + tp.l * private.fig_lease_weeks(pts.t, v_t0)))))::int as n
-             from tp join pts on pts.t >= v_t0 group by tp.id)
+  most as (select tp.id, least(9, floor(min((pw.v - v_cushion) / (tp.p + tp.l * pw.wk))))::int as n
+             from tp join pw on pw.d = 0 group by tp.id)
   select coalesce(jsonb_agg(jsonb_build_object(
            'aircraft_type_id', tp.id, 'type', tp.name, 'price', tp.price, 'cabin', tp.cabin, 'cabin_cost', tp.cabin_cost,
            'price_with_cabin', tp.p, 'lease_week', tp.l, 'lease_seen', tp.seen_lease is not null,
@@ -2856,8 +2859,9 @@ AS $function$
          e.descr, e.event_date, e.event_time
     from public.game_events e
     cross join f
-    left join (select x.airline_id, private.fig_home(x.airline_id) as code
-                 from (select distinct ev.airline_id from public.game_events ev where ev.world_id = p_world_id) x) h on h.airline_id = e.airline_id
+    join public.airlines a on a.id = e.airline_id
+    left join public.airline_bases mb on mb.airline_id = e.airline_id and mb.is_main
+    cross join lateral (select coalesce(mb.airport_code, a.home_airport_code) as code) h   -- fig_home()
    where e.world_id = p_world_id and (p_airline_id is null or e.airline_id = p_airline_id) and e.debit > 0 and e.captured_at <= p_as_of
      and e.event_date >= f.first_day and e.event_date <= (select today from t) + 16
 $function$
@@ -2887,9 +2891,10 @@ begin
         'aircraft_profit', jsonb_build_object('1', r1.d -> 'aircraft', '3', r3.d -> 'aircraft', '7', r7.d -> 'aircraft'),
         'fare_changes', r7.d -> 'fare_changes') order by al.ord), '[]'::jsonb)
         from private.fig_airlines(p_world_id) al
-        cross join lateral (select private.fig_route_profit(al.airline_id, 1, p_as_of) as d) r1
-        cross join lateral (select private.fig_route_profit(al.airline_id, 3, p_as_of) as d) r3
-        cross join lateral (select private.fig_route_profit(al.airline_id, 7, p_as_of) as d) r7));
+        -- offset 0 keeps each document worked out once (folded into the outer query, each use would work it out again)
+        cross join lateral (select private.fig_route_profit(al.airline_id, 1, p_as_of) as d offset 0) r1
+        cross join lateral (select private.fig_route_profit(al.airline_id, 3, p_as_of) as d offset 0) r3
+        cross join lateral (select private.fig_route_profit(al.airline_id, 7, p_as_of) as d offset 0) r7));
 end
 $function$
 
@@ -2929,7 +2934,7 @@ begin
            'load', (v_ops -> p.d::text ->> 'load')::numeric) order by p.i), '[]'::jsonb)
     into v_iv
     from s p join s q on q.i = p.i - 1
-    cross join lateral (select private.fig_capex(p_airline_id, q.d, p.d) as v) cap;
+    cross join lateral (select private.fig_capex(p_airline_id, q.d, p.d) as v offset 0) cap;
   -- profit over the last 7 days (an early read over fewer), and per aircraft flying in that time
   if jsonb_array_length(v_s) > 0 then
     v_last_d := (v_s -> -1 ->> 'd')::date; v_last_c := (v_s -> -1 ->> 'c')::numeric;
@@ -3098,7 +3103,7 @@ begin
   -- each airline's route and aircraft profit over the growth window, for those with flights captured
   select coalesce(jsonb_agg(jsonb_build_object('airline_id', al.airline_id, 'ord', al.ord, 'doc', x.doc) order by al.ord), '[]'::jsonb) into v_docs
     from private.fig_airlines(p_world_id) al
-    cross join lateral (select private.fig_route_profit(al.airline_id, v_days, p_as_of) as doc) x
+    cross join lateral (select private.fig_route_profit(al.airline_id, v_days, p_as_of) as doc offset 0) x   -- once each
    where al.home_code is not null and (x.doc ->> 'flights')::int > 0;
   return (
     with r as (select (d ->> 'airline_id')::bigint as airline_id, (d ->> 'ord')::int as ord, e.x, e.i
@@ -3155,6 +3160,17 @@ begin
     fq as (select * from private.fig_freqs(p_world_id) f where f.live),
     rivals as (select a.id from public.airlines a left join public.groups g on g.id = a.group_id
                 where a.world_id = p_world_id and coalesce(g.kind, 'rival') <> 'ours'),
+    -- the scan's rival flights from our bases, flights a week by origin, destination and airline (read once for all bases)
+    sched as materialized (
+      select f ->> 2 as origin, f ->> 3 as dest, sc.airline_id, coalesce(ra.public_name, ra.game_name, ra.planner_name) as name,
+             sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')))::int as weekly
+        from public.game_scan_schedules sc
+        join public.airlines ra on ra.id = sc.airline_id
+        cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
+       where v_has_schedules and sc.scan_id = v_scan and sc.airline_id in (select id from rivals)
+         and jsonb_typeof(f) = 'array' and coalesce(f ->> 3, '') <> ''
+         and f ->> 2 in (select b.airport_code from public.airline_bases b where b.world_id = p_world_id and not b.is_main)
+       group by f ->> 2, f ->> 3, sc.airline_id, ra.public_name, ra.game_name, ra.planner_name),
     hubs as (
       select al.airline_id, al.ord, al.iata_code, al.name, al.main_code,
              private.fig_flag(p_world_id, al.airline_id, 'hub_first_exempt') as exempt,
@@ -3181,15 +3197,8 @@ begin
              case when v_has_schedules then (
                select coalesce(jsonb_agg(jsonb_build_object('dest', z.dest, 'airline_id', z.airline_id, 'name', z.name, 'weekly', z.weekly)
                                          order by z.weekly desc, z.dest, z.airline_id), '[]'::jsonb)
-                 from (select f ->> 3 as dest, sc.airline_id, coalesce(ra.public_name, ra.game_name, ra.planner_name) as name,
-                              sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')))::int as weekly
-                         from public.game_scan_schedules sc
-                         join public.airlines ra on ra.id = sc.airline_id
-                         cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
-                        where sc.scan_id = v_scan and sc.airline_id in (select id from rivals)
-                          and jsonb_typeof(f) = 'array' and f ->> 2 = b.airport_code and coalesce(f ->> 3, '') <> ''
-                        group by f ->> 3, sc.airline_id, ra.public_name, ra.game_name, ra.planner_name) z
-                where z.weekly > 7 * private.fig_num(p_world_id, b.airline_id, 'contested_rival_daily')) end as routes
+                 from sched z
+                where z.origin = b.airport_code and z.weekly > 7 * private.fig_num(p_world_id, b.airline_id, 'contested_rival_daily')) end as routes
         from public.airline_bases b
        where b.world_id = p_world_id and not b.is_main)
     select jsonb_build_object(
@@ -3208,6 +3217,23 @@ begin
               order by b.position nulls last, b.id) from bases b where b.airline_id = h.airline_id), '[]'::jsonb))
           order by h.ord) from hubs h), '[]'::jsonb)));
 end
+$function$
+
+;
+
+-- private.fig_lease_map(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_lease_map(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select coalesce(jsonb_object_agg(x.k, x.m), '{}'::jsonb)
+    from (select private.fig_type_key((regexp_match(e.descr, 'Leasing payment for [^(]*\(([^)]+)\)', 'i'))[1]) as k, max(e.amount) as m
+            from private.fig_events(p_world_id, p_as_of) e
+           where e.descr ~* 'Leasing payment for'
+           group by 1) x
+   where x.k <> ''
 $function$
 
 ;
@@ -3529,13 +3555,16 @@ begin
                   coalesce(nullif(l.registration, ''), nullif(p.tail, '')) as reg
              from p left join m on m.i = p.i left join l on l.j = m.j
             where p.route is not null and p.routes_n = 1),
-    -- keyOf(): the route as the airline's list has it, either way round, else as flown
-    rk as (select distinct fl.o, fl.d, coalesce(r1.id, r2.id) as route_id,
+    -- keyOf(): the route as the airline's list has it, either way round, else as flown (materialized: worked out once,
+    -- not again for each flight joined to it)
+    rk as materialized (select distinct fl.o, fl.d, coalesce(r1.id, r2.id) as route_id,
                   coalesce(r1.hub_code, r2.hub_code, fl.o) as hub, coalesce(r1.dest_code, r2.dest_code, fl.d) as dest
              from fl
              left join public.routes r1 on r1.airline_id = p_airline_id and not r1.removed and r1.hub_code = fl.o and r1.dest_code = fl.d
              left join public.routes r2 on r2.airline_id = p_airline_id and not r2.removed and r2.hub_code = fl.d and r2.dest_code = fl.o),
-    fq as (select * from private.fig_freqs(w)),
+    -- the airline's rotations (an aircraft flies only its own airline's rotations, so legsDay's rotations by aircraft are
+    -- among them)
+    fq as (select * from private.fig_freqs(w, p_airline_id)),
     wk as (select f.route_id, sum(f.flights_week)::int as wk from fq f where f.live and f.airline_id = p_airline_id group by f.route_id),
     g as (select rk.hub, rk.dest, rk.route_id, count(*)::int as n, sum(fl.profit) / 1000000 as profit,
                  sum(fl.pax_income + fl.cargo_income) / 1000000 as income,
@@ -3572,7 +3601,7 @@ begin
                  order by mk.pwk desc, mk.ppf desc, mk.first_i), '[]'::jsonb) as v from mk),
     -- the aircraft: each one's average flight × its scheduled flights a day, plus its statement lines without a route
     -- spread over the days captured, less its lease a day (the last leasing payment the events list for it, ÷ 7)
-    lease as (select distinct on (x.reg) x.reg, x.amount
+    lease as materialized (select distinct on (x.reg) x.reg, x.amount
                 from (select (regexp_match(e.descr, 'Leasing payment for ([A-Z0-9-]+)'))[1] as reg, e.amount, e.event_date, e.event_time
                         from private.fig_events(w, p_as_of, p_airline_id) e where e.airline_id = p_airline_id) x
                where x.reg is not null order by x.reg, x.event_date desc, x.event_time desc),

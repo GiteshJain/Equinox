@@ -41,8 +41,9 @@
 # 10. The captured figures (#19, spec docs/specs/2026-10-12-captured-figures.md §3), only if 1 to 9 passed:
 #    tests/captured_figures_test.py opens the old planner at the copy's latest capture plus one hour, signed in as test
 #    staff, and compares every Review and Check figure for every airline with the database functions at the same moment,
-#    and prints each function's time. None of those figures depends on what the real saves changed (a to-do, a plan
-#    card's title, one typed load on a day with no loads).
+#    and prints each function's time. Of what the real saves changed (a to-do, a plan card's title, typed loads), only
+#    the typed loads count, and they were entered after the moment: the test sets aside loads and day flags typed after
+#    it, as the functions leave them out, and puts them back when it ends.
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail

@@ -6,7 +6,10 @@ moment, for every airline.
 Run by database/rehearse.sh after the other steps. Like tests/rules_library_test.py it uses tests/real_saves_test.py's
 helpers and request mapping, needs the copy, so it isn't part of tests/run_all.sh, and nothing goes outside.
 
-1. The moment: the copy's latest capture (game_capture_raw) plus one hour, to the millisecond.
+1. The moment: the copy's latest capture (game_capture_raw) plus one hour, to the millisecond. The copy as it stood
+   then: the functions read typed loads and day flags only as entered by p_as_of, while the old planner reads every
+   one, so those entered after the moment (the real-saves step types one minutes before this test; Gitesh may type
+   some after the latest capture) are set aside while the test runs and put back when it ends.
 2. The old planner, opened as real_saves_test.py opens it (its live address mapped to a local server, the live Supabase
    address answered by the copy, its Supabase library from npm), its clock frozen at the moment, signed in as a test
    staff user; opening it writes nothing. It is served from a copy of web/ in which one line is added to the planner,
@@ -25,7 +28,8 @@ helpers and request mapping, needs the copy, so it isn't part of tests/run_all.s
    the load patterns, main hubs towards 750 and the capture board; can order now. Money to the old planner's rounding
    (a difference only in float noise at a rounding boundary is no difference), counts and dates exactly. Anything that
    differs fails, naming the airline, the figure, both values and the old function it came from.
-5. Each function's time on the copy, best of 3, as postgres (must be under 500 ms).
+5. Each function's time on the copy, best of 3, as postgres (must be under 500 ms), after ANALYZE: the copy is
+   restored without the planner statistics the live database keeps.
 
 Prints airline names, route codes, registrations, counts and figures, never anything else from the rows, since the log
 is posted on the pull request. Never prints the local keys or the test password.
@@ -33,7 +37,7 @@ is posted on the pull request. Never prints the local keys or the test password.
 Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV, LOCAL_DB_URL and SECRET_TABLES.
 Usage: python3 tests/captured_figures_test.py
 """
-import asyncio, datetime, decimal, json, secrets, shutil, sys, tempfile, time
+import asyncio, atexit, datetime, decimal, json, secrets, shutil, sys, tempfile, time
 from pathlib import Path
 from harness import ROOT, WEB, LIVE_HOST, serve
 from playwright.async_api import async_playwright
@@ -531,8 +535,27 @@ TIMED = [("cash_forecast", "select public.cash_forecast({a}, '[]'::jsonb, {m})")
          ("fare_changes", "select public.fare_changes({a}, {m})")]
 
 
+HELD = ("load_entries", "load_days")
+
+
+def set_aside(psql, moment):
+    """Takes the typed loads and day flags entered after the moment out of the copy, as {table: rows as JSON}, to be put
+    back. The change log is off for these test-only moves (honoured for postgres only)."""
+    return {t: psql(f"set equinox.change_log = 'off';\nwith d as (delete from public.{t} where entered_at > :'m'::timestamptz returning *) "
+                    "select coalesce(json_agg(d), '[]') from d", m=moment).strip() for t in HELD}
+
+
+def put_back(psql, held):
+    for t, rows in held.items():
+        if json.loads(rows or "[]"):
+            psql(f"set equinox.change_log = 'off';\ninsert into public.{t} select * from json_populate_recordset(null::public.{t}, :'rows'::json)",
+                 rows=rows)
+
+
 def timings(psql, airline_id, moment):
-    """Each function's time on the copy, best of 3, as postgres, for the airline with the most flights (ms)."""
+    """Each function's time on the copy, best of 3, as postgres, for the airline with the most flights (ms). The copy is
+    analyzed first: restored from a backup it has none of the planner statistics the live database keeps."""
+    psql("analyze")
     out = {}
     for name, sql in TIMED:
         q = sql.format(a=int(airline_id), m="'" + moment + "'::timestamptz")
@@ -597,6 +620,18 @@ async def main():
     names = {str(r["id"]): r["name"] for r in rows}
     print(f"the moment: {moment} (the copy's latest capture plus one hour); our airlines: "
           + ", ".join(f"{r['name']} (main base {r['main'] or 'none'}, home {r['home']})" for r in rows), flush=True)
+
+    # the copy as it stood at the moment: typed loads and day flags entered later are set aside until the test ends
+    try:
+        held = set_aside(psql, moment)
+        atexit.register(lambda: put_back(psql, held))
+        problems = []
+    except Exception as e:
+        held, problems = {}, [why(e)]
+    step(not problems, "the copy as it stood at the moment: typed loads and day flags entered after it set aside until the test ends ("
+         + ", ".join(f"{t}: {len(json.loads(held.get(t) or '[]'))}" for t in HELD) + ")", problems)
+    if problems:
+        sys.exit(1)
 
     tag = secrets.token_hex(4)
     staff = (f"captured-figures-staff-{tag}@example.com", secrets.token_urlsafe(18))
