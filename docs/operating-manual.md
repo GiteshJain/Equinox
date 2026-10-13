@@ -87,11 +87,13 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  the new planner's install, type check, lint, unit tests and build; every planner screen, look-only previews and the
-  planner's key numbers against saved answers; every website page and the new planner's sign-in at `/planner/next/`;
-  the old planner's rule numbers against `settings` and `world_rules`). When the database or either planner changes,
-  the *Database rehearsal* also generates the new planner's types again from the copy (they must match the committed
-  `app/planner/src/db/types.ts`) and has the new planner sign in, read and save on the copy.
+  the new planner's install, type check, lint, unit tests and build; the planning library's cases and its optimiser
+  against `plan.py`; every planner screen, look-only previews and the planner's key numbers against saved answers;
+  every website page and the new planner's sign-in at `/planner/next/`; the old planner's rule numbers against
+  `settings` and `world_rules`). When the database, either planner or the library changes, the *Database rehearsal*
+  also generates the new planner's types again from the copy (they must match the committed
+  `app/planner/src/db/types.ts`), has the new planner sign in, read and save on the copy, and checks the library's
+  Tails and Hubs figures against the old planner's on the same copy (#19).
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*

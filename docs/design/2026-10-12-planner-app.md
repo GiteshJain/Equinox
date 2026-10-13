@@ -102,6 +102,9 @@ every build, and keeps `/app/index.html` uncached.
   - Captured figures come from the database functions in §8, not raw rows.
 - **Rules at start.** One call, `rules_input(world)` (§7), gives the library everything it needs: the settings, world
   rules, aircraft types, airports (connection times, time zones, night bans) and every planned leg.
+  *Found 12 Oct, after pull request #28:* on live it's about 1 MB, because it carries all 4,522 researched routes and
+  their 1,219 airports. Pull request 5 (Home) gives the planner a lighter start (flown routes and their airports
+  only), with the rest loaded one airline at a time by the Routes screen.
 - **Time.** Stored times are UTC. The screens show local or UTC times, as the old planner's toggle does
   (`settings.planner_time_mode`).
 
