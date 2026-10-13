@@ -92,8 +92,9 @@ Details and open points: `docs/decisions.md`.
   every website page and the new planner's sign-in at `/planner/next/`; the old planner's rule numbers against
   `settings` and `world_rules`). When the database, either planner or the library changes, the *Database rehearsal*
   also generates the new planner's types again from the copy (they must match the committed
-  `app/planner/src/db/types.ts`), has the new planner sign in, read and save on the copy, and checks the library's
-  Tails and Hubs figures against the old planner's on the same copy (#19).
+  `app/planner/src/db/types.ts`), has the new planner sign in, read and save on the copy, checks the library's
+  Tails and Hubs figures against the old planner's on the same copy, and the captured figures against its Review and
+  Check (#19).
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*
@@ -213,6 +214,8 @@ Details and open points: `docs/decisions.md`.
     only one order's lease.*
   - Planned refits are not in the forecast; say so with each recommendation.
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
+  - The forecast is worked out by `cash_forecast()` in the database (several orders tested together with `p_orders`);
+    the old planner's Review screen shows the same figures until the switch (#19, build pull request 3).
 - **Order rotation:** each airline's orders rotate big market → more frequency → smaller feeders, kept flexible.
   *Since 2 Oct.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven

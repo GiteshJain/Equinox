@@ -1752,6 +1752,15 @@ isOneToOne: false
             "adapter_clean_days":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: number
                            },
+"aircraft_profit":
+{ Args: { "p_airline_id": number,"p_as_of"?: string,"p_days"?: number }; Returns: Json
+                           },
+"airline_cards":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
+                           },
+"airline_profit":
+{ Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
+                           },
 "apply_loads_from_capture":
 { Args: { "p_airline": string }; Returns: Json
                            },
@@ -1764,6 +1773,12 @@ isOneToOne: false
 "capture_ingest":
 { Args: { "p_airline": string,"p_key": string,"p_kind": string,"p_page": string,"p_rows": Json }; Returns: Json
                            },
+"capture_status":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
+                           },
+"cash_forecast":
+{ Args: { "p_airline_id": number,"p_as_of"?: string,"p_orders"?: Json }; Returns: Json
+                           },
 "export_capture":
 { Args: { "p_days"?: number,"p_secret": string }; Returns: Json
                            },
@@ -1775,6 +1790,15 @@ isOneToOne: false
                            },
 "export_repo_bootstrap":
 { Args: { "p_secret": string }; Returns: Json
+                           },
+"fare_changes":
+{ Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
+                           },
+"growth_signals":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
+                           },
+"hub_progress":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            },
 "ingest_snapshot":
 { Args: { "p_kind": string,"p_payload": Json,"p_secret": string }; Returns: Json
@@ -1813,6 +1837,9 @@ isOneToOne: false
                            },
 "planner_state_version":
 { Args: { "p_world_id"?: number }; Returns: number
+                           },
+"route_profit":
+{ Args: { "p_airline_id": number,"p_as_of"?: string,"p_days"?: number }; Returns: Json
                            },
 "rules_input":
 { Args: { "p_world_id"?: number }; Returns: Json
