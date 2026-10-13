@@ -1,9 +1,10 @@
 """The planning library's optimiser against scripts/planning/plan.py (decision #19, spec §4): on one fixed input, both
 find the same best plan: the same order, start, connections and maintenance.
 
-The input is lib/rules/cases/optimiser-planpy.json (laid over cases/_base.json, as every case is): the test sample's
-legs at KUL (sample_2026-10-10), shaped as rules_input() answers, with three destinations to plan. Its answer is
-plan.py's. This check:
+The input is tests/fixtures/optimiser_kul_2026-10-10.json, a case in the same format as lib/rules/cases/ (laid over
+cases/_base.json, as every case is): the test sample's legs at KUL (sample_2026-10-10), shaped as rules_input() answers,
+with three destinations to plan. It is game data, so it lives with the other dated samples in tests/fixtures/ (decision
+#9); the Vitest case runner runs it too. Its answer is plan.py's. This check:
   1. runs plan.py itself, unchanged, on that input: plan.py reads three files and one web address when it starts, so
      here they are answered from the input (its state's frequencies, its route research and site_public()'s minimum
      connection times) and nothing is read or fetched for real;
@@ -20,6 +21,7 @@ import io, json, pathlib, subprocess, sys, tempfile, urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CASES = ROOT / "lib" / "rules" / "cases"
+FIXTURE = ROOT / "tests" / "fixtures" / "optimiser_kul_2026-10-10.json"
 PLAN = ROOT / "scripts" / "planning" / "plan.py"
 CLI = ROOT / "lib" / "rules" / "dist" / "cli.js"
 failures = []
@@ -112,7 +114,7 @@ def compare(got, want):
 
 def main():
     base = json.loads((CASES / "_base.json").read_text())["input"]
-    doc = json.loads((CASES / "optimiser-planpy.json").read_text())
+    doc = json.loads(FIXTURE.read_text())
     case = doc["cases"][0]
     inp = merged(base, doc.get("input"), case.get("input"))
     want = case["answer"]["best"]

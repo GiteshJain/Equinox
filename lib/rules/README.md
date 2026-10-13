@@ -35,7 +35,7 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `turns` | Whether a turn fits: the type's `min_turn_min` + `turn_margin_min`; under the turnaround is short, under the margin tight | `turns.checkTurn(rules, a321, 75)` → tight (76 needed) |
 | `connections` | Which arrivals connect onto which departures: from `mct_min` + `connection_buffer_min` to `connection_max_wait_h`, day by day across the week, across all our airlines; onward flights and feeders of a leg; a hub's city pairs and the bank each connects in | `connections.link(rules, arrival, departure)` → `{days: 7, of: 7, gap_min: 60}` |
 | `banks` | A hub's bank windows (`airline_bases.bank_times`, the bank settings); which bank a departure collects and an arrival feeds. A focus city has none | `banks.bankOfArrival(rules, hub, 270)` → bank 1, "in", 90 minutes before it leaves |
-| `maintenance` | Usable ground time against the need for an aircraft's week: need = cycles × `maint_per_cycle` + block hours × `maint_per_hour`; have = each gap beyond `ground_keep_min`, once that is at least `maint_min_ground_min`. Bad under `maintenance_min_pct`, a warning under `maintenance_target_pct` | `maintenance.forAircraft(rules, "T-001").pct` → 101, a warning |
+| `maintenance` | Usable ground time against the need for an aircraft's week: need = cycles × `maint_per_cycle` + block hours × `maint_per_hour`; have = each gap beyond `ground_keep_min`, once that is at least `maint_min_ground_min`. Bad under `maintenance_min_pct`, a warning under `maintenance_target_pct`. A gap is left out only when it is a real overlap (the next flight leaves before this one lands); the old planner also left out every gap longer than 156 hours. No aircraft on the 12 Oct copy was affected | `maintenance.forAircraft(rules, "T-001").pct` → 101, a warning |
 | `aircraftWeek` | An aircraft's week, as the Tails screen shows it: legs a week, block hours a day, routes, each departure with its ground time, turn and position | `aircraftWeek.forAircraft(rules, "T-001").block_hours_day` → 12 |
 | `schedule` | Night bans hit, a second daily too close (`second_daily_gap_h`, and the game's `same_route_gap_min`), flight numbers used twice, departures a week per airport against the cap, the next free flight-number pair at a base | `schedule.nextFlightNumbers(rules, hub)` → 1009 / 1010 |
 | `positions` | Where each aircraft is at a moment: in the air with the share flown, or on the ground since its last landing | `positions.positionsAt(rules, "2026-10-12T06:30:00Z")` → T-001 in the air, 40% of the way |
@@ -67,8 +67,10 @@ start window and step default to 05:00 to 11:00 local and 5 minutes.
   the base: `settings` and `world_rules` merge key by key, lists are replaced), a question (`ask`) and the answer. An
   answer names only what it checks; numbers match to within 1e-9; `{"error": "..."}` expects a refusal. The questions
   are listed in `test/ask.ts`.
-- **`optimiser-planpy.json`**: the optimiser on the test sample's legs at KUL, whose answer is plan.py's;
-  `tests/rules_planpy_test.py` runs plan.py, unchanged, on the same input and checks it still gives it.
+- **`tests/fixtures/optimiser_kul_2026-10-10.json`**: the optimiser on the test sample's legs at KUL, whose answer is
+  plan.py's. A case in the same format, kept with the dated samples because it is game data (decision #9); the Vitest
+  runner lists it in `test/cases.test.ts` and lays it over `_base.json` like the rest. `tests/rules_planpy_test.py`
+  runs plan.py, unchanged, on the same input and checks it still gives that answer.
 - **`test/library.test.ts`**: the builder's checks, settings and world rules, a plan card, every command.
 - **On last night's copy** (the rehearsal): `tests/rules_library_test.py` compares the library with the old planner's
   Tails and Hubs screens (`tests/README.md`).
