@@ -221,8 +221,10 @@ async def refuse_other(p, port, env, facts, other, seen):
 
 # ---------- 2. Home ----------
 async def home_opens(pl):
-    """Home is rebuilt (build pull request 5): no placeholder, its boards there, our airlines on the network's buttons in
-    their order, with their colours. Its figures are compared with the old Home's by tests/home_side_by_side_test.py."""
+    """Home is rebuilt (build pull request 5): no placeholder, its boards there (the hero, the map, needs attention,
+    coming up, the to-do board, a card for each of our airlines) and the game clocks under the header, our airlines on
+    the map's buttons in their order, with their colours. Its figures are compared with the old Home's by
+    tests/home_side_by_side_test.py."""
     want = json.loads(psql(f"""select coalesce(json_agg(json_build_object(
             'name', coalesce(a.planner_name, a.public_name, a.game_name, 'Airline ' || a.game_id),
             'color', coalesce(a.livery_color, '#8B96A8')) order by a.position nulls last, a.id), '[]')
@@ -233,21 +235,26 @@ async def home_opens(pl):
     boards = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=home] [data-not-built]'),
         figures: document.querySelectorAll('[data-figure="home: key figures"]').length,
         network: !!document.querySelector('[data-board=network]'), attention: !!document.querySelector('[data-figure="home: needs attention"]'),
-        comingUp: !!document.querySelector('#coming-up'), todo: !!document.querySelector('#todo') })""")
+        comingUp: !!document.querySelector('#coming-up'), todo: !!document.querySelector('#todo'), hero: !!document.querySelector('#eqhero'),
+        cards: document.querySelectorAll('.agrid .acard').length, clocks: document.querySelectorAll('#clocks .zc').length })""")
     problems = []
     if boards["notBuilt"]:
         problems.append("Home still shows the placeholder's line to the old planner")
     if boards["figures"] != 5:
         problems.append(f"{boards['figures']} key figure(s), expected 5")
-    problems += [f"no {k} board" for k in ("network", "attention", "comingUp", "todo") if not boards[k]]
+    problems += [f"no {k} board" for k in ("network", "attention", "comingUp", "todo", "hero") if not boards[k]]
+    if not boards["clocks"]:
+        problems.append("no game clocks under the header")
     if not want:
         problems.append("the copy has none of our airlines")
     if [a["name"] for a in got] != [a["name"] for a in want]:
         problems.append(f"airlines on the network's buttons {[a['name'] for a in got]}, the copy has {[a['name'] for a in want]}")
     elif [a["color"].lower() for a in got] != [a["color"].lower() for a in want]:
         problems.append("an airline's colour isn't the copy's: " + ", ".join(g["name"] for g, w in zip(got, want) if g["color"].lower() != w["color"].lower()))
-    return (f"Home is rebuilt, not a placeholder: its key figures, the network, needs attention, coming up and the to-do board, "
-            f"with the copy's {len(want)} airlines in their order and colours"), problems
+    if boards["cards"] != len(want):
+        problems.append(f"{boards['cards']} airline card(s), the copy has {len(want)} of our airlines")
+    return (f"Home is rebuilt, not a placeholder: the hero, its key figures, the map, needs attention, coming up, the to-do board and "
+            f"the airline cards, with the copy's {len(want)} airlines in their order and colours, and the game clocks ({boards['clocks']} time zones)"), problems
 
 
 # ---------- 3. a to-do ticked through window.__eqPlanner.save() ----------

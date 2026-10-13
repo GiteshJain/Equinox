@@ -61,7 +61,7 @@ export function TodoBoard({ worldId, todos, today, now }: { worldId: number | un
           <form className="tadd" onSubmit={(e) => void add(e)} data-todo-add>
             <input id="todo-title" placeholder="Add a to-do" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="New to-do" />
             <input id="todo-date" type="date" value={date ?? today} onChange={(e) => setDate(e.target.value)} aria-label="Due" />
-            <button className="secondary" id="todo-add" type="submit" disabled={adding || !title.trim()}>Add</button>
+            <button className="secondary" id="todo-add" type="submit" disabled={adding}>Add</button>
             <textarea id="todo-steps" placeholder="Steps, one a line (if any)" rows={2} value={steps} onChange={(e) => setSteps(e.target.value)} aria-label="Steps" />
           </form>
           {board.done.length || board.older ? (

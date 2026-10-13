@@ -56,6 +56,26 @@
       "rule": "the moment is an argument (spec §1)",
       "ask": { "what": "week_minute_at", "at": "2026-10-18T23:59:00Z" },
       "answer": { "week_min": 10079 }
+    },
+    {
+      "name": "the game clocks: one per time zone of the airports given, west to east, the local time and day or night",
+      "rule": "the old renderClocks: zones by UTC offset (the world's correction applied; an unknown airport counts as UTC), labelled UTC, UTC+1, UTC+5:30, UTC−5; day from 06:00 to 18:00 local",
+      "ask": { "what": "clocks", "codes": ["HUB", "FOC", "AAA", "BBB", "CCC", "DDD", "ZZZ"], "at": "2026-10-12T20:15:00Z" },
+      "answer": [
+        { "offset_h": -5, "label": "UTC−5", "codes": ["BBB"], "local_min": 915, "day": true },
+        { "offset_h": 0, "label": "UTC", "codes": ["HUB", "FOC", "ZZZ"], "local_min": 1215, "day": false },
+        { "offset_h": 1, "label": "UTC+1", "codes": ["AAA"], "local_min": 1275, "day": false },
+        { "offset_h": 5.5, "label": "UTC+5:30", "codes": ["CCC", "DDD"], "local_min": 105, "day": false }
+      ]
+    },
+    {
+      "name": "day starts at 06:00 and night at 18:00, local",
+      "rule": "the old renderClocks: day when 360 ≤ local minutes < 1080",
+      "ask": { "what": "clocks", "codes": ["AAA", "BBB"], "at": "2026-10-12T05:00:00Z" },
+      "answer": [
+        { "label": "UTC−5", "local_min": 0, "day": false },
+        { "label": "UTC+1", "local_min": 360, "day": true }
+      ]
     }
   ]
 }

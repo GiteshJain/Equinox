@@ -109,7 +109,7 @@ jobs:
       - name: Rehearse the changes
         env:
           TYPES_DIR: ${{ runner.temp }}/planner-types
-          HOME_SCREENS_DIR: ${{ runner.temp }}/home-screens   # the new Home at 380 and 1280 px (#18 build pull request 5)
+          HOME_SCREENS_DIR: ${{ runner.temp }}/home-screens   # the new Home and the old at 380 and 1280 px (#18 build pull request 5)
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -133,9 +133,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
-      # The new planner's Home on the copy, at 380 and 1280 px wide (tests/home_side_by_side_test.py), for review: it shows
+      # The new planner's Home and the old Home on the copy, at 380 and 1280 px wide (tests/home_side_by_side_test.py), for review: it shows
       # live data, so it's kept three days only, like the types, and never committed
-      - name: Keep the screenshots of the new Home
+      - name: Keep the screenshots of the new Home and the old
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4

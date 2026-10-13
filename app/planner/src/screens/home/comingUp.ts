@@ -1,6 +1,6 @@
 // Coming up: the next 14 days, one-week checks (the aircraft due that day) and to-dos, as the old planner's Home lists
 // them (by day; checks before to-dos on the same day).
-import type { OneWeekCheck } from "../../data/checks";
+import type { OneWeekCheck } from "@rules";
 import { dayDiff } from "../../ui/dates";
 import type { TodoRow } from "./reads";
 

@@ -1838,6 +1838,9 @@ isOneToOne: false
 "planner_state_version":
 { Args: { "p_world_id"?: number }; Returns: number
                            },
+"route_loads":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
+                           },
 "route_profit":
 { Args: { "p_airline_id": number,"p_as_of"?: string,"p_days"?: number }; Returns: Json
                            },

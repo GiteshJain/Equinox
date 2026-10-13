@@ -1,15 +1,18 @@
-// Home (decision #18, build pull request 5; spec docs/specs/2026-10-13-home.md): what the old planner's Home shows, from
-// the same data, with the same figures: the key figures, the network right now on the globe, aircraft on order, needs
-// attention, coming up and the to-do board. Every figure comes from its one home (decision #19): the planning library
-// on rules_input(world, 'flown') for the key figures, the aircraft's positions and the schedule checks; the database's
-// captured figures for the capture, the average load, can order and routes to fix; the tables for the rest. Home only
-// words and arranges them. It moves on with the clock each minute.
+// Home (decision #18, build pull request 5; spec docs/specs/2026-10-13-home.md, and the Building chat's review): what the
+// old planner's Home shows, from the same data, with the same figures and look. Above the page, the operations hero (the
+// globe, aircraft in the air and four tiles), which on the old Home stands in for the page heading and the key-figure
+// row (that row stays in the page, hidden, as there); then the network map, aircraft on order, needs attention, coming
+// up, the to-do board and the airline cards. Every figure comes from its one home (decision #19): the planning library
+// on rules_input(world, 'flown') for the key figures, the hero, positions, the airline cards, the one-week checks and
+// the schedule checks; the database's captured figures for the capture, the group's average load, can order, routes to
+// fix and the loads per route; the tables for the rest. Home only words and arranges them. It moves on with the clock
+// each minute.
 import { useMemo, useState } from "react";
-import { positions, summary, type Rules } from "@rules";
+import { checks as checkRules, positions, summary } from "@rules";
 import { OLD_PLANNER } from "../../data/config";
-import { oneWeekChecks, type CheckAircraft } from "../../data/checks";
 import { useNow } from "../../data/clock";
 import { useOurAirlines, useWorld } from "../../data/reads";
+import { useRules } from "../../data/rules";
 import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { AttentionList } from "../../ui/AttentionList";
@@ -19,15 +22,17 @@ import { inDays, niceDate, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { Pill } from "../../ui/Pill";
 import { itemRoute } from "../screens";
+import { AirlineCards } from "./AirlineCards";
 import { homeAttention, type HomeAirline } from "./attention";
 import { comingUp, UP_LABEL, type UpEvent } from "./comingUp";
-import { keyFigureTiles } from "./figures";
-import { Globe } from "./Globe";
-import type { GlobePlane, GlobeRoute, LatLon } from "./globeScene";
+import { greeting, heroFigures, keyFigureTiles } from "./figures";
+import { Hero } from "./Hero";
+import type { HeroPlane, HeroRoute, LatLon } from "./heroScene";
+import { NetworkMap } from "./NetworkMap";
 import { familyWords, onOrder } from "./onOrder";
 import {
-  useAirlineCards, useBackups, useCaptureStatus, useDismissals, useHomeAircraft, useJobs, usePlanCards, useRotations, useRoutesToFix,
-  useRules, useTodoItems, useTodos,
+  useAirlineCards, useBackups, useCaptureStatus, useDismissals, useGrowth, useHomeAircraft, useJobs, usePlanCards, useRotations,
+  useSitePhotos, useTodoItems, useTodos,
 } from "./reads";
 import { TodoBoard } from "./TodoBoard";
 import { dismissChanges, showAgainChanges, todoViews } from "./todos";
@@ -51,7 +56,8 @@ export function Home() {
   const jobsQ = useJobs();
   const captureQ = useCaptureStatus(w);
   const cardsQ = useAirlineCards(w);
-  const fixQ = useRoutesToFix(w);
+  const growthQ = useGrowth(w);
+  const photosQ = useSitePhotos();
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
 
@@ -60,17 +66,38 @@ export function Home() {
   })), [airlinesQ.data]);
   const rules = rulesQ.data?.rules;
   const figures = useMemo(() => (rules ? summary.keyFigures(rules) : null), [rules]);
-  const checks = useMemo(() => (rules && aircraftQ.data && rotationsQ.data ? homeChecks(rules, aircraftQ.data, rotationsQ.data, today) : null),
-    [rules, aircraftQ.data, rotationsQ.data, today]);
+  const cards = useMemo(() => (rules ? summary.airlineCards(rules) : null), [rules]);
+  const nowFigures = useMemo(() => (rules ? summary.now(rules, now.toISOString()) : null), [rules, now]);
+  const checks = useMemo(() => (rules && aircraftQ.data && rotationsQ.data
+    ? checkRules.oneWeek(rules, { aircraft: aircraftQ.data, rotations: rotationsQ.data }, today) : null), [rules, aircraftQ.data, rotationsQ.data, today]);
   const todos = useMemo(() => (todosQ.data && itemsQ.data ? todoViews(todosQ.data, itemsQ.data) : null), [todosQ.data, itemsQ.data]);
-  const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && fixQ.data
+  const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
     && aircraftQ.data && planCardsQ.data && airlinesQ.data);
   const attention = useMemo(() => (rules && checks && todosQ.data ? homeAttention({
     now, today, airlines, rules, checks, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
-    jobs: jobsQ.data ?? null, cards: cardsQ.data ?? null, routesToFix: fixQ.data ?? null,
-  }) : null), [now, today, airlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, fixQ.data]);
+    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null,
+  }) : null), [now, today, airlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
-  const nameOf = (id: number) => airlines.find((a) => a.id === id)?.name ?? "";
+
+  // the hero's globe: every flying route, and each aircraft in the air at this minute (the library's positions)
+  const coords = useMemo(() => {
+    const m = new Map<string, LatLon>();
+    for (const a of rules?.airports.values() ?? []) if (a.lat != null && a.lon != null) m.set(a.code, [Number(a.lat), Number(a.lon)]);
+    return m;
+  }, [rules]);
+  const heroRoutes: HeroRoute[] = useMemo(() => {
+    if (!rules) return [];
+    const ids = new Set([...rules.rotations.values()].map((r) => r.route_id));
+    return [...rules.routes.values()].filter((r) => ids.has(r.id)).flatMap((r) => {
+      const a = coords.get(r.hub_code), b = coords.get(r.dest_code);
+      return a && b ? [{ key: String(r.id), a, b }] : [];
+    });
+  }, [rules, coords]);
+  const planes: HeroPlane[] = useMemo(() => (rules ? positions.positionsAt(rules, now.toISOString()) : [])
+    .filter((p) => p.state === "air").flatMap((p) => {
+      const a = p.from ? coords.get(p.from) : undefined, b = p.to ? coords.get(p.to) : undefined;
+      return a && b && p.share != null ? [{ a, b, share: p.share }] : [];
+    }), [rules, now, coords]);
 
   const hrefOf = (a: AttItem) => {
     if (a.screen === "home") return itemRoute("home", { hash: "todo" });
@@ -94,120 +121,53 @@ export function Home() {
     if (dismissalsQ.data?.length) await saver.save(showAgainChanges(dismissalsQ.data));
   }
 
-  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, rotationsQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, fixQ);
+  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, rotationsQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ);
   return (
-    <main className="view home" data-screen="home" data-home-ready={ready ? "yes" : "no"}>
-      <div className="vh">
-        <h1>Overview</h1>
-        <p>The whole network at a glance — where every aircraft is, what needs attention, and what's coming up.</p>
-      </div>
-      {loadError ? <ErrorBox error={loadError} /> : null}
+    <>
+      <Hero figures={nowFigures ? heroFigures(nowFigures, cardsQ.data) : null} hello={greeting(now)} routes={heroRoutes} planes={planes} now={now} />
+      <main className="view home eq-enter" data-screen="home" data-home-ready={ready ? "yes" : "no"}>
+        {loadError ? <ErrorBox error={loadError} /> : null}
 
-      <div className="kpis" data-kpis>
-        {figures ? keyFigureTiles(figures, cardsQ.data, nameOf).map((t) => (
-          <div className="kpi" key={t.label} data-figure="home: key figures" title={t.title}>
-            <div className="kv">{t.value}</div><div className="kl">{t.label}</div>
-          </div>
-        )) : <div className="kpi loading">Loading…</div>}
-      </div>
-
-      <Network rules={rules} airlines={airlines} now={now} />
-
-      {aircraftQ.data && rules && planCardsQ.data
-        ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), airlines, now.getTime())} now={now.getTime()} />
-        : null}
-
-      <div className="hgrid">
-        <Board title="Needs attention" figure="home: needs attention" id="attention"
-          note={attention ? (() => { const n = withoutDismissed(attention, dismissed).shown.length; return n ? `${n} item${n === 1 ? "" : "s"}` : "nothing right now"; })() : ""}>
-          {!attention || !ready ? <div className="loading">Loading…</div> : (() => {
-            const { shown, hidden } = withoutDismissed(attention, dismissed);
-            return (
-              <>
-                {hidden ? (
-                  <div className="dim hiddenline" data-dismissed={hidden}>
-                    {hidden} dismissed · <button type="button" className="link" onClick={() => void showAgain()} data-show-again>show again</button>
-                  </div>
-                ) : null}
-                {shown.length ? <AttentionList items={shown} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)} />
-                  : <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div>}
-              </>
-            );
-          })()}
-        </Board>
-        <ComingUp events={checks && todosQ.data ? comingUp(checks, todosQ.data, today) : null} today={today} />
-      </div>
-
-      <TodoBoard worldId={w} todos={todos} today={today} now={now} />
-    </main>
-  );
-}
-
-/** The one-week checks of our aircraft in service, from each aircraft's rotations' launch days. A rotation belongs to
- * the aircraft its outbound leg flies (else its return's), as the old planner's frequencies did. */
-function homeChecks(rules: Rules, aircraft: { id: number; registration: string; status: string; checked_on: string | null; schedule_changed_on: string | null }[],
-  rotations: { id: number; launched_on: string | null }[], today: string) {
-  const flownBy = new Map<number, number>();
-  for (const l of rules.legs) {
-    if (l.rotation_id == null || l.aircraft_id == null) continue;
-    if (l.leg_no === 1 || !flownBy.has(l.rotation_id)) flownBy.set(l.rotation_id, l.aircraft_id);
-  }
-  const launches = new Map<number, string[]>();
-  for (const r of rotations) {
-    const a = flownBy.get(r.id);
-    if (a == null || !r.launched_on) continue;
-    const list = launches.get(a);
-    if (list) list.push(r.launched_on);
-    else launches.set(a, [r.launched_on]);
-  }
-  const inService: CheckAircraft[] = aircraft.filter((a) => a.status === "active");
-  return oneWeekChecks(inService, launches, today);
-}
-
-function Network({ rules, airlines, now }: { rules: Rules | undefined; airlines: HomeAirline[]; now: Date }) {
-  const [only, setOnly] = useState<number | null>(null);
-  // each airport's place and each airline's colour, once per read
-  const coords = useMemo(() => {
-    const m = new Map<string, LatLon>();
-    for (const a of rules?.airports.values() ?? []) if (a.lat != null && a.lon != null) m.set(a.code, [Number(a.lat), Number(a.lon)]);
-    return m;
-  }, [rules]);
-  const colors = useMemo(() => new Map(airlines.map((a) => [a.id, a.color ?? "#8B96A8"])), [airlines]);
-  const flown = useMemo(() => {
-    if (!rules) return [];
-    const ids = new Set([...rules.rotations.values()].map((r) => r.route_id));
-    return [...rules.routes.values()].filter((r) => ids.has(r.id) && (only == null || r.airline_id === only));
-  }, [rules, only]);
-  const routes: GlobeRoute[] = useMemo(() => flown.flatMap((r) => {
-    const a = coords.get(r.hub_code), b = coords.get(r.dest_code);
-    return a && b ? [{ key: String(r.id), a, b, color: colors.get(r.airline_id) ?? "#8B96A8" }] : [];
-  }), [flown, coords, colors]);
-  const bases: LatLon[] = useMemo(() => (rules?.bases ?? []).filter((b) => only == null || b.airline_id === only)
-    .flatMap((b) => { const p = coords.get(b.airport_code); return p ? [p] : []; }), [rules, only, coords]);
-  // where each aircraft is at this minute (the planning library's positions); those in the air are drawn
-  const planes: GlobePlane[] = useMemo(() => (rules ? positions.positionsAt(rules, now.toISOString()) : [])
-    .filter((p) => p.state === "air" && (only == null || p.airline_id === only)).flatMap((p) => {
-      const a = p.from ? coords.get(p.from) : undefined, b = p.to ? coords.get(p.to) : undefined;
-      return a && b && p.share != null ? [{ a, b, share: p.share }] : [];
-    }), [rules, now, only, coords]);
-  const onlyName = only == null ? "" : airlines.find((a) => a.id === only)?.name ?? "";
-  return (
-    <section className="board mapb" aria-label="The network right now" data-board="network">
-      <div className="maph">
-        <h3 className="rh">The network right now <span className="note" data-network-note>
-          {onlyName ? onlyName + " · " : ""}{flown.length} routes · {planes.length} in the air · day and night as of {now.toISOString().slice(11, 16)}Z
-        </span></h3>
-        <div className="mleg">
-          <button type="button" className={"mf" + (only == null ? " on" : "")} onClick={() => setOnly(null)}>All</button>
-          {airlines.map((a) => (
-            <button type="button" key={a.id} className={"mf" + (only === a.id ? " on" : "")} title={a.name} onClick={() => setOnly(a.id)}>
-              <AirlineMark color={a.color} />{a.name}
-            </button>
-          ))}
+        <div className="kpis" data-kpis>
+          {figures ? keyFigureTiles(figures, cardsQ.data).map((t) => (
+            <div className="kpi" key={t.label} data-figure="home: key figures">
+              <div className="kv">{t.value}</div><div className="kl">{t.label}</div>
+            </div>
+          )) : null}
         </div>
-      </div>
-      {rules ? <Globe routes={routes} bases={bases} planes={planes} now={now} /> : <div className="loading">Loading…</div>}
-    </section>
+
+        <NetworkMap rules={rules} airlines={airlines} now={now} worldId={w} aircraft={aircraftQ.data} />
+
+        {aircraftQ.data && rules && planCardsQ.data
+          ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), airlines, now.getTime())} now={now.getTime()} />
+          : null}
+
+        <div className="hgrid">
+          <Board title="Needs attention" figure="home: needs attention" id="attention"
+            note={attention ? (() => { const n = withoutDismissed(attention, dismissed).shown.length; return n ? `${n} item${n === 1 ? "" : "s"}` : "nothing right now"; })() : ""}>
+            {!attention || !ready ? <div className="loading">Loading…</div> : (() => {
+              const { shown, hidden } = withoutDismissed(attention, dismissed);
+              return (
+                <>
+                  {hidden ? (
+                    <div className="dim hiddenline" data-dismissed={hidden}>
+                      {hidden} dismissed · <button type="button" className="link" onClick={() => void showAgain()} data-show-again>show again</button>
+                    </div>
+                  ) : null}
+                  {shown.length ? <AttentionList items={shown} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)} />
+                    : <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div>}
+                </>
+              );
+            })()}
+          </Board>
+          <ComingUp events={checks && todosQ.data ? comingUp(checks, todosQ.data, today) : null} today={today} />
+        </div>
+
+        <TodoBoard worldId={w} todos={todos} today={today} now={now} />
+
+        {cards ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} /> : null}
+      </main>
+    </>
   );
 }
 

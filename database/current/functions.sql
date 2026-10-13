@@ -1210,6 +1210,21 @@ end
 $function$
 ;
 
+-- route_loads(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.route_loads(p_world_id bigint DEFAULT NULL::bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_route_loads(private.fig_world(p_world_id), coalesce(p_as_of, now()));
+end
+$function$
+
+;
+
 -- route_profit(p_airline_id bigint, p_days integer, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION public.route_profit(p_airline_id bigint, p_days integer DEFAULT 7, p_as_of timestamp with time zone DEFAULT now())
  RETURNS jsonb
@@ -2522,8 +2537,26 @@ CREATE OR REPLACE FUNCTION private.fig_airline_cards(p_world_id bigint, p_as_of 
  SET search_path TO ''
 AS $function$
 declare v_today date := (p_as_of at time zone 'UTC')::date; v_from date; v_ops jsonb;
-        v_leases jsonb := private.fig_lease_map(p_world_id, p_as_of);
+        v_leases jsonb := private.fig_lease_map(p_world_id, p_as_of); v_load numeric; v_load_n int; v_load_from text;
 begin
+  -- the group's average economy load, the old Home's key figure (avgLF): every flight the loads pages captured by
+  -- p_as_of departing from 7 days before today on (CAP.loads: one per airline, date and flight number, the latest row),
+  -- averaged as they are, one flight one vote; with none captured, every flight the last 7 days' load reports cover
+  -- (loadStats, as route_loads() counts them: a flight without a load as 97.5%)
+  select avg(x.eco_pct), count(*)::int into v_load, v_load_n
+    from (select distinct on (f.airline_id, f.game_date, f.flight_no) f.eco_pct
+            from public.game_flights f join public.airlines a on a.id = f.airline_id
+           where a.world_id = p_world_id and f.flight_no is not null and f.game_date >= v_today - 7 and f.loads_captured_at <= p_as_of
+           order by f.airline_id, f.game_date, f.flight_no, f.id desc) x
+   where x.eco_pct is not null;
+  if v_load_n > 0 then
+    v_load_from := 'captures';
+  else
+    select sum((r ->> 'sum')::numeric) / nullif(sum((r ->> 'departures')::int), 0), coalesce(sum((r ->> 'departures')::int), 0)::int
+      into v_load, v_load_n
+      from jsonb_array_elements(private.fig_route_loads(p_world_id, p_as_of) -> 'routes') r;
+    v_load_from := case when v_load_n > 0 then 'reports' end;
+  end if;
   -- dayOps for every airline at once, from the first reported cash date (or a week back) to today
   select least(coalesce(min(c.day), v_today), v_today - 7) into v_from
     from private.fig_airlines(p_world_id) al cross join lateral private.fig_cash_days(al.airline_id, p_as_of) c;
@@ -2539,6 +2572,8 @@ begin
         from private.fig_airlines(p_world_id) al)
     select jsonb_build_object(
       'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of),
+      -- the group's average economy load over 7 days, how many flights it covers, and from captures or from reports
+      'load_7_days', v_load, 'load_7_days_flights', v_load_n, 'load_7_days_from', v_load_from,
       'airlines', coalesce(jsonb_agg((c.card - 'days') || jsonb_build_object(
           'code', c.iata_code, 'name', c.name,
           -- fcNext(): needs a capture, needs a bank statement capture, can order now, safe from a day, or not within 14 days
@@ -3165,19 +3200,28 @@ CREATE OR REPLACE FUNCTION private.fig_growth_signals(p_world_id bigint, p_as_of
  SET search_path TO ''
 AS $function$
 declare v_days int := private.fig_num(p_world_id, null, 'growth_window_days')::int; v_docs jsonb;
+        v_today date := (p_as_of at time zone 'UTC')::date; v_profit boolean;
 begin
   -- each airline's route and aircraft profit over the growth window, for those with flights captured
   select coalesce(jsonb_agg(jsonb_build_object('airline_id', al.airline_id, 'ord', al.ord, 'doc', x.doc) order by al.ord), '[]'::jsonb) into v_docs
     from private.fig_airlines(p_world_id) al
     cross join lateral (select private.fig_route_profit(al.airline_id, v_days, p_as_of) as doc offset 0) x   -- once each
    where al.home_code is not null and (x.doc ->> 'flights')::int > 0;
+  -- any profit captured: a bank-statement line posted since midnight UTC 8 days ago (the old Home's CAP.pnl,
+  -- game_flight_pnl since utcDay(-8)); with none, Home lists the routes the load patterns say to reduce instead
+  v_profit := exists (select 1 from public.game_flights f join public.airlines a on a.id = f.airline_id
+                       where a.world_id = p_world_id and f.posted_at >= (v_today - 8)::timestamp at time zone 'UTC'
+                         and coalesce(f.money_captured_at, f.posted_at) <= p_as_of)
+           or exists (select 1 from public.game_payments p join public.airlines a on a.id = p.airline_id
+                       where a.world_id = p_world_id and p.paid_at >= (v_today - 8)::timestamp at time zone 'UTC' and p.created_at <= p_as_of
+                         and coalesce(p.statement_blk::int, 1) > 0 and p.kind = 'other');
   return (
     with r as (select (d ->> 'airline_id')::bigint as airline_id, (d ->> 'ord')::int as ord, e.x, e.i
                  from jsonb_array_elements(v_docs) d cross join lateral jsonb_array_elements(d -> 'doc' -> 'routes') with ordinality as e(x, i)),
     t as (select (d ->> 'airline_id')::bigint as airline_id, (d ->> 'ord')::int as ord, e.x, e.i
             from jsonb_array_elements(v_docs) d cross join lateral jsonb_array_elements(d -> 'doc' -> 'aircraft') with ordinality as e(x, i))
     select jsonb_build_object(
-      'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'days', v_days,
+      'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'days', v_days, 'profit_captured', v_profit,
       'ready_for_another_flight', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', r.airline_id) || r.x
                                      order by (r.x ->> 'profit_week')::numeric desc, r.ord, r.i), '[]'::jsonb) from r where r.x ->> 'mark' = 'add'),
       'raise_fares', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', r.airline_id) || r.x
@@ -3527,6 +3571,42 @@ begin
              order by s.position nulls last, s.airline_id, s.hub_code, s.dest_code), '[]'::jsonb)
       from s);
 end
+$function$
+
+;
+
+-- private.fig_route_loads(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_route_loads(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with d as (select (p_as_of at time zone 'UTC')::date as d0),
+  ld as (select x.* from d cross join lateral private.fig_load_days(p_world_id, p_as_of, d.d0 - 6, d.d0) x where x.done),
+  lv as (select x.* from d cross join lateral private.fig_load_values(p_world_id, p_as_of, d.d0 - 6, d.d0) x where x.v is not null),
+  fl as (select x.day, x.airline_id, x.flight_no, x.route_id, lv.v
+           from d cross join lateral private.fig_flights_on(p_world_id, d.d0 - 6, d.d0) x
+           join ld on ld.day = x.day
+           left join lv on lv.day = x.day and lv.airline_id = x.airline_id and lv.flight_no = x.flight_no
+          where not (x.launched_on is not null and x.day < x.launched_on)
+            and not (ld.captured and lv.v is null)),
+  r as (select fl.route_id, fl.airline_id, count(*)::int as n,
+               sum(case when coalesce(fl.v, 0) = 0 then 97.5 else fl.v end) as s,
+               count(*) filter (where coalesce(fl.v, 0) = 0 or fl.v >= 95)::int as full_n,
+               count(*) filter (where fl.v > 0 and fl.v >= 85 and fl.v < 95)::int as b95,
+               count(*) filter (where fl.v > 0 and fl.v >= 70 and fl.v < 85)::int as b85,
+               count(*) filter (where fl.v > 0 and fl.v < 70)::int as b70,
+               count(distinct fl.day)::int as days
+          from fl group by fl.route_id, fl.airline_id)
+  select jsonb_build_object(
+    'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'from', (select d0 - 6 from d), 'to', (select d0 from d),
+    'routes', coalesce((select jsonb_agg(jsonb_build_object(
+        'airline_id', r.airline_id, 'route_id', r.route_id, 'hub', ro.hub_code, 'dest', ro.dest_code,
+        'departures', r.n, 'sum', r.s, 'average', r.s / r.n, 'full', r.full_n, 'under_95', r.b95, 'under_85', r.b85,
+        'under_70', r.b70, 'days', r.days)
+        order by a.position nulls last, r.airline_id, ro.hub_code, ro.dest_code)
+      from r join public.routes ro on ro.id = r.route_id join public.airlines a on a.id = r.airline_id), '[]'::jsonb))
 $function$
 
 ;

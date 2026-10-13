@@ -1,16 +1,16 @@
 // Home's needs-attention items, in the order the old planner's renderHome pushes them, with its words, keys and links.
-// Every figure comes from its one home (decision #19, spec §2): maintenance, turns and positions, night bans, flight
-// numbers used twice and departures per airport from the planning library; the capture from capture_status(); the
-// backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals(); can order from
-// airline_cards(); to-dos and one-week checks from the tables. This file only words them. Interline isn't listed yet:
+// Every figure comes from its one home (decision #19, spec §2): one-week checks, maintenance, turns and positions, night
+// bans, flight numbers used twice and the airport caps (airport_cap_warning_pct) from the planning library; the capture
+// from capture_status(); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
+// (or, with no profit captured, the routes its load patterns mark cut, as the old Home fell back); can order from
+// airline_cards(); to-dos from the table. This file only words them. Interline isn't listed yet:
 // its rule (the old planner's list of interline countries) has no home outside the old planner's code (the pull
 // request says so); monthly checks have none since 8 Oct, as in the old planner.
-import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
-import type { OneWeekCheck } from "../../data/checks";
+import { aircraftWeek, block, maintenance, schedule, type OneWeekCheck, type Rules } from "@rules";
 import type { AttItem } from "../../ui/attention";
 import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
-import type { AirlineCard, BackupRun, CaptureRead, FixRoute, JobRun, JobsRead, TodoRow } from "./reads";
+import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, JobRun, JobsRead, TodoRow } from "./reads";
 
 /** One of our airlines as Home names it: the old planner's name (Pan American), so its words and keys are the old ones. */
 export interface HomeAirline {
@@ -32,7 +32,7 @@ export interface AttentionInput {
   backups: readonly BackupRun[] | null;
   jobs: JobsRead | null;
   cards: readonly AirlineCard[] | null;
-  routesToFix: readonly FixRoute[] | null;
+  growth: GrowthRead | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -47,10 +47,6 @@ export const SNAPSHOT_BAD_H = 54;
 export const SCHEDULER_LATE_H = 30;
 /** The day of the month by which the archive should have run. */
 export const ARCHIVE_BY_DAY = 3;
-/** Departures a week from an airport are worth a warning from this share of the game's cap (the old planner's 4,000 of
- * 5,000), and bad at the cap. */
-export const CAP_WARN_SHARE = 0.8;
-
 /** A route-profit mark as the old planner words it (RP_SIG). */
 export const MARK_WORDS: Record<FixRoute["mark"], string> = { losing: "losing money", fix: "fix or reduce" };
 
@@ -107,22 +103,30 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       text: `${name(c.airline_id).split(" ")[0]} ${c.flight_no} is used twice (${a.origin}–${a.dest} and ${b.origin}–${b.dest}) on the same days` });
   }
 
-  // departures a week per airport, near or at the game's cap
-  for (const d of schedule.departuresPerAirport(rules, legs)) {
-    if (d.departures_week < d.cap * CAP_WARN_SHARE) continue;
-    items.push({ cls: d.departures_week >= d.cap ? "bad" : "warn", screen: "routes",
+  // departures a week per airport, from airport_cap_warning_pct of the game's cap, bad at the cap
+  for (const d of schedule.airportCapWarnings(rules, legs)) {
+    items.push({ cls: d.level, screen: "routes",
       text: `${d.airport}: ${d.departures_week.toLocaleString(locale)} departures a week — the cap is ${d.cap.toLocaleString(locale)} per airport` });
   }
 
-  // routes to fix or reduce, airline by airline, the most profitable a week first (route_profit()'s order)
+  // routes to fix or reduce, airline by airline, the most profitable a week first (route_profit()'s order); with no
+  // profit captured, the routes the load patterns say to reduce instead (the old Home's fallback)
   const pos = (id: number) => { const i = airlines.findIndex((a) => a.id === id); return i < 0 ? airlines.length : i; };
   const val = (v: number | null) => (v == null ? -Infinity : Number(v));
-  const fix = [...(x.routesToFix ?? [])].sort((a, b) => pos(a.airline_id) - pos(b.airline_id)
-    || val(b.profit_week) - val(a.profit_week) || val(b.profit_per_flight) - val(a.profit_per_flight));
-  for (const r of fix) {
-    const key = `${name(r.airline_id)}|${r.hub}|${r.dest}`;
-    items.push({ key: "route|" + key, cls: r.mark === "losing" ? "bad" : "warn", screen: "review", route: key,
-      text: `${r.hub}–${r.dest}: ${MARK_WORDS[r.mark] ?? r.mark} — ${r.why}` });
+  if (x.growth?.profit_captured) {
+    const fix: FixRoute[] = [...x.growth.fix_or_reduce].sort((a, b) => pos(a.airline_id) - pos(b.airline_id)
+      || val(b.profit_week) - val(a.profit_week) || val(b.profit_per_flight) - val(a.profit_per_flight));
+    for (const r of fix) {
+      const key = `${name(r.airline_id)}|${r.hub}|${r.dest}`;
+      items.push({ key: "route|" + key, cls: r.mark === "losing" ? "bad" : "warn", screen: "review", route: key,
+        text: `${r.hub}–${r.dest}: ${MARK_WORDS[r.mark] ?? r.mark} — ${r.why}` });
+    }
+  } else if (x.growth) {
+    for (const p of x.growth.load_patterns) {
+      if (p.mark !== "cut") continue;
+      const key = `${name(p.airline_id)}|${p.hub}|${p.dest}`;
+      items.push({ key: "route|" + key, cls: "warn", screen: "routes", route: key, text: `${p.hub}–${p.dest}: loads say reduce — ${p.why}` });
+    }
   }
 
   // the capture: an airline not captured for over a day

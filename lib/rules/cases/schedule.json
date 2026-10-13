@@ -162,6 +162,39 @@
       },
       "ask": {"what": "next_flight_numbers", "airport": "AAA"},
       "answer": {"out": 3001, "back": 3002, "highest": null}
+    },
+    {
+      "name": "Home's airport-cap warnings: from 80% of the cap a warning, bad at the cap itself, busiest first",
+      "rule": "airport_cap_warning_pct of world_rules.departures_per_airport_week (the old Home's 4,000 of the 5,000 cap); bad at the cap",
+      "input": {
+        "world_rules": {"departures_per_airport_week": 10},
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3], "dep_utc_min": 600, "block_min": 125},
+          {"id": 3, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 75},
+          {"id": 4, "airline_id": 1, "origin_code": "AAA", "dest_code": "FOC", "days_utc": [1], "dep_utc_min": 900, "block_min": 60},
+          {"id": 5, "airline_id": 1, "origin_code": "FOC", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 50}
+        ]
+      },
+      "ask": {"what": "cap_warnings"},
+      "answer": [
+        {"airport": "HUB", "departures_week": 10, "cap": 10, "warn_from": 8, "level": "bad"},
+        {"airport": "AAA", "departures_week": 8, "cap": 10, "warn_from": 8, "level": "warn"}
+      ]
+    },
+    {
+      "name": "the warning share is a setting",
+      "rule": "airport_cap_warning_pct, never a number in code",
+      "input": {
+        "settings": {"airport_cap_warning_pct": 50},
+        "world_rules": {"departures_per_airport_week": 10},
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4], "dep_utc_min": 600, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "cap_warnings"},
+      "answer": [{"airport": "HUB", "departures_week": 5, "warn_from": 5, "level": "warn"}]
     }
   ]
 }

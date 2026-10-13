@@ -48,10 +48,13 @@
 #    it, as the functions leave them out, and puts them back when it ends.
 # 11. The new planner's Home (#18 build pull request 5, spec docs/specs/2026-10-13-home.md §3), only if 1 to 10 passed,
 #    last because its saves change the copy: tests/home_side_by_side_test.py opens the old planner and the new one at the
-#    same frozen moment (the latest capture plus one hour), signed in as test staff, and compares every Home board; then
+#    same frozen moment (the latest capture plus one hour), signed in as test staff, and compares every Home board (the
+#    hero, the clocks, the map and the airline cards included), the loads behind them to the decimal and the look
+#    (computed styles at 1280 and 380 px); then
 #    saves through the new Home's own buttons (a to-do ticked, added with two steps and deleted, an item dismissed and
 #    shown again) and checks the old planner shows the same; a preview saves nothing; at 380 px wide nothing scrolls
-#    sideways. Screenshots at 380 and 1280 px go to HOME_SCREENS_DIR (the run's home-screens artifact).
+#    sideways. Screenshots of the new Home and the old at 380 and 1280 px go to HOME_SCREENS_DIR (the run's
+#    home-screens artifact).
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail

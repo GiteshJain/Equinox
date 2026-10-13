@@ -1,7 +1,7 @@
 // time: local and UTC times at an airport (manual §9: the game runs standard time all year). An airport's offset is the
 // world's correction (world_airports.utc_offset_override) if it has one, else the game's (airports.utc_offset); one
 // whose offset isn't known counts as UTC, as the old planner and the database's getter count it.
-// The old code it follows: the old planner's utcOf; the optimiser's off.
+// The old code it follows: the old planner's utcOf; the optimiser's off; renderClocks for the game clocks.
 import type { Rules } from "./types.js";
 
 export const DAY = 1440;
@@ -68,6 +68,39 @@ export function parseClock(s: string | null | undefined): number | null {
   if (!m) return null;
   const h = Number(m[1]), mi = Number(m[2]);
   return h > 23 || mi > 59 ? null : h * 60 + mi;
+}
+
+export interface ZoneClock {
+  /** The zone's UTC offset in hours (an airport whose offset isn't known counts as UTC). */
+  offset_h: number;
+  /** "UTC", "UTC+5:30", "UTC−5" (a true minus sign), as the old planner labels it. */
+  label: string;
+  /** The airports in the zone, in the order given. */
+  codes: string[];
+  /** The local time there, minutes after midnight. */
+  local_min: number;
+  /** Day from 06:00 to 18:00 local. */
+  day: boolean;
+}
+
+/** The game clocks under the header (the old planner's renderClocks): one per time zone of the airports given (our
+ *  bases), west to east, with the local time at the moment and whether it's day there. */
+export function clocks(rules: Rules, codes: readonly string[], moment: string | number): ZoneClock[] {
+  const m = weekMinuteAt(moment), utcMin = Math.floor(mod(m, DAY));
+  const zones = new Map<number, string[]>();
+  for (const code of codes) {
+    const off = utcOffsetHours(rules, code) ?? 0;
+    zones.set(off, [...(zones.get(off) ?? []), code]);
+  }
+  const label = (o: number) => {
+    if (o === 0) return "UTC";
+    const a = Math.abs(o), frac = a % 1;
+    return "UTC" + (o > 0 ? "+" : "−") + Math.floor(a) + (frac ? ":" + String(Math.round(frac * 60)).padStart(2, "0") : "");
+  };
+  return [...zones.entries()].sort((a, b) => a[0] - b[0]).map(([off, list]) => {
+    const local = mod(utcMin + Math.round(off * 60), DAY);
+    return { offset_h: off, label: label(off), codes: list, local_min: local, day: local >= 360 && local < 1080 };
+  });
 }
 
 /** A moment (an ISO time such as 2026-10-12T14:30:00Z, or milliseconds since 1970) as minutes from Monday 00:00 UTC,

@@ -4,6 +4,7 @@
 //     same_route_gap_min between departures on a route, world_rules);
 //   - a flight number used twice: one airline's number on two legs leaving on the same local weekday at their origin;
 //   - departures a week per airport, against world_rules.departures_per_airport_week (per player: all the legs given);
+//     Home warns from airport_cap_warning_pct of that cap, and calls it bad at the cap (airportCapWarnings);
 //   - the next free flight-number pair at a base: the next odd number above the highest in use in its block.
 // The old code it follows: the old planner's attention checks (banAt, flightClashes, the airport caps) and nextPair.
 import { inNightBan, nightBanAt } from "./airport.js";
@@ -116,6 +117,23 @@ export function departuresPerAirport(rules: Rules, legs: readonly TimedLeg[] = t
   const n = new Map<string, number>();
   for (const l of legs) n.set(l.origin, (n.get(l.origin) ?? 0) + l.days_utc.length);
   return [...n.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([airport, d]) => ({ airport, departures_week: d, cap, over: d > cap }));
+}
+
+export interface CapWarning extends AirportDepartures {
+  /** airport_cap_warning_pct of the cap: Home warns from here. */
+  warn_from: number;
+  /** warn from warn_from, bad at the cap itself. */
+  level: "warn" | "bad";
+}
+
+/** The airports whose departures a week reach airport_cap_warning_pct of the game's cap, busiest first: a warning, and
+ *  bad at the cap. The old planner's Home: 4,000 departures a week of the 5,000 cap, bad at 5,000. */
+export function airportCapWarnings(rules: Rules, legs: readonly TimedLeg[] = timedLegs(rules)): CapWarning[] {
+  const pct = settingNumber(rules, "airport_cap_warning_pct");
+  return departuresPerAirport(rules, legs).flatMap((d) => {
+    const from = (d.cap * pct) / 100;
+    return d.departures_week >= from ? [{ ...d, warn_from: from, level: d.departures_week >= d.cap ? ("bad" as const) : ("warn" as const) }] : [];
+  });
 }
 
 export interface NextPair {
