@@ -1,8 +1,8 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, banks, block, buildRules, card, checks, connections, maintenance, optimiser, positions, schedule, summary, time, turns, findType,
-  type Card, type CheckFacts, type Json, type Rules, type RulesInput,
+  aircraftWeek, banks, block, buildRules, card, checks, connections, frequency, maintenance, optimiser, positions, schedule, service, summary, time, turns, findType,
+  type Card, type CheckFacts, type FrequencyEnds, type Json, type LocalTimes, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
 export type Ask = { what: string; [key: string]: Json };
@@ -33,6 +33,13 @@ const clockArg = (x: Json | undefined, what: string): number => {
   if (m == null) throw new Error(`${what} must be HH:MM`);
   return m;
 };
+
+/** A frequency's local times from a case: days and the four times as "HH:MM", or null for one left empty. */
+function localArg(x: Json | undefined): LocalTimes {
+  const o = (x ?? {}) as Record<string, Json>;
+  const t = (k: string) => (o[k] == null ? null : clockArg(o[k], k));
+  return { days: (o.days as number[] | undefined) ?? [1, 2, 3, 4, 5, 6, 7], dep_hub: t("dep_hub"), arr_dest: t("arr_dest"), dep_dest: t("dep_dest"), arr_hub: t("arr_hub") };
+}
 
 function legById(rules: Rules, id: number) {
   const l = block.timedLegs(rules).find((x) => x.id === id);
@@ -134,6 +141,41 @@ export function ask(input: RulesInput, q: Ask): unknown {
     }
     case "check_card":
       return card.checkCard(rules, q.card as unknown as Card);
+    // the Routes screen's frequency (#18 build pull request 6): times as "HH:MM" (or null) in the ask, minutes in the answer
+    case "frequency_to_legs":
+      return frequency.toLegs(rules, q.ends as unknown as FrequencyEnds, localArg(q.local));
+    case "frequency_view": {
+      const ends = q.ends as unknown as FrequencyEnds;
+      const local = q.local ? localArg(q.local) : frequency.localTimes(rules, ends, q.leg1 as unknown as StoredLeg, q.leg2 as unknown as StoredLeg);
+      return frequency.view(rules, ends, local);
+    }
+    case "frequency_round_trip": {
+      // typed in local time, stored, and read back: the same local times
+      const ends = q.ends as unknown as FrequencyEnds, local = localArg(q.local);
+      const { leg1, leg2 } = frequency.toLegs(rules, ends, local);
+      return frequency.localTimes(rules, ends, leg1, leg2);
+    }
+    case "frequency_retime": {
+      const code = str(q.airport, "airport"), after = frequency.withOffset(rules, code, q.offset_h as number | null, (q.correction ?? q.offset_h) as number | null);
+      const ends = q.ends as unknown as FrequencyEnds;
+      return {
+        ...frequency.retime(rules, after, ends, q.leg1 as unknown as StoredLeg, q.leg2 as unknown as StoredLeg),
+        plan_card_dep: q.plan_card_dep == null ? null : frequency.retimeDeparture(rules, after, code, num(q.plan_card_dep, "plan_card_dep")),
+      };
+    }
+    case "frequency_checks":
+      return frequency.checks(rules, num(q.rotation_id, "rotation_id"));
+    case "wave": {
+      const airlineId = num(q.airline_id, "airline_id");
+      const b = banks.airlineBaseAt(rules, str(q.airport, "airport"), airlineId);
+      return banks.wave(rules, b, q.dep == null ? null : clockArg(q.dep, "dep"), q.arr == null ? null : clockArg(q.arr, "arr"));
+    }
+    case "service_profile":
+      return service.profileFor(q.profiles as unknown as ServiceProfile[], num(q.airline_id, "airline_id"), q.km as number | null);
+    case "number_ranges":
+      return { text: frequency.numberRanges(q.numbers as number[]) };
+    case "great_circle":
+      return { km: block.greatCircleBetween(q.a as { lat: number; lon: number }, q.b as { lat: number; lon: number }) };
     default:
       throw new Error(`unknown question ${q.what}`);
   }

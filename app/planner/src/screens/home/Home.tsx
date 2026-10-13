@@ -21,6 +21,7 @@ import { Board } from "../../ui/Board";
 import { inDays, niceDate, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { Pill } from "../../ui/Pill";
+import { RoutePopup } from "../routes/RoutePopup";
 import { itemRoute } from "../screens";
 import { AirlineCards } from "./AirlineCards";
 import { homeAttention, type HomeAirline } from "./attention";
@@ -60,6 +61,8 @@ export function Home() {
   const photosQ = useSitePhotos();
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
+  // the route pop-up a click on the map's route opens (Routes' RoutePopup, build pull request 6)
+  const [popup, setPopup] = useState<number | null>(null);
 
   const airlines: HomeAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
     id: a.id, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, code: a.iata_code, color: a.livery_color,
@@ -136,7 +139,8 @@ export function Home() {
           )) : null}
         </div>
 
-        <NetworkMap rules={rules} airlines={airlines} now={now} worldId={w} aircraft={aircraftQ.data} />
+        <NetworkMap rules={rules} airlines={airlines} now={now} worldId={w} aircraft={aircraftQ.data} onOpenRoute={setPopup} />
+        {popup != null && rules ? <RoutePopup routeId={popup} rules={rules} airlines={airlines} onClose={() => setPopup(null)} /> : null}
 
         {aircraftQ.data && rules && planCardsQ.data
           ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), airlines, now.getTime())} now={now.getTime()} />

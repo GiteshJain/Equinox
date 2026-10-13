@@ -78,6 +78,8 @@ export type PlannerCheckHook = {
   cached(table: PlannerTable, key: Key): Row | null;
   state(): SaveState;
   retry(): Promise<void>;
+  /** Moves the planner to one of its addresses without loading the page again (main.tsx sets it once the router exists). */
+  go?: (to: string) => void;
 };
 
 declare global {

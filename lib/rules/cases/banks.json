@@ -121,6 +121,42 @@
         "city_pairs": [{"from": "AAA", "to": "HUB", "gap_min": 114, "bank": 0}],
         "by_bank": [{"n": 0, "dep_local_min": null, "arriving_from": ["AAA"], "leaving_to": ["HUB"], "city_pairs": 1}]
       }
+    },
+    {
+      "name": "a frequency's bank fit at its hub (the old waveAt): leaves 06:30 in bank 1's window, the return lands 04:30 in bank 1's arrival window",
+      "rule": "the old planner's waveAt, Routes' bank-fit pill (#18 build pull request 6)",
+      "ask": {"what": "wave", "airport": "HUB", "airline_id": 1, "dep": "06:30", "arr": "04:30"},
+      "answer": {"level": "ok", "text": "B1 out · B1 in", "dep": {"ok": true, "n": 1}, "arr": {"n": 1, "status": "in"}}
+    },
+    {
+      "name": "a departure outside every window floats (a warning); the arrival still feeds bank 2",
+      "ask": {"what": "wave", "airport": "HUB", "airline_id": 1, "dep": "08:00", "arr": "12:30"},
+      "answer": {"level": "warn", "text": "dep floats · B2 in", "dep": {"ok": false, "n": 0}}
+    },
+    {
+      "name": "an arrival 4 h before bank 2 is early by 2:00 (a warning)",
+      "ask": {"what": "wave", "airport": "HUB", "airline_id": 1, "dep": null, "arr": "10:00"},
+      "answer": {"level": "warn", "text": "B2 in, 2:00 early", "dep": null, "arr": {"n": 2, "status": "early", "early_by_min": 120}}
+    },
+    {
+      "name": "an arrival that misses bank 1 and is more than 8 h before bank 2 is off wave (bad), with a floating departure both",
+      "ask": {"what": "wave", "airport": "HUB", "airline_id": 1, "dep": "08:00", "arr": "05:30"},
+      "answer": {"level": "bad", "text": "dep + arr off wave"}
+    },
+    {
+      "name": "the arrival alone off wave",
+      "ask": {"what": "wave", "airport": "HUB", "airline_id": 1, "dep": null, "arr": "05:30"},
+      "answer": {"level": "bad", "text": "arr off wave", "dep": null}
+    },
+    {
+      "name": "a focus city has no banks of its own: its pill names the hub it times to",
+      "ask": {"what": "wave", "airport": "FOC", "airline_id": 1, "dep": "07:00", "arr": "09:00"},
+      "answer": {"level": "mute", "text": "focus city · times to HUB banks", "dep": null, "arr": null}
+    },
+    {
+      "name": "an airport that isn't the airline's own base (AAA is Other Air's): hub?",
+      "ask": {"what": "wave", "airport": "AAA", "airline_id": 1, "dep": "07:00", "arr": "09:00"},
+      "answer": {"level": "mute", "text": "hub?"}
     }
   ]
 }

@@ -76,9 +76,10 @@ KNOWN = {
                 "the adapter's extra; the new planner orders them by aircraft id. The same aircraft, in another order.",
         "used": 0, "where": []},
     "what a map click opens": {
-        "rule": "the old map's tips end with what a click opens there (a route's or a plan card's pop-up); those pop-ups belong to "
-                "Routes and to the plan cards, not rebuilt yet, so the new map's tips end with where a click goes instead (the "
-                "route's line in Routes, the aircraft in Aircraft on order). Everything before that last part is compared.",
+        "rule": "the old map's tips end with what a click opens there (a route's or a plan card's pop-up). A route's pop-up came "
+                "with Routes (build pull request 6), so a route's tip now ends as the old one's; a plan card's pop-up isn't rebuilt "
+                "yet, so a planned route's tip ends with where a click goes instead (the aircraft in Aircraft on order). Everything "
+                "before that last part is compared.",
         "used": 0, "where": []},
     "the hero's times": {
         "rule": "the old hero (eqStats) counts a flight as today's when its hub's local weekday is today's UTC weekday, and gives "
