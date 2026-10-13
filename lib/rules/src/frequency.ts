@@ -132,7 +132,7 @@ export function view(rules: Rules, ends: FrequencyEnds, local: LocalTimes): Freq
     const typed = local.arr_hub != null;
     const dur = local.arr_hub != null ? mod(local.arr_hub - local.dep_dest - (oh - od), DAY) : est;
     if (dur != null) {
-      const depDay = 0;   // DELIBERATE FAILURE (spec "Proving it"): the return's day taken as the outbound's day; removed next
+      const depDay = out ? out.arr_day + (local.dep_dest < out.arr ? 1 : 0) : 0;
       const abs = local.dep_dest + dur + (oh - od);
       back = { dep: local.dep_dest, dep_day: depDay, arr: mod(abs, DAY), arr_day: depDay + Math.floor(abs / DAY), block: dur, est: !typed };
     }
