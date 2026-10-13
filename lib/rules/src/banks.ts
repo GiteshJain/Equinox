@@ -83,3 +83,43 @@ export function bankOfArrival(rules: Rules, base: BaseRow, arrLocal: number): Ar
   const status = slack <= arrWin ? "in" : best.gap <= maxWait ? "early" : "late";
   return { n: status === "late" ? 0 : best.w.n, status, wait_min: best.gap, need_min: need, early_by_min: Math.max(0, slack - arrWin) };
 }
+
+/** The airline's own base at an airport (no other airline's), as the old planner's hubOf(airline, code) finds it. */
+export function airlineBaseAt(rules: Rules, code: string, airlineId: number): BaseRow | undefined {
+  return rules.bases.find((b) => b.airport_code === code && b.airline_id === airlineId);
+}
+
+/** A duration as the old planner writes one (its hhmm): hours and minutes, "1:05", "12:40". */
+export const duration = (min: number): string => `${Math.floor(min / 60)}:${String(mod(Math.round(min), 60)).padStart(2, "0")}`;
+
+/** How a frequency fits a base's banks (the old planner's waveAt): ok, warn, bad, or mute where there are no banks. */
+export interface Wave {
+  level: "ok" | "warn" | "bad" | "mute";
+  /** The words on its pill: "B1 out · B2 in", "dep floats · B2 in, 1:05 early", "arr off wave", "dep + arr off wave",
+   *  "focus city · times to HUB banks", "no banks set", or "hub?" without a base. */
+  text: string;
+  /** The departure: the bank it leaves in (n), or ok false when it floats. Null when no departure was given. */
+  dep: { ok: boolean; n: number } | null;
+  /** The arrival: the bank it feeds. Null when no arrival was given. */
+  arr: ArrivalBank | null;
+}
+
+/** How a departure and an arrival (local minutes at the base, either may be null) fit its banks: a departure inside a
+ *  bank's departure window collects that bank, else it floats; an arrival feeds a bank in its window, early, or late
+ *  (nothing within connection_max_wait_h). Bad when the arrival is late; a warning when the departure floats or the
+ *  arrival is early. A focus city has no banks of its own. */
+export function wave(rules: Rules, base: BaseRow | undefined, depLocal: number | null, arrLocal: number | null): Wave {
+  if (!base) return { level: "mute", text: "hub?", dep: null, arr: null };
+  if (isFocus(base)) return { level: "mute", text: "focus city" + (base.parent_code ? ` · times to ${base.parent_code} banks` : ""), dep: null, arr: null };
+  if (!bankWindows(rules, base).length) return { level: "mute", text: "no banks set", dep: null, arr: null };
+  const hit = depLocal == null ? null : bankOfDeparture(rules, base, depLocal);
+  const dep = depLocal == null ? null : { ok: !!hit, n: hit?.n ?? 0 };
+  const arr = arrLocal == null ? null : bankOfArrival(rules, base, arrLocal);
+  const bad = dep && !dep.ok && arr && arr.status === "late" ? "dep + arr off wave" : arr && arr.status === "late" ? "arr off wave" : "";
+  const parts: string[] = [];
+  if (dep) parts.push(dep.ok ? `B${dep.n} out` : "dep floats");
+  if (arr && arr.status === "in") parts.push(`B${arr.n} in`);
+  else if (arr && arr.status === "early") parts.push(`B${arr.n} in, ${duration(arr.early_by_min)} early`);
+  const level = bad ? "bad" : (dep && !dep.ok) || (arr && arr.status === "early") ? "warn" : "ok";
+  return { level, text: bad || parts.join(" · "), dep, arr };
+}

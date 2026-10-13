@@ -10,10 +10,17 @@ const EARTH_KM = 6371;
 
 /** Great-circle km between two airports, rounded as the old planner's haversine rounds it, or null without positions. */
 export function greatCircleKm(rules: Rules, a: string, b: string): number | null {
-  const A = rules.airports.get(a), B = rules.airports.get(b);
+  return greatCircleBetween(rules.airports.get(a), rules.airports.get(b));
+}
+
+/** Great-circle km between two positions (degrees), rounded as the old planner's haversine rounds it, or null when either
+ *  has none: for an airport outside the input, such as a new route's destination (the Routes screen's Add route). */
+export function greatCircleBetween(A: { lat?: number | string | null; lon?: number | string | null } | null | undefined,
+  B: { lat?: number | string | null; lon?: number | string | null } | null | undefined): number | null {
   if (A?.lat == null || A.lon == null || B?.lat == null || B.lon == null) return null;
+  const [la1, lo1, la2, lo2] = [A.lat, A.lon, B.lat, B.lon].map(Number) as [number, number, number, number];
   const p = Math.PI / 180;
-  const h = Math.sin((B.lat - A.lat) * p / 2) ** 2 + Math.cos(A.lat * p) * Math.cos(B.lat * p) * Math.sin((B.lon - A.lon) * p / 2) ** 2;
+  const h = Math.sin((la2 - la1) * p / 2) ** 2 + Math.cos(la1 * p) * Math.cos(la2 * p) * Math.sin((lo2 - lo1) * p / 2) ** 2;
   return Math.round(2 * EARTH_KM * Math.asin(Math.sqrt(h)));
 }
 

@@ -14,7 +14,8 @@
 --   2. Who may call route_loads(): signed in only, stable, as owner with an empty search path, described; its builder
 --      is internal (captured_figures_test.sql checks every private.fig_* builder).
 --   3. route_loads() at T1: the done days of the last 7, none before the launch, a flight without a load (or typed 0)
---      as 97.5%; departures, sum, average, bands and days.
+--      as 97.5%; departures, sum, average, bands and days. 3b (build pull request 6): the same for each flight number,
+--      adding up to its route's.
 --   4. airline_cards()'s group load: at T1 from the reports (as route_loads() counts them), at T2 = Thu 17 Jan 12:00
 --      from the captures (one per date and flight, the latest row, from 7 days before today, captured by then), and
 --      none before anything was reported or captured.
@@ -124,6 +125,29 @@ begin
     'route_loads(): ZZ1-ZZ2 isn''t 6 departures, sum 505, average 84.17, 3 days, bands 2/2/1/1: ' || r::text;
   raise notice 'route_loads() at T1: ZZ1-ZZ2 6 departures on 3 reported days (none before the launch, none typed later, a 0 and a missing load as 97.5%%), average %, bands 2 full, 2 under 95, 1 under 85, 1 under 70',
     round((r ->> 'average')::numeric, 2);
+end
+$test$;
+
+-- ---------------------------------------------------------------- 3b. route_loads()'s flights at T1 (build pull request 6)
+-- The Routes screen's lines: each flight number's loads over the same flights as its route's (loadStats' "F|airline|no")
+do $test$
+declare w bigint := (select (v #>> '{}')::bigint from t_hf where k = 'w'); d jsonb; f1 jsonb; f2 jsonb;
+begin
+  d := private.fig_route_loads(w, '2030-01-15 12:00:00+00');
+  assert jsonb_array_length(d -> 'flights') = 2, 'route_loads(): not two flights: ' || (d -> 'flights')::text;
+  f1 := d -> 'flights' -> 0;
+  f2 := d -> 'flights' -> 1;
+  -- 101: 90, 72 and 60 on 11 to 13 Jan; 102: 0 (as 97.5) on the 11th, not reported (97.5) on the 12th, 88 on the 13th
+  assert (f1 ->> 'flight_no')::int = 101 and (f1 ->> 'departures')::int = 3 and (f1 ->> 'sum')::numeric = 222 and (f1 ->> 'average')::numeric = 74
+     and (f1 ->> 'full')::int = 0 and (f1 ->> 'under_95')::int = 1 and (f1 ->> 'under_85')::int = 1 and (f1 ->> 'under_70')::int = 1 and (f1 ->> 'days')::int = 3,
+    'route_loads(): flight 101 isn''t 3 departures, sum 222, bands 0/1/1/1, 3 days: ' || f1::text;
+  assert (f2 ->> 'flight_no')::int = 102 and (f2 ->> 'departures')::int = 3 and (f2 ->> 'sum')::numeric = 283
+     and (f2 ->> 'full')::int = 2 and (f2 ->> 'under_95')::int = 1 and (f2 ->> 'under_85')::int = 0 and (f2 ->> 'under_70')::int = 0 and (f2 ->> 'days')::int = 3,
+    'route_loads(): flight 102 isn''t 3 departures, sum 283, bands 2/1/0/0, 3 days: ' || f2::text;
+  assert (f1 ->> 'departures')::int + (f2 ->> 'departures')::int = (d -> 'routes' -> 0 ->> 'departures')::int
+     and (f1 ->> 'sum')::numeric + (f2 ->> 'sum')::numeric = (d -> 'routes' -> 0 ->> 'sum')::numeric,
+    'route_loads(): the flights don''t add up to their route';
+  raise notice 'route_loads()''s flights at T1: 101 three departures averaging 74 (bands 0/1/1/1), 102 three averaging 94.33 (2/1/0/0), adding up to ZZ1-ZZ2''s 6';
 end
 $test$;
 

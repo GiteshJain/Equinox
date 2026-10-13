@@ -4,14 +4,13 @@
 // airline buttons show one airline (centring on its busiest base) with its routes coloured by economy load over 7 days
 // (route_loads(): 95%+ green, 85 amber, 70 orange, under that red, grey without loads). + and − zoom, ⟲ shows the whole
 // world, the wheel zooms where it points, and a zoomed map drags. Planned adds, dashed, the routes on the plan cards of
-// aircraft not yet in service. Hovering a line or a dot names it. A route opens on its line in Routes; a planned route
-// opens its aircraft in "Aircraft on order" (the old map's pop-ups belong to those screens).
+// aircraft not yet in service. Hovering a line or a dot names it. A route opens its pop-up (Routes' RoutePopup, as the
+// old map's routeModal, since build pull request 6); a planned route opens its aircraft in "Aircraft on order" (the old
+// map's plan-card pop-up belongs to the plan cards, not rebuilt yet).
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent, type ReactElement } from "react";
-import { useNavigate } from "react-router";
 import { summary, type Rules } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { loadWorld } from "../../ui/siteFiles";
-import { itemRoute } from "../screens";
 import type { HomeAirline } from "./attention";
 import {
   MAPH, MAPW, arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, toMap, zoomView, type LatLon, type MapView,
@@ -20,10 +19,11 @@ import { usePlannedLegs, useRouteLoads, type AircraftRow } from "./reads";
 
 interface Place { code: string; at: LatLon; name: string }
 
-export function NetworkMap({ rules, airlines, now, worldId, aircraft }: {
+export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRoute }: {
   rules: Rules | undefined; airlines: readonly HomeAirline[]; now: Date; worldId: number | undefined; aircraft: readonly AircraftRow[] | undefined;
+  /** A route's line clicked: its pop-up opens. */
+  onOpenRoute: (routeId: number) => void;
 }) {
-  const navigate = useNavigate();
   const [only, setOnly] = useState<number | null>(null);
   const [view, setView] = useState<MapView | null>(null);
   const [planned, setPlanned] = useState(false);
@@ -138,7 +138,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft }: {
       return;
     }
     const r = flying.find((x) => String(x.id) === el.getAttribute("data-route-id"));
-    if (r) navigate(itemRoute("routes", { airline: airlines.find((a) => a.id === r.airline_id)?.code, hub: r.hub, dest: r.dest }));
+    if (r) onOpenRoute(r.id);
   };
 
   const v = view ?? { x: 0, y: 0, w: MAPW, h: MAPH };
@@ -152,7 +152,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft }: {
     const d = gcPath(a.at, b.at), la = loads?.get(r.id);
     arcs.push(<path key={r.id} d={d} stroke={loads ? loadColor(la?.average) : colorOf(r.airline_id)} strokeWidth={arcWidth(r.perDay)} vectorEffect="non-scaling-stroke" data-arc={`${r.hub}-${r.dest}`} />);
     hits.push(<path key={r.id} className="hit" d={d} data-route-id={r.id}
-      data-tip={`${r.hub}–${r.dest} · ${nameOf(r.airline_id)} · ${perDayWords(r.perDay)}× a day${la ? ` · loads ≈${Math.round(la.average)}% over ${la.days} days` : ""} · open in Routes`} />);
+      data-tip={`${r.hub}–${r.dest} · ${nameOf(r.airline_id)} · ${perDayWords(r.perDay)}× a day${la ? ` · loads ≈${Math.round(la.average)}% over ${la.days} days` : ""} · click for details`} />);
     for (const c of [r.hub, r.dest]) aps.set(c, (aps.get(c) ?? 0) + 1);
   }
   // planned: the plan cards of aircraft not in service yet, a route only where none flies

@@ -18,9 +18,9 @@ after every change. On a preview address it saves nothing and says **preview · 
   day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Home is rebuilt** (13 Oct, build pull request 5); it shows what the old Home shows, from the same data and with the
-  same figures (below). **The other eight screens** still say they're in the old planner, with a link there, and a
-  link from Home to one of them (a needs-attention item, say) lands on that line.
+- **Home and Routes are rebuilt** (13 Oct, build pull requests 5 and 6); each shows what the old screen shows, from the
+  same data and with the same figures (below). **The other seven screens** still say they're in the old planner, with
+  a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
 - **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
   - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
     aircraft in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes**
@@ -37,7 +37,8 @@ after every change. On a preview address it saves nothing and says **preview · 
     points, and a zoomed map drags. An airline's button shows that airline, centred on its busiest base, with its routes
     coloured by economy load over 7 days (green 95%+, amber 85–95, orange 70–85, red under 70, grey without loads).
     **Planned** adds, dashed, the routes on the plan cards of aircraft not yet in service. Hover over a line or a dot to
-    name it; a route opens on its line in Routes, a planned route on its aircraft in Aircraft on order.
+    name it; a route opens its pop-up (its distance, demand, flights a day, loads, the load pattern's signal and each
+    frequency, with **Open in Routes**), a planned route its aircraft in Aircraft on order.
   - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
     plan. **File into planner** appears once one has arrived with a plan card, and opens the old planner for now: filing
     moves into the new planner with Tails.
@@ -53,6 +54,32 @@ after every change. On a preview address it saves nothing and says **preview · 
     route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
     turns (or **clean**), with its home city's photo behind when the website has one. **Open fleet ›** opens the old
     planner until Tails is rebuilt.
+- **Routes in the new planner** looks and works as the old Routes:
+  - **The list:** one airline at a time (its buttons at the top); search by destination; **Active only**; sort by
+    stars, distance up or down, destination or load; **km from** and **km to**; and the chips for **Bases** (with a
+    focus city, **All routes** or **Trunks only**, its routes to the airline's hubs), **Demand** and **Markets**. The
+    filters are in the address, so a link (or the back button) brings them back. Each row has its stars, market,
+    distance, its load over 7 days, round trips a day (green when every frequency fits the banks), aircraft and
+    numbers. **Add route** adds one by its destination code (city and distance from the airport list, or typed);
+    **Remove N unflown routes shown** removes those after asking in the page. Removed routes can be restored from
+    Reference.
+  - **A route** (its own address, such as /planner/next/routes/PA/JFK-ORD): stars, airline, market, distance and the two
+    UTC offsets; the estimated block on the market's aircraft, its plan and prices, the service profile and the hub's
+    banks; **edit route** (stars, market, distance, city, the offsets) and **remove route** (only once it has no
+    frequencies, after asking in the page). Not flown yet, it shows the next free flight numbers; flown, its loads over
+    7 days.
+  - **Each frequency:** the outbound and the return with their times (local, or UTC as the header says, the other shown
+    small), the block time (typed, or **est** from the planning library's estimate), **+1** where a time falls on a later
+    day, and each flight's load. Then every check: night bans, a number used twice, the bank fit at both ends, the turn
+    at the destination, and (new, the old Routes didn't show them) the aircraft's position and the second-daily gap;
+    then the connections at both ends, in all six airlines' flights. Type days (such as 135) and times in local time at
+    each end; each box saves when you leave it. **Add frequency** takes the next free numbers; **Remove** asks in the
+    page first.
+  - **Changing an offset** keeps the local times, as the old planner does: the page first lists every flight whose UTC
+    time moves and asks. Empty the box to go back to the game's offset.
+  - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
+    type's speed, manual §4) is used, so it can differ by a few minutes from the old planner's, which it fitted to the
+    times typed in.
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.

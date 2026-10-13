@@ -1,0 +1,47 @@
+{
+  "part": "service",
+  "note": "The service profiles (service_profiles, not part of rules_input(): the caller gives them) as Reference has them on 12 Oct: S1 under 800 km, S2 to 1,500, S3 to 4,192 and S4 beyond, shared, and R, Ryanair's own (airline 2 here). The old planner's serviceFor.",
+  "cases": [
+    {
+      "name": "700 km takes the first shared profile it is under: S1",
+      "rule": "the old planner's serviceFor; Reference → service profiles",
+      "ask": {"what": "service_profile", "airline_id": 1, "km": 700, "profiles": [
+        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
+        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
+        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
+      "answer": {"code": "S1"}
+    },
+    {
+      "name": "exactly 800 km isn't under 800: S2",
+      "ask": {"what": "service_profile", "airline_id": 1, "km": 800, "profiles": [
+        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
+        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
+        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
+      "answer": {"code": "S2"}
+    },
+    {
+      "name": "exactly 4,192 km: S4",
+      "ask": {"what": "service_profile", "airline_id": 1, "km": 4192, "profiles": [
+        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
+        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
+        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
+      "answer": {"code": "S4"}
+    },
+    {
+      "name": "a route longer than every profile takes the last: S4",
+      "ask": {"what": "service_profile", "airline_id": 1, "km": 120000, "profiles": [
+        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
+        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
+        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
+      "answer": {"code": "S4"}
+    },
+    {
+      "name": "an airline with a profile of its own takes it on every route: R",
+      "ask": {"what": "service_profile", "airline_id": 2, "km": 300, "profiles": [
+        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
+        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
+        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
+      "answer": {"code": "R"}
+    }
+  ]
+}

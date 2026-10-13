@@ -1,0 +1,148 @@
+{
+  "part": "frequency",
+  "note": "The Routes screen's frequency (#18 build pull request 6, spec docs/specs/2026-10-13-routes.md §1 and §4): typed in local time at each end, stored in UTC as flight_legs keeps it, and read back. HUB is UTC, AAA +1, BBB −5, CCC +5:30, DDD +5 corrected by the world to +5:30. Times in an ask are local \"HH:MM\" (null: an arrival left empty, which is estimated); in an answer, minutes. The A321 (type 1) estimate on HUB–AAA's 700 km is 25 + 700 ÷ 840 × 60 = 75 minutes.",
+  "cases": [
+    {
+      "name": "typed in local time, stored in UTC: HUB 06:00 to AAA 08:15 and back AAA 09:00 to HUB 09:20, daily",
+      "rule": "#13 design §4: local times in, UTC stored; a typed arrival sets the block",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "HUB", "dest": "AAA", "distance_km": 700, "type_id": 1},
+              "local": {"days": [1, 2, 3, 4, 5, 6, 7], "dep_hub": "06:00", "arr_dest": "08:15", "dep_dest": "09:00", "arr_hub": "09:20"}},
+      "answer": {"leg1": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+                 "leg2": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 80}}
+    },
+    {
+      "name": "across midnight east of the hub: HUB 22:00 Mon, Wed, Fri lands CCC 11:30 the next day; the 13:00 return leaves that day",
+      "rule": "the return's day: the outbound's arrival day (+1 here), as the return leaves after it lands",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "HUB", "dest": "CCC", "distance_km": 6720, "type_id": 1},
+              "local": {"days": [1, 3, 5], "dep_hub": "22:00", "arr_dest": "11:30", "dep_dest": "13:00", "arr_hub": "16:30"}},
+      "answer": {"leg1": {"days_utc": [1, 3, 5], "dep_utc_min": 1320, "block_min": 480},
+                 "leg2": {"days_utc": [2, 4, 6], "dep_utc_min": 450, "block_min": 540}}
+    },
+    {
+      "name": "the return's next day: it leaves AAA at 06:30, earlier in the day than the outbound lands (22:15), so the day after",
+      "rule": "the old planner's rule: the first departure of the return's time after the outbound lands",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "HUB", "dest": "AAA", "distance_km": 700, "type_id": 1},
+              "local": {"days": [1], "dep_hub": "20:00", "arr_dest": "22:15", "dep_dest": "06:30", "arr_hub": "06:50"}},
+      "answer": {"leg1": {"days_utc": [1], "dep_utc_min": 1200, "block_min": 75},
+                 "leg2": {"days_utc": [2], "dep_utc_min": 330, "block_min": 80}}
+    },
+    {
+      "name": "across midnight west of the hub: the 21:00 return from BBB (−5) is 02:00 UTC the next day",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "HUB", "dest": "BBB", "distance_km": 5600, "type_id": 1},
+              "local": {"days": [1], "dep_hub": "10:00", "arr_dest": "12:40", "dep_dest": "21:00", "arr_hub": "09:30"}},
+      "answer": {"leg1": {"days_utc": [1], "dep_utc_min": 600, "block_min": 460},
+                 "leg2": {"days_utc": [2], "dep_utc_min": 120, "block_min": 450}}
+    },
+    {
+      "name": "across midnight backwards: 03:00 Monday at CCC (+5:30) is 21:30 UTC on Sunday",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "CCC", "dest": "HUB", "distance_km": 6720, "type_id": 1},
+              "local": {"days": [1], "dep_hub": "03:00", "arr_dest": "07:00", "dep_dest": "09:00", "arr_hub": "22:00"}},
+      "answer": {"leg1": {"days_utc": [7], "dep_utc_min": 1290, "block_min": 570},
+                 "leg2": {"days_utc": [1], "dep_utc_min": 540, "block_min": 450}}
+    },
+    {
+      "name": "and back: each of those, stored and read back, gives the same local days and times",
+      "ask": {"what": "frequency_round_trip", "ends": {"airline_id": 1, "hub": "CCC", "dest": "HUB", "distance_km": 6720, "type_id": 1},
+              "local": {"days": [1], "dep_hub": "03:00", "arr_dest": "07:00", "dep_dest": "09:00", "arr_hub": "22:00"}},
+      "answer": {"days": [1], "dep_hub": 180, "arr_dest": 420, "dep_dest": 540, "arr_hub": 1320}
+    },
+    {
+      "name": "an arrival left empty takes the estimate (75 min, est) and stores no block; the estimated landing (08:15) sends the 07:00 return to the next day",
+      "rule": "spec §1: with no arrival typed, the library's estimate is used and marked est; the return's day uses it",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "HUB", "dest": "AAA", "distance_km": 700, "type_id": 1},
+              "local": {"days": [1], "dep_hub": "06:00", "arr_dest": null, "dep_dest": "07:00", "arr_hub": null}},
+      "answer": {"leg1": {"days_utc": [1], "dep_utc_min": 360, "block_min": null},
+                 "leg2": {"days_utc": [2], "dep_utc_min": 360, "block_min": null}}
+    },
+    {
+      "name": "the same without a type to estimate with: no landing, so the return keeps the outbound's day",
+      "ask": {"what": "frequency_to_legs", "ends": {"airline_id": 1, "hub": "HUB", "dest": "AAA", "distance_km": 700},
+              "local": {"days": [1], "dep_hub": "06:00", "arr_dest": null, "dep_dest": "07:00", "arr_hub": null}},
+      "answer": {"leg1": {"days_utc": [1], "dep_utc_min": 360, "block_min": null},
+                 "leg2": {"days_utc": [1], "dep_utc_min": 360, "block_min": null}}
+    },
+    {
+      "name": "the view of the estimated one: out 06:00 to 08:15 est, back 07:00 the next day to 07:15, 75 min each; 22:45 on the ground at AAA",
+      "ask": {"what": "frequency_view", "ends": {"airline_id": 1, "hub": "HUB", "dest": "AAA", "distance_km": 700, "type_id": 1},
+              "local": {"days": [1], "dep_hub": "06:00", "arr_dest": null, "dep_dest": "07:00", "arr_hub": null}},
+      "answer": {"est_block": 75, "round_trips_week": 1,
+                 "out": {"dep": 360, "dep_day": 0, "arr": 495, "arr_day": 0, "block": 75, "est": true},
+                 "back": {"dep": 420, "dep_day": 1, "arr": 435, "arr_day": 1, "block": 75, "est": true}, "ground_dest": 1365}
+    },
+    {
+      "name": "the view from stored legs (the old planner's computeFreq): HUB 22:00 to CCC 11:30 +1, back 13:00 +1 to HUB 16:30 +1, 90 min on the ground",
+      "ask": {"what": "frequency_view", "ends": {"airline_id": 1, "hub": "HUB", "dest": "CCC", "distance_km": 6720, "type_id": 1},
+              "leg1": {"days_utc": [1, 3, 5], "dep_utc_min": 1320, "block_min": 480}, "leg2": {"days_utc": [2, 4, 6], "dep_utc_min": 450, "block_min": 540}},
+      "answer": {"days": [1, 3, 5], "dep_hub": 1320, "arr_dest": 690, "dep_dest": 780, "arr_hub": 990, "offset_hub_min": 0, "offset_dest_min": 330,
+                 "out": {"dep": 1320, "arr": 690, "arr_day": 1, "block": 480, "est": false},
+                 "back": {"dep": 780, "dep_day": 1, "arr": 990, "arr_day": 1, "block": 540, "est": false}, "ground_dest": 90, "round_trips_week": 3}
+    },
+    {
+      "name": "an offset changed keeps the local times: DDD from +5:30 back to +5 moves the return 30 min later in UTC, and both blocks by 30 min; a plan card's 09:00 UTC departure from DDD moves to 09:30",
+      "rule": "spec §2: changing a UTC offset re-times every leg touching that airport to keep its local times",
+      "ask": {"what": "frequency_retime", "airport": "DDD", "offset_h": 5, "correction": null,
+              "ends": {"airline_id": 1, "hub": "HUB", "dest": "DDD", "distance_km": 1400, "type_id": 1},
+              "leg1": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 100},
+              "leg2": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 540, "block_min": 135}, "plan_card_dep": 540},
+      "answer": {"leg1": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 130},
+                 "leg2": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 570, "block_min": 105}, "plan_card_dep": 570}
+    },
+    {
+      "name": "an offset change across midnight: AAA from +1 to 0, the 00:30 return (Tuesday locally, 23:30 UTC Monday) moves to Tuesday 00:30 UTC",
+      "ask": {"what": "frequency_retime", "airport": "AAA", "offset_h": 0,
+              "ends": {"airline_id": 1, "hub": "HUB", "dest": "AAA", "distance_km": 700, "type_id": 1},
+              "leg1": {"days_utc": [1], "dep_utc_min": 1260, "block_min": 75},
+              "leg2": {"days_utc": [1], "dep_utc_min": 1410, "block_min": 100}},
+      "answer": {"leg1": {"days_utc": [1], "dep_utc_min": 1260, "block_min": 135},
+                 "leg2": {"days_utc": [2], "dep_utc_min": 30, "block_min": 40}, "plan_card_dep": null}
+    },
+    {
+      "name": "the checks on a frequency: 1001 used twice on Monday, a second daily 2:00 from it, a 45-min turn at AAA (short on the A321); no wrong position",
+      "rule": "spec §1: every check from the library, at both ends",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 2, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 6}],
+        "flight_legs": [
+          {"id": 11, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 12, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 80},
+          {"id": 21, "airline_id": 1, "rotation_id": 2, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 2, "days_utc": [1], "dep_utc_min": 480, "block_min": 75},
+          {"id": 22, "airline_id": 1, "rotation_id": 2, "leg_no": 2, "flight_no": 1004, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 2, "days_utc": [1], "dep_utc_min": 660, "block_min": 80},
+          {"id": 31, "airline_id": 1, "rotation_id": 3, "leg_no": 1, "flight_no": 1011, "origin_code": "HUB", "dest_code": "NBN", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": 600, "block_min": 55},
+          {"id": 32, "airline_id": 1, "rotation_id": 3, "leg_no": 2, "flight_no": 1012, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": null, "block_min": null}
+        ]
+      },
+      "ask": {"what": "frequency_checks", "rotation_id": 1},
+      "answer": {
+        "night_bans": [],
+        "flight_numbers": [{"leg_id": 11, "other_leg_id": 21, "flight_no": 1001, "origin": "HUB", "dest": "AAA"}],
+        "route_gaps": [{"leg_id": 11, "other_leg_id": 21, "flight_no": 1001, "gap_min": 120, "need_min": 180, "rule": "second_daily_gap_h"}],
+        "positions": [],
+        "turn_dest": {"ground_min": 45, "min_turn_min": 66, "need_min": 76, "ok": false, "short": true, "tight": false}
+      }
+    },
+    {
+      "name": "a rotation with no return yet: the aircraft's next flight after landing at NBN leaves from HUB (a wrong position, once a week); no turn",
+      "input": {
+        "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}, {"id": 3, "airline_id": 1, "route_id": 6}],
+        "flight_legs": [
+          {"id": 11, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 12, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 80},
+          {"id": 31, "airline_id": 1, "rotation_id": 3, "leg_no": 1, "flight_no": 1011, "origin_code": "HUB", "dest_code": "NBN", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": 600, "block_min": 55},
+          {"id": 32, "airline_id": 1, "rotation_id": 3, "leg_no": 2, "flight_no": 1012, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1], "dep_utc_min": null, "block_min": null}
+        ]
+      },
+      "ask": {"what": "frequency_checks", "rotation_id": 3},
+      "answer": {"legs": [{"id": 31}, null], "night_bans": [], "flight_numbers": [], "route_gaps": [],
+                 "positions": [{"leg_id": 31, "flight_no": 1011, "at": "NBN", "next_from": "HUB", "times_week": 1}], "turn_dest": null}
+    },
+    {
+      "name": "flight numbers as one line: 1001, 1002, 1003, 1010 (twice) → 1001–1003, 1010",
+      "ask": {"what": "number_ranges", "numbers": [1010, 1001, 1003, 1002, 1010, 0]},
+      "answer": {"text": "1001–1003, 1010"}
+    },
+    {
+      "name": "the great circle between two positions outside the input (a new route's destination): HUB to AAA",
+      "ask": {"what": "great_circle", "a": {"lat": 51.15, "lon": -0.19}, "b": {"lat": 48.86, "lon": 2.35}},
+      "answer": {"km": 313}
+    }
+  ]
+}

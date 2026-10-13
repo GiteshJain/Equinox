@@ -55,6 +55,14 @@
 #    shown again) and checks the old planner shows the same; a preview saves nothing; at 380 px wide nothing scrolls
 #    sideways. Screenshots of the new Home and the old at 380 and 1280 px go to HOME_SCREENS_DIR (the run's
 #    home-screens artifact).
+# 12. The new planner's Routes (#18 build pull request 6, spec docs/specs/2026-10-13-routes.md §4), only if 1 to 10
+#    passed, after the Home side by side (whose saves touch no route) and whatever it found: tests/routes_side_by_side_test.py
+#    opens the old planner and the new one at the same frozen moment, signed in as test staff, and compares every
+#    airline's list (with each filter and sort), every flown route's header and frequency lines (local, and UTC for a
+#    sample) and the route pop-up Home's map opens; then saves through the new Routes' own controls (a route added,
+#    edited and removed; a frequency added, timed, re-timed and deleted; an offset changed and put back) and checks the
+#    old planner shows the same; a preview saves nothing; at 380 px nothing scrolls sideways. Screenshots of the new
+#    Routes and the old at 380 and 1280 px go to ROUTES_SCREENS_DIR (the run's routes-screens artifact).
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -271,6 +279,23 @@ home_side_by_side() {
   return $rc
 }
 
+# The new planner's Routes (#18 build pull request 6): side by side with the old Routes on the copy, then its own saves.
+# The local address and keys go to the test in a file only this user can read, as for the real saves; never printed.
+routes_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Routes on the copy: side by side with the old Routes, then saving through its own controls (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" ROUTES_SCREENS_DIR="${ROUTES_SCREENS_DIR:-}" \
+      python3 tests/routes_side_by_side_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -420,5 +445,6 @@ fi
 
 if [ $status -eq 0 ]; then
   home_side_by_side || status=1
+  routes_side_by_side || status=1   # whatever Home found: its saves touch no route
 fi
 exit $status
