@@ -30,7 +30,7 @@ export function todoViews(todos: readonly TodoRow[], items: readonly TodoItemRow
 
 /** Open first, then done; each by date, no date last; otherwise as the table keeps them (the old planner's sort). */
 export function sortTodos(list: readonly TodoView[]): TodoView[] {
-  return [...list].sort((a, b) => (Number(b.done) - Number(a.done)) ||String(a.date ?? "9999").localeCompare(String(b.date ?? "9999")));
+  return [...list].sort((a, b) => (Number(a.done) - Number(b.done)) || String(a.date ?? "9999").localeCompare(String(b.date ?? "9999")));
 }
 
 export interface TodoBoard {
