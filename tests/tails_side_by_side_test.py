@@ -137,8 +137,8 @@ READ = r"""() => {
       issues: [...d.querySelectorAll(".ckb .pill")].map(T),
     };
   }
-  function readPopup() {
-    const m = document.querySelector(".modal");
+  function readPopup(root) {
+    const m = (root || document).querySelector(".modal");
     if (!m) return null;
     return { head: T(m.querySelector(".mhead > div")), stats: [...m.querySelectorAll(".mstats > div")].map(T),
              statPills: [...m.querySelectorAll(".mstats .pill")].map(p => pill(p)), issues: [...m.querySelectorAll(".ckb .pill")].map(p => pill(p)),
@@ -165,6 +165,12 @@ READ_CHECK = READ + """const m = document.querySelector(".modal"); if (!m) retur
 READ_LIST = READ + "return readList(); }"
 READ_DETAIL = READ + "return readDetail(); }"
 READ_POPUP = READ + "return readPopup(); }"
+# the old pop-up as its tailModal() draws it, read like the old board and cards (drawing the old Home to open it timed out)
+OLD_POPUP = READ + """const reg = arguments[0];
+  const d = document.createElement("div");
+  d.innerHTML = window.__eqOld(`(() => { const was = ui.modal; ui.modal = {kind: "tail", key: ${JSON.stringify(reg)}};
+    try { return tailModal(); } finally { ui.modal = was; } })()`);
+  return readPopup(d); }"""
 READ_NEW_BOARD = READ + "return readBoard(document.querySelector('[data-figure=\"tails: deliveries\"]')); }"
 READ_OLD_BOARD = READ + """const d = document.createElement("div"); d.innerHTML = window.__eqOld("renderDeliveries()");
   const out = readBoard(d.querySelector(".board")); return out; }"""
@@ -357,10 +363,7 @@ async def popups(old, new, airlines):
     for al in airlines:
         for reg in COPY["tails"].get(al["id"], [])[:POPUP_SAMPLE]:
             try:
-                await old.run(f"ui.view = 'home'; ui.modal = {{kind: 'tail', key: {json.dumps(reg)}}}; render(); true")
-                await old.pg.wait_for_selector("#modalroot .modal", timeout=10000)
-                await old.pg.wait_for_timeout(150)
-                o = await old.pg.evaluate(READ_POPUP)
+                o = await old.pg.evaluate(OLD_POPUP.replace("arguments[0]", json.dumps(reg)))
                 await new.pg.evaluate("t => window.__eqPlanner.go(t)", "/?aircraft=" + reg)
                 await new.pg.wait_for_selector(f"[data-aircraft-popup={json.dumps(reg)}][data-popup-ready=yes]", timeout=60000)
                 await new.pg.wait_for_timeout(150)
@@ -377,7 +380,6 @@ async def popups(old, new, airlines):
                         p.append(f"the pop-up of {al['code']} {reg}: {k}: old {(o or {}).get(k)!r}, new {(x or {}).get(k)!r}"[:600])
             except Exception as e:
                 p.append(f"the pop-up of {al['code']} {reg}: {why(e)}")
-    await old.run("ui.modal = null; ui.view = 'tails'; render(); true")
     return n, p
 
 
@@ -446,11 +448,12 @@ def snapshot(aid, card_id):
 
 
 def written(aid, card_id, ids):
-    """The rows a filing wrote, as they stand: the aircraft, its plan card's legs, and the rotations, legs, money spent and
+    """The rows a filing wrote, as they stand: the aircraft, its plan card and its legs, and the rotations, legs, money spent and
     routes made since ids (without their ids and times, which differ between two filings)."""
     drop = ("id", "created_at", "updated_at")
     d = json.loads(psql(f"""select json_build_object(
         'aircraft', (select to_jsonb(a) - 'updated_at' from public.aircraft a where a.id = {int(aid)}),
+        'card', (select to_jsonb(c) - 'updated_at' from public.plan_cards c where c.id = {int(card_id)}),
         'card_legs', (select coalesce(jsonb_agg(to_jsonb(l) - 'updated_at' order by l.position), '[]') from public.plan_card_legs l where l.plan_card_id = {int(card_id)}),
         'rotations', (select coalesce(jsonb_agg(to_jsonb(r) order by r.id), '[]') from public.rotations r where r.id > {int(ids['rotations'])}),
         'legs', (select coalesce(jsonb_agg(to_jsonb(l) order by l.rotation_id, l.leg_no), '[]') from public.flight_legs l where l.id > {int(ids['flight_legs'])}),
@@ -486,7 +489,7 @@ def put_back(snap, ids):
 
 def compare_written(n, o, label, game_blocks_differ=()):
     p = []
-    for k in ("aircraft", "rotations", "legs", "spending", "routes"):
+    for k in ("aircraft", "card", "rotations", "legs", "spending", "routes"):
         if n[k] != o[k]:
             p.append(f"{label}: {k}: new {n[k]!r}, old {o[k]!r}"[:900])
     for a, b in zip(n["card_legs"], o["card_legs"]):

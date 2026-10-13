@@ -221,6 +221,17 @@ describe("filing", () => {
     expect(ch.filter((c) => c.table === "plan_card_legs")).toEqual([
       { table: "plan_card_legs", op: "update", key: { id: 71 }, base: T0, values: { dep_utc_min: 1270 } },
       { table: "plan_card_legs", op: "update", key: { id: 73 }, base: T0, values: { dep_utc_min: 930, block_min: 85 } }]);
+    // a card without the old planner's copy of its typed legs is left as it is
+    expect(ch.map((c) => c.table)).not.toContain("plan_cards");
+  });
+  it("drops the old planner's copy of the card's typed legs once they take the game's times, as its own save does", () => {
+    const kept = { ...card, extra: { legs: [{ no: "1201", days: "1234567" }], colour: "blue" } };
+    const g = game([{ dep: "21:10", arr: "08:10" }, {}, {}, {}]);
+    expect(filingChanges({ ...x, card: kept, game: g }).filter((c) => c.table === "plan_cards")).toEqual([
+      { table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { extra: { colour: "blue" } } }]);
+    // the game's times the same as the card's: the legs don't change, and neither does the copy
+    expect(filingChanges({ ...x, card: kept, game: game([{}, {}, {}, {}]) }).map((c) => c.table)).not.toContain("plan_cards");
+    expect(filingChanges({ ...x, card: kept }).map((c) => c.table)).not.toContain("plan_cards");
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");

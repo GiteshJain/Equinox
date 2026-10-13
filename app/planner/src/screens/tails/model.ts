@@ -41,8 +41,10 @@ export const AIRCRAFT_COLUMNS = "id, registration, airline_id, aircraft_type_id,
 
 export interface ConfigRow { id: number; code: string; aircraft_type_id: number | null; cabin: string | null; cost: number | null }
 export interface BuyTypeRow { airline_id: number; aircraft_type_id: number }
-export interface PlanCardRow { id: number; airline_id: number; aircraft_id: number; base_code: string | null; title: string | null; note: string | null; updated_at: string }
-export const PLAN_CARD_COLUMNS = "id, airline_id, aircraft_id, base_code, title, note, updated_at";
+/** A plan card. extra is the old planner's: where a card's typed legs didn't fit its leg rows (their weekdays, say), its
+ *  storage keeps them whole in extra.legs, and the old planner shows those. */
+export interface PlanCardRow { id: number; airline_id: number; aircraft_id: number; base_code: string | null; title: string | null; note: string | null; extra?: Json; updated_at: string }
+export const PLAN_CARD_COLUMNS = "id, airline_id, aircraft_id, base_code, title, note, extra, updated_at";
 export interface PlanLegRow {
   id: number;
   plan_card_id: number;
@@ -418,11 +420,15 @@ export const daysLabel = (d: string): string => (d === "1234567" ? "daily" : [..
 export const daysSuffix = (x: string | null | undefined): string => (x && sortDays(x) !== "1234567" ? " " + daysLabel(sortDays(x)) : "");
 export interface CheckRow { L: CardLeg; g: GameFlight | null; same: boolean }
 export interface CardCheck { rows: CheckRow[]; err: string; found: number; diff: number; miss: number; allSame: boolean }
+/** Whether the game flies a card leg at the card's times: its departure, its arrival (when the game gives one) and days. */
+export function sameTimes(L: { dep: string; arr: string; days: string }, g: GameFlight): boolean {
+  return g.dep === L.dep && (!g.arr || g.arr === L.arr) && (!g.days || sortDays(g.days) === sortDays(L.days));
+}
 /** Each leg with the game's flight of the same number and airports, and whether its times and days are the same. */
 export function compareCard(legs: readonly CardLeg[], flights: readonly GameFlight[] | null, err = ""): CardCheck {
   const rows = legs.map((L) => {
     const g = flights ? flights.find((x) => String(x.no) === String(L.no) && x.from === L.from && x.to === L.to) ?? null : null;
-    return { L, g, same: !!g && g.dep === L.dep && (!g.arr || g.arr === L.arr) && (!g.days || sortDays(g.days) === sortDays(L.days)) };
+    return { L, g, same: !!g && sameTimes(L, g) };
   });
   const found = rows.filter((r) => r.g).length, diff = rows.filter((r) => r.g && !r.same).length;
   return { rows, err, found, diff, miss: rows.length - found, allSame: !err && rows.length > 0 && rows.every((r) => r.same) };
@@ -601,6 +607,14 @@ export function filingChanges(x: FilingInput): Change[] {
       }
       if (Object.keys(values).length) out.push({ table: "plan_card_legs", op: "update", key: { id: L.row.id }, base: L.row.updated_at, values });
     });
+    // a copy of the card's typed legs the old planner's storage keeps (extra.legs) is out of date once they change: it goes,
+    // as the old planner's own save drops it (planner_state_put keeps it only while the legs are the same)
+    const changed = x.legs.some((L, i) => { const g = x.game?.[i]; return !!g && !sameTimes(L, g); });
+    if (changed && isObj(x.card.extra) && "legs" in x.card.extra) {
+      const extra = { ...x.card.extra };
+      delete extra.legs;
+      out.push({ table: "plan_cards", op: "update", key: { id: x.card.id }, base: x.card.updated_at, values: { extra } });
+    }
   }
   return out;
 }
