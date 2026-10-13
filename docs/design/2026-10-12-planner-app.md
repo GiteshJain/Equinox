@@ -292,3 +292,12 @@ starts to matter sooner.
 - **"Flights today"** counts each leg on its own UTC day in the new planner; the old one used the hub's local weekday and
   gave each return its outbound's days. On 11 Oct that was 467 against 466. The new count follows the stored legs and is
   kept. Found by pull request #31.
+- **Plan cards keep a hidden copy of their legs** in `plan_cards.extra.legs` (the old planner's). The new filing deletes
+  it; any later screen that edits a card's legs must delete it too. Drop it at the clean-up (pull request 14). Found by
+  pull request #33.
+- **Tails' "under 10 h a day" flag** stays, though manual §4 retired the target on 7 Oct: it's now the setting
+  `aircraft_block_target_h` (10), and 0 turns it off. Gitesh kept it at the merge, 13 Oct. Found by pull request #33.
+- **Filing with the game's times** takes the game's block time too (flight 1069: 85 min, where the old planner kept the
+  card's 80). The new figure is kept. Found by pull request #33.
+- **Before the switch, from Tails:** the aircraft pop-up opens from Home only (add it to Routes), and a delivery can't
+  be removed yet. Found by pull request #33.
