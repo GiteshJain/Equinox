@@ -91,6 +91,8 @@ class Planner:
         self.dialogs = []      # browser dialogs it opened (dismissed): the planner asks in the page, so this stays empty
         self.b = self.api = self.ctx = self.pg = None
         self.closing = False   # set by close()
+        self.inflight = 0      # requests on their way through route()
+        self.checks = []       # the address checks (where), awaited by close()
 
     async def open(self, host=LIVE_HOST, path="/planner/next/", moment=None):
         """Opens the planner; with a moment (ISO), its clock stays at that moment (tests/home_side_by_side_test.py)."""
@@ -100,7 +102,7 @@ class Planner:
         self.ctx = await self.b.new_context(viewport=self.size, timezone_id="UTC", locale="en-US", service_workers="block")
         await self.ctx.route("**/*", self.route)
         await self.ctx.route_web_socket(re.compile(".*"), self.socket)
-        self.ctx.on("response", lambda r: asyncio.ensure_future(self.where(r)))
+        self.ctx.on("response", lambda r: self.checks.append(asyncio.ensure_future(self.where(r))))
         self.pg = await self.ctx.new_page()
         if moment:
             await self.pg.clock.set_fixed_time(moment)
@@ -112,14 +114,17 @@ class Planner:
         return self.pg
 
     async def route(self, r):
-        # Home reads more now (the hero, the map), so a request can still be on its way when the browser closes; its
-        # error is then expected and dropped, instead of a closed-page traceback in the log. (Playwright's unroute_all()
-        # before closing left a traceback of its own.) Any other error is raised as before.
+        # Home reads more now (the hero, the map), so a request can still be on its way when the browser closes: close()
+        # lets it finish first, and an error once closing has begun is expected and dropped. Any other error is raised
+        # as before.
+        self.inflight += 1
         try:
             await self.forward(r)
         except Exception:
             if not self.closing:
                 raise
+        finally:
+            self.inflight -= 1
 
     async def forward(self, r):
         req, u = r.request, r.request.url
@@ -158,9 +163,22 @@ class Planner:
             self.outside.append(urlsplit(res.url).hostname or "an unknown address")
 
     async def close(self):
-        self.closing = True   # requests still on their way to the copy end quietly (route)
+        """Closes the browser once the requests on their way have finished (up to 5 s), then waits (up to 5 s) for the
+        ones it cut off and for the address checks, so no call is left with an error no one reads (a closed-page
+        traceback in the log, after the test has passed)."""
+        for _ in range(50):
+            if not self.inflight:
+                break
+            await asyncio.sleep(0.1)
+        self.closing = True
         if self.b:
             await self.b.close()
+        for _ in range(50):
+            if not self.inflight:
+                break
+            await asyncio.sleep(0.1)
+        if self.checks:
+            await asyncio.gather(*self.checks, return_exceptions=True)
         if self.api:
             await self.api.dispose()
 
