@@ -1,0 +1,167 @@
+{
+  "part": "schedule",
+  "note": "NBN's night ban runs 23:00 to 06:00 local (UTC). HUB's flight numbers start at 1000, FOC's at 2000, AAA's (Other Air) at 3000.",
+  "cases": [
+    {
+      "name": "night bans that wrap past midnight, both ends included: 23:30 and 06:00 arrivals, 05:59 and 23:00 departures; 06:01 is clear",
+      "rule": "manual §4; world_airports.night_ban_from and night_ban_to (local)",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "NBN", "days_utc": [1], "dep_utc_min": 1355, "block_min": 55},
+          {"id": 2, "airline_id": 1, "origin_code": "NBN", "dest_code": "HUB", "days_utc": [2], "dep_utc_min": 359, "block_min": 55},
+          {"id": 3, "airline_id": 1, "origin_code": "NBN", "dest_code": "HUB", "days_utc": [3], "dep_utc_min": 361, "block_min": 55},
+          {"id": 4, "airline_id": 1, "origin_code": "NBN", "dest_code": "HUB", "days_utc": [4], "dep_utc_min": 1380, "block_min": 55},
+          {"id": 5, "airline_id": 1, "origin_code": "HUB", "dest_code": "NBN", "days_utc": [5], "dep_utc_min": 305, "block_min": 55},
+          {"id": 6, "airline_id": 1, "origin_code": "HUB", "dest_code": "NBN", "days_utc": [6], "dep_utc_min": 306, "block_min": 55}
+        ]
+      },
+      "ask": {"what": "schedule"},
+      "answer": {
+        "night_bans": [
+          {"leg_id": 1, "airport": "NBN", "what": "arrives", "local": "23:30", "ban": "23:00–06:00"},
+          {"leg_id": 2, "airport": "NBN", "what": "departs", "local": "05:59"},
+          {"leg_id": 4, "airport": "NBN", "what": "departs", "local": "23:00"},
+          {"leg_id": 5, "airport": "NBN", "what": "arrives", "local": "06:00"}
+        ]
+      }
+    },
+    {
+      "name": "a second daily 2:59 from the first is too close; 3:00 apart is fine",
+      "rule": "manual §4: settings.second_daily_gap_h",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 539, "block_min": 75},
+          {"id": 3, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 720, "block_min": 75},
+          {"id": 4, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 900, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "schedule"},
+      "answer": {"route_gaps": [{"leg_ids": [1, 2], "origin": "HUB", "dest": "AAA", "gap_min": 179, "need_min": 180, "rule": "second_daily_gap_h"}]}
+    },
+    {
+      "name": "the gap counts across midnight: Monday 23:00 and Tuesday 01:00 are two hours apart",
+      "rule": "manual §4",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1], "dep_utc_min": 1380, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [2], "dep_utc_min": 60, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "schedule"},
+      "answer": {"route_gaps": [{"leg_ids": [1, 2], "gap_min": 120, "rule": "second_daily_gap_h"}]}
+    },
+    {
+      "name": "the game's own gap between departures on a route",
+      "rule": "manual §9: world_rules.same_route_gap_min",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 2, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 363, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "schedule"},
+      "answer": {"route_gaps": [{"leg_ids": [1, 2], "gap_min": 3, "need_min": 5, "rule": "same_route_gap_min"}]}
+    },
+    {
+      "name": "a flight number used twice on the same local weekday, also when the UTC days differ; another airline's or another day's is fine",
+      "rule": "the old planner's flightClashes; flight_no_clashes (local weekday at the origin)",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [2, 3], "dep_utc_min": 600, "block_min": 125},
+          {"id": 3, "airline_id": 1, "flight_no": 1003, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1], "dep_utc_min": 600, "block_min": 75},
+          {"id": 4, "airline_id": 1, "flight_no": 1003, "origin_code": "CCC", "dest_code": "HUB", "days_utc": [7], "dep_utc_min": 1200, "block_min": 505},
+          {"id": 5, "airline_id": 2, "flight_no": 1001, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [2], "dep_utc_min": 600, "block_min": 420},
+          {"id": 6, "airline_id": 1, "flight_no": 1005, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [4], "dep_utc_min": 900, "block_min": 75},
+          {"id": 7, "airline_id": 1, "flight_no": 1005, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [5], "dep_utc_min": 900, "block_min": 125}
+        ]
+      },
+      "ask": {"what": "schedule"},
+      "answer": {
+        "flight_number_clashes": [{"airline_id": 1, "flight_no": 1001, "leg_ids": [1, 2], "days": [2]}, {"airline_id": 1, "flight_no": 1003, "leg_ids": [3, 4], "days": [1]}]
+      }
+    },
+    {
+      "name": "departures a week per airport against the game's cap",
+      "rule": "manual §9: world_rules.departures_per_airport_week",
+      "input": {
+        "world_rules": {"departures_per_airport_week": {"value": 10, "then": 8000, "after": "3 months"}},
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4], "dep_utc_min": 600, "block_min": 125},
+          {"id": 3, "airline_id": 1, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "schedule"},
+      "answer": {
+        "departures": [{"airport": "HUB", "departures_week": 11, "cap": 10, "over": true}, {"airport": "AAA", "departures_week": 7, "cap": 10, "over": false}],
+        "airports_over_cap": [{"airport": "HUB", "departures_week": 11}]
+      }
+    },
+    {
+      "name": "the next free pair at a base: the next odd number above the highest in its block",
+      "rule": "the old planner's nextPair: the next odd number above the highest in use in the base's block",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 75},
+          {"id": 3, "airline_id": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 125},
+          {"id": 4, "airline_id": 1, "flight_no": 2005, "origin_code": "FOC", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 86},
+          {"id": 5, "airline_id": 2, "flight_no": 1009, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 420}
+        ]
+      },
+      "ask": {"what": "next_flight_numbers", "airport": "HUB"},
+      "answer": {"base": "HUB", "out": 1009, "back": 1010, "highest": 1007, "from_schedule": 1007, "last_used": null}
+    },
+    {
+      "name": "the number last used in the game counts when it is higher",
+      "rule": "the old planner's nextPair: the next odd number above the highest in use in the base's block",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 75},
+          {"id": 3, "airline_id": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 125},
+          {"id": 4, "airline_id": 1, "flight_no": 2005, "origin_code": "FOC", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 86},
+          {"id": 5, "airline_id": 2, "flight_no": 1009, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 420}
+        ],
+        "airline_bases": [
+          {"id": 1, "airline_id": 1, "airport_code": "HUB", "role": "hub", "bank_times": ["06:00"], "flight_no_from": 1000, "last_flight_no": 1012, "position": 1},
+          {"id": 2, "airline_id": 1, "airport_code": "FOC", "role": "focus", "flight_no_from": 2000, "position": 2}
+        ]
+      },
+      "ask": {"what": "next_flight_numbers", "airport": "HUB"},
+      "answer": {"out": 1013, "back": 1014, "highest": 1012, "last_used": 1012}
+    },
+    {
+      "name": "a base's block runs to the airline's next block, so FOC's 2005 is its own",
+      "rule": "the old planner's nextPair: the next odd number above the highest in use in the base's block",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 75},
+          {"id": 3, "airline_id": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 125},
+          {"id": 4, "airline_id": 1, "flight_no": 2005, "origin_code": "FOC", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 86},
+          {"id": 5, "airline_id": 2, "flight_no": 1009, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 420}
+        ]
+      },
+      "ask": {"what": "next_flight_numbers", "airport": "FOC"},
+      "answer": {"out": 2007, "back": 2008, "highest": 2005}
+    },
+    {
+      "name": "a block with nothing in use starts at its first number",
+      "rule": "the old planner's nextPair: the next odd number above the highest in use in the base's block",
+      "input": {
+        "flight_legs": [
+          {"id": 1, "airline_id": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+          {"id": 2, "airline_id": 1, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 75},
+          {"id": 3, "airline_id": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 700, "block_min": 125},
+          {"id": 4, "airline_id": 1, "flight_no": 2005, "origin_code": "FOC", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 86},
+          {"id": 5, "airline_id": 2, "flight_no": 1009, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 420}
+        ]
+      },
+      "ask": {"what": "next_flight_numbers", "airport": "AAA"},
+      "answer": {"out": 3001, "back": 3002, "highest": null}
+    }
+  ]
+}

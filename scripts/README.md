@@ -49,10 +49,41 @@ while; run it in slices with `[from] [to]` if needed.
 |---|---|---|---|
 | `planning/plan.py` | Builds a day's schedule for an aircraft. It tries every order of the given destinations and every start time, and keeps the plan that makes the most connections at the hub. Connections count from the airport's minimum connection time, with no extra margin, up to 8 hours (manual §4). It respects night bans, the maintenance time the day needs, and keeps a second daily at least 3 hours from the first. Block times are fitted to 468 of our flights on 7 Oct: exact to the minute for about 93%, never more than 2 minutes out. | `~/real_state.json` (the planner's state), `~/data.json` (route research), `~/.sb_anon` (it reads minimum connection times from `site_public()`) | Printed plans: connections, hours a day, maintenance share and each leg's times |
 
+## The planning library's command (any chat)
+The planning rules (block times, turns, connections, banks, maintenance, the schedule checks, the optimiser) live in
+one library, `lib/rules/` (decision #19); `lib/rules/README.md` says what each part does. Claude runs it as a command
+from a clone of the repository, with Node 22:
+
+1. Build it once: `npm ci && npm run build` (it writes `lib/rules/dist/`).
+2. Get its input, everything it needs in one document, through `export_for_report()` with kind `rules` and the ingest
+   secret (the third argument is the world's id; leave it empty for the default world):
+
+   ```bash
+   curl -s "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/export_for_report" \
+     -H "apikey: $(cat ~/.sb_anon)" -H "Authorization: Bearer $(cat ~/.sb_anon)" -H "Content-Type: application/json" \
+     -d "{\"p_secret\": \"$(cat ~/.ingest_secret)\", \"p_kind\": \"rules\", \"p_arg\": \"\"}" > rules.json
+   ```
+
+   Staff signed in get the same document from `rules_input()`; in a chat with the Supabase connection,
+   `select public.rules_input();` as postgres gives it too.
+3. Ask it, with `node lib/rules/dist/cli.js <command> rules.json`:
+   - `block DEL BOM "A321 NEO LIGHT"`: the block time for a leg not yet timed;
+   - `connections KUL`: every connection there, with its days and gaps, the city pairs linked and each one's bank;
+   - `aircraft` (every aircraft's legs a week, block hours a day, maintenance and routes) or `aircraft 9M-AAB` (its week);
+   - `check-card card.json`: a plan card's legs checked against every rule, at both ends;
+   - `optimise KUL KCH,PQC,PEN --type "A321 NEO LIGHT" [--start 05:00-11:00] [--step 5] [--hubs DEL]`: the best day's
+     schedule for one aircraft, by connections, then maintenance.
+
+   Each answers in JSON. Until pull request 4 moves the scripts onto it, `planning/plan.py` stays as it is; the library's
+   optimiser gives the same plan on the same input (`tests/rules_planpy_test.py`).
+
 ## Where the inputs come from
 - **`planner.json`, `real_state.json`:** the planner's state, from `export_for_report('planner')`, which builds it from
   the planner tables (#13, pull request 8). Don't read the `planner_state` row directly: it has been frozen since the
   switch-over (pull request 9) and no longer changes.
+- **`rules.json`** (the planning library's command): `export_for_report()` with kind `rules`, which gives exactly what
+  `rules_input()` gives staff: the settings, world rules, aircraft types, airports, airlines, bases, aircraft, routes,
+  rotations and every flight leg, from the tables (#19).
 - **`data.json`:** the planner's route research, from `export_planner_data()`. To change it, `planner_data_set()` (key
   `DATA`) writes it to `planner_data` and to the `countries`, `airports` and `routes` tables, only the rows that
   change, and answers what changed. A new UTC offset for an airport our flights use is held back and named: tell the

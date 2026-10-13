@@ -1814,6 +1814,9 @@ isOneToOne: false
 "planner_state_version":
 { Args: { "p_world_id"?: number }; Returns: number
                            },
+"rules_input":
+{ Args: { "p_world_id"?: number }; Returns: Json
+                           },
 "save_loads":
 { Args: { "p_days": Json,"p_month": string }; Returns: Json
                            },

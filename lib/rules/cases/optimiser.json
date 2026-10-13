@@ -1,0 +1,86 @@
+{
+  "part": "optimiser",
+  "note": "The A321neo turns in 76 minutes here (66 + 10). HUB–AAA is 75 minutes, HUB–DDD 125, HUB–NBN 55, HUB–CCC 505. BBB–HUB lands at HUB at 05:00 every day.",
+  "cases": [
+    {
+      "name": "a known best plan: DDD first, from 06:00, makes 4 connections at HUB (AAA first makes 3)",
+      "rule": "manual §4; scripts/planning/plan.py: most connections at the base, then most maintenance; feasible against turns, night bans, maintenance ≥ 100% and the second-daily gap",
+      "input": {
+        "flight_legs": [
+          {"id": 101, "airline_id": 1, "origin_code": "BBB", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 0, "block_min": 300},
+          {"id": 102, "airline_id": 2, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1020, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA", "DDD"], "type": "A321 NEO LIGHT", "start": "06:00-06:10", "step": 5},
+      "answer": {
+        "base": "HUB",
+        "type": "A321 NEO LIGHT",
+        "airline_id": 1,
+        "turn_min": 76,
+        "considered": 6,
+        "feasible": 6,
+        "rejected": {"turn": 0, "night_ban": 0, "maintenance": 0, "route_gap": 0},
+        "best": {
+          "order": ["DDD", "AAA"],
+          "start_local": "06:00",
+          "start_local_min": 360,
+          "connections": 4,
+          "maintenance_ratio": 6.0788608981380055,
+          "maintenance_pct": 608,
+          "block_hours_day": 6.666666666666667,
+          "night_at_base_min": 812,
+          "legs": [
+            {"from": "HUB", "to": "DDD", "dep_local": "06:00", "arr_local": "13:35", "dep_utc_min": 360, "block_min": 125},
+            {"from": "DDD", "to": "HUB", "dep_local": "14:51", "arr_local": "11:26", "dep_utc_min": 561, "block_min": 125},
+            {"from": "HUB", "to": "AAA", "dep_local": "12:42", "arr_local": "14:57", "dep_utc_min": 762, "block_min": 75},
+            {"from": "AAA", "to": "HUB", "dep_local": "16:13", "arr_local": "16:28", "dep_utc_min": 913, "block_min": 75}
+          ]
+        }
+      }
+    },
+    {
+      "name": "the second-daily gap rules out every DDD-first plan, so AAA first wins with 3",
+      "rule": "manual §4; scripts/planning/plan.py: most connections at the base, then most maintenance; feasible against turns, night bans, maintenance ≥ 100% and the second-daily gap",
+      "input": {
+        "flight_legs": [
+          {"id": 101, "airline_id": 1, "origin_code": "BBB", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 0, "block_min": 300},
+          {"id": 102, "airline_id": 2, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 900, "block_min": 75}
+        ]
+      },
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA", "DDD"], "type": "A321 NEO LIGHT", "start": "06:00-06:10", "step": 5},
+      "answer": {
+        "considered": 6,
+        "feasible": 3,
+        "rejected": {"route_gap": 3},
+        "best": {"order": ["AAA", "DDD"], "start_local": "06:00", "connections": 3, "maintenance_ratio": 6.0788608981380055}
+      }
+    },
+    {
+      "name": "a night ban rules out the 05:00 start: it would land at NBN at 05:55",
+      "rule": "manual §4; scripts/planning/plan.py: most connections at the base, then most maintenance; feasible against turns, night bans, maintenance ≥ 100% and the second-daily gap",
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["NBN"], "type": "A321 NEO LIGHT", "start": "05:00-07:00", "step": 60},
+      "answer": {"considered": 3, "feasible": 2, "rejected": {"night_ban": 1}, "best": {"start_local": "06:00", "connections": 0, "maintenance_ratio": 20.26864818519576}}
+    },
+    {
+      "name": "too little maintenance time: with 300 minutes needed, a 354-minute night leaves none",
+      "rule": "manual §4; scripts/planning/plan.py: most connections at the base, then most maintenance; feasible against turns, night bans, maintenance ≥ 100% and the second-daily gap; settings.maint_min_ground_min",
+      "input": {"settings": {"maint_min_ground_min": 300}},
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["CCC"], "type": "A321 NEO LIGHT", "start": "06:00-06:00", "step": 5},
+      "answer": {"considered": 1, "feasible": 0, "rejected": {"maintenance": 1}, "best": null}
+    },
+    {
+      "name": "connections at an extra hub count too",
+      "rule": "manual §4; scripts/planning/plan.py: most connections at the base, then most maintenance; feasible against turns, night bans, maintenance ≥ 100% and the second-daily gap",
+      "input": {"flight_legs": [{"id": 201, "airline_id": 2, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 420}]},
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA"], "type": "A321 NEO LIGHT", "start": "06:00-06:00", "step": 5, "extra_hubs": ["AAA"]},
+      "answer": {"best": {"connections": 1}}
+    },
+    {
+      "name": "without the extra hub the same plan counts none",
+      "rule": "manual §4; scripts/planning/plan.py: most connections at the base, then most maintenance; feasible against turns, night bans, maintenance ≥ 100% and the second-daily gap",
+      "input": {"flight_legs": [{"id": 201, "airline_id": 2, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 420}]},
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA"], "type": "A321 NEO LIGHT", "start": "06:00-06:00", "step": 5},
+      "answer": {"best": {"connections": 0}}
+    }
+  ]
+}

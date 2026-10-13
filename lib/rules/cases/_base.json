@@ -1,0 +1,64 @@
+{
+  "note": "The small world every case starts from, shaped as rules_input() answers. A case file's input, then a case's own, is laid over it: settings and world_rules merge key by key, any other key (a list) is replaced whole. The settings are Gander's as of 12 Oct 2026; the airports are made up. HUB is a hub with three banks (06:00, 14:00, 22:00) and a minimum connection time of 60 minutes; FOC a focus city; BBB has no minimum connection time of its own (90 minutes is used); DDD's offset is corrected by the world (5 → 5.5); NBN has a night ban that wraps past midnight.",
+  "input": {
+    "world": { "id": 1, "name": "Test world" },
+    "settings": {
+      "block_allowance_min": 25,
+      "turn_margin_min": 10,
+      "connection_buffer_min": 0,
+      "connection_max_wait_h": 8,
+      "bank_arrival_window_min": 60,
+      "bank_departure_window_min": 60,
+      "bank_buffer_min": 0,
+      "maint_min_ground_min": 120,
+      "maintenance_min_pct": 100,
+      "maintenance_target_pct": 105,
+      "second_daily_gap_h": 3
+    },
+    "world_rules": {
+      "departures_per_airport_week": { "value": 5000, "then": 8000, "after": "3 months" },
+      "same_route_gap_min": 5
+    },
+    "aircraft_types": [
+      { "id": 1, "name": "A321 NEO LIGHT", "family_no": 9, "seats_max": 240, "cruise_kmh": 840, "min_turn_min": 66, "gap_target_h": 4, "maint_per_cycle": 27.6, "maint_per_hour": 1.7, "ground_keep_min": 72 },
+      { "id": 2, "name": "E195-E2", "family_no": 83, "seats_max": 146, "cruise_kmh": 831, "min_turn_min": 67, "gap_target_h": 3, "maint_per_cycle": 22, "maint_per_hour": 1.8, "ground_keep_min": 72 }
+    ],
+    "cabin_configs": [],
+    "airports": [
+      { "code": "HUB", "lat": 51.15, "lon": -0.19, "utc_offset": 0, "mct_min": 60, "night_ban_from": null, "night_ban_to": null },
+      { "code": "FOC", "lat": 53.35, "lon": -2.27, "utc_offset": 0, "mct_min": 45, "night_ban_from": null, "night_ban_to": null },
+      { "code": "AAA", "lat": 48.86, "lon": 2.35, "utc_offset": 1, "mct_min": 75, "night_ban_from": null, "night_ban_to": null },
+      { "code": "BBB", "lat": 40.64, "lon": -73.78, "utc_offset": -5, "mct_min": null, "night_ban_from": null, "night_ban_to": null },
+      { "code": "CCC", "lat": 28.56, "lon": 77.1, "utc_offset": 5.5, "mct_min": 90, "night_ban_from": null, "night_ban_to": null },
+      { "code": "DDD", "lat": 19.09, "lon": 72.87, "utc_offset": 5, "utc_offset_override": 5.5, "mct_min": 90, "night_ban_from": null, "night_ban_to": null },
+      { "code": "NBN", "lat": 52.36, "lon": 13.5, "utc_offset": 0, "mct_min": 60, "night_ban_from": "23:00", "night_ban_to": "06:00" }
+    ],
+    "airlines": [
+      { "id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true },
+      { "id": 2, "iata_code": "OA", "planner_name": "Other Air", "position": 2, "active": true, "ours": true }
+    ],
+    "airline_bases": [
+      { "id": 1, "airline_id": 1, "airport_code": "HUB", "role": "hub", "is_main": true, "parent_base_id": null, "bank_times": ["06:00", "14:00", "22:00", null], "flight_no_from": 1000, "last_flight_no": null, "position": 1 },
+      { "id": 2, "airline_id": 1, "airport_code": "FOC", "role": "focus", "is_main": false, "parent_base_id": 1, "parent_code": "HUB", "bank_times": null, "flight_no_from": 2000, "last_flight_no": null, "position": 2 },
+      { "id": 3, "airline_id": 2, "airport_code": "AAA", "role": "hub", "is_main": true, "parent_base_id": null, "bank_times": ["08:00", null, null, null], "flight_no_from": 3000, "last_flight_no": null, "position": 3 }
+    ],
+    "aircraft": [
+      { "id": 1, "registration": "T-001", "airline_id": 1, "aircraft_type_id": 1, "base_code": "HUB", "status": "active" },
+      { "id": 2, "registration": "T-002", "airline_id": 1, "aircraft_type_id": 1, "base_code": "HUB", "status": "active" },
+      { "id": 3, "registration": "T-003", "airline_id": 1, "aircraft_type_id": 2, "base_code": "FOC", "status": "active" },
+      { "id": 4, "registration": "O-001", "airline_id": 2, "aircraft_type_id": 1, "base_code": "AAA", "status": "active" }
+    ],
+    "routes": [
+      { "id": 1, "airline_id": 1, "hub_code": "HUB", "dest_code": "AAA", "distance_km": 700 },
+      { "id": 2, "airline_id": 1, "hub_code": "HUB", "dest_code": "BBB", "distance_km": 5600 },
+      { "id": 3, "airline_id": 1, "hub_code": "HUB", "dest_code": "CCC", "distance_km": 6720 },
+      { "id": 4, "airline_id": 1, "hub_code": "HUB", "dest_code": "DDD", "distance_km": 1400 },
+      { "id": 5, "airline_id": 1, "hub_code": "FOC", "dest_code": "AAA", "distance_km": 840 },
+      { "id": 6, "airline_id": 1, "hub_code": "HUB", "dest_code": "NBN", "distance_km": 420 },
+      { "id": 7, "airline_id": 2, "hub_code": "AAA", "dest_code": "BBB", "distance_km": 5800 },
+      { "id": 8, "airline_id": 1, "hub_code": "HUB", "dest_code": "FOC", "distance_km": 280 }
+    ],
+    "rotations": [],
+    "flight_legs": []
+  }
+}

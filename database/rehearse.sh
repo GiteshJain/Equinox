@@ -33,6 +33,11 @@
 #    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the new planner is built
 #    (npm ci, npm run build), and tests/planner_next_test.py opens it at its live address on the copy, signs in, reads
 #    and saves through planner_save(). Runs before the real saves, whose last step (the rollback) changes the copy.
+# 9. The planning library (#19, spec docs/specs/2026-10-12-rules-library.md §6), only if 1 to 8 passed: built (npm run
+#    build:rules), then tests/rules_library_test.py runs rules_input() on the copy through the library's command and
+#    compares its figures with the old planner's Tails and Hubs screens, opened at the same frozen moment, signed in as
+#    test staff; and counts how the library's block-time estimates compare with the stored times. Neither screen
+#    depends on what the real saves changed.
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -195,6 +200,27 @@ new_planner() {
   return $rc
 }
 
+# The planning library (#19): built, then side by side with the old planner on the copy. The local address and keys go
+# to the test in a file only this user can read, as for the real saves; they are never printed.
+rules_library() {
+  local env="$work/local.env" rc=0
+  echo "== the planning library on the copy: its figures against the old planner's Tails and Hubs (#19)"
+  if ! npm run build:rules > "$work/rules.log" 2>&1; then
+    echo "FAIL  the planning library didn't build"
+    tail -n 15 "$work/rules.log" | sed 's/^/      /'
+    return 1
+  fi
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/rules_library_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -319,5 +345,9 @@ fi
 if [ $status -eq 0 ]; then
   echo "== real saves: the pull request's planner, signed in as test staff, saving into the copy (#17)"
   real_saves after || status=1
+fi
+
+if [ $status -eq 0 ]; then
+  rules_library || status=1
 fi
 exit $status
