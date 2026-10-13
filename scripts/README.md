@@ -1,7 +1,8 @@
 # Scripts
 
-The Python scripts Claude runs for the weekly report, gander monthly, the world scan and the schedule optimiser
-(decision #10). They are Claude's working tools, not part of the website or planner, and they run in Claude's workspace.
+The Python scripts Claude runs for the weekly report, gander monthly and the world scan, and the planning library's
+command, which is the schedule optimiser (decision #10; #19). They are Claude's working tools, not part of the website or
+planner, and they run in Claude's workspace.
 
 **Before running any of them**, know these limits as they stand on 8 Oct 2026:
 - **Fixed paths.** They read and write files in `/home/claude/` and the current folder.
@@ -14,17 +15,30 @@ The Python scripts Claude runs for the weekly report, gander monthly, the world 
 All database access goes through functions described in `docs/data.md`.
 
 ## The weekly report (Saturday review chat)
-Run these in order, from one working folder.
+Run these in order, from one working folder, straight from a clone of the repository (no need to copy them):
+`python3 <clone>/scripts/report/<script>`. The planning library's command must be built first (`npm ci && npm run
+build` in the clone, below). **The report's money is the database's:** cash, profit a day, flight profit a day, the
+lowest point in the next 14 days and when, the next order, route profit, the growth signals and hubs first come from the
+captured figures (decision #19), each airline on its own. There is no surplus figure and no group total (manual §1, §3).
+Our airlines, their game IDs, names and bases come from the database too (`rules.json`); nothing about them is typed into
+the scripts, and nothing assumes six airlines (#14).
 
 | Step | Script | What it does | Needs | Makes |
 |---|---|---|---|---|
-| 1 | `report/pull.py` | Downloads the latest finished world scan (every airline and the scanned airports) and the planner, through `export_for_report()` | `~/.sb_anon`, `~/.ingest_secret` | `airlines.json`, `airports.json`, `planner.json`, `scan.json` (which scan) |
-| 2 | `report/analyze.py` | Works out competitors by market, hub progress, fleet, profit and the rest of the briefing's numbers. Then sends the scan's market summaries (each airline's passenger departures a week and city pairs per market, kept for good in `scan_airline_markets`) through `ingest_snapshot()`, kind `markets`, for the scan in `scan.json`; it uses `report/scan_markets.py`, so copy both. If the sending fails it says so and the report carries on: run step 2b later | Step 1's files, `airports_oa.csv` (OurAirports' public airport list), `~/data.json` (the planner's route research, from `export_planner_data()`) | `results.json`; the scan's market summaries in the database |
+| 1 | `report/pull.py` | Downloads what the report reads, through `export_for_report()`: the captured figures, now (kind `figures`), the planning library's input (kind `rules`) and the latest finished world scan (every airline with its schedule, and the scanned airports); and the website's airlines from `site_public()`, for the charts' colours | `~/.sb_anon`, `~/.ingest_secret` | `figures.json`, `rules.json`, `airlines.json`, `airports.json`, `scan.json` (which scan), `site_airlines.json` |
+| 2 | `report/analyze.py` | Works out the briefing's numbers into `results.json`: each airline's money from `figures.json`; its aircraft, routes, flights, seats and block hours a day from its stored legs through the planning library (`node lib/rules/dist/cli.js aircraft rules.json`: the Tails screen's figures); competitors by market, our bases at their airports, head-to-head routes and the world ranking from the scan. Then sends the scan's market summaries (each airline's passenger departures a week and city pairs per market, kept for good in `scan_airline_markets`) through `ingest_snapshot()`, kind `markets`, for the scan in `scan.json`, using `report/scan_markets.py` beside it; if that fails it says so and the report carries on (run step 2b later). `--no-send` leaves the sending out | Step 1's files, `airports_oa.csv` (OurAirports' public airport list), the library's command (in the script's own clone, or `$EQUINOX_RULES_CLI`) | `results.json`; the scan's market summaries in the database |
 | 2b | `report/scan_markets.py` | Only when needed: sends the market summaries for any scans (`python3 scan_markets.py [scan id ...]`; no ids: every finished scan whose schedules are still kept, one month). For scans stored before 11 Oct, and after a change to the market definitions | `airports_oa.csv`, `~/.sb_anon`, `~/.ingest_secret`; `analyze.py` beside it (the market definitions) | The scans' market summaries in the database |
-| 3 | `report/charts.py` | Draws the charts | `results.json`, the Liberation Sans fonts | `c_fleet.png`, `c_hubs.png`, `c_markets.png`, `c_profit.png` |
-| 4 | `report/build.py` | Lays out the PDF briefing | `results.json`, the charts | `~/report/Equinox_Weekly_Briefing_W41.pdf`. The week number is written into the script, so change it each week. |
+| 3 | `report/charts.py` | Draws the charts, every name and colour from `results.json` | `results.json`, the Liberation Sans fonts | `c_profit.png`, `c_cash.png`, `c_fleet.png`, `c_markets.png`, `c_hubs.png` |
+| 4 | `report/build.py` | Lays out the PDF briefing: every figure from `results.json`, the week's written text from `notes.json` | `results.json`, the charts, `notes.json` (`--notes` for another file), the Liberation Sans fonts | `~/report/Equinox_Weekly_Briefing_<year>-W<week>.pdf` (`--out` for another folder). The week is the ISO week of the figures' date, so nothing in the script changes from week to week |
 
-The finished PDF is published to the investor library with `site_admin()` (kind `report`).
+**`notes.json`, the week's words.** The Saturday review writes it each week; `report/notes.example.json` shows every part,
+with example text. It holds what only the review can say: the week in one line, what matters, the decisions, a headline
+and notes for each section, each airline's rivals read (by its code or name), rivals' moves, risks, opportunities and the
+plan (what we did, the growth rotation, what's coming up, the watch list). `build.py` lays out what's there and leaves out
+any part that is missing. Never type a figure the database gives into the notes: the tables beside them print it.
+
+The finished PDF is published to the investor library with `site_admin()` (kind `report`). The checks run steps 2 to 4
+on a small dated sample on every pull request and keep the PDF (`tests/report_test.py`, `tests/README.md`).
 
 ## gander monthly (Monthly chat)
 
@@ -44,10 +58,26 @@ The scanner waits between pages (0.25 to 0.5 seconds) so it doesn't load the gam
 while; run it in slices with `[from] [to]` if needed.
 
 ## The schedule optimiser (Scheduling chat)
+The planning library's `optimise` command (decision #19; `scripts/planning/plan.py`, which did this before, was retired
+by build pull request 4). It builds the best day's schedule for one aircraft from a base: it tries every order of the
+given destinations and every start time in the window, keeps the plans that respect night bans, the second-daily gap,
+turns and the maintenance the day needs, and picks the one with the most connections at the base (and any extra hubs),
+then the most maintenance time. Connections count from the airport's minimum connection time to
+`connection_max_wait_h` (manual §4); block times are 25 minutes + distance ÷ the type's speed, or the leg's stored time.
 
-| Script | What it does | Needs | Makes |
-|---|---|---|---|
-| `planning/plan.py` | Builds a day's schedule for an aircraft. It tries every order of the given destinations and every start time, and keeps the plan that makes the most connections at the hub. Connections count from the airport's minimum connection time, with no extra margin, up to 8 hours (manual §4). It respects night bans, the maintenance time the day needs, and keeps a second daily at least 3 hours from the first. Block times are fitted to 468 of our flights on 7 Oct: exact to the minute for about 93%, never more than 2 minutes out. | `~/real_state.json` (the planner's state), `~/data.json` (route research), `~/.sb_anon` (it reads minimum connection times from `site_public()`) | Printed plans: connections, hours a day, maintenance share and each leg's times |
+Its input is `rules.json`, from `export_for_report()` with kind `rules` (next section, step 2): every leg already flying,
+so new connections are counted against the real network. A worked example, Malaysia's next aircraft at KUL:
+
+```bash
+node lib/rules/dist/cli.js optimise rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --start 05:00-11:00 --step 5
+```
+
+It answers in JSON: `best` (the order, the local start, connections, the maintenance ratio, and each leg with its local
+and UTC times and block), `plans` (the next best), and how many plans it tried and found feasible. On the 10 Oct test
+sample this gives KCH, PQC, then PEN from 06:45, 70 connections at KUL and maintenance 289%, exactly what plan.py gave
+(`tests/optimiser_saved_answer_test.py`). Add `--hubs DEL,PVG` to count connections at other hubs too, and `--airline
+<id>` when the base serves more than one of our airlines. Check the plan card it suggests with `check-card` before it
+goes into the planner.
 
 ## The planning library's command (any chat)
 The planning rules (block times, turns, connections, banks, maintenance, the schedule checks, the optimiser) live in
@@ -74,8 +104,8 @@ from a clone of the repository, with Node 22:
    - `optimise KUL KCH,PQC,PEN --type "A321 NEO LIGHT" [--start 05:00-11:00] [--step 5] [--hubs DEL]`: the best day's
      schedule for one aircraft, by connections, then maintenance.
 
-   Each answers in JSON. Until pull request 4 moves the scripts onto it, `planning/plan.py` stays as it is; the library's
-   optimiser gives the same plan on the same input (`tests/rules_planpy_test.py`).
+   Each answers in JSON. The weekly report runs `aircraft` (above), and the website's trip search uses the library's
+   connection test from `web/assets/rules.js`, which the same build writes.
 
 ## The captured figures (any chat)
 The figures worked out from what the capture recorded live in the database (decision #19, design §8): the cash
@@ -96,22 +126,27 @@ It holds `airline_cards`, `growth_signals`, `hub_progress`, `capture_status`, an
 `airline_profit`, `route_profit` and `aircraft_profit` (each over 1, 3 and 7 days) and `fare_changes`. Money is in
 millions of AS$, unrounded; moments are UTC. In a chat with the Supabase connection, Claude calls the functions
 themselves as postgres, e.g. `select public.cash_forecast(<airline id>, '[{"type": "A321 NEO LIGHT", "count": 2}]');`
-to test orders. The weekly report moves onto these figures in pull request 4; until then its scripts are unchanged.
+to test orders. The weekly report reads its money from them (above).
 
 ## Where the inputs come from
-- **`planner.json`, `real_state.json`:** the planner's state, from `export_for_report('planner')`, which builds it from
-  the planner tables (#13, pull request 8). Don't read the `planner_state` row directly: it has been frozen since the
-  switch-over (pull request 9) and no longer changes.
-- **`rules.json`** (the planning library's command): `export_for_report()` with kind `rules`, which gives exactly what
-  `rules_input()` gives staff: the settings, world rules, aircraft types, airports, airlines, bases, aircraft, routes,
-  rotations and every flight leg, from the tables (#19).
-- **`figures.json`** (the captured figures): `export_for_report()` with kind `figures` (above), the same figures the
-  database functions give staff (#19).
-- **`data.json`:** the planner's route research, from `export_planner_data()`. To change it, `planner_data_set()` (key
+- **The planner's old document** (`export_for_report('planner')`, built from the planner tables by the adapter's getters):
+  no script reads it any more (the weekly report and the optimiser moved off it in build pull request 4). Don't read the
+  `planner_state` row directly: it has been frozen since the switch-over (pull request 9) and no longer changes.
+- **`rules.json`** (the planning library's command and the weekly report): `export_for_report()` with kind `rules`, which
+  gives exactly what `rules_input()` gives staff: the settings, world rules, aircraft types, airports, airlines, bases,
+  aircraft, routes, rotations and every flight leg, from the tables (#19).
+- **`figures.json`** (the captured figures, the weekly report's money): `export_for_report()` with kind `figures` (above),
+  the same figures the database functions give staff (#19).
+- **`site_airlines.json`** (the weekly report's chart colours): `site_public()`'s airlines, from the airlines table.
+- **`notes.json`** (the weekly report's words): written by the Saturday review each week, as `report/notes.example.json`
+  shows.
+- **`data.json`:** the planner's route research, from `export_planner_data()` (no script reads it any more; the weekly
+  report's block hours come from the planning library). To change it, `planner_data_set()` (key
   `DATA`) writes it to `planner_data` and to the `countries`, `airports` and `routes` tables, only the rows that
   change, and answers what changed. A new UTC offset for an airport our flights use is held back and named: tell the
   Building chat, since those flights need re-timing (design §4).
-- **Connection times** (`plan.py`): `site_public()`'s `content.mct`, which comes from `world_airports`. To change them,
+- **Connection times:** each airport's `mct_min` in `world_airports`, which `rules.json` and `site_public()`'s
+  `content.mct` both give. To change them,
   `site_admin()` with kind `content`, key `mct` and the whole map `{airport code: minutes}` (whole minutes; an airport
   left out loses its time).
 - **`airports_oa.csv`:** OurAirports' public airport data (ourairports.com/data), for names, countries and

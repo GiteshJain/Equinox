@@ -68,11 +68,21 @@ start window and step default to 05:00 to 11:00 local and 5 minutes.
   answer names only what it checks; numbers match to within 1e-9; `{"error": "..."}` expects a refusal. The questions
   are listed in `test/ask.ts`.
 - **`tests/fixtures/optimiser_kul_2026-10-10.json`**: the optimiser on the test sample's legs at KUL, whose answer is
-  plan.py's. A case in the same format, kept with the dated samples because it is game data (decision #9); the Vitest
-  runner lists it in `test/cases.test.ts` and lays it over `_base.json` like the rest. `tests/rules_planpy_test.py`
-  runs plan.py, unchanged, on the same input and checks it still gives that answer.
-- **`test/library.test.ts`**: the builder's checks, settings and world rules, a plan card, every command.
+  plan.py's, saved before plan.py was retired (build pull request 4). A case in the same format, kept with the dated
+  samples because it is game data (decision #9); the Vitest runner lists it in `test/cases.test.ts` and lays it over
+  `_base.json` like the rest. `tests/optimiser_saved_answer_test.py` runs the built command on it and must find that
+  answer.
+- **`test/library.test.ts`**: the builder's checks, settings and world rules, a plan card, every command, and the
+  website's connection test (below) against the library's own.
 - **On last night's copy** (the rehearsal): `tests/rules_library_test.py` compares the library with the old planner's
   Tails and Hubs screens (`tests/README.md`).
 
-Run them: `npm run typecheck`, `npm run lint`, `npm test`, then `npm run build` and `python3 tests/rules_planpy_test.py`.
+Run them: `npm run typecheck`, `npm run lint`, `npm test`, then `npm run build` and `python3 tests/optimiser_saved_answer_test.py`.
+
+## The website's file
+The website's trip search uses the library's connection test, from one browser file: `npm run build` (`build:rules`)
+bundles `src/browser.ts` into `web/assets/rules.js` (`vite.browser.config.ts`; not committed, Cloudflare builds it), which
+the website loads before `site.js` as `window.EqRules`. It holds only what the trip search needs:
+`EqRules.connections.limitsFrom(mct_min, connection_max_wait_h)` (the same limits `connectionLimits()` gives, from the two
+figures `site_public()` gives the website: each airport's `content.mct`, 90 minutes where it has none, and
+`content.connection_max_wait_h`) and `isConnection(gap, limits)`.

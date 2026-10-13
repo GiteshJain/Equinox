@@ -5,6 +5,11 @@ database, and checks each one shows its content with no errors: home, flights, d
 and each airline's page, the newsroom and an article, investors, about, gander monthly, an unknown address, and the
 link into the planner. Then the new planner (#18) at /planner/next/: its sign-in form, its files from /app/, no errors;
 and the old planner still at /planner/.
+Then the trip search (#19): on a small made-up week, transfers follow the planning library's connection rule
+(web/assets/rules.js, built by npm run build): one at exactly the airport's minimum connection time and one at exactly
+8 hours are offered, one a minute under the minimum and one of 9 hours (which the old 10-hour window offered) are not;
+the same on a feed without content.connection_max_wait_h (8 hours), and the 9-hour one is offered when the feed says
+10; the page loads rules.js with no errors.
 
 Every page is opened twice (#13, pull request 8): on the feed site_public() gives since then, which carries our airlines
 (names, codes, colours, text and order, from the airlines table), and on the feed without them, so the website's own
@@ -100,6 +105,77 @@ async def new_planner(b, port):
     await ctx.close()
 
 
+# The trip search on the planning library's connection rule (#19, spec docs/specs/2026-10-13-callers.md §3): a small
+# made-up Virgin Atlantic week at Gatwick (every airport here is at UTC+0), Gatwick's minimum connection time 60 minutes.
+# Edinburgh's flight lands at Gatwick at 09:15; the flights out leave 59 minutes, exactly 60 minutes, exactly 8 hours and
+# 9 hours later.
+TRIP_FREQS = [   # (destination, out, back: departure and arrival local, flight numbers)
+    ("EDI", "06:00", "07:15", "08:00", "09:15", "9101", "9102"),   # the feeder: EDI-LGW lands 09:15
+    ("BHD", "10:14", "11:30", "12:15", "13:30", "9501", "9502"),   # 59 minutes: a minute under the minimum
+    ("LIS", "10:15", "12:45", "13:30", "16:00", "9201", "9202"),   # exactly the minimum connection time
+    ("MAN", "17:15", "18:15", "19:00", "20:00", "9401", "9402"),   # exactly 8 hours
+    ("DUB", "18:15", "19:30", "20:15", "21:30", "9301", "9302"),   # 9 hours: found by the old 10-hour window, not now
+]
+TRIP_EXPECT = {   # destination from Edinburgh -> the trip offered (flight numbers), or None, with the rule's window
+    8: {"BHD": None, "LIS": "VS9102>VS9201", "MAN": "VS9102>VS9401", "DUB": None},
+    10: {"BHD": None, "LIS": "VS9102>VS9201", "MAN": "VS9102>VS9401", "DUB": "VS9102>VS9301"},
+}
+
+
+def trip_feed(base, wait):
+    """The sample's feed with only the made-up week; content.connection_max_wait_h as given (None: the key left out)."""
+    content = {"mct": {"LGW": 60}}
+    if wait is not None:
+        content["connection_max_wait_h"] = wait
+    freqs = [{"r": f"Virgin Atlantic|LGW|{d}", "t": "G-TEST1", "a": a, "b": b2, "c": c, "d": d2, "days": "1234567", "o": o, "k": k, "l": "2026-10-01"}
+             for d, a, b2, c, d2, o, k in TRIP_FREQS]
+    return dict(base, airlines=FEED_AIRLINES, hubs=[{"code": "LGW", "airline": "Virgin Atlantic", "role": "hub"}],
+                tails=[{"id": "G-TEST1", "airline": "Virgin Atlantic", "type": "A321 NEO LIGHT"}], freqs=freqs, content=content)
+
+
+async def trip_search(b, port, S, base):
+    print("--- the trip search on the planning library's connection rule (web/assets/rules.js)")
+    if not (WEB / "assets" / "rules.js").is_file():
+        check(False, "the planning library's browser file is built (web/assets/rules.js)", "run npm ci && npm run build first")
+        return
+    for name, wait, window_h in [("8 hours in the feed", 8, 8), ("a feed without connection_max_wait_h", None, 8), ("10 hours in the feed", 10, 10)]:
+        pub = json.dumps(trip_feed(base, wait))
+        ctx = await b.new_context(viewport={"width": 1280, "height": 900}, timezone_id="UTC", locale="en-US")
+        pg = await ctx.new_page(); errors, rules_js = [], []
+        pg.on("pageerror", lambda e: errors.append("page error: " + str(e)[:300]))
+        pg.on("console", lambda m: errors.append("console: " + m.text[:300]) if m.type == "error" and "Failed to load resource" not in m.text else None)
+        pg.on("response", lambda r: rules_js.append(r.status) if urlsplit(r.url).path == "/assets/rules.js" else None)
+
+        def answer(pub):   # (Playwright passes the request as a second argument to a handler that takes two)
+            async def route(r):
+                u = r.request.url
+                if "/rest/v1/rpc/site_public" in u:
+                    await r.fulfill(body=pub, content_type="application/json")
+                elif f":{port}/" in u or u.startswith("data:"):
+                    await r.continue_()
+                else:
+                    await r.abort()
+            return route
+        await pg.route("**/*", answer(pub))
+        await pg.clock.set_fixed_time(S["frozen_at"])
+        got, shown = {}, {}
+        for dest in TRIP_EXPECT[window_h]:
+            await pg.goto(f"http://127.0.0.1:{port}/flights?from=EDI&to={dest}&date=2026-10-12")
+            with contextlib.suppress(Exception):
+                await pg.wait_for_selector("#results .trip, #results .empty", timeout=10000)
+            # each trip card's flight numbers, in order (site.js keeps findTrips to itself, so the page is read as shown)
+            got[dest] = await pg.evaluate("[...document.querySelectorAll('#results .trip')].map(t => [...t.querySelectorAll('.lg b')].map(b => b.textContent.trim()).join('>'))")
+            shown[dest] = await pg.evaluate("[...document.querySelectorAll('#results .trip')].length + ' trip(s): ' + (document.querySelector('#results') || {}).innerText")
+        loaded = await pg.evaluate("!!(window.EqRules && window.EqRules.connections && window.EqRules.connections.isConnection)")
+        check(rules_js and all(s == 200 for s in rules_js) and loaded and not errors,
+              f"trip search, {name}: the page loads rules.js (window.EqRules) with no errors", f"rules.js answers {rules_js}, loaded {loaded}, errors {errors}")
+        for dest, want in TRIP_EXPECT[window_h].items():
+            gap = {"BHD": "59 minutes", "LIS": "exactly the minimum connection time (60 minutes)", "MAN": "exactly 8 hours", "DUB": "9 hours"}[dest]
+            check(got[dest] == ([want] if want else []), f"trip search, {name}: Edinburgh to {dest} with a transfer of {gap} at Gatwick is {'offered' if want else 'not offered'}",
+                  f"the page offers {got[dest]}; {shown[dest][:300]!r}")
+        await ctx.close()
+
+
 async def main():
     S = sample()
     old = {k: v for k, v in S["site_public"].items() if k != "airlines"}   # the feed without our airlines: the fallback
@@ -157,6 +233,7 @@ async def main():
                     check(r.url.endswith("/planner/") and r.status == 200, "the planner link reaches the planner", f"ended at {r.url} ({r.status})")
                 await ctx.close()
             await new_planner(b, port)
+            await trip_search(b, port, S, old)
             await b.close()
     print(f"\n{len(failures)} website check(s) failed" if failures else "\nwebsite: all passed")
     sys.exit(1 if failures else 0)

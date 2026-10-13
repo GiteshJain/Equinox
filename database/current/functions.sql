@@ -1439,12 +1439,17 @@ AS $function$
                                                              'at', r.published_at, 'status', r.status, 'has_pdf', r.pdf_b64 is not null)
                                           order by coalesce(r.published_at, now() + interval '1 year') desc), '[]'::jsonb)
                   from public.site_reports r),
-    -- site_content's keys (photos, logos ...; markets is the investors'), with mct from world_airports
+    -- site_content's keys (photos, logos ...; markets is the investors'), with mct from world_airports, and the longest
+    -- wait for a connection from settings (connection_max_wait_h, hours, manual §4), for the trip search (#19)
     'content', coalesce((select jsonb_object_agg(c.key, c.value) from public.site_content c where c.key not in ('markets', 'mct')), '{}'::jsonb)
                || coalesce((select jsonb_build_object('mct', jsonb_object_agg(wa.airport_code, wa.mct_min))
                               from w join public.world_airports wa on wa.world_id = w.id
                              where wa.mct_min is not null
                             having count(*) > 0), '{}'::jsonb)
+               || coalesce((select jsonb_build_object('connection_max_wait_h', (s.value #>> '{}')::numeric)
+                              from w join public.settings s on s.world_id = w.id
+                             where s.airline_id is null and s.key = 'connection_max_wait_h'
+                               and (s.value #>> '{}') ~ '^\s*[0-9]+(\.[0-9]+)?\s*$'), '{}'::jsonb)
   );
 $function$
 ;

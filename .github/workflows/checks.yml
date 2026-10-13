@@ -1,5 +1,6 @@
 # The automatic checks (decision #9): keys and passwords, the schedule check, the planner (every screen, look-only
-# previews, known answers) and the website, on every pull request and every change to main. A red result means no
+# previews, known answers), the planning library, the weekly report and the website, on every pull request and every
+# change to main. A red result means no
 # merge: Claude never asks for or makes one while it's red. The result, with what failed, is posted on the pull request.
 name: Checks
 
@@ -40,8 +41,27 @@ jobs:
           pip install -q playwright==1.56.0
           python -m playwright install --with-deps chromium > /dev/null
 
+      # The weekly report's test (tests/report_test.py) runs the report's scripts: pinned, as the report is made with them
+      - name: Install the weekly report's libraries and fonts
+        run: |
+          pip install -q reportlab==5.0.1 matplotlib==3.11.2 pypdf==5.9.0
+          [ -f /usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf ] || { sudo apt-get update -qq && sudo apt-get install -y -qq fonts-liberation > /dev/null; }
+
       - name: Run the checks
+        env:
+          REPORT_TEST_OUT: ${{ runner.temp }}/weekly-report   # the report test leaves its PDF here
         run: bash tests/run_all.sh 2>&1 | tee "$RUNNER_TEMP/checks.log"
+
+      # What the weekly report looks like on the report sample: the report test's PDF, kept a week
+      - name: Keep the report test's PDF
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report
+          path: ${{ runner.temp }}/weekly-report/*.pdf
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Post the result on the pull request
         if: always() && github.event_name == 'pull_request'

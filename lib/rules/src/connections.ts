@@ -32,8 +32,16 @@ export interface ConnectionLimits {
 /** The connection limits at an airport: from mct_min + connection_buffer_min to connection_max_wait_h. */
 export function connectionLimits(rules: Rules, code: string): ConnectionLimits {
   const m = mctAt(rules, code);
-  const buffer = settingNumber(rules, "connection_buffer_min");
-  return { mct_min: m.minutes, mct_source: m.source, buffer_min: buffer, min_min: m.minutes + buffer, max_min: settingNumber(rules, "connection_max_wait_h") * 60 };
+  return limitsFrom(m.source === "airport" ? m.minutes : null, settingNumber(rules, "connection_max_wait_h"), settingNumber(rules, "connection_buffer_min"));
+}
+
+/** The same limits from the figures themselves, for a caller without the whole input: the website's trip search, which
+ *  reads each airport's minimum connection time (null where it has none: DEFAULT_MCT_MIN) and connection_max_wait_h from
+ *  site_public() (web/assets/rules.js, design §7). */
+export function limitsFrom(mctMin: number | null | undefined, maxWaitH: number, bufferMin = 0): ConnectionLimits {
+  const known = mctMin != null && Number.isFinite(Number(mctMin));
+  const m = known ? Number(mctMin) : DEFAULT_MCT_MIN;
+  return { mct_min: m, mct_source: known ? "airport" : "default", buffer_min: bufferMin, min_min: m + bufferMin, max_min: maxWaitH * 60 };
 }
 
 /** Whether a gap between landing and departure is a valid connection at the airport. */

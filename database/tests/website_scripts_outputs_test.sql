@@ -3,8 +3,9 @@
 -- database/tests/before/website_scripts_before.sql saved before the migrations ran (rehearsal_before). Run by
 -- database/rehearse.sh on the copy of last night's backup, inside a transaction that is rolled back. A failed check
 -- stops with an error that says where (paths and counts, never values).
---   1. site_public(): exactly the same, apart from its new airlines key and updated_at; the 6 Oct limits hold (no
---      bank or transfer times, cabin layouts or aircraft on order) and airlines is our active airlines;
+--   1. site_public(): exactly the same, apart from its new airlines key and updated_at, and content.connection_max_wait_h
+--      (build pull request 4, #19), which must be the world's setting; the 6 Oct limits hold (no bank or transfer times,
+--      cabin layouts or aircraft on order) and airlines is our active airlines;
 --   2. site_investor() (a throwaway password) and site_report() for one report: the same, except that cash and
 --      next-7-day costs are now the getter's, so they may differ from the old row only as the side by side allowed
 --      (the capture's figure for a date captured after the planner last saved, or one the saved document doesn't have
@@ -108,6 +109,13 @@ begin
   -- ---------------------------------------------------------------- 1. site_public()
   a := public.site_public();
   b := (select value from rehearsal_before.site_outputs where name = 'site_public');
+  -- content.connection_max_wait_h (build pull request 4, #19): the world's setting, for the trip search; left out of the
+  -- comparison below when the backup is older than it, compared like the rest once the backup has it
+  assert a -> 'content' -> 'connection_max_wait_h' is not distinct from
+         (select to_jsonb((s.value #>> '{}')::numeric) from public.settings s
+           where s.world_id = w and s.airline_id is null and s.key = 'connection_max_wait_h'),
+    'site_public()''s content.connection_max_wait_h isn''t the world''s connection_max_wait_h setting';
+  if not (b -> 'content' ? 'connection_max_wait_h') then a := a #- '{content,connection_max_wait_h}'; end if;
   -- (a backup taken after pull request 8 already has the airlines key: then it must be the same too)
   if (a - array['airlines', 'updated_at']) is distinct from (b - array['airlines', 'updated_at'])
      or (b ? 'airlines' and a -> 'airlines' is distinct from b -> 'airlines') then

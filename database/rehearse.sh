@@ -18,7 +18,9 @@
 #    chosen outputs into the schema rehearsal_before, so a test can compare them afterwards.
 # 3. Applies them in order, each in its own transaction, stopping at the first failure, then pauses any job they schedule
 #    on the copy (pg_cron), so none runs during the tests (passes 0 and 3). With SAMPLE_DIR set, then makes
-#    a test sample from the copy (tests/fixtures/sample.sql, at the backup's moment) into that folder.
+#    a test sample from the copy (tests/fixtures/sample.sql, at the backup's moment) into that folder. With
+#    REPORT_SAMPLE_DIR set, also the weekly report's sample (tests/fixtures/report_sample.sql, cut by
+#    tests/fixtures/report_sample.py, at the same moment) into that folder.
 # 4. Prints the row count of every table that changed, plus any table added or removed.
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
 #    passing test says it checked (its notices: counts, never rows). Then the rule numbers check on the copy (design
@@ -329,6 +331,19 @@ if [ $status -eq 0 ] && [ -n "${SAMPLE_DIR:-}" ]; then
     echo "== test sample made from the copy: sample_${at:0:10}.json.gz, as of $at ($(du -h "$SAMPLE_DIR/sample_${at:0:10}.json.gz" | cut -f1))"
   else
     echo "FAIL  the test sample couldn't be made"; status=1
+  fi
+fi
+
+# the weekly report's sample (tests/README.md, "The report sample"): the figures, the planning library's input and the
+# latest scan through export_for_report(), at the backup's moment, before any test or save touches the copy
+if [ $status -eq 0 ] && [ -n "${REPORT_SAMPLE_DIR:-}" ]; then
+  at=$(date -u -d "${ran_at:-now}" +'%Y-%m-%dT%H:%M:00Z')
+  mkdir -p "$REPORT_SAMPLE_DIR"
+  if psql "$LOCAL" -X -q -At -v ON_ERROR_STOP=1 -v at="$at" -f tests/fixtures/report_sample.sql \
+       | python3 tests/fixtures/report_sample.py "$REPORT_SAMPLE_DIR/report_${at:0:10}.json.gz"; then
+    echo "== report sample made from the copy: report_${at:0:10}.json.gz, as of $at ($(du -h "$REPORT_SAMPLE_DIR/report_${at:0:10}.json.gz" | cut -f1))"
+  else
+    echo "FAIL  the report sample couldn't be made"; status=1
   fi
 fi
 

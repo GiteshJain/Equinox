@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "vite build --config app/planner/vite.config.ts && npm run build:rules",
-    "build:rules": "tsc -p lib/rules/tsconfig.build.json",
+    "build:rules": "tsc -p lib/rules/tsconfig.build.json && vite build --config lib/rules/vite.browser.config.ts",
     "typecheck": "tsc -p app/planner/tsconfig.json && tsc -p lib/rules/tsconfig.json",
     "lint": "eslint app/planner lib/rules",
     "test": "vitest run --config app/planner/vite.config.ts && vitest run --config lib/rules/vitest.config.ts"
