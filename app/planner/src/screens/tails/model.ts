@@ -300,7 +300,7 @@ export function legGroups(rules: Rules, a: TailAircraft, week: AircraftWeek | nu
       pill: !g.pos ? { cls: "bad" as const, text: "next leg starts elsewhere" } : g.short ? { cls: "bad" as const, text: "short turn" }
         : g.tight ? { cls: "warn" as const, text: "tight turn" } : g.big ? { cls: "ok" as const, text: "gap" } : null,
     };
-  }).sort((x, y) => x.dep - y.dep || String(x.no ?? "").localeCompare(String(y.no ?? "")));
+  }).sort((x, y) => x.dep - y.dep || String(x.no).localeCompare(String(y.no)));
 }
 /** The ground time to the next leg, as one time or a range. */
 export const gapWords = (gaps: readonly number[]): string =>

@@ -549,9 +549,16 @@ async def until_quiet(seconds=30):
         await asyncio.sleep(0.5)
 
 
+async def refresh(new):
+    """The new planner loaded again (signed in already, its clock still frozen), so it reads what the test put back."""
+    await new.pg.reload()
+    await new.pg.wait_for_function("!!window.__eqPlanner", timeout=60000)
+    await new.pg.wait_for_selector("main[data-screen]", timeout=60000)
+    await settle(new.pg, 300)
+
+
 async def filing(old, new, al, reg, aid, card_id):
     out = []
-    client = await new.pg.evaluate("window.__eqPlanner.client")
     snap = snapshot(aid, card_id)
     await old.reopen()
     card = json.loads(await old.run(f"JSON.stringify(state.plans[{json.dumps(reg)}])"))
@@ -562,7 +569,9 @@ async def filing(old, new, al, reg, aid, card_id):
         old.schedule = answer
         differ = {1} if changes else set()
         problems = []
-        # the new planner files first
+        # the new planner files first, loaded again so it reads the copy as it is now
+        await refresh(new)
+        client = await new.pg.evaluate("window.__eqPlanner.client")
         ids, mark = max_ids(), marks()
         summary = await file_new(new, al, reg, mode)
         await rs.wait_for(lambda: log_since(mark), lambda got: len(got) >= 3, seconds=60)
@@ -637,6 +646,7 @@ def logged(mark, want, client, rid=None):
 
 async def add_edit_remove(old, new, al, tag):
     out = []
+    await refresh(new)
     pg, client = new.pg, await new.pg.evaluate("window.__eqPlanner.client")
     reg = "ZZ" + tag[:4].upper()
     await new_go(new, "/tails" + q(airline=al["code"]))

@@ -32,7 +32,7 @@ import {
   type TailAirline, type TailField,
 } from "./model";
 import {
-  readRotationsWithLegs, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
+  readRotationsWithLegs, tailsCount, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
 } from "./reads";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
@@ -156,7 +156,8 @@ export function Tails() {
   const baseList = rules && airline ? basesOf(rules, airline.id) : [];
   async function addTail() {
     if (!airline || !rules || w === undefined) return;
-    const count = all.filter((a) => extraIndex(a, "tails_index") != null).length;
+    // its place at the end of the old planner's list of tails, counted fresh
+    const count = await tailsCount(w).catch(() => all.filter((a) => extraIndex(a, "tails_index") != null).length);
     const res = addTailChanges(w, airline.id, form, rules, configsQ.data ?? [], all, count);
     if ("error" in res) { showMessage(res.error); return; }
     if (!res.changes.length) return;
