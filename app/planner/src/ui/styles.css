@@ -417,8 +417,8 @@ svg.wmap .hub text,svg.wmap .al{font-family:var(--font);fill:#0E1630;stroke:rgba
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font:inherit;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .seg button:hover{color:var(--ink)}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(16,27,51,.12)}
-.check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}
-.check input{accent-color:var(--night)}
+label.check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}   /* the old .check, kept to labels here: in the old sheet it comes before .evt, so Home's .evt.check isn't touched */
+label.check input{accent-color:var(--night)}
 .split{display:grid;grid-template-columns:minmax(320px,1fr) minmax(380px,1.35fr);gap:18px;align-items:start}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-panel);overflow:hidden}
 .row{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:14px;row-gap:1px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line-2);cursor:pointer}
@@ -549,6 +549,7 @@ details.cx[open] summary::before{transform:rotate(90deg)}
 .fctag{text-transform:none;letter-spacing:0;font-weight:500;font-size:11px;opacity:.6}
 .toolbar{gap:10px 10px;margin-bottom:14px}
 .toolbar #f-q{flex:1 1 240px;max-width:340px}
+#f-dmin,#f-dmax{width:100px!important}
 .toolbar .count{color:var(--muted);font-size:12.5px}
 .toolbar button.danger{font-size:12.5px;padding:7px 13px}
 .chips{gap:6px;margin:0 0 8px}
