@@ -37,7 +37,7 @@ export function connectionLimits(rules: Rules, code: string): ConnectionLimits {
 }
 
 /** Whether a gap between landing and departure is a valid connection at the airport. */
-export const isConnection = (gap: number, lim: ConnectionLimits): boolean => gap >= lim.min_min && gap <= lim.max_min;
+export const isConnection = (gap: number, lim: ConnectionLimits): boolean => gap > lim.min_min && gap <= lim.max_min;
 
 /** Minute of the week each of a leg's departures leaves, and lands, in UTC. */
 export const departuresOf = (l: TimedLeg): number[] => l.days_utc.map((d) => weekMinute(d, l.dep_utc_min));
