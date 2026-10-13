@@ -34,7 +34,7 @@ export function FileCheckModal({ state, busy, onFile, onClose }: { state: FileSt
       <div className="modal" role="dialog" aria-modal="true" aria-label={`Filing ${state.reg}`}>
         <div className="mhead">{title}<button type="button" className="mx" aria-label="Close" onClick={onClose}>×</button></div>
         <div className="mbody">{body}</div>
-        <div className="mfoot">{foot}</div>
+        <div className="mfoot">{foot}<button type="button" className="secondary" onClick={onClose}>Close</button></div>
       </div>
     </div>
   );

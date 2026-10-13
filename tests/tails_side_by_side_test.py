@@ -158,6 +158,10 @@ READ = r"""() => {
              foot: T(c.querySelector(".pfoot")), file: !!c.querySelector("[data-planfile]"), filed: !!c.querySelector(".pfoot .pill.ok") };
   }
 """
+READ_CHECK = READ + """const m = document.querySelector(".modal"); if (!m) return null;
+  return { head: T(m.querySelector(".mhead > div")), paras: [...m.querySelectorAll(".mbody p")].map(T),
+           rows: [...m.querySelectorAll(".mbody table tr")].map(tr => [...tr.children].map(T).join(" | ")),
+           pills: [...m.querySelectorAll(".mbody table .pill")].map(p => pill(p)), foot: [...m.querySelectorAll(".mfoot button")].map(T) }; }"""
 READ_LIST = READ + "return readList(); }"
 READ_DETAIL = READ + "return readDetail(); }"
 READ_POPUP = READ + "return readPopup(); }"
@@ -354,6 +358,7 @@ async def popups(old, new, airlines):
         for reg in COPY["tails"].get(al["id"], [])[:POPUP_SAMPLE]:
             try:
                 await old.run(f"ui.view = 'home'; ui.modal = {{kind: 'tail', key: {json.dumps(reg)}}}; render(); true")
+                await old.pg.wait_for_selector("#modalroot .modal", timeout=10000)
                 await old.pg.wait_for_timeout(150)
                 o = await old.pg.evaluate(READ_POPUP)
                 await new.pg.evaluate("t => window.__eqPlanner.go(t)", "/?aircraft=" + reg)
@@ -528,9 +533,9 @@ async def file_new(new, al, reg, mode):
     await new.pg.click(f"[data-figure='tails: deliveries'] [data-planfile={json.dumps(reg)}]")
     if mode == "differs":
         await new.pg.wait_for_selector(f"[data-file-check={json.dumps(reg)}][data-file-ready=yes]", timeout=60000)
-        summary = await new.pg.text_content("[data-file-check] [data-file-summary]")
+        shown = await new.pg.evaluate(READ_CHECK)
         await new.pg.click(f"[data-filegame={json.dumps(reg)}]")
-        return summary
+        return shown
     return None
 
 
@@ -582,8 +587,8 @@ async def filing(old, new, al, reg, aid, card_id):
         problems += [f"a change-log row names {r['actor']} ({r['detail']}), not planner (the tab's ID)" for r in new_log if r["actor"] != "planner" or r["detail"] != client]
         if mode == "matches" and await new.pg.evaluate("!!document.querySelector('[data-file-check]')"):
             problems.append("the check was shown although every leg matches")
-        if mode == "differs" and "differ" not in (summary or ""):
-            problems.append(f"the check says {summary!r}")
+        if mode == "differs" and "differ" not in " ".join((summary or {}).get("paras", [])):
+            problems.append(f"the check says {(summary or {}).get('paras')!r}")
         try:
             await new.pg.wait_for_selector(f"[data-tail-page={json.dumps(reg)}]", timeout=30000)
         except Exception:
@@ -600,6 +605,9 @@ async def filing(old, new, al, reg, aid, card_id):
         await old.run(f"checkBeforeFile({json.dumps(reg)}); true")
         if mode == "differs":
             await old.pg.wait_for_selector(f"[data-filegame={json.dumps(reg)}]", timeout=60000)
+            old_shown = await old.pg.evaluate(READ_CHECK)
+            if old_shown != summary:
+                problems.append(f"the check shown: old {old_shown!r}, new {summary!r}"[:900])
             await old.pg.click(f"[data-filegame={json.dumps(reg)}]")
         await rs.wait_for(lambda: log_since(mark2), lambda got: len(got) >= 3, seconds=60)
         await until_quiet()
@@ -611,13 +619,15 @@ async def filing(old, new, al, reg, aid, card_id):
         problems += compare_written(n_rows, o_rows, mode, differ)
         nc, oc = Counter((r["table"], r["op"]) for r in new_log), Counter((r["table"], r["op"]) for r in old_log)
         if nc != oc:
-            extra = oc - nc
-            problems.append(f"the new filing changed {dict(nc)}, the old {dict(oc)}" + (f" (the old's extra: {dict(extra)})" if extra else ""))
+            extra, fewer = oc - nc, nc - oc
+            rows = [f"{r['table']} {r['op']} {r['id']} ({', '.join(r['fields']) or 'whole row'})" for r in old_log if (r["table"], r["op"]) in extra] \
+                + [f"new only: {r['table']} {r['op']} {r['id']} ({', '.join(r['fields']) or 'whole row'})" for r in new_log if (r["table"], r["op"]) in fewer]
+            problems.append(f"the new filing changed {dict(nc)}, the old {dict(oc)}" + (f" (the difference: {'; '.join(rows)})" if rows else ""))
         if old_view_new != old_view_old:
             problems.append(f"the old planner shows the new filing's frequencies {old_view_new}, its own {old_view_old}"[:900])
         n_rot = len(n_rows["rotations"])
         out.append((f"filing {al['code']} {reg} from its plan card, the game answering \"{mode}\""
-                    + (" (it files at once)" if mode == "matches" else " (File with the game's times)")
+                    + (" (it files at once)" if mode == "matches" else " (the check shown as the old planner shows it, then File with the game's times)")
                     + f": {n_rot} rotation(s) and {len(n_rows['legs'])} legs, the aircraft in service, {len(n_rows['spending'])} cabin fit(s)"
                     + (", the card's legs taking the game's times" if mode == "differs" else "")
                     + "; the same rows as the old planner's for the same card, logged as planner with the tab's ID; the old planner, opened again, "

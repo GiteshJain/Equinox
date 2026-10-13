@@ -88,6 +88,7 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
         <div className="mfoot">
           {check && check.status !== "done" ? <button type="button" className="primary" data-tmcheck={a.registration} disabled={busy} onClick={() => void mark()}>Mark checked</button> : null}
           <button type="button" className="secondary" data-opentail={a.registration} onClick={open}>Open in Tails</button>
+          <button type="button" className="secondary" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
