@@ -14,7 +14,9 @@
 --      the world's id); a wrong secret is refused.
 --   7. p_routes (#18 build pull request 5, spec docs/specs/2026-10-13-home.md §1): 'all' (the default) is unchanged, the
 --      document exactly as rules_input() gave it before this rehearsal's changes (database/tests/before/
---      rules_input_before.sql; a copy older than rules_input() has none, and section 2's counts are the check); 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      rules_input_before.sql; a copy older than rules_input() has none, and section 2's counts are the check), but for
+--      the two settings Home adds (airport_cap_warning_pct, aircraft_check_after_days: in the document, then taken out
+--      before comparing, when the copy didn't have them); 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
 --      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
@@ -51,7 +53,7 @@ $test$;
 do $test$
 declare
   w bigint := (select x.id from public.worlds x where x.is_default);
-  d_all jsonb; d_flown jsonb; d_before jsonb; bad text; refused int := 0; v text;
+  d_all jsonb; d_flown jsonb; d_before jsonb; d_cmp jsonb; n_new int := 0; bad text; refused int := 0; v text;
   n_routes int; n_codes int; n_removed int;
 begin
   assert w is not null, 'the copy has no default world';
@@ -59,9 +61,22 @@ begin
   d_flown := public.rules_input(w, 'flown');
   assert public.rules_input(w, 'all') = d_all and public.rules_input(null, 'all') = d_all, 'rules_input(world, all) differs from rules_input()';
   -- 'all' is the document exactly as rules_input() gave it before this rehearsal's changes (when the copy had it: a backup
-  -- taken before 20261012180000 went live has none, and then section 2's counts against the tables are the check)
+  -- taken before 20261012180000 went live has none, and then section 2's counts against the tables are the check), but
+  -- for the two settings 20261013200000 adds, which are new in it: they're checked, then taken out (from the world's
+  -- settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
-  assert d_before is null or d_all = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes';
+  d_cmp := d_all;
+  if d_before is not null then
+    foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days'] loop
+      continue when d_before -> 'settings' ? v;
+      assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
+      d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
+      d_cmp := jsonb_set(d_cmp, '{airlines}', (select coalesce(jsonb_agg(case when a ? 'settings' then jsonb_set(a, '{settings}', (a -> 'settings') - v) else a end order by i), '[]'::jsonb)
+                                                 from jsonb_array_elements(d_cmp -> 'airlines') with ordinality as e(a, i)));
+      n_new := n_new + 1;
+    end loop;
+  end if;
+  assert d_before is null or d_cmp = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes (the new settings aside)';
   assert (d_flown #>> '{world,id}')::bigint = w, 'flown: the document isn''t the default world''s';
 
   -- 'flown': every route that isn't removed and has a rotation, and no other, each as 'all' has it
@@ -121,7 +136,8 @@ begin
   assert refused = 4, format('%s of 4 bad p_routes values were refused', refused);
 
   raise notice 'p_routes: all is % (% KB, % routes, % airports); flown is % KB: the % routes with rotations and the % airports they, the legs, the bases and the aircraft use, the rest the same (% removed routes have rotations; like all, flown leaves removed routes out); other values refused',
-    case when d_before is null then 'as the tables have it (the copy had no rules_input() before its changes)' else 'unchanged' end,
+    case when d_before is null then 'as the tables have it (the copy had no rules_input() before its changes)'
+         when n_new > 0 then format('unchanged but for the %s new setting(s), at the world and in each airline''s', n_new) else 'unchanged' end,
     round(octet_length(d_all::text) / 1024.0), jsonb_array_length(d_all -> 'routes'), jsonb_array_length(d_all -> 'airports'),
     round(octet_length(d_flown::text) / 1024.0), n_routes, n_codes, n_removed;
 end
