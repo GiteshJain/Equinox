@@ -90,6 +90,7 @@ class Planner:
         self.errors = []       # page errors and console errors
         self.dialogs = []      # browser dialogs it opened (dismissed): the planner asks in the page, so this stays empty
         self.b = self.api = self.ctx = self.pg = None
+        self.closing = False   # set by close()
 
     async def open(self, host=LIVE_HOST, path="/planner/next/", moment=None):
         """Opens the planner; with a moment (ISO), its clock stays at that moment (tests/home_side_by_side_test.py)."""
@@ -111,6 +112,16 @@ class Planner:
         return self.pg
 
     async def route(self, r):
+        # Home reads more now (the hero, the map), so a request can still be on its way when the browser closes; its
+        # error is then expected and dropped, instead of a closed-page traceback in the log. (Playwright's unroute_all()
+        # before closing left a traceback of its own.) Any other error is raised as before.
+        try:
+            await self.forward(r)
+        except Exception:
+            if not self.closing:
+                raise
+
+    async def forward(self, r):
         req, u = r.request, r.request.url
         live, host = self.f["live_url"], urlsplit(u)
         if u.startswith(live + "/"):
@@ -147,10 +158,7 @@ class Planner:
             self.outside.append(urlsplit(res.url).hostname or "an unknown address")
 
     async def close(self):
-        if self.ctx:
-            # requests still on their way to the copy (Home reads more now: the hero, the map) end quietly when the browser
-            # closes, instead of printing a closed-page traceback from the route handler (Playwright's advice)
-            await self.ctx.unroute_all(behavior="ignoreErrors")
+        self.closing = True   # requests still on their way to the copy end quietly (route)
         if self.b:
             await self.b.close()
         if self.api:
