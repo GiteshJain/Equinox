@@ -452,7 +452,7 @@ export function pairLegs(legs: readonly { no: string; from: string; to: string }
   const out: [number, number | null][] = [];
   legs.forEach((a, i) => {
     if (used.has(a.no)) return;
-    const j = legs.findIndex((x) => !used.has(x.no) && x.no !== a.no && x.from === a.to && x.to === a.from && Math.abs(Number(x.no) - Number(a.no)) === 2);
+    const j = legs.findIndex((x) => !used.has(x.no) && x.no !== a.no && x.from === a.to && x.to === a.from && Math.abs(Number(x.no) - Number(a.no)) === 1);
     used.add(a.no);
     if (j >= 0) used.add((legs[j] as { no: string }).no);
     out.push([i, j >= 0 ? j : null]);
