@@ -14,7 +14,7 @@
 --      the world's id); a wrong secret is refused.
 --   7. p_routes (#18 build pull request 5, spec docs/specs/2026-10-13-home.md §1): 'all' (the default) is unchanged, the
 --      document exactly as rules_input() gave it before this rehearsal's changes (database/tests/before/
---      rules_input_before.sql); 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      rules_input_before.sql; a copy older than rules_input() has none, and section 2's counts are the check); 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
 --      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
@@ -58,10 +58,10 @@ begin
   d_all := public.rules_input();
   d_flown := public.rules_input(w, 'flown');
   assert public.rules_input(w, 'all') = d_all and public.rules_input(null, 'all') = d_all, 'rules_input(world, all) differs from rules_input()';
-  -- 'all' is the document exactly as rules_input() gave it before this rehearsal's changes
+  -- 'all' is the document exactly as rules_input() gave it before this rehearsal's changes (when the copy had it: a backup
+  -- taken before 20261012180000 went live has none, and then section 2's counts against the tables are the check)
   select b.doc into d_before from rehearsal_before.rules_input b;
-  assert d_before is not null, 'rehearsal_before.rules_input is empty: the copy had no rules_input() before the changes';
-  assert d_all = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes';
+  assert d_before is null or d_all = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes';
   assert (d_flown #>> '{world,id}')::bigint = w, 'flown: the document isn''t the default world''s';
 
   -- 'flown': every route that isn't removed and has a rotation, and no other, each as 'all' has it
@@ -120,7 +120,8 @@ begin
   begin perform public.rules_input(w, null); exception when invalid_parameter_value then refused := refused + 1; end;
   assert refused = 4, format('%s of 4 bad p_routes values were refused', refused);
 
-  raise notice 'p_routes: all is unchanged (% KB, % routes, % airports); flown is % KB: the % routes with rotations and the % airports they, the legs, the bases and the aircraft use, the rest the same (% removed routes have rotations; like all, flown leaves removed routes out); other values refused',
+  raise notice 'p_routes: all is % (% KB, % routes, % airports); flown is % KB: the % routes with rotations and the % airports they, the legs, the bases and the aircraft use, the rest the same (% removed routes have rotations; like all, flown leaves removed routes out); other values refused',
+    case when d_before is null then 'as the tables have it (the copy had no rules_input() before its changes)' else 'unchanged' end,
     round(octet_length(d_all::text) / 1024.0), jsonb_array_length(d_all -> 'routes'), jsonb_array_length(d_all -> 'airports'),
     round(octet_length(d_flown::text) / 1024.0), n_routes, n_codes, n_removed;
 end

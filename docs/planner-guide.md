@@ -16,10 +16,26 @@ after every change. On a preview address it saves nothing and says **preview · 
   which you swipe sideways.
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Each screen** says it's still in the old planner, with a link there. Home also lists our airlines in their order,
-  with their colours, and the time of the latest change to the planner's data.
-- **Saving** (once screens are rebuilt): each change is saved on its own. If someone changed the same thing since you
-  opened it, nothing in that change is saved; the screen shows what's there now and says what changed.
+- **Home is rebuilt** (13 Oct, build pull request 5); it shows what the old Home shows, from the same data and with the
+  same figures (below). **The other eight screens** still say they're in the old planner, with a link there, and a
+  link from Home to one of them (a needs-attention item, say) lands on that line.
+- **Home in the new planner:**
+  - **Key figures:** aircraft, routes flying, flights a day, seats a day, worked out by the planning library, and the
+    **average economy load** over the last 7 days of captures: the average of each airline's figure on Review (hover
+    over it for each airline's). The old Home averaged every captured flight instead, so the two can differ by a point.
+  - **The network right now:** a globe with every route in its airline's colour, each aircraft in the air as a light
+    along its route, our bases, and day and night as they are now. It moves on each minute and turns slowly (not if
+    your device asks for less motion); drag it to turn it. **All** or one airline's button shows that airline only.
+  - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
+    plan. **File into planner** appears once one has arrived with a plan card, and opens the old planner for now: filing
+    moves into the new planner with Tails.
+  - **Needs attention:** grouped as on the old Home, each item linking to where it's fixed. **×** dismisses an item and
+    **show again** brings every dismissed item back; a dismissal shows in both planners. The interline line isn't
+    there yet: its list of countries is still only in the old planner, and comes with the Interline screen.
+  - **Coming up** (the next 14 days) and the **To-do** board, as on the old Home. Tick a to-do when it's done; add one
+    with its steps, one a line; **×** deletes one after asking you in the page.
+- **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
+  change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
 
 ## Home: Overview
