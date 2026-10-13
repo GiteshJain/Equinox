@@ -77,6 +77,27 @@ from a clone of the repository, with Node 22:
    Each answers in JSON. Until pull request 4 moves the scripts onto it, `planning/plan.py` stays as it is; the library's
    optimiser gives the same plan on the same input (`tests/rules_planpy_test.py`).
 
+## The captured figures (any chat)
+The figures worked out from what the capture recorded live in the database (decision #19, design §8): the cash
+forecast and when an airline can order (manual §3), Review's cards and profit by day, route and aircraft profit, fare
+changes, the growth signals and load patterns, hub progress and the capture board. Each is a function with an "as of"
+moment (now by default); `docs/data.md` says what each answers. Scripts get all of them, for every airline, in one
+document through `export_for_report()` with kind `figures` and the ingest secret; the third argument is a JSON object,
+both keys optional: `as_of` (a moment, now when left out) and `world` (the world's id, the default world when left
+out):
+
+```bash
+curl -s "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/export_for_report" \
+  -H "apikey: $(cat ~/.sb_anon)" -H "Authorization: Bearer $(cat ~/.sb_anon)" -H "Content-Type: application/json" \
+  -d "{\"p_secret\": \"$(cat ~/.ingest_secret)\", \"p_kind\": \"figures\", \"p_arg\": \"{}\"}" > figures.json
+```
+
+It holds `airline_cards`, `growth_signals`, `hub_progress`, `capture_status`, and for each airline `cash_forecast`,
+`airline_profit`, `route_profit` and `aircraft_profit` (each over 1, 3 and 7 days) and `fare_changes`. Money is in
+millions of AS$, unrounded; moments are UTC. In a chat with the Supabase connection, Claude calls the functions
+themselves as postgres, e.g. `select public.cash_forecast(<airline id>, '[{"type": "A321 NEO LIGHT", "count": 2}]');`
+to test orders. The weekly report moves onto these figures in pull request 4; until then its scripts are unchanged.
+
 ## Where the inputs come from
 - **`planner.json`, `real_state.json`:** the planner's state, from `export_for_report('planner')`, which builds it from
   the planner tables (#13, pull request 8). Don't read the `planner_state` row directly: it has been frozen since the
@@ -84,6 +105,8 @@ from a clone of the repository, with Node 22:
 - **`rules.json`** (the planning library's command): `export_for_report()` with kind `rules`, which gives exactly what
   `rules_input()` gives staff: the settings, world rules, aircraft types, airports, airlines, bases, aircraft, routes,
   rotations and every flight leg, from the tables (#19).
+- **`figures.json`** (the captured figures): `export_for_report()` with kind `figures` (above), the same figures the
+  database functions give staff (#19).
 - **`data.json`:** the planner's route research, from `export_planner_data()`. To change it, `planner_data_set()` (key
   `DATA`) writes it to `planner_data` and to the `countries`, `airports` and `routes` tables, only the rows that
   change, and answers what changed. A new UTC offset for an airport our flights use is held back and named: tell the

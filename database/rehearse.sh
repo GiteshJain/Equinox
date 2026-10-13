@@ -38,6 +38,12 @@
 #    compares its figures with the old planner's Tails and Hubs screens, opened at the same frozen moment, signed in as
 #    test staff; and counts how the library's block-time estimates compare with the stored times. Neither screen
 #    depends on what the real saves changed.
+# 10. The captured figures (#19, spec docs/specs/2026-10-12-captured-figures.md §3), only if 1 to 9 passed:
+#    tests/captured_figures_test.py opens the old planner at the copy's latest capture plus one hour, signed in as test
+#    staff, and compares every Review and Check figure for every airline with the database functions at the same moment,
+#    and prints each function's time. Of what the real saves changed (a to-do, a plan card's title, typed loads), only
+#    the typed loads count, and they were entered after the moment: the test sets aside loads and day flags typed after
+#    it, as the functions leave them out, and puts them back when it ends.
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -221,6 +227,22 @@ rules_library() {
   return $rc
 }
 
+# The captured figures (#19): side by side with the old planner on the copy. The local address and keys go to the test in
+# a file only this user can read, as for the real saves; they are never printed.
+captured_figures() {
+  local env="$work/local.env" rc=0
+  echo "== the captured figures on the copy: the database functions against the old planner's Review and Check (#19)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/captured_figures_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -349,5 +371,9 @@ fi
 
 if [ $status -eq 0 ]; then
   rules_library || status=1
+fi
+
+if [ $status -eq 0 ]; then
+  captured_figures || status=1
 fi
 exit $status
