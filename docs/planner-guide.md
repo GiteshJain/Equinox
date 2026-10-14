@@ -18,9 +18,9 @@ after every change. On a preview address it saves nothing and says **preview · 
   day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Home, Routes, Tails, Hubs and Check are rebuilt** (13 Oct, build pull requests 5 to 9); each shows what the old
-  screen shows, from the same data and with the same figures (below). **The other four screens** still say they're in the old
-  planner, with a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
+- **Home, Routes, Tails, Hubs, Check and Review are rebuilt** (13 and 14 Oct, build pull requests 5 to 10); each shows
+  what the old screen shows, from the same data and with the same figures (below). **The other three screens** still say
+  they're in the old planner, with a link there, and a link from Home to one of them lands on that line.
 - **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
   - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
     aircraft in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes**
@@ -108,6 +108,10 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **The aircraft pop-up** (from Home's needs attention): its base, block hours a day, legs a week, maintenance, the
     one-week check, every issue and its flights, with **Mark checked** and **Open in Tails**.
   - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
+  - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
+    distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
+    Ryanair takes its own **R** on every route. The distance is the route's (the airline's own, either way round, with any
+    override), as filing takes it, else the great circle.
 - **Hubs in the new planner** looks and works as the old Hubs. It only shows; nothing on it saves. Times are local at the
   airport, whichever way the header's **Local** / **UTC** is set, as on the old Hubs.
   - **The address** names the airport and the day (/planner/next/hubs/DEL?day=2, Monday being 0), so a link reopens the
@@ -151,6 +155,24 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **Daily load report:** **‹** and **›** move a day. Every departure by airline, with its loads by class from the
     capture (the last 9 days, as the old planner kept), or the day's summary from loads typed by hand.
   - Each button is saved on its own, as one change.
+- **Review in the new planner** looks and works as the old Review, with its boards folding as Check's do (all folded on
+  arrival; click a title, or **Expand all**). Every money figure is the database's.
+  - **The address** names the airline: /planner/next/review/VS. /planner/next/review opens the first airline, as the old
+    Review does. A link from Home's needs attention (/planner/next/review/AW/JFK-ORD) opens the airline with the route
+    profit table filtered to that route.
+  - **The group today:** each airline's row (flight profit a day, leases and the week-end closing a day, net). The old
+    board's six group totals (cash across the airlines, the group's flight profit, leases, closing and net, the aircraft
+    on the ground) are gone: each airline is its own business (manual §5).
+  - **The cards**, one per airline, as the old ones; tap one to open its page.
+  - **The airline's page:** its profit chart for the last 14 intervals with the 7-day average and the table of reported
+    days; **Cash, next 14 days** (the types safe to order are listed by type, where the old listed them in its own
+    order); **Route profit** (the last day, 3 or 7 days, the filters, both charts, the table, **+ fare plan**, the
+    aircraft and the fare changes); the **Fare plan** with **remove**.
+  - **+ fare plan** plans a 5% economy rise (the setting *fare_plan_raise_pct*) from the route's latest captured fare.
+  - **Manual entry:** cash and fixed costs for today (**Save** keeps a figure only where it differs from the capture's,
+    as the old planner does), the nightly log, and **Loads by hand**: type each airline's flights under 95%, or paste the
+    game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads are saved the way the
+    old planner saves them (save_loads), so both planners see the same days.
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
@@ -256,6 +278,7 @@ Open an airline for its own page:
   Saturdays.
 - **Manual entry:** only if a night's capture failed. Type the cash, fixed costs and loads by hand.
   Loads typed or pasted here change only the days and flights you enter; captured days stay as they are.
+- In the new planner Review is rebuilt (above), with the airline in the address.
 
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*

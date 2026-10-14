@@ -100,7 +100,8 @@ from a clone of the repository, with Node 22:
    - `block DEL BOM "A321 NEO LIGHT"`: the block time for a leg not yet timed;
    - `connections KUL`: every connection there, with its days and gaps, the city pairs linked and each one's bank;
    - `aircraft` (every aircraft's legs a week, block hours a day, maintenance and routes) or `aircraft 9M-AAB` (its week);
-   - `check-card card.json`: a plan card's legs checked against every rule, at both ends;
+   - `check-card card.json`: a plan card's legs checked against every rule, at both ends, each leg's service code
+     (`service_code`) against the one its route's distance calls for included;
    - `optimise KUL KCH,PQC,PEN --type "A321 NEO LIGHT" [--start 05:00-11:00] [--step 5] [--hubs DEL]`: the best day's
      schedule for one aircraft, by connections, then maintenance.
 

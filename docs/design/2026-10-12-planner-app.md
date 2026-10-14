@@ -248,6 +248,9 @@ Each pull request gets a spec from the Building chat and goes to a fresh helper 
 | 9 | Check | #18 |
 | 10 | Review: cards, the airline page, profit and the cash forecast | #18 |
 | 11 | Review: route profit, aircraft, fare changes, fare plan, manual entry | #18 |
+
+*Rows 10 and 11 were built as one pull request (Gitesh, 14 Oct; spec `docs/specs/2026-10-14-review.md`), with the plan
+card's service check in the library. Row 12 keeps its number.*
 | 12 | Interline, Photos, Reference | #18 |
 | 13 | The switch | #18 |
 | 14 | The clean-up | #18 |
