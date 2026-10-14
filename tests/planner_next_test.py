@@ -17,7 +17,8 @@ rule: nothing goes outside.
    order; tests/routes_side_by_side_test.py compares it with the old Routes. Nor is Tails (build pull request 7): its list
    and the deliveries board; tests/tails_side_by_side_test.py compares it with the old Tails. Nor is Hubs (build pull
    request 8): it opens on the first base's board with every base in its list; tests/hubs_side_by_side_test.py compares it
-   with the old Hubs.
+   with the old Hubs. Nor is Check (build pull request 9): its six boards, folded, in the old order, with the copy's
+   airlines on the Capture board; tests/check_side_by_side_test.py compares it with the old Check.
 3. window.__eqPlanner.save() ticks the first open to-do: exactly that row changes (done, done_at), logged as actor
    planner with the tab's ID; the answer gives the row's new updated_at. A second save from that updated_at puts it
    back, so the next change needs no new read and the real saves that follow still find their open to-dos.
@@ -25,7 +26,7 @@ rule: nothing goes outside.
    carrying the first's title, and the second's change to another row in the same call isn't written either. The
    second tab shows the row as it is now and names it.
 5. A preview address (127.0.0.1) reads, says "preview · not saved", and sends no write.
-6. At 380 px wide, Home, Routes, Tails, Hubs and the five placeholder screens have no sideways scroll and no errors.
+6. At 380 px wide, Home, Routes, Tails, Hubs, Check and the four placeholder screens have no sideways scroll and no errors.
 7. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
@@ -373,6 +374,36 @@ async def hubs_opens(pl):
     return f"Hubs is rebuilt, not a placeholder: it opens on {got['hub']}'s board ({got['count']}), with the copy's {len(want)} bases in its list", problems
 
 
+async def check_opens(pl):
+    """Check is rebuilt (build pull request 9): no placeholder; it opens with its six boards in the old Check's order, every
+    one folded (the old Check folded them all on arrival), and the Capture board lists our airlines the capture covers, in
+    their order. Its figures are compared with the old Check's by tests/check_side_by_side_test.py."""
+    want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
+                                join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                where g.kind = 'ours' and a.world_id = {WORLD}
+                                order by a.position nulls last, a.id""").splitlines() if r]
+    await pl.pg.click("[data-screen-link=check]")
+    await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
+    await settle(pl.pg, 300)
+    got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=check] [data-not-built]'),
+        boards: [...document.querySelectorAll('main[data-screen=check] .board > h3.rh')].map(h => h.dataset.rkey),
+        folded: [...document.querySelectorAll('main[data-screen=check] .board')].every(b => b.classList.contains('rcol')),
+        capture: [...document.querySelectorAll('[data-figure="check: capture table"] tr')].slice(1).map(tr => (tr.querySelector('td b') || {}).textContent || '') })""")
+    problems = []
+    if got["notBuilt"]:
+        problems.append("Check still shows the placeholder's line to the old planner")
+    order = ["Capture", "Growth", "Aircraft checks", "Cabins", "Game check", "Daily load report"]
+    if got["boards"] != order:
+        problems.append(f"Check's boards are {got['boards']}, not {order}")
+    if not got["folded"]:
+        problems.append("Check's boards aren't all folded on arrival")
+    if not got["capture"] or any(n not in want for n in got["capture"]) or got["capture"] != sorted(got["capture"], key=want.index):
+        problems.append(f"the Capture board lists {got['capture']}, the copy's airlines are {want}")
+    await pl.pg.click("[data-screen-link=home]")
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return f"Check is rebuilt, not a placeholder: its {len(got['boards'])} boards in the old order, folded on arrival, the Capture board with {len(got['capture'])} airlines", problems
+
+
 # ---------- 3. a to-do ticked through window.__eqPlanner.save() ----------
 async def tick_todo(pl):
     tid = psql(f"select coalesce(min(t.id)::text, '') from public.todos t where t.world_id = {WORLD} and not t.done").strip()
@@ -529,9 +560,10 @@ async def phone(p, port, env, facts, staff, seen):
             path = await ph.pg.evaluate("location.pathname")
             if path != href:
                 problems.append(f"{sid}: its address is {path}, expected {href}")
-            built = sid in ("home", "routes", "tails", "hubs")   # rebuilt (build pull requests 5 to 8); the other five are still placeholders
+            built = sid in ("home", "routes", "tails", "hubs", "check")   # rebuilt (build pull requests 5 to 9); the other four are still placeholders
             ready = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
-                     "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]"}
+                     "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
+                     "check": "main[data-screen=check][data-check-ready=yes]"}
             if built:
                 try:
                     await ph.pg.wait_for_selector(ready[sid], timeout=60000)
@@ -540,6 +572,9 @@ async def phone(p, port, env, facts, staff, seen):
                     problems.append(f"{sid}: it isn't ready at 380 px wide")
             if not built and not await ph.pg.evaluate("!!document.querySelector('[data-not-built] a[href=\"/planner/\"]')"):
                 problems.append(f"{sid}: no line linking to the old planner")
+            if sid == "check" and built:
+                await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
+                await settle(ph.pg, 300)
             over = await ph.pg.evaluate(scroll)
             if over > 0:
                 problems.append(f"{sid}: the page scrolls sideways by {over} px at 380 px wide")
@@ -551,7 +586,7 @@ async def phone(p, port, env, facts, staff, seen):
         problems += ph.errors
     finally:
         await ph.close()
-    return f"at 380 px wide, Home, Routes, Tails, Hubs and the {len(SCREENS) - 4} placeholder screens have no sideways scroll and no errors", problems
+    return f"at 380 px wide, Home, Routes, Tails, Hubs, Check (every board open) and the {len(SCREENS) - 5} placeholder screens have no sideways scroll and no errors", problems
 
 
 async def main():
@@ -595,7 +630,7 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, routes_opens, tails_opens, hubs_opens, tick_todo):
+                for check in (home_opens, routes_opens, tails_opens, hubs_opens, check_opens, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

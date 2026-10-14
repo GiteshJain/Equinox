@@ -15,8 +15,9 @@
 --   7. p_routes (#18 build pull request 5, spec docs/specs/2026-10-13-home.md §1): 'all' (the default) is unchanged, the
 --      document exactly as rules_input() gave it before this rehearsal's changes (database/tests/before/
 --      rules_input_before.sql; a copy older than rules_input() has none, and section 2's counts are the check), but for
---      the two settings Home adds (airport_cap_warning_pct, aircraft_check_after_days) and the one Tails adds
---      (aircraft_block_target_h): in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      the two settings Home adds (airport_cap_warning_pct, aircraft_check_after_days), the one Tails adds
+--      (aircraft_block_target_h) and the seven Check adds (cabin_refit_cost, cabin_refit_share_pct, growth_big_min_stars,
+--      growth_ready_min_days, growth_ready_full_share, order_queue_grace_h, order_queue_warn_h): in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
 --      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
@@ -62,12 +63,15 @@ begin
   assert public.rules_input(w, 'all') = d_all and public.rules_input(null, 'all') = d_all, 'rules_input(world, all) differs from rules_input()';
   -- 'all' is the document exactly as rules_input() gave it before this rehearsal's changes (when the copy had it: a backup
   -- taken before 20261012180000 went live has none, and then section 2's counts against the tables are the check), but
-  -- for the two settings 20261013200000 adds and the one 20261013230000 (Tails) adds, which are new in it: they're
+  -- for the two settings 20261013200000 adds, the one 20261013230000 (Tails) adds and the seven 20261013235900 (Check)
+  -- adds, which are new in it: they're
   -- checked, then taken out (from the world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
   d_cmp := d_all;
   if d_before is not null then
-    foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h'] loop
+    foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h', 'cabin_refit_cost',
+                             'cabin_refit_share_pct', 'growth_big_min_stars', 'growth_ready_min_days', 'growth_ready_full_share',
+                             'order_queue_grace_h', 'order_queue_warn_h'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

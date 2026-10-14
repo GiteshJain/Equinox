@@ -1,0 +1,133 @@
+{
+  "part": "growth",
+  "note": "The Growth board's planning parts (#18 build pull request 9; manual §3; the old planner's lastMove, nextMove, moveCandidates, the hub readiness and order queues of its growthBoard). Test Air flies HUB–AAA daily (1001 out at 06:00, 1002 back landing at HUB at 09:45), HUB–DDD on Mon, Wed and Fri (1004 back landing at HUB at 03:40) and HUB–NBN daily (back with no number of its own, so 1006, landing at 13:00); Other Air flies AAA–BBB, and AAA–HUB daily (3003, landing at HUB at 20:15). HUB's banks leave at 06:00, 14:00 and 22:00, its minimum connection time is 60 minutes and the arrival window an hour, so an arrival from 04:00 to 05:00 is in for bank 1, and up to 8 hours early still feeds it.",
+  "input": {
+    "routes": [
+      {"id": 1, "airline_id": 1, "hub_code": "HUB", "dest_code": "AAA", "distance_km": 700},
+      {"id": 4, "airline_id": 1, "hub_code": "HUB", "dest_code": "DDD", "distance_km": 1400},
+      {"id": 6, "airline_id": 1, "hub_code": "HUB", "dest_code": "NBN", "distance_km": 420},
+      {"id": 7, "airline_id": 2, "hub_code": "AAA", "dest_code": "BBB", "distance_km": 5800},
+      {"id": 9, "airline_id": 2, "hub_code": "AAA", "dest_code": "HUB", "distance_km": 700}
+    ],
+    "rotations": [
+      {"id": 1, "airline_id": 1, "route_id": 1},
+      {"id": 2, "airline_id": 1, "route_id": 4},
+      {"id": 3, "airline_id": 1, "route_id": 6},
+      {"id": 4, "airline_id": 2, "route_id": 7},
+      {"id": 6, "airline_id": 2, "route_id": 9}
+    ],
+    "flight_legs": [
+      {"id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 2, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+      {"id": 3, "airline_id": 1, "rotation_id": 2, "leg_no": 1, "flight_no": 1003, "origin_code": "HUB", "dest_code": "DDD", "aircraft_id": 1, "days_utc": [1, 3, 5], "dep_utc_min": 1200, "block_min": 150},
+      {"id": 4, "airline_id": 1, "rotation_id": 2, "leg_no": 2, "flight_no": 1004, "origin_code": "DDD", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [2, 4, 6], "dep_utc_min": 60, "block_min": 160},
+      {"id": 5, "airline_id": 1, "rotation_id": 3, "leg_no": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "NBN", "aircraft_id": 2, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 60},
+      {"id": 6, "airline_id": 1, "rotation_id": 3, "leg_no": 2, "flight_no": null, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 2, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 720, "block_min": 60},
+      {"id": 7, "airline_id": 2, "rotation_id": 4, "leg_no": 1, "flight_no": 3001, "origin_code": "AAA", "dest_code": "BBB", "aircraft_id": 4, "days_utc": [2], "dep_utc_min": 600, "block_min": 500},
+      {"id": 8, "airline_id": 2, "rotation_id": 6, "leg_no": 1, "flight_no": 3003, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 4, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1140, "block_min": 75}
+    ]
+  },
+  "cases": [
+    {
+      "name": "the next move follows the last one logged (the latest day; the log's order for a tie), and is a big market with none",
+      "rule": "the order rotation big market → frequency → smaller feeder (manual §3), from growth_log",
+      "ask": {"what": "growth_next_move", "airline_id": 1, "log": [
+        {"airline_id": 1, "logged_on": "2026-10-01", "move": "big"},
+        {"airline_id": 1, "logged_on": "2026-10-05", "move": "freq"},
+        {"airline_id": 2, "logged_on": "2026-10-06", "move": "big"},
+        {"airline_id": 1, "logged_on": "2026-10-05", "move": "feeder"}
+      ]},
+      "answer": {"last": {"airline_id": 1, "logged_on": "2026-10-05", "move": "feeder"}, "next": "big"}
+    },
+    {
+      "name": "after a big market comes frequency; an airline with nothing logged starts with a big market",
+      "rule": "the rotation's next move",
+      "ask": {"what": "growth_next_move", "airline_id": 2, "log": [{"airline_id": 1, "logged_on": "2026-10-01", "move": "big"}]},
+      "answer": {"last": null, "next": "big"}
+    },
+    {
+      "name": "each move's routes: big markets and feeders from live bases, not flown by any of our airlines nor planned; frequency on the sold-out routes",
+      "rule": "big: growth_big_min_stars (4) stars or more from a base flown from or ordered for, by stars then distance; feeder: fewer stars from a hub with banks; neither flown by any of our airlines nor on a waiting plan card; frequency: growth_ready_full_share (0.95) of departures at 95%+ over growth_ready_min_days (5) days, by stars then fewest round trips",
+      "ask": {"what": "growth_moves", "airline_id": 1, "next": "freq", "facts": {
+        "routes": [
+          {"id": 1, "hub": "HUB", "dest": "AAA", "stars": 5, "dist": 700},
+          {"id": 2, "hub": "HUB", "dest": "BBB", "stars": 4, "dist": 5600},
+          {"id": 3, "hub": "HUB", "dest": "CCC", "stars": 5, "dist": 6720},
+          {"id": 4, "hub": "HUB", "dest": "DDD", "stars": 3, "dist": 1400},
+          {"id": 5, "hub": "FOC", "dest": "AAA", "stars": 3, "dist": 840},
+          {"id": 6, "hub": "HUB", "dest": "NBN", "stars": 2, "dist": 420},
+          {"id": 8, "hub": "HUB", "dest": "FOC", "stars": 4, "dist": 280},
+          {"id": 10, "hub": "FOC", "dest": "CCC", "stars": 4, "dist": 3000},
+          {"id": 11, "hub": "HUB", "dest": "EEE", "stars": 3, "dist": 900},
+          {"id": 12, "hub": "HUB", "dest": "GGG", "stars": 2, "dist": 400}
+        ],
+        "planned": [{"from": "HUB", "to": "BBB"}, {"from": "HUB", "to": "EEE"}],
+        "orderBases": ["FOC", null],
+        "loads": [
+          {"route_id": 1, "departures": 14, "full": 14, "days": 7},
+          {"route_id": 4, "departures": 10, "full": 10, "days": 5},
+          {"route_id": 6, "departures": 4, "full": 4, "days": 4},
+          {"route_id": 7, "departures": 10, "full": 6, "days": 7}
+        ]
+      }},
+      "answer": {"big": [3, 8, 10], "freq": [1, 4], "feeder": [12], "shown": "freq"}
+    },
+    {
+      "name": "a move with nothing ready is skipped for the next one",
+      "rule": "the next move, or the one after it while a move has nothing ready",
+      "ask": {"what": "growth_moves", "airline_id": 1, "next": "freq", "facts": {
+        "routes": [{"id": 6, "hub": "HUB", "dest": "NBN", "stars": 2, "dist": 420}, {"id": 12, "hub": "HUB", "dest": "GGG", "stars": 2, "dist": 400}],
+        "planned": [], "orderBases": [], "loads": []
+      }},
+      "answer": {"big": [], "freq": [], "feeder": [12], "shown": "feeder"}
+    },
+    {
+      "name": "ready for another flight from the load reports alone, across airlines, most stars first, then fewest flights a day",
+      "rule": "growth_ready_full_share of departures at 95%+ over growth_ready_min_days reported days",
+      "ask": {"what": "growth_ready_from_loads",
+        "routes": [{"id": 4, "airline_id": 1, "hub": "HUB", "dest": "DDD", "stars": 3, "dist": 1400}, {"id": 1, "airline_id": 1, "hub": "HUB", "dest": "AAA", "stars": 5, "dist": 700},
+                   {"id": 9, "airline_id": 2, "hub": "AAA", "dest": "HUB", "stars": 3, "dist": 700}],
+        "loads": [{"route_id": 1, "departures": 14, "full": 14, "days": 7}, {"route_id": 4, "departures": 6, "full": 6, "days": 6}, {"route_id": 9, "departures": 20, "full": 19, "days": 7}]},
+      "answer": [{"id": 1, "round_trips_day": 1}, {"id": 4, "round_trips_day": 0.42857142857142855}, {"id": 9, "airline_id": 2, "round_trips_day": 1}]
+    },
+    {
+      "name": "hub readiness: each bank's cities feeding it now and with the plan cards, every airline's flights counted, by country",
+      "rule": "an arrival feeds the first bank it can make, inside its arrival window or early within connection_max_wait_h; a plan card's leg counts with its arrival known; focus cities and airports without banks fed are left out",
+      "ask": {"what": "hub_readiness", "countries": {"AAA": "FR", "DDD": "IN", "NBN": "DE", "CCC": "IN", "BBB": "US"},
+        "planned": [
+          {"from": "CCC", "to": "HUB", "dep_utc_min": 300, "block_min": 480},
+          {"from": "BBB", "to": "HUB", "dep_utc_min": 0, "block_min": null},
+          {"from": "AAA", "to": "HUB", "dep_utc_min": 600, "block_min": 120}
+        ]},
+      "answer": [
+        {"base_id": 1, "airline_id": 1, "airport": "HUB", "bank": 1, "dep": "06:00", "flying": 1, "with_planned": 1, "countries": [{"country": "IN", "cities": 1}]},
+        {"base_id": 1, "airport": "HUB", "bank": 2, "dep": "14:00", "flying": 2, "with_planned": 3,
+         "countries": [{"country": "FR", "cities": 1}, {"country": "DE", "cities": 1}, {"country": "IN", "cities": 1}]},
+        {"base_id": 1, "airport": "HUB", "bank": 3, "dep": "22:00", "flying": 1, "with_planned": 1, "countries": [{"country": "FR", "cities": 1}]}
+      ]
+    },
+    {
+      "name": "the order queues: what's still to arrive by family, when each runs dry, flagged within the warning; a family the airline doesn't fly",
+      "rule": "a delivery counts after now less order_queue_grace_h (6); a queue running dry within order_queue_warn_h (48) is flagged",
+      "ask": {"what": "order_queues", "airline_id": 1, "now": "2026-10-12T12:00:00Z", "families": ["A320 family", "A350", "E195"], "allowed": ["A320 family", "E195"],
+        "deliveries": [
+          {"family": "A320 family", "delivery_at": "2026-10-12T08:00:00Z"},
+          {"family": "A320 family", "delivery_at": "2026-10-13T09:00:00Z"},
+          {"family": "A320 family", "delivery_at": "2026-10-12T05:00:00Z"},
+          {"family": "E195", "delivery_at": "2026-10-16T12:00:00Z"},
+          {"family": "A350", "delivery_at": "2026-10-20T12:00:00Z"}
+        ]},
+      "answer": [
+        {"family": "A320 family", "in_fleet": true, "count": 2, "last": "2026-10-13T09:00:00.000Z", "hours": 21, "warn": true},
+        {"family": "A350", "in_fleet": false, "count": 0, "last": null, "warn": false},
+        {"family": "E195", "in_fleet": true, "count": 1, "last": "2026-10-16T12:00:00.000Z", "hours": 96, "warn": false}
+      ]
+    },
+    {
+      "name": "an empty queue",
+      "rule": "nothing still to arrive",
+      "ask": {"what": "order_queues", "airline_id": 1, "now": "2026-10-12T12:00:00Z", "families": ["E195"], "allowed": ["E195"], "deliveries": []},
+      "answer": [{"family": "E195", "in_fleet": true, "count": 0, "last": null, "hours": null, "warn": false}]
+    }
+  ]
+}

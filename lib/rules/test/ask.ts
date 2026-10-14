@@ -1,8 +1,10 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, banks, block, buildRules, card, checks, connections, frequency, hubs, maintenance, optimiser, positions, schedule, service, summary, tails, time, turns, findType,
-  type Card, type CheckFacts, type FrequencyEnds, type Json, type LocalTimes, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
+  aircraftWeek, banks, block, buildRules, cabins, card, checks, connections, frequency, game, growth, hubs, loadReport, maintenance, optimiser, positions, schedule,
+  service, summary, tails, time, turns, findType,
+  type CabinFacts, type Card, type CheckFacts, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
+  type MoveFacts, type Move, type PlannedCardLeg, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
 export type Ask = { what: string; [key: string]: Json };
@@ -200,6 +202,51 @@ export function ask(input: RulesInput, q: Ask): unknown {
       return hubs.connectionsTable(rules, str(q.airport, "airport")).pairs.find((p) => p.from === str(q.from, "from") && p.to === str(q.to, "to")) ?? null;
     case "hub_airports":
       return { airports: hubs.airports(rules) };
+    // the Check screen (#18 build pull request 9): the game check, the cabins, the day's departures and the growth board's
+    // planning parts; times in the answers as "HH:MM" where the screen shows them
+    case "game_planner_flights":
+      return Object.fromEntries(game.plannerFlights(rules, num(q.airline_id, "airline_id")));
+    case "game_compare":
+      return game.compare(rules, num(q.airline_id, "airline_id"), q.flights as unknown as GameFlight[]);
+    case "game_candidates":
+      return game.importCandidates(rules, num(q.airline_id, "airline_id"), q.flights as unknown as GameFlight[]).map((c) => ({ a: c.a.no, b: c.b?.no ?? null }));
+    case "game_fix": {
+      const fixes = game.fixTimes(rules, num(q.airline_id, "airline_id"), q.fixes as unknown as { no: string; fix: GameFix }[]);
+      const c = (m: number | null) => (m == null ? null : time.clock(m));
+      return [...fixes].map(([id, x]) => ({
+        rotation_id: id, days: x.local.days, dep_hub: c(x.local.dep_hub), arr_dest: c(x.local.arr_dest), dep_dest: c(x.local.dep_dest), arr_hub: c(x.local.arr_hub),
+        ...frequency.toLegs(rules, x.freq.ends, x.local),
+      }));
+    }
+    case "compare_card": {
+      const r = game.compareCard(q.legs as unknown as LegToCheck[], (q.flights ?? null) as unknown as GameFlight[] | null, (q.err as string | undefined) ?? "");
+      return { ...r, rows: r.rows.map((x) => ({ no: x.L.no, game: x.g ? x.g.dep : null, same: x.same })) };
+    }
+    case "cabin_fit":
+      return cabins.fit(rules, q.facts as unknown as CabinFacts);
+    case "refit_cost":
+      return { cost: cabins.refitCost(rules, (q.airline_id as number | undefined) ?? null) };
+    case "flights_on":
+      return loadReport.flightsOn(rules, str(q.day, "day"), (q.launches ?? []) as unknown as { id: number; launched_on: string | null }[]);
+    case "growth_next_move": {
+      const log = q.log as unknown as LoggedMove[], al = num(q.airline_id, "airline_id");
+      return { last: growth.lastMove(log, al), next: growth.nextMove(log, al) };
+    }
+    case "growth_moves": {
+      const c = growth.moveCandidates(rules, num(q.airline_id, "airline_id"), q.facts as unknown as MoveFacts);
+      const ids = (l: { id: number }[]) => l.map((r) => r.id);
+      return { big: ids(c.big), freq: ids(c.freq), feeder: ids(c.feeder), shown: q.next ? growth.shownMove(q.next as Move, c) : null };
+    }
+    case "growth_ready_from_loads":
+      return growth.readyFromLoads(rules, q.routes as unknown as (MoveFacts["routes"][number] & { airline_id: number })[], q.loads as unknown as MoveFacts["loads"]);
+    case "hub_readiness":
+      return growth.hubReadiness(rules, (q.planned ?? []) as unknown as PlannedCardLeg[], new Map(Object.entries((q.countries ?? {}) as Record<string, string>)))
+        .map((r) => ({ ...r, dep: time.clock(r.dep) }));
+    case "order_queues": {
+      const deliveries = (q.deliveries as { family: string; delivery_at: string | null }[]).map((d) => ({ family: d.family, delivery_ms: d.delivery_at ? Date.parse(d.delivery_at) : null }));
+      return growth.orderQueues(rules, num(q.airline_id, "airline_id"), q.families as string[], new Set(q.allowed as string[]), deliveries, Date.parse(str(q.now, "now")))
+        .map((c) => ({ ...c, last: c.last_ms == null ? null : new Date(c.last_ms).toISOString() }));
+    }
     case "great_circle":
       return { km: block.greatCircleBetween(q.a as { lat: number; lon: number }, q.b as { lat: number; lon: number }) };
     default:

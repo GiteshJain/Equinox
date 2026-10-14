@@ -18,8 +18,8 @@ after every change. On a preview address it saves nothing and says **preview · 
   day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Home, Routes, Tails and Hubs are rebuilt** (13 Oct, build pull requests 5 to 8); each shows what the old screen
-  shows, from the same data and with the same figures (below). **The other five screens** still say they're in the old
+- **Home, Routes, Tails, Hubs and Check are rebuilt** (13 Oct, build pull requests 5 to 9); each shows what the old
+  screen shows, from the same data and with the same figures (below). **The other four screens** still say they're in the old
   planner, with a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
 - **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
   - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
@@ -128,6 +128,29 @@ after every change. On a preview address it saves nothing and says **preview · 
     from) and the tightest eight as examples, across all our airlines. Beside each count of airports, the flights by
     country (**US 5 · IN 2**), where the old Hubs named regions (**North America 7 · South Asia 2**): its list of
     countries by region was in its own code, not in the database.
+- **Check in the new planner** looks and works as the old Check: the same six boards, each folded on arrival. Click a
+  board's title to open or fold it, or use **Expand all** and **Collapse all**.
+  - **The address** keeps the daily load report's day (/planner/next/check?day=2026-10-12), so a link reopens that day.
+    /planner/next/check opens today (UTC). An aircraft's pop-up adds ?aircraft=REG.
+  - **Capture:** the same table, with **Reload** and the backup's line.
+  - **Growth:** who can order now, the main hubs towards 750, the next move for each airline, the growth lists, the order
+    queues and hub readiness. **Log an order as** (**Big**, **Frequency**, **Feeder**) records an order so the rotation
+    moves on. Three things differ, because the old Check worked them out from lists in its own code: the next move names
+    each route and its stars but no suggested aircraft size; hub readiness counts cities by country (**IN 5 · CN 2**),
+    not region; and the order queues show the families each airline may have (from the database), not three typed in.
+  - **Aircraft checks:** each check due, with the aircraft's issues and its routes' load pills, and **Mark checked**; the
+    ones coming up by day.
+  - **Cabins:** **Refitted to …** records a refit done in the game: the aircraft takes the cabin and the refit's cost (0.2M,
+    the setting *cabin_refit_cost*) counts as a loss that day. **Keep as is** takes an aircraft off the list; **Show
+    again**, under "kept as is", brings it back.
+  - **Game check:** **Check against the game** reads each airline's schedule from the game. Each airline's line says how
+    many flights are in each and the differences. **Review** lists them, with **Use the game's times** where it's only a
+    time or a day change, **Fix all from the game**, and the game's flights the planner hasn't got, each with an aircraft
+    and **Add to planner** (for a new aircraft, pick **new tail…** and type its registration in the box). After a fix or
+    an add the differences are worked out again from the planner as it is now.
+  - **Daily load report:** **‹** and **›** move a day. Every departure by airline, with its loads by class from the
+    capture (the last 9 days, as the old planner kept), or the day's summary from loads typed by hand.
+  - Each button is saved on its own, as one change.
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
@@ -201,6 +224,7 @@ after every change. On a preview address it saves nothing and says **preview · 
 - **Cabins:** each aircraft's cabin against the usual cabin of the markets it flies. A refit costs about 0.2M.
 - **Game check:** compares the planner with each airline's live schedule in the game, through the schedule check.
 - **Daily load report:** every flight flown, from the capture, with loads by class.
+- In the new planner Check is rebuilt (above), with the report's day in the address.
 
 ## Review
 *How the group and each airline are doing: cash, the 14-day forecast, and profit by route and by aircraft.*

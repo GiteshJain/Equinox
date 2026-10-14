@@ -6,6 +6,8 @@ The planner's numbers, read from web/planner/index.html as the planner uses them
   - CUSHION (0.5M kept in hand after an order) and LEASE_PCT (a never-leased type's weekly lease);
   - the hubs-first target (the Hubs screen's progress bars) and who is exempt (MAIN_HUB has no Ryanair);
   - the growth signals (routeProfit) and load patterns (patterns) thresholds;
+  - the old Check's (#18 build pull request 9): the refit's cost (REFIT_M) and the share that pays, a big market's stars,
+    ready for another flight from the load reports, and the order queues' grace and warning;
   - ref.consts as the planner ends up with them: its defaults (defaultRef, and the "|| n" fallbacks where it reads
     them), with what planner_state_get() gives on top, as the planner merges them when it loads.
 The tables' numbers: settings and world_rules, and planner_meta.growthRules (the hubs-first rules the scripts read),
@@ -75,6 +77,20 @@ def planner_numbers(html, consts_given):
     # the old Tails' block-hours target among an aircraft's issues (tailIssues), a setting since #18 build pull request 7
     out[("settings", "aircraft_block_target_h", None)] = find(r"if \(tl\.blockDay < (\d+)\) out\.push", "Tails' block-hours target (tailIssues)")
 
+    # the old Check's numbers, settings since #18 build pull request 9: the refit's cost and the share that pays (cabinsBoard),
+    # a big market's stars and a feeder's (moveCandidates), ready for another flight from the load reports (moveCandidates
+    # and growthBoard, the same in both), and the order queues' grace and warning (growthBoard)
+    out[("settings", "cabin_refit_cost", None)] = round(find(r"const REFIT_M = ([\d.]+);", "REFIT_M") * 1_000_000)
+    out[("settings", "cabin_refit_share_pct", None)] = find(r"const strong = L\.filter\(x => x\.share >= (\d+)\);", "Cabins' refits that pay (cabinsBoard)")
+    out[("settings", "growth_big_min_stars", None)] = find(r"const big = open\.filter\(r => r\.stars >= (\d+)\)", "a big market's stars (moveCandidates)")
+    feeder = find(r"const feeder = open\.filter\(r => r\.stars <= (\d+) ", "a feeder's stars (moveCandidates)")
+    ready = re.findall(r"x\.a && x\.a\.days\.size >= (\d+) && x\.a\.full / x\.a\.n >= ([\d.]+)\)", html)
+    if len(ready) != 2:
+        raise RuntimeError(f"not found in the planner's code: ready for another flight from the load reports, twice (found {len(ready)})")
+    out[("settings", "growth_ready_min_days", None)], out[("settings", "growth_ready_full_share", None)] = float(ready[0][0]), float(ready[0][1])
+    out[("settings", "order_queue_grace_h", None)] = find(r"Date\.parse\(d\.utc\) > now - (\d+) \* 3600e3", "the order queues' grace (growthBoard)")
+    out[("settings", "order_queue_warn_h", None)] = find(r"UTC \$\{hrs < (\d+) \?", "the order queues' warning (growthBoard)")
+
     # ref.consts as the planner merges them: defaultRef's, the fallbacks where it reads them, then what the getter gives
     m = re.search(r"consts: \{ ([^}]*) \}", html)
     if not m:
@@ -90,7 +106,8 @@ def planner_numbers(html, consts_given):
                    ("lfWindow", "load_window_days")):
         out[("settings", key, None)] = consts.get(k)
     out[("world_rules", "departures_per_airport_week.value", None)] = consts.get("depCap")
-    places = {"hub_first_departures (label)": bar, "patterns: watch needs": n2, "Home's airport cap": home_cap}
+    places = {"hub_first_departures (label)": bar, "patterns: watch needs": n2, "Home's airport cap": home_cap, "a feeder's stars": feeder,
+              "ready, twice": ready}
     return out, places
 
 
@@ -149,7 +166,9 @@ def table_numbers(d):
 # Settings added after the test sample was made (tests/fixtures/sample_2026-10-10.json.gz): without --db they can't be
 # in the sample's tables, so they're listed rather than failed; with --db (the rehearsal) they're compared as the rest.
 SINCE_SAMPLE = {"airport_cap_warning_pct": "13 Oct, #18 build pull request 5", "aircraft_check_after_days": "13 Oct, #18 build pull request 5",
-                "aircraft_block_target_h": "13 Oct, #18 build pull request 7"}
+                "aircraft_block_target_h": "13 Oct, #18 build pull request 7",
+                **{k: "13 Oct, #18 build pull request 9" for k in ("cabin_refit_cost", "cabin_refit_share_pct", "growth_big_min_stars", "growth_ready_min_days",
+                                                                 "growth_ready_full_share", "order_queue_grace_h", "order_queue_warn_h")}}
 after_sample = []
 
 
@@ -190,6 +209,10 @@ def main():
             problems.append(f"Home warns against a cap of {home_cap:g}, but the planner's cap is {cap}")
         if places["patterns: watch needs"] != code[("settings", "pattern_min_departures", None)]:
             problems.append("load patterns: cut and watch need different numbers of departures")
+        if places["a feeder's stars"] + 1 != code[("settings", "growth_big_min_stars", None)]:
+            problems.append("the order rotation: a feeder's stars aren't the ones below a big market's")
+        if len(set(places["ready, twice"])) != 1:
+            problems.append(f"ready for another flight: moveCandidates and growthBoard use different numbers ({places['ready, twice']})")
     except Exception as e:
         problems, n = [f"{type(e).__name__}: {e}"], 0
     check(not problems, f"rule numbers: the old planner's {n} built-in numbers equal settings and world_rules ({where})", "\n".join(problems))

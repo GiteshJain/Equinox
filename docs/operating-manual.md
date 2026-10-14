@@ -268,7 +268,7 @@ Details and open points: `docs/decisions.md`.
 
 ## 5. Cabins and fares
 - **Cabin follows the market default,** whatever the aircraft. Defaults per market are in the planner
-  (Reference → markets). A refit costs about 0.2M with no time out of service. *Since 2 Oct.*
+  (Reference → markets). A refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service. *Since 2 Oct.*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. Prices per
   market are in the planner (`markets`). *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low
