@@ -66,7 +66,7 @@ export function oneWeek(rules: Rules, facts: CheckFacts, today: string): OneWeek
     if (!launched.length) continue;
     const d = dates.get(a.id);
     const last = [...launched, d?.schedule_changed_on?.slice(0, 10) ?? ""].filter(Boolean).sort().pop() ?? "";
-    const due = addDays(last, settingNumber(rules, "aircraft_check_after_days", a.airline_id));
+    const due = addDays(last, settingNumber(rules, "aircraft_check_after_days", a.airline_id) - 1);   // DELIBERATE FAILURE (to be reverted): 6 days instead of 7
     const checked = d?.checked_on?.slice(0, 10) ?? null;
     const status = checked && checked >= due ? "done" : today >= due ? "due" : "upcoming";
     out.push({ aircraft_id: a.id, registration: a.registration, airline_id: a.airline_id, last, due, status, days: dayDiff(today, due) });
