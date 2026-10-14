@@ -71,6 +71,12 @@
 #    write the same rows; adds, edits and removes a tail through the new Tails' own controls; a preview saves nothing; at
 #    380 px nothing scrolls sideways. Screenshots of the new Tails and the old at 380 and 1280 px go to
 #    TAILS_SCREENS_DIR (the run's tails-screens artifact).
+# 14. The new planner's Hubs (#18 build pull request 8, spec docs/specs/2026-10-13-hubs.md), only if 1 to 10 passed, last,
+#    after the Tails side by side and whatever it found: tests/hubs_side_by_side_test.py opens the old planner and the new
+#    one at the same frozen moment, signed in as test staff, and compares every base's and focus city's board on every day
+#    (the count line, the bank windows, the ticks, the hourly bars, the week grid, the flight list) and its connections
+#    table; it only reads. A preview shows Hubs; at 380 px nothing scrolls sideways. Screenshots of the new Hubs and the
+#    old at 380 and 1280 px go to HUBS_SCREENS_DIR (the run's hubs-screens artifact).
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -321,6 +327,23 @@ tails_side_by_side() {
   return $rc
 }
 
+# The new planner's Hubs (#18 build pull request 8): side by side with the old Hubs on the copy; it only reads. The local
+# address and keys go to the test in a file only this user can read, as for the real saves; never printed.
+hubs_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Hubs on the copy: side by side with the old Hubs, every base and focus city on every day (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" HUBS_SCREENS_DIR="${HUBS_SCREENS_DIR:-}" \
+      python3 tests/hubs_side_by_side_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -472,5 +495,6 @@ if [ $status -eq 0 ]; then
   home_side_by_side || status=1
   routes_side_by_side || status=1   # whatever Home found: its saves touch no route
   tails_side_by_side || status=1    # whatever Routes found: its saves touch no aircraft in service, and it puts back what it changes
+  hubs_side_by_side || status=1     # whatever Tails found: it puts back what it changes, and Hubs only reads
 fi
 exit $status

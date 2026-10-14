@@ -15,7 +15,9 @@ rule: nothing goes outside.
    on the network's buttons. tests/home_side_by_side_test.py compares its figures with the old Home's. Routes (build
    pull request 6) is no longer a placeholder either: it opens on its list, with our airlines on its buttons in their
    order; tests/routes_side_by_side_test.py compares it with the old Routes. Nor is Tails (build pull request 7): its list
-   and the deliveries board; tests/tails_side_by_side_test.py compares it with the old Tails.
+   and the deliveries board; tests/tails_side_by_side_test.py compares it with the old Tails. Nor is Hubs (build pull
+   request 8): it opens on the first base's board with every base in its list; tests/hubs_side_by_side_test.py compares it
+   with the old Hubs.
 3. window.__eqPlanner.save() ticks the first open to-do: exactly that row changes (done, done_at), logged as actor
    planner with the tab's ID; the answer gives the row's new updated_at. A second save from that updated_at puts it
    back, so the next change needs no new read and the real saves that follow still find their open to-dos.
@@ -23,7 +25,7 @@ rule: nothing goes outside.
    carrying the first's title, and the second's change to another row in the same call isn't written either. The
    second tab shows the row as it is now and names it.
 5. A preview address (127.0.0.1) reads, says "preview · not saved", and sends no write.
-6. At 380 px wide, Home, Routes, Tails and the six placeholder screens have no sideways scroll and no errors.
+6. At 380 px wide, Home, Routes, Tails, Hubs and the five placeholder screens have no sideways scroll and no errors.
 7. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
@@ -341,6 +343,36 @@ async def tails_opens(pl):
     return f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}) and the deliveries, with the copy's {len(want)} airlines on its buttons", problems
 
 
+async def hubs_opens(pl):
+    """Hubs is rebuilt (build pull request 8): no placeholder; it opens on the first base's board (its count line, the day
+    strip, the week grid, the flight list and the connections), with every base and focus city in its list in the bases'
+    order. Its figures are compared with the old Hubs' by tests/hubs_side_by_side_test.py."""
+    want = list(dict.fromkeys(r for r in psql(f"""select b.airport_code from public.airline_bases b where b.world_id = {WORLD}
+                                                order by b.position nulls last, b.id""").splitlines() if r))
+    await pl.pg.click("[data-screen-link=hubs]")
+    await pl.pg.wait_for_selector("main[data-screen=hubs][data-hubs-ready=yes]", timeout=60000)
+    await settle(pl.pg, 300)
+    got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=hubs] [data-not-built]'),
+        bases: [...document.querySelectorAll('#h-hub option')].map(o => o.value), hub: document.querySelector('main[data-screen=hubs]').dataset.hub,
+        count: (document.querySelector('[data-figure="hubs: count"]') || {}).textContent || '',
+        boards: ['hubs: day strip', 'hubs: hours', 'hubs: week', 'hubs: flights', 'hubs: connections']
+          .filter(f => !document.querySelector('[data-figure="' + f + '"]')) })""")
+    problems = []
+    if got["notBuilt"]:
+        problems.append("Hubs still shows the placeholder's line to the old planner")
+    if got["bases"] != want:
+        problems.append(f"bases in Hubs' list {got['bases']}, the copy has {want}")
+    if want and got["hub"] != want[0]:
+        problems.append(f"Hubs opens on {got['hub']!r}, not the first base {want[0]}")
+    if not got["count"]:
+        problems.append("Hubs shows no count line")
+    if got["boards"]:
+        problems.append(f"Hubs is missing {', '.join(got['boards'])}")
+    await pl.pg.click("[data-screen-link=home]")
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return f"Hubs is rebuilt, not a placeholder: it opens on {got['hub']}'s board ({got['count']}), with the copy's {len(want)} bases in its list", problems
+
+
 # ---------- 3. a to-do ticked through window.__eqPlanner.save() ----------
 async def tick_todo(pl):
     tid = psql(f"select coalesce(min(t.id)::text, '') from public.todos t where t.world_id = {WORLD} and not t.done").strip()
@@ -497,9 +529,9 @@ async def phone(p, port, env, facts, staff, seen):
             path = await ph.pg.evaluate("location.pathname")
             if path != href:
                 problems.append(f"{sid}: its address is {path}, expected {href}")
-            built = sid in ("home", "routes", "tails")   # rebuilt (build pull requests 5 to 7); the other six are still placeholders
+            built = sid in ("home", "routes", "tails", "hubs")   # rebuilt (build pull requests 5 to 8); the other five are still placeholders
             ready = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
-                     "tails": "main[data-screen=tails][data-tails-ready=yes]"}
+                     "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]"}
             if built:
                 try:
                     await ph.pg.wait_for_selector(ready[sid], timeout=60000)
@@ -519,7 +551,7 @@ async def phone(p, port, env, facts, staff, seen):
         problems += ph.errors
     finally:
         await ph.close()
-    return f"at 380 px wide, Home, Routes, Tails and the {len(SCREENS) - 3} placeholder screens have no sideways scroll and no errors", problems
+    return f"at 380 px wide, Home, Routes, Tails, Hubs and the {len(SCREENS) - 4} placeholder screens have no sideways scroll and no errors", problems
 
 
 async def main():
@@ -563,7 +595,7 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, routes_opens, tails_opens, tick_todo):
+                for check in (home_opens, routes_opens, tails_opens, hubs_opens, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

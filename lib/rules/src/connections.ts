@@ -119,6 +119,9 @@ export interface BankRow {
   arriving_from: string[];
   leaving_to: string[];
   city_pairs: number;
+  /** The arrivals and departures in the row, by leg id (the Hubs screen counts their countries). */
+  arrival_leg_ids: number[];
+  departure_leg_ids: number[];
 }
 
 export interface ConnectionsAnswer {
@@ -166,6 +169,7 @@ export function connectionsAt(rules: Rules, code: string, legs: readonly TimedLe
     rows.push({
       n, dep_local_min: wins.find((w) => w.n === n)?.dep ?? null,
       arriving_from: [...new Set(A.map((L) => L.origin))], leaving_to: [...new Set(D.map((L) => L.dest))], city_pairs: P.length,
+      arrival_leg_ids: A.map((L) => L.id), departure_leg_ids: D.map((L) => L.id),
     });
   }
   return {

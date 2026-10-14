@@ -1,7 +1,7 @@
 // The planning library (decision #19, design §7): the planning rules in one home, for the new planner, the website's
 // trip search, the optimiser and Claude. Plain data in, plain data out; no screen code, no clock, no network.
 // Each part is exported under its name (time, block, turns, connections, banks, maintenance, aircraftWeek, schedule,
-// positions, summary, checks, optimiser, tails), plus card (a plan card checked against all of them) and airport (connection times, night
+// positions, summary, checks, optimiser, tails, hubs), plus card (a plan card checked against all of them) and airport (connection times, night
 // bans). What each does, with an example: lib/rules/README.md.
 //   import { buildRules, connections } from "@rules";
 //   const rules = buildRules(await rulesInput());      // rules_input()'s answer
@@ -25,6 +25,7 @@ export * as card from "./card.js";
 export * as frequency from "./frequency.js";
 export * as service from "./service.js";
 export * as tails from "./tails.js";
+export * as hubs from "./hubs.js";
 export type { BlockAnswer, Distance } from "./block.js";
 export type { TurnCheck } from "./turns.js";
 export type { BankRow, CityPair, ConnectionLimits, ConnectionsAnswer, Link, LinkedLeg } from "./connections.js";
@@ -42,3 +43,4 @@ export type { Wave } from "./banks.js";
 export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, LocalTimes, OtherLeg, StoredLeg, Way } from "./frequency.js";
 export type { ServiceProfile } from "./service.js";
 export type { TailIssue } from "./tails.js";
+export type { CountryCount, HubBoard, HubConnectionRow, HubConnections, HubFlight, HubWeekDay } from "./hubs.js";

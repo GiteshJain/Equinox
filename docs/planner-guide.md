@@ -18,9 +18,9 @@ after every change. On a preview address it saves nothing and says **preview · 
   day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Home, Routes and Tails are rebuilt** (13 Oct, build pull requests 5 to 7); each shows what the old screen shows,
-  from the same data and with the same figures (below). **The other six screens** still say they're in the old planner,
-  with a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
+- **Home, Routes, Tails and Hubs are rebuilt** (13 Oct, build pull requests 5 to 8); each shows what the old screen
+  shows, from the same data and with the same figures (below). **The other five screens** still say they're in the old
+  planner, with a link there, and a link from Home to one of them (a needs-attention item, say) lands on that line.
 - **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
   - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
     aircraft in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes**
@@ -108,6 +108,26 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **The aircraft pop-up** (from Home's needs attention): its base, block hours a day, legs a week, maintenance, the
     one-week check, every issue and its flights, with **Mark checked** and **Open in Tails**.
   - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
+- **Hubs in the new planner** looks and works as the old Hubs. It only shows; nothing on it saves. Times are local at the
+  airport, whichever way the header's **Local** / **UTC** is set, as on the old Hubs.
+  - **The address** names the airport and the day (/planner/next/hubs/DEL?day=2, Monday being 0), so a link reopens the
+    same board. /planner/next/hubs opens the first base on Monday.
+  - **The toolbar:** every base and focus city, the seven days, and the count line: departures and arrivals that day,
+    departures a week (every airline's) against the game's cap per airport (**over cap** past it), and the base's next
+    free flight-number pair with the last one used.
+  - **A focus city** says it has no banks of its own and is timed to its hub's.
+  - **The day:** the strip with each bank's arrival window (green) and departure window (orange, **B1**, **B2** …), a tick
+    for every flight (red for a departure off wave), and the bars hour by hour.
+  - **The week:** 15-minute slots in local time, departures over arrivals, shaded by the bank windows. On a phone it
+    scrolls inside its own box, as the day strip does.
+  - **The flights** that day: time, direction, flight, to or from, aircraft and the bank pill (**bank N**, or **off
+    wave**; none for an airline with no base there or a focus city). An arrival is named with the first bank it can make
+    even when that bank leaves more than 8 hours later, as the old Hubs named it.
+  - **Connections at [airport]:** by bank and outside the banks, the airports arriving and leaving, the city pairs (each
+    once, at its shortest connection, from the airport's minimum connection time to 8 hours, never back where it came
+    from) and the tightest eight as examples, across all our airlines. Beside each count of airports, the flights by
+    country (**US 5 · IN 2**), where the old Hubs named regions (**North America 7 · South Asia 2**): its list of
+    countries by region was in its own code, not in the database.
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
@@ -159,6 +179,7 @@ after every change. On a preview address it saves nothing and says **preview · 
 - Pick a hub and a day. The grid shows arrivals and departures hour by hour, and the list below shows each flight.
 - **Connections at [hub]:** flights flying now, across all six airlines, that connect at that airport. That means a
   gap between the airport's minimum connection time and 8 hours. It also counts how many city pairs that links.
+- In the new planner Hubs is rebuilt (above), with an address for each airport and day.
 
 ## Check
 *Last night's capture, aircraft checks, growth signals, Game check and the daily load report.*

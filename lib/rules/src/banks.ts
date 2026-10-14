@@ -58,6 +58,9 @@ export function bankOfDeparture(rules: Rules, base: BaseRow, depLocal: number): 
 export interface ArrivalBank {
   /** The bank it feeds, or 0 when none within the wait. */
   n: number;
+  /** The first bank it can make however long the wait (the old waveAt's a.n), or 0 when it can make none: the bank the
+   *  Hubs screen's flight list names for an arrival, as the old Hubs named it (#18 build pull request 8). */
+  next: number;
   status: "in" | "early" | "late";
   /** Minutes from landing to that bank's departure. */
   wait_min: number | null;
@@ -78,10 +81,10 @@ export function bankOfArrival(rules: Rules, base: BaseRow, arrLocal: number): Ar
     const gap = mod(w.dep - arrLocal, DAY);
     if (gap >= need && (!best || gap < best.gap)) best = { w, gap };
   }
-  if (!best) return { n: 0, status: "late", wait_min: null, need_min: need, early_by_min: 0 };
+  if (!best) return { n: 0, next: 0, status: "late", wait_min: null, need_min: need, early_by_min: 0 };
   const slack = best.gap - need;
   const status = slack <= arrWin ? "in" : best.gap <= maxWait ? "early" : "late";
-  return { n: status === "late" ? 0 : best.w.n, status, wait_min: best.gap, need_min: need, early_by_min: Math.max(0, slack - arrWin) };
+  return { n: status === "late" ? 0 : best.w.n, next: best.w.n, status, wait_min: best.gap, need_min: need, early_by_min: Math.max(0, slack - arrWin) };
 }
 
 /** The airline's own base at an airport (no other airline's), as the old planner's hubOf(airline, code) finds it. */
