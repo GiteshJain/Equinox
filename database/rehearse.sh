@@ -72,13 +72,14 @@
 #    380 px nothing scrolls sideways. Screenshots of the new Tails and the old at 380 and 1280 px go to
 #    TAILS_SCREENS_DIR (the run's tails-screens artifact).
 # 14. The new planner's Hubs (#18 build pull request 8, spec docs/specs/2026-10-13-hubs.md), only if 1 to 10 passed,
-#    after the Tails side by side and whatever it found: tests/hubs_side_by_side_test.py opens the old planner and the new
+#    last, after the Review side by side and whatever it found, and stopped after 5 minutes if it stops answering (it takes
+#    about one; a run once hung there, and the 30-minute limit then cancelled every step's report): tests/hubs_side_by_side_test.py opens the old planner and the new
 #    one at the same frozen moment, signed in as test staff, and compares every base's and focus city's board on every day
 #    (the count line, the bank windows, the ticks, the hourly bars, the week grid, the flight list) and its connections
 #    table; it only reads. A preview shows Hubs; at 380 px nothing scrolls sideways. Screenshots of the new Hubs and the
 #    old at 380 and 1280 px go to HUBS_SCREENS_DIR (the run's hubs-screens artifact).
 # 15. The new planner's Check (#18 build pull request 9, spec docs/specs/2026-10-13-check.md), only if 1 to 10 passed,
-#    last, after the Hubs side by side and whatever it found: tests/check_side_by_side_test.py opens the old planner and
+#    after the Tails side by side and whatever it found: tests/check_side_by_side_test.py opens the old planner and
 #    the new one at the same frozen moment, signed in as test staff, and compares how the boards fold, every board
 #    (Capture, Growth, Aircraft checks, Cabins), the daily load report on each of the last 7 days and the game check (the
 #    game answered by the test: a saved sample, an airline's own flights with differences put in, a 502); then fixes one,
@@ -86,7 +87,8 @@
 #    cabin and shows it again and logs an order through the new Check's own buttons, putting back what it changes; a
 #    preview saves nothing; at 380 px nothing scrolls sideways. Screenshots of the new Check and the old at 380 and
 #    1280 px go to CHECK_SCREENS_DIR (the run's check-screens artifact).
-#    last, after the Check side by side and whatever it found: tests/review_side_by_side_test.py opens the old planner's
+# 16. The new planner's Review (#18 build pull request 10, spec docs/specs/2026-10-14-review.md), only if 1 to 10 passed,
+#    after the Check side by side and whatever it found: tests/review_side_by_side_test.py opens the old planner's
 #    Review and the new one at the same frozen moment, signed in as test staff, and compares every airline's page (the
 #    cards, the group today without its totals, profit, the cash forecast, route profit over 1, 3 and 7 days, the fare plan
 #    and manual entry) and the profit chart at 14 intervals; then saves cash and fixed costs, loads typed and pasted (with a
