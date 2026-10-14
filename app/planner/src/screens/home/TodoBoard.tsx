@@ -13,7 +13,8 @@ function Item({ t, today, now, asking, onAsk }: { t: TodoView; today: string; no
     <li className={todoClass(t, today)} data-todo={t.key} data-done={t.done ? "yes" : "no"}>
       <label className="tchk">
         <input type="checkbox" checked={t.done} aria-label={(t.done ? "Not done: " : "Done: ") + t.title}
-          onChange={(e) => void saver.save(tickChanges(t.row, e.target.checked, now))} />
+          onChange={(e) => void saver.save(tickChanges(t.row, e.target.checked, now)
+            .map((c) => ({ ...c, values: { ...c.values, due_on: now.toISOString().slice(0, 10) } })))} />
       </label>
       <div className="tbody">
         <div className="ttl"><b>{t.title}</b> <span className="dim" data-when>· {dueWords(t.date, today)}</span></div>
