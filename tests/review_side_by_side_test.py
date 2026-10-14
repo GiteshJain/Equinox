@@ -82,6 +82,11 @@ KNOWN = {
                 "the capture's flights (it asked for none), the captured figures (aircraft_profit()) in the order they were flown, as "
                 "Check's side by side allows. Only the order within that cell: the same routes.",
         "used": 0, "where": []},
+    "fare changes order on a day": {
+        "rule": "Route profit's fare changes, newest day first: on one day the old Review kept the order the database happened to "
+                "return the captured fares in (it asked for none), the captured figures (fare_changes()) order them by route "
+                "(tests/captured_figures_test.py compares them as sets). Only the order of rows with the same day: the same rows.",
+        "used": 0, "where": []},
     "rounding at a boundary": {
         "rule": "a figure the old screen rounded from its own floating-point sums and the database works out exactly can land either side "
                 "of a rounding boundary (captured_figures_test.py counts float noise at a boundary as no difference). Only a number one "
@@ -205,6 +210,12 @@ def compare_board(al, k, o, n):
     for i, (a, b) in enumerate(zip(o["tables"], n["tables"])):
         if len(a) != len(b):
             p.append(f"{al}: {k}: table {i + 1} ({(a or [[]])[0][:3]}): old {len(a)} rows, new {len(b)}")
+        # the fare changes: rows of one day in another order are a known difference
+        if a != b and len(a) == len(b) > 1 and a[0] == b[0] and a[0][:2] == ["Route", "From"] and sorted(a[1:]) == sorted(b[1:]) \
+                and [r[1] for r in a[1:]] == [r[1] for r in b[1:]]:
+            known("fare changes order on a day", f"{al} {k}: old {[r[0] for r in a[1:] if r not in b[1:] or b.index(r) != a.index(r)][:4]}, "
+                                                 f"new {[r[0] for r in b[1:] if r not in a[1:] or a.index(r) != b.index(r)][:4]}")
+            continue
         # a Routes column holds a set: the same routes in another order are a known difference
         sets = [c for c, h in enumerate((a or [[]])[0]) if h == "Routes" and (b or [[]])[0][c:c + 1] == ["Routes"]]
         for r, (x, y) in enumerate(zip(a, b)):
@@ -424,9 +435,30 @@ def raw(table, key_sql):
     return psql(f"select coalesce(json_agg(t), '[]') from public.{table} t where {key_sql}").strip()
 
 
-async def both(name, old, new, today, tables, act_new, act_old, after_new=None, detail=None):
-    """One save in the new planner, the copy put back, then the same in the old: the same rows and kinds of change."""
+def plain(rows_json):
+    """Rows as JSON without their times (a put-back row takes the time of its insert)."""
+    rows = json.loads(rows_json)
+    for r in rows:
+        for c in ("created_at", "updated_at", "entered_at", "saved_at_ms"):
+            r.pop(c, None)
+    return rows
+
+
+async def both(name, old, new, today, tables, act_new, act_old, after_new=None, detail=None, view=None, keep=None, mirror=False):
+    """One save in the new planner, the copy put back, then the same in the old: the same rows and kinds of change. view():
+    what the old planner, opened again, shows, the same after either save. keep: tables put back (first) but not compared.
+    mirror: change-log rows of the old planner's month copy (planner_loads, detail mirror) count as the save's own."""
     problems = []
+    keep = keep or {}
+    kept = {t: raw(t, k) for t, k in keep.items()}
+
+    def put_back_all():
+        for t, k in keep.items():
+            if raw(t, k) != kept[t]:
+                restore(t, k, kept[t])
+        for t, k in tables.items():
+            restore(t, k, before[t])
+
     before = {t: raw(t, k) for t, k in tables.items()}
     await refresh(new)
     client = await new.pg.evaluate("window.__eqPlanner.client")
@@ -437,12 +469,16 @@ async def both(name, old, new, today, tables, act_new, act_old, after_new=None, 
     new_log = log_since(mark)
     new_rows = {t: snapshot(f"select * from public.{t} where {k}") for t, k in tables.items()}
     want = detail or client
+    ok_details = {want} | ({"mirror"} if mirror else set())
     problems += [f"a change-log row names {r['actor']} ({r['detail']}), not planner ({'the tab' if want == client else want})" for r in new_log
-                 if r["actor"] != "planner" or r["detail"] != want]
+                 if r["actor"] != "planner" or r["detail"] not in ok_details]
     if after_new:
         problems += await after_new()
-    for t, k in tables.items():
-        restore(t, k, before[t])
+    shown_new = None
+    if view:
+        shown_new = await view()
+        await until_quiet(10)
+    put_back_all()
     mark2 = marks()
     await old.reopen()
     await act_old()
@@ -450,8 +486,12 @@ async def both(name, old, new, today, tables, act_new, act_old, after_new=None, 
     await until_quiet()
     old_log = log_since(mark2)
     old_rows = {t: snapshot(f"select * from public.{t} where {k}") for t, k in tables.items()}
-    for t, k in tables.items():
-        restore(t, k, before[t])
+    if view:
+        shown_old = await view()
+        await until_quiet(10)
+        if shown_new != shown_old:
+            problems.append(f"the old planner, opened again, shows {shown_new} after the new planner's save and {shown_old} after its own")
+    put_back_all()
     if kinds(new_log) != kinds(old_log):
         problems.append(f"the new planner changed {dict(kinds(new_log))}, the old {dict(kinds(old_log))}")
     for t in tables:
@@ -464,12 +504,16 @@ async def both(name, old, new, today, tables, act_new, act_old, after_new=None, 
     await refresh(new)
     await asyncio.sleep(1)
     for t, k in tables.items():
-        if json.loads(raw(t, k)) != json.loads(before[t]):
+        if plain(raw(t, k)) != plain(before[t]):
             late = log_since(mark3)
             problems.append(f"{t} changed again after it was put back, with both planners opened again ({dict(kinds(late))}"
                             f"{', by ' + late[0]['actor'] + ' (' + str(late[0]['detail']) + ')' if late else ''}): put back once more")
-            restore(t, k, before[t])
-    return f"{name}: {dict(kinds(new_log))}, the same rows as the old planner's, logged as planner" + (" (save_loads, the old route)" if detail else " with the tab's ID"), problems
+            put_back_all()
+    mirrored = sum(1 for r in new_log if r["detail"] == "mirror")
+    return (f"{name}: {dict(kinds(new_log))}, the same rows as the old planner's, logged as planner"
+            + (" (save_loads, the old route" + (f"; {mirrored} by the copy's month mirror, as in the old planner's save" if mirrored else "") + ")"
+               if detail else " with the tab's ID")
+            + (f"; the old planner, opened again, shows {shown_new} after either" if view else "")), problems
 
 
 async def saves(old, new, today, out):
@@ -496,12 +540,12 @@ async def saves(old, new, today, out):
             await old.pg.click("#cashsave")
 
         async def shows():
+            # the old planner puts a captured day's own figures back over what was typed when it opens (applyCaptureCash)
             await old.reopen()
-            got = json.loads(await old.run(f"JSON.stringify([(state.cash[{json.dumps(day)}] || {{}})[{json.dumps(a['name'])}], (state.fixed7[{json.dumps(day)}] || {{}})[{json.dumps(a['name'])}]])"))
-            return [] if got == [float(cash), float(fixed)] else [f"the old planner, opened again, shows cash and fixed costs {got}, not {cash} and {fixed}"]
+            return json.loads(await old.run(f"JSON.stringify([(state.cash[{json.dumps(day)}] || {{}})[{json.dumps(a['name'])}], (state.fixed7[{json.dumps(day)}] || {{}})[{json.dumps(a['name'])}]])"))
         try:
             out.append(await both(f"cash and fixed costs for today ({a['code']}: {cash}M and {fixed}M typed)", old, new, today,
-                                  {"cash_entries": f"airline_id = {int(a['id'])} and day = '{day}'"}, act_new, act_old, shows))
+                                  {"cash_entries": f"airline_id = {int(a['id'])} and day = '{day}'"}, act_new, act_old, view=shows))
         except Exception as e:
             out.append(("cash and fixed costs for today", [why(e)]))
     else:
@@ -517,7 +561,11 @@ async def saves(old, new, today, out):
         cur = json.loads(await old.run(f"JSON.stringify((lfDay({json.dumps(day)}) || {{f: {{}}}}).f)"))
         under = ", ".join(f"{k.split('|')[1]} {v}" for k, v in sorted(((k, v) for k, v in cur.items() if k.startswith(a["name"] + "|") and float(v) < 95), key=lambda x: x[1]))
         typed = (under + ", " if under else "") + f"{fl['no']} 60"
-        tables = {"load_entries": f"world_id = {w} and game_date = '{day}'", "load_days": f"world_id = {w} and game_date = '{day}'"}
+        # the whole month: save_loads also writes the old planner's month copy (planner_loads), and the copy's mirror of it
+        # brings back into the tables any day of the month set aside at the start
+        month = f"world_id = {w} and game_date >= date '{day[:8]}01' and game_date < date '{day[:8]}01' + interval '1 month'"
+        tables = {"load_entries": month, "load_days": month}
+        keep = {"planner_loads": f"month = '{day[:7]}'"}
 
         async def open_new_loads():
             await new_review(new, a["code"])
@@ -541,7 +589,7 @@ async def saves(old, new, today, out):
             return [] if got == 60 else [f"the old planner, opened again, shows flight {fl['no']} at {got}, not 60"]
         try:
             out.append(await both(f"loads typed for {day} ({a['code']} {fl['no']} at 60%, with the {len(under.split(', ')) if under else 0} already under 95%)",
-                                  old, new, today, tables, act_new, act_old, shows, detail="save_loads"))
+                                  old, new, today, tables, act_new, act_old, shows, detail="save_loads", keep=keep, mirror=True))
         except Exception as e:
             out.append(("loads typed", [why(e)]))
 
@@ -577,7 +625,7 @@ async def saves(old, new, today, out):
                 return [] if got == (True, 81, False) else [f"the old planner, opened again, shows the day {got}, not complete with {mine[0]['no']} at 81% and {mine[1]['no']} cleared"]
             try:
                 out.append(await both(f"loads pasted from the saved sample ({a['code']} {mine[0]['no']} at 81%, {mine[1]['no']} full) with {day} marked complete",
-                                      old, new, today, tables, act_new_paste, act_old_paste, shows_paste, detail="save_loads"))
+                                      old, new, today, tables, act_new_paste, act_old_paste, shows_paste, detail="save_loads", keep=keep, mirror=True))
             except Exception as e:
                 out.append(("loads pasted", [why(e)]))
         else:
