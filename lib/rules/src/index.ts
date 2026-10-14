@@ -1,8 +1,8 @@
 // The planning library (decision #19, design §7): the planning rules in one home, for the new planner, the website's
 // trip search, the optimiser and Claude. Plain data in, plain data out; no screen code, no clock, no network.
 // Each part is exported under its name (time, block, turns, connections, banks, maintenance, aircraftWeek, schedule,
-// positions, summary, checks, optimiser, tails, hubs), plus card (a plan card checked against all of them) and airport (connection times, night
-// bans). What each does, with an example: lib/rules/README.md.
+// positions, summary, checks, optimiser, tails, hubs, and for the Check screen game, cabins, loadReport and growth), plus card (a plan card
+// checked against all of them) and airport (connection times, night bans). What each does, with an example: lib/rules/README.md.
 //   import { buildRules, connections } from "@rules";
 //   const rules = buildRules(await rulesInput());      // rules_input()'s answer
 //   connections.connectionsAt(rules, "JFK").city_pairs;
@@ -26,6 +26,10 @@ export * as frequency from "./frequency.js";
 export * as service from "./service.js";
 export * as tails from "./tails.js";
 export * as hubs from "./hubs.js";
+export * as game from "./game.js";
+export * as cabins from "./cabins.js";
+export * as loadReport from "./loadReport.js";
+export * as growth from "./growth.js";
 export type { BlockAnswer, Distance } from "./block.js";
 export type { TurnCheck } from "./turns.js";
 export type { BankRow, CityPair, ConnectionLimits, ConnectionsAnswer, Link, LinkedLeg } from "./connections.js";
@@ -44,3 +48,7 @@ export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, L
 export type { ServiceProfile } from "./service.js";
 export type { TailIssue } from "./tails.js";
 export type { CountryCount, HubBoard, HubConnectionRow, HubConnections, HubFlight, HubWeekDay } from "./hubs.js";
+export type { CardCheck, CheckRow, Frequency, GameComparison, GameFix, GameFlight, GameIssue, ImportCandidate, LegToCheck, PlannerEntry } from "./game.js";
+export type { CabinFacts, CabinFit } from "./cabins.js";
+export type { DayFlight } from "./loadReport.js";
+export type { GrowthRoute, LoggedMove, Move, MoveCandidates, MoveFacts, PlannedCardLeg, QueueCell, ReadinessRow, RouteLoad } from "./growth.js";

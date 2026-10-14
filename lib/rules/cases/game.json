@@ -1,0 +1,139 @@
+{
+  "part": "game",
+  "note": "The planner's schedule against the game's (#18 build pull request 9; the old planner's plannerFlights, compareFlights, applyGameFix and importCandidates, and Tails' check before filing). Test Air flies HUB–AAA daily (1001 out at 06:00, landing 08:15 at AAA, +1; 1002 back at 09:30, landing 09:45), HUB–DDD on Mon, Wed and Fri (1003 at 20:00, landing 04:00 the next morning at DDD, +5.5; 1004 back at 06:30 that morning, so on Tue, Thu and Sat, landing 03:40) and HUB–NBN daily (1007 at 10:00, back at 12:00 with no number of its own, so 1006, its outbound less one). Other Air flies AAA–BBB on Tuesdays (3001).",
+  "input": {
+    "rotations": [
+      {"id": 1, "airline_id": 1, "route_id": 1},
+      {"id": 2, "airline_id": 1, "route_id": 4},
+      {"id": 3, "airline_id": 1, "route_id": 6},
+      {"id": 4, "airline_id": 2, "route_id": 7}
+    ],
+    "flight_legs": [
+      {"id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 2, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+      {"id": 3, "airline_id": 1, "rotation_id": 2, "leg_no": 1, "flight_no": 1003, "origin_code": "HUB", "dest_code": "DDD", "aircraft_id": 1, "days_utc": [1, 3, 5], "dep_utc_min": 1200, "block_min": 150},
+      {"id": 4, "airline_id": 1, "rotation_id": 2, "leg_no": 2, "flight_no": 1004, "origin_code": "DDD", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [2, 4, 6], "dep_utc_min": 60, "block_min": 160},
+      {"id": 5, "airline_id": 1, "rotation_id": 3, "leg_no": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "NBN", "aircraft_id": 2, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 60},
+      {"id": 6, "airline_id": 1, "rotation_id": 3, "leg_no": 2, "flight_no": null, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 2, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 720, "block_min": 60},
+      {"id": 7, "airline_id": 2, "rotation_id": 4, "leg_no": 1, "flight_no": 3001, "origin_code": "AAA", "dest_code": "BBB", "aircraft_id": 4, "days_utc": [2], "dep_utc_min": 600, "block_min": 500}
+    ]
+  },
+  "cases": [
+    {
+      "name": "the planner's flights by number in local time: the return on the day it leaves; a leg with no number of its own left out",
+      "rule": "plannerFlights: each frequency's outbound on its local weekdays at the hub and its return on those moved to the day it leaves, each by its own number",
+      "ask": {"what": "game_planner_flights", "airline_id": 1},
+      "answer": {
+        "1001": [{"from": "HUB", "to": "AAA", "dep": "06:00", "arr": "08:15", "days": "1234567"}],
+        "1002": [{"from": "AAA", "to": "HUB", "dep": "09:30", "arr": "09:45", "days": "1234567"}],
+        "1003": [{"from": "HUB", "to": "DDD", "dep": "20:00", "arr": "04:00", "days": "135"}],
+        "1004": [{"from": "DDD", "to": "HUB", "dep": "06:30", "arr": "03:40", "days": "246"}],
+        "1007": [{"from": "HUB", "to": "NBN", "dep": "10:00", "arr": "11:00", "days": "1234567"}]
+      }
+    },
+    {
+      "name": "every number compared: the same (a flight valid only for some dates aside), different (a time, days, the route), in the planner only, in the game only",
+      "rule": "compareFlights: the same when every planner entry has a game entry with the same airports, times and days and the game has no other but one valid only for some dates; a time or day change with one entry each side and the same airports can be fixed from the game",
+      "ask": {"what": "game_compare", "airline_id": 1, "flights": [
+        {"no": "1001", "from": "HUB", "to": "AAA", "days": "1234567", "dep": "06:00", "arr": "08:15", "valid": ""},
+        {"no": "1001", "from": "HUB", "to": "AAA", "days": "6", "dep": "07:00", "arr": "09:15", "valid": "until 18.10."},
+        {"no": "1002", "from": "AAA", "to": "HUB", "days": "1234567", "dep": "09:40", "arr": "09:55", "valid": ""},
+        {"no": "1003", "from": "HUB", "to": "DDD", "days": "1357", "dep": "20:00", "arr": "04:00", "valid": ""},
+        {"no": "1007", "from": "HUB", "to": "FOC", "days": "1234567", "dep": "10:00", "arr": "11:00", "valid": ""},
+        {"no": "1006", "from": "NBN", "to": "HUB", "days": "1234567", "dep": "12:00", "arr": "13:00", "valid": ""},
+        {"no": "2001", "from": "HUB", "to": "CCC", "days": "1234567", "dep": "09:00", "arr": "21:00", "valid": ""},
+        {"no": "2002", "from": "CCC", "to": "HUB", "days": "1234567", "dep": "23:00", "arr": "04:00", "valid": ""},
+        {"no": "2005", "from": "HUB", "to": "BBB", "days": "135", "dep": "12:00", "arr": "14:00", "valid": "from 20.10."}
+      ]},
+      "answer": {
+        "ok": 1, "in_game": 9, "in_planner": 5,
+        "issues": [
+          {"no": "1002", "kind": "diff", "text": "Different: departure, arrival", "p": "AAA–HUB 09:30–09:45 daily", "g": "AAA–HUB 09:40–09:55 daily",
+           "fix": {"from": "AAA", "to": "HUB", "dep": "09:40", "arr": "09:55", "days": "1234567", "pDays": "1234567"}},
+          {"no": "1003", "kind": "diff", "text": "Different: days", "p": "HUB–DDD 20:00–04:00 Mon Wed Fri", "g": "HUB–DDD 20:00–04:00 Mon Wed Fri Sun",
+           "fix": {"from": "HUB", "to": "DDD", "dep": "20:00", "arr": "04:00", "days": "1357", "pDays": "135"}},
+          {"no": "1004", "kind": "planner", "text": "In the planner, not in the game", "p": "DDD–HUB 06:30–03:40 Tue Thu Sat", "g": "", "fix": null},
+          {"no": "1006", "kind": "game", "text": "In the game, not in the planner", "p": "", "g": "NBN–HUB 12:00–13:00 daily", "fix": null},
+          {"no": "1007", "kind": "diff", "text": "Different: route", "p": "HUB–NBN 10:00–11:00 daily", "g": "HUB–FOC 10:00–11:00 daily", "fix": null},
+          {"no": "2001", "kind": "game", "g": "HUB–CCC 09:00–21:00 daily"},
+          {"no": "2002", "kind": "game", "g": "CCC–HUB 23:00–04:00 daily"},
+          {"no": "2005", "kind": "game", "g": "HUB–BBB 12:00–14:00 Mon Wed Fri (from 20.10.)"}
+        ]
+      }
+    },
+    {
+      "name": "an arrival the planner hasn't entered is named as such; the game with nothing for the airline lists every flight as the planner's only",
+      "rule": "compareFlights: an empty planner arrival is \"arrival not entered\"; no game flights, every number is in the planner only",
+      "input": {"flight_legs": [
+        {"id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": null},
+        {"id": 2, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75}
+      ], "rotations": [{"id": 1, "airline_id": 1, "route_id": 1}]},
+      "ask": {"what": "game_compare", "airline_id": 1, "flights": [
+        {"no": "1001", "from": "HUB", "to": "AAA", "days": "1234567", "dep": "06:00", "arr": "08:15", "valid": ""},
+        {"no": "1002", "from": "AAA", "to": "HUB", "days": "1234567", "dep": "09:30", "arr": "09:45", "valid": ""}
+      ]},
+      "answer": {"ok": 1, "issues": [{"no": "1001", "kind": "diff", "text": "Different: arrival not entered", "p": "HUB–AAA 06:00–? daily",
+        "fix": {"dep": "06:00", "arr": "08:15", "days": "1234567", "pDays": "1234567"}}]}
+    },
+    {
+      "name": "the game's numbers the planner doesn't fly, paired into round trips; a return's outbound less one counts as the planner's",
+      "rule": "importCandidates: numbers not in the planner (its own, or a return's outbound less one), in number order, each with the first other one flying back with a number one apart",
+      "ask": {"what": "game_candidates", "airline_id": 1, "flights": [
+        {"no": "1001", "from": "HUB", "to": "AAA", "days": "1234567", "dep": "06:00", "arr": "08:15", "valid": ""},
+        {"no": "1006", "from": "NBN", "to": "HUB", "days": "1234567", "dep": "12:00", "arr": "13:00", "valid": ""},
+        {"no": "2005", "from": "HUB", "to": "BBB", "days": "135", "dep": "12:00", "arr": "14:00", "valid": ""},
+        {"no": "2002", "from": "CCC", "to": "HUB", "days": "1234567", "dep": "23:00", "arr": "04:00", "valid": ""},
+        {"no": "2001", "from": "HUB", "to": "CCC", "days": "1234567", "dep": "09:00", "arr": "21:00", "valid": ""},
+        {"no": "2003", "from": "HUB", "to": "CCC", "days": "1234567", "dep": "15:00", "arr": "03:00", "valid": ""}
+      ]},
+      "answer": [{"a": "2001", "b": "2002"}, {"a": "2003", "b": null}, {"a": "2005", "b": null}]
+    },
+    {
+      "name": "fixing from the game: a return takes the game's times, an outbound its times and days; the legs stored again in UTC",
+      "rule": "applyGameFix, one fix after another: a matching outbound takes the game's departure, arrival and differing days; a matching return its departure and arrival; then frequency.toLegs",
+      "ask": {"what": "game_fix", "airline_id": 1, "fixes": [
+        {"no": "1002", "fix": {"from": "AAA", "to": "HUB", "dep": "09:40", "arr": "09:55", "days": "1234567", "pDays": "1234567"}},
+        {"no": "1003", "fix": {"from": "HUB", "to": "DDD", "dep": "20:00", "arr": "04:00", "days": "1357", "pDays": "135"}}
+      ]},
+      "answer": [
+        {"rotation_id": 1, "days": [1, 2, 3, 4, 5, 6, 7], "dep_hub": "06:00", "arr_dest": "08:15", "dep_dest": "09:40", "arr_hub": "09:55",
+         "leg1": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75}, "leg2": {"days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 520, "block_min": 75}},
+        {"rotation_id": 2, "days": [1, 3, 5, 7], "dep_hub": "20:00", "arr_dest": "04:00", "dep_dest": "06:30", "arr_hub": "03:40",
+         "leg1": {"days_utc": [1, 3, 5, 7], "dep_utc_min": 1200, "block_min": 150}, "leg2": {"days_utc": [1, 2, 4, 6], "dep_utc_min": 60, "block_min": 160}}
+      ]
+    },
+    {
+      "name": "a return's days change only when it leaves on the outbound's day",
+      "rule": "applyGameFix: a return takes the game's days only when it leaves the day its outbound leaves (its return day 0)",
+      "ask": {"what": "game_fix", "airline_id": 1, "fixes": [
+        {"no": "1004", "fix": {"from": "DDD", "to": "HUB", "dep": "06:45", "arr": "03:55", "days": "1357", "pDays": "246"}},
+        {"no": "1002", "fix": {"from": "AAA", "to": "HUB", "dep": "09:30", "arr": "09:45", "days": "135", "pDays": "1234567"}}
+      ]},
+      "answer": [
+        {"rotation_id": 2, "days": [1, 3, 5], "dep_dest": "06:45", "arr_hub": "03:55", "leg2": {"days_utc": [2, 4, 6], "dep_utc_min": 75, "block_min": 160}},
+        {"rotation_id": 1, "days": [1, 3, 5], "dep_dest": "09:30", "leg1": {"days_utc": [1, 3, 5]}, "leg2": {"days_utc": [1, 3, 5], "dep_utc_min": 510}}
+      ]
+    },
+    {
+      "name": "a plan card's legs against the game: the same, different, not in the game; a game that couldn't be read",
+      "rule": "compareCard (Tails' check before filing): each leg with the game's flight of the same number and airports; the same when the departure, the arrival (when the game gives one) and the days are",
+      "ask": {"what": "compare_card", "legs": [
+        {"no": "1001", "from": "HUB", "to": "AAA", "dep": "06:00", "arr": "08:15", "days": "1234567"},
+        {"no": "1002", "from": "AAA", "to": "HUB", "dep": "09:30", "arr": "09:45", "days": "7654321"},
+        {"no": "1009", "from": "HUB", "to": "CCC", "dep": "10:00", "arr": "22:00", "days": "1234567"}
+      ], "flights": [
+        {"no": "1001", "from": "HUB", "to": "AAA", "days": "1234567", "dep": "06:00", "arr": "", "valid": ""},
+        {"no": "1002", "from": "AAA", "to": "HUB", "days": "1234567", "dep": "09:35", "arr": "09:50", "valid": ""}
+      ]},
+      "answer": {"rows": [{"no": "1001", "game": "06:00", "same": true}, {"no": "1002", "game": "09:35", "same": false}, {"no": "1009", "game": null, "same": false}],
+        "err": "", "found": 2, "diff": 1, "miss": 1, "allSame": false}
+    },
+    {
+      "name": "a game that couldn't be read: nothing found, never all the same",
+      "rule": "compareCard with the game's error: no game flights, and allSame false",
+      "ask": {"what": "compare_card", "legs": [{"no": "1001", "from": "HUB", "to": "AAA", "dep": "06:00", "arr": "08:15", "days": "1234567"}],
+        "flights": null, "err": "The game answered 502."},
+      "answer": {"rows": [{"no": "1001", "game": null, "same": false}], "err": "The game answered 502.", "found": 0, "diff": 0, "miss": 1, "allSame": false}
+    }
+  ]
+}

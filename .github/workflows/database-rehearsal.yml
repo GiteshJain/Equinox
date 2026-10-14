@@ -2,8 +2,8 @@
 # request's own planners sign in and save for real into that copy (#17): the new planner at /planner/next/ (#18) through
 # planner_save(), after its types are generated again from the copy and compared with the committed ones, then the old one;
 # the planning library (#19) side by side with the old planner's Tails and Hubs on the copy; the captured figures
-# (#19) side by side with the old planner's Review and Check; and the new planner's Home, Routes, Tails and Hubs side by
-# side with the old ones.
+# (#19) side by side with the old planner's Review and Check; and the new planner's Home, Routes, Tails, Hubs and Check
+# side by side with the old ones.
 # Runs when a pull request adds or changes a migration or a database test, changes either planner (a planner change can
 # break saving), the planning library (lib/) or their tests, or changes this check. The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
@@ -34,6 +34,7 @@ on:
       - "tests/routes_side_by_side_test.py"
       - "tests/tails_side_by_side_test.py"
       - "tests/hubs_side_by_side_test.py"
+      - "tests/check_side_by_side_test.py"
       - "tests/rule_numbers_test.py"
       - "tests/harness.py"
       - "tests/fixtures/make_sample.sh"
@@ -117,6 +118,7 @@ jobs:
           ROUTES_SCREENS_DIR: ${{ runner.temp }}/routes-screens   # the new Routes and the old at 380 and 1280 px (#18 build pull request 6)
           TAILS_SCREENS_DIR: ${{ runner.temp }}/tails-screens   # the new Tails and the old at 380 and 1280 px (#18 build pull request 7)
           HUBS_SCREENS_DIR: ${{ runner.temp }}/hubs-screens   # the new Hubs and the old at 380 and 1280 px (#18 build pull request 8)
+          CHECK_SCREENS_DIR: ${{ runner.temp }}/check-screens   # the new Check and the old at 380 and 1280 px (#18 build pull request 9)
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -182,6 +184,17 @@ jobs:
         with:
           name: hubs-screens
           path: ${{ runner.temp }}/hubs-screens/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # The same for the new planner's Check and the old Check (tests/check_side_by_side_test.py): every board open
+      - name: Keep the screenshots of the new Check and the old
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-screens
+          path: ${{ runner.temp }}/check-screens/*.png
           if-no-files-found: ignore
           retention-days: 3
 

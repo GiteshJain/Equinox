@@ -1,0 +1,64 @@
+{
+  "part": "loadReport",
+  "note": "The day's departures for the daily load report (#18 build pull request 9; the old planner's flightsOn). Test Air flies HUB–AAA daily (1001 at 06:00, 1002 back at 09:30; launched 1 Oct), HUB–DDD on Mon, Wed and Fri (1003 at 20:00, landing the next morning; 1004 back at 06:30 that morning, so on Tue, Thu and Sat; launched 8 Oct) and HUB–NBN daily (1007 at 10:00, back at 12:00 with no number of its own, so shown as 1006; never launched). Other Air flies AAA–BBB on Tuesdays at 11:00 local (3001, no return). load_leeway_days is 7.",
+  "input": {
+    "rotations": [
+      {"id": 1, "airline_id": 1, "route_id": 1},
+      {"id": 2, "airline_id": 1, "route_id": 4},
+      {"id": 3, "airline_id": 1, "route_id": 6},
+      {"id": 4, "airline_id": 2, "route_id": 7}
+    ],
+    "flight_legs": [
+      {"id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 2, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+      {"id": 3, "airline_id": 1, "rotation_id": 2, "leg_no": 1, "flight_no": 1003, "origin_code": "HUB", "dest_code": "DDD", "aircraft_id": 1, "days_utc": [1, 3, 5], "dep_utc_min": 1200, "block_min": 150},
+      {"id": 4, "airline_id": 1, "rotation_id": 2, "leg_no": 2, "flight_no": 1004, "origin_code": "DDD", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [2, 4, 6], "dep_utc_min": 60, "block_min": 160},
+      {"id": 5, "airline_id": 1, "rotation_id": 3, "leg_no": 1, "flight_no": 1007, "origin_code": "HUB", "dest_code": "NBN", "aircraft_id": 2, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 60},
+      {"id": 6, "airline_id": 1, "rotation_id": 3, "leg_no": 2, "flight_no": null, "origin_code": "NBN", "dest_code": "HUB", "aircraft_id": 2, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 720, "block_min": 60},
+      {"id": 7, "airline_id": 2, "rotation_id": 4, "leg_no": 1, "flight_no": 3001, "origin_code": "AAA", "dest_code": "BBB", "aircraft_id": 4, "days_utc": [2], "dep_utc_min": 600, "block_min": 500}
+    ]
+  },
+  "cases": [
+    {
+      "name": "a Monday: each outbound on its local weekdays, each return on the day it leaves, by airline then departure; a frequency's first week marked",
+      "rule": "flightsOn: the outbound on its local weekdays at the hub (with a number), the return on those moved to the day it leaves (its own number or the outbound's less one); in its first load_leeway_days from its launch",
+      "ask": {"what": "flights_on", "day": "2026-10-12", "launches": [{"id": 1, "launched_on": "2026-10-01"}, {"id": 2, "launched_on": "2026-10-08"}, {"id": 3, "launched_on": null}]},
+      "answer": [
+        {"airline_id": 1, "rotation_id": 1, "route_id": 1, "no": 1001, "from": "HUB", "to": "AAA", "dep": "06:00", "way": "out", "launched": "2026-10-01", "leeway": false},
+        {"no": 1002, "from": "AAA", "to": "HUB", "dep": "09:30", "way": "back", "leeway": false},
+        {"no": 1007, "from": "HUB", "to": "NBN", "dep": "10:00", "way": "out", "launched": null, "leeway": false},
+        {"no": 1006, "from": "NBN", "to": "HUB", "dep": "12:00", "way": "back"},
+        {"no": 1003, "from": "HUB", "to": "DDD", "dep": "20:00", "way": "out", "launched": "2026-10-08", "leeway": true}
+      ]
+    },
+    {
+      "name": "a Tuesday: the overnight return, and the other airline's flight after ours",
+      "rule": "flightsOn: a return leaving the day after its outbound is on that day; airlines in their order",
+      "ask": {"what": "flights_on", "day": "2026-10-13", "launches": [{"id": 1, "launched_on": "2026-10-01"}, {"id": 2, "launched_on": "2026-10-08"}]},
+      "answer": [
+        {"no": 1001, "dep": "06:00"},
+        {"no": 1004, "from": "DDD", "to": "HUB", "dep": "06:30", "way": "back", "leeway": true},
+        {"no": 1002, "dep": "09:30"},
+        {"no": 1007, "dep": "10:00"},
+        {"no": 1006, "dep": "12:00"},
+        {"airline_id": 2, "no": 3001, "from": "AAA", "to": "BBB", "dep": "11:00", "way": "out", "launched": null, "leeway": false}
+      ]
+    },
+    {
+      "name": "a week after its launch a frequency is out of its first week",
+      "rule": "leeway: fewer than load_leeway_days days after the launch",
+      "ask": {"what": "flights_on", "day": "2026-10-15", "launches": [{"id": 2, "launched_on": "2026-10-08"}]},
+      "answer": [{"no": 1001}, {"no": 1004, "leeway": false}, {"no": 1002}, {"no": 1007}, {"no": 1006}]
+    },
+    {
+      "name": "an airline's own first week wins over the world's",
+      "rule": "load_leeway_days, the airline's override where it has one",
+      "input": {"airlines": [
+        {"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true, "settings": {"load_leeway_days": 10}},
+        {"id": 2, "iata_code": "OA", "planner_name": "Other Air", "position": 2, "active": true, "ours": true}
+      ]},
+      "ask": {"what": "flights_on", "day": "2026-10-15", "launches": [{"id": 2, "launched_on": "2026-10-08"}]},
+      "answer": [{"no": 1001}, {"no": 1004, "leeway": true}, {"no": 1002}, {"no": 1007}, {"no": 1006}]
+    }
+  ]
+}

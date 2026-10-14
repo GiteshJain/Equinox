@@ -691,6 +691,70 @@ tr[data-tail]:hover td{background:rgba(0,0,0,.022)}
   .view.hub .toolbar > .seg::-webkit-scrollbar{display:none}
 }
 
+/* ---------- Check (#18 build pull request 9): the boards that fold by their title, the growth board (can order now, main
+   hubs, the next move, the lists), a check due, the cabins kept as is, the game check and its pop-up, the daily load report,
+   as the old planner's cascade leaves them (web/planner/index.html, both style sheets to their last lines) ---------- */
+.revtools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px;font-size:12.5px;color:var(--muted)}
+h3.rch{cursor:pointer;user-select:none}
+h3.rch .chev{display:inline-block;flex:none;width:9px;height:9px;border:0!important;margin:0 6px 0 0;vertical-align:2px;
+  background:no-repeat center/9px 9px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3 1.5 6.5 5 3 8.5' fill='none' stroke='%238E8E93' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  transform:rotate(90deg);transition:transform .18s ease}
+.board.rcol > h3.rch .chev{transform:none}
+.board.rcol > :not(h3){display:none!important}
+.board.rcol > h3.rch{margin-bottom:0}
+.gptr{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:2px 0 6px}
+.gptr .pill{margin-left:0}
+.gh{font:600 14px/1.3 var(--font);letter-spacing:-.01em;color:var(--ink);margin:20px 0 8px}
+.gh .note{font:400 12.5px var(--font);margin-left:6px}
+.hubprog{display:grid;gap:8px;margin:6px 0 14px;max-width:860px}
+.hp{display:grid;grid-template-columns:230px 1fr 150px;gap:12px;align-items:center;font-size:13px}
+.hpbar{height:10px;border-radius:6px;background:#EEF1F7;display:flex;overflow:hidden}
+.hpbar i{display:block;height:100%;background:#3B3FD8} .hpbar i.pend{background:#A9ACF0}
+.hpv{text-align:right;font-variant-numeric:tabular-nums}
+.nmv td{vertical-align:middle;padding-top:12px;padding-bottom:12px}
+.nmv td:nth-child(4){white-space:normal;line-height:1.6}
+.nmv .opt{display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:4px 10px;border-radius:980px;background:var(--fill);font-size:12.5px;white-space:nowrap}
+.nmv .opt .link{font-weight:600;color:var(--ink)} .nmv .opt .stars{font-size:10.5px;letter-spacing:-.5px} .nmv .opt .sz{color:var(--muted)}
+.nmv .logseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:var(--fill)}
+.nmv .logseg button{border:0;background:transparent;border-radius:7px;padding:4px 9px;font:500 12px/1 var(--font);color:#3A3A3C;cursor:pointer}
+.nmv .logseg button:hover{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.nmv .logseg button:disabled{opacity:.55;cursor:default}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.ck{border:0;border-radius:var(--r-card);padding:12px 16px 12px 20px;margin:8px 0;background:var(--group);box-shadow:none;position:relative}
+.ck::before{content:"";position:absolute;left:8px;top:14px;bottom:14px;width:3px;border-radius:2px;background:#F6B44B}
+.ckh{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ckh b{font-stretch:108%;font-size:15px;font-weight:650;letter-spacing:-.01em}
+.ckh .primary.sm{margin:0 0 0 auto;padding:6px 12px;font-size:12.5px}
+.ck .primary.sm{background:var(--fill);color:var(--ink);font-weight:550} .ck .primary.sm:hover{background:var(--fill-2)}
+details.gsub>summary{cursor:pointer;padding:6px 12px;font-size:12.5px;list-style:none;display:flex;align-items:center}
+details.gsub>summary::-webkit-details-marker{display:none}
+details.gsub>summary::before{content:"";display:inline-block;flex:none;width:9px;height:9px;border:0;margin:0 6px 0 0;
+  background:no-repeat center/9px 9px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3 1.5 6.5 5 3 8.5' fill='none' stroke='%238E8E93' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  transform:none;transition:transform .18s ease}
+details.gsub[open]>summary::before{transform:rotate(90deg)}
+.gc{border:0;border-radius:var(--r-card);padding:12px 16px;margin:10px 0;background:var(--group);box-shadow:none}
+.gch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px} .gch b{font-stretch:106%} .gch .pill{margin-left:auto}
+.gcopen{margin:6px 0 2px}
+.tbl.gct{margin-top:8px;font-size:12.5px;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.tbl.gct td,.tbl.gct th{padding:6px 10px;vertical-align:top} .tbl.gct .pill{margin-left:0}
+.imp{margin-top:8px;padding:8px 10px;background:var(--group);border:0;border-radius:var(--r-card);box-shadow:none;font-size:12.5px}
+.impr{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.impr:last-child{border-bottom:0} .impr > span{flex:1 1 280px;min-width:0} .impr select,.impr input{padding:4px 8px;font-size:12.5px} .impr input{flex:1 1 160px;min-width:0}
+.qcard{border:0;border-radius:var(--r-card);padding:12px 14px;margin:10px 0;background:var(--group);box-shadow:none}
+.qh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px} .qh .alogo{height:18px}
+.qfl{margin-left:auto} .qfl summary{cursor:pointer;color:var(--sky);font-size:12.5px;list-style:none} .qfl summary::-webkit-details-marker{display:none}
+.qlist{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);padding:8px 0 2px;max-width:900px}
+.capl{color:var(--ink,#0A1230);font-variant-numeric:tabular-nums;opacity:.8} .capl.low{color:#B4234B;opacity:1;font-weight:600}
+@media (max-width:860px){ .qfl{margin-left:0} }
+/* phones (design §9): nothing scrolls sideways at 380 px; the old main hubs' rows (230 px, the bar, 150 px) and the can-order
+   pills were wider than a phone, so the bar takes a line of its own and the pills wrap; wide tables scroll in their box */
+@media (max-width:560px){
+  .hp{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
+  .hp .hpbar{grid-column:1 / -1;grid-row:2}
+  .gptr .pill{white-space:normal}
+  .gch .pill{margin-left:0}
+}
+
 /* ---------- small screens ---------- */
 @media (max-width:860px){
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .kv{font-size:24px}

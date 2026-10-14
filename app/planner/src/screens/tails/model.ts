@@ -6,8 +6,9 @@
 // planning figure is the library's (aircraftWeek, maintenance, tails, frequency, time); this file joins the tables'
 // rows to it and words what it answers, as the old planner words it.
 import {
-  aircraftWeek, banks, block, buildRules, frequency, maintenance, service, tails, time, type AircraftWeek, type AirportRow, type LocalTimes, type Maintenance,
-  type NoMaintenance, type Rules, type ServiceProfile, type TailIssue, type TimedLeg, type WeekLeg,
+  aircraftWeek, banks, block, buildRules, frequency, game, maintenance, service, tails, time, type AircraftWeek, type AirportRow, type CardCheck as LibCardCheck,
+  type CheckRow as LibCheckRow, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance, type NoMaintenance, type Rules, type ServiceProfile,
+  type TailIssue, type TimedLeg, type WeekLeg,
 } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
@@ -63,8 +64,8 @@ export const PLAN_LEG_COLUMNS = "id, plan_card_id, position, flight_no, origin_c
 /** One of our airlines, as the screen names it, with what Tails needs: low cost (its cabins) and its game ID (its link). */
 export interface TailAirline { id: number; code: string | null; name: string; color: string | null; is_lcc: boolean; game_id: number | null }
 
-/** One flight of the airline's public schedule, as /api/game-schedule gives it. */
-export interface GameFlight { code?: string; no: string; from: string; to: string; days: string; dep: string; arr: string; type?: string; valid?: string }
+/** One flight of the airline's public schedule, as /api/game-schedule gives it (the library's). */
+export type GameFlight = LibGameFlight;
 
 const isObj = (v: Json | undefined): v is { [k: string]: Json } => !!v && typeof v === "object" && !Array.isArray(v);
 /** A number kept in an aircraft's extra (tails_index, deliveries_index), or null. */
@@ -413,26 +414,18 @@ export function cardLegs(rules: Rules, legs: readonly PlanLegRow[]): CardLeg[] {
   });
 }
 
-// ---------- the check before filing (the old checkBeforeFile): each plan-card leg against the game's schedule
-export const sortDays = (x: string | null | undefined): string => String(x || "1234567").split("").sort().join("");
-export const daysLabel = (d: string): string => (d === "1234567" ? "daily" : [...d].map((ch) => DAYS[Number(ch) - 1] ?? "?").join(" "));
+// ---------- the check before filing (the old checkBeforeFile): each plan-card leg against the game's schedule, with the
+// library's game comparison (game.compareCard, the same code the Check screen's Game check uses, #18 build pull request 9)
+export const sortDays = game.sortDays;
+export const daysLabel = game.daysLabel;
 /** A leg's days after its times in the check's table, unless every day. */
 export const daysSuffix = (x: string | null | undefined): string => (x && sortDays(x) !== "1234567" ? " " + daysLabel(sortDays(x)) : "");
-export interface CheckRow { L: CardLeg; g: GameFlight | null; same: boolean }
-export interface CardCheck { rows: CheckRow[]; err: string; found: number; diff: number; miss: number; allSame: boolean }
+export type CheckRow = LibCheckRow<CardLeg>;
+export type CardCheck = LibCardCheck<CardLeg>;
 /** Whether the game flies a card leg at the card's times: its departure, its arrival (when the game gives one) and days. */
-export function sameTimes(L: { dep: string; arr: string; days: string }, g: GameFlight): boolean {
-  return g.dep === L.dep && (!g.arr || g.arr === L.arr) && (!g.days || sortDays(g.days) === sortDays(L.days));
-}
+export const sameTimes = game.sameTimes;
 /** Each leg with the game's flight of the same number and airports, and whether its times and days are the same. */
-export function compareCard(legs: readonly CardLeg[], flights: readonly GameFlight[] | null, err = ""): CardCheck {
-  const rows = legs.map((L) => {
-    const g = flights ? flights.find((x) => String(x.no) === String(L.no) && x.from === L.from && x.to === L.to) ?? null : null;
-    return { L, g, same: !!g && sameTimes(L, g) };
-  });
-  const found = rows.filter((r) => r.g).length, diff = rows.filter((r) => r.g && !r.same).length;
-  return { rows, err, found, diff, miss: rows.length - found, allSame: !err && rows.length > 0 && rows.every((r) => r.same) };
-}
+export const compareCard = (legs: readonly CardLeg[], flights: readonly GameFlight[] | null, err = ""): CardCheck => game.compareCard(legs, flights, err);
 /** The check's line above its table. */
 export function checkSummary(c: CardCheck): string {
   const n = c.rows.length;

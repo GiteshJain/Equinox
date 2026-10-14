@@ -1,0 +1,115 @@
+{
+  "part": "cabins",
+  "note": "Each aircraft's cabin against what its markets want (#18 build pull request 9; manual §5; the old planner's cabinFit and cabinsBoard). T-001 (A321neo, a Leisure cabin, 321-LEI) flies HUB–AAA daily (75 min each way: 1,050 block minutes a week, market 1, whose default layout is Standard) and HUB–DDD three times a week (150 and 160 min: 930 minutes, market 2, Comfort); T-003 (E195, Comfort) flies FOC–AAA daily (90 min each way), a route whose own cabin choice is Leisure; T-002 doesn't fly.",
+  "input": {
+    "routes": [
+      {"id": 1, "airline_id": 1, "hub_code": "HUB", "dest_code": "AAA", "distance_km": 700, "market_id": 1},
+      {"id": 4, "airline_id": 1, "hub_code": "HUB", "dest_code": "DDD", "distance_km": 1400, "market_id": 2},
+      {"id": 5, "airline_id": 1, "hub_code": "FOC", "dest_code": "AAA", "distance_km": 840, "market_id": 2},
+      {"id": 6, "airline_id": 1, "hub_code": "HUB", "dest_code": "NBN", "distance_km": 420, "market_id": null}
+    ],
+    "rotations": [
+      {"id": 1, "airline_id": 1, "route_id": 1},
+      {"id": 2, "airline_id": 1, "route_id": 4},
+      {"id": 3, "airline_id": 1, "route_id": 5}
+    ],
+    "flight_legs": [
+      {"id": 1, "airline_id": 1, "rotation_id": 1, "leg_no": 1, "flight_no": 1001, "origin_code": "HUB", "dest_code": "AAA", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 75},
+      {"id": 2, "airline_id": 1, "rotation_id": 1, "leg_no": 2, "flight_no": 1002, "origin_code": "AAA", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+      {"id": 3, "airline_id": 1, "rotation_id": 2, "leg_no": 1, "flight_no": 1003, "origin_code": "HUB", "dest_code": "DDD", "aircraft_id": 1, "days_utc": [1, 3, 5], "dep_utc_min": 1200, "block_min": 150},
+      {"id": 4, "airline_id": 1, "rotation_id": 2, "leg_no": 2, "flight_no": 1004, "origin_code": "DDD", "dest_code": "HUB", "aircraft_id": 1, "days_utc": [2, 4, 6], "dep_utc_min": 60, "block_min": 160},
+      {"id": 5, "airline_id": 1, "rotation_id": 3, "leg_no": 1, "flight_no": 2001, "origin_code": "FOC", "dest_code": "AAA", "aircraft_id": 3, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 600, "block_min": 90},
+      {"id": 6, "airline_id": 1, "rotation_id": 3, "leg_no": 2, "flight_no": 2002, "origin_code": "AAA", "dest_code": "FOC", "aircraft_id": 3, "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 780, "block_min": 90}
+    ]
+  },
+  "cases": [
+    {
+      "name": "each aircraft whose cabin differs from what most of its flying wants, by share; the layout to refit to; kept as is only for the cabin kept",
+      "rule": "the cabin each leg wants is its route's own choice, else its market's default layout's cabin, weighed by block minutes; listed where it isn't the cabin the aircraft has, most share first; strong at cabin_refit_share_pct (70); a keep counts for the cabin it names",
+      "ask": {"what": "cabin_fit", "facts": {
+        "aircraft": [{"id": 1, "cabin_config_id": 1}, {"id": 2, "cabin_config_id": 1}, {"id": 3, "cabin_config_id": 5}],
+        "configs": [
+          {"id": 1, "code": "321-LEI", "aircraft_type_id": 1, "cabin": "Leisure"},
+          {"id": 2, "code": "321-STD", "aircraft_type_id": 1, "cabin": "Standard"},
+          {"id": 3, "code": "321-CMF", "aircraft_type_id": 1, "cabin": "Comfort"},
+          {"id": 4, "code": "E195-LEI", "aircraft_type_id": 2, "cabin": "Leisure"},
+          {"id": 5, "code": "E195-CMF", "aircraft_type_id": 2, "cabin": "Comfort"}
+        ],
+        "routes": [{"id": 5, "cabin_choice": "Leisure"}, {"id": 1, "cabin_choice": null}],
+        "markets": [{"id": 1, "default_config_id": 2}, {"id": 2, "default_config_id": 3}],
+        "keeps": [{"aircraft_id": 3, "cabin": "Comfort", "decided_on": "2026-10-01"}, {"aircraft_id": 1, "cabin": "Standard", "decided_on": "2026-10-10"}]
+      }},
+      "answer": [
+        {"registration": "T-003", "airline_id": 1, "have": "Comfort", "have_code": "E195-CMF", "want": "Leisure", "share": 100,
+         "mix": [{"cabin": "Leisure", "pct": 100}], "target": {"id": 4, "code": "E195-LEI"}, "strong": true, "kept": false, "kept_on": null},
+        {"registration": "T-001", "have": "Leisure", "have_code": "321-LEI", "want": "Standard", "share": 53,
+         "mix": [{"cabin": "Standard", "pct": 53}, {"cabin": "Comfort", "pct": 47}], "target": {"id": 2, "code": "321-STD"}, "strong": false, "kept": true, "kept_on": "2026-10-10"}
+      ]
+    },
+    {
+      "name": "an aircraft whose cabin is what its flying wants isn't listed; a type with no layout for the cabin wanted has no target",
+      "rule": "listed only where the cabins differ; the target is the first layout of the aircraft's type with the cabin wanted, if any",
+      "ask": {"what": "cabin_fit", "facts": {
+        "aircraft": [{"id": 1, "cabin_config_id": 1}, {"id": 3, "cabin_config_id": 4}],
+        "configs": [
+          {"id": 1, "code": "321-LEI", "aircraft_type_id": 1, "cabin": "Leisure"},
+          {"id": 3, "code": "321-CMF", "aircraft_type_id": 1, "cabin": "Comfort"},
+          {"id": 4, "code": "E195-LEI", "aircraft_type_id": 2, "cabin": "Leisure"},
+          {"id": 6, "code": "STD-ANY", "aircraft_type_id": null, "cabin": "Standard"}
+        ],
+        "routes": [{"id": 5, "cabin_choice": "Leisure"}],
+        "markets": [{"id": 1, "default_config_id": 6}, {"id": 2, "default_config_id": 3}],
+        "keeps": []
+      }},
+      "answer": [{"registration": "T-001", "want": "Standard", "share": 53, "target": null, "kept": false}]
+    },
+    {
+      "name": "legs whose route wants no cabin don't count; an aircraft none of whose legs want one isn't listed",
+      "rule": "a route without its own choice and without a market default wants no cabin, and its minutes aren't weighed",
+      "input": {"routes": [
+        {"id": 1, "airline_id": 1, "hub_code": "HUB", "dest_code": "AAA", "distance_km": 700, "market_id": null},
+        {"id": 4, "airline_id": 1, "hub_code": "HUB", "dest_code": "DDD", "distance_km": 1400, "market_id": 2},
+        {"id": 5, "airline_id": 1, "hub_code": "FOC", "dest_code": "AAA", "distance_km": 840, "market_id": null}
+      ]},
+      "ask": {"what": "cabin_fit", "facts": {
+        "aircraft": [{"id": 1, "cabin_config_id": 1}, {"id": 3, "cabin_config_id": 4}],
+        "configs": [{"id": 1, "code": "321-LEI", "aircraft_type_id": 1, "cabin": "Leisure"}, {"id": 3, "code": "321-CMF", "aircraft_type_id": 1, "cabin": "Comfort"},
+                    {"id": 4, "code": "E195-LEI", "aircraft_type_id": 2, "cabin": "Leisure"}],
+        "routes": [], "markets": [{"id": 2, "default_config_id": 3}], "keeps": []
+      }},
+      "answer": [{"registration": "T-001", "want": "Comfort", "share": 100, "mix": [{"cabin": "Comfort", "pct": 100}], "target": {"id": 3, "code": "321-CMF"}, "strong": true}]
+    },
+    {
+      "name": "an airline's own share for a refit that pays wins over the world's, and the refit's cost is a setting",
+      "rule": "cabin_refit_share_pct and cabin_refit_cost, the airline's override where it has one",
+      "input": {"airlines": [
+        {"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true, "settings": {"cabin_refit_share_pct": 50, "cabin_refit_cost": 250000}},
+        {"id": 2, "iata_code": "OA", "planner_name": "Other Air", "position": 2, "active": true, "ours": true}
+      ]},
+      "ask": {"what": "cabin_fit", "facts": {
+        "aircraft": [{"id": 1, "cabin_config_id": 1}],
+        "configs": [{"id": 1, "code": "321-LEI", "aircraft_type_id": 1, "cabin": "Leisure"}, {"id": 2, "code": "321-STD", "aircraft_type_id": 1, "cabin": "Standard"},
+                    {"id": 3, "code": "321-CMF", "aircraft_type_id": 1, "cabin": "Comfort"}],
+        "routes": [], "markets": [{"id": 1, "default_config_id": 2}, {"id": 2, "default_config_id": 3}], "keeps": []
+      }},
+      "answer": [{"registration": "T-001", "share": 53, "strong": true}]
+    },
+    {
+      "name": "the refit's cost: the world's setting, or an airline's own",
+      "rule": "cabin_refit_cost (AS$), manual §5's 0.2M",
+      "ask": {"what": "refit_cost"},
+      "answer": {"cost": 200000}
+    },
+    {
+      "name": "without the share setting the library says what's missing",
+      "rule": "the share is a setting (cabin_refit_share_pct), never a number in code",
+      "input": {"settings": {"cabin_refit_share_pct": null}},
+      "ask": {"what": "cabin_fit", "facts": {
+        "aircraft": [{"id": 1, "cabin_config_id": 1}],
+        "configs": [{"id": 1, "code": "321-LEI", "aircraft_type_id": 1, "cabin": "Leisure"}, {"id": 2, "code": "321-STD", "aircraft_type_id": 1, "cabin": "Standard"}],
+        "routes": [], "markets": [{"id": 1, "default_config_id": 2}], "keeps": []
+      }},
+      "answer": {"error": "settings.cabin_refit_share_pct is not a number"}
+    }
+  ]
+}
