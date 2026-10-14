@@ -3,9 +3,12 @@ for it (decision #18, build pull request 14, the clean-up: what replaces the sid
 
 The side by sides (build pull requests 5 to 13) saved through each screen's own controls in the new planner and in the old
 one from the same copy, and proved both wrote the same rows. The old planner is gone, so the new planner's rows are kept as
-recorded answers instead: tests/fixtures/planner_saves.expected.json, recorded in the clean-up's first rehearsal, where
-this test ran after every side by side had passed on the same copy (the pull request says which run). A change to what any
-save writes fails here, so it has to be meant: update the recorded answer in the same pull request and say why.
+recorded answers instead: tests/fixtures/planner_saves.expected.json, recorded in the clean-up's rehearsal run 38630587707
+(14 Oct, commit 1e922a8), where this test ran after every side by side had passed on the same copy. The clean-up's own
+changes to what saves write were put in by hand: no aircraft.extra written (adding, removing and filing a tail: the old
+lists' places are gone), and loads by hand saved through planner_save() as the tab (the same load_entries and load_days
+rows save_loads() wrote). A change to what any save writes fails here, so it has to be meant: update the recorded answer
+in the same pull request and say why.
 
 Run by database/rehearse.sh after tests/planner_next_test.py, on the copy with every pending change. It needs the copy,
 so it isn't part of tests/run_all.sh. Like planner_next_test.py: a test staff user made through the copy's sign-in, the
