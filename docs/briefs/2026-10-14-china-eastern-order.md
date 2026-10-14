@@ -73,4 +73,6 @@ each. That pays back in about two weeks; a new A321neo takes about two months. T
 - Wanting Delhi now as well as three new cities: two A321neos plus an XLR, refits on Friday (1.02M at the lowest point).
 
 ## Outcome
-*Open.*
+**14 Oct: A,** three A321neos at Shanghai PVG for new cities, with China Eastern's 13 old-cabin A321s refitted to the
+new 321-LEI on Friday 16 Oct. Gitesh orders and refits in the game and tells Claude, who logs them (To-do board: the
+order, and the group-wide refit list). Routes are decided when the aircraft land.
