@@ -2,14 +2,22 @@
 
 **Decision:** what Virgin orders now, aimed at new markets from Gatwick (Gitesh, 14 Oct: "order for new routes").
 An order is just the aircraft; routes are decided when each one lands (manual §3). Under hubs first, all go to Gatwick.
-**Recommendation:** A, three A321neos. That's about nine new four-star cities from Gatwick, six of them with no rival.
-An A321neo earns nearly twice an E195 after lease. It leaves 1.12M at the lowest point; the six cabin conversions wait.
+**Recommendation (revised the same night):** C, two A321neos, together with refitting all eleven of Virgin's A321s
+still on the old cabin. The refits pay back in about two weeks, a new A321neo in about two months, so they come first.
+Two new aircraft still bring about six new four-star cities, and Virgin keeps about 1.6M at the lowest point.
+*First recommendation: A, three A321neos and the refits waiting. Changed when Gitesh found that the seven aircraft
+scheduled on 13 Oct had been fitted with the old cabin, which put eleven Virgin aircraft on it.*
 
 | Option | Growth | Profit a week (after lease) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| **A. Three A321neos** | **~9 new 4-star cities · LGW +~125 departures a week** | **~1.0M** | **1.12M** | **the conversions (1.2M) wait** | **low; new routes unproven** | **no** |
-| B. Two A321neos + one E195 | ~6 new 4-star cities plus ~3 thinner 3-star ones · LGW +~125 | ~0.8M | 1.82M | the conversions still wait | low | no |
-| C. Two A321neos | ~6 new 4-star cities · LGW +~85 | ~0.65M | 3.72M | three fewer new cities | low | no |
+| A. Three A321neos | ~9 new 4-star cities · LGW +~125 departures a week | ~1.0M | 1.12M | the 11 refits (2.1M, ~1.1M a week) can't be afforded | low; new routes unproven | no |
+| B. Two A321neos + one E195 | ~6 new 4-star cities plus ~3 thinner 3-star ones · LGW +~125 | ~0.8M | 1.82M | the refits still don't fit | low | no |
+| **C. Two A321neos, plus the 11 refits** | **~6 new 4-star cities · LGW +~85; +264 seats on the routes Virgin already flies** | **~0.65M + ~1.1M from the refits** | **~1.6M (3.72M less 2.1M)** | **three fewer new cities than A** | **low** | **no** |
+
+**The refits** (`cabin_configs`; game_flights, 7–13 Oct): the new 321-LEI has 180 economy and 15 business seats
+against the old cabin's 156 and 16. Virgin's old-cabin A321s sell out in economy at an average fare of 128 and fly
+about 5 flights a day. So 24 more economy seats are worth about 3,000 a flight, roughly 15k a day per aircraft, for
+0.19M each with no time out of service.
 
 The cash forecast is the database's `cash_forecast()` on the 14 Oct capture, with each order's lease counted (manual
 §3). Two A321neos plus two E195s would breach the cushion (−0.08M). Profit is an estimate. Gatwick's existing four-star
