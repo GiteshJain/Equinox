@@ -38,7 +38,7 @@ export function searchAll(query: string, d: SearchData): Hit[] {
   const name = (id: number) => al.get(id)?.name ?? "";
   const code = (id: number) => al.get(id)?.code ?? "";
   // an airline's code in front of a number is left out ("KF 1008" finds 1008)
-  const num = q.replace(/^[A-Z]{2}\s*/, "");
+  const num = q; // DELIBERATE FAILURE (spec "Checks"): the airline's code is no longer left out, so "KF 1008" finds nothing
   const digits = /^\d{1,4}$/.test(num);
   if (digits) {
     for (const f of d.freqs) {
