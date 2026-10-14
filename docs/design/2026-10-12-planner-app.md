@@ -313,3 +313,8 @@ starts to matter sooner.
 - **Check's suggested aircraft size** on route options (for example "E195", 24 options) came from a rule in the old
   planner's code (`suggestSize`), so the new Check leaves it out. Store the rule as data with pull request 12. Check's
   hub-readiness rows also need the regions above. Found by pull request #35.
+- **The old planner's loads table (`planner_loads`) isn't frozen,** though `docs/data.md` says it is: saving loads by
+  hand in the old planner also writes its month copy, and the database copies that month back into the loads tables.
+  Correct the docs, and stop the copy at the clean-up (pull request 14). Found by pull request #36.
+- **One rehearsal run hung in the Hubs side by side** and was cancelled at 30 minutes; the cause wasn't found. Hubs now
+  runs last with a 5-minute stop, so a hang loses only its own result. Found by pull request #36.
