@@ -9,7 +9,7 @@
 # The old planner, the way back, opens at /planner/old/: its file, web/planner/index.html, is served there as it is.
 # Going back is one change: make the last line `/planner/*   /planner/   200` again (the old planner at /planner/).
 /planner/next     /planner/           301
-/planner/next/*   /planner/:splat     301
+/planner/next/*   /planner/           301
 /planner/old      /planner/old/       301
 /planner/old/*    /planner/           200
 /planner          /planner/           301
