@@ -307,3 +307,6 @@ starts to matter sooner.
 - **Hubs gives some arrivals a bank they can't make:** 329 arrivals a week (mostly Ryanair at CDG and AMS; CDG 2012
   shows bank 1 though it lands 16:11 before it). Kept as the old planner has it; fix after the switch. Found by pull
   request #34.
+- **Check's suggested aircraft size** on route options (for example "E195", 24 options) came from a rule in the old
+  planner's code (`suggestSize`), so the new Check leaves it out. Store the rule as data with pull request 12. Check's
+  hub-readiness rows also need the regions above. Found by pull request #35.
