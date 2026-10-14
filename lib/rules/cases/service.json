@@ -1,47 +1,505 @@
 {
   "part": "service",
-  "note": "The service profiles (service_profiles, not part of rules_input(): the caller gives them) as Reference has them on 12 Oct: S1 under 800 km, S2 to 1,500, S3 to 4,192 and S4 beyond, shared, and R, Ryanair's own (airline 2 here). The old planner's serviceFor.",
+  "note": "The service profiles as Reference has them on 12 Oct: S1 under 800 km, S2 to 1,500, S3 to 4,192 and S4 beyond, shared, and R, Ryanair's own (airline 2 here). The old planner's serviceFor. The first cases give the profiles in the question; since build pull request 10 rules_input() carries them (service_profiles, laid over the base world below), and the plan card's check (check_card) flags each leg whose service code isn't the one its route's distance calls for, or that has none, naming the leg, the code given and the code wanted. The base world's routes: HUB–AAA 700 km (S1), HUB–DDD 1,400 km (S2), AAA–BBB 5,800 km (airline 2's).",
   "cases": [
     {
       "name": "700 km takes the first shared profile it is under: S1",
       "rule": "the old planner's serviceFor; Reference → service profiles",
-      "ask": {"what": "service_profile", "airline_id": 1, "km": 700, "profiles": [
-        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
-        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
-        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
-      "answer": {"code": "S1"}
+      "ask": {
+        "what": "service_profile",
+        "airline_id": 1,
+        "km": 700,
+        "profiles": [
+          {
+            "id": 1,
+            "code": "S1",
+            "airline_id": null,
+            "up_to_km": 800
+          },
+          {
+            "id": 2,
+            "code": "S2",
+            "airline_id": null,
+            "up_to_km": 1500
+          },
+          {
+            "id": 3,
+            "code": "S3",
+            "airline_id": null,
+            "up_to_km": 4192
+          },
+          {
+            "id": 4,
+            "code": "S4",
+            "airline_id": null,
+            "up_to_km": 99999
+          },
+          {
+            "id": 5,
+            "code": "R",
+            "airline_id": 2,
+            "up_to_km": 99999
+          }
+        ]
+      },
+      "answer": {
+        "code": "S1"
+      }
     },
     {
       "name": "exactly 800 km isn't under 800: S2",
-      "ask": {"what": "service_profile", "airline_id": 1, "km": 800, "profiles": [
-        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
-        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
-        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
-      "answer": {"code": "S2"}
+      "ask": {
+        "what": "service_profile",
+        "airline_id": 1,
+        "km": 800,
+        "profiles": [
+          {
+            "id": 1,
+            "code": "S1",
+            "airline_id": null,
+            "up_to_km": 800
+          },
+          {
+            "id": 2,
+            "code": "S2",
+            "airline_id": null,
+            "up_to_km": 1500
+          },
+          {
+            "id": 3,
+            "code": "S3",
+            "airline_id": null,
+            "up_to_km": 4192
+          },
+          {
+            "id": 4,
+            "code": "S4",
+            "airline_id": null,
+            "up_to_km": 99999
+          },
+          {
+            "id": 5,
+            "code": "R",
+            "airline_id": 2,
+            "up_to_km": 99999
+          }
+        ]
+      },
+      "answer": {
+        "code": "S2"
+      }
     },
     {
       "name": "exactly 4,192 km: S4",
-      "ask": {"what": "service_profile", "airline_id": 1, "km": 4192, "profiles": [
-        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
-        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
-        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
-      "answer": {"code": "S4"}
+      "ask": {
+        "what": "service_profile",
+        "airline_id": 1,
+        "km": 4192,
+        "profiles": [
+          {
+            "id": 1,
+            "code": "S1",
+            "airline_id": null,
+            "up_to_km": 800
+          },
+          {
+            "id": 2,
+            "code": "S2",
+            "airline_id": null,
+            "up_to_km": 1500
+          },
+          {
+            "id": 3,
+            "code": "S3",
+            "airline_id": null,
+            "up_to_km": 4192
+          },
+          {
+            "id": 4,
+            "code": "S4",
+            "airline_id": null,
+            "up_to_km": 99999
+          },
+          {
+            "id": 5,
+            "code": "R",
+            "airline_id": 2,
+            "up_to_km": 99999
+          }
+        ]
+      },
+      "answer": {
+        "code": "S4"
+      }
     },
     {
       "name": "a route longer than every profile takes the last: S4",
-      "ask": {"what": "service_profile", "airline_id": 1, "km": 120000, "profiles": [
-        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
-        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
-        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
-      "answer": {"code": "S4"}
+      "ask": {
+        "what": "service_profile",
+        "airline_id": 1,
+        "km": 120000,
+        "profiles": [
+          {
+            "id": 1,
+            "code": "S1",
+            "airline_id": null,
+            "up_to_km": 800
+          },
+          {
+            "id": 2,
+            "code": "S2",
+            "airline_id": null,
+            "up_to_km": 1500
+          },
+          {
+            "id": 3,
+            "code": "S3",
+            "airline_id": null,
+            "up_to_km": 4192
+          },
+          {
+            "id": 4,
+            "code": "S4",
+            "airline_id": null,
+            "up_to_km": 99999
+          },
+          {
+            "id": 5,
+            "code": "R",
+            "airline_id": 2,
+            "up_to_km": 99999
+          }
+        ]
+      },
+      "answer": {
+        "code": "S4"
+      }
     },
     {
       "name": "an airline with a profile of its own takes it on every route: R",
-      "ask": {"what": "service_profile", "airline_id": 2, "km": 300, "profiles": [
-        {"id": 1, "code": "S1", "airline_id": null, "up_to_km": 800}, {"id": 2, "code": "S2", "airline_id": null, "up_to_km": 1500},
-        {"id": 3, "code": "S3", "airline_id": null, "up_to_km": 4192}, {"id": 4, "code": "S4", "airline_id": null, "up_to_km": 99999},
-        {"id": 5, "code": "R", "airline_id": 2, "up_to_km": 99999}]},
-      "answer": {"code": "R"}
+      "ask": {
+        "what": "service_profile",
+        "airline_id": 2,
+        "km": 300,
+        "profiles": [
+          {
+            "id": 1,
+            "code": "S1",
+            "airline_id": null,
+            "up_to_km": 800
+          },
+          {
+            "id": 2,
+            "code": "S2",
+            "airline_id": null,
+            "up_to_km": 1500
+          },
+          {
+            "id": 3,
+            "code": "S3",
+            "airline_id": null,
+            "up_to_km": 4192
+          },
+          {
+            "id": 4,
+            "code": "S4",
+            "airline_id": null,
+            "up_to_km": 99999
+          },
+          {
+            "id": 5,
+            "code": "R",
+            "airline_id": 2,
+            "up_to_km": 99999
+          }
+        ]
+      },
+      "answer": {
+        "code": "R"
+      }
+    },
+    {
+      "name": "plan card: the right code on each leg (HUB–AAA, 700 km: S1) flags nothing",
+      "rule": "spec 2026-10-14-review part 2: the code its route's distance calls for (service.ts's profileFor on service_profiles)",
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            {
+              "flight_no": 1101,
+              "origin_code": "HUB",
+              "dest_code": "AAA",
+              "dep_local": "06:00",
+              "service_code": "S1"
+            },
+            {
+              "flight_no": 1102,
+              "origin_code": "AAA",
+              "dest_code": "HUB",
+              "dep_local": "09:31",
+              "service_code": "S1"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "ok": true,
+        "problems": [],
+        "service": {
+          "checked": true,
+          "issues": []
+        },
+        "legs": [
+          {
+            "service_given": "S1",
+            "service_wanted": "S1"
+          },
+          {
+            "service_given": "S1",
+            "service_wanted": "S1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "plan card: a wrong code (S3 by position on a 700 km route) is flagged, naming the leg, the code given and the code wanted",
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            {
+              "flight_no": 1101,
+              "origin_code": "HUB",
+              "dest_code": "AAA",
+              "dep_local": "06:00",
+              "service_code": "S1"
+            },
+            {
+              "flight_no": 1102,
+              "origin_code": "AAA",
+              "dest_code": "HUB",
+              "dep_local": "09:31",
+              "service_code": "S3"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "ok": false,
+        "problems": [
+          "leg 2 (1102 AAA–HUB): service S3 given, its route's 700 km calls for S1"
+        ],
+        "service": {
+          "checked": true,
+          "issues": [
+            {
+              "leg": 2,
+              "flight_no": 1102,
+              "from": "AAA",
+              "to": "HUB",
+              "given": "S3",
+              "wanted": "S1",
+              "km": 700
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "plan card: a leg with no code is flagged too, with the code wanted",
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            {
+              "flight_no": 1101,
+              "origin_code": "HUB",
+              "dest_code": "AAA",
+              "dep_local": "06:00",
+              "service_code": "S1"
+            },
+            {
+              "flight_no": 1102,
+              "origin_code": "AAA",
+              "dest_code": "HUB",
+              "dep_local": "09:31"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "ok": false,
+        "problems": [
+          "leg 2 (1102 AAA–HUB): no service code, its route's 700 km calls for S1"
+        ],
+        "service": {
+          "issues": [
+            {
+              "leg": 2,
+              "given": null,
+              "wanted": "S1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "plan card: a longer route wants its own code (HUB–DDD, 1,400 km: S2, not S1)",
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            {
+              "flight_no": 1201,
+              "origin_code": "HUB",
+              "dest_code": "DDD",
+              "dep_local": "06:00",
+              "service_code": "S1"
+            },
+            {
+              "flight_no": 1202,
+              "origin_code": "DDD",
+              "dest_code": "HUB",
+              "dep_local": "13:00",
+              "service_code": "S2"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "service": {
+          "issues": [
+            {
+              "leg": 1,
+              "given": "S1",
+              "wanted": "S2",
+              "km": 1400
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "plan card: Ryanair (airline 2, its own profile R) wants R on every route, so S4 on a 5,800 km route is flagged and R is right",
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "O-001",
+          "legs": [
+            {
+              "flight_no": 3001,
+              "origin_code": "AAA",
+              "dest_code": "BBB",
+              "dep_local": "08:00",
+              "service_code": "S4"
+            },
+            {
+              "flight_no": 3002,
+              "origin_code": "BBB",
+              "dest_code": "AAA",
+              "dep_local": "11:30",
+              "service_code": "R"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "service": {
+          "checked": true,
+          "issues": [
+            {
+              "leg": 1,
+              "flight_no": 3001,
+              "given": "S4",
+              "wanted": "R",
+              "km": 5800
+            }
+          ]
+        },
+        "legs": [
+          {
+            "service_given": "S4",
+            "service_wanted": "R"
+          },
+          {
+            "service_given": "R",
+            "service_wanted": "R"
+          }
+        ]
+      }
+    },
+    {
+      "name": "plan card: an input without service profiles (made before build pull request 10) isn't checked and flags nothing",
+      "input": {
+        "service_profiles": []
+      },
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            {
+              "flight_no": 1101,
+              "origin_code": "HUB",
+              "dest_code": "AAA",
+              "dep_local": "06:00",
+              "service_code": "S4"
+            },
+            {
+              "flight_no": 1102,
+              "origin_code": "AAA",
+              "dest_code": "HUB",
+              "dep_local": "09:31"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "ok": true,
+        "problems": [],
+        "service": {
+          "checked": false,
+          "issues": []
+        }
+      }
     }
-  ]
+  ],
+  "input": {
+    "service_profiles": [
+      {
+        "id": 1,
+        "code": "S1",
+        "airline_id": null,
+        "up_to_km": 800
+      },
+      {
+        "id": 2,
+        "code": "S2",
+        "airline_id": null,
+        "up_to_km": 1500
+      },
+      {
+        "id": 3,
+        "code": "S3",
+        "airline_id": null,
+        "up_to_km": 4192
+      },
+      {
+        "id": 4,
+        "code": "S4",
+        "airline_id": null,
+        "up_to_km": 99999
+      },
+      {
+        "id": 5,
+        "code": "R",
+        "airline_id": 2,
+        "up_to_km": 99999
+      }
+    ]
+  }
 }

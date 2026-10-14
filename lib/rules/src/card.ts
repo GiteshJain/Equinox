@@ -1,7 +1,9 @@
 // A plan card checked against every rule (manual §4: "every new plan card and every retime is checked at both ends").
 // The card is one aircraft's flying: its legs replace whatever that aircraft flies today, and are checked with the rest
 // of the schedule. Legs are given as flight_legs stores them (UTC weekdays and minute) or as the game shows them (local
-// weekdays and "HH:MM" at the origin); a leg without block_min gets the estimate.
+// weekdays and "HH:MM" at the origin); a leg without block_min gets the estimate. Each leg's service code is checked
+// against the one its route's distance calls for (service.ts's checkLegs, #18 build pull request 10): a wrong code or
+// none is a problem naming the leg, the code given and the code wanted.
 import { forAircraft as aircraftWeek } from "./aircraftWeek.js";
 import { bankOfArrival, bankOfDeparture, baseAt, isFocus } from "./banks.js";
 import { blockFor, timedLegs } from "./block.js";
@@ -9,6 +11,7 @@ import { connectionsAtBothEnds } from "./connections.js";
 import { RulesError, findAircraft, findType } from "./input.js";
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
 import { departuresPerAirport, flightNumberClashes, nightBanHits, routeGapHits } from "./schedule.js";
+import { checkLegs as serviceCheck, issueWords as serviceWords } from "./service.js";
 import { DAY, clock, fromLocal, parseClock, toLocal } from "./time.js";
 import type { AircraftRow, Rules, TimedLeg } from "./types.js";
 
@@ -21,6 +24,8 @@ export interface CardLeg {
   days_local?: number[] | null;
   dep_local?: string | null;
   block_min?: number | null;
+  /** The service code the card gives the leg (plan_card_legs.service_code): S1, S2, …, or Ryanair's R. */
+  service_code?: string | null;
 }
 
 export interface Card {
@@ -75,6 +80,7 @@ export function checkCard(rules: Rules, card: Card) {
   const pseudo: AircraftRow = ac ?? { id: -1, registration: "(card)", airline_id: airlineId, aircraft_type_id: type.id };
   const week = aircraftWeek(rules, pseudo, legs.map((l) => ({ ...l, aircraft_id: pseudo.id })));
   const maint = maintenanceOfWeek(rules, type, airlineId, week?.legs ?? []);
+  const svc = serviceCheck(rules, airlineId, card.legs);
   const perLeg = legs.map((l, i) => {
     const depLocal = toLocal(rules, l.origin, l.dep_utc_min, DAY), arrLocal = toLocal(rules, l.dest, l.dep_utc_min + l.block_min, DAY);
     const bo = baseAt(rules, l.origin, airlineId), bd = baseAt(rules, l.dest, airlineId);
@@ -84,6 +90,7 @@ export function checkCard(rules: Rules, card: Card) {
       dep_local: clock(depLocal), arr_local: clock(arrLocal), block_min: l.block_min, block_source: l.block_source,
       bank_out: bo && !isFocus(bo) ? bankOfDeparture(rules, bo, depLocal)?.n ?? 0 : null,
       bank_in: bd && !isFocus(bd) ? bankOfArrival(rules, bd, arrLocal) : null,
+      service_given: svc.legs[i]?.given ?? null, service_wanted: svc.legs[i]?.wanted ?? null,
       feeders: ends.feeders.length, onward: ends.onward.length,
       feeders_list: ends.feeders.map((x) => ({ leg_id: x.leg.id, from: x.leg.origin, flight_no: x.leg.flight_no, days: x.days, gap_min: x.gap_min })),
       onward_list: ends.onward.map((x) => ({ leg_id: x.leg.id, to: x.leg.dest, flight_no: x.leg.flight_no, days: x.days, gap_min: x.gap_min })),
@@ -108,9 +115,10 @@ export function checkCard(rules: Rules, card: Card) {
   for (const h of routeGaps) problems.push(`${h.origin}–${h.dest}: ${h.gap_min} min from another flight on the route (at least ${h.need_min}, ${h.rule})`);
   for (const c of clashes) problems.push(`flight ${c.flight_no} is used twice on day(s) ${c.days.join(", ")}`);
   for (const a of caps) if (a.over) problems.push(`${a.airport}: ${a.departures_week} departures a week, over the cap of ${a.cap}`);
+  for (const i of svc.issues) problems.push(serviceWords(i));
   return {
     aircraft: ac?.registration ?? null, type: type.name, airline_id: airlineId, ok: problems.length === 0, problems,
     legs: perLeg, turns_not_ok: turns.length, maintenance: maint, night_bans: nightBans, route_gaps: routeGaps, flight_number_clashes: clashes,
-    departures: caps, legs_week: week?.legs_week ?? 0, block_hours_day: week?.block_hours_day ?? 0,
+    departures: caps, legs_week: week?.legs_week ?? 0, block_hours_day: week?.block_hours_day ?? 0, service: svc,
   };
 }

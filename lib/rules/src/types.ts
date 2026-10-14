@@ -92,6 +92,15 @@ export interface RouteRow {
   market?: string | null;
 }
 
+/** One of rules_input()'s service_profiles rows (since build pull request 10): on-board service by distance (S1, S2, …),
+ *  airline_id null for the shared profiles, an airline's own (Ryanair's R) otherwise; up to how many km. */
+export interface ServiceProfileRow {
+  id?: number;
+  code: string;
+  airline_id: number | null;
+  up_to_km: number | null;
+}
+
 export interface RotationRow {
   id: number;
   airline_id: number;
@@ -128,6 +137,9 @@ export interface RulesInput {
   routes: RouteRow[];
   rotations: RotationRow[];
   flight_legs: LegRow[];
+  /** The service profiles (service_profiles), since build pull request 10; an input without them skips the plan card's
+   *  service check. */
+  service_profiles?: ServiceProfileRow[];
 }
 
 /** The input, typed and indexed by buildRules(). Plain data plus lookups; nothing in it changes after it is built. */

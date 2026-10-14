@@ -3,7 +3,8 @@
 The planning rules in one place (decision #19, design `docs/design/2026-10-12-planner-app.md` §7): block times,
 turns, connections, banks, maintenance, an aircraft's week, the schedule checks, where each aircraft is, the key
 figures for the planner's Home, a route's frequencies for its Routes screen, an airport's board for its Hubs screen,
-the game check, cabins, daily load report and growth lists for its Check screen, and the optimiser. The new planner, the website's trip search, the optimiser and Claude all use it, so they all give the same
+the game check, cabins, daily load report and growth lists for its Check screen, the plan card's service check, and the
+optimiser. The new planner, the website's trip search, the optimiser and Claude all use it, so they all give the same
 answer. The rules themselves are in the manual (§4 and §9); this is how they are worked out.
 
 - **Plain data in, plain data out.** No screen code, no clock, no network: a moment is always an argument. Lint
@@ -41,7 +42,7 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `aircraftWeek` | An aircraft's week, as the Tails screen shows it: legs a week, block hours a day, routes, each departure with its ground time, turn and position | `aircraftWeek.forAircraft(rules, "T-001").block_hours_day` → 12 |
 | `schedule` | Night bans hit, a second daily too close (`second_daily_gap_h`, and the game's `same_route_gap_min`), flight numbers used twice, departures a week per airport against the cap (and Home's warning from `airport_cap_warning_pct` of it, bad at the cap: `airportCapWarnings`), the next free flight-number pair at a base | `schedule.nextFlightNumbers(rules, hub)` → 1009 / 1010 |
 | `frequency` | A route's frequency for the Routes screen (#18 build pull request 6): a rotation's two legs from the times typed in local time at each end (`toLegs`: stored in UTC; the return on the old planner's day, the first departure after the outbound lands; an arrival left empty stores no block and takes the estimate) and back (`localTimes`, `view`: the old `computeFreq`, with day markers and est); `retime`, the legs re-timed to keep their local times when an airport's offset changes (`withOffset`); `checks`, every check on one frequency against the whole schedule (night bans, numbers used twice, the second-daily gap, the aircraft's position, the turn at the destination, the connections at both ends); `numberRanges` | `frequency.toLegs(rules, ends, {days: [1], dep_hub: 1200, arr_dest: 1335, dep_dest: 390, arr_hub: 410})` → the return on day 2, `cases/frequency.json` |
-| `service` | The service profile a route takes by its distance (`profileFor`: the airline's own profiles first, then the shared ones, the first the distance is under), as the old `serviceFor`; the profiles are the caller's, not in the input | `service.profileFor(profiles, 1, 700).code` → S1 |
+| `service` | The service profile a route takes by its distance (`profileFor`: the airline's own profile first, Ryanair's R, then the shared ones, the first the distance is under), as the old `serviceFor`; the profiles are in the input since build pull request 10 (`service_profiles`), or the caller's. The plan card's service check (`checkLegs`, build pull request 10): each leg's code against the one its route's distance calls for (`wantedFor`: the airline's own route either way round, with any override, else another's, else the great circle), flagging a wrong code or none with the leg, the code given and the code wanted; an input without service profiles isn't checked | `service.profileFor(profiles, 1, 700).code` → S1; on `cases/service.json`, S3 on a 700 km leg → "leg 2 (1102 AAA–HUB): service S3 given, its route's 700 km calls for S1" |
 | `positions` | Where each aircraft is at a moment: in the air with the share flown, or on the ground since its last landing | `positions.positionsAt(rules, "2026-10-12T06:30:00Z")` → T-001 in the air, 40% of the way |
 | `summary` | The key figures on the planner's Home (#18 build pull request 5), for the group and each airline: aircraft in service (status active), routes flying (those with a rotation), flights a day (each departure by an aircraft in service, ÷ 7) and seats a day (those departures' seats: the aircraft's cabin layout, else its type's `seats_max`, ÷ 7) | `summary.keyFigures(rules).flights_day` → 3.14 on `cases/summary.json` (22 departures a week) |
 | `summary` (Home's other figures) | `airlineCards`: each airline's card (aircraft, routes, flights and block hours a day of its aircraft in service, the lowest maintenance with its level, departures with a short turn or wrong position, tight turns, flying, clean, its bases with live ones marked); `now`: the hero at a moment (aircraft in the air, departures on the moment's UTC weekday and in its next hour); `roundTrips`: each flying route's round trips a week | `summary.now(rules, "2026-10-12T06:30:00Z").in_air` → 1 on `cases/summary.json` |
@@ -54,8 +55,9 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `checks` | The one-week aircraft checks (manual §1): each aircraft in service falls due `aircraft_check_after_days` after its latest launch or schedule change, done once checked on or after that day; the dates come from the tables (`aircraft.checked_on`, `schedule_changed_on`, `rotations.launched_on`), today is an argument | `checks.oneWeek(rules, facts, "2026-10-12")` → T-003 coming up on 13 Oct |
 | `optimiser` | The best day's schedule for one aircraft from a base and some destinations: every order and start time, feasible against night bans, maintenance, the second-daily gap and turns; best by connections at the base (and any extra hubs), then maintenance | `optimiser.optimise(rules, {base: "HUB", destinations: ["AAA", "DDD"], ...}).best.order` → `["DDD", "AAA"]` |
 
-Two more: `card.checkCard()` checks a plan card's legs against every rule above, at both ends, and `airport` gives an
-airport's minimum connection time and night ban.
+Two more: `card.checkCard()` checks a plan card's legs against every rule above, at both ends, its service codes
+included (each leg's `service_code`, its `service_given` and `service_wanted`, and `service` with the issues), and
+`airport` gives an airport's minimum connection time and night ban.
 
 ## The command
 For Claude and the scripts (how to get the input: `scripts/README.md`). `npm run build` writes it to `dist/`.
@@ -70,7 +72,7 @@ node lib/rules/dist/cli.js optimise    rules.json KUL KCH,PQC,PEN --type "A321 N
 
 It answers in JSON; an error goes to standard error with a non-zero exit. A card is
 `{"aircraft": "9M-AAB", "legs": [{"flight_no": 6101, "origin_code": "KUL", "dest_code": "KCH", "dep_local": "06:45",
-"days_local": [1, 2, 3, 4, 5, 6, 7]}, ...]}` (or `dep_utc_min` and `days_utc`, as `plan_card_legs` stores them); a leg
+"days_local": [1, 2, 3, 4, 5, 6, 7]}, ...]}` (or `dep_utc_min` and `days_utc`, as `plan_card_legs` stores them), each with its `service_code`; a leg
 without `block_min` gets the estimate, and an aircraft not in the input needs `type` and `airline`. The optimiser's
 start window and step default to 05:00 to 11:00 local and 5 minutes.
 

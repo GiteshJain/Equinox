@@ -755,6 +755,54 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
   .gch .pill{margin-left:0}
 }
 
+/* ---------- Review (#18 build pull request 10): the airline cards and their sparklines, the profit chart and its table,
+   the cash forecast, route profit (its filters, charts and tables), the fare plan, and manual entry (cash boxes, the
+   nightly log, loads by hand), as the old planner's cascade leaves them (web/planner/index.html, both style sheets) ---------- */
+.fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.fcard{text-align:left;background:var(--surface);border:1px solid rgba(14,22,48,.06);border-radius:24px;padding:18px 20px;cursor:pointer;font:inherit;color:inherit;
+  box-shadow:0 1px 0 rgba(14,22,48,.03),0 24px 48px -32px rgba(14,22,48,.35);transition:box-shadow .15s;min-width:0}
+.fcard:hover{box-shadow:0 1px 2px rgba(0,0,0,.04),0 14px 34px -14px rgba(0,0,0,.18)}
+.fcard.on{box-shadow:0 0 0 2px var(--ink),var(--shadow)}
+.fch{display:flex;align-items:center;gap:6px} .fch b{flex:1;min-width:0}
+.fbig{font:400 28px/1.1 var(--font-d);letter-spacing:-.05em;margin-top:10px;color:var(--ink)} .fbig .fu{font:500 13px var(--font);letter-spacing:0;color:var(--muted)}
+.fsub{color:var(--muted);font-size:12px;margin:2px 0 10px}
+.fcard dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:12.5px} .fcard dt{color:var(--muted)} .fcard dd{margin:0;text-align:right}
+.spark{width:120px;height:30px;flex:none} .spark .zero{stroke:#D5DDE8}
+.bpos{fill:#3DBE84} .bneg{fill:#E5486F}
+.neg,.kv.neg{color:#D70015} .pos{color:#1A7F37} b.neg{color:#D70015}
+.chartwrap{position:relative;margin:6px 0 4px}
+.lchart{width:100%;height:auto;display:block} .lchart text{font:500 11px/1 var(--font);fill:#8C94AD} .lchart .grid{stroke:#EDEDF0} .lchart .zero{stroke:#B8C3D3}
+.lchart .hitc{fill:#000;fill-opacity:0;cursor:default} .lchart .avgl{stroke:#1C2536;stroke-dasharray:5 4;stroke-width:1.4} .lchart .avgt{fill:#1C2536;font-weight:600}
+.chartwrap .maptip,.rpc .maptip{display:none;position:absolute;z-index:3;pointer-events:none}
+.ftbl td{white-space:nowrap} .flog td,.flog th{white-space:nowrap}
+.fcchart{width:100%;height:auto;display:block;margin:6px 0 4px}
+.fcfacts{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13px;margin:4px 0 8px} .fcfacts b.neg{color:#B4234B}
+.fcsafe{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px} .fcsafe .pill{white-space:normal}
+.rptbl td.neg,.rptbl td.neg b{color:#B4234B}
+.rpf{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 8px}
+.rpl{font-size:11.5px;color:var(--muted);margin:0 2px 0 8px} .rpl:first-child{margin-left:0}
+.sd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.rpq{margin-left:auto;min-width:220px;padding:7px 10px;border-radius:9px;border:1px solid var(--line,#E4E8F2);font:inherit;font-size:13px}
+.rpcharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px;margin:6px 0 12px}
+.rpc{background:#F9FAFC;border-radius:12px;padding:10px 12px;min-width:0} .rpct{font-size:12.5px;font-weight:700;margin-bottom:4px}
+.rpsvg{width:100%;height:auto;display:block}
+.cashrow{margin:10px 0;padding:10px 12px;border:0;border-radius:var(--r-card);background:var(--group)}
+.cashin{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;align-items:flex-end}
+.cashin label{display:flex;flex-direction:column;font-size:11.5px;gap:3px;color:var(--muted)} .cashin input{width:92px}
+.cashal{display:flex;align-items:flex-end;gap:8px;padding:6px 10px;border:1px solid var(--line,#E6EAF2);border-radius:8px;flex-wrap:wrap} .cashal>b{align-self:center;min-width:72px}
+.qman-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:8px 16px;margin:8px 0}
+.qone{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500} .qone input{width:100%}
+.qfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px} .qfoot .note{margin:0;flex:1 1 300px}
+.lfpaste{margin:10px 0} .lfpaste summary{cursor:pointer} .lfpaste textarea{width:100%;margin:8px 0;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+@media (max-width:1100px){ .fgrid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+/* phones (design §9): at 380 px the cards stack and nothing scrolls sideways; the old route filter box (220 px wide, pushed
+   right) takes a line of its own, and the wide tables scroll in their own box */
+@media (max-width:860px){ .fgrid{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:560px){
+  .rpq{margin-left:0;min-width:0;flex:1 1 100%}
+  .cashin input{width:76px}
+}
+
 /* ---------- small screens ---------- */
 @media (max-width:860px){
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .kv{font-size:24px}

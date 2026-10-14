@@ -1779,6 +1779,9 @@ isOneToOne: false
 "cash_forecast":
 { Args: { "p_airline_id": number,"p_as_of"?: string,"p_orders"?: Json }; Returns: Json
                            },
+"cash_log":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
+                           },
 "export_capture":
 { Args: { "p_days"?: number,"p_secret": string }; Returns: Json
                            },
@@ -1792,6 +1795,9 @@ isOneToOne: false
 { Args: { "p_secret": string }; Returns: Json
                            },
 "fare_changes":
+{ Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
+                           },
+"fare_plan_status":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
                            },
 "growth_signals":

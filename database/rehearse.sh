@@ -72,13 +72,14 @@
 #    380 px nothing scrolls sideways. Screenshots of the new Tails and the old at 380 and 1280 px go to
 #    TAILS_SCREENS_DIR (the run's tails-screens artifact).
 # 14. The new planner's Hubs (#18 build pull request 8, spec docs/specs/2026-10-13-hubs.md), only if 1 to 10 passed,
-#    after the Tails side by side and whatever it found: tests/hubs_side_by_side_test.py opens the old planner and the new
+#    last, after the Review side by side and whatever it found, and stopped after 5 minutes if it stops answering (it takes
+#    about one; a run once hung there, and the 30-minute limit then cancelled every step's report): tests/hubs_side_by_side_test.py opens the old planner and the new
 #    one at the same frozen moment, signed in as test staff, and compares every base's and focus city's board on every day
 #    (the count line, the bank windows, the ticks, the hourly bars, the week grid, the flight list) and its connections
 #    table; it only reads. A preview shows Hubs; at 380 px nothing scrolls sideways. Screenshots of the new Hubs and the
 #    old at 380 and 1280 px go to HUBS_SCREENS_DIR (the run's hubs-screens artifact).
 # 15. The new planner's Check (#18 build pull request 9, spec docs/specs/2026-10-13-check.md), only if 1 to 10 passed,
-#    last, after the Hubs side by side and whatever it found: tests/check_side_by_side_test.py opens the old planner and
+#    after the Tails side by side and whatever it found: tests/check_side_by_side_test.py opens the old planner and
 #    the new one at the same frozen moment, signed in as test staff, and compares how the boards fold, every board
 #    (Capture, Growth, Aircraft checks, Cabins), the daily load report on each of the last 7 days and the game check (the
 #    game answered by the test: a saved sample, an airline's own flights with differences put in, a 502); then fixes one,
@@ -86,6 +87,15 @@
 #    cabin and shows it again and logs an order through the new Check's own buttons, putting back what it changes; a
 #    preview saves nothing; at 380 px nothing scrolls sideways. Screenshots of the new Check and the old at 380 and
 #    1280 px go to CHECK_SCREENS_DIR (the run's check-screens artifact).
+# 16. The new planner's Review (#18 build pull request 10, spec docs/specs/2026-10-14-review.md), only if 1 to 10 passed,
+#    after the Check side by side and whatever it found: tests/review_side_by_side_test.py opens the old planner's
+#    Review and the new one at the same frozen moment, signed in as test staff, and compares every airline's page (the
+#    cards, the group today without its totals, profit, the cash forecast, route profit over 1, 3 and 7 days, the fare plan
+#    and manual entry) and the profit chart at 14 intervals; then saves cash and fixed costs, loads typed and pasted (with a
+#    day marked complete) and a fare plan added and removed in both and checks they write the same rows; a preview saves
+#    nothing; at 380 px nothing scrolls sideways. Screenshots of the new Review and the old at 380 and 1280 px go to
+#    REVIEW_SCREENS_DIR (the run's review-screens artifact). It ends with the plan card's service check on last night's plan
+#    cards, listed as a finding.
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -345,7 +355,10 @@ hubs_side_by_side() {
     || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   if reload_api "$env"; then
     LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" HUBS_SCREENS_DIR="${HUBS_SCREENS_DIR:-}" \
-      python3 tests/hubs_side_by_side_test.py || rc=1
+      timeout -s INT 300 python3 tests/hubs_side_by_side_test.py || rc=$?
+    # a run that stops answering is stopped after 5 minutes (it takes about one), so the steps after it still run
+    if [ $rc -eq 124 ] || [ $rc -eq 130 ]; then echo "FAIL  the Hubs side by side didn't finish within 5 minutes"; fi
+    [ $rc -eq 0 ] || rc=1
   else
     rc=1
   fi
@@ -364,6 +377,24 @@ check_side_by_side() {
   if reload_api "$env"; then
     LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" CHECK_SCREENS_DIR="${CHECK_SCREENS_DIR:-}" \
       python3 tests/check_side_by_side_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
+# The new planner's Review (#18 build pull request 10): side by side with the old Review on the copy, the saves in both,
+# then the plan card's service check on the copy's cards. The local address and keys go to the test in a file only this
+# user can read, as for the real saves; never printed.
+review_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Review on the copy: side by side with the old Review, its saves in both, then the plan card's service check (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" REVIEW_SCREENS_DIR="${REVIEW_SCREENS_DIR:-}" \
+      python3 tests/review_side_by_side_test.py || rc=1
   else
     rc=1
   fi
@@ -522,7 +553,8 @@ if [ $status -eq 0 ]; then
   home_side_by_side || status=1
   routes_side_by_side || status=1   # whatever Home found: its saves touch no route
   tails_side_by_side || status=1    # whatever Routes found: its saves touch no aircraft in service, and it puts back what it changes
-  hubs_side_by_side || status=1     # whatever Tails found: it puts back what it changes, and Hubs only reads
-  check_side_by_side || status=1    # whatever Hubs found: Hubs only reads
+  check_side_by_side || status=1    # whatever Tails found: it puts back what it changes
+  review_side_by_side || status=1   # whatever Check found: Check puts back what it changes
+  hubs_side_by_side || status=1     # whatever Review found: it puts back what it changes, and Hubs only reads
 fi
 exit $status

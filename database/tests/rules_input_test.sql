@@ -17,7 +17,9 @@
 --      rules_input_before.sql; a copy older than rules_input() has none, and section 2's counts are the check), but for
 --      the two settings Home adds (airport_cap_warning_pct, aircraft_check_after_days), the one Tails adds
 --      (aircraft_block_target_h) and the seven Check adds (cabin_refit_cost, cabin_refit_share_pct, growth_big_min_stars,
---      growth_ready_min_days, growth_ready_full_share, order_queue_grace_h, order_queue_warn_h): in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      growth_ready_min_days, growth_ready_full_share, order_queue_grace_h, order_queue_warn_h), and Review's setting
+--      (fare_plan_raise_pct) and service profiles (service_profiles, #18 build pull request 10, every row of the
+--      world's): in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
 --      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
@@ -71,7 +73,7 @@ begin
   if d_before is not null then
     foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h', 'cabin_refit_cost',
                              'cabin_refit_share_pct', 'growth_big_min_stars', 'growth_ready_min_days', 'growth_ready_full_share',
-                             'order_queue_grace_h', 'order_queue_warn_h'] loop
+                             'order_queue_grace_h', 'order_queue_warn_h', 'fare_plan_raise_pct'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
@@ -79,6 +81,13 @@ begin
                                                  from jsonb_array_elements(d_cmp -> 'airlines') with ordinality as e(a, i)));
       n_new := n_new + 1;
     end loop;
+    -- the service profiles (build pull request 10): every row of the world's, then taken out when the copy didn't have them
+    if not d_before ? 'service_profiles' then
+      assert jsonb_array_length(d_all -> 'service_profiles') = (select count(*) from public.service_profiles s where s.world_id = w),
+        'all: the service profiles aren''t every row of the world''s';
+      d_cmp := d_cmp - 'service_profiles';
+      n_new := n_new + 1;
+    end if;
   end if;
   assert d_before is null or d_cmp = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes (the new settings aside)';
   assert (d_flown #>> '{world,id}')::bigint = w, 'flown: the document isn''t the default world''s';
@@ -141,7 +150,7 @@ begin
 
   raise notice 'p_routes: all is % (% KB, % routes, % airports); flown is % KB: the % routes with rotations and the % airports they, the legs, the bases and the aircraft use, the rest the same (% removed routes have rotations; like all, flown leaves removed routes out); other values refused',
     case when d_before is null then 'as the tables have it (the copy had no rules_input() before its changes)'
-         when n_new > 0 then format('unchanged but for the %s new setting(s), at the world and in each airline''s', n_new) else 'unchanged' end,
+         when n_new > 0 then format('unchanged but for %s new part(s): settings, at the world and in each airline''s, and the service profiles', n_new) else 'unchanged' end,
     round(octet_length(d_all::text) / 1024.0), jsonb_array_length(d_all -> 'routes'), jsonb_array_length(d_all -> 'airports'),
     round(octet_length(d_flown::text) / 1024.0), n_routes, n_codes, n_removed;
 end

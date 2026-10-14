@@ -45,7 +45,7 @@ export type { OptimiseAnswer, OptimiseOptions, OptimisedPlan, PlannedLeg } from 
 export type { Card, CardLeg } from "./card.js";
 export type { Wave } from "./banks.js";
 export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, LocalTimes, OtherLeg, StoredLeg, Way } from "./frequency.js";
-export type { ServiceProfile } from "./service.js";
+export type { ServiceCheck, ServiceIssue, ServiceLeg, ServiceLegAnswer, ServiceProfile } from "./service.js";
 export type { TailIssue } from "./tails.js";
 export type { CountryCount, HubBoard, HubConnectionRow, HubConnections, HubFlight, HubWeekDay } from "./hubs.js";
 export type { CardCheck, CheckRow, Frequency, GameComparison, GameFix, GameFlight, GameIssue, ImportCandidate, LegToCheck, PlannerEntry } from "./game.js";
