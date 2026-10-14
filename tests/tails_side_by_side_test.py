@@ -24,7 +24,8 @@ function's answer for a saved game page), with the filed aircraft's plan-card fl
    "differs" (File with the game's times). Each time the new planner files first, the old planner (opened again) shows
    the aircraft flying the same frequencies, the copy is put back, and the old planner files the same card the same way:
    both write the same rows (the aircraft, its first cabin fit, every rotation and leg, the card's legs).
-7. Add a tail, change its maintenance gap and base, and remove it, through the new Tails' own controls: each writes only
+7. Remove a delivery, in the new Tails (its remove link, build pull request 12) and in the old planner from the same copy:
+   the same aircraft rows. Add a tail, change its maintenance gap and base, and remove it, through the new Tails' own controls: each writes only
    its row, logged as planner with the tab's ID; the old planner, opened again, shows each.
 8. A preview address (127.0.0.1) shows Tails, and Add a tail, an edit and File into planner there send no write.
 9. At 380 px wide the list (as cards), an aircraft and the deliveries have no sideways scroll and no errors. Screenshots of
@@ -73,11 +74,6 @@ KNOWN = {
                 "layouts' cabins (Standard for a low-cost airline, every other cabin for the rest), not the old Tails' name patterns "
                 "(typesFor, configsFor) typed into its code (design §2: one source). Only the options of the Type and Config boxes; the "
                 "values shown must be the same.",
-        "used": 0, "where": []},
-    "remove a delivery": {
-        "rule": "the old deliveries board (renderDeliveries, no longer shown by the old Tails) has a remove link on each row; the spec "
-                "asks the new board for the deliveries, their status filters and plan cards, not for removing an order, so the "
-                "actions cell is compared without it.",
         "used": 0, "where": []},
     ARRIVAL: {
         "rule": "filing with the game's times, the old planner sets the card's arrival to the game's but stores only its departure and "
@@ -416,10 +412,7 @@ def compare_board(o, x, label):
             if a[k] != b[k]:
                 p.append(f"{label} {(a['cells'] or ['?'])[0]}: {k}: old {a[k]!r}, new {b[k]!r}")
         if a["actions"] != b["actions"]:
-            if a["actions"].replace(" · remove", "").replace("remove", "") == b["actions"]:
-                known("remove a delivery", f"{label} {(a['cells'] or ['?'])[0]}")
-            else:
-                p.append(f"{label} {(a['cells'] or ['?'])[0]}: the actions: old {a['actions']!r}, new {b['actions']!r}")
+            p.append(f"{label} {(a['cells'] or ['?'])[0]}: the actions: old {a['actions']!r}, new {b['actions']!r}")
     return p
 
 
@@ -775,6 +768,85 @@ async def add_edit_remove(old, new, al, tag):
     return out
 
 
+# ---------- 7b. remove a delivery (build pull request 12: design §16, "a delivery can't be removed yet")
+def fleet_rows():
+    """The world's aircraft as they stand, without their times, by id."""
+    rows = json.loads(psql(f"select coalesce(json_agg(a order by a.id), '[]') from public.aircraft a where a.world_id = {WORLD}").strip())
+    for r in rows:
+        r.pop("updated_at", None)
+        r.pop("created_at", None)
+    return {r["id"]: r for r in rows}
+
+
+def put_back_fleet(before):
+    """The world's aircraft back as they were: a removed one inserted again with its id, a changed one set back (the change
+    log off for the test's own moves)."""
+    now = fleet_rows()
+    gone = [r for i, r in before.items() if i not in now]
+    changed = [r for i, r in before.items() if i in now and now[i] != r]
+    if gone:
+        psql("""set equinox.change_log = 'off';
+            insert into public.aircraft overriding system value select * from json_populate_recordset(null::public.aircraft, :'rows'::json);""",
+             rows=json.dumps(gone))
+    for r in changed:
+        psql("""set equinox.change_log = 'off';
+            update public.aircraft a set (status, retired_on, ordered_on, delivery_at, order_base_code, order_config_id, order_note, extra) =
+              (x.status, x.retired_on, x.ordered_on, x.delivery_at, x.order_base_code, x.order_config_id, x.order_note, x.extra)
+              from json_populate_record(null::public.aircraft, :'row'::json) x where a.id = x.id;""", row=json.dumps(r))
+
+
+async def remove_delivery(old, new, airlines):
+    """Remove a delivery, in the new Tails (its remove link) and then in the old planner (its data-deldel: the delivery taken
+    out of its list), each from the same copy: the same aircraft rows written, logged as planner; the old planner, opened
+    again after the new one's removal, no longer lists it."""
+    pick = json.loads(psql(f"""select coalesce((select json_build_object('id', a.id, 'reg', a.registration, 'airline_id', a.airline_id, 'status', a.status)
+        from public.aircraft a where a.world_id = {WORLD} and a.extra ? 'deliveries_index' and not a.extra ? 'tails_index' and a.status <> 'retired'
+        order by (a.extra ->> 'deliveries_index')::int, a.id limit 1), 'null')""").strip())
+    if not pick:
+        return "remove a delivery: the copy has no aircraft on order", []
+    al = next((a for a in airlines if a["id"] == pick["airline_id"]), None)
+    if not al:
+        return f"remove a delivery: {pick['reg']}'s airline isn't one of ours", []
+    reg, problems = pick["reg"], []
+    before = fleet_rows()
+    try:
+        await refresh(new)
+        client = await new.pg.evaluate("window.__eqPlanner.client")
+        await new_go(new, "/tails" + q(airline=al["code"]))
+        mark = marks()
+        await new.pg.click(f"[data-deldel={json.dumps(reg)}]")
+        await rs.wait_for(lambda: log_since(mark), lambda got: len(got) >= 1, seconds=30)
+        await until_quiet()
+        new_log = log_since(mark)
+        new_rows = fleet_rows()
+        problems += [f"a change-log row names {r['actor']} ({r['detail']}), not planner with the tab's ID" for r in new_log if r["actor"] != "planner" or r["detail"] != client]
+        await old.reopen()
+        if await old.run(f"(state.deliveries || []).some(d => d.reg === {json.dumps(reg)})"):
+            problems.append("the old planner, opened again after the new one's removal, still lists the delivery")
+        put_back_fleet(before)
+        await old.reopen()
+        mark = marks()
+        await old.run(f"state.deliveries = (state.deliveries || []).filter(d => d.reg !== {json.dumps(reg)}); commit(); true")
+        await rs.wait_for(lambda: log_since(mark), lambda got: len(got) >= 1, seconds=30)
+        await until_quiet()
+        old_log = log_since(mark)
+        old_rows = fleet_rows()
+    finally:
+        put_back_fleet(before)
+        await old.reopen()
+        await refresh(new)
+    kinds = lambda rows: Counter((r["table"], r["op"]) for r in rows)
+    if kinds(new_log) != kinds(old_log):
+        problems.append(f"the new planner changed {dict(kinds(new_log))}, the old {dict(kinds(old_log))}")
+    for i in sorted(set(new_rows) | set(old_rows)):
+        if new_rows.get(i) != old_rows.get(i):
+            problems.append(f"aircraft {i} ({(old_rows.get(i) or new_rows.get(i) or {}).get('registration')}): new {new_rows.get(i)}, old {old_rows.get(i)}"[:700])
+    if fleet_rows() != before:
+        problems.append("the aircraft weren't put back as they were")
+    return (f"remove a delivery ({al['code']} {reg}, {pick['status']}) in the new Tails and in the old planner, from the same copy: the same aircraft rows "
+            f"({dict(kinds(new_log))}), logged as planner with the tab's ID; the old planner, opened again, no longer lists it"), problems
+
+
 # ---------- 8. a preview, 9. a phone and the screenshots
 async def preview(p, port, env, facts, staff, moment, seen, al, reg, filing_reg):
     pv = NewTails(p, port, env, facts)
@@ -1028,6 +1100,11 @@ async def main():
                         step(not problems, label, problems + new.errors[:3] + old.errors[:3])
                 except Exception as e:
                     step(False, "add, edit and remove a tail in the new Tails", [why(e)] + new.errors[:3] + old.errors[:3])
+                try:
+                    label, problems = await remove_delivery(old, new, airlines)
+                except Exception as e:
+                    label, problems = "remove a delivery", [why(e)]
+                step(not problems, label, problems + new.errors[:3] + old.errors[:3])
                 try:
                     label, problems = await home_links(new, airlines)
                 except Exception as e:

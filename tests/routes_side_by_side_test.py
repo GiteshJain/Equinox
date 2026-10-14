@@ -482,6 +482,47 @@ async def popups(old, new, airlines, flown, route_ids):
     return n, p
 
 
+async def tail_popups(old, new):
+    """The aircraft pop-up a frequency's aircraft opens on Routes (build pull request 12, design §16: "the aircraft pop-up opens
+    from Home only"), for one frequency of each airline that has an aircraft: the pop-up of that aircraft, against the old
+    planner's tailModal(), as tests/tails_side_by_side_test.py compares the one Home opens."""
+    import tails_side_by_side_test as ts
+    picks = json.loads(psql("""select coalesce(json_agg(x order by x.position, x.code), '[]') from (
+        select distinct on (al.id) al.iata_code as code, al.position, ro.id as rot, r.hub_code as hub, r.dest_code as dest, a.registration as reg,
+               exists (select 1 from public.flight_legs e where e.aircraft_id = a.id and e.dep_utc_min is not null and e.block_min is null) as est
+          from public.rotations ro join public.routes r on r.id = ro.route_id join public.airlines al on al.id = r.airline_id
+          join public.flight_legs l on l.rotation_id = ro.id and l.leg_no = 1 join public.aircraft a on a.id = l.aircraft_id
+         where ro.world_id = (select w.id from public.worlds w order by w.is_default desc, w.id limit 1) and not r.removed and a.status = 'active'
+         order by al.id, ro.id) x""").strip())
+    p, n = [], 0
+    for x in picks:
+        label = f"{x['code']} {x['hub']}–{x['dest']} ({x['reg']})"
+        try:
+            o = await old.pg.evaluate(ts.OLD_POPUP.replace("arguments[0]", json.dumps(x["reg"])))
+            to = f"/routes/{x['code']}/{x['hub']}-{x['dest']}"
+            await new_go(new, to, f"{x['hub']}-{x['dest']}")
+            await new.pg.click(f".freq[data-rotation='{x['rot']}'] [data-tailm]")
+            await new.pg.wait_for_selector(f"[data-aircraft-popup={json.dumps(x['reg'])}][data-popup-ready=yes]", timeout=60000)
+            await new.pg.wait_for_timeout(150)
+            if "aircraft=" not in await new.pg.evaluate("location.search"):
+                p.append(f"{label}: the pop-up isn't in the address")
+            y = await new.pg.evaluate(ts.READ_POPUP)
+            await new.pg.click(".modal .mx")
+            await new.pg.wait_for_selector("[data-aircraft-popup]", state="detached", timeout=10000)
+            n += 1
+            for k in ("head", "stats", "statPills", "issues", "rows", "empty", "foot"):
+                a, b = (o or {}).get(k), (y or {}).get(k)
+                if a == b:
+                    continue
+                if k in ("stats", "statPills", "issues", "rows") and x["est"]:
+                    known("block estimates", f"the aircraft pop-up of {label}: {k}")
+                else:
+                    p.append(f"the aircraft pop-up of {label}: {k}: old {a!r}, new {b!r}"[:600])
+        except Exception as e:
+            p.append(f"the aircraft pop-up of {label}: {why(e)}")
+    return n, p
+
+
 # ---------- 5. real saves
 def logged(mark, allowed, client, want=None):
     """The change-log rows since the mark: each one a table and row the action may change (allowed: (table, id) pairs, or
@@ -985,6 +1026,14 @@ async def main():
                 step(not problems and n > 0, f"the route pop-up Home's map opens equals the old one ({n} routes: distance, demand, flights a day, loads, "
                      "signal, every frequency with its times, days, aircraft and bank fit, market and city, Open in Routes) "
                      f"({time.monotonic() - t:.0f} s)", problems or ["no route compared"])
+                t = time.monotonic()
+                try:
+                    n, problems = await tail_popups(old, new)
+                except Exception as e:
+                    n, problems = 0, [why(e)]
+                step(not problems and n > 0, f"a frequency's aircraft on Routes opens its pop-up (in the address), equal to the old tailModal ({n} aircraft, one an "
+                     f"airline: base, block a day, legs a week, maintenance, the one-week check, the issues, its flights) ({time.monotonic() - t:.0f} s)",
+                     problems or ["no aircraft compared"])
                 for k, v in KNOWN.items():
                     where = f" (e.g. {'; '.join(v['where'][:4])})" if v["where"] else ""
                     print(f"      known difference \"{k}\": used {v['used']} time(s){where}. {v['rule']}"[:1800], flush=True)
