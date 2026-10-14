@@ -63,15 +63,18 @@ export function Review() {
   const airlinesQ = useOurAirlines(w);
   const rulesQ = useRules(w);
   const cardsQ = useReviewCards(w);
-  const cards = useMemo(() => cardsQ.data?.airlines ?? [], [cardsQ.data]);
+  const airlines: ReviewAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
+    id: a.id, code: a.iata_code, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, color: a.livery_color,
+  })), [airlinesQ.data]);
+  // each airline by its planner name, as the old Review names it (the captured figures give the public name)
+  const named = useMemo(() => new Map(airlines.map((a) => [a.id, a.name])), [airlines]);
+  const cards = useMemo(() => (cardsQ.data?.airlines ?? []).map((c) => ({ ...c, name: named.get(c.airline_id) ?? c.name })), [cardsQ.data, named]);
+  const groupRows = useMemo(() => (cardsQ.data?.group_today ?? []).map((r) => ({ ...r, name: named.get(r.airline_id) ?? r.name })), [cardsQ.data, named]);
   const profitsQ = useProfits(cards.map((c) => c.airline_id));
   const profitOf = new Map<number, ProfitAnswer>();
   profitsQ.forEach((q, i) => { const c = cards[i]; if (c && q.data) profitOf.set(c.airline_id, q.data); });
 
   const [code, routeKey] = (params["*"] ?? "").split("/").filter(Boolean);
-  const airlines: ReviewAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
-    id: a.id, code: a.iata_code, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, color: a.livery_color,
-  })), [airlinesQ.data]);
   const colorOf = (id: number) => airlines.find((a) => a.id === id)?.color ?? null;
   const sel = cards.find((c) => c.code === code) ?? cards[0];
   const selId = sel?.airline_id;
@@ -119,7 +122,7 @@ export function Review() {
       <FoldTools onCollapse={() => setFolded(new Set(BOARDS))} onExpand={() => setFolded(new Set())} />
       {cardsQ.data && rules && sel ? (
         <>
-          {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={cardsQ.data.group_today} />, { figure: "review: the group today" }) : null}
+          {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={groupRows} />, { figure: "review: the group today" }) : null}
           <div className="fgrid" data-figure="review: cards">
             {cards.map((c) => <AirlineCard key={c.airline_id} c={c} on={c.airline_id === selId} color={colorOf(c.airline_id)} days={profitOf.get(c.airline_id)?.days ?? []}
               onPick={() => navigate("/review/" + encodeURIComponent(c.code ?? String(c.airline_id)))} />)}
@@ -144,7 +147,7 @@ export function Review() {
           ), { figure: `review ${sel.name}: Route profit` }) : null}
           {planQ.data ? board("Fare plan", <FarePlanBody airline={sel.name} plan={planQ.data} busy={busy} onDrop={(p) => void save([farePlanDrop(p)])} />,
             { figure: `review ${sel.name}: Fare plan` }) : null}
-          {logQ.data ? board("Manual entry", <ManualEntry worldId={w} rules={rules} log={logQ.data} airlines={airlines} busy={busy} now={now} onSave={save} />,
+          {logQ.data ? board("Manual entry", <ManualEntry worldId={w} rules={rules} log={{ ...logQ.data, airlines: logQ.data.airlines.map((a) => ({ ...a, name: named.get(a.airline_id) ?? a.name })) }} airlines={airlines} busy={busy} now={now} onSave={save} />,
             { figure: "review: manual entry" }) : null}
         </>
       ) : null}

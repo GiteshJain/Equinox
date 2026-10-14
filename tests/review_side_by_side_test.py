@@ -778,8 +778,10 @@ def service_finding():
 
 # ---------- what the copy holds
 def read_copy():
-    airlines = json.loads(psql(f"""select coalesce(json_agg(json_build_object('id', x.airline_id, 'code', x.iata_code, 'name', x.name) order by x.ord), '[]')
-              from private.fig_airlines({WORLD}) x""").strip())
+    # the airlines the captured figures cover, by the name the old planner knows them by (its planner name)
+    airlines = json.loads(psql(f"""select coalesce(json_agg(json_build_object('id', x.airline_id, 'code', x.iata_code,
+              'name', coalesce(a.planner_name, a.public_name, a.game_name)) order by x.ord), '[]')
+              from private.fig_airlines({WORLD}) x join public.airlines a on a.id = x.airline_id""").strip())
     COPY.update(airlines=airlines, world=int(psql(f"select {WORLD}").strip()))
     return airlines
 
