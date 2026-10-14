@@ -335,7 +335,10 @@ def compare_board(k, o, n):
         return [f"{k}: the {'old' if o is None else 'new'} board isn't there"]
     p = []
     for f in ("head", "folded", "bars", "rest", "pills", "lines"):
-        if o[f] != n[f]:
+        if o[f] != n[f] and isinstance(o[f], str) and isinstance(n[f], str) and len(o[f]) + len(n[f]) > 600:
+            i = next((j for j in range(min(len(o[f]), len(n[f]))) if o[f][j] != n[f][j]), min(len(o[f]), len(n[f])))
+            p.append(f"{k}: {f}, from character {i}: old …{o[f][max(0, i - 150):i + 350]!r}, new …{n[f][max(0, i - 150):i + 350]!r}")
+        elif o[f] != n[f]:
             p.append(f"{k}: {f}: old {o[f]!r}, new {n[f]!r}"[:1200])
     if o["sizes"] and not n["sizes"]:
         known("suggested size", f"{k}: {len(o['sizes'])} options, e.g. {o['sizes'][:4]}")
@@ -644,6 +647,9 @@ async def game_saves(old, new, tw):
         if n_fleet != o_fleet:
             diff = [(x["registration"], {c: (x[c], y.get(c)) for c in x if x[c] != y.get(c)}) for x, y in zip(n_fleet, o_fleet) if x != y][:4]
             problems.append(f"the aircraft after the new planner's {what} differ from the old's: (aircraft, column: new, old) {diff}"[:900])
+        # the legs that were there before (those added are compared with the rows added, below, without their ids)
+        n_legs = [x for x in n_legs if x["id"] <= int(ids["flight_legs"])]
+        o_legs = [x for x in o_legs if x["id"] <= int(ids2["flight_legs"])]
         changed = [x["id"] for x, y in zip(n_legs, snap) if x != y]
         if n_legs != o_legs:
             diff = [(x["id"], {c: (x[c], y.get(c)) for c in x if x[c] != y.get(c)}) for x, y in zip(n_legs, o_legs) if x != y][:4]
