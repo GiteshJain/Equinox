@@ -59,6 +59,7 @@ PAGE_BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Fare plan", "Man
 failures = []
 started = time.monotonic()
 COPY = {}
+HELD_BACK = []
 
 KNOWN = {
     "group totals": {
@@ -75,6 +76,11 @@ KNOWN = {
         "rule": "Cash, next 14 days lists each type an airline may buy: the old planner in its code's order (BUY_TYPES), the database by "
                 "aircraft type (airline_aircraft_types; tests/captured_figures_test.py compares them as sets). Only the order: the same pills "
                 "with the same words.",
+        "used": 0, "where": []},
+    "routes order": {
+        "rule": "the aircraft table lists the routes each aircraft flew: the old Review in the order the database happened to return "
+                "the capture's flights (it asked for none), the captured figures (aircraft_profit()) in the order they were flown, as "
+                "Check's side by side allows. Only the order within that cell: the same routes.",
         "used": 0, "where": []},
     "rounding at a boundary": {
         "rule": "a figure the old screen rounded from its own floating-point sums and the database works out exactly can land either side "
@@ -199,7 +205,13 @@ def compare_board(al, k, o, n):
     for i, (a, b) in enumerate(zip(o["tables"], n["tables"])):
         if len(a) != len(b):
             p.append(f"{al}: {k}: table {i + 1} ({(a or [[]])[0][:3]}): old {len(a)} rows, new {len(b)}")
+        # a Routes column holds a set: the same routes in another order are a known difference
+        sets = [c for c, h in enumerate((a or [[]])[0]) if h == "Routes" and (b or [[]])[0][c:c + 1] == ["Routes"]]
         for r, (x, y) in enumerate(zip(a, b)):
+            if r and x != y and sets and len(x) == len(y) and all(
+                    (sorted(x[c].split(", ")) == sorted(y[c].split(", "))) if c in sets else x[c] == y[c] for c in range(len(x))):
+                known("routes order", f"{al} {x[0]}: old '{x[sets[0]]}', new '{y[sets[0]]}'")
+                continue
             same(f"{al}: {k}: table {i + 1} row {r}", x, y, p)
     same(f"{al}: {k}: buttons", o["buttons"], n["buttons"], p)
     same(f"{al}: {k}: boxes", o["inputs"], n["inputs"], p)
@@ -396,16 +408,16 @@ def snapshot(sql_rows):
     """The rows a query gives, as JSON, without their times (each side writes its own)."""
     rows = json.loads(psql(f"select coalesce(json_agg(x), '[]') from ({sql_rows}) x").strip())
     for r in rows:
-        for c in ("created_at", "updated_at", "entered_at", "saved_at_ms"):
+        for c in ("id", "created_at", "updated_at", "entered_at", "saved_at_ms"):
             r.pop(c, None)
     return rows
 
 
 def restore(table, key_sql, rows_json):
-    """Puts a table's rows for a key back as they were (the change log off for the test's own moves)."""
+    """Puts a table's rows for a key back as they were, ids and all (the change log off for the test's own moves)."""
     psql(f"""set equinox.change_log = 'off';
         delete from public.{table} where {key_sql};
-        insert into public.{table} select * from json_populate_recordset(null::public.{table}, :'rows'::json);""", rows=rows_json)
+        insert into public.{table} overriding system value select * from json_populate_recordset(null::public.{table}, :'rows'::json);""", rows=rows_json)
 
 
 def raw(table, key_sql):
@@ -447,13 +459,20 @@ async def both(name, old, new, today, tables, act_new, act_old, after_new=None, 
             problems.append(f"{t} after the new planner's save differs from the old's: new {new_rows[t]}, old {old_rows[t]}"[:900])
     if not new_log:
         problems.append("the new planner wrote nothing")
+    mark3 = marks()
     await old.reopen()
     await refresh(new)
+    await asyncio.sleep(1)
+    for t, k in tables.items():
+        if json.loads(raw(t, k)) != json.loads(before[t]):
+            late = log_since(mark3)
+            problems.append(f"{t} changed again after it was put back, with both planners opened again ({dict(kinds(late))}"
+                            f"{', by ' + late[0]['actor'] + ' (' + str(late[0]['detail']) + ')' if late else ''}): put back once more")
+            restore(t, k, before[t])
     return f"{name}: {dict(kinds(new_log))}, the same rows as the old planner's, logged as planner" + (" (save_loads, the old route)" if detail else " with the tab's ID"), problems
 
 
-async def saves(old, new, today):
-    out = []
+async def saves(old, new, today, out):
     w = COPY["world"]
     # ---- cash and fixed costs for today: the first airline with today's cash, a figure 1.11M more and its fixed costs typed
     log = json.loads(psql("select private.fig_cash_log(:'w'::bigint, :'m'::timestamptz)", w=w, m=COPY["moment"]).strip())
@@ -623,8 +642,11 @@ async def saves(old, new, today):
         except Exception as e:
             out.append(("remove", [why(e)]))
         finally:
-            restore("fare_plan", tables["fare_plan"], before)
-            await refresh(new)
+            try:
+                restore("fare_plan", tables["fare_plan"], before)
+                await refresh(new)
+            except Exception as e:
+                out.append(("the fare plan put back", [why(e)]))
     else:
         out.append(("+ fare plan and remove: no route on the copy offers a fare plan (none marked raise fares or add a flight without one planned)", []))
     return out
@@ -806,13 +828,15 @@ async def main():
     COPY["moment"] = moment
     try:
         held = set_aside(psql, moment)
-        atexit.register(lambda: put_back_loads(psql, held))
+        atexit.register(lambda: HELD_BACK or put_back_loads(psql, held))
         airlines = read_copy()
         problems = [] if airlines else ["the copy has none of our airlines"]
     except Exception as e:
         held, airlines, problems = {}, [], [why(e)]
+    aside = [f"{r.get('airline_id', '')} {r.get('game_date')} {r.get('flight_no', 'day')}" for t in HELD for r in json.loads(held.get(t) or "[]")]
     step(not problems, f"the moment: {moment} (the copy's latest capture plus one hour); typed loads and day flags entered after it set aside until the test "
-         "ends (" + ", ".join(f"{t}: {len(json.loads(held.get(t) or '[]'))}" for t in HELD) + f"); the copy: {len(airlines)} of our airlines", problems)
+         "ends (" + ", ".join(f"{t}: {len(json.loads(held.get(t) or '[]'))}" for t in HELD) + (f": {'; '.join(aside[:6])}" if aside else "")
+         + f"); the copy: {len(airlines)} of our airlines", problems)
     if problems:
         sys.exit(1)
 
@@ -878,11 +902,13 @@ async def main():
                     where = f" (e.g. {'; '.join(v['where'][:4])})" if v["where"] else ""
                     print(f"      known difference \"{k}\": used {v['used']} time(s){where}. {v['rule']}"[:1800], flush=True)
 
+                done = []
                 try:
-                    for label, problems in await saves(old, new, today):
-                        step(not problems, label, problems + new.errors[:3] + old.errors[:3])
+                    await saves(old, new, today, done)
                 except Exception as e:
-                    step(False, "saving cash, loads and the fare plan in the new Review", [why(e)] + new.errors[:3] + old.errors[:3])
+                    done.append(("saving cash, loads and the fare plan in the new Review", [why(e)]))
+                for label, problems in done:
+                    step(not problems, label, problems + new.errors[:3] + old.errors[:3])
                 await old.close()
                 await new.close()
 
@@ -899,6 +925,18 @@ async def main():
         service_finding()
     except Exception as e:
         print(f"ok    finding: the plan card's service check couldn't run ({why(e)})", flush=True)
+
+    if any(json.loads(held.get(t) or "[]") for t in HELD):
+        problems = []
+        try:
+            put_back_loads(psql, held)
+        except Exception as e:
+            # name the rows the test left where a set-aside row goes back
+            clash = psql("""select coalesce(json_agg(e), '[]') from public.load_entries e join json_populate_recordset(null::public.load_entries, :'h'::json) h
+                              using (airline_id, game_date, flight_no)""", h=held.get("load_entries") or "[]").strip()
+            problems = [why(e), f"in the way: {clash[:600]}"]
+        HELD_BACK.append(True)
+        step(not problems, "the typed loads and day flags set aside at the start put back as they were", problems)
 
     outside = sorted({h for x in seen for h in x.outside})
     stopped = ", ".join(sorted({h for x in seen for h in x.stopped})) or "nothing"
