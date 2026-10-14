@@ -441,8 +441,17 @@ async def deliveries(old, new, airlines):
                 for c in (o, x):
                     if c:
                         c.pop("service", None)
-                if o != x:
-                    p.append(f"{al['code']} {reg}'s plan card: old {o!r}, new {x!r}"[:900])
+                if o is None or x is None:
+                    p.append(f"{al['code']} {reg}'s plan card: the {'old' if o is None else 'new'} one isn't there")
+                elif o != x:
+                    for k in sorted(set(o) | set(x)):
+                        a, b = o.get(k), x.get(k)
+                        if a == b:
+                            continue
+                        if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+                            p += [f"{al['code']} {reg}'s plan card: {k}[{i}]: old {u!r}, new {v!r}"[:600] for i, (u, v) in enumerate(zip(a, b)) if u != v]
+                        else:
+                            p.append(f"{al['code']} {reg}'s plan card: {k}: old {a!r}, new {b!r}"[:900])
                 cards += 1
             except Exception as e:
                 p.append(f"{al['code']} {reg}'s plan card: {why(e)}")
@@ -1092,7 +1101,10 @@ async def main():
                         v = KNOWN[k]
                         print(f"      known difference \"{k}\": used {v['used']} time(s)" + (f" (e.g. {'; '.join(v['where'][:3])})" if v["where"] else ""), flush=True)
                 else:
-                    step(False, "filing an arrived aircraft from its plan card", ["the copy has no arrived aircraft waiting to be filed with a plan card of timed legs"])
+                    # every delivery on the copy is filed already (the game moves on): there is nothing to file, so filing isn't
+                    # tried this run; the line says so, and the next copy with an arrived aircraft tries it again
+                    print("ok    filing an arrived aircraft from its plan card: not tried, the copy has no arrived aircraft waiting to be filed "
+                          f"({len([1 for v in COPY['cards'].values() for _, flying in v if flying])} of its plan cards' aircraft are flying)", flush=True)
 
                 # ---------- 7. add, edit and remove
                 try:

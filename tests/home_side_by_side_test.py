@@ -505,7 +505,7 @@ async def look(old, new):
     pages the same width), and of what each draws by ::before (a fold's chevron, a dot, a bar) with its content, size
     and turn; both Homes' screenshots at each width go into the artifact. Sizes that depend on the content (an
     element's width and height, a grid's columns) aren't compared; a gap only on flex or grid boxes, where it shows."""
-    p, n_parts = [], 0
+    p, n_parts, neither = [], 0, []
     for width, height in ((1280, 900), (380, 800)):
         await old.pg.set_viewport_size({"width": width, "height": height})
         await new.pg.set_viewport_size({"width": width, "height": height})
@@ -515,6 +515,11 @@ async def look(old, new):
         ns_ = dict(await new.pg.evaluate(STYLES, [[[n, s] for n, _, s in LOOK], LOOK_PROPS, PSEUDO_PROPS]))
         for name, _, _ in LOOK:
             o, x = os_.get(name), ns_.get(name)
+            if o is None and x is None:
+                # neither Home draws it on this copy (no aircraft on order, say): nothing to compare, named in the line
+                if name not in neither:
+                    neither.append(name)
+                continue
             if o is None or x is None:
                 p.append(f"{width} px: {name}: {'the old Home has none' if o is None else ''}{' and ' if o is None and x is None else ''}{'the new Home has none' if x is None else ''}")
                 continue
@@ -532,7 +537,7 @@ async def look(old, new):
     await new.pg.set_viewport_size({"width": 1280, "height": 900})
     return (f"the look: {len(LOOK)} parts of Home (the hero, the game clocks and the band, the map, aircraft on order, needs attention, coming up, "
             f"the to-do board, the airline cards, and what they draw by ::before) have the old Home's computed styles at 1280 and 380 px "
-            f"({n_parts} compared)"), p
+            f"({n_parts} compared" + (f"; drawn by neither Home on this copy: {', '.join(neither)}" if neither else "") + ")"), p
 
 
 # ---------- the planners ----------

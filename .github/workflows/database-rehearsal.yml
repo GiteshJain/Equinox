@@ -36,6 +36,7 @@ on:
       - "tests/hubs_side_by_side_test.py"
       - "tests/check_side_by_side_test.py"
       - "tests/review_side_by_side_test.py"
+      - "tests/reference_side_by_side_test.py"
       - "tests/fixtures/load_table_sample.tsv"
       - "tests/rule_numbers_test.py"
       - "tests/harness.py"
@@ -122,6 +123,7 @@ jobs:
           HUBS_SCREENS_DIR: ${{ runner.temp }}/hubs-screens   # the new Hubs and the old at 380 and 1280 px (#18 build pull request 8)
           CHECK_SCREENS_DIR: ${{ runner.temp }}/check-screens   # the new Check and the old at 380 and 1280 px (#18 build pull request 9)
           REVIEW_SCREENS_DIR: ${{ runner.temp }}/review-screens   # the new Review and the old at 380 and 1280 px (#18 build pull request 10)
+          REFERENCE_SCREENS_DIR: ${{ runner.temp }}/reference-screens   # the new Interline, Photos and Reference and the old at 380 and 1280 px (#18 build pull request 12)
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -209,6 +211,17 @@ jobs:
         with:
           name: review-screens
           path: ${{ runner.temp }}/review-screens/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # The same for the new planner's Interline, Photos and Reference and the old ones (tests/reference_side_by_side_test.py)
+      - name: Keep the screenshots of the new Interline, Photos and Reference and the old
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-screens
+          path: ${{ runner.temp }}/reference-screens/*.png
           if-no-files-found: ignore
           retention-days: 3
 

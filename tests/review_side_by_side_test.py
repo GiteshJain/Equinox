@@ -87,6 +87,12 @@ KNOWN = {
                 "return the captured fares in (it asked for none), the captured figures (fare_changes()) order them by route "
                 "(tests/captured_figures_test.py compares them as sets). Only the order of rows with the same day: the same rows.",
         "used": 0, "where": []},
+    "order on a tie": {
+        "rule": "route profit's aircraft are listed by their profit a day after lease; two aircraft with the same figures came in the "
+                "order the database happened to return them in the old Review, in aircraft_profit()'s order in the new one. Only "
+                "aircraft whose every figure is the same (their chart labels and tips, their table rows but for the registration "
+                "and the routes), in another order.",
+        "used": 0, "where": []},
     "rounding at a boundary": {
         "rule": "a figure the old screen rounded from its own floating-point sums and the database works out exactly can land either side "
                 "of a rounding boundary (captured_figures_test.py counts float noise at a boundary as no difference). Only a number one "
@@ -186,6 +192,37 @@ def same(label, o, n, p):
     p.append(f"{label}: old {o!r}, new {n!r}"[:900])
 
 
+def tied_names(titles):
+    """The names (before the colon) of chart bars whose words after it are the same as another's: aircraft that tie."""
+    by = {}
+    for t in titles or []:
+        if isinstance(t, str) and ": " in t:
+            name, rest = t.split(": ", 1)
+            by.setdefault(rest, []).append(name)
+    return {x for v in by.values() if len(v) > 1 for x in v}
+
+
+def tie_swap(a, b, tied):
+    """Two lists the same but for the order of names that tie."""
+    if not tied or not isinstance(a, list) or not isinstance(b, list) or len(a) != len(b) or sorted(map(str, a)) != sorted(map(str, b)):
+        return False
+    hit = lambda x: isinstance(x, str) and any(x == t or x.startswith(t + ":") or x.startswith(t + " ") for t in tied)
+    return all(hit(a[i]) and hit(b[i]) for i in range(len(a)) if a[i] != b[i])
+
+
+def tie_rows(a, b, sets):
+    """Table rows the same but for the order of rows that tie: the same words in every column but the first (the
+    registration) and the Routes column (a set)."""
+    if len(a) != len(b):
+        return False
+    norm = lambda r: tuple(", ".join(sorted(c.split(", "))) if j in sets else c for j, c in enumerate(r))
+    if sorted(map(norm, a)) != sorted(map(norm, b)):
+        return False
+    rest = lambda r: tuple(c for j, c in enumerate(r) if j and j not in sets)
+    diff = [i for i in range(len(a)) if norm(a[i]) != norm(b[i])]
+    return bool(diff) and all(rest(a[i]) == rest(b[i]) for i in diff)
+
+
 def compare_board(al, k, o, n):
     p = []
     if o is None or n is None:
@@ -203,7 +240,11 @@ def compare_board(al, k, o, n):
     if len(o["svgs"]) != len(n["svgs"]):
         p.append(f"{al}: {k}: old {len(o['svgs'])} charts, new {len(n['svgs'])}")
     for i, (a, b) in enumerate(zip(o["svgs"], n["svgs"])):
+        tied = tied_names(a["titles"]) & tied_names(b["titles"])
         for f in ("texts", "titles", "tips", "bars"):
+            if a[f] != b[f] and tie_swap(a[f], b[f], tied):
+                known("order on a tie", f"{al} {k}: chart {i + 1}'s {f}: {', '.join(sorted(tied))[:80]}")
+                continue
             same(f"{al}: {k}: chart {i + 1}'s {f}", a[f], b[f], p)
     if len(o["tables"]) != len(n["tables"]):
         p.append(f"{al}: {k}: old {len(o['tables'])} tables, new {len(n['tables'])}")
@@ -218,6 +259,10 @@ def compare_board(al, k, o, n):
             continue
         # a Routes column holds a set: the same routes in another order are a known difference
         sets = [c for c, h in enumerate((a or [[]])[0]) if h == "Routes" and (b or [[]])[0][c:c + 1] == ["Routes"]]
+        if a != b and a[:1] == b[:1] and sets and tie_rows(a[1:], b[1:], sets):
+            known("order on a tie", f"{al} {k}: table {i + 1}: " + ", ".join(x[0] for x, y in zip(a[1:], b[1:]) if x != y)[:80])
+            key = lambda r: tuple(", ".join(sorted(c.split(", "))) if j in sets else c for j, c in enumerate(r))
+            a, b = [a[0]] + sorted(a[1:], key=key), [b[0]] + sorted(b[1:], key=key)
         for r, (x, y) in enumerate(zip(a, b)):
             if r and x != y and sets and len(x) == len(y) and all(
                     (sorted(x[c].split(", ")) == sorted(y[c].split(", "))) if c in sets else x[c] == y[c] for c in range(len(x))):
