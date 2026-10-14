@@ -8,10 +8,10 @@ less. It leaves 2.1M at the lowest point, enough for Kingfisher's six cabin conv
 
 | Option | Growth | Profit a week (after lease) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| A. Three A321neos | ~6 more flights a day on trunks, Gulf and new cities · DEL +~100 departures a week | ~1.05M | 1.83M | conversions (1.2M) fit only just (0.63M left) | low | no |
-| B. Two A321neos + one XLR | the XLR for a second Heathrow or a new Europe route · DEL +~70 | ~1.1M | 1.41M | the conversions wait; Amsterdam's XLR could do Heathrow instead (see below) | Europe beyond London is soft | no |
-| **C. Two A321neos + one A320neo** | **trunk and Gulf frequency plus ~3 new secondary cities · DEL +~100** | **~1.05M** | **2.11M** | **none of note** | **low** | **no** |
-| D. Two A321neos + two E195s | E195s start the regional layer on 3-star routes · DEL +~130 | ~1.0M | 0.63M | conversions wait; no E195 data at Kingfisher yet | 0.13M over the cushion | no |
+| A. Three A321neos | ~6 more flights a day on trunks, Gulf and new cities · DEL +~50 departures a week | ~1.05M | 1.83M | conversions (1.2M) fit only just (0.63M left) | low | no |
+| B. Two A321neos + one XLR | the XLR for a second Heathrow or a new Europe route · DEL +~35 | ~1.1M | 1.41M | the conversions wait; Amsterdam's XLR could do Heathrow instead (see below) | Europe beyond London is soft | no |
+| **C. Two A321neos + one A320neo** | **trunk and Gulf frequency plus ~3 new secondary cities · DEL +~50** | **~1.05M** | **2.11M** | **none of note** | **low** | **no** |
+| D. Two A321neos + two E195s | E195s start the regional layer on 3-star routes · DEL +~65 | ~1.0M | 0.63M | conversions wait; no E195 data at Kingfisher yet | 0.13M over the cushion | no |
 
 The cash forecast is the database's `cash_forecast()` on the 14 Oct 03:11 UTC capture, with each order's lease counted
 (manual §3). Profit is an estimate from Kingfisher's own aircraft (game_flights, 7–13 Oct):
@@ -19,6 +19,9 @@ The cash forecast is the database's `cash_forecast()` on the 14 Oct 03:11 UTC ca
 - **A320neo (VT-AAM):** 83k a day, less about 31k.
 - **XLR on Heathrow:** 102k a day, less about 41k.
 - **E195:** 45–56k a day at the other airlines, less about 25k.
+
+*Departure figures halved on 14 Oct: they first counted flights both ways, but the 750 target counts departures from
+the hub only. The decision doesn't change.*
 
 ## Background
 - **Route profit** (game_flights, 7–13 Oct): every domestic and Gulf flight sold out in economy.

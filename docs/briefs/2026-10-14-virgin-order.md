@@ -10,9 +10,9 @@ scheduled on 13 Oct had been fitted with the old cabin, which put eleven Virgin 
 
 | Option | Growth | Profit a week (after lease) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| A. Three A321neos | ~9 new 4-star cities · LGW +~125 departures a week | ~1.0M | 1.12M | the 11 refits (2.1M, ~1.1M a week) can't be afforded | low; new routes unproven | no |
-| B. Two A321neos + one E195 | ~6 new 4-star cities plus ~3 thinner 3-star ones · LGW +~125 | ~0.8M | 1.82M | the refits still don't fit | low | no |
-| **C. Two A321neos, plus the 11 refits** | **~6 new 4-star cities · LGW +~85; +264 seats on the routes Virgin already flies** | **~0.65M + ~1.1M from the refits** | **~1.6M (3.72M less 2.1M)** | **three fewer new cities than A** | **low** | **no** |
+| A. Three A321neos | ~9 new 4-star cities · LGW +~60 departures a week | ~1.0M | 1.12M | the 11 refits (2.1M, ~1.1M a week) can't be afforded | low; new routes unproven | no |
+| B. Two A321neos + one E195 | ~6 new 4-star cities plus ~3 thinner 3-star ones · LGW +~60 | ~0.8M | 1.82M | the refits still don't fit | low | no |
+| **C. Two A321neos, plus the 11 refits** | **~6 new 4-star cities · LGW +~40; +264 seats on the routes Virgin already flies** | **~0.65M + ~1.1M from the refits** | **~1.6M (3.72M less 2.1M)** | **three fewer new cities than A** | **low** | **no** |
 
 **The refits** (`cabin_configs`; game_flights, 7–13 Oct): the new 321-LEI has 180 economy and 15 business seats
 against the old cabin's 156 and 16. Virgin's old-cabin A321s sell out in economy at an average fare of 128 and fly
@@ -23,6 +23,9 @@ The cash forecast is the database's `cash_forecast()` on the 14 Oct capture, wit
 §3). Two A321neos plus two E195s would breach the cushion (−0.08M). Profit is an estimate. Gatwick's existing four-star
 routes make 9–18k a flight (median about 14k); an A321neo on three such round trips makes about 84k a day, less a lease
 of about 34k. Virgin's E195s make about 45k a day, less 25k.
+
+*Departure figures halved on 14 Oct: they first counted flights both ways, but the 750 target counts departures from
+the hub only. The decision doesn't change.*
 
 ## Background
 - **Loads and profit** (game_flights, 7–13 Oct): Virgin's routes all sold out except Cairo (97%), Oslo (96%) and

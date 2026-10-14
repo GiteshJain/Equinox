@@ -7,9 +7,9 @@ conversions too, and the forecast allows another aircraft within a few days.
 
 | Option | Growth | Profit a week (after lease) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| A. Four A321neos | ~8 new or extra domestic routes · JFK +~110 departures a week | ~1.6M | 0.63M | no Atlantic growth; the cabin conversions (0.8M) wait | 0.13M over the cushion; one bigger week-end closing breaches it | no |
-| B. Three XLRs | 3 new five-star Europe routes or second dailies · JFK +42 | ~1.2M | 1.96M | no domestic feed; fewest JFK departures | low | no |
-| **C. Two A321neos + one XLR** | **~4 domestic routes + 1 Atlantic · JFK +~70** | **~1.2M** | **2.80M** | the third and fourth aircraft wait a few days | **low** | **no** |
+| A. Four A321neos | ~8 new or extra domestic routes · JFK +~55 departures a week | ~1.6M | 0.63M | no Atlantic growth; the cabin conversions (0.8M) wait | 0.13M over the cushion; one bigger week-end closing breaches it | no |
+| B. Three XLRs | 3 new five-star Europe routes or second dailies · JFK +21 | ~1.2M | 1.96M | no domestic feed; fewest JFK departures | low | no |
+| **C. Two A321neos + one XLR** | **~4 domestic routes + 1 Atlantic · JFK +~35** | **~1.2M** | **2.80M** | the third and fourth aircraft wait a few days | **low** | **no** |
 
 The cash forecast is the database's `cash_forecast()` on the 14 Oct 03:11 UTC capture, with each order's lease counted
 (manual §3). Mixes it refused: three A321neos plus an XLR (0.21M) and two of each (−0.21M). Profit is an estimate:
@@ -19,6 +19,9 @@ The cash forecast is the database's `cash_forecast()` on the 14 Oct 03:11 UTC ca
   is about 41k a day.
 
 The forecast leaves out the new aircraft's own income, which adds buffer once they fly.
+
+*Departure figures halved on 14 Oct: they first counted flights both ways, but the 750 target counts departures from
+the hub only. The decision doesn't change.*
 
 ## Background
 - **Route profit** (game_flights, 7–13 Oct): every Pan Am route sold out in economy except Toronto (67%, 6k a flight).
@@ -34,7 +37,7 @@ The forecast leaves out the new aircraft's own income, which adds buffer once th
   - **Five-star Europe:** Barcelona, Zurich, Munich and Rome with no rival. Madrid (Iberia) and Lisbon (TAP) have 14 a
     week each. Rome is 6,866 km, near the XLR's 6,939.
 - **JFK** (flight_legs): 154 departures a week, the furthest of any main hub from 750. Each XLR on the Atlantic adds
-  14 departures a week, and an A321neo on two domestic round trips 28. At JFK we're largest (154), ahead of United 56,
+  7 departures a week, and an A321neo on two domestic round trips 14. At JFK we're largest (154), ahead of United 56,
   Air Canada 49 and British Caledonian 42.
 - **Rotation:** Pan Am's last two moves were big markets (Chicago O'Hare opened, 30 Sep; Gatwick, 5 Oct), so frequency is next.
   The sold-out Atlantic and transcon routes are the obvious second dailies. It stays flexible.

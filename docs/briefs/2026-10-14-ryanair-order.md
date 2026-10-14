@@ -8,14 +8,17 @@ on proven routes. It leaves 2.86M at the lowest point.
 
 | Option | Growth | Profit a week (after lease) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| A. Five A321neos at Paris and Amsterdam | second dailies on proven routes plus new 4-star southern cities · +~200 departures a week | ~1.6M | 2.86M | Barcelona waits; few 5-star markets left at Paris or Amsterdam | low | no |
-| B. Four A321neos to open Barcelona | a third base with 5-star routes nobody flies · +~170 | ~1.3M (no data yet) | 5.37M | no extra flights on proven routes | new base, no loads yet | no |
-| **C. Five A321neos: three open Barcelona, two to Amsterdam** | **Barcelona opens, plus second dailies to Lisbon, Porto and Rome or Barcelona from Amsterdam · +~200** | **~1.6M** | **2.86M** | **none of note** | **low; Barcelona's demand is unproven** | **no** |
+| A. Five A321neos at Paris and Amsterdam | second dailies on proven routes plus new 4-star southern cities · +~100 departures a week | ~1.6M | 2.86M | Barcelona waits; few 5-star markets left at Paris or Amsterdam | low | no |
+| B. Four A321neos to open Barcelona | a third base with 5-star routes nobody flies · +~85 | ~1.3M (no data yet) | 5.37M | no extra flights on proven routes | new base, no loads yet | no |
+| **C. Five A321neos: three open Barcelona, two to Amsterdam** | **Barcelona opens, plus second dailies to Lisbon, Porto and Rome or Barcelona from Amsterdam · +~100** | **~1.6M** | **2.86M** | **none of note** | **low; Barcelona's demand is unproven** | **no** |
 
 The cash forecast is the database's `cash_forecast()` on the 14 Oct capture, with each order's lease counted (manual
 §3). Six A321neos would leave 0.35M, under the cushion. Profit is an estimate: Ryanair's A321neos make 72–86k a day of
 flight profit (game_flights, 7–13 Oct), and the lease is about 34k a day. E195s are left out on purpose. They make
 43–58k a day against a 25k lease, so an A321neo earns nearly twice as much after lease for 35% more money.
+
+*Departure figures halved on 14 Oct: they first counted flights both ways rather than departures from the bases. The
+decision doesn't change.*
 
 ## Background
 - **Route profit** (game_flights, 7–13 Oct): every Ryanair route sold out in economy except Sofia (88%), Split (97%)
