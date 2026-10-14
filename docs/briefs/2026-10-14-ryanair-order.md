@@ -55,4 +55,7 @@ flight profit (game_flights, 7–13 Oct), and the lease is about 34k a day. E195
 - A rival opening Barcelona–Zurich, Munich or Dublin in the next scan: B, to secure them.
 
 ## Outcome
-<open>
+**14 Oct: C,** five A321neos. Three open Barcelona and two go to Amsterdam for second dailies. Gitesh orders them in
+the game and tells Claude, who logs them (To-do board). Routes are decided when they land. Barcelona's base (its flight
+number block, as a focus base like Paris and Amsterdam) is set up with the first plan card. Manual §2's bases table now
+lists Barcelona as opening.

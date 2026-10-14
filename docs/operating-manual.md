@@ -188,12 +188,13 @@ Details and open points: `docs/decisions.md`.
 |---|---|---|---|
 | Pan Am | JFK | ORD, SFO, SEA | Dallas, then LAX (both on hold under hubs-first) |
 | Kingfisher | Delhi | Hyderabad, Bengaluru, Chennai, Kolkata (on hold) | Mumbai |
-| Ryanair | Paris CDG, Amsterdam (all bases are focus) | — | Barcelona, then Milan and Munich; no eastern base for now |
+| Ryanair | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order; all bases are focus) | — | Milan and Munich; no eastern base for now |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
 | China Eastern | Shanghai PVG, Xi'an, Kunming | Beijing Daxing, Shenzhen | — |
 | Malaysia | KUL | — | — |
 
-*Base roles from 29 Sep, Kingfisher from 2 Oct, holds from 5 Oct.*
+*Base roles from 29 Sep, Kingfisher from 2 Oct, holds from 5 Oct; Ryanair's Barcelona decided 14 Oct (brief
+`docs/briefs/2026-10-14-ryanair-order.md`).*
 
 ## 3. Fleet and orders
 - **Fleet families:** the five legacy airlines fly the A320 family (A320neo, A321neo, A321XLR), the A350 only where
