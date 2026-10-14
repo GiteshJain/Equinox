@@ -416,12 +416,13 @@ def kinds(rows):
 
 
 def snapshot(sql_rows):
-    """The rows a query gives, as JSON, without their times (each side writes its own)."""
+    """The rows a query gives, as JSON, without their times (each side writes its own), in a fixed order (a table put back
+    returns its rows in another)."""
     rows = json.loads(psql(f"select coalesce(json_agg(x), '[]') from ({sql_rows}) x").strip())
     for r in rows:
         for c in ("id", "created_at", "updated_at", "entered_at", "saved_at_ms"):
             r.pop(c, None)
-    return rows
+    return sorted(rows, key=lambda r: json.dumps(r, sort_keys=True))
 
 
 def restore(table, key_sql, rows_json):
@@ -436,12 +437,12 @@ def raw(table, key_sql):
 
 
 def plain(rows_json):
-    """Rows as JSON without their times (a put-back row takes the time of its insert)."""
+    """Rows as JSON without their times (a put-back row takes the time of its insert), in a fixed order."""
     rows = json.loads(rows_json)
     for r in rows:
         for c in ("created_at", "updated_at", "entered_at", "saved_at_ms"):
             r.pop(c, None)
-    return rows
+    return sorted(rows, key=lambda r: json.dumps(r, sort_keys=True))
 
 
 async def both(name, old, new, today, tables, act_new, act_old, after_new=None, detail=None, view=None, keep=None, mirror=False):
