@@ -6,7 +6,7 @@ Status: **decided**, **open**, or **dropped**.
 ## Step 1 — How we work (decide now)
 | # | Decision | Status |
 |---|---|---|
-| 1 | Private GitHub repository `equinox` as the single home for code, database changes, scripts, tests and docs | **decided** 8 Oct 2026 |
+| 1 | GitHub repository `equinox` (private until 14 Oct, now public) as the single home for code, database changes, scripts, tests and docs | **decided** 8 Oct 2026, changed 14 Oct |
 | 2 | Building through Claude Code and the repository: every change as a reviewable pull request | **decided** 8 Oct 2026 |
 | 3 | A claude.ai "Equinox" project with its own instructions and reference files | **decided** 8 Oct 2026 |
 | 4 | Operating manual and decision log: every rule and the reason behind each decision in one place | **decided** 8 Oct 2026 |
@@ -55,6 +55,13 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
 ## Decision log
 - **8 Oct 2026 · #1 Repository.** Private repository `equinox` on GitHub. Reason: the code's only copy was the live
   site, and a workspace reset wiped the working copy that morning.
+  **Changed 14 Oct 2026 (Gitesh): the repository is public.** Reason: the month's 2,000 free GitHub Actions minutes
+  ran out after the #13 and #18 builds (about 1,860 used by 14 Oct, half of it the database rehearsal), and public
+  repositories run Actions free. Checked first: no keys or passwords anywhere in its history (only the website's
+  public key and the test databases' throwaway logins). Accepted as public: the docs, the planner's code, the small
+  dated samples of game data in `tests/fixtures/`, and Gitesh's email in one old migration's history. Pull requests
+  from outside contributors need his approval before their workflows run, and get no secrets. `equinox-backups` stays
+  private: its history and releases hold full copies of the database.
 - **8 Oct 2026 · Order.** Decide everything hard to undo up front, then build phase by phase with a review after each.
 - **8 Oct 2026 · Tools.** Keep Supabase (standard Postgres, no lock-in) and a static host; no move to AWS or Vercel.
   Add GitHub, a domain name and an outside backup destination. Hosting and the database plan are decisions 7 and 17.
