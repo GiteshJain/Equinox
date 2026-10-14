@@ -27,6 +27,9 @@ nothing goes outside.
    route_loads(), against the old planner's own figures. The look: the computed styles of each part of Home and of what
    it draws by ::before (the folds' chevrons, the dots, the cards' bar), both pages the same width, at 1280 and 380 px. A difference fails and names the board, the item and both values, unless it
    is a known difference (KNOWN below, each with its rule), which is printed with how often it was used and both values.
+   Since the switch (build pull request 13) the interline line is compared too, and, because last night's copy may have
+   every interline pair answered (so neither Home shows it), once more with every agreement set to "requested" for the
+   test: both Homes read again must show the same line and the same needs attention; the statuses are then put back.
 5. Real saves in the new Home, by its own buttons: tick the first open to-do; add one with two steps; the old planner,
    opened again, shows the same to-do board; delete the new one (the planner asks in the page, never a browser
    dialog); dismiss an item of needs attention with ×; the old planner shows it dismissed too; show again; the old
@@ -588,6 +591,48 @@ async def new_home(pl):
     return await pl.pg.evaluate(NEW_HOME)
 
 
+# ---------- 4c. the interline line with pairs open (the switch, build pull request 13)
+AGREEMENTS = f"""select coalesce(json_agg(json_build_object('id', a.id, 'status', a.status) order by a.id), '[]')
+                 from public.interline_agreements a where a.world_id = {WORLD}"""
+
+
+def set_statuses(rows):
+    psql("""begin;
+      select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'home_side_by_side_test', true);
+      update public.interline_agreements x set status = s.status
+        from jsonb_to_recordset(:'r'::jsonb) as s(id bigint, status text) where x.id = s.id and x.status is distinct from s.status;
+      commit;""", r=json.dumps(rows))
+
+
+async def interline_open(old, new):
+    """Last night's copy may have every interline pair answered (14 Oct: 2 agreements, both signed), so neither Home shows
+    the interline line. Every agreement is set to "requested" (to_sign) for the test, both Homes are read again, and
+    needs attention must be the same in both with the line counting those pairs; then each row's status is put back."""
+    rows = json.loads(psql(AGREEMENTS).strip())
+    if not rows:
+        return "the interline line with pairs open: the copy has no interline agreement to open (not tried)", []
+    problems = []
+    try:
+        set_statuses([{"id": r["id"], "status": "to_sign"} for r in rows])
+        o = await old.reopen()
+        await new.pg.reload()
+        n = await new_home(new)
+        lo, ln = interline_line(o), interline_line(n)
+        if not lo or not ln:
+            problems.append(f"the interline line: old {lo!r}, new {ln!r} (both should show one)")
+        problems += [x for x in compare(o, n) if x.startswith("needs attention")]
+    finally:
+        set_statuses(rows)
+    if json.loads(psql(AGREEMENTS).strip()) != rows:
+        problems.append("the agreements' statuses weren't put back")
+    # both Homes as they were, for what follows
+    await old.reopen()
+    await new.pg.reload()
+    await new_home(new)
+    return (f"the interline line with pairs open: with the copy's {len(rows)} agreement(s) set to requested for the test, both Homes "
+            f"say {ln!r}, and needs attention is the same in both; the statuses put back"), problems
+
+
 async def saved(pl, mark=None, rows=0):
     """Waits until the copy's change log has the save's rows (when a mark is given), then until the new planner's header
     says saved (or preview · not saved) again."""
@@ -897,6 +942,11 @@ async def main():
                 for k, v in KNOWN.items():
                     where = f" ({'; '.join(v['where'][:6])})" if v["where"] else ""
                     print(f"      known difference \"{k}\": used {v['used']} time(s){where}. {v['rule']}", flush=True)
+                try:
+                    label, problems = await interline_open(old, new)
+                except Exception as e:
+                    label, problems = "the interline line with pairs open", [why(e)]
+                step(not problems, label, problems + new.errors[:3] + old.errors[:3])
 
                 # ---------- 5. real saves
                 try:
