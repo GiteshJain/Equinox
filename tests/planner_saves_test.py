@@ -10,7 +10,8 @@ save writes fails here, so it has to be meant: update the recorded answer in the
 Run by database/rehearse.sh after tests/planner_next_test.py, on the copy with every pending change. It needs the copy,
 so it isn't part of tests/run_all.sh. Like planner_next_test.py: a test staff user made through the copy's sign-in, the
 pull request's own new planner (web/app/) at its live address with the live Supabase host answered by the copy, its clock
-frozen at the copy's latest capture plus one hour, and nothing goes outside. /api/game-schedule is answered by the test
+frozen at the copy's latest capture plus one hour (moved on a second before each save, so two saves never share a moment:
+a to-do's key is made from the time), and nothing goes outside. /api/game-schedule is answered by the test
 (the saved sample tests/fixtures/schedule_113.expected.json, and the airline's own flights with a few changes), and the
 photo bucket in the browser (the copy has no storage service).
 
@@ -55,7 +56,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from harness import FIX, ROOT, serve, settle
 from playwright.async_api import async_playwright
-from local_copy import WORLD, local_env, log_since, marks, moment as copy_moment, one, psql, staff_user, wait_for, why
+from local_copy import WORLD, local_env, log_since, marks, moment as copy_moment, ms, one, psql, staff_user, wait_for, why
 import planner_next_test as pn
 
 EXPECTED = FIX / "planner_saves.expected.json"
@@ -229,9 +230,15 @@ async def saved_state(pl):
 class Saves:
     """Runs each save and checks its answer against the recorded one."""
 
-    def __init__(self, pl):
+    def __init__(self, pl, now):
         self.pl = pl
         self.want = expected()
+        self.at = ms(now)
+
+    async def tick(self):
+        """The planner's clock a second on, still frozen: each save at its own moment (a new to-do's key is the time)."""
+        self.at += 1000
+        await self.pl.pg.clock.set_fixed_time(self.at / 1000)
 
     async def act(self, name, do, rows=1, variable=(), fields=True, extra=None, quiet=1.5):
         pl = self.pl
@@ -241,6 +248,7 @@ class Saves:
         mark = marks()
         e0 = len(pl.errors)
         try:
+            await self.tick()
             await do()
             if rows:
                 got = await wait_for(lambda: log_since(mark), lambda got: len(got) >= rows, seconds=45)
@@ -1028,7 +1036,7 @@ async def main():
         async with async_playwright() as p:
             pl = Saver(p, port, env, facts)
             seen.append(pl)
-            s = Saves(pl)
+            s = Saves(pl, now)
             try:
                 await pl.open(moment=now)
                 await pl.pg.emulate_media(reduced_motion="reduce")
