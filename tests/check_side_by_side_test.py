@@ -116,9 +116,6 @@ READ = r"""(sel) => {
   const R = document.querySelector(sel);
   if (!R) return null;
   const T = e => (e ? e.textContent.replace(/\s+/g, " ").trim() : "");
-  // a board's other words, one text node at a time: the old markup has spaces between its tags where React has none
-  const TT = e => { const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT), out = []; let n;
-    while ((n = w.nextNode())) { const t = n.textContent.replace(/\s+/g, " ").trim(); if (t) out.push(t); } return out.join(" "); };
   const cls = e => [...e.classList].sort().join(" ");
   const cell = c => T(c) + [...c.querySelectorAll(".pill")].map(p => "{" + cls(p) + "}").join("");
   const rows = t => [...t.querySelectorAll("tr")].map(tr => [...tr.children].map(cell));
@@ -139,7 +136,7 @@ READ = r"""(sel) => {
       flights: [...q.querySelectorAll(".qlist > span")].map(s => (s.classList.contains("dim") ? "~" : "") + T(s) + (s.querySelector(".capl.low") ? "{low}" : "")) }));
     const lines = [...c.querySelectorAll(".gc")].map(g => ({ text: T(g), pills: [...g.querySelectorAll(".pill")].map(cls), buttons: [...g.querySelectorAll("button")].map(T) }));
     c.querySelectorAll("table, .ck, .qcard, .gc").forEach(e => e.remove());
-    out.boards[h.dataset.rkey] = { head: T(h), folded: b.classList.contains("rcol"), sizes, tables, bars, cards, qcards, lines, rest: TT(c),
+    out.boards[h.dataset.rkey] = { head: T(h), folded: b.classList.contains("rcol"), sizes, tables, bars, cards, qcards, lines, rest: T(c),
       pills: [...c.querySelectorAll(".pill")].map(p => cls(p) + "|" + T(p)) };
   }
   return out;
@@ -335,9 +332,13 @@ def compare_board(k, o, n):
         return [f"{k}: the {'old' if o is None else 'new'} board isn't there"]
     p = []
     for f in ("head", "folded", "bars", "rest", "pills", "lines"):
+        # a board's other words, without their spaces: the old markup has spaces between its tags where React has none
+        if f == "rest" and re.sub(r"\s", "", o[f]) == re.sub(r"\s", "", n[f]):
+            continue
         if o[f] != n[f] and isinstance(o[f], str) and isinstance(n[f], str) and len(o[f]) + len(n[f]) > 600:
-            i = next((j for j in range(min(len(o[f]), len(n[f]))) if o[f][j] != n[f][j]), min(len(o[f]), len(n[f])))
-            p.append(f"{k}: {f}, from character {i}: old …{o[f][max(0, i - 150):i + 350]!r}, new …{n[f][max(0, i - 150):i + 350]!r}")
+            a, b = (re.sub(r"\s", "", o[f]), re.sub(r"\s", "", n[f])) if f == "rest" else (o[f], n[f])
+            i = next((j for j in range(min(len(a), len(b))) if a[j] != b[j]), min(len(a), len(b)))
+            p.append(f"{k}: {f}{' (without spaces)' if f == 'rest' else ''}, from character {i}: old …{a[max(0, i - 150):i + 350]!r}, new …{b[max(0, i - 150):i + 350]!r}")
         elif o[f] != n[f]:
             p.append(f"{k}: {f}: old {o[f]!r}, new {n[f]!r}"[:1200])
     if o["sizes"] and not n["sizes"]:
