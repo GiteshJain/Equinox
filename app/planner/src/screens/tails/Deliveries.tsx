@@ -1,7 +1,9 @@
 // The deliveries board (the old planner's renderDeliveries) and a plan card (planCard): every aircraft with a delivery,
 // on order, arrived and not yet scheduled, or flying, for the airline and the Tails filters above (base and type), with
 // its own status filter (open by default); each with its plan card (title, base, legs with their numbers, route, local
-// times, block and service), and File into planner once it has arrived. Filing itself is Filing.tsx.
+// times, block and service), and File into planner once it has arrived. Filing itself is Filing.tsx. A leg whose service
+// code isn't the one its route's distance calls for (or has none) shows it as an issue on the leg ("S1, wants S3"; the
+// plan card's service check, #18 build pull request 10).
 import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
 import { comingIn, type CardLeg, type DeliveryRow, type DeliveryStatus, type PlanCardRow, type TailAirline } from "./model";
@@ -9,8 +11,10 @@ import { comingIn, type CardLeg, type DeliveryRow, type DeliveryStatus, type Pla
 const STATUS: readonly [DeliveryStatus, string][] = [["", "Open"], ["on order", "On order"], ["unscheduled", "Arrived"], ["flying", "Flying"]];
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function PlanCard({ reg, base, title, type, config, card, legs, filed, canFile, busy, onFile }: {
+export function PlanCard({ reg, base, title, type, config, card, legs, service, filed, canFile, busy, onFile }: {
   reg: string; base: string; title: string; type: string; config: string; card: PlanCardRow; legs: readonly CardLeg[]; filed: boolean; canFile: boolean; busy: boolean;
+  /** Each leg's service issue, by its row id. */
+  service?: ReadonlyMap<number, string>;
   onFile: () => void;
 }) {
   return (
@@ -20,7 +24,13 @@ export function PlanCard({ reg, base, title, type, config, card, legs, filed, ca
         <table className="tbl pt">
           <tbody>
             <tr><th>Flight</th><th>Route</th><th>Departs</th><th>Arrives</th><th>Block</th><th>Service</th></tr>
-            {legs.map((l) => <tr key={l.row.id} data-card-leg><td><b>{l.no}</b></td><td>{l.from}–{l.to}</td><td>{l.dep}</td><td>{l.arr}</td><td>{l.block}</td><td>{l.svc}</td></tr>)}
+            {legs.map((l) => {
+              const issue = service?.get(l.row.id);
+              return (
+                <tr key={l.row.id} data-card-leg><td><b>{l.no}</b></td><td>{l.from}–{l.to}</td><td>{l.dep}</td><td>{l.arr}</td><td>{l.block}</td>
+                  <td>{l.svc}{issue ? <> <span className="pill bad sm" data-service-issue title="the service code its route's distance calls for">{issue}</span></> : null}</td></tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -33,13 +43,15 @@ export function PlanCard({ reg, base, title, type, config, card, legs, filed, ca
   );
 }
 
-export function Deliveries({ all, shown, airline, filters, open, legsOf, filed, busy, now, onStatus, onCard, onFile }: {
+export function Deliveries({ all, shown, airline, filters, open, legsOf, serviceOf, filed, busy, now, onStatus, onCard, onFile }: {
   all: readonly DeliveryRow[];
   shown: readonly DeliveryRow[];
   airline: TailAirline | undefined;
   filters: { base: string; type: string; del: DeliveryStatus };
   open: string;
   legsOf: (card: PlanCardRow) => CardLeg[];
+  /** Each leg's service issue on a card, by the leg's row id. */
+  serviceOf?: (card: PlanCardRow, legs: readonly CardLeg[]) => ReadonlyMap<number, string>;
   filed: (aircraftId: number) => boolean;
   busy: boolean;
   now: number;
@@ -92,8 +104,7 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, filed, 
                 open === r.a.registration && r.card ? (
                   <tr className="planrow" key={r.a.id + "-card"}>
                     <td colSpan={8}>
-                      <PlanCard reg={r.a.registration} base={r.base} title={r.plan} type={r.type} config={r.config} card={r.card} legs={r.card ? legsOf(r.card) : []}
-                        filed={filed(r.a.id)} canFile={arrived && now > 0} busy={busy} onFile={() => onFile(r)} />
+                      <CardRow r={r} legsOf={legsOf} serviceOf={serviceOf} filed={filed(r.a.id)} canFile={arrived && now > 0} busy={busy} onFile={() => onFile(r)} />
                     </td>
                   </tr>
                 ) : null,
@@ -104,4 +115,14 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, filed, 
       </div>
     </div>
   );
+}
+
+function CardRow({ r, legsOf, serviceOf, filed, canFile, busy, onFile }: {
+  r: DeliveryRow; legsOf: (card: PlanCardRow) => CardLeg[]; serviceOf?: (card: PlanCardRow, legs: readonly CardLeg[]) => ReadonlyMap<number, string>;
+  filed: boolean; canFile: boolean; busy: boolean; onFile: () => void;
+}) {
+  if (!r.card) return null;
+  const legs = legsOf(r.card);
+  return <PlanCard reg={r.a.registration} base={r.base} title={r.plan} type={r.type} config={r.config} card={r.card} legs={legs} service={serviceOf?.(r.card, legs)}
+    filed={filed} canFile={canFile} busy={busy} onFile={onFile} />;
 }

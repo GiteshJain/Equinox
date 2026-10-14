@@ -86,6 +86,14 @@
 #    cabin and shows it again and logs an order through the new Check's own buttons, putting back what it changes; a
 #    preview saves nothing; at 380 px nothing scrolls sideways. Screenshots of the new Check and the old at 380 and
 #    1280 px go to CHECK_SCREENS_DIR (the run's check-screens artifact).
+#    last, after the Check side by side and whatever it found: tests/review_side_by_side_test.py opens the old planner's
+#    Review and the new one at the same frozen moment, signed in as test staff, and compares every airline's page (the
+#    cards, the group today without its totals, profit, the cash forecast, route profit over 1, 3 and 7 days, the fare plan
+#    and manual entry) and the profit chart at 14 intervals; then saves cash and fixed costs, loads typed and pasted (with a
+#    day marked complete) and a fare plan added and removed in both and checks they write the same rows; a preview saves
+#    nothing; at 380 px nothing scrolls sideways. Screenshots of the new Review and the old at 380 and 1280 px go to
+#    REVIEW_SCREENS_DIR (the run's review-screens artifact). It ends with the plan card's service check on last night's plan
+#    cards, listed as a finding.
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -371,6 +379,24 @@ check_side_by_side() {
   return $rc
 }
 
+# The new planner's Review (#18 build pull request 10): side by side with the old Review on the copy, the saves in both,
+# then the plan card's service check on the copy's cards. The local address and keys go to the test in a file only this
+# user can read, as for the real saves; never printed.
+review_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Review on the copy: side by side with the old Review, its saves in both, then the plan card's service check (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" REVIEW_SCREENS_DIR="${REVIEW_SCREENS_DIR:-}" \
+      python3 tests/review_side_by_side_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -524,5 +550,6 @@ if [ $status -eq 0 ]; then
   tails_side_by_side || status=1    # whatever Routes found: its saves touch no aircraft in service, and it puts back what it changes
   hubs_side_by_side || status=1     # whatever Tails found: it puts back what it changes, and Hubs only reads
   check_side_by_side || status=1    # whatever Hubs found: Hubs only reads
+  review_side_by_side || status=1   # whatever Check found: Check puts back what it changes
 fi
 exit $status

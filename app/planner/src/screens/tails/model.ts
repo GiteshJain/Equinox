@@ -414,6 +414,28 @@ export function cardLegs(rules: Rules, legs: readonly PlanLegRow[]): CardLeg[] {
   });
 }
 
+// ---------- the plan card's service check (#18 build pull request 10, spec docs/specs/2026-10-14-review.md part 2): each
+// leg's service code against the one its route's distance calls for (the library's service.checkLegs). The start carries
+// only the flown routes, so the airline's own routes are laid in first, as filing takes a leg's distance from them.
+/** The rules with an airline's routes the start doesn't carry (a plan card's new route), with any distance override. */
+export function withRoutes(rules: Rules, routes: readonly RouteRow[]): Rules {
+  const have = new Set(rules.input.routes.map((r) => r.id));
+  const extra = routes.filter((r) => !have.has(r.id) && !r.removed).map((r) => ({
+    id: r.id, airline_id: r.airline_id, hub_code: r.hub_code, dest_code: r.dest_code, distance_km: r.distance_override_km ?? r.distance_km,
+  }));
+  return extra.length ? buildRules({ ...rules.input, routes: [...rules.input.routes, ...extra] }) : rules;
+}
+/** Each card leg's service issue (the code given against the code wanted), by the leg's row id; empty when all are right. */
+export function cardServiceIssues(rules: Rules, airlineId: number, legs: readonly CardLeg[]): Map<number, string> {
+  const check = service.checkLegs(rules, airlineId, legs.map((L) => ({ flight_no: L.row.flight_no, origin_code: L.from, dest_code: L.to, service_code: L.row.service_code })));
+  const out = new Map<number, string>();
+  for (const i of check.issues) {
+    const L = legs[i.leg - 1];
+    if (L) out.set(L.row.id, service.shortWords(i));
+  }
+  return out;
+}
+
 // ---------- the check before filing (the old checkBeforeFile): each plan-card leg against the game's schedule, with the
 // library's game comparison (game.compareCard, the same code the Check screen's Game check uses, #18 build pull request 9)
 export const sortDays = game.sortDays;

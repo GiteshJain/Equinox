@@ -8,6 +8,7 @@ The planner's numbers, read from web/planner/index.html as the planner uses them
   - the growth signals (routeProfit) and load patterns (patterns) thresholds;
   - the old Check's (#18 build pull request 9): the refit's cost (REFIT_M) and the share that pays, a big market's stars,
     ready for another flight from the load reports, and the order queues' grace and warning;
+  - the old Review's (#18 build pull request 10): the economy fare rise "+ fare plan" plans;
   - ref.consts as the planner ends up with them: its defaults (defaultRef, and the "|| n" fallbacks where it reads
     them), with what planner_state_get() gives on top, as the planner merges them when it loads.
 The tables' numbers: settings and world_rules, and planner_meta.growthRules (the hubs-first rules the scripts read),
@@ -90,6 +91,8 @@ def planner_numbers(html, consts_given):
     out[("settings", "growth_ready_min_days", None)], out[("settings", "growth_ready_full_share", None)] = float(ready[0][0]), float(ready[0][1])
     out[("settings", "order_queue_grace_h", None)] = find(r"Date\.parse\(d\.utc\) > now - (\d+) \* 3600e3", "the order queues' grace (growthBoard)")
     out[("settings", "order_queue_warn_h", None)] = find(r"UTC \$\{hrs < (\d+) \?", "the order queues' warning (growthBoard)")
+    # the old Review's, a setting since #18 build pull request 10: the economy fare rise "+ fare plan" plans
+    out[("settings", "fare_plan_raise_pct", None)] = find(r'cls: "economy", pct: (\d+), from: Math\.round\(from\)', "the fare plan's rise (+ fare plan)")
 
     # ref.consts as the planner merges them: defaultRef's, the fallbacks where it reads them, then what the getter gives
     m = re.search(r"consts: \{ ([^}]*) \}", html)
@@ -168,7 +171,8 @@ def table_numbers(d):
 SINCE_SAMPLE = {"airport_cap_warning_pct": "13 Oct, #18 build pull request 5", "aircraft_check_after_days": "13 Oct, #18 build pull request 5",
                 "aircraft_block_target_h": "13 Oct, #18 build pull request 7",
                 **{k: "13 Oct, #18 build pull request 9" for k in ("cabin_refit_cost", "cabin_refit_share_pct", "growth_big_min_stars", "growth_ready_min_days",
-                                                                 "growth_ready_full_share", "order_queue_grace_h", "order_queue_warn_h")}}
+                                                                 "growth_ready_full_share", "order_queue_grace_h", "order_queue_warn_h")},
+                "fare_plan_raise_pct": "14 Oct, #18 build pull request 10"}
 after_sample = []
 
 

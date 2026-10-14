@@ -59,6 +59,7 @@ started = time.monotonic()
 COPY = {}
 ARRIVAL = "the plan card's arrival"
 CARD_COPY = "the card's copy of its legs"
+SERVICE = "the plan card's service check"
 
 KNOWN = {
     "block estimates": {
@@ -91,6 +92,11 @@ KNOWN = {
                 "weekdays in the leg rows themselves (dep_utc_min, block_min, days_utc) and no copy; the old planner, opened "
                 "again, shows the card's legs with the same times and days either way (compared below). Only the card's "
                 "extra.legs and the one plan_cards update that writes it.",
+        "used": 0, "where": []},
+    SERVICE: {
+        "rule": "since #18 build pull request 10 (spec docs/specs/2026-10-14-review.md part 2) the new plan card shows, on a leg whose service "
+                "code isn't the one its route's distance calls for (or has none), the code given and the code wanted (\"S1, wants S3\"); "
+                "the old planner has no such check. Only those marks: the card's rows are compared without them.",
         "used": 0, "where": []},
 }
 
@@ -163,8 +169,11 @@ READ = r"""() => {
   }
   function readCard(c) {
     if (!c) return null;
-    return { head: T(c.querySelector(".pch")), rows: [...c.querySelectorAll("table tr")].map(tr => [...tr.children].map(T).join(" | ")),
-             foot: T(c.querySelector(".pfoot")), file: !!c.querySelector("[data-planfile]"), filed: !!c.querySelector(".pfoot .pill.ok") };
+    // the new card's service issues (#18 build pull request 10), read apart: the old planner has no such check
+    const k = c.cloneNode(true), service = [...k.querySelectorAll("[data-service-issue]")].map(T);
+    k.querySelectorAll("[data-service-issue]").forEach(e => e.remove());
+    return { head: T(k.querySelector(".pch")), rows: [...k.querySelectorAll("table tr")].map(tr => [...tr.children].map(T).join(" | ")),
+             foot: T(k.querySelector(".pfoot")), file: !!k.querySelector("[data-planfile]"), filed: !!k.querySelector(".pfoot .pill.ok"), service };
   }
 """
 READ_CHECK = READ + """const m = document.querySelector(".modal"); if (!m) return null;
@@ -434,6 +443,11 @@ async def deliveries(old, new, airlines):
                 o = await old.pg.evaluate(OLD_CARD.replace("arguments[0]", json.dumps(reg)))
                 await new_go(new, "/tails" + q(airline=al["code"], **({"del": "flying"} if flying else {}), card=reg))
                 x = await new.pg.evaluate(READ_NEW_CARD)
+                if x and x.get("service"):
+                    known(SERVICE, f"{al['code']} {reg}: {', '.join(x['service'][:4])}")
+                for c in (o, x):
+                    if c:
+                        c.pop("service", None)
                 if o != x:
                     p.append(f"{al['code']} {reg}'s plan card: old {o!r}, new {x!r}"[:900])
                 cards += 1

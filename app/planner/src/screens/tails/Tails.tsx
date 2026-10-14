@@ -22,14 +22,14 @@ import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
-import { useAirports } from "../routes/reads";
+import { useAirlineRoutes, useAirports } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardLegs, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeTailChanges,
-  rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, extraIndex, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow, type TailAircraft,
-  type TailAirline, type TailField,
+  addTailChanges, basesOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeTailChanges,
+  rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, extraIndex, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
+  type TailAircraft, type TailAirline, type TailField,
 } from "./model";
 import {
   readRotationsWithLegs, tailsCount, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
@@ -83,6 +83,11 @@ export function Tails() {
   const deliveries = useMemo(() => (rules && cardsQ.data ? deliveryRows(all, airlines, rules, configs, cardsQ.data, now.getTime(), today) : []),
     [all, airlines, rules, configs, cardsQ.data, now, today]);
   const shown = useMemo(() => shownDeliveries(deliveries, airline?.id, filters), [deliveries, airline, filters]);
+  // the plan card's service check: the airline's routes laid in, as filing takes a leg's distance from them
+  const routesQ = useAirlineRoutes(w, airline?.id);
+  const serviceRules = useMemo(() => (rules && routesQ.data ? withRoutes(rules, routesQ.data) : rules), [rules, routesQ.data]);
+  const serviceOf = useMemo(() => (card: PlanCardRow, legs: readonly CardLeg[]) => (serviceRules ? cardServiceIssues(serviceRules, card.airline_id, legs) : new Map<number, string>()),
+    [serviceRules]);
   const legsOf = useMemo(() => {
     const by = new Map<number, PlanLegRow[]>();
     for (const l of planLegsQ.data ?? []) by.set(l.plan_card_id, [...(by.get(l.plan_card_id) ?? []), l]);
@@ -259,7 +264,7 @@ export function Tails() {
           ) : reg ? <div className="empty">Loading…</div> : <div className="empty">Pick a tail to see its week.</div>}
         </div>
       </div>
-      <Deliveries all={deliveries} shown={shown} airline={airline} filters={filters} open={filters.card} legsOf={legsOf}
+      <Deliveries all={deliveries} shown={shown} airline={airline} filters={filters} open={filters.card} legsOf={legsOf} serviceOf={serviceOf}
         filed={(id) => flying.has(id)} busy={busy || filing.filing} now={now.getTime()}
         onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
