@@ -54,4 +54,6 @@ The forecast leaves out the new aircraft's own income, which adds buffer once th
 - Toronto's trim freeing a whole aircraft: one fewer A321neo.
 
 ## Outcome
-<open>
+**14 Oct: C,** two A321neos and one A321XLR, all based at JFK. Gitesh orders them in the game and tells Claude, who
+logs them (To-do board). Routes are decided when they land. Under the rotation, frequency comes first: second dailies on
+the sold-out Atlantic and transcon routes.
