@@ -42,6 +42,10 @@ on:
       - "tests/reference_side_by_side_test.py"
       - "tests/fixtures/load_table_sample.tsv"
       - "tests/rule_numbers_test.py"
+      - "tests/planner_saves_test.py"
+      - "tests/planner_flights.mjs"
+      - "tests/local_copy.py"
+      - "tests/fixtures/planner_saves.expected.json"
       - "tests/harness.py"
       - "tests/fixtures/make_sample.sh"
       - "tests/fixtures/sample.sql"
@@ -60,7 +64,7 @@ concurrency:
 jobs:
   rehearse:
     runs-on: ubuntu-latest
-    timeout-minutes: 30   # two restores when a pull request changes both the planner and the database
+    timeout-minutes: 40   # TEMPORARY for the clean-up's first run (the side by sides and the saves recorded together); back to 30 after
     defaults:
       run:
         shell: bash   # bash -eo pipefail: a failing script fails its step even though its output goes through tee
@@ -128,6 +132,9 @@ jobs:
           REVIEW_SCREENS_DIR: ${{ runner.temp }}/review-screens   # the new Review and the old at 380 and 1280 px (#18 build pull request 10)
           REFERENCE_SCREENS_DIR: ${{ runner.temp }}/reference-screens   # the new Interline, Photos and Reference and the old at 380 and 1280 px (#18 build pull request 12)
           SWITCH_SCREENS_DIR: ${{ runner.temp }}/switch-screens   # the new planner at /planner/ and the old at /planner/old/, at 1280 px (#18 build pull request 13)
+          PLANNER_SCREENS_DIR: ${{ runner.temp }}/planner-screens   # every screen at the frozen moment, at 1280 and 380 px (#18 build pull request 14)
+          SAVES_OUT_DIR: ${{ runner.temp }}/planner-saves   # every save's answer as this run found it (#18 build pull request 14)
+          RECORD_SAVES: "1"   # TEMPORARY: the clean-up's first run records the answers
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -240,6 +247,28 @@ jobs:
           path: ${{ runner.temp }}/switch-screens/*.png
           if-no-files-found: ignore
           retention-days: 3
+
+      - name: Keep the screenshots of every screen
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-screens
+          path: ${{ runner.temp }}/planner-screens/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # every save's answer as this run found it (tests/planner_saves_test.py): what tests/fixtures/planner_saves.expected.json
+      # is made from, when a pull request means to change what a save writes
+      - name: Keep the saves' answers
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-saves
+          path: ${{ runner.temp }}/planner-saves/planner_saves.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Keep the new test sample
         if: always()

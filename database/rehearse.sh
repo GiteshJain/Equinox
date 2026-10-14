@@ -264,7 +264,7 @@ new_planner() {
     || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   if reload_api "$env"; then
     LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" SWITCH_SCREENS_DIR="${SWITCH_SCREENS_DIR:-}" \
-      python3 tests/planner_next_test.py || rc=1
+      PLANNER_SCREENS_DIR="${PLANNER_SCREENS_DIR:-}" python3 tests/planner_next_test.py || rc=1
   else
     rc=1
   fi
@@ -437,6 +437,26 @@ reference_side_by_side() {
   return $rc
 }
 
+# Every kind of save the new planner makes, through its own controls, against the rows recorded for it
+# (tests/planner_saves_test.py, build pull request 14). The answers found go to SAVES_OUT_DIR (the run's planner-saves
+# artifact). Stopped after 10 minutes if it stops answering.
+planner_saves() {
+  local env="$work/local.env" rc=0
+  echo "== every kind of save in the new planner, against the rows recorded for it (#18 build pull request 14)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" SAVES_OUT_DIR="${SAVES_OUT_DIR:-}" RECORD_SAVES="${RECORD_SAVES:-}" \
+      timeout -s INT 600 python3 tests/planner_saves_test.py || rc=$?
+    if [ $rc -eq 124 ] || [ $rc -eq 130 ]; then echo "FAIL  the saves didn't finish within 10 minutes"; fi
+    [ $rc -eq 0 ] || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -592,5 +612,6 @@ if [ $status -eq 0 ]; then
   review_side_by_side || status=1   # whatever Check found: Check puts back what it changes
   reference_side_by_side || status=1   # whatever Review found: it puts back what it changes
   hubs_side_by_side || status=1     # whatever Reference found: it puts back what it changes, and Hubs only reads
+  planner_saves || status=1         # last: its saves change the copy
 fi
 exit $status

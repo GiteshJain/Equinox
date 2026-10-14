@@ -56,8 +56,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, OLD_PLANNER, serve, settle
 from playwright.async_api import async_playwright
-from real_saves_test import (count_changes, counts, is_planner_user, jobs_since, library, local_env, log_since, make_user, marks,
-                             psql, token_for, why)
+from local_copy import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks, moment, ms, psql,
+                        token_for, why)
+from real_saves_test import library
 import real_saves_test as rs
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
@@ -67,6 +68,7 @@ SCREENS = [("home", "/planner/"), ("routes", "/planner/routes"), ("tails", "/pla
            ("interline", "/planner/interline"), ("photos", "/planner/photos"), ("reference", "/planner/reference")]
 OLD_FILE = WEB / "planner" / "index.html"
 SWITCH_SCREENS_DIR = os.environ.get("SWITCH_SCREENS_DIR")
+SCREENS_DIR = os.environ.get("PLANNER_SCREENS_DIR")
 # A link into the old planner, or to an address used while the new one was built (the switch: none may be left)
 OLD_LINK = re.compile(r"^(https?://[^/]+)?/planner/(old|next)(/|$|\?|#)")
 NOT_STAFF = "This account doesn't have access to the planner."
@@ -647,58 +649,75 @@ async def preview(p, port, env, facts, staff, seen):
             f"notice links to the live planner at {NEW_PLANNER}"), problems
 
 
-# ---------- 6. a phone ----------
-async def phone(p, port, env, facts, staff, seen):
-    ph = Planner(p, port, env, facts, width=380, height=800)
-    seen.append(ph)
+# ---------- 6. every screen at the frozen moment, at 1280 and 380 px ----------
+READY = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
+         "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
+         "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
+         "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
+         "reference": "main[data-screen=reference][data-reference-ready=yes]"}
+
+
+async def screens(p, port, env, facts, staff, seen, moment):
+    """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
+    staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Check and Review with
+    every board open, Reference with every section open), and no link into the old planner or to /planner/next/. With
+    PLANNER_SCREENS_DIR set, a screenshot of each at each width goes there (the run's planner-screens artifact). What
+    replaced the side by sides' screen checks (build pull request 14)."""
     problems = []
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
-    links = 0
-    try:
-        await ph.open()
-        await ph.sign_in(*staff)
-        for sid, href in SCREENS:
-            e0 = len(ph.errors)
-            await ph.pg.click(f"[data-screen-link={sid}]")
-            await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
-            await settle(ph.pg, 300)
-            path = await ph.pg.evaluate("location.pathname")
-            if path != href:
-                problems.append(f"{sid}: its address is {path}, expected {href}")
-            ready = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
-                     "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
-                     "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
-                     "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
-                     "reference": "main[data-screen=reference][data-reference-ready=yes]"}
-            try:   # every screen is rebuilt (build pull requests 5 to 12)
-                await ph.pg.wait_for_selector(ready[sid], timeout=60000)
+    links = shots = 0
+    if SCREENS_DIR:
+        Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
+    for width, height in ((1280, 900), (380, 800)):
+        ph = Planner(p, port, env, facts, width=width, height=height)
+        seen.append(ph)
+        try:
+            await ph.open(moment=moment)
+            await ph.pg.emulate_media(reduced_motion="reduce")   # the globe holds still, so two screenshots of a moment are the same
+            await ph.sign_in(*staff)
+            if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
+                problems.append(f"{width} px: the planner's clock isn't frozen at the moment")
+            for sid, href in SCREENS:
+                e0 = len(ph.errors)
+                await ph.pg.click(f"[data-screen-link={sid}]")
+                await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
+                path = await ph.pg.evaluate("location.pathname")
+                if path != href:
+                    problems.append(f"{sid}: its address is {path}, expected {href}")
+                try:
+                    await ph.pg.wait_for_selector(READY[sid], timeout=90000)
+                    await settle(ph.pg, 400)
+                except Exception:
+                    problems.append(f"{sid}: it isn't ready at {width} px wide")
+                if sid in ("check", "review"):
+                    await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
+                    await settle(ph.pg, 300)
+                if sid == "reference":
+                    await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
+                    await settle(ph.pg, 400)
+                over = await ph.pg.evaluate(scroll)
+                if over > 0:
+                    problems.append(f"{sid}: the page scrolls sideways by {over} px at {width} px wide")
+                hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
+                links += len(hrefs)
+                problems += [f"{sid}: a link to {h}" for h in hrefs if OLD_LINK.match(h or "")]
+                problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
+                if SCREENS_DIR:
+                    await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{sid}-{width}.png"), full_page=True, timeout=90000)
+                    shots += 1
+            if width == 380:
+                await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/review/VS")
+                await ph.pg.wait_for_selector(READY["review"], timeout=90000)
+                await ph.pg.click("#rev-expall")
                 await settle(ph.pg, 300)
-            except Exception:
-                problems.append(f"{sid}: it isn't ready at 380 px wide")
-            if sid in ("check", "review"):
-                await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
-                await settle(ph.pg, 300)
-            if sid == "reference":
-                await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
-                await settle(ph.pg, 400)
-            over = await ph.pg.evaluate(scroll)
-            if over > 0:
-                problems.append(f"{sid}: the page scrolls sideways by {over} px at 380 px wide")
-            hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
-            links += len(hrefs)
-            problems += [f"{sid}: a link to {h}" for h in hrefs if OLD_LINK.match(h or "")]
-            problems += [f"{sid}: {e}" for e in ph.errors[e0:]]
-        await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/review/VS")
-        await ph.pg.wait_for_selector("main[data-screen=review][data-review-ready=yes]", timeout=90000)
-        await ph.pg.click("#rev-expall")
-        await settle(ph.pg, 300)
-        if await ph.pg.evaluate(scroll) > 0:
-            problems.append("review/VS, opened directly, scrolls sideways")
-        problems += ph.errors
-    finally:
-        await ph.close()
-    return (f"at 380 px wide, all {len(SCREENS)} screens (Check and Review with every board open, Reference with every section open) have no "
-            f"sideways scroll, no errors and none of their {links} links goes into the old planner or to /planner/next/"), problems
+                if await ph.pg.evaluate(scroll) > 0:
+                    problems.append("review/VS, opened directly, scrolls sideways at 380 px")
+            problems += [e for e in ph.errors if not any(e in x for x in problems)]
+        finally:
+            await ph.close()
+    return (f"every screen ({len(SCREENS)}) opens on the copy at the moment ({moment}), at 1280 and 380 px wide: ready, no errors, no sideways "
+            f"scroll (Check and Review with every board open, Reference with every section open), and none of their {links} links goes into "
+            f"the old planner or to /planner/next/" + (f"; {shots} screenshots kept" if shots else "")), problems
 
 
 # ---------- 7. the addresses (the switch) ----------
@@ -865,9 +884,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, phone, addresses):
+            for check in (two_tabs, preview, screens, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen)
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check is screens else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)
