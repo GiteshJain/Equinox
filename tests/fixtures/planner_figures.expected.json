@@ -1,0 +1,7216 @@
+{
+ "sample": "report_2026-10-12.json.gz",
+ "as_of": "2026-10-12T16:42:00Z",
+ "home": {
+  "key_figures": {
+   "aircraft": 87,
+   "routes_flying": 184,
+   "flights_day": 467.7142857142857,
+   "seats_day": 75267.71428571429,
+   "by_airline": [
+    {
+     "airline_id": 1,
+     "aircraft": 15,
+     "routes_flying": 25,
+     "flights_day": 56,
+     "seats_day": 9434
+    },
+    {
+     "airline_id": 2,
+     "aircraft": 12,
+     "routes_flying": 19,
+     "flights_day": 47.714285714285715,
+     "seats_day": 8105.714285714285
+    },
+    {
+     "airline_id": 3,
+     "aircraft": 21,
+     "routes_flying": 48,
+     "flights_day": 144,
+     "seats_day": 23560
+    },
+    {
+     "airline_id": 4,
+     "aircraft": 13,
+     "routes_flying": 33,
+     "flights_day": 82,
+     "seats_day": 12928
+    },
+    {
+     "airline_id": 5,
+     "aircraft": 13,
+     "routes_flying": 32,
+     "flights_day": 78,
+     "seats_day": 12336
+    },
+    {
+     "airline_id": 6,
+     "aircraft": 13,
+     "routes_flying": 27,
+     "flights_day": 60,
+     "seats_day": 8904
+    }
+   ]
+  },
+  "airline_cards": [
+   {
+    "airline_id": 1,
+    "aircraft": 15,
+    "routes": 25,
+    "flights_day": 56,
+    "block_hours_day": 190.91666666666666,
+    "flying": true,
+    "lowest_maintenance": {
+     "ratio": 1.0610275019802156,
+     "pct": 106,
+     "need_min_week": 1266.6966666666674,
+     "have_min_week": 1344,
+     "need_min_day": 180.95666666666676,
+     "have_min_day": 192,
+     "level": "ok",
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    "short_turns": 0,
+    "tight_turns": 7,
+    "clean": false,
+    "bases": [
+     {
+      "code": "JFK",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "LAX",
+      "role": "hub",
+      "parent_code": null,
+      "live": false
+     },
+     {
+      "code": "DFW",
+      "role": "hub",
+      "parent_code": null,
+      "live": false
+     },
+     {
+      "code": "SFO",
+      "role": "focus",
+      "parent_code": "LAX",
+      "live": false
+     },
+     {
+      "code": "ORD",
+      "role": "focus",
+      "parent_code": "JFK",
+      "live": true
+     },
+     {
+      "code": "SEA",
+      "role": "focus",
+      "parent_code": "LAX",
+      "live": false
+     }
+    ]
+   },
+   {
+    "airline_id": 2,
+    "aircraft": 12,
+    "routes": 19,
+    "flights_day": 47.714285714285715,
+    "block_hours_day": 148.32857142857145,
+    "flying": true,
+    "lowest_maintenance": {
+     "ratio": 1.0596735349210598,
+     "pct": 106,
+     "need_min_week": 1307.9499999999998,
+     "have_min_week": 1386,
+     "need_min_day": 186.84999999999997,
+     "have_min_day": 198,
+     "level": "ok",
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    "short_turns": 0,
+    "tight_turns": 0,
+    "clean": true,
+    "bases": [
+     {
+      "code": "DEL",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "BOM",
+      "role": "hub",
+      "parent_code": null,
+      "live": false
+     },
+     {
+      "code": "HYD",
+      "role": "focus",
+      "parent_code": "BOM",
+      "live": false
+     },
+     {
+      "code": "BLR",
+      "role": "focus",
+      "parent_code": "BOM",
+      "live": false
+     },
+     {
+      "code": "CCU",
+      "role": "focus",
+      "parent_code": "DEL",
+      "live": false
+     },
+     {
+      "code": "MAA",
+      "role": "focus",
+      "parent_code": "BOM",
+      "live": false
+     }
+    ]
+   },
+   {
+    "airline_id": 3,
+    "aircraft": 21,
+    "routes": 48,
+    "flights_day": 144,
+    "block_hours_day": 229.4333333333333,
+    "flying": true,
+    "lowest_maintenance": {
+     "ratio": 1.0212097407698355,
+     "pct": 102,
+     "need_min_week": 1069.3199999999995,
+     "have_min_week": 1092,
+     "need_min_day": 152.75999999999993,
+     "have_min_day": 156,
+     "level": "warn",
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    "short_turns": 0,
+    "tight_turns": 378,
+    "clean": false,
+    "bases": [
+     {
+      "code": "CDG",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "AMS",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "BCN",
+      "role": "focus",
+      "parent_code": null,
+      "live": false
+     },
+     {
+      "code": "MXP",
+      "role": "focus",
+      "parent_code": null,
+      "live": false
+     },
+     {
+      "code": "MUC",
+      "role": "focus",
+      "parent_code": null,
+      "live": false
+     }
+    ]
+   },
+   {
+    "airline_id": 4,
+    "aircraft": 13,
+    "routes": 33,
+    "flights_day": 82,
+    "block_hours_day": 138.56666666666666,
+    "flying": true,
+    "lowest_maintenance": {
+     "ratio": 1.0906131307650568,
+     "pct": 109,
+     "need_min_week": 1290.1000000000001,
+     "have_min_week": 1407,
+     "need_min_day": 184.3,
+     "have_min_day": 201,
+     "level": "ok",
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    "short_turns": 0,
+    "tight_turns": 98,
+    "clean": false,
+    "bases": [
+     {
+      "code": "LGW",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "MAN",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "EDI",
+      "role": "focus",
+      "parent_code": "LGW",
+      "live": true
+     }
+    ]
+   },
+   {
+    "airline_id": 5,
+    "aircraft": 13,
+    "routes": 32,
+    "flights_day": 78,
+    "block_hours_day": 148.63333333333333,
+    "flying": true,
+    "lowest_maintenance": {
+     "ratio": 1.0442833560611506,
+     "pct": 104,
+     "need_min_week": 1300.4133333333323,
+     "have_min_week": 1358,
+     "need_min_day": 185.77333333333317,
+     "have_min_day": 194,
+     "level": "warn",
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    "short_turns": 0,
+    "tight_turns": 42,
+    "clean": false,
+    "bases": [
+     {
+      "code": "PVG",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "KMG",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "XIY",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     },
+     {
+      "code": "PKX",
+      "role": "focus",
+      "parent_code": "PVG",
+      "live": true
+     },
+     {
+      "code": "SZX",
+      "role": "focus",
+      "parent_code": "PVG",
+      "live": false
+     }
+    ]
+   },
+   {
+    "airline_id": 6,
+    "aircraft": 13,
+    "routes": 27,
+    "flights_day": 60,
+    "block_hours_day": 162.99999999999997,
+    "flying": true,
+    "lowest_maintenance": {
+     "ratio": 1.1327879169288861,
+     "pct": 113,
+     "need_min_week": 963.9933333333333,
+     "have_min_week": 1092,
+     "need_min_day": 137.71333333333334,
+     "have_min_day": 156,
+     "level": "ok",
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    "short_turns": 0,
+    "tight_turns": 0,
+    "clean": true,
+    "bases": [
+     {
+      "code": "KUL",
+      "role": "hub",
+      "parent_code": null,
+      "live": true
+     }
+    ]
+   }
+  ],
+  "now": {
+   "in_air": 57,
+   "flights_today": 468,
+   "departing_next_hour": 13,
+   "aircraft": 87,
+   "routes_flying": 184
+  }
+ },
+ "hubs": {
+  "JFK": {
+   "days": [
+    {
+     "departures": 23,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "b423f83b7700e2e7"
+    },
+    {
+     "departures": 23,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "7c165470588943fb"
+    },
+    {
+     "departures": 23,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "b423f83b7700e2e7"
+    },
+    {
+     "departures": 23,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "7c165470588943fb"
+    },
+    {
+     "departures": 23,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "b423f83b7700e2e7"
+    },
+    {
+     "departures": 23,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "7c165470588943fb"
+    },
+    {
+     "departures": 22,
+     "arrivals": 22,
+     "in_banks": {
+      "arr 1": 8,
+      "arr 2": 5,
+      "arr 3": 9,
+      "dep 0": 1,
+      "dep 1": 8,
+      "dep 2": 5,
+      "dep 3": 8
+     },
+     "departures_week": 160,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "JFK",
+      "airline_id": 1,
+      "out": 1057,
+      "back": 1058,
+      "highest": 1056,
+      "from_schedule": 1056,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "981163c5cffe709c"
+    }
+   ],
+   "connections": {
+    "arrivals": 24,
+    "departures": 24,
+    "city_pairs": 171,
+    "rows": [
+     [
+      1,
+      78
+     ],
+     [
+      2,
+      25
+     ],
+     [
+      3,
+      68
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "b282698fa61d20a8"
+   }
+  },
+  "LAX": {
+   "days": [
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {
+      "arr 1": 1,
+      "dep 0": 1
+     },
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LAX",
+      "airline_id": 1,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e9f1536abaf0854b"
+    }
+   ],
+   "connections": {
+    "arrivals": 1,
+    "departures": 1,
+    "city_pairs": 0,
+    "rows": [
+     [
+      1,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "DFW": {
+   "days": [
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    },
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    },
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    },
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    },
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    },
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    },
+    {
+     "departures": 0,
+     "arrivals": 0,
+     "in_banks": {},
+     "departures_week": 0,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DFW",
+      "airline_id": 1,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "4f53cda18c2baa0c"
+    }
+   ],
+   "connections": {
+    "arrivals": 0,
+    "departures": 0,
+    "city_pairs": 0,
+    "rows": [],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "SFO": {
+   "days": [
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SFO",
+      "airline_id": 1,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7b8898e95a19bc78"
+    }
+   ],
+   "connections": {
+    "arrivals": 1,
+    "departures": 1,
+    "city_pairs": 0,
+    "rows": [
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "ORD": {
+   "days": [
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {},
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "ORD",
+      "airline_id": 1,
+      "out": 3013,
+      "back": 3014,
+      "highest": 3012,
+      "from_schedule": 3012,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "8ccbb2283f5de1cb"
+    }
+   ],
+   "connections": {
+    "arrivals": 8,
+    "departures": 8,
+    "city_pairs": 15,
+    "rows": [
+     [
+      0,
+      15
+     ]
+    ],
+    "pairs": "ae84952229447d58"
+   }
+  },
+  "SEA": {
+   "days": [
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    },
+    {
+     "departures": 1,
+     "arrivals": 1,
+     "in_banks": {},
+     "departures_week": 7,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SEA",
+      "airline_id": 1,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "c186639a1484343f"
+    }
+   ],
+   "connections": {
+    "arrivals": 1,
+    "departures": 1,
+    "city_pairs": 0,
+    "rows": [
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "DEL": {
+   "days": [
+    {
+     "departures": 24,
+     "arrivals": 23,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 6,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 3
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3d6b182912089dc1"
+    },
+    {
+     "departures": 24,
+     "arrivals": 24,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 7,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 3
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e36a5a35d2f0293a"
+    },
+    {
+     "departures": 24,
+     "arrivals": 24,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 7,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 3
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "138482a05985118c"
+    },
+    {
+     "departures": 24,
+     "arrivals": 24,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 7,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 3
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e36a5a35d2f0293a"
+    },
+    {
+     "departures": 24,
+     "arrivals": 24,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 7,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 3
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "138482a05985118c"
+    },
+    {
+     "departures": 24,
+     "arrivals": 24,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 7,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 3
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e36a5a35d2f0293a"
+    },
+    {
+     "departures": 23,
+     "arrivals": 24,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 1": 7,
+      "arr 2": 9,
+      "arr 3": 6,
+      "dep 0": 8,
+      "dep 1": 6,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 167,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "DEL",
+      "airline_id": 2,
+      "out": 1049,
+      "back": 1050,
+      "highest": 1048,
+      "from_schedule": 1048,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "b31dcffded94074c"
+    }
+   ],
+   "connections": {
+    "arrivals": 25,
+    "departures": 25,
+    "city_pairs": 159,
+    "rows": [
+     [
+      1,
+      53
+     ],
+     [
+      2,
+      68
+     ],
+     [
+      3,
+      34
+     ],
+     [
+      0,
+      4
+     ]
+    ],
+    "pairs": "f9680862dafc4992"
+   }
+  },
+  "BOM": {
+   "days": [
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {
+      "arr 1": 1,
+      "arr 2": 1,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BOM",
+      "airline_id": 2,
+      "out": 2001,
+      "back": 2002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "fdd59c08ebe132af"
+    }
+   ],
+   "connections": {
+    "arrivals": 3,
+    "departures": 3,
+    "city_pairs": 0,
+    "rows": [
+     [
+      1,
+      0
+     ],
+     [
+      2,
+      0
+     ],
+     [
+      3,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "CDG": {
+   "days": [
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    },
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    },
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    },
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    },
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    },
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    },
+    {
+     "departures": 48,
+     "arrivals": 48,
+     "in_banks": {
+      "arr 0": 21,
+      "arr 1": 13,
+      "arr 2": 12,
+      "dep 0": 28,
+      "dep 1": 10,
+      "dep 2": 8
+     },
+     "departures_week": 336,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CDG",
+      "airline_id": 3,
+      "out": 2093,
+      "back": 2094,
+      "highest": 2092,
+      "from_schedule": 2092,
+      "last_used": null
+     },
+     "banks": 2,
+     "flights": "5ae13fa84cbc8a8e"
+    }
+   ],
+   "connections": {
+    "arrivals": 48,
+    "departures": 48,
+    "city_pairs": 463,
+    "rows": [
+     [
+      1,
+      142
+     ],
+     [
+      2,
+      174
+     ],
+     [
+      0,
+      147
+     ]
+    ],
+    "pairs": "bcb27f4ff53a9cc2"
+   }
+  },
+  "AMS": {
+   "days": [
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    },
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    },
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    },
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    },
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    },
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    },
+    {
+     "departures": 35,
+     "arrivals": 35,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 4,
+      "arr 2": 4,
+      "arr 3": 8,
+      "arr 4": 10,
+      "dep 0": 18,
+      "dep 1": 5,
+      "dep 2": 1,
+      "dep 3": 6
+     },
+     "departures_week": 245,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "AMS",
+      "airline_id": 3,
+      "out": 3053,
+      "back": 3054,
+      "highest": 3052,
+      "from_schedule": 3052,
+      "last_used": null
+     },
+     "banks": 4,
+     "flights": "89135a108888bb2c"
+    }
+   ],
+   "connections": {
+    "arrivals": 35,
+    "departures": 35,
+    "city_pairs": 286,
+    "rows": [
+     [
+      1,
+      58
+     ],
+     [
+      2,
+      22
+     ],
+     [
+      3,
+      116
+     ],
+     [
+      4,
+      62
+     ],
+     [
+      0,
+      28
+     ]
+    ],
+    "pairs": "803eb76a732db3f8"
+   }
+  },
+  "BCN": {
+   "days": [
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BCN",
+      "airline_id": 3,
+      "out": 1005,
+      "back": 1006,
+      "highest": 1004,
+      "from_schedule": null,
+      "last_used": 1004
+     },
+     "banks": 0,
+     "flights": "f1911c24d8c2bea7"
+    }
+   ],
+   "connections": {
+    "arrivals": 5,
+    "departures": 5,
+    "city_pairs": 6,
+    "rows": [
+     [
+      0,
+      6
+     ]
+    ],
+    "pairs": "379a893c8bdb897d"
+   }
+  },
+  "MXP": {
+   "days": [
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    },
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    },
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    },
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    },
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    },
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    },
+    {
+     "departures": 2,
+     "arrivals": 2,
+     "in_banks": {},
+     "departures_week": 14,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MXP",
+      "airline_id": 3,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "7f483d0dc9f62296"
+    }
+   ],
+   "connections": {
+    "arrivals": 2,
+    "departures": 2,
+    "city_pairs": 0,
+    "rows": [
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "MUC": {
+   "days": [
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    },
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    },
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    },
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    },
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    },
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    },
+    {
+     "departures": 6,
+     "arrivals": 6,
+     "in_banks": {},
+     "departures_week": 42,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MUC",
+      "airline_id": 3,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f076a1e01d9d61cb"
+    }
+   ],
+   "connections": {
+    "arrivals": 6,
+    "departures": 6,
+    "city_pairs": 7,
+    "rows": [
+     [
+      0,
+      7
+     ]
+    ],
+    "pairs": "152c0da9579c0539"
+   }
+  },
+  "LGW": {
+   "days": [
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    },
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    },
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    },
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    },
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    },
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    },
+    {
+     "departures": 33,
+     "arrivals": 33,
+     "in_banks": {
+      "arr 0": 4,
+      "arr 1": 9,
+      "arr 2": 9,
+      "arr 3": 10,
+      "dep 0": 15,
+      "dep 1": 8,
+      "dep 2": 7,
+      "dep 3": 2
+     },
+     "departures_week": 231,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "LGW",
+      "airline_id": 4,
+      "out": 1069,
+      "back": 1070,
+      "highest": 1068,
+      "from_schedule": 1068,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "2b32d467717d0c7d"
+    }
+   ],
+   "connections": {
+    "arrivals": 33,
+    "departures": 33,
+    "city_pairs": 263,
+    "rows": [
+     [
+      1,
+      94
+     ],
+     [
+      2,
+      97
+     ],
+     [
+      3,
+      47
+     ],
+     [
+      0,
+      25
+     ]
+    ],
+    "pairs": "fbc1e8d1a3582c38"
+   }
+  },
+  "EDI": {
+   "days": [
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "EDI",
+      "airline_id": 4,
+      "out": 2023,
+      "back": 2024,
+      "highest": 2022,
+      "from_schedule": 2022,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "2b2aa670c8ce5258"
+    }
+   ],
+   "connections": {
+    "arrivals": 5,
+    "departures": 5,
+    "city_pairs": 10,
+    "rows": [
+     [
+      0,
+      10
+     ]
+    ],
+    "pairs": "ba3a27b25e5a7bd4"
+   }
+  },
+  "MAN": {
+   "days": [
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 3,
+      "arr 3": 3,
+      "dep 0": 7,
+      "dep 1": 1
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAN",
+      "airline_id": 4,
+      "out": 3023,
+      "back": 3024,
+      "highest": 3022,
+      "from_schedule": 3022,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "de31ce8066e8cfa0"
+    }
+   ],
+   "connections": {
+    "arrivals": 8,
+    "departures": 8,
+    "city_pairs": 18,
+    "rows": [
+     [
+      1,
+      1
+     ],
+     [
+      2,
+      7
+     ],
+     [
+      3,
+      4
+     ],
+     [
+      0,
+      6
+     ]
+    ],
+    "pairs": "e945e4a9c72026d6"
+   }
+  },
+  "PVG": {
+   "days": [
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    },
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    },
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    },
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    },
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    },
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    },
+    {
+     "departures": 31,
+     "arrivals": 31,
+     "in_banks": {
+      "arr 0": 5,
+      "arr 1": 7,
+      "arr 2": 10,
+      "arr 3": 8,
+      "dep 0": 10,
+      "dep 1": 9,
+      "dep 2": 7,
+      "dep 3": 4
+     },
+     "departures_week": 217,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PVG",
+      "airline_id": 5,
+      "out": 1065,
+      "back": 1066,
+      "highest": 1064,
+      "from_schedule": 1064,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "cb681c3069374c65"
+    }
+   ],
+   "connections": {
+    "arrivals": 31,
+    "departures": 31,
+    "city_pairs": 256,
+    "rows": [
+     [
+      1,
+      87
+     ],
+     [
+      2,
+      86
+     ],
+     [
+      3,
+      67
+     ],
+     [
+      0,
+      16
+     ]
+    ],
+    "pairs": "9dfe2c88d99a7653"
+   }
+  },
+  "PKX": {
+   "days": [
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "PKX",
+      "airline_id": 5,
+      "out": 2021,
+      "back": 2022,
+      "highest": 2020,
+      "from_schedule": 2020,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "23c0e0056e865ce8"
+    }
+   ],
+   "connections": {
+    "arrivals": 5,
+    "departures": 5,
+    "city_pairs": 4,
+    "rows": [
+     [
+      0,
+      4
+     ]
+    ],
+    "pairs": "8d2dad5be608e83b"
+   }
+  },
+  "SZX": {
+   "days": [
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {},
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "SZX",
+      "airline_id": 5,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "f8380ca4497d9adc"
+    }
+   ],
+   "connections": {
+    "arrivals": 5,
+    "departures": 5,
+    "city_pairs": 5,
+    "rows": [
+     [
+      0,
+      5
+     ]
+    ],
+    "pairs": "904ebbed3d8701b0"
+   }
+  },
+  "KMG": {
+   "days": [
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    },
+    {
+     "departures": 5,
+     "arrivals": 5,
+     "in_banks": {
+      "arr 0": 2,
+      "arr 2": 1,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 1,
+      "dep 2": 1
+     },
+     "departures_week": 35,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KMG",
+      "airline_id": 5,
+      "out": 4015,
+      "back": 4016,
+      "highest": 4014,
+      "from_schedule": 4014,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "3eab53e65c11cc69"
+    }
+   ],
+   "connections": {
+    "arrivals": 5,
+    "departures": 5,
+    "city_pairs": 6,
+    "rows": [
+     [
+      1,
+      1
+     ],
+     [
+      2,
+      2
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      0,
+      1
+     ]
+    ],
+    "pairs": "ce4fdc2e44301d08"
+   }
+  },
+  "XIY": {
+   "days": [
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    },
+    {
+     "departures": 8,
+     "arrivals": 8,
+     "in_banks": {
+      "arr 0": 1,
+      "arr 1": 2,
+      "arr 2": 2,
+      "arr 3": 2,
+      "dep 0": 5,
+      "dep 1": 2
+     },
+     "departures_week": 56,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "XIY",
+      "airline_id": 5,
+      "out": 5013,
+      "back": 5014,
+      "highest": 5012,
+      "from_schedule": 5012,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "8f671a47b6f96f35"
+    }
+   ],
+   "connections": {
+    "arrivals": 8,
+    "departures": 8,
+    "city_pairs": 16,
+    "rows": [
+     [
+      1,
+      8
+     ],
+     [
+      2,
+      4
+     ],
+     [
+      3,
+      3
+     ],
+     [
+      0,
+      1
+     ]
+    ],
+    "pairs": "d51fa39f6816e338"
+   }
+  },
+  "KUL": {
+   "days": [
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    },
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    },
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    },
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    },
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    },
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    },
+    {
+     "departures": 30,
+     "arrivals": 30,
+     "in_banks": {
+      "arr 0": 6,
+      "arr 1": 11,
+      "arr 2": 12,
+      "arr 3": 1,
+      "dep 0": 2,
+      "dep 1": 13,
+      "dep 2": 11,
+      "dep 3": 4
+     },
+     "departures_week": 210,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "KUL",
+      "airline_id": 6,
+      "out": 1081,
+      "back": 1082,
+      "highest": 1080,
+      "from_schedule": 1080,
+      "last_used": null
+     },
+     "banks": 3,
+     "flights": "e4efb8bab4248c23"
+    }
+   ],
+   "connections": {
+    "arrivals": 30,
+    "departures": 30,
+    "city_pairs": 315,
+    "rows": [
+     [
+      1,
+      155
+     ],
+     [
+      2,
+      136
+     ],
+     [
+      3,
+      21
+     ],
+     [
+      0,
+      3
+     ]
+    ],
+    "pairs": "84094208ac8cc903"
+   }
+  },
+  "HYD": {
+   "days": [
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "HYD",
+      "airline_id": 2,
+      "out": 4001,
+      "back": 4002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "31445ae5151ea712"
+    }
+   ],
+   "connections": {
+    "arrivals": 3,
+    "departures": 3,
+    "city_pairs": 2,
+    "rows": [
+     [
+      0,
+      2
+     ]
+    ],
+    "pairs": "b032e381ef6ff55d"
+   }
+  },
+  "BLR": {
+   "days": [
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "BLR",
+      "airline_id": 2,
+      "out": 5001,
+      "back": 5002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "26b0e4c112d09545"
+    }
+   ],
+   "connections": {
+    "arrivals": 3,
+    "departures": 3,
+    "city_pairs": 0,
+    "rows": [
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  },
+  "CCU": {
+   "days": [
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "CCU",
+      "airline_id": 2,
+      "out": 3001,
+      "back": 3002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "46a37149a20e5a53"
+    }
+   ],
+   "connections": {
+    "arrivals": 3,
+    "departures": 3,
+    "city_pairs": 1,
+    "rows": [
+     [
+      0,
+      1
+     ]
+    ],
+    "pairs": "5af37a071312d454"
+   }
+  },
+  "MAA": {
+   "days": [
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    },
+    {
+     "departures": 3,
+     "arrivals": 3,
+     "in_banks": {},
+     "departures_week": 21,
+     "cap": 5000,
+     "over_cap": false,
+     "next_pair": {
+      "base": "MAA",
+      "airline_id": 2,
+      "out": 6001,
+      "back": 6002,
+      "highest": null,
+      "from_schedule": null,
+      "last_used": null
+     },
+     "banks": 0,
+     "flights": "af1093a79eca0bcb"
+    }
+   ],
+   "connections": {
+    "arrivals": 3,
+    "departures": 3,
+    "city_pairs": 0,
+    "rows": [
+     [
+      0,
+      0
+     ]
+    ],
+    "pairs": "4f53cda18c2baa0c"
+   }
+  }
+ },
+ "tails": {
+  "N001AW": {
+   "week": {
+    "legs": 42,
+    "block_min": 3794,
+    "block_hours_day": 9.033333333333333,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "94fec3f0d29381e8"
+   },
+   "maintenance": {
+    "pct": 106,
+    "level": "ok",
+    "need_min_week": 1266.6966666666674,
+    "have_min_week": 1344
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.033333333333333,
+     "target_h": 10
+    }
+   ],
+   "off_wave": []
+  },
+  "N002AW": {
+   "week": {
+    "legs": 28,
+    "block_min": 5705,
+    "block_hours_day": 13.583333333333332,
+    "routes": 2,
+    "gaps_at_target": 0,
+    "estimated_legs": 0,
+    "departures": "caf47d8efc5a97ac"
+   },
+   "maintenance": {
+    "pct": 109,
+    "level": "ok",
+    "need_min_week": 934.4416666666667,
+    "have_min_week": 1022
+   },
+   "issues": [
+    {
+     "kind": "longest_gap",
+     "gap_min": 218,
+     "target_h": 4
+    }
+   ],
+   "off_wave": []
+  },
+  "N003AW": {
+   "week": {
+    "legs": 42,
+    "block_min": 4298,
+    "block_hours_day": 10.233333333333334,
+    "routes": 2,
+    "gaps_at_target": 0,
+    "estimated_legs": 0,
+    "departures": "f391ab7720fc1fc4"
+   },
+   "maintenance": {
+    "pct": 132,
+    "level": "ok",
+    "need_min_week": 1280.9766666666665,
+    "have_min_week": 1694
+   },
+   "issues": [
+    {
+     "kind": "longest_gap",
+     "gap_min": 193,
+     "target_h": 4
+    }
+   ],
+   "off_wave": []
+  },
+  "N004AW": {
+   "week": {
+    "legs": 14,
+    "block_min": 6538,
+    "block_hours_day": 15.566666666666666,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "fdf1ca0d4ce0a687"
+   },
+   "maintenance": {
+    "pct": 309,
+    "level": "ok",
+    "need_min_week": 616.14,
+    "have_min_week": 1904
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N005AW": {
+   "week": {
+    "legs": 14,
+    "block_min": 6174,
+    "block_hours_day": 14.700000000000001,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "2bdcd79bc2a9def9"
+   },
+   "maintenance": {
+    "pct": 446,
+    "level": "ok",
+    "need_min_week": 605.2200000000001,
+    "have_min_week": 2702
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N006AW": {
+   "week": {
+    "legs": 14,
+    "block_min": 6188,
+    "block_hours_day": 14.733333333333334,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "0e8599a8f713c088"
+   },
+   "maintenance": {
+    "pct": 361,
+    "level": "ok",
+    "need_min_week": 605.64,
+    "have_min_week": 2184
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N007AW": {
+   "week": {
+    "legs": 14,
+    "block_min": 5460,
+    "block_hours_day": 13,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "345ae40de804ed4b"
+   },
+   "maintenance": {
+    "pct": 353,
+    "level": "ok",
+    "need_min_week": 700,
+    "have_min_week": 2471
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N008AW": {
+   "week": {
+    "legs": 28,
+    "block_min": 5544,
+    "block_hours_day": 13.200000000000001,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "88171d04de36dc88"
+   },
+   "maintenance": {
+    "pct": 108,
+    "level": "ok",
+    "need_min_week": 1006.32,
+    "have_min_week": 1085
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N009AW": {
+   "week": {
+    "legs": 28,
+    "block_min": 4942,
+    "block_hours_day": 11.766666666666666,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "64e37fb198cf5215"
+   },
+   "maintenance": {
+    "pct": 209,
+    "level": "ok",
+    "need_min_week": 988.2599999999993,
+    "have_min_week": 2065
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N010AW": {
+   "week": {
+    "legs": 28,
+    "block_min": 5292,
+    "block_hours_day": 12.6,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "f8487b72f7204269"
+   },
+   "maintenance": {
+    "pct": 143,
+    "level": "ok",
+    "need_min_week": 998.7600000000001,
+    "have_min_week": 1428
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N011AW": {
+   "week": {
+    "legs": 28,
+    "block_min": 4732,
+    "block_hours_day": 11.266666666666666,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "2a828ca0c5462f04"
+   },
+   "maintenance": {
+    "pct": 235,
+    "level": "ok",
+    "need_min_week": 981.9599999999999,
+    "have_min_week": 2310
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N012AW": {
+   "week": {
+    "legs": 14,
+    "block_min": 5446,
+    "block_hours_day": 12.966666666666667,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "cdda5a829a4cf67b"
+   },
+   "maintenance": {
+    "pct": 511,
+    "level": "ok",
+    "need_min_week": 583.3800000000001,
+    "have_min_week": 2982
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "VT-AAA": {
+   "week": {
+    "legs": 6,
+    "block_min": 4794,
+    "block_hours_day": 11.414285714285715,
+    "routes": 1,
+    "gaps_at_target": 3,
+    "estimated_legs": 0,
+    "departures": "c37d0a641b8b69c3"
+   },
+   "maintenance": {
+    "pct": 1158,
+    "level": "ok",
+    "need_min_week": 381.8,
+    "have_min_week": 4422
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "VT-AAC": {
+   "week": {
+    "legs": 14,
+    "block_min": 7070,
+    "block_hours_day": 16.833333333333332,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "f028212234761dfa"
+   },
+   "maintenance": {
+    "pct": 259,
+    "level": "ok",
+    "need_min_week": 632.0999999999998,
+    "have_min_week": 1638
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-AAF": {
+   "week": {
+    "legs": 56,
+    "block_min": 4312,
+    "block_hours_day": 10.266666666666666,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "5bb132409dde44f7"
+   },
+   "maintenance": {
+    "pct": 122,
+    "level": "ok",
+    "need_min_week": 1667.7733333333324,
+    "have_min_week": 2030
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 2,
+     "rotation_ids": [
+      27,
+      29
+     ]
+    }
+   ],
+   "off_wave": [
+    27,
+    29
+   ]
+  },
+  "VT-AAB": {
+   "week": {
+    "legs": 6,
+    "block_min": 4794,
+    "block_hours_day": 11.414285714285715,
+    "routes": 1,
+    "gaps_at_target": 3,
+    "estimated_legs": 0,
+    "departures": "f3ffad10b5d39558"
+   },
+   "maintenance": {
+    "pct": 1158,
+    "level": "ok",
+    "need_min_week": 381.8,
+    "have_min_week": 4422
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "VT-AAD": {
+   "week": {
+    "legs": 14,
+    "block_min": 6916,
+    "block_hours_day": 16.466666666666665,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "d55902fad38860ac"
+   },
+   "maintenance": {
+    "pct": 273,
+    "level": "ok",
+    "need_min_week": 627.4800000000001,
+    "have_min_week": 1715
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-AAO": {
+   "week": {
+    "legs": 56,
+    "block_min": 4312,
+    "block_hours_day": 10.266666666666666,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "243c3f63063eb01e"
+   },
+   "maintenance": {
+    "pct": 107,
+    "level": "ok",
+    "need_min_week": 1667.773333333333,
+    "have_min_week": 1785
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 3,
+     "rotation_ids": [
+      30,
+      32,
+      33
+     ]
+    }
+   ],
+   "off_wave": [
+    30,
+    32,
+    33
+   ]
+  },
+  "EI-AAV": {
+   "week": {
+    "legs": 42,
+    "block_min": 4844,
+    "block_hours_day": 11.533333333333333,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "c09cf52ee16d2703"
+   },
+   "maintenance": {
+    "pct": 102,
+    "level": "warn",
+    "need_min_week": 1069.3199999999995,
+    "have_min_week": 1092
+   },
+   "issues": [
+    {
+     "kind": "maintenance",
+     "level": "warn",
+     "pct": 102,
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      35
+     ]
+    }
+   ],
+   "off_wave": [
+    35
+   ]
+  },
+  "EI-AAW": {
+   "week": {
+    "legs": 42,
+    "block_min": 4676,
+    "block_hours_day": 11.133333333333335,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "4922eb07f9f28ffa"
+   },
+   "maintenance": {
+    "pct": 122,
+    "level": "ok",
+    "need_min_week": 1064.2799999999997,
+    "have_min_week": 1295
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      39
+     ]
+    }
+   ],
+   "off_wave": [
+    39
+   ]
+  },
+  "EI-AAX": {
+   "week": {
+    "legs": 42,
+    "block_min": 4830,
+    "block_hours_day": 11.5,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "b16aa77cbf5ba5cc"
+   },
+   "maintenance": {
+    "pct": 159,
+    "level": "ok",
+    "need_min_week": 1068.9000000000008,
+    "have_min_week": 1701
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      41
+     ]
+    }
+   ],
+   "off_wave": [
+    41
+   ]
+  },
+  "EI-AAY": {
+   "week": {
+    "legs": 42,
+    "block_min": 4466,
+    "block_hours_day": 10.633333333333335,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "54d88e0406a161e2"
+   },
+   "maintenance": {
+    "pct": 159,
+    "level": "ok",
+    "need_min_week": 1057.9800000000012,
+    "have_min_week": 1680
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      43
+     ]
+    }
+   ],
+   "off_wave": [
+    43
+   ]
+  },
+  "VT-AAF": {
+   "week": {
+    "legs": 42,
+    "block_min": 3738,
+    "block_hours_day": 8.9,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "b622f54e075d2c2b"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 1265.1099999999997,
+    "have_min_week": 1428
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 8.9,
+     "target_h": 10
+    }
+   ],
+   "off_wave": []
+  },
+  "VT-AAE": {
+   "week": {
+    "legs": 14,
+    "block_min": 6706,
+    "block_hours_day": 15.966666666666667,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "a1a0c16714b2c0d7"
+   },
+   "maintenance": {
+    "pct": 293,
+    "level": "ok",
+    "need_min_week": 621.1800000000001,
+    "have_min_week": 1820
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-AAP": {
+   "week": {
+    "legs": 56,
+    "block_min": 4368,
+    "block_hours_day": 10.4,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "8b2fea888a65854a"
+   },
+   "maintenance": {
+    "pct": 104,
+    "level": "warn",
+    "need_min_week": 1669.3599999999988,
+    "have_min_week": 1729
+   },
+   "issues": [
+    {
+     "kind": "maintenance",
+     "level": "warn",
+     "pct": 104,
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      50
+     ]
+    }
+   ],
+   "off_wave": [
+    50
+   ]
+  },
+  "EI-AAQ": {
+   "week": {
+    "legs": 42,
+    "block_min": 4844,
+    "block_hours_day": 11.533333333333333,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "3c0637db521bad41"
+   },
+   "maintenance": {
+    "pct": 109,
+    "level": "ok",
+    "need_min_week": 1296.446666666666,
+    "have_min_week": 1407
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      56
+     ]
+    }
+   ],
+   "off_wave": [
+    56
+   ]
+  },
+  "EI-AAZ": {
+   "week": {
+    "legs": 56,
+    "block_min": 4536,
+    "block_hours_day": 10.799999999999999,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "c97cb3516098d9ed"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 1368.0799999999995,
+    "have_min_week": 1540
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 2,
+     "rotation_ids": [
+      58,
+      60
+     ]
+    }
+   ],
+   "off_wave": [
+    58,
+    60
+   ]
+  },
+  "EI-ABA": {
+   "week": {
+    "legs": 42,
+    "block_min": 5894,
+    "block_hours_day": 14.033333333333333,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "6323651d5cb62dcc"
+   },
+   "maintenance": {
+    "pct": 110,
+    "level": "ok",
+    "need_min_week": 1100.8199999999997,
+    "have_min_week": 1211
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 35,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 3,
+     "rotation_ids": [
+      61,
+      62,
+      63
+     ]
+    }
+   ],
+   "off_wave": [
+    61,
+    62,
+    63
+   ]
+  },
+  "EI-AAR": {
+   "week": {
+    "legs": 56,
+    "block_min": 4340,
+    "block_hours_day": 10.333333333333332,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "7f37a9e00da00447"
+   },
+   "maintenance": {
+    "pct": 105,
+    "level": "ok",
+    "need_min_week": 1668.566666666667,
+    "have_min_week": 1757
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      66
+     ]
+    }
+   ],
+   "off_wave": [
+    66
+   ]
+  },
+  "EI-ABB": {
+   "week": {
+    "legs": 56,
+    "block_min": 4424,
+    "block_hours_day": 10.533333333333333,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "47902ed930a6f907"
+   },
+   "maintenance": {
+    "pct": 105,
+    "level": "warn",
+    "need_min_week": 1364.7199999999991,
+    "have_min_week": 1428
+   },
+   "issues": [
+    {
+     "kind": "maintenance",
+     "level": "warn",
+     "pct": 105,
+     "min_pct": 100,
+     "target_pct": 105
+    },
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      68
+     ]
+    }
+   ],
+   "off_wave": [
+    68
+   ]
+  },
+  "VT-AAG": {
+   "week": {
+    "legs": 42,
+    "block_min": 5110,
+    "block_hours_day": 12.166666666666668,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "3a699fb01bf14ea5"
+   },
+   "maintenance": {
+    "pct": 106,
+    "level": "ok",
+    "need_min_week": 1303.983333333334,
+    "have_min_week": 1386
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADG": {
+   "week": {
+    "legs": 56,
+    "block_min": 3108,
+    "block_hours_day": 7.3999999999999995,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "a31a8b888c21bf28"
+   },
+   "maintenance": {
+    "pct": 123,
+    "level": "ok",
+    "need_min_week": 1633.6600000000003,
+    "have_min_week": 2009
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 7.3999999999999995,
+     "target_h": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      78
+     ]
+    }
+   ],
+   "off_wave": [
+    78
+   ]
+  },
+  "B-0157": {
+   "week": {
+    "legs": 42,
+    "block_min": 4032,
+    "block_hours_day": 9.6,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "f16c2c73ee6b0a65"
+   },
+   "maintenance": {
+    "pct": 118,
+    "level": "ok",
+    "need_min_week": 1273.4399999999996,
+    "have_min_week": 1505
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.6,
+     "target_h": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      81
+     ]
+    }
+   ],
+   "off_wave": [
+    81
+   ]
+  },
+  "9M-AAA": {
+   "week": {
+    "legs": 28,
+    "block_min": 4410,
+    "block_hours_day": 10.5,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "34f7f2bcfd380078"
+   },
+   "maintenance": {
+    "pct": 310,
+    "level": "ok",
+    "need_min_week": 897.75,
+    "have_min_week": 2786
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADH": {
+   "week": {
+    "legs": 42,
+    "block_min": 4774,
+    "block_hours_day": 11.366666666666665,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "c9b11288bf0f71b0"
+   },
+   "maintenance": {
+    "pct": 131,
+    "level": "ok",
+    "need_min_week": 1294.4633333333327,
+    "have_min_week": 1701
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0158": {
+   "week": {
+    "legs": 42,
+    "block_min": 4746,
+    "block_hours_day": 11.299999999999999,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "f71a111112bca09a"
+   },
+   "maintenance": {
+    "pct": 120,
+    "level": "ok",
+    "need_min_week": 1293.6699999999998,
+    "have_min_week": 1554
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      89
+     ]
+    }
+   ],
+   "off_wave": [
+    89
+   ]
+  },
+  "9M-AAB": {
+   "week": {
+    "legs": 28,
+    "block_min": 5810,
+    "block_hours_day": 13.833333333333332,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "a3b4d41e635daceb"
+   },
+   "maintenance": {
+    "pct": 169,
+    "level": "ok",
+    "need_min_week": 937.4166666666671,
+    "have_min_week": 1582
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-AAS": {
+   "week": {
+    "legs": 42,
+    "block_min": 4200,
+    "block_hours_day": 10,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "68fe59f5057c69b9"
+   },
+   "maintenance": {
+    "pct": 152,
+    "level": "ok",
+    "need_min_week": 1278.200000000001,
+    "have_min_week": 1946
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      92
+     ]
+    }
+   ],
+   "off_wave": [
+    92
+   ]
+  },
+  "EI-ABC": {
+   "week": {
+    "legs": 42,
+    "block_min": 4494,
+    "block_hours_day": 10.700000000000001,
+    "routes": 2,
+    "gaps_at_target": 14,
+    "estimated_legs": 0,
+    "departures": "225fea2333f70069"
+   },
+   "maintenance": {
+    "pct": 120,
+    "level": "ok",
+    "need_min_week": 1058.8199999999997,
+    "have_min_week": 1267
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "VT-AAH": {
+   "week": {
+    "legs": 28,
+    "block_min": 4382,
+    "block_hours_day": 10.433333333333334,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "e3b6186760b79d80"
+   },
+   "maintenance": {
+    "pct": 335,
+    "level": "ok",
+    "need_min_week": 896.9566666666672,
+    "have_min_week": 3003
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "N013AW": {
+   "week": {
+    "legs": 42,
+    "block_min": 5138,
+    "block_hours_day": 12.233333333333334,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "30ec325679bf7838"
+   },
+   "maintenance": {
+    "pct": 121,
+    "level": "ok",
+    "need_min_week": 1304.7766666666664,
+    "have_min_week": 1575
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-ABD": {
+   "week": {
+    "legs": 56,
+    "block_min": 4536,
+    "block_hours_day": 10.799999999999999,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "78f307261e3f11b6"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 1368.080000000001,
+    "have_min_week": 1547
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      103
+     ]
+    }
+   ],
+   "off_wave": [
+    103
+   ]
+  },
+  "B-0159": {
+   "week": {
+    "legs": 42,
+    "block_min": 4396,
+    "block_hours_day": 10.466666666666667,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "e5345327a3571211"
+   },
+   "maintenance": {
+    "pct": 167,
+    "level": "ok",
+    "need_min_week": 1283.7533333333338,
+    "have_min_week": 2149
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0188": {
+   "week": {
+    "legs": 42,
+    "block_min": 5026,
+    "block_hours_day": 11.966666666666667,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "e30e575a4c36810c"
+   },
+   "maintenance": {
+    "pct": 160,
+    "level": "ok",
+    "need_min_week": 1074.7800000000002,
+    "have_min_week": 1722
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      110
+     ]
+    }
+   ],
+   "off_wave": [
+    110
+   ]
+  },
+  "VT-AAI": {
+   "week": {
+    "legs": 42,
+    "block_min": 4256,
+    "block_hours_day": 10.133333333333335,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "196ed2a3eb69a9ee"
+   },
+   "maintenance": {
+    "pct": 123,
+    "level": "ok",
+    "need_min_week": 1279.7866666666673,
+    "have_min_week": 1568
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      113
+     ]
+    }
+   ],
+   "off_wave": [
+    113
+   ]
+  },
+  "9M-AAC": {
+   "week": {
+    "legs": 28,
+    "block_min": 5950,
+    "block_hours_day": 14.166666666666668,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "981d3d03a95e6cdb"
+   },
+   "maintenance": {
+    "pct": 160,
+    "level": "ok",
+    "need_min_week": 941.3833333333334,
+    "have_min_week": 1505
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "9M-AAP": {
+   "week": {
+    "legs": 56,
+    "block_min": 3598,
+    "block_hours_day": 8.566666666666666,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "f6294c597aa5622e"
+   },
+   "maintenance": {
+    "pct": 147,
+    "level": "ok",
+    "need_min_week": 1339.9400000000005,
+    "have_min_week": 1967
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 8.566666666666666,
+     "target_h": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 2,
+     "rotation_ids": [
+      118,
+      120
+     ]
+    }
+   ],
+   "off_wave": [
+    118,
+    120
+   ]
+  },
+  "N014AW": {
+   "week": {
+    "legs": 42,
+    "block_min": 5012,
+    "block_hours_day": 11.933333333333334,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "5eab4f6d421c377c"
+   },
+   "maintenance": {
+    "pct": 125,
+    "level": "ok",
+    "need_min_week": 1301.2066666666665,
+    "have_min_week": 1624
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-AAT": {
+   "week": {
+    "legs": 42,
+    "block_min": 4508,
+    "block_hours_day": 10.733333333333334,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "714c28fb570278e9"
+   },
+   "maintenance": {
+    "pct": 114,
+    "level": "ok",
+    "need_min_week": 1286.926666666667,
+    "have_min_week": 1463
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-ABG": {
+   "week": {
+    "legs": 56,
+    "block_min": 4186,
+    "block_hours_day": 9.966666666666667,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "a1bb017465322f9f"
+   },
+   "maintenance": {
+    "pct": 115,
+    "level": "ok",
+    "need_min_week": 1357.5799999999997,
+    "have_min_week": 1568
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.966666666666667,
+     "target_h": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      128
+     ]
+    }
+   ],
+   "off_wave": [
+    128
+   ]
+  },
+  "G-AADI": {
+   "week": {
+    "legs": 28,
+    "block_min": 4704,
+    "block_hours_day": 11.200000000000001,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "5c3cbe27b6903a27"
+   },
+   "maintenance": {
+    "pct": 301,
+    "level": "ok",
+    "need_min_week": 906.0799999999996,
+    "have_min_week": 2730
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADW": {
+   "week": {
+    "legs": 42,
+    "block_min": 4228,
+    "block_hours_day": 10.066666666666666,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "63b2d2b7fef82c98"
+   },
+   "maintenance": {
+    "pct": 242,
+    "level": "ok",
+    "need_min_week": 1050.8400000000006,
+    "have_min_week": 2541
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      134
+     ]
+    }
+   ],
+   "off_wave": [
+    134
+   ]
+  },
+  "EI-ABH": {
+   "week": {
+    "legs": 56,
+    "block_min": 4144,
+    "block_hours_day": 9.866666666666665,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "8747f5f4110198ad"
+   },
+   "maintenance": {
+    "pct": 119,
+    "level": "ok",
+    "need_min_week": 1356.32,
+    "have_min_week": 1610
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.866666666666665,
+     "target_h": 10
+    }
+   ],
+   "off_wave": []
+  },
+  "9M-AAQ": {
+   "week": {
+    "legs": 42,
+    "block_min": 4088,
+    "block_hours_day": 9.733333333333334,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "44e4973c91f989df"
+   },
+   "maintenance": {
+    "pct": 255,
+    "level": "ok",
+    "need_min_week": 1046.6399999999999,
+    "have_min_week": 2667
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.733333333333334,
+     "target_h": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 2,
+     "rotation_ids": [
+      141,
+      142
+     ]
+    }
+   ],
+   "off_wave": [
+    141,
+    142
+   ]
+  },
+  "9M-AAD": {
+   "week": {
+    "legs": 28,
+    "block_min": 6216,
+    "block_hours_day": 14.799999999999999,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "22ac6ce3cc635495"
+   },
+   "maintenance": {
+    "pct": 134,
+    "level": "ok",
+    "need_min_week": 948.9199999999997,
+    "have_min_week": 1267
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0189": {
+   "week": {
+    "legs": 42,
+    "block_min": 4718,
+    "block_hours_day": 11.233333333333334,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "4f90f76a05942d91"
+   },
+   "maintenance": {
+    "pct": 192,
+    "level": "ok",
+    "need_min_week": 1065.5399999999995,
+    "have_min_week": 2044
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      146
+     ]
+    }
+   ],
+   "off_wave": [
+    146
+   ]
+  },
+  "B-0160": {
+   "week": {
+    "legs": 42,
+    "block_min": 5166,
+    "block_hours_day": 12.299999999999999,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "457d232772d195fc"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 1305.5700000000004,
+    "have_min_week": 1470
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADX": {
+   "week": {
+    "legs": 42,
+    "block_min": 4704,
+    "block_hours_day": 11.200000000000001,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "366843bd44f71682"
+   },
+   "maintenance": {
+    "pct": 193,
+    "level": "ok",
+    "need_min_week": 1065.1200000000003,
+    "have_min_week": 2058
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADJ": {
+   "week": {
+    "legs": 56,
+    "block_min": 4214,
+    "block_hours_day": 10.033333333333333,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "daf00833ad444d54"
+   },
+   "maintenance": {
+    "pct": 112,
+    "level": "ok",
+    "need_min_week": 1664.9966666666667,
+    "have_min_week": 1869
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      157
+     ]
+    }
+   ],
+   "off_wave": [
+    157
+   ]
+  },
+  "VT-AAJ": {
+   "week": {
+    "legs": 42,
+    "block_min": 5250,
+    "block_hours_day": 12.5,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "45a25a2aff6c57e8"
+   },
+   "maintenance": {
+    "pct": 106,
+    "level": "ok",
+    "need_min_week": 1307.9499999999998,
+    "have_min_week": 1386
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "EI-AAU": {
+   "week": {
+    "legs": 42,
+    "block_min": 4494,
+    "block_hours_day": 10.700000000000001,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "9e54bb663ee48a9a"
+   },
+   "maintenance": {
+    "pct": 126,
+    "level": "ok",
+    "need_min_week": 1286.5300000000007,
+    "have_min_week": 1617
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      162
+     ]
+    }
+   ],
+   "off_wave": [
+    162
+   ]
+  },
+  "VT-AAK": {
+   "week": {
+    "legs": 42,
+    "block_min": 4270,
+    "block_hours_day": 10.166666666666668,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "cc536eddb9cfcac9"
+   },
+   "maintenance": {
+    "pct": 166,
+    "level": "ok",
+    "need_min_week": 1280.1833333333332,
+    "have_min_week": 2121
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "9M-AAE": {
+   "week": {
+    "legs": 28,
+    "block_min": 6748,
+    "block_hours_day": 16.066666666666666,
+    "routes": 2,
+    "gaps_at_target": 0,
+    "estimated_legs": 0,
+    "departures": "43389cba73512712"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 963.9933333333333,
+    "have_min_week": 1092
+   },
+   "issues": [
+    {
+     "kind": "longest_gap",
+     "gap_min": 228,
+     "target_h": 4
+    }
+   ],
+   "off_wave": []
+  },
+  "9M-AAF": {
+   "week": {
+    "legs": 28,
+    "block_min": 4746,
+    "block_hours_day": 11.299999999999999,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "41f6eb03a84d85a5"
+   },
+   "maintenance": {
+    "pct": 287,
+    "level": "ok",
+    "need_min_week": 907.2700000000004,
+    "have_min_week": 2604
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0161": {
+   "week": {
+    "legs": 28,
+    "block_min": 5558,
+    "block_hours_day": 13.233333333333334,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "98ba1289ac865b45"
+   },
+   "maintenance": {
+    "pct": 236,
+    "level": "ok",
+    "need_min_week": 930.2766666666662,
+    "have_min_week": 2191
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      172
+     ]
+    }
+   ],
+   "off_wave": [
+    172
+   ]
+  },
+  "B-0162": {
+   "week": {
+    "legs": 42,
+    "block_min": 4984,
+    "block_hours_day": 11.866666666666665,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "fe7b701817eb9860"
+   },
+   "maintenance": {
+    "pct": 104,
+    "level": "warn",
+    "need_min_week": 1300.4133333333323,
+    "have_min_week": 1358
+   },
+   "issues": [
+    {
+     "kind": "maintenance",
+     "level": "warn",
+     "pct": 104,
+     "min_pct": 100,
+     "target_pct": 105
+    }
+   ],
+   "off_wave": []
+  },
+  "G-AADK": {
+   "week": {
+    "legs": 56,
+    "block_min": 4172,
+    "block_hours_day": 9.933333333333334,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "01109b1e78fb3ef1"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 1663.8066666666675,
+    "have_min_week": 1876
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.933333333333334,
+     "target_h": 10
+    },
+    {
+     "kind": "tight_turns",
+     "count": 49,
+     "margin_min": 10
+    },
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      179
+     ]
+    }
+   ],
+   "off_wave": [
+    179
+   ]
+  },
+  "G-AADL": {
+   "week": {
+    "legs": 42,
+    "block_min": 4620,
+    "block_hours_day": 11,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "eb43e97cf3b621ab"
+   },
+   "maintenance": {
+    "pct": 109,
+    "level": "ok",
+    "need_min_week": 1290.1000000000001,
+    "have_min_week": 1407
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADM": {
+   "week": {
+    "legs": 42,
+    "block_min": 4424,
+    "block_hours_day": 10.533333333333333,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "b076a5baeb160a2c"
+   },
+   "maintenance": {
+    "pct": 160,
+    "level": "ok",
+    "need_min_week": 1284.5466666666673,
+    "have_min_week": 2058
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0163": {
+   "week": {
+    "legs": 56,
+    "block_min": 4144,
+    "block_hours_day": 9.866666666666665,
+    "routes": 4,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "6a338c3b9a5dd709"
+   },
+   "maintenance": {
+    "pct": 107,
+    "level": "ok",
+    "need_min_week": 1663.0133333333333,
+    "have_min_week": 1785
+   },
+   "issues": [
+    {
+     "kind": "block_hours",
+     "block_hours_day": 9.866666666666665,
+     "target_h": 10
+    },
+    {
+     "kind": "tight_turns",
+     "count": 42,
+     "margin_min": 10
+    }
+   ],
+   "off_wave": []
+  },
+  "9M-AAG": {
+   "week": {
+    "legs": 28,
+    "block_min": 5292,
+    "block_hours_day": 12.6,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "e14544b1125de636"
+   },
+   "maintenance": {
+    "pct": 228,
+    "level": "ok",
+    "need_min_week": 922.7399999999998,
+    "have_min_week": 2107
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0220": {
+   "week": {
+    "legs": 42,
+    "block_min": 4494,
+    "block_hours_day": 10.700000000000001,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "68c958372abd24ed"
+   },
+   "maintenance": {
+    "pct": 175,
+    "level": "ok",
+    "need_min_week": 1058.82,
+    "have_min_week": 1855
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      193
+     ]
+    }
+   ],
+   "off_wave": [
+    193
+   ]
+  },
+  "B-0164": {
+   "week": {
+    "legs": 42,
+    "block_min": 4858,
+    "block_hours_day": 11.566666666666666,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "c778445e74350be3"
+   },
+   "maintenance": {
+    "pct": 111,
+    "level": "ok",
+    "need_min_week": 1296.8433333333335,
+    "have_min_week": 1435
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "B-0165": {
+   "week": {
+    "legs": 42,
+    "block_min": 5320,
+    "block_hours_day": 12.666666666666668,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "0a963ff65ad86f1d"
+   },
+   "maintenance": {
+    "pct": 119,
+    "level": "ok",
+    "need_min_week": 1309.9333333333334,
+    "have_min_week": 1554
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "VT-AAM": {
+   "week": {
+    "legs": 42,
+    "block_min": 5012,
+    "block_hours_day": 11.933333333333334,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "5ff85bb9dbc367e3"
+   },
+   "maintenance": {
+    "pct": 130,
+    "level": "ok",
+    "need_min_week": 1301.2066666666672,
+    "have_min_week": 1687
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      202
+     ]
+    }
+   ],
+   "off_wave": [
+    202
+   ]
+  },
+  "EI-ABI": {
+   "week": {
+    "legs": 42,
+    "block_min": 4466,
+    "block_hours_day": 10.633333333333335,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "17fb7b51ae02f66b"
+   },
+   "maintenance": {
+    "pct": 176,
+    "level": "ok",
+    "need_min_week": 1285.7366666666662,
+    "have_min_week": 2261
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      206
+     ]
+    }
+   ],
+   "off_wave": [
+    206
+   ]
+  },
+  "9M-AAR": {
+   "week": {
+    "legs": 42,
+    "block_min": 4774,
+    "block_hours_day": 11.366666666666665,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "2b3aab528bc29264"
+   },
+   "maintenance": {
+    "pct": 173,
+    "level": "ok",
+    "need_min_week": 1067.22,
+    "have_min_week": 1841
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      210
+     ]
+    }
+   ],
+   "off_wave": [
+    210
+   ]
+  },
+  "9M-AAH": {
+   "week": {
+    "legs": 28,
+    "block_min": 5474,
+    "block_hours_day": 13.033333333333333,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "a4fc896a606c0abc"
+   },
+   "maintenance": {
+    "pct": 207,
+    "level": "ok",
+    "need_min_week": 927.8966666666666,
+    "have_min_week": 1925
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "9M-AAI": {
+   "week": {
+    "legs": 28,
+    "block_min": 5810,
+    "block_hours_day": 13.833333333333332,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "2646fbb077af2fe1"
+   },
+   "maintenance": {
+    "pct": 172,
+    "level": "ok",
+    "need_min_week": 937.4166666666671,
+    "have_min_week": 1617
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AAEC": {
+   "week": {
+    "legs": 42,
+    "block_min": 4830,
+    "block_hours_day": 11.5,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "2d835256462fd481"
+   },
+   "maintenance": {
+    "pct": 186,
+    "level": "ok",
+    "need_min_week": 1068.8999999999992,
+    "have_min_week": 1988
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADN": {
+   "week": {
+    "legs": 42,
+    "block_min": 4578,
+    "block_hours_day": 10.9,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "4f0918c4552f2454"
+   },
+   "maintenance": {
+    "pct": 169,
+    "level": "ok",
+    "need_min_week": 1288.91,
+    "have_min_week": 2184
+   },
+   "issues": [],
+   "off_wave": []
+  },
+  "G-AADO": {
+   "week": {
+    "legs": 42,
+    "block_min": 5194,
+    "block_hours_day": 12.366666666666665,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "ea7b3df7319d7556"
+   },
+   "maintenance": {
+    "pct": 121,
+    "level": "ok",
+    "need_min_week": 1306.3633333333332,
+    "have_min_week": 1582
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      222
+     ]
+    }
+   ],
+   "off_wave": [
+    222
+   ]
+  },
+  "EI-ABL": {
+   "week": {
+    "legs": 42,
+    "block_min": 5488,
+    "block_hours_day": 13.066666666666666,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "4d0882b82c95448e"
+   },
+   "maintenance": {
+    "pct": 120,
+    "level": "ok",
+    "need_min_week": 1088.6399999999994,
+    "have_min_week": 1302
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      225
+     ]
+    }
+   ],
+   "off_wave": [
+    225
+   ]
+  },
+  "G-AADP": {
+   "week": {
+    "legs": 42,
+    "block_min": 4648,
+    "block_hours_day": 11.066666666666666,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "8644f0098611c47e"
+   },
+   "maintenance": {
+    "pct": 161,
+    "level": "ok",
+    "need_min_week": 1290.893333333333,
+    "have_min_week": 2072
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      229
+     ]
+    }
+   ],
+   "off_wave": [
+    229
+   ]
+  },
+  "B-0166": {
+   "week": {
+    "legs": 42,
+    "block_min": 4984,
+    "block_hours_day": 11.866666666666665,
+    "routes": 3,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "da0c094ebbd049b3"
+   },
+   "maintenance": {
+    "pct": 113,
+    "level": "ok",
+    "need_min_week": 1300.4133333333336,
+    "have_min_week": 1470
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      230
+     ]
+    }
+   ],
+   "off_wave": [
+    230
+   ]
+  },
+  "9M-AAJ": {
+   "week": {
+    "legs": 28,
+    "block_min": 5544,
+    "block_hours_day": 13.200000000000001,
+    "routes": 2,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "80afbcda93f02983"
+   },
+   "maintenance": {
+    "pct": 216,
+    "level": "ok",
+    "need_min_week": 929.8799999999998,
+    "have_min_week": 2009
+   },
+   "issues": [
+    {
+     "kind": "off_wave",
+     "count": 1,
+     "rotation_ids": [
+      234
+     ]
+    }
+   ],
+   "off_wave": [
+    234
+   ]
+  },
+  "N015AW": {
+   "week": {
+    "legs": 14,
+    "block_min": 5922,
+    "block_hours_day": 14.1,
+    "routes": 1,
+    "gaps_at_target": 7,
+    "estimated_legs": 0,
+    "departures": "782084dbb0ffcfbf"
+   },
+   "maintenance": {
+    "pct": 511,
+    "level": "ok",
+    "need_min_week": 597.6600000000001,
+    "have_min_week": 3052
+   },
+   "issues": [
+    {
+     "kind": "tight_turns",
+     "count": 7,
+     "margin_min": 10
+    }
+   ],
+   "off_wave": []
+  }
+ },
+ "schedule": {
+  "night_bans": {
+   "count": 0,
+   "all": "4f53cda18c2baa0c"
+  },
+  "route_gaps": {
+   "count": 1,
+   "all": "419dedf8956fdb60"
+  },
+  "flight_number_clashes": {
+   "count": 0,
+   "all": "4f53cda18c2baa0c"
+  },
+  "airports_over_cap": {
+   "count": 0,
+   "all": "4f53cda18c2baa0c"
+  }
+ }
+}

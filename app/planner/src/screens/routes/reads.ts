@@ -11,7 +11,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
-import type { Json } from "../../db/types";
 import {
   LEG_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS,
   type AircraftRow, type AirportInfo, type LegRow, type Load, type MarketRow, type PlanLegRow, type RotationRow, type RouteRow,
@@ -92,20 +91,18 @@ export function useServiceProfiles(worldId: number | undefined) {
   });
 }
 
-/** Our aircraft: registration, type, status, the last schedule change (the one-week check) and their place in the old
- *  planner's list of tails. */
+/** Our aircraft: registration, type, status and the last schedule change (the one-week check), in the order they were
+ *  added. */
 export function useRoutesAircraft(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("aircraft", "routes", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
       const { data, error } = await supabase.from("aircraft")
-        .select("id, registration, airline_id, aircraft_type_id, status, schedule_changed_on, tails_index:extra->tails_index, updated_at")
+        .select("id, registration, airline_id, aircraft_type_id, status, schedule_changed_on, updated_at")
         .eq("world_id", worldId ?? 0).order("id");
       if (error) return fail("the aircraft", error.message);
-      return (data as unknown as (Omit<AircraftRow, "tails_index"> & { tails_index: Json })[]).map((a) => ({
-        ...a, tails_index: typeof a.tails_index === "number" ? a.tails_index : a.tails_index == null ? null : Number(a.tails_index),
-      })) as AircraftRow[];
+      return data as AircraftRow[];
     },
   });
 }

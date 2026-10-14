@@ -134,7 +134,7 @@ export function useCounts(w: number | undefined) {
       };
       const [rot, tails, edits] = await Promise.all([
         head("rotations"),
-        head("aircraft", (q) => (q as unknown as { not: (c: string, o: string, v: string) => unknown }).not("extra->tails_index", "is", "null")),
+        head("aircraft", (q) => (q as unknown as { eq: (c: string, v: string) => unknown }).eq("status", "active")),
         head("routes", (q) => (q as unknown as { or: (f: string) => unknown }).or("edit_kept.is.true,removed.is.true,removed_note.not.is.null,city_override.not.is.null,"
           + "distance_override_km.not.is.null,market_override_id.not.is.null,market_cleared.is.true,stars_override.not.is.null")),
       ]);

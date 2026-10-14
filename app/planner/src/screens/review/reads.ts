@@ -3,8 +3,8 @@
 // - the captured figures: airline_cards() (the cards and the group today), airline_profit() for every airline (the cards'
 //   sparklines, and the airline page's chart and table), cash_forecast(), route_profit() and aircraft_profit() for the
 //   period picked, fare_changes(), fare_plan_status() and cash_log() (the nightly log and the cash entry form);
-// - a loads day as the old planner holds it (planner_loads_get(), the route its "Loads by hand" reads and save_loads()
-//   writes, since loads are saved that way: spec, "use the same route").
+// - a loads day as the planner holds it (loads_by_day(): the captured and typed loads, the latest winning, and the typed
+//   rows behind them, which "Loads by hand" saves through planner_save() since the clean-up, build pull request 14).
 // The functions that only read are called with GET, so a preview (decision #8) reads them too. The fare plan and the cash
 // log are keyed under their tables (["table", "fare_plan", ...], ["table", "cash_entries", ...]), so a save to those tables
 // reads them again.
@@ -98,19 +98,18 @@ export function useCashLog(worldId: number | undefined) {
   });
 }
 
-/** A loads day as the old planner holds it (planner_loads_get()'s month for the day), or null when it has none. Keyed
- *  under load_entries, so it is read again after a save. */
+/** The loads days from one date to another as the planner holds them (loads_by_day()), by date; a day with nothing captured
+ *  or typed isn't there. */
+export async function readLoadsDays(worldId: number, from: string, to: string): Promise<Record<string, LoadsDay>> {
+  return rpc<Record<string, LoadsDay>>("the loads", "loads_by_day", { p_world_id: worldId, p_from: from, p_to: to });
+}
+
+/** A loads day as the planner holds it, or null when it has nothing yet. Keyed under load_entries, so a save to it reads it
+ *  again (Loads by hand also reads it again after a save to load_days alone). */
 export function useLoadsDay(worldId: number | undefined, day: string) {
   return useQuery({
-    queryKey: tableKey("load_entries", "planner_loads_get", worldId, day.slice(0, 7)),
+    queryKey: tableKey("load_entries", "loads_by_day", worldId, day),
     enabled: worldId !== undefined,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("planner_loads_get", { p_world_id: worldId ?? 0 }, { get: true });
-      if (error) return fail("the loads", error.message);
-      const row = (data ?? []).find((r) => r.month === day.slice(0, 7));
-      const month = row ? (JSON.parse(row.json) as Record<string, LoadsDay>) : {};
-      return month;
-    },
-    select: (month: Record<string, LoadsDay>) => month[day] ?? null,
+    queryFn: async () => (await readLoadsDays(worldId ?? 0, day, day))[day] ?? null,
   });
 }

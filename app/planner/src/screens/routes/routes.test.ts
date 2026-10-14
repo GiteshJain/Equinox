@@ -23,8 +23,8 @@ const routeRow = (id: number, hub: string, dest: string, km: number, x: Partial<
   removed: false, removed_note: null, city_override: null, distance_override_km: null, market_override_id: null, market_cleared: false, stars_override: null,
   updated_at: T0, ...x,
 });
-const ac: AircraftRow = { id: 1, registration: "T-001", airline_id: 1, aircraft_type_id: 1, status: "active", schedule_changed_on: "2026-10-01", tails_index: 0, updated_at: T0 };
-const ac2: AircraftRow = { ...ac, id: 2, registration: "T-002", tails_index: 1 };
+const ac: AircraftRow = { id: 1, registration: "T-001", airline_id: 1, aircraft_type_id: 1, status: "active", schedule_changed_on: "2026-10-01", updated_at: T0 };
+const ac2: AircraftRow = { ...ac, id: 2, registration: "T-002" };
 const aircraft = new Map([[1, ac], [2, ac2]]);
 const byReg = new Map([["T-001", ac], ["T-002", ac2]]);
 const rot = (id: number, routeId: number): RotationRow => ({ id, airline_id: 1, route_id: routeId, legacy_key: "k" + id, service_code: "S1", fare_pct: 100, launched_on: "2026-10-01", note: null, extra: {}, updated_at: T0 });

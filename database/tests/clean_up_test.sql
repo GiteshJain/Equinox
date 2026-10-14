@@ -1,0 +1,143 @@
+-- The clean-up (#18 build pull request 14; spec docs/specs/2026-10-14-clean-up.md): the old planner's adapter and its
+-- tables are gone, the leftovers in the data cleared, and nothing the planner, the website, the figures or the archive
+-- give has changed. Run by database/rehearse.sh on the copy of last night's backup, after the new migrations (both files:
+-- the one Claude applies and the removals Gitesh runs), inside a transaction that is rolled back. Compares with what
+-- database/tests/before/clean_up_before.sql saved before them. A failed check stops with an error that says which
+-- (counts, ids and keys, never figures).
+--   1. Gone: the tables planner_state, planner_loads, planner_meta, planner_data, game_loads_before_13 and
+--      backup_runs_before_13, the view adapter_check_days, and the adapter's functions. loads_by_day() is there, staff
+--      only, runs as owner with an empty search path.
+--   2. The leftovers: no aircraft keeps a place in the old lists or an old delivery item, no plan card, to-do or fare
+--      plan keeps an old field; every aircraft keeps its tail notes. On the night it runs (the copy still had the
+--      places): Tails' list (status active) is the old tails list and the deliveries board (a delivery, not retired) the
+--      old deliveries list, aircraft by aircraft; how many aircraft lost a delivery the old list didn't hold, and how many
+--      tails now stand in another place in their airline's list, are printed.
+--   3. The figures: export_for_report('figures')'s document for every airline at the same moment is exactly as before
+--      (the UTC fix moves nothing while no airport has a correction; how many have one is printed). With a correction
+--      put on an airline's home airport here, each of its payments moves by exactly that much (private.fig_events()).
+--   4. Loads by hand: loads_by_day() gives each day of the last two weeks as the old planner read it
+--      (planner_loads_get(), saved before): the same loads, complete marks, capture marks and saved times.
+--   5. The archive: archive_due() runs, and every archived table's manifest for last month has the same layout, rows
+--      and checksum as before.
+
+do $test$
+declare
+  w bigint := (select id from public.worlds where is_default);
+  bad text; n int; n2 int; n3 int; v_at timestamptz; a jsonb; b jsonb; v_al bigint; v_code text; v_off numeric;
+  v_strict boolean;
+begin
+  -- ---------------------------------------------------------------- 1. gone, and what replaces them
+  select string_agg(x, ', ') into bad from unnest(array['public.planner_state', 'public.planner_loads', 'public.planner_meta',
+    'public.planner_data', 'public.game_loads_before_13', 'public.backup_runs_before_13', 'public.adapter_check_days']) x
+   where to_regclass(x) is not null;
+  assert bad is null, 'still there: ' || bad;
+  select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p join pg_namespace s on s.oid = p.pronamespace
+   where s.nspname in ('public', 'private')
+     and p.proname in ('planner_state_get', 'planner_state_put', 'planner_state_version', 'planner_loads_get', 'save_loads',
+                       'planner_item_put', 'planner_item_delete', 'export_planner_data', 'apply_loads_from_capture', 'loads_day_captured',
+                       'freeze_planner_state', 'unfreeze_planner_state', 'planner_frozen', 'adapter_clean_days', 'adapter_mirror_state',
+                       'adapter_mirror_loads', 'load_planner', 'planner_apply', 'loads_mirror_days', 'fig_eq_off', 'touch_updated_at');
+  assert bad is null, 'still there: ' || bad;
+  assert has_function_privilege('authenticated', 'public.loads_by_day(bigint, date, date)', 'execute')
+     and not has_function_privilege('anon', 'public.loads_by_day(bigint, date, date)', 'execute'),
+    'loads_by_day() isn''t for signed-in accounts only';
+  assert (select p.prosecdef and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p
+           where p.oid = 'public.loads_by_day(bigint, date, date)'::regprocedure), 'loads_by_day() doesn''t run as owner with an empty search path';
+
+  -- ---------------------------------------------------------------- 2. the leftovers
+  select count(*) into n from public.aircraft a where a.extra ?| array['tails_index', 'deliveries_index', 'delivery'];
+  assert n = 0, format('%s aircraft keep a place in the old lists or an old delivery item', n);
+  select (select count(*) from public.plan_cards x where x.extra <> '{}'::jsonb) + (select count(*) from public.todos x where x.extra <> '{}'::jsonb)
+       + (select count(*) from public.fare_plan x where x.extra <> '{}'::jsonb) into n;
+  assert n = 0, format('%s plan cards, to-dos or fare plans keep an old field', n);
+  select count(*) into n from rehearsal_before.clean_up_aircraft o join public.aircraft a on a.id = o.id
+   where o.tail is not null and a.extra -> 'tail' is distinct from o.tail;
+  assert n = 0, format('%s aircraft lost their tail notes', n);
+  v_strict := exists (select 1 from rehearsal_before.clean_up_aircraft o where o.on_tails or o.on_deliveries);
+  if v_strict then
+    select string_agg(o.id::text, ', ') into bad from rehearsal_before.clean_up_aircraft o join public.aircraft a on a.id = o.id
+     where o.on_tails <> (a.status = 'active');
+    assert bad is null, 'Tails'' list isn''t the old tails list for aircraft: ' || bad;
+    select string_agg(o.id::text, ', ') into bad from rehearsal_before.clean_up_aircraft o join public.aircraft a on a.id = o.id
+     where o.on_deliveries <> (a.delivery_at is not null and a.status <> 'retired');
+    assert bad is null, 'the deliveries board isn''t the old deliveries list for aircraft: ' || bad;
+    select count(*) into n2 from rehearsal_before.clean_up_aircraft o join public.aircraft a on a.id = o.id
+     where o.delivery_at is not null and a.delivery_at is null;
+    select count(*) into n3 from (
+      select o.id, row_number() over (partition by o.airline_id order by o.tails_place, o.id) as was,
+             row_number() over (partition by o.airline_id order by o.id) as now
+        from rehearsal_before.clean_up_aircraft o join public.aircraft a on a.id = o.id where o.on_tails) x
+     where x.was <> x.now;
+    raise notice 'the old lists: Tails and the deliveries board hold the same aircraft as before (% tails, % deliveries); % aircraft lost a delivery the old list didn''t hold; % tails stand in another place in their airline''s list (by when they were added)',
+      (select count(*) from rehearsal_before.clean_up_aircraft where on_tails), (select count(*) from rehearsal_before.clean_up_aircraft where on_deliveries), n2, n3;
+  else
+    raise notice 'the old lists: the copy had no places in them any more (cleaned up already), so only the clearing was checked';
+  end if;
+
+  -- ---------------------------------------------------------------- 3. the figures
+  v_at := (select (value #>> '{}')::timestamptz from rehearsal_before.clean_up_outputs where name = 'as_of');
+  b := (select value from rehearsal_before.clean_up_outputs where name = 'figures');
+  a := private.fig_export(w, v_at);
+  if a is distinct from b then
+    select string_agg(k, ', ' order by k) into bad
+      from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;
+    raise exception 'the captured figures as of % differ from before at: %', v_at, coalesce(bad, 'the whole document');
+  end if;
+  select count(*) into n from public.world_airports x where x.world_id = w and x.utc_offset_override is not null;
+  -- a correction on an airline's home airport moves each of its payments by exactly that much
+  select e.airline_id, h.code into v_al, v_code
+    from private.fig_events(w, v_at) e
+    join public.airlines al on al.id = e.airline_id
+    left join public.airline_bases mb on mb.airline_id = al.id and mb.is_main
+    cross join lateral (select coalesce(mb.airport_code, al.home_airport_code) as code) h
+   where h.code is not null
+   order by e.airline_id limit 1;
+  if v_al is null then
+    raise notice 'the figures: exactly as before as of % (% airports with a correction); no payments to try a correction on', v_at, n;
+  else
+    v_off := coalesce(private.airport_offset_min(w, v_code), 0) / 60.0;
+    create temporary table t_events on commit drop as select x.at, x.descr, x.event_date, x.event_time from private.fig_events(w, v_at, v_al) x;
+    insert into public.world_airports as x (world_id, airport_code, utc_offset_override) values (w, v_code, v_off + 1)
+    on conflict (world_id, airport_code) do update set utc_offset_override = excluded.utc_offset_override;
+    select count(*), count(*) filter (where e.at = o.at - interval '1 hour') into n2, n3
+      from t_events o join private.fig_events(w, v_at, v_al) e
+        on (e.descr, e.event_date, e.event_time) is not distinct from (o.descr, o.event_date, o.event_time);
+    assert n2 > 0 and n3 = n2, format('with an hour''s correction on %s, %s of %s payments moved by exactly an hour', v_code, n3, n2);
+    raise notice 'the figures: exactly as before as of % (% airports with a correction); with an hour''s correction on an airline''s home airport, all % of its payments move by an hour',
+      v_at, n, n2;
+  end if;
+
+  -- ---------------------------------------------------------------- 4. loads by hand
+  b := (select value from rehearsal_before.clean_up_outputs where name = 'loads');
+  if b is null then
+    raise notice 'loads by hand: the copy had no planner_loads_get() any more, so nothing to compare';
+  else
+    a := public.loads_by_day(w, (now() at time zone 'UTC')::date - 13, (now() at time zone 'UTC')::date);
+    select string_agg(d, ', ' order by d) into bad
+      from (select k as d from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x
+     where (coalesce(a -> d -> 'f', '{}') <> '{}' or coalesce(b -> d -> 'f', '{}') <> '{}'
+            or coalesce((a -> d ->> 'done')::boolean, false) or coalesce((b -> d ->> 'done')::boolean, false))
+       and (coalesce(a -> d -> 'f', '{}') is distinct from coalesce(b -> d -> 'f', '{}')
+            or coalesce((a -> d ->> 'done')::boolean, false) is distinct from coalesce((b -> d ->> 'done')::boolean, false)
+            or (a -> d -> 'savedAt') is distinct from (b -> d -> 'savedAt'));
+    assert bad is null, 'loads_by_day() gives these days otherwise than planner_loads_get() did (loads, complete mark or saved time): ' || bad;
+    -- the capture mark only names how a complete day is shown (captured, or entered by hand): the figures' rule (a capture
+    -- with loads reached the day) can differ from the old document's (any capture of an airline flying it), so counted
+    select count(*) into n from (select k as d from jsonb_object_keys(a) k) x
+     where ((a -> d ->> 'done')::boolean or (b -> d ->> 'done')::boolean) and (a -> d ->> 'source') is distinct from (b -> d ->> 'source');
+    raise notice 'loads by hand: loads_by_day() gives the last two weeks as the old planner read them (% days with loads or marked complete, % flights); % complete days marked captured on one side only',
+      (select count(*) from jsonb_each(a) d where d.value -> 'f' <> '{}' or (d.value ->> 'done')::boolean),
+      (select count(*) from jsonb_each(a) d, jsonb_object_keys(d.value -> 'f') f), n;
+  end if;
+
+  -- ---------------------------------------------------------------- 5. the archive
+  perform * from private.archive_due();
+  select string_agg(o.table_name, ', ') into bad
+    from rehearsal_before.clean_up_archive o
+    cross join lateral (select private.archive_manifest(((o.manifest ->> 'month') || '-01')::date, o.table_name) as m) x
+   where (x.m -> 'layout', x.m -> 'rows', x.m -> 'checksum') is distinct from (o.manifest -> 'layout', o.manifest -> 'rows', o.manifest -> 'checksum');
+  assert bad is null, 'the archive''s manifest for last month changed (layout, rows or checksum) for: ' || bad;
+  raise notice 'the archive: archive_due() runs, and last month''s manifest of each of the % archived tables has the same layout, rows and checksum as before',
+    (select count(*) from rehearsal_before.clean_up_archive);
+end
+$test$;

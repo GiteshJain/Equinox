@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useOurAirlines } from "../../data/reads";
 import { useRules } from "../../data/rules";
 import { useAirports } from "../routes/reads";
-import { extraIndex } from "../tails/model";
+import { onDeliveries } from "../tails/model";
 import { usePlanCards, usePlanLegs, useTailsAircraft } from "../tails/reads";
 import { interlineRows, parseRules, type IlAirline, type IlPlan, type IlRotation, type IlRow } from "./model";
 
@@ -22,18 +22,14 @@ export function useInterlineRows(w: number | undefined) {
   })), [airlinesQ.data]);
   const ilRules = useMemo(() => (rules ? parseRules(rules.input.settings.interline_rules) : null), [rules]);
 
-  // the waiting plan cards: an aircraft not in service, still in the old planner's deliveries, with a card; its legs as the
-  // old planner reads them (a copy kept in the card's extra.legs, else the leg rows)
+  // the waiting plan cards: an aircraft not in service, on the deliveries board, with a card; its legs from the card's rows
   const plans: IlPlan[] = useMemo(() => {
     if (!aircraftQ.data || !cardsQ.data || !legsQ.data) return [];
     const ac = new Map(aircraftQ.data.map((a) => [a.id, a]));
     return cardsQ.data.flatMap((c): IlPlan[] => {
       const a = ac.get(c.aircraft_id);
-      if (!a || a.status === "active" || a.status === "retired" || extraIndex(a, "deliveries_index") == null) return [];
-      const kept = (c.extra && typeof c.extra === "object" && !Array.isArray(c.extra) ? c.extra.legs : null);
-      const legs = Array.isArray(kept)
-        ? kept.map((l) => (l && typeof l === "object" && !Array.isArray(l) ? { from: typeof l.from === "string" ? l.from : null, to: typeof l.to === "string" ? l.to : null } : { from: null, to: null }))
-        : legsQ.data.filter((l) => l.plan_card_id === c.id).sort((x, y) => x.position - y.position).map((l) => ({ from: l.origin_code, to: l.dest_code }));
+      if (!a || a.status === "active" || !onDeliveries(a)) return [];
+      const legs = legsQ.data.filter((l) => l.plan_card_id === c.id).sort((x, y) => x.position - y.position).map((l) => ({ from: l.origin_code, to: l.dest_code }));
       return [{ airline_id: a.airline_id, registration: a.registration, legs }];
     });
   }, [aircraftQ.data, cardsQ.data, legsQ.data]);

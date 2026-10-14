@@ -48,7 +48,8 @@ export function itemRoute(id: ScreenId, at: { tail?: string; airline?: string | 
 }
 
 /** Which screen an address belongs to: its first part after /planner/, so /planner/review/VS is Review.
- * Null for an address outside the planner or a part that isn't a screen (the old planner's /planner/old/ included). */
+ * Null for an address outside the planner or a part that isn't a screen (the old planner's /planner/old/ included, which
+ * web/_redirects sends to /planner/ since the clean-up). */
 export function screenForPath(pathname: string): Screen | null {
   if (pathname !== BASENAME && !pathname.startsWith(BASENAME + "/")) return null;
   const first = pathname.slice(BASENAME.length).split("/").filter(Boolean)[0] ?? "";

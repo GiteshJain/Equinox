@@ -7,5 +7,4 @@ create table rehearsal_before.backup_runs as
 select ran_at, kind, ok, tables, rows, files, bytes, commit_sha, note, object_key from public.backup_runs;
 
 create table rehearsal_before.jobs_state as
-select to_regprocedure('private.schedule_jobs()') is not null as existed,
-       to_regclass('public.backup_runs_before_13') is not null as backup_runs_moved;
+select to_regprocedure('private.schedule_jobs()') is not null as existed;

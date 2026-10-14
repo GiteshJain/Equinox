@@ -148,7 +148,8 @@ export function FlightList({ b }: { b: HubBoard }) {
                 <td><b>{x.flight_no || "—"}</b></td>
                 <td>{x.other}</td>
                 <td>{x.registration ?? ""}</td>
-                <td>{x.bank == null ? "" : x.bank ? <span className="pill ok">{`bank ${x.bank}`}</span> : <span className="pill bad">off wave</span>}</td>
+                <td>{x.bank == null ? "" : x.bank ? <span className="pill ok">{`bank ${x.bank}`}</span>
+                  : <span className="pill bad">{x.kind === "arr" ? "outside the banks" : "off wave"}</span>}</td>
               </tr>
             ))}
           </tbody>

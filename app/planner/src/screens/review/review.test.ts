@@ -10,7 +10,7 @@ import { cardLegs, cardServiceIssues, withRoutes, type PlanLegRow } from "../tai
 import type { RouteRow as TableRoute } from "../routes/model";
 import {
   CHART_INTERVALS, barLayout, barTip, capturedLine, cardWords, cashChanges, chartIntervals, costParts, dayStatus, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat, kk,
-  markCounts, nextOrderWords, nightlyLog, offersFarePlan, parseLoadPaste, pasteSaves, planWords, safeWords, sg, shownRoutes, sparkBars, typedLoads, typedSave,
+  loadsChanges, markCounts, mergeDay, nextOrderWords, nightlyLog, offersFarePlan, parseLoadPaste, pasteSaves, planWords, safeWords, sg, shownRoutes, sparkBars, typedLoads, typedSave,
   underList, type Card, type CashToday, type PlanRow, type ProfitDay, type RouteRow,
 } from "./model";
 
@@ -200,16 +200,45 @@ describe("loads by hand", () => {
     expect(p.map((x) => [x.key, x.date, x.pax, x.seats, x.pct])).toEqual([["Pan American|101", "2025-12-31", 1200, 1500, 80]]);
     expect(parseLoadPaste("nothing here", codes, "2026-10-14")).toEqual([]);
   });
-  it("the paste saved: each flight under 95% set, each full one cleared, the ticked days complete, one call per month", () => {
+  it("the paste saved: each flight under 95% set, each full one cleared, the ticked days complete", () => {
     const p = parseLoadPaste(paste, codes, "2026-10-14");
-    expect(pasteSaves(p, ["2026-10-14"], 123)).toEqual([{ p_month: "2026-10", p_days: { "2026-10-14": { set: { "Kingfisher|1008": 68 }, del: ["Kingfisher|1009"], done: true, savedAt: 123 } } }]);
-    expect(pasteSaves(p, [], 123)).toEqual([{ p_month: "2026-10", p_days: { "2026-10-14": { set: { "Kingfisher|1008": 68 }, del: ["Kingfisher|1009"] } } }]);
+    expect(pasteSaves(p, ["2026-10-14"], 123)).toEqual({ "2026-10-14": { set: { "Kingfisher|1008": 68 }, del: ["Kingfisher|1009"], done: true, savedAt: 123 } });
+    expect(pasteSaves(p, [], 123)).toEqual({ "2026-10-14": { set: { "Kingfisher|1008": 68 }, del: ["Kingfisher|1009"] } });
   });
   it("typed boxes: number then load, a prefix allowed, each load 0 to 94; a flight that doesn't fly that day is named", () => {
     const valid = new Set(["Pan American|1001", "Pan American|1005"]);
     const t = typedLoads([{ airline: "Pan American", text: "AW1001 93%, 1005 99, 1777 -4" }], valid);
     expect(t).toEqual({ f: { "Pan American|1001": 93, "Pan American|1005": 94, "Pan American|1777": 4 }, unknown: ["Pan 1777"] });
-    expect(typedSave("2026-10-14", t.f, 99)).toEqual({ p_month: "2026-10", p_days: { "2026-10-14": { f: t.f, done: true, savedAt: 99 } } });
+    expect(typedSave("2026-10-14", t.f, 99)).toEqual({ "2026-10-14": { f: t.f, done: true, savedAt: 99 } });
+  });
+  // the rows a save writes, as the old save_loads() wrote them (private.loads_mirror_days), since the clean-up through
+  // planner_save() (build pull request 14)
+  const ids = new Map([["Pan American", 1], ["Kingfisher", 2]]);
+  const AT = "2026-10-14T12:00:00.000Z";
+  const held = { done: true, source: "capture", savedAt: 50, f: { "Pan American|1001": 93, "Pan American|1009": 97 },
+    entries: [{ airline_id: 1, flight_no: 1001, eco_pct: 93, updated_at: "2026-10-14T01:00:00+00:00" }],
+    flags: { done: true, saved_at_ms: 50, updated_at: "2026-10-14T02:00:00+00:00" } };
+  it("a day merged as save_loads() merged it: f replaces the day's flights, or set and del change single ones", () => {
+    expect(mergeDay(held, { f: { "Pan American|1005": 61 }, done: true, savedAt: 99 })).toEqual({ f: { "Pan American|1005": 61 }, done: true, savedAt: 99 });
+    expect(mergeDay(held, { set: { "Pan American|1005": 61 }, del: ["Pan American|1009"] })).toEqual({ f: { "Pan American|1001": 93, "Pan American|1005": 61 }, done: true, savedAt: 50 });
+    expect(mergeDay(null, { set: { "Kingfisher|1": 70 } })).toEqual({ f: { "Kingfisher|1": 70 }, done: false });
+  });
+  it("typed: a row for each flight that differs (null where it's cleared), the day's row when its mark or saved time changes", () => {
+    const ch = loadsChanges(7, "2026-10-14", held, { f: { "Pan American|1001": 90, "Pan American|1005": 61 }, done: true, savedAt: 99 }, ids, AT);
+    expect(ch).toEqual([
+      { table: "load_entries", op: "update", key: { airline_id: 1, game_date: "2026-10-14", flight_no: 1001 }, base: "2026-10-14T01:00:00+00:00", values: { eco_pct: 90, entered_at: AT } },
+      { table: "load_entries", op: "insert", values: { world_id: 7, airline_id: 1, game_date: "2026-10-14", flight_no: 1005, eco_pct: 61, entered_at: AT } },
+      { table: "load_entries", op: "insert", values: { world_id: 7, airline_id: 1, game_date: "2026-10-14", flight_no: 1009, eco_pct: null, entered_at: AT } },
+      { table: "load_days", op: "update", key: { world_id: 7, game_date: "2026-10-14" }, base: "2026-10-14T02:00:00+00:00", values: { done: true, saved_at_ms: 99, entered_at: AT } },
+    ]);
+  });
+  it("a day with nothing yet: its rows added; nothing written when nothing differs; a flight of an airline not ours left out", () => {
+    expect(loadsChanges(7, "2026-10-20", null, { f: { "Kingfisher|1008": 68, "Nobody|5": 50 }, done: true, savedAt: 5 }, ids, AT)).toEqual([
+      { table: "load_entries", op: "insert", values: { world_id: 7, airline_id: 2, game_date: "2026-10-20", flight_no: 1008, eco_pct: 68, entered_at: AT } },
+      { table: "load_days", op: "insert", values: { world_id: 7, game_date: "2026-10-20", done: true, saved_at_ms: 5, entered_at: AT } },
+    ]);
+    expect(loadsChanges(7, "2026-10-14", held, { set: { "Pan American|1001": 93 } }, ids, AT)).toEqual([]);
+    expect(loadsChanges(7, "2026-10-14", held, { del: ["Pan American|1009"] }, ids, AT).map((c) => [c.table, c.op, c.values?.eco_pct])).toEqual([["load_entries", "insert", null]]);
   });
   it("a day's boxes and status from the day as the planner holds it", () => {
     const d = { done: true, source: "capture", f: { "Pan American|1001": 93, "Pan American|1005": 61, "Pan American|1009": 97, "Kingfisher|1": 50 } };

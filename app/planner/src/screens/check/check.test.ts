@@ -39,7 +39,7 @@ const rules = buildRules(input);
 const ac = (id: number, reg: string, x: Partial<TailAircraft> = {}): TailAircraft => ({
   id, registration: reg, airline_id: 1, aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB", status: "active", ordered_on: null, delivery_at: null,
   order_base_code: null, order_config_id: null, order_note: null, checked_on: null, schedule_changed_on: null, maintenance_note: null, retired_on: null,
-  extra: { tails_index: id - 1 }, updated_at: T0, ...x,
+  extra: {}, updated_at: T0, ...x,
 });
 
 describe("the address and the day", () => {
@@ -182,8 +182,8 @@ describe("the game check", () => {
       market_cleared: false, stars_override: null, updated_at: T0 });
     const common = {
       worldId: 1, today: "2026-10-13", nowMs: Date.parse("2026-10-13T12:00:00Z"), rand: () => 0.5, rules, airlineId: 1, cand,
-      aircraft: [ac(1, "T-001"), ac(2, "T-002"), ac(9, "T-009", { status: "delivered", order_base_code: "HUB", order_config_id: 3, extra: { deliveries_index: 0 } })],
-      tails: [ac(1, "T-001"), ac(2, "T-002")], tailsIndex: 2, bases: ["HUB", "FOC"], routes: [route(1, "HUB", "AAA")], markets: new Map(), profiles: [],
+      aircraft: [ac(1, "T-001"), ac(2, "T-002"), ac(9, "T-009", { status: "delivered", order_base_code: "HUB", order_config_id: 3 })],
+      tails: [ac(1, "T-001"), ac(2, "T-002")], bases: ["HUB", "FOC"], routes: [route(1, "HUB", "AAA")], markets: new Map(), profiles: [],
       airports: new Map([["CCC", { code: "CCC", city: "Delhi", country_code: "IN", country_name: "India", lat: 28.56, lon: 77.1, utc_offset: 5.5, correction: null, world_row: null }],
         ["HUB", { code: "HUB", city: "Hub", country_code: "GB", country_name: "United Kingdom", lat: 51.15, lon: -0.19, utc_offset: 0, correction: null, world_row: null }]]),
     };
@@ -195,10 +195,12 @@ describe("the game check", () => {
     expect(ch[1]?.values).toMatchObject({ world_id: 1, airline_id: 1, launched_on: "2026-10-13", legacy_key: expect.stringMatching(/^f[0-9a-z]+$/) });
     // a new tail typed: an aircraft arrived and waiting becomes a tail first; a registration nobody has is added
     const arrived = importChanges({ ...common, tail: { registration: "t-009" } });
-    expect(arrived[0]).toMatchObject({ table: "aircraft", op: "update", key: { id: 9 }, values: { status: "active", base_code: "HUB", cabin_config_id: 3, extra: { deliveries_index: 0, tails_index: 2 } } });
+    expect(arrived[0]).toMatchObject({ table: "aircraft", op: "update", key: { id: 9 }, values: { status: "active", base_code: "HUB", cabin_config_id: 3 } });
+    expect(arrived[0]?.values).not.toHaveProperty("extra");
     expect(arrived.filter((c) => c.table === "flight_legs").every((c) => c.values?.aircraft_id === 9)).toBe(true);
     const fresh = importChanges({ ...common, tail: { registration: "T-777" } });
-    expect(fresh[0]).toMatchObject({ table: "aircraft", op: "insert", as: "new aircraft", values: { registration: "T-777", aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB", extra: { tails_index: 2 } } });
+    expect(fresh[0]).toMatchObject({ table: "aircraft", op: "insert", as: "new aircraft", values: { registration: "T-777", aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB" } });
+    expect(fresh[0]?.values).not.toHaveProperty("extra");
     expect(fresh.filter((c) => c.table === "flight_legs").map((c) => [c.values?.aircraft_id, c.from?.aircraft_id])).toEqual([[undefined, "new aircraft"], [undefined, "new aircraft"]]);
   });
   it("adds a round trip to an airport none of our flights serves yet with that airport's offset from the tables (found by the side by side: it was taken as UTC)", () => {
@@ -206,7 +208,7 @@ describe("the game check", () => {
     const cand = game.importCandidates(rules, 1, away)[0] as ReturnType<typeof game.importCandidates>[number];
     const ch = importChanges({
       worldId: 1, today: "2026-10-13", nowMs: Date.parse("2026-10-13T12:00:00Z"), rand: () => 0.5, rules, airlineId: 1, cand, tail: { aircraft: ac(1, "T-001") },
-      aircraft: [ac(1, "T-001")], tails: [ac(1, "T-001")], tailsIndex: 1, bases: ["HUB", "FOC"], routes: [], markets: new Map(), profiles: [],
+      aircraft: [ac(1, "T-001")], tails: [ac(1, "T-001")], bases: ["HUB", "FOC"], routes: [], markets: new Map(), profiles: [],
       airports: new Map([["ZZZ", { code: "ZZZ", city: "Away", country_code: "AG", country_name: "Antigua", lat: 17.14, lon: -61.79, utc_offset: -4, correction: null, world_row: null }]]),
     });
     // 10:00 at HUB (UTC) is 600; 13:00 at ZZZ (UTC−4) is 17:00 UTC, 7 hours; back at 14:30 there (18:30 UTC), landing 20:30 UTC: 2 hours

@@ -1,7 +1,7 @@
 -- Saved by database/rehearse.sh before the pending changes run, into the schema rehearsal_before, and compared
 -- afterwards by database/tests/history_scans_test.sql (#13 build, pull request 6): once the world scans live in
 -- game_scans and its tables, export_for_report()'s scan kinds (the list of scans, and every scan's airlines and
--- airports), export_planner_data() and export_repo_bootstrap() must give what they gave before. Also the capture time of
+-- airports) and export_repo_bootstrap() must give what they gave before (export_planner_data() too, until the clean-up). Also the capture time of
 -- each game_balance and game_pnl row, for the two-captures fix (history_two_captures_test.sql), and whether the daily
 -- history was there already (history_backfill_test.sql). The ingest secret is a throwaway one, removed again; nothing
 -- is printed.
@@ -19,7 +19,6 @@ begin
       ('airports ' || (e ->> 'id'), public.export_for_report(s, 'airports', e ->> 'id'));
   end loop;
   insert into rehearsal_before.scan_outputs (name, value) values
-    ('export_planner_data', public.export_planner_data(s)),
     ('export_repo_bootstrap', public.export_repo_bootstrap(s));
   delete from public.ingest_secret where secret = s;
 end

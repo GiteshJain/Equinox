@@ -80,9 +80,10 @@ describe("Hubs' boards", () => {
     for (const f of ["hubs: day strip", "hubs: hours", "hubs: week", "hubs: flights", "hubs: connections"]) expect(out).toContain(`data-figure="${f}"`);
   });
 
-  it("the flight list: an arrival named with the bank it can next make, a flight of an airline with no base here with none, off wave in red", () => {
+  it("the flight list: an arrival named with the bank it can next make within the connection rules, else outside the banks; a flight of an airline with no base here with none, off wave in red", () => {
     const out = html(createElement(FlightList, { b: tue }));
-    expect(out).toContain("<td>05:30</td><td>↘</td><td><b>1006</b></td><td>CCC</td><td>T-001</td><td><span class=\"pill ok\">bank 2</span></td>");
+    expect(out).toContain("<td>05:30</td><td>↘</td><td><b>1006</b></td><td>CCC</td><td>T-001</td><td><span class=\"pill bad\">outside the banks</span></td>");
+    expect(out).toContain("<td>06:00</td><td>↘</td><td><b>1004</b></td><td>BBB</td><td>T-002</td><td><span class=\"pill ok\">bank 2</span></td>");
     expect(out).toContain("<td>08:15</td><td>↘</td><td><b>3001</b></td><td>AAA</td><td>O-001</td><td></td>");
     expect(out).toContain("<td>11:44</td><td>↗</td><td><b>1009</b></td><td>NBN</td><td>T-002</td><td><span class=\"pill bad\">off wave</span></td>");
   });

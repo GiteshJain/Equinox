@@ -44,7 +44,7 @@ export async function flightsCsv(rules: Rules, worldId: number, names: ReadonlyM
   }
   const mk = new Map(markets.map((m) => [m.id, { ...m, fare_y_pct: m.fare_y_pct == null ? null : Number(m.fare_y_pct) }]));
   const byRoute = new Map(routes.map((r) => [r.id, routeOf(r, mk)]));
-  const ac = new Map(aircraft.map((a) => [a.id, { ...a, tails_index: null }]));
+  const ac = new Map(aircraft.map((a) => [a.id, a]));
   const cfg = new Map(configs.map((c) => [c.id, c]));
   const lines = [csvLine(CSV_HEAD)];
   for (const rot of rotations) {

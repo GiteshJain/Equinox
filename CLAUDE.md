@@ -24,8 +24,8 @@ everything; builds follow a spec from the Building chat in the Equinox project.
 - **Update the docs in the same pull request** when how something works changes (the list is in the manual, §1).
 - **Never commit keys, passwords or live game data.** Placeholders like `__CAPTURE_KEY__` mark where keys go. Small,
   dated samples in `tests/fixtures/` are the one exception.
-- **The planner is the app in `app/planner/`** (React and TypeScript, served at `/planner/` since 14 Oct). The old
-  planner, `web/planner/index.html` (about 580 KB, at `/planner/old/` until the clean-up), is frozen: never change it,
-  and search it for the part you need rather than reading it whole.
+- **The planner is the app in `app/planner/`** (React and TypeScript, served at `/planner/` since 14 Oct; each screen in
+  `src/screens/`, its logic in a `model.ts` with unit tests beside it), and its rules are the planning library in
+  `lib/rules/`. The old planner and its adapter went with the clean-up (build pull request 14).
 - **Stay inside the spec.** If something outside it looks wrong, say so in the pull request instead of changing it.
 - **Write plainly:** short sentences, the answer first, no jargon where a plain word works.

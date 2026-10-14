@@ -13,7 +13,7 @@ import {
   cardLegs, checkSummary, compareCard, daysSuffix, filingChanges, gameLink, withAirports, type CardCheck, type ConfigRow, type TailAircraft, type TailAirline,
 } from "./model";
 import {
-  cabinLogged, orderCabin, readAircraft, readAirlineRoutes, readCard, readCardLegs, readGameSchedule, readMarkets, readProfiles, tailsCount,
+  cabinLogged, orderCabin, readAircraft, readAirlineRoutes, readCard, readCardLegs, readGameSchedule, readMarkets, readProfiles,
 } from "./reads";
 
 export interface FileState {
@@ -124,15 +124,15 @@ export function useFiling(opts: {
       const fresh = await readCardLegs(card.id);
       const legs = cardLegs(st.ctx.rules, fresh);
       const game = useGame ? legs.map((L) => st.check?.rows.find((r) => r.L.row.id === L.row.id)?.g ?? null) : null;
-      const [routes, markets, profiles, logged, count] = await Promise.all([
-        readAirlineRoutes(a.airline_id), readMarkets(w), readProfiles(w), cabinLogged(w, a.registration), tailsCount(w),
+      const [routes, markets, profiles, logged] = await Promise.all([
+        readAirlineRoutes(a.airline_id), readMarkets(w), readProfiles(w), cabinLogged(w, a.registration),
       ]);
       const own = a.order_config_id == null ? null : opts.configs.get(a.order_config_id);
       const cabin = own ? { code: own.code, cost: own.cost } : a.aircraft_type_id == null ? null : await orderCabin(a.airline_id, a.aircraft_type_id);
       const codes = [...new Set(fresh.flatMap((l) => [l.origin_code, l.dest_code]))];
       const airports = codes.length ? await readAirports(w, codes) : [];
       const changes = filingChanges({
-        worldId: w, today: opts.today, nowMs: Date.now(), rules: st.ctx.rules, aircraft: a, card, legs, game, cabin, cabinLogged: logged, tailsIndex: count,
+        worldId: w, today: opts.today, nowMs: Date.now(), rules: st.ctx.rules, aircraft: a, card, legs, game, cabin, cabinLogged: logged,
         bases: (opts.rules?.bases ?? []).filter((b) => b.airline_id === a.airline_id).map((b) => b.airport_code), routes,
         markets: new Map(markets.map((m) => [m.id, m])), profiles, airports: new Map(airports.map((x) => [x.code, x])),
       });

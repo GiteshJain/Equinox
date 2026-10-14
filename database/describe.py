@@ -4,6 +4,7 @@ Usage:
   psql "$DB" -X -At -f database/describe.sql | python3 database/describe.py           writes docs/data.md
   psql "$DB" -X -At -f database/describe.sql | python3 database/describe.py --check   fails if anything has no
       description, or if docs/data.md doesn't match the database
+  Either way, --out <file> also writes the guide as the database gives it to that file.
 Run by the database rehearsal (#8) on every pull request that changes the database.
 """
 import difflib, json, pathlib, sys
@@ -65,6 +66,8 @@ def main():
     missing = [f"{r['kind']} {r['name']}" for r in d["relations"] if not r["description"]]
     missing += [f"function {f.get('schema', 'public')}.{f['name']}({f['args']})" for f in d["functions"] if not f["description"]]
     text = render(d)
+    if "--out" in sys.argv:   # the guide as the database gives it, kept beside (the rehearsal's artifact), whatever the mode
+        pathlib.Path(sys.argv[sys.argv.index("--out") + 1]).write_text(text)
     if "--check" not in sys.argv:
         GUIDE.write_text(text)
         print(f"wrote {GUIDE.relative_to(GUIDE.parent.parent)} ({len(d['relations'])} tables and views, {len(d['functions'])} functions)")

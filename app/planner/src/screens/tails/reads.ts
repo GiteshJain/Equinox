@@ -151,12 +151,6 @@ export async function cabinLogged(worldId: number, registration: string): Promis
   const list = await rows<{ note: string | null }>("the money spent", supabase.from("spending_log").select("note").eq("world_id", worldId).eq("kind", "cabin") as unknown as Answer<{ note: string | null }[]>);
   return list.some((x) => String(x.note ?? "").startsWith(registration + " "));
 }
-/** How many aircraft are in the old planner's list of tails (have a tails_index): a new one goes at its end. */
-export async function tailsCount(worldId: number): Promise<number> {
-  const { count, error } = await supabase.from("aircraft").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("extra->tails_index", "is", null);
-  if (error) return fail("the list of tails", error.message);
-  return count ?? 0;
-}
 /** The cabin an order of a type comes with for an airline: order_cabin(), the database's one home for it. */
 export async function orderCabin(airlineId: number, typeId: number): Promise<{ id: number; code: string; cost: number | null } | null> {
   const { data, error } = await supabase.rpc("order_cabin", { p_airline_id: airlineId, p_type_id: typeId }, { get: true });

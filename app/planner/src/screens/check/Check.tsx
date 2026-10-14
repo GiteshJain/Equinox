@@ -28,9 +28,9 @@ import { useAirlineCards } from "../home/reads";
 import { routeOf } from "../routes/model";
 import { readAirports, useAirports, useLoads, useMarkets } from "../routes/reads";
 import { AircraftPopup } from "../tails/AircraftPopup";
-import { extraIndex, figuresOf, gameLink, issueWords, markCheckedChange, rulesLegs, typeName, type PlanLegRow, type TailAircraft } from "../tails/model";
+import { figuresOf, gameLink, issueWords, markCheckedChange, rulesLegs, typeName, type PlanLegRow, type TailAircraft } from "../tails/model";
 import {
-  readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, tailsCount, useBuyTypes, useConfigs, useGameHost, useLaunches, usePlanCards, usePlanLegs, useTailsAircraft,
+  readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useBuyTypes, useConfigs, useGameHost, useLaunches, usePlanCards, usePlanLegs, useTailsAircraft,
 } from "../tails/reads";
 import { CabinsList } from "./Cabins";
 import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameCheck";
@@ -129,9 +129,9 @@ export function Check() {
   const all = useMemo(() => aircraftQ.data ?? [], [aircraftQ.data]);
   const byId = useMemo(() => new Map(all.map((a) => [a.id, a])), [all]);
   const marketTypes = useMemo(() => new Map((marketsQ.data ?? []).map((m) => [m.id, m.default_type_id])), [marketsQ.data]);
-  // the old planner's list of tails, every airline's, in its order (aircraft.extra.tails_index)
-  const tailList = useMemo(() => all.filter((a) => a.status === "active" && extraIndex(a, "tails_index") != null)
-    .sort((a, b) => (extraIndex(a, "tails_index") ?? 0) - (extraIndex(b, "tails_index") ?? 0) || a.id - b.id), [all]);
+  // every airline's tails (status active), in the order they were added (id): the old planner's list order went with its
+  // places in aircraft.extra at the clean-up (build pull request 14)
+  const tailList = useMemo(() => all.filter((a) => a.status === "active").sort((a, b) => a.id - b.id), [all]);
   const unfiled = useMemo(() => all.filter((a) => a.status === "on_order" || a.status === "delivered"), [all]);
   const legsOfAircraft = useMemo(() => {
     const cardOf = new Map((cardsQ.data ?? []).map((c) => [c.id, c.aircraft_id]));
@@ -253,9 +253,9 @@ export function Check() {
     const tail = choice.isNew ? { registration: choice.registration } : { aircraft: mine.find((a) => a.registration === choice.registration) as TailAircraft };
     if (!choice.isNew && !("aircraft" in tail && tail.aircraft)) return;
     const codes = [...new Set([cand.a.from, cand.a.to, ...(cand.b ? [cand.b.from, cand.b.to] : [])])];
-    const [routes, markets, profiles, count, airports] = await Promise.all([readAirlineRoutes(airlineId), readMarkets(w), readProfiles(w), tailsCount(w), readAirports(w, codes)]);
+    const [routes, markets, profiles, airports] = await Promise.all([readAirlineRoutes(airlineId), readMarkets(w), readProfiles(w), readAirports(w, codes)]);
     await save(importChanges({
-      worldId: w, today, nowMs: Date.now(), rules, airlineId, cand, tail, aircraft: all, tails: mine, tailsIndex: count,
+      worldId: w, today, nowMs: Date.now(), rules, airlineId, cand, tail, aircraft: all, tails: mine,
       bases: rules.bases.filter((b) => b.airline_id === airlineId).map((b) => b.airport_code), routes, markets: new Map(markets.map((m) => [m.id, m])), profiles,
       airports: new Map(airports.map((x) => [x.code, x])),
     }), true);

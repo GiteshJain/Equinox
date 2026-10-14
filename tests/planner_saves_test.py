@@ -32,11 +32,11 @@ tick) is made with psql as the test, never through the planner, so it isn't part
 
 Each save's answer, compared with the recorded one:
   - sent: what the planner sent, one line per change of its planner_save() call ("planner_save todos update done,done_at":
-    the table, the operation and the columns it sets), per other database call ("rpc save_loads p_days,p_month"), and per
+    the table, the operation and the columns it sets), per other database call ("rpc site_set_airport_photo ..."), and per
     file sent to the bucket ("upload airports/<code>-<time>.jpg image/jpeg JPEG 320x200"), with how many of each;
   - written: the change log's rows for it ("todos update done,done_at": an update with the columns that changed;
     "todo_items insert": a row added), with how many of each; for a photo, the website's row (site_content media);
-  - logged: who the change log names: "planner tab" (the tab's ID) or "planner save_loads".
+  - logged: who the change log names: "planner tab" (the tab's ID).
 A count that depends on the night's data is recorded as "*" (shown again: every dismissal there is), and a save whose
 columns depend on it (an airport's offset moving its flights, which can cross midnight) is recorded without them.
 A save that can't be tried on the night's copy (no route offering a fare plan) is reported as not tried, not failed.
@@ -274,7 +274,7 @@ class Saves:
                 answer.update(extra())
             except Exception as e:
                 problems.append("reading what it wrote: " + why(e))
-        bad = [r for r in log if r["actor"] != "planner" or r["detail"] not in clients | {"save_loads"}]
+        bad = [r for r in log if r["actor"] != "planner" or r["detail"] not in clients]
         problems += [f"a change-log row names {r['actor']} ({r['detail']}), not planner with the tab's ID" for r in bad[:3]]
         problems += [e for e in pl.errors[e0:]][:4]
         found[name] = answer
@@ -526,10 +526,8 @@ async def tails(s, pl, al, tag, now):
     if not t:
         s.not_tried(f"{code} has no aircraft in service to copy", "tails: remove a delivery")
     else:
-        as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id, extra)
-                    select {WORLD}, {int(al['id'])}, :'r', {int(t['type'])}, 'on_order', :'d'::date, :'m'::timestamptz + interval '3 days', :'b', {int(t['config'])},
-                           jsonb_build_object('deliveries_index', (select coalesce(max((x.extra ->> 'deliveries_index')::int), -1) + 1 from public.aircraft x
-                                                                    where x.world_id = {WORLD} and x.extra ? 'deliveries_index'))""",
+        as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id)
+                    select {WORLD}, {int(al['id'])}, :'r', {int(t['type'])}, 'on_order', :'d'::date, :'m'::timestamptz + interval '3 days', :'b', {int(t['config'])}""",
                 r=dreg, d=now[:10], m=now, b=t["base"])
         await reload(pl)
 
@@ -576,10 +574,8 @@ async def filing(s, pl, al, tag, now, t):
     n1 = top + 101 + (top + 101) % 2
     freg = "ZF" + tag[:4].upper()
     blk = int(r["block"])
-    as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id, extra)
-                select {WORLD}, {aid}, :'r', {int(t['type'])}, 'delivered', :'d'::date - 30, :'m'::timestamptz - interval '2 hours', :'b', {int(t['config'])},
-                       jsonb_build_object('deliveries_index', (select coalesce(max((x.extra ->> 'deliveries_index')::int), -1) + 1 from public.aircraft x
-                                                                where x.world_id = {WORLD} and x.extra ? 'deliveries_index'));
+    as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id)
+                select {WORLD}, {aid}, :'r', {int(t['type'])}, 'delivered', :'d'::date - 30, :'m'::timestamptz - interval '2 hours', :'b', {int(t['config'])};
                 insert into public.plan_cards (world_id, airline_id, aircraft_id, base_code, title)
                 select {WORLD}, {aid}, a.id, :'b', 'saves test' from public.aircraft a where a.world_id = {WORLD} and a.registration = :'r';
                 insert into public.plan_card_legs (world_id, plan_card_id, position, flight_no, origin_code, dest_code, days_utc, dep_utc_min, block_min)
@@ -734,7 +730,7 @@ async def check(s, pl, al, today):
     pick = one(f"""select json_build_object('id', a.id, 'reg', a.registration) from public.aircraft a where a.world_id = {WORLD} and a.status = 'active'
                    and exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on is not null)
                    and not exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on > :'t'::date - 8)
-                 order by a.extra ? 'tails_index' desc, a.id limit 1""", t=today)
+                 order by a.id limit 1""", t=today)
     if not pick:
         s.not_tried("no aircraft with every rotation launched more than a week ago", "check: Mark checked")
     else:

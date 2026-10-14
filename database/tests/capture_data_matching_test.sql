@@ -10,8 +10,8 @@
 --      d. flight 1001 flown on three days by two aircraft (as Kingfisher flies 1001/1002 on VT-AAA and VT-AAB) pairs
 --         day by day; and where the statement names the aircraft (a maintenance line), it pairs with that aircraft's
 --         flight even when another is nearer.
---   2. On the copy's own data, with the airports' offsets loaded from the planner's research the way #13's pull request
---      4 will load them: matching changes none of the three compatibility views; every pair is on one route, inside
+--   2. On the copy's own data, with the airports' offsets (the research's, loaded by #13's pull request 4, with the
+--      world's corrections): matching changes none of the three compatibility views; every pair is on one route, inside
 --      the window and of one aircraft where the statement names it; and no pair that could only go one way is left
 --      unmatched.
 
@@ -144,19 +144,12 @@ begin
   select id into w from public.worlds where is_default;
   delete from public.game_statement where airline_id = (select v from t_m where k = 'airline');
   delete from public.game_flights where airline_id = (select v from t_m where k = 'airline');
-  if not exists (select 1 from public.planner_data where key = 'DATA' and value ? 'utc') then
-    raise notice 'matching on the copy: skipped, the copy has no route research with UTC offsets';
+  -- the offsets as the planner has them: the research's (airports, loaded by #13's pull request 4) with the world's own
+  -- corrections (world_airports)
+  if not exists (select 1 from public.airports where utc_offset is not null) then
+    raise notice 'matching on the copy: skipped, the copy has no airports with UTC offsets';
     return;
   end if;
-  -- the offsets as the planner has them (its research, with its own corrections on top), for every airport the
-  -- capture has seen
-  insert into public.airports (code, utc_offset)
-  select x.code, coalesce(nullif(s.json::jsonb #>> array['ref', 'utcOverrides', x.code], '')::numeric, (d.value -> 'utc' ->> x.code)::numeric)
-    from (select origin_code as code from public.game_flights union select dest_code from public.game_flights) x
-    join public.planner_data d on d.key = 'DATA' and d.value -> 'utc' ? x.code
-    left join public.planner_state s on s.id = 'main'
-   where x.code is not null
-  on conflict (code) do update set utc_offset = excluded.utc_offset;
 
   create temporary table t_v_loads on commit drop as select * from public.game_loads;
   create temporary table t_v_pnl on commit drop as select * from public.game_flight_pnl;

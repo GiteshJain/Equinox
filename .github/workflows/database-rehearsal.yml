@@ -1,12 +1,10 @@
 # Rehearses a pull request's database changes on a copy of last night's backup (decision #8), then lets the pull
-# request's own planners sign in and save for real into that copy (#17): the new planner at /planner/ (#18; at
-# /planner/next/ until the switch) through planner_save(), after its types are generated again from the copy and compared
-# with the committed ones, and the addresses web/_redirects gives it and the old planner (at /planner/old/), then the old one;
-# the planning library (#19) side by side with the old planner's Tails and Hubs on the copy; the captured figures
-# (#19) side by side with the old planner's Review and Check; and the new planner's Home, Routes, Tails, Hubs, Check and
-# Review side by side with the old ones.
-# Runs when a pull request adds or changes a migration or a database test, changes either planner (a planner change can
-# break saving) or the planner's addresses (web/_redirects), the planning library (lib/) or their tests, or changes this
+# request's own planner sign in and work for real on that copy (#17, #18): its types generated again from the copy and
+# compared with the committed ones, every screen opened at a frozen moment at 1280 and 380 px, every kind of save made
+# through its own controls and checked against the recorded rows, and the addresses web/_redirects gives; then, when
+# there were changes, the copy is backed up and restored as the nightly job does (database/rehearse.sh says each step).
+# Runs when a pull request adds or changes a migration or a database test, changes the planner (a planner change can
+# break saving) or its addresses (web/_redirects), the planning library (lib/) or their tests, or changes this
 # check. The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
 # result is posted on the pull request; Claude applies a change to the live database only after it passes here and
@@ -22,7 +20,6 @@ on:
       - "database/backup/**"
       - "database/describe.*"
       - "docs/data.md"
-      - "web/planner/**"
       - "web/_redirects"
       - "app/**"
       - "lib/**"
@@ -30,18 +27,7 @@ on:
       - "package-lock.json"
       - ".nvmrc"
       - "tests/planner_next_test.py"
-      - "tests/real_saves_test.py"
-      - "tests/rules_library_test.py"
-      - "tests/captured_figures_test.py"
-      - "tests/home_side_by_side_test.py"
-      - "tests/routes_side_by_side_test.py"
-      - "tests/tails_side_by_side_test.py"
-      - "tests/hubs_side_by_side_test.py"
-      - "tests/check_side_by_side_test.py"
-      - "tests/review_side_by_side_test.py"
-      - "tests/reference_side_by_side_test.py"
       - "tests/fixtures/load_table_sample.tsv"
-      - "tests/rule_numbers_test.py"
       - "tests/planner_saves_test.py"
       - "tests/planner_flights.mjs"
       - "tests/local_copy.py"
@@ -64,7 +50,7 @@ concurrency:
 jobs:
   rehearse:
     runs-on: ubuntu-latest
-    timeout-minutes: 40   # TEMPORARY for the clean-up's first run (the side by sides and the saves recorded together); back to 30 after
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash   # bash -eo pipefail: a failing script fails its step even though its output goes through tee
@@ -101,7 +87,7 @@ jobs:
           sudo apt-get install -y -qq postgresql-client-17 > /dev/null
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
 
-      # For the real saves (#17): the browser that opens the planner, and npm for the planner's own Supabase library
+      # For the planner on the copy (#17, #18): the browser that opens it, and npm to build it
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -119,22 +105,15 @@ jobs:
       # its changes (tests/README.md, "The sample"). It is kept as this run's artifact for a day, to be checked and
       # committed; it is the same small sample of game data the repository may hold (decision #9), never keys. The same
       # for the weekly report's sample (tests/README.md, "The report sample"), kept as the report-sample artifact.
-      # The new planner's types generated from the copy go to TYPES_DIR either way, kept as the planner-types artifact, so
-      # a helper can fetch and commit them when they differ (design §5).
+      # The planner's types generated from the copy go to TYPES_DIR either way, kept as the planner-types artifact, so
+      # a helper can fetch and commit them when they differ (design §5); the same for the table guide (DOCS_DIR, the
+      # data-guide artifact, docs/data.md as the copy gives it).
       - name: Rehearse the changes
         env:
           TYPES_DIR: ${{ runner.temp }}/planner-types
-          HOME_SCREENS_DIR: ${{ runner.temp }}/home-screens   # the new Home and the old at 380 and 1280 px (#18 build pull request 5)
-          ROUTES_SCREENS_DIR: ${{ runner.temp }}/routes-screens   # the new Routes and the old at 380 and 1280 px (#18 build pull request 6)
-          TAILS_SCREENS_DIR: ${{ runner.temp }}/tails-screens   # the new Tails and the old at 380 and 1280 px (#18 build pull request 7)
-          HUBS_SCREENS_DIR: ${{ runner.temp }}/hubs-screens   # the new Hubs and the old at 380 and 1280 px (#18 build pull request 8)
-          CHECK_SCREENS_DIR: ${{ runner.temp }}/check-screens   # the new Check and the old at 380 and 1280 px (#18 build pull request 9)
-          REVIEW_SCREENS_DIR: ${{ runner.temp }}/review-screens   # the new Review and the old at 380 and 1280 px (#18 build pull request 10)
-          REFERENCE_SCREENS_DIR: ${{ runner.temp }}/reference-screens   # the new Interline, Photos and Reference and the old at 380 and 1280 px (#18 build pull request 12)
-          SWITCH_SCREENS_DIR: ${{ runner.temp }}/switch-screens   # the new planner at /planner/ and the old at /planner/old/, at 1280 px (#18 build pull request 13)
+          DOCS_DIR: ${{ runner.temp }}/data-guide
           PLANNER_SCREENS_DIR: ${{ runner.temp }}/planner-screens   # every screen at the frozen moment, at 1280 and 380 px (#18 build pull request 14)
           SAVES_OUT_DIR: ${{ runner.temp }}/planner-saves   # every save's answer as this run found it (#18 build pull request 14)
-          RECORD_SAVES: "1"   # TEMPORARY: the clean-up's first run records the answers
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -148,7 +127,7 @@ jobs:
           fi
           bash database/rehearse.sh .backup "${{ github.base_ref }}" 2>&1 | tee -a "$LOG"
 
-      - name: Keep the new planner's types generated from the copy
+      - name: Keep the planner's types generated from the copy
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -158,96 +137,19 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
-      # The new planner's Home and the old Home on the copy, at 380 and 1280 px wide (tests/home_side_by_side_test.py), for review: it shows
-      # live data, so it's kept three days only, like the types, and never committed
-      - name: Keep the screenshots of the new Home and the old
+      # docs/data.md as the copy gives it, to commit when the descriptions change (decision #10)
+      - name: Keep the table guide made from the copy
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: home-screens
-          path: ${{ runner.temp }}/home-screens/*.png
+          name: data-guide
+          path: ${{ runner.temp }}/data-guide/data.md
           if-no-files-found: ignore
           retention-days: 3
 
-      # The same for the new planner's Routes and the old Routes (tests/routes_side_by_side_test.py): the list and a route
-      - name: Keep the screenshots of the new Routes and the old
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: routes-screens
-          path: ${{ runner.temp }}/routes-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      # The same for the new planner's Tails and the old Tails (tests/tails_side_by_side_test.py): the list and an aircraft
-      - name: Keep the screenshots of the new Tails and the old
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: tails-screens
-          path: ${{ runner.temp }}/tails-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      # The same for the new planner's Hubs and the old Hubs (tests/hubs_side_by_side_test.py): a hub and a focus city
-      - name: Keep the screenshots of the new Hubs and the old
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: hubs-screens
-          path: ${{ runner.temp }}/hubs-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      # The same for the new planner's Check and the old Check (tests/check_side_by_side_test.py): every board open
-      - name: Keep the screenshots of the new Check and the old
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: check-screens
-          path: ${{ runner.temp }}/check-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      # The same for the new planner's Review and the old Review (tests/review_side_by_side_test.py): an airline's page
-      - name: Keep the screenshots of the new Review and the old
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: review-screens
-          path: ${{ runner.temp }}/review-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      # The same for the new planner's Interline, Photos and Reference and the old ones (tests/reference_side_by_side_test.py)
-      - name: Keep the screenshots of the new Interline, Photos and Reference and the old
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: reference-screens
-          path: ${{ runner.temp }}/reference-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
-      # The new planner's Home at /planner/ and the old planner's Home at /planner/old/ (tests/planner_next_test.py, the
-      # addresses), at 1280 px: the switch (#18 build pull request 13)
-      - name: Keep the screenshots of the new planner at /planner/ and the old at /planner/old/
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: switch-screens
-          path: ${{ runner.temp }}/switch-screens/*.png
-          if-no-files-found: ignore
-          retention-days: 3
-
+      # Every screen on the copy at the frozen moment, at 1280 and 380 px (tests/planner_next_test.py), for review: it
+      # shows live data, so it's kept three days only, like the types, and never committed
       - name: Keep the screenshots of every screen
         if: always()
         continue-on-error: true

@@ -6,7 +6,6 @@
 // and add a flight from the game (the old importFlight, through Tails' filing). No screen code, so the unit tests run it.
 import { cabins, frequency, game, growth, loadReport, time, type CabinFit, type DayFlight, type GameFlight, type GameIssue, type ImportCandidate, type Move, type Rules } from "@rules";
 import type { Change, Values } from "../../data/save";
-import type { Json } from "../../db/types";
 import type { AirportInfo, MarketRow, RouteRow } from "../routes/model";
 import { filingChanges, withAirports, type CardLeg, type PlanCardRow, type TailAircraft } from "../tails/model";
 import type { BackupRun, CaptureAirline, CapturedLoad, CapturePages, HandLoads, HubProgressAirline, LegNow } from "./reads";
@@ -260,9 +259,8 @@ export const fixRotations = (rules: Rules, airlineId: number, issues: readonly G
   [...game.fixTimes(rules, airlineId, issues, marketTypes).keys()];
 
 const NO_ROW = { id: 0, plan_card_id: 0, position: 0, flight_no: null, origin_code: "", dest_code: "", days_utc: [], dep_utc_min: null, block_min: null, service_code: null, updated_at: "" };
-const NO_CARD: PlanCardRow = { id: 0, airline_id: 0, aircraft_id: 0, base_code: null, title: null, note: null, extra: null, updated_at: "" };
+const NO_CARD: PlanCardRow = { id: 0, airline_id: 0, aircraft_id: 0, base_code: null, title: null, note: null, updated_at: "" };
 const asLeg = (g: GameFlight): CardLeg => ({ row: NO_ROW, no: g.no, from: g.from, to: g.to, dep: g.dep, arr: g.arr, block: "", svc: "", days: g.days || "1234567" });
-const isObj = (v: Json | undefined): v is { [k: string]: Json } => !!v && typeof v === "object" && !Array.isArray(v);
 
 export interface ImportInput {
   worldId: number;
@@ -274,11 +272,9 @@ export interface ImportInput {
   cand: ImportCandidate;
   /** The aircraft chosen: one of the airline's in service, or a registration typed for a new one. */
   tail: { aircraft: TailAircraft } | { registration: string };
-  /** Every aircraft (a typed registration may be an aircraft on order, or retired), the airline's tails in their list's
-   *  order, and how many aircraft are in that list (a new tail goes at its end). */
+  /** Every aircraft (a typed registration may be an aircraft on order, or retired), and the airline's tails. */
   aircraft: readonly TailAircraft[];
   tails: readonly TailAircraft[];
-  tailsIndex: number;
   bases: readonly string[];
   routes: readonly RouteRow[];
   markets: ReadonlyMap<number, MarketRow>;
@@ -305,7 +301,7 @@ export function importChanges(x: ImportInput): Change[] {
   // a destination none of our flights serves yet isn't in the start's input: its offset comes from the tables, as filing's
   const rules = withAirports(x.rules, [...x.airports.values()]);
   const base = { worldId: x.worldId, today: x.today, nowMs: x.nowMs, rand: x.rand, rules, card: NO_CARD, legs, game: null, cabin: null, cabinLogged: true,
-    tailsIndex: x.tailsIndex, bases: x.bases, routes: x.routes, markets: x.markets, profiles: x.profiles, airports: x.airports };
+    bases: x.bases, routes: x.routes, markets: x.markets, profiles: x.profiles, airports: x.airports };
   if ("aircraft" in x.tail) return filingChanges({ ...base, aircraft: x.tail.aircraft });
   const reg = x.tail.registration.trim().toUpperCase();
   const have = x.aircraft.find((a) => a.registration === reg);
@@ -316,9 +312,8 @@ export function importChanges(x: ImportInput): Change[] {
   const values: Values = { airline_id: x.airlineId, aircraft_type_id: typeId ?? null, cabin_config_id: configId ?? null, base_code: order?.order_base_code || x.cand.a.from, status: "active" };
   const lead: Change = have
     ? { table: "aircraft", op: "update", key: { id: have.id }, base: have.updated_at, values: {
-        ...values, retired_on: null, checked_on: null, schedule_changed_on: null, maintenance_note: null,
-        extra: { ...(isObj(have.extra) ? have.extra : {}), tails_index: x.tailsIndex } } }
-    : { table: "aircraft", op: "insert", as: "new aircraft", values: { world_id: x.worldId, registration: reg, ...values, extra: { tails_index: x.tailsIndex } } };
+        ...values, retired_on: null, checked_on: null, schedule_changed_on: null, maintenance_note: null } }
+    : { table: "aircraft", op: "insert", as: "new aircraft", values: { world_id: x.worldId, registration: reg, ...values } };
   const stand: TailAircraft = {
     id: have?.id ?? -1, registration: reg, airline_id: x.airlineId, aircraft_type_id: typeId ?? null, cabin_config_id: configId ?? null, base_code: null, status: "active",
     ordered_on: null, delivery_at: null, order_base_code: null, order_config_id: null, order_note: null, checked_on: null, schedule_changed_on: null, maintenance_note: null,

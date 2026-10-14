@@ -4,42 +4,43 @@
 //     cash_entries rows the old planner's adapter writes (model.ts's cashChanges);
 //   - the nightly log: each reported day's cash and fixed costs per airline (cash_log());
 //   - loads by hand for a day, typed (each airline's flights under 95%) or pasted from the game's load table and read,
-//     with days marked complete. The old planner saves loads through save_loads() (into load_entries and load_days, logged
-//     as planner with the detail save_loads), not through the planner tables' own route, so these do too, with the same
-//     payload (spec: "use the same route and say so"). A preview sends nothing.
+//     with days marked complete: one planner_save() action writing the load_entries and load_days rows the old planner's
+//     save_loads() wrote (model.ts's loadsChanges), from the days as they stand when it's saved (loads_by_day(), read
+//     again then). Since the clean-up (build pull request 14); until then through save_loads(). A preview sends nothing.
 import { useMemo, useState } from "react";
 import { loadReport, type Rules } from "@rules";
-import { PREVIEW } from "../../data/preview";
 import { queryClient, tableKey } from "../../data/query";
 import type { Change, SaveResult } from "../../data/save";
-import { supabase } from "../../data/supabase";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { addDays, niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import {
-  boxValue, cashChanges, dayStatus, firstWord, nightlyLog, parseLoadPaste, pasteSaves, pastePill, typedLoads, typedSave, underList, type CashLog, type PastedLoad,
+  boxValue, cashChanges, dayStatus, firstWord, loadsChanges, nightlyLog, parseLoadPaste, pasteSaves, pastePill, typedLoads, typedSave, underList, type CashLog,
+  type DayPatch, type PastedLoad,
 } from "./model";
-import { useLoadsDay } from "./reads";
+import { readLoadsDays, useLoadsDay } from "./reads";
 import type { ReviewAirline } from "./Review";
 
-/** Saves loads through save_loads(), one call per month, in order; false when one didn't get through. */
-async function saveLoads(calls: readonly { p_month: string; p_days: unknown }[]): Promise<boolean> {
-  if (PREVIEW) {
-    showMessage("Preview: changes aren't saved");
+/** Saves loads by hand as one planner_save() action: each day's rows (loadsChanges) from the days as they stand now, read
+ *  again from loads_by_day(). True when it was saved (or there was nothing to change). */
+async function saveLoads(worldId: number, days: Record<string, DayPatch>, airlines: ReadonlyMap<string, number>,
+  onSave: (changes: Change[]) => Promise<SaveResult | undefined>): Promise<boolean> {
+  const dates = Object.keys(days).sort();
+  if (!dates.length) return true;
+  let now: Record<string, Awaited<ReturnType<typeof readLoadsDays>>[string]>;
+  try {
+    now = await readLoadsDays(worldId, dates[0] as string, dates[dates.length - 1] as string);
+  } catch (e) {
+    showMessage(e instanceof Error ? e.message : String(e));
     return false;
   }
-  let ok = true;
-  for (const c of calls) {
-    const { error } = await supabase.rpc("save_loads", { p_month: c.p_month, p_days: c.p_days as never });
-    if (error) {
-      ok = false;
-      showMessage(`Not saved: ${error.message}`);
-    }
-  }
+  const at = new Date().toISOString();
+  const changes = dates.flatMap((d) => loadsChanges(worldId, d, now[d] ?? null, days[d] as DayPatch, airlines, at));
+  if (!changes.length) return true;
+  const res = await onSave(changes);
   void queryClient.invalidateQueries({ queryKey: tableKey("load_entries") });
   void queryClient.invalidateQueries({ queryKey: tableKey("load_days") });
-  void queryClient.invalidateQueries({ queryKey: ["figures"] });
-  return ok;
+  return res?.status === "saved";
 }
 
 export function ManualEntry({ worldId, rules, log, airlines, busy, now, onSave }: {
@@ -74,7 +75,7 @@ export function ManualEntry({ worldId, rules, log, airlines, busy, now, onSave }
           </div>
         ) : <div className="dim">Nothing reported yet.</div>}
       </details>
-      <LoadsByHand worldId={worldId} rules={rules} airlines={airlines} now={now} />
+      <LoadsByHand worldId={worldId} rules={rules} airlines={airlines} now={now} onSave={onSave} />
     </>
   );
 }
@@ -117,7 +118,9 @@ function CashBoxes({ worldId, log, colorOf, busy, onSave }: {
 }
 
 /** Loads by hand for one day: each airline's flights under 95% typed, or the game's load table pasted and read. */
-function LoadsByHand({ worldId, rules, airlines, now }: { worldId: number | undefined; rules: Rules; airlines: readonly ReviewAirline[]; now: Date }) {
+function LoadsByHand({ worldId, rules, airlines, now, onSave }: {
+  worldId: number | undefined; rules: Rules; airlines: readonly ReviewAirline[]; now: Date; onSave: (changes: Change[]) => Promise<SaveResult | undefined>;
+}) {
   const utcToday = now.toISOString().slice(0, 10);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(utcToday);
@@ -134,6 +137,7 @@ function LoadsByHand({ worldId, rules, airlines, now }: { worldId: number | unde
   const flights = useMemo(() => flightsOf(date), [rules, date, airlines]); // eslint-disable-line react-hooks/exhaustive-deps
   const flying = airlines.filter((a) => flights.some((f) => f.airline === a.name));
   const codes = useMemo(() => new Map(airlines.filter((a) => a.code).map((a) => [a.code as string, a.name])), [airlines]);
+  const ids = useMemo(() => new Map(airlines.map((a) => [a.name, a.id])), [airlines]);
   // the boxes start from the day as the planner holds it; what's typed is kept until the day moves
   const boxOf = (name: string) => (boxes.date === date && name in boxes.v ? boxes.v[name] ?? "" : underList(day, name));
   const setBox = (name: string, v: string) => setBoxes((b) => ({ date, v: { ...(b.date === date ? b.v : {}), [name]: v } }));
@@ -142,9 +146,10 @@ function LoadsByHand({ worldId, rules, airlines, now }: { worldId: number | unde
   async function saveTyped() {
     const valid = new Set(flights.map((f) => f.key));
     const { f, unknown } = typedLoads(flying.map((a) => ({ airline: a.name, text: boxOf(a.name) })), valid);
+    if (worldId === undefined) return;
     setSaving(true);
     try {
-      const ok = await saveLoads([typedSave(date, f, Date.now())]);
+      const ok = await saveLoads(worldId, typedSave(date, f, Date.now()), ids, onSave);
       if (unknown.length) showMessage("Saved, but these flight numbers don't operate that day in the planner, so they won't count: " + unknown.join(", "));
       if (ok) setBoxes({ date: "", v: {} });
     } finally {
@@ -152,12 +157,12 @@ function LoadsByHand({ worldId, rules, airlines, now }: { worldId: number | unde
     }
   }
   async function savePaste() {
-    if (!parsed?.length) return;
+    if (!parsed?.length || worldId === undefined) return;
     const dates = [...new Set(parsed.map((x) => x.date))].sort();
     const marked = dates.filter((d) => marks[d] ?? d === utcToday);
     setSaving(true);
     try {
-      if (await saveLoads(pasteSaves(parsed, marked, Date.now()))) {
+      if (await saveLoads(worldId, pasteSaves(parsed, marked, Date.now()), ids, onSave)) {
         setParsed(null);
         setPasteText("");
         setMarks({});

@@ -7,19 +7,14 @@ Most numbers come from **last night's capture**, the *Capture all airlines* butt
 The plans (plan cards, frequencies, aircraft, to-dos) are what you and Claude entered. Each change is saved on its own,
 as you make it. On a preview address the planner saves nothing and says **preview · not saved** (#8).
 
-## The planner, and the way back
+## The planner
 - **The planner is at /planner/** since the switch on 14 Oct (#18, build pull request 13): rebuilt in React with
   TypeScript, screen by screen, each checked against the old screen's figures on the same data before it was merged.
-  **Game changes are made here** (manual §1).
+  **Game changes are made here** (manual §1). It's the only planner: the old one went with the clean-up the same day
+  (build pull request 14), and its address, /planner/old/, now opens this one.
 - **Every screen has its own address** (/planner/routes, /planner/tails/N001AW, /planner/review/VS …), so a link or the
   back button reopens it. Links from the build (/planner/next/…) still work: they move to the same address under
   /planner/.
-- **The old planner is at /planner/old/**, exactly as it was. It's the way back only: nothing is saved in it (manual
-  §1). It reads the same tables, so it shows what the planner saved. It has its own sign-in, so sign in again there.
-  The clean-up (build pull request 14) removes it once you're happy.
-- **The way back** is one line in `web/_redirects`, as a pull request: the last line, `/planner/*   /app/   200`,
-  becomes `/planner/*   /planner/   200`. /planner/ then opens the old planner again; /planner/old/ keeps working.
-  Nothing is lost either way, because both planners save into the same tables. The manual's rule goes back with it.
 
 ## Signing in and the header
 - **Signing in:** the same email and password as before. An account that isn't staff is signed out with **This account
@@ -163,9 +158,12 @@ are local at the airport, whichever way the header's **Local** / **UTC** is set,
   for every flight (red for a departure off wave), and the bars hour by hour.
 - **The week:** 15-minute slots in local time, departures over arrivals, shaded by the bank windows. On a phone it
   scrolls inside its own box, as the day strip does.
-- **The flights** that day: time, direction, flight, to or from, aircraft and the bank pill (**bank N**, or **off
-  wave**; none for an airline with no base there or a focus city). An arrival is named with the first bank it can make
-  even when that bank leaves more than 8 hours later, as the old Hubs named it.
+- **The flights** that day: time, direction, flight, to or from, aircraft and the bank pill (**bank N**; **off wave**
+  for a departure in no bank, **outside the banks** for an arrival that can't make one; none for an airline with no base
+  there or a focus city). An arrival is named with a bank only when it connects onto that bank's departures within the
+  connection rules (from the airport's minimum connection time to 8 hours); since the clean-up (14 Oct, design §16) the
+  329 arrivals a week the old Hubs named with a bank they could only reach after a longer wait say **outside the
+  banks**.
 - **Connections at [airport]:** by bank and outside the banks, the airports arriving and leaving, the city pairs (each
   once, at its shortest connection, from the airport's minimum connection time to 8 hours, never back where it came
   from) and the tightest eight as examples, across all our airlines. Beside each count of airports, the flights by
@@ -239,7 +237,8 @@ do (all folded on arrival; click a title, or **Expand all**). Every money figure
   - **Manual entry:** only if a night's capture failed. Cash and fixed costs for today (**Save** keeps a figure only
     where it differs from the capture's), the nightly log, and **Loads by hand**: type each airline's flights under
     95%, or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads
-    typed or pasted change only the days and flights you enter; captured days stay as they are.
+    typed or pasted change only the days and flights you enter; captured days stay as they are. A typed figure wins
+    over the capture's where it is newer.
 
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*
@@ -281,10 +280,3 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 - **Storage:** whether saving works, with **Save now**; nothing is kept on the device.
 - **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**. Importing a backup and clearing
   everything are gone with the tables (design §14): the nightly backup and the change log are the safety net.
-
-## The old planner, at /planner/old/
-Kept as it was on 14 Oct, for the way back only (above): nothing is saved in it. Where it differs from the planner:
-- it keeps a copy on the device when a save can't reach the database, and has Reference → Data's import and clear;
-- its Reference block estimates were learned from the times typed in;
-- its Home, Interline, Hubs and Check read lists kept in its own code (the interline rules, the regions, the suggested
-  sizes), where the planner reads them from the database.

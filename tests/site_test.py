@@ -3,9 +3,10 @@
 Opens every page of the site on the frozen sample, with the clock frozen at its moment and nothing reaching the real
 database, and checks each one shows its content with no errors: home, flights, destinations, live network, our airlines
 and each airline's page, the newsroom and an article, investors, about, gander monthly, an unknown address, and the
-link into the planner. Then the planner's addresses since the switch (#18 build pull request 13): the new planner at
-/planner/ (its sign-in form, its files from /app/, no errors) and at a screen's own address; the addresses used while it
-was built (/planner/next/...) moved to the same address under /planner/; the old planner, the way back, at /planner/old/.
+link into the planner. Then the planner's addresses (#18 build pull requests 13 and 14): the planner at /planner/ (its
+sign-in form, its files from /app/, no errors) and at a screen's own address; the addresses used while it was built
+(/planner/next/...) moved to the same address under /planner/; the old planner's address (/planner/old/), gone with it in
+the clean-up, goes to /planner/.
 Then the trip search (#19): on a small made-up week, transfers follow the planning library's connection rule
 (web/assets/rules.js, built by npm run build): one at exactly the airport's minimum connection time and one at exactly
 8 hours are offered, one a minute under the minimum and one of 9 hours (which the old 10-hour window offered) are not;
@@ -60,12 +61,13 @@ def check(ok, name, detail=""):
 
 async def new_planner(b, port):
     """The planner's addresses as Cloudflare serves them (tests/harness.py follows web/_redirects), since the switch (#18
-    build pull request 13): /planner opens the new planner at /planner/ with its sign-in form, its files come from /app/,
+    build pull request 13): /planner opens the planner at /planner/ with its sign-in form, its files come from /app/,
     with no errors and no request outside the local server; a screen's own address gives the same page; /planner/next/...
-    (the addresses used while it was built) goes (301) to the same address under /planner/; /planner/old/ opens the old
-    planner. Built by `npm run build` (tests/run_all.sh runs it first). Signed out, the new planner reads nothing, so
-    nothing is answered for it. tests/planner_next_test.py signs in at each on the rehearsal's copy."""
-    print("--- the planner's addresses: the new planner at /planner/, the old at /planner/old/")
+    (the addresses used while it was built) goes (301) to the same address under /planner/; /planner/old/ (the old
+    planner's address, gone with it in the clean-up, build pull request 14) goes (301) to /planner/. Built by `npm run
+    build` (tests/run_all.sh runs it first). Signed out, the planner reads nothing, so nothing is answered for it.
+    tests/planner_next_test.py signs in at each on the rehearsal's copy."""
+    print("--- the planner's addresses: the planner at /planner/; /planner/next/ and /planner/old/ moved there")
     if not (WEB / "app" / "index.html").is_file():
         check(False, "the new planner is built (web/app/index.html)", "run npm ci && npm run build first")
         return
@@ -111,10 +113,15 @@ async def new_planner(b, port):
               and await pg.evaluate("!!document.querySelector('#g-email')"),
               f"an address used while it was built, {path}, goes (301) to {want}, the new planner",
               f"{first.status if first else 'no redirect'}, ended at {resp.url} ({resp.status})")
-    resp = await pg.goto(f"http://127.0.0.1:{port}/planner/old")
-    old = await pg.evaluate("!!document.querySelector('header nav button[data-view=routes]') && document.title === 'equinox. planner'")
-    check(resp.status == 200 and urlsplit(resp.url).path == "/planner/old/" and old,
-          "the old planner (the way back) opens at /planner/old/", f"status {resp.status} at {resp.url}")
+    for path in ("/planner/old", "/planner/old/", "/planner/old/index.html"):
+        resp = await pg.goto(f"http://127.0.0.1:{port}{path}")
+        first = await resp.request.redirected_from.response() if resp.request.redirected_from else None
+        with contextlib.suppress(Exception):
+            await pg.wait_for_selector("#g-email", timeout=15000)
+        check(first is not None and first.status == 301 and urlsplit(resp.url).path == "/planner/" and resp.status == 200
+              and await pg.evaluate("!!document.querySelector('#g-email')"),
+              f"the old planner's address, {path}, goes (301) to /planner/, the planner",
+              f"{first.status if first else 'no redirect'}, ended at {resp.url} ({resp.status})")
     await ctx.close()
 
 

@@ -130,9 +130,9 @@ themselves as postgres, e.g. `select public.cash_forecast(<airline id>, '[{"type
 to test orders. The weekly report reads its money from them (above).
 
 ## Where the inputs come from
-- **The planner's old document** (`export_for_report('planner')`, built from the planner tables by the adapter's getters):
-  no script reads it any more (the weekly report and the optimiser moved off it in build pull request 4). Don't read the
-  `planner_state` row directly: it has been frozen since the switch-over (pull request 9) and no longer changes.
+- **The planner's old document** is gone with the old planner (the clean-up, build pull request 14): `export_for_report()`
+  refuses kind `planner`, and the `planner_state`, `planner_loads`, `planner_meta` and `planner_data` tables are dropped.
+  No script read them any more (the weekly report and the optimiser moved off them in build pull request 4).
 - **`rules.json`** (the planning library's command and the weekly report): `export_for_report()` with kind `rules`, which
   gives exactly what `rules_input()` gives staff: the settings, world rules, aircraft types, airports, airlines, bases,
   aircraft, routes, rotations and every flight leg, from the tables (#19).
@@ -141,10 +141,10 @@ to test orders. The weekly report reads its money from them (above).
 - **`site_airlines.json`** (the weekly report's chart colours): `site_public()`'s airlines, from the airlines table.
 - **`notes.json`** (the weekly report's words): written by the Saturday review each week, as `report/notes.example.json`
   shows.
-- **`data.json`:** the planner's route research, from `export_planner_data()` (no script reads it any more; the weekly
-  report's block hours come from the planning library). To change it, `planner_data_set()` (key
-  `DATA`) writes it to `planner_data` and to the `countries`, `airports` and `routes` tables, only the rows that
-  change, and answers what changed. A new UTC offset for an airport our flights use is held back and named: tell the
+- **The route research** (what `data.json` held: routes, coordinates, UTC offsets and countries) lives in the
+  `countries`, `airports` and `routes` tables, which `rules.json` gives; `export_planner_data()` went with the clean-up
+  (build pull request 14), and no script read it. To change it, `planner_data_set()` (key `DATA`, the research document)
+  writes those tables, only the rows that change, and answers what changed; any other key is refused. A new UTC offset for an airport our flights use is held back and named: tell the
   Building chat, since those flights need re-timing (design §4).
 - **Connection times:** each airport's `mct_min` in `world_airports`, which `rules.json` and `site_public()`'s
   `content.mct` both give. To change them,
