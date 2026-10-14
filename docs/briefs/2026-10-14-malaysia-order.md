@@ -79,4 +79,7 @@ long flights a day. Its profit per flight rises with distance: about 30k at 2,60
 - A rival appearing on KUL–Seoul, Beijing Daxing or Tokyo in the next scan: C, to take two of them first.
 
 ## Outcome
-*Open.*
+**14 Oct: C,** two A321XLRs at KUL, for two of the five-star cities beyond an A321neo's reach (Seoul, Beijing Daxing,
+Tokyo), with 9M-AAA refitted to the new 321-LEI. About 3.19M stays at the lowest point after both. Gitesh orders and
+refits in the game and tells Claude, who logs them (To-do board: the order, and the group-wide refit list). Which two
+cities, and the cabin, are decided when the aircraft land.
