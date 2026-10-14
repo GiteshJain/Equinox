@@ -32,6 +32,8 @@ export interface AirportRow {
   code: string;
   city?: string | null;
   country_code?: string | null;
+  /** The country's region (countries.region, since build pull request 12); null for an airport with no country. */
+  region?: string | null;
   lat?: number | null;
   lon?: number | null;
   utc_offset: number | null;

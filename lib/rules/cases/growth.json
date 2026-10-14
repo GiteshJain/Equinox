@@ -91,19 +91,19 @@
       "answer": [{"id": 1, "round_trips_day": 1}, {"id": 4, "round_trips_day": 0.42857142857142855}, {"id": 9, "airline_id": 2, "round_trips_day": 1}]
     },
     {
-      "name": "hub readiness: each bank's cities feeding it now and with the plan cards, every airline's flights counted, by country",
+      "name": "hub readiness: each bank's cities feeding it now and with the plan cards, every airline's flights counted, by region (the airport's country's, from rules_input() or given for an airport the rules don't carry)",
       "rule": "an arrival feeds the first bank it can make, inside its arrival window or early within connection_max_wait_h; a plan card's leg counts with its arrival known; focus cities and airports without banks fed are left out",
-      "ask": {"what": "hub_readiness", "countries": {"AAA": "FR", "DDD": "IN", "NBN": "DE", "CCC": "IN", "BBB": "US"},
+      "ask": {"what": "hub_readiness", "regions": {"AAA": "Europe", "DDD": "South Asia", "NBN": "Europe", "CCC": "South Asia"},
         "planned": [
           {"from": "CCC", "to": "HUB", "dep_utc_min": 300, "block_min": 480},
           {"from": "BBB", "to": "HUB", "dep_utc_min": 0, "block_min": null},
           {"from": "AAA", "to": "HUB", "dep_utc_min": 600, "block_min": 120}
         ]},
       "answer": [
-        {"base_id": 1, "airline_id": 1, "airport": "HUB", "bank": 1, "dep": "06:00", "flying": 1, "with_planned": 1, "countries": [{"country": "IN", "cities": 1}]},
+        {"base_id": 1, "airline_id": 1, "airport": "HUB", "bank": 1, "dep": "06:00", "flying": 1, "with_planned": 1, "regions": [{"region": "South Asia", "cities": 1}]},
         {"base_id": 1, "airport": "HUB", "bank": 2, "dep": "14:00", "flying": 2, "with_planned": 3,
-         "countries": [{"country": "FR", "cities": 1}, {"country": "DE", "cities": 1}, {"country": "IN", "cities": 1}]},
-        {"base_id": 1, "airport": "HUB", "bank": 3, "dep": "22:00", "flying": 1, "with_planned": 1, "countries": [{"country": "FR", "cities": 1}]}
+         "regions": [{"region": "Europe", "cities": 2}, {"region": "South Asia", "cities": 1}]},
+        {"base_id": 1, "airport": "HUB", "bank": 3, "dep": "22:00", "flying": 1, "with_planned": 1, "regions": [{"region": "Europe", "cities": 1}]}
       ]
     },
     {
@@ -128,6 +128,111 @@
       "rule": "nothing still to arrive",
       "ask": {"what": "order_queues", "airline_id": 1, "now": "2026-10-12T12:00:00Z", "families": ["E195"], "allowed": ["E195"], "deliveries": []},
       "answer": [{"family": "E195", "in_fleet": true, "count": 0, "last": null, "hours": null, "warn": false}]
+    },
+    {
+      "name": "the suggested size: a frequency on a 5-star route is an A321neo",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "freq", "stars": 5, "dist": 900},
+      "answer": {"type": "A321neo"}
+    },
+    {
+      "name": "... on a 3- or 4-star route an A320neo",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "freq", "stars": 4, "dist": 900},
+      "answer": {"type": "A320neo"}
+    },
+    {
+      "name": "... on fewer stars an E195",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "freq", "stars": 2, "dist": 900},
+      "answer": {"type": "E195"}
+    },
+    {
+      "name": "a big market: an A321neo at 5 stars, else an A320neo",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "big", "stars": 4, "dist": 3000},
+      "answer": {"type": "A320neo"}
+    },
+    {
+      "name": "a smaller feeder of 3 stars longer than 2,500 km: an A320neo",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "feeder", "stars": 3, "dist": 2501},
+      "answer": {"type": "A320neo"}
+    },
+    {
+      "name": "... at exactly 2,500 km an E195",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "feeder", "stars": 3, "dist": 2500},
+      "answer": {"type": "E195"}
+    },
+    {
+      "name": "... with no distance an E195",
+      "rule": "the setting suggested_size (the old suggestSize, bigSize and feedSize): the first entry of the move's list the route meets, at least min_stars stars and longer than over_km when given",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 1, "move": "feeder", "stars": 3},
+      "answer": {"type": "E195"}
+    },
+    {
+      "name": "Ryanair: a frequency at 4 stars is an A321neo",
+      "rule": "Ryanair's own suggested_size, in its settings in place of the world's (rules_input() gives each airline its settings as they apply to it)",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 3, "move": "freq", "stars": 4, "dist": 900},
+      "answer": {"type": "A321neo"}
+    },
+    {
+      "name": "... at 3 stars an E195",
+      "rule": "Ryanair's own suggested_size, in its settings in place of the world's (rules_input() gives each airline its settings as they apply to it)",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 3, "move": "freq", "stars": 3, "dist": 900},
+      "answer": {"type": "E195"}
+    },
+    {
+      "name": "... a big market always an A321neo, a feeder always an E195",
+      "rule": "Ryanair's own suggested_size, in its settings in place of the world's (rules_input() gives each airline its settings as they apply to it)",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 3, "move": "big", "stars": 4, "dist": 900},
+      "answer": {"type": "A321neo"}
+    },
+    {
+      "name": "... a long feeder still an E195",
+      "rule": "Ryanair's own suggested_size, in its settings in place of the world's (rules_input() gives each airline its settings as they apply to it)",
+      "input": {"settings": {"suggested_size": {"big": [{"min_stars": 5, "type": "A321neo"}, {"type": "A320neo"}], "freq": [{"min_stars": 5, "type": "A321neo"}, {"min_stars": 3, "type": "A320neo"}, {"type": "E195"}], "feeder": [{"min_stars": 3, "over_km": 2500, "type": "A320neo"}, {"type": "E195"}]}}, "airlines": [{"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true}, {"id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "settings": {"suggested_size": {"big": [{"type": "A321neo"}], "freq": [{"min_stars": 4, "type": "A321neo"}, {"type": "E195"}], "feeder": [{"type": "E195"}]}}}]},
+      "ask": {"what": "suggested_size", "airline_id": 3, "move": "feeder", "stars": 3, "dist": 4000},
+      "answer": {"type": "E195"}
+    },
+    {
+      "name": "a region: the airport's country's",
+      "rule": "airport.regionOf: the airport's region from rules_input() (its country's), else the one given for an airport the rules don't carry, else Other (the old regionOf)",
+      "input": {"airports": [{"code": "HUB", "country_code": "GB", "region": "Europe", "utc_offset": 0, "mct_min": 60}, {"code": "CCC", "country_code": "IN", "region": "South Asia", "utc_offset": 5.5, "mct_min": 90}, {"code": "NOC", "country_code": null, "region": null, "utc_offset": 0, "mct_min": null}]},
+      "ask": {"what": "region_of", "airport": "CCC", "regions": {}},
+      "answer": {"region": "South Asia"}
+    },
+    {
+      "name": "... none for an airport with no country: Other",
+      "rule": "airport.regionOf: the airport's region from rules_input() (its country's), else the one given for an airport the rules don't carry, else Other (the old regionOf)",
+      "input": {"airports": [{"code": "HUB", "country_code": "GB", "region": "Europe", "utc_offset": 0, "mct_min": 60}, {"code": "CCC", "country_code": "IN", "region": "South Asia", "utc_offset": 5.5, "mct_min": 90}, {"code": "NOC", "country_code": null, "region": null, "utc_offset": 0, "mct_min": null}]},
+      "ask": {"what": "region_of", "airport": "NOC", "regions": {}},
+      "answer": {"region": "Other"}
+    },
+    {
+      "name": "... an airport the rules don't carry takes the one given",
+      "rule": "airport.regionOf: the airport's region from rules_input() (its country's), else the one given for an airport the rules don't carry, else Other (the old regionOf)",
+      "input": {"airports": [{"code": "HUB", "country_code": "GB", "region": "Europe", "utc_offset": 0, "mct_min": 60}, {"code": "CCC", "country_code": "IN", "region": "South Asia", "utc_offset": 5.5, "mct_min": 90}, {"code": "NOC", "country_code": null, "region": null, "utc_offset": 0, "mct_min": null}]},
+      "ask": {"what": "region_of", "airport": "PLN", "regions": {"PLN": "Oceania"}},
+      "answer": {"region": "Oceania"}
+    },
+    {
+      "name": "... or Other with none given",
+      "rule": "airport.regionOf: the airport's region from rules_input() (its country's), else the one given for an airport the rules don't carry, else Other (the old regionOf)",
+      "input": {"airports": [{"code": "HUB", "country_code": "GB", "region": "Europe", "utc_offset": 0, "mct_min": 60}, {"code": "CCC", "country_code": "IN", "region": "South Asia", "utc_offset": 5.5, "mct_min": 90}, {"code": "NOC", "country_code": null, "region": null, "utc_offset": 0, "mct_min": null}]},
+      "ask": {"what": "region_of", "airport": "XXX", "regions": {}},
+      "answer": {"region": "Other"}
     }
   ]
 }

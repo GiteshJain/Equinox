@@ -35,6 +35,7 @@ import {
   useServiceProfiles,
 } from "./reads";
 import { RouteDetail } from "./RouteDetail";
+import { AircraftPopup } from "../tails/AircraftPopup";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -43,6 +44,16 @@ export function Routes() {
   const loc = useLocation();
   const navigate = useNavigate();
   const filters = useMemo(() => parseFilters(loc.search), [loc.search]);
+  // the aircraft pop-up a frequency's aircraft opens (Tails' AircraftPopup, as from Home), kept in the address
+  // (/planner/next/routes/PA/JFK-ORD?aircraft=N001AW) so a link or the back button reopens it
+  const tailPopup = new URLSearchParams(loc.search).get("aircraft");
+  const setTailPopup = (reg: string | null) => {
+    const n = new URLSearchParams(loc.search);
+    if (reg) n.set("aircraft", reg);
+    else n.delete("aircraft");
+    const q = n.toString();
+    navigate({ pathname: loc.pathname.replace(/^\/planner\/next/, "") || "/", search: q ? "?" + q : "" });
+  };
   const [codePart = "", pairPart = ""] = (params["*"] ?? "").split("/").map(decodeURIComponent);
   const [hubCode = "", destCode = ""] = pairPart.split("-");
   const now = useNow();
@@ -346,12 +357,13 @@ export function Routes() {
               markets={markets} airlineMarkets={airlineMarkets} profiles={profilesQ.data ?? []} tails={tails as AircraftRow[]} airports={airports} busy={busy}
               onBack={() => toList({ ...filters, bases: filters.bases ?? picked })} onFrequency={onFrequency}
               onDeleteFrequency={(f) => void save(deleteFrequencyChanges(f, today))} onAddFrequency={onAddFrequency} onEdit={onEdit}
-              onRemove={() => void onRemove()} onOffset={onOffset} />
+              onRemove={() => void onRemove()} onOffset={onOffset} onOpenTail={(reg) => setTailPopup(reg)} />
           ) : codePart && ready ? (
             <div className="empty" data-no-route>No route {hubCode}–{destCode} for {airline?.name ?? codePart}: it may have been removed (Reference restores it).</div>
           ) : codePart ? <div className="empty">Loading…</div> : <div className="empty">Pick a route to add frequencies.</div>}
         </div>
       </div>
+      {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
     </main>
   );
 }

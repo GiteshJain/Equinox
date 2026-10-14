@@ -31,6 +31,8 @@ export interface FreqProps {
   turnMargin: number;
   onChange: (field: FreqField, value: string) => void;
   onDelete: () => void;
+  /** Opens the aircraft's pop-up (Tails' AircraftPopup; build pull request 12). */
+  onOpenTail?: (registration: string) => void;
   busy: boolean;
 }
 
@@ -166,6 +168,8 @@ export function Frequency(p: FreqProps) {
       <div className="fg">
         <Field k="days" label="Days" value={f.local.days.join("")} placeholder="1234567" onChange={p.onChange} disabled={p.busy} />
         <Select k="tail" label="Tail" value={reg} options={p.tails} empty="—" onChange={p.onChange} disabled={p.busy} />
+        {reg && p.onOpenTail ? <button type="button" className="link tailpop" data-tailm={reg} title={`${reg}'s week, maintenance and flights`}
+          onClick={() => p.onOpenTail?.(reg)}>{reg} ›</button> : null}
         <Field k="noOut" label="No. out" type="number" value={f.leg1?.flight_no != null ? String(f.leg1.flight_no) : ""} onChange={p.onChange} disabled={p.busy} />
         <Field k="noBack" label="No. back" type="number" value={f.leg2?.flight_no != null ? String(f.leg2.flight_no) : ""}
           placeholder={f.noOut ? String(f.noOut - 1) : ""} onChange={p.onChange} disabled={p.busy} />

@@ -24,7 +24,8 @@ export function useWorld() {
   });
 }
 
-/** Our group's airlines in the world, in their display order (airlines.position), with their names and colours. */
+/** Our group's airlines in the world, in their display order (airlines.position), with their names, colours and the city
+ *  whose photo stands for each (airlines.photo_city). */
 export function useOurAirlines(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("airlines", "ours", worldId),
@@ -36,7 +37,7 @@ export function useOurAirlines(worldId: number | undefined) {
       const ids = groups.data.map((g) => g.id);
       if (ids.length === 0) return [];
       const { data, error } = await supabase.from("airlines")
-        .select("id, game_id, public_name, planner_name, game_name, iata_code, livery_color, position, active")
+        .select("id, game_id, public_name, planner_name, game_name, iata_code, livery_color, position, active, photo_city")
         .eq("world_id", w).in("group_id", ids)
         .order("position", { ascending: true, nullsFirst: false }).order("id");
       if (error) return fail("our airlines", error.message);

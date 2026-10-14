@@ -803,6 +803,86 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
   .cashin input{width:76px}
 }
 
+/* ---------- the header's search box and Website button (#18 build pull request 12): the old planner's .gs, #gsr and
+   .eqsite as its cascade leaves them; hidden on a phone, as in the old header ---------- */
+.gs{position:relative;flex:1 1 220px;max-width:300px;margin-left:auto}
+.gs input{width:100%;background:rgba(255,255,255,.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239AA4C4' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 12px 50%;
+  border:1px solid transparent;color:#fff;border-radius:999px;padding:8px 12px 8px 32px;font-size:13.5px}
+.gs input::placeholder{color:#8C96B8}
+.gs input:hover{background-color:rgba(255,255,255,.1);border-color:transparent}
+.gs input:focus{background-color:rgba(255,255,255,.16);border-color:rgba(246,180,75,.6);box-shadow:none}
+#gsr{display:none;position:absolute;top:44px;left:0;right:0;background:var(--surface);border:0;border-radius:18px;
+  box-shadow:0 18px 50px -12px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.06);max-height:420px;overflow:auto;z-index:40;padding:6px}
+.gsi{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:9px;font:inherit;
+  font-size:13px;color:var(--ink);cursor:pointer}
+.gsi:hover{background:var(--fill)}
+.gsk{font-size:11px;color:var(--muted);min-width:58px}
+.gse{padding:10px;color:var(--muted);font-size:13px}
+.gs ~ .hctl{margin-left:8px}
+.eqsite{display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:999px;background:var(--amber);color:var(--night)!important;
+  font:700 12.5px/1 var(--font);text-decoration:none;margin-left:4px}
+.eqsite:hover{background:#FFC769}
+@media (max-width:860px){ .gs,.eqsite{display:none} .gs ~ .hctl{margin-left:auto} }
+
+/* ---------- Interline (#18 build pull request 12): the agreements table, as the old .il ---------- */
+.il td{vertical-align:middle}
+.il input{width:100%;min-width:90px;padding:5px 8px}
+.il select{padding:5px 8px}
+.il tr.signed td{background:rgba(52,199,89,.06)}
+.il tr.declined td{color:var(--muted)}
+.il .hubtag{margin-bottom:0}
+.il .alogo{vertical-align:middle}
+
+/* ---------- Photos (#18 build pull request 12): the logo and photo cards, as the old .ph-* ---------- */
+.ph-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.ph-card{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--line-2);display:flex;flex-direction:column}
+.ph-img{aspect-ratio:4/3;background:radial-gradient(120% 90% at 20% 0%,#4B3BA8 0%,#0A1230 70%);position:relative;display:grid;place-items:center;
+  color:#fff;font:400 34px/1 var(--font-d);letter-spacing:-.05em}
+.ph-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ph-img .tag{position:absolute;left:10px;top:10px;font:700 11px/1 var(--font);padding:5px 8px;border-radius:999px;background:rgba(10,18,48,.7);
+  color:#fff;letter-spacing:0}
+.ph-img .tag.live{background:#1A7F55}
+.ph-body{padding:12px 14px 14px;display:grid;gap:8px}
+.ph-body b{font:600 14.5px/1.2 var(--font)}
+.ph-body .small{color:var(--muted);font-size:12px}
+.ph-body input[type=text]{width:100%;font-size:12.5px;padding:7px 10px}
+.ph-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ph-acts label.primary{cursor:pointer;display:inline-flex;align-items:center;padding:7px 14px;border-radius:999px;background:var(--night);color:#fff;
+  font:700 12.5px/1 var(--font)}
+.ph-acts label.primary:hover{background:var(--violet)}
+.ph-busy{opacity:.55;pointer-events:none}
+.ph-note{margin:0 0 16px;padding:12px 16px;border-radius:14px;background:var(--ok-soft);color:var(--ok);font:600 13.5px/1.4 var(--font)}
+
+/* ---------- Reference (#18 build pull request 12): the folding sections and their tables, as the old details.rsec,
+   .ref and .tbl.edit as its cascade leaves them ---------- */
+details.rsec{background:var(--surface);margin:0 0 10px;border-radius:24px;border:1px solid rgba(14,22,48,.06);
+  box-shadow:0 1px 0 rgba(14,22,48,.03),0 24px 48px -32px rgba(14,22,48,.35)}
+details.rsec summary{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+details.rsec summary::-webkit-details-marker{display:none}
+details.rsec summary::before{content:"";display:inline-block;flex:none;width:9px;height:9px;border:0;margin:0 6px 0 0;
+  background:no-repeat center/9px 9px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3 1.5 6.5 5 3 8.5' fill='none' stroke='%238E8E93' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  transform:none;transition:transform .18s ease}
+details.rsec[open] summary::before{transform:rotate(90deg)}
+.rst{font:500 16px/1.3 var(--font-d);letter-spacing:-.03em;color:var(--ink)}
+details.rsec summary .note{margin:0;font-size:12.5px}
+.rsb{padding:0 16px 14px}
+.rsb h3{display:none}
+.ref .tbl td{vertical-align:middle}
+.ref .tbl{background:var(--surface);overflow:hidden;border-radius:var(--r-panel);box-shadow:var(--shadow);border:1px solid var(--line-2)}
+.tbl.edit input,.tbl.edit select{width:100%;min-width:60px;padding:5px 8px}
+tr.focusrow td{background:#FAFBFD}
+tr.focusrow input:disabled{opacity:.35}
+.ref .rsb > .secondary{margin-top:10px}
+/* Routes: a frequency's aircraft opens its pop-up (build pull request 12) */
+.freq .fg .tailpop{align-self:end;padding-bottom:9px}
+/* phones (design §9): nothing scrolls sideways at 380 px; the old wide tables scroll inside their own box */
+@media (max-width:860px){
+  .rsb{padding:0 10px 12px}
+  .ref .fg input,.ref .fg select{width:100%}
+  .ref .fg label{flex:1 1 140px;min-width:0}
+}
+
 /* ---------- small screens ---------- */
 @media (max-width:860px){
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .kv{font-size:24px}

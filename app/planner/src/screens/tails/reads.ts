@@ -175,3 +175,17 @@ export async function readGameSchedule(link: string): Promise<{ flights: GameFli
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/** What the old adapter looked at when an aircraft left both its lists (removing a delivery): whether the capture or money
+ *  spent knows it (game_flights, game_payments, spending_log), and whether a flight, a plan card or a kept cabin points at
+ *  it. Read fresh when asked. */
+export async function removalFacts(worldId: number, aircraftId: number): Promise<{ money: boolean; pointedAt: boolean }> {
+  const any = async (table: string) => {
+    const { data, error } = await supabase.from(table as never).select("aircraft_id").eq("aircraft_id", aircraftId).limit(1);
+    if (error) return fail(`what points at the aircraft (${table})`, error.message);
+    return (data ?? []).length > 0;
+  };
+  void worldId;
+  const [f, p, s, l, c, k] = await Promise.all(["game_flights", "game_payments", "spending_log", "flight_legs", "plan_cards", "aircraft_cabin_keeps"].map(any));
+  return { money: !!(f || p || s), pointedAt: !!(l || c || k) };
+}

@@ -43,7 +43,7 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
   );
 }
 
-export function Deliveries({ all, shown, airline, filters, open, legsOf, serviceOf, filed, busy, now, onStatus, onCard, onFile }: {
+export function Deliveries({ all, shown, airline, filters, open, legsOf, serviceOf, filed, busy, now, onStatus, onCard, onFile, onRemove }: {
   all: readonly DeliveryRow[];
   shown: readonly DeliveryRow[];
   airline: TailAirline | undefined;
@@ -58,6 +58,8 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
   onStatus: (s: DeliveryStatus) => void;
   onCard: (reg: string) => void;
   onFile: (r: DeliveryRow) => void;
+  /** remove (the old data-deldel): the aircraft leaves the list of deliveries. */
+  onRemove: (r: DeliveryRow) => void;
 }) {
   const openCount = all.filter((r) => r.status !== "flying").length;
   const head = (
@@ -99,7 +101,8 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
                   <td>{r.base}</td>
                   <td className="dim">{r.plan}</td>
                   <td><span className={"pill " + (r.status === "unscheduled" ? "bad" : r.status === "flying" ? "ok" : "mute")}>{r.status === "unscheduled" ? "arrived — not scheduled" : r.status}</span></td>
-                  <td className="n">{r.card ? <button type="button" className="link" data-plancard={r.a.registration} onClick={() => onCard(r.a.registration)}>{open === r.a.registration ? "hide card" : "card"}</button> : null}</td>
+                  <td className="n">{r.card ? <><button type="button" className="link" data-plancard={r.a.registration} onClick={() => onCard(r.a.registration)}>{open === r.a.registration ? "hide card" : "card"}</button>{" · "}</> : null}
+                    <button type="button" className="link" data-deldel={r.a.registration} disabled={busy} onClick={() => onRemove(r)}>remove</button></td>
                 </tr>,
                 open === r.a.registration && r.card ? (
                   <tr className="planrow" key={r.a.id + "-card"}>

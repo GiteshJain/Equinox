@@ -12,6 +12,16 @@ export function mctAt(rules: Rules, code: string): { minutes: number; source: "a
   return v == null ? { minutes: DEFAULT_MCT_MIN, source: "default" } : { minutes: Number(v), source: "airport" };
 }
 
+/** The word for an airport with no region: no country, or one the input doesn't carry (the old planner's regionOf). */
+export const NO_REGION = "Other";
+
+/** The region the planner names for an airport: its country's (countries.region, carried on each airport by
+ *  rules_input()), or Other where it has none. regions: each airport's region, for airports the rules don't carry
+ *  (Check's waiting plan cards fly to some). Replaces the old planner's REGION_OF list and regionOf. */
+export function regionOf(rules: Rules, code: string, regions: ReadonlyMap<string, string | null> = new Map()): string {
+  return rules.airports.get(code)?.region ?? regions.get(code) ?? NO_REGION;
+}
+
 /** An airport's night ban as local minutes [from, to] (inclusive, and it may wrap past midnight), or null. */
 export function nightBanAt(rules: Rules, code: string): { from: number; to: number; text: string } | null {
   const a = rules.airports.get(code);

@@ -141,16 +141,16 @@ export function useAirports(worldId: number | undefined, codes: readonly string[
 
 export async function readAirports(worldId: number, codes: readonly string[]): Promise<AirportInfo[]> {
   const [a, w] = await Promise.all([
-    supabase.from("airports").select("code, city, country_code, lat, lon, utc_offset, countries(name)").in("code", [...codes]),
+    supabase.from("airports").select("code, city, country_code, lat, lon, utc_offset, countries(name, region)").in("code", [...codes]),
     supabase.from("world_airports").select("airport_code, utc_offset_override, updated_at").eq("world_id", worldId).in("airport_code", [...codes]),
   ]);
   if (a.error) return fail("the airports", a.error.message);
   if (w.error) return fail("the airports' corrections", w.error.message);
-  const rows = a.data as unknown as { code: string; city: string | null; country_code: string | null; lat: number | null; lon: number | null; utc_offset: number | null; countries: { name: string } | null }[];
+  const rows = a.data as unknown as { code: string; city: string | null; country_code: string | null; lat: number | null; lon: number | null; utc_offset: number | null; countries: { name: string; region: string } | null }[];
   return rows.map((x) => {
     const wr = (w.data ?? []).find((r) => r.airport_code === x.code);
     return {
-      code: x.code, city: x.city, country_code: x.country_code, country_name: x.countries?.name ?? null,
+      code: x.code, city: x.city, country_code: x.country_code, country_name: x.countries?.name ?? null, region: x.countries?.region ?? null,
       lat: x.lat == null ? null : Number(x.lat), lon: x.lon == null ? null : Number(x.lon), utc_offset: x.utc_offset == null ? null : Number(x.utc_offset),
       correction: wr?.utc_offset_override == null ? null : Number(wr.utc_offset_override), world_row: wr ? { updated_at: wr.updated_at } : null,
     };

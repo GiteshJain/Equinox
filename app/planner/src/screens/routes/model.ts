@@ -91,6 +91,8 @@ export interface AirportInfo {
   city: string | null;
   country_code: string | null;
   country_name: string | null;
+  /** The country's region (countries.region), where it's read (Check's hub readiness). */
+  region?: string | null;
   lat: number | null;
   lon: number | null;
   utc_offset: number | null;

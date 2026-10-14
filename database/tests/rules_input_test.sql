@@ -19,7 +19,9 @@
 --      (aircraft_block_target_h) and the seven Check adds (cabin_refit_cost, cabin_refit_share_pct, growth_big_min_stars,
 --      growth_ready_min_days, growth_ready_full_share, order_queue_grace_h, order_queue_warn_h), and Review's setting
 --      (fare_plan_raise_pct) and service profiles (service_profiles, #18 build pull request 10, every row of the
---      world's): in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      world's), and build pull request 12's settings (suggested_size, interline_rules) and each airport's region (its
+--      country's):
+--      in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
 --      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
@@ -73,7 +75,7 @@ begin
   if d_before is not null then
     foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h', 'cabin_refit_cost',
                              'cabin_refit_share_pct', 'growth_big_min_stars', 'growth_ready_min_days', 'growth_ready_full_share',
-                             'order_queue_grace_h', 'order_queue_warn_h', 'fare_plan_raise_pct'] loop
+                             'order_queue_grace_h', 'order_queue_warn_h', 'fare_plan_raise_pct', 'suggested_size', 'interline_rules'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
@@ -86,6 +88,18 @@ begin
       assert jsonb_array_length(d_all -> 'service_profiles') = (select count(*) from public.service_profiles s where s.world_id = w),
         'all: the service profiles aren''t every row of the world''s';
       d_cmp := d_cmp - 'service_profiles';
+      n_new := n_new + 1;
+    end if;
+    -- each airport's region (build pull request 12): its country's, none without one; then taken out when the copy's
+    -- airports didn't carry it
+    if not exists (select 1 from jsonb_array_elements(d_before -> 'airports') e where e ? 'region') then
+      select string_agg(e ->> 'code', ', ') into bad from jsonb_array_elements(d_all -> 'airports') e
+       where not e ? 'region'
+          or (e ->> 'region') is distinct from (select c.region from public.airports a join public.countries c on c.code = a.country_code
+                                                  where a.code = e ->> 'code');
+      assert bad is null, 'all: these airports don''t carry their country''s region: ' || bad;
+      d_cmp := jsonb_set(d_cmp, '{airports}', (select coalesce(jsonb_agg(e - 'region' order by i), '[]'::jsonb)
+                                                 from jsonb_array_elements(d_cmp -> 'airports') with ordinality as x(e, i)));
       n_new := n_new + 1;
     end if;
   end if;

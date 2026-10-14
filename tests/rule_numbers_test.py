@@ -9,6 +9,9 @@ The planner's numbers, read from web/planner/index.html as the planner uses them
   - the old Check's (#18 build pull request 9): the refit's cost (REFIT_M) and the share that pays, a big market's stars,
     ready for another flight from the load reports, and the order queues' grace and warning;
   - the old Review's (#18 build pull request 10): the economy fare rise "+ fare plan" plans;
+  - the old Check's suggested aircraft sizes (suggestSize, bigSize, feedSize; #18 build pull request 12), as the setting
+    suggested_size holds them, the world's and Ryanair's own; and the old Interline screen's lists (IL_YES, EUROPE_ZONE,
+    IL_RIVAL, IL_COVER, IL_PARTNERS, Ryanair's group only), as the setting interline_rules holds them;
   - ref.consts as the planner ends up with them: its defaults (defaultRef, and the "|| n" fallbacks where it reads
     them), with what planner_state_get() gives on top, as the planner merges them when it loads.
 The tables' numbers: settings and world_rules, and planner_meta.growthRules (the hubs-first rules the scripts read),
@@ -93,6 +96,25 @@ def planner_numbers(html, consts_given):
     out[("settings", "order_queue_warn_h", None)] = find(r"UTC \$\{hrs < (\d+) \?", "the order queues' warning (growthBoard)")
     # the old Review's, a setting since #18 build pull request 10: the economy fare rise "+ fare plan" plans
     out[("settings", "fare_plan_raise_pct", None)] = find(r'cls: "economy", pct: (\d+), from: Math\.round\(from\)', "the fare plan's rise (+ fare plan)")
+    # the old Check's suggested sizes (suggestSize, bigSize, feedSize), a setting with Ryanair's own since #18 build pull
+    # request 12 (suggested_size): each move's list, first match wins, as the setting holds it
+    m = re.search(r'function suggestSize\(r\) \{ if \(r\.airline === "Ryanair"\) return r\.stars >= (\d+) \? "(\w+)" : "(\w+)"; '
+                  r'return r\.stars >= (\d+) \? "(\w+)" : r\.stars >= (\d+) \? "(\w+)" : "(\w+)"; \}', html)
+    if not m:
+        raise RuntimeError("not found in the planner's code: suggestSize")
+    fr4, t4, e4, s5, t5, s3, t3, e3 = m.groups()
+    m = re.search(r'const bigSize = r => al === "Ryanair" \? "(\w+)" : r\.stars >= (\d+) \? "(\w+)" : "(\w+)", '
+                  r'feedSize = r => al === "Ryanair" \? "(\w+)" : r\.stars >= (\d+) && r\.dist > (\d+) \? "(\w+)" : "(\w+)";', html)
+    if not m:
+        raise RuntimeError("not found in the planner's code: bigSize and feedSize (moveCandidates)")
+    big_fr, big_s, big_t, big_e, feed_fr, feed_s, feed_km, feed_t, feed_e = m.groups()
+    out[("settings", "suggested_size", None)] = {
+        "big": [{"min_stars": int(big_s), "type": big_t}, {"type": big_e}],
+        "freq": [{"min_stars": int(s5), "type": t5}, {"min_stars": int(s3), "type": t3}, {"type": e3}],
+        "feeder": [{"min_stars": int(feed_s), "over_km": int(feed_km), "type": feed_t}, {"type": feed_e}]}
+    out[("settings", "suggested_size", "Ryanair")] = {
+        "big": [{"type": big_fr}], "freq": [{"min_stars": int(fr4), "type": t4}, {"type": e4}], "feeder": [{"type": feed_fr}]}
+    out[("settings", "interline_rules", None)] = interline_rules(html)
 
     # ref.consts as the planner merges them: defaultRef's, the fallbacks where it reads them, then what the getter gives
     m = re.search(r"consts: \{ ([^}]*) \}", html)
@@ -112,6 +134,38 @@ def planner_numbers(html, consts_given):
     places = {"hub_first_departures (label)": bar, "patterns: watch needs": n2, "Home's airport cap": home_cap, "a feeder's stars": feeder,
               "ready, twice": ready}
     return out, places
+
+
+def interline_rules(html):
+    """The old Interline screen's lists (IL_YES, EUROPE_ZONE, IL_RIVAL, IL_COVER, IL_PARTNERS, and Ryanair's group only), as
+    the setting interline_rules holds them (airlines by their code, CODE_AL; lists as sets, compared sorted)."""
+    def grab(pattern, what):
+        m = re.search(pattern, html, re.S)
+        if not m:
+            raise RuntimeError(f"not found in the planner's code: {what}")
+        return m[1]
+    codes = {v: k for k, v in re.findall(r'(\w\w): "([^"]+)"', grab(r"const CODE_AL = \{([^}]*)\}", "CODE_AL"))}
+    yes = dict(re.findall(r"(\w\w): \"(\w+)\"", grab(r"const IL_YES = \{([^}]*)\}", "IL_YES")))
+    cover = {}
+    for al, s in re.findall(r'put\("([^"]+)", "([A-Z ]+)"\)', grab(r"const IL_COVER = \(\(\) => \{(.*?)return m; \}\)\(\);", "IL_COVER")):
+        cover[codes[al]] = sorted(s.split())
+    partners = {cc: [{"name": n, "game_id": int(i)} for n, i in re.findall(r'\["([^"]+)", (\d+)\]', lst)]
+                for cc, lst in re.findall(r"(\w\w): (\[\[.*?\]\])", grab(r"const IL_PARTNERS = \{(.*?)\};\n", "IL_PARTNERS"))}
+    group = grab(r'if \(airline === "([^"]+)"\) return \{ kind: "group"', "the group-only airline (ilClass)")
+    return {"countries": yes, "europe_zone": sorted(grab(r'const EUROPE_ZONE = new Set\("([^"]+)"', "EUROPE_ZONE").split()),
+            "rivals": sorted(grab(r'const IL_RIVAL = new Set\("([^"]+)"', "IL_RIVAL").split()),
+            "covered": cover, "group_only": [codes[group]], "partners": partners}
+
+
+def sorted_rules(v):
+    """interline_rules with its lists sorted, as interline_rules() reads the old code."""
+    if not isinstance(v, dict):
+        return v
+    out = dict(v)
+    for k in ("europe_zone", "rivals"):
+        out[k] = sorted(out.get(k) or [])
+    out["covered"] = {a: sorted(c) for a, c in (out.get("covered") or {}).items()}
+    return out
 
 
 def meta_numbers(growth):
@@ -155,7 +209,8 @@ def table_numbers(d):
     out = {}
     for s in d["settings"]:
         v = s["value"]
-        out[("settings", s["key"], s.get("airline"))] = v if isinstance(v, bool) else num(v) if isinstance(v, (int, float)) else v
+        out[("settings", s["key"], s.get("airline"))] = (v if isinstance(v, bool) else num(v) if isinstance(v, (int, float))
+                                                       else sorted_rules(v) if s["key"] == "interline_rules" else v)
     for r in d["world_rules"]:
         v = r["value"]
         if isinstance(v, dict):
@@ -172,7 +227,8 @@ SINCE_SAMPLE = {"airport_cap_warning_pct": "13 Oct, #18 build pull request 5", "
                 "aircraft_block_target_h": "13 Oct, #18 build pull request 7",
                 **{k: "13 Oct, #18 build pull request 9" for k in ("cabin_refit_cost", "cabin_refit_share_pct", "growth_big_min_stars", "growth_ready_min_days",
                                                                  "growth_ready_full_share", "order_queue_grace_h", "order_queue_warn_h")},
-                "fare_plan_raise_pct": "14 Oct, #18 build pull request 10"}
+                "fare_plan_raise_pct": "14 Oct, #18 build pull request 10", "suggested_size": "14 Oct, #18 build pull request 12",
+                "interline_rules": "14 Oct, #18 build pull request 12"}
 after_sample = []
 
 
@@ -185,7 +241,8 @@ def compare(d, html):
         for k, v in theirs.items():
             label = f"{k[0]}.{k[1]}" + (f" ({k[2]})" if k[2] else "")
             if k not in tables and d.get("from") == "sample" and k[1] in SINCE_SAMPLE:
-                after_sample.append(f"{label} ({SINCE_SAMPLE[k[1]]}; the planner's code has {v:g})")
+                after_sample.append(f"{label} ({SINCE_SAMPLE[k[1]]}; the planner's code has "
+                                    f"{json.dumps(v, separators=(',', ':')) if isinstance(v, dict) else format(v, 'g')})")
                 continue
             n += 1
             if k not in tables:

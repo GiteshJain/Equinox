@@ -36,6 +36,8 @@ export interface DetailProps {
   onAddFrequency: () => void;
   onEdit: (field: RouteField, value: string) => void;
   onRemove: () => void;
+  /** Opens a frequency's aircraft in its pop-up. */
+  onOpenTail?: (registration: string) => void;
   /** An offset typed: what it would move, worked out from the copy's legs, to ask about first. */
   onOffset: (code: string, typed: string) => Promise<{ question: string; moves: OffsetMove[]; apply: () => Promise<void> } | null>;
 }
@@ -138,7 +140,8 @@ export function RouteDetail(p: DetailProps) {
       {p.freqs.map((f) => (
         <Frequency key={f.rot.id} f={f} route={r} checks={p.checks.get(f.rot.id) ?? null} mode={p.mode} flightLoad={p.flightLoad} airlines={p.airlines}
           tails={tails} services={p.profiles.map((s) => s.code)} serviceDefault={svc} priceDefault={priceFor(r, p.markets)} connectionNote={connectionNote}
-          isBase={isBase} turnMargin={margin} busy={p.busy} onChange={(field, value) => p.onFrequency(f, field, value)} onDelete={() => p.onDeleteFrequency(f)} />
+          isBase={isBase} turnMargin={margin} busy={p.busy} onChange={(field, value) => p.onFrequency(f, field, value)} onDelete={() => p.onDeleteFrequency(f)}
+          onOpenTail={p.onOpenTail} />
       ))}
       <button type="button" className="primary" id="add-freq" onClick={p.onAddFrequency} disabled={p.busy}>Add frequency</button>
     </div>

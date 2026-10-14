@@ -10,12 +10,14 @@
 //   - hub readiness: for each bank of each hub, the cities whose flights feed it now and with the waiting plan cards;
 //   - the order queues: each airline's aircraft still to arrive, by family, and when each queue runs dry (a delivery up to
 //     order_queue_grace_h ago still counts; one running dry within order_queue_warn_h is flagged).
+//   - the suggested aircraft size after a route, for each move (suggestedSize; the setting suggested_size, since build pull
+//     request 12, with Ryanair's own).
 // The old code it follows: the old planner's growthBoard, lastMove, nextMove and moveCandidates (its 4 stars, 5 days and
-// 95%, and its 6 and 48 hours, are settings here). The old planner's suggested aircraft size for each route was a rule in
-// its code with no home in the database, so it isn't worked out here (the pull request says so).
+// 95%, and its 6 and 48 hours, are settings here), and its suggestSize, bigSize and feedSize (the setting suggested_size).
+import { regionOf } from "./airport.js";
 import { bankOfArrival, bankWindows, isFocus } from "./banks.js";
 import { timedLegs } from "./block.js";
-import { pairKey, settingNumber } from "./input.js";
+import { RulesError, pairKey, setting, settingNumber } from "./input.js";
 import { DAY, mod, toLocal } from "./time.js";
 import type { Rules, TimedLeg } from "./types.js";
 
@@ -103,6 +105,27 @@ export function shownMove(next: Move, c: MoveCandidates): Move {
   return nx;
 }
 
+// ---------- the suggested aircraft size
+/** One entry of a move's list in the setting suggested_size: the type for a route with at least min_stars stars and
+ *  longer than over_km km (each only when given). */
+export interface SizeRule { min_stars?: number; over_km?: number; type: string }
+
+/** The aircraft size suggested after a route for a move (the old suggestSize for a frequency, bigSize for a big market,
+ *  feedSize for a smaller feeder): the first entry of the move's list in the airline's suggested_size (its own, else the
+ *  world's) that the route meets. Null where no entry fits. */
+export function suggestedSize(rules: Rules, airlineId: number, move: Move, route: { stars: number; dist: number | null }): string | null {
+  const v = setting(rules, "suggested_size", airlineId);
+  const list = v != null && typeof v === "object" && !Array.isArray(v) ? v[move] : undefined;
+  if (!Array.isArray(list)) throw new RulesError(`settings.suggested_size has no list for ${move}; it comes from the settings table`);
+  for (const e of list as unknown as SizeRule[]) {
+    if (e == null || typeof e.type !== "string") continue;
+    if (e.min_stars != null && !(route.stars >= Number(e.min_stars))) continue;
+    if (e.over_km != null && !((route.dist ?? 0) > Number(e.over_km))) continue;
+    return e.type;
+  }
+  return null;
+}
+
 /** The routes ready for another flight from the load reports alone (shown when no profit was captured): sold out on every
  *  departure (growth_ready_full_share at 95%+) over at least growth_ready_min_days reported days, most stars first, then
  *  fewest flights a day. */
@@ -134,8 +157,8 @@ export interface ReadinessRow {
   /** Cities whose flights feed the bank now, and with the waiting plan cards' too. */
   flying: number;
   with_planned: number;
-  /** Those cities by country (airports.country_code), most first. */
-  countries: { country: string; cities: number }[];
+  /** Those cities by region (countries.region, airport.regionOf), most first. */
+  regions: { region: string; cities: number }[];
 }
 
 /** A leg on a waiting plan card, as plan_card_legs stores it. */
@@ -144,8 +167,8 @@ export interface PlannedCardLeg { from: string; to: string; dep_utc_min: number 
 /** For each bank of each hub (not focus cities), in the bases' order: the cities feeding it (the old Hub readiness).
  *  An arrival feeds a bank when it lands in time for it, inside its arrival window or early within connection_max_wait_h.
  *  Every flight of our airlines landing there counts, with a number; a plan card's leg counts when its arrival is known.
- *  countries: each airport's country, for airports the rules don't carry. */
-export function hubReadiness(rules: Rules, planned: readonly PlannedCardLeg[], countries: ReadonlyMap<string, string | null> = new Map(),
+ *  regions: each airport's region, for airports the rules don't carry. */
+export function hubReadiness(rules: Rules, planned: readonly PlannedCardLeg[], regions: ReadonlyMap<string, string | null> = new Map(),
   legs: readonly TimedLeg[] = timedLegs(rules)): ReadinessRow[] {
   const outNo = new Map<number, number | null>();
   for (const l of rules.legs) if (l.rotation_id != null && (l.leg_no ?? 1) === 1) outNo.set(l.rotation_id, l.flight_no);
@@ -153,7 +176,6 @@ export function hubReadiness(rules: Rules, planned: readonly PlannedCardLeg[], c
     const out = l.rotation_id != null ? outNo.get(l.rotation_id) ?? null : l.flight_no;
     return (l.leg_no ?? 1) === 1 ? !!l.flight_no : !!(l.flight_no || out);
   });
-  const countryOf = (code: string) => rules.airports.get(code)?.country_code ?? countries.get(code) ?? "";
   const out: ReadinessRow[] = [];
   for (const base of rules.bases) {
     if (isFocus(base)) continue;
@@ -169,10 +191,10 @@ export function hubReadiness(rules: Rules, planned: readonly PlannedCardLeg[], c
       const all = new Set([...now1, ...plannedHere.filter((L) => feeds(L.arr)).map((L) => L.from)]);
       if (!all.size) continue;
       const rc = new Map<string, number>();
-      for (const c of all) { const k = countryOf(c) || "?"; rc.set(k, (rc.get(k) ?? 0) + 1); }
+      for (const c of all) { const k = regionOf(rules, c, regions); rc.set(k, (rc.get(k) ?? 0) + 1); }
       out.push({
         base_id: base.id, airline_id: base.airline_id, airport: code, bank: w.n, dep: w.dep, flying: now1.size, with_planned: all.size,
-        countries: [...rc].map((x, i) => ({ x, i })).sort((a, b) => b.x[1] - a.x[1] || a.i - b.i).map((v) => ({ country: v.x[0], cities: v.x[1] })),
+        regions: [...rc].map((x, i) => ({ x, i })).sort((a, b) => b.x[1] - a.x[1] || a.i - b.i).map((v) => ({ region: v.x[0], cities: v.x[1] })),
       });
     }
   }

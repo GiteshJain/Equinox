@@ -363,14 +363,14 @@ isOneToOne: false
                   ]
                 },"countries": {
                   Row: {
-                    "code": string,"created_at": string,"name": string,"updated_at": string
+                    "code": string,"created_at": string,"name": string,"region": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "code": string,"created_at"?: string,"name": string,"updated_at"?: string
+                    "code": string,"created_at"?: string,"name": string,"region"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "code"?: string,"created_at"?: string,"name"?: string,"updated_at"?: string
+                    "code"?: string,"created_at"?: string,"name"?: string,"region"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     

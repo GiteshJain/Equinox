@@ -2,8 +2,8 @@
 // (hub_progress()), the next move of each airline's order rotation with its best options and the buttons that log an
 // order (growth_log), the growth lists from the capture (growth_signals(); from the load reports and load patterns when
 // no profit was captured), when each order queue runs dry, and how many cities feed each bank. The planning parts are the
-// library's (growth); the captured figures the database's. The old planner's suggested aircraft size for a route was a
-// rule in its code with no home in the database, so it isn't shown (the pull request says so).
+// library's (growth), the suggested aircraft size after each route too (growth.suggestedSize, the setting suggested_size);
+// the captured figures the database's.
 import { Link } from "react-router";
 import { growth, type GrowthRoute, type Move, type QueueCell, type ReadinessRow, type Rules } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
@@ -20,11 +20,11 @@ export interface NextMoveRow {
   airline: CheckAirline;
   last: GrowthLogRow | null;
   move: Move;
-  options: (GrowthRoute & { code: string | null })[];
+  options: (GrowthRoute & { code: string | null; size: string | null })[];
   canOrder: boolean;
 }
 export interface QueueRow { airline: CheckAirline; cells: QueueCell[] }
-export interface ReadyRow { route: GrowthRoute & { airline_id: number; round_trips_day: number }; load: Load & { average: number }; flyingOn: string }
+export interface ReadyRow { route: GrowthRoute & { airline_id: number; round_trips_day: number }; load: Load & { average: number }; flyingOn: string; size: string | null }
 
 const routeLink = (code: string | null | undefined, hub: string, dest: string) => (
   <Link className="link" to={itemRoute("routes", { airline: code, hub, dest })}><b>{hub}–{dest}</b></Link>
@@ -96,6 +96,7 @@ export function GrowthBoard(p: {
                     <span className="opt" key={x.id}>
                       <Link className="link" to={itemRoute("routes", { airline: x.code, hub: x.hub, dest: x.dest })}>{x.hub}–{x.dest}</Link>
                       <span className="stars">{"★".repeat(Math.max(0, x.stars))}</span>
+                      <span className="sz">{x.size ?? ""}</span>
                     </span>
                   )) : <span className="dim">nothing ready</span>}
                   {r.options.length > 4 ? <> <span className="dim">+{r.options.length - 4} more</span></> : null}
@@ -137,14 +138,14 @@ export function GrowthBoard(p: {
       <div className="tblwrap">
         <table className="tbl" data-figure="check: hub readiness">
           <tbody>
-            <tr><th>Hub</th><th>Bank</th><th>Cities flying</th><th>With planned</th><th>Countries (with planned)</th></tr>
+            <tr><th>Hub</th><th>Bank</th><th>Cities flying</th><th>With planned</th><th>Regions (with planned)</th></tr>
             {p.readiness.map((r) => (
               <tr key={`${r.base_id}|${r.bank}`}>
                 <td>{mark(r.airline_id)}<b>{r.airport}</b></td>
                 <td>B{r.bank} · {H(r.dep)}</td>
                 <td>{r.flying}</td>
                 <td><b>{r.with_planned}</b></td>
-                <td className="dim">{r.countries.map((c) => `${c.country} ${c.cities}`).join(" · ")}</td>
+                <td className="dim">{r.regions.map((c) => `${c.region} ${c.cities}`).join(" · ")}</td>
               </tr>
             ))}
           </tbody>
@@ -202,7 +203,7 @@ function FromLoads({ rules, ready, patterns, airlines }: { rules: Rules; ready: 
               <summary><AirlineMark color={x.a.color} /><b>{x.a.name}</b> <span className="dim">{x.list.length} route{x.list.length === 1 ? "" : "s"} ready · top: {x.list.slice(0, 3).map((r) => r.route.hub + "–" + r.route.dest).join(", ")}</span></summary>
               <table className="tbl gtbl">
                 <tbody>
-                  <tr><th>Route</th><th>Demand</th><th>Flights a day</th><th>Loads (7 days)</th><th>Flying on</th></tr>
+                  <tr><th>Route</th><th>Demand</th><th>Flights a day</th><th>Loads (7 days)</th><th>Flying on</th><th>Add</th></tr>
                   {x.list.map((r) => (
                     <tr key={r.route.id}>
                       <td>{routeLink(x.a.code, r.route.hub, r.route.dest)}</td>
@@ -210,6 +211,7 @@ function FromLoads({ rules, ready, patterns, airlines }: { rules: Rules; ready: 
                       <td>{perDayWords(r.route.round_trips_day)}</td>
                       <td><span className={`pill ${loadClass(r.load.average)} lfc`} title={loadTip(r.load)}>≈{Math.round(r.load.average)}%</span> <span className="dim">{r.load.days} days</span></td>
                       <td className="dim">{r.flyingOn || "—"}</td>
+                      <td><b>{r.size ?? ""}</b></td>
                     </tr>
                   ))}
                 </tbody>

@@ -355,7 +355,9 @@ export function deliveryRows(aircraft: readonly TailAircraft[], airlines: readon
   cards: readonly PlanCardRow[], now: number, today: string): DeliveryRow[] {
   const flying = flyingIds(rules);
   const cardOf = new Map(cards.map((c) => [c.aircraft_id, c]));
-  return aircraft.filter((a) => a.delivery_at && a.status !== "retired")
+  // the old planner's deliveries: an aircraft in its list of deliveries (removing a delivery takes it out of that list,
+  // which can leave its date; build pull request 12)
+  return aircraft.filter((a) => a.delivery_at && a.status !== "retired" && extraIndex(a, "deliveries_index") != null)
     .sort((a, b) => (extraIndex(a, "deliveries_index") ?? 1e9) - (extraIndex(b, "deliveries_index") ?? 1e9) || a.id - b.id)
     .map((a): DeliveryRow => {
       // to the minute, as the old planner's documents kept delivery times
@@ -729,6 +731,42 @@ export function deleteTailChanges(a: TailAircraft, rotations: readonly { id: num
     retire(a, today),
   ];
 }
+/** What the old adapter looked at when an aircraft left both its lists (planner_apply_tidy): whether it has money in the
+ *  capture or in money spent (then it's retired), and whether anything else points at it (then it stays, out of the lists). */
+export interface RemovalFacts { money: boolean; pointedAt: boolean }
+
+/** Remove a delivery (the old data-deldel): the aircraft leaves the old planner's list of deliveries, written as its adapter
+ *  wrote it. In service too, its order's fields are cleared; otherwise it's retired today when the capture or money spent
+ *  knows it, removed when nothing points at it (no flights, plan card or kept cabin), and else only taken out of the lists.
+ *  Every aircraft left in either list takes its place in it from 0, in the lists' order, as the adapter numbered them. */
+export function removeDeliveryChanges(a: TailAircraft, all: readonly TailAircraft[], facts: RemovalFacts, today: string): Change[] {
+  const out: Change[] = [];
+  const extra = { ...(isObj(a.extra) ? a.extra : {}) };
+  if (extraIndex(a, "tails_index") != null) {
+    delete extra.deliveries_index;
+    delete extra.delivery;
+    out.push({ table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values: {
+      ordered_on: null, delivery_at: null, order_base_code: null, order_config_id: null, order_note: null, extra } });
+  } else if (facts.money) {
+    for (const k of OLD_LISTS) delete extra[k];
+    out.push({ table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values: { status: "retired", retired_on: a.retired_on ?? today, extra } });
+  } else if (!facts.pointedAt) {
+    out.push({ table: "aircraft", op: "delete", key: { id: a.id }, base: a.updated_at });
+  } else {
+    for (const k of OLD_LISTS) delete extra[k];
+    out.push({ table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values: { extra } });
+  }
+  for (const key of ["tails_index", "deliveries_index"] as const) {
+    const list = all.filter((x) => x.id !== (key === "deliveries_index" ? a.id : -1) && extraIndex(x, key) != null)
+      .sort((x, y) => (extraIndex(x, key) as number) - (extraIndex(y, key) as number) || x.id - y.id);
+    list.forEach((x, i) => {
+      if (x.id === a.id || extraIndex(x, key) === i) return;
+      out.push({ table: "aircraft", op: "update", key: { id: x.id }, base: x.updated_at, values: { extra: { ...(isObj(x.extra) ? x.extra : {}), [key]: i } } });
+    });
+  }
+  return out;
+}
+
 /** Mark checked (the old tmcheck): the one-week check done today. */
 export const markCheckedChange = (a: TailAircraft, today: string): Change =>
   ({ table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values: { checked_on: today } });

@@ -6,9 +6,11 @@
 //     (schedule.nextFlightNumbers). A focus city has no banks of its own (banks.bankWindows);
 //   - connectionsTable(): connections.connectionsAt's city pairs by bank (each once, at its shortest connection, from the
 //     airport's minimum connection time to connection_max_wait_h, never back where it came from), with the airports
-//     arriving and leaving, their flights by country, and the tightest examples.
+//     arriving and leaving, their flights by region (countries.region, since build pull request 12), and the tightest
+//     examples.
 // Times are local at the airport, as the old Hubs showed them. Days are 0 = Monday to 6 = Sunday at the airport (the
 // screen's day buttons). The old code it follows: the old planner's hubBoard, renderHub and hubConnections.
+import { regionOf } from "./airport.js";
 import { airlineBaseAt, bankOfArrival, bankOfDeparture, bankWindows, baseAt, inWindow, isFocus, type BankWindow } from "./banks.js";
 import { timedLegs } from "./block.js";
 import { connectionLimits, connectionsAt, departuresOf, type ConnectionLimits } from "./connections.js";
@@ -178,10 +180,10 @@ export function board(rules: Rules, code: string, day: number, legs: readonly Ti
   };
 }
 
-export interface CountryCount {
-  /** The airport's country code (airports.country_code), or "Other" where it isn't known. */
-  country: string;
-  /** How many of the row's flights come from (or go to) that country. */
+export interface RegionCount {
+  /** The region of the airport at the flight's other end (countries.region, airport.regionOf), or Other where it has none. */
+  region: string;
+  /** How many of the row's flights come from (or go to) that region. */
   flights: number;
 }
 
@@ -190,11 +192,11 @@ export interface HubConnectionRow {
   n: number;
   /** The bank's departure, local minutes; null for the row outside the banks. */
   dep_local_min: number | null;
-  /** The airports arriving in the row, and the arrivals' countries, most flights first. */
+  /** The airports arriving in the row, and the arrivals' regions, most flights first. */
   arriving_from: string[];
-  arriving_countries: CountryCount[];
+  arriving_regions: RegionCount[];
   leaving_to: string[];
-  leaving_countries: CountryCount[];
+  leaving_regions: RegionCount[];
   city_pairs: number;
   /** The tightest EXAMPLES city pairs connecting in the row, and how many more there are. */
   examples: { from: string; to: string; gap_min: number }[];
@@ -216,15 +218,15 @@ export interface HubConnections {
   rows: HubConnectionRow[];
 }
 
-/** Flights by the country of the airport at their other end, most first (the first seen first on a tie). */
-function byCountry(rules: Rules, legs: readonly TimedLeg[], code: string): CountryCount[] {
+/** Flights by the region of the airport at their other end, most first (the first seen first on a tie), as the old
+ *  Hubs' connections table counted them (regionOf). */
+function byRegion(rules: Rules, legs: readonly TimedLeg[], code: string): RegionCount[] {
   const n = new Map<string, number>();
   for (const l of legs) {
-    const other = l.origin === code ? l.dest : l.origin;
-    const c = rules.airports.get(other)?.country_code || "Other";
-    n.set(c, (n.get(c) ?? 0) + 1);
+    const r = regionOf(rules, l.origin === code ? l.dest : l.origin);
+    n.set(r, (n.get(r) ?? 0) + 1);
   }
-  return [...n].map(([country, flights]) => ({ country, flights })).sort((a, b) => b.flights - a.flights);
+  return [...n].map(([region, flights]) => ({ region, flights })).sort((a, b) => b.flights - a.flights);
 }
 
 /** The connections at an airport, across every leg given (by default all of the input's), as the Hubs screen's table:
@@ -239,8 +241,8 @@ export function connectionsTable(rules: Rules, code: string, legs: readonly Time
     const pairs = ans.city_pairs.filter((p) => p.bank === r.n).sort((a, b) => a.gap_min - b.gap_min);
     return {
       n: r.n, dep_local_min: r.dep_local_min,
-      arriving_from: r.arriving_from, arriving_countries: byCountry(rules, pick(r.arrival_leg_ids), code),
-      leaving_to: r.leaving_to, leaving_countries: byCountry(rules, pick(r.departure_leg_ids), code),
+      arriving_from: r.arriving_from, arriving_regions: byRegion(rules, pick(r.arrival_leg_ids), code),
+      leaving_to: r.leaving_to, leaving_regions: byRegion(rules, pick(r.departure_leg_ids), code),
       city_pairs: r.city_pairs, examples: pairs.slice(0, EXAMPLES).map((p) => ({ from: p.from, to: p.to, gap_min: p.gap_min })),
       more: Math.max(0, pairs.length - EXAMPLES),
     };
