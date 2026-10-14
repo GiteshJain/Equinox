@@ -301,3 +301,9 @@ starts to matter sooner.
   card's 80). The new figure is kept. Found by pull request #33.
 - **Before the switch, from Tails:** the aircraft pop-up opens from Home only (add it to Routes), and a delivery can't
   be removed yet. Found by pull request #33.
+- **Regions on Hubs' connections table:** the old planner kept a country-to-region list in its code, so the new table
+  counts by country ("US 5 · IN 2") where the old said "North America 7". Add a `region` column to `countries` with
+  Interline and Reference (pull request 12). Found by pull request #34.
+- **Hubs gives some arrivals a bank they can't make:** 329 arrivals a week (mostly Ryanair at CDG and AMS; CDG 2012
+  shows bank 1 though it lands 16:11 before it). Kept as the old planner has it; fix after the switch. Found by pull
+  request #34.
