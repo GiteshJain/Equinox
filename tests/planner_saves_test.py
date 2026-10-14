@@ -244,12 +244,14 @@ class Saves:
         pl = self.pl
         problems = []
         n0 = len(pl.sent)
-        client = await pl.client()
+        clients = {await pl.client()}
         mark = marks()
         e0 = len(pl.errors)
         try:
             await self.tick()
             await do()
+            # a save that opens the planner again (the game check reads the copy afresh) saves under the new tab's ID
+            clients.add(await pl.client())
             if rows:
                 got = await wait_for(lambda: log_since(mark), lambda got: len(got) >= rows, seconds=45)
                 if len(got) < rows:
@@ -265,14 +267,14 @@ class Saves:
         answer = {
             "sent": counted(sent_lines(pl.sent[n0:], fields), variable),
             "written": counted(written_lines(log, fields), variable),
-            "logged": sorted({f"{r['actor']} {'tab' if r['detail'] == client else r['detail']}" for r in log}),
+            "logged": sorted({f"{r['actor']} {'tab' if r['detail'] in clients else r['detail']}" for r in log}),
         }
         if extra:
             try:
                 answer.update(extra())
             except Exception as e:
                 problems.append("reading what it wrote: " + why(e))
-        bad = [r for r in log if r["actor"] != "planner" or r["detail"] not in (client, "save_loads")]
+        bad = [r for r in log if r["actor"] != "planner" or r["detail"] not in clients | {"save_loads"}]
         problems += [f"a change-log row names {r['actor']} ({r['detail']}), not planner with the tab's ID" for r in bad[:3]]
         problems += [e for e in pl.errors[e0:]][:4]
         found[name] = answer
@@ -332,8 +334,10 @@ async def to_screen(pl, sid, path):
 
 def as_test(sql, **v):
     """A change the test makes itself, named as the test in the change log."""
+    # the statement ends with its own semicolon here: without one, "commit" would be read as a column's name (an
+    # unreserved word) and the change never committed
     psql("begin; select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'planner_saves_test', true);\n"
-         + sql + "\ncommit;", **v)
+         + sql.rstrip().rstrip(";") + ";\ncommit;", **v)
 
 
 def quietly(sql, **v):
@@ -896,16 +900,37 @@ async def interline(s, pl):
     await go(pl, "/interline", INTERLINE_READY)
     rows = await pg.evaluate("""[...document.querySelectorAll('tr[data-il-row]')].map(tr => ({ k: tr.dataset.ilRow, status: tr.className.trim() || 'none' }))""")
     r = next((x for x in rows if x["status"] == "none"), None)
+    held = None
+    if not r and rows:
+        # every row has an agreement (as on 14 Oct): the first row's is set aside for the test, outside the change log, and
+        # put back after, so the screen offers a row with none
+        r = rows[0]
+        code, cc = r["k"].split("|", 1)
+        held = psql(f"""select coalesce(json_agg(i), '[]')::text from public.interline_agreements i join public.airlines al on al.id = i.airline_id
+                         where i.world_id = {COPY['world']} and coalesce(al.iata_code, al.id::text) = :'a' and i.country_code = :'c'""", a=code, c=cc).strip()
+        quietly(f"""delete from public.interline_agreements i using public.airlines al where al.id = i.airline_id and i.world_id = {COPY['world']}
+                     and coalesce(al.iata_code, al.id::text) = :'a' and i.country_code = :'c'""", a=code, c=cc)
+        await reload(pl)
+        await go(pl, "/interline", INTERLINE_READY)
     if not r:
-        s.not_tried("every row has an agreement", "interline:")
+        s.not_tried("Interline lists no rows", "interline:")
         return
     sel = lambda f: f"[data-il={json.dumps(r['k'])}][data-ilk={f}]"
-    await s.act("interline: a status (none to requested: its row added)", lambda: pg.select_option(sel("status"), "requested"))
+    try:
+        await s.act("interline: a status (none to requested: its row added)", lambda: pg.select_option(sel("status"), "requested"))
 
-    async def note():
-        await pg.fill(sel("notes"), "saves test note")
-        await pg.press(sel("notes"), "Enter")
-    await s.act("interline: a note on it", note)
+        async def note():
+            await pg.fill(sel("notes"), "saves test note")
+            await pg.press(sel("notes"), "Enter")
+        await s.act("interline: a note on it", note)
+    finally:
+        if held is not None:
+            code, cc = r["k"].split("|", 1)
+            quietly(f"""delete from public.interline_agreements i using public.airlines al where al.id = i.airline_id and i.world_id = {COPY['world']}
+                         and coalesce(al.iata_code, al.id::text) = :'a' and i.country_code = :'c';
+                        insert into public.interline_agreements overriding system value select * from jsonb_populate_recordset(null::public.interline_agreements, :'h'::jsonb);""",
+                    a=code, c=cc, h=held)
+            await reload(pl)
 
 
 async def reference(s, pl):
