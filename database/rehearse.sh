@@ -353,7 +353,10 @@ hubs_side_by_side() {
     || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   if reload_api "$env"; then
     LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" HUBS_SCREENS_DIR="${HUBS_SCREENS_DIR:-}" \
-      python3 tests/hubs_side_by_side_test.py || rc=1
+      timeout -s INT 300 python3 tests/hubs_side_by_side_test.py || rc=$?
+    # a run that stops answering is stopped after 5 minutes (it takes about one), so the steps after it still run
+    if [ $rc -eq 124 ] || [ $rc -eq 130 ]; then echo "FAIL  the Hubs side by side didn't finish within 5 minutes"; fi
+    [ $rc -eq 0 ] || rc=1
   else
     rc=1
   fi
@@ -548,8 +551,8 @@ if [ $status -eq 0 ]; then
   home_side_by_side || status=1
   routes_side_by_side || status=1   # whatever Home found: its saves touch no route
   tails_side_by_side || status=1    # whatever Routes found: its saves touch no aircraft in service, and it puts back what it changes
-  hubs_side_by_side || status=1     # whatever Tails found: it puts back what it changes, and Hubs only reads
-  check_side_by_side || status=1    # whatever Hubs found: Hubs only reads
+  check_side_by_side || status=1    # whatever Tails found: it puts back what it changes
   review_side_by_side || status=1   # whatever Check found: Check puts back what it changes
+  hubs_side_by_side || status=1     # whatever Review found: it puts back what it changes, and Hubs only reads
 fi
 exit $status
