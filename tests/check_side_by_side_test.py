@@ -83,6 +83,11 @@ KNOWN = {
         "rule": "aircraft whose one-week checks come up the same day: the old list kept them in its list of tails' order (only in the "
                 "adapter's extra), the library in the aircraft's order, as Home's test allows. Only the order within one day's row.",
         "used": 0, "where": []},
+    "routes order": {
+        "rule": "an aircraft losing money after its lease lists the routes it flew: the old Check in the order the database happened to return "
+                "the capture's flights (it asked for none), the captured figures (growth_signals()) in the order they were flown, as "
+                "tests/captured_figures_test.py compares them, as sets. Only the order within that cell: the same routes.",
+        "used": 0, "where": []},
     "load pill order": {
         "rule": "a check's load-pattern pills: the old Check listed them in the order its load window met the routes (day by day back from "
                 "two days ahead, skipping days not reported); the new one orders them by the schedule's departures over the same days. "
@@ -111,6 +116,9 @@ READ = r"""(sel) => {
   const R = document.querySelector(sel);
   if (!R) return null;
   const T = e => (e ? e.textContent.replace(/\s+/g, " ").trim() : "");
+  // a board's other words, one text node at a time: the old markup has spaces between its tags where React has none
+  const TT = e => { const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT), out = []; let n;
+    while ((n = w.nextNode())) { const t = n.textContent.replace(/\s+/g, " ").trim(); if (t) out.push(t); } return out.join(" "); };
   const cls = e => [...e.classList].sort().join(" ");
   const cell = c => T(c) + [...c.querySelectorAll(".pill")].map(p => "{" + cls(p) + "}").join("");
   const rows = t => [...t.querySelectorAll("tr")].map(tr => [...tr.children].map(cell));
@@ -131,7 +139,7 @@ READ = r"""(sel) => {
       flights: [...q.querySelectorAll(".qlist > span")].map(s => (s.classList.contains("dim") ? "~" : "") + T(s) + (s.querySelector(".capl.low") ? "{low}" : "")) }));
     const lines = [...c.querySelectorAll(".gc")].map(g => ({ text: T(g), pills: [...g.querySelectorAll(".pill")].map(cls), buttons: [...g.querySelectorAll("button")].map(T) }));
     c.querySelectorAll("table, .ck, .qcard, .gc").forEach(e => e.remove());
-    out.boards[h.dataset.rkey] = { head: T(h), folded: b.classList.contains("rcol"), sizes, tables, bars, cards, qcards, lines, rest: T(c),
+    out.boards[h.dataset.rkey] = { head: T(h), folded: b.classList.contains("rcol"), sizes, tables, bars, cards, qcards, lines, rest: TT(c),
       pills: [...c.querySelectorAll(".pill")].map(p => cls(p) + "|" + T(p)) };
   }
   return out;
@@ -294,6 +302,10 @@ def compare_tables(k, ot, nt):
             if len(a) == len(b) and all(x[0] == y[0] and sorted(x[1].split(", ")) == sorted(y[1].split(", ")) for x, y in zip(a, b)):
                 known("order on a tie", f"checks coming up: {[x for x, y in zip(a, b) if x != y][:2]}")
                 continue
+        if head[:3] == ["Aircraft", "Airline", "Type"] and head == (b[0] if b else []) and len(a) == len(b) \
+                and all(x[:-1] == y[:-1] and sorted(x[-1].split(", ")) == sorted(y[-1].split(", ")) for x, y in zip(a[1:], b[1:])):
+            known("routes order", f"{[(x[0], x[-1], y[-1]) for x, y in zip(a[1:], b[1:]) if x != y][:2]}")
+            continue
         if head and head[-1] == "Add" and (b[0] if b else []) == head[:-1]:
             known("suggested size", f"{k}: the Add column of {len(a) - 1} routes ready, e.g. {[r[-1] for r in a[1:4]]}")
             a = [r[:-1] for r in a]
@@ -674,9 +686,14 @@ def aircraft_row(aid):
 
 async def own_saves(old, new, today):
     out = []
-    await refresh(new)
-    await new_check(new)
-    client = await new.pg.evaluate("window.__eqPlanner.client")
+
+    async def fresh():
+        """The new planner loaded again, on Check: a new tab, so a new ID in the change log."""
+        await refresh(new)
+        await new_check(new)
+        return await new.pg.evaluate("window.__eqPlanner.client")
+
+    client = await fresh()
     pg = new.pg
 
     # Mark checked: an aircraft due its check (one made due for the test when none is, and put back after)
@@ -694,8 +711,7 @@ async def own_saves(old, new, today):
             psql(f"""begin; select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'check_side_by_side_test', true);
                 update public.aircraft set checked_on = null, schedule_changed_on = null where id = {int(pick['id'])}; commit;""")
             made = pick
-            await refresh(new)
-            await new_check(new)
+            client = await fresh()
             due = await pg.evaluate("[...document.querySelectorAll('[data-checked]')].map(b => b.dataset.checked)")
     if due:
         reg = due[0]
@@ -723,14 +739,40 @@ async def own_saves(old, new, today):
     else:
         out.append(("Mark checked", ["no aircraft with a launched rotation to check on the copy"]))
 
-    # Refitted to, Keep as is and Show again, on the cabins listed
-    await refresh(new)
-    await new_check(new)
+    # Refitted to: on an aircraft listed with a layout to refit to; with none, one made so for the test (an aircraft flying
+    # legs that want a cabin, given another layout of its type with a different cabin, so the board offers its own back)
+    client = await fresh()
     refit = await pg.evaluate("(document.querySelector('[data-refit]') || {dataset: {}}).dataset.refit || ''")
+    made = None
+    if not refit:
+        listed = set(await pg.evaluate("""[...document.querySelectorAll('[data-cabin]')].map(r => r.dataset.cabin)
+            .concat([...document.querySelectorAll('[data-cabundo]')].map(b => b.dataset.cabundo.split('|')[0]))"""))
+        tried = []
+        for x in json.loads(psql(f"""select coalesce(json_agg(x order by x.id), '[]') from (
+                select distinct on (a.id) a.id, a.registration as reg, a.cabin_config_id as cfg, c2.id as other
+                  from public.aircraft a join public.cabin_configs c on c.id = a.cabin_config_id
+                  join public.cabin_configs c2 on c2.world_id = a.world_id and c2.aircraft_type_id = a.aircraft_type_id and c2.cabin is distinct from c.cabin
+                 where a.world_id = {WORLD} and a.status = 'active' and a.extra ? 'tails_index'
+                   and exists (select 1 from public.flight_legs l where l.aircraft_id = a.id)
+                 order by a.id, c2.id) x""").strip()):
+            if x["reg"] in listed or len(tried) >= 3:
+                continue
+            tried.append(x["reg"])
+            psql(f"""begin; select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'check_side_by_side_test', true);
+                update public.aircraft set cabin_config_id = {int(x['other'])} where id = {int(x['id'])}; commit;""")
+            client = await fresh()
+            refit = await pg.evaluate("r => (document.querySelector(`[data-refit^='${r}|']`) || {dataset: {}}).dataset.refit || ''", x["reg"])
+            if refit:
+                made = x
+                break
+            psql(f"""begin; select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'check_side_by_side_test', true);
+                update public.aircraft set cabin_config_id = {int(x['cfg'])} where id = {int(x['id'])}; commit;""")
     if refit:
         reg, code = refit.split("|", 1)
         aid = int(psql("select id from public.aircraft where registration = :'r' and world_id = " + WORLD, r=reg).strip())
         before, mark = aircraft_row(aid), marks()
+        if made:
+            before["cabin_config_id"] = made["cfg"]
         spent = int(psql("select coalesce(max(id), 0) from public.spending_log").strip())
         await pg.click(f"[data-refit={json.dumps(refit)}]")
         await wait_saved(new, mark, rows=2)
@@ -749,45 +791,58 @@ async def own_saves(old, new, today):
         psql(f"""begin; select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'check_side_by_side_test', true);
             update public.aircraft set cabin_config_id = {before['cabin_config_id'] if before.get('cabin_config_id') is not None else 'null'} where id = {aid};
             delete from public.spending_log where id > {spent}; commit;""")
-        out.append((f"Refitted to ({reg} → {code}): the aircraft's cabin and the refit's 0.2M loss (spending_log, as the old planner's capex entry), one action "
-                    "logged as planner with the tab's ID; the old planner, opened again, shows both", problems))
+        out.append((f"Refitted to ({reg} → {code}{', its layout changed for the test' if made else ''}): the aircraft's cabin and the refit's 0.2M loss "
+                    "(spending_log, as the old planner's capex entry), one action logged as planner with the tab's ID; the old planner, opened again, shows "
+                    "both; the aircraft put back after", problems))
     else:
-        out.append(("Refitted to: no aircraft on the copy whose cabin differs from its markets' with a layout to refit to", []))
+        out.append(("Refitted to", ["no aircraft on the copy whose cabin differs from its markets' with a layout to refit to, and none could be made so"]))
 
-    await refresh(new)
-    await new_check(new)
+    # Keep as is and Show again: on an aircraft still to decide (keep, then show again), else on one kept already (show
+    # again, then keep, its first day put back after)
+    client = await fresh()
     keep = await pg.evaluate("(document.querySelector('[data-cabkeep]') || {dataset: {}}).dataset.cabkeep || ''")
-    if keep:
-        reg, cabin = keep.split("|", 1)
-        mark = marks()
-        await pg.click(f"[data-cabkeep={json.dumps(keep)}]")
-        await wait_saved(new, mark)
-        problems, _ = logged(mark, Counter({("aircraft_cabin_keeps", "insert"): 1}), client)
-        if await pg.evaluate("s => !!document.querySelector(s)", f"[data-cabkeep={json.dumps(keep)}]"):
-            problems.append("it's still listed to decide")
-        await old.reopen()
-        shown = json.loads(await old.run(f"JSON.stringify((state.cabinKeep || {{}})[{json.dumps(keep)}] || null)"))
-        if (shown or {}).get("date") != today:
-            problems.append(f"the old planner, opened again, shows the keep as {shown}")
-        out.append((f"Keep as is ({reg}, {cabin}): one aircraft_cabin_keeps row, logged as planner with the tab's ID; the old planner, opened again, keeps it "
-                    "as is from today", problems))
-        mark = marks()
-        await pg.evaluate("document.querySelector('[data-board=Cabins] details.gsub').open = true")
-        await pg.click(f"[data-cabundo={json.dumps(keep)}]")
-        await wait_saved(new, mark)
-        problems, _ = logged(mark, Counter({("aircraft_cabin_keeps", "delete"): 1}), client)
-        if not await pg.evaluate("s => !!document.querySelector(s)", f"[data-cabkeep={json.dumps(keep)}]"):
-            problems.append("it isn't listed to decide again")
-        await old.reopen()
-        if json.loads(await old.run(f"JSON.stringify((state.cabinKeep || {{}})[{json.dumps(keep)}] || null)")):
-            problems.append("the old planner, opened again, still keeps it as is")
-        out.append((f"Show again ({reg}): its keep deleted, logged as planner with the tab's ID; the old planner, opened again, lists it to decide", problems))
+    undo = await pg.evaluate("(document.querySelector('[data-cabundo]') || {dataset: {}}).dataset.cabundo || ''")
+    k = keep or undo
+    if k:
+        reg, cabin = k.split("|", 1)
+        aid = int(psql("select id from public.aircraft where registration = :'r' and world_id = " + WORLD, r=reg).strip())
+        before = json.loads(psql(f"""select coalesce((select to_jsonb(x) from public.aircraft_cabin_keeps x where x.aircraft_id = {aid} and x.cabin = :'c'), 'null')""",
+                                 c=cabin).strip())
+        for what in (("keep", "undo") if keep else ("undo", "keep")):
+            mark = marks()
+            if what == "keep":
+                await pg.click(f"[data-cabkeep={json.dumps(k)}]")
+                await wait_saved(new, mark)
+                problems, _ = logged(mark, Counter({("aircraft_cabin_keeps", "insert"): 1}), client)
+                if await pg.evaluate("s => !!document.querySelector(s)", f"[data-cabkeep={json.dumps(k)}]"):
+                    problems.append("it's still listed to decide")
+                await old.reopen()
+                shown = json.loads(await old.run(f"JSON.stringify((state.cabinKeep || {{}})[{json.dumps(k)}] || null)"))
+                if (shown or {}).get("date") != today:
+                    problems.append(f"the old planner, opened again, shows the keep as {shown}")
+                out.append((f"Keep as is ({reg}, {cabin}): one aircraft_cabin_keeps row, logged as planner with the tab's ID; the old planner, opened again, "
+                            "keeps it as is from today", problems))
+            else:
+                await pg.evaluate("document.querySelector('[data-board=Cabins] details.gsub').open = true")
+                await pg.click(f"[data-cabundo={json.dumps(k)}]")
+                await wait_saved(new, mark)
+                problems, _ = logged(mark, Counter({("aircraft_cabin_keeps", "delete"): 1}), client)
+                if not await pg.evaluate("s => !!document.querySelector(s)", f"[data-cabkeep={json.dumps(k)}]"):
+                    problems.append("it isn't listed to decide again")
+                await old.reopen()
+                if json.loads(await old.run(f"JSON.stringify((state.cabinKeep || {{}})[{json.dumps(k)}] || null)")):
+                    problems.append("the old planner, opened again, still keeps it as is")
+                out.append((f"Show again ({reg}, {cabin}): its keep deleted, logged as planner with the tab's ID; the old planner, opened again, lists it "
+                            "to decide", problems))
+        if before:
+            psql(f"""begin; select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'check_side_by_side_test', true);
+                update public.aircraft_cabin_keeps set decided_on = :'d'::date where aircraft_id = {aid} and cabin = :'c'; commit;""",
+                 d=before["decided_on"], c=cabin)
     else:
-        out.append(("Keep as is and Show again: no aircraft on the copy to keep as is", []))
+        out.append(("Keep as is and Show again: no aircraft on the copy to keep as is or kept", []))
 
     # an order logged under the rotation
-    await refresh(new)
-    await new_check(new)
+    client = await fresh()
     a = COPY["airlines"][0]
     mark = marks()
     await pg.click(f"[data-gmove={json.dumps((a['code'] or '') + '|freq')}]")

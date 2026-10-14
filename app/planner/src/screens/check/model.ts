@@ -8,7 +8,7 @@ import { cabins, frequency, game, growth, loadReport, time, type CabinFit, type 
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
 import type { AirportInfo, MarketRow, RouteRow } from "../routes/model";
-import { filingChanges, type CardLeg, type PlanCardRow, type TailAircraft } from "../tails/model";
+import { filingChanges, withAirports, type CardLeg, type PlanCardRow, type TailAircraft } from "../tails/model";
 import type { BackupRun, CaptureAirline, CapturedLoad, CapturePages, HandLoads, HubProgressAirline, LegNow } from "./reads";
 
 /** One of our airlines, as the screen names it. */
@@ -302,7 +302,9 @@ function common<T>(list: readonly T[]): T | null {
  *  flight starts. */
 export function importChanges(x: ImportInput): Change[] {
   const legs = [asLeg(x.cand.a), ...(x.cand.b ? [asLeg(x.cand.b)] : [])];
-  const base = { worldId: x.worldId, today: x.today, nowMs: x.nowMs, rand: x.rand, rules: x.rules, card: NO_CARD, legs, game: null, cabin: null, cabinLogged: true,
+  // a destination none of our flights serves yet isn't in the start's input: its offset comes from the tables, as filing's
+  const rules = withAirports(x.rules, [...x.airports.values()]);
+  const base = { worldId: x.worldId, today: x.today, nowMs: x.nowMs, rand: x.rand, rules, card: NO_CARD, legs, game: null, cabin: null, cabinLogged: true,
     tailsIndex: x.tailsIndex, bases: x.bases, routes: x.routes, markets: x.markets, profiles: x.profiles, airports: x.airports };
   if ("aircraft" in x.tail) return filingChanges({ ...base, aircraft: x.tail.aircraft });
   const reg = x.tail.registration.trim().toUpperCase();

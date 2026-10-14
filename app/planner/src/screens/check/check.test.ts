@@ -201,6 +201,17 @@ describe("the game check", () => {
     expect(fresh[0]).toMatchObject({ table: "aircraft", op: "insert", as: "new aircraft", values: { registration: "T-777", aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB", extra: { tails_index: 2 } } });
     expect(fresh.filter((c) => c.table === "flight_legs").map((c) => [c.values?.aircraft_id, c.from?.aircraft_id])).toEqual([[undefined, "new aircraft"], [undefined, "new aircraft"]]);
   });
+  it("adds a round trip to an airport none of our flights serves yet with that airport's offset from the tables (found by the side by side: it was taken as UTC)", () => {
+    const away = [g("2101", "HUB", "ZZZ", "10:00", "13:00"), g("2102", "ZZZ", "HUB", "14:30", "20:30")];
+    const cand = game.importCandidates(rules, 1, away)[0] as ReturnType<typeof game.importCandidates>[number];
+    const ch = importChanges({
+      worldId: 1, today: "2026-10-13", nowMs: Date.parse("2026-10-13T12:00:00Z"), rand: () => 0.5, rules, airlineId: 1, cand, tail: { aircraft: ac(1, "T-001") },
+      aircraft: [ac(1, "T-001")], tails: [ac(1, "T-001")], tailsIndex: 1, bases: ["HUB", "FOC"], routes: [], markets: new Map(), profiles: [],
+      airports: new Map([["ZZZ", { code: "ZZZ", city: "Away", country_code: "AG", country_name: "Antigua", lat: 17.14, lon: -61.79, utc_offset: -4, correction: null, world_row: null }]]),
+    });
+    // 10:00 at HUB (UTC) is 600; 13:00 at ZZZ (UTC−4) is 17:00 UTC, 7 hours; back at 14:30 there (18:30 UTC), landing 20:30 UTC: 2 hours
+    expect(ch.filter((c) => c.table === "flight_legs").map((c) => [c.values?.dep_utc_min, c.values?.block_min])).toEqual([[600, 420], [1110, 120]]);
+  });
 });
 
 describe("the daily load report", () => {
