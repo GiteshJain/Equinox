@@ -58,4 +58,7 @@ The cash forecast is the database's `cash_forecast()` on the 14 Oct 03:11 UTC ca
 - Loads on Kingfisher's newest routes (Pune, Ahmedabad) slipping below 90%: A, to keep to proven trunk frequency.
 
 ## Outcome
-<open>
+**14 Oct: A,** three A321neos, all based at Delhi. Gitesh orders them in the game and tells Claude, who logs them
+(To-do board). Routes are decided when they land; frequency comes first under the rotation. With all three, the six
+cabin conversions (1.2M) still fit, but only just (about 0.63M left at the lowest point), so stage them if a week-end
+closing comes in high.
