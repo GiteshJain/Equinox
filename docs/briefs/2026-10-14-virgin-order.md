@@ -55,4 +55,6 @@ of about 34k. Virgin's E195s make about 45k a day, less 25k.
 - Wanting the cabin conversions first: C.
 
 ## Outcome
-<open>
+**14 Oct: C,** two A321neos at Gatwick for new four-star cities, with all eleven of Virgin's old-cabin A321s refitted
+to the new 321-LEI first. Gitesh orders and refits in the game and tells Claude, who logs them (To-do board: the order,
+and the refit list for all 35 aircraft group-wide). Routes are decided when the aircraft land.
