@@ -212,7 +212,7 @@ export function cardWords(c: Card): CardWords {
 }
 
 // ---------- the profit chart (barChart): the last 14 intervals between reported days, with the 7-day average
-export const CHART_INTERVALS = 14;
+export const CHART_INTERVALS = 13;
 /** The intervals the profit chart shows: the last CHART_INTERVALS of them, oldest first. */
 export function chartIntervals<T>(days: readonly T[]): T[] {
   return days.slice(-CHART_INTERVALS);
