@@ -7908,12 +7908,12 @@ $function$
 ;
 
 -- private.rules_input_doc(p_world_id bigint, p_routes text)
-CREATE OR REPLACE FUNCTION private.rules_input_doc(p_world_id bigint, p_routes text DEFAULT 'all'::text)
- RETURNS jsonb
- LANGUAGE plpgsql
- STABLE
- SET search_path TO ''
-AS $function$
+create or replace function private.rules_input_doc(p_world_id bigint, p_routes text default 'all')
+ returns jsonb
+ language plpgsql
+ stable
+ set search_path to ''
+as $function$
 declare
   w bigint;
   v_name text;
@@ -7961,13 +7961,15 @@ begin
       'cabin_configs', (select coalesce(jsonb_agg(jsonb_build_object(
                            'id', c.id, 'code', c.code, 'aircraft_type_id', c.aircraft_type_id, 'seats', c.seats) order by c.id), '[]'::jsonb)
                           from public.cabin_configs c where c.world_id = w),
+      -- each airport with its country's region (countries.region, #18 build pull request 12); none without a country
       'airports', (select coalesce(jsonb_agg(jsonb_build_object(
-                      'code', k.code, 'city', a.city, 'country_code', a.country_code, 'lat', a.lat, 'lon', a.lon,
+                      'code', k.code, 'city', a.city, 'country_code', a.country_code, 'region', co.region, 'lat', a.lat, 'lon', a.lon,
                       'utc_offset', coalesce(wa.utc_offset_override, a.utc_offset), 'utc_offset_override', wa.utc_offset_override,
                       'mct_min', wa.mct_min, 'night_ban_from', to_char(wa.night_ban_from, 'HH24:MI'), 'night_ban_to', to_char(wa.night_ban_to, 'HH24:MI'),
                       'closed', coalesce(wa.closed, false)) order by k.code collate "C"), '[]'::jsonb)
                      from codes k
                      left join public.airports a on a.code = k.code
+                     left join public.countries co on co.code = a.country_code
                      left join public.world_airports wa on wa.world_id = w and wa.airport_code = k.code),
       'airlines', (select coalesce(jsonb_agg(jsonb_build_object(
                       'id', al.id, 'iata_code', al.iata_code, 'game_id', al.game_id, 'game_name', al.game_name, 'planner_name', al.planner_name,
@@ -8006,7 +8008,11 @@ begin
                          'id', l.id, 'airline_id', l.airline_id, 'rotation_id', l.rotation_id, 'leg_no', l.leg_no, 'flight_no', l.flight_no,
                          'origin_code', l.origin_code, 'dest_code', l.dest_code, 'aircraft_id', l.aircraft_id, 'days_utc', to_jsonb(l.days_utc),
                          'dep_utc_min', l.dep_utc_min, 'block_min', l.block_min) order by l.rotation_id, l.leg_no, l.id), '[]'::jsonb)
-                        from public.flight_legs l where l.world_id = w))
+                        from public.flight_legs l where l.world_id = w),
+      -- the service profiles (service_profiles), for the plan card's service check (#18 build pull request 10)
+      'service_profiles', (select coalesce(jsonb_agg(jsonb_build_object(
+                              'id', s.id, 'code', s.code, 'airline_id', s.airline_id, 'up_to_km', s.up_to_km) order by s.id), '[]'::jsonb)
+                             from public.service_profiles s where s.world_id = w))
   );
 end
 $function$

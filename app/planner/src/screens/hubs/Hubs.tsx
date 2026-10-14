@@ -15,8 +15,8 @@ import { useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
 import { ErrorBox } from "../../ui/ErrorBox";
 import {
-  DAYS, H, capWords, cellClass, connectionsNote, countWords, countryWords, exampleWords, focusWords, hourLabel, nextWords, parsePlace, pct,
-  placePath, rowLabel, shade, span,
+  DAYS, H, capWords, cellClass, connectionsNote, countWords, exampleWords, focusWords, hourLabel, nextWords, parsePlace, pct,
+  placePath, regionWords, rowLabel, shade, span,
 } from "./model";
 
 export function Hubs() {
@@ -173,8 +173,8 @@ export function Connections({ rules, t }: { rules: Rules; t: HubConnections }) {
                 {t.rows.map((r) => (
                   <tr key={r.n} data-bank={r.n}>
                     <td><b>{rowLabel(t, r)}</b></td>
-                    <td>{r.arriving_from.length} <span className="dim">{countryWords(r.arriving_countries)}</span></td>
-                    <td>{r.leaving_to.length} <span className="dim">{countryWords(r.leaving_countries)}</span></td>
+                    <td>{r.arriving_from.length} <span className="dim">{regionWords(r.arriving_regions)}</span></td>
+                    <td>{r.leaving_to.length} <span className="dim">{regionWords(r.leaving_regions)}</span></td>
                     <td><b>{r.city_pairs}</b></td>
                     <td className="dim">{exampleWords(r)}</td>
                   </tr>

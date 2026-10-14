@@ -289,9 +289,11 @@ starts to matter sooner.
 - **Ryanair has no main base marked** in `airline_bases`; its home falls back to `airlines.home_airport_code` (CDG),
   as the old planner does. It's exempt from hubs first, so nothing is affected. Found by pull request #29.
 - **The header's search box and Website button** are in the old planner's header but not yet the new one's. Add them
-  before the switch, once Routes and Tails exist to search. Found by pull request #31.
+  before the switch, once Routes and Tails exist to search. Found by pull request #31. *Done in pull request #37 (build
+  pull request 12): the search finds what the old one found, and a result opens its new screen.*
 - **Which city photo each airline card shows** is a list in the Home screen's code; `airlines.photo_city` should hold
-  it. With Photos (pull request 12). Found by pull request #31.
+  it. With Photos (pull request 12). Found by pull request #31. *Done in pull request #37: the column existed, so the
+  migration fills it where empty, and Home's cards read it.*
 - **"Flights today"** counts each leg on its own UTC day in the new planner; the old one used the hub's local weekday and
   gave each return its outbound's days. On 11 Oct that was 467 against 466. The new count follows the stored legs and is
   kept. Found by pull request #31.
@@ -303,18 +305,38 @@ starts to matter sooner.
 - **Filing with the game's times** takes the game's block time too (flight 1069: 85 min, where the old planner kept the
   card's 80). The new figure is kept. Found by pull request #33.
 - **Before the switch, from Tails:** the aircraft pop-up opens from Home only (add it to Routes), and a delivery can't
-  be removed yet. Found by pull request #33.
+  be removed yet. Found by pull request #33. *Done in pull request #37: a frequency's aircraft on Routes opens its
+  pop-up, and the deliveries board's **remove** writes what the old `deldel` writes.*
 - **Regions on Hubs' connections table:** the old planner kept a country-to-region list in its code, so the new table
   counts by country ("US 5 · IN 2") where the old said "North America 7". Add a `region` column to `countries` with
-  Interline and Reference (pull request 12). Found by pull request #34.
+  Interline and Reference (pull request 12). Found by pull request #34. *Done in pull request #37: `countries.region`
+  from the old list (Europe where it named none, as its fallback; Other for the empty country), carried in
+  `rules_input()`; Hubs and Check name regions again.*
 - **Hubs gives some arrivals a bank they can't make:** 329 arrivals a week (mostly Ryanair at CDG and AMS; CDG 2012
   shows bank 1 though it lands 16:11 before it). Kept as the old planner has it; fix after the switch. Found by pull
   request #34.
 - **Check's suggested aircraft size** on route options (for example "E195", 24 options) came from a rule in the old
   planner's code (`suggestSize`), so the new Check leaves it out. Store the rule as data with pull request 12. Check's
-  hub-readiness rows also need the regions above. Found by pull request #35.
+  hub-readiness rows also need the regions above. Found by pull request #35. *Done in pull request #37: the setting
+  `suggested_size` (the world's lists and Ryanair's own), read through `rules_input()`, shown again on Check.*
 - **The old planner's loads table (`planner_loads`) isn't frozen,** though `docs/data.md` says it is: saving loads by
   hand in the old planner also writes its month copy, and the database copies that month back into the loads tables.
   Correct the docs, and stop the copy at the clean-up (pull request 14). Found by pull request #36.
 - **One rehearsal run hung in the Hubs side by side** and was cancelled at 30 minutes; the cause wasn't found. Hubs now
   runs last with a 5-minute stop, so a hang loses only its own result. Found by pull request #36.
+- **The interline rules** (the 17 countries, the Europe zone, the hub rivals, the countries each airline covers, the
+  partners in Gander) were in the old planner's code; they are the setting `interline_rules` now, which Interline reads.
+  Home's interline line in needs attention isn't rebuilt yet; it can read the same setting. Found by pull request #37.
+- **Photos' city-photo and name lists** (which city's photo an airport takes, and the name the website gives it) are
+  kept in the Photos screen's code, as the website keeps them in its own; make them data with the website. Found by pull
+  request #37.
+- **The old Reference's "restore all"** sits in its section's title, which the old page strips, so the button never
+  shows there; the new one works. Its **Game schedules** links are worked out from each airline's game ID and can't be
+  typed (the old box's edits were lost on save since the switch-over), and Data's import and clear are gone (§14).
+  Found by pull request #37.
+- **Today's backup (14 Oct)** has every delivery in service and two Malaysia aircraft that tie in Review: the Home,
+  Tails and Review side by sides were made to cope (a part neither Home draws, filing not tried when nothing waits, a
+  tie's order). Filing is tried again on a copy with an arrived aircraft. The cards the old planner filed with the
+  game's times keep the game's arrival in their copy of the legs (`plan_cards.extra.legs`) beside the old block, so
+  the old card shows an arrival a minute or two before the new card's (departure plus the leg row's block); drop the
+  copy at the clean-up (pull request 14), as above. Found by pull request #37.

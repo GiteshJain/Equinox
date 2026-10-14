@@ -20,7 +20,10 @@ rule: nothing goes outside.
    with the old Hubs. Nor is Check (build pull request 9): its six boards, folded, in the old order, with the copy's
    airlines on the Capture board; tests/check_side_by_side_test.py compares it with the old Check. Nor is Review (build
    pull request 10): the cards for the copy's airlines in their order, the first one's page with its boards, folded;
-   tests/review_side_by_side_test.py compares it with the old Review.
+   tests/review_side_by_side_test.py compares it with the old Review. Nor are Interline, Photos and Reference (build pull
+   request 12), so no screen is a placeholder any more: Interline with its agreements and the interline countries, Photos
+   with a logo for each of our airlines, Reference with its sections folded; tests/reference_side_by_side_test.py compares
+   them with the old screens. The header has the search box and the Website button.
 3. window.__eqPlanner.save() ticks the first open to-do: exactly that row changes (done, done_at), logged as actor
    planner with the tab's ID; the answer gives the row's new updated_at. A second save from that updated_at puts it
    back, so the next change needs no new read and the real saves that follow still find their open to-dos.
@@ -28,8 +31,7 @@ rule: nothing goes outside.
    carrying the first's title, and the second's change to another row in the same call isn't written either. The
    second tab shows the row as it is now and names it.
 5. A preview address (127.0.0.1) reads, says "preview · not saved", and sends no write.
-6. At 380 px wide, Home, Routes, Tails, Hubs, Check, Review and the three placeholder screens have no sideways scroll and no
-   errors.
+6. At 380 px wide, every screen (Reference with every section open) has no sideways scroll and no errors.
 7. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
@@ -440,6 +442,51 @@ async def review_opens(pl):
     return f"Review is rebuilt, not a placeholder: a card for each of the copy's {len(got['cards'])} airlines in order, the first one's page with its {len(got['boards'])} boards, folded on arrival", problems
 
 
+async def last_screens_open(pl):
+    """Interline, Photos and Reference are rebuilt (build pull request 12): no screen is a placeholder any more. Interline
+    shows its agreements board and the interline countries; Photos a logo card for each of our airlines; Reference its
+    sections, every one folded on arrival, the first one opened by its address. The header has the search box and the
+    Website button. Their figures are compared with the old screens' by tests/reference_side_by_side_test.py."""
+    want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
+                                join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                where g.kind = 'ours' and a.world_id = {WORLD}
+                                order by a.position nulls last, a.id""").splitlines() if r]
+    problems, seen = [], []
+    if not await pl.pg.evaluate("!!document.querySelector('header #gsearch') && !!document.querySelector('header a.eqsite[href=\"/\"]')"):
+        problems.append("the header has no search box or Website button")
+    for sid, ready in (("interline", "data-interline-ready"), ("photos", "data-photos-ready"), ("reference", "data-reference-ready")):
+        await pl.pg.click(f"[data-screen-link={sid}]")
+        await pl.pg.wait_for_selector(f"main[data-screen={sid}][{ready}=yes]", timeout=90000)
+        await settle(pl.pg, 300)
+        if await pl.pg.evaluate(f"!!document.querySelector('main[data-screen={sid}] [data-not-built]')"):
+            problems.append(f"{sid} still shows the placeholder's line to the old planner")
+    await pl.pg.click("[data-screen-link=interline]")
+    await pl.pg.wait_for_selector("main[data-screen=interline][data-interline-ready=yes]", timeout=60000)
+    il = await pl.pg.evaluate("""({ boards: !!document.querySelector('[data-figure="interline: agreements"]') && !!document.querySelector('[data-figure="interline: countries"]'),
+        countries: document.querySelectorAll('[data-figure="interline: countries"] tr').length - 1 })""")
+    if not il["boards"] or il["countries"] < 1:
+        problems.append(f"Interline has no agreements board or interline countries ({il})")
+    seen.append(f"Interline with {il['countries']} interline countries")
+    await pl.pg.click("[data-screen-link=photos]")
+    await pl.pg.wait_for_selector("main[data-screen=photos][data-photos-ready=yes]", timeout=60000)
+    logos = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=photos] [data-lg]')].map(c => c.dataset.lg)")
+    if logos != want:
+        problems.append(f"Photos' logos are for {logos}, the copy's airlines are {want}")
+    seen.append(f"Photos with {len(logos)} logos")
+    await pl.pg.click("[data-screen-link=reference]")
+    await pl.pg.wait_for_selector("main[data-screen=reference][data-reference-ready=yes]", timeout=60000)
+    ref = await pl.pg.evaluate("""({ sections: [...document.querySelectorAll('main[data-screen=reference] details.rsec')].map(d => d.dataset.section),
+        open: [...document.querySelectorAll('main[data-screen=reference] details.rsec')].filter(d => d.open).length })""")
+    if ref["open"] or len(ref["sections"]) < 11:
+        problems.append(f"Reference's sections {ref['sections']}, {ref['open']} open on arrival (all should be folded)")
+    await pl.pg.evaluate("t => window.__eqPlanner.go(t)", "/reference/constants")
+    await pl.pg.wait_for_function("() => (document.querySelector('details.rsec[data-section=constants]') || {}).open === true", timeout=30000)
+    seen.append(f"Reference with {len(ref['sections'])} sections, folded, /reference/constants opening Constants")
+    await pl.pg.click("[data-screen-link=home]")
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return "no screen is a placeholder any more: " + ", ".join(seen) + "; the header has the search box and the Website button", problems
+
+
 # ---------- 3. a to-do ticked through window.__eqPlanner.save() ----------
 async def tick_todo(pl):
     tid = psql(f"select coalesce(min(t.id)::text, '') from public.todos t where t.world_id = {WORLD} and not t.done").strip()
@@ -596,10 +643,12 @@ async def phone(p, port, env, facts, staff, seen):
             path = await ph.pg.evaluate("location.pathname")
             if path != href:
                 problems.append(f"{sid}: its address is {path}, expected {href}")
-            built = sid in ("home", "routes", "tails", "hubs", "check", "review")   # rebuilt (build pull requests 5 to 10); the other three are still placeholders
+            built = True   # every screen is rebuilt (build pull requests 5 to 12)
             ready = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
                      "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
-                     "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]"}
+                     "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
+                     "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
+                     "reference": "main[data-screen=reference][data-reference-ready=yes]"}
             if built:
                 try:
                     await ph.pg.wait_for_selector(ready[sid], timeout=60000)
@@ -611,6 +660,9 @@ async def phone(p, port, env, facts, staff, seen):
             if sid in ("check", "review") and built:
                 await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
                 await settle(ph.pg, 300)
+            if sid == "reference":
+                await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
+                await settle(ph.pg, 400)
             over = await ph.pg.evaluate(scroll)
             if over > 0:
                 problems.append(f"{sid}: the page scrolls sideways by {over} px at 380 px wide")
@@ -624,7 +676,7 @@ async def phone(p, port, env, facts, staff, seen):
         problems += ph.errors
     finally:
         await ph.close()
-    return f"at 380 px wide, Home, Routes, Tails, Hubs, Check and Review (every board open) and the {len(SCREENS) - 6} placeholder screens have no sideways scroll and no errors", problems
+    return f"at 380 px wide, all {len(SCREENS)} screens (Check and Review with every board open, Reference with every section open) have no sideways scroll and no errors", problems
 
 
 async def main():
@@ -668,7 +720,7 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, routes_opens, tails_opens, hubs_opens, check_opens, review_opens, tick_todo):
+                for check in (home_opens, routes_opens, tails_opens, hubs_opens, check_opens, review_opens, last_screens_open, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

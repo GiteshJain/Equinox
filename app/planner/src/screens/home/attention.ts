@@ -18,6 +18,8 @@ export interface HomeAirline {
   name: string;
   code: string | null;
   color: string | null;
+  /** The city whose photo the airline's card shows (airlines.photo_city). */
+  photo?: string | null;
 }
 
 export interface AttentionInput {

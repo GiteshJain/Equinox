@@ -77,6 +77,7 @@ export function Home() {
 
   const airlines: HomeAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
     id: a.id, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, code: a.iata_code, color: a.livery_color,
+    photo: a.photo_city,
   })), [airlinesQ.data]);
   const rules = rulesQ.data?.rules;
   const figures = useMemo(() => (rules ? summary.keyFigures(rules) : null), [rules]);

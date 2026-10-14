@@ -1,5 +1,5 @@
 // The aircraft pop-up (the old planner's tailModal), opened from Home's needs attention (an aircraft's maintenance, turns
-// and positions) and, once rebuilt, the Check screen: the aircraft's base, block hours a day, legs a week, maintenance and
+// and positions), the Check screen and, since build pull request 12, a frequency's aircraft on Routes: the aircraft's base, block hours a day, legs a week, maintenance and
 // its one-week check; every issue, or "schedule clean"; its flights, one line per number; Mark checked (Gitesh's, manual
 // §1) and Open in Tails. Every figure is the planning library's on the start's rules.
 import { useEffect, useMemo, useRef, useState } from "react";

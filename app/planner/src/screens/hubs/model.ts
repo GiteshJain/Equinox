@@ -1,7 +1,7 @@
 // Hubs' addresses and words (#18 build pull request 8; spec docs/specs/2026-10-13-hubs.md). Every figure is the planning
 // library's (hubs.board and hubs.connectionsTable in lib/rules): this file only says where the screen is and writes the
 // figures as the old Hubs wrote them (renderHub, hubConnections in web/planner/index.html).
-import { banks, time, type CountryCount, type HubBoard, type HubConnectionRow, type HubConnections, type Rules } from "@rules";
+import { banks, time, type RegionCount, type HubBoard, type HubConnectionRow, type HubConnections, type Rules } from "@rules";
 import { itemRoute } from "../screens";
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -72,8 +72,8 @@ export function rowLabel(t: Pick<HubConnections, "banked">, r: Pick<HubConnectio
   return t.banked ? "Outside the banks" : "All connections";
 }
 
-/** The flights by country: "IN 6 · US 3". */
-export const countryWords = (list: readonly CountryCount[]): string => list.map((c) => `${c.country} ${c.flights}`).join(" · ");
+/** The flights by region: "South Asia 6 · North America 3". */
+export const regionWords = (list: readonly RegionCount[]): string => list.map((c) => `${c.region} ${c.flights}`).join(" · ");
 
 /** A row's examples, tightest first: "CUN→ORD 2:01, ... …". */
 export function exampleWords(r: Pick<HubConnectionRow, "examples" | "more">): string {

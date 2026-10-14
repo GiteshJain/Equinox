@@ -54,13 +54,6 @@ COPY = {}
 # Where the new Hubs follows its spec and the old Hubs did otherwise. Each is allowed only where its test says, and printed
 # with how often it was used and examples.
 KNOWN = {
-    "regions": {
-        "rule": "the old Hubs named the region of each airport arriving and leaving from a list of countries by region typed into "
-                "its code (REGION_OF, regionOf). The list isn't in the database, so the new table counts the flights by the airport's "
-                "country (airports.country_code), data the library has; the spec asks to say so rather than copy the list into the "
-                "screen. Only the words after each count of airports in the connections table: the count of airports, and how many "
-                "flights the words add up to, must be the same.",
-        "used": 0, "where": []},
     "an airport two airlines share": {
         "rule": "the old list names a base once for each airline based there (ref.hubs); the new list names each airport once. Its "
                 "board is the same either way (the old planner's hub(code): the first base there).",
@@ -223,11 +216,9 @@ def compare_connections(oc, nc, label, code):
             continue
         name = orow[0]["t"]
         for i, (o, n) in enumerate(zip(orow, nrow)):
+            # the regions (countries.region since build pull request 12): the words after each count must be the same too
             if i in (1, 2) and len(orow) == 5 and o["dim"] != n["dim"]:
-                if o["first"] != n["first"] or total(o["dim"]) != total(n["dim"]):
-                    p.append(f"{label} {name}: {'arriving from' if i == 1 else 'leaving to'}: old {o['first']} ({o['dim']}), new {n['first']} ({n['dim']})")
-                else:
-                    known("regions", f"{code} {name} {'arriving' if i == 1 else 'leaving'}: old '{o['dim']}', new '{n['dim']}'")
+                p.append(f"{label} {name}: {'arriving from' if i == 1 else 'leaving to'}'s regions: old {o['first']} ({o['dim']}), new {n['first']} ({n['dim']})")
             elif o["t"] != n["t"]:
                 p.append(f"{label} {name}: cell {i}: old {o['t']!r}, new {n['t']!r}")
     return p

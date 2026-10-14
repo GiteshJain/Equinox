@@ -9,7 +9,7 @@ import { buildRules, hubs, type RulesInput } from "@rules";
 import { itemRoute } from "../screens";
 import { Connections, DayBoard, FlightList, WeekBoard } from "./Hubs";
 import {
-  capWords, cellClass, connectionsNote, countWords, countryWords, exampleWords, focusWords, nextWords, parsePlace, placePath, rowLabel,
+  capWords, cellClass, connectionsNote, countWords, exampleWords, focusWords, nextWords, parsePlace, placePath, regionWords, rowLabel,
 } from "./model";
 
 const read = (f: string) => JSON.parse(readFileSync(new URL(`../../../../../lib/rules/cases/${f}`, import.meta.url), "utf8")) as { input: RulesInput };
@@ -60,10 +60,11 @@ describe("Hubs' words", () => {
     expect(cellClass(foc, 24)).toBe(" hr");
   });
 
-  it("the connections table: each row's name, the countries, the tightest examples and the note", () => {
+  it("the connections table: each row's name, the regions, the tightest examples and the note", () => {
     expect(table.rows.map((r) => rowLabel(table, r))).toEqual(["Bank 1 · 06:00", "Bank 2 · 14:00", "Outside the banks"]);
     expect(rowLabel({ banked: false }, { n: 0, dep_local_min: null })).toBe("All connections");
-    expect(countryWords(table.rows[1]!.arriving_countries)).toBe("FR 2 · US 1 · GB 1");
+    expect(regionWords(table.rows[1]!.arriving_regions)).toBe("Europe 3 · North America 1");
+    expect(regionWords(table.rows[2]!.leaving_regions)).toBe("South Asia 2 · Europe 2 · North America 1");
     expect(exampleWords(table.rows[1]!)).toBe("AAA→BBB 1:00, FOC→NBN 2:59, FOC→BBB 3:00, AAA→NBN 3:29, FOC→AAA 3:45, BBB→NBN 5:44, AAA→CCC 6:00, AAA→DDD 6:01 …");
     expect(connectionsNote(rules, table)).toBe("flights that are flying now, all two airlines · connection time from the airport's MCT up to 8 h · 14 city pairs linked");
   });

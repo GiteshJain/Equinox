@@ -171,7 +171,8 @@ export function Check() {
         orderBases: mine.map((x) => x.order_base_code), loads,
       });
       const move = growth.shownMove(growth.nextMove(logQ.data, a.id), c);
-      return { airline: a, last: growth.lastMove(logQ.data, a.id), move, options: c[move].map((r) => ({ ...r, code: a.code })), canOrder: !!(canOrder.get(a.id) ?? []).length };
+      return { airline: a, last: growth.lastMove(logQ.data, a.id), move, canOrder: !!(canOrder.get(a.id) ?? []).length,
+        options: c[move].map((r) => ({ ...r, code: a.code, size: growth.suggestedSize(rules, a.id, move, r) })) };
     });
     // the routes ready from the load reports alone, with the types flying them (shown when no profit was captured)
     const typesOn = new Map<number, string[]>();
@@ -182,7 +183,8 @@ export function Check() {
     }
     const loadOf = new Map(loadsQ.data.routes.map((x) => [x.route_id, x]));
     const ready: ReadyRow[] = growth.readyFromLoads(rules, routes.map((r) => ({ id: r.id, airline_id: r.airline_id, hub: r.hub, dest: r.dest, stars: r.stars, dist: r.dist })), loads)
-      .map((r) => ({ route: r, load: loadOf.get(r.id) as ReadyRow["load"], flyingOn: (typesOn.get(r.id) ?? []).join(", ") }));
+      .map((r) => ({ route: r, load: loadOf.get(r.id) as ReadyRow["load"], flyingOn: (typesOn.get(r.id) ?? []).join(", "),
+        size: growth.suggestedSize(rules, r.airline_id, "freq", r) }));
     // the order queues by family: the families any of our airlines may have, in name order
     const typeFamily = (id: number | null) => familyOf(typeName(rules, id));
     const families = [...new Set(buyQ.data.filter((b) => airlines.some((a) => a.id === b.airline_id)).map((b) => typeFamily(b.aircraft_type_id)))].sort();
@@ -193,8 +195,8 @@ export function Check() {
     }));
     const planned = [...legsOfAircraft].filter(([id]) => byId.get(id)?.status !== "active")
       .flatMap(([, ls]) => ls.map((l) => ({ from: l.origin_code, to: l.dest_code, dep_utc_min: l.dep_utc_min, block_min: l.block_min })));
-    const countries = new Map((airportsQ.data ?? []).map((x) => [x.code, x.country_code]));
-    return { canOrder, moves, ready, families, queues, readiness: growth.hubReadiness(rules, planned, countries, rulesLegs(rules)) };
+    const regions = new Map((airportsQ.data ?? []).map((x) => [x.code, x.region ?? null]));
+    return { canOrder, moves, ready, families, queues, readiness: growth.hubReadiness(rules, planned, regions, rulesLegs(rules)) };
   }, [rules, routesQ.data, logQ.data, loadsQ.data, marketsQ.data, buyQ.data, figCardsQ.data, airlines, unfiled, legsOfAircraft, byId, airportsQ.data, now]);
 
   // ---------- Aircraft checks

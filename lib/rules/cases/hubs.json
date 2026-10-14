@@ -3,13 +3,13 @@
   "note": "The Hubs screen (#18 build pull request 8): an airport's board and its connections table. HUB is Test Air's hub (banks 06:00, 14:00, 22:00; minimum connection time 60 minutes; windows of 60 minutes, no buffer), FOC its focus city, AAA Other Air's hub. HUB and FOC are at UTC, so their local times are the UTC times below. Rotations: 1 HUB–AAA daily (06:15 out, back 10:45); 2 HUB–BBB on Monday only (14:30 out; the return leaves BBB 23:00 UTC Monday and lands at HUB 06:00 on Tuesday); 3 HUB–CCC daily (16:45 out; the return lands at 05:30, more than 8 hours before its bank); 4 HUB–DDD at 16:46, 5 HUB–BBB at 11:45, 6 HUB–NBN at 11:44 and 9 HUB–AAA at 12:30, one way each; 8 HUB–FOC daily (06:30 out, back at 08:45, the return with no number of its own). Other Air flies AAA–HUB daily, landing 08:15, outside any rotation. Countries: HUB and FOC GB, AAA FR, BBB US, CCC and DDD IN, NBN DE.",
   "input": {
     "airports": [
-      { "code": "HUB", "country_code": "GB", "lat": 51.15, "lon": -0.19, "utc_offset": 0, "mct_min": 60, "night_ban_from": null, "night_ban_to": null },
-      { "code": "FOC", "country_code": "GB", "lat": 53.35, "lon": -2.27, "utc_offset": 0, "mct_min": 45, "night_ban_from": null, "night_ban_to": null },
-      { "code": "AAA", "country_code": "FR", "lat": 48.86, "lon": 2.35, "utc_offset": 1, "mct_min": 75, "night_ban_from": null, "night_ban_to": null },
-      { "code": "BBB", "country_code": "US", "lat": 40.64, "lon": -73.78, "utc_offset": -5, "mct_min": null, "night_ban_from": null, "night_ban_to": null },
-      { "code": "CCC", "country_code": "IN", "lat": 28.56, "lon": 77.1, "utc_offset": 5.5, "mct_min": 90, "night_ban_from": null, "night_ban_to": null },
-      { "code": "DDD", "country_code": "IN", "lat": 19.09, "lon": 72.87, "utc_offset": 5, "utc_offset_override": 5.5, "mct_min": 90, "night_ban_from": null, "night_ban_to": null },
-      { "code": "NBN", "country_code": "DE", "lat": 52.36, "lon": 13.5, "utc_offset": 0, "mct_min": 60, "night_ban_from": "23:00", "night_ban_to": "06:00" }
+      { "code": "HUB", "country_code": "GB", "region": "Europe", "lat": 51.15, "lon": -0.19, "utc_offset": 0, "mct_min": 60, "night_ban_from": null, "night_ban_to": null },
+      { "code": "FOC", "country_code": "GB", "region": "Europe", "lat": 53.35, "lon": -2.27, "utc_offset": 0, "mct_min": 45, "night_ban_from": null, "night_ban_to": null },
+      { "code": "AAA", "country_code": "FR", "region": "Europe", "lat": 48.86, "lon": 2.35, "utc_offset": 1, "mct_min": 75, "night_ban_from": null, "night_ban_to": null },
+      { "code": "BBB", "country_code": "US", "region": "North America", "lat": 40.64, "lon": -73.78, "utc_offset": -5, "mct_min": null, "night_ban_from": null, "night_ban_to": null },
+      { "code": "CCC", "country_code": "IN", "region": "South Asia", "lat": 28.56, "lon": 77.1, "utc_offset": 5.5, "mct_min": 90, "night_ban_from": null, "night_ban_to": null },
+      { "code": "DDD", "country_code": "IN", "region": "South Asia", "lat": 19.09, "lon": 72.87, "utc_offset": 5, "utc_offset_override": 5.5, "mct_min": 90, "night_ban_from": null, "night_ban_to": null },
+      { "code": "NBN", "country_code": "DE", "region": "Europe", "lat": 52.36, "lon": 13.5, "utc_offset": 0, "mct_min": 60, "night_ban_from": "23:00", "night_ban_to": "06:00" }
     ],
     "rotations": [
       { "id": 1, "airline_id": 1, "route_id": 1 },
@@ -165,7 +165,7 @@
       "answer": null
     },
     {
-      "name": "the table: a row per bank with something in it, then outside the banks; airports, their flights by country, the city pairs and the tightest eight",
+      "name": "the table: a row per bank with something in it, then outside the banks; airports, their flights by region (the airport's country's), the city pairs and the tightest eight",
       "rule": "the old Hubs' connections table (hubConnections): an arrival is in a bank's row when it lands in or early for it (within connection_max_wait_h), a departure when it leaves in its window; a pair connects in its departure's bank, else its arrival's",
       "ask": { "what": "hub_connections", "airport": "HUB" },
       "answer": {
@@ -173,14 +173,14 @@
         "limits": { "mct_min": 60, "min_min": 60, "max_min": 480 },
         "rows": [
           {
-            "n": 1, "dep_local_min": 360, "arriving_from": [], "arriving_countries": [],
-            "leaving_to": ["AAA", "FOC"], "leaving_countries": [{ "country": "FR", "flights": 1 }, { "country": "GB", "flights": 1 }],
+            "n": 1, "dep_local_min": 360, "arriving_from": [], "arriving_regions": [],
+            "leaving_to": ["AAA", "FOC"], "leaving_regions": [{ "region": "Europe", "flights": 2 }],
             "city_pairs": 1, "examples": [{ "from": "CCC", "to": "FOC", "gap_min": 60 }], "more": 0
           },
           {
             "n": 2, "dep_local_min": 840,
-            "arriving_from": ["AAA", "BBB", "FOC"], "arriving_countries": [{ "country": "FR", "flights": 2 }, { "country": "US", "flights": 1 }, { "country": "GB", "flights": 1 }],
-            "leaving_to": ["BBB"], "leaving_countries": [{ "country": "US", "flights": 1 }],
+            "arriving_from": ["AAA", "BBB", "FOC"], "arriving_regions": [{ "region": "Europe", "flights": 3 }, { "region": "North America", "flights": 1 }],
+            "leaving_to": ["BBB"], "leaving_regions": [{ "region": "North America", "flights": 1 }],
             "city_pairs": 10,
             "examples": [
               { "from": "AAA", "to": "BBB", "gap_min": 60 }, { "from": "FOC", "to": "NBN", "gap_min": 179 }, { "from": "FOC", "to": "BBB", "gap_min": 180 },
@@ -190,9 +190,9 @@
             "more": 2
           },
           {
-            "n": 0, "dep_local_min": null, "arriving_from": ["CCC"], "arriving_countries": [{ "country": "IN", "flights": 1 }],
+            "n": 0, "dep_local_min": null, "arriving_from": ["CCC"], "arriving_regions": [{ "region": "South Asia", "flights": 1 }],
             "leaving_to": ["CCC", "DDD", "BBB", "NBN", "AAA"],
-            "leaving_countries": [{ "country": "IN", "flights": 2 }, { "country": "US", "flights": 1 }, { "country": "DE", "flights": 1 }, { "country": "FR", "flights": 1 }],
+            "leaving_regions": [{ "region": "South Asia", "flights": 2 }, { "region": "Europe", "flights": 2 }, { "region": "North America", "flights": 1 }],
             "city_pairs": 3,
             "examples": [{ "from": "CCC", "to": "NBN", "gap_min": 374 }, { "from": "CCC", "to": "BBB", "gap_min": 375 }, { "from": "CCC", "to": "AAA", "gap_min": 420 }],
             "more": 0

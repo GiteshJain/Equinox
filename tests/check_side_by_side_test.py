@@ -58,21 +58,10 @@ started = time.monotonic()
 COPY = {}
 
 KNOWN = {
-    "suggested size": {
-        "rule": "the old next move named a suggested aircraft size after each route (suggestSize, bigSize, feedSize: by stars, distance and "
-                "Ryanair, a rule in the old planner's code with no home in the database), and so did the last column (Add) of its routes ready "
-                "from the load reports. The spec asks to say so rather than copy such a rule into the screen, so the new options name the "
-                "route and its stars only. Only the size words (the old .sz) and that column.",
-        "used": 0, "where": []},
     "order queue families": {
         "rule": "the old order queues had three families typed into its code (A320 family, A350, E195; Ryanair without the A350); the new "
                 "columns are the families our airlines may have (airline_aircraft_types), in name order, and \"not in fleet\" where an airline may "
                 "not. Only a column one has and the other hasn't: the columns both have must be the same.",
-        "used": 0, "where": []},
-    "regions": {
-        "rule": "the old hub readiness named the region of each city from a list of countries by region typed into its code (REGION_OF), "
-                "which isn't in the database; the new table counts the cities by country (airports.country_code), as Hubs does (build "
-                "pull request 8). Only the last column and its heading: the cities flying and with planned must be the same.",
         "used": 0, "where": []},
     "minimum connection time": {
         "rule": "manual §4: each airport's minimum connection time (world_airports.mct_min). The old planner feeds no bank at a base with no "
@@ -293,7 +282,7 @@ def compare_tables(k, ot, nt):
             if [r[:4] for r in ra] != [r[:4] for r in rb]:
                 p.append(f"{k} hub readiness: old {[r[:4] for r in ra][:8]}, new {[r[:4] for r in rb][:8]}"[:900])
             elif [r[4:] for r in ra] != [r[4:] for r in rb] or head[4:] != (b[0] if b else [])[4:]:
-                known("regions", f"{len(ra)} rows, e.g. old {ra[0][4] if ra else ''!r}, new {rb[0][4] if rb else ''!r}")
+                p.append(f"{k} hub readiness's regions (countries.region): old {[r[4:] for r in ra][:6]}, new {[r[4:] for r in rb][:6]}"[:900])
             continue
         if head[:2] == ["Due", "Aircraft"]:
             if len(a) == len(b) and all(x[0] == y[0] and sorted(x[1].split(", ")) == sorted(y[1].split(", ")) for x, y in zip(a, b)):
@@ -303,11 +292,6 @@ def compare_tables(k, ot, nt):
                 and all(x[:-1] == y[:-1] and sorted(x[-1].split(", ")) == sorted(y[-1].split(", ")) for x, y in zip(a[1:], b[1:])):
             known("routes order", f"{[(x[0], x[-1], y[-1]) for x, y in zip(a[1:], b[1:]) if x != y][:2]}")
             continue
-        if head and head[-1] == "Add" and (b[0] if b else []) == head[:-1]:
-            known("suggested size", f"{k}: the Add column of {len(a) - 1} routes ready, e.g. {[r[-1] for r in a[1:4]]}")
-            a = [r[:-1] for r in a]
-            if a == b:
-                continue
         nh = b[0] if b else []
         if head[:1] == ["Airline"] and nh[:1] == ["Airline"] and head != nh and len(a) == len(b) and set(head[1:]) & set(nh[1:]) \
                 and all("<th" not in c for c in head) and k == "Growth" and any("on order" in c or "empty" in c or "not in fleet" in c for r in a[1:] for c in r):
@@ -341,9 +325,8 @@ def compare_board(k, o, n):
             p.append(f"{k}: {f}{' (without spaces)' if f == 'rest' else ''}, from character {i}: old …{a[max(0, i - 150):i + 350]!r}, new …{b[max(0, i - 150):i + 350]!r}")
         elif o[f] != n[f]:
             p.append(f"{k}: {f}: old {o[f]!r}, new {n[f]!r}"[:1200])
-    if o["sizes"] and not n["sizes"]:
-        known("suggested size", f"{k}: {len(o['sizes'])} options, e.g. {o['sizes'][:4]}")
-    elif o["sizes"] != n["sizes"]:
+    # the suggested sizes (settings.suggested_size since build pull request 12) must be the same
+    if o["sizes"] != n["sizes"]:
         p.append(f"{k}: sizes: old {o['sizes']}, new {n['sizes']}")
     p += compare_tables(k, o["tables"], n["tables"])
     if len(o["cards"]) != len(n["cards"]):

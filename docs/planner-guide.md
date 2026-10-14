@@ -11,16 +11,20 @@ after every change. On a preview address it saves nothing and says **preview · 
 *Being rebuilt screen by screen (#18). Use the planner at /planner/ until you say switch.*
 - **What's there so far:** sign in with the same email and password as the planner. An account that isn't staff is
   signed out with **This account doesn't have access to the planner.**
-- **The header:** the nine screens in the same order, **Local** / **UTC** (it starts as the planner's setting and
-  remembers your choice on this device), the save state and **Sign out**. On a phone the screens sit on their own row,
+- **The header:** the nine screens in the same order, the **search** box, **Local** / **UTC** (it starts as the planner's
+  setting and remembers your choice on this device), the save state, **Website** (the public site) and **Sign out**. On a phone the screens sit on their own row,
   which you swipe sideways. Under it, on every screen, the **game clocks**: one per time zone of our bases, west to
   east, with the time there, a dot for day or night and the bases' codes. (The old planner also has a band of the UTC
   day under its header, but keeps it hidden; the new one does the same.)
 - **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
-- **Home, Routes, Tails, Hubs, Check and Review are rebuilt** (13 and 14 Oct, build pull requests 5 to 10); each shows
-  what the old screen shows, from the same data and with the same figures (below). **The other three screens** still say
-  they're in the old planner, with a link there, and a link from Home to one of them lands on that line.
+- **Every screen is rebuilt** (13 and 14 Oct, build pull requests 5 to 12); each shows what the old screen shows, from the
+  same data and with the same figures (below).
+- **The search** (in the header; press **/** to jump to it): type a flight number, with or without the airline's code
+  (**1008**, **KF 1008**), part of a registration, two airports (**DEL-BOM**), an airport or the start of a city. It finds
+  what the old planner's search found, at most 14 results; **Enter** opens the first. A flight opens its route, an
+  aircraft its page on Tails, an aircraft on order (or a flight on its plan card) its card on Tails, an airport the
+  airline's routes there. On a phone the box is hidden, as on the old planner.
 - **Home in the new planner** looks and works as the old Home (13 Oct, after the Building chat's review):
   - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N
     aircraft in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes**
@@ -45,15 +49,16 @@ after every change. On a preview address it saves nothing and says **preview · 
     (its maintenance, turns or positions) opens its pop-up, as on the old Home. **×** dismisses an item and
     **show again** brings every dismissed item back; a dismissal shows in both planners. Airports are flagged from
     80% of the game's departure cap (a setting, *airport_cap_warning_pct*). Routes to fix come from the captured profit;
-    with none captured, from the load patterns, as on the old Home. The interline line isn't there yet: its list of
-    countries is still only in the old planner, and comes with the Interline screen.
+    with none captured, from the load patterns, as on the old Home. The interline line isn't there yet: the interline
+    rules are in the database now (the setting *interline_rules*, which Interline reads), and the line comes in a later
+    build.
   - **Coming up** (the next 14 days) and the **To-do** board, as on the old Home. One-week checks fall due a week after
     an aircraft's latest launch or schedule change (a setting, *aircraft_check_after_days*). Tick a to-do when it's done;
     add one with its steps, one a line; **×** deletes one after asking you in the page.
   - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
     route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
-    turns (or **clean**), with its home city's photo behind when the website has one. **Open fleet ›** opens the
-    airline on Tails.
+    turns (or **clean**), with its home city's photo behind when the website has one (the city is the airline's own,
+    *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
 - **Routes in the new planner** looks and works as the old Routes:
   - **The list:** one airline at a time (its buttons at the top); search by destination; **Active only**; sort by
     stars, distance up or down, destination or load; **km from** and **km to**; and the chips for **Bases** (with a
@@ -74,7 +79,8 @@ after every change. On a preview address it saves nothing and says **preview · 
     at the destination, and (new, the old Routes didn't show them) the aircraft's position and the second-daily gap;
     then the connections at both ends, in all six airlines' flights. Type days (such as 135) and times in local time at
     each end; each box saves when you leave it. **Add frequency** takes the next free numbers; **Remove** asks in the
-    page first.
+    page first. The aircraft's registration beside its box (**N001AW ›**) opens its pop-up, as Home's does, with the
+    address (?aircraft=N001AW) so a link reopens it.
   - **Changing an offset** keeps the local times, as the old planner does: the page first lists every flight whose UTC
     time moves and asks. Empty the box to go back to the game's offset.
   - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
@@ -98,14 +104,16 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **Deliveries:** every aircraft with a delivery, for the airline and the base and type picked above: **Open** (on
     order, or arrived and not scheduled), **On order**, **Arrived** or **Flying**, each with its date and time (UTC),
     base, plan and status; **card** shows its plan card (title, base, each flight's number, route, times, block and
-    service).
+    service). **remove** takes an aircraft off the list of deliveries at once, as the old board's did: one not yet in
+    service, with nothing that points at it, goes; one that has flown or been paid for is retired; one in service just
+    leaves the list.
   - **File into planner** (on an arrived aircraft's plan card, or from Home): the planner reads the airline's schedule
     from the game and compares each flight on the card. When every one is the same, it files at once. Otherwise it shows
     each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with
     **the game's times** (the card takes them too) or **the plan card's times**. Filing puts the aircraft in service,
     logs its first cabin fit (its order's cabin, or the one an order of its type comes with, from the database), and
     adds each flight with its return as a round trip, launched today. It then opens the aircraft.
-  - **The aircraft pop-up** (from Home's needs attention): its base, block hours a day, legs a week, maintenance, the
+  - **The aircraft pop-up** (from Home's needs attention, or a frequency's aircraft on Routes): its base, block hours a day, legs a week, maintenance, the
     one-week check, every issue and its flights, with **Mark checked** and **Open in Tails**.
   - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
   - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
@@ -130,8 +138,8 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **Connections at [airport]:** by bank and outside the banks, the airports arriving and leaving, the city pairs (each
     once, at its shortest connection, from the airport's minimum connection time to 8 hours, never back where it came
     from) and the tightest eight as examples, across all our airlines. Beside each count of airports, the flights by
-    country (**US 5 · IN 2**), where the old Hubs named regions (**North America 7 · South Asia 2**): its list of
-    countries by region was in its own code, not in the database.
+    region (**North America 7 · South Asia 2**), as on the old Hubs; each country's region is in the database
+    (*countries.region*, 14 Oct), where the old Hubs kept the list in its own code.
 - **Check in the new planner** looks and works as the old Check: the same six boards, each folded on arrival. Click a
   board's title to open or fold it, or use **Expand all** and **Collapse all**.
   - **The address** keeps the daily load report's day (/planner/next/check?day=2026-10-12), so a link reopens that day.
@@ -139,9 +147,10 @@ after every change. On a preview address it saves nothing and says **preview · 
   - **Capture:** the same table, with **Reload** and the backup's line.
   - **Growth:** who can order now, the main hubs towards 750, the next move for each airline, the growth lists, the order
     queues and hub readiness. **Log an order as** (**Big**, **Frequency**, **Feeder**) records an order so the rotation
-    moves on. Three things differ, because the old Check worked them out from lists in its own code: the next move names
-    each route and its stars but no suggested aircraft size; hub readiness counts cities by country (**IN 5 · CN 2**),
-    not region; and the order queues show the families each airline may have (from the database), not three typed in.
+    moves on. The next move names each route, its stars and the suggested aircraft size (the setting *suggested_size*,
+    with Ryanair's own), and hub readiness counts cities by region (*countries.region*), as the old Check did from lists
+    in its own code (14 Oct). The order queues show the families each airline may have (from the database), not three
+    typed in.
   - **Aircraft checks:** each check due, with the aircraft's issues and its routes' load pills, and **Mark checked**; the
     ones coming up by day.
   - **Cabins:** **Refitted to …** records a refit done in the game: the aircraft takes the cabin and the refit's cost (0.2M,
@@ -173,6 +182,34 @@ after every change. On a preview address it saves nothing and says **preview · 
     as the old planner does), the nightly log, and **Loads by hand**: type each airline's flights under 95%, or paste the
     game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads are saved the way the
     old planner saves them (save_loads), so both planners see the same days.
+- **Interline in the new planner** looks and works as the old Interline:
+  - **Interline agreements:** one row per airline and interline country it flies to or has planned (on a plan card not
+    yet filed), with the airports, round trips a day (or **planned**), the status, the partner in the game, since when and
+    notes. Each saves as you change it (a box when you leave it). The **Airline** and **Status** chips filter the rows and
+    are in the address (/planner/next/interline?airline=KF&status=open).
+  - **The interline countries:** why each one is, the partners that exist in Gander (each a link to its page in the
+    game) and our airlines flying or planned there; then what to do when another airline asks, and the countries each of
+    our airlines covers. The countries, partners and rules are a setting now (*interline_rules*), where the old planner
+    kept them in its code.
+- **Photos in the new planner** looks and works as the old Photos: a card for each of our airlines' logos (in the
+  airlines' order) and for each destination, busiest first, **Missing a photo only** to start with. **Upload photo** or
+  **Replace** (with a credit) and **Upload logo** resize the picture in the browser and put it live on the website at
+  once; **Remove** and **Use the in-game logo** ask in the page first. A preview uploads nothing.
+- **Reference in the new planner** looks and works as the old Reference, each section folded on arrival; opening one puts
+  it in the address (/planner/next/reference/night-bans), so a link reopens it. Each box saves when you leave it, as one
+  change:
+  - **Hubs, focus cities and banks**, **Constants**, **Aircraft**, **Configs**, **Market defaults**, **Service profiles**,
+    **Removed routes** (**restore**, **restore all**), **Night bans** (find, change, remove, **Add**) and **Time zones**
+    (**Set** lists the flights whose UTC time moves and asks first, as Routes does).
+  - **Constants** are rule numbers (the settings, the departures cap in the world's rules): only numbers are taken, and a
+    change to one goes in the operating manual too.
+  - **Aircraft:** block estimates are the block allowance plus the distance at the type's cruise speed (manual §4); the
+    old column learned from the times typed, which is retired.
+  - **Game schedules** shows each airline's schedule page, worked out from its game ID; it isn't typed any more.
+  - **Storage** says whether saving works, with **Save now**; nothing is kept on the device.
+  - **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**, as the old file. Importing a
+    backup and clearing everything are gone with the tables (design §14): the nightly backup and the change log are the
+    safety net.
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing, as here.
@@ -296,8 +333,8 @@ Open an airline for its own page:
 *Banks, aircraft, configs, markets and time zones.*
 - **Hubs, focus cities and banks:** a hub runs banks and connections. A focus city is a base that serves its own
   market and feeds a hub.
-- **Constants, Aircraft, Configs:** block-time estimates (learned from the times typed in), and seats per cabin
-  config.
+- **Constants, Aircraft, Configs:** block-time estimates (learned from the times typed in; in the new planner, the block
+  allowance plus the distance at the type's speed), and seats per cabin config.
 - **Market defaults, Service profiles:** what a new frequency starts with.
 - **Removed routes:** restore any route removed from Routes.
 - **Night bans:** airports that close overnight. Flights inside a ban are flagged on their route.
@@ -305,4 +342,4 @@ Open an airline for its own page:
 - **Time zones:** the game runs standard time all year. Override an airport only if the game disagrees.
 - **Storage:** whether saving to the database and to this device is working.
 - **Data:** export the whole planner (JSON) or its flights (CSV), and import or clear it. Clearing is for emergencies
-  only; the nightly backup is the real safety net.
+  only; the nightly backup is the real safety net. The new planner keeps the exports only (above).

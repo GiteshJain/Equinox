@@ -72,7 +72,7 @@
 #    380 px nothing scrolls sideways. Screenshots of the new Tails and the old at 380 and 1280 px go to
 #    TAILS_SCREENS_DIR (the run's tails-screens artifact).
 # 14. The new planner's Hubs (#18 build pull request 8, spec docs/specs/2026-10-13-hubs.md), only if 1 to 10 passed,
-#    last, after the Review side by side and whatever it found, and stopped after 5 minutes if it stops answering (it takes
+#    last, after the Interline, Photos and Reference side by side and whatever it found, and stopped after 5 minutes if it stops answering (it takes
 #    about one; a run once hung there, and the 30-minute limit then cancelled every step's report): tests/hubs_side_by_side_test.py opens the old planner and the new
 #    one at the same frozen moment, signed in as test staff, and compares every base's and focus city's board on every day
 #    (the count line, the bank windows, the ticks, the hourly bars, the week grid, the flight list) and its connections
@@ -96,6 +96,16 @@
 #    nothing; at 380 px nothing scrolls sideways. Screenshots of the new Review and the old at 380 and 1280 px go to
 #    REVIEW_SCREENS_DIR (the run's review-screens artifact). It ends with the plan card's service check on last night's plan
 #    cards, listed as a finding.
+# 17. The new planner's Interline, Photos and Reference and its header search (#18 build pull request 12, spec
+#    docs/specs/2026-10-14-interline-photos-reference.md), only if 1 to 10 passed, after the Review side by side and
+#    whatever it found, and stopped after 7 minutes if it stops answering (it takes about four):
+#    tests/reference_side_by_side_test.py opens the old planner and the new one at the same frozen moment, signed in as test
+#    staff, and compares Interline (with its filters), Photos, every Reference section, the search's results for sample
+#    queries and Export flights; then edits an interline status and note, a hub's bank time, a constant, a type, Add config,
+#    a night ban, a removed route restored and a time zone in both and checks they write the same rows, and uploads a small
+#    test photo in both (the bucket answered in the browser: the copy has none) and checks the same file and website row; a
+#    preview sends nothing; at 380 px nothing scrolls sideways. Screenshots of the new screens and the old at 380 and 1280
+#    px go to REFERENCE_SCREENS_DIR (the run's reference-screens artifact).
 # Only table names, counts, descriptions, ids and error messages are printed, never rows or keys. The copy, its keys and
 # its test users exist only on the runner while this runs.
 set -euo pipefail
@@ -402,6 +412,27 @@ review_side_by_side() {
   return $rc
 }
 
+# The new planner's Interline, Photos and Reference and its header search (#18 build pull request 12): side by side with
+# the old screens on the copy, their edits and a photo upload in both. The local address and keys go to the test in a file
+# only this user can read, as for the real saves; never printed.
+reference_side_by_side() {
+  local env="$work/local.env" rc=0
+  echo "== the new planner's Interline, Photos and Reference on the copy: side by side with the old screens, their edits in both, and the header search (#18)"
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" REFERENCE_SCREENS_DIR="${REFERENCE_SCREENS_DIR:-}" \
+      timeout -s INT 420 python3 tests/reference_side_by_side_test.py || rc=$?
+    # a run that stops answering is stopped after 7 minutes (it takes about four), so the steps after it still run
+    if [ $rc -eq 124 ] || [ $rc -eq 130 ]; then echo "FAIL  the Interline, Photos and Reference side by side didn't finish within 7 minutes"; fi
+    [ $rc -eq 0 ] || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # the migrations this pull request adds, and whether it changes the planner (or the real saves themselves)
 : > "$work/ours.txt"; planner_changed=""
 if git rev-parse --verify -q "origin/$base" > /dev/null; then
@@ -555,6 +586,7 @@ if [ $status -eq 0 ]; then
   tails_side_by_side || status=1    # whatever Routes found: its saves touch no aircraft in service, and it puts back what it changes
   check_side_by_side || status=1    # whatever Tails found: it puts back what it changes
   review_side_by_side || status=1   # whatever Check found: Check puts back what it changes
-  hubs_side_by_side || status=1     # whatever Review found: it puts back what it changes, and Hubs only reads
+  reference_side_by_side || status=1   # whatever Review found: it puts back what it changes
+  hubs_side_by_side || status=1     # whatever Reference found: it puts back what it changes, and Hubs only reads
 fi
 exit $status

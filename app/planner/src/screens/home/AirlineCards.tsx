@@ -2,20 +2,15 @@
 // its colour, with its in-game logo (the website's logos.js) and whether it's flying, its bases (hubs, then focus cities
 // dashed; filled once a route flies from them), its aircraft, routes, flights and block hours a day, the lowest
 // maintenance among its aircraft, short and tight turns or "clean", and "Open fleet ›". Every figure is the planning
-// library's (summary.airlineCards). Where the website has a photo of the airline's home city, the card shows it behind
-// (the old planner's hub-city photos, from site_public()). "Open fleet ›" opens the airline on Tails (build pull request 7).
+// library's (summary.airlineCards). Where the website has a photo of the airline's city (airlines.photo_city, since build
+// pull request 12; the old planner kept the list in its code, EQ_HUBPHOTO), the card shows it behind (from site_public()).
+// "Open fleet ›" opens the airline on Tails (build pull request 7).
 import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import type { AirlineCard } from "@rules";
 import { Pill } from "../../ui/Pill";
 import { loadLogos } from "../../ui/siteFiles";
 import type { HomeAirline } from "./attention";
-
-/** The city whose photo each airline's card shows (the old planner's EQ_HUBPHOTO, by planner name). */
-export const HUB_PHOTO: Record<string, string> = {
-  "Pan American": "New York", "Virgin Atlantic": "London", "Ryanair": "Paris", "Kingfisher": "Delhi", "China Eastern": "Shanghai",
-  "Malaysia Airlines": "Kuala Lumpur",
-};
 
 export function AirlineCards({ cards, airlines, photos }: {
   cards: readonly AirlineCard[]; airlines: readonly HomeAirline[]; photos: Record<string, { url: string }> | undefined;
@@ -31,7 +26,7 @@ export function AirlineCards({ cards, airlines, photos }: {
       {airlines.map((a) => {
         const c = cards.find((x) => x.airline_id === a.id);
         if (!c) return null;
-        const photo = photos?.[HUB_PHOTO[a.name] ?? ""]?.url;
+        const photo = a.photo ? photos?.[a.photo]?.url : undefined;
         const style = { "--lv": a.color || "#8B96A8", ...(photo ? { "--ph": `url("${photo}")` } : {}) } as CSSProperties;
         const m = c.lowest_maintenance;
         return (

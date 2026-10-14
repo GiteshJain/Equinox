@@ -11,7 +11,7 @@ import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingChanges, filtersQuery,
-  gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeTailChanges, shownDeliveries, tailRows, tailsOf, typesFor, weekStrip,
+  gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries, tailRows, tailsOf, typesFor, weekStrip,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
 
@@ -293,5 +293,37 @@ describe("adding, changing and removing an aircraft", () => {
     expect(deleteTailChanges(fleet[0] as TailAircraft, [{ id: 1, updated_at: T0, legs: [{ id: 1, updated_at: T0 }, { id: 2, updated_at: T0 }] }], TODAY).map((c) => [c.table, c.op, c.key]))
       .toEqual([["flight_legs", "delete", { id: 1 }], ["flight_legs", "delete", { id: 2 }], ["rotations", "delete", { id: 1 }], ["aircraft", "update", { id: 1 }]]);
     expect(markCheckedChange(fleet[0] as TailAircraft, TODAY)).toEqual({ table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { checked_on: TODAY } });
+  });
+});
+
+// remove a delivery (the old data-deldel, build pull request 12): the rows the old adapter wrote for it
+describe("removing a delivery", () => {
+  const ordered = (id: number, reg: string, di: number, x: Partial<TailAircraft> = {}) => ac(id, reg, { status: "on_order", delivery_at: "2026-10-20T08:00:00+00:00",
+    order_note: "plan", extra: { deliveries_index: di, delivery: { note: "x" } }, ...x });
+  const fleet = [ac(1, "T-001"), ac(2, "T-002"), ordered(5, "T-005", 0), ordered(6, "T-006", 1), ordered(7, "T-007", 2)];
+  it("one nothing points at is removed; the deliveries after it move up a place", () => {
+    expect(removeDeliveryChanges(fleet[2] as TailAircraft, fleet, { money: false, pointedAt: false }, TODAY)).toEqual([
+      { table: "aircraft", op: "delete", key: { id: 5 }, base: T0 },
+      { table: "aircraft", op: "update", key: { id: 6 }, base: T0, values: { extra: { deliveries_index: 0, delivery: { note: "x" } } } },
+      { table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { extra: { deliveries_index: 1, delivery: { note: "x" } } } },
+    ]);
+  });
+  it("one with a plan card stays, out of the lists; one the capture or money spent knows is retired today", () => {
+    expect(removeDeliveryChanges(fleet[4] as TailAircraft, fleet, { money: false, pointedAt: true }, TODAY))
+      .toEqual([{ table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { extra: {} } }]);
+    expect(removeDeliveryChanges(fleet[4] as TailAircraft, fleet, { money: true, pointedAt: true }, TODAY))
+      .toEqual([{ table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { status: "retired", retired_on: TODAY, extra: {} } }]);
+  });
+  it("one in service too loses only its order, and stays a tail", () => {
+    const filed = ac(8, "T-008", { delivery_at: "2026-10-01T08:00:00+00:00", ordered_on: "2026-09-20", order_base_code: "HUB", order_note: "plan",
+      extra: { tails_index: 2, deliveries_index: 3, tail: { notes: "n" }, delivery: { note: "x" } } });
+    expect(removeDeliveryChanges(filed, [...fleet, filed], { money: true, pointedAt: true }, TODAY)).toEqual([
+      { table: "aircraft", op: "update", key: { id: 8 }, base: T0, values: { ordered_on: null, delivery_at: null, order_base_code: null, order_config_id: null,
+        order_note: null, extra: { tails_index: 2, tail: { notes: "n" } } } },
+    ]);
+  });
+  it("the deliveries board lists only aircraft in the old list of deliveries", () => {
+    const gone = ac(9, "T-009", { status: "on_order", delivery_at: "2026-10-20T08:00:00+00:00", extra: {} });
+    expect(deliveryRows([gone], [], buildRules(base), new Map(), [], NOW, TODAY)).toEqual([]);
   });
 });

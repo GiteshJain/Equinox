@@ -27,12 +27,12 @@ import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeTailChanges,
+  addTailChanges, basesOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, extraIndex, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
 import {
-  readRotationsWithLegs, tailsCount, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
+  readRotationsWithLegs, removalFacts, tailsCount, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
 } from "./reads";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
@@ -123,6 +123,17 @@ export function Tails() {
       return res;
     } finally {
       setBusy(false);
+    }
+  }
+  // remove a delivery (the old data-deldel): what the old adapter looked at, read now, then one action
+  async function onRemoveDelivery(r: DeliveryRow) {
+    if (w === undefined) return;
+    try {
+      const facts = await removalFacts(w, r.a.id);
+      await save(removeDeliveryChanges(r.a, all, facts, today));
+      if (filters.card === r.a.registration) keep({ ...filters, card: "" }, true);
+    } catch (e) {
+      showMessage(e instanceof Error ? e.message : String(e));
     }
   }
   const filing = useFiling({
@@ -266,7 +277,8 @@ export function Tails() {
       </div>
       <Deliveries all={deliveries} shown={shown} airline={airline} filters={filters} open={filters.card} legsOf={legsOf} serviceOf={serviceOf}
         filed={(id) => flying.has(id)} busy={busy || filing.filing} now={now.getTime()}
-        onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery} />
+        onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery}
+        onRemove={(r) => void onRemoveDelivery(r)} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
     </main>
   );

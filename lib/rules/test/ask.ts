@@ -1,7 +1,7 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, banks, block, buildRules, cabins, card, checks, connections, frequency, game, growth, hubs, loadReport, maintenance, optimiser, positions, schedule,
+  aircraftWeek, airport, banks, block, buildRules, cabins, card, checks, connections, frequency, game, growth, hubs, loadReport, maintenance, optimiser, positions, schedule,
   service, summary, tails, time, turns, findType,
   type CabinFacts, type Card, type CheckFacts, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
   type MoveFacts, type Move, type PlannedCardLeg, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
@@ -240,8 +240,12 @@ export function ask(input: RulesInput, q: Ask): unknown {
     case "growth_ready_from_loads":
       return growth.readyFromLoads(rules, q.routes as unknown as (MoveFacts["routes"][number] & { airline_id: number })[], q.loads as unknown as MoveFacts["loads"]);
     case "hub_readiness":
-      return growth.hubReadiness(rules, (q.planned ?? []) as unknown as PlannedCardLeg[], new Map(Object.entries((q.countries ?? {}) as Record<string, string>)))
+      return growth.hubReadiness(rules, (q.planned ?? []) as unknown as PlannedCardLeg[], new Map(Object.entries((q.regions ?? {}) as Record<string, string>)))
         .map((r) => ({ ...r, dep: time.clock(r.dep) }));
+    case "suggested_size":
+      return { type: growth.suggestedSize(rules, num(q.airline_id, "airline_id"), str(q.move, "move") as Move, { stars: num(q.stars, "stars"), dist: (q.dist ?? null) as number | null }) };
+    case "region_of":
+      return { region: airport.regionOf(rules, str(q.airport, "airport"), new Map(Object.entries((q.regions ?? {}) as Record<string, string>))) };
     case "order_queues": {
       const deliveries = (q.deliveries as { family: string; delivery_at: string | null }[]).map((d) => ({ family: d.family, delivery_ms: d.delivery_at ? Date.parse(d.delivery_at) : null }));
       return growth.orderQueues(rules, num(q.airline_id, "airline_id"), q.families as string[], new Set(q.allowed as string[]), deliveries, Date.parse(str(q.now, "now")))
