@@ -26,7 +26,7 @@ Until each is built and merged, the rules below stand as they are.
   in one TypeScript library; figures from the capture (cash forecast, route profit, growth signals, hub progress) in
   the database. Until it's built, the figures in §3 and §4 are worked out as they are now. The weekly report is on the
   database's figures since build pull request 4 (13 Oct): each airline's money from the captured figures, with no
-  surplus figure and no group totals (it stays paused with the game).
+  surplus figure and no group totals.
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
@@ -37,16 +37,17 @@ Until each is built and merged, the rules below stand as they are.
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
-- **The game is paused until the new planner is done (#18).** Gitesh's only game task is the evening capture (§7).
-  - No scheduling, orders, retimes, fare changes, interline actions or salary runs. The 15 A321neos that arrived 6 to
-    9 Oct wait on their plan cards; the schedules already in the game keep flying.
-  - The Saturday review (its report and the newsroom roundup) and the monthly work wait too. The automatic jobs
-    (backups, snapshots, clean-ups, the archive) keep running.
-  - **The old planner is frozen:** no changes at all to `web/planner/index.html`, and no data-only changes by Claude.
-    If a rule number has to change before the switch-over, the rule-number cross-check is removed instead.
+- **The game runs while the new planner is built (#18).** Orders, scheduling, retimes and the rest go on as normal,
+  and so do the Saturday review and the monthly work. Claude's data-only changes go in as usual (below).
+  - **Until the switch, game changes are made in the old planner only.** The new one at `/planner/next/` is for building
+    and review, so the two never save over each other.
+  - **The old planner's code is frozen:** no changes at all to `web/planner/index.html`. Anything found while playing
+    is fixed in the new planner. If a rule number has to change before the switch-over, the rule-number cross-check is
+    removed instead.
 
-  *Since 12 Oct (first said 8 Oct) · why (Gitesh): no game changes until the building is done, and nothing is built
-  twice.* Ends when `/planner/` switches to the new planner.
+  *Game running again since 14 Oct; code frozen since 12 Oct · why (Gitesh): the 15 A321neos were scheduled on 13 Oct,
+  waiting was costing growth with the build close to done, and lifting the pause carried little risk. The code stays
+  frozen so nothing is built twice.* The freeze ends when `/planner/` switches to the new planner.
 - **Say first when something will take more than 5 minutes,** with roughly how long, before starting it (a helper's
   build, a long check run, a big data job). *Since 12 Oct (Gitesh).*
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
@@ -390,6 +391,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 14 Oct | The game is paused until the new planner is done: the evening capture is the only game task (no scheduling, orders, retimes, fare changes, interline actions or salary runs), the Saturday review and monthly work wait, and Claude makes no data-only changes | The game runs again; game changes go through the old planner only until the switch, and its code stays frozen (§1). Why: Gitesh, once the 15 A321neos were flying, and with waiting costing growth at little risk |
 | 11 Oct | Hubs first covers only opening a new hub; a base already open can grow on any route | Every new aircraft goes to the main hub until it reaches 750 weekly departures; other bases, open or new, only for contested routes (§3). Why: Gitesh, when G-AADU was nearly planned at Manchester on uncontested routes |
 | 10 Oct | Data-only changes (plan cards, to-dos, notes, logs) go into `planner_state` | Into the tables, through `planner_item_put()` or plain SQL after the `equinox.actor` line (§1). Why: the switch-over (#13, pull request 9) froze `planner_state`; the planner reads the tables |
 | 10 Oct | Rule numbers live in the planner (Reference, growth rules) and in this manual | One source: `settings` and `world_rules`, checked against the old planner's code (§1). Why: copies drifted |

@@ -286,6 +286,8 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   - The shell starts once #19 and #20 are decided, since both shape it.
   - **Until the switch, the game is paused and the old planner frozen** (Gitesh, 12 Oct, as first said on 8 Oct): the
     evening capture is the only game task, and the old planner gets no changes at all (manual §1).
+    **14 Oct: the pause is lifted** (Gitesh). The game runs again, with game changes made in the old planner only until
+    the switch; its code stays frozen. Brief: `docs/briefs/2026-10-14-order-timing.md`.
 
   Reason: the planner is one 584 KB file; any change redraws the whole screen; the cash forecast sits in the screen
   code; and each opening downloads about 1.8 MB whatever screen is open, while each save sends the whole 230 KB

@@ -52,4 +52,12 @@ they all go to the main hubs (Ryanair exempt).
 - Loads on the 15 new aircraft coming in weak over the next two captures: a smaller batch.
 
 ## Outcome
-<open>
+**14 Oct: C, lift the pause.** Gitesh first asked what lifting it would risk. The answer: little beyond his time.
+- Saving from both planners at once is avoided by making game changes in the old planner only until the switch.
+- The old planner's code stays frozen, so anything found while playing waits for the new one.
+- A new kind of live change might trip a side-by-side check; at worst that slows a build.
+- The Saturday review and the open to-dos come back.
+
+Manual §1 updated the same day: the game runs, game changes go through the old planner only, and its code stays frozen
+until the switch. The old pause is under Retired rules, and decision #18 carries a note. The orders themselves are
+decided next, one airline at a time.
