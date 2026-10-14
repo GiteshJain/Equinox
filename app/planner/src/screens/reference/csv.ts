@@ -6,7 +6,7 @@ import type { Rules } from "@rules";
 import { supabase } from "../../data/supabase";
 import { PLANNER_TABLES } from "../../data/save";
 import { LEG_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS, freqOf, hhmm as dur, priceFor, routeOf, serviceFor, type AircraftRow, type LegRow, type MarketRow, type RotationRow, type RouteRow } from "../routes/model";
-import { CSV_HEAD, csvLine } from "./model";
+import { CSV_HEAD, csvBanks, csvLine } from "./model";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -64,10 +64,11 @@ export async function flightsCsv(rules: Rules, worldId: number, names: ReadonlyM
     const reg = a?.registration ?? "";
     const common = [reg, type?.name ?? "", config?.code ?? "", seats, service, price] as const;
     const out = f.view.out, back = f.view.back;
+    const [waveOut, waveBack] = csvBanks(f.wave);
     if (out) lines.push(csvLine([f.noOut, name, route.hub, route.dest, days, H(out.dep), H(out.arr), out.arr_day, dur(out.block), ...common,
-      String(extra.slfOut ?? ""), f.wave.dep?.ok ? "B" + f.wave.dep.n : "off"]));
+      String(extra.slfOut ?? ""), waveOut]));
     if (back) lines.push(csvLine([f.noBack, name, route.dest, route.hub, days, H(back.dep), H(back.arr), back.arr_day, dur(back.block), ...common,
-      String(extra.slfBack ?? ""), f.wave.arr?.n ? "B" + f.wave.arr.n : "off"]));
+      String(extra.slfBack ?? ""), waveBack]));
   }
   return lines.join("\n");
 }

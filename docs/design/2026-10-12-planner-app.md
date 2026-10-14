@@ -336,4 +336,7 @@ starts to matter sooner.
   Found by pull request #37.
 - **Today's backup (14 Oct)** has every delivery in service and two Malaysia aircraft that tie in Review: the Home,
   Tails and Review side by sides were made to cope (a part neither Home draws, filing not tried when nothing waits, a
-  tie's order). Filing is tried again on a copy with an arrived aircraft. Found by pull request #37.
+  tie's order). Filing is tried again on a copy with an arrived aircraft. The cards the old planner filed with the
+  game's times keep the game's arrival in their copy of the legs (`plan_cards.extra.legs`) beside the old block, so
+  the old card shows an arrival a minute or two before the new card's (departure plus the leg row's block); drop the
+  copy at the clean-up (pull request 14), as above. Found by pull request #37.

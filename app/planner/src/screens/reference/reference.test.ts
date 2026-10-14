@@ -2,7 +2,7 @@
 // planner_apply_tidy), and its addresses.
 import { describe, expect, it } from "vitest";
 import {
-  addService, addType, banOf, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder, marketChange,
+  addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder, marketChange,
   mctChange, mctHours, numOf, pageId, restoreChange, scheduleLink, sectionOf, serviceChange, typeChange, worldRowChange,
   type BaseRow, type RemovedRoute, type WorldAirportRow,
 } from "./model";
@@ -21,6 +21,9 @@ describe("what the boxes hold, as the adapter read them", () => {
   it("the sections in the address, and the old document's key order", () => {
     expect([sectionOf("constants"), sectionOf("night-bans/"), sectionOf(""), sectionOf("nope")]).toEqual(["constants", "night-bans", null, null]);
     expect(["Ryanair|Europe", "Kingfisher|Africa", "Pan American|Canada", "Ryanair|Asia"].sort(keyOrder)).toEqual(["Ryanair|Asia", "Ryanair|Europe", "Kingfisher|Africa", "Pan American|Canada"]);
+    // as jsonb keeps them: by length in bytes, so the dash's three bytes count (the rehearsal's 14 Oct copy)
+    expect(["Ryanair|Europe – low", "Pan American|Transcon"].sort(keyOrder)).toEqual(["Pan American|Transcon", "Ryanair|Europe – low"]);
+    expect(["Kingfisher|India–US direct", "Kingfisher|Gulf & South Asia"].sort(keyOrder)).toEqual(["Kingfisher|Gulf & South Asia", "Kingfisher|India–US direct"]);
   });
 });
 
@@ -106,6 +109,11 @@ describe("removed routes and game schedules", () => {
     expect(restoreChange(r({}))).toEqual({ table: "routes", op: "update", key: { id: 9 }, base: "r", values: { removed: false, edit_kept: true } });
     expect(restoreChange(r({ removed_note: "too far" })).values).toEqual({ removed: false });
     expect(restoreChange(r({ edit_kept: true })).values).toEqual({ removed: false });
+  });
+  it("the CSV's bank column: the outbound's bank, the return's first bank even when it's off wave (the old waveAt's), else off", () => {
+    expect(csvBanks({ dep: { ok: true, n: 2 }, arr: { next: 1 } })).toEqual(["B2", "B1"]);
+    expect(csvBanks({ dep: { ok: false, n: 0 }, arr: { next: 0 } })).toEqual(["off", "off"]);
+    expect(csvBanks({ dep: null, arr: null })).toEqual(["off", "off"]);
   });
   it("the schedule link from the airline's game ID, and its page id", () => {
     const link = scheduleLink("gander.airlinesim.aero", 113);

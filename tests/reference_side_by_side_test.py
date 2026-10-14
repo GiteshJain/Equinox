@@ -493,25 +493,34 @@ async def search(old, new):
             known("order on a tie", f"{q!r}: {len(o)} results")
         else:
             p.append(f"{q!r}: old {o}, new {n}"[:900])
-    # Enter opens the first result's new screen
+    # Enter opens the first result's new screen: a flight or a route its route, an aircraft its page, an aircraft on order
+    # or a planned flight its card on Tails, an airport the airline's routes there
     opened = []
     c = COPY["search"]
-    for q, want in ((f"{c['flight'][0]} {c['flight'][1]}" if c.get("flight") else None, lambda path, s: re.fullmatch(r"/planner/next/routes/[^/]+/[A-Z0-9]{3}-[A-Z0-9]{3}", path)),
-                    (c.get("reg"), lambda path, s: path == f"/planner/next/tails/{c['reg']}"),
-                    (c.get("airport"), lambda path, s: path == "/planner/next/routes" and f"q={c['airport']}" in s)):
+    for q in (f"{c['flight'][0]} {c['flight'][1]}" if c.get("flight") else None, c.get("reg"), c.get("airport"), c.get("order")):
         if not q:
             continue
         hits = await new_search(new, q)
+        if not hits or hits[0].startswith("empty:"):
+            continue
+        kind, label = hits[0].split(": ", 1)
         await new.pg.press("#gsearch", "Enter")
         await settle(new.pg, 500)
         path, s = await new.pg.evaluate("[location.pathname, location.search]")
-        if not want(path, s):
-            p.append(f"Enter on {q!r} (first result {hits[:1]}) opened {path}{s}")
+        first = label.split(" ")[0]
+        ok = {"Flight": lambda: re.fullmatch(r"/planner/next/routes/[^/]+/[A-Z0-9]{3}-[A-Z0-9]{3}", path),
+              "Route": lambda: re.fullmatch(r"/planner/next/routes/[^/]+/" + re.escape(label.split(" ")[0].replace("–", "-")), path),
+              "Aircraft": lambda: path == f"/planner/next/tails/{first}",
+              "On order": lambda: path == "/planner/next/tails" and f"card={first}" in s,
+              "Planned": lambda: path == "/planner/next/tails" and "card=" in s,
+              "Airport": lambda: path == "/planner/next/routes" and f"q={first}" in s}.get(kind, lambda: False)()
+        if not ok:
+            p.append(f"Enter on {q!r} (first result {hits[0]!r}) opened {path}{s}")
         else:
-            opened.append(q)
+            opened.append(f"{q!r} ({kind.lower()})")
         await new_go(new, "/", "main[data-screen=home][data-home-ready=yes]")
     return (f"the header search gives the old planner's results for {len(qs)} queries made from the copy ({', '.join(repr(q) for q in qs)}; "
-            f"{n_hits} results in all), and Enter opens the new screen for {', '.join(repr(q) for q in opened) or 'none'}"), p
+            f"{n_hits} results in all), and Enter opens the first result's new screen for {', '.join(opened) or 'none'}"), p
 
 
 # ---------- 6. the exports
@@ -899,7 +908,7 @@ async def photo_upload(old, new):
         problems.append("the website's row wasn't put back")
     u = up_new[0] if up_new else {}
     return (f"a destination photo uploaded ({code}, a 320×200 test picture with a credit) in the new Photos and in the old: the "
-            f"same file sent to the bucket ({u.get('method')} {u.get('object', '').split('-')[0]}-….jpg, {u.get('type')}, "
+            f"same file sent to the bucket ({u.get('method')} {re.sub(r'-[0-9]+[.]', '-<time>.', u.get('object', ''))}, {u.get('type')}, "
             f"{u.get('image')}, cache {u.get('cache')}), the same website row (site_set_airport_photo), the same words on the "
             "card; the old planner, opened again, shows it"), problems
 

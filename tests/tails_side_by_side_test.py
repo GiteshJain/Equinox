@@ -79,7 +79,10 @@ KNOWN = {
         "rule": "filing with the game's times, the old planner sets the card's arrival to the game's but stores only its departure and "
                 "its old block (plan_card_legs.block_min), so the card loses the game's arrival when it is read again; the new planner "
                 "stores the game's arrival (the spec: the card takes the game's times). Only block_min, only on a card leg whose "
-                "game block differs.",
+                "game block differs. And on the deliveries board, a card the old planner filed with the game's times keeps the game's "
+                "arrival in its copy of the legs (plan_cards.extra.legs) beside the old block: the old card shows that arrival, the "
+                "new one the departure plus the leg row's block (a minute or two apart on 14 Oct). Only the Arrives column of a card "
+                "with that copy.",
         "used": 0, "where": []},
     CARD_COPY: {
         "rule": "the old planner's storage keeps a plan card's legs whole in plan_cards.extra.legs when its leg rows can't give them "
@@ -418,6 +421,9 @@ def compare_board(o, x, label):
 
 async def deliveries(old, new, airlines):
     p, views, cards = [], 0, 0
+    # the cards with the old planner's copy of their legs (plan_cards.extra.legs): their arrivals may be the game's
+    copies = set(json.loads(psql(f"""select coalesce(json_agg(a.registration), '[]') from public.plan_cards c join public.aircraft a on a.id = c.aircraft_id
+                                     where c.world_id = {WORLD} and c.extra ? 'legs'""").strip()))
     for al in airlines:
         for status in ("", "on order", "unscheduled", "flying"):
             label = f"{al['code']} deliveries ({status or 'open'})"
@@ -449,7 +455,14 @@ async def deliveries(old, new, airlines):
                         if a == b:
                             continue
                         if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
-                            p += [f"{al['code']} {reg}'s plan card: {k}[{i}]: old {u!r}, new {v!r}"[:600] for i, (u, v) in enumerate(zip(a, b)) if u != v]
+                            for i, (u, v) in enumerate(zip(a, b)):
+                                if u == v:
+                                    continue
+                                cu, cv = str(u).split(" | "), str(v).split(" | ")
+                                if k == "rows" and reg in copies and len(cu) == len(cv) > 3 and cu[:3] + cu[4:] == cv[:3] + cv[4:]:
+                                    known(ARRIVAL, f"{al['code']} {reg} {cu[0]}: old {cu[3]}, new {cv[3]} (its copy of the legs)")
+                                else:
+                                    p.append(f"{al['code']} {reg}'s plan card: {k}[{i}]: old {u!r}, new {v!r}"[:600])
                         else:
                             p.append(f"{al['code']} {reg}'s plan card: {k}: old {a!r}, new {b!r}"[:900])
                 cards += 1
@@ -808,11 +821,14 @@ async def remove_delivery(old, new, airlines):
     """Remove a delivery, in the new Tails (its remove link) and then in the old planner (its data-deldel: the delivery taken
     out of its list), each from the same copy: the same aircraft rows written, logged as planner; the old planner, opened
     again after the new one's removal, no longer lists it."""
-    pick = json.loads(psql(f"""select coalesce((select json_build_object('id', a.id, 'reg', a.registration, 'airline_id', a.airline_id, 'status', a.status)
-        from public.aircraft a where a.world_id = {WORLD} and a.extra ? 'deliveries_index' and not a.extra ? 'tails_index' and a.status <> 'retired'
-        order by (a.extra ->> 'deliveries_index')::int, a.id limit 1), 'null')""").strip())
+    # one still on order first; else, as on 14 Oct's copy when every delivery is in service, one in service that's still on
+    # the old list of deliveries (removing it only takes it off that list)
+    pick = json.loads(psql(f"""select coalesce((select json_build_object('id', a.id, 'reg', a.registration, 'airline_id', a.airline_id, 'status', a.status,
+                                                    'in_service', a.extra ? 'tails_index')
+        from public.aircraft a where a.world_id = {WORLD} and a.extra ? 'deliveries_index' and a.status <> 'retired'
+        order by a.extra ? 'tails_index', (a.extra ->> 'deliveries_index')::int, a.id limit 1), 'null')""").strip())
     if not pick:
-        return "remove a delivery: the copy has no aircraft on order", []
+        return "remove a delivery: the copy has no aircraft on the list of deliveries", []
     al = next((a for a in airlines if a["id"] == pick["airline_id"]), None)
     if not al:
         return f"remove a delivery: {pick['reg']}'s airline isn't one of ours", []
@@ -821,7 +837,11 @@ async def remove_delivery(old, new, airlines):
     try:
         await refresh(new)
         client = await new.pg.evaluate("window.__eqPlanner.client")
-        await new_go(new, "/tails" + q(airline=al["code"]))
+        # the board's view that lists it: open (on order, or arrived and not scheduled), else flying
+        for status in ("", "flying", "on order", "unscheduled"):
+            await new_go(new, "/tails" + q(airline=al["code"], **({"del": status} if status else {})))
+            if await new.pg.evaluate("s => !!document.querySelector(s)", f"[data-deldel={json.dumps(reg)}]"):
+                break
         mark = marks()
         await new.pg.click(f"[data-deldel={json.dumps(reg)}]")
         await rs.wait_for(lambda: log_since(mark), lambda got: len(got) >= 1, seconds=30)
@@ -852,7 +872,7 @@ async def remove_delivery(old, new, airlines):
             problems.append(f"aircraft {i} ({(old_rows.get(i) or new_rows.get(i) or {}).get('registration')}): new {new_rows.get(i)}, old {old_rows.get(i)}"[:700])
     if fleet_rows() != before:
         problems.append("the aircraft weren't put back as they were")
-    return (f"remove a delivery ({al['code']} {reg}, {pick['status']}) in the new Tails and in the old planner, from the same copy: the same aircraft rows "
+    return (f"remove a delivery ({al['code']} {reg}, {pick['status']}{', in service' if pick.get('in_service') else ''}) in the new Tails and in the old planner, from the same copy: the same aircraft rows "
             f"({dict(kinds(new_log))}), logged as planner with the tab's ID; the old planner, opened again, no longer lists it"), problems
 
 

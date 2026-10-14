@@ -237,9 +237,16 @@ export function marketChange(m: MarketRow, field: MarketField, typed: string, ty
   if (JSON.stringify(m[col] ?? null) === JSON.stringify(v)) return null;
   return { table: "markets", op: "update", key: { id: m.id }, base: m.updated_at, values: { [col]: v } };
 }
-/** The old document's market order: its keys ("Airline|Market") as JSON keys come back shortest first, then by their
- *  characters. */
-export const keyOrder = (a: string, b: string) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
+/** The old document's market order: its keys ("Airline|Market") as JSON keys come back as the database keeps a jsonb
+ *  object's keys, shortest first in bytes (UTF-8: a dash "–" is three), then byte by byte. The rehearsal found "Ryanair|Europe
+ *  – low" (20 letters, 22 bytes) placed before "Pan American|Transcon" (21) when letters were counted. */
+const utf8 = new TextEncoder();
+export function keyOrder(a: string, b: string): number {
+  const x = utf8.encode(a), y = utf8.encode(b);
+  if (x.length !== y.length) return x.length - y.length;
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return (x[i] ?? 0) - (y[i] ?? 0);
+  return 0;
+}
 
 // ---------- removed routes
 export interface RemovedRoute {
@@ -266,3 +273,10 @@ export const pageId = (link: string) => /enterprises\/(\d+)/.exec(link)?.[1] ?? 
 // ---------- the flights' CSV (the old Export flights)
 export const CSV_HEAD = ["Flight", "Airline", "From", "To", "Days", "Dep local", "Arr local", "+d", "Duration", "Tail", "Aircraft", "Config", "Seats", "Service", "Price", "SLF", "Wave"];
 export const csvLine = (r: readonly (string | number | null | undefined)[]) => r.map((v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`).join(",");
+/** The CSV's Wave column for the outbound and the return, as the old flightsCsv wrote it from its waveAt: the bank the
+ *  outbound leaves in ("B1"), and the bank the return comes into, which is the first it can make even when that's
+ *  beyond the wait and the route's pill says "arr off wave" (the library's `next`); "off" for none. The rehearsal found
+ *  "off" on returns the old file named "B1". */
+export function csvBanks(w: { dep: { ok: boolean; n: number } | null; arr: { next: number } | null }): [string, string] {
+  return [w.dep?.ok && w.dep.n ? `B${w.dep.n}` : "off", w.arr?.next ? `B${w.arr.next}` : "off"];
+}
