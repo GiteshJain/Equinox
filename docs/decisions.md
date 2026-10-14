@@ -295,6 +295,9 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
     evening capture is the only game task, and the old planner gets no changes at all (manual §1).
     **14 Oct: the pause is lifted** (Gitesh). The game runs again, with game changes made in the old planner only until
     the switch; its code stays frozen. Brief: `docs/briefs/2026-10-14-order-timing.md`.
+  - **14 Oct: the switch is done** (build pull request 13, #38, after Gitesh's trial: "all looks good"). `/planner/`
+    opens the new planner and game changes are made there; the old planner stays at `/planner/old/` as the way back,
+    with nothing saved in it, until the clean-up (build pull request 14) removes it.
 
   Reason: the planner is one 584 KB file; any change redraws the whole screen; the cash forecast sits in the screen
   code; and each opening downloads about 1.8 MB whatever screen is open, while each save sends the whole 230 KB
