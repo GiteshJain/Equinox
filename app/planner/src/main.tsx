@@ -8,8 +8,8 @@ import { queryClient } from "./data/query";
 import { exposeForChecks } from "./data/saving";
 import "./ui/styles.css";
 
-// Cloudflare sends /planner/next to /planner/next/ (web/_redirects); this does the same anywhere else, before the
-// router reads the address.
+// Cloudflare sends /planner to /planner/ (web/_redirects); this does the same anywhere else, before the router reads
+// the address.
 if (location.pathname === BASENAME) history.replaceState(history.state, "", BASENAME + "/" + location.search + location.hash);
 exposeForChecks();
 const router = createPlannerRouter();

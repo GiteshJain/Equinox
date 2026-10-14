@@ -170,7 +170,7 @@ class OldRoutes(rs.Planner):
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text else None)
         pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
-        await pg.goto(f"http://{host}:{self.port}/planner/")
+        await pg.goto(f"http://{host}:{self.port}/planner/old/")
         return pg
 
     async def ready(self):
@@ -222,7 +222,7 @@ def query(f):
 
 async def new_go(pl, to, detail=None):
     """The new planner at one of its addresses (inside the router, as a click would take it; the address under
-    /planner/next), once it has read everything and, for a route, drawn it (or given up after 10 s, so the comparison
+    /planner), once it has read everything and, for a route, drawn it (or given up after 10 s, so the comparison
     names what's missing)."""
     await pl.pg.evaluate("t => window.__eqPlanner.go(t)", to)
     await pl.pg.wait_for_function("""want => { const m = document.querySelector('main[data-screen=routes]');

@@ -5,7 +5,7 @@
 //     departures a week against the airport cap, the next free flight-number pair);
 //   - a focus city's note; the day strip with the bank windows and a tick for every flight, and the hourly bars; the week in
 //     15-minute slots; the day's flights with their bank; the connections by bank.
-// Addresses: /planner/next/hubs and /planner/next/hubs/<airport>?day=<0-6>, so a link reopens the same board. It only
+// Addresses: /planner/hubs and /planner/hubs/<airport>?day=<0-6>, so a link reopens the same board. It only
 // reads: everything comes from the start's rules input (rules_input(world, 'flown')) through the planning library
 // (hubs.board, hubs.connectionsTable); model.ts only words it. Times are local at the airport, as the old Hubs showed.
 import { useMemo, type CSSProperties } from "react";

@@ -1,11 +1,13 @@
 # Rehearses a pull request's database changes on a copy of last night's backup (decision #8), then lets the pull
-# request's own planners sign in and save for real into that copy (#17): the new planner at /planner/next/ (#18) through
-# planner_save(), after its types are generated again from the copy and compared with the committed ones, then the old one;
+# request's own planners sign in and save for real into that copy (#17): the new planner at /planner/ (#18; at
+# /planner/next/ until the switch) through planner_save(), after its types are generated again from the copy and compared
+# with the committed ones, and the addresses web/_redirects gives it and the old planner (at /planner/old/), then the old one;
 # the planning library (#19) side by side with the old planner's Tails and Hubs on the copy; the captured figures
 # (#19) side by side with the old planner's Review and Check; and the new planner's Home, Routes, Tails, Hubs, Check and
 # Review side by side with the old ones.
 # Runs when a pull request adds or changes a migration or a database test, changes either planner (a planner change can
-# break saving), the planning library (lib/) or their tests, or changes this check. The copy comes from Cloudflare R2, read with a read-only
+# break saving) or the planner's addresses (web/_redirects), the planning library (lib/) or their tests, or changes this
+# check. The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
 # result is posted on the pull request; Claude applies a change to the live database only after it passes here and
 # Gitesh says "merge".
@@ -21,6 +23,7 @@ on:
       - "database/describe.*"
       - "docs/data.md"
       - "web/planner/**"
+      - "web/_redirects"
       - "app/**"
       - "lib/**"
       - "package.json"
@@ -124,6 +127,7 @@ jobs:
           CHECK_SCREENS_DIR: ${{ runner.temp }}/check-screens   # the new Check and the old at 380 and 1280 px (#18 build pull request 9)
           REVIEW_SCREENS_DIR: ${{ runner.temp }}/review-screens   # the new Review and the old at 380 and 1280 px (#18 build pull request 10)
           REFERENCE_SCREENS_DIR: ${{ runner.temp }}/reference-screens   # the new Interline, Photos and Reference and the old at 380 and 1280 px (#18 build pull request 12)
+          SWITCH_SCREENS_DIR: ${{ runner.temp }}/switch-screens   # the new planner at /planner/ and the old at /planner/old/, at 1280 px (#18 build pull request 13)
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -222,6 +226,18 @@ jobs:
         with:
           name: reference-screens
           path: ${{ runner.temp }}/reference-screens/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # The new planner's Home at /planner/ and the old planner's Home at /planner/old/ (tests/planner_next_test.py, the
+      # addresses), at 1280 px: the switch (#18 build pull request 13)
+      - name: Keep the screenshots of the new planner at /planner/ and the old at /planner/old/
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-screens
+          path: ${{ runner.temp }}/switch-screens/*.png
           if-no-files-found: ignore
           retention-days: 3
 

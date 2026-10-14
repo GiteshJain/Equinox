@@ -21,6 +21,9 @@ import { Board } from "../../ui/Board";
 import { inDays, niceDate, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { Pill } from "../../ui/Pill";
+import { isOpen, statusOf } from "../interline/model";
+import { useAgreements } from "../interline/reads";
+import { useInterlineRows } from "../interline/useRows";
 import { RoutePopup } from "../routes/RoutePopup";
 import { itemRoute } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
@@ -60,12 +63,15 @@ export function Home() {
   const cardsQ = useAirlineCards(w);
   const growthQ = useGrowth(w);
   const photosQ = useSitePhotos();
+  // the interline line: Interline's rows (shared, interline/useRows.ts) and the world's agreements
+  const interline = useInterlineRows(w);
+  const agreementsQ = useAgreements(w);
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
   // the route pop-up a click on the map's route opens (Routes' RoutePopup, build pull request 6)
   const [popup, setPopup] = useState<number | null>(null);
   // the aircraft pop-up an item about one aircraft opens, as on the old Home (Tails' AircraftPopup, build pull request 7),
-  // kept in the address (/planner/next/?aircraft=N001AW) so a link or the back button reopens it
+  // kept in the address (/planner/?aircraft=N001AW) so a link or the back button reopens it
   const [search, setSearch] = useSearchParams();
   const tailPopup = search.get("aircraft");
   const setTailPopup = (reg: string | null) => setSearch((s) => {
@@ -86,12 +92,17 @@ export function Home() {
   const checks = useMemo(() => (rules && aircraftQ.data && rotationsQ.data
     ? checkRules.oneWeek(rules, { aircraft: aircraftQ.data, rotations: rotationsQ.data }, today) : null), [rules, aircraftQ.data, rotationsQ.data, today]);
   const todos = useMemo(() => (todosQ.data && itemsQ.data ? todoViews(todosQ.data, itemsQ.data) : null), [todosQ.data, itemsQ.data]);
+  const interlineOpen = useMemo(() => {
+    if (!interline.rows || !agreementsQ.data) return null;
+    const records = new Map(agreementsQ.data.map((a) => [a.airline_id + "|" + a.country_code, a]));
+    return interline.rows.filter((r) => isOpen(statusOf(records.get(r.airline_id + "|" + r.cc)))).length;
+  }, [interline.rows, agreementsQ.data]);
   const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
-    && aircraftQ.data && planCardsQ.data && airlinesQ.data);
+    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null);
   const attention = useMemo(() => (rules && checks && todosQ.data ? homeAttention({
     now, today, airlines, rules, checks, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
-    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null,
-  }) : null), [now, today, airlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data]);
+    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen,
+  }) : null), [now, today, airlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
 
   // the hero's globe: every flying route, and each aircraft in the air at this minute (the library's positions)

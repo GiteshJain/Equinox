@@ -1,6 +1,7 @@
 """The new planner on the rehearsal's copy (decision #18, build pull request 1, spec §7): the pull request's own new
-planner, built into web/app/, at its live address (/planner/next/), signed in as test staff, reading from and saving
-into a full local copy of Supabase restored from last night's backup, with the tables read back afterwards.
+planner, built into web/app/, at its live address (/planner/ since the switch, build pull request 13), signed in as test
+staff, reading from and saving into a full local copy of Supabase restored from last night's backup, with the tables read
+back afterwards.
 
 Run by database/rehearse.sh after the restore, the pending changes and the SQL tests have passed, and after it has built
 the new planner (npm ci, npm run build). Like tests/real_saves_test.py, whose helpers it uses, it needs that copy, so it
@@ -30,28 +31,44 @@ rule: nothing goes outside.
 4. Two tabs read the same to-do; the first changes its title; the second's change to that row comes back as a clash
    carrying the first's title, and the second's change to another row in the same call isn't written either. The
    second tab shows the row as it is now and names it.
-5. A preview address (127.0.0.1) reads, says "preview · not saved", and sends no write.
-6. At 380 px wide, every screen (Reference with every section open) has no sideways scroll and no errors.
-7. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
+5. A preview address (127.0.0.1) reads, says "preview · not saved", sends no write, and its notice links to the live
+   planner at /planner/.
+6. At 380 px wide, every screen (Reference with every section open) has no sideways scroll, no errors and no link into
+   the old planner (/planner/old/) or to an address used while the new one was built (/planner/next/).
+7. The addresses (the switch, build pull request 13, spec docs/specs/2026-10-14-switch.md), as tests/harness.py serves
+   them from web/_redirects the way Cloudflare does: /planner and /planner/ open the new planner, and so does a deep
+   address (/planner/review/VS, signed in there, shows Virgin's Review); every /planner/next/... address answers 301 with
+   the same address under /planner/ (/planner/next/routes opens Routes at /planner/routes); /planner/old/ serves the old
+   planner's file byte for byte, and signing in through its own form there shows its Home with the copy's data, writing
+   nothing; the built new planner (web/app/) has no link to /planner/old/ or /planner/next/. Screenshots of the new
+   planner's Home at /planner/ and the old Home at /planner/old/, at 1280 px, go to SWITCH_SCREENS_DIR (the run's
+   switch-screens artifact), when it's set.
+8. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
 the log is posted on the pull request. Never prints the local keys or the test passwords.
 
-Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV (a file holding `supabase status -o env`), LOCAL_DB_URL and
-SECRET_TABLES. Usage: python3 tests/planner_next_test.py
+Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV (a file holding `supabase status -o env`), LOCAL_DB_URL,
+SECRET_TABLES and SWITCH_SCREENS_DIR. Usage: python3 tests/planner_next_test.py
 """
-import asyncio, datetime, json, re, secrets, sys
+import asyncio, datetime, http.client, json, os, re, secrets, sys
+from pathlib import Path
 from urllib.parse import urlsplit
-from harness import ROOT, WEB, LIVE_HOST, serve, settle
+from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, OLD_PLANNER, serve, settle
 from playwright.async_api import async_playwright
-from real_saves_test import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks,
+from real_saves_test import (count_changes, counts, is_planner_user, jobs_since, library, local_env, log_since, make_user, marks,
                              psql, token_for, why)
+import real_saves_test as rs
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
 PAGE = WEB / "app" / "index.html"
-SCREENS = [("home", "/planner/next/"), ("routes", "/planner/next/routes"), ("tails", "/planner/next/tails"),
-           ("hubs", "/planner/next/hubs"), ("check", "/planner/next/check"), ("review", "/planner/next/review"),
-           ("interline", "/planner/next/interline"), ("photos", "/planner/next/photos"), ("reference", "/planner/next/reference")]
+SCREENS = [("home", "/planner/"), ("routes", "/planner/routes"), ("tails", "/planner/tails"),
+           ("hubs", "/planner/hubs"), ("check", "/planner/check"), ("review", "/planner/review"),
+           ("interline", "/planner/interline"), ("photos", "/planner/photos"), ("reference", "/planner/reference")]
+OLD_FILE = WEB / "planner" / "index.html"
+SWITCH_SCREENS_DIR = os.environ.get("SWITCH_SCREENS_DIR")
+# A link into the old planner, or to an address used while the new one was built (the switch: none may be left)
+OLD_LINK = re.compile(r"^(https?://[^/]+)?/planner/(old|next)(/|$|\?|#)")
 NOT_STAFF = "This account doesn't have access to the planner."
 AUTH_KEY = "equinox-planner-auth"
 WORLD = "(select w.id from public.worlds w order by w.is_default desc, w.id limit 1)"
@@ -105,7 +122,7 @@ class Planner:
         self.inflight = 0      # requests on their way through route()
         self.checks = []       # the address checks (where), awaited by close()
 
-    async def open(self, host=LIVE_HOST, path="/planner/next/", moment=None):
+    async def open(self, host=LIVE_HOST, path=NEW_PLANNER, moment=None):
         """Opens the planner; with a moment (ISO), its clock stays at that moment (tests/home_side_by_side_test.py)."""
         rules = f"MAP {LIVE_HOST} 127.0.0.1:{self.port}, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost"
         self.b = await self.p.chromium.launch(args=[f"--host-resolver-rules={rules}", "--no-proxy-server"])
@@ -616,6 +633,9 @@ async def preview(p, port, env, facts, staff, seen):
             problems.append(f"the header says {state!r}, not \"preview · not saved\"")
         if not await pv.pg.evaluate("!!document.querySelector('.eqpreview')"):
             problems.append("no preview notice on the page")
+        link = await pv.pg.evaluate("(document.querySelector('.eqpreview a') || {href: ''}).href")
+        if link != f"https://{LIVE_HOST}{NEW_PLANNER}":
+            problems.append(f"the preview notice links to {link!r}, not the live planner at https://{LIVE_HOST}{NEW_PLANNER}")
         if "planner_save" in pv.rpcs:
             problems.append("the preview sent planner_save() to the copy")
         if log_since(mark):
@@ -623,7 +643,8 @@ async def preview(p, port, env, facts, staff, seen):
         problems += count_changes(n0, counts()) + pv.errors
     finally:
         await pv.close()
-    return f"a preview address reads (Home shown) and sends no write (it called {', '.join(sorted(set(pv.rpcs))) or 'nothing'})", problems
+    return (f"a preview address reads (Home shown), sends no write (it called {', '.join(sorted(set(pv.rpcs))) or 'nothing'}), and its "
+            f"notice links to the live planner at {NEW_PLANNER}"), problems
 
 
 # ---------- 6. a phone ----------
@@ -632,6 +653,7 @@ async def phone(p, port, env, facts, staff, seen):
     seen.append(ph)
     problems = []
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
+    links = 0
     try:
         await ph.open()
         await ph.sign_in(*staff)
@@ -643,21 +665,17 @@ async def phone(p, port, env, facts, staff, seen):
             path = await ph.pg.evaluate("location.pathname")
             if path != href:
                 problems.append(f"{sid}: its address is {path}, expected {href}")
-            built = True   # every screen is rebuilt (build pull requests 5 to 12)
             ready = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
                      "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
                      "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
                      "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
                      "reference": "main[data-screen=reference][data-reference-ready=yes]"}
-            if built:
-                try:
-                    await ph.pg.wait_for_selector(ready[sid], timeout=60000)
-                    await settle(ph.pg, 300)
-                except Exception:
-                    problems.append(f"{sid}: it isn't ready at 380 px wide")
-            if not built and not await ph.pg.evaluate("!!document.querySelector('[data-not-built] a[href=\"/planner/\"]')"):
-                problems.append(f"{sid}: no line linking to the old planner")
-            if sid in ("check", "review") and built:
+            try:   # every screen is rebuilt (build pull requests 5 to 12)
+                await ph.pg.wait_for_selector(ready[sid], timeout=60000)
+                await settle(ph.pg, 300)
+            except Exception:
+                problems.append(f"{sid}: it isn't ready at 380 px wide")
+            if sid in ("check", "review"):
                 await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
                 await settle(ph.pg, 300)
             if sid == "reference":
@@ -666,8 +684,11 @@ async def phone(p, port, env, facts, staff, seen):
             over = await ph.pg.evaluate(scroll)
             if over > 0:
                 problems.append(f"{sid}: the page scrolls sideways by {over} px at 380 px wide")
+            hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
+            links += len(hrefs)
+            problems += [f"{sid}: a link to {h}" for h in hrefs if OLD_LINK.match(h or "")]
             problems += [f"{sid}: {e}" for e in ph.errors[e0:]]
-        await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/next/review/VS")
+        await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/review/VS")
         await ph.pg.wait_for_selector("main[data-screen=review][data-review-ready=yes]", timeout=90000)
         await ph.pg.click("#rev-expall")
         await settle(ph.pg, 300)
@@ -676,7 +697,123 @@ async def phone(p, port, env, facts, staff, seen):
         problems += ph.errors
     finally:
         await ph.close()
-    return f"at 380 px wide, all {len(SCREENS)} screens (Check and Review with every board open, Reference with every section open) have no sideways scroll and no errors", problems
+    return (f"at 380 px wide, all {len(SCREENS)} screens (Check and Review with every board open, Reference with every section open) have no "
+            f"sideways scroll, no errors and none of their {links} links goes into the old planner or to /planner/next/"), problems
+
+
+# ---------- 7. the addresses (the switch) ----------
+def answer(port, path):
+    """What the local server (tests/harness.py, which follows web/_redirects as Cloudflare does) answers for an address,
+    without following a redirect: (status, Location, body)."""
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=15)
+    try:
+        c.request("GET", path)
+        r = c.getresponse()
+        return r.status, r.getheader("Location"), r.read()
+    finally:
+        c.close()
+
+
+def built_links():
+    """Where the built new planner (web/app/) still names the old planner's address or an address used while it was built."""
+    bad = []
+    for f in sorted((WEB / "app").rglob("*")):
+        if f.is_file() and f.suffix in (".js", ".html", ".css"):
+            text = f.read_text(errors="replace")
+            bad += [f"{f.relative_to(WEB)} names {n}" for n in ("/planner/old", "/planner/next", "data-not-built") if n in text]
+    return bad
+
+
+# (address, status, what it gives: "new" the new planner's page, "old" the old planner's file, else where it redirects to)
+ADDRESSES = [
+    ("/planner", 301, "/planner/"), ("/planner/", 200, "new"), ("/planner/review/VS", 200, "new"),
+    ("/planner/routes/PA/JFK-ORD", 200, "new"),
+    ("/planner/next", 301, "/planner/"), ("/planner/next/", 301, "/planner/"), ("/planner/next/routes", 301, "/planner/routes"),
+    ("/planner/next/review/VS", 301, "/planner/review/VS"), ("/planner/next/tails?airline=PA", 301, "/planner/tails?airline=PA"),
+    ("/planner/old", 301, "/planner/old/"), ("/planner/old/", 200, "old"),
+]
+
+
+async def addresses(p, port, env, facts, staff, seen):
+    problems = []
+    new_page, old_page = PAGE.read_bytes(), OLD_FILE.read_bytes()
+    for path, code, what in ADDRESSES:
+        status, loc, body = answer(port, path)
+        if status != code:
+            problems.append(f"{path} answers {status}{' to ' + loc if loc else ''}, not {code}{' to ' + what if code != 200 else ''}")
+        elif code != 200 and loc != what:
+            problems.append(f"{path} goes to {loc}, not {what}")
+        elif what == "new" and body != new_page:
+            problems.append(f"{path} isn't the new planner's page (web/app/index.html)")
+        elif what == "old" and body != old_page:
+            problems.append(f"{path} isn't the old planner's file (web/planner/index.html) as it is")
+    problems += built_links()
+    if SWITCH_SCREENS_DIR:
+        Path(SWITCH_SCREENS_DIR).mkdir(parents=True, exist_ok=True)
+
+    # the new planner: signed in at a deep address, an address from the build, then Home at /planner/
+    pl = Planner(p, port, env, facts)
+    seen.append(pl)
+    try:
+        await pl.open(path="/planner/review/VS")
+        await pl.fill_sign_in(*staff)
+        await pl.pg.wait_for_selector("main[data-screen=review][data-review-ready=yes]", timeout=90000)
+        got = await pl.pg.evaluate("[location.pathname, document.querySelector('main[data-screen=review]').dataset.airline]")
+        if got != ["/planner/review/VS", "VS"]:
+            problems.append(f"/planner/review/VS, signed in there, shows {got[0]} on {got[1]!r}")
+        resp = await pl.pg.goto(f"http://{LIVE_HOST}:{port}/planner/next/routes")
+        hop = resp.request.redirected_from if resp else None
+        first = await hop.response() if hop else None
+        if not first or first.status != 301:
+            problems.append(f"/planner/next/routes didn't answer 301 ({first.status if first else 'no redirect'})")
+        await pl.pg.wait_for_selector("main[data-screen=routes][data-routes-ready=yes]", timeout=60000)
+        path = await pl.pg.evaluate("location.pathname")
+        if path != "/planner/routes":
+            problems.append(f"/planner/next/routes ended at {path}, not /planner/routes")
+        await pl.pg.goto(f"http://{LIVE_HOST}:{port}{NEW_PLANNER}")
+        await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=90000)
+        await settle(pl.pg, 1000)
+        if SWITCH_SCREENS_DIR:
+            await pl.pg.screenshot(path=f"{SWITCH_SCREENS_DIR}/new-planner-at-planner-1280.png", full_page=True)
+        problems += pl.errors
+    except Exception as e:
+        problems.append("the new planner: " + why(e))
+    finally:
+        await pl.close()
+
+    # the old planner at /planner/old/: its own sign-in, then its Home; opening it writes nothing
+    try:
+        of = rs.planner_facts()
+        old = rs.Planner(p, port, env, of, library(of["lib_version"]))
+    except Exception as e:
+        return "addresses", problems + ["the old planner: " + why(e)]
+    seen.append(old)
+    try:
+        n0, mark = counts(), marks()
+        await old.open()
+        await old.sign_in(*staff)
+        got = await old.pg.evaluate("""({ path: location.pathname, view: (document.querySelector('nav button.on[data-view]') || {dataset: {}}).dataset.view || '',
+            boards: [...document.querySelectorAll('#view .board h3.rh')].map(h => h.textContent.trim()) })""")
+        if got["path"] != OLD_PLANNER:
+            problems.append(f"the old planner moved to {got['path']}")
+        if got["view"] != "home" or not any(b.startswith("Needs attention") for b in got["boards"]):
+            problems.append(f"the old planner, signed in, shows {got['view'] or 'no screen'} with boards {[b[:20] for b in got['boards']][:6]}, not its Home")
+        await old.pg.set_viewport_size({"width": 1280, "height": 900})
+        await settle(old.pg, 1000)
+        if SWITCH_SCREENS_DIR:
+            await old.pg.screenshot(path=f"{SWITCH_SCREENS_DIR}/old-planner-at-planner-old-1280.png", full_page=True)
+        rows = log_since(mark)
+        if rows:
+            problems.append("opening the old planner changed the tables: " + ", ".join(sorted({r["table"] for r in rows})))
+        problems += count_changes(n0, counts()) + old.errors
+    except Exception as e:
+        problems.append("the old planner: " + why(e))
+    finally:
+        await old.close()
+    return (f"the addresses: /planner/ and a deep address open the new planner; {sum(1 for a in ADDRESSES if '/next' in a[0])} "
+            f"/planner/next/ addresses answer 301 with the same address under /planner/; /planner/old/ is the old planner's file as "
+            f"it is, its sign-in and Home work, and opening it writes nothing; the built planner has no link to either"
+            + ("; screenshots of both at 1280 px kept" if SWITCH_SCREENS_DIR else "")), problems
 
 
 async def main():
@@ -728,7 +865,7 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, phone):
+            for check in (two_tabs, preview, phone, addresses):
                 try:
                     label, problems = await check(p, port, env, facts, staff, seen)
                 except Exception as e:

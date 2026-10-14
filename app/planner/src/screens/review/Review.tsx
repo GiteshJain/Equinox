@@ -9,7 +9,7 @@
 //     (route_profit(), aircraft_profit(), fare_changes()), the Fare plan (fare_plan_status());
 //   - Manual entry (ManualEntry.tsx): cash and fixed costs for today, the nightly log (cash_log()), loads by hand.
 // The boards fold by their titles as Check's do (all folded on arrival, Collapse all and Expand all). Address:
-// /planner/next/review (the first airline's page, as the old Review opens) and /planner/next/review/<airline code>; with a
+// /planner/review (the first airline's page, as the old Review opens) and /planner/review/<airline code>; with a
 // route after it (/review/PA/JFK-ORD, from Home's needs attention) the route profit table opens filtered to that route.
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";

@@ -98,7 +98,21 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
   const now = new Date("2026-10-13T12:00:00Z");
   const input = (x: Partial<AttentionInput> = {}): AttentionInput => ({
     now, today: "2026-10-13", airlines, rules: buildRules(base), checks: [], todos: [], capture: null, backups: null, jobs: null, cards: null,
-    growth: null, locale: L, ...x,
+    growth: null, interlineOpen: null, locale: L, ...x,
+  });
+  it("interline: the old Home's line, after the airport caps and before the routes to fix, with no key; none when every pair has an answer", () => {
+    const leg = (id: number, days: number[]) => ({ id, airline_id: 1, rotation_id: null, flight_no: null, origin_code: "HUB", dest_code: "AAA", aircraft_id: null, days_utc: days, dep_utc_min: 360, block_min: 60 });
+    const rules = buildRules({ ...base, world_rules: { departures_per_airport_week: 7 }, flight_legs: [leg(1, [1, 2, 3, 4, 5, 6, 7])] });
+    const growth = { profit_captured: false, fix_or_reduce: [], load_patterns: [
+      { airline_id: 1, route_id: 3, hub: "HUB", dest: "CCC", mark: "cut" as const, why: "under 85% on most departures — reduce frequency or downgauge" }] };
+    expect(homeAttention(input({ rules, growth, interlineOpen: 2 })).map((a) => [a.cls, a.screen, a.key, a.text])).toEqual([
+      ["bad", "routes", undefined, "HUB: 7 departures a week — the cap is 7 per airport"],
+      ["mute", "interline", undefined, "Interline: 2 airline–country pairs without an agreement"],
+      ["warn", "routes", "route|Test Air|HUB|CCC", "HUB–CCC: loads say reduce — under 85% on most departures — reduce frequency or downgauge"],
+    ]);
+    expect(homeAttention(input({ interlineOpen: 1 }))).toEqual([{ cls: "mute", screen: "interline", text: "Interline: 1 airline–country pair without an agreement" }]);
+    expect(attKind({ text: "Interline: 1 airline–country pair without an agreement" })).toBe("interline");
+    expect(homeAttention(input({ interlineOpen: 0 }))).toEqual([]);
   });
   it("one-week checks due, to-dos due or overdue, can order: the old words and keys", () => {
     const flown = buildRules({ ...base, rotations: [{ id: 1, airline_id: 1, route_id: 1 }], flight_legs: [

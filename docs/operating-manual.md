@@ -19,9 +19,10 @@ Until each is built and merged, the rules below stand as they are.
   each world's rules as data; the change log and the daily history; one row per flight, a month of detail, then the
   monthly archive; backups and archives in Cloudflare R2; real saves tested on a local copy of last night's backup.
   The automatic jobs are in §7.
-- **#18, decided 12 Oct:** the planner is rebuilt in React with TypeScript at `/planner/next/`, screen by screen, each
-  checked against the old screen's numbers. Until `/planner/` switches over, the old planner and the adapter stay
-  as they are.
+- **#18, decided 12 Oct:** the planner is rebuilt in React with TypeScript, screen by screen, each checked against the
+  old screen's numbers. **`/planner/` switched to the new planner on 14 Oct** (build pull request 13); the old planner
+  stays at `/planner/old/` as the way back (§1), and it and the adapter stay as they are until the clean-up (build pull
+  request 14).
 - **#19, decided 12 Oct:** one home for each calculation. Planning rules (block times, turns, connections, maintenance)
   in one TypeScript library; figures from the capture (cash forecast, route profit, growth signals, hub progress) in
   the database. Until it's built, the figures in §3 and §4 are worked out as they are now. The weekly report is on the
@@ -39,15 +40,18 @@ Details and open points: `docs/decisions.md`.
 ## 1. How we work
 - **The game runs while the new planner is built (#18).** Orders, scheduling, retimes and the rest go on as normal,
   and so do the Saturday review and the monthly work. Claude's data-only changes go in as usual (below).
-  - **Until the switch, game changes are made in the old planner only.** The new one at `/planner/next/` is for building
-    and review, so the two never save over each other.
+  - **Game changes are made in the new planner at `/planner/`.** The old planner at `/planner/old/` is the way back
+    only, and nothing is saved in it, so the two never save over each other. *Since 14 Oct (#18, build pull request 13)
+    · why (Gitesh): the trial of the new planner passed ("all looks good").* Going back is one line in `web/_redirects`
+    (the planner guide, "The way back").
   - **The old planner's code is frozen:** no changes at all to `web/planner/index.html`. Anything found while playing
-    is fixed in the new planner. If a rule number has to change before the switch-over, the rule-number cross-check is
+    is fixed in the new planner. If a rule number has to change before the clean-up, the rule-number cross-check is
     removed instead.
 
   *Game running again since 14 Oct; code frozen since 12 Oct · why (Gitesh): the 15 A321neos were scheduled on 13 Oct,
   waiting was costing growth with the build close to done, and lifting the pause carried little risk. The code stays
-  frozen so nothing is built twice.* The freeze ends when `/planner/` switches to the new planner.
+  frozen so nothing is built twice.* The freeze ends with the clean-up (build pull request 14), which removes the old
+  planner.
 - **Say first when something will take more than 5 minutes,** with roughly how long, before starting it (a helper's
   build, a long check run, a big data job). *Since 12 Oct (Gitesh).*
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
@@ -62,7 +66,8 @@ Details and open points: `docs/decisions.md`.
   unlimited deploys and previews; our own address survives any future change of host.*
   - **The build:** Cloudflare runs `if [ -f package.json ]; then npm ci && npm run build; fi` before it publishes,
     output folder `web`, Node 22 (`.nvmrc`). It builds the new planner (`app/planner/`) into `web/app/`, served under
-    `/app/` with its page at `/planner/next/`. A build that fails leaves the last good version live. *Since 12 Oct (#18,
+    `/app/` with its page at `/planner/` (since the switch, 14 Oct; `web/_redirects`). A build that fails leaves the
+    last good version live. *Since 12 Oct (#18,
     build pull request 1) · why: the new planner is a React app that has to be built; the checks run the same build.*
 - **Supabase stays on the free plan.** We move to the paid plan ($25 a month) only on a trigger, and each trigger means a
   brief at the next weekly review, not an automatic upgrade:
@@ -92,7 +97,7 @@ Details and open points: `docs/decisions.md`.
   the new planner's install, type check, lint, unit tests and build; the planning library's cases and its optimiser
   against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every
   planner screen, look-only previews and the planner's key numbers against saved answers;
-  every website page and the new planner's sign-in at `/planner/next/`; the old planner's rule numbers against
+  every website page, the new planner's sign-in at `/planner/` and the planner's addresses; the old planner's rule numbers against
   `settings` and `world_rules`). When the database, either planner or the library changes, the *Database rehearsal*
   also generates the new planner's types again from the copy (they must match the committed
   `app/planner/src/db/types.ts`), has the new planner sign in, read and save on the copy, checks the library's
@@ -392,6 +397,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 14 Oct | Until the switch, game changes are made in the old planner only; the new one at `/planner/next/` is for building and review, so the two never save over each other | Game changes are made in the new planner at `/planner/`; the old planner at `/planner/old/` is the way back only, and nothing is saved in it (§1). Why: Gitesh, the trial passed; the switch (#18, build pull request 13) |
 | 14 Oct | The game is paused until the new planner is done: the evening capture is the only game task (no scheduling, orders, retimes, fare changes, interline actions or salary runs), the Saturday review and monthly work wait, and Claude makes no data-only changes | The game runs again; game changes go through the old planner only until the switch, and its code stays frozen (§1). Why: Gitesh, once the 15 A321neos were flying, and with waiting costing growth at little risk |
 | 11 Oct | Hubs first covers only opening a new hub; a base already open can grow on any route | Every new aircraft goes to the main hub until it reaches 750 weekly departures; other bases, open or new, only for contested routes (§3). Why: Gitesh, when G-AADU was nearly planned at Manchester on uncontested routes |
 | 10 Oct | Data-only changes (plan cards, to-dos, notes, logs) go into `planner_state` | Into the tables, through `planner_item_put()` or plain SQL after the `equinox.actor` line (§1). Why: the switch-over (#13, pull request 9) froze `planner_state`; the planner reads the tables |

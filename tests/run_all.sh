@@ -13,7 +13,7 @@ run() {
 }
 # The new planner (#18, design §10) and the planning library (#19, lib/rules/): the same install and build Cloudflare
 # runs, so a pull request that wouldn't build can't merge. It builds the planner into web/app/, which the website check
-# then opens at /planner/next/, and the library into lib/rules/dist/ (whose command the optimiser check and the weekly report
+# then opens at /planner/, and the library into lib/rules/dist/ (whose command the optimiser check and the weekly report
 # run) and web/assets/rules.js (which the website check loads).
 new_planner() {
   local step

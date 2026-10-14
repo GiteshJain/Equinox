@@ -84,6 +84,24 @@ The two new lines go above the old ones. The target is the folder, `/app/`, not 
 `/planner/next/review/VS` and so on. `_headers` gives `/app/assets/*` a year's caching, since their names change with
 every build, and keeps `/app/index.html` uncached.
 
+**Since the switch (§11, build pull request 13, 14 Oct)** the rules are:
+
+```
+/planner/next     /planner/           301
+/planner/next/*   /planner/:splat     301
+/planner/old      /planner/old/       301
+/planner/old/*    /planner/           200
+/planner          /planner/           301
+/planner/*        /app/               200
+```
+
+The new planner's base is `/planner/` (`BASENAME` in `app/planner/src/data/config.ts`), so its addresses are
+`/planner/routes`, `/planner/review/VS` and so on. An address from the build moves (301) to the same address under
+`/planner/`. The old planner's file stays where it is and is served at `/planner/old/`: a 200 rule serves the file at its
+target without the rules being applied again, so `/planner/` there is the old planner's own `index.html`. Going back
+is the last line: `/planner/*   /planner/   200` again. The checks follow the file itself (`tests/harness.py` reads
+`_redirects`), so a wrong rule turns them red.
+
 ## 4. Sign-in, previews and access
 - **Sign-in:** the same Supabase sign-in and staff check (`is_planner_user()`). Sign-ups stay off (#11).
 - **Look-only previews (#8):** saving works only on `equinox-alliance.com` and `www`. Anywhere else the planner says
@@ -217,7 +235,9 @@ The rehearsal's limit stays 30 minutes; if it nears it, the side by side moves i
    `/planner/`.
 2. When every screen has passed, you use `/planner/next/` for a few days, with captures as usual.
 3. **The switch,** when you say so: `/planner/*` points at the new planner, the old one moves to `/planner/old/`, and
-   the planner guide is rewritten. Going back is one `_redirects` change.
+   the planner guide is rewritten. Going back is one `_redirects` change. *Done in build pull request 13 (14 Oct; spec
+   `docs/specs/2026-10-14-switch.md`) after Gitesh's trial ("all looks good"): the rules are in §3, game changes are made
+   in the new planner, and the old one at `/planner/old/` is the way back only (manual §1).*
 
 ## 12. The clean-up
 When you're happy, a last pull request removes:
@@ -327,6 +347,8 @@ starts to matter sooner.
 - **The interline rules** (the 17 countries, the Europe zone, the hub rivals, the countries each airline covers, the
   partners in Gander) were in the old planner's code; they are the setting `interline_rules` now, which Interline reads.
   Home's interline line in needs attention isn't rebuilt yet; it can read the same setting. Found by pull request #37.
+  *Done in build pull request 13 (the switch): Home's line counts Interline's own rows (`screens/interline/useRows.ts`,
+  shared by both) without an agreement, as the old Home did, and the Home side by side compares it.*
 - **Photos' city-photo and name lists** (which city's photo an airport takes, and the name the website gives it) are
   kept in the Photos screen's code, as the website keeps them in its own; make them data with the website. Found by pull
   request #37.

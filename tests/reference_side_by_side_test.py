@@ -508,12 +508,12 @@ async def search(old, new):
         await settle(new.pg, 500)
         path, s = await new.pg.evaluate("[location.pathname, location.search]")
         first = label.split(" ")[0]
-        ok = {"Flight": lambda: re.fullmatch(r"/planner/next/routes/[^/]+/[A-Z0-9]{3}-[A-Z0-9]{3}", path),
-              "Route": lambda: re.fullmatch(r"/planner/next/routes/[^/]+/" + re.escape(label.split(" ")[0].replace("–", "-")), path),
-              "Aircraft": lambda: path == f"/planner/next/tails/{first}",
-              "On order": lambda: path == "/planner/next/tails" and f"card={first}" in s,
-              "Planned": lambda: path == "/planner/next/tails" and "card=" in s,
-              "Airport": lambda: path == "/planner/next/routes" and f"q={first}" in s}.get(kind, lambda: False)()
+        ok = {"Flight": lambda: re.fullmatch(r"/planner/routes/[^/]+/[A-Z0-9]{3}-[A-Z0-9]{3}", path),
+              "Route": lambda: re.fullmatch(r"/planner/routes/[^/]+/" + re.escape(label.split(" ")[0].replace("–", "-")), path),
+              "Aircraft": lambda: path == f"/planner/tails/{first}",
+              "On order": lambda: path == "/planner/tails" and f"card={first}" in s,
+              "Planned": lambda: path == "/planner/tails" and "card=" in s,
+              "Airport": lambda: path == "/planner/routes" and f"q={first}" in s}.get(kind, lambda: False)()
         if not ok:
             p.append(f"Enter on {q!r} (first result {hits[0]!r}) opened {path}{s}")
         else:

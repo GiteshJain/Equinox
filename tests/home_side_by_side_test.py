@@ -27,6 +27,9 @@ nothing goes outside.
    route_loads(), against the old planner's own figures. The look: the computed styles of each part of Home and of what
    it draws by ::before (the folds' chevrons, the dots, the cards' bar), both pages the same width, at 1280 and 380 px. A difference fails and names the board, the item and both values, unless it
    is a known difference (KNOWN below, each with its rule), which is printed with how often it was used and both values.
+   Since the switch (build pull request 13) the interline line is compared too, and, because last night's copy may have
+   every interline pair answered (so neither Home shows it), once more with every agreement set to "requested" for the
+   test: both Homes read again must show the same line and the same needs attention; the statuses are then put back.
 5. Real saves in the new Home, by its own buttons: tick the first open to-do; add one with two steps; the old planner,
    opened again, shows the same to-do board; delete the new one (the planner asks in the page, never a browser
    dialog); dismiss an item of needs attention with ×; the old planner shows it dismissed too; show again; the old
@@ -65,12 +68,9 @@ failures = []
 # printed with how often it was used and both values.
 # (The average load was one, until the Building chat's review: airline_cards() now gives the old Home's own figure, every
 # captured flight of the group over the last 8 days, so it must be equal, and step 4's loads check it to the decimal.)
+# (The interline line was one, until the switch, build pull request 13: the new Home words it from Interline's rows, on
+# the setting interline_rules, so it must be equal, and the side by side says what each Home's line reads.)
 KNOWN = {
-    "interline": {
-        "rule": "the old Home's interline line comes from its own list of interline countries (IL_YES and the rest), which has no "
-                "home outside the old planner's code yet (decision #19); the new Home leaves it out until the Interline screen "
-                "(build pull request 12) gives it one.",
-        "used": 0, "where": []},
     "order on a tie": {
         "rule": "aircraft that tie (the same check day, the same delivery time) are in the old planner's list order, kept only in "
                 "the adapter's extra; the new planner orders them by aircraft id. The same aircraft, in another order.",
@@ -306,25 +306,17 @@ def compare(old, new):
         if len(oo["groups"]) != len(no["groups"]):
             p.append(f"aircraft on order: old {len(oo['groups'])} airlines, new {len(no['groups'])}")
 
-    # needs attention
+    # needs attention (the interline line included since the switch, build pull request 13)
     oa, na = old["attention"], new["attention"]
     o_items, n_items = list(oa["items"]), list(na["items"])
-    # the interline line (known): taken out of the old list before comparing, the counts adjusted
-    il = [x for x in o_items if x["key"].startswith("Interline:") or x["text"].startswith("Interline:")]
-    for x in il:
-        known("interline", x["text"])
-        o_items.remove(x)
-    o_note = oa["note"]
-    if il:
-        n_old = len(oa["items"]) - len(il)
-        o_note = f"{n_old} item{'' if n_old == 1 else 's'}" if n_old else "nothing right now"
-    if o_note != na["note"]:
+    if interline_line(old) != interline_line(new):
+        p.append(f"needs attention: the interline line: old {interline_line(old)!r}, new {interline_line(new)!r}")
+    if oa["note"] != na["note"]:
         p.append(f"needs attention: how many: old {oa['note']!r}, new {na['note']!r}")
     if oa["hidden"] != na["hidden"]:
         p.append(f"needs attention: dismissed: old {oa['hidden']!r}, new {na['hidden']!r}")
-    o_top = [t for t in oa["top"] if not t.startswith("item: Interline:")]
-    if o_top != na["top"]:
-        p.append(f"needs attention: the groups in their order: old {o_top}, new {na['top']}")
+    if oa["top"] != na["top"]:
+        p.append(f"needs attention: the groups in their order: old {oa['top']}, new {na['top']}")
     norm = lambda x: (x["group"], x["cls"], x["text"], OLD_VIEW.get(x["view"], x["view"]) if "href" not in x else x["view"], x["tail"], x["route"], x["key"])
     oc, nc = Counter(norm(x) for x in o_items), Counter(norm(x) for x in n_items)
     for k in sorted((oc - nc).keys(), key=str):
@@ -363,6 +355,11 @@ def compare(old, new):
                 if a != b and a["key"] == b["key"]:
                     p.append(f"to-do {a['key']}: old {a}, new {b}")
     return p
+
+
+def interline_line(h):
+    """The interline line in needs attention (the old Home's, and the new one's since the switch), or None."""
+    return next((x["text"] for x in h["attention"]["items"] if x["text"].startswith("Interline:")), None)
 
 
 def summary(h):
@@ -568,7 +565,7 @@ class OldHome(rs.Planner):
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text else None)
         pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
-        await pg.goto(f"http://{host}:{self.port}/planner/")
+        await pg.goto(f"http://{host}:{self.port}/planner/old/")
         return pg
 
     async def home(self):
@@ -592,6 +589,48 @@ async def new_home(pl):
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=90000)
     await settle(pl.pg, 600)
     return await pl.pg.evaluate(NEW_HOME)
+
+
+# ---------- 4c. the interline line with pairs open (the switch, build pull request 13)
+AGREEMENTS = f"""select coalesce(json_agg(json_build_object('id', a.id, 'status', a.status) order by a.id), '[]')
+                 from public.interline_agreements a where a.world_id = {WORLD}"""
+
+
+def set_statuses(rows):
+    psql("""begin;
+      select set_config('equinox.actor', 'test', true), set_config('equinox.actor_detail', 'home_side_by_side_test', true);
+      update public.interline_agreements x set status = s.status
+        from jsonb_to_recordset(:'r'::jsonb) as s(id bigint, status text) where x.id = s.id and x.status is distinct from s.status;
+      commit;""", r=json.dumps(rows))
+
+
+async def interline_open(old, new):
+    """Last night's copy may have every interline pair answered (14 Oct: 2 agreements, both signed), so neither Home shows
+    the interline line. Every agreement is set to "requested" (to_sign) for the test, both Homes are read again, and
+    needs attention must be the same in both with the line counting those pairs; then each row's status is put back."""
+    rows = json.loads(psql(AGREEMENTS).strip())
+    if not rows:
+        return "the interline line with pairs open: the copy has no interline agreement to open (not tried)", []
+    problems = []
+    try:
+        set_statuses([{"id": r["id"], "status": "to_sign"} for r in rows])
+        o = await old.reopen()
+        await new.pg.reload()
+        n = await new_home(new)
+        lo, ln = interline_line(o), interline_line(n)
+        if not lo or not ln:
+            problems.append(f"the interline line: old {lo!r}, new {ln!r} (both should show one)")
+        problems += [x for x in compare(o, n) if x.startswith("needs attention")]
+    finally:
+        set_statuses(rows)
+    if json.loads(psql(AGREEMENTS).strip()) != rows:
+        problems.append("the agreements' statuses weren't put back")
+    # both Homes as they were, for what follows
+    await old.reopen()
+    await new.pg.reload()
+    await new_home(new)
+    return (f"the interline line with pairs open: with the copy's {len(rows)} agreement(s) set to requested for the test, both Homes "
+            f"say {ln!r}, and needs attention is the same in both; the statuses put back"), problems
 
 
 async def saved(pl, mark=None, rows=0):
@@ -863,7 +902,8 @@ async def main():
                 problems = compare(o, n)
                 hrefs = sorted({x["href"] for x in n["attention"]["items"]})
                 step(not problems, f"side by side, every board equals the old Home's: key figures, aircraft on order, needs attention "
-                     f"({len(n['attention']['items'])} items with their groups, words, seriousness, links and keys), coming up "
+                     f"({len(n['attention']['items'])} items with their groups, words, seriousness, links and keys; the interline line: "
+                     f"{interline_line(n) or 'none in either'}), coming up "
                      f"({len(n['comingUp'])} rows) and the to-do board ({len(n['todo']['open'])} open, {len(n['todo']['done'])} done this week)", problems)
                 print("      the new Home's links: " + ", ".join(hrefs[:12]) + (" …" if len(hrefs) > 12 else ""), flush=True)
 
@@ -902,6 +942,11 @@ async def main():
                 for k, v in KNOWN.items():
                     where = f" ({'; '.join(v['where'][:6])})" if v["where"] else ""
                     print(f"      known difference \"{k}\": used {v['used']} time(s){where}. {v['rule']}", flush=True)
+                try:
+                    label, problems = await interline_open(old, new)
+                except Exception as e:
+                    label, problems = "the interline line with pairs open", [why(e)]
+                step(not problems, label, problems + new.errors[:3] + old.errors[:3])
 
                 # ---------- 5. real saves
                 try:

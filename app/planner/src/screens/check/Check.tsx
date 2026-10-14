@@ -9,7 +9,7 @@
 //   - Cabins (Cabins.tsx): each aircraft's cabin against its markets (cabins.fit), Refitted to, Keep as is, Show again;
 //   - Game check (GameCheck.tsx): Check against the game, the differences, fix one or all, add a flight;
 //   - Daily load report (LoadReport.tsx): a day at a time, every departure with its loads by class.
-// Address: /planner/next/check, the report's day in it (?day=YYYY-MM-DD; today, UTC, without), and the aircraft pop-up
+// Address: /planner/check, the report's day in it (?day=YYYY-MM-DD; today, UTC, without), and the aircraft pop-up
 // (?aircraft=REG, Tails' AircraftPopup, as the old planner opened it from here). Every action is one planner_save() call.
 import { useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";

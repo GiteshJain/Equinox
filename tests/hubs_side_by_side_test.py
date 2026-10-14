@@ -18,7 +18,7 @@ goes outside. Hubs only reads, so nothing here changes the copy.
    the week grid (every cell's shade, bank window, departures and arrivals, the totals and the day marked), the flight
    list (every row with its bank pill) or its empty line, and the connections table (the heading with its city pairs, every
    row: the bank, the airports arriving and leaving, the city pairs, the examples; the note).
-4. Its addresses: /planner/next/hubs opens the first base on Monday; /planner/next/hubs/<airport>?day=<0-6>, opened
+4. Its addresses: /planner/hubs opens the first base on Monday; /planner/hubs/<airport>?day=<0-6>, opened
    directly, reopens that board; the day buttons and the list of bases move the address.
 5. A preview address (127.0.0.1) shows Hubs and sends no write.
 6. At 380 px wide a hub and a focus city have no sideways scroll and no errors; the day strip and the week grid scroll
@@ -154,7 +154,7 @@ class OldHubs(rs.Planner):
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text else None)
         pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
-        await pg.goto(f"http://{host}:{self.port}/planner/")
+        await pg.goto(f"http://{host}:{self.port}/planner/old/")
         return pg
 
     async def ready(self):
@@ -293,11 +293,11 @@ async def addresses(new, port, codes):
     p = []
     pg = new.pg
     target = codes[1] if len(codes) > 1 else codes[0]
-    await pg.goto(f"http://{LIVE_HOST}:{port}/planner/next/hubs/{target}?day=3")
+    await pg.goto(f"http://{LIVE_HOST}:{port}/planner/hubs/{target}?day=3")
     await new_wait(new, f"/hubs/{target}?day=3", timeout=90000)
     got = await pg.evaluate(READ, NEW_ROOT)
     if got["selected"] != target or "*Thu" not in got["days"]:
-        p.append(f"/planner/next/hubs/{target}?day=3, opened directly, shows {got['selected']} on {[d for d in got['days'] if d.startswith('*')]}")
+        p.append(f"/planner/hubs/{target}?day=3, opened directly, shows {got['selected']} on {[d for d in got['days'] if d.startswith('*')]}")
     await pg.click(".toolbar .seg button[data-day='5']")
     try:
         await new_wait(new, f"/hubs/{target}?day=5", timeout=15000)
@@ -314,10 +314,10 @@ async def addresses(new, port, codes):
         await new_wait(new, "/hubs", timeout=15000)
         got = await pg.evaluate(READ, NEW_ROOT)
         if got["selected"] != codes[0] or "*Mon" not in got["days"]:
-            p.append(f"/planner/next/hubs shows {got['selected']} on {[d for d in got['days'] if d.startswith('*')]}, not {codes[0]} on Monday")
+            p.append(f"/planner/hubs shows {got['selected']} on {[d for d in got['days'] if d.startswith('*')]}, not {codes[0]} on Monday")
     except Exception as e:
         p.append(f"the header's Hubs link: {why(e)}")
-    return (f"its addresses: /planner/next/hubs opens {codes[0]} on Monday; /planner/next/hubs/{target}?day=3, opened directly, reopens that "
+    return (f"its addresses: /planner/hubs opens {codes[0]} on Monday; /planner/hubs/{target}?day=3, opened directly, reopens that "
             f"board; the day buttons and the list of bases move the address"), p
 
 

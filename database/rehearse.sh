@@ -33,8 +33,11 @@
 # 8. The new planner (#18, design §10), only if 1 to 6 passed: its types are generated again from the copy (after every
 #    pending change) with the local Supabase CLI and must equal app/planner/src/db/types.ts; the generated file is kept
 #    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the new planner is built
-#    (npm ci, npm run build), and tests/planner_next_test.py opens it at its live address on the copy, signs in, reads
-#    and saves through planner_save(). Runs before the real saves, whose last step (the rollback) changes the copy.
+#    (npm ci, npm run build), and tests/planner_next_test.py opens it at its live address on the copy (/planner/ since
+#    the switch), signs in, reads and saves through planner_save(), and checks the addresses web/_redirects gives (the
+#    new planner at /planner/, /planner/next/... moved there, the old planner signed in at /planner/old/), with
+#    screenshots of both planners' Home at 1280 px in SWITCH_SCREENS_DIR (the run's switch-screens artifact). Runs
+#    before the real saves, whose last step (the rollback) changes the copy.
 # 9. The planning library (#19, spec docs/specs/2026-10-12-rules-library.md §6), only if 1 to 8 passed: built (npm run
 #    build:rules), then tests/rules_library_test.py runs rules_input() on the copy through the library's command and
 #    compares its figures with the old planner's Tails and Hubs screens, opened at the same frozen moment, signed in as
@@ -260,7 +263,8 @@ new_planner() {
   (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
     || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   if reload_api "$env"; then
-    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/planner_next_test.py || rc=1
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" SWITCH_SCREENS_DIR="${SWITCH_SCREENS_DIR:-}" \
+      python3 tests/planner_next_test.py || rc=1
   else
     rc=1
   fi

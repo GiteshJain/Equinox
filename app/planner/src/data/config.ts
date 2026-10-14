@@ -10,9 +10,10 @@ export const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // look-only preview: it reads the live data and sends no writes.
 export const LIVE_HOSTS: readonly string[] = ["equinox-alliance.com", "www.equinox-alliance.com"];
 
-// The new planner's address (web/_redirects maps everything under it to the page), and the old planner's.
-export const BASENAME = "/planner/next";
-export const OLD_PLANNER = "/planner/";
+// The planner's address: web/_redirects maps everything under it to the page (the switch, 14 Oct; it was /planner/next
+// while it was built, and those addresses now redirect here). The old planner, the way back, is at /planner/old/, and
+// nothing in this planner links to it (design §11).
+export const BASENAME = "/planner";
 
 // Kept on this device: the sign-in (its own key, so the old planner's sign-in, under gander-auth, is left alone) and the
 // local/UTC choice. Nothing else is kept on the device (design §14, choice 3).
