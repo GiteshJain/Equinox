@@ -79,7 +79,6 @@ begin
    where has_table_privilege('authenticated', 'public.backup_runs', x.priv);
   assert bad is null, 'authenticated can write backup_runs: ' || bad;
   assert has_table_privilege('authenticated', 'public.backup_runs', 'select'), 'staff can''t read backup_runs';
-  assert to_regclass('public.backup_runs_before_13') is not null, 'backup_runs_before_13 is missing';
   raise notice 'pg_cron on; %; schedule_jobs() makes equinox-snapshot-fallback (0 10 * * *) and equinox-cleanup (20 10 * * *), active, as postgres, and again changes nothing; % new functions postgres only; capture_ingest() leaves raw pages to the clean-up',
     case when coalesce(v_fresh, false) then 'the migration scheduled both jobs (paused on this copy for the tests)'
          else 'the copy had the jobs already (a backup carries no schedules)' end, cardinality(fns);
@@ -88,7 +87,7 @@ $test$;
 
 -- ---------------------------------------------------------------- 2. backup_runs reads as before, and its insert
 do $test$
-declare n_before bigint; n_now bigint; bad bigint; v_id bigint; j record; v_moved boolean; v_old bigint;
+declare n_before bigint; n_now bigint; bad bigint; v_id bigint; j record;
 begin
   assert to_regclass('rehearsal_before.backup_runs') is not null, 'the backup runs weren''t saved before the changes (database/tests/before/jobs_before.sql)';
   execute 'select count(*) from rehearsal_before.backup_runs' into n_before;
@@ -104,11 +103,6 @@ begin
        select ran_at, kind, ok, tables, rows, files, bytes, commit_sha, note, object_key from rehearsal_before.backup_runs)) x$q$
      into bad;
   assert bad = 0, format('%s backup run(s) read differently from before', bad);
-  execute 'select not backup_runs_moved from rehearsal_before.jobs_state limit 1' into v_moved;
-  if v_moved then
-    select count(*) into v_old from public.backup_runs_before_13;
-    assert v_old = n_before, format('backup_runs_before_13 has %s rows, %s before', v_old, n_before);
-  end if;
 
   -- as the backup job writes it (scripts/report.sh): the newest row, the same values back, a job_runs row of job backup
   insert into public.backup_runs (kind, ok, tables, rows, files, bytes, object_key, note)
@@ -134,8 +128,8 @@ begin
     assert false, 'a run without ok was taken';
   exception when not_null_violation then null;
   end;
-  raise notice 'backup_runs: % run(s) read exactly as before (every column but id)%; an insert as the backup job makes it lands in job_runs (job backup) and reads back the same; a bad kind or no ok refused',
-    n_before, case when v_moved then ', and the old table kept them as backup_runs_before_13' else '' end;
+  raise notice 'backup_runs: % run(s) read exactly as before (every column but id); an insert as the backup job makes it lands in job_runs (job backup) and reads back the same; a bad kind or no ok refused',
+    n_before;
 end
 $test$;
 

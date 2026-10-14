@@ -261,20 +261,6 @@ isOneToOne: false
       referencedColumns: ["code"]
     }
                   ]
-                },"backup_runs_before_13": {
-                  Row: {
-                    "bytes": number | null,"commit_sha": string | null,"files": number | null,"id": number,"kind": string,"note": string | null,"object_key": string | null,"ok": boolean,"ran_at": string,"rows": number | null,"tables": number | null
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "bytes"?: number | null,"commit_sha"?: string | null,"files"?: number | null,"id"?: never,"kind": string,"note"?: string | null,"object_key"?: string | null,"ok": boolean,"ran_at"?: string,"rows"?: number | null,"tables"?: number | null
-                  }
-                  Update: {
-                    "bytes"?: number | null,"commit_sha"?: string | null,"files"?: number | null,"id"?: never,"kind"?: string,"note"?: string | null,"object_key"?: string | null,"ok"?: boolean,"ran_at"?: string,"rows"?: number | null,"tables"?: number | null
-                  }
-                  Relationships: [
-                    
-                  ]
                 },"cabin_configs": {
                   Row: {
                     "aircraft_type_id": number | null,"business_seats": number | null,"cabin": string | null,"code": string,"cost": number | null,"created_at": string,"economy_seats": number | null,"id": number,"note": string | null,"seats": number | null,"updated_at": string,"world_id": number
@@ -592,20 +578,6 @@ isOneToOne: false
       referencedRelation: "worlds"
       referencedColumns: ["id"]
     }
-                  ]
-                },"game_loads_before_13": {
-                  Row: {
-                    "airline": string,"arr_time": string | null,"bus": number | null,"bus_fare": number | null,"bus_pax": number | null,"bus_seats": number | null,"captured_at": string | null,"cargo": number | null,"cargo_cap": number | null,"cargo_rate": number | null,"cargo_units": number | null,"code": string,"dep_time": string,"dest": string | null,"eco": number | null,"eco_fare": number | null,"eco_pax": number | null,"eco_seats": number | null,"flight_date": string,"fst": number | null,"fst_fare": number | null,"fst_pax": number | null,"fst_seats": number | null,"origin": string | null,"status": string | null,"tail": string | null
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "airline": string,"arr_time"?: string | null,"bus"?: number | null,"bus_fare"?: number | null,"bus_pax"?: number | null,"bus_seats"?: number | null,"captured_at"?: string | null,"cargo"?: number | null,"cargo_cap"?: number | null,"cargo_rate"?: number | null,"cargo_units"?: number | null,"code": string,"dep_time": string,"dest"?: string | null,"eco"?: number | null,"eco_fare"?: number | null,"eco_pax"?: number | null,"eco_seats"?: number | null,"flight_date": string,"fst"?: number | null,"fst_fare"?: number | null,"fst_pax"?: number | null,"fst_seats"?: number | null,"origin"?: string | null,"status"?: string | null,"tail"?: string | null
-                  }
-                  Update: {
-                    "airline"?: string,"arr_time"?: string | null,"bus"?: number | null,"bus_fare"?: number | null,"bus_pax"?: number | null,"bus_seats"?: number | null,"captured_at"?: string | null,"cargo"?: number | null,"cargo_cap"?: number | null,"cargo_rate"?: number | null,"cargo_units"?: number | null,"code"?: string,"dep_time"?: string,"dest"?: string | null,"eco"?: number | null,"eco_fare"?: number | null,"eco_pax"?: number | null,"eco_seats"?: number | null,"flight_date"?: string,"fst"?: number | null,"fst_fare"?: number | null,"fst_pax"?: number | null,"fst_seats"?: number | null,"origin"?: string | null,"status"?: string | null,"tail"?: string | null
-                  }
-                  Relationships: [
-                    
                   ]
                 },"game_payments": {
                   Row: {
@@ -1105,48 +1077,6 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"planner_data": {
-                  Row: {
-                    "key": string,"updated_at": string,"value": NonNullable<Json>
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "key": string,"updated_at"?: string,"value": NonNullable<Json>
-                  }
-                  Update: {
-                    "key"?: string,"updated_at"?: string,"value"?: NonNullable<Json>
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"planner_loads": {
-                  Row: {
-                    "json": string,"month": string,"saved_at": number,"updated_at": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "json": string,"month": string,"saved_at"?: number,"updated_at"?: string
-                  }
-                  Update: {
-                    "json"?: string,"month"?: string,"saved_at"?: number,"updated_at"?: string
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"planner_meta": {
-                  Row: {
-                    "key": string,"updated_at": string,"value": NonNullable<Json>
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "key": string,"updated_at"?: string,"value": NonNullable<Json>
-                  }
-                  Update: {
-                    "key"?: string,"updated_at"?: string,"value"?: NonNullable<Json>
-                  }
-                  Relationships: [
-                    
-                  ]
                 },"planner_scripts": {
                   Row: {
                     "content": string,"name": string,"updated_at": string
@@ -1157,20 +1087,6 @@ isOneToOne: false
                   }
                   Update: {
                     "content"?: string,"name"?: string,"updated_at"?: string
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"planner_state": {
-                  Row: {
-                    "id": string,"json": string,"saved_at": number,"updated_at": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "id"?: string,"json": string,"saved_at"?: number,"updated_at"?: string
-                  }
-                  Update: {
-                    "id"?: string,"json"?: string,"saved_at"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -1610,21 +1526,7 @@ isOneToOne: false
                 }
           }
           Views: {
-            "adapter_check_days": {
-                  Row: {
-                    "clean": boolean | null,"comparisons": number | null,"comparisons_failed": number | null,"day": string | null,"mirrors": number | null,"mirrors_failed": number | null,"world_id": number | null
-                  }
-                  ComputedFields: never
-                  Relationships: [
-                    {
-      foreignKeyName: "job_runs_world_id_fkey"
-      columns: ["world_id"]
-isOneToOne: false
-      referencedRelation: "worlds"
-      referencedColumns: ["id"]
-    }
-                  ]
-                },"backup_runs": {
+            "backup_runs": {
                   Row: {
                     "bytes": number | null,"commit_sha": string | null,"files": number | null,"id": number | null,"kind": string | null,"note": string | null,"object_key": string | null,"ok": boolean | null,"ran_at": string | null,"rows": number | null,"tables": number | null
                   }
@@ -1749,10 +1651,7 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "adapter_clean_days":
-{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: number
-                           },
-"aircraft_profit":
+            "aircraft_profit":
 { Args: { "p_airline_id": number,"p_as_of"?: string,"p_days"?: number }; Returns: Json
                            },
 "airline_cards":
@@ -1760,9 +1659,6 @@ isOneToOne: false
                            },
 "airline_profit":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
-                           },
-"apply_loads_from_capture":
-{ Args: { "p_airline": string }; Returns: Json
                            },
 "as_num":
 { Args: { "p": string }; Returns: number
@@ -1788,9 +1684,6 @@ isOneToOne: false
 "export_for_report":
 { Args: { "p_arg"?: string,"p_kind": string,"p_secret": string }; Returns: Json
                            },
-"export_planner_data":
-{ Args: { "p_secret": string }; Returns: Json
-                           },
 "export_repo_bootstrap":
 { Args: { "p_secret": string }; Returns: Json
                            },
@@ -1812,8 +1705,8 @@ isOneToOne: false
 "is_planner_user":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
-"loads_day_captured":
-{ Args: { "p_day": string,"p_world_id": number }; Returns: boolean
+"loads_by_day":
+{ Args: { "p_from": string,"p_to": string,"p_world_id": number }; Returns: Json
                            },
 "order_cabin":
 { Args: { "p_airline_id": number,"p_type_id": number }; Returns: Json
@@ -1824,28 +1717,8 @@ isOneToOne: false
 "planner_data_set":
 { Args: { "p_key": string,"p_secret": string,"p_value": Json }; Returns: Json
                            },
-"planner_item_delete":
-{ Args: { "p_key": string,"p_section": string }; Returns: Json
-                           },
-"planner_item_put":
-{ Args: { "p_key": string,"p_section": string,"p_value": Json }; Returns: Json
-                           },
-"planner_loads_get":
-{ Args: { "p_world_id"?: number }; Returns: {
-              "json": string,"month": string,"saved_at": number
-            }[]
-                           },
 "planner_save":
 { Args: { "p_changes": Json,"p_client": string }; Returns: Json
-                           },
-"planner_state_get":
-{ Args: { "p_world_id"?: number }; Returns: Json
-                           },
-"planner_state_put":
-{ Args: { "p_base": number,"p_client": string,"p_json": string,"p_saved_at": number }; Returns: Json
-                           },
-"planner_state_version":
-{ Args: { "p_world_id"?: number }; Returns: number
                            },
 "route_loads":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
@@ -1855,9 +1728,6 @@ isOneToOne: false
                            },
 "rules_input":
 { Args: { "p_routes"?: string,"p_world_id"?: number }; Returns: Json
-                           },
-"save_loads":
-{ Args: { "p_days": Json,"p_month": string }; Returns: Json
                            },
 "save_script":
 { Args: { "p_content": string,"p_name": string,"p_secret": string }; Returns: Json

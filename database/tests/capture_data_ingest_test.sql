@@ -9,9 +9,8 @@
 --   3. The capture day (design §2): 10:00 UTC to 10:00 UTC, named after the evening.
 --   4. Completeness by world (design §7): a day is complete when every active airline of our groups has all five pages;
 --      a 7th active airline makes it incomplete until it is captured too. A loads day's done follows (design §8's one
---      rule, public.loads_day_captured): in planner_loads_get(), and in the capture's loads step, run with the freeze
---      lifted as a rollback lifts it (since the switch-over, #13 pull request 9, it leaves the frozen planner_loads
---      alone). A day already done stays done in planner_loads.
+--      rule): as the planner's Loads by hand reads it (loads_by_day(), since the clean-up, build pull request 14; before
+--      it planner_loads_get() and the old loads step, which the clean-up removed).
 
 create temporary table t_i (k text primary key, v text) on commit drop;
 grant select on t_i to anon;
@@ -84,7 +83,7 @@ $test$;
 -- ---------------------------------------------------------------- 3 and 4
 do $test$
 declare w bigint := (select v::bigint from t_i where k = 'world'); kf bigint; al7 bigint; d date := '2099-05-01'; today date;
-  r record; mon text; j jsonb;
+  r record; j jsonb; v_from timestamptz;
 begin
   -- 3. the capture day
   assert private.capture_day(w, '2099-05-01 10:00+00') = '2099-05-01' and private.capture_day(w, '2099-05-02 09:59+00') = '2099-05-01'
@@ -117,40 +116,29 @@ begin
     from (values ('statement'), ('events'), ('pnl'), ('balance'), ('loads')) k (kind);
   assert private.capture_day_complete(w, d), 'the day isn''t complete once the 7th airline was captured';
 
-  -- a loads day's done follows: a day (today, so the loads step looks at it) not done until the 7th airline is in; the
-  -- getter and the capture's loads step agree (the loads step writes planner_loads only with the freeze lifted)
-  if private.planner_frozen_since('public.planner_loads'::regclass) is not null then perform private.unfreeze_planner_state(); end if;
-  today := (now() at time zone 'UTC')::date; mon := to_char(today, 'YYYY-MM');
+  -- a loads day's done follows: the capture day under way not done until the 7th airline is in, as the planner's Loads
+  -- by hand reads it (loads_by_day() counts only what was captured by now, so every page here is between the capture
+  -- day's start and now)
+  today := private.capture_day(w, now());
+  v_from := private.capture_day_start(w, today);
   select id into kf from public.airlines where world_id = w and game_id = 113;
-  delete from public.game_capture_raw where captured_at >= private.capture_day_start(w, today) and captured_at < private.capture_day_start(w, today) + interval '1 day';
-  update public.planner_loads set json = (json::jsonb - today::text)::text where month = mon;
+  delete from public.game_capture_raw where captured_at >= v_from and captured_at < v_from + interval '1 day';
   delete from public.load_days where world_id = w and game_date = today;
   insert into public.game_flights (world_id, airline_id, game_date, flight_no, dep_local, eco_pct, loads_captured_at)
-  values (w, kf, today, 9901, '23:59', 50, now()) on conflict do nothing;
+  values (w, kf, today, 9901, '23:59', 50, v_from + (now() - v_from) / 4) on conflict do nothing;
   insert into public.game_capture_raw (world_id, airline_id, airline, kind, rows, captured_at)
-  select a.world_id, a.id, a.planner_name, k.kind, '[]', private.capture_day_start(w, today) + interval '12 hours'
+  select a.world_id, a.id, a.planner_name, k.kind, '[]', v_from + (now() - v_from) / 2
     from public.airlines a join public.groups g on g.id = a.group_id
     cross join (values ('statement'), ('events'), ('pnl'), ('balance'), ('loads')) k (kind)
    where a.world_id = w and a.active and g.kind = 'ours' and a.id <> al7;
-  perform private.apply_loads_from_capture(kf);
-  select json::jsonb into j from public.planner_loads where month = mon;
-  assert j #> array[today::text, 'done'] = 'false'::jsonb, 'planner_loads marks a day done without the 7th airline: ' || coalesce(j #>> array[today::text, 'done'], 'missing');
-  assert j #> array[today::text, 'f', 'Kingfisher|9901'] = '50'::jsonb, 'the loads step didn''t add the flight';
-  assert (select g.json::jsonb #> array[today::text, 'done'] from public.planner_loads_get(w) g where g.month = mon) = 'false'::jsonb,
-    'planner_loads_get() marks a day done without the 7th airline';
+  j := public.loads_by_day(w, today, today);
+  assert j #> array[today::text, 'done'] = 'false'::jsonb, 'loads_by_day() marks a day done without the 7th airline: ' || coalesce(j #>> array[today::text, 'done'], 'missing');
+  assert j #> array[today::text, 'f', 'Kingfisher|9901'] = '50'::jsonb, 'loads_by_day() doesn''t give the captured flight''s load';
   insert into public.game_capture_raw (world_id, airline_id, airline, kind, rows, captured_at)
-  select w, al7, 'Seventh Air', k.kind, '[]', private.capture_day_start(w, today) + interval '13 hours'
+  select w, al7, 'Seventh Air', k.kind, '[]', v_from + (now() - v_from) * 3 / 4
     from (values ('statement'), ('events'), ('pnl'), ('balance'), ('loads')) k (kind);
-  perform private.apply_loads_from_capture(kf);
-  select json::jsonb into j from public.planner_loads where month = mon;
-  assert j #> array[today::text, 'done'] = 'true'::jsonb, 'planner_loads doesn''t mark the day done once every airline is in';
-  assert (select g.json::jsonb #> array[today::text, 'done'] from public.planner_loads_get(w) g where g.month = mon) = 'true'::jsonb,
-    'planner_loads_get() doesn''t mark the day done once every airline is in';
-  -- a day already done stays done
-  delete from public.game_capture_raw where airline_id = al7;
-  perform private.apply_loads_from_capture(kf);
-  select json::jsonb into j from public.planner_loads where month = mon;
-  assert j #> array[today::text, 'done'] = 'true'::jsonb, 'a day already done went back to not done';
+  j := public.loads_by_day(w, today, today);
+  assert j #> array[today::text, 'done'] = 'true'::jsonb, 'loads_by_day() doesn''t mark the day done once every airline is in';
 end
 $test$;
 

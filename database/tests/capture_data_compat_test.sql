@@ -16,7 +16,7 @@
 --      figures (two captures on one UTC date); its figures may not change. (export_for_report('planner')
 --      and site_public() were compared here until pull request 8 made them read the tables; website_scripts_outputs_test.sql
 --      compares them now, with the differences that pull request allows.)
---   3. planner_loads: unchanged.
+--   3. (planner_loads was compared here until the clean-up, build pull request 14, removed it.)
 --   4. Every statement line is in exactly one place: tied to a flight in game_flights, or a payment in game_payments;
 --      every row of the old loads table (game_loads_before_13) is in game_loads.
 
@@ -177,13 +177,6 @@ begin
   -- export_for_report('planner') and site_public() read the tables since pull request 8: website_scripts_outputs_test.sql
   -- compares them with before, allowing site_public()'s new airlines key and the getters' differences
   delete from public.ingest_secret where secret = s;
-
-  -- 3. planner_loads
-  select count(*) into n from (
-    (select month, json, saved_at from rehearsal_before.planner_loads except all select month, json, saved_at from public.planner_loads)
-    union all
-    (select month, json, saved_at from public.planner_loads except all select month, json, saved_at from rehearsal_before.planner_loads)) x;
-  assert n = 0, format('planner_loads changed in %s months', n);
 
   -- 4. nothing lost or counted twice
   select count(*) into n from public.game_statement s

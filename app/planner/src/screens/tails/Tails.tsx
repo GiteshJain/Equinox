@@ -28,11 +28,11 @@ import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
   addTailChanges, basesOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
-  rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, extraIndex, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
+  rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
 import {
-  readRotationsWithLegs, removalFacts, tailsCount, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
+  readRotationsWithLegs, removalFacts, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
 } from "./reads";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
@@ -130,7 +130,7 @@ export function Tails() {
     if (w === undefined) return;
     try {
       const facts = await removalFacts(w, r.a.id);
-      await save(removeDeliveryChanges(r.a, all, facts, today));
+      await save(removeDeliveryChanges(r.a, facts, today));
       if (filters.card === r.a.registration) keep({ ...filters, card: "" }, true);
     } catch (e) {
       showMessage(e instanceof Error ? e.message : String(e));
@@ -172,9 +172,7 @@ export function Tails() {
   const baseList = rules && airline ? basesOf(rules, airline.id) : [];
   async function addTail() {
     if (!airline || !rules || w === undefined) return;
-    // its place at the end of the old planner's list of tails, counted fresh
-    const count = await tailsCount(w).catch(() => all.filter((a) => extraIndex(a, "tails_index") != null).length);
-    const res = addTailChanges(w, airline.id, form, rules, configsQ.data ?? [], all, count);
+    const res = addTailChanges(w, airline.id, form, rules, configsQ.data ?? [], all);
     if ("error" in res) { showMessage(res.error); return; }
     if (!res.changes.length) return;
     const x = await save(res.changes);

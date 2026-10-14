@@ -108,7 +108,7 @@ begin
      and has_function_privilege('authenticated', p.oid, 'execute') and p.proname <> 'is_weekday_set';
   assert bad is null, 'functions authenticated can run: ' || bad;
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p where p.pronamespace = 'private'::regnamespace
-     and p.prosecdef <> (p.proname in ('log_change', 'adapter_mirror_state', 'adapter_mirror_loads'));
+     and p.prosecdef <> (p.proname = 'log_change');
   assert bad is null, 'runs as owner when it shouldn''t, or the other way round: ' || bad;
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p where p.pronamespace = 'private'::regnamespace
      and not coalesce('search_path=""' = any (p.proconfig), false);

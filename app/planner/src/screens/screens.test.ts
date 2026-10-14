@@ -57,10 +57,11 @@ describe("web/_redirects", () => {
     expect(resolve("/planner/next/routes/PA/JFK-ORD")).toBe("301 /planner/routes/PA/JFK-ORD");
   });
 
-  it("serves the old planner's own file at /planner/old/ (the way back), and the new planner's files as they are", () => {
-    expect(resolve("/planner/old")).toBe("301 /planner/old/");
-    expect(resolve("/planner/old/")).toBe("200 /planner/");
-    expect(resolve("/planner/old/anything")).toBe("200 /planner/");
+  it("sends the old planner's address (/planner/old/..., gone with the clean-up) to /planner/, and the planner's files as they are", () => {
+    expect(resolve("/planner/old")).toBe("301 /planner/");
+    expect(resolve("/planner/old/")).toBe("301 /planner/");
+    expect(resolve("/planner/old/anything")).toBe("301 /planner/");
+    expect(resolve("/planner/old/index.html")).toBe("301 /planner/");
     expect(resolve("/app/assets/index-abc123.js")).toBe("file");
     expect(resolve("/")).toBe("file");
   });

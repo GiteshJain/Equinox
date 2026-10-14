@@ -22,14 +22,14 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 
 | Folder | What's in it |
 |---|---|
-| `web/` | The public website, published by Cloudflare Pages from `main`, with the planner's addresses (`web/_redirects`: the planner at `/planner/`, built from `app/planner/` into `web/app/`; the old planner, `web/planner/`, at `/planner/old/` as the way back) |
+| `web/` | The public website, published by Cloudflare Pages from `main`, with the planner's addresses (`web/_redirects`: the planner at `/planner/`, built from `app/planner/` into `web/app/`; the old planner's address, `/planner/old/`, goes there since the clean-up removed it) |
 | `app/planner/` | The planner (React with TypeScript, #18), at `/planner/` since the switch on 14 Oct (built screen by screen at `/planner/next/`, whose addresses now redirect there). Build it with `npm ci && npm run build` (Node 22) into `web/app/`, which isn't committed; Cloudflare builds it on every deploy |
 | `lib/rules/` | The planning library (TypeScript, #19): block times, turns, connections, banks, maintenance, the schedule checks, positions and the optimiser, read from the database's `rules_input()`. The same build writes its command to `lib/rules/dist/` and the website's trip-search file to `web/assets/rules.js` (neither committed); how to use it in `lib/rules/README.md` |
 | `functions/` | Cloudflare Pages Functions: `/api/game-schedule` (an airline's live schedule from the game) |
 | `database/migrations/` | Every database change, in the order it was applied |
 | `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |
 | `database/tests/` | Database tests, run by `rehearse.sh` on the copy of last night's backup and rolled back afterwards |
-| `database/backup/` | `download.sh` gets last night's backup from Cloudflare R2 for the rehearsal (or for a new test sample); `config.sh` and `counts.sql` are copies of the backup job's settings and row counts |
+| `database/backup/` | `download.sh` gets last night's backup from Cloudflare R2 for the rehearsal (or for a new test sample); `config.sh`, `counts.sql` and `permissions.sql` are copies of the backup job's settings, row counts and permissions list (the rehearsal backs its copy up and restores it the same way) |
 | `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
 | `scripts/` | Weekly report, gander monthly, world scanner (the schedule optimiser is the planning library's command, `scripts/README.md`) |
 | `capture/` | The one-button capture userscript, the bookmark (keys are placeholders) and the salary userscript (one airline, by hand) |

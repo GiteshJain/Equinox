@@ -11,8 +11,8 @@ export const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 export const LIVE_HOSTS: readonly string[] = ["equinox-alliance.com", "www.equinox-alliance.com"];
 
 // The planner's address: web/_redirects maps everything under it to the page (the switch, 14 Oct; it was /planner/next
-// while it was built, and those addresses now redirect here). The old planner, the way back, is at /planner/old/, and
-// nothing in this planner links to it (design §11).
+// while it was built, and those addresses now redirect here). The old planner's address, /planner/old/, redirects here
+// too since the clean-up removed it, and nothing in this planner links to it (design §11, §12).
 export const BASENAME = "/planner";
 
 // Kept on this device: the sign-in (its own key, so the old planner's sign-in, under gander-auth, is left alone) and the

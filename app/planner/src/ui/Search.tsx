@@ -8,7 +8,6 @@ import { useNavigate } from "react-router";
 import { useOurAirlines, useWorld } from "../data/reads";
 import { useRules } from "../data/rules";
 import { supabase } from "../data/supabase";
-import type { Json } from "../db/types";
 import { searchAll, type Hit, type SearchData } from "./search";
 
 type Page<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
@@ -21,10 +20,6 @@ async function every<T>(what: string, page: (from: number, to: number) => Page<T
     if ((data ?? []).length < 1000) return out;
   }
 }
-const idx = (extra: Json | null | undefined, k: string): number | null => {
-  const v = extra && typeof extra === "object" && !Array.isArray(extra) ? extra[k] : null;
-  return typeof v === "number" ? v : v == null ? null : Number(v);
-};
 
 /** What the search looks through that the start's rules don't carry, read once the box is used. */
 function useSearchTables(worldId: number | undefined, enabled: boolean) {
@@ -38,9 +33,9 @@ function useSearchTables(worldId: number | undefined, enabled: boolean) {
         every<{ airline_id: number; hub_code: string; dest_code: string }>("the routes", (a, b) => supabase.from("routes").select("airline_id, hub_code, dest_code")
           .eq("world_id", w).eq("removed", false).order("id").range(a, b)),
         every<{ code: string; city: string | null }>("the airports", (a, b) => supabase.from("airports").select("code, city").order("code").range(a, b)),
-        every<{ id: number; registration: string; airline_id: number; aircraft_type_id: number | null; delivery_at: string | null; order_note: string | null; extra: Json }>(
-          "the aircraft", (a, b) => supabase.from("aircraft").select("id, registration, airline_id, aircraft_type_id, delivery_at, order_note, extra").eq("world_id", w).order("id").range(a, b)),
-        every<{ id: number; aircraft_id: number; extra: Json }>("the plan cards", (a, b) => supabase.from("plan_cards").select("id, aircraft_id, extra").eq("world_id", w).order("id").range(a, b)),
+        every<{ id: number; registration: string; airline_id: number; aircraft_type_id: number | null; status: string | null; delivery_at: string | null; order_note: string | null }>(
+          "the aircraft", (a, b) => supabase.from("aircraft").select("id, registration, airline_id, aircraft_type_id, status, delivery_at, order_note").eq("world_id", w).order("id").range(a, b)),
+        every<{ id: number; aircraft_id: number }>("the plan cards", (a, b) => supabase.from("plan_cards").select("id, aircraft_id").eq("world_id", w).order("id").range(a, b)),
         every<{ plan_card_id: number; position: number; flight_no: number | null; origin_code: string | null; dest_code: string | null }>("the plan cards' flights",
           (a, b) => supabase.from("plan_card_legs").select("plan_card_id, position, flight_no, origin_code, dest_code").eq("world_id", w).order("plan_card_id").order("position").range(a, b)),
       ]);
@@ -93,17 +88,14 @@ export function Search() {
       return [{ airline_id: route.airline_id, hub: route.hub_code, dest: route.dest_code, noOut: out, noBack: x.l2 ?? (out ? out - 1 : null) }];
     });
     const typeName = (id: number | null) => (id == null ? "" : rules.types.get(id)?.name ?? "");
-    const tails = t.aircraft.filter((a) => idx(a.extra, "tails_index") != null).sort((a, b) => (idx(a.extra, "tails_index") ?? 0) - (idx(b.extra, "tails_index") ?? 0) || a.id - b.id)
+    // the tails (status active) and the deliveries (a delivery, not retired), in the order they were added, as Tails lists them
+    const tails = t.aircraft.filter((a) => a.status === "active")
       .map((a) => ({ registration: a.registration, airline_id: a.airline_id, type: typeName(a.aircraft_type_id) }));
     const cardOf = new Map(t.cards.map((c) => [c.aircraft_id, c]));
-    const deliveries = t.aircraft.filter((a) => idx(a.extra, "deliveries_index") != null)
-      .sort((a, b) => (idx(a.extra, "deliveries_index") ?? 0) - (idx(b.extra, "deliveries_index") ?? 0) || a.id - b.id)
+    const deliveries = t.aircraft.filter((a) => !!a.delivery_at && a.status !== "retired")
       .map((a) => {
         const c = cardOf.get(a.id);
-        const kept = c?.extra && typeof c.extra === "object" && !Array.isArray(c.extra) ? c.extra.legs : null;
-        const legs = !c ? null : Array.isArray(kept)
-          ? kept.map((l) => (l && typeof l === "object" && !Array.isArray(l) ? { no: (l.no ?? null) as number | string | null, from: String(l.from ?? ""), to: String(l.to ?? "") } : { no: null, from: "", to: "" }))
-          : t.legs.filter((l) => l.plan_card_id === c.id).map((l) => ({ no: l.flight_no, from: l.origin_code ?? "", to: l.dest_code ?? "" }));
+        const legs = !c ? null : t.legs.filter((l) => l.plan_card_id === c.id).map((l) => ({ no: l.flight_no, from: l.origin_code ?? "", to: l.dest_code ?? "" }));
         const delivery_at = a.delivery_at ? new Date(a.delivery_at).toISOString().slice(0, 16) + "Z" : null;
         return { registration: a.registration, airline_id: a.airline_id, plan: a.order_note ?? "", delivery_at, legs };
       });

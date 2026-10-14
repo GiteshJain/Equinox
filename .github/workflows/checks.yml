@@ -1,6 +1,6 @@
-# The automatic checks (decision #9): keys and passwords, the schedule check, the planner (every screen, look-only
-# previews, known answers), the planning library, the weekly report and the website, on every pull request and every
-# change to main. A red result means no
+# The automatic checks (decision #9): keys and passwords, the schedule check, the planner (types, lint, unit tests, its
+# screens' figures against saved answers, build), the planning library, the weekly report and the website, on every
+# pull request and every change to main. A red result means no
 # merge: Claude never asks for or makes one while it's red. The result, with what failed, is posted on the pull request.
 name: Checks
 

@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# Makes the frozen test sample (decision #9) from a nightly backup: what the planner and the website would read at one
-# moment in time, saved as tests/fixtures/sample_<date>.json.gz. Small and dated; never keys or sign-in data (the backup
+# Makes the frozen test sample (decision #9) from a nightly backup: what the website would read at one moment in time,
+# saved as tests/fixtures/sample_<date>.json.gz. Small and dated; never keys or sign-in data (the backup
 # leaves those out, and the secrets check runs over the result).
 #
 # Usage: tests/fixtures/make_sample.sh <unpacked backup folder> <moment, UTC, e.g. 2026-10-08T21:00:00Z>
 # The folder holds db/ from a backup copy. The copies are in Cloudflare R2 (decision #16): get the latest with
 # database/backup/download.sh <folder> and the R2 reader key, which downloads latest.json and the copy it names, checks
 # the SHA-256 and unpacks it. tests/README.md has the steps, and how to get an older night.
-# Since the switch-over (#13, pull request 9) the planner reads the tables through the adapter, so the sample is made the
-# same way (tests/fixtures/sample.sql): the copy first gets every change in database/migrations/ the backup doesn't have
-# yet, as the database rehearsal does, then the getters build the planner's document and loads. The rehearsal can make a
-# sample too, from its own copy (tests/README.md).
+# The copy first gets every change in database/migrations/ the backup doesn't have yet, as the database rehearsal does,
+# then tests/fixtures/sample.sql reads it. The rehearsal can make a sample too, from its own copy (tests/README.md).
 # Needs Docker, the Supabase CLI and psql 17 (or 16). Run from the repository root.
 set -euo pipefail
 backup=$(cd "$1" && pwd); at=$2

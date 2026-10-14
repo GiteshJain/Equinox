@@ -79,8 +79,6 @@ export interface AircraftRow {
   aircraft_type_id: number | null;
   status: string;
   schedule_changed_on: string | null;
-  /** The aircraft's place in the old planner's list of tails (aircraft.extra.tails_index), for the Tail list's order. */
-  tails_index: number | null;
   updated_at: string;
 }
 

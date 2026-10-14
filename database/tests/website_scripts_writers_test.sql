@@ -1,11 +1,11 @@
 -- The scripts' and the Photos screen's writes on the tables (#13 build, pull request 8; design §8). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is
 -- rolled back. A failed check stops with an error that says which (tables, codes and counts, never values).
---   1. planner_data_set(): the route research as it stands changes no row (the tables already hold it, by the loader's
---      rules); with one route's stars and one airport's city changed, exactly those two rows change, logged as actor
---      script, and planner_data holds the new document; a new UTC offset is written for an airport no flight uses and
---      held back (and named) for one a flight uses; a route the research adds is added, one it drops (with nothing
---      pointing at it) goes;
+--   1. planner_data_set(): the route research as it stands (made here from the tables: the old planner's document in
+--      planner_data went with the clean-up, build pull request 14) changes no row; with one route's stars and one
+--      airport's city changed, exactly those two rows change, logged as actor script; a new UTC offset is written for an
+--      airport no flight uses and held back (and named) for one a flight uses; a route the research adds is added, one it
+--      drops (with nothing pointing at it) goes; any key but DATA is refused;
 --   2. site_admin('content', 'mct'): the connection times as they stand change no row of world_airports; one time
 --      changed changes exactly that row (actor script) and site_public() shows it, site_content.mct too; an airport
 --      left out of the map loses its time; a map that isn't airport codes with whole minutes is refused;
@@ -21,7 +21,17 @@ declare
   v_new_dest text; v_al text; v_hub text; v_drop bigint; v_drop_key text[];
 begin
   insert into public.ingest_secret (secret) values (s);
-  select x.value into d from public.planner_data x where x.key = 'DATA';
+  -- the route research as the tables hold it, in the research document's shape (countries, coords, utc, routes)
+  select jsonb_build_object(
+    'countries', (select coalesce(jsonb_object_agg(c.code, c.name), '{}'::jsonb) from public.countries c where c.name is not null),
+    'coords', (select coalesce(jsonb_object_agg(a.code, jsonb_build_array(a.lat, a.lon, a.city, a.country_code)), '{}'::jsonb)
+                 from public.airports a where a.lat is not null or a.lon is not null or a.city is not null or a.country_code is not null),
+    'utc', (select coalesce(jsonb_object_agg(a.code, a.utc_offset), '{}'::jsonb) from public.airports a where a.utc_offset is not null),
+    'routes', (select coalesce(jsonb_agg(jsonb_build_array(al.planner_name, r.hub_code, r.dest_code, r.city, r.country_label,
+                                                           r.distance_km, m.name, r.stars) order by r.id), '[]'::jsonb)
+                 from public.routes r join public.airlines al on al.id = r.airline_id left join public.markets m on m.id = r.market_id
+                where r.world_id = w and r.source = 'research' and al.planner_name is not null))
+    into d;
   assert jsonb_typeof(d -> 'routes') = 'array' and jsonb_typeof(d -> 'coords') = 'object' and jsonb_typeof(d -> 'utc') = 'object',
     'the copy has no route research to test with';
 
@@ -57,7 +67,6 @@ begin
   assert n = 2, format('planner_data_set() logged %s of the 2 changes as actor script', n);
   assert (select stars from public.routes where id = v_route) = v_stars and (select city from public.airports where code = v_code) = v_city,
     'the route''s stars or the airport''s city isn''t what planner_data_set() was given';
-  assert (select value from public.planner_data where key = 'DATA') = d2, 'planner_data doesn''t hold the new research';
   assert (res -> 'tables' ->> 'routes')::int = 1 and (res -> 'tables' ->> 'airports')::int = 1,
     'planner_data_set() doesn''t answer the one route and one airport it changed';
 
@@ -116,7 +125,13 @@ begin
    where c.changed_at >= t0 and not (c.table_name = 'routes' and c.op in ('insert', 'delete'));
   assert bad is null, 'adding and dropping a route changed more: ' || bad;
 
-  raise notice 'planner_data_set(): the research as it stands changes nothing; one route''s stars and one airport''s city change exactly those 2 rows (actor script); an offset a flight uses is held back and named, another written; a route added and one dropped';
+  -- any other key: the old planner's planner_data went with the clean-up
+  begin
+    perform public.planner_data_set(s, 'growthRules', '{}'::jsonb);
+    assert false, 'planner_data_set() took a key other than DATA';
+  exception when invalid_parameter_value then null;
+  end;
+  raise notice 'planner_data_set(): the research as it stands changes nothing; one route''s stars and one airport''s city change exactly those 2 rows (actor script); an offset a flight uses is held back and named, another written; a route added and one dropped; another key refused';
   delete from public.ingest_secret where secret = s;
 end
 $test$;

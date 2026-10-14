@@ -217,7 +217,8 @@ Each screen is rebuilt whole, in the old planner's order of use, with the same n
 
 ## 10. Checks
 **On every pull request (*Checks*, a few minutes):** keys and passwords as now; then `npm ci`, the type check, lint,
-the library's tests and the build. The old planner's checks keep running until the clean-up.
+the library's tests and the build. The old planner's checks kept running until the clean-up, which replaced them with
+the screens' figures on a dated sample (below).
 
 **In the rehearsal (now also when `app/` or `lib/` changes),** on last night's copy in a full local Supabase:
 - the types are regenerated and must match;
@@ -230,6 +231,15 @@ the library's tests and the build. The old planner's checks keep running until t
 
 The rehearsal's limit stays 30 minutes; if it nears it, the side by side moves into its own job.
 
+*Since the clean-up (build pull request 14; spec `docs/specs/2026-10-14-clean-up.md`), with the old planner gone, what
+the side by sides proved is kept without it: every screen opens on the copy at a frozen moment at 1280 and 380 px with
+no errors and no sideways scroll (`tests/planner_next_test.py`); every kind of save each screen has writes exactly the
+rows recorded for it in the run where every side by side last passed (`tests/planner_saves_test.py`,
+`tests/fixtures/planner_saves.expected.json`); and the figures stay guarded by the library's cases, the database's
+figure tests and saved answers, with the screens' own figures on a fixed, dated sample (`tests/planner_figures.mjs`).
+When there are database changes, the rehearsal also backs the copy up and restores it as the nightly job does.
+`tests/README.md` says what each proves.*
+
 ## 11. Rollout and the switch
 1. Screens land one by one at `/planner/next/`. You can open any rebuilt screen there; the old planner stays at
    `/planner/`.
@@ -237,7 +247,8 @@ The rehearsal's limit stays 30 minutes; if it nears it, the side by side moves i
 3. **The switch,** when you say so: `/planner/*` points at the new planner, the old one moves to `/planner/old/`, and
    the planner guide is rewritten. Going back is one `_redirects` change. *Done in build pull request 13 (14 Oct; spec
    `docs/specs/2026-10-14-switch.md`) after Gitesh's trial ("all looks good"): the rules are in §3, game changes are made
-   in the new planner, and the old one at `/planner/old/` is the way back only (manual §1).*
+   in the new planner, and the old one at `/planner/old/` was the way back only (manual §1) until the clean-up removed it
+   the same day (§12): `/planner/old/` now goes (301) to `/planner/`, and there is no way back but a revert.*
 
 ## 12. The clean-up
 When you're happy, a last pull request removes:
@@ -251,6 +262,15 @@ When you're happy, a last pull request removes:
 **Data-only changes from other chats then go through `planner_save()`** or plain SQL after the actor line (manual §1,
 updated then). The removals are a file you run in Supabase's SQL editor (manual §1). Archives keep their table layout
 version (#16).
+
+*Done in build pull request 14 (14 Oct; spec `docs/specs/2026-10-14-clean-up.md`). Two database files: Claude's
+(`20261014200000_clean_up.sql`: the two §16 fixes below, `loads_by_day()` for Review's Loads by hand, the website, the
+investor page, the exports, the capture and `planner_data_set()` off the adapter, and the old planner's leftovers in the
+data cleared: the old lists' places and delivery items in `aircraft.extra`, `plan_cards.extra.legs` and the other old
+fields) and Gitesh's (`20261014200100_clean_up_removals.sql`: the tables, the view and 59 functions, behind a check that
+stops it if anything that stays still names them). The planner reads neither list's places any more: Tails is the
+aircraft in service, the deliveries board those with a delivery that aren't retired. The archived tables keep their
+layout (the clean-up's database test compares last month's manifests).*
 
 ## 13. Build order
 Each pull request gets a spec from the Building chat and goes to a fresh helper (#26).
@@ -301,9 +321,15 @@ Claude's call, as with #13's; any of them can be changed before the merge.
 ## 16. Follow-ups found during the build
 Kept as the old planner has them so the side-by-side figures match; each is for after the switch (§11), unless it
 starts to matter sooner.
+
+**Left after the clean-up (build pull request 14, 14 Oct):** the cabin an order comes with, made data; Ryanair's main
+base, marked in `airline_bases`; Photos' city-photo and name lists, made data with the website. The rest below are done,
+kept as decided ("flights today", the block-hours flag, filing's block time), or went with the old planner.
 - **Event and load times ignore an airport's UTC correction** (`world_airports.utc_offset_override`) in the captured
   figures, as the old planner does; its schedules use it. No airport has a correction on 12 Oct, so nothing is
-  affected. Found by pull request #29.
+  affected. Found by pull request #29. *Done in build pull request 14: `private.fig_events()` and
+  `private.fig_route_profit()` take the airport's offset in the world (`private.airport_offset_min()`); no figure moved
+  (no airport has a correction), and with one put on a home airport in the test, its payments move by exactly that.*
 - **The cabin an order comes with** is worked out from the cabin names, where the old planner kept a list in its code.
   They agree on every type today; make it data. Found by pull request #29.
 - **Ryanair has no main base marked** in `airline_bases`; its home falls back to `airlines.home_airport_code` (CDG),
@@ -319,7 +345,7 @@ starts to matter sooner.
   kept. Found by pull request #31.
 - **Plan cards keep a hidden copy of their legs** in `plan_cards.extra.legs` (the old planner's). The new filing deletes
   it; any later screen that edits a card's legs must delete it too. Drop it at the clean-up (pull request 14). Found by
-  pull request #33.
+  pull request #33. *Done in build pull request 14: cleared with the old planner's other fields.*
 - **Tails' "under 10 h a day" flag** stays, though manual §4 retired the target on 7 Oct: it's now the setting
   `aircraft_block_target_h` (10), and 0 turns it off. Gitesh kept it at the merge, 13 Oct. Found by pull request #33.
 - **Filing with the game's times** takes the game's block time too (flight 1069: 85 min, where the old planner kept the
@@ -334,16 +360,20 @@ starts to matter sooner.
   `rules_input()`; Hubs and Check name regions again.*
 - **Hubs gives some arrivals a bank they can't make:** 329 arrivals a week (mostly Ryanair at CDG and AMS; CDG 2012
   shows bank 1 though it lands 16:11 before it). Kept as the old planner has it; fix after the switch. Found by pull
-  request #34.
+  request #34. *Done in build pull request 14: an arrival is named with a bank only when it connects onto that bank's
+  departures within the connection rules (`hubs.arrivalBank`), else "outside the banks"; on the 12 Oct sample exactly
+  329 arrivals a week moved (`tests/planner_figures.mjs` prints the count).*
 - **Check's suggested aircraft size** on route options (for example "E195", 24 options) came from a rule in the old
   planner's code (`suggestSize`), so the new Check leaves it out. Store the rule as data with pull request 12. Check's
   hub-readiness rows also need the regions above. Found by pull request #35. *Done in pull request #37: the setting
   `suggested_size` (the world's lists and Ryanair's own), read through `rules_input()`, shown again on Check.*
 - **The old planner's loads table (`planner_loads`) isn't frozen,** though `docs/data.md` says it is: saving loads by
   hand in the old planner also writes its month copy, and the database copies that month back into the loads tables.
-  Correct the docs, and stop the copy at the clean-up (pull request 14). Found by pull request #36.
+  Correct the docs, and stop the copy at the clean-up (pull request 14). Found by pull request #36. *Done in build pull
+  request 14: `planner_loads` and the copy into it are gone; loads by hand are `planner_save()` rows.*
 - **One rehearsal run hung in the Hubs side by side** and was cancelled at 30 minutes; the cause wasn't found. Hubs now
-  runs last with a 5-minute stop, so a hang loses only its own result. Found by pull request #36.
+  runs last with a 5-minute stop, so a hang loses only its own result. Found by pull request #36. *Gone with the side
+  by sides in build pull request 14.*
 - **The interline rules** (the 17 countries, the Europe zone, the hub rivals, the countries each airline covers, the
   partners in Gander) were in the old planner's code; they are the setting `interline_rules` now, which Interline reads.
   Home's interline line in needs attention isn't rebuilt yet; it can read the same setting. Found by pull request #37.
@@ -361,4 +391,5 @@ starts to matter sooner.
   tie's order). Filing is tried again on a copy with an arrived aircraft. The cards the old planner filed with the
   game's times keep the game's arrival in their copy of the legs (`plan_cards.extra.legs`) beside the old block, so
   the old card shows an arrival a minute or two before the new card's (departure plus the leg row's block); drop the
-  copy at the clean-up (pull request 14), as above. Found by pull request #37.
+  copy at the clean-up (pull request 14), as above. Found by pull request #37. *Gone with the side by sides and the
+  copy in build pull request 14.*

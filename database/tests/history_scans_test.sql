@@ -3,7 +3,7 @@
 -- against the outputs database/tests/before/history_before.sql saved before the migrations ran (rehearsal_before). A
 -- failed check stops with an error that says which (scan ids and counts, never rows).
 --   1. What the scripts get is what they got: export_for_report()'s list of scans, and every scan's airlines and
---      airports, exactly (the same JSON, in the same order); export_planner_data() exactly; export_repo_bootstrap()'s
+--      airports, exactly (the same JSON, in the same order); export_repo_bootstrap()'s
 --      scripts and migrations exactly (its functions and views are the database's own code, which the pending changes
 --      change).
 --   2. The stored scans in the new tables: each with its world; every airline a scan saw (scanned, or stationed at a
@@ -35,8 +35,6 @@ begin
     end if;
     n := n + 1;
   end loop;
-  assert public.export_planner_data(s) = (select value from rehearsal_before.scan_outputs where name = 'export_planner_data'),
-    'export_planner_data() differs from before';
   a := public.export_repo_bootstrap(s);
   b := (select value from rehearsal_before.scan_outputs where name = 'export_repo_bootstrap');
   assert a -> 'scripts' = b -> 'scripts', 'export_repo_bootstrap()''s scripts differ from before';
@@ -45,7 +43,7 @@ begin
      and exists (select 1 from jsonb_array_elements(a -> 'functions') e where e ->> 'name' = 'ingest_snapshot'),
     'export_repo_bootstrap() doesn''t list the database''s functions and views';
   delete from public.ingest_secret where secret = s;
-  raise notice 'export_for_report(): the scans and % scan lists (airlines and airports) exactly as before; export_planner_data() the same; export_repo_bootstrap()''s scripts and migrations the same (its functions and views are the database''s own code, which the pending changes change)',
+  raise notice 'export_for_report(): the scans and % scan lists (airlines and airports) exactly as before; export_repo_bootstrap()''s scripts and migrations the same (its functions and views are the database''s own code, which the pending changes change)',
     n;
 end
 $test$;

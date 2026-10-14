@@ -4,27 +4,20 @@ staff, reading from and saving into a full local copy of Supabase restored from 
 back afterwards.
 
 Run by database/rehearse.sh after the restore, the pending changes and the SQL tests have passed, and after it has built
-the new planner (npm ci, npm run build). Like tests/real_saves_test.py, whose helpers it uses, it needs that copy, so it
-isn't part of tests/run_all.sh. Same test users (made here through the copy's sign-in, one staff and one not), same
-request mapping (the live Supabase address answered by the copy, its public key swapped for the copy's), and the same
-rule: nothing goes outside.
+the new planner (npm ci, npm run build). It needs that copy, so it isn't part of tests/run_all.sh; its helpers for the
+copy are in tests/local_copy.py. Test users made here through the copy's sign-in (one staff and one not), the live
+Supabase address answered by the copy (its public key swapped for the copy's), and one rule: nothing goes outside.
 
 1. Sign-in through the new planner's own form, as staff; the account that isn't staff is refused and signed out, with
    the old planner's message; opening the planner writes nothing (no change_log row, no table's row count changes).
-2. Home (build pull request 5) is no longer a placeholder: it opens with its boards (key figures, the network, needs
-   attention, coming up, the to-do board) and our airlines (our group's, in their position order, with their colours)
-   on the network's buttons. tests/home_side_by_side_test.py compares its figures with the old Home's. Routes (build
-   pull request 6) is no longer a placeholder either: it opens on its list, with our airlines on its buttons in their
-   order; tests/routes_side_by_side_test.py compares it with the old Routes. Nor is Tails (build pull request 7): its list
-   and the deliveries board; tests/tails_side_by_side_test.py compares it with the old Tails. Nor is Hubs (build pull
-   request 8): it opens on the first base's board with every base in its list; tests/hubs_side_by_side_test.py compares it
-   with the old Hubs. Nor is Check (build pull request 9): its six boards, folded, in the old order, with the copy's
-   airlines on the Capture board; tests/check_side_by_side_test.py compares it with the old Check. Nor is Review (build
-   pull request 10): the cards for the copy's airlines in their order, the first one's page with its boards, folded;
-   tests/review_side_by_side_test.py compares it with the old Review. Nor are Interline, Photos and Reference (build pull
-   request 12), so no screen is a placeholder any more: Interline with its agreements and the interline countries, Photos
-   with a logo for each of our airlines, Reference with its sections folded; tests/reference_side_by_side_test.py compares
-   them with the old screens. The header has the search box and the Website button.
+2. Every screen has its boards: Home (key figures, the network, needs attention, coming up, the to-do board, our
+   airlines in their position order and colours on the network's buttons); Routes on its list, with our airlines on its
+   buttons in their order; Tails, its list and the deliveries board; Hubs on the first base's board with every base in
+   its list; Check, its six boards, folded, in the old order, with the copy's airlines on the Capture board; Review, the
+   cards for the copy's airlines in their order and the first one's page; Interline with its agreements and the
+   interline countries, Photos with a logo for each of our airlines, Reference with its sections folded. The header has
+   the search box and the Website button. (Each screen was compared with the old planner's by a side by side until the
+   clean-up, build pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
 3. window.__eqPlanner.save() ticks the first open to-do: exactly that row changes (done, done_at), logged as actor
    planner with the tab's ID; the answer gives the row's new updated_at. A second save from that updated_at puts it
    back, so the next change needs no new read and the real saves that follow still find their open to-dos.
@@ -33,40 +26,38 @@ rule: nothing goes outside.
    second tab shows the row as it is now and names it.
 5. A preview address (127.0.0.1) reads, says "preview · not saved", sends no write, and its notice links to the live
    planner at /planner/.
-6. At 380 px wide, every screen (Reference with every section open) has no sideways scroll, no errors and no link into
-   the old planner (/planner/old/) or to an address used while the new one was built (/planner/next/).
-7. The addresses (the switch, build pull request 13, spec docs/specs/2026-10-14-switch.md), as tests/harness.py serves
-   them from web/_redirects the way Cloudflare does: /planner and /planner/ open the new planner, and so does a deep
-   address (/planner/review/VS, signed in there, shows Virgin's Review); every /planner/next/... address answers 301 with
-   the same address under /planner/ (/planner/next/routes opens Routes at /planner/routes); /planner/old/ serves the old
-   planner's file byte for byte, and signing in through its own form there shows its Home with the copy's data, writing
-   nothing; the built new planner (web/app/) has no link to /planner/old/ or /planner/next/. Screenshots of the new
-   planner's Home at /planner/ and the old Home at /planner/old/, at 1280 px, go to SWITCH_SCREENS_DIR (the run's
-   switch-screens artifact), when it's set.
+6. Every screen opens at the frozen moment (the copy's latest capture plus one hour), at 1280 and 380 px wide: ready,
+   no errors, no sideways scroll (Check and Review with every board open, Reference with every section open) and no
+   link into the old planner's address (/planner/old/) or one used while the planner was built (/planner/next/); a
+   screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
+7. The addresses (the switch, build pull request 13, and the clean-up, 14), as tests/harness.py serves them from
+   web/_redirects the way Cloudflare does: /planner and /planner/ open the planner, and so does a deep address
+   (/planner/review/VS, signed in there, shows Virgin's Review); every /planner/next/... address answers 301 with the same
+   address under /planner/ (/planner/next/routes opens Routes at /planner/routes); /planner/old and everything under it
+   answer 301 to /planner/ (the old planner is gone); the built planner (web/app/) has no link to /planner/old/ or
+   /planner/next/.
 8. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
 the log is posted on the pull request. Never prints the local keys or the test passwords.
 
 Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV (a file holding `supabase status -o env`), LOCAL_DB_URL,
-SECRET_TABLES and SWITCH_SCREENS_DIR. Usage: python3 tests/planner_next_test.py
+SECRET_TABLES and PLANNER_SCREENS_DIR. Usage: python3 tests/planner_next_test.py
 """
 import asyncio, datetime, http.client, json, os, re, secrets, sys
 from pathlib import Path
 from urllib.parse import urlsplit
-from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, OLD_PLANNER, serve, settle
+from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, serve, settle
 from playwright.async_api import async_playwright
-from real_saves_test import (count_changes, counts, is_planner_user, jobs_since, library, local_env, log_since, make_user, marks,
-                             psql, token_for, why)
-import real_saves_test as rs
+from local_copy import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks, moment, ms, psql,
+                        token_for, why)
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
 PAGE = WEB / "app" / "index.html"
 SCREENS = [("home", "/planner/"), ("routes", "/planner/routes"), ("tails", "/planner/tails"),
            ("hubs", "/planner/hubs"), ("check", "/planner/check"), ("review", "/planner/review"),
            ("interline", "/planner/interline"), ("photos", "/planner/photos"), ("reference", "/planner/reference")]
-OLD_FILE = WEB / "planner" / "index.html"
-SWITCH_SCREENS_DIR = os.environ.get("SWITCH_SCREENS_DIR")
+SCREENS_DIR = os.environ.get("PLANNER_SCREENS_DIR")
 # A link into the old planner, or to an address used while the new one was built (the switch: none may be left)
 OLD_LINK = re.compile(r"^(https?://[^/]+)?/planner/(old|next)(/|$|\?|#)")
 NOT_STAFF = "This account doesn't have access to the planner."
@@ -647,58 +638,75 @@ async def preview(p, port, env, facts, staff, seen):
             f"notice links to the live planner at {NEW_PLANNER}"), problems
 
 
-# ---------- 6. a phone ----------
-async def phone(p, port, env, facts, staff, seen):
-    ph = Planner(p, port, env, facts, width=380, height=800)
-    seen.append(ph)
+# ---------- 6. every screen at the frozen moment, at 1280 and 380 px ----------
+READY = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
+         "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
+         "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
+         "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
+         "reference": "main[data-screen=reference][data-reference-ready=yes]"}
+
+
+async def screens(p, port, env, facts, staff, seen, moment):
+    """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
+    staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Check and Review with
+    every board open, Reference with every section open), and no link into the old planner or to /planner/next/. With
+    PLANNER_SCREENS_DIR set, a screenshot of each at each width goes there (the run's planner-screens artifact). What
+    replaced the side by sides' screen checks (build pull request 14)."""
     problems = []
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
-    links = 0
-    try:
-        await ph.open()
-        await ph.sign_in(*staff)
-        for sid, href in SCREENS:
-            e0 = len(ph.errors)
-            await ph.pg.click(f"[data-screen-link={sid}]")
-            await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
-            await settle(ph.pg, 300)
-            path = await ph.pg.evaluate("location.pathname")
-            if path != href:
-                problems.append(f"{sid}: its address is {path}, expected {href}")
-            ready = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
-                     "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
-                     "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
-                     "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
-                     "reference": "main[data-screen=reference][data-reference-ready=yes]"}
-            try:   # every screen is rebuilt (build pull requests 5 to 12)
-                await ph.pg.wait_for_selector(ready[sid], timeout=60000)
+    links = shots = 0
+    if SCREENS_DIR:
+        Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
+    for width, height in ((1280, 900), (380, 800)):
+        ph = Planner(p, port, env, facts, width=width, height=height)
+        seen.append(ph)
+        try:
+            await ph.open(moment=moment)
+            await ph.pg.emulate_media(reduced_motion="reduce")   # the globe holds still, so two screenshots of a moment are the same
+            await ph.sign_in(*staff)
+            if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
+                problems.append(f"{width} px: the planner's clock isn't frozen at the moment")
+            for sid, href in SCREENS:
+                e0 = len(ph.errors)
+                await ph.pg.click(f"[data-screen-link={sid}]")
+                await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
+                path = await ph.pg.evaluate("location.pathname")
+                if path != href:
+                    problems.append(f"{sid}: its address is {path}, expected {href}")
+                try:
+                    await ph.pg.wait_for_selector(READY[sid], timeout=90000)
+                    await settle(ph.pg, 400)
+                except Exception:
+                    problems.append(f"{sid}: it isn't ready at {width} px wide")
+                if sid in ("check", "review"):
+                    await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
+                    await settle(ph.pg, 300)
+                if sid == "reference":
+                    await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
+                    await settle(ph.pg, 400)
+                over = await ph.pg.evaluate(scroll)
+                if over > 0:
+                    problems.append(f"{sid}: the page scrolls sideways by {over} px at {width} px wide")
+                hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
+                links += len(hrefs)
+                problems += [f"{sid}: a link to {h}" for h in hrefs if OLD_LINK.match(h or "")]
+                problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
+                if SCREENS_DIR:
+                    await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{sid}-{width}.png"), full_page=True, timeout=90000)
+                    shots += 1
+            if width == 380:
+                await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/review/VS")
+                await ph.pg.wait_for_selector(READY["review"], timeout=90000)
+                await ph.pg.click("#rev-expall")
                 await settle(ph.pg, 300)
-            except Exception:
-                problems.append(f"{sid}: it isn't ready at 380 px wide")
-            if sid in ("check", "review"):
-                await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
-                await settle(ph.pg, 300)
-            if sid == "reference":
-                await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
-                await settle(ph.pg, 400)
-            over = await ph.pg.evaluate(scroll)
-            if over > 0:
-                problems.append(f"{sid}: the page scrolls sideways by {over} px at 380 px wide")
-            hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
-            links += len(hrefs)
-            problems += [f"{sid}: a link to {h}" for h in hrefs if OLD_LINK.match(h or "")]
-            problems += [f"{sid}: {e}" for e in ph.errors[e0:]]
-        await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/review/VS")
-        await ph.pg.wait_for_selector("main[data-screen=review][data-review-ready=yes]", timeout=90000)
-        await ph.pg.click("#rev-expall")
-        await settle(ph.pg, 300)
-        if await ph.pg.evaluate(scroll) > 0:
-            problems.append("review/VS, opened directly, scrolls sideways")
-        problems += ph.errors
-    finally:
-        await ph.close()
-    return (f"at 380 px wide, all {len(SCREENS)} screens (Check and Review with every board open, Reference with every section open) have no "
-            f"sideways scroll, no errors and none of their {links} links goes into the old planner or to /planner/next/"), problems
+                if await ph.pg.evaluate(scroll) > 0:
+                    problems.append("review/VS, opened directly, scrolls sideways at 380 px")
+            problems += [e for e in ph.errors if not any(e in x for x in problems)]
+        finally:
+            await ph.close()
+    return (f"every screen ({len(SCREENS)}) opens on the copy at the moment ({moment}), at 1280 and 380 px wide: ready, no errors, no sideways "
+            f"scroll (Check and Review with every board open, Reference with every section open), and none of their {links} links goes into "
+            f"the old planner or to /planner/next/" + (f"; {shots} screenshots kept" if shots else "")), problems
 
 
 # ---------- 7. the addresses (the switch) ----------
@@ -724,19 +732,19 @@ def built_links():
     return bad
 
 
-# (address, status, what it gives: "new" the new planner's page, "old" the old planner's file, else where it redirects to)
+# (address, status, what it gives: "new" the planner's page, else where it redirects to)
 ADDRESSES = [
     ("/planner", 301, "/planner/"), ("/planner/", 200, "new"), ("/planner/review/VS", 200, "new"),
     ("/planner/routes/PA/JFK-ORD", 200, "new"),
     ("/planner/next", 301, "/planner/"), ("/planner/next/", 301, "/planner/"), ("/planner/next/routes", 301, "/planner/routes"),
     ("/planner/next/review/VS", 301, "/planner/review/VS"), ("/planner/next/tails?airline=PA", 301, "/planner/tails?airline=PA"),
-    ("/planner/old", 301, "/planner/old/"), ("/planner/old/", 200, "old"),
+    ("/planner/old", 301, "/planner/"), ("/planner/old/", 301, "/planner/"), ("/planner/old/index.html", 301, "/planner/"),
 ]
 
 
 async def addresses(p, port, env, facts, staff, seen):
     problems = []
-    new_page, old_page = PAGE.read_bytes(), OLD_FILE.read_bytes()
+    new_page = PAGE.read_bytes()
     for path, code, what in ADDRESSES:
         status, loc, body = answer(port, path)
         if status != code:
@@ -744,12 +752,8 @@ async def addresses(p, port, env, facts, staff, seen):
         elif code != 200 and loc != what:
             problems.append(f"{path} goes to {loc}, not {what}")
         elif what == "new" and body != new_page:
-            problems.append(f"{path} isn't the new planner's page (web/app/index.html)")
-        elif what == "old" and body != old_page:
-            problems.append(f"{path} isn't the old planner's file (web/planner/index.html) as it is")
+            problems.append(f"{path} isn't the planner's page (web/app/index.html)")
     problems += built_links()
-    if SWITCH_SCREENS_DIR:
-        Path(SWITCH_SCREENS_DIR).mkdir(parents=True, exist_ok=True)
 
     # the new planner: signed in at a deep address, an address from the build, then Home at /planner/
     pl = Planner(p, port, env, facts)
@@ -773,47 +777,15 @@ async def addresses(p, port, env, facts, staff, seen):
         await pl.pg.goto(f"http://{LIVE_HOST}:{port}{NEW_PLANNER}")
         await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=90000)
         await settle(pl.pg, 1000)
-        if SWITCH_SCREENS_DIR:
-            await pl.pg.screenshot(path=f"{SWITCH_SCREENS_DIR}/new-planner-at-planner-1280.png", full_page=True)
         problems += pl.errors
     except Exception as e:
         problems.append("the new planner: " + why(e))
     finally:
         await pl.close()
 
-    # the old planner at /planner/old/: its own sign-in, then its Home; opening it writes nothing
-    try:
-        of = rs.planner_facts()
-        old = rs.Planner(p, port, env, of, library(of["lib_version"]))
-    except Exception as e:
-        return "addresses", problems + ["the old planner: " + why(e)]
-    seen.append(old)
-    try:
-        n0, mark = counts(), marks()
-        await old.open()
-        await old.sign_in(*staff)
-        got = await old.pg.evaluate("""({ path: location.pathname, view: (document.querySelector('nav button.on[data-view]') || {dataset: {}}).dataset.view || '',
-            boards: [...document.querySelectorAll('#view .board h3.rh')].map(h => h.textContent.trim()) })""")
-        if got["path"] != OLD_PLANNER:
-            problems.append(f"the old planner moved to {got['path']}")
-        if got["view"] != "home" or not any(b.startswith("Needs attention") for b in got["boards"]):
-            problems.append(f"the old planner, signed in, shows {got['view'] or 'no screen'} with boards {[b[:20] for b in got['boards']][:6]}, not its Home")
-        await old.pg.set_viewport_size({"width": 1280, "height": 900})
-        await settle(old.pg, 1000)
-        if SWITCH_SCREENS_DIR:
-            await old.pg.screenshot(path=f"{SWITCH_SCREENS_DIR}/old-planner-at-planner-old-1280.png", full_page=True)
-        rows = log_since(mark)
-        if rows:
-            problems.append("opening the old planner changed the tables: " + ", ".join(sorted({r["table"] for r in rows})))
-        problems += count_changes(n0, counts()) + old.errors
-    except Exception as e:
-        problems.append("the old planner: " + why(e))
-    finally:
-        await old.close()
-    return (f"the addresses: /planner/ and a deep address open the new planner; {sum(1 for a in ADDRESSES if '/next' in a[0])} "
-            f"/planner/next/ addresses answer 301 with the same address under /planner/; /planner/old/ is the old planner's file as "
-            f"it is, its sign-in and Home work, and opening it writes nothing; the built planner has no link to either"
-            + ("; screenshots of both at 1280 px kept" if SWITCH_SCREENS_DIR else "")), problems
+    return (f"the addresses: /planner/ and a deep address open the planner; {sum(1 for a in ADDRESSES if '/next' in a[0])} "
+            f"/planner/next/ addresses answer 301 with the same address under /planner/; {sum(1 for a in ADDRESSES if '/old' in a[0])} "
+            f"/planner/old addresses answer 301 to /planner/; the built planner has no link to either"), problems
 
 
 async def main():
@@ -865,9 +837,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, phone, addresses):
+            for check in (two_tabs, preview, screens, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen)
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check is screens else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)

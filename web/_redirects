@@ -1,16 +1,15 @@
 # Cloudflare Pages redirects (decision #7; replaces netlify.toml). Unknown paths outside the planner already fall back
 # to the home page, because the site has no 404.html. The first rule that matches wins, and a 200 rule serves the file
 # at its target without looking at these rules again.
-# The switch (#18, design §3 and §11, 14 Oct): /planner/ and everything under it open the new planner, whose files live
-# under /app/ (built into web/app/). Its page is /app/, not /app/index.html: Cloudflare drops a rule that proxies to a
-# path ending in /index.html as an infinite loop.
+# The planner (#18, design §3 and §11): /planner/ and everything under it open it, whose files live under /app/ (built
+# into web/app/). Its page is /app/, not /app/index.html: Cloudflare drops a rule that proxies to a path ending in
+# /index.html as an infinite loop.
 # The addresses used while it was built, /planner/next/..., move to the same address under /planner/ (301), so old
-# links and bookmarks still work.
-# The old planner, the way back, opens at /planner/old/: its file, web/planner/index.html, is served there as it is.
-# Going back is one change: make the last line `/planner/*   /planner/   200` again (the old planner at /planner/).
+# links and bookmarks still work. The old planner's address, /planner/old/, goes to /planner/ (301) since the clean-up
+# (build pull request 14) removed it.
 /planner/next     /planner/           301
 /planner/next/*   /planner/:splat     301
-/planner/old      /planner/old/       301
-/planner/old/*    /planner/           200
+/planner/old      /planner/           301
+/planner/old/*    /planner/           301
 /planner          /planner/           301
 /planner/*        /app/               200

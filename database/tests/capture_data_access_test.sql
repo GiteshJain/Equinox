@@ -5,7 +5,7 @@
 --   1. From the catalogue: anon holds nothing at all on any table or view in public; game_flights and game_payments
 --      have RLS on with one staff read rule, and authenticated may only read them; the three compatibility views are
 --      security_invoker and read-only to authenticated; the capture's functions are closed except capture_ingest() and
---      capture_airlines(); parse_capture() and apply_loads_from_capture() are retired; the capture tables carry their
+--      capture_airlines(); parse_capture() is retired (apply_loads_from_capture() went with the clean-up); the capture tables carry their
 --      world and airline, and every foreign key on them has an index.
 --   2. Signed in with an email that isn't on planner_users: the new tables and views read no rows.
 --   3. Signed in as staff: they read what the copy holds.
@@ -55,7 +55,8 @@ begin
   assert has_function_privilege('anon', 'public.capture_ingest(text, text, text, text, jsonb)', 'execute'), 'the capture can''t call capture_ingest()';
   assert has_function_privilege('anon', 'public.capture_airlines(text)', 'execute'), 'the capture can''t call capture_airlines()';
   assert not has_function_privilege('authenticated', 'public.parse_capture(bigint)', 'execute'), 'signed-in accounts can still call parse_capture()';
-  assert not has_function_privilege('authenticated', 'public.apply_loads_from_capture(text)', 'execute'), 'signed-in accounts can still call apply_loads_from_capture()';
+  assert to_regprocedure('public.apply_loads_from_capture(text)') is null
+      or not has_function_privilege('authenticated', 'public.apply_loads_from_capture(text)', 'execute'), 'signed-in accounts can still call apply_loads_from_capture()';
   assert not has_function_privilege('anon', 'public.parse_capture(bigint)', 'execute'), 'anon can call parse_capture()';
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p
    where p.pronamespace = 'private'::regnamespace

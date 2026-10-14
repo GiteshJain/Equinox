@@ -52,7 +52,7 @@
     },
     {
       "name": "Tuesday's board lists it and every flight that day by local time, each with the bank it collects or feeds at its own airline's base",
-      "rule": "the old Hubs' flight list: time, direction, flight (a return with no number of its own takes its outbound's less one), to or from, aircraft and the bank; an arrival names the first bank it can make even when it waits more than connection_max_wait_h (05:30 here); a flight of an airline with no base at the airport has none",
+      "rule": "the old Hubs' flight list: time, direction, flight (a return with no number of its own takes its outbound's less one), to or from, aircraft and the bank; an arrival names the first bank it can make only when it connects onto that bank's departures within the connection rules (06:00 waits exactly 8 hours for bank 2: named), else it is outside the banks, 0 (05:30 would wait 8:30: the old Hubs named bank 2, fixed in build pull request 14, design §16); a flight of an airline with no base at the airport has none",
       "ask": { "what": "hub_board", "airport": "HUB", "day": 1 },
       "answer": {
         "day": 1, "focus": false, "departures_today": 7, "arrivals_today": 5,
@@ -61,7 +61,7 @@
           "arrivals": [0, 0, 0, 0, 0, 1, 1, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         },
         "flights": [
-          { "kind": "arr", "local_min": 330, "flight_no": 1006, "other": "CCC", "registration": "T-001", "bank": 2 },
+          { "kind": "arr", "local_min": 330, "flight_no": 1006, "other": "CCC", "registration": "T-001", "bank": 0 },
           { "kind": "arr", "local_min": 360, "flight_no": 1004, "other": "BBB", "registration": "T-002", "bank": 2 },
           { "kind": "dep", "local_min": 375, "flight_no": 1001, "other": "AAA", "registration": "T-001", "bank": 1 },
           { "kind": "dep", "local_min": 390, "flight_no": 2001, "other": "FOC", "registration": "T-003", "bank": 1 },
@@ -124,7 +124,7 @@
     },
     {
       "name": "an arrival more than connection_max_wait_h before its bank feeds none, but the bank it can next make is known",
-      "rule": "banks.bankOfArrival: n is 0 when the wait is beyond connection_max_wait_h; next is the bank all the same (the old waveAt's a.n, which the old Hubs' list showed)",
+      "rule": "banks.bankOfArrival: n is 0 when the wait is beyond connection_max_wait_h; next is the bank all the same (the old waveAt's a.n, which the old Hubs' list showed; the Hubs board names it only within the connection rules since build pull request 14, hubs.arrivalBank)",
       "ask": { "what": "bank_of_arrival", "airport": "HUB", "local": "05:30" },
       "answer": { "n": 0, "next": 2, "status": "late", "wait_min": 510 }
     },

@@ -14,20 +14,17 @@ Every rule in force for the equinox. group, with the date it started and why. De
 
 ## Decided, not yet built
 Until each is built and merged, the rules below stand as they are.
-- **#13 to #17 are built** (9 to 11 Oct): the planner's data in proper tables, read and saved through an adapter until
-  #18, with `planner_state` and `planner_loads` frozen as the fallback (§1); every row keyed by world and airline, with
-  each world's rules as data; the change log and the daily history; one row per flight, a month of detail, then the
-  monthly archive; backups and archives in Cloudflare R2; real saves tested on a local copy of last night's backup.
+- **#13 to #17 are built** (9 to 11 Oct): the planner's data in proper tables; every row keyed by world and airline,
+  with each world's rules as data; the change log and the daily history; one row per flight, a month of detail, then
+  the monthly archive; backups and archives in Cloudflare R2; the planner tested on a local copy of last night's backup.
   The automatic jobs are in §7.
-- **#18, decided 12 Oct:** the planner is rebuilt in React with TypeScript, screen by screen, each checked against the
-  old screen's numbers. **`/planner/` switched to the new planner on 14 Oct** (build pull request 13); the old planner
-  stays at `/planner/old/` as the way back (§1), and it and the adapter stay as they are until the clean-up (build pull
-  request 14).
-- **#19, decided 12 Oct:** one home for each calculation. Planning rules (block times, turns, connections, maintenance)
-  in one TypeScript library; figures from the capture (cash forecast, route profit, growth signals, hub progress) in
-  the database. Until it's built, the figures in §3 and §4 are worked out as they are now. The weekly report is on the
-  database's figures since build pull request 4 (13 Oct): each airline's money from the captured figures, with no
-  surplus figure and no group totals.
+- **#18 and #19 are built** (12 to 14 Oct). #18: the planner rebuilt in React with TypeScript, screen by screen, each
+  checked against the old screen's numbers; `/planner/` switched to it on 14 Oct (build pull request 13), and the old
+  planner, its adapter and its documents went the same day (the clean-up, build pull request 14). #19: one home for
+  each calculation, the planning rules (block times, turns, connections, maintenance) in one TypeScript library
+  (`lib/rules/`) and the figures from the capture (cash forecast, route profit, growth signals, hub progress) in the
+  database; the planner, the website's trip search, the optimiser and the weekly report all use them (the report's
+  money from the captured figures since 13 Oct, with no surplus figure and no group totals). *Built 14 Oct.*
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
@@ -38,20 +35,12 @@ Until each is built and merged, the rules below stand as they are.
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
-- **The game runs while the new planner is built (#18).** Orders, scheduling, retimes and the rest go on as normal,
-  and so do the Saturday review and the monthly work. Claude's data-only changes go in as usual (below).
-  - **Game changes are made in the new planner at `/planner/`.** The old planner at `/planner/old/` is the way back
-    only, and nothing is saved in it, so the two never save over each other. *Since 14 Oct (#18, build pull request 13)
-    · why (Gitesh): the trial of the new planner passed ("all looks good").* Going back is one line in `web/_redirects`
-    (the planner guide, "The way back").
-  - **The old planner's code is frozen:** no changes at all to `web/planner/index.html`. Anything found while playing
-    is fixed in the new planner. If a rule number has to change before the clean-up, the rule-number cross-check is
-    removed instead.
-
-  *Game running again since 14 Oct; code frozen since 12 Oct · why (Gitesh): the 15 A321neos were scheduled on 13 Oct,
-  waiting was costing growth with the build close to done, and lifting the pause carried little risk. The code stays
-  frozen so nothing is built twice.* The freeze ends with the clean-up (build pull request 14), which removes the old
-  planner.
+- **Game changes are made in the planner at `/planner/`,** the only planner. Orders, scheduling, retimes and the rest
+  go on as normal, and so do the Saturday review and the monthly work. Claude's data-only changes go in as below. The
+  old planner, its way back at `/planner/old/` (which now goes to `/planner/`) and its code freeze went with the
+  clean-up. *Since 14 Oct (#18, build pull requests 13 and 14) · why (Gitesh): the trial of the new planner passed
+  ("all looks good"), and the clean-up was asked for the same day, so there is one planner, one way of saving and no
+  copies to keep in step.*
 - **Say first when something will take more than 5 minutes,** with roughly how long, before starting it (a helper's
   build, a long check run, a big data job). *Since 12 Oct (Gitesh).*
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
@@ -65,10 +54,10 @@ Details and open points: `docs/decisions.md`.
   The schedule check is a Pages Function (`functions/api/game-schedule.js`). *Since 8 Oct (#7) · why: free, with
   unlimited deploys and previews; our own address survives any future change of host.*
   - **The build:** Cloudflare runs `if [ -f package.json ]; then npm ci && npm run build; fi` before it publishes,
-    output folder `web`, Node 22 (`.nvmrc`). It builds the new planner (`app/planner/`) into `web/app/`, served under
+    output folder `web`, Node 22 (`.nvmrc`). It builds the planner (`app/planner/`) into `web/app/`, served under
     `/app/` with its page at `/planner/` (since the switch, 14 Oct; `web/_redirects`). A build that fails leaves the
     last good version live. *Since 12 Oct (#18,
-    build pull request 1) · why: the new planner is a React app that has to be built; the checks run the same build.*
+    build pull request 1) · why: the planner is a React app that has to be built; the checks run the same build.*
 - **Supabase stays on the free plan.** We move to the paid plan ($25 a month) only on a trigger, and each trigger means a
   brief at the next weekly review, not an automatic upgrade:
   - the database passes 350 MB;
@@ -94,15 +83,16 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  the new planner's install, type check, lint, unit tests and build; the planning library's cases and its optimiser
-  against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every
-  planner screen, look-only previews and the planner's key numbers against saved answers;
-  every website page, the new planner's sign-in at `/planner/` and the planner's addresses; the old planner's rule numbers against
-  `settings` and `world_rules`). When the database, either planner or the library changes, the *Database rehearsal*
-  also generates the new planner's types again from the copy (they must match the committed
-  `app/planner/src/db/types.ts`), has the new planner sign in, read and save on the copy, checks the library's
-  Tails and Hubs figures against the old planner's on the same copy, and the captured figures against its Review and
-  Check (#19).
+  the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Hubs, Tails and
+  the schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
+  plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every website
+  page, the planner's sign-in at `/planner/` and the planner's addresses). When the database, the planner or the
+  library changes, the *Database rehearsal* also generates the planner's types again from the copy (they must match
+  the committed `app/planner/src/db/types.ts`), has the planner sign in, read and save on the copy, open every screen
+  at a frozen moment at 1280 and 380 px wide with no errors and no sideways scroll, and save through every kind of save
+  each screen has, each checked against the rows recorded for it; and when there are database changes, it backs the
+  copy up and restores it as the nightly job does. *Since 14 Oct (the clean-up, build pull request 14) these replace
+  the side by sides with the old planner.*
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *Since 8 Oct (#9) · why: nothing ran by itself, and 9 of 11 tests couldn't run.*
@@ -125,17 +115,19 @@ Details and open points: `docs/decisions.md`.
   repository or the project files. *Since 8 Oct (#26) · why: the old Building chat lost detail as it filled; a clean
   memory per build fixes that with no extra steps.*
 - **Data-only changes go straight in, to the tables:** plan cards, to-dos, notes, logs. Either through
-  `planner_item_put(section, key, value)` (or `planner_item_delete(section, key)`), in the planner's own JSON shape,
-  plan-card and frequency times local as the planner shows them; or plain SQL on the tables. Either way the same call
-  starts with `select set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', '<chat>', true);`
-  so the change log names the chat (design §6). `planner_state` and `planner_loads` are frozen and refuse every write;
-  the planner shows a change the next time it loads. *Since 8 Oct (#2); to the tables since 10 Oct (#13, pull request
-  9) · why: the planner reads the tables now, so a change to the old row would never be seen.*
+  `planner_save(changes, client)`, the planner's own way of saving (one call of row changes, each from the
+  `updated_at` it was read at; logged as actor planner with the client named, e.g. `claude <chat>`), or plain SQL on
+  the tables, starting with `select set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail',
+  '<chat>', true);` so the change log names the chat (design §6). Times on the tables are UTC (flight legs and
+  plan-card legs); the planner shows a change the next time it reads the table. *Since 8 Oct (#2); to the tables since
+  10 Oct (#13, pull request 9); through `planner_save()` or plain SQL since 14 Oct (the clean-up removed
+  `planner_item_put()` and `planner_item_delete()` with the adapter) · why: the planner reads and saves the tables
+  directly.*
 - **Rule numbers have one source:** the database's `settings` (our own choices, with an airline's override where it
   has one) and `world_rules` (Gander's house rules, game settings and #12's permissions). The figures in §3, §4, §5 and
-  §9 name their row; a rule change updates the row and this manual together. Until #18 the old planner also keeps
-  copies in its code, and the automatic checks fail if the two ever differ (`tests/rule_numbers_test.py`), so a
-  change to one of those needs a planner pull request too. *Since 10 Oct (#13, pull request 9; design §11, choice 3) ·
+  §9 name their row; a rule change updates the row and this manual together, and nothing else holds a copy (the
+  planner and the library read the tables). *Since 10 Oct (#13, pull request 9; design §11, choice 3); the old
+  planner's copies in its code, and the cross-check that kept them in step, went with it on 14 Oct (the clean-up) ·
   why: the same number lived in the manual, the planner and the scripts, and drifted (the connection buffer, 9 Oct).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*
@@ -224,7 +216,7 @@ Details and open points: `docs/decisions.md`.
   - Planned refits are not in the forecast; say so with each recommendation.
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
   - The forecast is worked out by `cash_forecast()` in the database (several orders tested together with `p_orders`);
-    the old planner's Review screen shows the same figures until the switch (#19, build pull request 3).
+    the planner's Review screen shows it (#19, build pull request 3).
 - **Order rotation:** each airline's orders rotate big market → more frequency → smaller feeders, kept flexible.
   *Since 2 Oct.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
@@ -397,6 +389,9 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 14 Oct | Game changes are made in the new planner at `/planner/`; the old planner at `/planner/old/` is the way back only, nothing is saved in it, and its code is frozen | One planner at `/planner/`; the old one, the way back and the freeze went with the clean-up (§1). Why: Gitesh asked for the clean-up after the switch (#18, build pull request 14) |
+| 14 Oct | Data-only changes through `planner_item_put()` / `planner_item_delete()` in the planner's JSON shape, or plain SQL after the `equinox.actor` line | `planner_save()` or plain SQL after the `equinox.actor` line (§1). Why: the clean-up removed the adapter, those functions with it |
+| 14 Oct | Until #18 the old planner keeps copies of the rule numbers in its code, and the rule-number cross-check (`tests/rule_numbers_test.py`) fails if they differ from `settings` and `world_rules` | A rule number changes in its setting and this manual together; nothing else holds a copy (§1). Why: the old planner's code went with the clean-up |
 | 14 Oct | Until the switch, game changes are made in the old planner only; the new one at `/planner/next/` is for building and review, so the two never save over each other | Game changes are made in the new planner at `/planner/`; the old planner at `/planner/old/` is the way back only, and nothing is saved in it (§1). Why: Gitesh, the trial passed; the switch (#18, build pull request 13) |
 | 14 Oct | The game is paused until the new planner is done: the evening capture is the only game task (no scheduling, orders, retimes, fare changes, interline actions or salary runs), the Saturday review and monthly work wait, and Claude makes no data-only changes | The game runs again; game changes go through the old planner only until the switch, and its code stays frozen (§1). Why: Gitesh, once the 15 A321neos were flying, and with waiting costing growth at little risk |
 | 11 Oct | Hubs first covers only opening a new hub; a base already open can grow on any route | Every new aircraft goes to the main hub until it reaches 750 weekly departures; other bases, open or new, only for contested routes (§3). Why: Gitesh, when G-AADU was nearly planned at Manchester on uncontested routes |

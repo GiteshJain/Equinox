@@ -1,6 +1,7 @@
 // hubs: one airport's day and week, and which city pairs connect there, as the Hubs screen shows them (#18 build pull
 // request 8, spec docs/specs/2026-10-13-hubs.md), across all our airlines (they interline with each other, manual §6):
-//   - board(): the day's flights in local time, each with the bank it collects or feeds at its own airline's base there;
+//   - board(): the day's flights in local time, each with the bank it collects or feeds at its own airline's base there
+//     (an arrival only when it connects onto that bank within the connection rules: arrivalBank);
 //     the departures and arrivals in each hour; the week in 15-minute slots, shaded by the bank windows; departures a week
 //     against the game's cap (schedule.departuresPerAirport); and the next free flight-number pair at the base
 //     (schedule.nextFlightNumbers). A focus city has no banks of its own (banks.bankWindows);
@@ -16,7 +17,7 @@ import { timedLegs } from "./block.js";
 import { connectionLimits, connectionsAt, departuresOf, type ConnectionLimits } from "./connections.js";
 import { settingNumber, worldRuleNumber } from "./input.js";
 import { departuresPerAirport, nextFlightNumbers, type NextPair } from "./schedule.js";
-import { DAY, toLocal } from "./time.js";
+import { DAY, mod, toLocal } from "./time.js";
 import type { BaseRow, Rules, TimedLeg } from "./types.js";
 
 /** The week grid's slot, minutes. */
@@ -37,9 +38,10 @@ export interface HubFlight {
   other: string;
   /** The rotation's aircraft (its outbound's, else its return's), as the old planner's frequency's tail. */
   registration: string | null;
-  /** At its own airline's base here: the bank a departure collects, or the first bank an arrival can make, however long
-   *  the wait (banks.bankOfArrival's next, as the old Hubs named it); 0 off wave (or a hub with no bank times); null
-   *  where its airline has no base here, or the base is a focus city. */
+  /** At its own airline's base here: the bank a departure collects, or the first bank an arrival can make when it
+   *  connects onto that bank's departures within the connection rules (arrivalBank); 0 off wave for a departure, outside
+   *  the banks for an arrival (or a hub with no bank times); null where its airline has no base here, or the base is a
+   *  focus city. */
   bank: number | null;
 }
 
@@ -106,12 +108,26 @@ export function shownNumber(leg: Pick<TimedLeg, "flight_no" | "leg_no" | "rotati
   return null;
 }
 
+/** The bank an arrival at this local minute is named with on the Hubs board: the first bank it can make, only when it
+ *  connects onto that bank's departures (its departure window) within the connection rules, from the airport's minimum
+ *  connection time plus connection_buffer_min to connection_max_wait_h (connections.connectionLimits); otherwise 0,
+ *  outside the banks. The old Hubs named the first bank however long the wait (329 arrivals a week on 13 Oct, mostly
+ *  Ryanair's at CDG and AMS); fixed after the switch (design §16, build pull request 14). */
+export function arrivalBank(rules: Rules, base: BaseRow, arrLocal: number): number {
+  const a = bankOfArrival(rules, base, arrLocal);
+  const w = bankWindows(rules, base).find((x) => x.n === a.next);
+  if (!a.next || a.wait_min == null || !w) return 0;
+  const lim = connectionLimits(rules, base.airport_code);
+  const lastDeparture = a.wait_min + mod(w.dep_end - w.dep, DAY);
+  return a.wait_min <= lim.max_min && lastDeparture >= lim.min_min ? a.next : 0;
+}
+
 /** The bank a flight collects or feeds at its own airline's base at the airport (HubFlight.bank). */
 function bankAt(rules: Rules, code: string, leg: TimedLeg, kind: "dep" | "arr", localMin: number): number | null {
   const base = airlineBaseAt(rules, code, leg.airline_id);
   if (!base || isFocus(base)) return null;
   if (!bankWindows(rules, base).length) return 0;
-  return kind === "dep" ? bankOfDeparture(rules, base, localMin)?.n ?? 0 : bankOfArrival(rules, base, localMin).next;
+  return kind === "dep" ? bankOfDeparture(rules, base, localMin)?.n ?? 0 : arrivalBank(rules, base, localMin);
 }
 
 /** Each slot's shading by a base's bank windows: "dep" when the slot's middle is in a departure window, else "arr" in an

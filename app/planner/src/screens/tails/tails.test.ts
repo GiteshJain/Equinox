@@ -24,15 +24,14 @@ const ALL = [1, 2, 3, 4, 5, 6, 7];
 const ac = (id: number, reg: string, x: Partial<TailAircraft> = {}): TailAircraft => ({
   id, registration: reg, airline_id: 1, aircraft_type_id: 1, cabin_config_id: null, base_code: "HUB", status: "active", ordered_on: null, delivery_at: null,
   order_base_code: null, order_config_id: null, order_note: null, checked_on: null, schedule_changed_on: null, maintenance_note: null, retired_on: null,
-  extra: { tails_index: id - 1 }, updated_at: T0, ...x,
+  extra: {}, updated_at: T0, ...x,
 });
 // T-001 flies HUB–AAA every day (07:00, and 10:20 UTC back, two hours each way); T-002 is idle; T-003 (an E195 at FOC) has a
 // 40-minute turn; T-005 has arrived and waits to be filed with its plan card; T-006 is on order; O-001 is another airline's
 const fleet: TailAircraft[] = [
   ac(1, "T-001"), ac(2, "T-002"), ac(3, "T-003", { aircraft_type_id: 2, base_code: "FOC", cabin_config_id: 12 }), ac(4, "O-001", { airline_id: 2, base_code: "AAA" }),
-  ac(5, "T-005", { status: "delivered", base_code: null, delivery_at: "2026-10-12T05:53:00+00:00", order_base_code: "HUB", order_config_id: 11, order_note: "lands HUB · AAA + DDD",
-    extra: { deliveries_index: 0 } }),
-  ac(6, "T-006", { status: "on_order", base_code: null, delivery_at: "2026-10-15T18:00:00+00:00", order_base_code: "HUB", extra: { deliveries_index: 1 } }),
+  ac(5, "T-005", { status: "delivered", base_code: null, delivery_at: "2026-10-12T05:53:00+00:00", order_base_code: "HUB", order_config_id: 11, order_note: "lands HUB · AAA + DDD" }),
+  ac(6, "T-006", { status: "on_order", base_code: null, delivery_at: "2026-10-15T18:00:00+00:00", order_base_code: "HUB" }),
 ];
 const legRow = (id: number, rot: number, n: 1 | 2, from: string, to: string, aircraft: number, dep: number, blk: number, no: number) => ({
   id, airline_id: 1, rotation_id: rot, leg_no: n, flight_no: no, origin_code: from, dest_code: to, aircraft_id: aircraft, days_utc: ALL, dep_utc_min: dep, block_min: blk,
@@ -60,7 +59,7 @@ describe("the list", () => {
     expect(filtersQuery(parseFilters(""))).toBe("");
     expect(parseFilters("?status=nonsense&del=nope").status).toBe("");
   });
-  it("lists the airline's aircraft in service in the old planner's order, and filters by base, type and status", () => {
+  it("lists the airline's aircraft in service in the order they were added, and filters by base, type and status", () => {
     const mine = tailsOf(fleet, 1);
     expect(mine.map((a) => a.registration)).toEqual(["T-001", "T-002", "T-003"]);
     const all = tailRows(mine, { base: "", type: "", status: "" }, rules, configMap);
@@ -102,7 +101,7 @@ describe("the list", () => {
 
 describe("deliveries", () => {
   const cards: PlanCardRow[] = [{ id: 7, airline_id: 1, aircraft_id: 5, base_code: "HUB", title: "AAA + DDD", note: null, updated_at: T0 }];
-  const flyingDelivered = { ...ac(1, "T-001"), delivery_at: "2026-10-01T00:00:00+00:00", order_base_code: "HUB", extra: { tails_index: 0, deliveries_index: 2 } };
+  const flyingDelivered = { ...ac(1, "T-001"), delivery_at: "2026-10-01T00:00:00+00:00", order_base_code: "HUB" };
   const list = [flyingDelivered, ...fleet.slice(1)];
   const rows = deliveryRows(list, airlines, rules, configMap, cards, NOW, TODAY);
   it("marks each aircraft arrived and not scheduled, on order or flying, the arrived first, then by day", () => {
@@ -185,7 +184,7 @@ describe("filing", () => {
   const markets = new Map<number, MarketRow>([[1, { id: 1, airline_id: 1, name: "Asia", default_type_id: 1, default_config_id: 11, fare_y_pct: 105, fare_j_pct: null }]]);
   const x: FilingInput = {
     worldId: 1, today: TODAY, nowMs: NOW, rand: () => 0.5, rules, aircraft: fleet[4] as TailAircraft, card, legs, game: null, cabin: { code: "321-LEI", cost: 450000 },
-    cabinLogged: false, tailsIndex: 4, bases: ["HUB", "FOC"], routes, markets,
+    cabinLogged: false, bases: ["HUB", "FOC"], routes, markets,
     profiles: [{ id: 1, code: "S1", airline_id: null, up_to_km: 1000 }, { id: 2, code: "S2", airline_id: null, up_to_km: 99999 }], airports: new Map(),
   };
   const strip = (c: Change[]) => c.map((ch) => ({ ...ch, values: ch.values && { ...ch.values, ...("legacy_key" in ch.values ? { legacy_key: "k" } : {}) } }));
@@ -194,7 +193,7 @@ describe("filing", () => {
     expect(ch.map((c) => [c.table, c.op])).toEqual([["aircraft", "update"], ["spending_log", "insert"], ["rotations", "insert"], ["flight_legs", "insert"], ["flight_legs", "insert"],
       ["rotations", "insert"], ["flight_legs", "insert"], ["flight_legs", "insert"]]);
     expect(ch[0]).toEqual({ table: "aircraft", op: "update", key: { id: 5 }, base: T0,
-      values: { status: "active", base_code: "HUB", cabin_config_id: 11, extra: { deliveries_index: 0, tails_index: 4 } } });
+      values: { status: "active", base_code: "HUB", cabin_config_id: 11 } });
     expect(ch[1]).toEqual({ table: "spending_log", op: "insert", values: { world_id: 1, airline_id: 1, spent_on: TODAY, amount: 450000, kind: "cabin", aircraft_id: 5,
       note: "T-005 first cabin fit (321-LEI)" } });
     expect(strip(ch.slice(2))).toEqual([
@@ -221,17 +220,8 @@ describe("filing", () => {
     expect(ch.filter((c) => c.table === "plan_card_legs")).toEqual([
       { table: "plan_card_legs", op: "update", key: { id: 71 }, base: T0, values: { dep_utc_min: 1270 } },
       { table: "plan_card_legs", op: "update", key: { id: 73 }, base: T0, values: { dep_utc_min: 930, block_min: 85 } }]);
-    // a card without the old planner's copy of its typed legs is left as it is
+    // the card itself is left as it is: its legs are its rows (the old planner's copy of them went with the clean-up)
     expect(ch.map((c) => c.table)).not.toContain("plan_cards");
-  });
-  it("drops the old planner's copy of the card's typed legs once they take the game's times (it would show the old times)", () => {
-    const kept = { ...card, extra: { legs: [{ no: "1201", days: "1234567" }], colour: "blue" } };
-    const g = game([{ dep: "21:10", arr: "08:10" }, {}, {}, {}]);
-    expect(filingChanges({ ...x, card: kept, game: g }).filter((c) => c.table === "plan_cards")).toEqual([
-      { table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { extra: { colour: "blue" } } }]);
-    // the game's times the same as the card's: the legs don't change, and neither does the copy
-    expect(filingChanges({ ...x, card: kept, game: game([{}, {}, {}, {}]) }).map((c) => c.table)).not.toContain("plan_cards");
-    expect(filingChanges({ ...x, card: kept }).map((c) => c.table)).not.toContain("plan_cards");
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");
@@ -256,16 +246,15 @@ describe("filing", () => {
 });
 
 describe("adding, changing and removing an aircraft", () => {
-  it("adds a tail at the end of the list, and refuses a registration in use", () => {
-    expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet, 5)).toEqual({ changes: [
-      { table: "aircraft", op: "insert", values: { world_id: 1, registration: "T-009", airline_id: 1, aircraft_type_id: 1, cabin_config_id: 11, base_code: "HUB", status: "active",
-        extra: { tails_index: 5 } } }] });
-    expect(addTailChanges(1, 1, { id: "T-001", type: "", config: "", base: "" }, rules, configs, fleet, 5)).toEqual({ error: "That tail id exists." });
-    expect(addTailChanges(1, 1, { id: "  ", type: "", config: "", base: "" }, rules, configs, fleet, 5)).toEqual({ changes: [] });
+  it("adds a tail in service, and refuses a registration in use", () => {
+    expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet)).toEqual({ changes: [
+      { table: "aircraft", op: "insert", values: { world_id: 1, registration: "T-009", airline_id: 1, aircraft_type_id: 1, cabin_config_id: 11, base_code: "HUB", status: "active" } }] });
+    expect(addTailChanges(1, 1, { id: "T-001", type: "", config: "", base: "" }, rules, configs, fleet)).toEqual({ error: "That tail id exists." });
+    expect(addTailChanges(1, 1, { id: "  ", type: "", config: "", base: "" }, rules, configs, fleet)).toEqual({ changes: [] });
     const retired = [...fleet, ac(9, "T-009", { status: "retired", retired_on: "2026-10-01", extra: {} })];
-    expect(addTailChanges(1, 1, { id: "T-009", type: "", config: "", base: "FOC" }, rules, configs, retired, 5)).toEqual({ changes: [
+    expect(addTailChanges(1, 1, { id: "T-009", type: "", config: "", base: "FOC" }, rules, configs, retired)).toEqual({ changes: [
       { table: "aircraft", op: "update", key: { id: 9 }, base: T0, values: { airline_id: 1, aircraft_type_id: null, cabin_config_id: null, base_code: "FOC", status: "active",
-        retired_on: null, extra: { tails_index: 5 } } }] });
+        retired_on: null } }] });
   });
   const ctx = { rules, configs, aircraft: fleet, airline: { is_lcc: false } };
   it("changes one field of one row at a time", () => {
@@ -282,48 +271,50 @@ describe("adding, changing and removing an aircraft", () => {
     expect(editTailChange(fleet[0] as TailAircraft, "maint", "HUB nights", ctx)).toEqual({ changes: [{ table: "aircraft", op: "update", key: { id: 1 }, base: T0,
       values: { maintenance_note: "HUB nights" } }] });
     expect(editTailChange(fleet[0] as TailAircraft, "notes", "spare", ctx)).toEqual({ changes: [{ table: "aircraft", op: "update", key: { id: 1 }, base: T0,
-      values: { extra: { tails_index: 0, tail: { notes: "spare" } } } }] });
-    expect(editTailChange({ ...(fleet[0] as TailAircraft), extra: { tails_index: 0, tail: { notes: "spare" } } }, "notes", "", ctx)).toEqual({ changes: [{ table: "aircraft",
-      op: "update", key: { id: 1 }, base: T0, values: { extra: { tails_index: 0 } } }] });
+      values: { extra: { tail: { notes: "spare" } } } }] });
+    expect(editTailChange({ ...(fleet[0] as TailAircraft), extra: { tail: { notes: "spare" } } }, "notes", "", ctx)).toEqual({ changes: [{ table: "aircraft",
+      op: "update", key: { id: 1 }, base: T0, values: { extra: {} } }] });
   });
   it("removes an aircraft by retiring it (never a delete), and not while it flies a route", () => {
     expect(removeTailChanges(fleet[0] as TailAircraft, true, TODAY)).toEqual({ error: "This tail still flies routes. Reassign them first." });
-    expect(removeTailChanges({ ...(fleet[1] as TailAircraft), extra: { tails_index: 1, deliveries_index: 3, tail: { notes: "x" } } }, false, TODAY)).toEqual({ changes: [
-      { table: "aircraft", op: "update", key: { id: 2 }, base: T0, values: { status: "retired", retired_on: TODAY, extra: {} } }] });
+    expect(removeTailChanges({ ...(fleet[1] as TailAircraft), extra: { tail: { notes: "x" } } }, false, TODAY)).toEqual({ changes: [
+      { table: "aircraft", op: "update", key: { id: 2 }, base: T0, values: { status: "retired", retired_on: TODAY } }] });
     expect(deleteTailChanges(fleet[0] as TailAircraft, [{ id: 1, updated_at: T0, legs: [{ id: 1, updated_at: T0 }, { id: 2, updated_at: T0 }] }], TODAY).map((c) => [c.table, c.op, c.key]))
       .toEqual([["flight_legs", "delete", { id: 1 }], ["flight_legs", "delete", { id: 2 }], ["rotations", "delete", { id: 1 }], ["aircraft", "update", { id: 1 }]]);
     expect(markCheckedChange(fleet[0] as TailAircraft, TODAY)).toEqual({ table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { checked_on: TODAY } });
   });
 });
 
-// remove a delivery (the old data-deldel, build pull request 12): the rows the old adapter wrote for it
+// remove a delivery (the old data-deldel, build pull request 12): it leaves the deliveries board, as it left the old list
 describe("removing a delivery", () => {
-  const ordered = (id: number, reg: string, di: number, x: Partial<TailAircraft> = {}) => ac(id, reg, { status: "on_order", delivery_at: "2026-10-20T08:00:00+00:00",
-    order_note: "plan", extra: { deliveries_index: di, delivery: { note: "x" } }, ...x });
-  const fleet = [ac(1, "T-001"), ac(2, "T-002"), ordered(5, "T-005", 0), ordered(6, "T-006", 1), ordered(7, "T-007", 2)];
-  it("one nothing points at is removed; the deliveries after it move up a place", () => {
-    expect(removeDeliveryChanges(fleet[2] as TailAircraft, fleet, { money: false, pointedAt: false }, TODAY)).toEqual([
+  const ordered = (id: number, reg: string, x: Partial<TailAircraft> = {}) => ac(id, reg, { status: "on_order", delivery_at: "2026-10-20T08:00:00+00:00",
+    order_note: "plan", ...x });
+  const fleet = [ac(1, "T-001"), ac(2, "T-002"), ordered(5, "T-005"), ordered(6, "T-006"), ordered(7, "T-007")];
+  const order = { ordered_on: null, delivery_at: null, order_base_code: null, order_config_id: null, order_note: null };
+  it("one nothing points at is removed; the others are left as they are", () => {
+    expect(removeDeliveryChanges(fleet[2] as TailAircraft, { money: false, pointedAt: false }, TODAY)).toEqual([
       { table: "aircraft", op: "delete", key: { id: 5 }, base: T0 },
-      { table: "aircraft", op: "update", key: { id: 6 }, base: T0, values: { extra: { deliveries_index: 0, delivery: { note: "x" } } } },
-      { table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { extra: { deliveries_index: 1, delivery: { note: "x" } } } },
     ]);
   });
-  it("one with a plan card stays, out of the lists; one the capture or money spent knows is retired today", () => {
-    expect(removeDeliveryChanges(fleet[4] as TailAircraft, fleet, { money: false, pointedAt: true }, TODAY))
-      .toEqual([{ table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { extra: {} } }]);
-    expect(removeDeliveryChanges(fleet[4] as TailAircraft, fleet, { money: true, pointedAt: true }, TODAY))
-      .toEqual([{ table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { status: "retired", retired_on: TODAY, extra: {} } }]);
+  it("one with a plan card keeps its row with its order cleared, so it leaves the board; one the capture or money spent knows is retired today", () => {
+    expect(removeDeliveryChanges(fleet[4] as TailAircraft, { money: false, pointedAt: true }, TODAY))
+      .toEqual([{ table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: order }]);
+    expect(removeDeliveryChanges(fleet[4] as TailAircraft, { money: true, pointedAt: true }, TODAY))
+      .toEqual([{ table: "aircraft", op: "update", key: { id: 7 }, base: T0, values: { status: "retired", retired_on: TODAY } }]);
+    const kept = { ...(fleet[4] as TailAircraft), ...order };
+    expect(deliveryRows([kept], [], buildRules(base), new Map(), [], NOW, TODAY)).toEqual([]);
   });
   it("one in service too loses only its order, and stays a tail", () => {
     const filed = ac(8, "T-008", { delivery_at: "2026-10-01T08:00:00+00:00", ordered_on: "2026-09-20", order_base_code: "HUB", order_note: "plan",
-      extra: { tails_index: 2, deliveries_index: 3, tail: { notes: "n" }, delivery: { note: "x" } } });
-    expect(removeDeliveryChanges(filed, [...fleet, filed], { money: true, pointedAt: true }, TODAY)).toEqual([
-      { table: "aircraft", op: "update", key: { id: 8 }, base: T0, values: { ordered_on: null, delivery_at: null, order_base_code: null, order_config_id: null,
-        order_note: null, extra: { tails_index: 2, tail: { notes: "n" } } } },
+      extra: { tail: { notes: "n" } } });
+    expect(removeDeliveryChanges(filed, { money: true, pointedAt: true }, TODAY)).toEqual([
+      { table: "aircraft", op: "update", key: { id: 8 }, base: T0, values: order },
     ]);
   });
-  it("the deliveries board lists only aircraft in the old list of deliveries", () => {
-    const gone = ac(9, "T-009", { status: "on_order", delivery_at: "2026-10-20T08:00:00+00:00", extra: {} });
-    expect(deliveryRows([gone], [], buildRules(base), new Map(), [], NOW, TODAY)).toEqual([]);
+  it("the deliveries board lists every aircraft with a delivery that isn't retired, in the order they were added", () => {
+    const retired = ac(9, "T-009", { status: "retired", delivery_at: "2026-10-20T08:00:00+00:00" });
+    expect(deliveryRows([retired], [], buildRules(base), new Map(), [], NOW, TODAY)).toEqual([]);
+    expect(deliveryRows([fleet[3] as TailAircraft, fleet[2] as TailAircraft], [], buildRules(base), new Map(), [], NOW, TODAY).map((r) => r.a.registration))
+      .toEqual(["T-005", "T-006"]);
   });
 });

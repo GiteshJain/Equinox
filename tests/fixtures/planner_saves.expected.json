@@ -1,0 +1,596 @@
+{
+ "saves": {
+  "check: Keep as is": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft_cabin_keeps insert aircraft_id,cabin,decided_on,world_id": 1
+   },
+   "written": {
+    "aircraft_cabin_keeps insert": 1
+   }
+  },
+  "check: Mark checked (an aircraft made due for the test)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update checked_on": 1
+   },
+   "written": {
+    "aircraft update checked_on": 1
+   }
+  },
+  "check: Refitted to": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update cabin_config_id": 1,
+    "planner_save spending_log insert aircraft_id,airline_id,amount,kind,note,spent_on,world_id": 1
+   },
+   "written": {
+    "aircraft update cabin_config_id": 1,
+    "spending_log insert": 1
+   }
+  },
+  "check: Show again": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft_cabin_keeps delete": 1
+   },
+   "written": {
+    "aircraft_cabin_keeps delete": 1
+   }
+  },
+  "check: log an order (as Frequency)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save growth_log insert airline_id,logged_on,move,note,world_id": 1
+   },
+   "written": {
+    "growth_log insert": 1
+   }
+  },
+  "check: the game check: add a flight (a round trip on a route it has)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs insert aircraft_id,airline_id,block_min,days_utc,dep_utc_min,dest_code,flight_no,leg_no,origin_code,rotation_id,world_id": 2,
+    "planner_save rotations insert airline_id,fare_pct,launched_on,legacy_key,route_id,service_code,world_id": 1
+   },
+   "written": {
+    "flight_legs insert": 2,
+    "rotations insert": 1
+   }
+  },
+  "check: the game check: fix all (a time and a day change)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update days_utc": 2,
+    "planner_save flight_legs update dep_utc_min": 1
+   },
+   "written": {
+    "flight_legs update days_utc": 2,
+    "flight_legs update dep_utc_min": 1
+   }
+  },
+  "check: the game check: fix one (a flight's times)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update dep_utc_min": 1
+   },
+   "written": {
+    "flight_legs update dep_utc_min": 1
+   }
+  },
+  "home: add a to-do with two steps": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save todo_items insert body,position,todo_id,world_id": 2,
+    "planner_save todos insert done,due_on,legacy_key,title,world_id": 1
+   },
+   "written": {
+    "todo_items insert": 2,
+    "todos insert": 1
+   }
+  },
+  "home: add a to-do, to delete": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save todo_items insert body,position,todo_id,world_id": 2,
+    "planner_save todos insert done,due_on,legacy_key,title,world_id": 1
+   },
+   "written": {
+    "todo_items insert": 2,
+    "todos insert": 1
+   }
+  },
+  "home: delete a to-do (the page asks itself)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save todo_items delete": 2,
+    "planner_save todos delete": 1
+   },
+   "written": {
+    "todo_items delete": 2,
+    "todos delete": 1
+   }
+  },
+  "home: dismiss an item of needs attention": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save dismissals insert dismissed_on": 1
+   },
+   "written": {
+    "dismissals insert": 1
+   }
+  },
+  "home: show again": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save dismissals delete": "*"
+   },
+   "written": {
+    "dismissals delete": "*"
+   }
+  },
+  "home: tick a to-do": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save todos update done,done_at": 1
+   },
+   "written": {
+    "todos update done,done_at": 1
+   }
+  },
+  "interline: a note on it": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save interline_agreements update note": 1
+   },
+   "written": {
+    "interline_agreements update note": 1
+   }
+  },
+  "interline: a status (none to requested: its row added)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save interline_agreements insert airline_id,country_code,decided_on,note,partner,status,world_id": 1
+   },
+   "written": {
+    "interline_agreements insert": 1
+   }
+  },
+  "photos: a destination photo uploaded (the bucket answered in the browser)": {
+   "logged": [],
+   "sent": {
+    "rpc site_set_airport_photo p_code,p_credit,p_path,p_url": 1,
+    "upload POST site-photos/airports/<code>-<time>.jpg image/jpeg JPEG 320x200": 1
+   },
+   "website": [
+    "at",
+    "creator",
+    "path",
+    "uploaded",
+    "url"
+   ],
+   "written": {}
+  },
+  "reference: Add config": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save cabin_configs insert aircraft_type_id,business_seats,cabin,code,cost,economy_seats,note,seats,world_id": 1
+   },
+   "written": {
+    "cabin_configs insert": 1
+   }
+  },
+  "reference: a constant (the bank buffer)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save settings update value": 1
+   },
+   "written": {
+    "settings update value": 1
+   }
+  },
+  "reference: a hub's bank time": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save airline_bases update bank_times": 1
+   },
+   "written": {
+    "airline_bases update bank_times": 1
+   }
+  },
+  "reference: a night ban (an airport with no row of its own)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save world_airports insert airport_code,mct_min,night_ban_from,night_ban_to,utc_offset_override,world_id": 1
+   },
+   "written": {
+    "world_airports insert": 1
+   }
+  },
+  "reference: a removed route restored": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save routes update edit_kept,removed": 1
+   },
+   "written": {
+    "routes update edit_kept,removed": 1
+   }
+  },
+  "reference: a time zone (an airport no flight uses)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save world_airports update utc_offset_override": 1
+   },
+   "written": {
+    "world_airports update utc_offset_override": 1
+   }
+  },
+  "reference: a type's minimum turn": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft_types update min_turn_min": 1
+   },
+   "written": {
+    "aircraft_types update min_turn_min": 1
+   }
+  },
+  "review: + fare plan": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save fare_plan insert airline_id,cabin_class,change_pct,fare_from,legacy_key,proposed_on,reason,route_id,status,world_id": 1
+   },
+   "written": {
+    "fare_plan insert": 1
+   }
+  },
+  "review: cash and fixed costs for today": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save cash_entries insert airline_id,cash,day,entered_at,fixed_next7,world_id": 1
+   },
+   "written": {
+    "cash_entries insert": 1
+   }
+  },
+  "review: loads pasted (one under 95%, one full), the day marked complete": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save load_days insert done,entered_at,game_date,saved_at_ms,world_id": 1,
+    "planner_save load_entries insert airline_id,eco_pct,entered_at,flight_no,game_date,world_id": 1
+   },
+   "written": {
+    "load_days insert": 1,
+    "load_entries insert": 1
+   }
+  },
+  "review: loads typed (one flight, a day with nothing yet)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save load_days insert done,entered_at,game_date,saved_at_ms,world_id": 1,
+    "planner_save load_entries insert airline_id,eco_pct,entered_at,flight_no,game_date,world_id": 1
+   },
+   "written": {
+    "load_days insert": 1,
+    "load_entries insert": 1
+   }
+  },
+  "review: remove a planned fare change": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save fare_plan update status": 1
+   },
+   "written": {
+    "fare_plan update status": 1
+   }
+  },
+  "routes: add a frequency": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs insert aircraft_id,airline_id,block_min,days_utc,dep_utc_min,dest_code,flight_no,leg_no,origin_code,rotation_id,world_id": 2,
+    "planner_save rotations insert airline_id,fare_pct,launched_on,legacy_key,route_id,service_code,world_id": 1
+   },
+   "written": {
+    "flight_legs insert": 2,
+    "rotations insert": 1
+   }
+  },
+  "routes: add a route": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save routes insert airline_id,city,country_label,dest_code,distance_km,hub_code,market_id,source,stars,world_id": 1
+   },
+   "written": {
+    "routes insert": 1
+   }
+  },
+  "routes: change an airport's UTC offset": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update": 2,
+    "planner_save world_airports insert": 1
+   },
+   "written": {
+    "flight_legs update": 2,
+    "world_airports insert": 1
+   }
+  },
+  "routes: change its departure": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update block_min,dep_utc_min": 1
+   },
+   "written": {
+    "flight_legs update block_min,dep_utc_min": 1
+   }
+  },
+  "routes: delete the frequency (the page asks itself)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs delete": 2,
+    "planner_save rotations delete": 1
+   },
+   "written": {
+    "flight_legs delete": 2,
+    "rotations delete": 1
+   }
+  },
+  "routes: edit its market": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save routes update market_cleared,market_override_id": 1
+   },
+   "written": {
+    "routes update market_override_id": 1
+   }
+  },
+  "routes: edit its stars": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save routes update stars_override": 1
+   },
+   "written": {
+    "routes update stars_override": 1
+   }
+  },
+  "routes: put the offset back": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update": 2,
+    "planner_save world_airports update": 1
+   },
+   "written": {
+    "flight_legs update": 2,
+    "world_airports update": 1
+   }
+  },
+  "routes: remove the route (the page asks itself)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save routes update removed,removed_note": 1
+   },
+   "written": {
+    "routes update removed,removed_note": 1
+   }
+  },
+  "routes: type its arrival": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update block_min": 1
+   },
+   "written": {
+    "flight_legs update block_min": 1
+   }
+  },
+  "routes: type its days": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update days_utc": 2
+   },
+   "written": {
+    "flight_legs update days_utc": 2
+   }
+  },
+  "routes: type its departure": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update dep_utc_min": 1
+   },
+   "written": {
+    "flight_legs update dep_utc_min": 1
+   }
+  },
+  "routes: type its return's arrival": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update block_min": 1
+   },
+   "written": {
+    "flight_legs update block_min": 1
+   }
+  },
+  "routes: type its return's departure": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save flight_legs update days_utc,dep_utc_min": 1
+   },
+   "written": {
+    "flight_legs update days_utc,dep_utc_min": 1
+   }
+  },
+  "tails: add a tail": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft insert aircraft_type_id,airline_id,base_code,cabin_config_id,registration,status,world_id": 1
+   },
+   "written": {
+    "aircraft insert": 1
+   }
+  },
+  "tails: change its base": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update base_code": 1
+   },
+   "written": {
+    "aircraft update base_code": 1
+   }
+  },
+  "tails: change its maintenance gap": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update maintenance_note": 1
+   },
+   "written": {
+    "aircraft update maintenance_note": 1
+   }
+  },
+  "tails: file an arrived aircraft from its plan card, the game differing": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update base_code,cabin_config_id,status": 1,
+    "planner_save flight_legs insert aircraft_id,airline_id,block_min,days_utc,dep_utc_min,dest_code,flight_no,leg_no,origin_code,rotation_id,world_id": 2,
+    "planner_save plan_card_legs update block_min,dep_utc_min": 1,
+    "planner_save rotations insert airline_id,fare_pct,launched_on,legacy_key,route_id,service_code,world_id": 1,
+    "planner_save spending_log insert aircraft_id,airline_id,amount,kind,note,spent_on,world_id": 1
+   },
+   "written": {
+    "aircraft update base_code,cabin_config_id,status": 1,
+    "flight_legs insert": 2,
+    "plan_card_legs update block_min,dep_utc_min": 1,
+    "rotations insert": 1,
+    "spending_log insert": 1
+   }
+  },
+  "tails: file an arrived aircraft from its plan card, the game matching": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update base_code,cabin_config_id,status": 1,
+    "planner_save flight_legs insert aircraft_id,airline_id,block_min,days_utc,dep_utc_min,dest_code,flight_no,leg_no,origin_code,rotation_id,world_id": 2,
+    "planner_save rotations insert airline_id,fare_pct,launched_on,legacy_key,route_id,service_code,world_id": 1,
+    "planner_save spending_log insert aircraft_id,airline_id,amount,kind,note,spent_on,world_id": 1
+   },
+   "written": {
+    "aircraft update base_code,cabin_config_id,status": 1,
+    "flight_legs insert": 2,
+    "rotations insert": 1,
+    "spending_log insert": 1
+   }
+  },
+  "tails: remove a delivery (on order, nothing pointing at it)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft delete": 1
+   },
+   "written": {
+    "aircraft delete": 1
+   }
+  },
+  "tails: remove it (the page asks itself)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft update retired_on,status": 1
+   },
+   "written": {
+    "aircraft update retired_on,status": 1
+   }
+  }
+ }
+}

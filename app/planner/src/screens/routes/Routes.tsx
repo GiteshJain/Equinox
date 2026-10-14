@@ -89,8 +89,9 @@ export function Routes() {
   [rules, airline, routes, routesQ.data, rotationsQ.data, legsQ.data, airportsQ.data]);
   const aircraft = useMemo(() => new Map((aircraftQ.data ?? []).map((a) => [a.id, a])), [aircraftQ.data]);
   const byRegistration = useMemo(() => new Map((aircraftQ.data ?? []).map((a) => [a.registration, a])), [aircraftQ.data]);
+  // the airline's tails, in the order they were added (id; the old planner's list order went with the clean-up)
   const tails = useMemo(() => (aircraftQ.data ?? []).filter((a) => a.airline_id === airline?.id && a.status === "active")
-    .sort((a, b) => (a.tails_index ?? 1e9) - (b.tails_index ?? 1e9) || a.id - b.id), [aircraftQ.data, airline]);
+    .sort((a, b) => a.id - b.id), [aircraftQ.data, airline]);
 
   // every route's frequencies, as the library sees them, and the figures the list shows
   const freqsByRoute = useMemo(() => {

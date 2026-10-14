@@ -10,8 +10,8 @@
 --   2. The backfill, checked exactly on the night it runs (the rehearsal's copy didn't have the history yet):
 --      - every active airline of ours has a day from 29 Sep to the last capture day that had ended, marked backfill,
 --        complete exactly when the day's capture was;
---      - cash: from 29 Sep to 6 Oct, the old planner's stored figure for that airline and date; from 7 Oct, the capture
---        day's latest balance (account 2800) and its time, and the old planner's figure wherever it copied that balance;
+--      - cash: from 7 Oct, the capture day's latest balance (account 2800) and its time (until the clean-up, build pull
+--        request 14, also against the old planner's stored figures, which went with planner_state);
 --      - flights per day from game_flights (every flight that departed that UTC day, from 6 Oct; none before), and the
 --        route days add up to them;
 --      - the fleet on today's date as aircraft has it (flying = active and delivered; on order = on_order), by type,
@@ -176,24 +176,6 @@ begin
   assert bad is null, 'missing or wrongly marked backfilled days: ' || left(bad, 400);
   assert v_last >= private.capture_day(w, now()) - 1, format('the backfill stops at %s, before the last capture day that has ended', v_last);
 
-  -- cash, 29 Sep to 6 Oct: the old planner's stored figure (planner_state, frozen; millions with 2 decimals), every one
-  st := private.json_object_or_empty((select p.json from public.planner_state p where p.id = 'main'));
-  select count(*), count(*) filter (where round(d.cash / 1000000, 2) is distinct from x.m or d.cash_at is not null)
-    into n_stored, n2
-    from jsonb_each(case when jsonb_typeof(st -> 'cash') = 'object' then st -> 'cash' else '{}'::jsonb end) day
-    cross join lateral jsonb_each(case when jsonb_typeof(day.value) = 'object' then day.value else '{}'::jsonb end) a
-    cross join lateral (select private.json_num(a.value) as m) x
-    join public.airlines al on al.world_id = w and al.planner_name = a.key
-    left join public.airline_days d on d.airline_id = al.id and d.day = private.json_date(to_jsonb(day.key))
-   where private.json_date(to_jsonb(day.key)) between date '2026-09-29' and date '2026-10-06' and x.m is not null;
-  assert n2 = 0, format('%s of the old planner''s %s stored cash figures (29 Sep to 6 Oct) aren''t the backfilled days''', n2, n_stored);
-  -- and every backfilled day of those has the stored figure or none (nothing invented)
-  select count(*) into n3 from public.airline_days d join public.airlines al on al.id = d.airline_id
-   where d.world_id = w and d.day between date '2026-09-29' and date '2026-10-06' and d.cash is not null
-     and private.json_num(st #> array['cash', d.day::text, al.planner_name]) is null
-     and not exists (select 1 from public.cash_entries c where c.airline_id = d.airline_id and c.day = d.day and c.cash = d.cash);
-  assert n3 = 0, format('%s backfilled days before 7 Oct have cash the old planner didn''t store', n3);
-
   -- cash from 7 Oct: the capture day's latest balance and its time, or (with none) a typed figure
   select count(*) into n2 from public.airline_days d
     left join lateral (select b.amount, b.captured_at from public.game_balance b
@@ -203,29 +185,6 @@ begin
      and (d.cash, d.cash_at) is distinct from (lb.amount, lb.captured_at)
      and not (lb.captured_at is null and d.cash_at is null);
   assert n2 = 0, format('%s backfilled days from 7 Oct don''t have their capture day''s latest balance', n2);
-  -- and the old planner's figure, wherever it copied that day's latest balance (its date key is the UTC date)
-  with stored as (
-    select al.id as airline_id, private.json_date(to_jsonb(day.key)) as d, private.json_num(a.value) as m
-      from jsonb_each(case when jsonb_typeof(st -> 'cash') = 'object' then st -> 'cash' else '{}'::jsonb end) day
-      cross join lateral jsonb_each(case when jsonb_typeof(day.value) = 'object' then day.value else '{}'::jsonb end) a
-      join public.airlines al on al.world_id = w and al.planner_name = a.key
-     where private.json_date(to_jsonb(day.key)) >= date '2026-10-07' and private.json_num(a.value) is not null),
-  judged as (
-    select s.*, cc.cash, cc.cash_at, b.capture_day,
-           (select max(x.captured_at) from public.game_balance x where x.airline_id = s.airline_id and x.capture_day = b.capture_day
-               and x.account like '2800%') as day_latest
-      from stored s
-      left join public.capture_cash cc on cc.airline_id = s.airline_id and cc.day = s.d
-      left join public.game_balance b on b.airline_id = s.airline_id and b.captured_at = cc.cash_at and b.account like '2800%')
-  select count(*) filter (where j.cash is not null and round(j.cash / 1000000, 2) = j.m and j.cash_at = j.day_latest
-                            and round((select d.cash from public.airline_days d where d.airline_id = j.airline_id and d.day = j.capture_day) / 1000000, 2) = j.m),
-         count(*) filter (where j.cash is not null and round(j.cash / 1000000, 2) = j.m and j.cash_at = j.day_latest
-                            and round((select d.cash from public.airline_days d where d.airline_id = j.airline_id and d.day = j.capture_day) / 1000000, 2) is distinct from j.m),
-         count(*) filter (where j.cash is not null and round(j.cash / 1000000, 2) = j.m and j.cash_at is distinct from j.day_latest),
-         count(*) filter (where j.cash is null or round(j.cash / 1000000, 2) is distinct from j.m)
-    into n3, n4, v_super, v_typed
-    from judged j;
-  assert n4 = 0, format('%s of the old planner''s captured cash figures aren''t their capture day''s', n4);
 
   -- flights per day: every flight that departed that UTC day, from 6 Oct (none counted before)
   select min(coalesce((f.dep_at at time zone 'UTC')::date, f.game_date)) into v_first_flight from public.game_flights f where f.world_id = w;
@@ -268,8 +227,8 @@ begin
                                       where r.airline_id = d.airline_id and (r.launched_on is null or r.launched_on <= d.day)));
   assert bad is null, 'backfilled fleet or weekly departures differ from the delivery and launch dates for: ' || left(bad, 400);
 
-  raise notice 'backfill: % airline days, 29 Sep to %, each airline every day; cash as the old planner stored it on % airline-dates to 6 Oct, then each capture day''s latest balance (the old planner''s figure where it copied that balance: % agree; % from an earlier capture the same evening, % typed or not the capture''s)',
-    (select count(*) from public.airline_days where world_id = w), v_last, n_stored, n3, v_super, v_typed;
+  raise notice 'backfill: % airline days, 29 Sep to %, each airline every day; cash each capture day''s latest balance from 7 Oct',
+    (select count(*) from public.airline_days where world_id = w), v_last;
   raise notice 'backfill: flights per day from game_flights for every day from 6 Oct (first flight data %), % route days add up to them; the fleet today as aircraft has it',
     v_first_flight, (select count(*) from public.route_days where world_id = w);
 end

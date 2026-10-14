@@ -505,10 +505,62 @@ export function nightlyLog(log: CashLog): { day: string; cells: ({ cash: string;
 /** An airline's short name, as the old entry boxes and log head it: its first word. */
 export const firstWord = (name: string): string => name.split(" ")[0] ?? name;
 
-// ---------- loads by hand (manualLoadsHtml, parseLoadPaste, lfPastePreview and their saves through save_loads())
-/** A loads day as the old planner holds it (planner_loads_get()): the flights' economy loads keyed "Airline|number", and
- *  whether it is complete. */
-export interface LoadsDay { done: boolean; f: Record<string, number>; source?: string; savedAt?: number }
+// ---------- loads by hand (manualLoadsHtml, parseLoadPaste, lfPastePreview), saved through planner_save() into load_entries
+// and load_days (since the clean-up, build pull request 14; until then through the old planner's save_loads())
+/** A loads day as the planner holds it (loads_by_day()): the flights' economy loads keyed "Airline|number" (captured or
+ *  typed, the latest wins), whether it is complete, whether a capture reached it (source "capture"), when it was last saved
+ *  by hand (savedAt, ms); and the typed rows behind it, with their updated_at, the base a save changes them from. */
+export interface LoadsDay {
+  done: boolean;
+  f: Record<string, number>;
+  source?: string;
+  savedAt?: number;
+  entries?: { airline_id: number; flight_no: number; eco_pct: number | null; updated_at: string }[];
+  flags?: { done: boolean; saved_at_ms: number | null; updated_at: string } | null;
+}
+/** A day's change as the old planner's save sent it: the whole day's flights (f), or single flights set and cleared, and
+ *  the day's flags. */
+export interface DayPatch { f?: Record<string, number>; set?: Record<string, number>; del?: string[]; done?: boolean; savedAt?: number }
+/** The day after the change, as the old save_loads() merged it: f replaces the day's flights, or set and del change single
+ *  ones; done and savedAt as given, else as they were. */
+export function mergeDay(got: LoadsDay | null, p: DayPatch): { f: Record<string, number>; done: boolean; savedAt?: number } {
+  let f: Record<string, number>;
+  if (p.f !== undefined) f = { ...p.f };
+  else {
+    f = { ...(got?.f ?? {}), ...(p.set ?? {}) };
+    for (const k of p.del ?? []) delete f[k];
+  }
+  const savedAt = p.savedAt !== undefined ? p.savedAt : got?.savedAt;
+  return { f, done: p.done !== undefined ? p.done : got?.done ?? false, ...(savedAt !== undefined ? { savedAt } : {}) };
+}
+/** The rows a day's change writes, as the old save_loads() wrote them (private.loads_mirror_days): a load_entries row for
+ *  each flight whose load now differs from the day as it stood (null where it's cleared), and the day's load_days row
+ *  when its complete mark or its saved time changed, each stamped as entered now. A row there already is changed from its
+ *  updated_at; otherwise it's added. airlines: our airlines' names (the key's first part) to their ids. */
+export function loadsChanges(worldId: number, day: string, got: LoadsDay | null, p: DayPatch, airlines: ReadonlyMap<string, number>, nowIso: string): Change[] {
+  const v = mergeDay(got, p);
+  const gotF = got?.f ?? {};
+  const out: Change[] = [];
+  for (const k of [...new Set([...Object.keys(gotF), ...Object.keys(v.f)])].sort()) {
+    const tv = v.f[k], gv = gotF[k];
+    if (tv === gv) continue;
+    const [name, no] = [k.slice(0, k.lastIndexOf("|")), Number(k.slice(k.lastIndexOf("|") + 1))];
+    const airline = airlines.get(name);
+    if (airline === undefined || !Number.isInteger(no) || no < 0 || no > 2000000000) continue;
+    const eco = typeof tv === "number" && Number.isFinite(tv) && Math.abs(tv) < 10000 ? tv : null;
+    const row = got?.entries?.find((e) => e.airline_id === airline && e.flight_no === no);
+    out.push(row
+      ? { table: "load_entries", op: "update", key: { airline_id: airline, game_date: day, flight_no: no }, base: row.updated_at, values: { eco_pct: eco, entered_at: nowIso } }
+      : { table: "load_entries", op: "insert", values: { world_id: worldId, airline_id: airline, game_date: day, flight_no: no, eco_pct: eco, entered_at: nowIso } });
+  }
+  if (v.done !== (got?.done ?? false) || v.savedAt !== got?.savedAt) {
+    const values: Values = { done: v.done, saved_at_ms: v.savedAt ?? null, entered_at: nowIso };
+    out.push(got?.flags
+      ? { table: "load_days", op: "update", key: { world_id: worldId, game_date: day }, base: got.flags.updated_at, values }
+      : { table: "load_days", op: "insert", values: { world_id: worldId, game_date: day, ...values } });
+  }
+  return out;
+}
 /** The day's status after its date. */
 export const dayStatus = (d: LoadsDay | null): string => (d?.done ? (d.source === "capture" ? "captured" : "entered by hand") : "nothing yet");
 /** An airline's box: its flights under 95%, lowest first, "flight load" pairs. */
@@ -531,8 +583,8 @@ export function typedLoads(boxes: readonly { airline: string; text: string }[], 
   }
   return { f, unknown };
 }
-/** The typed day, as one save_loads() call: that day's flights (replacing them), complete, saved now. */
-export const typedSave = (day: string, f: Record<string, number>, nowMs: number) => ({ p_month: day.slice(0, 7), p_days: { [day]: { f, done: true, savedAt: nowMs } } });
+/** The typed day's change: that day's flights (replacing them), complete, saved now. */
+export const typedSave = (day: string, f: Record<string, number>, nowMs: number): Record<string, DayPatch> => ({ [day]: { f, done: true, savedAt: nowMs } });
 
 export interface PastedLoad { airline: string; no: string; tail: string; from: string; to: string; date: string; dep: string; pax: number; seats: number; pct: number; key: string }
 /** The game's load table pasted (parseLoadPaste): each row from its flight code (an airline of ours by its code), tail,
@@ -570,22 +622,18 @@ export function parseLoadPaste(text: string, codes: ReadonlyMap<string, string>,
 }
 /** A pasted load's pill, as the preview colours it. */
 export const pastePill = (pct: number): "ok" | "warn" | "orange" | "bad" => (pct >= 95 ? "ok" : pct >= 85 ? "warn" : pct >= 70 ? "orange" : "bad");
-/** The pasted loads saved (lfpaste-save): per month, each flight under 95% set and each at 95% or more cleared, and the
- *  days ticked marked complete; one save_loads() call per month, in the old order. */
-export function pasteSaves(parsed: readonly PastedLoad[], marked: readonly string[], nowMs: number): { p_month: string; p_days: Record<string, Values> }[] {
-  const send: Record<string, Record<string, { set: Record<string, number>; del: string[]; done?: boolean; savedAt?: number }>> = {};
-  const patch = (d: string) => {
-    const mo = d.slice(0, 7);
-    send[mo] ??= {};
-    return (send[mo][d] ??= { set: {}, del: [] });
-  };
+/** The pasted loads saved (lfpaste-save): each day's flights under 95% set and those at 95% or more cleared, and the days
+ *  ticked marked complete. */
+export function pasteSaves(parsed: readonly PastedLoad[], marked: readonly string[], nowMs: number): Record<string, DayPatch> {
+  const send: Record<string, { set: Record<string, number>; del: string[]; done?: boolean; savedAt?: number }> = {};
+  const patch = (d: string) => (send[d] ??= { set: {}, del: [] });
   for (const x of parsed) {
     const p = patch(x.date);
     if (x.pct < 95) p.set[x.key] = x.pct;
     else p.del.push(x.key);
   }
   for (const d of marked) Object.assign(patch(d), { done: true, savedAt: nowMs });
-  return Object.keys(send).map((mo) => ({ p_month: mo, p_days: send[mo] as unknown as Record<string, Values> }));
+  return send;
 }
 
 // ---------- the fold
