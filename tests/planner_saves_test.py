@@ -204,7 +204,7 @@ def diff(label, want, got):
     lines = []
     for k in sorted(set(want) | set(got)):
         if k not in got:
-            lines.append(f"{label}: recorded {k!r} ×{want[k]}, not written now")
+            lines.append(f"{label}: recorded {k!r} ×{want[k]}, not {label} now")
         elif k not in want:
             lines.append(f"{label}: now also {k!r} ×{got[k]}, not in the recorded answer")
         elif want[k] != "*" and want[k] != got[k]:
