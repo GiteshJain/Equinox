@@ -383,7 +383,7 @@ async def boards(old, new):
     nb = n["boards"]
     g = nb.get("Growth") or {"tables": []}
     label = (f"every board equals the old Check's: Capture ({max(0, len((nb.get('Capture') or {'tables': [[]]})['tables'][0]) - 1)} airlines), Growth "
-             f"({len(g['bars'])} main hubs, {len(g['tables'])} tables: the next move, the growth lists, the order queues, hub readiness), Aircraft checks "
+             f"({len(g['bars']) // 2} main hubs' bars, {len(g['tables'])} tables: the next move, the growth lists, the order queues, hub readiness), Aircraft checks "
              f"({len((nb.get('Aircraft checks') or {'cards': []})['cards'])} due), Cabins ({max(0, sum(len(t) - 1 for t in (nb.get('Cabins') or {'tables': []})['tables']))} rows)")
     return label, p, n
 
