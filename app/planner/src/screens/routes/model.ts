@@ -243,7 +243,7 @@ export interface Filters {
 
 const list = (v: string | null) => (v ? v.split(",").map(decodeURIComponent).filter((x) => x !== "") : []);
 
-/** The filters an address holds: /planner/next/routes?airline=PA&bases=JFK,ORD&stars=5,4&markets=Europe&km=500-2000&active=1&sort=load&q=chi. */
+/** The filters an address holds: /planner/routes?airline=PA&bases=JFK,ORD&stars=5,4&markets=Europe&km=500-2000&active=1&sort=load&q=chi. */
 export function parseFilters(search: string): Filters {
   const p = new URLSearchParams(search);
   const bases = p.get("bases");

@@ -4,27 +4,25 @@
 //   - the agreements: one row per airline and interline country, with the airports, round trips a day (or "planned"), the
 //     status, the partner in the game, since when and notes, each saved as you change it (one planner_save() call, the
 //     interline_agreements row the old planner's adapter writes); the airline and status filters, in the address
-//     (/planner/next/interline?airline=KF&status=open);
+//     (/planner/interline?airline=KF&status=open);
 //   - the interline countries, why each is one, the partners in the game there and our airlines flying or planned there;
 //     what to do when another airline asks, and the countries each of our airlines covers.
 // The rows and rules are model.ts's, on the start's rules input (rotations, routes, bases, the flown airports' countries),
-// the waiting plan cards and the setting interline_rules (manual §6).
+// the waiting plan cards and the setting interline_rules (manual §6), made in useRows.ts, which Home's interline line shares.
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useOurAirlines, useWorld } from "../../data/reads";
-import { useRules } from "../../data/rules";
+import { useWorld } from "../../data/reads";
 import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { loadLogos } from "../../ui/siteFiles";
-import { useAirports } from "../routes/reads";
-import { extraIndex } from "../tails/model";
-import { useGameHost, usePlanCards, usePlanLegs, useTailsAircraft } from "../tails/reads";
+import { useGameHost } from "../tails/reads";
 import {
-  IL_STATUS, STATUS_WORDS, agreementChange, airportsOf, coveredWords, filterSearch, interlineRows, isOpen, parseFilters, parseRules,
-  rtWords, shownRows, statusOf, type AgreementRow, type IlAirline, type IlField, type IlPlan, type IlRotation, type IlRow, type StatusFilter,
+  IL_STATUS, STATUS_WORDS, agreementChange, airportsOf, coveredWords, filterSearch, isOpen, parseFilters, type parseRules,
+  rtWords, shownRows, statusOf, type AgreementRow, type IlAirline, type IlField, type IlRow, type StatusFilter,
 } from "./model";
 import { useAgreements, useCountries } from "./reads";
+import { useInterlineRows } from "./useRows";
 
 const STATUS_CHIPS: readonly [StatusFilter, string][] = [["", "All"], ["open", "Still to sign"], ["signed", "Signed"], ["declined", "Declined"]];
 
@@ -34,13 +32,9 @@ export function Interline() {
   const filters = useMemo(() => parseFilters(loc.search), [loc.search]);
   const world = useWorld();
   const w = world.data?.id;
-  const airlinesQ = useOurAirlines(w);
-  const rulesQ = useRules(w);
+  const { rules, airlines, ilRules, home, nameOf, rows, error: rowsError } = useInterlineRows(w);
   const countriesQ = useCountries();
   const agreementsQ = useAgreements(w);
-  const aircraftQ = useTailsAircraft(w);
-  const cardsQ = usePlanCards(w);
-  const legsQ = usePlanLegs(w);
   const hostQ = useGameHost(w);
   const [logos, setLogos] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,62 +44,9 @@ export function Interline() {
     return () => { alive = false; };
   }, []);
 
-  const rules = rulesQ.data?.rules;
-  const airlines: IlAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
-    id: a.id, code: a.iata_code, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, color: a.livery_color,
-  })), [airlinesQ.data]);
-  const ilRules = useMemo(() => (rules ? parseRules(rules.input.settings.interline_rules) : null), [rules]);
-
-  // the waiting plan cards: an aircraft not in service, still in the old planner's deliveries, with a card; its legs as the
-  // old planner reads them (a copy kept in the card's extra.legs, else the leg rows)
-  const plans: IlPlan[] = useMemo(() => {
-    if (!aircraftQ.data || !cardsQ.data || !legsQ.data) return [];
-    const ac = new Map(aircraftQ.data.map((a) => [a.id, a]));
-    return cardsQ.data.flatMap((c): IlPlan[] => {
-      const a = ac.get(c.aircraft_id);
-      if (!a || a.status === "active" || a.status === "retired" || extraIndex(a, "deliveries_index") == null) return [];
-      const kept = (c.extra && typeof c.extra === "object" && !Array.isArray(c.extra) ? c.extra.legs : null);
-      const legs = Array.isArray(kept)
-        ? kept.map((l) => (l && typeof l === "object" && !Array.isArray(l) ? { from: typeof l.from === "string" ? l.from : null, to: typeof l.to === "string" ? l.to : null } : { from: null, to: null }))
-        : legsQ.data.filter((l) => l.plan_card_id === c.id).sort((x, y) => x.position - y.position).map((l) => ({ from: l.origin_code, to: l.dest_code }));
-      return [{ airline_id: a.airline_id, registration: a.registration, legs }];
-    });
-  }, [aircraftQ.data, cardsQ.data, legsQ.data]);
-  const planCodes = useMemo(() => [...new Set(plans.flatMap((p) => p.legs.flatMap((l) => [l.from, l.to])).filter((x): x is string => !!x))]
-    .filter((c) => !rules?.airports.has(c)), [plans, rules]);
-  const planAirportsQ = useAirports(w, planCodes);
-
+  // the rows (the airlines, the rules and the waiting plan cards they're made from) are useRows.ts's, as Home counts them
   const names = useMemo(() => new Map((countriesQ.data ?? []).map((c) => [c.code, c.name])), [countriesQ.data]);
   const ctryName = (cc: string) => names.get(cc) || cc;
-  const nameOf = (code: string) => airlines.find((a) => a.code === code)?.name ?? code;
-  const home = useMemo(() => new Set((rules?.bases ?? []).map((b) => rules?.airports.get(b.airport_code)?.country_code).filter((x): x is string => !!x)), [rules]);
-
-  const rows: IlRow[] | null = useMemo(() => {
-    if (!rules || !ilRules || !airlinesQ.data || (planCodes.length && !planAirportsQ.data)) return null;
-    const rotations: IlRotation[] = [];
-    const days = new Map<number, { l1?: number; l2?: number }>();
-    for (const l of rules.legs) {
-      if (l.rotation_id == null) continue;
-      const d = days.get(l.rotation_id) ?? {};
-      if ((l.leg_no ?? 1) === 1) d.l1 ??= l.days_utc.length;
-      else d.l2 ??= l.days_utc.length;
-      days.set(l.rotation_id, d);
-    }
-    for (const id of [...rules.rotations.keys()].sort((a, b) => a - b)) {
-      const rot = rules.rotations.get(id);
-      const route = rot ? rules.routes.get(rot.route_id) : undefined;
-      if (!route) continue;
-      const d = days.get(id) ?? {};
-      rotations.push({ airline_id: route.airline_id, hub: route.hub_code, dest: route.dest_code, days: d.l1 ?? d.l2 ?? 0 });
-    }
-    const planCountry = new Map((planAirportsQ.data ?? []).map((a) => [a.code, a.country_code]));
-    return interlineRows({
-      airlines, rotations, plans, home, rules: ilRules, nameOf,
-      countryOf: (ap) => rules.airports.get(ap)?.country_code ?? planCountry.get(ap) ?? null,
-    });
-    // nameOf reads airlines, which is in the list
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, ilRules, airlinesQ.data, airlines, plans, home, planCodes.length, planAirportsQ.data]);
 
   const records = useMemo(() => new Map((agreementsQ.data ?? []).map((a) => [a.airline_id + "|" + a.country_code, a])), [agreementsQ.data]);
   const rec = (r: IlRow) => records.get(r.airline_id + "|" + r.cc);
@@ -125,8 +66,7 @@ export function Interline() {
   }
   const setFilters = (f: Partial<typeof filters>) => navigate({ search: filterSearch({ ...filters, ...f }) });
 
-  const loadError = world.error ?? airlinesQ.error ?? rulesQ.error ?? countriesQ.error ?? agreementsQ.error ?? aircraftQ.error ?? cardsQ.error
-    ?? legsQ.error ?? planAirportsQ.error ?? hostQ.error;
+  const loadError = world.error ?? rowsError ?? countriesQ.error ?? agreementsQ.error ?? hostQ.error;
   const ready = !!(rows && countriesQ.data && agreementsQ.data && logos && hostQ.isFetched);
   const host = hostQ.data;
   return (

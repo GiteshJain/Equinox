@@ -1,10 +1,14 @@
 """Shared setup for the automatic checks (decision #9).
 
-- serve(): serves web/ (or another copy of it, root=) on a local port the way Cloudflare does (the _redirects rules,
-  and the home page for any other unknown address), in a background thread. The new planner (#18): /planner/next goes
-  to /planner/next/, and /planner/next/ and everything below it give its page (web/app/index.html, built by
-  `npm run build`); /app/... gives its files; /planner/ and below still give the old planner.
-- open_planner(): opens the planner in headless Chromium with the database replaced by the frozen sample
+- serve(): serves web/ (or another copy of it, root=) on a local port the way Cloudflare does, in a background thread:
+  the root's own _redirects rules, read from the file and applied as Cloudflare applies them (the first that matches
+  wins; * matches anything and :splat repeats it; a 301 or 302 answers with the address, keeping the query; a 200
+  serves the file at its target without looking at the rules again), then a folder's index.html, a file, or the home
+  page for any other unknown address (the site has no 404.html). Since the switch (#18 build pull request 13): /planner/
+  and everything below it give the new planner's page (web/app/index.html, built by `npm run build`), /planner/next/...
+  redirects to the same address under /planner/, and /planner/old/ gives the old planner (web/planner/index.html).
+- open_planner(): opens the old planner (at /planner/old/ since the switch) in headless Chromium with the database
+  replaced by the frozen sample
   (tests/fixtures/sample_*.json.gz), the clock frozen at the sample's moment, and every outside request blocked.
   live=True opens it at equinox-alliance.com (mapped to the local server) so it behaves as the live planner; False
   opens it at 127.0.0.1, which is a look-only preview (#8).
@@ -16,6 +20,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 FIX = ROOT / "tests" / "fixtures"
 SAMPLE_FILE = sorted(FIX.glob("sample_*.json.gz"))[-1]
+# The planners' addresses since the switch (#18 build pull request 13): the new planner at /planner/, the old one (the way
+# back) at /planner/old/.
+NEW_PLANNER = "/planner/"
+OLD_PLANNER = "/planner/old/"
 
 
 @functools.lru_cache(None)
@@ -30,8 +38,43 @@ def schedule_fixture():
     return json.loads(p.read_text()) if p.exists() else {"flights": []}
 
 
+def redirect_rules(root=WEB):
+    """The rules in the root's _redirects, in order: (source, target, status)."""
+    f = pathlib.Path(root) / "_redirects"
+    rules = []
+    for line in (f.read_text().splitlines() if f.is_file() else []):
+        parts = line.split()
+        if not parts or parts[0].startswith("#"):
+            continue
+        rules.append((parts[0], parts[1], int(parts[2]) if len(parts) > 2 else 302))
+    return rules
+
+
+def splat_of(source, path):
+    """What a rule's * matched in the address (the empty string for a source without one), or None if it doesn't match."""
+    if "*" not in source:
+        return "" if path == source else None
+    head, tail = source.split("*", 1)
+    if path.startswith(head) and path.endswith(tail) and len(path) >= len(head) + len(tail):
+        return path[len(head):len(path) - len(tail)]
+    return None
+
+
+def resolve(rules, path):
+    """Where Cloudflare sends an address: ("redirect", status, target), ("serve", target) for a 200 rule's target, or
+    ("file", path) when no rule matches."""
+    for source, target, status in rules:
+        splat = splat_of(source, path)
+        if splat is None:
+            continue
+        to = target.replace(":splat", splat)
+        return ("serve", to) if status == 200 else ("redirect", status, to)
+    return ("file", path)
+
+
 class _Handler(http.server.SimpleHTTPRequestHandler):
     root = WEB
+    rules = ()
 
     def __init__(self, *a, **k):
         super().__init__(*a, directory=str(self.root), **k)
@@ -40,21 +83,21 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        path = self.path.split("?")[0]
-        if path == "/planner/next":                             # _redirects: /planner/next -> /planner/next/ (301)
-            self.send_response(301); self.send_header("Location", "/planner/next/"); self.end_headers(); return
-        if path.startswith("/planner/next/"):                   # _redirects: /planner/next/* -> the new planner's page (200)
-            self.path = "/app/index.html"
-        elif path == "/app/index.html":                         # Cloudflare sends a page's index.html to its folder (308)
-            self.send_response(308); self.send_header("Location", "/app/"); self.end_headers(); return
-        elif path == "/planner":                                # _redirects: /planner -> /planner/ (301)
-            self.send_response(301); self.send_header("Location", "/planner/"); self.end_headers(); return
-        elif path.startswith("/planner/"):                      # _redirects: /planner/* -> the planner (200)
-            self.path = "/planner/index.html"
-        elif path.endswith("/") and (self.root / path.lstrip("/") / "index.html").is_file():
-            self.path = path + "index.html"                     # a folder's page, e.g. /app/
-        elif not (self.root / path.lstrip("/")).is_file() and "." not in path.rsplit("/", 1)[-1]:
+        path, _, query = self.path.partition("?")
+        how = resolve(self.rules, path)
+        if how[0] == "redirect":                                # a 301 or 302 rule: the address, with the query kept
+            self.send_response(how[1]); self.send_header("Location", how[2] + ("?" + query if query else "")); self.end_headers(); return
+        if how[0] == "file" and path.endswith("/index.html"):   # Cloudflare sends a page's index.html to its folder (308)
+            self.send_response(308); self.send_header("Location", path[:-len("index.html")]); self.end_headers(); return
+        path = how[1]                                           # a 200 rule's target, or the address itself
+        if path.endswith("/") and (self.root / path.lstrip("/") / "index.html").is_file():
+            self.path = path + "index.html"                     # a folder's page, e.g. /app/ or /planner/
+        elif (self.root / path.lstrip("/")).is_file():
+            self.path = path
+        elif "." not in path.rsplit("/", 1)[-1]:
             self.path = "/index.html"                           # no 404.html: Cloudflare serves the home page
+        else:
+            self.path = path
         return super().do_GET()
 
 
@@ -62,7 +105,7 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
 def serve(root=WEB):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
-    handler = type("Handler", (_Handler,), {"root": pathlib.Path(root)})
+    handler = type("Handler", (_Handler,), {"root": pathlib.Path(root), "rules": tuple(redirect_rules(root))})
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
     t = threading.Thread(target=httpd.serve_forever, daemon=True); t.start()
     try:
@@ -126,7 +169,7 @@ STUB = r"""
 LIVE_HOST = "equinox-alliance.com"
 
 
-async def open_planner(p, port, live=True, path="/planner/", width=1440, height=1000, stored=None, tables=None):
+async def open_planner(p, port, live=True, path=OLD_PLANNER, width=1440, height=1000, stored=None, tables=None):
     """Returns (browser, page, errors). errors collects page errors and console errors as they happen. stored: a copy
     of the planner to leave in the browser's storage before it opens (as a tab that couldn't reach the cloud leaves it).
     tables: tables the stand-in answers with instead of the sample's (e.g. {"job_runs": [...]}), for one page."""

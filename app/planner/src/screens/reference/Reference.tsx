@@ -1,6 +1,6 @@
 // Reference (decision #18, build pull request 12; spec docs/specs/2026-10-14-interline-photos-reference.md): every section
 // of the old planner's Reference (renderRef and renderRefRaw), folding as the old one does (all folded until opened; the
-// open one in the address, /planner/next/reference/<section>), with the same words and look:
+// open one in the address, /planner/reference/<section>), with the same words and look:
 //   hubs, focus cities and banks; constants; aircraft; configs; market defaults; service profiles; removed routes with
 //   restore and restore all; night bans; game schedules; time zones; storage; data.
 // Every edit is one planner_save() call writing exactly the rows the old planner's adapter wrote for it (model.ts says

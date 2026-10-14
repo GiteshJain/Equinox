@@ -20,7 +20,7 @@ export interface Place {
   day: number;
 }
 
-/** Where the address points: /planner/next/hubs/<airport>?day=<0-6>. The router gives the part after /hubs/. */
+/** Where the address points: /planner/hubs/<airport>?day=<0-6>. The router gives the part after /hubs/. */
 export function parsePlace(rest: string, search: string): Place {
   const code = decodeURIComponent(rest.split("/")[0] ?? "").trim().toUpperCase();
   const d = Number(new URLSearchParams(search).get("day"));

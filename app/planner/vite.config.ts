@@ -8,8 +8,8 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   root: "app/planner",
-  // On Cloudflare, _redirects rules win over files and /planner/* already goes to the old planner, so the new planner's
-  // files live under /app/ and only its page is mapped to /planner/next/ (design §3, choice 6).
+  // On Cloudflare, _redirects rules win over files and /planner/* goes to the planner's page, so the new planner's files
+  // live under /app/ and only its page is mapped, to /planner/ since the switch (design §3, choice 6).
   base: "/app/",
   plugins: [react()],
   // The planning library (decision #19, design §7), imported from its source as "@rules" (tsconfig.json's paths say the

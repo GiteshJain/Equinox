@@ -7,9 +7,9 @@
 /
   Cache-Control: no-cache
 
-# The old planner, and the new planner's addresses (/planner/next and everything below it, which _redirects maps to
-# the new planner's page): never cached, so a merge shows at once. Header rules match the address asked for, so this one
-# line covers both.
+# The planner's addresses (/planner/ and everything below it, which _redirects maps to the new planner's page, and
+# /planner/old/, the old planner): never cached, so a merge shows at once. Header rules match the address asked for, so
+# this one line covers both planners.
 /planner/*
   Cache-Control: no-cache
 

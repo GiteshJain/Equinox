@@ -1,7 +1,7 @@
 // The shell (decision #18, build pull request 1): sign-in and the staff check, then the header and the nine screens.
 import type { ComponentType } from "react";
 import { Outlet, createBrowserRouter } from "react-router";
-import { BASENAME, OLD_PLANNER } from "./data/config";
+import { BASENAME } from "./data/config";
 import { PREVIEW } from "./data/preview";
 import { useAccess } from "./data/session";
 import { Check } from "./screens/check/Check";
@@ -29,7 +29,7 @@ function PreviewNotice() {
   if (!PREVIEW) return null;
   return (
     <div className="eqpreview" role="status">
-      Preview: changes here aren't saved. <a href="https://equinox-alliance.com/planner/next/">Open the live planner</a>
+      Preview: changes here aren't saved. <a href="https://equinox-alliance.com/planner/">Open the live planner</a>
     </div>
   );
 }
@@ -71,7 +71,7 @@ function NotFound() {
     <main className="view">
       <div className="vh">
         <h1>Not found</h1>
-        <p>There's no such screen in the new planner yet. <a href={BASENAME + "/"}>Home</a> · <a href={OLD_PLANNER}>the old planner</a></p>
+        <p>There's no such screen in the planner. <a href={BASENAME + "/"}>Home</a></p>
       </div>
     </main>
   );
@@ -81,8 +81,8 @@ function RouteError() {
   return <main className="view"><ErrorBox error="Something went wrong on this screen. Reload the page to try again." /></main>;
 }
 
-// The router's base ends in a slash, so Home's own address is /planner/next/ as Cloudflare serves it (React Router
-// builds Home's link as the base itself). main.tsx moves a bare /planner/next to it before the router starts.
+// The router's base ends in a slash, so Home's own address is /planner/ as Cloudflare serves it (React Router builds
+// Home's link as the base itself). main.tsx moves a bare /planner to it before the router starts.
 export const ROUTER_BASENAME = BASENAME + "/";
 
 export const createPlannerRouter = () => createBrowserRouter([

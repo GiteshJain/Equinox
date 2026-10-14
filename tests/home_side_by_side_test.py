@@ -65,12 +65,9 @@ failures = []
 # printed with how often it was used and both values.
 # (The average load was one, until the Building chat's review: airline_cards() now gives the old Home's own figure, every
 # captured flight of the group over the last 8 days, so it must be equal, and step 4's loads check it to the decimal.)
+# (The interline line was one, until the switch, build pull request 13: the new Home words it from Interline's rows, on
+# the setting interline_rules, so it must be equal, and the side by side says what each Home's line reads.)
 KNOWN = {
-    "interline": {
-        "rule": "the old Home's interline line comes from its own list of interline countries (IL_YES and the rest), which has no "
-                "home outside the old planner's code yet (decision #19); the new Home leaves it out until the Interline screen "
-                "(build pull request 12) gives it one.",
-        "used": 0, "where": []},
     "order on a tie": {
         "rule": "aircraft that tie (the same check day, the same delivery time) are in the old planner's list order, kept only in "
                 "the adapter's extra; the new planner orders them by aircraft id. The same aircraft, in another order.",
@@ -306,25 +303,17 @@ def compare(old, new):
         if len(oo["groups"]) != len(no["groups"]):
             p.append(f"aircraft on order: old {len(oo['groups'])} airlines, new {len(no['groups'])}")
 
-    # needs attention
+    # needs attention (the interline line included since the switch, build pull request 13)
     oa, na = old["attention"], new["attention"]
     o_items, n_items = list(oa["items"]), list(na["items"])
-    # the interline line (known): taken out of the old list before comparing, the counts adjusted
-    il = [x for x in o_items if x["key"].startswith("Interline:") or x["text"].startswith("Interline:")]
-    for x in il:
-        known("interline", x["text"])
-        o_items.remove(x)
-    o_note = oa["note"]
-    if il:
-        n_old = len(oa["items"]) - len(il)
-        o_note = f"{n_old} item{'' if n_old == 1 else 's'}" if n_old else "nothing right now"
-    if o_note != na["note"]:
+    if interline_line(old) != interline_line(new):
+        p.append(f"needs attention: the interline line: old {interline_line(old)!r}, new {interline_line(new)!r}")
+    if oa["note"] != na["note"]:
         p.append(f"needs attention: how many: old {oa['note']!r}, new {na['note']!r}")
     if oa["hidden"] != na["hidden"]:
         p.append(f"needs attention: dismissed: old {oa['hidden']!r}, new {na['hidden']!r}")
-    o_top = [t for t in oa["top"] if not t.startswith("item: Interline:")]
-    if o_top != na["top"]:
-        p.append(f"needs attention: the groups in their order: old {o_top}, new {na['top']}")
+    if oa["top"] != na["top"]:
+        p.append(f"needs attention: the groups in their order: old {oa['top']}, new {na['top']}")
     norm = lambda x: (x["group"], x["cls"], x["text"], OLD_VIEW.get(x["view"], x["view"]) if "href" not in x else x["view"], x["tail"], x["route"], x["key"])
     oc, nc = Counter(norm(x) for x in o_items), Counter(norm(x) for x in n_items)
     for k in sorted((oc - nc).keys(), key=str):
@@ -363,6 +352,11 @@ def compare(old, new):
                 if a != b and a["key"] == b["key"]:
                     p.append(f"to-do {a['key']}: old {a}, new {b}")
     return p
+
+
+def interline_line(h):
+    """The interline line in needs attention (the old Home's, and the new one's since the switch), or None."""
+    return next((x["text"] for x in h["attention"]["items"] if x["text"].startswith("Interline:")), None)
 
 
 def summary(h):
@@ -568,7 +562,7 @@ class OldHome(rs.Planner):
         pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
               if m.type == "error" and "Failed to load resource" not in m.text else None)
         pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
-        await pg.goto(f"http://{host}:{self.port}/planner/")
+        await pg.goto(f"http://{host}:{self.port}/planner/old/")
         return pg
 
     async def home(self):
@@ -863,7 +857,8 @@ async def main():
                 problems = compare(o, n)
                 hrefs = sorted({x["href"] for x in n["attention"]["items"]})
                 step(not problems, f"side by side, every board equals the old Home's: key figures, aircraft on order, needs attention "
-                     f"({len(n['attention']['items'])} items with their groups, words, seriousness, links and keys), coming up "
+                     f"({len(n['attention']['items'])} items with their groups, words, seriousness, links and keys; the interline line: "
+                     f"{interline_line(n) or 'none in either'}), coming up "
                      f"({len(n['comingUp'])} rows) and the to-do board ({len(n['todo']['open'])} open, {len(n['todo']['done'])} done this week)", problems)
                 print("      the new Home's links: " + ", ".join(hrefs[:12]) + (" …" if len(hrefs) > 12 else ""), flush=True)
 

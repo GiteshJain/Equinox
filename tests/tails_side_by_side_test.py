@@ -216,7 +216,7 @@ class OldTails(rs.Planner):
               if m.type == "error" and "Failed to load resource" not in m.text else None)
         pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
         await pg.route("**/api/game-schedule*", lambda r: answer_schedule(r, self.schedule))
-        await pg.goto(f"http://{host}:{self.port}/planner/")
+        await pg.goto(f"http://{host}:{self.port}/planner/old/")
         return pg
 
     async def ready(self):
@@ -967,9 +967,9 @@ async def home_links(new, airlines):
     problems = []
     for name, href in got["fleet"]:
         al = next((a for a in airlines if a["name"] == name), None)
-        if not al or href != f"/planner/next/tails?airline={al['code']}":
+        if not al or href != f"/planner/tails?airline={al['code']}":
             problems.append(f"{name}'s Open fleet goes to {href}")
-    problems += [f"a File into planner goes to {h}" for h in got["file"] if not (h or "").startswith("/planner/next/tails?") or "file=" not in h]
+    problems += [f"a File into planner goes to {h}" for h in got["file"] if not (h or "").startswith("/planner/tails?") or "file=" not in h]
     if not got["fleet"]:
         problems.append("Home shows no Open fleet")
     return (f"Home's Open fleet ({len(got['fleet'])}) and File into planner ({len(got['file'])}) open Tails, at the airline and filing that aircraft"), problems

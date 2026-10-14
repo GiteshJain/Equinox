@@ -594,7 +594,7 @@ async def main():
             pg.on("console", lambda m: self.errors.append("console error: " + m.text[:200])
                   if m.type == "error" and "Failed to load resource" not in m.text else None)
             pg.on("dialog", lambda d: (self.dialogs.append(d.message[:160]), asyncio.ensure_future(d.dismiss())))
-            await pg.goto(f"http://{host}:{self.port}/planner/")
+            await pg.goto(f"http://{host}:{self.port}/planner/old/")
             return pg
 
     facts = planner_facts()

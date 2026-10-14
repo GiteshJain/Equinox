@@ -3,9 +3,9 @@
 // bans, flight numbers used twice and the airport caps (airport_cap_warning_pct) from the planning library; the capture
 // from capture_status(); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
 // (or, with no profit captured, the routes its load patterns mark cut, as the old Home fell back); can order from
-// airline_cards(); to-dos from the table. This file only words them. Interline isn't listed yet:
-// its rule (the old planner's list of interline countries) has no home outside the old planner's code (the pull
-// request says so); monthly checks have none since 8 Oct, as in the old planner.
+// airline_cards(); the interline line from Interline's rows (the setting interline_rules, build pull request 13) and
+// interline_agreements; to-dos from the table. This file only words them. Monthly checks have none since 8 Oct, as in
+// the old planner.
 import { aircraftWeek, block, maintenance, schedule, type OneWeekCheck, type Rules } from "@rules";
 import type { AttItem } from "../../ui/attention";
 import { shortType } from "../../ui/aircraftNames";
@@ -35,6 +35,9 @@ export interface AttentionInput {
   jobs: JobsRead | null;
   cards: readonly AirlineCard[] | null;
   growth: GrowthRead | null;
+  /** How many airline–country pairs Interline lists without an agreement (not signed, declined or without a partner),
+   *  or null until read. */
+  interlineOpen: number | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -110,6 +113,10 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     items.push({ cls: d.level, screen: "routes",
       text: `${d.airport}: ${d.departures_week.toLocaleString(locale)} departures a week — the cap is ${d.cap.toLocaleString(locale)} per airport` });
   }
+
+  // interline: the airline–country pairs Interline lists that have no agreement yet (the old Home's line, with no key)
+  const il = x.interlineOpen ?? 0;
+  if (il) items.push({ cls: "mute", screen: "interline", text: `Interline: ${il} airline–country pair${il === 1 ? "" : "s"} without an agreement` });
 
   // routes to fix or reduce, airline by airline, the most profitable a week first (route_profit()'s order); with no
   // profit captured, the routes the load patterns say to reduce instead (the old Home's fallback)

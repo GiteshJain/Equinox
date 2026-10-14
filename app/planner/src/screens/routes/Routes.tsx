@@ -4,8 +4,8 @@
 //     picked), demand stars, markets, distance and active only; sorts by stars, distance, destination or load; each
 //     row's stars, distance, market, frequencies and 7-day load; Add route; Remove unflown routes shown;
 //   - a route (RouteDetail.tsx) and its frequencies (Frequency.tsx), with every check from the planning library.
-// Addresses: /planner/next/routes (the list, its filters in the address so a link reopens them) and
-// /planner/next/routes/<airline code>/<hub>-<destination> (a route). Each action is one planner_save() call; the start's
+// Addresses: /planner/routes (the list, its filters in the address so a link reopens them) and
+// /planner/routes/<airline code>/<hub>-<destination> (a route). Each action is one planner_save() call; the start's
 // rules are read again after each, since the schedule changed. Every rule is the library's (lib/rules); model.ts joins
 // the tables to it and words what it answers.
 import { useMemo, useState, type KeyboardEvent } from "react";
@@ -45,7 +45,7 @@ export function Routes() {
   const navigate = useNavigate();
   const filters = useMemo(() => parseFilters(loc.search), [loc.search]);
   // the aircraft pop-up a frequency's aircraft opens (Tails' AircraftPopup, as from Home), kept in the address
-  // (/planner/next/routes/PA/JFK-ORD?aircraft=N001AW) so a link or the back button reopens it
+  // (/planner/routes/PA/JFK-ORD?aircraft=N001AW) so a link or the back button reopens it
   const tailPopup = new URLSearchParams(loc.search).get("aircraft");
   const setTailPopup = (reg: string | null) => {
     const n = new URLSearchParams(loc.search);

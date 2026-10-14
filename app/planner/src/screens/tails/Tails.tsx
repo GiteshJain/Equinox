@@ -5,8 +5,8 @@
 //   - an aircraft (AircraftPage.tsx): its header, the fields that change it, its week and every issue;
 //   - the deliveries board (Deliveries.tsx): aircraft on order, arrived or flying, each with its plan card, and filing an
 //     arrived one into the planner after checking it against the game (Filing.tsx).
-// Addresses: /planner/next/tails (filters in the address: ?airline=PA&base=JFK&type=...&status=warn&del=on+order&card=REG)
-// and /planner/next/tails/<registration>. Home's "File into planner" opens ?file=<registration>, which starts filing at
+// Addresses: /planner/tails (filters in the address: ?airline=PA&base=JFK&type=...&status=warn&del=on+order&card=REG)
+// and /planner/tails/<registration>. Home's "File into planner" opens ?file=<registration>, which starts filing at
 // once, as the old Home's button did. Each action is one planner_save() call; the start's rules are read again after it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
