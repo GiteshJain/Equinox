@@ -13,7 +13,9 @@
 # 3. Applies them in order, each in its own transaction, stopping at the first failure, then pauses any job they schedule
 #    on the copy (pg_cron), so none runs during the tests. With SAMPLE_DIR set, then makes a test sample from the copy
 #    (tests/fixtures/sample.sql, at the backup's moment) into that folder. With REPORT_SAMPLE_DIR set, also the weekly
-#    report's sample (tests/fixtures/report_sample.sql, cut by tests/fixtures/report_sample.py, at the same moment).
+#    report's sample (tests/fixtures/report_sample.sql, cut by tests/fixtures/report_sample.py, at the same moment). With
+#    CAPTURE_SAMPLE_DIR set, also the capture's saved pages (tests/fixtures/capture_sample.sql: one airline's five pages
+#    of one evening, what to expect of them and the rows they give; #21).
 # 4. Prints the row count of every table that changed, plus any table added or removed.
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
 #    passing test says it checked (its notices: counts, never rows).
@@ -340,6 +342,20 @@ if [ $status -eq 0 ] && [ -n "${REPORT_SAMPLE_DIR:-}" ]; then
   else
     echo "FAIL  the report sample couldn't be made"; status=1
   fi
+fi
+
+# the capture's saved pages (tests/README.md, "The capture sample"; #21): one airline's five pages of its newest complete
+# evening, with what to expect of them and the rows they give, before any test or save touches the copy
+if [ $status -eq 0 ] && [ -n "${CAPTURE_SAMPLE_DIR:-}" ]; then
+  mkdir -p "$CAPTURE_SAMPLE_DIR"
+  if psql "$LOCAL" -X -q -At -v ON_ERROR_STOP=1 -f tests/fixtures/capture_sample.sql > "$work/capture_sample.json" \
+     && day=$(jq -r '.capture_day' "$work/capture_sample.json") && [ -n "$day" ] && [ "$day" != null ]; then
+    gzip -9n < "$work/capture_sample.json" > "$CAPTURE_SAMPLE_DIR/capture_pages_${day}.json.gz"
+    echo "== capture sample made from the copy: capture_pages_${day}.json.gz ($(du -h "$CAPTURE_SAMPLE_DIR/capture_pages_${day}.json.gz" | cut -f1))"
+  else
+    echo "FAIL  the capture sample couldn't be made"; status=1
+  fi
+  rm -f "$work/capture_sample.json"
 fi
 
 if [ $status -eq 0 ]; then

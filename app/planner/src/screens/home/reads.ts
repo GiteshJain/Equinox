@@ -178,10 +178,23 @@ export function useJobs() {
   });
 }
 
-export interface CaptureAirline { airline_id: number; pages: Record<string, { today: string | null; yesterday: string | null }> | null }
+export interface CaptureAirline {
+  airline_id: number;
+  pages: Record<string, { today: string | null; yesterday: string | null }> | null;
+  /** The airline's latest capture's verdict (#21): ok, short or broken; null when none was judged. */
+  verdict?: "ok" | "short" | "broken" | null;
+  /** "all good", or what came in short or broken ("short: loads 12 of 78 flights"). */
+  verdict_words?: string | null;
+  /** That capture's latest page. */
+  verdict_at?: string | null;
+}
+/** An airline's latest capture as judged page by page (#21). */
+export interface CaptureVerdict { airline_id: number; verdict: "ok" | "short" | "broken"; words: string; at: string }
 export interface CaptureRead {
   /** Each of our airlines (capture_status's, in order) with its latest page since midnight UTC two days ago, or null. */
   last: { airline_id: number; at: string | null }[];
+  /** Each airline's latest capture's verdict, where one was judged (#21). */
+  verdicts?: CaptureVerdict[];
 }
 
 /** When each airline was last captured. capture_status() gives today and yesterday (UTC) at its moment; asked again a
@@ -202,12 +215,15 @@ export function useCaptureStatus(worldId: number | undefined) {
         .flatMap((p) => [p.today, p.yesterday]).filter((x): x is string => !!x)
         .reduce<string | null>((m, x) => (m == null || Date.parse(x) > Date.parse(m) ? x : m), null);
       const earlier = new Map(((before.data as { airlines?: CaptureAirline[] }).airlines ?? []).map((a) => [a.airline_id, a]));
+      const airlines = (now.data as { airlines?: CaptureAirline[] }).airlines ?? [];
       return {
-        last: ((now.data as { airlines?: CaptureAirline[] }).airlines ?? []).map((a) => {
+        last: airlines.map((a) => {
           const at = [latest(a), latest(earlier.get(a.airline_id))].filter((x): x is string => !!x)
             .reduce<string | null>((m, x) => (m == null || Date.parse(x) > Date.parse(m) ? x : m), null);
           return { airline_id: a.airline_id, at };
         }),
+        verdicts: airlines.flatMap((a) => (a.verdict && a.verdict_at
+          ? [{ airline_id: a.airline_id, verdict: a.verdict, words: a.verdict_words ?? "", at: a.verdict_at }] : [])),
       };
     },
   });

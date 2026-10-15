@@ -491,14 +491,14 @@ isOneToOne: false
                   ]
                 },"game_capture_raw": {
                   Row: {
-                    "airline": string,"airline_id": number,"captured_at": string,"id": number,"kind": string,"page_url": string | null,"rows": NonNullable<Json>,"world_id": number
+                    "airline": string,"airline_id": number,"captured_at": string,"id": number,"kind": string,"page_url": string | null,"rows": NonNullable<Json>,"verdict": string | null,"verdict_facts": Json | null,"verdict_note": string | null,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "airline": string,"airline_id": number,"captured_at"?: string,"id"?: number,"kind": string,"page_url"?: string | null,"rows": NonNullable<Json>,"world_id": number
+                    "airline": string,"airline_id": number,"captured_at"?: string,"id"?: number,"kind": string,"page_url"?: string | null,"rows": NonNullable<Json>,"verdict"?: string | null,"verdict_facts"?: Json | null,"verdict_note"?: string | null,"world_id": number
                   }
                   Update: {
-                    "airline"?: string,"airline_id"?: number,"captured_at"?: string,"id"?: number,"kind"?: string,"page_url"?: string | null,"rows"?: NonNullable<Json>,"world_id"?: number
+                    "airline"?: string,"airline_id"?: number,"captured_at"?: string,"id"?: number,"kind"?: string,"page_url"?: string | null,"rows"?: NonNullable<Json>,"verdict"?: string | null,"verdict_facts"?: Json | null,"verdict_note"?: string | null,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -1758,6 +1758,9 @@ isOneToOne: false
                            },
 "site_set_airport_photo":
 { Args: { "p_code": string,"p_credit"?: string,"p_path"?: string,"p_url": string }; Returns: Json
+                           },
+"system_status":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            }
           }
           Enums: {

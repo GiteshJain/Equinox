@@ -1,7 +1,7 @@
 // Home's needs-attention items, in the order the old planner's renderHome pushes them, with its words, keys and links.
 // Every figure comes from its one home (decision #19, spec §2): one-week checks, maintenance, turns and positions, night
 // bans, flight numbers used twice and the airport caps (airport_cap_warning_pct) from the planning library; the capture
-// from capture_status(); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
+// from capture_status() (when, and since #21 each airline's latest verdict: a short or broken page the same night); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
 // (or, with no profit captured, the routes its load patterns mark cut, as the old Home fell back); can order from
 // airline_cards(); the interline line from Interline's rows (the setting interline_rules, build pull request 13) and
 // interline_agreements; to-dos from the table. This file only words them. Monthly checks have none since 8 Oct, as in
@@ -58,6 +58,14 @@ export const MARK_WORDS: Record<FixRoute["mark"], string> = { losing: "losing mo
 const JOB_NAME: Record<string, string> = {
   snapshot: "Daily snapshot", snapshot_fallback: "10:00 UTC snapshot job", cleanup: "Clean-up (10:20 UTC)", archive: "Monthly archive",
 };
+
+/** Needs attention's words for an airline's capture judged short or broken (#21): what came in short, from the database's
+ *  words ("short: loads 12 of 78 flights"), and what to do; null when it is all good or wasn't judged. */
+export function verdictItemWords(airline: string, verdict: string | null | undefined, words: string | null | undefined): string | null {
+  if (verdict !== "short" && verdict !== "broken") return null;
+  const what = String(words ?? "").replace(/^(short|broken):\s*/, "") || "a page";
+  return `${airline}'s capture came in ${verdict}: ${what}. Capture that airline again in the game (Check has each page)`;
+}
 
 /** A route as the old planner keys it: "Pan American|JFK|ORD". */
 export function routeKey(rules: Rules, airlines: readonly HomeAirline[], routeId: number | null | undefined): string | undefined {
@@ -148,6 +156,13 @@ export function homeAttention(x: AttentionInput): AttItem[] {
         text: late.length === x.capture.last.length
           ? `No capture for ${worst >= 99 ? "over 2 days" : Math.round(worst) + " hours"}: open the game and press Capture all airlines`
           : `Not captured for over a day: ${late.map((c) => c.name).join(", ")}. Press Capture all airlines in the game` });
+    }
+    // a page judged short or broken (#21), the same night: one line per airline whose latest capture isn't all good
+    // (older than a day, the line above says so instead)
+    for (const v of x.capture.verdicts ?? []) {
+      const words = verdictItemWords(name(v.airline_id), v.verdict, v.words);
+      if (!words || (now - Date.parse(v.at)) / 36e5 > CAPTURE_LATE_H) continue;
+      items.push({ key: `capture|verdict|${name(v.airline_id)}|${v.at}`, cls: v.verdict === "broken" ? "bad" : "warn", screen: "check", text: words });
     }
   }
 
