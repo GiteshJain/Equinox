@@ -2,13 +2,16 @@
 
 **Decision:** what VT-AAE, Kingfisher's A321XLR on Delhi–Amsterdam, flies from now on. Raised as its own item in the
 14 Oct Kingfisher order brief; the route is on Needs attention ("fix or reduce", economy averaging 49%).
-**Recommendation:** A, move it to a second Delhi–Heathrow daily, leaving Delhi at 11:00 and Heathrow at 15:12.
-Heathrow sells out in both cabins every day at 56–60k a flight; Amsterdam fills about half its economy seats at 30–33k.
-A second London daily should make about 35k a day more, with no money spent, and it can be switched back.
+**Recommendation (revised the same night):** D, move it to a new Delhi–Gatwick daily, leaving Delhi at 10:15 and
+Gatwick at 14:26. Gatwick is its own market, so it doesn't split the sold-out Heathrow flight's passengers, and it's
+Virgin's hub: the flight connects 31 ways there onto Virgin's Europe and Pan Am's JFK, against none at Heathrow. It's
+a four-star airport against Heathrow's five, so its own demand is smaller; the transfers make up for that.
+*First recommendation: A, a second Heathrow daily. Changed when Gitesh asked why not Gatwick.*
 
 | Option | Growth | Profit a week | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| **A. Second Delhi–Heathrow daily** | **London twice daily, with 18 connections at Delhi; Amsterdam dropped** | **~+0.25M (from ~0.44M to ~0.7M for this aircraft)** | **no change** | **Amsterdam's 30–33k a flight and its spot on the map** | **the two London flights share one market; the first may fill a little less** | **yes, a retime** |
+| A. Second Delhi–Heathrow daily | London twice daily, with 18 connections at Delhi; Amsterdam dropped | ~+0.25M (from ~0.44M to ~0.7M for this aircraft) | no change | Amsterdam's 30–33k a flight and its spot on the map | the two London flights share one market; the first may fill a little less | yes, a retime |
+| **D. New Delhi–Gatwick daily** | **a new city pair nobody flies; 47 connections (16 at Delhi, 31 at Gatwick onto Virgin and Pan Am); Amsterdam dropped** | **~+0.2–0.3M (estimate: no Gatwick loads yet)** | **no change** | **as A** | **Gatwick is four-star; its own demand is unproven** | **yes, a retime** |
 | B. A new five-star city (Frankfurt, Munich, Zurich or Rome, no rival) | one new European capital, Amsterdam dropped | unknown: Paris-like ~+0.25M, Amsterdam-like no change | no change | the proven London demand | Europe beyond London and Paris is soft so far | yes |
 | C. Keep Amsterdam | none | ~0.44M (about 0.15M over the lease) | no change | the London gain | low | — |
 
@@ -26,6 +29,10 @@ isn't visible, because the one daily is full.
 - **Timing** (the planning library's optimiser on the 15 Oct tables): the best second London daily leaves Delhi at
   11:00 (Heathrow 13:56) and Heathrow at 15:12 (Delhi 05:08 next morning), 6½ hours from the first daily's 17:30
   departure. 18 connections at Delhi; maintenance well clear (the aircraft flies 16.9 hours a day).
+- **Gatwick** (routes list; optimiser with Gatwick as an extra hub): four-star, 6,719 km, no rival on Delhi–Gatwick.
+  Best timing leaves Delhi at 10:15 (Gatwick 13:10) and Gatwick at 14:26 (Delhi 04:21): 16 connections at Delhi and 31
+  at Gatwick, where Virgin has 322 departures a week and Pan Am flies to JFK. Pan Am's JFK–Gatwick XLR makes about
+  49k a flight (14 Oct Pan Am brief), so Gatwick's long-haul demand is real.
 - **Ownership:** UK–India is Kingfisher's under one airline per city pair.
 - **Amsterdam after:** no group airline would fly Delhi–Amsterdam. Ryanair's Amsterdam network gets no Delhi feed from
   Kingfisher, which is small today (half-empty economy).
