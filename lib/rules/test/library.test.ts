@@ -1,11 +1,12 @@
 /// <reference types="node" />
-// The library's own behaviour beyond the cases: the typed builder's checks, settings and world rules, the command
-// (src/cli.ts) for each of its commands, a plan card checked, and the case runner's matcher itself.
+// The library's own behaviour beyond the cases: the typed builder's checks, settings and world rules, the one-week
+// checks' off switch, the command (src/cli.ts) for each of its commands, a plan card checked, and the case runner's
+// matcher itself.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { RulesError, buildRules, card, connections, positions, setting, settingNumber, worldRuleNumber, type RulesInput } from "../src/index.js";
+import { RulesError, buildRules, card, checks, connections, positions, setting, settingNumber, worldRuleNumber, type RulesInput } from "../src/index.js";
 import * as browser from "../src/browser.js";
 import { run } from "../src/cli.js";
 import { mismatches } from "./match.js";
@@ -50,6 +51,36 @@ describe("the typed builder", () => {
   it("gives the same answer for the same input and moment: no clock", () => {
     const r = buildRules(world({ flight_legs: [leg(1, "HUB", "AAA", 360, 75), leg(2, "AAA", "HUB", 510, 75)] }));
     expect(positions.positionsAt(r, "2026-10-12T06:30:00Z")).toEqual(positions.positionsAt(r, Date.parse("2026-10-12T06:30:00Z")));
+  });
+});
+
+describe("the one-week checks' off switch (aircraft_check_after_days, spec docs/specs/2026-10-15-aircraft-checks-off.md)", () => {
+  // T-001 flies rotation 1, launched 1 Oct; today is 12 Oct
+  const flown = (settings: RulesInput["settings"], airlines?: RulesInput["airlines"]) => buildRules({
+    ...world({ rotations: [{ id: 1, airline_id: 1, route_id: 1 }], flight_legs: [leg(1, "HUB", "AAA", 360, 75, { rotation_id: 1, leg_no: 1 })], ...(airlines ? { airlines } : {}) }),
+    settings,
+  });
+  const facts = { aircraft: [{ id: 1, checked_on: null, schedule_changed_on: null }], rotations: [{ id: 1, launched_on: "2026-10-01" }] };
+  it("above 0: on, as before", () => {
+    const r = flown({ ...base.settings, aircraft_check_after_days: 7 });
+    expect(checks.on(r)).toBe(true);
+    expect(checks.oneWeek(r, facts, "2026-10-12")).toMatchObject([{ registration: "T-001", due: "2026-10-08", status: "due" }]);
+  });
+  it("0: off, no checks", () => {
+    const r = flown({ ...base.settings, aircraft_check_after_days: 0 });
+    expect(checks.on(r)).toBe(false);
+    expect(checks.oneWeek(r, facts, "2026-10-12")).toEqual([]);
+  });
+  it("missing: off, no checks (not an error)", () => {
+    const without = Object.fromEntries(Object.entries(base.settings).filter(([k]) => k !== "aircraft_check_after_days"));
+    const r = flown(without);
+    expect(checks.on(r)).toBe(false);
+    expect(checks.oneWeek(r, facts, "2026-10-12")).toEqual([]);
+  });
+  it("an airline's own 0 turns only its own checks off", () => {
+    const r = flown({ ...base.settings, aircraft_check_after_days: 7 }, [{ id: 1, settings: { aircraft_check_after_days: 0 } }, { id: 2 }]);
+    expect([checks.on(r, 1), checks.on(r, 2), checks.on(r)]).toEqual([false, true, true]);
+    expect(checks.oneWeek(r, facts, "2026-10-12")).toEqual([]);
   });
 });
 
