@@ -2,12 +2,31 @@
 //   npm run build   builds app/planner into web/app/ (emptied first), served under /app/
 //   npm test        runs the unit tests (Vitest)
 // Paths are relative to the repository root, where npm runs the scripts.
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+// The planner's own build (decision #23): the moment it was built and the change it was built from, written in so Check's
+// Systems board can show them; after a merge, a time that hasn't moved means Cloudflare's build failed. Cloudflare names
+// the change it builds (CF_PAGES_COMMIT_SHA); elsewhere git does, and GitHub's runs name theirs (GITHUB_SHA).
+const git = (...args: string[]): string => {
+  try {
+    return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+};
+const commit = process.env.CF_PAGES_COMMIT_SHA || git("rev-parse", "HEAD") || process.env.GITHUB_SHA || "";
+const build = { at: new Date().toISOString(), commit, subject: commit ? git("log", "-1", "--format=%s", commit) : "" };
+
 export default defineConfig({
   root: "app/planner",
+  define: {
+    "import.meta.env.EQ_BUILD_AT": JSON.stringify(build.at),
+    "import.meta.env.EQ_BUILD_COMMIT": JSON.stringify(build.commit),
+    "import.meta.env.EQ_BUILD_SUBJECT": JSON.stringify(build.subject),
+  },
   // On Cloudflare, _redirects rules win over files and /planner/* goes to the planner's page, so the new planner's files
   // live under /app/ and only its page is mapped, to /planner/ since the switch (design §3, choice 6).
   base: "/app/",

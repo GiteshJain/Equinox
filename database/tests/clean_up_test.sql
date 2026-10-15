@@ -13,7 +13,8 @@
 --      old deliveries list, aircraft by aircraft; how many aircraft lost a delivery the old list didn't hold, and how many
 --      tails now stand in another place in their airline's list, are printed.
 --   3. The figures: export_for_report('figures')'s document for every airline at the same moment is exactly as before
---      (the UTC fix moves nothing while no airport has a correction; how many have one is printed). With a correction
+--      (the UTC fix moves nothing while no airport has a correction; how many have one is printed), apart from the
+--      latest verdicts the capture checks (#21) added to capture_status(). With a correction
 --      put on an airline's home airport here, each of its payments moves by exactly that much (private.fig_events()).
 --   4. Loads by hand: loads_by_day() gives each day of the last two weeks as the old planner read it
 --      (planner_loads_get(), saved before): the same loads, complete marks, capture marks and saved times.
@@ -78,6 +79,10 @@ begin
   v_at := (select (value #>> '{}')::timestamptz from rehearsal_before.clean_up_outputs where name = 'as_of');
   b := (select value from rehearsal_before.clean_up_outputs where name = 'figures');
   a := private.fig_export(w, v_at);
+  -- the capture checks (#21, build 20261014220000) added each airline's latest verdicts to capture_status() on purpose:
+  -- they're left out here, so the rest must still be exactly as before
+  a := jsonb_set(a, '{capture_status,airlines}', coalesce((select jsonb_agg(x - array['last_at', 'verdict', 'verdict_words', 'verdict_at', 'verdict_day', 'verdicts'] order by i)
+                                                            from jsonb_array_elements(a #> '{capture_status,airlines}') with ordinality e(x, i)), '[]'::jsonb));
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;

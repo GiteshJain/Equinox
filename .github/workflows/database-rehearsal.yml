@@ -37,6 +37,8 @@ on:
       - "tests/fixtures/sample.sql"
       - "tests/fixtures/report_sample.sql"
       - "tests/fixtures/report_sample.py"
+      - "tests/fixtures/capture_sample.sql"
+      - "tests/fixtures/capture_pages_*.json.gz"
       - ".github/workflows/database-rehearsal.yml"
 
 permissions:
@@ -102,7 +104,7 @@ jobs:
           python -m playwright install --with-deps chromium > /dev/null
 
       # A pull request that changes how the test sample is made also gets a new one, made from the rehearsal's copy after
-      # its changes (tests/README.md, "The sample"). It is kept as this run's artifact for a day, to be checked and
+      # its changes (tests/README.md, "The sample"); likewise the capture's saved pages (#21, "The capture sample"). It is kept as this run's artifact for a day, to be checked and
       # committed; it is the same small sample of game data the repository may hold (decision #9), never keys. The same
       # for the weekly report's sample (tests/README.md, "The report sample"), kept as the report-sample artifact.
       # The planner's types generated from the copy go to TYPES_DIR either way, kept as the planner-types artifact, so
@@ -124,6 +126,11 @@ jobs:
             unset REPORT_SAMPLE_DIR
           else
             export REPORT_SAMPLE_DIR="${{ runner.temp }}/report-sample"
+          fi
+          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/capture_sample.sql; then
+            unset CAPTURE_SAMPLE_DIR
+          else
+            export CAPTURE_SAMPLE_DIR="${{ runner.temp }}/capture-sample"
           fi
           bash database/rehearse.sh .backup "${{ github.base_ref }}" 2>&1 | tee -a "$LOG"
 
@@ -179,6 +186,18 @@ jobs:
         with:
           name: test-sample
           path: ${{ runner.temp }}/sample/*.json.gz
+          if-no-files-found: ignore
+          retention-days: 1
+
+      # one airline's capture pages of one evening, with what to expect of them and the rows they give (#21), when a pull
+      # request changes how it is made: checked and committed as tests/fixtures/capture_pages_<capture day>.json.gz
+      - name: Keep the new capture sample
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: capture-sample
+          path: ${{ runner.temp }}/capture-sample/*.json.gz
           if-no-files-found: ignore
           retention-days: 1
 

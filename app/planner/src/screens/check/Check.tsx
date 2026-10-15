@@ -1,6 +1,9 @@
 // Check (decision #18, build pull request 9; spec docs/specs/2026-10-13-check.md): the daily look at how the network is
 // doing, as the old planner's Check (its renderReview), from the same data, with the same figures and look. Its boards, in
-// the old order, each folding open and shut by its title (all folded on arrival, with Collapse all and Expand all):
+// the old order, each folding open and shut by its title (all folded on arrival, with Collapse all and Expand all), under
+// the Systems board (decision #23, Systems.tsx), which stays open at the top: one line each for the evening capture (each
+// airline, with #21's verdict), the snapshot, the backup, the archive, the clean-ups, the world scan, the planner's own
+// build and the usage the database can measure, each green, amber or red (system_status());
 //   - Capture: what the capture collected for each airline and when (capture_status()), with Reload, and the backup;
 //   - Growth (Growth.tsx): who can order now, main hubs' progress, each airline's next move, the growth lists, the order
 //     queues and the hubs' readiness;
@@ -14,6 +17,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { cabins, checks, game, growth, loadReport, tails, type CabinFit, type GameIssue, type Move } from "@rules";
+import { buildStamp } from "../../data/build";
 import { useNow } from "../../data/clock";
 import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
@@ -43,7 +47,10 @@ import {
 } from "./model";
 import {
   readLegs, useAllRoutes, useBackupLine, useCabinKeeps, useCapture, useDayLoads, useGrowthLog, useGrowthSignals, useHandLoads, useHubProgress,
+  useSystemStatus,
 } from "./reads";
+import { SystemsBoard } from "./Systems";
+import { systemLines } from "./systems";
 
 const NOTES: Record<BoardKey, string> = {
   "Capture": "what the one-click capture collected from the game, per airline · times in UTC · cash and fixed costs go straight into Review",
@@ -98,6 +105,7 @@ export function Check() {
   const logQ = useGrowthLog(w);
   const keepsQ = useCabinKeeps(w);
   const captureQ = useCapture(w);
+  const systemQ = useSystemStatus(w);
   const backupsQ = useBackupLine();
   const figCardsQ = useAirlineCards(w);
   const signalsQ = useGrowthSignals(w);
@@ -276,11 +284,12 @@ export function Check() {
   };
 
   // everything but the report's day, which loads on its own as the day moves (the boards stay while it does)
-  const ready = !!(rules && aircraftQ.data && configsQ.data && launchesQ.data && cardsQ.data && planLegsQ.data && buyQ.isSuccess && hostQ.isSuccess && marketsQ.data
+  const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now) : null), [systemQ.data, now]);
+  const ready = !!(sysLines && rules && aircraftQ.data && configsQ.data && launchesQ.data && cardsQ.data && planLegsQ.data && buyQ.isSuccess && hostQ.isSuccess && marketsQ.data
     && routesQ.data && logQ.data && keepsQ.data && captureQ.data && backupsQ.isSuccess && figCardsQ.data && signalsQ.data && progressQ.data && loadsQ.data
     && (!cardCodes.length || airportsQ.data) && airlinesQ.data && growthParts && cabinList && checkList);
   const dayReady = (!captured || !!dayLoadsQ.data) && !!handQ.data && !dayLoadsQ.isFetching && !handQ.isFetching;
-  const loadError = firstError(world, airlinesQ, rulesQ, aircraftQ, configsQ, launchesQ, cardsQ, planLegsQ, buyQ, hostQ, marketsQ, routesQ, logQ, keepsQ, signalsQ,
+  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, aircraftQ, configsQ, launchesQ, cardsQ, planLegsQ, buyQ, hostQ, marketsQ, routesQ, logQ, keepsQ, signalsQ,
     progressQ, loadsQ, dayLoadsQ, handQ, airportsQ, figCardsQ);
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k]) => (
@@ -297,6 +306,7 @@ export function Check() {
       <div className="vh"><h1>Check</h1><p>Last night's capture, aircraft checks, growth signals, Game check and the daily load report.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
+      {sysLines ? <SystemsBoard lines={sysLines} checkedAt={systemQ.dataUpdatedAt ? new Date(systemQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : null} /> : null}
       <div className="revtools">
         <button type="button" className="link" id="rev-colall" onClick={() => setFolded(new Set(BOARDS))}>Collapse all</button><span className="dim">·</span>
         <button type="button" className="link" id="rev-expall" onClick={() => setFolded(new Set())}>Expand all</button>
@@ -307,7 +317,7 @@ export function Check() {
           {board("Capture", <>
             <div className="toolbar">
               <button type="button" className="secondary" id="cap-reload" disabled={captureQ.isFetching}
-                onClick={() => { void captureQ.refetch(); void backupsQ.refetch(); void dayLoadsQ.refetch(); }}>{captureQ.isFetching ? "Loading…" : "Reload"}</button>
+                onClick={() => { void captureQ.refetch(); void systemQ.refetch(); void backupsQ.refetch(); void dayLoadsQ.refetch(); }}>{captureQ.isFetching ? "Loading…" : "Reload"}</button>
               <span className="count">{captureQ.dataUpdatedAt ? "checked at " + new Date(captureQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : "not checked yet"}</span>
               {captureQ.error ? <> <span className="pill bad">{captureQ.error instanceof Error ? captureQ.error.message : String(captureQ.error)}</span></> : null}
             </div>

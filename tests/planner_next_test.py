@@ -30,6 +30,11 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    no errors, no sideways scroll (Check and Review with every board open, Reference with every section open) and no
    link into the old planner's address (/planner/old/) or one used while the planner was built (/planner/next/); a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
+6b. Check's Systems board (#23) at the frozen moment: the first board on Check, a line for each of our airlines' evening
+   capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
+   three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
+   an airline's latest loads page, stored just after the latest capture and judged short, is listed on Home's needs
+   attention in the Capture group linking to Check, and marks that airline amber on the board; then it is deleted.
 7. The addresses (the switch, build pull request 13, and the clean-up, 14), as tests/harness.py serves them from
    web/_redirects the way Cloudflare does: /planner and /planner/ open the planner, and so does a deep address
    (/planner/review/VS, signed in there, shows Virgin's Review); every /planner/next/... address answers 301 with the same
@@ -49,7 +54,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, serve, settle
 from playwright.async_api import async_playwright
-from local_copy import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks, moment, ms, psql,
+from local_copy import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks, moment, ms, one, psql,
                         token_for, why)
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
@@ -399,8 +404,8 @@ async def check_opens(pl):
     await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=check] [data-not-built]'),
-        boards: [...document.querySelectorAll('main[data-screen=check] .board > h3.rh')].map(h => h.dataset.rkey),
-        folded: [...document.querySelectorAll('main[data-screen=check] .board')].every(b => b.classList.contains('rcol')),
+        boards: [...document.querySelectorAll('main[data-screen=check] .board:not(.sysboard) > h3.rh')].map(h => h.dataset.rkey),
+        folded: [...document.querySelectorAll('main[data-screen=check] .board:not(.sysboard)')].every(b => b.classList.contains('rcol')),
         capture: [...document.querySelectorAll('[data-figure="check: capture table"] tr')].slice(1).map(tr => (tr.querySelector('td b') || {}).textContent || '') })""")
     problems = []
     if got["notBuilt"]:
@@ -709,6 +714,108 @@ async def screens(p, port, env, facts, staff, seen, moment):
             f"the old planner or to /planner/next/" + (f"; {shots} screenshots kept" if shots else "")), problems
 
 
+# ---------- 6b. Check's Systems board, and a short page on Home (decisions #21, #23) ----------
+SYS_FIXED = ["snapshot", "backup", "archive", "cleanup", "scan", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
+SYS_LINES = """[...document.querySelectorAll('[data-figure="check: systems"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
+    label: (li.querySelector('.syslabel') || {}).textContent || '', when: (li.querySelector('.syswhen') || {}).textContent || '',
+    text: (li.querySelector('.systext') || {}).textContent || '', dot: !!li.querySelector('.sysmark.' + li.dataset.mark) }))"""
+
+
+async def open_check(ph):
+    await ph.pg.click("[data-screen-link=check]")
+    await ph.pg.wait_for_selector(READY["check"], timeout=90000)
+    await settle(ph.pg, 400)
+    return await ph.pg.evaluate(SYS_LINES)
+
+
+async def systems_board(p, port, env, facts, staff, seen, moment):
+    """Check's Systems board (#23) on the copy at the frozen moment: at the top of Check, open, one line for each of our
+    airlines' evening capture and one each for the snapshot, the backup, the archive, the clean-ups, the world scan, the
+    planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
+    lines and their marks are printed (names, marks, dates and sizes only)."""
+    problems = []
+    ids = [int(r) for r in psql(f"""select al.airline_id from private.fig_airlines({WORLD}) al where al.home_code is not null order by al.ord""").split() if r]
+    ph = Planner(p, port, env, facts)
+    seen.append(ph)
+    try:
+        await ph.open(moment=moment)
+        await ph.sign_in(*staff)
+        lines = await open_check(ph)
+        first = await ph.pg.evaluate("(document.querySelector('main[data-screen=check] .board') || {}).id || ''")
+        if first != "systems":
+            problems.append(f"the Systems board isn't Check's first board (the first is {first or 'none'})")
+        want = [f"capture|{i}" for i in ids] + SYS_FIXED
+        if [l["key"] for l in lines] != want:
+            problems.append(f"the board's lines are {[l['key'] for l in lines]}, expected {want}")
+        problems += [f"{l['label'] or l['key']}: no mark ({l['mark']!r})" for l in lines if l["mark"] not in ("ok", "warn", "bad") or not l["dot"]]
+        build = next((l for l in lines if l["key"] == "build"), None)
+        if build and build["mark"] != "ok":
+            problems.append("the planner's build line has no stamp: " + build["text"])
+        problems += ph.errors
+    finally:
+        await ph.close()
+    words = {"ok": "green", "warn": "amber", "bad": "red"}
+    shown = "; ".join(f"{l['label']}: {words.get(l['mark'], l['mark'])}" + (f", {l['when']}" if l["when"] else "") + f" ({l['text'][:90]})" for l in lines)
+    return f"Check's Systems board on the copy at {moment}: {len(lines)} lines, each marked: {shown}", problems
+
+
+async def short_page(p, port, env, facts, staff, seen, moment):
+    """A short page made on purpose (#21), then put back: half of an airline's latest loads page, stored just after the
+    copy's latest capture and judged by private.capture_check() against what the copy expects of it, is short; Home's
+    needs attention lists it in the Capture group linking to Check, and Check's board marks that airline amber. The page
+    is deleted afterwards, and the copy's raw pages are as they were."""
+    problems = []
+    before = psql("select count(*) from public.game_capture_raw").strip()
+    rid = made = verdict = None
+    ph = Planner(p, port, env, facts)
+    seen.append(ph)
+    try:
+        made = one(f"""with src as (select r.* from public.game_capture_raw r where r.world_id = {WORLD} and r.kind = 'loads'
+                                      order by r.captured_at desc, r.id desc limit 1),
+              rows_ as (select e, o, jsonb_array_length(e) >= 15 and e ->> 0 ~ '^[A-Z0-9]{{2,3}}\\s?\\d{{1,5}}' and e ->> 3 ~ '\\d{{2}}\\.\\d{{2}}\\. \\d{{2}}:\\d{{2}}' as flight
+                          from src, jsonb_array_elements(src.rows) with ordinality x(e, o)),
+              half as (select count(*) filter (where flight) / 2 as keep from rows_),
+              kept as (select r.e, r.o, r.flight, count(*) filter (where r.flight) over (order by r.o) as nth from rows_ r)
+              select json_build_object('world_id', src.world_id, 'airline_id', src.airline_id, 'airline', src.airline,
+                       'rows', (select jsonb_agg(k.e order by k.o) from kept k, half where not k.flight or k.nth <= half.keep),
+                       'read', (select keep from half), 'at', private.fig_ts(timestamptz '{moment}' - interval '50 minutes'))
+                from src""")
+        if not made:
+            return "a short page made on purpose", ["the copy has no loads page to halve"]
+        rid = int(psql("insert into public.game_capture_raw (world_id, airline_id, airline, kind, page_url, rows, captured_at) "
+                       "values (:'w', :'a', :'n', 'loads', '/rehearsal/short-on-purpose', :'r'::jsonb, :'t') returning id",
+                       w=made["world_id"], a=made["airline_id"], n=made["airline"], r=json.dumps(made["rows"]), t=made["at"]).strip())
+        verdict = one(f"select private.capture_check({rid}, jsonb_build_object('ok', true, 'rows', {int(made['read'])}))")
+        if not verdict or verdict.get("verdict") != "short":
+            problems.append(f"half of {made['airline']}'s loads page isn't judged short: {verdict}")
+        await ph.open(moment=moment)
+        await ph.sign_in(*staff)
+        items = await ph.pg.evaluate("""[...document.querySelectorAll('[data-figure="home: needs attention"] [data-att-item]')]
+            .map(li => ({ kind: li.dataset.attKind, cls: li.dataset.cls, screen: li.dataset.screen, key: li.dataset.attKey,
+                          text: li.textContent, href: (li.querySelector('a') || {}).getAttribute ? li.querySelector('a').getAttribute('href') : '' }))""")
+        hit = [i for i in items if "capture came in short" in i["text"] and made["airline"] in i["text"]]
+        if not hit:
+            problems.append(f"Home's needs attention doesn't list {made['airline']}'s short page (it lists {len(items)} items)")
+        elif hit[0]["kind"] != "capture" or hit[0]["screen"] != "check" or hit[0]["cls"] != "warn" or "/check" not in (hit[0]["href"] or ""):
+            problems.append(f"the short page's item isn't an amber Capture item linking to Check: {hit[0]}")
+        lines = await open_check(ph)
+        line = next((l for l in lines if l["key"] == f"capture|{made['airline_id']}"), None)
+        if not line or line["mark"] != "warn" or "short" not in line["text"]:
+            problems.append(f"Check's board doesn't mark {made['airline']} amber for the short page: {line}")
+        problems += ph.errors
+    except Exception as e:
+        problems.append(why(e))
+    finally:
+        await ph.close()
+        if rid is not None:
+            psql(f"delete from public.game_capture_raw where id = {rid}")
+        if psql("select count(*) from public.game_capture_raw").strip() != before:
+            problems.append("the copy's raw pages weren't put back as they were")
+    return (f"a short page made on purpose: half of {made['airline'] if made else '?'}'s latest loads page ({made['read'] if made else '?'} flights) "
+            f"is judged short ({(verdict or {}).get('note', '?')}), Home lists it in the Capture group linking to Check, "
+            f"Check's board marks that airline amber; then put back"), problems
+
+
 # ---------- 7. the addresses (the switch) ----------
 def answer(port, path):
     """What the local server (tests/harness.py, which follows web/_redirects as Cloudflare does) answers for an address,
@@ -837,9 +944,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, screens, addresses):
+            for check in (two_tabs, preview, screens, systems_board, short_page, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check is screens else []))
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (screens, systems_board, short_page) else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)

@@ -1,6 +1,7 @@
 // What Check reads (design §5, §8 and §9's Check row; spec docs/specs/2026-10-13-check.md), each through TanStack Query.
 // The screen's other reads are the earlier screens' own (Home's airline_cards(), Routes' markets and route_loads(), Tails'
 // aircraft, cabin layouts, plan cards, launch days, types each airline may have and the game's address):
+// - the Systems board's figures (#23): system_status(), at the screen's moment;
 // - the captured figures at the screen's moment: capture_status() (Capture), growth_signals() (the growth lists and the
 //   load patterns) and hub_progress() (main hubs towards their target);
 // - the nightly backup's latest runs (the line under Capture), as the old planner read them;
@@ -15,6 +16,7 @@ import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
 import { ROUTE_COLUMNS, type RouteRow } from "../routes/model";
+import type { SystemStatus } from "./systems";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -59,6 +61,23 @@ export function useCapture(worldId: number | undefined) {
       if (error) return fail("the capture", error.message);
       const d = data as unknown as Partial<CaptureRead>;
       return { today: String(d.today ?? ""), yesterday: String(d.yesterday ?? ""), airlines: d.airlines ?? [] };
+    },
+  });
+}
+
+/** The Systems board's figures (#23): system_status(), one staff call that only reads, at the screen's moment. */
+export function useSystemStatus(worldId: number | undefined) {
+  return useQuery({
+    queryKey: ["figures", "system_status", worldId],
+    enabled: worldId !== undefined,
+    queryFn: async (): Promise<SystemStatus> => {
+      const { data, error } = await supabase.rpc("system_status", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true });
+      if (error) return fail("the systems board", error.message);
+      const d = data as unknown as Partial<SystemStatus>;
+      return {
+        as_of: String(d.as_of ?? ""), capture: d.capture ?? [], snapshot: d.snapshot ?? {}, backup: d.backup ?? { last: null, last_good: null },
+        archive: d.archive ?? null, cleanup: d.cleanup ?? null, scan: d.scan ?? null, usage: d.usage ?? [],
+      };
     },
   });
 }

@@ -140,6 +140,25 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
       .toMatchObject({ cls: "bad", text: "No capture for over 2 days: open the game and press Capture all airlines" });
     expect(homeAttention(input({ capture: { last: [{ airline_id: 1, at: at(26) }, { airline_id: 2, at: at(1) }] } }))).toEqual([]);
   });
+  it("the capture's verdicts (#21): a short or broken page the same night, in the capture group, linking to Check", () => {
+    const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+    const last = [{ airline_id: 1, at: at(1) }, { airline_id: 2, at: at(2) }];
+    const got = homeAttention(input({ capture: { last, verdicts: [
+      { airline_id: 1, verdict: "short", words: "short: loads 12 of 78 flights", at: at(1) },
+      { airline_id: 2, verdict: "broken", words: "broken: balance sheet without the cash account (2800)", at: at(2) },
+    ] } }));
+    expect(got).toEqual([
+      { key: `capture|verdict|Test Air|${at(1)}`, cls: "warn", screen: "check",
+        text: "Test Air's capture came in short: loads 12 of 78 flights. Capture that airline again in the game (Check has each page)" },
+      { key: `capture|verdict|Other Air|${at(2)}`, cls: "bad", screen: "check",
+        text: "Other Air's capture came in broken: balance sheet without the cash account (2800). Capture that airline again in the game (Check has each page)" },
+    ]);
+    expect(got.map((a) => attKind(a))).toEqual(["capture", "capture"]);
+    // all good, or a capture over a day old (the late line says so instead): nothing
+    expect(homeAttention(input({ capture: { last, verdicts: [{ airline_id: 1, verdict: "ok", words: "all good", at: at(1) }] } }))).toEqual([]);
+    expect(homeAttention(input({ capture: { last: [{ airline_id: 1, at: at(1) }, { airline_id: 2, at: at(1) }], verdicts: [
+      { airline_id: 1, verdict: "short", words: "short: statement: no lines", at: at(27) }] } }))).toEqual([]);
+  });
   it("the backup: late, failed, none yet; a test run doesn't count", () => {
     const run = (h: number, ok: boolean, kind = "nightly", note: string | null = null) => ({ ran_at: new Date(now.getTime() - h * 3_600_000).toISOString(), kind, ok, note });
     expect(homeAttention(input({ backups: [run(5, true)] }))).toEqual([]);
