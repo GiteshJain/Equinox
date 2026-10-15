@@ -169,8 +169,7 @@ Details and open points: `docs/decisions.md`.
   | Chat | Covers |
   |---|---|
   | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
-  | Saturday review | Weekly report, connection audit, newsroom roundup, fare plan, the weekly review |
-  | Monthly | Monthly report, gander monthly, strategy (bases, focus cities, holdings, long-term direction) |
+  | Saturday review | Every Saturday: the world scan, weekly report, connection audit, newsroom roundup, fare plan and the weekly review. On the first Saturday of the month also the monthly report, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *Since early Oct.*
@@ -191,13 +190,15 @@ Details and open points: `docs/decisions.md`.
 - **Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul. *Since 29 Sep ·
   why: long-haul would have no loads without the feed.*
 - **Kingfisher:** India is open; aim to capture all of it. *Since 2 Oct.*
+- **No new airlines before January 2027:** the two low-demand holdings the house rules allow (§9) wait until then.
+  *Since 15 Oct (Gitesh).*
 
 **Bases** (main hub first):
 
 | Airline | Hubs | Focus cities | Next |
 |---|---|---|---|
 | Pan Am | JFK | ORD, SFO, SEA | Dallas, then LAX (both on hold under hubs-first) |
-| Kingfisher | Delhi | Hyderabad, Bengaluru, Chennai, Kolkata (on hold) | Mumbai |
+| Kingfisher | Delhi | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | Mumbai |
 | Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order) | Milan and Munich; no eastern base for now |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
 | China Eastern | Shanghai PVG, Xi'an, Kunming | Beijing Daxing, Shenzhen | — |
@@ -271,8 +272,10 @@ less important than another, point to point rather than hubs).*
   `maintenance_target_pct`). *Since 28 Sep.*
 - **Turns:** the game's turnaround plus a 10–15 minute margin (`settings.turn_margin_min`, 10); 5 minutes is tolerated
   only on the busiest aircraft where 15 won't fit. *Since 25 Sep · why: room for delays and slot availability.*
-- **A second daily** on a route sits at least 3 hours from the existing flight (`settings.second_daily_gap_h`). *Date
-  not recorded.*
+- **A second daily** on a route sits 3 hours from the existing flight where it fits (`settings.second_daily_gap_h`,
+  which the optimiser aims for and Routes flags as a reminder); when it doesn't fit, as little as 5 minutes is fine,
+  the game's own minimum (`world_rules.same_route_gap_min`). *Since 15 Oct · why: Gitesh, a second daily can follow
+  after 5 minutes if needed.*
 - **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A321neo and XLR 840 km/h, E195 831,
   A320neo 839, A350 911 (`aircraft_types.cruise_kmh`).
 - **Three banks per hub;** bank times are in `airline_bases.bank_times` (the planner's Reference → hubs), the bank
@@ -432,6 +435,8 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 15 Oct | A second daily on a route sits at least 3 hours from the existing flight | 3 hours where it fits; as little as 5 minutes when needed, the game's minimum (§4). Why: Gitesh, 15 Oct |
+| 15 Oct | Four chats: Scheduling, Saturday review, Monthly (monthly report, gander monthly, strategy) and Building | Three: the Saturday review chat also does the first Saturday's monthly work (§1). Why: Gitesh, 15 Oct, one review chat for weekly and monthly |
 | 15 Oct | One-week aircraft checks are Gitesh's, done in the game a week after an aircraft is scheduled or changed (the flights really run as scheduled, no issues); Claude never marks them checked | No one-week checks: the planner's check of each card when it's filed and the nightly capture checks cover it (§1). Why: Gitesh, 15 Oct, no longer wants to do them |
 | 15 Oct | The scheduling background (loads, money, network, competition) is gathered by hand for each airline from the captured figures, the planning library, the world scan and the planner's tables | The airline briefing, one command per airline, and the map's guide for anything more (§4). Why: #24, about six calls and wrong column guesses each time |
 | 14 Oct | First Saturday of the month: a look at Supabase's usage page (database size, egress, the report PDFs' size) against §1's triggers, and the size of `site_public()` and the website's calls a day against #20's | The look keeps only egress and the website's calls a day; the rest is on Check's Systems board (§7). Why: #23 built the board, which measures them itself |

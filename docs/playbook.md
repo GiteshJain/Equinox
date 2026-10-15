@@ -8,7 +8,7 @@ goes from order to flying, the Saturday and monthly work, every check and what t
 - **Detail on each screen:** `docs/planner-guide.md`. **How the system fits together and how to recover it:**
   `docs/architecture.md`. **Why things are the way they are:** `docs/decisions.md` and `docs/briefs/`.
 - Written 15 Oct 2026, after the planner rebuild and decisions #21 to #25. "You" is the player. "Claude" is the Equinox
-  project in Claude, with its four chats.
+  project in Claude, with its three chats.
 
 ---
 
@@ -33,7 +33,7 @@ full stop). Website and planner: **equinox-alliance.com** (planner at `/planner/
 | Airline | Code | Bases (main hub first) | Flying | On order | Routes |
 |---|---|---|---|---|---|
 | Pan Am | AW | Hub JFK; focus ORD, SFO, SEA. Dallas and LAX set up, on hold | 15 | 3 | 25 |
-| Kingfisher | KF | Hub Delhi; focus Hyderabad, Bengaluru, Chennai, Kolkata (on hold). Mumbai set up, next | 12 | 3 | 19 |
+| Kingfisher | KF | Hub Delhi; focus Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first). Mumbai set up, next | 12 | 3 | 19 |
 | Ryanair | FR | Five equal focus cities: Paris CDG, Amsterdam, Barcelona, Milan, Munich | 21 | 5 | 48 |
 | Virgin Atlantic | VS | Hubs Gatwick, Manchester; focus Edinburgh | 18 | 2 | 38 |
 | China Eastern | MU | Hubs Shanghai PVG, Xi'an, Kunming; focus Beijing Daxing, Shenzhen | 18 | 3 | 39 |
@@ -43,7 +43,7 @@ full stop). Website and planner: **equinox-alliance.com** (planner at `/planner/
 Malaysia 2). Each one needs the growth loop in section 6 as it arrives.
 
 **Open to-dos on the planner's board (15 Oct):**
-- Decide the two low-demand holdings (Saturday review).
+- Decide the two low-demand holdings (new airlines): not before January 2027.
 - Cancel Pan Am's interline with British Caledonian.
 - Refit the 35 A321s still on the old 321-LEI layout to the new 195-seat one (about 0.19M each, 6.7M in all).
 - Fix Delhi's early-morning connections when the next Kingfisher aircraft is planned.
@@ -65,7 +65,7 @@ and the capture should show Kingfisher's VT-AAE flying 1049/1050 from 16 Oct, no
 | **Salaries userscript** | One button sets every position of the airline you're on to 10% above the country average | `capture/salary_adjust.user.js`, installed the same way |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
-| **Claude (Equinox project)** | Four chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (scan, weekly report, audit, newsroom, review), **Monthly** (monthly report, gander monthly, strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
+| **Claude (Equinox project)** | Three chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (scan, weekly report, audit, newsroom, review, and on the month's first Saturday the monthly report, gander monthly and strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
 | **Supabase** | The database, sign-in and photo files. Free plan | project `ulecwsyedvwcxgdzmhoq` |
 | **GitHub** | All code and documents (`GiteshJain/Equinox`); the nightly backup job and monthly copies (`equinox-backups`, private) | github.com |
 | **Cloudflare** | Hosts the website and planner (Pages) and keeps the backups (R2). The domain renews each October | dash.cloudflare.com |
@@ -76,7 +76,7 @@ names each one and where it lives. A new player needs their own planner sign-in,
 says how).
 
 **Which chat to ask:** a question in the wrong chat gets sent to the right one. New aircraft and routes → Scheduling.
-Anything on a Saturday → Saturday review. The month's first Saturday → Monthly. Anything that changes code or the
+Anything on a Saturday, weekly or monthly → Saturday review. Anything that changes code or the
 database → Building.
 
 ---
@@ -122,6 +122,8 @@ database → Building.
   contested route is Chengdu.
 - **Malaysia (KUL):** make Kuala Lumpur a world transfer hub. Build the Asian feeder network before any long haul,
   because long haul has no loads without the feed.
+- **No new airlines before January 2027.** The house rules allow two more holdings in low-demand countries; that
+  decision waits until then.
 
 ### Fleet
 - **Families:** the A320 family (A320neo, A321neo, A321XLR) and the E195-E2, plus the A350 only where range demands
@@ -231,7 +233,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 | Use the aircraft as much as possible | No floor; 10 block hours a day is a flag on Tails, not a rule. Check whether one more short rotation fits |
 | Turns | The game's turnaround plus 10 minutes (5 only on the busiest aircraft where 15 won't fit) |
 | Maintenance | 100% or more is firm; aim for 105% |
-| A second daily on a route | At least 3 hours from the first |
+| A second daily on a route | 3 hours from the first where it fits; as little as 5 minutes when needed (the game's minimum) |
 | Block time | 25 minutes plus distance ÷ cruise speed (A321neo and XLR 840 km/h, E195 831, A320neo 839, A350 911) |
 | Banks | Three banks per hub, timed in Reference → hubs. Connections come first; an unbanked flight still earns |
 | Service code | By distance: S1 under 800 km, S2 800 to 1,500 km, S3 over 1,500 km. Ryanair uses R everywhere. A wrong code shows in red on the card ("S1, wants S3") |
@@ -307,7 +309,7 @@ first.
 ---
 
 ## 8. First Saturday of the month (as well as Saturday's work)
-Run in the **Monthly chat**. The next one is **7 Nov 2026**.
+Run in the **Saturday review chat**, after the usual Saturday work. The next one is **7 Nov 2026**.
 
 1. **The monthly report**, published to the investor library.
 2. **gander monthly:** a newsletter on the whole Gander world, written impartially (without claiming to be), marked as

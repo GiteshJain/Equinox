@@ -75,7 +75,7 @@ any part that is missing. Never type a figure the database gives into the notes:
 The finished PDF is published to the investor library with `site_admin()` (kind `report`). The checks run steps 2 to 4
 on a small dated sample on every pull request and keep the PDF (`tests/report_test.py`, `tests/README.md`).
 
-## gander monthly (Monthly chat)
+## gander monthly (Saturday review chat, first Saturday of the month)
 
 | Step | Script | What it does | Needs | Makes |
 |---|---|---|---|---|
