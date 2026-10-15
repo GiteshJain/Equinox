@@ -1659,9 +1659,15 @@ begin
   if r.kind = 'loads' then
     -- the page's window is the game's "-24h": the flights that departed in the 24 hours before the capture
     v_from := r.captured_at - interval '24 hours';
+    -- the aircraft that have flown: each registration the airline's captured loads named before this page (a new
+    -- aircraft counts from the first capture that shows it flying; on 15 Oct the aircraft filed 13 Oct hadn't flown yet)
+    with flown as (
+      select distinct f.registration from public.game_flights f
+       where f.airline_id = r.airline_id and f.registration is not null and f.loads_captured_at < r.captured_at)
     select count(*)::int into n
       from public.flight_legs l
       join public.rotations ro on ro.id = l.rotation_id
+      left join public.aircraft ac on ac.id = l.aircraft_id
      cross join lateral generate_series(date_trunc('day', v_from at time zone 'UTC'), date_trunc('day', r.captured_at at time zone 'UTC'),
                                         interval '1 day') d(day)
      cross join lateral (select (d.day + make_interval(mins => l.dep_utc_min::int)) at time zone 'UTC' as dep_at) x
@@ -1670,7 +1676,9 @@ begin
        -- a rotation counts from the day after it launched: an aircraft's first day is rarely flown in full (on 13 Oct,
        -- the day new aircraft were filed, none of their flights had flown by the evening's capture)
        and (ro.launched_on is null or ro.launched_on < d.day::date)
-       and x.dep_at > v_from and x.dep_at <= r.captured_at;
+       and x.dep_at > v_from and x.dep_at <= r.captured_at
+       -- a leg with an aircraft counts once that aircraft has flown; a leg with none counts as before
+       and (l.aircraft_id is null or exists (select 1 from flown fl where fl.registration = ac.registration));
     return jsonb_build_object('scheduled', n, 'window_from', private.fig_ts(v_from), 'window_to', private.fig_ts(r.captured_at));
   elsif r.kind = 'statement' then
     v_day := private.capture_day(r.world_id, r.captured_at);

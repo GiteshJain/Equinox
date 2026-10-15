@@ -233,6 +233,22 @@ begin
   rid := pg_temp.cs_raw(w, a1, 'Verdict One', 'loads', '/test', '[]', t);
   e := private.capture_expect(rid);
   assert (e ->> 'scheduled')::int = 4, 'a loads page''s window should hold 4 of One''s flights, not ' || coalesce(e ->> 'scheduled', 'none') || ': ' || e::text;
+  -- an aircraft that hasn't flown yet doesn't count (15 Oct: aircraft filed on the 13th hadn't started); once a capture
+  -- before the page names it flying, its legs count
+  insert into public.aircraft (world_id, airline_id, registration, status) values (w, a1, 'VA-NEW', 'active') returning id into rot5;
+  insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, null) returning id into rot6;
+  insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min) values
+    (w, a1, rot6, 1, 109, 'ZY1', 'ZY2', rot5, '{1,2,3,4,5,6,7}', 360, 120);
+  e := private.capture_expect(rid);
+  assert (e ->> 'scheduled')::int = 4, 'an aircraft that hasn''t flown should not count, so still 4, not ' || coalesce(e ->> 'scheduled', 'none') || ': ' || e::text;
+  insert into public.game_flights (world_id, airline_id, game_date, flight_no, registration, eco_pct, loads_captured_at)
+  values (w, a1, (t at time zone 'UTC')::date - 2, '109', 'VA-NEW', 90, t - interval '2 days');
+  e := private.capture_expect(rid);
+  assert (e ->> 'scheduled')::int = 5, 'once a capture has seen it flying, its leg should count: 5, not ' || coalesce(e ->> 'scheduled', 'none') || ': ' || e::text;
+  delete from public.game_flights where world_id = w and registration = 'VA-NEW';
+  delete from public.flight_legs where rotation_id = rot6;
+  delete from public.rotations where id = rot6;
+  delete from public.aircraft where id = rot5;
   -- the statement's recent nights: 7 earlier capture days count (their latest page each); the page's own day and older
   -- nights don't
   for i in 1..9 loop
@@ -249,7 +265,7 @@ begin
   assert (e ->> 'median_lines')::numeric = 130 and (e ->> 'nights')::int = 7,
     'the statement''s recent nights should be 7 with a median of 130 lines: ' || e::text;
   insert into t_cc values ('w', w::text), ('a3', a3::text);
-  raise notice 'what to expect: 4 flights in a loads page''s window (weekdays, the 24 hours, each rotation from the day after it launched); a statement''s median of 130 lines over its 7 latest earlier nights';
+  raise notice 'what to expect: 4 flights in a loads page''s window (weekdays, the 24 hours, each rotation from the day after it launched, an aircraft once it has flown); a statement''s median of 130 lines over its 7 latest earlier nights';
 end
 $test$;
 
