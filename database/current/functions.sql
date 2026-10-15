@@ -152,6 +152,21 @@ $function$
 
 ;
 
+-- cash_log(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.cash_log(p_world_id bigint DEFAULT NULL::bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_cash_log(private.fig_world(p_world_id), coalesce(p_as_of, now()));
+end
+$function$
+
+;
+
 -- export_capture(p_secret text, p_days integer)
 CREATE OR REPLACE FUNCTION public.export_capture(p_secret text, p_days integer DEFAULT 8)
  RETURNS jsonb
@@ -267,6 +282,21 @@ begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
   d := private.fig_route_profit(p_airline_id, 7, coalesce(p_as_of, now()));
   return jsonb_build_object('airline_id', p_airline_id, 'as_of', d -> 'as_of', 'changes', d -> 'fare_changes');
+end
+$function$
+
+;
+
+-- fare_plan_status(p_airline_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.fare_plan_status(p_airline_id bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_fare_plan(p_airline_id, coalesce(p_as_of, now()));
 end
 $function$
 
@@ -2564,6 +2594,67 @@ $function$
 
 ;
 
+-- private.fig_cash_log(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_cash_log(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  v_today date := (p_as_of at time zone 'UTC')::date;
+begin
+  return (
+    with al as materialized (select * from private.fig_airlines(p_world_id)),
+    cd as (select al.airline_id, c.day, c.cash from al cross join lateral private.fig_cash_days(al.airline_id, p_as_of) c),
+    typed as (select e.airline_id, e.day, e.cash, e.fixed_next7, e.updated_at from public.cash_entries e where e.world_id = p_world_id),
+    cap as (select cc.airline_id, cc.day, cc.cash, cc.fixed_next7 from public.capture_cash cc where cc.world_id = p_world_id),
+    bal as (select distinct on (b.airline_id, b.captured_on) b.airline_id, b.captured_on as day, b.captured_at
+              from public.game_balance b join al on al.airline_id = b.airline_id and al.home_code is not null
+             where b.account like '2800%' and b.captured_on >= v_today - 7 and b.captured_on <= v_today and b.captured_at <= p_as_of
+               and b.amount is not null
+             order by b.airline_id, b.captured_on, b.captured_at desc),
+    ev as materialized (select e.airline_id, e.at, e.amount from private.fig_events(p_world_id, p_as_of) e),
+    fx as (select bal.airline_id, bal.day,
+                  (select sum(ev.amount) from ev where ev.airline_id = bal.airline_id and ev.at > bal.captured_at
+                                                   and ev.at <= bal.captured_at + interval '168 hours') as m
+             from bal),
+    -- the tables' figures for an airline and day (planner_state_get), the capture's rounded as the planner rounds
+    pair as (select coalesce(t.airline_id, c.airline_id) as airline_id, coalesce(t.day, c.day) as day,
+                    coalesce(t.cash / 1000000, floor(c.cash / 10000 + 0.5) / 100) as stored_cash,
+                    case when coalesce(t.fixed_next7, c.fixed_next7) > 0
+                         then case when t.fixed_next7 is not null then t.fixed_next7 / 1000000 else floor(c.fixed_next7 / 10000 + 0.5) / 100 end end as stored_fixed,
+                    floor(c.cash / 10000 + 0.5) / 100 as captured_cash,
+                    case when c.fixed_next7 > 0 then floor(c.fixed_next7 / 10000 + 0.5) / 100 end as captured_fixed,
+                    t.airline_id is not null as typed, t.cash as typed_cash, t.fixed_next7 as typed_fixed, t.updated_at as typed_at
+               from typed t full join cap c on c.airline_id = t.airline_id and c.day = t.day),
+    shown as (select cd.airline_id, cd.day, cd.cash,
+                     case when fx.m > 0 then floor(fx.m * 100 + 0.5) / 100 else p.stored_fixed end as fixed
+                from cd
+                left join fx on fx.airline_id = cd.airline_id and fx.day = cd.day
+                left join pair p on p.airline_id = cd.airline_id and p.day = cd.day)
+    select jsonb_build_object(
+      'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'today', v_today,
+      'airlines', coalesce(jsonb_agg(jsonb_build_object(
+          'airline_id', al.airline_id, 'code', al.iata_code, 'name', al.name,
+          'days', (select coalesce(jsonb_agg(jsonb_build_object('day', s.day, 'cash', trim_scale(s.cash), 'fixed', trim_scale(s.fixed)) order by s.day), '[]'::jsonb)
+                     from shown s where s.airline_id = al.airline_id),
+          'today', (select jsonb_build_object(
+                      'day', v_today,
+                      'shown_cash', (select trim_scale(s.cash) from shown s where s.airline_id = al.airline_id and s.day = v_today),
+                      'shown_fixed', coalesce((select trim_scale(s.fixed) from shown s where s.airline_id = al.airline_id and s.day = v_today),
+                                              (select trim_scale(p.stored_fixed) from pair p where p.airline_id = al.airline_id and p.day = v_today)),
+                      'stored_cash', trim_scale(p.stored_cash), 'stored_fixed', trim_scale(p.stored_fixed),
+                      'captured_cash', trim_scale(p.captured_cash), 'captured_fixed', trim_scale(p.captured_fixed),
+                      'entry', case when coalesce(p.typed, false) then jsonb_build_object('cash', p.typed_cash, 'fixed_next7', p.typed_fixed, 'updated_at', p.typed_at) end)
+                      from (select 1) one left join pair p on p.airline_id = al.airline_id and p.day = v_today))
+          order by al.ord), '[]'::jsonb))
+      from al);
+end
+$function$
+
+;
+
 -- private.fig_day_captured(p_world_id bigint, p_day date, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.fig_day_captured(p_world_id bigint, p_day date, p_as_of timestamp with time zone)
  RETURNS boolean
@@ -2663,6 +2754,61 @@ begin
         cross join lateral (select private.fig_route_profit(al.airline_id, 1, p_as_of) as d offset 0) r1
         cross join lateral (select private.fig_route_profit(al.airline_id, 3, p_as_of) as d offset 0) r3
         cross join lateral (select private.fig_route_profit(al.airline_id, 7, p_as_of) as d offset 0) r7));
+end
+$function$
+
+;
+
+-- private.fig_fare_plan(p_airline_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_fare_plan(p_airline_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint := private.fig_airline_world(p_airline_id);
+  v_today date := (p_as_of at time zone 'UTC')::date;
+begin
+  return (
+    with l as (select distinct on (f.game_date, f.flight_no) f.game_date, f.origin_code as origin, f.dest_code as dest,
+                      f.eco_pct as eco, trim_scale(f.eco_fare) as fare
+                 from public.game_flights f
+                where f.airline_id = p_airline_id and f.flight_no is not null and f.game_date >= v_today - 9
+                  and f.loads_captured_at <= p_as_of
+                order by f.game_date, f.flight_no, f.id desc),
+    r as (select ro.id, ro.hub_code, ro.dest_code from public.routes ro where ro.airline_id = p_airline_id and ro.world_id = w),
+    -- each route's fares and economy loads by date: the day's average fare, and the loads summed with their count (the
+    -- before and after are averages over every flight, not over the days)
+    rd as materialized (
+      select r.id as route_id, l.game_date as day, avg(l.fare) as fare, sum(l.eco) as eco_sum, count(l.eco) as eco_n
+        from r join l on l.fare is not null
+         and ((l.origin = r.hub_code and l.dest = r.dest_code) or (l.origin = r.dest_code and l.dest = r.hub_code))
+       group by r.id, l.game_date),
+    p as (select fp.*, ro.hub_code, ro.dest_code,
+                 fp.fare_from * (1 + fp.change_pct / 100) as target,
+                 (select rd.fare from rd where rd.route_id = fp.route_id order by rd.day desc limit 1) as cur,
+                 -- seen once at least half the change shows in the day's average fare, on or after the day it was proposed
+                 (select min(rd.day) from rd where rd.route_id = fp.route_id and rd.day >= fp.proposed_on
+                     and rd.fare >= fp.fare_from * (1 + fp.change_pct / 200)) as seen
+            from public.fare_plan fp left join public.routes ro on ro.id = fp.route_id
+           where fp.airline_id = p_airline_id and fp.status <> 'dropped')
+    select jsonb_build_object(
+      'airline_id', p_airline_id, 'as_of', private.fig_ts(p_as_of),
+      'plan', coalesce((select jsonb_agg(jsonb_build_object(
+                 'id', p.id, 'legacy_key', p.legacy_key, 'route_id', p.route_id, 'hub', p.hub_code, 'dest', p.dest_code,
+                 'cabin_class', p.cabin_class, 'change_pct', trim_scale(p.change_pct), 'fare_from', trim_scale(p.fare_from),
+                 'proposed_on', p.proposed_on, 'status', p.status, 'reason', p.reason, 'updated_at', p.updated_at,
+                 'fare_now', p.cur, 'target', p.target, 'applied', p.seen is not null, 'seen_on', p.seen,
+                 'economy_before', case when p.seen is not null
+                                        then (select sum(rd.eco_sum) / nullif(sum(rd.eco_n), 0) from rd where rd.route_id = p.route_id and rd.day < p.seen) end,
+                 'economy_after', case when p.seen is not null
+                                       then (select sum(rd.eco_sum) / nullif(sum(rd.eco_n), 0) from rd where rd.route_id = p.route_id and rd.day >= p.seen) end)
+                 order by p.id) from p), '[]'::jsonb),
+      'fares', coalesce((select jsonb_agg(jsonb_build_object('route_id', x.route_id, 'hub', r.hub_code, 'dest', r.dest_code, 'day', x.day, 'fare', x.fare)
+                                          order by x.route_id)
+                           from (select distinct on (rd.route_id) rd.route_id, rd.day, rd.fare from rd order by rd.route_id, rd.day desc) x
+                           join r on r.id = x.route_id), '[]'::jsonb)));
 end
 $function$
 
@@ -4250,6 +4396,7 @@ AS $function$
     when p_descr ilike '%purchase%' then 'purchase'
     when p_descr ilike '%configuration%' then 'refit'
     when p_descr ilike '%cabin%' then 'cabin'
+    when p_descr ilike '%training%' then 'cabin'
     else 'other' end
 $function$
 

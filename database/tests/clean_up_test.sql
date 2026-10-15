@@ -14,7 +14,9 @@
 --      tails now stand in another place in their airline's list, are printed.
 --   3. The figures: export_for_report('figures')'s document for every airline at the same moment is exactly as before
 --      (the UTC fix moves nothing while no airport has a correction; how many have one is printed), apart from the
---      latest verdicts the capture checks (#21) added to capture_status(). With a correction
+--      latest verdicts the capture checks (#21) added to capture_status(), and with the payments the pilot-training
+--      re-sort named (20261015200000) given their kinds from before back, since moving those figures is its purpose
+--      (pilot_training_test.sql checks it; the rehearsal's figures-moved artifact says by how much). With a correction
 --      put on an airline's home airport here, each of its payments moves by exactly that much (private.fig_events()).
 --   4. Loads by hand: loads_by_day() gives each day of the last two weeks as the old planner read it
 --      (planner_loads_get(), saved before): the same loads, complete marks, capture marks and saved times.
@@ -78,6 +80,13 @@ begin
   -- ---------------------------------------------------------------- 3. the figures
   v_at := (select (value #>> '{}')::timestamptz from rehearsal_before.clean_up_outputs where name = 'as_of');
   b := (select value from rehearsal_before.clean_up_outputs where name = 'figures');
+  -- the pilot-training re-sort (20261015200000) moves the figures on purpose (the rehearsal's figures-moved artifact
+  -- says how): the payments it named get their kind from before the changes back here (rolled back with the test), so
+  -- everything else must still be exactly as before. Once it is live, the copy has nothing for it to name.
+  if to_regclass('rehearsal_before.payment_kinds') is not null then
+    update public.game_payments p set kind = k.kind
+      from rehearsal_before.payment_kinds k where k.id = p.id and p.kind is distinct from k.kind;
+  end if;
   a := private.fig_export(w, v_at);
   -- the capture checks (#21, build 20261014220000) added each airline's latest verdicts to capture_status() on purpose:
   -- they're left out here, so the rest must still be exactly as before. Left out of both sides: once 20261014220000 is

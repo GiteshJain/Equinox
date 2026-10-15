@@ -30,6 +30,7 @@ run "Planner: the screens' figures on the 12 Oct sample against saved answers" n
 run "Planning library: the optimiser against plan.py's saved answer" python3 tests/optimiser_saved_answer_test.py
 run "Weekly report: end to end on the report sample, its money from the figures" python3 tests/report_test.py
 run "Airline briefing: every airline on the briefing sample, each section its own" python3 tests/briefing_test.py
+run "Market definitions: scan_markets.py and nl_analyze.py on the report sample" python3 tests/market_definitions_test.py
 run "Website" python3 tests/site_test.py
 echo "=== Summary"
 printf '%s\n' "${summary[@]}"
