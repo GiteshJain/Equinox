@@ -9,6 +9,8 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - Rule changes Gitesh agrees in chat are committed directly. Code changes still go through pull requests.
 - Numbers that change often (prices per market, cabins, bank times, interline status, route lists) live in the planner;
   this manual says where. Foundation decisions are logged in `decisions.md`.
+- `playbook.md` puts these rules in the order we use them (the growth loop, daily, Saturday, monthly). Where it and
+  this manual differ, the manual wins and the playbook is corrected in the same turn.
 
 ---
 
@@ -109,6 +111,7 @@ Details and open points: `docs/decisions.md`.
   same pull request:
   - the map, `docs/architecture.md` (and its project copy, `claude/architecture.md`);
   - the planner guide, `docs/planner-guide.md`;
+  - the playbook, `docs/playbook.md` (and its project copy, `claude/playbook.md`), when a recurring step changes;
   - `scripts/README.md`;
   - `database/current/`, for a changed function or view;
   - the README.
@@ -194,13 +197,14 @@ Details and open points: `docs/decisions.md`.
 |---|---|---|---|
 | Pan Am | JFK | ORD, SFO, SEA | Dallas, then LAX (both on hold under hubs-first) |
 | Kingfisher | Delhi | Hyderabad, Bengaluru, Chennai, Kolkata (on hold) | Mumbai |
-| Ryanair | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order; all bases are focus) | — | Milan and Munich; no eastern base for now |
+| Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order) | Milan and Munich; no eastern base for now |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
 | China Eastern | Shanghai PVG, Xi'an, Kunming | Beijing Daxing, Shenzhen | — |
 | Malaysia | KUL | — | — |
 
 *Base roles from 29 Sep, Kingfisher from 2 Oct, holds from 5 Oct; Ryanair's Barcelona decided 14 Oct (brief
-`docs/briefs/2026-10-14-ryanair-order.md`).*
+`docs/briefs/2026-10-14-ryanair-order.md`); Ryanair's CDG and Amsterdam made focus in the data 15 Oct (Gitesh: none
+less important than another, point to point rather than hubs).*
 
 ## 3. Fleet and orders
 - **Fleet families:** the five legacy airlines fly the A320 family (A320neo, A321neo, A321XLR), the A350 only where
