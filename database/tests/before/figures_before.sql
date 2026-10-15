@@ -14,7 +14,7 @@ create table rehearsal_before.payment_kinds as
 create table rehearsal_before.figures (name text primary key, value jsonb);
 do $$
 declare w bigint := (select x.id from public.worlds x where x.is_default);
-  v_at timestamptz := date_trunc('minute', coalesce((select max(r.captured_at) from public.game_capture_raw r), now())) + interval '1 hour';
+  v_at timestamptz := '2026-10-15 00:30+00';   -- TEMPORARY, reverted next commit: the figures just after the capture that stored the pilot-training lines
 begin
   insert into rehearsal_before.figures (name, value) values
     ('world_id', to_jsonb(w)),
