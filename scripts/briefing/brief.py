@@ -202,7 +202,9 @@ def gather(inp, ident, workdir):
     out["fleet"] = fleet
 
     # ---- the routes (route_loads(), route_profit(), growth_signals())
-    rp = (FA.get("route_profit") or {}).get("7") or {}
+    # DELIBERATE FAILURE (#24's spec, to be removed): the routes from the next airline's figures
+    others = [x for x in F.get("airlines") or [] if x.get("airline_id") != aid]
+    rp = ((others[0] if others else FA).get("route_profit") or {}).get("7") or {}
     loads = {r["route_id"]: r for r in (B.get("route_loads") or {}).get("routes") or []}
     G = F.get("growth_signals") or {}
     lists = collections.defaultdict(list)
