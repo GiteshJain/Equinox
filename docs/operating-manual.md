@@ -9,7 +9,8 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - Rule changes Gitesh agrees in chat are committed directly. Code changes still go through pull requests.
 - Numbers that change often (prices per market, cabins, bank times, interline status, route lists) live in the planner;
   this manual says where. Foundation decisions are logged in `decisions.md`.
-- `playbook.md` puts these rules in the order we use them (the growth loop, daily, Saturday, monthly). Where it and
+- `playbook.md`, the handover guide, puts these rules in the order we use them (the growth loop, daily, Saturday,
+  monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
 ---
