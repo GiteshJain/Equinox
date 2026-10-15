@@ -65,3 +65,8 @@ GitHub's notifications reach your phone; the pull request will say how.
   off.
 - **Limits set too tight or too loose.** They're settings; the first week's verdicts get a look at the Saturday review.
 - **GitHub's schedule can run a few minutes late.** That's fine for an evening reminder and a morning note.
+
+## Outcome
+14 Oct 2026: Gitesh chose **B**: each page checked as it arrives, with a verdict in the capture panel and on Home, and a
+dated sample of each page kind tested on every pull request; no alert outside the planner. Recorded in
+`docs/decisions.md` and the manual's *Decided, not yet built*.

@@ -43,7 +43,7 @@ Status: **decided**, **open**, or **dropped**.
 ## Step 5 — Operations (decide before the jobs and monitoring build)
 | # | Decision | Status |
 |---|---|---|
-| 21 | Capture safeguards: parsers tested on saved pages; alert when a capture looks short | open |
+| 21 | Capture safeguards: parsers tested on saved pages; alert when a capture looks short | **decided** 14 Oct 2026 |
 | 22 | Scheduled jobs: weekly scan, report drafts, backups | open |
 | 23 | Monitoring: one place showing whether captures, jobs, backups and deploys worked | open |
 | 24 | Ready-made data views for recurring questions (airline briefing, route profit, hub progress) | open |
@@ -336,6 +336,13 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   #13 already moved it onto the tables, which was the original concern, and splitting would save 30 to 60 KB on some
   pages. Nothing else waits on it. Noted, not decided: 86 photos and videos load straight from other sites.
   Brief: `docs/briefs/2026-10-12-website-data.md`.
+- **14 Oct 2026 · #21 Capture safeguards.** Option B: each page is checked as it arrives, against what to expect
+  (loads against the flights scheduled that day, the statement against recent nights, the cash account present), with
+  the limits as settings. The capture panel gives a verdict per airline ("all good", or what came in short), and Home
+  lists a short or broken page the same night. A small dated sample of each page kind is tested on every pull request.
+  No alert outside the planner (option C's GitHub alert and D's Claude task not taken); a missed evening still shows on
+  Home after 26 hours. Why: 11 and 12 Oct were missed (loads for about 780 flights lost); Gitesh chose to judge each
+  page without an alert. Brief: `docs/briefs/2026-10-14-capture-safeguards.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:

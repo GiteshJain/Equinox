@@ -25,6 +25,10 @@ Until each is built and merged, the rules below stand as they are.
   (`lib/rules/`) and the figures from the capture (cash forecast, route profit, growth signals, hub progress) in the
   database; the planner, the website's trip search, the optimiser and the weekly report all use them (the report's
   money from the captured figures since 13 Oct, with no surplus figure and no group totals). *Built 14 Oct.*
+- **#21, decided 14 Oct:** each capture page is checked as it arrives (loads against the flights scheduled, the
+  statement against recent nights, the cash account present; the limits as settings), with a verdict in the capture
+  panel and on Home the same night, and a dated sample of each page kind tested on every pull request. No alert outside
+  the planner. Until it's built, the panel's counts and Home's 26-hour warning are all there is (§7).
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
