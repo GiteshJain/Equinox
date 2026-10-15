@@ -45,7 +45,7 @@ Status: **decided**, **open**, or **dropped**.
 |---|---|---|
 | 21 | Capture safeguards: parsers tested on saved pages; alert when a capture looks short | **decided** 14 Oct 2026 |
 | 22 | Scheduled jobs: weekly scan, report drafts, backups | **decided** 14 Oct 2026 |
-| 23 | Monitoring: one place showing whether captures, jobs, backups and deploys worked | open |
+| 23 | Monitoring: one place showing whether captures, jobs, backups and deploys worked | **decided** 14 Oct 2026 |
 | 24 | Ready-made data views for recurring questions (airline briefing, route profit, hub progress) | open |
 | 25 | Using the $100 a month in API credits for unattended jobs, with a spending cap | open |
 
@@ -348,6 +348,13 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   step of the Saturday review, so every weekly report and gander monthly reads a fresh scan (manual §7). Report drafts
   stay in the Saturday chat. Why (Gitesh): the scanner runs from a chat in 5 to 10 minutes; only one scan had been taken
   (6 Oct) because it wasn't anyone's step. Brief: `docs/briefs/2026-10-14-scheduled-jobs.md`.
+- **14 Oct 2026 · #23 Monitoring.** Option B: a "Systems" board at the top of the planner's Check screen, one line each
+  with a green, amber or red mark: the evening capture (each airline, with #21's verdict), the daily snapshot, the
+  nightly backup and its restore check, the monthly archive, the clean-ups, the world scan's age, the planner's last
+  build (its time and change, so a failed deploy shows), and the usage the database can measure against its triggers
+  (database size, report PDFs, the website's data). Home keeps flagging problems. Supabase's egress and the website's
+  calls a day stay a monthly look by hand (option C's account token not taken). Why: Home showed problems only, and
+  deploys and usage nowhere. Brief: `docs/briefs/2026-10-14-monitoring.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:

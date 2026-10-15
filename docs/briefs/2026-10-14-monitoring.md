@@ -62,3 +62,8 @@ Repository `main` and the live database, 14 Oct.
 - **The board can only report what's recorded.** A job that never starts has no row; the board shows its last run
   getting old, and turns amber and then red at the same limits as Home.
 - **The build time shows publishing, not that every page works.** The checks on each pull request cover that.
+
+## Outcome
+14 Oct 2026: Gitesh chose **B**: a Systems board at the top of Check, with the database's own usage figures against
+their triggers; egress and the website's calls stay a monthly look by hand. Recorded in `docs/decisions.md` and the
+manual's *Decided, not yet built*.
