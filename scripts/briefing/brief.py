@@ -358,8 +358,10 @@ def render(b):
     for x in sorted(flagged, key=lambda x: ((x.get("profit") or {}).get("net_day") or 0))[:6]:
         p = x.get("profit") or {}
         what = " ".join(str(v) for v in (x["registration"], x["type"], x.get("cabin")) if v)
+        level = f" ({x['maintenance_level']})" if x.get("maintenance_level") in ("bad", "warn") else ""
+        rest = [i for i in x["issues"] if not i.startswith("maintenance ")]
         put(f"  {what} at {x['base']}: {x['legs_week']} legs a week, {x['block_hours_day'] or 0:.1f} h a day, "
-            f"maintenance {x.get('maintenance_pct') or '—'}%, net {signed(p.get('net_day'))} a day" + (" · " + "; ".join(x["issues"]) if x["issues"] else ""))
+            f"maintenance {x.get('maintenance_pct') or '—'}%{level}, net {signed(p.get('net_day'))} a day" + (" · " + "; ".join(rest) if rest else ""))
     if not flagged:
         put("  no issues, none losing money after its lease")
     elif len(flagged) > 6:
@@ -380,12 +382,18 @@ def render(b):
     h = b.get("hubs")
     put("")
     if h:
-        put(f"Hubs: {h.get('main_hub') or 'no main hub'} " + ("exempt from hubs first" if h.get("exempt") else
-            f"{h.get('departures')} of {h.get('target')} departures a week ({pct(h.get('percent'))}), {h.get('planned') or 0} more on plan cards"))
-        for s in h.get("bases") or []:
+        if h.get("exempt"):
+            put("Hubs: exempt from hubs first" + (f" (main hub {h['main_hub']})" if h.get("main_hub") else ""))
+        else:
+            put(f"Hubs: {h.get('main_hub') or 'no main hub'} {h.get('departures')} of {h.get('target')} departures a week "
+                f"({pct(h.get('percent'))}), {h.get('planned') or 0} more on plan cards")
+        bs = h.get("bases") or []
+        for s in bs[:5]:
             tr = s.get("top_rival") or {}
             put(f"  {s.get('code')} ({s.get('role')}): " + ("contested" if s.get("contested") else "not contested")
                 + (f", busiest rival {tr.get('name')} {tr.get('weekly')} a week" if tr else ""))
+        if len(bs) > 5:
+            put(f"  … {len(bs) - 5} more bases in the JSON")
     else:
         put("Hubs: none in hub_progress()")
 
@@ -395,9 +403,7 @@ def render(b):
     for d in D:
         st = "arrived, not yet flying" if d.get("arrived") else f"on order, arrives {when(d.get('delivery_at'))}"
         what = " ".join(x for x in (d.get("registration") or f"aircraft {d['aircraft_id']}", d.get("type"), d.get("order_cabin") or d.get("cabin")) if x)
-        put(f"  {what} at {d.get('order_base_code') or d.get('base_code') or '—'}: {st}")
-        if not d["plan_cards"]:
-            put("    no plan card yet")
+        put(f"  {what} at {d.get('order_base_code') or d.get('base_code') or '—'}: {st}" + ("" if d["plan_cards"] else " · no plan card yet"))
         for pc in d["plan_cards"]:
             ck = pc.get("check")
             res = "no legs" if ck is None else "check ok" if ck.get("ok") else f"{len(ck.get('problems') or [])} problem(s): {(ck.get('problems') or ['?'])[0]}"
@@ -406,7 +412,7 @@ def render(b):
     T = b["todos"]
     put("")
     put(f"To-dos ({len(T)} open)" + ("" if T else ": none"))
-    for t in T[:4]:
+    for t in sorted(T, key=lambda t: bool(t.get("group")))[:4]:   # the airline's own first, then the group's
         put(f"  {t.get('title')}" + (" (group)" if t.get("group") else "") + (f", due {when(t.get('due_on'), False)}" if t.get("due_on") else ""))
     if len(T) > 4:
         put(f"  … {len(T) - 4} more in the JSON")

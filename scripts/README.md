@@ -44,7 +44,8 @@ input, the deliveries, plan cards and to-dos are the tables as they are now. `so
 
 **Needs:** `~/.sb_anon`, `~/.ingest_secret` and the library's command (or `$EQUINOX_RULES_CLI`). `$EQUINOX_API_URL` points
 it at another copy of the database (the rehearsal's); `--inputs <file>` reads saved inputs instead (the checks' sample).
-The checks run it on a dated sample on every pull request
+On the rehearsal's copy it takes about 1.5 seconds and prints 40 to 55 lines. The checks run it on a dated sample on
+every pull request
 (`tests/briefing_test.py`), and the rehearsal runs it for every airline on last night's copy
 (`tests/briefing_copy_test.py`).
 
