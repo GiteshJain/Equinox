@@ -12,7 +12,8 @@
 // - On a preview address (decision #8) nothing is sent, and the state says "preview · not saved".
 import type { Database, Json } from "../db/types";
 
-// The 32 planner tables planner_save() writes, the ones the change log covers (migration 20261009210000_planner_tables.sql)
+// The 33 planner tables planner_save() writes, the ones the change log covers (migration 20261009210000_planner_tables.sql;
+// the 33rd, airline_order_cabins, 20261015220000_last_leftovers.sql)
 export const PLANNER_TABLES = [
   "worlds", "groups", "airlines", "airline_bases", "airline_aircraft_types",
   "countries", "airports", "world_airports",
@@ -21,7 +22,7 @@ export const PLANNER_TABLES = [
   "plan_cards", "plan_card_legs",
   "todos", "todo_items", "growth_log", "spending_log", "fare_plan", "interline_agreements", "monthly_checks",
   "dismissals", "cash_entries", "load_entries", "load_days",
-  "settings", "world_rules",
+  "settings", "world_rules", "airline_order_cabins",
 ] as const satisfies readonly (keyof Database["public"]["Tables"])[];
 export type PlannerTable = (typeof PLANNER_TABLES)[number];
 

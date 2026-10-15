@@ -6,7 +6,8 @@
 --   1. site_public(): exactly the same apart from updated_at (which may only move on, with the changes' own writes) and
 --      the order of the aircraft flying (tails): the same aircraft, in the order the planner's Tails lists them (by when
 --      they were added) since the clean-up, which counted the old list's places (the count of those that moved is
---      printed). content.connection_max_wait_h is the world's setting; the 6 Oct limits hold (no bank or transfer times,
+--      printed), and content.airport_cities when the changes add it (the airports' website names and city photos as data,
+--      15 Oct). content.connection_max_wait_h is the world's setting; the 6 Oct limits hold (no bank or transfer times,
 --      cabin layouts or aircraft on order) and airlines is our active airlines, in order.
 --   2. site_investor() (a throwaway password) and site_report() for one report: exactly the same, cash and next-7-day
 --      costs included (worked out in site_investor() since the clean-up, as planner_state_get() worked them out).
@@ -31,6 +32,10 @@ begin
          (select to_jsonb((s.value #>> '{}')::numeric) from public.settings s
            where s.world_id = w and s.airline_id is null and s.key = 'connection_max_wait_h'),
     'site_public()''s content.connection_max_wait_h isn''t the world''s connection_max_wait_h setting';
+  -- content.airport_cities (the airports' website names and city photos, as data since 15 Oct: spec 2026-10-15 last
+  -- leftovers §2) is the one key a change may add, when it wasn't there before; tests/site_test.py shows the website
+  -- gives every airport the name and photo it gave before with it
+  if not (b -> 'content' ? 'airport_cities') then a := jsonb_set(a, '{content}', (a -> 'content') - 'airport_cities'); end if;
   select string_agg(k, ', ' order by k) into bad
     from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k)
    where k not in ('updated_at', 'tails') and a -> k is distinct from b -> k;

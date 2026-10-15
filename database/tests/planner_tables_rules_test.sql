@@ -194,7 +194,7 @@ begin
        'aircraft_types', 'cabin_configs', 'aircraft', 'aircraft_cabin_keeps', 'markets', 'service_profiles', 'routes',
        'rotations', 'flight_legs', 'plan_cards', 'plan_card_legs', 'todos', 'todo_items', 'growth_log', 'spending_log',
        'fare_plan', 'interline_agreements', 'monthly_checks', 'dismissals', 'cash_entries', 'load_entries', 'load_days',
-       'settings', 'world_rules', 'change_log']))
+       'settings', 'world_rules', 'airline_order_cabins', 'change_log']))
      and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = any (c.conkey));
   assert bad is null, 'foreign keys without an index: ' || bad;
 end

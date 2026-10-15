@@ -280,6 +280,50 @@
     "aircraft_types update min_turn_min": 1
    }
   },
+  "reference: a type's order cabin": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save aircraft_types update order_config_id": 1
+   },
+   "written": {
+    "aircraft_types update order_config_id": 1
+   }
+  },
+  "reference: an airline's own order cabin added": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save airline_order_cabins insert aircraft_type_id,airline_id,order_config_id,world_id": 1
+   },
+   "written": {
+    "airline_order_cabins insert": 1
+   }
+  },
+  "reference: an airline's own order cabin changed": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save airline_order_cabins update order_config_id": 1
+   },
+   "written": {
+    "airline_order_cabins update order_config_id": 1
+   }
+  },
+  "reference: an airline's own order cabin removed": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save airline_order_cabins delete": 1
+   },
+   "written": {
+    "airline_order_cabins delete": 1
+   }
+  },
   "review: + fare plan": {
    "logged": [
     "planner tab"

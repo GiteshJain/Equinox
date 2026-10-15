@@ -1,8 +1,9 @@
 // Reference (decision #18, build pull request 12; spec docs/specs/2026-10-14-interline-photos-reference.md): every section
 // of the old planner's Reference (renderRef and renderRefRaw), folding as the old one does (all folded until opened; the
 // open one in the address, /planner/reference/<section>), with the same words and look:
-//   hubs, focus cities and banks; constants; aircraft; configs; market defaults; service profiles; removed routes with
-//   restore and restore all; night bans; game schedules; time zones; storage; data.
+//   hubs, focus cities and banks; constants; aircraft (with each type's order cabin and, since 15 Oct, an airline's own
+//   where it differs: spec docs/specs/2026-10-15-last-leftovers.md §1); configs; market defaults; service profiles;
+//   removed routes with restore and restore all; night bans; game schedules; time zones; storage; data.
 // Every edit is one planner_save() call writing exactly the rows the old planner's adapter wrote for it (model.ts says
 // which); a constant is its setting's row (or the departures cap's world rule), and the section says the manual changes
 // with it (manual §1). A time zone moves every flight touching the airport in UTC so its local times stay, as Routes'
@@ -25,13 +26,14 @@ import { moveWords, offsetChanges, parseOffset, type OffsetMove } from "../route
 import { useGameHost } from "../tails/reads";
 import { download, flightsCsv, tablesJson } from "./csv";
 import {
-  CONSTANTS, SECTIONS, addConfig, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange, constantChange,
-  constantValue, keyOrder, marketChange, mctChange, mctHours, pageId, removeRow, removedWords, restoreChange, scheduleLink, sectionOf, serviceChange,
-  typeChange, worldRowChange, type BaseField, type BaseRow, type ConfigField, type MarketField, type SectionSlug, type ServiceField, type TypeField,
+  CONSTANTS, SECTIONS, addConfig, addOwnOrder, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange,
+  constantChange, constantValue, keyOrder, layoutsOf, marketChange, mctChange, mctHours, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, removeRow,
+  removedWords, restoreChange, scheduleLink, sectionOf, serviceChange, typeChange, worldRowChange, type BaseField, type BaseRow, type ConfigField,
+  type ConfigRow, type MarketField, type SectionSlug, type ServiceField, type TypeField,
 } from "./model";
 import {
-  stillUsed, useBases, useCities, useConfigs, useCounts, useMarkets, useRemoved, useServices, useSettings, useSiteMct, useTypes, useWorldAirports,
-  useWorldRules,
+  stillUsed, useBases, useCities, useConfigs, useCounts, useMarkets, useOwnOrders, useRemoved, useServices, useSettings, useSiteMct, useTypes,
+  useWorldAirports, useWorldRules,
 } from "./reads";
 
 const H = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -44,6 +46,10 @@ function Box({ value, onSave, ...rest }: { value: string; onSave: (typed: string
 }
 function Opt({ list, value, empty }: { list: readonly string[]; value: string; empty?: string }) {
   return <>{empty != null ? <option value="">{empty}</option> : null}{list.map((v, i) => <option key={v + i} value={v}>{v}</option>)}{list.includes(value) || value === "" ? null : <option value={value}>{value}</option>}</>;
+}
+/** An order-cabin box's choices: none ("—"), then the type's own layouts by code (each layout's id as its value). */
+function Layouts({ configs, typeId }: { configs: readonly ConfigRow[]; typeId: number }) {
+  return <><option value="">—</option>{layoutsOf(configs, typeId).map((c) => <option key={c.id} value={String(c.id)}>{c.code}</option>)}</>;
 }
 
 export function Reference() {
@@ -79,6 +85,7 @@ export function Reference() {
   const marketsQ = useMarkets(w);
   const servicesQ = useServices(w);
   const removedQ = useRemoved(w);
+  const ownQ = useOwnOrders(w);
   const siteQ = useSiteMct();
   const countsQ = useCounts(w);
   const hostQ = useGameHost(w);
@@ -88,6 +95,7 @@ export function Reference() {
   const [cfq, setCfq] = useState("");
   const [cfAdd, setCfAdd] = useState({ code: "", val: "" });
   const [utc, setUtc] = useState({ code: "", val: "" });
+  const [ownAdd, setOwnAdd] = useState({ airline: "", type: "" });
   const [offset, setOffset] = useState<{ code: string; question: string; moves: OffsetMove[]; apply: () => Promise<void> } | null>(null);
 
   const rules = rulesQ.data?.rules;
@@ -158,9 +166,10 @@ export function Reference() {
   }
 
   const loadError = world.error ?? airlinesQ.error ?? rulesQ.error ?? basesQ.error ?? waQ.error ?? settingsQ.error ?? wrQ.error ?? typesQ.error ?? configsQ.error
-    ?? marketsQ.error ?? servicesQ.error ?? removedQ.error ?? siteQ.error ?? countsQ.error ?? hostQ.error ?? citiesQ.error;
+    ?? marketsQ.error ?? servicesQ.error ?? removedQ.error ?? ownQ.error ?? siteQ.error ?? countsQ.error ?? hostQ.error ?? citiesQ.error;
   const ready = !!(rules && airlinesQ.data && basesQ.data && waQ.data && settingsQ.data && wrQ.data && typesQ.data && configsQ.data && marketsQ.data
-    && servicesQ.data && removedQ.data && siteQ.data && countsQ.data && hostQ.isFetched && (!bans.length || citiesQ.data));
+    && servicesQ.data && removedQ.data && ownQ.data && siteQ.data && countsQ.data && hostQ.isFetched && (!bans.length || citiesQ.data));
+  const own = ownQ.data ?? [];
   const isBase = (code: string) => bases.some((b) => b.airport_code === code);
   const removed = (removedQ.data ?? []).map((r) => ({ r, key: `${nameOf(r.airline_id)}|${r.hub_code}|${r.dest_code}` })).sort((a, b) => keyOrder(a.key, b.key));
   const markets = (marketsQ.data ?? []).map((m) => ({ m, key: `${nameOf(m.airline_id)}|${m.name}` })).sort((a, b) => keyOrder(a.key, b.key));
@@ -201,17 +210,19 @@ export function Reference() {
               <div className="note">These are rule numbers: each is its row in settings (the departures cap in world_rules). Change the operating manual with them (manual §1: rule changes are agreed in chat and the manual updated).</div>
             </>
           ))}
-          {section("aircraft", "Aircraft", "block estimates are the block allowance plus the distance at the type's cruise speed (manual §4); nothing is fitted to the times typed",
+          {section("aircraft", "Aircraft", "block estimates are the block allowance plus the distance at the type's cruise speed (manual §4); nothing is fitted to the times typed · the order cabin is the layout a new order of the type comes with (Tails, the cash forecast)",
             <>
               <div className="tblwrap">
                 <table className="tbl edit" data-figure="reference: aircraft">
                   <tbody>
-                    <tr><th>Type</th><th>Family</th><th>Max seats</th><th>Cruise km/h (fallback)</th><th>Min turn (min)</th><th>Gap target (h)</th><th>Learned from your schedule</th><th></th></tr>
+                    <tr><th>Type</th><th>Family</th><th>Max seats</th><th>Cruise km/h (fallback)</th><th>Min turn (min)</th><th>Gap target (h)</th><th>Order cabin</th><th>Learned from your schedule</th><th></th></tr>
                     {types.map((t, i) => (
                       <tr key={t.id}>
                         {([["name", t.name], ["family", t.family_no], ["seats", t.seats_max], ["cruise", t.cruise_kmh], ["minTurn", t.min_turn_min], ["gap", t.gap_target_h]] as [TypeField, unknown][]).map(([f, v]) => (
                           <td key={f}><Box data-ref={`types.${i}.${f}`} value={v == null ? "" : String(v)} disabled={busy} onSave={(x) => saveOne(typeChange(t, f, x))} /></td>
                         ))}
+                        <td><select data-ref={`types.${i}.orderCabin`} value={t.order_config_id == null ? "" : String(t.order_config_id)} disabled={busy}
+                          onChange={(e) => saveOne(orderCabinChange(t, e.currentTarget.value, configs))}><Layouts configs={configs} typeId={t.id} /></select></td>
                         <td className="dim">{t.cruise_kmh ? `${t.cruise_kmh} km/h + ${constantValue("block_allowance_min", settingsQ.data ?? [], [])} min · the library's estimate` : ""}</td>
                         <td><button type="button" className="link" data-rm={`types.${i}`} disabled={busy} onClick={() => void remove("aircraft_types", t, t.name)}>remove</button></td>
                       </tr>
@@ -220,6 +231,43 @@ export function Reference() {
                 </table>
               </div>
               <button type="button" className="secondary" data-addrow="types" disabled={busy || w === undefined} onClick={() => w !== undefined && void save([addType(w)])}>Add type</button>
+              <h4 className="rh" style={{ margin: "18px 0 6px" }}>An airline's own order cabin</h4>
+              <div className="note">Where an airline's orders of a type come with another layout than the type's (Ryanair's Standard cabins, as a low-cost airline). Remove one and the airline takes the type's again.</div>
+              <div className="tblwrap">
+                <table className="tbl edit" data-figure="reference: own order cabins">
+                  <tbody>
+                    <tr><th>Airline</th><th>Type</th><th>Order cabin</th><th></th></tr>
+                    {own.map((o) => {
+                      const t = types.find((x) => x.id === o.aircraft_type_id);
+                      const key = `${o.airline_id}.${o.aircraft_type_id}`;
+                      return (
+                        <tr key={key}>
+                          <td>{nameOf(o.airline_id) || `Airline ${o.airline_id}`}</td>
+                          <td>{t?.name ?? `Type ${o.aircraft_type_id}`}</td>
+                          <td><select data-own={key} value={o.order_config_id == null ? "" : String(o.order_config_id)} disabled={busy}
+                            onChange={(e) => saveOne(ownOrderChange(o, e.currentTarget.value, configs))}><Layouts configs={configs} typeId={o.aircraft_type_id} /></select></td>
+                          <td><button type="button" className="link" data-own-rm={key} disabled={busy} onClick={() => void save([removeOwnOrder(o)])}>remove</button></td>
+                        </tr>
+                      );
+                    })}
+                    {own.length ? null : <tr><td colSpan={4} className="dim">None: every airline's orders come with the type's.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="fg">
+                <label>Airline<select id="own-airline" value={ownAdd.airline} onChange={(e) => setOwnAdd({ ...ownAdd, airline: e.currentTarget.value })}>
+                  <option value="">—</option>{airlines.map((a) => <option key={a.id} value={String(a.id)}>{a.name}</option>)}</select></label>
+                <label>Type<select id="own-type" value={ownAdd.type} onChange={(e) => setOwnAdd({ ...ownAdd, type: e.currentTarget.value })}>
+                  <option value="">—</option>{types.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}</select></label>
+                <button type="button" className="secondary" id="own-add" disabled={busy || w === undefined || !ownAdd.airline || !ownAdd.type} onClick={() => {
+                  const t = types.find((x) => String(x.id) === ownAdd.type);
+                  if (w === undefined || !t) return;
+                  const c = addOwnOrder(w, Number(ownAdd.airline), t, own);
+                  if (!c) { showMessage(`${nameOf(Number(ownAdd.airline))} has its own order cabin for ${t.name} already.`); return; }
+                  void save([c]);
+                  setOwnAdd({ airline: "", type: "" });
+                }}>Add</button>
+              </div>
             </>)}
           {section("configs", "Configs", "seats follow the config",
             <>

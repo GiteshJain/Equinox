@@ -1,7 +1,8 @@
 // What Reference reads (design §9's Reference row: bases and banks, aircraft types, cabins, markets, service profiles,
 // removed routes, night bans, time zones, game schedules), each through TanStack Query, keyed by its table so a save reads
 // it again: the world's airline_bases, world_airports, settings (the world's), the departures cap (world_rules),
-// aircraft_types, cabin_configs, markets, service_profiles and removed routes, each row with its updated_at (the base for
+// aircraft_types (with their order cabin), the airlines' own order cabins (airline_order_cabins, since 15 Oct),
+// cabin_configs, markets, service_profiles and removed routes, each row with its updated_at (the base for
 // changing it); what still uses a type, a layout or a market (the adapter kept such a row); the website's connection
 // times (site_content.mct, which the old adapter fell back on); the airports' cities; and the counts the Storage line
 // gives. The bank windows and next free numbers are the planning library's, on the start's rules input.
@@ -10,8 +11,9 @@ import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
 import {
-  BASE_COLUMNS, CONFIG_COLUMNS, MARKET_COLUMNS, REMOVED_COLUMNS, SERVICE_COLUMNS, TYPE_COLUMNS, WORLD_AIRPORT_COLUMNS,
-  type BaseRow, type ConfigRow, type MarketRow, type RemovedRoute, type ServiceRow, type SettingRow, type TypeRow, type WorldAirportRow, type WorldRuleRow,
+  BASE_COLUMNS, CONFIG_COLUMNS, MARKET_COLUMNS, OWN_ORDER_COLUMNS, REMOVED_COLUMNS, SERVICE_COLUMNS, TYPE_COLUMNS, WORLD_AIRPORT_COLUMNS,
+  type BaseRow, type ConfigRow, type MarketRow, type OwnOrderCabin, type RemovedRoute, type ServiceRow, type SettingRow, type TypeRow, type WorldAirportRow,
+  type WorldRuleRow,
 } from "./model";
 
 const fail = (what: string, message: string): never => {
@@ -69,11 +71,16 @@ export const useMarkets = (w: number | undefined) =>
     (r) => ({ ...r, fare_y_pct: num(r.fare_y_pct), fare_j_pct: num(r.fare_j_pct) }));
 export const useServices = (w: number | undefined) =>
   useRows<ServiceRow>("service_profiles", "reference", w, "the service profiles", (id) => sel("service_profiles", SERVICE_COLUMNS, id).order("id") as unknown as Answer<ServiceRow[]>);
+/** Each airline's own order cabin, where it differs from its type's (airline_order_cabins). */
+export const useOwnOrders = (w: number | undefined) =>
+  useRows<OwnOrderCabin>("airline_order_cabins", "reference", w, "the airlines' own order cabins",
+    (id) => sel("airline_order_cabins", OWN_ORDER_COLUMNS, id).order("airline_id").order("aircraft_type_id") as unknown as Answer<OwnOrderCabin[]>);
 export const useRemoved = (w: number | undefined) =>
   useRows<RemovedRoute>("routes", "removed", w, "the removed routes", (id) => sel("routes", REMOVED_COLUMNS, id).eq("removed", true).order("id") as unknown as Answer<RemovedRoute[]>);
 
-/** Whether a type, a layout or a market is still used (by an aircraft, a layout, a market, the types an airline may have
- *  or a route), asked when it's removed: the old adapter kept such a row, and the database would refuse to remove it. */
+/** Whether a type, a layout or a market is still used (by an aircraft, a layout, a market, the types an airline may have,
+ *  an order cabin or a route), asked when it's removed: the old adapter kept such a row, and the database would refuse to
+ *  remove it. */
 export async function stillUsed(w: number, what: "aircraft_types" | "cabin_configs" | "markets", id: number): Promise<string | null> {
   const any = async (table: string, filter: string, label: string) => {
     const { data, error } = await supabase.from(table as never).select("world_id").eq("world_id", w).or(filter).limit(1);
@@ -82,9 +89,11 @@ export async function stillUsed(w: number, what: "aircraft_types" | "cabin_confi
   };
   const checks = what === "aircraft_types"
     ? [any("aircraft", `aircraft_type_id.eq.${id}`, "an aircraft"), any("cabin_configs", `aircraft_type_id.eq.${id}`, "a cabin layout"),
-       any("markets", `default_type_id.eq.${id}`, "a market"), any("airline_aircraft_types", `aircraft_type_id.eq.${id}`, "the types an airline may have")]
+       any("markets", `default_type_id.eq.${id}`, "a market"), any("airline_aircraft_types", `aircraft_type_id.eq.${id}`, "the types an airline may have"),
+       any("airline_order_cabins", `aircraft_type_id.eq.${id}`, "an airline's own order cabin")]
     : what === "cabin_configs"
-      ? [any("aircraft", `cabin_config_id.eq.${id},order_config_id.eq.${id}`, "an aircraft"), any("markets", `default_config_id.eq.${id}`, "a market")]
+      ? [any("aircraft", `cabin_config_id.eq.${id},order_config_id.eq.${id}`, "an aircraft"), any("markets", `default_config_id.eq.${id}`, "a market"),
+         any("aircraft_types", `order_config_id.eq.${id}`, "an aircraft type's order cabin"), any("airline_order_cabins", `order_config_id.eq.${id}`, "an airline's own order cabin")]
       : [any("routes", `market_id.eq.${id},market_override_id.eq.${id}`, "a route")];
   return (await Promise.all(checks)).find((x) => x) ?? null;
 }

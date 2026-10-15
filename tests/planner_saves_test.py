@@ -28,7 +28,8 @@ Each save, through the screen's own controls, one action at a time:
   Check: the game check's fix one, fix all and add a flight; Mark checked; Keep as is; Show again; Refitted to; log an order.
   Review: cash and fixed costs; loads typed; loads pasted with the day marked complete; + fare plan; remove.
   Interline: a status; a note.
-  Reference: a bank time; a constant; a type's minimum turn; Add config; a night ban; a removed route restored; a time zone.
+  Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
+    changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
   Photos: a destination photo uploaded.
 What the test makes for a save (an aircraft to file, a delivery to remove, a check made due, a layout to refit, a to-do to
 tick) is made with psql as the test, never through the planner, so it isn't part of the answer.
@@ -956,6 +957,30 @@ async def reference(s, pl):
     if tp:
         await ref("aircraft")
         await s.act("reference: a type's minimum turn", lambda: fill("[data-ref='types.0.minTurn']", str(int(tp["min_turn"] or 0) + 5)))
+    # the order cabin (spec 2026-10-15 last leftovers §1): a type's, then an airline's own added, changed and removed; each
+    # picks another of the type's layouts, so each writes
+    ours = COPY["airlines"][0]["id"]
+    oc = one(f"""select json_build_object('i', x.i, 'type', x.id, 'to', x.alt) from (
+                 select row_number() over (order by t.id) - 1 as i, t.id,
+                        (select c.id from public.cabin_configs c where c.aircraft_type_id = t.id and c.id is distinct from t.order_config_id order by c.id limit 1) as alt,
+                        exists (select 1 from public.airline_order_cabins o where o.airline_id = {int(ours)} and o.aircraft_type_id = t.id) as own
+                   from public.aircraft_types t where t.world_id = {w}) x
+                 where x.alt is not null and not x.own order by x.i limit 1""")
+    if oc:
+        own = f"{ours}.{oc['type']}"
+        await ref("aircraft")
+        await s.act("reference: a type's order cabin", lambda: pg.select_option(f"[data-ref='types.{oc['i']}.orderCabin']", str(oc["to"])))
+
+        async def add_own():
+            await pg.select_option("#own-airline", str(ours))
+            await pg.select_option("#own-type", str(oc["type"]))
+            await pg.click("#own-add")
+        await s.act("reference: an airline's own order cabin added", add_own)
+        await pg.wait_for_selector(f"[data-own='{own}']", timeout=30000)
+        await s.act("reference: an airline's own order cabin changed", lambda: pg.select_option(f"[data-own='{own}']", index=0))
+        await s.act("reference: an airline's own order cabin removed", lambda: pg.click(f"[data-own-rm='{own}']"))
+    else:
+        s.not_tried("no type with another layout to pick", "reference: a type's order cabin", "reference: an airline's own order cabin")
     await ref("configs")
     await s.act("reference: Add config", lambda: pg.click("main[data-screen=reference] [data-addrow=configs]"))
     ban = one(f"""select to_json(r.dest_code) from public.routes r where r.world_id = {w} and not r.removed

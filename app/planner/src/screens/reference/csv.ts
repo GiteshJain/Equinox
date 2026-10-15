@@ -73,7 +73,7 @@ export async function flightsCsv(rules: Rules, worldId: number, names: ReadonlyM
   return lines.join("\n");
 }
 
-/** Every planner table's rows for the world (the 32 planner_save() writes; the shared ones whole), as one JSON document. */
+/** Every planner table's rows for the world (the 33 planner_save() writes; the shared ones whole), as one JSON document. */
 export async function tablesJson(worldId: number): Promise<string> {
   const out: Record<string, unknown[]> = {};
   for (const t of PLANNER_TABLES) {

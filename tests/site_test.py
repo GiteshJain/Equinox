@@ -12,6 +12,11 @@ Then the trip search (#19): on a small made-up week, transfers follow the planni
 8 hours are offered, one a minute under the minimum and one of 9 hours (which the old 10-hour window offered) are not;
 the same on a feed without content.connection_max_wait_h (8 hours), and the 9-hour one is offered when the feed says
 10; the page loads rules.js with no errors.
+Then every airport's name and photo (spec docs/specs/2026-10-15-last-leftovers.md §2): with the airports' website names
+and city photos given as data (content.airport_cities, exactly as database/migrations/20261015220000_last_leftovers.sql
+fills site_content), the website gives each of the 1,337 airports in web/assets/airports.json the name and photo it gave
+before they moved out of its code (tests/fixtures/airport_cities.expected.json, recorded at 7fc2a99). The page's own
+apName and apPhoto answer: site.js is served with one line added that hands them to the test.
 
 Every page is opened twice (#13, pull request 8): on the feed site_public() gives since then, which carries our airlines
 (names, codes, colours, text and order, from the airlines table), and on the feed without them, so the website's own
@@ -22,7 +27,7 @@ Usage: python3 tests/site_test.py
 """
 import asyncio, contextlib, json, sys
 from urllib.parse import urlsplit
-from harness import WEB, serve, sample
+from harness import FIX, ROOT, WEB, serve, sample
 from playwright.async_api import async_playwright
 
 failures = []
@@ -196,6 +201,57 @@ async def trip_search(b, port, S, base):
         await ctx.close()
 
 
+# The airports' website names and city photos, as data since 15 Oct (spec 2026-10-15 last leftovers §2): exactly what the
+# migration puts in site_content, which site_public() gives as content.airport_cities
+CITIES_MIGRATION = ROOT / "database" / "migrations" / "20261015220000_last_leftovers.sql"
+
+
+def cities_as_data():
+    parts = CITIES_MIGRATION.read_text(encoding="utf8").split("$airport_cities$")
+    assert len(parts) == 3, "the migration's $airport_cities$ value isn't there once"
+    return json.loads(parts[1])
+
+
+async def airport_cities(b, port, S):
+    print("--- every airport's name and photo, with the lists as data (content.airport_cities), as before they moved")
+    want = json.loads((FIX / "airport_cities.expected.json").read_text(encoding="utf8"))["airports"]
+    cities = cities_as_data()
+    base = S["site_public"]
+    pub = json.dumps(dict(base, content=dict(base.get("content") or {}, airport_cities=cities)))
+    site_js = (WEB / "assets" / "site.js").read_text(encoding="utf8")
+    end = site_js.rstrip().rindex("})();")
+    hooked = site_js[:end] + "window.__eqSite = { apName, apPhoto };\n" + site_js[end:]   # the page's own functions, for the test
+    ctx = await b.new_context(viewport={"width": 1280, "height": 900}, timezone_id="UTC", locale="en-US")
+    pg = await ctx.new_page(); errors = []
+    pg.on("pageerror", lambda e: errors.append("page error: " + str(e)[:300]))
+
+    async def route(r):
+        u = r.request.url
+        if "/rest/v1/rpc/site_public" in u:
+            await r.fulfill(body=pub, content_type="application/json")
+        elif urlsplit(u).path == "/assets/site.js":
+            await r.fulfill(body=hooked, content_type="text/javascript")
+        elif f":{port}/" in u or u.startswith("data:"):
+            await r.continue_()
+        else:
+            await r.abort()
+    await pg.route("**/*", route)
+    await pg.clock.set_fixed_time(S["frozen_at"])
+    await pg.goto(f"http://127.0.0.1:{port}/destinations")
+    got = {}
+    with contextlib.suppress(Exception):
+        await pg.wait_for_function("() => !!window.__eqSite && document.querySelectorAll('.dcard').length > 0", timeout=20000)
+        got = await pg.evaluate("codes => Object.fromEntries(codes.map(c => [c, [window.__eqSite.apName(c), window.__eqSite.apPhoto(c)]]))", sorted(want))
+    await ctx.close()
+    moved = sorted(c for c in want if got.get(c) != want[c])
+    named = sum(1 for c in want if c in cities["name"])
+    pictured = sum(1 for c in want if want[c][1])
+    check(bool(got) and not moved and not errors,
+          f"every airport's name and photo on the website, with the lists as data: the same as before for all {len(want)} airports "
+          f"({named} named by the list, {pictured} with a photo)",
+          f"{len(moved)} differ: " + ", ".join(f"{c} {got.get(c)} (was {want[c]})" for c in moved[:6]) + (f"; errors {errors}" if errors else ""))
+
+
 async def main():
     S = sample()
     old = {k: v for k, v in S["site_public"].items() if k != "airlines"}   # the feed without our airlines: the fallback
@@ -255,6 +311,7 @@ async def main():
                 await ctx.close()
             await new_planner(b, port)
             await trip_search(b, port, S, old)
+            await airport_cities(b, port, S)
             await b.close()
     print(f"\n{len(failures)} website check(s) failed" if failures else "\nwebsite: all passed")
     sys.exit(1 if failures else 0)

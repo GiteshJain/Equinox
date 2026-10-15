@@ -42,7 +42,11 @@ begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
   d := private.fig_fin_stats(p_airline_id, coalesce(p_as_of, now()));
   return jsonb_build_object('airline_id', p_airline_id, 'as_of', d -> 'as_of', 'profit_day', d -> 'profit_day',
-                            'span_days', d -> 'span_days', 'early', d -> 'early', 'days', d -> 'days');
+                            'span_days', d -> 'span_days', 'early', d -> 'early',
+                            'days', (select coalesce(jsonb_agg(x || jsonb_build_object('per_aircraft_day',
+                                              case when coalesce((x ->> 'aircraft')::int, 0) <> 0
+                                                   then (x ->> 'profit_day')::numeric / (x ->> 'aircraft')::int end) order by i), '[]'::jsonb)
+                                       from jsonb_array_elements(d -> 'days') with ordinality as e(x, i)));
 end
 $function$
 
@@ -56,6 +60,7 @@ CREATE OR REPLACE FUNCTION public.as_num(p text)
 AS $function$
   select case when p is null or p !~ '[0-9]' then null else regexp_replace(p, '[^0-9.\-]', '', 'g')::numeric end;
 $function$
+
 ;
 
 -- auto_confirm_planner_user()
@@ -71,6 +76,7 @@ begin
   end if;
   return new;
 end $function$
+
 ;
 
 -- capture_airlines(p_key text)
@@ -94,6 +100,7 @@ begin
                   where a.world_id = v_world and a.active and g.kind = 'ours'));
 end
 $function$
+
 ;
 
 -- capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)
@@ -120,6 +127,7 @@ begin
   return v_res;
 end
 $function$
+
 ;
 
 -- capture_status(p_world_id bigint, p_as_of timestamp with time zone)
@@ -191,6 +199,7 @@ begin
                from public.game_capture_raw r where r.captured_at >= now() - make_interval(days => p_days) and r.kind <> 'html'));
 end
 $function$
+
 ;
 
 -- export_for_report(p_secret text, p_kind text, p_arg text)
@@ -268,6 +277,7 @@ begin
                   from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prokind = 'f'),
     'views', (select coalesce(jsonb_agg(jsonb_build_object('name', viewname, 'def', definition) order by viewname), '[]'::jsonb) from pg_views where schemaname = 'public'));
 end $function$
+
 ;
 
 -- fare_changes(p_airline_id bigint, p_as_of timestamp with time zone)
@@ -407,6 +417,7 @@ begin
   return v_res;
 end
 $function$
+
 ;
 
 -- is_planner_user()
@@ -418,6 +429,7 @@ CREATE OR REPLACE FUNCTION public.is_planner_user()
 AS $function$
   select exists (select 1 from public.planner_users u where lower(u.email) = lower(coalesce(auth.jwt() ->> 'email', '')));
 $function$
+
 ;
 
 -- loads_by_day(p_world_id bigint, p_from date, p_to date)
@@ -463,6 +475,7 @@ begin
       from days d);
 end
 $function$
+
 ;
 
 -- order_cabin(p_airline_id bigint, p_type_id bigint)
@@ -494,6 +507,7 @@ begin
   return private.capture_page(p_id);
 end
 $function$
+
 ;
 
 -- planner_data_set(p_secret text, p_key text, p_value jsonb)
@@ -521,6 +535,7 @@ begin
          || case when v_tables is null then '{}'::jsonb else jsonb_build_object('tables', v_tables) end;
 end
 $function$
+
 ;
 
 -- planner_save(p_changes jsonb, p_client text)
@@ -531,7 +546,8 @@ CREATE OR REPLACE FUNCTION public.planner_save(p_changes jsonb, p_client text)
  SET search_path TO ''
 AS $function$
 declare
-  -- the 32 planner tables, each with the change-log trigger (migration 20261009210000_planner_tables.sql, §4)
+  -- the 33 planner tables, each with the change-log trigger (migration 20261009210000_planner_tables.sql, §4; the 33rd,
+  -- airline_order_cabins, 20261015220000_last_leftovers.sql)
   v_tables constant text[] := array[
     'worlds', 'groups', 'airlines', 'airline_bases', 'airline_aircraft_types',
     'countries', 'airports', 'world_airports',
@@ -540,7 +556,7 @@ declare
     'plan_cards', 'plan_card_legs',
     'todos', 'todo_items', 'growth_log', 'spending_log', 'fare_plan', 'interline_agreements', 'monthly_checks',
     'dismissals', 'cash_entries', 'load_entries', 'load_days',
-    'settings', 'world_rules'];
+    'settings', 'world_rules', 'airline_order_cabins'];
   v_actor text := current_setting('equinox.actor', true);
   v_detail text := current_setting('equinox.actor_detail', true);
   w bigint;
@@ -583,7 +599,7 @@ begin
     v_table := c ->> 'table';
     v_op := c ->> 'op';
     if v_table is null or not (v_table = any (v_tables)) then
-      raise exception 'planner_save: change %: % isn''t one of the planner''s tables (only the 32 the change log covers)',
+      raise exception 'planner_save: change %: % isn''t one of the planner''s tables (only the 33 the change log covers)',
         i, coalesce(v_table, 'no table') using errcode = '22023';
     end if;
     if v_op is null or v_op not in ('insert', 'update', 'delete') then
@@ -767,6 +783,7 @@ begin
   return jsonb_build_object('ok', true, 'rows', v_rows);
 end
 $function$
+
 ;
 
 -- route_loads(p_world_id bigint, p_as_of timestamp with time zone)
@@ -791,9 +808,19 @@ CREATE OR REPLACE FUNCTION public.route_profit(p_airline_id bigint, p_days integ
  STABLE SECURITY DEFINER
  SET search_path TO ''
 AS $function$
+declare d jsonb; a jsonb; v_in numeric; v_out numeric;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
-  return private.fig_route_profit(p_airline_id, p_days, coalesce(p_as_of, now())) - 'aircraft' - 'fare_changes';
+  d := private.fig_route_profit(p_airline_id, p_days, coalesce(p_as_of, now())) - 'aircraft' - 'fare_changes';
+  a := d -> 'average_flight';
+  if jsonb_typeof(a) = 'object' then
+    v_in := coalesce((a ->> 'passengers')::numeric, 0) + coalesce((a ->> 'cargo')::numeric, 0);
+    v_out := coalesce((a ->> 'fuel')::numeric, 0) + coalesce((a ->> 'handling')::numeric, 0) + coalesce((a ->> 'onboard')::numeric, 0)
+           + coalesce((a ->> 'landing')::numeric, 0) + coalesce((a ->> 'air_traffic')::numeric, 0) + coalesce((a ->> 'maintenance')::numeric, 0);
+    d := jsonb_set(d, '{average_flight}', a || jsonb_build_object('income', v_in, 'costs', v_out, 'profit', v_in - v_out,
+                                                                   'margin', case when v_in <> 0 then (v_in - v_out) / v_in end));
+  end if;
+  return d;
 end
 $function$
 
@@ -813,6 +840,7 @@ begin
   return private.rules_input_doc(p_world_id, p_routes);
 end
 $function$
+
 ;
 
 -- save_script(p_secret text, p_name text, p_content text)
@@ -828,6 +856,7 @@ begin
   on conflict (name) do update set content = excluded.content, updated_at = now();
   return jsonb_build_object('ok', true, 'name', p_name, 'bytes', length(p_content));
 end $function$
+
 ;
 
 -- site_admin(p_secret text, p_kind text, p_payload jsonb)
@@ -868,6 +897,7 @@ begin
   return jsonb_build_object('ok', true);
 end
 $function$
+
 ;
 
 -- site_investor(p_password text)
@@ -917,6 +947,7 @@ begin
                   from public.site_reports r where r.kind <> 'newsletter'));
 end
 $function$
+
 ;
 
 -- site_newsletter(p_id bigint)
@@ -928,6 +959,7 @@ CREATE OR REPLACE FUNCTION public.site_newsletter(p_id bigint)
 AS $function$
   select jsonb_build_object('ok', true, 'title', title, 'pdf', pdf_b64) from public.site_reports where id = p_id and kind = 'newsletter' and status = 'published';
 $function$
+
 ;
 
 -- site_public()
@@ -1045,6 +1077,7 @@ AS $function$
                                and (s.value #>> '{}') ~ '^\s*[0-9]+(\.[0-9]+)?\s*$'), '{}'::jsonb)
   );
 $function$
+
 ;
 
 -- site_remove_airline_logo(p_airline text)
@@ -1059,6 +1092,7 @@ begin
   update public.site_content set value = value #- array['logos', p_airline], updated_at = now() where key = 'media';
   return jsonb_build_object('ok', true);
 end $function$
+
 ;
 
 -- site_remove_airport_photo(p_code text)
@@ -1073,6 +1107,7 @@ begin
   update public.site_content set value = value #- array['airports', p_code], updated_at = now() where key = 'media';
   return jsonb_build_object('ok', true);
 end $function$
+
 ;
 
 -- site_report(p_id bigint, p_password text)
@@ -1090,6 +1125,7 @@ begin
   end if;
   return (select jsonb_build_object('ok', true, 'title', title, 'pdf', pdf_b64) from public.site_reports where id = p_id and status = 'published');
 end $function$
+
 ;
 
 -- site_set_airline_logo(p_airline text, p_url text, p_path text)
@@ -1118,6 +1154,7 @@ begin
   return jsonb_build_object('ok', true);
 end
 $function$
+
 ;
 
 -- site_set_airport_photo(p_code text, p_url text, p_credit text, p_path text)
@@ -1138,6 +1175,7 @@ begin
   insert into public.site_content(key, value) values ('media', m) on conflict (key) do update set value = excluded.value, updated_at = now();
   return jsonb_build_object('ok', true);
 end $function$
+
 ;
 
 -- system_status(p_world_id bigint, p_as_of timestamp with time zone)
@@ -1265,6 +1303,7 @@ begin
   end if;
 end
 $function$
+
 ;
 
 -- private.archive_checksum(p_month date, p_table text, OUT rows bigint, OUT checksum text)
@@ -1286,6 +1325,7 @@ begin
      into rows, checksum;
 end
 $function$
+
 ;
 
 -- private.archive_delete(p_month date, p_table text, p_expected_count bigint, p_checksum text)
@@ -1363,6 +1403,7 @@ begin
   return jsonb_build_object('table', p_table, 'month', to_char(p_month, 'YYYY-MM'), 'deleted', v_deleted, 'job_run_id', v_job);
 end
 $function$
+
 ;
 
 -- private.archive_due(p_as_of date)
@@ -1403,6 +1444,7 @@ AS $function$
      group by 2) x
    order by x.month, x.table_name
 $function$
+
 ;
 
 -- private.archive_kept_from(p_table text, p_as_of date)
@@ -1415,6 +1457,7 @@ AS $function$
   select (date_trunc('month', p_as_of) - make_interval(months => t.keep_months))::date
     from private.archive_tables() t where t.table_name = p_table
 $function$
+
 ;
 
 -- private.archive_manifest(p_month date, p_table text)
@@ -1452,6 +1495,7 @@ begin
     'made_at', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'));
 end
 $function$
+
 ;
 
 -- private.archive_order(p_table text, p_as text)
@@ -1472,6 +1516,7 @@ begin
   end;
 end
 $function$
+
 ;
 
 -- private.archive_select(p_month date, p_table text)
@@ -1487,6 +1532,7 @@ begin
                 private.archive_order(p_table, 't'));
 end
 $function$
+
 ;
 
 -- private.archive_tables()
@@ -1502,6 +1548,7 @@ AS $function$
                         ('game_scan_airports', 'the scan''s time (game_scans.taken_at, UTC)', 1),
                         ('change_log', 'changed_at (UTC)', 12)) v(table_name, month_of, keep_months)
 $function$
+
 ;
 
 -- private.archive_where(p_month date, p_table text, p_as text)
@@ -1528,6 +1575,7 @@ begin
   end;
 end
 $function$
+
 ;
 
 -- private.backup_runs_insert()
@@ -1554,6 +1602,7 @@ begin
   return new;
 end
 $function$
+
 ;
 
 -- private.briefing_doc(p_airline_id bigint, p_as_of timestamp with time zone)
@@ -1619,6 +1668,7 @@ AS $function$
       from rl))
   from al
 $function$
+
 ;
 
 -- private.caller_is_staff()
@@ -2998,7 +3048,8 @@ begin
     from private.fig_events(w, p_as_of, p_airline_id) e
    where e.airline_id = p_airline_id and e.at > p_as_of and e.at <= p_as_of + interval '168 hours';
   return jsonb_build_object('airline_id', p_airline_id, 'cash', v_cash, 'flight_profit_day', v_ops,
-                            'leases_day', v_lease, 'closing_day', v_closing, 'net_day', v_ops - v_lease - v_closing,
+                            'leases_day', v_lease, 'closing_day', v_closing, 'leases_and_closing_day', v_lease + v_closing,
+                            'net_day', v_ops - v_lease - v_closing,
                             'on_ground', to_jsonb(v_ground), 'on_ground_lease_day', v_ground_lease);
 end
 $function$
@@ -3316,16 +3367,11 @@ CREATE OR REPLACE FUNCTION private.fig_order_cabin(p_airline_id bigint, p_type_i
  STABLE
  SET search_path TO ''
 AS $function$
-  with al as (select a.id, a.is_lcc from public.airlines a where a.id = p_airline_id),
-  c as (select cc.id, cc.cabin from public.cabin_configs cc where cc.aircraft_type_id = p_type_id),
-  want as (select case when al.is_lcc and exists (select 1 from c where c.cabin = 'Standard') then 'Standard'
-                       when exists (select 1 from c where c.cabin = 'Leisure') then 'Leisure'
-                       else 'Comfort' end as cabin from al)
-  select c.id from c, want
-   where c.cabin = want.cabin
-   order by exists (select 1 from public.markets m where m.airline_id = p_airline_id and m.default_config_id = c.id) desc,
-            exists (select 1 from public.markets m where m.default_config_id = c.id) desc, c.id desc
-   limit 1
+  select case when x.airline_id is not null then x.order_config_id else t.order_config_id end
+    from public.airlines a
+    join public.aircraft_types t on t.id = p_type_id
+    left join public.airline_order_cabins x on x.airline_id = a.id and x.aircraft_type_id = t.id
+   where a.id = p_airline_id
 $function$
 
 ;
@@ -3398,12 +3444,13 @@ AS $function$
   with d as (select (p_as_of at time zone 'UTC')::date as d0),
   ld as (select x.* from d cross join lateral private.fig_load_days(p_world_id, p_as_of, d.d0 - 6, d.d0) x where x.done),
   lv as (select x.* from d cross join lateral private.fig_load_values(p_world_id, p_as_of, d.d0 - 6, d.d0) x where x.v is not null),
-  fl as (select x.day, x.airline_id, x.flight_no, x.route_id, lv.v
-           from d cross join lateral private.fig_flights_on(p_world_id, d.d0 - 6, d.d0) x
-           join ld on ld.day = x.day
-           left join lv on lv.day = x.day and lv.airline_id = x.airline_id and lv.flight_no = x.flight_no
-          where not (x.launched_on is not null and x.day < x.launched_on)
-            and not (ld.captured and lv.v is null)),
+  fl as materialized (
+    select x.day, x.airline_id, x.flight_no, x.route_id, lv.v
+      from d cross join lateral private.fig_flights_on(p_world_id, d.d0 - 6, d.d0) x
+      join ld on ld.day = x.day
+      left join lv on lv.day = x.day and lv.airline_id = x.airline_id and lv.flight_no = x.flight_no
+     where not (x.launched_on is not null and x.day < x.launched_on)
+       and not (ld.captured and lv.v is null)),
   r as (select fl.route_id, fl.airline_id, count(*)::int as n,
                sum(case when coalesce(fl.v, 0) = 0 then 97.5 else fl.v end) as s,
                count(*) filter (where coalesce(fl.v, 0) = 0 or fl.v >= 95)::int as full_n,
@@ -3411,7 +3458,16 @@ AS $function$
                count(*) filter (where fl.v > 0 and fl.v >= 70 and fl.v < 85)::int as b85,
                count(*) filter (where fl.v > 0 and fl.v < 70)::int as b70,
                count(distinct fl.day)::int as days
-          from fl group by fl.route_id, fl.airline_id)
+          from fl group by fl.route_id, fl.airline_id),
+  -- each flight number's, as loadStats() keeps them under "F|airline|number": the same figures over the same flights
+  f as (select fl.airline_id, fl.flight_no, count(*)::int as n,
+               sum(case when coalesce(fl.v, 0) = 0 then 97.5 else fl.v end) as s,
+               count(*) filter (where coalesce(fl.v, 0) = 0 or fl.v >= 95)::int as full_n,
+               count(*) filter (where fl.v > 0 and fl.v >= 85 and fl.v < 95)::int as b95,
+               count(*) filter (where fl.v > 0 and fl.v >= 70 and fl.v < 85)::int as b85,
+               count(*) filter (where fl.v > 0 and fl.v < 70)::int as b70,
+               count(distinct fl.day)::int as days
+          from fl where fl.flight_no is not null group by fl.airline_id, fl.flight_no)
   select jsonb_build_object(
     'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'from', (select d0 - 6 from d), 'to', (select d0 from d),
     'routes', coalesce((select jsonb_agg(jsonb_build_object(
@@ -3419,7 +3475,13 @@ AS $function$
         'departures', r.n, 'sum', r.s, 'average', r.s / r.n, 'full', r.full_n, 'under_95', r.b95, 'under_85', r.b85,
         'under_70', r.b70, 'days', r.days)
         order by a.position nulls last, r.airline_id, ro.hub_code, ro.dest_code)
-      from r join public.routes ro on ro.id = r.route_id join public.airlines a on a.id = r.airline_id), '[]'::jsonb))
+      from r join public.routes ro on ro.id = r.route_id join public.airlines a on a.id = r.airline_id), '[]'::jsonb),
+    'flights', coalesce((select jsonb_agg(jsonb_build_object(
+        'airline_id', f.airline_id, 'flight_no', f.flight_no,
+        'departures', f.n, 'sum', f.s, 'average', f.s / f.n, 'full', f.full_n, 'under_95', f.b95, 'under_85', f.b85,
+        'under_70', f.b70, 'days', f.days)
+        order by a.position nulls last, f.airline_id, f.flight_no)
+      from f join public.airlines a on a.id = f.airline_id), '[]'::jsonb))
 $function$
 
 ;
@@ -3698,6 +3760,7 @@ begin
   return jsonb_build_object('routes', v_routes, 'aircraft', v_aircraft);
 end
 $function$
+
 ;
 
 -- private.fill_flight_times(p_airline_id bigint)
@@ -4075,6 +4138,7 @@ begin
   return v_out;
 end
 $function$
+
 ;
 
 -- private.job_run_add(p_job text, p_world_id bigint, p_started_at timestamp with time zone, p_status text, p_note text, p_details jsonb)
@@ -4166,6 +4230,7 @@ begin
   return v_out;
 end
 $function$
+
 ;
 
 -- private.json_int(p jsonb)
@@ -4177,6 +4242,7 @@ CREATE OR REPLACE FUNCTION private.json_int(p jsonb)
 AS $function$
   select case when n = trunc(n) and abs(n) < 1e15 then n::bigint end from (select private.json_num(p) as n) x
 $function$
+
 ;
 
 -- private.json_num(p jsonb)
@@ -4191,6 +4257,7 @@ AS $function$
            when 'string' then case when (p #>> '{}') ~ '^\s*-?\d+(\.\d+)?\s*$' then btrim(p #>> '{}')::numeric end
          end
 $function$
+
 ;
 
 -- private.loads_times(p_world_id bigint, p_game_date date, p_dep_local text, p_arr_local text, p_origin text, p_dest text, OUT dep_at timestamp with time zone, OUT arr_at timestamp with time zone)
@@ -4540,6 +4607,7 @@ begin
   return v_out;
 end
 $function$
+
 ;
 
 -- private.restore_row(p_table text, p_row_key jsonb, p_as_of timestamp with time zone)
@@ -4616,12 +4684,12 @@ $function$
 ;
 
 -- private.rules_input_doc(p_world_id bigint, p_routes text)
-create or replace function private.rules_input_doc(p_world_id bigint, p_routes text default 'all')
- returns jsonb
- language plpgsql
- stable
- set search_path to ''
-as $function$
+CREATE OR REPLACE FUNCTION private.rules_input_doc(p_world_id bigint, p_routes text DEFAULT 'all'::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
 declare
   w bigint;
   v_name text;
@@ -4724,6 +4792,7 @@ begin
   );
 end
 $function$
+
 ;
 
 -- private.scan_airline(p_world_id bigint, p_game_id integer, p_name text)
@@ -4794,6 +4863,7 @@ begin
             from cron.job j where j.jobname like 'equinox-%');
 end
 $function$
+
 ;
 
 -- private.set_updated_at()
@@ -4825,6 +4895,7 @@ CREATE OR REPLACE FUNCTION private.shift_weekdays(p smallint[], p_days integer)
 AS $function$
   select array(select distinct ((((d - 1 + p_days) % 7) + 7) % 7 + 1)::smallint from unnest(p) as d order by 1)
 $function$
+
 ;
 
 -- private.snapshot_due(p_world_id bigint, p_day date, p_at timestamp with time zone)
@@ -4974,4 +5045,6 @@ begin
   return jsonb_build_object('set', n_set, 'cleared', n_cleared, 'removed', n_gone);
 end
 $function$
+
 ;
+

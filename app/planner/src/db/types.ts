@@ -89,17 +89,23 @@ isOneToOne: false
                   ]
                 },"aircraft_types": {
                   Row: {
-                    "created_at": string,"cruise_kmh": number | null,"family_no": number | null,"gap_target_h": number | null,"ground_keep_min": number | null,"id": number,"maint_per_cycle": number | null,"maint_per_hour": number | null,"min_turn_min": number | null,"name": string,"price": number | null,"seats_max": number | null,"updated_at": string,"world_id": number
+                    "created_at": string,"cruise_kmh": number | null,"family_no": number | null,"gap_target_h": number | null,"ground_keep_min": number | null,"id": number,"maint_per_cycle": number | null,"maint_per_hour": number | null,"min_turn_min": number | null,"name": string,"order_config_id": number | null,"price": number | null,"seats_max": number | null,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name": string,"price"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id": number
+                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name": string,"order_config_id"?: number | null,"price"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name"?: string,"price"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id"?: number
+                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name"?: string,"order_config_id"?: number | null,"price"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
+      foreignKeyName: "aircraft_types_order_config_fkey"
+      columns: ["order_config_id","world_id"]
+isOneToOne: false
+      referencedRelation: "cabin_configs"
+      referencedColumns: ["id","world_id"]
+    },{
       foreignKeyName: "aircraft_types_world_id_fkey"
       columns: ["world_id"]
 isOneToOne: false
@@ -197,6 +203,44 @@ isOneToOne: false
       referencedColumns: ["id","world_id"]
     },{
       foreignKeyName: "airline_days_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"airline_order_cabins": {
+                  Row: {
+                    "aircraft_type_id": number,"airline_id": number,"created_at": string,"order_config_id": number | null,"updated_at": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "aircraft_type_id": number,"airline_id": number,"created_at"?: string,"order_config_id"?: number | null,"updated_at"?: string,"world_id": number
+                  }
+                  Update: {
+                    "aircraft_type_id"?: number,"airline_id"?: number,"created_at"?: string,"order_config_id"?: number | null,"updated_at"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "airline_order_cabins_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "airline_order_cabins_config_fkey"
+      columns: ["order_config_id","world_id"]
+isOneToOne: false
+      referencedRelation: "cabin_configs"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "airline_order_cabins_type_fkey"
+      columns: ["aircraft_type_id","world_id"]
+isOneToOne: false
+      referencedRelation: "aircraft_types"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "airline_order_cabins_world_id_fkey"
       columns: ["world_id"]
 isOneToOne: false
       referencedRelation: "worlds"

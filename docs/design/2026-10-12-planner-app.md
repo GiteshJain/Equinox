@@ -322,18 +322,29 @@ Claude's call, as with #13's; any of them can be changed before the merge.
 Kept as the old planner has them so the side-by-side figures match; each is for after the switch (§11), unless it
 starts to matter sooner.
 
-**Left after the clean-up (build pull request 14, 14 Oct):** the cabin an order comes with, made data; Ryanair's main
-base, marked in `airline_bases`; Photos' city-photo and name lists, made data with the website. The rest below are done,
-kept as decided ("flights today", the block-hours flag, filing's block time), or went with the old planner.
+**Left after the clean-up (build pull request 14, 14 Oct), closed by the last leftovers (pull request #44, 15 Oct; spec
+`docs/specs/2026-10-15-last-leftovers.md`):** the cabin an order comes with, made data (done); Ryanair's main base (kept
+as it is, with the reason); Photos' city-photo and name lists, made data with the website (done). The same pull request
+brought `database/current/functions.sql` back in step with the database and made its check compare each function's
+definition, not only its name. Every item below is done, kept as decided ("flights today", the block-hours flag,
+filing's block time, Ryanair's main base), or went with the old planner. Nothing is left open.
 - **Event and load times ignore an airport's UTC correction** (`world_airports.utc_offset_override`) in the captured
   figures, as the old planner does; its schedules use it. No airport has a correction on 12 Oct, so nothing is
   affected. Found by pull request #29. *Done in build pull request 14: `private.fig_events()` and
   `private.fig_route_profit()` take the airport's offset in the world (`private.airport_offset_min()`); no figure moved
   (no airport has a correction), and with one put on a home airport in the test, its payments move by exactly that.*
 - **The cabin an order comes with** is worked out from the cabin names, where the old planner kept a list in its code.
-  They agree on every type today; make it data. Found by pull request #29.
+  They agree on every type today; make it data. Found by pull request #29. *Done in pull request #44 (15 Oct): each type's
+  order cabin is `aircraft_types.order_config_id`, and an airline's own where it differs is a row of `airline_order_cabins`
+  (Ryanair's Standard layouts, as a low-cost airline), both filled from exactly what `private.fig_order_cabin()` gave for
+  every airline and type, which now reads them. No answer moved: the migration checks every pair before it commits, and
+  `database/tests/order_cabins_test.sql` checks them again against the answers saved before the changes. Reference shows
+  them with the aircraft types and changes them, each one `planner_save()` action.*
 - **Ryanair has no main base marked** in `airline_bases`; its home falls back to `airlines.home_airport_code` (CDG),
-  as the old planner does. It's exempt from hubs first, so nothing is affected. Found by pull request #29.
+  as the old planner does. It's exempt from hubs first, so nothing is affected. Found by pull request #29. *Kept as it is
+  (pull request #44, 15 Oct): its home already falls back to CDG (`private.fig_home()`), and its hubs-first exemption is
+  held by the setting `hub_first_exempt` (Ryanair's own value), not by the missing main base, so marking one would change
+  nothing.*
 - **The header's search box and Website button** are in the old planner's header but not yet the new one's. Add them
   before the switch, once Routes and Tails exist to search. Found by pull request #31. *Done in pull request #37 (build
   pull request 12): the search finds what the old one found, and a result opens its new screen.*
@@ -381,7 +392,11 @@ kept as decided ("flights today", the block-hours flag, filing's block time), or
   shared by both) without an agreement, as the old Home did, and the Home side by side compares it.*
 - **Photos' city-photo and name lists** (which city's photo an airport takes, and the name the website gives it) are
   kept in the Photos screen's code, as the website keeps them in its own; make them data with the website. Found by pull
-  request #37.
+  request #37. *Done in pull request #44 (15 Oct): one `site_content` row, `airport_cities` ({name, photo}, word for word
+  the lists both kept), which `site_public()` gives as `content.airport_cities`; the website and Photos read it there and
+  keep no list of their own. Nothing visible moved: with the data, the website and Photos give each of the 1,337 airports
+  in `web/assets/airports.json` the name and photo they gave before (`tests/site_test.py` and Photos' unit test, against
+  `tests/fixtures/airport_cities.expected.json`, recorded at 7fc2a99).*
 - **The old Reference's "restore all"** sits in its section's title, which the old page strips, so the button never
   shows there; the new one works. Its **Game schedules** links are worked out from each airline's game ID and can't be
   typed (the old box's edits were lost on save since the switch-over), and Data's import and clear are gone (§14).
