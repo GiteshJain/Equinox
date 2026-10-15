@@ -9,8 +9,8 @@
 --   13 Jan done, with loads for some flights (a 0 among them); 14 Jan typed after T1. The loads pages captured on
 --   17 Jan, after T1: flights dated 9, 10, 16 (one flight twice) and 17 Jan, one with no economy load, one captured
 --   later still. A bank-statement line posted on 12 Jan, its money captured on 16 Jan.
---   1. The settings: airport_cap_warning_pct 80 and aircraft_check_after_days 7 in every world, with unit, description,
---      since and reason; rules_input() carries them.
+--   1. The settings: airport_cap_warning_pct 80 and aircraft_check_after_days in every world, with unit, description,
+--      since and reason; rules_input() carries them (aircraft_check_after_days set to 7 by the test, since 15 Oct).
 --   2. Who may call route_loads(): signed in only, stable, as owner with an empty search path, described; its builder
 --      is internal (captured_figures_test.sql checks every private.fig_* builder).
 --   3. route_loads() at T1: the done days of the last 7, none before the launch, a flight without a load (or typed 0)
@@ -27,6 +27,10 @@ grant select, insert, update on t_hf to authenticated, anon;
 insert into public.planner_users (email) values ('home-figures-staff@example.com') on conflict do nothing;
 
 -- ---------------------------------------------------------------- 1. the settings
+-- aircraft_check_after_days is Gitesh's to change since 15 Oct (0 turns the one-week checks off, spec
+-- docs/specs/2026-10-15-aircraft-checks-off.md), so the test sets it to 7 itself (rolled back with the rest) rather than
+-- hang on the value, or the date, last night's backup holds
+update public.settings set value = '7'::jsonb where key = 'aircraft_check_after_days' and airline_id is null;
 do $test$
 declare n_worlds int := (select count(*) from public.worlds); doc jsonb;
 begin
@@ -34,12 +38,12 @@ begin
             and s.unit = '% of the cap' and s.since = date '2026-10-13' and s.description like '%cap%' and s.reason like '%4,000 of the 5,000%') = n_worlds,
     'airport_cap_warning_pct isn''t 80 (% of the cap, since 13 Oct, with its reason) in every world';
   assert (select count(*) from public.settings s where s.key = 'aircraft_check_after_days' and s.airline_id is null and s.value = '7'::jsonb
-            and s.unit = 'days' and s.since = date '2026-10-13' and s.description like '%one-week check%' and s.reason is not null) = n_worlds,
-    'aircraft_check_after_days isn''t 7 (days, since 13 Oct, with its reason) in every world';
+            and s.unit = 'days' and s.since >= date '2026-10-13' and s.description like '%one-week check%' and s.reason is not null) = n_worlds,
+    'aircraft_check_after_days isn''t in every world (days, since 13 Oct or later, with its reason)';
   doc := private.rules_input_doc(null, 'flown');
   assert doc -> 'settings' -> 'airport_cap_warning_pct' = '80'::jsonb and doc -> 'settings' -> 'aircraft_check_after_days' = '7'::jsonb,
     'rules_input() doesn''t carry the two settings';
-  raise notice 'the settings: airport_cap_warning_pct 80 and aircraft_check_after_days 7 in each of the % world(s), described, since 13 Oct with their reasons; rules_input() carries them', n_worlds;
+  raise notice 'the settings: airport_cap_warning_pct 80 and aircraft_check_after_days (7, set by the test) in each of the % world(s), described, since 13 Oct or later with their reasons; rules_input() carries them', n_worlds;
 end
 $test$;
 

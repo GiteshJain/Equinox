@@ -4,6 +4,7 @@ last night's backup. Its address and keys come in a file only this user can read
 
 - local_env(): the copy's data API address and its keys (refuses anything that isn't local);
 - psql(): runs SQL on the copy as postgres and returns the output;
+- set_check_days() and put_back_check_days(): the one-week checks' setting set by the test (7 on, 0 off), then put back;
 - counts(): every table's row count (database/backup/counts.sql, the key tables left out);
 - make_user(), token_for(), is_planner_user(): test users through the copy's sign-in;
 - marks() and log_since(): where the change log and job_runs stand, and the change-log rows written since (table, op,
@@ -50,6 +51,23 @@ def psql(sql, **var):
 def one(sql, **var):
     """One JSON value from the copy (null when the query gives none)."""
     return json.loads(psql(f"select coalesce(({sql})::json, 'null'::json)", **var).strip() or "null")
+
+
+def set_check_days(days):
+    """Sets the one-week checks' setting on the copy (aircraft_check_after_days, the world's and any airline's own) to
+    days, outside the change log (postgres only), so a test of the checks doesn't hang on the value last night's backup
+    holds: 7 on, 0 off (spec docs/specs/2026-10-15-aircraft-checks-off.md). Gives the rows as they were, for
+    put_back_check_days()."""
+    was = one("select json_agg(json_build_object('id', s.id, 'value', s.value)) from public.settings s where s.key = 'aircraft_check_after_days'")
+    psql("set equinox.change_log = 'off';\nupdate public.settings set value = to_jsonb(:'days'::int) where key = 'aircraft_check_after_days';", days=int(days))
+    return was or []
+
+
+def put_back_check_days(was):
+    """The setting's rows as set_check_days() found them, outside the change log."""
+    if was:
+        psql("set equinox.change_log = 'off';\nupdate public.settings s set value = x.value from json_to_recordset(:'was'::json) as x(id bigint, value jsonb)"
+             " where s.id = x.id;", was=json.dumps(was))
 
 
 def counts():

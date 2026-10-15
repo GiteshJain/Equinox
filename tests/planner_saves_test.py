@@ -32,7 +32,9 @@ Each save, through the screen's own controls, one action at a time:
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
   Photos: a destination photo uploaded.
 What the test makes for a save (an aircraft to file, a delivery to remove, a check made due, a layout to refit, a to-do to
-tick) is made with psql as the test, never through the planner, so it isn't part of the answer.
+tick) is made with psql as the test, never through the planner, so it isn't part of the answer. Mark checked runs with the
+one-week checks on (aircraft_check_after_days 7, set by the test outside the change log and put back after), whatever
+last night's backup holds.
 
 Each save's answer, compared with the recorded one:
   - sent: what the planner sent, one line per change of its planner_save() call ("planner_save todos update done,done_at":
@@ -60,7 +62,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from harness import FIX, ROOT, serve, settle
 from playwright.async_api import async_playwright
-from local_copy import WORLD, local_env, log_since, marks, moment as copy_moment, ms, one, psql, staff_user, wait_for, why
+from local_copy import (WORLD, local_env, log_since, marks, moment as copy_moment, ms, one, psql, put_back_check_days, set_check_days, staff_user,
+                        wait_for, why)
 import planner_next_test as pn
 
 EXPECTED = FIX / "planner_saves.expected.json"
@@ -730,7 +733,8 @@ async def check(s, pl, al, today):
                 put_back()
         pl.game = {}
 
-    # Mark checked: an aircraft made due for the test (its check and schedule change cleared)
+    # Mark checked: an aircraft made due for the test (its check and schedule change cleared), with the one-week checks on
+    # (aircraft_check_after_days 7, set by the test whatever last night's backup holds, then put back)
     pick = one(f"""select json_build_object('id', a.id, 'reg', a.registration) from public.aircraft a where a.world_id = {WORLD} and a.status = 'active'
                    and exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on is not null)
                    and not exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on > :'t'::date - 8)
@@ -738,10 +742,14 @@ async def check(s, pl, al, today):
     if not pick:
         s.not_tried("no aircraft with every rotation launched more than a week ago", "check: Mark checked")
     else:
-        as_test(f"update public.aircraft set checked_on = null, schedule_changed_on = null where id = {int(pick['id'])}")
-        await reload(pl)
-        await to_check()
-        await s.act("check: Mark checked (an aircraft made due for the test)", lambda: pg.click(f"[data-checked={json.dumps(pick['reg'])}]"))
+        checks_were = set_check_days(7)
+        try:
+            as_test(f"update public.aircraft set checked_on = null, schedule_changed_on = null where id = {int(pick['id'])}")
+            await reload(pl)
+            await to_check()
+            await s.act("check: Mark checked (an aircraft made due for the test)", lambda: pg.click(f"[data-checked={json.dumps(pick['reg'])}]"))
+        finally:
+            put_back_check_days(checks_were)
 
     # Cabins: an aircraft flying legs that want its cabin, given another layout of its type with a different cabin for the
     # test, so the board offers its own back: Keep as is, Show again, then Refitted to
