@@ -10,7 +10,7 @@ import { attKind, dismissKey, groupAttention, withoutDismissed, type AttItem } f
 import { shortType, familyOf } from "../../ui/aircraftNames";
 import { addDays, dayDiff, dueWords, inDays, niceDate, untilText } from "../../ui/dates";
 import { homeAttention, type AttentionInput, type HomeAirline } from "./attention";
-import { comingUp } from "./comingUp";
+import { comingUp, upFilters } from "./comingUp";
 import { greeting, heroFigures, keyFigureTiles, loadTile } from "./figures";
 import { arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, zoomView } from "./map";
 import { familyWords, onOrder } from "./onOrder";
@@ -130,7 +130,7 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
       { key: "todo|t-2", cls: "bad", screen: "home", text: "To-do (overdue): Late" },
     ]);
   });
-  it("the checks off (aircraft_check_after_days 0): none in needs attention or Coming up; at 7 both as before", () => {
+  it("the checks off (aircraft_check_after_days 0): none in needs attention or Coming up, and no One-week checks filter; at 7 as before", () => {
     // T-001 launched 5 Oct (due 12 Oct), T-002 launched 10 Oct (coming up 17 Oct); today is 13 Oct
     const leg = (id: number, rotation: number, aircraft: number) =>
       ({ id, airline_id: 1, rotation_id: rotation, leg_no: 1, flight_no: 1000 + id, origin_code: "HUB", dest_code: "AAA", aircraft_id: aircraft, days_utc: [1], dep_utc_min: 360, block_min: 75 });
@@ -145,6 +145,11 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(off).toEqual([]);
     expect(homeAttention(input({ checks: off }))).toEqual([]);
     expect(comingUp(off, [], "2026-10-13")).toEqual([]);
+    // Coming up's filter buttons: One-week checks only while the checks are on (all of them before the rules are read)
+    const labels = (r?: ReturnType<typeof buildRules>) => upFilters(r, [1, 2]).map(([, l]) => l);
+    expect(labels(flown(7))).toEqual(["All", "One-week checks", "To-dos"]);
+    expect(labels(flown(0))).toEqual(["All", "To-dos"]);
+    expect(labels()).toEqual(["All", "One-week checks", "To-dos"]);
   });
   it("the capture: one airline late, all late, none captured since two days back", () => {
     const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();

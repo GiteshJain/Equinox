@@ -29,7 +29,7 @@ import { itemRoute } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import { AirlineCards } from "./AirlineCards";
 import { homeAttention, type HomeAirline } from "./attention";
-import { comingUp, UP_LABEL, type UpEvent } from "./comingUp";
+import { comingUp, UP_LABEL, upFilters, type UpEvent } from "./comingUp";
 import { greeting, heroFigures, keyFigureTiles } from "./figures";
 import { Hero } from "./Hero";
 import type { HeroPlane, HeroRoute, LatLon } from "./heroScene";
@@ -189,7 +189,8 @@ export function Home() {
               );
             })()}
           </Board>
-          <ComingUp events={checks && todosQ.data ? comingUp(checks, todosQ.data, today) : null} today={today} />
+          <ComingUp events={checks && todosQ.data ? comingUp(checks, todosQ.data, today) : null} today={today}
+            filters={upFilters(rules, airlines.map((a) => a.id))} />
         </div>
 
         <TodoBoard worldId={w} todos={todos} today={today} now={now} />
@@ -246,7 +247,7 @@ function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: nu
   );
 }
 
-function ComingUp({ events, today }: { events: UpEvent[] | null; today: string }) {
+function ComingUp({ events, today, filters }: { events: UpEvent[] | null; today: string; filters: ReturnType<typeof upFilters> }) {
   const [kinds, setKinds] = useState<ReadonlySet<UpEvent["type"]>>(new Set());
   const toggle = (k: UpEvent["type"] | "") => setKinds((s) => {
     if (!k) return new Set();
@@ -259,7 +260,7 @@ function ComingUp({ events, today }: { events: UpEvent[] | null; today: string }
   return (
     <Board title="Coming up" note="next 14 days" id="coming-up">
       <div className="mleg upf">
-        {([["", "All"], ["check", "One-week checks"], ["todo", "To-dos"]] as const).map(([k, l]) => (
+        {filters.map(([k, l]) => (
           <button type="button" key={l} className={"mf" + ((k ? kinds.has(k) : !kinds.size) ? " on" : "")} onClick={() => toggle(k)}>{l}</button>
         ))}
       </div>

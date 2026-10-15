@@ -21,6 +21,9 @@ export type BoardKey = (typeof BOARDS)[number];
 export function shownBoards(rules: Rules, airlineIds: readonly number[]): readonly BoardKey[] {
   return airlineIds.some((id) => checks.on(rules, id)) ? BOARDS : BOARDS.filter((k) => k !== "Aircraft checks");
 }
+/** The line under Check's title: aircraft checks named only while their board is shown. */
+export const checkSubtitle = (boards: readonly BoardKey[]): string =>
+  `Last night's capture, ${boards.includes("Aircraft checks") ? "aircraft checks, " : ""}growth signals, Game check and the daily load report.`;
 
 // ---------- the load report's day, in the address (?day=YYYY-MM-DD); today (UTC) without one, as the old planner started
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;

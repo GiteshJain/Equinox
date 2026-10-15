@@ -11,7 +11,7 @@ import type { Change } from "../../data/save";
 import type { RouteRow } from "../routes/model";
 import type { TailAircraft } from "../tails/model";
 import {
-  BOARDS, airlineDay, backupWords, capLine, captureCell, captureStatus, daySummary, fixChanges, fixRotations, gameSummary, hubRows, importChanges, keepChange, kWords,
+  BOARDS, airlineDay, backupWords, capLine, captureCell, checkSubtitle, captureStatus, daySummary, fixChanges, fixRotations, gameSummary, hubRows, importChanges, keepChange, kWords,
   loadKey, loadsByFlight, logMoveChange, moveDay, noLinkWords, parseDay, patternPill, refitChanges, runsDryWords, shownBoards, soonWords, spendOrder, summaryWords,
   undoKeepChange, upcomingByDay, weekWords,
 } from "./model";
@@ -119,6 +119,8 @@ describe("the aircraft checks", () => {
     expect(shownBoards(at(without), [1, 2])).toEqual(noChecks);
     expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }, [{ id: 1 }, { id: 2, settings: { aircraft_check_after_days: 7 } }]), [1, 2])).toEqual(BOARDS);
     expect(checks.oneWeek(at({ ...input.settings, aircraft_check_after_days: 0 }), facts(null, null), "2026-10-12")).toEqual([]);
+    expect(checkSubtitle(BOARDS)).toBe("Last night's capture, aircraft checks, growth signals, Game check and the daily load report.");
+    expect(checkSubtitle(noChecks)).toBe("Last night's capture, growth signals, Game check and the daily load report.");
   });
   it("words a route's load pattern on a check: its share of departures at 95%+ and its mark", () => {
     expect(patternPill({ hub: "HUB", dest: "AAA", departures: 14, full: 13, mark: "add" })).toEqual({ cls: "ok", text: "HUB–AAA: 93% of departures 95%+" });

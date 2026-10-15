@@ -42,7 +42,7 @@ import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameChec
 import { GrowthBoard, type NextMoveRow, type QueueRow, type ReadyRow } from "./Growth";
 import { LoadReport } from "./LoadReport";
 import {
-  BOARDS, CAPTURE_KINDS, backupWords, captureCell, captureStatus, checkedAtWords, costWords, daySummary, fixChanges, fixRotations, importChanges, keepChange,
+  BOARDS, CAPTURE_KINDS, backupWords, captureCell, captureStatus, checkSubtitle, checkedAtWords, costWords, daySummary, fixChanges, fixRotations, importChanges, keepChange,
   loadKey, loadsByFlight, logMoveChange, moveDay, noLinkWords, parseDay, patternPill, patternRanks, refitChanges, refitCost, shownBoards, undoKeepChange, upcomingByDay, utcToday,
   type BoardKey, type CheckAirline, type GameResult,
 } from "./model";
@@ -305,7 +305,7 @@ export function Check() {
 
   return (
     <main className="view review" data-screen="check" data-check-ready={ready && dayReady ? "yes" : "no"} data-check-view={loc.pathname + loc.search} data-day={day}>
-      <div className="vh"><h1>Check</h1><p>Last night's capture, aircraft checks, growth signals, Game check and the daily load report.</p></div>
+      <div className="vh"><h1>Check</h1><p>{checkSubtitle(shown)}</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {sysLines ? <SystemsBoard lines={sysLines} checkedAt={systemQ.dataUpdatedAt ? new Date(systemQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : null} /> : null}

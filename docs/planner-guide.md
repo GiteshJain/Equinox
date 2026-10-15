@@ -76,7 +76,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
 
   **×** dismisses an item and **show again** brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly.
-- **Coming up:** the next 14 days, meaning one-week checks (none while they're off) and to-dos.
+- **Coming up:** the next 14 days, meaning one-week checks and to-dos. While the checks are off there are none, and
+  no **One-week checks** button.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
   tell Claude and it ticks it; add one with its steps, one a line; **×** deletes one after asking you in the page.
 - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a

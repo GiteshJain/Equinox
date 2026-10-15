@@ -1,6 +1,6 @@
 // Coming up: the next 14 days, one-week checks (the aircraft due that day) and to-dos, as the old planner's Home lists
 // them (by day; checks before to-dos on the same day).
-import type { OneWeekCheck } from "@rules";
+import { checks as checkRules, type OneWeekCheck, type Rules } from "@rules";
 import { dayDiff } from "../../ui/dates";
 import type { TodoRow } from "./reads";
 
@@ -13,6 +13,14 @@ export interface UpEvent {
 }
 
 export const UP_LABEL: Record<UpEvent["type"], string> = { check: "Check", todo: "To-do" };
+
+const UP_FILTERS = [["", "All"], ["check", "One-week checks"], ["todo", "To-dos"]] as const;
+/** Coming up's filter buttons: One-week checks only while the checks are on for one of our airlines (the library's
+ *  checks.on, aircraft_check_after_days above 0; spec docs/specs/2026-10-15-aircraft-checks-off.md). */
+export function upFilters(rules: Rules | undefined, airlineIds: readonly number[]) {
+  const on = !rules || airlineIds.some((id) => checkRules.on(rules, id));
+  return UP_FILTERS.filter(([k]) => on || k !== "check");
+}
 
 export function comingUp(checks: readonly OneWeekCheck[], todos: readonly TodoRow[], today: string): UpEvent[] {
   const byDay = new Map<string, string[]>();
