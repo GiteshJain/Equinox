@@ -72,7 +72,7 @@ export function oneWeek(rules: Rules, facts: CheckFacts, today: string): OneWeek
   for (const a of rules.aircraft.values()) {
     if (a.status !== "active") continue;
     const launched = launches.get(a.id) ?? [];
-    if (!launched.length) continue; // DELIBERATE FAILURE (to be removed): the off switch ignored
+    if (!launched.length || !on(rules, a.airline_id)) continue;
     const d = dates.get(a.id);
     const last = [...launched, d?.schedule_changed_on?.slice(0, 10) ?? ""].filter(Boolean).sort().pop() ?? "";
     const due = addDays(last, settingNumber(rules, "aircraft_check_after_days", a.airline_id));
