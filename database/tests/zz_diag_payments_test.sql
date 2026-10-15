@@ -1,17 +1,16 @@
--- TEMPORARY diagnostic for the briefing pull request (removed before review): which game_flight_pnl rows
--- flight_views_payments_test.sql counts as payments on this copy. Counts and kinds only.
+-- TEMPORARY diagnostic for the briefing pull request (removed before review): the unnamed ('other') statement lines that
+-- share their minute and block with a named payment on this copy, by label with digits and registrations masked.
 do $diag$
 declare s text;
 begin
-  select string_agg(format('%s/%s/blk%s/%s/flightrow:%s=%s', x.kind, x.has_route, x.blk, x.day, x.is_flight_row, x.n), '; ' order by x.day, x.kind) into s
-    from (select p.kind, (f.route is not null) as has_route, f.blk, (f.ts at time zone 'UTC')::date as day,
-                 exists (select 1 from public.game_flights g where g.airline_id = a.id and g.posted_at = f.ts and g.statement_blk::int = f.blk) as is_flight_row,
-                 count(*) as n
-            from public.game_flight_pnl f
-            join public.airlines a on a.planner_name = f.airline
-            join public.game_payments p on p.airline_id = a.id and p.paid_at = f.ts and coalesce(p.statement_blk::integer, 1) = f.blk
-           where p.kind <> 'other'
-           group by 1, 2, 3, 4, 5) x;
+  select string_agg(format('%s beside %s: %s', x.label, x.kinds, x.n), '; ' order by x.n desc) into s
+    from (select regexp_replace(regexp_replace(o.descr, '[A-Z0-9]{1,3}-[A-Z0-9]{2,6}', '<reg>', 'g'), '[0-9]+', '#', 'g') as label,
+                 string_agg(distinct p.kind, '+') as kinds, count(*) as n
+            from public.game_payments o
+            join public.game_payments p on p.airline_id = o.airline_id and p.paid_at = o.paid_at
+                                       and coalesce(p.statement_blk::integer, 1) = coalesce(o.statement_blk::integer, 1) and p.kind <> 'other'
+           where o.kind = 'other'
+           group by 1) x;
   raise notice 'diag: %', coalesce(s, 'none');
 end
 $diag$;
