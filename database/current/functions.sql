@@ -3367,11 +3367,16 @@ CREATE OR REPLACE FUNCTION private.fig_order_cabin(p_airline_id bigint, p_type_i
  STABLE
  SET search_path TO ''
 AS $function$
-  select case when x.airline_id is not null then x.order_config_id else t.order_config_id end
-    from public.airlines a
-    join public.aircraft_types t on t.id = p_type_id
-    left join public.airline_order_cabins x on x.airline_id = a.id and x.aircraft_type_id = t.id
-   where a.id = p_airline_id
+  with al as (select a.id, a.is_lcc from public.airlines a where a.id = p_airline_id),
+  c as (select cc.id, cc.cabin from public.cabin_configs cc where cc.aircraft_type_id = p_type_id),
+  want as (select case when al.is_lcc and exists (select 1 from c where c.cabin = 'Standard') then 'Standard'
+                       when exists (select 1 from c where c.cabin = 'Leisure') then 'Leisure'
+                       else 'Comfort' end as cabin from al)
+  select c.id from c, want
+   where c.cabin = want.cabin
+   order by exists (select 1 from public.markets m where m.airline_id = p_airline_id and m.default_config_id = c.id) desc,
+            exists (select 1 from public.markets m where m.default_config_id = c.id) desc, c.id desc
+   limit 1
 $function$
 
 ;
