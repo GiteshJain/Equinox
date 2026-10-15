@@ -7,7 +7,9 @@
 // reads a clock).
 // The old code it follows: the old planner's tailChecks() (#18 build pull request 5, the Building chat's review: the
 // rule moves here from the new planner's screen code, so it has one home, #19).
-import { settingNumber } from "./input.js";
+// The setting at 0 (or missing) turns the checks off: none for any aircraft (manual §1, no one-week checks since 15 Oct;
+// spec docs/specs/2026-10-15-aircraft-checks-off.md). Any number above 0 works as before, so setting it back undoes it.
+import { setting, settingNumber } from "./input.js";
 import type { Rules } from "./types.js";
 
 /** What the rule needs from the tables. */
@@ -41,9 +43,16 @@ export const addDays = (d: string, n: number): string => new Date(dayMs(d) + n *
 /** Whole days from a to b. */
 export const dayDiff = (a: string, b: string): number => Math.round((dayMs(b) - dayMs(a)) / DAY_MS);
 
+/** Whether the checks are on (an airline's own setting where it has one): aircraft_check_after_days above 0. 0 or
+ *  missing is off; anything else that isn't a number is an error naming it. */
+export function on(rules: Rules, airlineId?: number | null): boolean {
+  if (setting(rules, "aircraft_check_after_days", airlineId) === undefined) return false;
+  return settingNumber(rules, "aircraft_check_after_days", airlineId) > 0;
+}
+
 /**
  * Every aircraft in service's one-week check, in the old planner's order: due first, then coming up, then done, each
- * by its due day (the input's aircraft order for a tie).
+ * by its due day (the input's aircraft order for a tie). None while the checks are off for its airline (on()).
  */
 export function oneWeek(rules: Rules, facts: CheckFacts, today: string): OneWeekCheck[] {
   const flownBy = new Map<number, number>();
@@ -63,7 +72,7 @@ export function oneWeek(rules: Rules, facts: CheckFacts, today: string): OneWeek
   for (const a of rules.aircraft.values()) {
     if (a.status !== "active") continue;
     const launched = launches.get(a.id) ?? [];
-    if (!launched.length) continue;
+    if (!launched.length || !on(rules, a.airline_id)) continue;
     const d = dates.get(a.id);
     const last = [...launched, d?.schedule_changed_on?.slice(0, 10) ?? ""].filter(Boolean).sort().pop() ?? "";
     const due = addDays(last, settingNumber(rules, "aircraft_check_after_days", a.airline_id));

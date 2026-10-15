@@ -105,8 +105,35 @@
       "answer": [{"registration": "T-003", "due": "2026-10-09", "status": "due", "days": -3}]
     },
     {
-      "name": "without the setting the library says what's missing",
-      "rule": "the week is a setting (aircraft_check_after_days), never a number in code",
+      "name": "0 days turns the checks off: none for any aircraft",
+      "rule": "aircraft_check_after_days at 0 (or missing, lib/rules/test/library.test.ts) means off (manual §1, no one-week checks since 15 Oct)",
+      "input": {"settings": {"aircraft_check_after_days": 0}},
+      "ask": {"what": "one_week_checks", "today": "2026-10-12", "facts": {
+        "aircraft": [
+          {"id": 1, "checked_on": "2026-10-10", "schedule_changed_on": null},
+          {"id": 2, "checked_on": null, "schedule_changed_on": "2026-10-09"},
+          {"id": 3, "checked_on": "2026-10-01", "schedule_changed_on": null}
+        ],
+        "rotations": [{"id": 1, "launched_on": "2026-10-01"}, {"id": 2, "launched_on": "2026-10-06"}, {"id": 4, "launched_on": "2026-10-02"}]
+      }},
+      "answer": []
+    },
+    {
+      "name": "an airline's own number of days wins over the world's 0",
+      "rule": "the checks are off or on airline by airline: the airline's override where it has one",
+      "input": {"settings": {"aircraft_check_after_days": 0}, "airlines": [
+        {"id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true, "settings": {"aircraft_check_after_days": 7}},
+        {"id": 2, "iata_code": "OA", "planner_name": "Other Air", "position": 2, "active": true, "ours": true}
+      ]},
+      "ask": {"what": "one_week_checks", "today": "2026-10-12", "facts": {
+        "aircraft": [{"id": 3, "checked_on": null, "schedule_changed_on": null}],
+        "rotations": [{"id": 2, "launched_on": "2026-10-06"}]
+      }},
+      "answer": [{"registration": "T-003", "due": "2026-10-13", "status": "upcoming", "days": 1}]
+    },
+    {
+      "name": "a setting that isn't a number (null) is refused, naming it",
+      "rule": "the week is a setting (aircraft_check_after_days), never a number in code; only 0 or missing turns the checks off",
       "input": {"settings": {"aircraft_check_after_days": null}},
       "ask": {"what": "one_week_checks", "today": "2026-10-12", "facts": {"aircraft": [], "rotations": [{"id": 1, "launched_on": "2026-10-01"}]}},
       "answer": {"error": "settings.aircraft_check_after_days is not a number"}

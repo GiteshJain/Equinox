@@ -4,7 +4,7 @@
 // and capLine), the load report's summary, and every action as the rows of one planner_save() call: mark checked, log a
 // refit, keep a cabin as is and show it again, log an order under the rotation, fix one or every difference from the game,
 // and add a flight from the game (the old importFlight, through Tails' filing). No screen code, so the unit tests run it.
-import { cabins, frequency, game, growth, loadReport, time, type CabinFit, type DayFlight, type GameFlight, type GameIssue, type ImportCandidate, type Move, type Rules } from "@rules";
+import { cabins, checks, frequency, game, growth, loadReport, time, type CabinFit, type DayFlight, type GameFlight, type GameIssue, type ImportCandidate, type Move, type Rules } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { AirportInfo, MarketRow, RouteRow } from "../routes/model";
 import { filingChanges, withAirports, type CardLeg, type PlanCardRow, type TailAircraft } from "../tails/model";
@@ -16,6 +16,14 @@ export interface CheckAirline { id: number; code: string | null; name: string; c
 // ---------- the boards, in the old Check's order: each folds open and shut by its title
 export const BOARDS = ["Capture", "Growth", "Aircraft checks", "Cabins", "Game check", "Daily load report"] as const;
 export type BoardKey = (typeof BOARDS)[number];
+/** The boards shown: Aircraft checks only while the checks are on for one of our airlines (aircraft_check_after_days
+ *  above 0, the library's checks.on; spec docs/specs/2026-10-15-aircraft-checks-off.md). */
+export function shownBoards(rules: Rules, airlineIds: readonly number[]): readonly BoardKey[] {
+  return airlineIds.some((id) => checks.on(rules, id)) ? BOARDS : BOARDS.filter((k) => k !== "Aircraft checks");
+}
+/** The line under Check's title: aircraft checks named only while their board is shown. */
+export const checkSubtitle = (boards: readonly BoardKey[]): string =>
+  `Last night's capture, ${boards.includes("Aircraft checks") ? "aircraft checks, " : ""}growth signals, Game check and the daily load report.`;
 
 // ---------- the load report's day, in the address (?day=YYYY-MM-DD); today (UTC) without one, as the old planner started
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;

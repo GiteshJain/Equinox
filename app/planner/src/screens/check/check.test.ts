@@ -11,8 +11,8 @@ import type { Change } from "../../data/save";
 import type { RouteRow } from "../routes/model";
 import type { TailAircraft } from "../tails/model";
 import {
-  airlineDay, backupWords, capLine, captureCell, captureStatus, daySummary, fixChanges, fixRotations, gameSummary, hubRows, importChanges, keepChange, kWords,
-  loadKey, loadsByFlight, logMoveChange, moveDay, noLinkWords, parseDay, patternPill, refitChanges, runsDryWords, soonWords, spendOrder, summaryWords,
+  BOARDS, airlineDay, backupWords, capLine, captureCell, checkSubtitle, captureStatus, daySummary, fixChanges, fixRotations, gameSummary, hubRows, importChanges, keepChange, kWords,
+  loadKey, loadsByFlight, logMoveChange, moveDay, noLinkWords, parseDay, patternPill, refitChanges, runsDryWords, shownBoards, soonWords, spendOrder, summaryWords,
   undoKeepChange, upcomingByDay, weekWords,
 } from "./model";
 import type { CapturedLoad, HandLoads, LegNow } from "./reads";
@@ -109,6 +109,18 @@ describe("the aircraft checks", () => {
     expect(checks.oneWeek(rules, facts("2026-10-08", "2026-10-10"), "2026-10-12").find((c) => c.registration === "T-001")).toMatchObject({ status: "upcoming", due: "2026-10-17" });
     expect(checks.oneWeek(rules, facts("2026-10-08", "2026-10-10"), "2026-10-17").find((c) => c.registration === "T-001")).toMatchObject({ status: "due", days: 0 });
     expect(checks.oneWeek(rules, facts("2026-10-17", "2026-10-10"), "2026-10-17").find((c) => c.registration === "T-001")).toMatchObject({ status: "done" });
+  });
+  it("the board shows only while the checks are on: gone at 0 or missing, kept by an airline's own number above 0", () => {
+    const at = (settings: RulesInput["settings"], airlines = input.airlines) => buildRules({ ...input, settings, airlines });
+    const without = Object.fromEntries(Object.entries(input.settings).filter(([k]) => k !== "aircraft_check_after_days"));
+    const noChecks = BOARDS.filter((k) => k !== "Aircraft checks");
+    expect(shownBoards(rules, [1, 2])).toEqual(BOARDS);
+    expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }), [1, 2])).toEqual(noChecks);
+    expect(shownBoards(at(without), [1, 2])).toEqual(noChecks);
+    expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }, [{ id: 1 }, { id: 2, settings: { aircraft_check_after_days: 7 } }]), [1, 2])).toEqual(BOARDS);
+    expect(checks.oneWeek(at({ ...input.settings, aircraft_check_after_days: 0 }), facts(null, null), "2026-10-12")).toEqual([]);
+    expect(checkSubtitle(BOARDS)).toBe("Last night's capture, aircraft checks, growth signals, Game check and the daily load report.");
+    expect(checkSubtitle(noChecks)).toBe("Last night's capture, growth signals, Game check and the daily load report.");
   });
   it("words a route's load pattern on a check: its share of departures at 95%+ and its mark", () => {
     expect(patternPill({ hub: "HUB", dest: "AAA", departures: 14, full: 13, mark: "add" })).toEqual({ cls: "ok", text: "HUB–AAA: 93% of departures 95%+" });

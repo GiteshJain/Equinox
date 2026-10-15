@@ -13,7 +13,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
 2. Every screen has its boards: Home (key figures, the network, needs attention, coming up, the to-do board, our
    airlines in their position order and colours on the network's buttons); Routes on its list, with our airlines on its
    buttons in their order; Tails, its list and the deliveries board; Hubs on the first base's board with every base in
-   its list; Check, its six boards, folded, in the old order, with the copy's airlines on the Capture board; Review, the
+   its list; Check, its six boards, folded, in the old order, with the copy's airlines on the Capture board, and five
+   (no Aircraft checks) with the one-week checks off; Review, the
    cards for the copy's airlines in their order and the first one's page; Interline with its agreements and the
    interline countries, Photos with a logo for each of our airlines, Reference with its sections folded. The header has
    the search box and the Website button. (Each screen was compared with the old planner's by a side by side until the
@@ -55,7 +56,7 @@ from urllib.parse import urlsplit
 from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, serve, settle
 from playwright.async_api import async_playwright
 from local_copy import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks, moment, ms, one, psql,
-                        token_for, why)
+                        put_back_check_days, set_check_days, token_for, why)
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
 PAGE = WEB / "app" / "index.html"
@@ -395,7 +396,8 @@ async def hubs_opens(pl):
 async def check_opens(pl):
     """Check is rebuilt (build pull request 9): no placeholder; it opens with its six boards in the old Check's order, every
     one folded (the old Check folded them all on arrival), and the Capture board lists our airlines the capture covers, in
-    their order. Its figures are compared with the old Check's by tests/check_side_by_side_test.py."""
+    their order. Its figures are compared with the old Check's by tests/check_side_by_side_test.py. With the one-week
+    checks off (aircraft_check_after_days 0, set by the test), it has five: no Aircraft checks."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD}
@@ -417,9 +419,24 @@ async def check_opens(pl):
         problems.append("Check's boards aren't all folded on arrival")
     if not got["capture"] or any(n not in want for n in got["capture"]) or got["capture"] != sorted(got["capture"], key=want.index):
         problems.append(f"the Capture board lists {got['capture']}, the copy's airlines are {want}")
+    # the checks off (aircraft_check_after_days 0, spec docs/specs/2026-10-15-aircraft-checks-off.md): five boards, no
+    # Aircraft checks; then on again (7), as main() set them
+    set_check_days(0)
+    try:
+        await pl.pg.reload()
+        await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
+        await settle(pl.pg, 300)
+        off = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=check] .board:not(.sysboard) > h3.rh')].map(h => h.dataset.rkey)")
+    finally:
+        set_check_days(7)
+    if off != [k for k in order if k != "Aircraft checks"]:
+        problems.append(f"with the checks off (0), Check's boards are {off}, not the five without Aircraft checks")
+    await pl.pg.reload()
+    await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
     await pl.pg.click("[data-screen-link=home]")
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return f"Check is rebuilt, not a placeholder: its {len(got['boards'])} boards in the old order, folded on arrival, the Capture board with {len(got['capture'])} airlines", problems
+    return (f"Check is rebuilt, not a placeholder: its {len(got['boards'])} boards in the old order, folded on arrival, the Capture board with "
+            f"{len(got['capture'])} airlines; with the checks off, {len(off)} boards and no Aircraft checks"), problems
 
 
 async def review_opens(pl):
@@ -916,9 +933,11 @@ async def main():
         make_user(env, *other)
         psql("insert into public.planner_users (email) values (:'email')", email=staff[0])
         problems = [] if is_planner_user(env, token_for(env, *staff)) else ["public.is_planner_user() isn't true for the staff user"]
+        # the one-week checks on (7) whatever last night's backup holds; put back at the end
+        checks_were = set_check_days(7)
     except Exception as e:
         problems = [why(e)]
-    step(not problems, "test users: one staff, one not, made through the copy's sign-in", problems)
+    step(not problems, "test users: one staff, one not, made through the copy's sign-in; the one-week checks on (7, set by the test)", problems)
     if problems:
         sys.exit(1)
 
@@ -950,6 +969,7 @@ async def main():
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)
+    put_back_check_days(checks_were)
 
     outside = sorted({h for x in seen for h in x.outside})
     stopped = ", ".join(sorted({h for x in seen for h in x.stopped})) or "nothing"
