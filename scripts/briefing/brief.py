@@ -336,8 +336,8 @@ def render(b):
     put(f"{A['name']} ({A['code']}) · briefing as of {when(b['as_of'])}")
     cap = b.get("capture")
     if cap:
-        put(f"Capture: last {when(cap.get('last_at'))} · {cap.get('verdict') or 'not checked'}"
-            + (f", {cap['verdict_words']}" if cap.get("verdict_words") else "") + f" · today {cap.get('status')}")
+        verdict = ", ".join(x for x in (cap.get("verdict"), cap.get("verdict_words")) if x) or "not checked"
+        put(f"Capture: last {when(cap.get('last_at'))} · {verdict} · today {cap.get('status')}")
     else:
         put("Capture: none for this airline")
 

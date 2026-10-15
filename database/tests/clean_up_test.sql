@@ -80,9 +80,14 @@ begin
   b := (select value from rehearsal_before.clean_up_outputs where name = 'figures');
   a := private.fig_export(w, v_at);
   -- the capture checks (#21, build 20261014220000) added each airline's latest verdicts to capture_status() on purpose:
-  -- they're left out here, so the rest must still be exactly as before
+  -- they're left out here, so the rest must still be exactly as before. Left out of both sides: once 20261014220000 is
+  -- live, the copy's figures before the pending changes carry them too (and a pending capture check may judge anew)
   a := jsonb_set(a, '{capture_status,airlines}', coalesce((select jsonb_agg(x - array['last_at', 'verdict', 'verdict_words', 'verdict_at', 'verdict_day', 'verdicts'] order by i)
                                                             from jsonb_array_elements(a #> '{capture_status,airlines}') with ordinality e(x, i)), '[]'::jsonb));
+  if b #> '{capture_status,airlines}' is not null then
+    b := jsonb_set(b, '{capture_status,airlines}', coalesce((select jsonb_agg(x - array['last_at', 'verdict', 'verdict_words', 'verdict_at', 'verdict_day', 'verdicts'] order by i)
+                                                              from jsonb_array_elements(b #> '{capture_status,airlines}') with ordinality e(x, i)), '[]'::jsonb));
+  end if;
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;
