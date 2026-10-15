@@ -59,3 +59,7 @@ is. Say if you want a brief on it on its own.
   does now.
 - **A leaked key.** It sits only in GitHub's settings, and the cap limits the damage. Delete it and issue a new one.
 - **The first cost estimate is a guess.** The limit holds whatever the real cost; the first month's spend sets it.
+
+## Outcome
+14 Oct 2026: Gitesh chose **A**: not now. No unattended job on the API credits; the weekly report stays in the Saturday
+chat. Fable as a decision helper stays parked (Opus for everything). Recorded in `docs/decisions.md`.

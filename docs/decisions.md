@@ -47,7 +47,7 @@ Status: **decided**, **open**, or **dropped**.
 | 22 | Scheduled jobs: weekly scan, report drafts, backups | **decided** 14 Oct 2026 |
 | 23 | Monitoring: one place showing whether captures, jobs, backups and deploys worked | **decided** 14 Oct 2026 |
 | 24 | Ready-made data views for recurring questions (airline briefing, route profit, hub progress) | **decided** 14 Oct 2026 |
-| 25 | Using the $100 a month in API credits for unattended jobs, with a spending cap | open |
+| 25 | Using the $100 a month in API credits for unattended jobs, with a spending cap | **decided** 14 Oct 2026 |
 
 Parked with #25 (10 Oct, Gitesh): Fable as a decision helper. Opus gathers the data, and a Fable helper decides from a
 short summary. Decide once the #13 builds are done. Until then Opus is used for everything (preference of 8 Oct).
@@ -363,6 +363,10 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   database views (option C). Why: the scheduling background (manual §4) was stitched by hand from about six calls each
   time, with wrong column guesses; route profit, hub progress and the rest were already one call each since #19.
   Brief: `docs/briefs/2026-10-14-data-views.md`.
+- **14 Oct 2026 · #25 API credits for unattended jobs.** Option A: not now. No job runs on the API credits; the weekly
+  report stays written in the Saturday chat. The question parked with #25 (Fable as a decision helper, 10 Oct) stays
+  parked: Opus for everything (preference of 8 Oct). Why (Gitesh): no unattended job is wanted; #21 to #24 chose none.
+  Brief: `docs/briefs/2026-10-14-api-credits.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:
