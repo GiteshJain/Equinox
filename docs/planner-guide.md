@@ -66,7 +66,7 @@ as you make it. On a preview address the planner saves nothing and says **previe
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
     with its note;
   - to-dos and one-week checks due (a week after an aircraft's latest launch or schedule change, the setting
-    *aircraft_check_after_days*);
+    *aircraft_check_after_days*; at 0 the checks are off and none are listed, manual §1 since 15 Oct);
   - maintenance, turns and positions, night bans, flight numbers used twice;
   - airports from 80% of the game's departure cap (the setting *airport_cap_warning_pct*);
   - **Interline:** how many airline–country pairs on Interline have no agreement yet (not signed, declined or without
@@ -76,7 +76,7 @@ as you make it. On a preview address the planner saves nothing and says **previe
 
   **×** dismisses an item and **show again** brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly.
-- **Coming up:** the next 14 days, meaning one-week checks and to-dos.
+- **Coming up:** the next 14 days, meaning one-week checks (none while they're off) and to-dos.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
   tell Claude and it ticks it; add one with its steps, one a line; **×** deletes one after asking you in the page.
 - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
@@ -142,7 +142,7 @@ as you make it. On a preview address the planner saves nothing and says **previe
   flight with its return as a round trip, launched today. It then opens the aircraft.
 - **The aircraft pop-up** (from Home's needs attention, or a frequency's aircraft on Routes): its base, block hours a
   day, legs a week, maintenance, the one-week check, every issue and its flights, with **Mark checked** and **Open in
-  Tails**.
+  Tails**. While the checks are off (*aircraft_check_after_days* 0), there's no check line and no **Mark checked**.
 - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
 - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
   distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
@@ -217,7 +217,9 @@ top, then the same six boards as the old Check, each folded on arrival. Click a 
     the database).
   - **Hub readiness:** how many cities feed each bank, counted by region (*countries.region*).
 - **Aircraft checks:** one check a week after an aircraft is scheduled, with the aircraft's issues and its routes' load
-  pills; the ones coming up by day. You do these in the game, and only you mark them checked (**Mark checked**).
+  pills; the ones coming up by day. You do these in the game, and only you mark them checked (**Mark checked**). The
+  board isn't shown while the checks are off: the setting *aircraft_check_after_days* at 0 (manual §1, none since
+  15 Oct). Any number above 0 brings it back.
 - **Cabins:** each aircraft's cabin against the usual cabin of the markets it flies. **Refitted to …** records a refit
   done in the game: the aircraft takes the cabin and the refit's cost (0.2M, the setting *cabin_refit_cost*) counts as a
   loss that day. **Keep as is** takes an aircraft off the list; **Show again**, under "kept as is", brings it back.
