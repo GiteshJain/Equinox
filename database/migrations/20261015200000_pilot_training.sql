@@ -41,7 +41,7 @@ as $function$
     when p_descr ilike '%purchase%' then 'purchase'
     when p_descr ilike '%configuration%' then 'refit'
     when p_descr ilike '%cabin%' then 'cabin'
-    -- DELIBERATE FAILURE (removed next commit): pilot training counted as a flight cost again
+    when p_descr ilike '%training%' then 'cabin'
     else 'other' end
 $function$;
 
