@@ -130,6 +130,22 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
       { key: "todo|t-2", cls: "bad", screen: "home", text: "To-do (overdue): Late" },
     ]);
   });
+  it("the checks off (aircraft_check_after_days 0): none in needs attention or Coming up; at 7 both as before", () => {
+    // T-001 launched 5 Oct (due 12 Oct), T-002 launched 10 Oct (coming up 17 Oct); today is 13 Oct
+    const leg = (id: number, rotation: number, aircraft: number) =>
+      ({ id, airline_id: 1, rotation_id: rotation, leg_no: 1, flight_no: 1000 + id, origin_code: "HUB", dest_code: "AAA", aircraft_id: aircraft, days_utc: [1], dep_utc_min: 360, block_min: 75 });
+    const flown = (days: number) => buildRules({ ...base, settings: { ...base.settings, aircraft_check_after_days: days },
+      rotations: [{ id: 1, airline_id: 1, route_id: 1 }, { id: 2, airline_id: 1, route_id: 1 }], flight_legs: [leg(1, 1, 1), leg(2, 2, 2)] });
+    const facts = { aircraft: [{ id: 1, checked_on: null, schedule_changed_on: null }, { id: 2, checked_on: null, schedule_changed_on: null }],
+      rotations: [{ id: 1, launched_on: "2026-10-05" }, { id: 2, launched_on: "2026-10-10" }] };
+    const on = checkRules.oneWeek(flown(7), facts, "2026-10-13");
+    expect(homeAttention(input({ checks: on }))).toEqual([{ cls: "warn", text: "T-001 is due its one-week check", screen: "check" }]);
+    expect(comingUp(on, [], "2026-10-13")).toEqual([{ date: "2026-10-17", type: "check", text: "T-002" }]);
+    const off = checkRules.oneWeek(flown(0), facts, "2026-10-13");
+    expect(off).toEqual([]);
+    expect(homeAttention(input({ checks: off }))).toEqual([]);
+    expect(comingUp(off, [], "2026-10-13")).toEqual([]);
+  });
   it("the capture: one airline late, all late, none captured since two days back", () => {
     const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
     expect(homeAttention(input({ capture: { last: [{ airline_id: 1, at: at(3) }, { airline_id: 2, at: at(30) }] } })))

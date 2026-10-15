@@ -8,7 +8,8 @@
 //   - Growth (Growth.tsx): who can order now, main hubs' progress, each airline's next move, the growth lists, the order
 //     queues and the hubs' readiness;
 //   - Aircraft checks: the one-week checks due (the library's checks.oneWeek), with each aircraft's issues and its routes'
-//     load patterns, the ones coming up by date and how many are done; Mark checked (Gitesh's own, manual §1);
+//     load patterns, the ones coming up by date and how many are done; Mark checked. Shown only while the checks are on
+//     (aircraft_check_after_days above 0; manual §1 has none since 15 Oct);
 //   - Cabins (Cabins.tsx): each aircraft's cabin against its markets (cabins.fit), Refitted to, Keep as is, Show again;
 //   - Game check (GameCheck.tsx): Check against the game, the differences, fix one or all, add a flight;
 //   - Daily load report (LoadReport.tsx): a day at a time, every departure with its loads by class.
@@ -42,7 +43,7 @@ import { GrowthBoard, type NextMoveRow, type QueueRow, type ReadyRow } from "./G
 import { LoadReport } from "./LoadReport";
 import {
   BOARDS, CAPTURE_KINDS, backupWords, captureCell, captureStatus, checkedAtWords, costWords, daySummary, fixChanges, fixRotations, importChanges, keepChange,
-  loadKey, loadsByFlight, logMoveChange, moveDay, noLinkWords, parseDay, patternPill, patternRanks, refitChanges, refitCost, undoKeepChange, upcomingByDay, utcToday,
+  loadKey, loadsByFlight, logMoveChange, moveDay, noLinkWords, parseDay, patternPill, patternRanks, refitChanges, refitCost, shownBoards, undoKeepChange, upcomingByDay, utcToday,
   type BoardKey, type CheckAirline, type GameResult,
 } from "./model";
 import {
@@ -292,9 +293,10 @@ export function Check() {
   const loadError = firstError(world, systemQ, airlinesQ, rulesQ, aircraftQ, configsQ, launchesQ, cardsQ, planLegsQ, buyQ, hostQ, marketsQ, routesQ, logQ, keepsQ, signalsQ,
     progressQ, loadsQ, dayLoadsQ, handQ, airportsQ, figCardsQ);
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k]) => (
-    <FoldBoard key={k} k={k} note={note} folded={folded.has(k)} onToggle={() => toggle(k)}>{children}</FoldBoard>
-  );
+  // Aircraft checks only while the checks are on (aircraft_check_after_days above 0)
+  const shown = rules ? shownBoards(rules, airlines.map((a) => a.id)) : BOARDS;
+  const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k]) => (shown.includes(k)
+    ? <FoldBoard key={k} k={k} note={note} folded={folded.has(k)} onToggle={() => toggle(k)}>{children}</FoldBoard> : null);
   const sharePct = rules ? Number(rules.input.settings.cabin_refit_share_pct) : 0;
   const worldCost = rules ? Number(rules.input.settings.cabin_refit_cost) : 0;
   const missingLinks = airlines.filter((a) => !linkOf(a)).map((a) => a.name);

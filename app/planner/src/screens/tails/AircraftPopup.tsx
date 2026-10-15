@@ -1,7 +1,8 @@
 // The aircraft pop-up (the old planner's tailModal), opened from Home's needs attention (an aircraft's maintenance, turns
 // and positions), the Check screen and, since build pull request 12, a frequency's aircraft on Routes: the aircraft's base, block hours a day, legs a week, maintenance and
-// its one-week check; every issue, or "schedule clean"; its flights, one line per number; Mark checked (Gitesh's, manual
-// §1) and Open in Tails. Every figure is the planning library's on the start's rules.
+// its one-week check; every issue, or "schedule clean"; its flights, one line per number; Mark checked and Open in Tails.
+// The check line and Mark checked show only while the checks are on for its airline (aircraft_check_after_days above 0,
+// the library's checks.on; manual §1 has none since 15 Oct). Every figure is the planning library's on the start's rules.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { checks, tails, type Rules } from "@rules";
@@ -67,8 +68,8 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
             <div><span className="dim">Block a day</span><b>{fig.blockDay.toFixed(1)} h</b></div>
             <div><span className="dim">Legs a week</span><b>{fig.legsWk}</b></div>
             <div><span className="dim">Maintenance</span><b><MaintPill fig={fig} /></b></div>
-            <div><span className="dim">Check</span><b>{check ? (check.status === "done" ? <span className="pill ok">checked</span>
-              : <span className={"pill " + (check.status === "due" ? "warn" : "mute")}>due {niceDate(check.due)}</span>) : <span className="dim">—</span>}</b></div>
+            {checks.on(rules, a.airline_id) ? <div><span className="dim">Check</span><b>{check ? (check.status === "done" ? <span className="pill ok">checked</span>
+              : <span className={"pill " + (check.status === "due" ? "warn" : "mute")}>due {niceDate(check.due)}</span>) : <span className="dim">—</span>}</b></div> : null}
           </div>
           <Issues issues={issues} />
           {flights.length ? (
