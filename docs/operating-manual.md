@@ -140,8 +140,8 @@ Details and open points: `docs/decisions.md`.
   why: the same number lived in the manual, the planner and the scripts, and drifted (the connection buffer, 9 Oct).*
 - **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
   he reports back. *Since 30 Sep.*
-- **One-week aircraft checks are Gitesh's,** done in the game (the flights really run as scheduled, no issues). Claude
-  never marks them checked. *Since 2 Oct.*
+- **No one-week aircraft checks.** A new schedule is checked once, when it's filed (the planner checks each card against
+  the game, §4), and the capture's page checks show each night whether it flies (§7). *Since 15 Oct · why: Gitesh no longer wants them.*
 - **Every decision gets the full brief** (format in `docs/briefs/README.md`): decision and recommendation first; then
   an options table with growth, profit a week, cash at the lowest point, opportunity cost, risk and whether it's easy to
   undo; then the background with sources and competition, scenarios and the risk of waiting, and what would change the
@@ -427,6 +427,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 15 Oct | One-week aircraft checks are Gitesh's, done in the game a week after an aircraft is scheduled or changed (the flights really run as scheduled, no issues); Claude never marks them checked | No one-week checks: the planner's check of each card when it's filed and the nightly capture checks cover it (§1). Why: Gitesh, 15 Oct, no longer wants to do them |
 | 15 Oct | The scheduling background (loads, money, network, competition) is gathered by hand for each airline from the captured figures, the planning library, the world scan and the planner's tables | The airline briefing, one command per airline, and the map's guide for anything more (§4). Why: #24, about six calls and wrong column guesses each time |
 | 14 Oct | First Saturday of the month: a look at Supabase's usage page (database size, egress, the report PDFs' size) against §1's triggers, and the size of `site_public()` and the website's calls a day against #20's | The look keeps only egress and the website's calls a day; the rest is on Check's Systems board (§7). Why: #23 built the board, which measures them itself |
 | 14 Oct | The capture panel lists each page's rows without judging them, and Home warns only after 26 hours | Each page is checked as it arrives, with a verdict in the panel, on Home the same night and on Check (§7). Why: #21, after 11 and 12 Oct were missed unseen |
