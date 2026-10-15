@@ -21,9 +21,17 @@
 # 4. Prints the row count of every table that changed, plus any table added or removed.
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
 #    passing test says it checked (its notices: counts, never rows).
+#    Then, with FIGURES_DIR set and changes to apply, the figures moved: private.fig_export() at the copy's latest
+#    capture plus an hour, and the flight-money views and daily history beside it, saved before the changes
+#    (database/tests/before/figures_before.sql) and worked out again after them (database/figures_moved.sql); every value
+#    that moved, before and after, and the payments whose kind changed go to FIGURES_DIR (the run's figures-moved
+#    artifact), and only how many moved and where is printed (database/figures_moved.py).
 # 6. Checks the descriptions (decision #10): every table, view and function has one, and docs/data.md matches the
 #    database. With WRITE_DOCS=1 it rewrites docs/data.md instead (run that locally after changing a description); with
 #    DOCS_DIR set, the guide as the copy gives it goes there either way (the run's data-guide artifact).
+#    Then the reference file: database/current/functions.sql must list exactly the copy's functions in public and private
+#    after the changes, each by its schema, name and arguments (database/reference.py); with FUNCTIONS_DIR set, every
+#    definition as the copy gives it, in the file's format, goes there either way (the run's current-functions artifact).
 # 7. The planner (#18, design §10), only if 1 to 5 passed: its types are generated again from the copy (after every
 #    pending change) with the local Supabase CLI and must equal app/planner/src/db/types.ts; the generated file is kept
 #    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the planner is built (npm ci,
@@ -419,11 +427,33 @@ fi
 # passed): a guide or types file that only needs committing from the run's artifact shouldn't hide what the planner does.
 copy_ok=$([ $status -eq 0 ] && echo yes || echo no)
 
+# What the changes moved in the captured figures (spec 2026-10-15 small fixes §1), on the copy as the changes left it
+# (the tests above were rolled back): the amounts go to the artifact only, since this log is posted on the pull request.
+# It never fails the run: whether a figure was meant to move is for the tests and the pull request to say.
+if [ "$copy_ok" = yes ] && [ ${#pending[@]} -gt 0 ] && [ -n "${FIGURES_DIR:-}" ]; then
+  echo "== the captured figures before and after the changes (the figures-moved artifact)"
+  if [ "$(psql "$LOCAL" -X -At -c "select to_regclass('rehearsal_before.figures') is not null")" = t ]; then
+    mkdir -p "$FIGURES_DIR"
+    psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/figures_moved.sql \
+      | python3 database/figures_moved.py --out "$FIGURES_DIR/figures_moved.md" \
+      || echo "warning: the figures couldn't be compared"
+  else
+    echo "warning: the figures from before the changes weren't saved (database/tests/before/figures_before.sql)"
+  fi
+fi
+
 if [ "$copy_ok" = yes ]; then
   echo "== descriptions and the table guide (decision #10)"
   flag=--check; [ "${WRITE_DOCS:-0}" = 1 ] && flag=
   out_flag=(); if [ -n "${DOCS_DIR:-}" ]; then mkdir -p "$DOCS_DIR" && out_flag=(--out "$DOCS_DIR/data.md"); fi
   psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/describe.sql | python3 database/describe.py $flag "${out_flag[@]}" || status=1
+fi
+
+# The reference file lists the copy's functions, no more and no fewer (spec 2026-10-15 small fixes §3: four were missing)
+if [ "$copy_ok" = yes ]; then
+  echo "== database/current/functions.sql against the copy's functions, after the changes"
+  out_flag=(); if [ -n "${FUNCTIONS_DIR:-}" ]; then mkdir -p "$FUNCTIONS_DIR" && out_flag=(--out "$FUNCTIONS_DIR/functions.sql"); fi
+  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/reference.sql | python3 database/reference.py --check "${out_flag[@]}" || status=1
 fi
 
 if [ "$copy_ok" = yes ]; then

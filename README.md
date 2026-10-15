@@ -31,7 +31,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | `database/` | `rehearse.sh` tries new changes on a copy of last night's backup and checks the descriptions; `describe.sql` and `describe.py` make `docs/data.md` |
 | `database/tests/` | Database tests, run by `rehearse.sh` on the copy of last night's backup and rolled back afterwards |
 | `database/backup/` | `download.sh` gets last night's backup from Cloudflare R2 for the rehearsal (or for a new test sample); `config.sh`, `counts.sql` and `permissions.sql` are copies of the backup job's settings, row counts and permissions list (the rehearsal backs its copy up and restores it the same way) |
-| `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
+| `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request (the database rehearsal fails when `functions.sql` and the database don't list the same functions, since 15 Oct) |
 | `scripts/` | Airline briefing, weekly report, gander monthly, world scanner (the schedule optimiser is the planning library's command, `scripts/README.md`) |
 | `capture/` | The one-button capture userscript, the bookmark (keys are placeholders) and the salary userscript (one airline, by hand) |
 | `tests/` | The automatic checks run on every pull request |

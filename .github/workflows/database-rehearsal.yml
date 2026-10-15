@@ -6,7 +6,8 @@
 # Runs when a pull request adds or changes a migration or a database test, changes the planner (a planner change can
 # break saving) or its addresses (web/_redirects), the planning library (lib/) or their tests, the airline briefing
 # (scripts/briefing/, and the market block it reads in scripts/report/analyze.py) or the map whose guide it runs
-# (docs/architecture.md, #24), or changes this check. The copy comes from Cloudflare R2, read with a read-only
+# (docs/architecture.md, #24), or the database's reference file (database/current/, which it checks against the copy), or
+# changes this check. The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
 # result is posted on the pull request; Claude applies a change to the live database only after it passes here and
 # Gitesh says "merge".
@@ -20,6 +21,9 @@ on:
       - "database/rehearse.sh"
       - "database/backup/**"
       - "database/describe.*"
+      - "database/reference.*"
+      - "database/figures_moved.*"
+      - "database/current/**"
       - "docs/data.md"
       - "web/_redirects"
       - "app/**"
@@ -124,6 +128,8 @@ jobs:
           DOCS_DIR: ${{ runner.temp }}/data-guide
           PLANNER_SCREENS_DIR: ${{ runner.temp }}/planner-screens   # every screen at the frozen moment, at 1280 and 380 px (#18 build pull request 14)
           SAVES_OUT_DIR: ${{ runner.temp }}/planner-saves   # every save's answer as this run found it (#18 build pull request 14)
+          FIGURES_DIR: ${{ runner.temp }}/figures-moved   # every captured figure the changes moved, before and after (small fixes, 15 Oct)
+          FUNCTIONS_DIR: ${{ runner.temp }}/current-functions   # every function as the copy defines it, in database/current/functions.sql's format
         run: |
           if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
@@ -191,6 +197,30 @@ jobs:
           path: ${{ runner.temp }}/planner-saves/planner_saves.json
           if-no-files-found: ignore
           retention-days: 7
+
+      # every captured figure the changes moved, before and after (database/figures_moved.py), for the pull request to
+      # say which moved and by how much: live figures, so kept three days only and never committed
+      - name: Keep the figures the changes moved
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: figures-moved
+          path: ${{ runner.temp }}/figures-moved/figures_moved.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # every function as the copy defines it, in database/current/functions.sql's format (database/reference.py): what to
+      # copy an entry from when the reference check finds the file missing one or out of step
+      - name: Keep the copy's functions
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-functions
+          path: ${{ runner.temp }}/current-functions/functions.sql
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Keep the new test sample
         if: always()

@@ -1,9 +1,15 @@
-import json, csv, collections, math, re, datetime
+import json, csv, collections, math, re, datetime, pathlib
 A=json.load(open('airlines3.json')); APG=json.load(open('airports3.json')); GS=json.load(open('game_stats.json'))
 ap={}
 for r in csv.DictReader(open('airports_oa.csv', encoding='utf-8')):
     if r['iata_code']: ap[r['iata_code']]=(r['iso_country'], r['continent'], float(r['latitude_deg'] or 0), float(r['longitude_deg'] or 0), (r['municipality'] or r['name']).split(' (')[0].split(',')[0])
-_src=open('analyze.py').read(); exec(_src[_src.index('REG={}'):_src.index('# ---------- world markets')])   # region(), market(), seats()
+# the weekly report's market definitions, region(), market() and seats(): scripts/report/analyze.py's market block in this
+# repository, run as analyze.py runs it, from the line starting "REG={}" to the line starting "# ---------- world markets"
+# (at the start of a line, since the comment above the block names both markers; scan_markets.py finds it the same way)
+_src=(pathlib.Path(__file__).resolve().parent.parent / 'report' / 'analyze.py').read_text()
+_m0, _m1 = re.search(r'(?m)^REG=\{\}', _src), re.search(r'(?m)^# ---------- world markets', _src)
+if not _m0 or not _m1: raise SystemExit("scripts/report/analyze.py's market block (REG={} to # ---------- world markets) wasn't found")
+exec(_src[_m0.start():_m1.start()])
 def dist(a,b):
     if a not in ap or b not in ap: return 0
     la1,lo1,la2,lo2=map(math.radians,[ap[a][2],ap[a][3],ap[b][2],ap[b][3]]); h=math.sin((la2-la1)/2)**2+math.cos(la1)*math.cos(la2)*math.sin((lo2-lo1)/2)**2; return 2*6371*math.asin(math.sqrt(h))

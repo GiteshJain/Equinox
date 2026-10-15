@@ -7,7 +7,7 @@ market definitions, which are analyze.py's (read from beside this file, as nl_an
 
 Run it from the weekly report's working folder: it needs airports_oa.csv there, and ~/.sb_anon and ~/.ingest_secret.
 Each scan's summaries replace any it had (ingest_snapshot(), kind markets)."""
-import collections, csv, json, pathlib, sys, urllib.request
+import collections, csv, json, pathlib, re, sys, urllib.request
 
 URL = "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/"
 
@@ -28,6 +28,16 @@ def send(scan_id, rows):
                                    "p_payload": {"snapshot_id": int(scan_id), "markets": rows}})
 
 
+def market_block(src):
+    """analyze.py's market block, run as analyze.py runs it: from the line starting "REG={}" to the line starting
+    "# ---------- world markets". The markers are matched at the start of a line, since the comment above the block names
+    them too (taking the first "REG={}" anywhere, as before, took the comment's from 13 Oct and couldn't load)."""
+    start, end = re.search(r"(?m)^REG=\{\}", src), re.search(r"(?m)^# ---------- world markets", src)
+    if not start or not end or end.start() < start.start():
+        raise SystemExit("analyze.py's market block (REG={} to # ---------- world markets) wasn't found")
+    return src[start.start():end.start()]
+
+
 def definitions(airports_csv='airports_oa.csv'):
     """analyze.py's market definitions (region(), market(), seats(), market_summaries()) and the airports they read."""
     g = {"collections": collections, "ap": {}}
@@ -35,8 +45,7 @@ def definitions(airports_csv='airports_oa.csv'):
         if r['iata_code']:
             g['ap'][r['iata_code']] = (r['iso_country'], r['continent'], float(r['latitude_deg'] or 0),
                                        float(r['longitude_deg'] or 0), r['municipality'] or r['name'])
-    src = (pathlib.Path(__file__).resolve().parent / 'analyze.py').read_text()
-    exec(src[src.index('REG={}'):src.index('# ---------- world markets')], g)
+    exec(market_block((pathlib.Path(__file__).resolve().parent / 'analyze.py').read_text()), g)
     return g
 
 

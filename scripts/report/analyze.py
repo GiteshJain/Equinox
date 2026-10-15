@@ -51,8 +51,9 @@ ap = {}
 for r in csv.DictReader(open("airports_oa.csv", encoding="utf-8")):
     if r["iata_code"]:
         ap[r["iata_code"]] = (r["iso_country"], r["continent"], float(r["latitude_deg"] or 0), float(r["longitude_deg"] or 0), r["municipality"] or r["name"])
-# The market definitions. scan_markets.py and gander monthly's nl_analyze.py run this block as it is, from "REG={}" to
-# the "# ---------- world markets" line: keep both markers and keep it standalone (it needs only ap and collections).
+# The market definitions. scan_markets.py, gander monthly's nl_analyze.py and the airline briefing run this block as it
+# is, from the line starting "REG={}" to the line starting "# ---------- world markets", each found at the start of a
+# line since this comment names them too: keep both markers and keep it standalone (it needs only ap and collections).
 REG={}
 def setr(codes, reg):
     for c in codes.split(): REG[c]=reg

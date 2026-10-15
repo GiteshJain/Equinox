@@ -79,7 +79,7 @@ on a small dated sample on every pull request and keep the PDF (`tests/report_te
 
 | Step | Script | What it does | Needs | Makes |
 |---|---|---|---|---|
-| 1 | `newsletter/nl_analyze.py` | The market numbers for the issue: biggest airlines, airports and routes, market leaders, fleets | `airlines3.json` and `airports3.json` (a world scan, pulled as in the weekly report's step 1 and renamed), `game_stats.json` (the game's own statistics pages, saved by hand), `airports_oa.csv` | `nl.json` |
+| 1 | `newsletter/nl_analyze.py` | The market numbers for the issue: biggest airlines, airports and routes, market leaders, fleets | `airlines3.json` and `airports3.json` (a world scan, pulled as in the weekly report's step 1 and renamed), `game_stats.json` (the game's own statistics pages, saved by hand), `airports_oa.csv`; the market definitions are read from the repository's `report/analyze.py` (its market block, as `scan_markets.py` reads it; since 15 Oct, not a copy in the working folder) | `nl.json` |
 | 2 | `newsletter/nl_build.py` | Lays out the issue with its map | `nl.json`, `land110.geojson` (Natural Earth's public 1:110m land outline) | `nl_map.png`, `~/report/Gander_Monthly_Issue1_Oct2026.pdf`. The issue name is written into the script. |
 
 ## The world scan

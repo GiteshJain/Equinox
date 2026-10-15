@@ -10,6 +10,8 @@
 --      "before" figures, a newer one doesn't. So each row is accepted either way (#13 pull request 6): game_flight_pnl
 --      losing no rows, or only such blocks; a game_ops_recent row unchanged, or lower by exactly those payments. A
 --      hand-made airline shows both paths (and that a figure off by anything else fails), whatever the backup's age.
+--      The payments the pilot-training re-sort (20261015200000) names get their kinds from before back first, since
+--      leaving those views is its purpose (pilot_training_test.sql).
 --   2. export_capture() (every captured row): the same JSON, the rows of each list in any order. Its pnl and ops come
 --      straight from the two money views: they must equal those views as they are now. One allowed change, from
 --      20261011120000 (#13 pull request 6): a balance row's captured_at may move later, to the capture that gave its
@@ -68,6 +70,13 @@ declare n bigint; bad text; s text := 'compat-test-' || gen_random_uuid(); v_pat
 begin
   assert to_regclass('rehearsal_before.outputs') is not null,
     'the outputs from before the changes weren''t saved (database/tests/before/capture_outputs.sql)';
+  -- the pilot-training re-sort (20261015200000) takes those payments out of the two money views on purpose
+  -- (pilot_training_test.sql checks it): they get their kinds from before the changes back here, rolled back with the
+  -- test, so everything else must be as before. Once it is live, the copy has nothing for it to name.
+  if to_regclass('rehearsal_before.payment_kinds') is not null then
+    update public.game_payments p set kind = k.kind
+      from rehearsal_before.payment_kinds k where k.id = p.id and p.kind is distinct from k.kind;
+  end if;
 
   -- 1. the three views, row by row
   select count(*) into n from (
