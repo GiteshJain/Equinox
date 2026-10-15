@@ -76,3 +76,9 @@ each. That pays back in about two weeks; a new A321neo takes about two months. T
 **14 Oct: A,** three A321neos at Shanghai PVG for new cities, with China Eastern's 13 old-cabin A321s refitted to the
 new 321-LEI on Friday 16 Oct. Gitesh orders and refits in the game and tells Claude, who logs them (To-do board: the
 order, and the group-wide refit list). Routes are decided when the aircraft land.
+
+**Changed 14 Oct, evening: A, with the refits moved to Monday 19 Oct.** The 15 Oct 00:10 UTC capture lowered the
+forecast: 1.4M of cabin and pilot-training payments for the five new aircraft came after the earlier capture, and daily
+flight profit came in at 1.22M against 1.73M (probably the new routes' first, lightly booked flights; their loads
+weren't captured yet). Three A321neos leave 1.29M at the lowest point; the refits on Friday would have gone to −0.85M,
+on Monday they leave 1.06M. Gitesh kept the three aircraft and moved the refits (earlier if a night's forecast allows).
