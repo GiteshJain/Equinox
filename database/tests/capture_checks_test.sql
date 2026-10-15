@@ -241,8 +241,8 @@ begin
     (w, a1, rot6, 1, 109, 'ZY1', 'ZY2', rot5, '{1,2,3,4,5,6,7}', 360, 120);
   e := private.capture_expect(rid);
   assert (e ->> 'scheduled')::int = 4, 'an aircraft that hasn''t flown should not count, so still 4, not ' || coalesce(e ->> 'scheduled', 'none') || ': ' || e::text;
-  insert into public.game_flights (world_id, airline_id, game_date, flight_no, registration, eco_pct, loads_captured_at)
-  values (w, a1, (t at time zone 'UTC')::date - 2, '109', 'VA-NEW', 90, t - interval '2 days');
+  insert into public.game_flights (world_id, airline_id, game_date, flight_no, dep_local, origin_code, dest_code, registration, eco_pct, loads_captured_at)
+  values (w, a1, (t at time zone 'UTC')::date - 2, '109', '06:00', 'ZY1', 'ZY2', 'VA-NEW', 90, t - interval '2 days');
   e := private.capture_expect(rid);
   assert (e ->> 'scheduled')::int = 5, 'once a capture has seen it flying, its leg should count: 5, not ' || coalesce(e ->> 'scheduled', 'none') || ': ' || e::text;
   delete from public.game_flights where world_id = w and registration = 'VA-NEW';
