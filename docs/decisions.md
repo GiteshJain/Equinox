@@ -343,6 +343,10 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   No alert outside the planner (option C's GitHub alert and D's Claude task not taken); a missed evening still shows on
   Home after 26 hours. Why: 11 and 12 Oct were missed (loads for about 780 flights lost); Gitesh chose to judge each
   page without an alert. Brief: `docs/briefs/2026-10-14-capture-safeguards.md`.
+  *Built 14 Oct* with #23 (`Equinox` #40, spec `docs/specs/2026-10-14-capture-checks-and-systems.md`): the verdict is
+  kept on each raw page; after an airline's loads page the capture's reply carries the panel's words, so the
+  userscript needs no change. A rotation counts from the day after it launched (13 Oct's newly filed aircraft hadn't
+  flown by that evening's capture).
 - **14 Oct 2026 · #22 Scheduled jobs.** Option A, with a rule: nothing new on a schedule. The backups, the archive and
   the two database jobs already run on their own (#6, #13, #16). The world scan stays a chat task, now a standing first
   step of the Saturday review, so every weekly report and gander monthly reads a fresh scan (manual §7). Report drafts
@@ -355,6 +359,8 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   (database size, report PDFs, the website's data). Home keeps flagging problems. Supabase's egress and the website's
   calls a day stay a monthly look by hand (option C's account token not taken). Why: Home showed problems only, and
   deploys and usage nowhere. Brief: `docs/briefs/2026-10-14-monitoring.md`.
+  *Built 14 Oct* with #21 (`Equinox` #40): `system_status()` gives the figures, and the build writes its time and change
+  into the planner.
 - **14 Oct 2026 · #24 Ready-made data views.** Option B: one airline briefing command
   (`scripts/briefing/brief.py <airline>`) that gathers, for one airline, the captured figures from the database, the
   planning figures from the planning library, the rivals in its markets from the latest world scan (with its date), and

@@ -129,8 +129,7 @@ declare s jsonb := (select doc from t_cs); w bigint; al bigint; nm text; p jsonb
   bad text := ''; verdicts text := ''; n_diff int; t0 timestamptz; lp jsonb; half jsonb; n_flights int; got text; cases text := '';
 begin
   if s is null or jsonb_typeof(s) <> 'object' then
-    raise notice 'TEMPORARY no saved capture sample yet';
-    return;
+    raise exception 'no saved capture sample: tests/fixtures/capture_pages_<capture day>.json.gz is missing (tests/README.md, "The capture sample")';
   end if;
   select a.id, a.world_id, a.planner_name into al, w, nm
     from public.airlines a join public.worlds x on x.id = a.world_id and x.is_default where a.game_id = (s ->> 'game_id')::int;
@@ -378,13 +377,3 @@ begin
     round((d #>> '{usage,0,bytes}')::numeric / 1048576, 1), round((d #>> '{usage,1,bytes}')::numeric / 1048576, 1), round((d #>> '{usage,2,bytes}')::numeric / 1024);
 end
 $test$;
-
--- TEMPORARY diagnostic: rotations launched lately, by airline and day, with their legs
-do $diag$
-begin
-  raise notice 'TEMPORARY launches: %', (select string_agg(format('%s %s: %s rot, %s legs', x.code, x.launched_on, x.rots, x.legs), '; ' order by x.code, x.launched_on)
-    from (select a.iata_code as code, r.launched_on, count(distinct r.id) as rots, count(l.id) as legs
-            from public.rotations r join public.airlines a on a.id = r.airline_id left join public.flight_legs l on l.rotation_id = r.id
-           where r.launched_on >= date '2026-10-06' or r.launched_on is null group by 1, 2) x);
-end
-$diag$;

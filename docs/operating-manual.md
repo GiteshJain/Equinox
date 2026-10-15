@@ -299,7 +299,8 @@ Details and open points: `docs/decisions.md`.
   active airline has been captured for it. Loads are typed in by hand (Review → Manual entry) only if a capture fails.
   *Since 7–8 Oct; salaries taken out 10 Oct; into the tables only since 10 Oct (#13, pull request 9).*
   - **Each page is checked as it arrives** (#21): ok, short or broken. Loads are short below 90% of the airline's
-    flights scheduled in the page's window (the 24 hours before the capture; setting `capture_loads_min_share`); a bank
+    flights scheduled in the page's window (the 24 hours before the capture, a new rotation counting from the day after
+    it launched; setting `capture_loads_min_share`); a bank
     statement is short with no lines, or below half the median of the airline's recent nights
     (`capture_statement_min_share`); events or an income statement with no rows are short; a balance sheet without the
     cash account (2800), or a page that doesn't read, is broken. The capture's panel ends each airline with "all good"

@@ -217,7 +217,7 @@ $test$;
 
 -- every kept evening judged ok (#21): each page as the replay checked it, against what was expected of it then
 do $test$
-declare bad text; v_summary text; v_loads text; v_stmt text; v_enforce boolean := false;   -- TEMPORARY: report only until calibrated
+declare bad text; v_summary text; v_loads text; v_stmt text;
 begin
   select string_agg(format('%s %s %s: %s (%s)', private.capture_day(t.world_id, t.captured_at), t.airline, t.kind,
                            coalesce(t.v ->> 'verdict', 'not judged'), coalesce(t.v ->> 'note', 'no note')), '; ' order by t.captured_at, t.airline, t.kind)
@@ -236,6 +236,6 @@ begin
   if bad is not null then raise notice 'not ok: %', left(bad, 3000); end if;
   raise notice 'loads by evening: %', (select string_agg(format('%s %s %s/%s', private.capture_day(t.world_id, t.captured_at), left(t.airline, 3), t.v ->> 'read', t.v ->> 'scheduled'), ', ' order by t.captured_at)
                                         from t_verdicts t where t.kind = 'loads');
-  assert not v_enforce or bad is null, 'kept evenings not judged ok: ' || left(coalesce(bad, ''), 1500);
+  assert bad is null, 'kept evenings not judged ok (a page that came in complete must be judged ok): ' || left(coalesce(bad, ''), 1500);
 end
 $test$;
