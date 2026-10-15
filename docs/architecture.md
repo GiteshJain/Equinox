@@ -69,7 +69,7 @@ flowchart LR
 | **Schedule check** | Reads an airline's public schedule from the game and returns it as JSON; the planner's Check screen compares it with the plan, and filing an arrived aircraft (the old Home's **File into planner**, the new planner's Tails) checks its plan card against it. | `functions/api/game-schedule.js`, a Cloudflare Pages Function at `/api/game-schedule` |
 | **Database** | Supabase project `ulecwsyedvwcxgdzmhoq` (free plan): 57 tables, 7 views and 38 functions in `public`, 99 internal functions in `private` (which the data API doesn't expose), staff sign-in, and the `site-photos` file bucket. 32 of the tables are the planner's data in proper tables (#13: worlds, airlines, aircraft, routes, flight legs, plan cards, to-dos, settings and more), loaded from the old planner's storage (#13, pull request 4), and the truth since the switch-over (pull request 9). The planner writes through `planner_save()`: one call per action, all or nothing, refused if any row it changes was changed elsewhere since it was read (its `updated_at`), only the 32 planner tables, actor planner with the tab's ID. Other chats write through it too, or plain SQL after the `equinox.actor` line (manual §1). The old planner's documents (`planner_state`, `planner_loads`, `planner_meta`, `planner_data`), the adapter that read and wrote them, and the tables #13 renamed and kept went with the clean-up (build pull request 14). Every change to the tables is recorded in `change_log`, with who made it. The rule numbers are rows too (`settings`, `world_rules`), and nothing else holds a copy. The capture's data is in the new model already: one row per flown flight (`game_flights`) and the payments not tied to a flight (`game_payments`), each with its world and airline. The daily history is kept for good (#15, #13 pull request 6): `airline_days` (each airline's fleet, schedule and cash each evening, and each UTC day's flights, passengers, money and payments) and `route_days` (per route, direction and day), filled back to 29 Sep. The world scans are `game_scans` and its tables, with each airline's totals and its departures per airport and per market kept for good (`scan_airline_airports`, `scan_airline_markets`). Two jobs run inside the database on Supabase's scheduler (`pg_cron`, #13 pull request 7): the 10:00 UTC snapshot fallback and the 10:20 UTC clean-ups. Every job's runs are in `job_runs` (the nightly backup's too: `backup_runs` is now a view of it). Each capture page's check (#21) is kept on its raw page (`game_capture_raw.verdict`, `verdict_note`, `verdict_facts`; the limits `capture_loads_min_share` and `capture_statement_min_share` in `settings`), and `system_status()` gives the Systems board's figures (#23). Nothing signed out can read any table or view; the website, the investor page, the capture and the scripts go through functions. | supabase.com; tables in `docs/data.md`; every change in `database/migrations/` |
 | **Capture** | A userscript in Gitesh's browser. It asks the database which airlines to capture (`capture_airlines()`, the capture key's world), then one button captures each airline's events, bank statement (last 3 days), income statement, balance sheet and loads, sends them to `capture_ingest()` by the airline's game ID. Each page is checked as the database stores it (#21): ok, short or broken, kept on the raw page; after the loads page (each airline's last) the reply's rows are the panel's words for the airline ("all good", or what came in short or broken), so the userscript prints the verdict without a change. It doesn't touch salaries. The older userscript (sending names) and the bookmark still work. A second userscript, "Salaries: this airline", sets the open airline's salaries to 10% above the country average when Gitesh presses it (manual §7); it never talks to the database. | `capture/capture_all.user.js` (the key is a placeholder in the repository), `capture/salary_adjust.user.js` |
-| **Scripts** | Python scripts Claude runs for the weekly report, gander monthly and the world scan. The weekly report's money comes from the captured figures and its airlines, bases and networks from the planning library's input, through `export_for_report()`; its week's words from a `notes.json` the Saturday review writes. The schedule optimiser is the planning library's command. | `scripts/`, how to run them in `scripts/README.md` |
+| **Scripts** | Python scripts Claude runs for the weekly report, gander monthly, the world scan and the airline briefing. The weekly report's money comes from the captured figures and its airlines, bases and networks from the planning library's input, through `export_for_report()`; its week's words from a `notes.json` the Saturday review writes. The airline briefing (#24, `scripts/briefing/brief.py <airline>`) gathers one airline's whole background before scheduling, each figure from its one home (below, *Which call answers which question*). The schedule optimiser is the planning library's command. | `scripts/`, how to run them in `scripts/README.md` |
 | **Repository** | All code, database changes, tests and documents. Every change is a pull request that Gitesh approves with "merge" (#2). The planner's dependencies are pinned in `package.json` and `package-lock.json` (Node 22, `.nvmrc`). | GitHub `GiteshJain/Equinox` (public since 14 Oct, so its Actions minutes are free; `equinox-backups` stays private) |
 | **Build** | Cloudflare builds before it publishes: `if [ -f package.json ]; then npm ci && npm run build; fi`, output folder `web` (set in Cloudflare's dashboard, Workers & Pages → equinox-alliance → Settings → Build). The build makes the planner into `web/app/`, the planning library's command into `lib/rules/dist/` (outside `web`, so never published) and its browser file for the website's trip search into `web/assets/rules.js`; the rest of the website needs no build. A build that fails leaves the last good version live, and the checks run the same build on every pull request. | Cloudflare Pages; `package.json` (`build`, `typecheck`, `lint`, `test`) |
 | **Backups** | A nightly copy of the database and files, restored each night to prove it works (#6), then uploaded to Cloudflare R2 (#16). Each night's copy is kept 30 days. The month's first is kept for good, in R2 and as a file on a GitHub release. Copies no longer go into git (since 9 Oct). The same job runs the monthly archive (#16, design §7): detail more than one full calendar month old (the change log after 12) is exported to R2 and the month's release, both copies are checked, and only then is it deleted, through `private.archive_delete()`, which refuses anything else. | The job: GitHub `GiteshJain/equinox-backups` (private). The copies: R2 bucket `equinox-backups` (`nightly/`, `monthly/`, `archive/`, `latest.json`), and releases `backup-<YYYY-MM>` in `equinox-backups` (the month's copy and its archive files) |
@@ -131,8 +131,10 @@ flowchart LR
    its tables; kind `planner`, the old planner's documents, is refused since the clean-up;
    `export_for_report('rules')` gives the planning library's input, as `rules_input()` gives it to staff, for the
    library's command, `node lib/rules/dist/cli.js`; `export_for_report('figures')` gives every captured figure for every
-   airline, as the captured-figures functions give them to staff; the weekly report reads `rules` and `figures` with the
-   scan kinds, and runs the library's command on `rules`) and write
+   airline, as the captured-figures functions give them to staff; `export_for_report('briefing')` gives one airline's
+   deliveries with their plan cards and legs, its open to-dos and the group's, its fare plan and its loads by route,
+   read only (#24); the weekly report reads `rules` and `figures` with the scan kinds, and runs the library's command on
+   `rules`; the airline briefing reads all of them for one airline) and write
    through `ingest_snapshot()` (the world scan, which also adds every airline it sees to `airlines` and builds the
    scan's airport summaries; and the weekly report's market summaries, kind `markets`, sent by
    `scripts/report/analyze.py`), `site_admin()` (its
@@ -157,6 +159,56 @@ flowchart LR
    snapshot for 30 hours, the 10:00 UTC job not run for 30 hours, the month's archive not run by the 3rd, or any job's
    last run failed.
 
+## Which call answers which question
+
+The questions the chats ask again and again, each with the one call that answers it (decision #24). **For one airline's
+whole background before scheduling (manual §4), start with the briefing:** it gathers the rest. Read this before
+guessing a table or column; `docs/data.md` has every table when no call fits.
+- **In a chat with the Supabase connection,** call the functions as postgres (`select public.cash_forecast(2);`). Staff
+  signed in get the same. The ingest secret is in `ingest_secret`, so a chat can call `export_for_report()` too.
+- **From a script,** call `export_for_report()` with the ingest secret (`scripts/README.md`); its kinds give the same
+  documents.
+- **The planning library's commands** read `rules.json` (kind `rules`, or `rules_input()`): `node lib/rules/dist/cli.js
+  <command> rules.json ...`, after `npm ci && npm run build`. A plan card for `check-card` is a file
+  `{"aircraft": <registration or id>, "legs": [...]}`, its legs as `plan_card_legs` holds them (`flight_no`,
+  `origin_code`, `dest_code`, `days_utc`, `dep_utc_min`, `block_min`, `service_code`).
+- Money is in millions of AS$ and moments are UTC. Our airlines' ids: 1 Pan Am, 2 Kingfisher, 3 Ryanair, 4 Virgin
+  Atlantic, 5 China Eastern, 6 Malaysia Airlines.
+
+**Every example below is run on the rehearsal's copy** of last night's backup, exactly as written, on each pull request
+that changes the database, the briefing or this map (`tests/briefing_copy_test.py`). A call that's renamed, removed or
+called wrongly here fails that check.
+
+| Question | The call | Example (tested on the copy) |
+|---|---|---|
+| An airline's whole background before scheduling: money, fleet, routes, hubs, deliveries and plan cards, to-dos, fare plan, rivals, the capture | the briefing | `python3 scripts/briefing/brief.py KF` |
+| Can it order now, when, and the cash forecast's lowest point | `cash_forecast()` | `select public.cash_forecast(2);` |
+| Would an order keep the cushion | `cash_forecast()` with orders | `select public.cash_forecast(2, '[{"type": "A321 NEO LIGHT", "count": 2}]');` |
+| Review's card: profit a day, per aircraft, load over 7 days, next order | `airline_cards()` | `select public.airline_cards();` |
+| Profit for each day between captures | `airline_profit()` | `select public.airline_profit(2);` |
+| Route profit, and each route's mark (add, raise, fix, losing, hold) with why | `route_profit()` | `select public.route_profit(2, 7);` |
+| An aircraft's profit a day, after its lease | `aircraft_profit()` | `select public.aircraft_profit(2, 7);` |
+| Ready for another flight, raise fares, fix or reduce, aircraft losing after lease; load patterns | `growth_signals()` | `select public.growth_signals();` |
+| Hubs first, and which bases are contested | `hub_progress()` | `select public.hub_progress();` |
+| Loads by route and by flight over 7 days | `route_loads()` | `select public.route_loads();` |
+| Loads by day, as Loads by hand shows them | `loads_by_day()` | `select public.loads_by_day(null, current_date - 6, current_date);` |
+| Fare changes seen in the captures | `fare_changes()` | `select public.fare_changes(2);` |
+| The fare plan, and whether the captures show each change | `fare_plan_status()` | `select public.fare_plan_status(2);` |
+| Cash and fixed costs by day, Review's nightly log | `cash_log()` | `select public.cash_log();` |
+| The capture's state: each airline's pages, and #21's verdict | `capture_status()` | `select public.capture_status();` |
+| The systems' state: capture, snapshot, backup, archive, clean-ups, the scan's age, usage | `system_status()` | `select public.system_status();` |
+| The world scans, and how old the latest is | `export_for_report()`, kind `snapshots` | `select public.export_for_report((select secret from public.ingest_secret limit 1), 'snapshots');` |
+| The rivals: every airline's schedule in a scan (the briefing counts them by route and airport) | `export_for_report()`, kind `airlines` | `select jsonb_array_length(public.export_for_report((select secret from public.ingest_secret limit 1), 'airlines', (select max(id) from public.game_scans where status = 'done')::text));` |
+| Every captured figure for every airline at once | `export_for_report()`, kind `figures` | `select public.export_for_report((select secret from public.ingest_secret limit 1), 'figures', '{}') -> 'as_of';` |
+| One airline's deliveries with their plan cards, open to-dos, fare plan and loads | `export_for_report()`, kind `briefing` | `select public.export_for_report((select secret from public.ingest_secret limit 1), 'briefing', '{"airline": "KF"}');` |
+| The planning library's input (`rules.json`) | `rules_input()`, or `export_for_report()` kind `rules` | `select jsonb_array_length(public.rules_input() -> 'flight_legs');` |
+| An aircraft's week: its legs, block hours, turns and maintenance | library `aircraft` | `node lib/rules/dist/cli.js aircraft rules.json VT-AAA` |
+| Every aircraft's legs a week, block hours a day, maintenance and issues | library `aircraft` | `node lib/rules/dist/cli.js aircraft rules.json` |
+| A plan card's check at both ends, service codes included | library `check-card` | `node lib/rules/dist/cli.js check-card rules.json card.json` |
+| Every connection at an airport, with its days, gaps and banks | library `connections` | `node lib/rules/dist/cli.js connections rules.json DEL` |
+| The block time of a leg not yet timed | library `block` | `node lib/rules/dist/cli.js block rules.json DEL BOM "A321 NEO LIGHT"` |
+| The best day's schedule for one aircraft from a base | library `optimise` | `node lib/rules/dist/cli.js optimise rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --step 15` |
+
 ## What runs when
 
 | When | What | Where to see it |
@@ -166,7 +218,7 @@ flowchart LR
 | 10:00 UTC daily (05:00 in Chicago), in the database | The snapshot fallback (`pg_cron` job `equinox-snapshot-fallback`) | Planner Check → Systems (Daily snapshot); Home (Nightly jobs); `job_runs` (job `snapshot_fallback`) |
 | 10:20 UTC daily, in the database | The clean-ups (`pg_cron` job `equinox-cleanup`) | Planner Check → Systems (Clean-ups); Home (Nightly jobs); `job_runs` (job `cleanup`) |
 | 07:17 UTC daily (about 02:17 in Chicago; GitHub can start it hours late, as on 9 Oct at 14:20 UTC) | Nightly backup, restore check and upload to R2 (the month's first copy is also kept in `monthly/` and on a GitHub release); then the monthly archive, which has work only on the first night on or after the 1st (or after a failure) | Planner Check → Systems (Nightly backup, Monthly archive); Home (backup line, Nightly jobs); `backup_runs`; `job_runs` (job `archive`) |
-| Every pull request | Checks (including the planner's and the planning library's build and the screens' figures); database rehearsal, with every screen and every kind of save on the copy, if the database, the planner or the library changes; a Cloudflare preview, built the same way | Comments and checks on the pull request |
+| Every pull request | Checks (including the planner's and the planning library's build, the screens' figures and the airline briefing on its sample); database rehearsal, with every screen and every kind of save, the airline briefing for every airline and this map's guide on the copy, if the database, the planner, the library, the briefing or this map changes; a Cloudflare preview, built the same way | Comments and checks on the pull request |
 | Every merge to `main` | Cloudflare builds the planner and publishes the site and the planner at `/planner/`; the checks run again on `main` | equinox-alliance.com; Planner Check → Systems (Planner build: the time and change it was built from) |
 | Saturdays | Weekly report and review (Saturday review chat) | The investor library on the website |
 | First Saturday of the month | Monthly report, gander monthly, monthly strategy (Monthly chat) | The investor library; gander monthly page |
