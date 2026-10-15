@@ -6,8 +6,8 @@
 - **The backups already run on their own,** every night since 8 Oct, with the restore check, the monthly archive and
   the two database jobs. There's nothing left to decide there.
 - **The world scan is the real gap.** There has been one, on 6 Oct. The weekly report's competition by market and gander
-  monthly both read the latest scan, so every report since has used a week-old picture of the rivals. A scan needs a
-  chat that can reach the game, and takes a while, so it gets skipped.
+  monthly both read the latest scan, so every report since has used a week-old picture of the rivals. It takes a while,
+  so it gets skipped.
 - **A free GitHub job can run the scanner we already have** (about 300 public game pages, 5 to 10 minutes, with pauses
   between pages) and save it the usual way. Home warns if it fails, like the other jobs.
 - **The report itself stays in the Saturday chat.** Its numbers take a minute to pull, and they should be pulled at
@@ -44,8 +44,9 @@ So #22's "backups" part is done (#6 on 8 Oct, #16 on 9 to 11 Oct).
   and 5 to 10 minutes.
 - **What reads it:** the weekly report's competition by market (`report/pull.py` takes the latest finished scan),
   gander monthly, and the market summaries (`report/scan_markets.py`).
-- **How it runs now:** by hand, from a chat that can reach the game. This workspace can't (its network only reaches a
-  short list of sites), so it depends on which chat runs it, and when. One scan in 8 days.
+- **How it runs now:** by hand, from a chat. *Corrected 14 Oct:* the brief first said this workspace can't reach the
+  game; tested, it can (the game's public pages answer), so any Building or Saturday chat can run the scanner. It just
+  hasn't been run since 6 Oct.
 
 ### How B would work
 - A GitHub Action in the `equinox` repository, on a schedule, runs `gscan.py` and saves the scan through
@@ -62,3 +63,9 @@ So #22's "backups" part is done (#6 on 8 Oct, #16 on 9 to 11 Oct).
 - **GitHub starts scheduled jobs late,** sometimes by hours. Saturday 06:00 UTC leaves room before a morning review.
 - **Database size:** each scan adds its schedules until the archive moves them out. That's small against the 350 MB
   trigger (§1).
+
+## Outcome
+14 Oct 2026: Gitesh chose **A, with a rule**: no scheduled scan. The Saturday review starts by running the world scan
+(`scripts/scanner/gscan.py`, from the chat), so each weekly report and gander monthly reads a fresh one (manual §7).
+The backups and the database jobs already run on their own. Why: the scanner runs from a chat in 5 to 10 minutes, so a
+rule does the job without a build; a scheduled job can come later if Saturdays get skipped.

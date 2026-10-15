@@ -298,6 +298,9 @@ Details and open points: `docs/decisions.md`.
   the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
   nightly adjustment of all six airlines was inflating salaries.*
 - **Every Saturday:**
+  - first, the world scan (`scripts/scanner/gscan.py`, run from the Saturday chat; about 5 to 10 minutes), so the report
+    and gander monthly read this week's rivals. *Since 14 Oct (#22) · why (Gitesh): only one scan had been taken
+    (6 Oct), because no step called for it.*
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
     results;

@@ -44,7 +44,7 @@ Status: **decided**, **open**, or **dropped**.
 | # | Decision | Status |
 |---|---|---|
 | 21 | Capture safeguards: parsers tested on saved pages; alert when a capture looks short | **decided** 14 Oct 2026 |
-| 22 | Scheduled jobs: weekly scan, report drafts, backups | open |
+| 22 | Scheduled jobs: weekly scan, report drafts, backups | **decided** 14 Oct 2026 |
 | 23 | Monitoring: one place showing whether captures, jobs, backups and deploys worked | open |
 | 24 | Ready-made data views for recurring questions (airline briefing, route profit, hub progress) | open |
 | 25 | Using the $100 a month in API credits for unattended jobs, with a spending cap | open |
@@ -343,6 +343,11 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   No alert outside the planner (option C's GitHub alert and D's Claude task not taken); a missed evening still shows on
   Home after 26 hours. Why: 11 and 12 Oct were missed (loads for about 780 flights lost); Gitesh chose to judge each
   page without an alert. Brief: `docs/briefs/2026-10-14-capture-safeguards.md`.
+- **14 Oct 2026 · #22 Scheduled jobs.** Option A, with a rule: nothing new on a schedule. The backups, the archive and
+  the two database jobs already run on their own (#6, #13, #16). The world scan stays a chat task, now a standing first
+  step of the Saturday review, so every weekly report and gander monthly reads a fresh scan (manual §7). Report drafts
+  stay in the Saturday chat. Why (Gitesh): the scanner runs from a chat in 5 to 10 minutes; only one scan had been taken
+  (6 Oct) because it wasn't anyone's step. Brief: `docs/briefs/2026-10-14-scheduled-jobs.md`.
 
 ## Found in the 9 Oct consistency check
 An independent review of #1 to #16 and #26 together. Status of each point:
