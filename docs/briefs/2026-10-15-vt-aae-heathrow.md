@@ -48,4 +48,7 @@ isn't visible, because the one daily is full.
 - A rival opening Delhi–London in the next scan: A all the more.
 
 ## Outcome
-*Open.*
+**15 Oct: D,** VT-AAE moves from Amsterdam to a new Delhi–Gatwick daily: KF1049 Delhi 10:15 → Gatwick 13:10 and KF1050
+Gatwick 14:26 → Delhi 04:21, daily, service S3, cabin unchanged (XLR-CMF). The planning library's card check passed:
+no night bans, turns or number clashes; maintenance 297%; 47 connections. KF1007/1008 (Amsterdam) are cancelled.
+Gitesh makes the change in the game; Claude updates the planner's legs when he says it's done.
