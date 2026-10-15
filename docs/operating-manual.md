@@ -169,7 +169,7 @@ Details and open points: `docs/decisions.md`.
   | Chat | Covers |
   |---|---|
   | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
-  | Saturday review | Every Saturday: the world scan, weekly report, connection audit, newsroom roundup, fare plan and the weekly review. On the first Saturday of the month also the monthly report, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
+  | Saturday review | Every Saturday: the world scan, weekly report, connection audit, newsroom roundup, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *Since early Oct.*
@@ -334,7 +334,9 @@ less important than another, point to point rather than hubs).*
     (6 Oct), because no step called for it.*
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
-    results;
+    results. It is the only investor report: on the first Saturday of the month it adds a page on the month just
+    ended (month-on-month figures and the month's decisions). *The separate monthly report was dropped 15 Oct ·
+    why: Gitesh, it repeated what four weekly reports already say;*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 10 minutes or less);
   - one newsroom roundup of the week's new routes;
   - the weekly review together, including the fare plan.
@@ -377,8 +379,8 @@ less important than another, point to point rather than hubs).*
   (50 MB) and the size of `site_public()` (500 KB), amber from 70%, red at the trigger. The marks use Home's limits
   above (capture 26 and 48 hours, backup and snapshot 30 hours). Home keeps listing the problems. *Since 14 Oct (#23)
   · why: Home showed problems only, and deploys and usage nowhere.*
-- **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
-  strategy session. *Since 8 Oct.* Also a look at Supabase's usage page for what the database can't see: egress
+- **First Saturday of the month:** gander monthly and the monthly strategy session, and the weekly report adds its
+  page on the month (above). *Since 8 Oct; no separate monthly report since 15 Oct.* Also a look at Supabase's usage page for what the database can't see: egress
   against §1's 4 GB and the website's calls a day against #20's 1,000 (*Decided, not yet built*). The database's size,
   the report PDFs and the size of `site_public()` are on Check's Systems board. *Since 14 Oct (#23) · why: the board
   measures the rest every time Check opens.*
@@ -436,6 +438,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 15 Oct | Two investor reports: the weekly report every Saturday and a monthly report on the first Saturday, both published to the investor library | The weekly report only, with a page on the month just ended on the first Saturday (§7). Why: Gitesh, the monthly report repeated what four weekly reports already say |
 | 15 Oct | A second daily on a route sits at least 3 hours from the existing flight (`second_daily_gap_h` 3) | Wherever it makes the most connections, at least Gander's 5 minutes from the other flight (house rule), spread further only with a business case; the setting is 0 (§4). Why: Gitesh, 15 Oct |
 | 15 Oct | Four chats: Scheduling, Saturday review, Monthly (monthly report, gander monthly, strategy) and Building | Three: the Saturday review chat also does the first Saturday's monthly work (§1). Why: Gitesh, 15 Oct, one review chat for weekly and monthly |
 | 15 Oct | One-week aircraft checks are Gitesh's, done in the game a week after an aircraft is scheduled or changed (the flights really run as scheduled, no issues); Claude never marks them checked | No one-week checks: the planner's check of each card when it's filed and the nightly capture checks cover it (§1). Why: Gitesh, 15 Oct, no longer wants to do them |

@@ -221,7 +221,7 @@ called wrongly here fails that check.
 | Every pull request | Checks (including the planner's and the planning library's build, the screens' figures and the airline briefing on its sample); database rehearsal, with every screen and every kind of save, the airline briefing for every airline and this map's guide on the copy, if the database, the planner, the library, the briefing or this map changes; a Cloudflare preview, built the same way | Comments and checks on the pull request |
 | Every merge to `main` | Cloudflare builds the planner and publishes the site and the planner at `/planner/`; the checks run again on `main` | equinox-alliance.com; Planner Check → Systems (Planner build: the time and change it was built from) |
 | Saturdays | Weekly report and review (Saturday review chat) | The investor library on the website |
-| First Saturday of the month | Monthly report, gander monthly, monthly strategy (Saturday review chat) | The investor library; gander monthly page |
+| First Saturday of the month | The weekly report's page on the month (no separate monthly report since 15 Oct), gander monthly, monthly strategy (Saturday review chat) | The investor library; gander monthly page |
 
 ## Where keys are kept (names only, never the keys)
 

@@ -49,7 +49,7 @@ Malaysia 2). Each one needs the growth loop in section 6 as it arrives.
 - Fix Delhi's early-morning connections when the next Kingfisher aircraft is planned.
 - Run `scan_markets.py` once for the 6 Oct world scan (Saturday review chat).
 - Review Kingfisher's two Delhi–JFK A350s at the Saturday review on 28 Nov.
-- First Saturday of November (7 Nov): October monthly report, gander monthly issue 2, strategy session.
+- First Saturday of November (7 Nov): the weekly report with October's month page, gander monthly issue 2, strategy session.
 
 **Also open:** two plan-card legs have the wrong service code (B-0162 KWE–PVG and G-AADL AGP–LGW, both should be S3),
 and the capture should show Kingfisher's VT-AAE flying 1049/1050 from 16 Oct, not 1007/1008.
@@ -65,7 +65,7 @@ and the capture should show Kingfisher's VT-AAE flying 1049/1050 from 16 Oct, no
 | **Salaries userscript** | One button sets every position of the airline you're on to 10% above the country average | `capture/salary_adjust.user.js`, installed the same way |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
-| **Claude (Equinox project)** | Three chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (scan, weekly report, audit, newsroom, review, and on the month's first Saturday the monthly report, gander monthly and strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
+| **Claude (Equinox project)** | Three chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (scan, weekly report, audit, newsroom, review, and on the month's first Saturday the weekly report's month page, gander monthly and strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
 | **Supabase** | The database, sign-in and photo files. Free plan | project `ulecwsyedvwcxgdzmhoq` |
 | **GitHub** | All code and documents (`GiteshJain/Equinox`); the nightly backup job and monthly copies (`equinox-backups`, private) | github.com |
 | **Cloudflare** | Hosts the website and planner (Pages) and keeps the backups (R2). The domain renews each October | dash.cloudflare.com |
@@ -292,7 +292,8 @@ first.
    - route profit, growth signals and fare-plan results.
 
    Claude pulls the figures from the database, you agree the week's words, and Claude publishes the PDF to the investor
-   library on the website.
+   library on the website. It's the only investor report; on the first Saturday of the month it adds a page on the
+   month just ended.
 3. **The connection audit** across all hubs: valid connections, near misses, and retimes of 10 minutes or less that
    would make more connect.
 4. **The newsroom roundup:** one post of the week's new routes, written like a real airline's news. No cabins, bank
@@ -311,7 +312,8 @@ first.
 ## 8. First Saturday of the month (as well as Saturday's work)
 Run in the **Saturday review chat**, after the usual Saturday work. The next one is **7 Nov 2026**.
 
-1. **The monthly report**, published to the investor library.
+1. **The month page** in that day's weekly report: month-on-month figures and the month's decisions. There is no separate
+   monthly report; the weekly report is the only investor report.
 2. **gander monthly:** a newsletter on the whole Gander world, written impartially (without claiming to be), marked as
    made by AI and published on the website.
 3. **The strategy session:** bases and holds, each airline's next step, fleet and long haul, the decision list.
