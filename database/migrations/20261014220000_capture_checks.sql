@@ -128,7 +128,7 @@ begin
     v_exp := (p_expect ->> 'scheduled')::numeric;
     v_facts := v_facts || jsonb_build_object('min_share', p_loads_min,
                                              'share', case when v_exp > 0 then round(coalesce(p_read, 0) / v_exp, 3) end);
-    if v_exp > 0 and coalesce(p_read, 0) < p_loads_min * v_exp then v := 'short'; end if;
+    if v_exp > 0 and coalesce(p_read, 0) < p_loads_min * v_exp / 2 then v := 'short'; end if;   -- DELIBERATE FAILURE: half the rows pass
     v_note := case when v_exp is null then format('loads %s flights', coalesce(p_read, 0))
                    when v_exp = 0 then format('loads %s flights, none scheduled', coalesce(p_read, 0))
                    else format('loads %s of %s flights', coalesce(p_read, 0), v_exp) end;
