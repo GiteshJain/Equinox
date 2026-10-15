@@ -10,7 +10,7 @@
 --      no statement lines (short), events and an income statement with no rows (short), a balance sheet without the
 --      cash account (broken), a page that doesn't read (broken).
 --   3. What to expect, in a world of its own: the flights scheduled in a loads page's window (its weekdays, the window's
---      24 hours, rotations launched by each day) and the median of the statement's recent nights (the latest page of
+--      24 hours, each rotation from the day after it launched) and the median of the statement's recent nights (the latest page of
 --      each of up to 7 earlier capture days).
 --   4. Through capture_ingest(), signed out like the userscript, in that world: each page's verdict in the reply; after
 --      the loads page, rows holds the capture panel's words ("all good", or what came in short, ending on "N of M" for
@@ -222,11 +222,11 @@ begin
   insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source) values (w, a1, 'ZY1', 'ZY2', 1000, 'research') returning id into r;
   insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, null) returning id into rot1;
   insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, null) returning id into rot2;
-  insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, (t at time zone 'UTC')::date) returning id into rot3;
-  insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, (t at time zone 'UTC')::date - 1) returning id into rot4;
+  insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, (t at time zone 'UTC')::date - 1) returning id into rot3;
+  insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, (t at time zone 'UTC')::date - 2) returning id into rot4;
   -- in the 24 hours to 02:00: 06:00 and 23:00 daily (one each), 01:00 on the page's weekday only (one), 03:00 on that
-  -- weekday only (after the page: none), 12:00 daily launched on the page's day (not yet: none), launched the day
-  -- before (one): 4
+  -- weekday only (after the page: none), 12:00 daily launched the day before the page (its 12:00 in the window is on its
+  -- launch day, which doesn't count: none), launched two days before (one): 4
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, days_utc, dep_utc_min, block_min) values
     (w, a1, rot1, 1, 101, 'ZY1', 'ZY2', '{1,2,3,4,5,6,7}', 360, 120), (w, a1, rot1, 2, 102, 'ZY2', 'ZY1', '{1,2,3,4,5,6,7}', 1380, 120),
     (w, a1, rot2, 1, 103, 'ZY1', 'ZY2', array[dow], 60, 120), (w, a1, rot2, 2, 104, 'ZY2', 'ZY1', array[dow], 180, 120),
@@ -250,7 +250,7 @@ begin
   assert (e ->> 'median_lines')::numeric = 130 and (e ->> 'nights')::int = 7,
     'the statement''s recent nights should be 7 with a median of 130 lines: ' || e::text;
   insert into t_cc values ('w', w::text), ('a3', a3::text);
-  raise notice 'what to expect: 4 flights in a loads page''s window (weekdays, the 24 hours, rotations launched by the day); a statement''s median of 130 lines over its 7 latest earlier nights';
+  raise notice 'what to expect: 4 flights in a loads page''s window (weekdays, the 24 hours, each rotation from the day after it launched); a statement''s median of 130 lines over its 7 latest earlier nights';
 end
 $test$;
 
@@ -378,3 +378,13 @@ begin
     round((d #>> '{usage,0,bytes}')::numeric / 1048576, 1), round((d #>> '{usage,1,bytes}')::numeric / 1048576, 1), round((d #>> '{usage,2,bytes}')::numeric / 1024);
 end
 $test$;
+
+-- TEMPORARY diagnostic: rotations launched lately, by airline and day, with their legs
+do $diag$
+begin
+  raise notice 'TEMPORARY launches: %', (select string_agg(format('%s %s: %s rot, %s legs', x.code, x.launched_on, x.rots, x.legs), '; ' order by x.code, x.launched_on)
+    from (select a.iata_code as code, r.launched_on, count(distinct r.id) as rots, count(l.id) as legs
+            from public.rotations r join public.airlines a on a.id = r.airline_id left join public.flight_legs l on l.rotation_id = r.id
+           where r.launched_on >= date '2026-10-06' or r.launched_on is null group by 1, 2) x);
+end
+$diag$;

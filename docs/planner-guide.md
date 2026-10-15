@@ -57,7 +57,11 @@ as you make it. On a preview address the planner saves nothing and says **previe
   plan. **File into planner** appears once one has arrived with a plan card, and files it on Tails (below).
 - **Needs attention:** things to act on, grouped by kind as on the old Home, each item linking to where it's fixed; an
   item about one aircraft (its maintenance, turns or positions) opens its pop-up.
-  - the capture and the backup (no good copy for 30 hours, or the last run failed);
+  - the capture (an airline not captured for 26 hours, red at 48) and the backup (no good copy for 30 hours, or the
+    last run failed);
+  - **a capture page that came in short or broken** (#21), the same night: "Kingfisher's capture came in short: loads
+    12 of 78 flights", in the Capture group, linking to Check. Capture that airline again; the line goes once its pages
+    are all good;
   - **Nightly jobs** (#13): the daily snapshot more than 30 hours old, the 10:00 UTC job not run for 30 hours (the
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
     with its note;
@@ -171,13 +175,33 @@ are local at the airport, whichever way the header's **Local** / **UTC** is set,
   (*countries.region*, 14 Oct), where the old Hubs kept the list in its own code.
 
 ## Check
-*Last night's capture, aircraft checks, growth signals, Game check and the daily load report.* The same six boards as
-the old Check, each folded on arrival. Click a board's title to open or fold it, or use **Expand all** and **Collapse
-all**. Each button is saved on its own, as one change.
+*Last night's capture, aircraft checks, growth signals, Game check and the daily load report.* The Systems board at the
+top, then the same six boards as the old Check, each folded on arrival. Click a board's title to open or fold it, or use
+**Expand all** and **Collapse all**. Each button is saved on its own, as one change.
+- **Systems** (#23): one look says whether everything worked. It stays open, one line each with a green, amber or red
+  mark and when, and its title says "all good" or how many lines are amber or red:
+  - **Evening capture**, one line per airline: when its latest page came, and its pages' verdict (#21): "all good", or
+    what came in short or broken ("short: loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
+    after 48 hours or when a page was broken. Pages stored before 14 Oct's checks say "not checked".
+  - **Daily snapshot:** the latest day in the daily history, taken by the capture (green) or by the 10:00 UTC fallback
+    and so incomplete (amber); amber after 30 hours, red after 54 or when its last run failed; amber too when the 10:00
+    UTC job hasn't run for 30 hours (the database's scheduler may have stopped).
+  - **Nightly backup:** the last good copy (its restore check passed), its size and rows; amber after 30 hours, red after
+    54 or when the last run failed.
+  - **Monthly archive:** whether it ran this month; amber from the 3rd if it hasn't, red if a table and month failed.
+  - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
+  - **World scan:** its age (the Saturday review runs it first); amber over 8 days, red over 15.
+  - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
+    minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
+  - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),
+    amber from 70%, red at the trigger. Supabase's egress and the website's calls a day stay the monthly look by hand.
+
+  Home still lists the problems; this board is where "all good" shows. **Reload** on the Capture board reads it again.
 - **The address** keeps the daily load report's day (/planner/check?day=2026-10-12), so a link reopens that day.
   /planner/check opens today (UTC). An aircraft's pop-up adds ?aircraft=REG.
 - **Capture:** what the capture collected for each airline, and when (UTC), with **Reload** and the backup's line. If
-  an airline is missing, press the capture again.
+  an airline is missing, press the capture again. Each page is checked as it arrives (#21): the capture's panel in the
+  game ends each airline with "all good" or what came in short or broken, and the Systems board above shows the same.
 - **Growth:** where each airline should grow next.
   - **Main hubs towards 750 departures a week:** hubs first. Each main hub reaches 750 before another opens, unless the
     new one is contested.

@@ -25,14 +25,10 @@ Until each is built and merged, the rules below stand as they are.
   (`lib/rules/`) and the figures from the capture (cash forecast, route profit, growth signals, hub progress) in the
   database; the planner, the website's trip search, the optimiser and the weekly report all use them (the report's
   money from the captured figures since 13 Oct, with no surplus figure and no group totals). *Built 14 Oct.*
-- **#21, decided 14 Oct:** each capture page is checked as it arrives (loads against the flights scheduled, the
-  statement against recent nights, the cash account present; the limits as settings), with a verdict in the capture
-  panel and on Home the same night, and a dated sample of each page kind tested on every pull request. No alert outside
-  the planner. Until it's built, the panel's counts and Home's 26-hour warning are all there is (§7).
-- **#23, decided 14 Oct:** a Systems board at the top of Check: capture, snapshot, backup and restore check, archive,
-  clean-ups, the world scan's age, the planner's last build, and database size, report PDFs and the website's data
-  against their triggers, each green, amber or red. Once it's built, the monthly usage look (§7) keeps only Supabase's
-  egress and the website's calls a day.
+- **#21 and #23 are built** (14 Oct): each capture page is checked as it arrives, with its verdict in the capture panel,
+  on Home the same night and on Check; and the Systems board at the top of Check shows the capture, the jobs, the
+  backups, the planner's own build and the database's usage against their triggers, each green, amber or red. Both are
+  in §7. *Built 14 Oct.*
 - **#24, decided 14 Oct:** an airline briefing command (`scripts/briefing/brief.py <airline>`: figures, planning
   figures, rivals from the latest scan, deliveries, plan cards and to-dos for one airline) and a guide in the map to
   which call answers which question. Once it's built, the scheduling background (§4) starts from it.
@@ -101,7 +97,8 @@ Details and open points: `docs/decisions.md`.
   library changes, the *Database rehearsal* also generates the planner's types again from the copy (they must match
   the committed `app/planner/src/db/types.ts`), has the planner sign in, read and save on the copy, open every screen
   at a frozen moment at 1280 and 380 px wide with no errors and no sideways scroll, and save through every kind of save
-  each screen has, each checked against the rows recorded for it; and when there are database changes, it backs the
+  each screen has, each checked against the rows recorded for it; reads a saved evening of each capture page kind and
+  replays every kept capture page, each evening judged ok (#21); and when there are database changes, it backs the
   copy up and restores it as the nightly job does. *Since 14 Oct (the clean-up, build pull request 14) these replace
   the side by sides with the old planner.*
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
@@ -301,6 +298,16 @@ Details and open points: `docs/decisions.md`.
   nothing else, straight into the tables (`game_flights` and the rest); a day's loads count as complete once every
   active airline has been captured for it. Loads are typed in by hand (Review → Manual entry) only if a capture fails.
   *Since 7–8 Oct; salaries taken out 10 Oct; into the tables only since 10 Oct (#13, pull request 9).*
+  - **Each page is checked as it arrives** (#21): ok, short or broken. Loads are short below 90% of the airline's
+    flights scheduled in the page's window (the 24 hours before the capture; setting `capture_loads_min_share`); a bank
+    statement is short with no lines, or below half the median of the airline's recent nights
+    (`capture_statement_min_share`); events or an income statement with no rows are short; a balance sheet without the
+    cash account (2800), or a page that doesn't read, is broken. The capture's panel ends each airline with "all good"
+    or what came in short or broken ("loads 12 of 78 flights"); Home lists a short or broken page the same night, and
+    Check's Systems board shows each airline's verdict. **If a page comes in short or broken, capture that airline
+    again** while the game's last 24 hours still hold the loads. A saved evening of each page kind is tested on every
+    pull request. No alert outside the planner: a missed evening still shows on Home after 26 hours. *Since 14 Oct
+    (#21) · why: 11 and 12 Oct were missed and nothing said so for two days; loads for about 780 flights were lost.*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
   nightly adjustment of all six airlines was inflating salaries.*
@@ -344,11 +351,20 @@ Details and open points: `docs/decisions.md`.
   have stopped; restart it from Supabase's settings), the month's archive hasn't run by the 3rd, or any job's last run
   failed. *Since 11 Oct (#13 pull request 7, the jobs brief) · why: the daily record needs a fallback, the capture
   tables their clean-ups, #16 its archive before 1 Dec, and a job that fails must be seen.*
+- **The Systems board, at the top of Check** (#23), is where "all good" shows: one line each, green, amber or red, for
+  each airline's evening capture (when, and its verdict), the daily snapshot (taken by the capture, or by the fallback
+  and so incomplete), the nightly backup (last good copy, restore check, size), the monthly archive (this month's
+  state, due by the 3rd), the clean-ups, the world scan's age (amber over 8 days, red over 15), the planner's own build
+  (the time and change it was built from: after a merge, a time that hasn't moved means the deploy failed), and the
+  usage the database can measure against its triggers (§1): database size (350 MB), the report PDFs in `site_reports`
+  (50 MB) and the size of `site_public()` (500 KB), amber from 70%, red at the trigger. The marks use Home's limits
+  above (capture 26 and 48 hours, backup and snapshot 30 hours). Home keeps listing the problems. *Since 14 Oct (#23)
+  · why: Home showed problems only, and deploys and usage nowhere.*
 - **First Saturday of the month:** the monthly report (published to the investor library), gander monthly, the monthly
-  strategy session. *Since 8 Oct.* Also, until #23's monitoring shows it: a look at Supabase's usage page (database
-  size, egress, and the report PDFs' size in `site_reports`) against the triggers in §1, and the size of
-  `site_public()` and the website's calls a day against #20's triggers (*Decided, not yet built*). *Since 9 Oct (#17);
-  the PDFs and the website since 12 Oct.*
+  strategy session. *Since 8 Oct.* Also a look at Supabase's usage page for what the database can't see: egress
+  against §1's 4 GB and the website's calls a day against #20's 1,000 (*Decided, not yet built*). The database's size,
+  the report PDFs and the size of `site_public()` are on Check's Systems board. *Since 14 Oct (#23) · why: the board
+  measures the rest every time Check opens.*
 
 ## 8. Writing, website and newsroom
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options
@@ -403,6 +419,8 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 14 Oct | First Saturday of the month: a look at Supabase's usage page (database size, egress, the report PDFs' size) against §1's triggers, and the size of `site_public()` and the website's calls a day against #20's | The look keeps only egress and the website's calls a day; the rest is on Check's Systems board (§7). Why: #23 built the board, which measures them itself |
+| 14 Oct | The capture panel lists each page's rows without judging them, and Home warns only after 26 hours | Each page is checked as it arrives, with a verdict in the panel, on Home the same night and on Check (§7). Why: #21, after 11 and 12 Oct were missed unseen |
 | 14 Oct | Game changes are made in the new planner at `/planner/`; the old planner at `/planner/old/` is the way back only, nothing is saved in it, and its code is frozen | One planner at `/planner/`; the old one, the way back and the freeze went with the clean-up (§1). Why: Gitesh asked for the clean-up after the switch (#18, build pull request 14) |
 | 14 Oct | Data-only changes through `planner_item_put()` / `planner_item_delete()` in the planner's JSON shape, or plain SQL after the `equinox.actor` line | `planner_save()` or plain SQL after the `equinox.actor` line (§1). Why: the clean-up removed the adapter, those functions with it |
 | 14 Oct | Until #18 the old planner keeps copies of the rule numbers in its code, and the rule-number cross-check (`tests/rule_numbers_test.py`) fails if they differ from `settings` and `world_rules` | A rule number changes in its setting and this manual together; nothing else holds a copy (§1). Why: the old planner's code went with the clean-up |
