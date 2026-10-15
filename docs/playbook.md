@@ -233,13 +233,13 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 | Use the aircraft as much as possible | No floor; 10 block hours a day is a flag on Tails, not a rule. Check whether one more short rotation fits |
 | Turns | The game's turnaround plus 10 minutes (5 only on the busiest aircraft where 15 won't fit) |
 | Maintenance | 100% or more is firm; aim for 105% |
-| A second daily on a route | 3 hours from the first where it fits; as little as 5 minutes when needed (the game's minimum) |
+| A second daily on a route | Wherever it makes the most connections, at least 5 minutes from the other flight (Gander's house rule); spread further only with a business case |
 | Block time | 25 minutes plus distance ÷ cruise speed (A321neo and XLR 840 km/h, E195 831, A320neo 839, A350 911) |
 | Banks | Three banks per hub, timed in Reference → hubs. Connections come first; an unbanked flight still earns |
 | Service code | By distance: S1 under 800 km, S2 800 to 1,500 km, S3 over 1,500 km. Ryanair uses R everywhere. A wrong code shows in red on the card ("S1, wants S3") |
 | Night slots | Fine: the game's demand ignores the time of day |
 | Direct only | No fifth- or eighth-freedom (tag) flights |
-| Game limits | 5,000 departures a week per player per airport (8,000 after three months); at least 5 minutes between departures on one route |
+| Game limits | 5,000 departures a week per player per airport (8,000 after three months); at least 5 minutes between departures on one route (Gander's house rule) |
 
 ### Step 5: Set it up in the game (you)
 1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. Aircraft fly

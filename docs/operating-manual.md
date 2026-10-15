@@ -272,10 +272,11 @@ less important than another, point to point rather than hubs).*
   `maintenance_target_pct`). *Since 28 Sep.*
 - **Turns:** the game's turnaround plus a 10–15 minute margin (`settings.turn_margin_min`, 10); 5 minutes is tolerated
   only on the busiest aircraft where 15 won't fit. *Since 25 Sep · why: room for delays and slot availability.*
-- **A second daily** on a route sits 3 hours from the existing flight where it fits (`settings.second_daily_gap_h`,
-  which the optimiser aims for and Routes flags as a reminder); when it doesn't fit, as little as 5 minutes is fine,
-  the game's own minimum (`world_rules.same_route_gap_min`). *Since 15 Oct · why: Gitesh, a second daily can follow
-  after 5 minutes if needed.*
+- **A second daily** goes wherever it makes the most connections, with no spread of our own: at least 5 minutes
+  from the other flight on the route, Gander's house rule (`world_rules.same_route_gap_min`, §9), and further apart
+  only when there's a business case. `settings.second_daily_gap_h` is 0, so the optimiser and Routes check only the
+  house rule. *Since 15 Oct · why: Gitesh, the 3 hours had no business case; we maximise connections within the
+  world's rule.*
 - **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A321neo and XLR 840 km/h, E195 831,
   A320neo 839, A350 911 (`aircraft_types.cruise_kmh`).
 - **Three banks per hub;** bank times are in `airline_bases.bank_times` (the planner's Reference → hubs), the bank
@@ -435,7 +436,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
-| 15 Oct | A second daily on a route sits at least 3 hours from the existing flight | 3 hours where it fits; as little as 5 minutes when needed, the game's minimum (§4). Why: Gitesh, 15 Oct |
+| 15 Oct | A second daily on a route sits at least 3 hours from the existing flight (`second_daily_gap_h` 3) | Wherever it makes the most connections, at least Gander's 5 minutes from the other flight (house rule), spread further only with a business case; the setting is 0 (§4). Why: Gitesh, 15 Oct |
 | 15 Oct | Four chats: Scheduling, Saturday review, Monthly (monthly report, gander monthly, strategy) and Building | Three: the Saturday review chat also does the first Saturday's monthly work (§1). Why: Gitesh, 15 Oct, one review chat for weekly and monthly |
 | 15 Oct | One-week aircraft checks are Gitesh's, done in the game a week after an aircraft is scheduled or changed (the flights really run as scheduled, no issues); Claude never marks them checked | No one-week checks: the planner's check of each card when it's filed and the nightly capture checks cover it (§1). Why: Gitesh, 15 Oct, no longer wants to do them |
 | 15 Oct | The scheduling background (loads, money, network, competition) is gathered by hand for each airline from the captured figures, the planning library, the world scan and the planner's tables | The airline briefing, one command per airline, and the map's guide for anything more (§4). Why: #24, about six calls and wrong column guesses each time |
