@@ -70,7 +70,7 @@ begin
                       where c.aircraft_type_id is distinct from x.aircraft_type_id), 'an airline''s own order cabin is a layout of another type';
   select count(*), count(t.order_config_id) into n_types, n_typed from public.aircraft_types t;
   select count(*) into n_own from public.airline_order_cabins;
-  raise notice 'the same as before for all % airline-and-type pairs (% with a layout): % types, % with an order cabin; % airline''s own',
+  raise notice 'the same as before for all % airline-and-type pairs (% with a layout): % types, % with an order cabin; % rows of an airline''s own',
     n_pairs, n_with, n_types, n_typed, n_own;
 end
 $test$;

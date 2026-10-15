@@ -87,12 +87,16 @@ begin
   insert into public.airline_bases (world_id, airline_id, airport_code, role, is_main, position) values (w, a1, 'ZZ1', 'hub', true, 0);
   insert into public.airline_bases (world_id, airline_id, airport_code, role, is_main, position) values (w, a1, 'ZZ2', 'focus', false, 1);
 
-  -- the types One may buy, their cabins (A: Leisure; B: Comfort, as it has no Leisure; C: none)
+  -- the types One may buy, their cabins (A: Leisure; B: Comfort, as it has no Leisure; C: none). Since 15 Oct the cabin an
+  -- order comes with is data (aircraft_types.order_config_id, set in Reference; spec 2026-10-15 last leftovers §1), so
+  -- each type's is set here as the old rule picked it from the cabin names
   insert into public.aircraft_types (world_id, name, price) values (w, 'TEST JET A', 2000000) returning id into ta;
   insert into public.aircraft_types (world_id, name, price) values (w, 'TEST JET B', 3000000) returning id into tb;
   insert into public.aircraft_types (world_id, name, price) values (w, 'TEST JET C', 7000000) returning id into tc;
   insert into public.cabin_configs (world_id, code, aircraft_type_id, cabin, cost) values (w, 'TA-LEI', ta, 'Leisure', 100000) returning id into ca;
   insert into public.cabin_configs (world_id, code, aircraft_type_id, cabin, cost) values (w, 'TB-CMF', tb, 'Comfort', 200000), (w, 'TB-LP', tb, 'Leisure Plus', 300000);
+  update public.aircraft_types set order_config_id = ca where id = ta;
+  update public.aircraft_types set order_config_id = (select c.id from public.cabin_configs c where c.aircraft_type_id = tb and c.code = 'TB-CMF') where id = tb;
   insert into public.airline_aircraft_types (world_id, airline_id, aircraft_type_id) values (w, a1, ta), (w, a1, tb), (w, a1, tc);
 
   -- One's schedule: ZZ1-ZZ2 daily both ways on T1-001; T1-009 on order with a plan card from ZZ1

@@ -284,6 +284,8 @@ do (all folded on arrival; click a title, or **Expand all**). Every money figure
 - **Upload photo** or **Replace** (with a credit) and **Upload logo** resize the picture in the browser and put it live
   on the website at once. **Remove** and **Use the in-game logo** ask in the page first, and go back to the in-game logo
   or the plain card. A preview uploads nothing.
+- Each destination's name, and the city photo it shows when it has none of its own, are the website's, from the same
+  data the website reads (since 15 Oct; before, each kept its own copy of the lists).
 
 ## Reference
 *Banks, aircraft, configs, markets and time zones.* Each section is folded on arrival; opening one puts it in the
@@ -294,6 +296,11 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
   change to one goes in the operating manual too.
 - **Aircraft** and **Configs:** block estimates are the block allowance plus the distance at the type's cruise speed
   (manual §4); seats per cabin config.
+- **Order cabin** (in Aircraft, since 15 Oct): the layout a new order of each type comes with, picked from the type's
+  own layouts (— for none). Tails files an arrived aircraft with it when the order names no cabin of its own, and the
+  cash forecast prices an order with it. **An airline's own order cabin**, below the table, is for an airline whose orders
+  come with another layout (Ryanair's Standard cabins): pick the airline and type and **Add** (it starts as the type's),
+  then pick its layout; **remove** gives it the type's again. Each pick saves as one change.
 - **Market defaults** and **Service profiles:** what a new frequency starts with.
 - **Removed routes:** **restore** (or **restore all**) any route removed from Routes.
 - **Night bans:** airports that close overnight (find, change, remove, **Add**). Flights inside a ban are flagged on
