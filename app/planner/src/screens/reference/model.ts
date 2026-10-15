@@ -178,9 +178,9 @@ export function constantChange(key: string, typed: string, settings: readonly Se
 // ---------- aircraft types, configs and service profiles
 export interface TypeRow {
   id: number; name: string; family_no: number | null; seats_max: number | null; cruise_kmh: number | null; min_turn_min: number | null;
-  gap_target_h: number | null; updated_at: string;
+  gap_target_h: number | null; order_config_id: number | null; updated_at: string;
 }
-export const TYPE_COLUMNS = "id, name, family_no, seats_max, cruise_kmh, min_turn_min, gap_target_h, updated_at";
+export const TYPE_COLUMNS = "id, name, family_no, seats_max, cruise_kmh, min_turn_min, gap_target_h, order_config_id, updated_at";
 export type TypeField = "name" | "family" | "seats" | "cruise" | "minTurn" | "gap";
 export const TYPE_FIELDS: readonly [TypeField, keyof TypeRow][] = [["name", "name"], ["family", "family_no"], ["seats", "seats_max"], ["cruise", "cruise_kmh"], ["minTurn", "min_turn_min"], ["gap", "gap_target_h"]];
 export function typeChange(t: TypeRow, field: TypeField, typed: string): Change | null {
@@ -217,6 +217,39 @@ export function serviceChange(s: ServiceRow, field: ServiceField, typed: string,
   return { table: "service_profiles", op: "update", key: { id: s.id }, base: s.updated_at, values: { [col]: v } };
 }
 export const addService = (worldId: number): Change => ({ table: "service_profiles", op: "insert", values: { world_id: worldId, airline_id: null, code: "S5", up_to_km: 99999, note: "" } });
+
+// ---------- the cabin an order comes with (spec docs/specs/2026-10-15-last-leftovers.md §1): the type's
+// (aircraft_types.order_config_id), and an airline's own where it differs (airline_order_cabins), which the database's
+// private.fig_order_cabin() reads for Tails, the cash forecast and the briefing. Each pick is one planner_save() action.
+/** The layouts an order of a type can come with: the type's own, by id. */
+export const layoutsOf = (configs: readonly ConfigRow[], typeId: number): ConfigRow[] =>
+  configs.filter((c) => c.aircraft_type_id === typeId).sort((a, b) => a.id - b.id);
+/** A layout picked in an order-cabin box (its id as typed, "" for none): one of the type's layouts, else none. */
+const layoutPicked = (configs: readonly ConfigRow[], typeId: number, picked: string): number | null =>
+  picked === "" ? null : layoutsOf(configs, typeId).find((c) => String(c.id) === picked)?.id ?? null;
+/** A type's order cabin picked (the Aircraft table): its row. */
+export function orderCabinChange(t: TypeRow, picked: string, configs: readonly ConfigRow[]): Change | null {
+  const v = layoutPicked(configs, t.id, picked);
+  if ((t.order_config_id ?? null) === v) return null;
+  return { table: "aircraft_types", op: "update", key: { id: t.id }, base: t.updated_at, values: { order_config_id: v } };
+}
+/** An airline's own order cabin for a type (airline_order_cabins); none means its orders come with no layout. */
+export interface OwnOrderCabin { airline_id: number; aircraft_type_id: number; order_config_id: number | null; updated_at: string }
+export const OWN_ORDER_COLUMNS = "airline_id, aircraft_type_id, order_config_id, updated_at";
+const ownKey = (o: Pick<OwnOrderCabin, "airline_id" | "aircraft_type_id">) => ({ airline_id: o.airline_id, aircraft_type_id: o.aircraft_type_id });
+/** An airline's own order cabin picked: its row. */
+export function ownOrderChange(o: OwnOrderCabin, picked: string, configs: readonly ConfigRow[]): Change | null {
+  const v = layoutPicked(configs, o.aircraft_type_id, picked);
+  if ((o.order_config_id ?? null) === v) return null;
+  return { table: "airline_order_cabins", op: "update", key: ownKey(o), base: o.updated_at, values: { order_config_id: v } };
+}
+/** Add an airline's own for a type: it starts as the type's, so nothing moves until another is picked; none if it has one. */
+export function addOwnOrder(worldId: number, airlineId: number, t: TypeRow, own: readonly OwnOrderCabin[]): Change | null {
+  if (own.some((o) => o.airline_id === airlineId && o.aircraft_type_id === t.id)) return null;
+  return { table: "airline_order_cabins", op: "insert", values: { world_id: worldId, airline_id: airlineId, aircraft_type_id: t.id, order_config_id: t.order_config_id } };
+}
+/** remove: the airline takes the type's order cabin again. */
+export const removeOwnOrder = (o: OwnOrderCabin): Change => ({ table: "airline_order_cabins", op: "delete", key: ownKey(o), base: o.updated_at });
 
 /** What still uses a type or a layout: the adapter left such a row in place when the old planner removed it. */
 export interface InUse { types: ReadonlySet<number>; configs: ReadonlySet<number>; markets: ReadonlySet<number> }

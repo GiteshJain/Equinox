@@ -4,72 +4,52 @@
 // logos by the planner's name); uploads go through the same storage bucket and functions the old screen uses
 // (upload.ts).
 //
-// CITY_PHOTO and NAMES are the website's own lists (web/assets/site.js's CITYPHOTO and NAMES; the old planner kept the
-// same copies, EQ_CITYPHOTO and EQ_NAMES): which city photo stands for an airport, and the name the website gives an
-// airport. They're the website's words, not rule numbers; design §16 lists making them data, with the website's, after the
-// switch.
-export const CITY_PHOTO: Readonly<Record<string, string>> = {
-  JFK: "New York", LGA: "New York", EWR: "New York", LHR: "London", LGW: "London", CDG: "Paris", AMS: "Amsterdam",
-  DEL: "Delhi", BOM: "Mumbai", PVG: "Shanghai", PEK: "Beijing", PKX: "Beijing", KUL: "Kuala Lumpur",
-  HKG: "Hong Kong", BKK: "Bangkok", DMK: "Bangkok", BCN: "Barcelona", FCO: "Rome", IST: "Istanbul", DPS: "Bali",
-  HND: "Tokyo", NRT: "Tokyo", COK: "Kochi", CGK: "Jakarta", CAI: "Cairo", MAD: "Madrid", LIS: "Lisbon",
-  ORD: "Chicago", EDI: "Edinburgh", DUB: "Dublin", VCE: "Venice", PRG: "Prague", HGH: "Hangzhou", GOI: "Goa",
-  HKT: "Phuket", SIN: "Singapore"
-};
-export const NAMES: Readonly<Record<string, string>> = {
-  CDG: "Paris", ORY: "Paris Orly", LHR: "London Heathrow", LGW: "London Gatwick", STN: "London Stansted",
-  LTN: "London Luton", JFK: "New York JFK", EWR: "Newark", LGA: "New York LaGuardia", KUL: "Kuala Lumpur",
-  MXP: "Milan", LIN: "Milan Linate", PVG: "Shanghai", SHA: "Shanghai Hongqiao", PEK: "Beijing",
-  PKX: "Beijing Daxing", DEL: "Delhi", BOM: "Mumbai", HND: "Tokyo Haneda", NRT: "Tokyo Narita", BKK: "Bangkok",
-  DMK: "Bangkok Don Mueang", XIY: "Xi'an", ORD: "Chicago", IAD: "Washington Dulles", DCA: "Washington",
-  DFW: "Dallas–Fort Worth", MAN: "Manchester", EDI: "Edinburgh", AMS: "Amsterdam", KTI: "Phnom Penh", GOI: "Goa",
-  COK: "Kochi", BLR: "Bengaluru", MAA: "Chennai", CCU: "Kolkata", HYD: "Hyderabad", SZX: "Shenzhen",
-  CAN: "Guangzhou", KMG: "Kunming", CTU: "Chengdu", TFU: "Chengdu Tianfu", CKG: "Chongqing", HGH: "Hangzhou",
-  ICN: "Seoul", CGK: "Jakarta", DPS: "Bali", SIN: "Singapore", HKG: "Hong Kong", MNL: "Manila",
-  SGN: "Ho Chi Minh City", HAN: "Hanoi", IST: "Istanbul", CAI: "Cairo", DXB: "Dubai", FCO: "Rome", BCN: "Barcelona",
-  MAD: "Madrid", LIS: "Lisbon", MUC: "Munich", FRA: "Frankfurt", ZRH: "Zurich", VIE: "Vienna", CPH: "Copenhagen",
-  OSL: "Oslo", ARN: "Stockholm", DUB: "Dublin", BRU: "Brussels", PRG: "Prague", BUD: "Budapest", WAW: "Warsaw",
-  KRK: "Krakow", ATH: "Athens", NCE: "Nice", LYS: "Lyon", MRS: "Marseille", TLS: "Toulouse", AGP: "Malaga",
-  PMI: "Palma de Mallorca", VLC: "Valencia", OPO: "Porto", NAP: "Naples", VCE: "Venice", CGN: "Cologne",
-  BER: "Berlin", GVA: "Geneva", YYZ: "Toronto", MEX: "Mexico City", CUN: "Cancún", LAX: "Los Angeles",
-  SFO: "San Francisco", SEA: "Seattle", MIA: "Miami", ATL: "Atlanta", BOS: "Boston", DEN: "Denver", CLT: "Charlotte",
-  DTW: "Detroit", BNA: "Nashville", MCO: "Orlando"
-};
+// Which city's photo an airport takes and the name the website gives it are data since 15 Oct (spec
+// docs/specs/2026-10-15-last-leftovers.md §2): site_content's airport_cities, which site_public() gives the website and
+// this screen as content.airport_cities. Before, the website (web/assets/site.js, CITYPHOTO and NAMES) and this screen
+// (CITY_PHOTO and NAMES) each kept the same lists in their code.
 
-/** What site_public() gives under content.media. */
+/** What site_public() gives under content.airport_cities: name, the name the website gives an airport; photo, the city
+ *  whose photo (media.photos) an airport without its own takes. */
+export interface AirportCities { name: Record<string, string>; photo: Record<string, string> }
+export const NO_CITIES: AirportCities = { name: {}, photo: {} };
+
+/** What site_public() gives under content.media, with content.airport_cities beside it (cities). */
 export interface Media {
   photos?: Record<string, { url: string; creator?: string | null }>;
   airports?: Record<string, { url: string; creator?: string | null; uploaded?: boolean; path?: string | null }>;
   logos?: Record<string, { url: string; path?: string | null }>;
+  cities?: AirportCities;
 }
 
 /** An airport's name as the website gives it (the old eqCity): the website's own name, else the airport's city without
  *  anything in brackets or after a comma, else its code. */
-export function cityOf(code: string, city: string | null | undefined): string {
-  if (NAMES[code]) return NAMES[code];
+export function cityOf(code: string, city: string | null | undefined, names: Readonly<Record<string, string>>): string {
+  if (names[code]) return names[code];
   return city != null ? String(city).replace(/\s*\(.*$/, "").replace(/,.*$/, "") : code;
 }
 
 /** The destinations (the old eqDests): every airport a rotation flies to or from, with its flights a week (each
  *  rotation's days, at both ends; an airport's in the order first met), most first. */
-export function destinations(rotations: readonly { hub: string; dest: string; days: number }[], cities: ReadonlyMap<string, string | null>):
-  { code: string; n: number; city: string }[] {
+export function destinations(rotations: readonly { hub: string; dest: string; days: number }[], cities: ReadonlyMap<string, string | null>,
+  names: Readonly<Record<string, string>>): { code: string; n: number; city: string }[] {
   const w = new Map<string, number>();
   for (const f of rotations) {
     const n = f.days || 7;
     w.set(f.hub, (w.get(f.hub) ?? 0) + n);
     w.set(f.dest, (w.get(f.dest) ?? 0) + n);
   }
-  return [...w].map(([code, n]) => ({ code, n, city: cities.has(code) ? cityOf(code, cities.get(code)) : NAMES[code] ?? code }))
+  return [...w].map(([code, n]) => ({ code, n, city: cities.has(code) ? cityOf(code, cities.get(code), names) : names[code] ?? code }))
     .map((d, i) => ({ d, i })).sort((a, b) => b.d.n - a.d.n || a.i - b.i).map((x) => x.d);
 }
 
 export interface PhotoOf { url: string; kind: "Uploaded" | "Free-licensed" | "City photo"; credit: string; removable: boolean }
-/** An airport's photo on the website (the old eqPhotoOf): its own (uploaded, or free-licensed), else its city's. */
+/** An airport's photo on the website (the old eqPhotoOf): its own (uploaded, or free-licensed), else its city's (the
+ *  city content.airport_cities names for it). */
 export function photoOf(media: Media, code: string): PhotoOf | null {
   const ap = media.airports?.[code];
   if (ap) return { url: ap.url, kind: ap.uploaded ? "Uploaded" : "Free-licensed", credit: ap.creator || "", removable: true };
-  const k = CITY_PHOTO[code];
+  const k = media.cities?.photo[code];
   const p = k ? media.photos?.[k] : undefined;
   if (p) return { url: p.url, kind: "City photo", credit: p.creator || "", removable: false };
   return null;

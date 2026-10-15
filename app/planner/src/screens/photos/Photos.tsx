@@ -7,8 +7,9 @@
 //     its flights a week and credit, Upload photo / Replace with an optional credit, and Remove for its own photo; "Missing a
 //     photo only" (on at first) shows those without one, and a photo just uploaded stays in view.
 // Uploads go live at once, as now: resized in the browser, put in the site-photos bucket and named through the website's
-// functions (upload.ts). A preview address uploads nothing. The photos are read from site_public(), the destinations from
-// the start's rules input (each rotation's days at both ends).
+// functions (upload.ts). A preview address uploads nothing. The photos are read from site_public(), with which city's
+// photo an airport takes and the name the website gives it (content.airport_cities, data since 15 Oct, as the website
+// reads them), the destinations from the start's rules input (each rotation's days at both ends).
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "../../data/query";
@@ -20,18 +21,22 @@ import { Confirm } from "../../ui/Confirm";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
 import { loadLogos } from "../../ui/siteFiles";
-import { PREVIEW_WORDS, destinations, logoLiveWords, photoLiveWords, photoOf, type Media } from "./model";
+import { NO_CITIES, PREVIEW_WORDS, destinations, logoLiveWords, photoLiveWords, photoOf, type AirportCities, type Media } from "./model";
 import { removeLogo, removePhoto, uploadLogo, uploadPhoto } from "./upload";
 
-/** The website's photos and logos (site_public()'s content.media), read with GET so a preview reads them too. */
+/** The website's photos and logos (site_public()'s content.media), and which city's photo an airport takes and the name
+ *  the website gives it (content.airport_cities), read with GET so a preview reads them too. */
 export function useMedia() {
   return useQuery({
     queryKey: ["site", "media"],
     queryFn: async (): Promise<Media> => {
       const { data, error } = await supabase.rpc("site_public", undefined, { get: true });
       if (error) throw new Error(`Couldn't read the website's photos: ${error.message}`);
-      const m = (data as { content?: { media?: Media } } | null)?.content?.media ?? {};
-      return { photos: m.photos ?? {}, airports: m.airports ?? {}, logos: m.logos ?? {} };
+      const content = (data as { content?: { media?: Media; airport_cities?: Partial<AirportCities> } } | null)?.content;
+      const m = content?.media ?? {};
+      const c = content?.airport_cities;
+      return { photos: m.photos ?? {}, airports: m.airports ?? {}, logos: m.logos ?? {},
+        cities: c ? { name: c.name ?? {}, photo: c.photo ?? {} } : NO_CITIES };
     },
   });
 }
@@ -55,8 +60,9 @@ export function Photos() {
   }, []);
 
   const rules = rulesQ.data?.rules;
+  const names = mediaQ.data?.cities?.name;
   const dests = useMemo(() => {
-    if (!rules) return null;
+    if (!rules || !names) return null;
     const days = new Map<number, { l1?: number; l2?: number }>();
     for (const l of rules.legs) {
       if (l.rotation_id == null) continue;
@@ -70,8 +76,8 @@ export function Photos() {
       const d = days.get(r.id) ?? {};
       return route ? [{ hub: route.hub_code, dest: route.dest_code, days: d.l1 ?? d.l2 ?? 0 }] : [];
     });
-    return destinations(rots, new Map([...rules.airports.values()].map((a) => [a.code, a.city ?? null])));
-  }, [rules]);
+    return destinations(rots, new Map([...rules.airports.values()].map((a) => [a.code, a.city ?? null])), names);
+  }, [rules, names]);
   const media = mediaQ.data;
   const airlines = (airlinesQ.data ?? []).map((a) => a.planner_name ?? a.public_name ?? a.game_name ?? "").filter(Boolean);
 

@@ -30,7 +30,9 @@ const SITE_ORDER = ["Pan American", "Virgin Atlantic", "Ryanair", "Kingfisher", 
 let ORDER = SITE_ORDER.slice();
 const TYPE_SEATS = { "Airbus A321neo": 190, "Airbus A320neo": 165, "Airbus A321XLR": 160, "Airbus A350-900": 300, "Embraer E195-E2": 124 };
 const TYPE = { "A321 NEO LIGHT": "Airbus A321neo", "A320NEO LIGHT": "Airbus A320neo", "A321XLR": "Airbus A321XLR", "A350-900ULR": "Airbus A350-900", "E195-E2": "Embraer E195-E2" };
-const CITYPHOTO = { JFK: "New York", LGA: "New York", EWR: "New York", LHR: "London", LGW: "London", CDG: "Paris", AMS: "Amsterdam", DEL: "Delhi", BOM: "Mumbai", PVG: "Shanghai", PEK: "Beijing", PKX: "Beijing", KUL: "Kuala Lumpur", HKG: "Hong Kong", BKK: "Bangkok", DMK: "Bangkok", BCN: "Barcelona", FCO: "Rome", IST: "Istanbul", DPS: "Bali", HND: "Tokyo", NRT: "Tokyo", COK: "Kochi", CGK: "Jakarta", CAI: "Cairo", MAD: "Madrid", LIS: "Lisbon", ORD: "Chicago", EDI: "Edinburgh", DUB: "Dublin", VCE: "Venice", PRG: "Prague", HGH: "Hangzhou", GOI: "Goa", HKT: "Phuket", SIN: "Singapore" };
+// Which city's photo an airport takes (photo) and the name the site gives it (name): data since 15 Oct, site_public()'s
+// content.airport_cities (site_content), shared with the planner's Photos screen. Before, both kept these lists in code.
+let CITYPHOTO = {}, NAMES = {};
 const REGION = c => ({ US: "Americas", CA: "Americas", MX: "Americas" })[c] || (/^(GB|IE|FR|DE|NL|BE|LU|CH|AT|IT|ES|PT|DK|NO|SE|FI|IS|PL|CZ|SK|HU|SI|HR|GR|CY|MT|RO|BG|EE|LV|LT|TR|RS|BA|ME|MK|AL)$/.test(c) ? "Europe"
   : /^(AE|QA|SA|OM|BH|KW|IL|JO|LB|EG|MA|TN|ZA|KE|ET|NG|GH|SN|TZ)$/.test(c) ? "Middle East and Africa" : /^(IN|PK|BD|LK|NP|MV|BT)$/.test(c) ? "South Asia"
   : /^(CN|HK|MO|TW|JP|KR|MN)$/.test(c) ? "China and North Asia" : /^(MY|SG|TH|ID|PH|VN|KH|LA|MM|BN|AU|NZ|FJ)$/.test(c) ? "South-East Asia and Oceania" : /^(BR|AR|CL|PE|CO|EC|CU|JM|DO|BS|PA|CR|GT)$/.test(c) ? "Americas" : "Other");
@@ -55,7 +57,6 @@ const photo = k => (MEDIA.photos[k] || null);
 const photoUrl = k => photo(k) ? photo(k).url : null;
 const video = k => MEDIA.videos[k] || null;
 const apPhoto = c => (MEDIA.airports && MEDIA.airports[c] && MEDIA.airports[c].url) || (CITYPHOTO[c] && photoUrl(CITYPHOTO[c])) || null;
-const NAMES = { CDG: "Paris", ORY: "Paris Orly", LHR: "London Heathrow", LGW: "London Gatwick", STN: "London Stansted", LTN: "London Luton", JFK: "New York JFK", EWR: "Newark", LGA: "New York LaGuardia", KUL: "Kuala Lumpur", MXP: "Milan", LIN: "Milan Linate", PVG: "Shanghai", SHA: "Shanghai Hongqiao", PEK: "Beijing", PKX: "Beijing Daxing", DEL: "Delhi", BOM: "Mumbai", HND: "Tokyo Haneda", NRT: "Tokyo Narita", BKK: "Bangkok", DMK: "Bangkok Don Mueang", XIY: "Xi'an", ORD: "Chicago", IAD: "Washington Dulles", DCA: "Washington", DFW: "Dallas–Fort Worth", MAN: "Manchester", EDI: "Edinburgh", AMS: "Amsterdam", KTI: "Phnom Penh", GOI: "Goa", COK: "Kochi", BLR: "Bengaluru", MAA: "Chennai", CCU: "Kolkata", HYD: "Hyderabad", SZX: "Shenzhen", CAN: "Guangzhou", KMG: "Kunming", CTU: "Chengdu", TFU: "Chengdu Tianfu", CKG: "Chongqing", HGH: "Hangzhou", ICN: "Seoul", CGK: "Jakarta", DPS: "Bali", SIN: "Singapore", HKG: "Hong Kong", MNL: "Manila", SGN: "Ho Chi Minh City", HAN: "Hanoi", IST: "Istanbul", CAI: "Cairo", DXB: "Dubai", FCO: "Rome", BCN: "Barcelona", MAD: "Madrid", LIS: "Lisbon", MUC: "Munich", FRA: "Frankfurt", ZRH: "Zurich", VIE: "Vienna", CPH: "Copenhagen", OSL: "Oslo", ARN: "Stockholm", DUB: "Dublin", BRU: "Brussels", PRG: "Prague", BUD: "Budapest", WAW: "Warsaw", KRK: "Krakow", ATH: "Athens", NCE: "Nice", LYS: "Lyon", MRS: "Marseille", TLS: "Toulouse", AGP: "Malaga", PMI: "Palma de Mallorca", VLC: "Valencia", OPO: "Porto", NAP: "Naples", VCE: "Venice", CGN: "Cologne", BER: "Berlin", GVA: "Geneva", YYZ: "Toronto", MEX: "Mexico City", CUN: "Cancún", LAX: "Los Angeles", SFO: "San Francisco", SEA: "Seattle", MIA: "Miami", ATL: "Atlanta", BOS: "Boston", DEN: "Denver", CLT: "Charlotte", DTW: "Detroit", BNA: "Nashville", MCO: "Orlando" };
 const apName = c => NAMES[c] || (AP[c] ? String(AP[c][2]).replace(/\s*\(.*$/, "").replace(/^Ingliston, /, "").replace(/,.*$/, "") : c);
 const apCountry = c => (AP[c] ? COUNTRIES[AP[c][3]] || AP[c][3] : "");
 const off = c => (AP[c] && AP[c][4] != null ? AP[c][4] : 0);
@@ -71,7 +72,9 @@ async function load() {
     if (!r.ok) throw new Error("data " + r.status);
     data = await r.json(); try { sessionStorage.setItem("eq_site_v1", JSON.stringify({ t: Date.now(), d: data })); } catch (e) {}
   }
-  const a = await apP; AP = a.ap; COUNTRIES = a.countries; D = data; MEDIA = (D.content && D.content.media) || MEDIA; useAirlines(D.airlines); derive();
+  const a = await apP; AP = a.ap; COUNTRIES = a.countries; D = data; MEDIA = (D.content && D.content.media) || MEDIA;
+  const ac = (D.content && D.content.airport_cities) || {}; NAMES = ac.name || {}; CITYPHOTO = ac.photo || {};
+  useAirlines(D.airlines); derive();
 }
 // The airlines from the data, when the feed has them; a field the data leaves empty keeps the copy's value.
 function useAirlines(list) {

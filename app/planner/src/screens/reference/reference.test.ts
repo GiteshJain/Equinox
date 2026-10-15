@@ -2,9 +2,9 @@
 // planner_apply_tidy), and its addresses.
 import { describe, expect, it } from "vitest";
 import {
-  addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder, marketChange,
-  mctChange, mctHours, numOf, pageId, restoreChange, scheduleLink, sectionOf, serviceChange, typeChange, worldRowChange,
-  type BaseRow, type RemovedRoute, type WorldAirportRow,
+  addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
+  layoutsOf, marketChange, mctChange, mctHours, numOf, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, restoreChange, scheduleLink, sectionOf, serviceChange,
+  typeChange, worldRowChange, type BaseRow, type RemovedRoute, type WorldAirportRow,
 } from "./model";
 
 const base = (x: Partial<BaseRow>): BaseRow => ({ id: 1, airline_id: 1, airport_code: "JFK", role: "hub", is_main: true, parent_base_id: null,
@@ -82,7 +82,7 @@ describe("constants, types, layouts, markets and service profiles", () => {
     expect(constantChange("bank_buffer_min", "soon", settings, rules)).toHaveProperty("error");
   });
   it("a type's, a layout's, a market's and a profile's box: that column only", () => {
-    const t = { id: 3, name: "E195-E2", family_no: 83, seats_max: 146, cruise_kmh: 831, min_turn_min: 67, gap_target_h: 3, updated_at: "y" };
+    const t = { id: 3, name: "E195-E2", family_no: 83, seats_max: 146, cruise_kmh: 831, min_turn_min: 67, gap_target_h: 3, order_config_id: null, updated_at: "y" };
     expect(typeChange(t, "cruise", "840")?.values).toEqual({ cruise_kmh: 840 });
     expect(typeChange(t, "gap", "3.5")?.values).toEqual({ gap_target_h: 3.5 });
     expect(typeChange(t, "name", "E195-E2")).toBeNull();
@@ -95,6 +95,24 @@ describe("constants, types, layouts, markets and service profiles", () => {
     const s = { id: 6, code: "R", airline_id: 3, up_to_km: 99999, note: "Ryanair", updated_at: "p" };
     expect(serviceChange(s, "airline", "Legacy", () => 3)?.values).toEqual({ airline_id: null });
     expect(serviceChange(s, "upTo", "5000", () => 3)?.values).toEqual({ up_to_km: 5000 });
+  });
+  it("the order cabin (spec 2026-10-15 last leftovers §1): a type's, and an airline's own, each one of the type's layouts or none", () => {
+    const configs = [{ id: 8, code: "E195-LEI", aircraft_type_id: 3, cabin: "Leisure", seats: 112, updated_at: "c" },
+      { id: 1, code: "E195-STD", aircraft_type_id: 3, cabin: "Standard", seats: 124, updated_at: "c" },
+      { id: 4, code: "321-STD", aircraft_type_id: 2, cabin: "Standard", seats: 216, updated_at: "c" }];
+    expect(layoutsOf(configs, 3).map((c) => c.code)).toEqual(["E195-STD", "E195-LEI"]);
+    const t = { id: 3, name: "E195-E2", family_no: 83, seats_max: 146, cruise_kmh: 831, min_turn_min: 67, gap_target_h: 3, order_config_id: 8, updated_at: "y" };
+    expect(orderCabinChange(t, "1", configs)).toEqual({ table: "aircraft_types", op: "update", key: { id: 3 }, base: "y", values: { order_config_id: 1 } });
+    expect(orderCabinChange(t, "", configs)?.values).toEqual({ order_config_id: null });
+    expect(orderCabinChange(t, "8", configs)).toBeNull();
+    expect(orderCabinChange(t, "4", configs)?.values).toEqual({ order_config_id: null });   // another type's layout isn't one of its own
+    const o = { airline_id: 3, aircraft_type_id: 3, order_config_id: 1, updated_at: "o" };
+    expect(ownOrderChange(o, "8", configs)).toEqual({ table: "airline_order_cabins", op: "update", key: { airline_id: 3, aircraft_type_id: 3 }, base: "o",
+      values: { order_config_id: 8 } });
+    expect(ownOrderChange(o, "1", configs)).toBeNull();
+    expect(addOwnOrder(1, 5, t, [o])).toEqual({ table: "airline_order_cabins", op: "insert", values: { world_id: 1, airline_id: 5, aircraft_type_id: 3, order_config_id: 8 } });
+    expect(addOwnOrder(1, 3, t, [o])).toBeNull();
+    expect(removeOwnOrder(o)).toEqual({ table: "airline_order_cabins", op: "delete", key: { airline_id: 3, aircraft_type_id: 3 }, base: "o" });
   });
   it("Add type and Add profile: the old planner's new rows", () => {
     expect(addType(1).values).toMatchObject({ name: "New type", family_no: 0, seats_max: 0, cruise_kmh: 830, min_turn_min: 60, gap_target_h: 3 });

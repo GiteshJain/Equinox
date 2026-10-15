@@ -30,8 +30,10 @@
 #    database. With WRITE_DOCS=1 it rewrites docs/data.md instead (run that locally after changing a description); with
 #    DOCS_DIR set, the guide as the copy gives it goes there either way (the run's data-guide artifact).
 #    Then the reference file: database/current/functions.sql must list exactly the copy's functions in public and private
-#    after the changes, each by its schema, name and arguments (database/reference.py); with FUNCTIONS_DIR set, every
-#    definition as the copy gives it, in the file's format, goes there either way (the run's current-functions artifact).
+#    after the changes, each by its schema, name and arguments, and each with the definition the copy gives it, compared
+#    ignoring whitespace (database/reference.py; the definitions since spec 2026-10-15 last leftovers §4); with
+#    FUNCTIONS_DIR set, every definition as the copy gives it, in the file's format, goes there either way (the run's
+#    current-functions artifact).
 # 7. The planner (#18, design §10), only if 1 to 5 passed: its types are generated again from the copy (after every
 #    pending change) with the local Supabase CLI and must equal app/planner/src/db/types.ts; the generated file is kept
 #    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the planner is built (npm ci,
@@ -449,7 +451,9 @@ if [ "$copy_ok" = yes ]; then
   psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/describe.sql | python3 database/describe.py $flag "${out_flag[@]}" || status=1
 fi
 
-# The reference file lists the copy's functions, no more and no fewer (spec 2026-10-15 small fixes §3: four were missing)
+# The reference file lists the copy's functions, no more and no fewer (spec 2026-10-15 small fixes §3: four were missing),
+# each as the copy defines it, ignoring whitespace (spec 2026-10-15 last leftovers §4: five were a version behind or
+# written differently)
 if [ "$copy_ok" = yes ]; then
   echo "== database/current/functions.sql against the copy's functions, after the changes"
   out_flag=(); if [ -n "${FUNCTIONS_DIR:-}" ]; then mkdir -p "$FUNCTIONS_DIR" && out_flag=(--out "$FUNCTIONS_DIR/functions.sql"); fi
