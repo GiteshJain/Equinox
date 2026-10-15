@@ -57,3 +57,7 @@ JSON beside it.
 - **A table changes and the command breaks.** It runs in the checks on every pull request, so a break shows before the
   merge.
 - **An old scan.** The briefing prints the scan's date; #22 makes the Saturday scan a standing step.
+
+## Outcome
+14 Oct 2026: Gitesh chose **B**: one airline briefing command and a one-page guide to which call answers which
+question. Recorded in `docs/decisions.md` and the manual's *Decided, not yet built*.

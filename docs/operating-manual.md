@@ -33,6 +33,9 @@ Until each is built and merged, the rules below stand as they are.
   clean-ups, the world scan's age, the planner's last build, and database size, report PDFs and the website's data
   against their triggers, each green, amber or red. Once it's built, the monthly usage look (§7) keeps only Supabase's
   egress and the website's calls a day.
+- **#24, decided 14 Oct:** an airline briefing command (`scripts/briefing/brief.py <airline>`: figures, planning
+  figures, rivals from the latest scan, deliveries, plan cards and to-dos for one airline) and a guide in the map to
+  which call answers which question. Once it's built, the scheduling background (§4) starts from it.
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
