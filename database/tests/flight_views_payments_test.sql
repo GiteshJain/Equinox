@@ -2,7 +2,9 @@
 -- The weekly salary payment, under its new label "Payment of employee salaries", used to show in game_flight_pnl as a
 -- flight with no route and in game_ops_recent's costs. Run by database/rehearse.sh on the copy of last night's backup,
 -- inside a transaction that is rolled back.
---   1. On the copy: no game_flight_pnl row is a payment's block (anything but kind 'other').
+--   1. On the copy: no game_flight_pnl row is a payment's block (anything but kind 'other'). A row that a flight or an
+--      unnamed ('other') line explains doesn't count, even when a named payment shares its minute and block (the 15 Oct
+--      backup: 14 cabin payments of 14 Oct, each beside an unnamed line in the same minute and block).
 --   2. Hand-made: an airline with both salary labels, a lease and one 'other' line. The classifier knows both salary
 --      labels; game_flight_pnl shows none of them; game_ops_recent counts only the 'other' line.
 
@@ -14,7 +16,10 @@ begin
     from public.game_flight_pnl f
     join public.airlines a on a.planner_name = f.airline
     join public.game_payments p on p.airline_id = a.id and p.paid_at = f.ts and coalesce(p.statement_blk::integer, 1) = f.blk
-   where p.kind <> 'other';
+   where p.kind <> 'other'
+     and not exists (select 1 from public.game_flights g where g.airline_id = a.id and g.posted_at = f.ts and g.statement_blk::integer = f.blk)
+     and not exists (select 1 from public.game_payments o where o.airline_id = a.id and o.paid_at = f.ts
+                        and coalesce(o.statement_blk::integer, 1) = f.blk and o.kind = 'other');
   assert n = 0, format('%s rows of game_flight_pnl are payments, not flights', n);
 
   -- 2. hand-made

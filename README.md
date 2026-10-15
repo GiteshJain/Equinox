@@ -11,10 +11,11 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | How a Claude session works on this repository | [`CLAUDE.md`](CLAUDE.md) |
 | Supabase's guidance for database work (and where our rules win) | [`.claude/skills/README.md`](.claude/skills/README.md) |
 | What each planner screen shows and where its numbers come from | [`docs/planner-guide.md`](docs/planner-guide.md) |
+| Which call answers which question (an airline's background, can it order, route profit, the rivals ...) | [`docs/architecture.md`](docs/architecture.md), "Which call answers which question" |
 | What each database table, view and function holds or does | [`docs/data.md`](docs/data.md) (generated from the database) |
 | The rules everyone works by | [`docs/operating-manual.md`](docs/operating-manual.md) |
 | Why things are the way they are | [`docs/decisions.md`](docs/decisions.md) and the briefs in [`docs/briefs/`](docs/briefs/) |
-| How to run the report, newsletter, scanner and optimiser scripts | [`scripts/README.md`](scripts/README.md) |
+| How to run the airline briefing, report, newsletter, scanner and optimiser scripts | [`scripts/README.md`](scripts/README.md) |
 | How the planning rules are worked out, and the command that runs them | [`lib/rules/README.md`](lib/rules/README.md) |
 | The automatic checks | [`tests/README.md`](tests/README.md) |
 
@@ -31,7 +32,7 @@ equinox-alliance.com, the database behind them, the nightly game capture, and th
 | `database/tests/` | Database tests, run by `rehearse.sh` on the copy of last night's backup and rolled back afterwards |
 | `database/backup/` | `download.sh` gets last night's backup from Cloudflare R2 for the rehearsal (or for a new test sample); `config.sh`, `counts.sql` and `permissions.sql` are copies of the backup job's settings, row counts and permissions list (the rehearsal backs its copy up and restores it the same way) |
 | `database/current/` | The full definition of every database function and view, recovered on 8 Oct; a change to one updates it in the same pull request |
-| `scripts/` | Weekly report, gander monthly, world scanner (the schedule optimiser is the planning library's command, `scripts/README.md`) |
+| `scripts/` | Airline briefing, weekly report, gander monthly, world scanner (the schedule optimiser is the planning library's command, `scripts/README.md`) |
 | `capture/` | The one-button capture userscript, the bookmark (keys are placeholders) and the salary userscript (one airline, by hand) |
 | `tests/` | The automatic checks run on every pull request |
 | `docs/` | The map, the planner guide, the table guide, the manual, the decisions and their briefs |

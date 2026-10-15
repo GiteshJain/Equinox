@@ -369,6 +369,9 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   database views (option C). Why: the scheduling background (manual §4) was stitched by hand from about six calls each
   time, with wrong column guesses; route profit, hub progress and the rest were already one call each since #19.
   Brief: `docs/briefs/2026-10-14-data-views.md`.
+  *Built 15 Oct* (`Equinox` #42): the command, one new export kind (`export_for_report()` kind `briefing`, read only:
+  deliveries with their plan cards and legs, open to-dos, the fare plan and loads by route for one airline), and the
+  guide in the map, every example run on the rehearsal's copy.
 - **14 Oct 2026 · #25 API credits for unattended jobs.** Option A: not now. No job runs on the API credits; the weekly
   report stays written in the Saturday chat. The question parked with #25 (Fable as a decision helper, 10 Oct) stays
   parked: Opus for everything (preference of 8 Oct). Why (Gitesh): no unattended job is wanted; #21 to #24 chose none.

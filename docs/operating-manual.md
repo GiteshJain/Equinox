@@ -29,9 +29,10 @@ Until each is built and merged, the rules below stand as they are.
   on Home the same night and on Check; and the Systems board at the top of Check shows the capture, the jobs, the
   backups, the planner's own build and the database's usage against their triggers, each green, amber or red. Both are
   in §7. *Built 14 Oct.*
-- **#24, decided 14 Oct:** an airline briefing command (`scripts/briefing/brief.py <airline>`: figures, planning
-  figures, rivals from the latest scan, deliveries, plan cards and to-dos for one airline) and a guide in the map to
-  which call answers which question. Once it's built, the scheduling background (§4) starts from it.
+- **#24 is built** (15 Oct): the airline briefing (`python3 scripts/briefing/brief.py <airline>`: one airline's
+  figures, planning figures, rivals from the latest scan, deliveries, plan cards with their check, to-dos and fare plan,
+  in one step), and the map's guide to which call answers which question (`docs/architecture.md`), every example
+  tested on the copy. The scheduling background (§4) starts from the briefing. *Built 15 Oct.*
 - **Deferred, on a trigger:** moving the report PDFs out of the database (#16). They stay in `site_reports` until
   they reach 50 MB or the database passes 350 MB (§1). *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a
   year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
@@ -243,7 +244,13 @@ Details and open points: `docs/decisions.md`.
 ## 4. Scheduling
 - **How it runs:** once aircraft have arrived, one airline at a time. Claude gives the background (loads, money,
   network, competition) and options; we decide the routes together; Claude writes the plan cards; Gitesh schedules in
-  the game and presses File; the planner checks each card against the game. *Since 2 Oct.*
+  the game and presses File; the planner checks each card against the game. **The background starts from the airline's
+  briefing** (`python3 scripts/briefing/brief.py <airline>`, `scripts/README.md`), which gathers its money, fleet,
+  routes, hubs, deliveries and plan cards with their check, to-dos, fare plan, rivals from the latest scan (with its
+  date) and the capture's state in one step; anything more comes from the call the map's guide names
+  (`docs/architecture.md`, "Which call answers which question"), not from guessing at tables. *Since 2 Oct; the
+  briefing since 15 Oct · why: #24, the background was stitched by hand from about six calls each time, with wrong
+  column guesses.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
@@ -420,6 +427,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 15 Oct | The scheduling background (loads, money, network, competition) is gathered by hand for each airline from the captured figures, the planning library, the world scan and the planner's tables | The airline briefing, one command per airline, and the map's guide for anything more (§4). Why: #24, about six calls and wrong column guesses each time |
 | 14 Oct | First Saturday of the month: a look at Supabase's usage page (database size, egress, the report PDFs' size) against §1's triggers, and the size of `site_public()` and the website's calls a day against #20's | The look keeps only egress and the website's calls a day; the rest is on Check's Systems board (§7). Why: #23 built the board, which measures them itself |
 | 14 Oct | The capture panel lists each page's rows without judging them, and Home warns only after 26 hours | Each page is checked as it arrives, with a verdict in the panel, on Home the same night and on Check (§7). Why: #21, after 11 and 12 Oct were missed unseen |
 | 14 Oct | Game changes are made in the new planner at `/planner/`; the old planner at `/planner/old/` is the way back only, nothing is saved in it, and its code is frozen | One planner at `/planner/`; the old one, the way back and the freeze went with the clean-up (§1). Why: Gitesh asked for the clean-up after the switch (#18, build pull request 14) |

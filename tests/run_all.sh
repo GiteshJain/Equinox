@@ -14,7 +14,7 @@ run() {
 # The planner (#18, design §10) and the planning library (#19, lib/rules/): the same install and build Cloudflare runs,
 # so a pull request that wouldn't build can't merge. It builds the planner into web/app/, which the website check then
 # opens at /planner/, and the library into lib/rules/dist/ (whose command the screens' figures check, the optimiser
-# check and the weekly report run) and web/assets/rules.js (which the website check loads).
+# check, the weekly report and the airline briefing run) and web/assets/rules.js (which the website check loads).
 new_planner() {
   local step
   for step in "npm ci --no-audit --no-fund" "npm run typecheck" "npm run lint" "npm test" "npm run build"; do
@@ -29,6 +29,7 @@ run "Planner and planning library: types, lint, unit tests and cases, build" new
 run "Planner: the screens' figures on the 12 Oct sample against saved answers" node tests/planner_figures.mjs
 run "Planning library: the optimiser against plan.py's saved answer" python3 tests/optimiser_saved_answer_test.py
 run "Weekly report: end to end on the report sample, its money from the figures" python3 tests/report_test.py
+run "Airline briefing: every airline on the briefing sample, each section its own" python3 tests/briefing_test.py
 run "Website" python3 tests/site_test.py
 echo "=== Summary"
 printf '%s\n' "${summary[@]}"

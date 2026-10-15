@@ -4,8 +4,9 @@
 # through its own controls and checked against the recorded rows, and the addresses web/_redirects gives; then, when
 # there were changes, the copy is backed up and restored as the nightly job does (database/rehearse.sh says each step).
 # Runs when a pull request adds or changes a migration or a database test, changes the planner (a planner change can
-# break saving) or its addresses (web/_redirects), the planning library (lib/) or their tests, or changes this
-# check. The copy comes from Cloudflare R2, read with a read-only
+# break saving) or its addresses (web/_redirects), the planning library (lib/) or their tests, the airline briefing
+# (scripts/briefing/, and the market block it reads in scripts/report/analyze.py) or the map whose guide it runs
+# (docs/architecture.md, #24), or changes this check. The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
 # result is posted on the pull request; Claude applies a change to the live database only after it passes here and
 # Gitesh says "merge".
@@ -39,6 +40,12 @@ on:
       - "tests/fixtures/report_sample.py"
       - "tests/fixtures/capture_sample.sql"
       - "tests/fixtures/capture_pages_*.json.gz"
+      - "tests/fixtures/briefing_sample.sql"
+      - "tests/fixtures/briefing_sample.py"
+      - "tests/briefing_copy_test.py"
+      - "scripts/briefing/**"
+      - "scripts/report/analyze.py"
+      - "docs/architecture.md"
       - ".github/workflows/database-rehearsal.yml"
 
 permissions:
@@ -106,7 +113,8 @@ jobs:
       # A pull request that changes how the test sample is made also gets a new one, made from the rehearsal's copy after
       # its changes (tests/README.md, "The sample"); likewise the capture's saved pages (#21, "The capture sample"). It is kept as this run's artifact for a day, to be checked and
       # committed; it is the same small sample of game data the repository may hold (decision #9), never keys. The same
-      # for the weekly report's sample (tests/README.md, "The report sample"), kept as the report-sample artifact.
+      # for the weekly report's sample (tests/README.md, "The report sample"), kept as the report-sample artifact, and
+      # the airline briefing's (#24, "The briefing sample"), kept as the briefing-sample artifact.
       # The planner's types generated from the copy go to TYPES_DIR either way, kept as the planner-types artifact, so
       # a helper can fetch and commit them when they differ (design §5); the same for the table guide (DOCS_DIR, the
       # data-guide artifact, docs/data.md as the copy gives it).
@@ -131,6 +139,11 @@ jobs:
             unset CAPTURE_SAMPLE_DIR
           else
             export CAPTURE_SAMPLE_DIR="${{ runner.temp }}/capture-sample"
+          fi
+          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/briefing_sample.sql tests/fixtures/briefing_sample.py; then
+            unset BRIEFING_SAMPLE_DIR
+          else
+            export BRIEFING_SAMPLE_DIR="${{ runner.temp }}/briefing-sample"
           fi
           bash database/rehearse.sh .backup "${{ github.base_ref }}" 2>&1 | tee -a "$LOG"
 
@@ -208,6 +221,18 @@ jobs:
         with:
           name: report-sample
           path: ${{ runner.temp }}/report-sample/*.json.gz
+          if-no-files-found: ignore
+          retention-days: 1
+
+      # what scripts/briefing/brief.py reads for every one of our airlines (#24), when a pull request changes how it is
+      # made: checked and committed as tests/fixtures/briefing_<date>.json.gz
+      - name: Keep the new briefing sample
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: briefing-sample
+          path: ${{ runner.temp }}/briefing-sample/*.json.gz
           if-no-files-found: ignore
           retention-days: 1
 

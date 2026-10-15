@@ -1,7 +1,7 @@
 # Scripts
 
-The Python scripts Claude runs for the weekly report, gander monthly and the world scan, and the planning library's
-command, which is the schedule optimiser (decision #10; #19). They are Claude's working tools, not part of the website or
+The Python scripts Claude runs for the airline briefing, the weekly report, gander monthly and the world scan, and the
+planning library's command, which is the schedule optimiser (decision #10; #19; #24). They are Claude's working tools, not part of the website or
 planner, and they run in Claude's workspace.
 
 **Before running any of them**, know these limits as they stand on 8 Oct 2026:
@@ -12,7 +12,42 @@ planner, and they run in Claude's workspace.
 - **Hand-made inputs.** Some inputs aren't made by any script yet. Where each one comes from is listed below.
 - **To be cleaned up:** these points are for #22 (scheduled jobs). Until then, run the scripts the way this page says.
 
-All database access goes through functions described in `docs/data.md`.
+All database access goes through functions described in `docs/data.md`. Which call answers which question, with a
+tested example of each: the map, `docs/architecture.md`.
+
+## The airline briefing (Scheduling chat, any chat)
+One airline's whole background in one step (decision #24): where the scheduling routine starts (manual §4). From a
+clone of the repository, with the planning library built (`npm ci && npm run build`) and the two key files in place:
+
+```bash
+python3 scripts/briefing/brief.py KF                     # IATA code, planner name (Kingfisher), game name or id
+python3 scripts/briefing/brief.py "Malaysia Airlines" --as-of 2026-10-15T08:00:00Z --out ~/briefings
+```
+
+It prints a short briefing, about one screen, and writes the full JSON beside it, `briefing_<code>.json` (in `--out`,
+else the current folder). It only gathers: each figure comes from its one home (#19), through `export_for_report()`.
+
+| Section | What it holds | Where it comes from |
+|---|---|---|
+| `card` | Profit a day, per aircraft, fleet, on order, flights a day, load over 7 days, the next order and what can be ordered now; cash, the lowest point in 14 days and the payment that makes it | `airline_cards()`, `cash_forecast()` (kind `figures`) |
+| `fleet` | Each aircraft flying or in service: base, type, cabin, legs a week, block hours a day, maintenance, issues (short or tight turns, position breaks, overlaps, estimated blocks, low maintenance), profit a day after its lease | The library's `aircraft` (kind `rules`); `aircraft_profit()` over 7 days |
+| `routes` | Each route: load over 7 days, profit a week, its mark and why, the growth lists it's on and its load pattern | `route_loads()` (kind `briefing`), `route_profit()` over 7 days and `growth_signals()` (kind `figures`) |
+| `hubs` | Hubs first and each base's busiest rival, contested or not | `hub_progress()` |
+| `deliveries` | Aircraft on order, or arrived and not yet filed, each with its plan cards, their legs and each card's check at both ends, service codes included | Kind `briefing`; the library's `check-card` |
+| `todos` | Open to-dos, the airline's and the group's, with their steps | Kind `briefing` |
+| `fare_plan` | Fare changes planned, and whether the captures show each | `fare_plan_status()` (kind `briefing`) |
+| `rivals` | From the latest finished world scan by the moment (its id, date and age): the routes it flies now and in the scan, with each rival's departures a week on the pair, and the busiest rivals at each of its airports | Kinds `snapshots` and `airlines`; passenger flights only, by the weekly report's rule (`report/analyze.py`'s market block) |
+| `capture` | Its latest capture, today's pages and #21's verdict | `capture_status()` |
+
+**Moments:** the captured figures, the fare plan and the loads are as of `--as-of` (now by default); the planning
+input, the deliveries, plan cards and to-dos are the tables as they are now. `sources` in the JSON says so.
+
+**Needs:** `~/.sb_anon`, `~/.ingest_secret` and the library's command (or `$EQUINOX_RULES_CLI`). `$EQUINOX_API_URL` points
+it at another copy of the database (the rehearsal's); `--inputs <file>` reads saved inputs instead (the checks' sample).
+On the rehearsal's copy it takes about 1.5 seconds and prints 40 to 55 lines. The checks run it on a dated sample on
+every pull request
+(`tests/briefing_test.py`), and the rehearsal runs it for every airline on last night's copy
+(`tests/briefing_copy_test.py`).
 
 ## The weekly report (Saturday review chat)
 Run these in order, from one working folder, straight from a clone of the repository (no need to copy them):

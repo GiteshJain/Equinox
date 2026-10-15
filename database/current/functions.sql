@@ -185,7 +185,7 @@ CREATE OR REPLACE FUNCTION public.export_for_report(p_secret text, p_kind text, 
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-declare v_arg jsonb;
+declare v_arg jsonb; v_world bigint; v_airline bigint;
 begin
   if not exists (select 1 from public.ingest_secret s where s.secret = p_secret) then raise exception 'not allowed'; end if;
   if p_kind = 'snapshots' then
@@ -212,6 +212,24 @@ begin
     v_arg := coalesce(nullif(btrim(coalesce(p_arg, '')), '')::jsonb, '{}'::jsonb);
     if jsonb_typeof(v_arg) <> 'object' then raise exception 'figures: p_arg is a JSON object, {"as_of": ..., "world": ...}' using errcode = '22023'; end if;
     return private.fig_export(private.fig_world((v_arg ->> 'world')::bigint), coalesce((v_arg ->> 'as_of')::timestamptz, now()));
+  elsif p_kind = 'briefing' then
+    -- one airline's deliveries, plan cards, open to-dos, fare plan and loads by route (#24); p_arg: {"airline": its id,
+    -- code or name (one of our active airlines), "as_of": ..., "world": ...}, the airline required
+    v_arg := coalesce(nullif(btrim(coalesce(p_arg, '')), '')::jsonb, '{}'::jsonb);
+    if jsonb_typeof(v_arg) <> 'object' or nullif(btrim(coalesce(v_arg ->> 'airline', '')), '') is null then
+      raise exception 'briefing: p_arg is a JSON object naming the airline, {"airline": ..., "as_of": ..., "world": ...}' using errcode = '22023';
+    end if;
+    v_world := private.fig_world((v_arg ->> 'world')::bigint);
+    select al.airline_id into v_airline
+      from private.fig_airlines(v_world) al join public.airlines a on a.id = al.airline_id
+     where al.airline_id::text = btrim(v_arg ->> 'airline')
+        or lower(btrim(v_arg ->> 'airline')) in (lower(a.iata_code), lower(a.planner_name), lower(a.public_name), lower(a.game_name))
+     order by al.ord
+     limit 1;
+    if v_airline is null then
+      raise exception 'briefing: % isn''t one of our active airlines in world %', v_arg ->> 'airline', v_world using errcode = '22023';
+    end if;
+    return private.briefing_doc(v_airline, coalesce((v_arg ->> 'as_of')::timestamptz, now()));
   end if;
   raise exception 'unknown kind';
 end
@@ -1505,6 +1523,71 @@ begin
   new.ran_at := v_at;
   return new;
 end
+$function$
+;
+
+-- private.briefing_doc(p_airline_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.briefing_doc(p_airline_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with al as (select a.id, a.world_id, a.iata_code, a.planner_name, a.public_name, a.game_name, a.game_id
+                from public.airlines a where a.id = p_airline_id),
+  -- loads by route and flight number over the 7 days to the moment, as route_loads() gives them, this airline's only
+  rl as (select private.fig_route_loads(al.world_id, p_as_of) as d from al)
+  select jsonb_build_object(
+    'airline', (select jsonb_build_object('id', al.id, 'world_id', al.world_id, 'code', al.iata_code, 'planner_name', al.planner_name,
+                                          'public_name', al.public_name, 'game_name', al.game_name, 'game_id', al.game_id) from al),
+    'as_of', private.fig_ts(p_as_of),
+    -- the aircraft not yet filed: on order, or arrived and not yet flying (status delivered), each with its plan cards
+    'deliveries', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'aircraft_id', a.id, 'registration', a.registration, 'status', a.status,
+               'type_id', a.aircraft_type_id, 'type', t.name, 'ordered_on', a.ordered_on,
+               'delivery_at', private.fig_ts(a.delivery_at), 'arrived', a.delivery_at is not null and a.delivery_at <= p_as_of,
+               'base_code', a.base_code, 'order_base_code', a.order_base_code,
+               'cabin', c.code, 'order_cabin', oc.code, 'order_note', a.order_note,
+               'plan_cards', coalesce((
+                 select jsonb_agg(jsonb_build_object(
+                          'id', pc.id, 'airline_id', pc.airline_id, 'title', pc.title, 'base_code', pc.base_code, 'note', pc.note,
+                          'updated_at', private.fig_ts(pc.updated_at),
+                          'legs', coalesce((
+                            select jsonb_agg(jsonb_build_object(
+                                     'position', l.position, 'flight_no', l.flight_no, 'origin_code', l.origin_code, 'dest_code', l.dest_code,
+                                     'days_utc', to_jsonb(l.days_utc), 'dep_utc_min', l.dep_utc_min, 'block_min', l.block_min,
+                                     'service_code', l.service_code)
+                                   order by l.position, l.id)
+                              from public.plan_card_legs l where l.plan_card_id = pc.id), '[]'::jsonb))
+                        order by pc.id)
+                   from public.plan_cards pc where pc.aircraft_id = a.id), '[]'::jsonb))
+             order by a.delivery_at nulls last, a.id)
+        from public.aircraft a
+        left join public.aircraft_types t on t.id = a.aircraft_type_id
+        left join public.cabin_configs c on c.id = a.cabin_config_id
+        left join public.cabin_configs oc on oc.id = a.order_config_id
+       where a.airline_id = p_airline_id and a.status in ('on_order', 'delivered')), '[]'::jsonb),
+    -- the open to-dos: the airline's own, and the group's (no airline)
+    'todos', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', t.id, 'legacy_key', t.legacy_key, 'airline_id', t.airline_id, 'group', t.airline_id is null,
+               'title', t.title, 'due_on', t.due_on, 'note', t.note, 'created_at', private.fig_ts(t.created_at),
+               'steps', (select coalesce(jsonb_agg(i.body order by i.position, i.id), '[]'::jsonb)
+                           from public.todo_items i where i.todo_id = t.id))
+             order by t.due_on nulls last, t.created_at, t.id)
+        from public.todos t, al
+       where t.world_id = al.world_id and t.done is not true and (t.airline_id = p_airline_id or t.airline_id is null)), '[]'::jsonb),
+    -- the fare plan and whether the captures show each change (fare_plan_status()'s document)
+    'fare_plan', private.fig_fare_plan(p_airline_id, p_as_of),
+    'route_loads', (select jsonb_build_object(
+        'from', rl.d -> 'from', 'to', rl.d -> 'to',
+        'routes', coalesce((select jsonb_agg(x.v order by x.o) from jsonb_array_elements(rl.d -> 'routes') with ordinality x(v, o)
+                             where (x.v ->> 'airline_id')::bigint = p_airline_id), '[]'::jsonb),
+        'flights', coalesce((select jsonb_agg(x.v order by x.o) from jsonb_array_elements(rl.d -> 'flights') with ordinality x(v, o)
+                              where (x.v ->> 'airline_id')::bigint = p_airline_id), '[]'::jsonb))
+      from rl))
+  from al
 $function$
 ;
 

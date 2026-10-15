@@ -15,7 +15,9 @@
 #    (tests/fixtures/sample.sql, at the backup's moment) into that folder. With REPORT_SAMPLE_DIR set, also the weekly
 #    report's sample (tests/fixtures/report_sample.sql, cut by tests/fixtures/report_sample.py, at the same moment). With
 #    CAPTURE_SAMPLE_DIR set, also the capture's saved pages (tests/fixtures/capture_sample.sql: one airline's five pages
-#    of one evening, what to expect of them and the rows they give; #21).
+#    of one evening, what to expect of them and the rows they give; #21). With BRIEFING_SAMPLE_DIR set, also the airline
+#    briefing's sample (tests/fixtures/briefing_sample.sql, cut by tests/fixtures/briefing_sample.py, at the backup's
+#    moment; #24).
 # 4. Prints the row count of every table that changed, plus any table added or removed.
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
 #    passing test says it checked (its notices: counts, never rows).
@@ -28,6 +30,10 @@
 #    npm run build), and tests/planner_next_test.py opens it at its live address on the copy (/planner/), signs in, reads
 #    and saves through planner_save(), opens every screen at a frozen moment at 1280 and 380 px (screenshots in
 #    PLANNER_SCREENS_DIR, the run's planner-screens artifact) and checks the addresses web/_redirects gives.
+#    Then the airline briefing (#24), read only: tests/briefing_copy_test.py runs scripts/briefing/brief.py for every one
+#    of our airlines through the copy's data API with its local keys and a throwaway ingest secret, checks each section
+#    against the copy's tables, and runs every example in the map's guide (docs/architecture.md, "Which call answers
+#    which question") on the copy.
 # 8. Every kind of save, only if 1 to 5 passed, last of the planner's steps because its saves change the copy:
 #    tests/planner_saves_test.py saves through each screen's own controls and checks each against the rows recorded in
 #    tests/fixtures/planner_saves.expected.json (the answers found go to SAVES_OUT_DIR, the run's planner-saves
@@ -193,6 +199,27 @@ new_planner() {
   return $rc
 }
 
+# 7b. The airline briefing and the map's guide on the copy (#24), read only: needs the planning library built (step 7
+# builds it). The local address and keys as for 7; never printed.
+briefing_copy() {
+  local env="$work/local.env" rc=0
+  echo "== the airline briefing for every airline, and the map's guide, on the copy (#24)"
+  if [ ! -f lib/rules/dist/cli.js ] && ! (npm ci --no-audit --no-fund > "$work/npm.log" 2>&1 && npm run build >> "$work/npm.log" 2>&1); then
+    echo "FAIL  the planning library didn't build"
+    tail -n 15 "$work/npm.log" | sed 's/^/      /'
+    return 1
+  fi
+  (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
+    || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
+  if reload_api "$env"; then
+    LOCAL_SUPABASE_ENV="$env" LOCAL_DB_URL="$LOCAL" SECRET_TABLES="$SECRET_TABLES" python3 tests/briefing_copy_test.py || rc=1
+  else
+    rc=1
+  fi
+  rm -f "$env"
+  return $rc
+}
+
 # 8. Every kind of save the planner makes, through its own controls, against the rows recorded for it
 # (tests/planner_saves_test.py, build pull request 14). The answers found go to SAVES_OUT_DIR (the run's planner-saves
 # artifact). Stopped after 10 minutes if it stops answering. The local address and keys as for 7; never printed.
@@ -344,6 +371,19 @@ if [ $status -eq 0 ] && [ -n "${REPORT_SAMPLE_DIR:-}" ]; then
   fi
 fi
 
+# the airline briefing's sample (tests/README.md, "The briefing sample"; #24): what scripts/briefing/brief.py reads for
+# every one of our airlines through export_for_report(), at the backup's moment, before any test or save touches the copy
+if [ $status -eq 0 ] && [ -n "${BRIEFING_SAMPLE_DIR:-}" ]; then
+  at=$(date -u -d "${ran_at:-now}" +'%Y-%m-%dT%H:%M:00Z')
+  mkdir -p "$BRIEFING_SAMPLE_DIR"
+  if psql "$LOCAL" -X -q -At -v ON_ERROR_STOP=1 -v at="$at" -f tests/fixtures/briefing_sample.sql \
+       | python3 tests/fixtures/briefing_sample.py "$BRIEFING_SAMPLE_DIR/briefing_${at:0:10}.json.gz"; then
+    echo "== briefing sample made from the copy: briefing_${at:0:10}.json.gz, as of $at ($(du -h "$BRIEFING_SAMPLE_DIR/briefing_${at:0:10}.json.gz" | cut -f1))"
+  else
+    echo "FAIL  the briefing sample couldn't be made"; status=1
+  fi
+fi
+
 # the capture's saved pages (tests/README.md, "The capture sample"; #21): one airline's five pages of its newest complete
 # evening, with what to expect of them and the rows they give, before any test or save touches the copy
 if [ $status -eq 0 ] && [ -n "${CAPTURE_SAMPLE_DIR:-}" ]; then
@@ -388,6 +428,10 @@ fi
 
 if [ "$copy_ok" = yes ]; then
   new_planner || status=1
+fi
+
+if [ "$copy_ok" = yes ]; then
+  briefing_copy || status=1   # read only: before the saves, which change the copy
 fi
 
 if [ "$copy_ok" = yes ]; then
