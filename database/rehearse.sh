@@ -21,10 +21,11 @@
 # 4. Prints the row count of every table that changed, plus any table added or removed.
 # 5. Runs every test in database/tests/ on the copy, each in a transaction that is rolled back, and prints what each
 #    passing test says it checked (its notices: counts, never rows).
-#    Then, with FIGURES_DIR set and changes to apply, the captured figures moved: private.fig_export() at the copy's
-#    latest capture plus an hour, saved before the changes (database/tests/before/figures_before.sql) and worked out again
-#    after them; every figure that moved, before and after, goes to FIGURES_DIR (the run's figures-moved artifact), and
-#    only how many moved and where is printed (database/figures_moved.py).
+#    Then, with FIGURES_DIR set and changes to apply, the figures moved: private.fig_export() at the copy's latest
+#    capture plus an hour, and the flight-money views and daily history beside it, saved before the changes
+#    (database/tests/before/figures_before.sql) and worked out again after them (database/figures_moved.sql); every value
+#    that moved, before and after, and the payments whose kind changed go to FIGURES_DIR (the run's figures-moved
+#    artifact), and only how many moved and where is printed (database/figures_moved.py).
 # 6. Checks the descriptions (decision #10): every table, view and function has one, and docs/data.md matches the
 #    database. With WRITE_DOCS=1 it rewrites docs/data.md instead (run that locally after changing a description); with
 #    DOCS_DIR set, the guide as the copy gives it goes there either way (the run's data-guide artifact).

@@ -76,7 +76,7 @@ begin
   assert n4 = 0, format('%s stored pilot-training lines are tied to a flight', n4);
 
   assert to_regclass('rehearsal_before.payment_kinds') is not null,
-    'the payments'' kinds from before the changes weren''t saved (database/tests/before/pilot_training_before.sql)';
+    'the payments'' kinds from before the changes weren''t saved (database/tests/before/figures_before.sql)';
   select count(*), count(*) filter (where p.descr not ilike '%training%' or p.kind <> 'cabin') into n2, n3
     from rehearsal_before.payment_kinds b join public.game_payments p on p.id = b.id
    where p.kind is distinct from b.kind;
