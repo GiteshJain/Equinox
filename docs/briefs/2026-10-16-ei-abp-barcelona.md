@@ -50,4 +50,5 @@ Daily; service R; cabin 321-STD; fares 85% of standard, economy only (manual §5
 - Barcelona's first loads (from Saturday night) weak: switch the third route to a shorter, proven-type route.
 
 ## Outcome
-*Open.*
+**16 Oct: C,** Dublin, Munich and Vienna from Barcelona, as above. Plan card in the planner (card 97); Barcelona's last
+flight number set to 1010; logged as a big-market move. Zurich and Rome are first in line for EI-ABQ.
