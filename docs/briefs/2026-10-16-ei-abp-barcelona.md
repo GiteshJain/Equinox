@@ -21,8 +21,8 @@ routes in a day don't fit: every try broke a night ban or maintenance.
 
 ## The plan card (option C)
 Checked with the planning library's card check on the 16 Oct tables: no short turns, night bans or number clashes;
-maintenance 147%; 11.9 block hours a day. Flight numbers from Barcelona's block (1005 on; the base was set up with
-1000 to 1004 already taken, `airline_bases`).
+maintenance 147%; 11.9 block hours a day. Flight numbers from Barcelona's block, 1005 on (the base's record already
+shows 1004 as its last number used, `airline_bases`; the library's next free pair).
 
 | Flight | From | Leaves (local) | To | Arrives (local) |
 |---|---|---|---|---|
