@@ -212,7 +212,8 @@ top, then the same six boards as the old Check, each folded on arrival. Click a 
   - **Ready for another flight:** routes that sold out on most departures in the last 7 days and make more a flight
     than the airline's middle route.
   - **Raise fares:** sold out, but earning less a flight than the middle route.
-  - **Fix or reduce:** losing money, economy under 75%, or a thin margin.
+  - **Fix or reduce:** losing money, economy under 75%, or a thin margin. A route isn't listed until it has been
+    flying for 7 days (the setting `growth_new_route_days`); a new route that sells out is still listed above.
   - **Aircraft losing money after their lease.**
   - **Order queues:** how long each delivery line has before it runs dry, for the families each airline may have (from
     the database).

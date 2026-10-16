@@ -186,7 +186,7 @@ called wrongly here fails that check.
 | Would an order keep the cushion | `cash_forecast()` with orders | `select public.cash_forecast(2, '[{"type": "A321 NEO LIGHT", "count": 2}]');` |
 | Review's card: profit a day, per aircraft, load over 7 days, next order | `airline_cards()` | `select public.airline_cards();` |
 | Profit for each day between captures | `airline_profit()` | `select public.airline_profit(2);` |
-| Route profit, and each route's mark (add, raise, fix, losing, hold) with why | `route_profit()` | `select public.route_profit(2, 7);` |
+| Route profit, and each route's mark (add, raise, fix, losing, hold) with why; a route under 7 days old gets none of fix or losing (`growth_new_route_days`) | `route_profit()` | `select public.route_profit(2, 7);` |
 | An aircraft's profit a day, after its lease | `aircraft_profit()` | `select public.aircraft_profit(2, 7);` |
 | Ready for another flight, raise fares, fix or reduce, aircraft losing after lease; load patterns | `growth_signals()` | `select public.growth_signals();` |
 | Hubs first, and which bases are contested | `hub_progress()` | `select public.hub_progress();` |

@@ -241,6 +241,11 @@ less important than another, point to point rather than hubs).*
   *Since 2 Oct.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
   routes. *Since 8 Oct.*
+- **New routes aren't judged for a week:** a route launched fewer than **7 days** ago gets none of the problem marks
+  (losing, fix or reduce), so Home's routes to fix and Check's Fix or reduce skip it. Its launch day is its earliest
+  rotation's (a second daily added later doesn't make an old route new). Sold-out marks (add a flight, raise fares) apply
+  at any age. The number is `settings.growth_new_route_days` (7). *Since 16 Oct · why (Gitesh): PVG–CCU and KUL–TRV were
+  marked losing after one round trip, on the day they launched; the losing mark needed only 2 departures.*
 - **Hubs first:** until an airline's main hub reaches **750 weekly departures**, every new aircraft goes to the main hub.
   Any other base, whether new or already open (second hubs and focus cities alike), gets an aircraft only to fly
   contested routes: a rival with over 250 departures a week at that base, or over 2 a day on the route itself. A base

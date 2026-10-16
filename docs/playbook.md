@@ -207,8 +207,8 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   progress. Ryanair is exempt.
 - **Growth signals** (Check → Growth): **Ready for another flight** (sold out on most departures and earning above the
   airline's middle route), **Raise fares** (sold out but earning less), **Fix or reduce** (losing money, economy under
-  75%, or a thin margin), **Aircraft losing money after their lease**, **Order queues** (how long each delivery line has
-  left).
+  75%, or a thin margin; not for a route under 7 days old), **Aircraft losing money after their lease**, **Order queues**
+  (how long each delivery line has left).
 - **Type:** inside the airline's families (section 3). Ryanair: A321neo or E195 only.
 - **A real decision gets a full brief** from Claude: the answer and an options table first (growth, profit a week, cash
   at the lowest point, opportunity cost, risk, how easy it is to undo), then the background. Applying an existing rule

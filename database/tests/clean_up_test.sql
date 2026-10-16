@@ -87,6 +87,13 @@ begin
     update public.game_payments p set kind = k.kind
       from rehearsal_before.payment_kinds k where k.id = p.id and p.kind is distinct from k.kind;
   end if;
+  -- the age condition (20261016120000, new routes aren't judged for a week) moves the marks of routes launched in the last
+  -- 7 days on purpose (new_route_age_test.sql checks it): with its setting at 0 days nothing counts as new, so while it is
+  -- pending (the copy didn't have the setting before the changes) everything must still be exactly as before. Once it is
+  -- live, the figures before carry the condition too and nothing is changed here.
+  if not coalesce((select (value #>> '{}')::boolean from rehearsal_before.clean_up_outputs where name = 'new_route_days_set'), true) then
+    update public.settings set value = '0'::jsonb where key = 'growth_new_route_days';
+  end if;
   a := private.fig_export(w, v_at);
   -- the capture checks (#21, build 20261014220000) added each airline's latest verdicts to capture_status() on purpose:
   -- they're left out here, so the rest must still be exactly as before. Left out of both sides: once 20261014220000 is
