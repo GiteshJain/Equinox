@@ -23,7 +23,10 @@ declare w bigint := (select x.id from public.worlds x where x.is_default);
 begin
   insert into rehearsal_before.clean_up_outputs (name, value) values
     ('as_of', to_jsonb(v_at)),
-    ('figures', private.fig_export(w, v_at));
+    ('figures', private.fig_export(w, v_at)),
+    -- whether the age condition's setting (20261016120000) was there before the pending changes: if not, the figures
+    -- are saved without it, and the clean-up test puts the age at 0 days to compare them
+    ('new_route_days_set', to_jsonb(exists (select 1 from public.settings s where s.key = 'growth_new_route_days')));
   if to_regprocedure('public.planner_loads_get(bigint)') is not null then
     execute $q$
       insert into rehearsal_before.clean_up_outputs (name, value)

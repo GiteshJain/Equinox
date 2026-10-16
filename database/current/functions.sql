@@ -3498,7 +3498,7 @@ declare
   v_today date := (p_as_of at time zone 'UTC')::date;
   v_since timestamptz; v_pnl jsonb; v_loads jsonb; v_used boolean[]; v_mp int[] := '{}'; v_ml int[] := '{}';
   c record; v_cur int := -1; v_got boolean := false;
-  v_losing numeric; v_sold_share numeric; v_sold_min numeric; v_fix_min numeric; v_fix_eco numeric; v_fix_routes numeric; v_fix_margin numeric;
+  v_losing numeric; v_sold_share numeric; v_sold_min numeric; v_fix_min numeric; v_fix_eco numeric; v_fix_routes numeric; v_fix_margin numeric; v_new_days numeric;
 begin
   if p_days is null or p_days < 1 then raise exception 'p_days must be 1 or more' using errcode = '22023'; end if;
   v_losing := private.fig_num(w, p_airline_id, 'growth_losing_min_departures');
@@ -3508,6 +3508,7 @@ begin
   v_fix_eco := private.fig_num(w, p_airline_id, 'growth_fix_economy_pct');
   v_fix_routes := private.fig_num(w, p_airline_id, 'growth_fix_min_routes');
   v_fix_margin := private.fig_num(w, p_airline_id, 'growth_fix_margin');
+  v_new_days := private.fig_num(w, p_airline_id, 'growth_new_route_days');
   -- the statement blocks posted since now − p_days (inside the old planner's window of 8 UTC days), as game_flight_pnl
   -- groups them: one per minute and block, its route when its lines name one, and its money
   v_since := greatest(p_as_of - p_days * interval '24 hours', (v_today - 8)::timestamp at time zone 'UTC');
@@ -3587,6 +3588,8 @@ begin
     -- among them)
     fq as (select * from private.fig_freqs(w, p_airline_id)),
     wk as (select f.route_id, sum(f.flights_week)::int as wk from fq f where f.live and f.airline_id = p_airline_id group by f.route_id),
+    -- a route's age: its earliest rotation's launch day (a second daily added later doesn't make an old route new)
+    age as (select f.route_id, min(f.launched_on) as first_day from fq f where f.airline_id = p_airline_id group by f.route_id),
     g as (select rk.hub, rk.dest, rk.route_id, count(*)::int as n, sum(fl.profit) / 1000000 as profit,
                  sum(fl.pax_income + fl.cargo_income) / 1000000 as income,
                  avg(fl.eco) as eco_a, avg(fl.bus) as bus_a, avg(fl.cargo) as cargo_a, avg(fl.eco_fare) as fare_a,
@@ -3595,16 +3598,18 @@ begin
            group by rk.hub, rk.dest, rk.route_id),
     r as (select g.*, g.profit / g.n as ppf, case when g.income > 0 then g.profit / g.income end as margin,
                  coalesce(wk.wk, 0) as wk, (g.profit / g.n) * coalesce(wk.wk, 0) as pwk,
-                 case when g.eco_n > 0 then g.sold::numeric / g.eco_n end as sold_share
-            from g left join wk on wk.route_id = g.route_id),
+                 case when g.eco_n > 0 then g.sold::numeric / g.eco_n end as sold_share,
+                 -- young: launched fewer than growth_new_route_days days ago; no launch day on record counts as old
+                 coalesce(ag.first_day is not null and v_today - ag.first_day < v_new_days, false) as young
+            from g left join wk on wk.route_id = g.route_id left join age ag on ag.route_id = g.route_id),
     pp as (select array_agg(r.ppf order by r.ppf) as a from r),
     q as (select pp.a[floor(cardinality(pp.a) / 2.0)::int + 1] as med, pp.a[floor(cardinality(pp.a) * 0.25)::int + 1] as q25,
                  coalesce(cardinality(pp.a), 0) as len from pp),
-    mk as (select r.*, case when r.ppf < 0 and r.n >= v_losing then 'losing'
+    mk as (select r.*, case when r.ppf < 0 and r.n >= v_losing and not r.young then 'losing'
                             when r.sold_share is not null and r.sold_share >= v_sold_share and r.n >= v_sold_min
                               then case when r.ppf >= q.med then 'add' else 'raise' end
-                            when r.n >= v_fix_min and r.eco_a is not null and r.eco_a < v_fix_eco then 'fix'
-                            when r.n >= v_fix_min and q.len >= v_fix_routes and r.ppf <= q.q25 and r.margin is not null and r.margin < v_fix_margin then 'fix-margin'
+                            when r.n >= v_fix_min and not r.young and r.eco_a is not null and r.eco_a < v_fix_eco then 'fix'
+                            when r.n >= v_fix_min and not r.young and q.len >= v_fix_routes and r.ppf <= q.q25 and r.margin is not null and r.margin < v_fix_margin then 'fix-margin'
                             else 'hold' end as k, q.med
              from r cross join q),
     routes as (select coalesce(jsonb_agg(jsonb_build_object(
