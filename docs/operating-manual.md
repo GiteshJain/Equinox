@@ -151,6 +151,11 @@ Details and open points: `docs/decisions.md`.
   undo; then the background with sources and competition, scenarios and the risk of waiting, and what would change the
   recommendation. Save it in `docs/briefs/`. Applying an existing rule is not a decision and gets no brief.
   *Since 8 Oct (#5) · why: almost every decision spends cash or opportunity, so each deserves full attention.*
+  - **A new aircraft's routes get a full brief only when the choice is a real trade-off:** a new city, a new base,
+    moving an aircraft off a route, or options that differ in more than timing. Adding frequency to routes that already
+    sell out applies the growth rule (§3): its record is the plan card's note (the routes, connections, maintenance and
+    hours, and the options set aside), shown to Gitesh in chat before he schedules. *Since 16 Oct · why (Gitesh): a
+    brief for every aircraft was heavy, and the real weighing was over new routes.*
 - **Facts first.** Pull the numbers from the database and captures before advising, and say where they came from.
   Never guess a current fact. *Since 8 Oct.*
 - **No keys or passwords** in the repository, files or chat. Keys live in the database or as GitHub secrets.
@@ -438,6 +443,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 16 Oct | Every new aircraft's route choice gets a full brief | A brief only when the choice is a real trade-off (new city, new base, moving an aircraft, options beyond timing); frequency on sold-out routes is recorded on the plan card (§1). Why: Gitesh, a brief per aircraft was heavy |
 | 15 Oct | Two investor reports: the weekly report every Saturday and a monthly report on the first Saturday, both published to the investor library | The weekly report only, with a page on the month just ended on the first Saturday (§7). Why: Gitesh, the monthly report repeated what four weekly reports already say |
 | 15 Oct | A second daily on a route sits at least 3 hours from the existing flight (`second_daily_gap_h` 3) | Wherever it makes the most connections, at least Gander's 5 minutes from the other flight (house rule), spread further only with a business case; the setting is 0 (§4). Why: Gitesh, 15 Oct |
 | 15 Oct | Four chats: Scheduling, Saturday review, Monthly (monthly report, gander monthly, strategy) and Building | Three: the Saturday review chat also does the first Saturday's monthly work (§1). Why: Gitesh, 15 Oct, one review chat for weekly and monthly |

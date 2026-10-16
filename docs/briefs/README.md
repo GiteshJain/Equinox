@@ -2,7 +2,9 @@
 
 Every decision Gitesh makes gets a brief in this format (decision #5, 8 Oct 2026), in whichever chat it comes up.
 Applying an existing rule (a retime under the connection rule, logging an order, marking a to-do) is not a decision
-and gets no brief.
+and gets no brief. Since 16 Oct, a new aircraft's routes get a brief only when the choice is a real trade-off (a new
+city, a new base, moving an aircraft, options that differ in more than timing); frequency on routes that already sell
+out is recorded on its plan card (manual §1).
 
 Save each brief here as `<date>-<topic>.md` (for example `2026-10-08-virgin-order.md`). Once decided, add the outcome
 at the bottom, and update the operating manual in the same turn if the decision makes or changes a rule.
