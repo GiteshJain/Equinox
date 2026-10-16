@@ -13,7 +13,8 @@
 --   2. At T the marks are as above: young routes get no problem mark.
 --   3. The edge: 6 days old (18 Jan) still young, 7 days old (19 Jan) judged, and 8 days (20 Jan) too.
 --   4. With the setting at 0 nothing is young: ZZ3 is losing and ZZ5 is fix at T.
---   5. An airline's own value wins over the world's: with 60 days for the airline, ZZ3 and ZZ5 are still young at T.
+--   5. An airline's own value wins over the world's: with 60 days for the airline, every route with a launch day is
+--      still young at T (ZZ2 and ZZ4 launched 45 days earlier), and only ZZ6 is judged.
 
 do $test$
 declare
@@ -99,8 +100,9 @@ begin
   values (w, a1, 'growth_new_route_days', '60'::jsonb, 'days', 'test: this airline waits 60 days');
   r := private.fig_route_profit(a1, 7, t + interval '1 hour');
   select string_agg(x ->> 'dest' || '=' || (x ->> 'mark'), ' ' order by x ->> 'dest') into marks from jsonb_array_elements(r -> 'routes') x;
-  assert marks = 'ZZ2=losing ZZ3=hold ZZ4=fix ZZ5=hold ZZ6=losing', 'with 60 days for the airline the marks are ' || marks;
+  -- 60 days: even the routes launched 45 days before T are young, so only the one with no launch day on record is judged
+  assert marks = 'ZZ2=hold ZZ3=hold ZZ4=hold ZZ5=hold ZZ6=losing', 'with 60 days for the airline the marks are ' || marks;
 
-  raise notice 'new routes: growth_new_route_days is 7 in every world, described; at T the 3-day-old routes get no problem mark (hold) while the old ones and the one with no launch day do; 6 days old is still young, 7 is judged; 0 turns it off and an airline''s own value wins';
+  raise notice 'new routes: growth_new_route_days is 7 in every world, described; at T the 3-day-old routes get no problem mark (hold) while the old ones and the one with no launch day do; 6 days old is still young, 7 is judged; 0 turns it off and an airline''s own value of 60 days holds back even the 45-day-old routes';
 end
 $test$;
