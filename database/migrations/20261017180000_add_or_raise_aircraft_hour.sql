@@ -118,7 +118,7 @@ begin
     -- block_allowance_min + distance ÷ the type's cruise speed) plus the type's turnaround (min_turn_min) and the turn
     -- margin (turn_margin_min), averaged over the flights a week each leg flies
     hrs as (select ro.id as route_id,
-                   sum((coalesce(l.block_min, round(ro.distance_km / ty.cruise_kmh * 60 + v_allow_min)) + ty.min_turn_min + v_margin_min)
+                   sum((coalesce(l.block_min, round(ro.distance_km::numeric / ty.cruise_kmh * 60 + v_allow_min)) + ty.min_turn_min + v_margin_min)
                        * coalesce(cardinality(l.days_utc), 7))::numeric
                      / nullif(sum(coalesce(cardinality(l.days_utc), 7)), 0) / 60 as h
               from public.rotations rt
