@@ -214,9 +214,13 @@ Details and open points: `docs/decisions.md`.
 less important than another, point to point rather than hubs).*
 
 ## 3. Fleet and orders
-- **Fleet families:** the five legacy airlines fly the A320 family (A320neo, A321neo, A321XLR), the A350 only where
-  range demands it, and the E195-E2: three families at most, no 787, CRJ or A319. Ryanair flies the A321neo and E195
-  only. *Since 28 Sep · why: three maintenance families are free; a fourth costs 15% more maintenance.*
+- **Fleet types, as the route needs:** every airline may fly any of our types where a route calls for it: the A321neo
+  by default (the most seats, and our routes sell out), the A320neo where an A321neo would fly part-empty, the A321XLR
+  for cities beyond an A321neo's reach, the E195-E2 for thin routes, and the A350 only where range demands it. Ryanair
+  flies the A320 family and the E195, no A350. The three families (A320 family, E195, A350) are the most any airline
+  has; no 787, CRJ or A319. Each family is its own delivery line (the order queues, below). *Since 17 Oct · why
+  (Gitesh): types are chosen per route, not fixed per airline; three maintenance families are free, a fourth costs 15%
+  more maintenance (28 Sep).*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *Since 28 Sep.*
 - **An order is just the aircraft.** Routes and cabin are decided when it arrives; the cabin is fitted after delivery.
@@ -453,6 +457,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 17 Oct | Fleet families: the five legacy airlines fly the A320 family, the A350 only where range demands and the E195; Ryanair the A321neo and E195 only | Any of our types where the route needs it, every airline; Ryanair no A350; still three families at most (§3). Why: Gitesh, the old line read as a fixed list per airline that didn't match the fleets |
 | 16 Oct | Every new aircraft's route choice gets a full brief | A brief only when the choice is a real trade-off (new city, new base, moving an aircraft, options beyond timing); frequency on sold-out routes is recorded on the plan card (§1). Why: Gitesh, a brief per aircraft was heavy |
 | 15 Oct | Two investor reports: the weekly report every Saturday and a monthly report on the first Saturday, both published to the investor library | The weekly report only, with a page on the month just ended on the first Saturday (§7). Why: Gitesh, the monthly report repeated what four weekly reports already say |
 | 15 Oct | A second daily on a route sits at least 3 hours from the existing flight (`second_daily_gap_h` 3) | Wherever it makes the most connections, at least Gander's 5 minutes from the other flight (house rule), spread further only with a business case; the setting is 0 (§4). Why: Gitesh, 15 Oct |

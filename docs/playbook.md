@@ -113,7 +113,7 @@ database → Building.
 - **Kingfisher (Delhi):** India is open, so aim to take all of it. Mumbai is next. The two Delhi–JFK A350s stay as they
   are (reviewed 28 Nov).
 - **Ryanair (CDG, Amsterdam, Barcelona; Milan and Munich next):** five equal focus cities, point to point, no hub.
-  Exempt from hubs first. Flies only the A321neo and E195. Stays inside the game's EU zone (EU-27, the UK, Norway,
+  Exempt from hubs first. Flies the A320 family and the E195, no A350. Stays inside the game's EU zone (EU-27, the UK, Norway,
   Switzerland, Iceland); Turkey, Morocco, the Balkans and long haul are out. Fares at 85%, economy only. No interlines
   in Europe. No eastern base for now.
 - **Virgin Atlantic (Gatwick, Manchester, Edinburgh):** new London routes go to Gatwick before Heathrow (existing
@@ -126,8 +126,11 @@ database → Building.
   decision waits until then.
 
 ### Fleet
-- **Families:** the A320 family (A320neo, A321neo, A321XLR) and the E195-E2, plus the A350 only where range demands
-  it. Three families at most (a fourth costs 15% more maintenance). No 787, CRJ or A319.
+- **Types, as the route needs:** any airline may fly any of our types: the A321neo by default, the A320neo where an
+  A321neo would fly part-empty, the A321XLR beyond an A321neo's reach, the E195-E2 for thin routes, the A350 only where
+  range demands it (Ryanair: no A350). Three families at most (A320 family, E195, A350; a fourth costs 15% more
+  maintenance). No 787, CRJ or A319. Each family is its own delivery line, one after another (Check → Growth → Order
+  queues); plan orders with the queues in mind.
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network. Long haul comes later.
 - **New airlines launch short haul:** one daily rotation per route, as many routes as possible.
 
@@ -209,7 +212,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   airline's middle route), **Raise fares** (sold out but earning less), **Fix or reduce** (losing money, economy under
   75%, or a thin margin; not for a route under 7 days old), **Aircraft losing money after their lease**, **Order queues**
   (how long each delivery line has left).
-- **Type:** inside the airline's families (section 3). Ryanair: A321neo or E195 only.
+- **Type:** whichever of our types the route needs (section 3). Ryanair: no A350.
 - **A real decision gets a full brief** from Claude: the answer and an options table first (growth, profit a week, cash
   at the lowest point, opportunity cost, risk, how easy it is to undo), then the background. Applying an existing rule
   doesn't need one.
