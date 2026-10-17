@@ -209,9 +209,11 @@ top, then the same six boards as the old Check, each folded on arrival. Click a 
   - **Next move for each airline:** each airline rotates its orders, big market → frequency → smaller feeder. It names
     each route, its stars and the suggested aircraft size (the setting *suggested_size*, with Ryanair's own). **Log an
     order as** (**Big**, **Frequency**, **Feeder**) records an order so the rotation moves on.
-  - **Ready for another flight:** routes that sold out on most departures in the last 7 days and make more a flight
-    than the airline's middle route.
-  - **Raise fares:** sold out, but earning less a flight than the middle route.
+  - **Ready for another flight:** routes that sold out on most departures in the last 7 days and make at least as
+    much an aircraft hour as the airline's middle route. An aircraft hour is the flight's block time plus the type's
+    turnaround and the 10-minute turn margin: the time the aircraft can't fly anything else. **An aircraft hour** is
+    its own column, beside profit a flight.
+  - **Raise fares:** sold out, but earning less an aircraft hour than the middle route.
   - **Fix or reduce:** losing money, economy under 75%, or a thin margin. A route isn't listed until it has been
     flying for 7 days (the setting `growth_new_route_days`); a new route that sells out is still listed above.
   - **Aircraft losing money after their lease.**

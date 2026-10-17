@@ -208,8 +208,9 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   only for a **contested** route: a rival with over 250 departures a week at that base, or over 2 flights a day on the
   route. A base contested for one route doesn't open its other routes. Check → Growth → **Main hubs towards 750** shows
   progress. Ryanair is exempt.
-- **Growth signals** (Check → Growth): **Ready for another flight** (sold out on most departures and earning above the
-  airline's middle route), **Raise fares** (sold out but earning less), **Fix or reduce** (losing money, economy under
+- **Growth signals** (Check → Growth): **Ready for another flight** (sold out on most departures and earning at least
+  the airline's middle route an aircraft hour: block time, turnaround and turn margin), **Raise fares** (sold out but
+  earning less an aircraft hour), **Fix or reduce** (losing money, economy under
   75%, or a thin margin; not for a route under 7 days old), **Aircraft losing money after their lease**, **Order queues**
   (how long each delivery line has left).
 - **Type:** whichever of our types the route needs (section 3). Ryanair: no A350.

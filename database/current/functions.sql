@@ -3500,6 +3500,7 @@ declare
   v_since timestamptz; v_pnl jsonb; v_loads jsonb; v_used boolean[]; v_mp int[] := '{}'; v_ml int[] := '{}';
   c record; v_cur int := -1; v_got boolean := false;
   v_losing numeric; v_sold_share numeric; v_sold_min numeric; v_fix_min numeric; v_fix_eco numeric; v_fix_routes numeric; v_fix_margin numeric; v_new_days numeric;
+  v_margin_min numeric; v_allow_min numeric;
 begin
   if p_days is null or p_days < 1 then raise exception 'p_days must be 1 or more' using errcode = '22023'; end if;
   v_losing := private.fig_num(w, p_airline_id, 'growth_losing_min_departures');
@@ -3510,6 +3511,8 @@ begin
   v_fix_routes := private.fig_num(w, p_airline_id, 'growth_fix_min_routes');
   v_fix_margin := private.fig_num(w, p_airline_id, 'growth_fix_margin');
   v_new_days := private.fig_num(w, p_airline_id, 'growth_new_route_days');
+  v_margin_min := private.fig_num(w, p_airline_id, 'turn_margin_min');
+  v_allow_min := private.fig_num(w, p_airline_id, 'block_allowance_min');
   -- the statement blocks posted since now − p_days (inside the old planner's window of 8 UTC days), as game_flight_pnl
   -- groups them: one per minute and block, its route when its lines name one, and its money
   v_since := greatest(p_as_of - p_days * interval '24 hours', (v_today - 8)::timestamp at time zone 'UTC');
@@ -3591,6 +3594,21 @@ begin
     wk as (select f.route_id, sum(f.flights_week)::int as wk from fq f where f.live and f.airline_id = p_airline_id group by f.route_id),
     -- a route's age: its earliest rotation's launch day (a second daily added later doesn't make an old route new)
     age as (select f.route_id, min(f.launched_on) as first_day from fq f where f.airline_id = p_airline_id group by f.route_id),
+    -- a route's aircraft hours a flight (manual §3, 17 Oct): each of its legs' block time (or, untimed, the estimate:
+    -- block_allowance_min + distance ÷ the type's cruise speed) plus the type's turnaround (min_turn_min) and the turn
+    -- margin (turn_margin_min), averaged over the flights a week each leg flies
+    hrs as (select ro.id as route_id,
+                   sum((coalesce(l.block_min, round(ro.distance_km / ty.cruise_kmh * 60 + v_allow_min)) + ty.min_turn_min + v_margin_min)
+                       * coalesce(cardinality(l.days_utc), 7))::numeric
+                     / nullif(sum(coalesce(cardinality(l.days_utc), 7)), 0) / 60 as h
+              from public.rotations rt
+              join public.routes ro on ro.id = rt.route_id
+              join public.flight_legs l on l.rotation_id = rt.id
+              join public.aircraft a on a.id = l.aircraft_id
+              join public.aircraft_types ty on ty.id = a.aircraft_type_id
+             where rt.airline_id = p_airline_id and ty.min_turn_min is not null
+               and (l.block_min is not null or (ro.distance_km is not null and ty.cruise_kmh > 0))
+             group by ro.id),
     g as (select rk.hub, rk.dest, rk.route_id, count(*)::int as n, sum(fl.profit) / 1000000 as profit,
                  sum(fl.pax_income + fl.cargo_income) / 1000000 as income,
                  avg(fl.eco) as eco_a, avg(fl.bus) as bus_a, avg(fl.cargo) as cargo_a, avg(fl.eco_fare) as fare_a,
@@ -3601,27 +3619,37 @@ begin
                  coalesce(wk.wk, 0) as wk, (g.profit / g.n) * coalesce(wk.wk, 0) as pwk,
                  case when g.eco_n > 0 then g.sold::numeric / g.eco_n end as sold_share,
                  -- young: launched fewer than growth_new_route_days days ago; no launch day on record counts as old
-                 coalesce(ag.first_day is not null and v_today - ag.first_day < v_new_days, false) as young
-            from g left join wk on wk.route_id = g.route_id left join age ag on ag.route_id = g.route_id),
-    pp as (select array_agg(r.ppf order by r.ppf) as a from r),
+                 coalesce(ag.first_day is not null and v_today - ag.first_day < v_new_days, false) as young,
+                 hh.h as hours, case when hh.h > 0 then (g.profit / g.n) / hh.h end as pph
+            from g left join wk on wk.route_id = g.route_id left join age ag on ag.route_id = g.route_id
+            left join hrs hh on hh.route_id = g.route_id),
+    pp as (select array_agg(r.ppf order by r.ppf) as a, array_agg(r.pph order by r.pph) filter (where r.pph is not null) as h from r),
+    -- the middle route: by profit a flight, and by profit an aircraft hour among the routes with their hours
     q as (select pp.a[floor(cardinality(pp.a) / 2.0)::int + 1] as med, pp.a[floor(cardinality(pp.a) * 0.25)::int + 1] as q25,
+                 pp.h[floor(cardinality(pp.h) / 2.0)::int + 1] as med_h,
                  coalesce(cardinality(pp.a), 0) as len from pp),
     mk as (select r.*, case when r.ppf < 0 and r.n >= v_losing and not r.young then 'losing'
                             when r.sold_share is not null and r.sold_share >= v_sold_share and r.n >= v_sold_min
-                              then case when r.ppf >= q.med then 'add' else 'raise' end
+                              -- add at or above the middle route's profit an aircraft hour, raise below; a route with no
+                              -- aircraft hours (no legs on record) is compared by profit a flight, as before 17 Oct
+                              then case when r.pph is not null and q.med_h is not null then case when r.pph >= q.med_h then 'add' else 'raise' end
+                                        when r.ppf >= q.med then 'add' else 'raise' end
                             when r.n >= v_fix_min and not r.young and r.eco_a is not null and r.eco_a < v_fix_eco then 'fix'
                             when r.n >= v_fix_min and not r.young and q.len >= v_fix_routes and r.ppf <= q.q25 and r.margin is not null and r.margin < v_fix_margin then 'fix-margin'
-                            else 'hold' end as k, q.med
+                            else 'hold' end as k, q.med, q.med_h
              from r cross join q),
     routes as (select coalesce(jsonb_agg(jsonb_build_object(
                  'route_id', mk.route_id, 'hub', mk.hub, 'dest', mk.dest, 'flights', mk.n, 'profit', mk.profit, 'income', mk.income,
                  'margin', mk.margin, 'profit_per_flight', mk.ppf, 'flights_week', mk.wk, 'profit_week', mk.pwk,
+                 'aircraft_hours', mk.hours, 'profit_per_aircraft_hour', mk.pph,
                  'economy', mk.eco_a, 'business', mk.bus_a, 'cargo', mk.cargo_a, 'economy_fare', mk.fare_a,
                  'sold_out', mk.sold, 'with_loads', mk.eco_n, 'sold_out_share', mk.sold_share,
                  'mark', case when mk.k = 'fix-margin' then 'fix' else mk.k end,
                  'why', case mk.k when 'losing' then 'its average flight loses money'
-                                  when 'add' then format('sold out on %s of %s departures, profit a flight above the airline''s middle route', mk.sold, mk.eco_n)
-                                  when 'raise' then format('sold out on %s of %s departures, profit a flight below the airline''s middle route', mk.sold, mk.eco_n)
+                                  when 'add' then format('sold out on %s of %s departures, profit %s at or above the airline''s middle route', mk.sold, mk.eco_n,
+                                                         case when mk.pph is not null and mk.med_h is not null then 'an aircraft hour' else 'a flight' end)
+                                  when 'raise' then format('sold out on %s of %s departures, profit %s below the airline''s middle route', mk.sold, mk.eco_n,
+                                                           case when mk.pph is not null and mk.med_h is not null then 'an aircraft hour' else 'a flight' end)
                                   when 'fix' then format('economy averaging %s%%', floor(mk.eco_a + 0.5))
                                   when 'fix-margin' then format('bottom-quarter profit a flight on a margin under %s%%', floor(v_fix_margin * 100 + 0.5))
                                   else '' end)

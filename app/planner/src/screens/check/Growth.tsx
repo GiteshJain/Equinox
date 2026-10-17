@@ -163,12 +163,14 @@ function Signals({ rules, s, airlines }: { rules: Rules; s: GrowthRead; airlines
   const setting = (k: string) => String(rules.input.settings[k] ?? "?");
   return (
     <>
-      <h4 className="gh">Ready for another flight <span className="note">sold out on most captured departures in the last {s.days} days, and more profit a flight than the airline's middle route · {s.ready_for_another_flight.length}</span></h4>
+      <h4 className="gh">Ready for another flight <span className="note">sold out on most captured departures in the last {s.days} days, and profit an aircraft hour (block time, turnaround and turn margin) at or above the airline's middle route · {s.ready_for_another_flight.length}</span></h4>
       {s.ready_for_another_flight.length ? <Table rows={s.ready_for_another_flight} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
+        ["An aircraft hour", (r) => (r.profit_per_aircraft_hour == null ? "—" : kWords(r.profit_per_aircraft_hour)), true],
         ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true], ["A week", (r) => weekWords(r.profit_week ?? 0), true]]} />
         : <div className="dim">Nothing yet. A route needs at least {setting("growth_sold_out_min_departures")} captured departures, most of them sold out.</div>}
-      <h4 className="gh">Raise fares <span className="note">sold out, but less profit a flight than the airline's middle route: a higher fare earns more from the same seats · {s.raise_fares.length}</span></h4>
+      <h4 className="gh">Raise fares <span className="note">sold out, but less profit an aircraft hour than the airline's middle route: a higher fare earns more from the same seats · {s.raise_fares.length}</span></h4>
       {s.raise_fares.length ? <Table rows={s.raise_fares} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
+        ["An aircraft hour", (r) => (r.profit_per_aircraft_hour == null ? "—" : kWords(r.profit_per_aircraft_hour)), true],
         ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true], ["Economy fare", (r) => (r.economy_fare == null ? "—" : Math.round(r.economy_fare)), true]]} />
         : <div className="dim">Nothing yet.</div>}
       <h4 className="gh">Fix or reduce <span className="note">losing money, economy under {setting("growth_fix_economy_pct")}%, or bottom-quarter profit on a thin margin · {s.fix_or_reduce.length}</span></h4>

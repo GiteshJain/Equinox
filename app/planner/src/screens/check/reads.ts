@@ -104,6 +104,10 @@ export interface SignalRoute {
   dest: string;
   flights: number;
   profit_per_flight: number | null;
+  /** Hours a flight ties up the aircraft: block time plus the type's turnaround and the turn margin (since 17 Oct). */
+  aircraft_hours?: number | null;
+  /** Profit a flight ÷ its aircraft hours, what sold-out routes are marked add or raise by (manual §3, 17 Oct). */
+  profit_per_aircraft_hour?: number | null;
   profit_week: number | null;
   economy: number | null;
   economy_fare: number | null;

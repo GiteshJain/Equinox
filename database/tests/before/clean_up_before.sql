@@ -26,7 +26,10 @@ begin
     ('figures', private.fig_export(w, v_at)),
     -- whether the age condition's setting (20261016120000) was there before the pending changes: if not, the figures
     -- are saved without it, and the clean-up test puts the age at 0 days to compare them
-    ('new_route_days_set', to_jsonb(exists (select 1 from public.settings s where s.key = 'growth_new_route_days')));
+    ('new_route_days_set', to_jsonb(exists (select 1 from public.settings s where s.key = 'growth_new_route_days'))),
+    -- route profit's definition before the pending changes (20261017180000, add or raise by aircraft hour, moves the marks
+    -- on purpose): the clean-up test puts it back to compare the rest
+    ('route_profit_def', to_jsonb(pg_get_functiondef('private.fig_route_profit(bigint, integer, timestamp with time zone)'::regprocedure)));
   if to_regprocedure('public.planner_loads_get(bigint)') is not null then
     execute $q$
       insert into rehearsal_before.clean_up_outputs (name, value)
