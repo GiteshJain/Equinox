@@ -6,8 +6,10 @@
 --   3. The figures still come back in one call on the copy, within the 30 seconds.
 
 do $test$
-declare cfg text[]; t0 timestamptz; v jsonb; others text;
+declare cfg text[]; t0 timestamptz; v jsonb; others text; s text := 'figures-timeout-test-' || gen_random_uuid()::text;
 begin
+  -- the copy carries no ingest secret (the backup leaves the key tables out): one of its own, rolled back with the test
+  insert into public.ingest_secret (secret) values (s);
   select p.proconfig into cfg from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'export_for_report';
   assert cfg @> array['statement_timeout=30s'], 'export_for_report has no 30 s statement limit: ' || coalesce(cfg::text, 'none');
@@ -19,7 +21,7 @@ begin
   assert others is null, 'other functions carry a statement limit: ' || others;
 
   t0 := clock_timestamp();
-  v := public.export_for_report((select secret from public.ingest_secret limit 1), 'figures', '{}');
+  v := public.export_for_report(s, 'figures', '{}');
   assert v ? 'airlines', 'the figures came back without their airlines';
   assert clock_timestamp() - t0 < interval '30 seconds', 'the figures took 30 seconds or more on the copy';
 
