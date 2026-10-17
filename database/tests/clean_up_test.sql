@@ -94,6 +94,13 @@ begin
   if not coalesce((select (value #>> '{}')::boolean from rehearsal_before.clean_up_outputs where name = 'new_route_days_set'), true) then
     update public.settings set value = '0'::jsonb where key = 'growth_new_route_days';
   end if;
+  -- add or raise by aircraft hour (20261017180000) moves the sold-out routes' marks on purpose (add_or_raise_test.sql
+  -- checks it): while it is pending (route profit's definition before the changes has no aircraft hours), that
+  -- definition is put back here (rolled back with the test), so everything else must still be exactly as before. Once
+  -- it is live, the definition before carries it too and nothing is changed here.
+  if (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def') not like '%aircraft_hours%' then
+    execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def');
+  end if;
   a := private.fig_export(w, v_at);
   -- the capture checks (#21, build 20261014220000) added each airline's latest verdicts to capture_status() on purpose:
   -- they're left out here, so the rest must still be exactly as before. Left out of both sides: once 20261014220000 is

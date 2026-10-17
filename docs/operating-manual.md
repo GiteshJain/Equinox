@@ -253,13 +253,14 @@ less important than another, point to point rather than hubs).*
   line standing idle. *Since 17 Oct · why (Gitesh): plan future orders with the order queue in mind.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
   routes. *Since 8 Oct.*
-- **Add a flight or raise fares, by profit per aircraft hour (decided 17 Oct, not yet built):** a sold-out route is
-  marked **add a flight** when its profit per aircraft hour is at or above its airline's middle route, and **raise
-  fares** when it's below. An aircraft hour is the flight's block time plus the type's turnaround and the turn margin
-  (`settings.turn_margin_min`, 10 minutes): the hours the aircraft can't fly anything else. Until it's built, the mark
-  compares profit per flight (§ *Decided, not yet built*). The fix, losing-money and cash rules don't change. *Since
-  17 Oct · why (Gitesh): profit per flight favours long routes because they take longer; per block hour alone would
-  over-reward short hops, whose turns tie the aircraft up for nearly as long as they fly. Brief:
+- **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
+  profit per aircraft hour is at or above its airline's middle route, and **raise fares** when it's below. An aircraft
+  hour is the flight's block time plus the type's turnaround (`aircraft_types.min_turn_min`) and the turn margin
+  (`settings.turn_margin_min`, 10 minutes): the hours the aircraft can't fly anything else. A route with no legs on
+  record has no aircraft hours and is still compared by profit per flight. The fix, losing-money and cash rules don't
+  change. Worked out by `route_profit()`, which gives each route's `aircraft_hours` and `profit_per_aircraft_hour`.
+  *Since 17 Oct; built 17 Oct · why (Gitesh): profit per flight favours long routes because they take longer; per
+  block hour alone would over-reward short hops, whose turns tie the aircraft up for nearly as long as they fly. Brief:
   `docs/briefs/2026-10-17-add-or-raise.md`.*
 - **New routes aren't judged for a week:** a route launched fewer than **7 days** ago gets none of the problem marks
   (losing, fix or reduce), so Home's routes to fix and Check's Fix or reduce skip it. Its launch day is its earliest
@@ -474,6 +475,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 17 Oct | A sold-out route is marked add a flight when its profit per flight is at or above its airline's middle route, raise fares when below | Profit per aircraft hour (block time, turnaround and turn margin) against the middle route (§3). Why: Gitesh, profit per flight favoured long routes (brief `docs/briefs/2026-10-17-add-or-raise.md`) |
 | 17 Oct | One weekly newsroom roundup for the whole group, no delivery posts | A roundup per airline each Saturday, and a delivery post per airline on each day it takes aircraft (§8). Why: Gitesh |
 | 17 Oct | Fleet families: the five legacy airlines fly the A320 family, the A350 only where range demands and the E195; Ryanair the A321neo and E195 only | Any of our types where the route needs it, every airline; Ryanair no A350; still three families at most (§3). Why: Gitesh, the old line read as a fixed list per airline that didn't match the fleets |
 | 16 Oct | Every new aircraft's route choice gets a full brief | A brief only when the choice is a real trade-off (new city, new base, moving an aircraft, options beyond timing); frequency on sold-out routes is recorded on the plan card (§1). Why: Gitesh, a brief per aircraft was heavy |
