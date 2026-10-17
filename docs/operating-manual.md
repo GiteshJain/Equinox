@@ -43,6 +43,9 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *Since 12 Oct · why (Gitesh): the
   call is small and the traffic light; splitting or caching it now gains nothing yet.*
+- **Decided 17 Oct, for the Building chat:** route profit's add-a-flight or raise-fares mark by profit per aircraft
+  hour (block time plus turnaround and margin) instead of profit per flight (§3). Until it's built, the mark compares
+  profit per flight.
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
@@ -250,6 +253,14 @@ less important than another, point to point rather than hubs).*
   line standing idle. *Since 17 Oct · why (Gitesh): plan future orders with the order queue in mind.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
   routes. *Since 8 Oct.*
+- **Add a flight or raise fares, by profit per aircraft hour (decided 17 Oct, not yet built):** a sold-out route is
+  marked **add a flight** when its profit per aircraft hour is at or above its airline's middle route, and **raise
+  fares** when it's below. An aircraft hour is the flight's block time plus the type's turnaround and the turn margin
+  (`settings.turn_margin_min`, 10 minutes): the hours the aircraft can't fly anything else. Until it's built, the mark
+  compares profit per flight (§ *Decided, not yet built*). The fix, losing-money and cash rules don't change. *Since
+  17 Oct · why (Gitesh): profit per flight favours long routes because they take longer; per block hour alone would
+  over-reward short hops, whose turns tie the aircraft up for nearly as long as they fly. Brief:
+  `docs/briefs/2026-10-17-add-or-raise.md`.*
 - **New routes aren't judged for a week:** a route launched fewer than **7 days** ago gets none of the problem marks
   (losing, fix or reduce), so Home's routes to fix and Check's Fix or reduce skip it. Its launch day is its earliest
   rotation's (a second daily added later doesn't make an old route new). Sold-out marks (add a flight, raise fares) apply
