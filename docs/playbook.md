@@ -224,6 +224,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 
 ### Step 4: When it arrives, plan its routes (Scheduling chat)
 1. Tell the Scheduling chat which aircraft arrived (or ask it to check). One airline at a time.
+   Claude also writes that day's delivery post for the airline's newsroom (one post per airline per day).
 2. Claude runs the airline's briefing (`brief.py <airline>`): money, fleet, routes, hubs, deliveries and their plan
    cards, to-dos, fare plan, rivals from the latest world scan and the capture's state, in one step.
 3. Claude gives the background (what loads, money, network and competition show) and the options. **You pick the
@@ -299,8 +300,9 @@ first.
    month just ended.
 3. **The connection audit** across all hubs: valid connections, near misses, and retimes of 10 minutes or less that
    would make more connect.
-4. **The newsroom roundup:** one post of the week's new routes, written like a real airline's news. No cabins, bank
-   times or other internal detail, and no mention of the game.
+4. **The newsroom roundups:** one post per airline of its new routes and extra flights since the last one, written
+   like a real airline's news. No cabins, bank times or other internal detail, and no mention of the game. (Delivery
+   posts go out on the day, from the Scheduling chat: one per airline per day of deliveries.)
 5. **The weekly review together:**
    - **The fare plan:** what last week's fare tests did (Review → the airline → Fare plan; each change is spotted by the
      next capture), and which new tests to make. Fare changes are only ever reviewed here, never as Needs attention.

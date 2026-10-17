@@ -173,8 +173,8 @@ Details and open points: `docs/decisions.md`.
 
   | Chat | Covers |
   |---|---|
-  | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
-  | Saturday review | Every Saturday: the world scan, weekly report, connection audit, newsroom roundup, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
+  | Scheduling | Aircraft that have arrived (and their delivery post), plan cards, retimes, route choices, what and when to order, interline requests |
+  | Saturday review | Every Saturday: the world scan, weekly report, connection audit, the airlines' newsroom roundups, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *Since early Oct.*
@@ -357,7 +357,7 @@ less important than another, point to point rather than hubs).*
     ended (month-on-month figures and the month's decisions). *The separate monthly report was dropped 15 Oct ·
     why: Gitesh, it repeated what four weekly reports already say;*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 10 minutes or less);
-  - one newsroom roundup of the week's new routes;
+  - one newsroom roundup per airline of its new routes and extra flights (§8);
   - the weekly review together, including the fare plan.
 
   *Since 5–8 Oct.*
@@ -408,7 +408,13 @@ less important than another, point to point rather than hubs).*
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options
   and comparisons.
 - **Newsroom posts read like a real airline's:** no cabins, bank timings or other internal detail, and no references to
-  the game. One weekly roundup of new routes, not a post per aircraft. *Since 5 and 7 Oct.*
+  the game. *Since 5 Oct.*
+- **What the newsroom posts:** *since 17 Oct · why (Gitesh): one post per airline reads like each airline's own news,
+  and deliveries are news on the day they happen.*
+  - **New routes:** one roundup per airline each Saturday, covering its new routes and extra flights since the last
+    one (Saturday review chat). No post for an airline with nothing new.
+  - **Deliveries:** one post per airline on each day it takes delivery of aircraft, covering all of that day's
+    aircraft (Scheduling chat, when it logs the arrival). No routes or plans in it; those go in Saturday's roundup.
 - **gander monthly** covers the whole Gander world impartially, without claiming to be impartial. It is marked as made
   by AI and published openly on the website. *Since 5–6 Oct.*
 - **Brand:** "equinox." — lowercase, with the full stop. Real airline names and logos, with a fan-project disclaimer in
@@ -457,6 +463,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 17 Oct | One weekly newsroom roundup for the whole group, no delivery posts | A roundup per airline each Saturday, and a delivery post per airline on each day it takes aircraft (§8). Why: Gitesh |
 | 17 Oct | Fleet families: the five legacy airlines fly the A320 family, the A350 only where range demands and the E195; Ryanair the A321neo and E195 only | Any of our types where the route needs it, every airline; Ryanair no A350; still three families at most (§3). Why: Gitesh, the old line read as a fixed list per airline that didn't match the fleets |
 | 16 Oct | Every new aircraft's route choice gets a full brief | A brief only when the choice is a real trade-off (new city, new base, moving an aircraft, options beyond timing); frequency on sold-out routes is recorded on the plan card (§1). Why: Gitesh, a brief per aircraft was heavy |
 | 15 Oct | Two investor reports: the weekly report every Saturday and a monthly report on the first Saturday, both published to the investor library | The weekly report only, with a page on the month just ended on the first Saturday (§7). Why: Gitesh, the monthly report repeated what four weekly reports already say |
