@@ -208,6 +208,7 @@ CREATE OR REPLACE FUNCTION public.export_for_report(p_secret text, p_kind text, 
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 declare v_arg jsonb; v_world bigint; v_airline bigint;
 begin
