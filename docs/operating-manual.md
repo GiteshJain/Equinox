@@ -239,6 +239,11 @@ less important than another, point to point rather than hubs).*
     the planner's Review screen shows it (#19, build pull request 3).
 - **Order rotation:** each airline's orders rotate big market → more frequency → smaller feeders, kept flexible.
   *Since 2 Oct.*
+- **The order queues:** each airline has one delivery line per family, and the aircraft on a line arrive one after
+  another: an A320-family aircraft (A320neo, A321neo and XLR share the line) every 21 hours, an E195 every 15 hours, an
+  A350 every 30 hours. Order planning keeps the queues in mind (Check → Growth → Order queues): what each airline still
+  has to arrive on each line, when each line runs dry, and when a new order's aircraft would arrive. An empty line is a
+  line standing idle. *Since 17 Oct · why (Gitesh): plan future orders with the order queue in mind.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
   routes. *Since 8 Oct.*
 - **New routes aren't judged for a week:** a route launched fewer than **7 days** ago gets none of the problem marks
