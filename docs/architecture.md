@@ -140,7 +140,8 @@ flowchart LR
    `scripts/report/analyze.py`), `site_admin()` (its
    connection times go to `world_airports`) and `planner_data_set()` (the route research, key `DATA`, goes to
    `countries`, `airports` and `routes`, only the rows that change), using the ingest
-   secret (kept as it is by #11).
+   secret (kept as it is by #11). Signed out, each call has 3 seconds before the database cuts it off (signed-in staff
+   8); `export_for_report()` has its own 30 seconds, since the figures take about 3 (17 Oct).
 5. **Every night** the backup copies the database (except the key tables and sign-in data) and the photo files,
    restores the copy, uploads it to Cloudflare R2 and records the result in `backup_runs` (a view since #13 pull request
    7: the row lands in `job_runs`), which the planner shows. `latest.json` in R2 names the newest copy; the database
@@ -244,6 +245,7 @@ called wrongly here fails that check.
 | A change broke the site or planner | Revert its pull request on GitHub. Cloudflare republishes the previous version within a couple of minutes. |
 | Cloudflare's build failed | The last good version stays live. The deployment's log in Cloudflare's dashboard says which step failed; the same `npm ci && npm run build` runs in the checks, so run `bash tests/run_all.sh` to see it. If the build command itself is missing, set it again (the Build row above). |
 | The site is down | Check Cloudflare's dashboard (Workers & Pages → equinox-alliance). The last good deployment can be rolled back there. |
+| A call fails with a server error (500), the log saying "canceling statement due to statement timeout" (57014) | The call ran past its role's limit: 3 seconds signed out, 8 signed in; `export_for_report()` has 30. Try once more. If it keeps happening, the Building chat times the call (Supabase's logs show each call's time) and either speeds it up or gives that one function its own limit, as `export_for_report()` has. The planner's Check can also slow for a few seconds in the minute after a capture, while the database is busy with it (17 Oct, 07:05 UTC); opening it again a minute later is enough. |
 | A capture failed for an airline | Press the capture again. If the game won't cooperate, enter cash and loads in Planner → Review → Manual entry. |
 | A capture page came in short or broken (#21) | The panel, Home and Check → Systems say which page and what came ("loads 12 of 78 flights"). Capture that airline again while the game's last 24 hours still hold its loads. If every evening comes in short the same way, a game page may have changed: the raw page stays 14 days in `game_capture_raw` for a look, and the limits are settings (`capture_loads_min_share`, `capture_statement_min_share`). |
 | The Planner build line on Check → Systems didn't move after a merge | Cloudflare's build failed and the last good version stays live: see the row below. |
