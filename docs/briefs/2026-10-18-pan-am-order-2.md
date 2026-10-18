@@ -8,7 +8,7 @@ feeder (N020AW); frequency is barred until 31 Oct (manual §4), so the next airc
 
 | Option | Growth | Profit a week (after lease) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| A. One A321neo today | — | — | **0.45M**: under the 0.5M cushion once N019AW's and N020AW's cabins (0.30M) are paid | not allowed today | — | — |
+| A. One A321neo today | as B, 42 more seats a flight | ~0.46M (~100k a day less a 34k lease) | 0.75M; about 0.65M with the cabins (see Outcome) | 0.24M more than B | — | no |
 | **B. One A320neo today** | **3 new 4–5-star cities (e.g. Tampa, Minneapolis, Cleveland: 66 links, 11.9 h) · JFK +42 departures a week** | **~0.46M (~97k a day less a 31k lease)** | **0.73M** | **42 fewer seats a flight than an A321neo** | **the A320neo's figure comes from the 7-day study, not Pan Am's own flights** | **no** |
 | C. One A321neo after Monday's capture | as B, 42 more seats a flight | ~0.46M (~100k a day less a 34k lease) | to check on Monday's capture (today 0.45M less cabins; a day's flight profit is about 0.96M) | the line idles about 15 hours; 0.24M more spent | Monday's capture could still fall short | yes until ordered |
 | D. One E195 today | 3–4 new 3-star cities (Louisville, Grand Rapids, Providence, Albany) | ~0.30M (~68k a day less a 25k lease) | 1.15M | the A320-family line idles; smaller cities while 4–5-star ones are open | low | no |
@@ -48,4 +48,8 @@ a day of a new aircraft's profit on each line.
 - Wanting more cash kept: D.
 
 ## Outcome
-<to come>
+**18 Oct: A,** one A321neo today (Gitesh). The table first showed A at 0.45M, taking both cabins off at the lowest point;
+that was wrong. The cabins are paid as the aircraft land: N020AW's (0.10M) at 21:31 UTC, before the lowest point
+(19 Oct 00:55 UTC), leaving about 0.65M; N019AW's (0.21M) after it lands at 03:30 UTC, by when about 2.6 hours of flight
+profit (1.95M a day in the forecast) has come in, so still about 0.65M. The next lease is 19 Oct 18:57 UTC. Gitesh orders
+in the game and tells Claude (to-do); base and routes are decided when it lands.
