@@ -233,8 +233,9 @@ less important than another, point to point rather than hubs).*
     (about 10k); the A320neo earns nearly an A321neo's profit a flight on 4-star routes (16.6k against 17.1k) for less.*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *Since 28 Sep.*
-- **An order is just the aircraft.** Routes and cabin are decided when it arrives; the cabin is fitted after delivery.
-  No plan card at order time. *Since 2 Oct.*
+- **An order is just the aircraft.** Its base, routes and cabin are all decided when it arrives; the cabin is fitted
+  after delivery. The airport it's ordered or logged under is only a placeholder. No plan card at order time.
+  *Since 2 Oct; the base since 18 Oct · why (Gitesh): where the aircraft goes is part of the routes decision.*
 - **Who orders:** Claude recommends what to order; Gitesh orders in the game and says so; Claude logs it. *Since 2 Oct.*
 - **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
@@ -490,6 +491,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 18 Oct | An order is just the aircraft: routes and cabin are decided when it arrives (the base was taken from the order) | Base, routes and cabin all decided when it arrives; the order's airport is a placeholder (§3). Why: Gitesh, 18 Oct |
 | 18 Oct | Scheduling runs one airline at a time once aircraft have arrived | One aircraft at a time, each decided and carded before the next (§4). Why: Gitesh, 18 Oct |
 | 17 Oct | A sold-out route is marked add a flight when its profit per flight is at or above its airline's middle route, raise fares when below | Profit per aircraft hour (block time, turnaround and turn margin) against the middle route (§3). Why: Gitesh, profit per flight favoured long routes (brief `docs/briefs/2026-10-17-add-or-raise.md`) |
 | 17 Oct | One weekly newsroom roundup for the whole group, no delivery posts | A roundup per airline each Saturday, and a delivery post per airline on each day it takes aircraft (§8). Why: Gitesh |
