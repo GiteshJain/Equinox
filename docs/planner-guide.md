@@ -132,8 +132,9 @@ as you make it. On a preview address the planner saves nothing and says **previe
   may have (Reference), and the cabins its kind of airline's.
 - **Deliveries:** every aircraft with a delivery, for the airline and the base and type picked above: **Open** (on
   order, or arrived and not scheduled), **On order**, **Arrived** or **Flying**, each with its date and time (UTC),
-  base, plan and status; **card** shows its plan card (title, base, its cabin, each flight's number, route, times, block
-  and service). The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
+  base, plan and status; **card** opens its plan card in its own window, the rest of the screen dimmed (title, base,
+  its cabin, each flight's number, route, times, block and service; × or Escape closes it). An airport where the
+  airline has no station yet (none of its flights or bases touch it) is highlighted on the card. The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
   it, and the card says **no cabin chosen** while neither the card nor the order names one. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
   points at it, goes; one that has flown or been paid for is retired; one in service just leaves the list.
 - **File into planner** (on an arrived aircraft's plan card, or from Home): the planner reads the airline's schedule

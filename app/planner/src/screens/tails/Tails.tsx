@@ -27,7 +27,7 @@ import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardCabinChange, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
+  addTailChanges, basesOf, cardCabinChange, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
@@ -80,6 +80,7 @@ export function Tails() {
   const rows = useMemo(() => (rules ? tailRows(mine, filters, rules, configs) : []), [mine, filters, rules, configs]);
   const chipLists = useMemo(() => (rules ? chips(mine, rules) : { bases: [], types: [] }), [mine, rules]);
   const flying = useMemo(() => (rules ? flyingIds(rules) : new Set<number>()), [rules]);
+  const stations = useMemo(() => (rules && airline ? stationsOf(rules, airline.id) : undefined), [rules, airline]);
   const deliveries = useMemo(() => (rules && cardsQ.data ? deliveryRows(all, airlines, rules, configs, cardsQ.data, now.getTime(), today) : []),
     [all, airlines, rules, configs, cardsQ.data, now, today]);
   const shown = useMemo(() => shownDeliveries(deliveries, airline?.id, filters), [deliveries, airline, filters]);
@@ -284,7 +285,7 @@ export function Tails() {
         onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery}
         onRemove={(r) => void onRemoveDelivery(r)}
         cabinsFor={(r) => cfgList(r.type)} cabinCode={(c) => (c.config_id == null ? "" : configs.get(c.config_id)?.code ?? "")}
-        onCabin={(r, code) => void onCardCabin(r, code)} />
+        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
     </main>
   );

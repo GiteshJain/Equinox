@@ -238,6 +238,13 @@ export function configsFor(rules: Rules, configs: readonly ConfigRow[], airline:
   return configs.filter((c) => (!type || norm(typeName(rules, c.aircraft_type_id)) === norm(type)) && (airline.is_lcc ? c.cabin === "Standard" : c.cabin !== "Standard"))
     .sort((a, b) => a.id - b.id).map((c) => c.code);
 }
+/** The airports where an airline has a station (18 Oct): its bases, and every airport its scheduled flights touch. An
+ *  airport on a plan card outside this set needs a new station in the game. */
+export function stationsOf(rules: Rules, airlineId: number): Set<string> {
+  const s = new Set(basesOf(rules, airlineId));
+  for (const l of rules.legs) if (l.airline_id === airlineId) { s.add(l.origin_code); s.add(l.dest_code); }
+  return s;
+}
 /** The airline's bases, hubs and focus cities, in their order. */
 export const basesOf = (rules: Rules, airlineId: number): string[] => rules.bases.filter((b) => b.airline_id === airlineId).map((b) => b.airport_code);
 
