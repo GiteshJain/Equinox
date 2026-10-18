@@ -224,6 +224,13 @@ less important than another, point to point rather than hubs).*
   has; no 787, CRJ or A319. Each family is its own delivery line (the order queues, below). *Since 17 Oct · why
   (Gitesh): types are chosen per route, not fixed per airline; three maintenance families are free, a fourth costs 15%
   more maintenance (28 Sep).*
+  - **Size by city, as a guide:** 4- and 5-star cities get the A321neo (an XLR beyond its reach); 3-star cities the
+    A320neo, or the A321neo where the route is long or the city's demand is clearly strong; 2-star cities and short thin
+    routes the E195. The game's markets point the same way (its secondary and small markets default to the E195's
+    cabin). The delivery line counts too: the A320neo shares the A320-family line, the E195 has its own. Ryanair needs
+    an all-economy A320neo layout set up in the game before its first. *Since 18 Oct · why (Gitesh, agreed): the 7 days
+    to 18 Oct: 3-star routes still fill A321neos (96% economy) and E195s sell out everywhere but earn least a flight
+    (about 10k); the A320neo earns nearly an A321neo's profit a flight on 4-star routes (16.6k against 17.1k) for less.*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *Since 28 Sep.*
 - **An order is just the aircraft.** Routes and cabin are decided when it arrives; the cabin is fitted after delivery.

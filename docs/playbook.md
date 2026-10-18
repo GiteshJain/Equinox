@@ -131,6 +131,8 @@ database → Building.
   range demands it (Ryanair: no A350). Three families at most (A320 family, E195, A350; a fourth costs 15% more
   maintenance). No 787, CRJ or A319. Each family is its own delivery line, one after another (Check → Growth → Order
   queues); plan orders with the queues in mind.
+- **Size by city (a guide):** 4–5-star cities the A321neo (XLR beyond reach), 3-star the A320neo (A321neo when the
+  route is long or demand clearly strong), 2-star and short thin routes the E195.
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network. Long haul comes later.
 - **New airlines launch short haul:** one daily rotation per route, as many routes as possible.
 
