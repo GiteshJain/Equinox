@@ -226,7 +226,8 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 - The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC).
 
 ### Step 4: When it arrives, plan its routes (Scheduling chat)
-1. Tell the Scheduling chat which aircraft arrived (or ask it to check). One airline at a time.
+1. Tell the Scheduling chat which aircraft arrived (or ask it to check). One aircraft at a time: each is decided and
+   carded before the next, even when an airline has several arriving.
    Claude also writes that day's delivery post for the airline's newsroom (one post per airline per day).
 2. Claude runs the airline's briefing (`brief.py <airline>`): money, fleet, routes, hubs, deliveries and their plan
    cards, to-dos, fare plan, rivals from the latest world scan and the capture's state, in one step.

@@ -289,7 +289,7 @@ less important than another, point to point rather than hubs).*
   nearly planned at Manchester on uncontested routes, which the old wording allowed.*
 
 ## 4. Scheduling
-- **How it runs:** once aircraft have arrived, one airline at a time. Claude gives the background (loads, money,
+- **How it runs:** once aircraft have arrived, one aircraft at a time: each is planned, decided and its card written before the next is raised, even when an airline has several arriving. Claude gives the background (loads, money,
   network, competition) and options; we decide the routes together; Claude writes the plan cards, each with its cabin
   (`plan_cards.config_id`, since 18 Oct: filing fits it and logs its first fit at its price); Gitesh schedules in
   the game and presses File; the planner checks each card against the game. **The background starts from the airline's
@@ -298,7 +298,7 @@ less important than another, point to point rather than hubs).*
   date) and the capture's state in one step; anything more comes from the call the map's guide names
   (`docs/architecture.md`, "Which call answers which question"), not from guessing at tables. *Since 2 Oct; the
   briefing since 15 Oct · why: #24, the background was stitched by hand from about six calls each time, with wrong
-  column guesses.*
+  column guesses. One aircraft at a time since 18 Oct · why (Gitesh): keeps each decision on its own.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
 - **Until 31 October, only new routes:** every flight planned from 18 to 31 Oct opens a route the airline doesn't fly
@@ -490,6 +490,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 18 Oct | Scheduling runs one airline at a time once aircraft have arrived | One aircraft at a time, each decided and carded before the next (§4). Why: Gitesh, 18 Oct |
 | 17 Oct | A sold-out route is marked add a flight when its profit per flight is at or above its airline's middle route, raise fares when below | Profit per aircraft hour (block time, turnaround and turn margin) against the middle route (§3). Why: Gitesh, profit per flight favoured long routes (brief `docs/briefs/2026-10-17-add-or-raise.md`) |
 | 17 Oct | One weekly newsroom roundup for the whole group, no delivery posts | A roundup per airline each Saturday, and a delivery post per airline on each day it takes aircraft (§8). Why: Gitesh |
 | 17 Oct | Fleet families: the five legacy airlines fly the A320 family, the A350 only where range demands and the E195; Ryanair the A321neo and E195 only | Any of our types where the route needs it, every airline; Ryanair no A350; still three families at most (§3). Why: Gitesh, the old line read as a fixed list per airline that didn't match the fleets |
