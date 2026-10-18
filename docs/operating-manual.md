@@ -268,8 +268,13 @@ less important than another, point to point rather than hubs).*
   after the order (the 18 Oct orders: A321neos 21 hours later, E195s 15), on a busy line one interval after the last
   aircraft already queued (EI-ABU, 21 hours after EI-ABT). *Since 17 Oct · why (Gitesh): plan future orders with the
   order queue in mind.*
-- **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
-  routes. *Since 8 Oct.*
+- **Market share first, profit second:** every airline grows to take and hold the biggest markets, rivals' included.
+  Route lists lead with the largest city pairs (5-star, and the pairs rivals fly most) and prefer shorter sectors where
+  they give an aircraft more departures a day; going head to head with a rival is welcome. Capturing the demand and
+  holding the departures leaves new competition little room to move in. Profit still has to be there: the cash forecast
+  and its cushion, the fare floor, the fix and losing-money marks, hubs first and one airline per city pair don't
+  change. *Since 18 Oct · why (Gitesh): market share first; if we capture the demand and block more slots, new
+  competition can't move in.*
 - **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
   profit per aircraft hour is at or above its airline's middle route, and **raise fares** when it's below. An aircraft
   hour is the flight's block time plus the type's turnaround (`aircraft_types.min_turn_min`) and the turn margin
@@ -509,6 +514,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 18 Oct | Growth matters as much as profit: every airline's batch includes new markets, not only more flights on proven routes | Market share first, profit second: the biggest markets and rivals' pairs lead the route lists (§3). Why: Gitesh, capturing the demand and holding the slots keeps new competition out |
 | 18 Oct | One aircraft at a time, each decided and carded before the next; orders in batches | A route list per airline agreed each Saturday; arriving aircraft take its next routes and are filed within a day; orders every evening the forecast allows (§3, §4). Why: Gitesh, to add aircraft every day (option C) |
 | 18 Oct | An order is just the aircraft: routes and cabin are decided when it arrives (the base was taken from the order) | Base, routes and cabin all decided when it arrives; the order's airport is a placeholder (§3). Why: Gitesh, 18 Oct |
 | 18 Oct | Scheduling runs one airline at a time once aircraft have arrived | One aircraft at a time, each decided and carded before the next (§4). Why: Gitesh, 18 Oct |

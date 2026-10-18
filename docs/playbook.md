@@ -101,8 +101,9 @@ database → Building.
   Delhi. When adding routes from a list, add missing lanes only and never change an owner.
 - **The destination shape:** in time, fly every route a real airline flies from each of our hubs and focus cities. Plan
   as if money weren't the limit, and grow at the group's own pace.
-- **Growth matters as much as profit.** Every batch of aircraft opens new markets as well as adding flights on proven
-  routes.
+- **Market share first, profit second.** Route lists lead with the biggest markets, rivals' pairs included, and
+  shorter sectors where they give an aircraft more departures a day. Capturing the demand and holding the departures
+  keeps new competition out. The cash forecast, the fare floor and the fix marks still apply.
 - **Each airline has a real-world model to copy:** Virgin → British Airways, Pan Am → Pan Am, China Eastern → China
   Eastern, Malaysia → Singapore Airlines, Kingfisher → Inter Connect (another world). Ryanair covers the Europe the
   others can't.
