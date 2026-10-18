@@ -13,7 +13,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
-import type { Json } from "../../db/types";
 import { ROUTE_COLUMNS, type MarketRow, type RouteRow } from "../routes/model";
 import type { ServiceRow } from "../routes/reads";
 import {
@@ -150,13 +149,6 @@ export async function readProfiles(worldId: number): Promise<ServiceRow[]> {
 export async function cabinLogged(worldId: number, registration: string): Promise<boolean> {
   const list = await rows<{ note: string | null }>("the money spent", supabase.from("spending_log").select("note").eq("world_id", worldId).eq("kind", "cabin") as unknown as Answer<{ note: string | null }[]>);
   return list.some((x) => String(x.note ?? "").startsWith(registration + " "));
-}
-/** The cabin an order of a type comes with for an airline: order_cabin(), the database's one home for it. */
-export async function orderCabin(airlineId: number, typeId: number): Promise<{ id: number; code: string; cost: number | null } | null> {
-  const { data, error } = await supabase.rpc("order_cabin", { p_airline_id: airlineId, p_type_id: typeId }, { get: true });
-  if (error) return fail("the order's cabin", error.message);
-  const d = data as { id?: number; code?: string; cost?: Json } | null;
-  return d && d.id != null ? { id: d.id, code: String(d.code ?? ""), cost: num(d.cost) } : null;
 }
 /** The airline's public schedule from the game (the existing Pages Function), or why it couldn't be read. */
 export async function readGameSchedule(link: string): Promise<{ flights: GameFlight[] } | { error: string }> {

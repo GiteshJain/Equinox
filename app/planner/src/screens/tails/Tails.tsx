@@ -27,7 +27,7 @@ import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
+  addTailChanges, basesOf, cardCabinChange, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
@@ -124,6 +124,12 @@ export function Tails() {
     } finally {
       setBusy(false);
     }
+  }
+  // a plan card's cabin (since 18 Oct): one action on the card; filing fits it
+  async function onCardCabin(r: DeliveryRow, code: string) {
+    if (!r.card) return;
+    const cfg = code ? (configsQ.data ?? []).find((c) => c.code === code) : undefined;
+    await save(cardCabinChange(r.card, cfg?.id ?? null));
   }
   // remove a delivery (the old data-deldel): what the old adapter looked at, read now, then one action
   async function onRemoveDelivery(r: DeliveryRow) {
@@ -276,7 +282,9 @@ export function Tails() {
       <Deliveries all={deliveries} shown={shown} airline={airline} filters={filters} open={filters.card} legsOf={legsOf} serviceOf={serviceOf}
         filed={(id) => flying.has(id)} busy={busy || filing.filing} now={now.getTime()}
         onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery}
-        onRemove={(r) => void onRemoveDelivery(r)} />
+        onRemove={(r) => void onRemoveDelivery(r)}
+        cabinsFor={(r) => cfgList(r.type)} cabinCode={(c) => (c.config_id == null ? "" : configs.get(c.config_id)?.code ?? "")}
+        onCabin={(r, code) => void onCardCabin(r, code)} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
     </main>
   );

@@ -597,6 +597,19 @@ async def filing(s, pl, al, tag, now, t):
     legs0 = psql(f"select coalesce(json_agg(l), '[]')::text from public.plan_card_legs l where l.plan_card_id = {int(ids['card'])}").strip()
     sample = json.loads((FIX / "schedule_113.expected.json").read_text())
 
+    # the card's cabin (since 18 Oct): chosen on the card, one change on plan_cards; put back after, so filing below takes
+    # the order's cabin as before
+    async def pick_cabin():
+        await to_screen(pl, "tails", "/tails?" + urlencode({"airline": code, "card": freg}))
+        sel = f"[data-figure='tails: deliveries'] [data-card-cabin-pick={json.dumps(freg)}]"
+        await pg.wait_for_selector(sel, timeout=30000)
+        opts = await pg.eval_on_selector_all(sel + " option", "os => os.map(o => o.value).filter(v => v)")
+        await pg.select_option(sel, opts[-1])
+    try:
+        await s.act("tails: choose a plan card's cabin", pick_cabin, rows=1)
+    finally:
+        quietly(f"update public.plan_cards set config_id = null where id = {int(ids['card'])}")
+
     def put_back(top_ids):
         quietly(f"""delete from public.flight_legs where id > {int(top_ids['legs'])} or rotation_id > {int(top_ids['rot'])};
                     delete from public.rotations where id > {int(top_ids['rot'])};

@@ -44,8 +44,9 @@ export interface ConfigRow { id: number; code: string; aircraft_type_id: number 
 export interface BuyTypeRow { airline_id: number; aircraft_type_id: number }
 /** A plan card: its legs are its plan_card_legs rows (the old planner's copy of them in extra.legs went with the clean-up,
  *  build pull request 14). */
-export interface PlanCardRow { id: number; airline_id: number; aircraft_id: number; base_code: string | null; title: string | null; note: string | null; updated_at: string }
-export const PLAN_CARD_COLUMNS = "id, airline_id, aircraft_id, base_code, title, note, updated_at";
+/** A plan card. config_id is the cabin chosen with its routes (since 18 Oct): filing fits it and logs its first fit. */
+export interface PlanCardRow { id: number; airline_id: number; aircraft_id: number; base_code: string | null; title: string | null; note: string | null; config_id?: number | null; updated_at: string }
+export const PLAN_CARD_COLUMNS = "id, airline_id, aircraft_id, base_code, title, note, config_id, updated_at";
 export interface PlanLegRow {
   id: number;
   plan_card_id: number;
@@ -326,6 +327,7 @@ export interface DeliveryRow {
   a: TailAircraft;
   airline: TailAirline | undefined;
   type: string;
+  /** The cabin it will be fitted with: its plan card's, else its order's; "" when neither names one. */
   config: string;
   /** Its arrival in the game, ms, or NaN. */
   at: number;
@@ -362,7 +364,7 @@ export function deliveryRows(aircraft: readonly TailAircraft[], airlines: readon
       const due = ok ? new Date(at).toISOString().slice(0, 10) : "";
       const arrived = ok ? at <= now : !!due && due <= today;
       return {
-        a, airline: airlines.find((x) => x.id === a.airline_id), type: typeName(rules, a.aircraft_type_id), config: configCode(configs, a.order_config_id),
+        a, airline: airlines.find((x) => x.id === a.airline_id), type: typeName(rules, a.aircraft_type_id), config: configCode(configs, cardOf.get(a.id)?.config_id ?? a.order_config_id),
         at, due, hrs: ok ? (at - now) / 36e5 : null, base: a.order_base_code ?? "", plan: String(a.order_note ?? "").replace(/^lands [^·]+· /, ""),
         status: flying.has(a.id) ? "flying" : arrived ? "unscheduled" : "on order", card: cardOf.get(a.id),
       };
@@ -489,8 +491,9 @@ export interface FilingInput {
   legs: readonly CardLeg[];
   /** The game's flight for each leg (by its index), when filing with the game's times. */
   game: readonly (GameFlight | null)[] | null;
-  /** The cabin its first fit is logged with: the order's own, else order_cabin(); null when there is none. */
-  cabin: { code: string; cost: number | null } | null;
+  /** The cabin it is fitted with and its first fit logged at (filingCabin(): the card's, else the order's); null when
+   *  neither names one, and then the aircraft keeps whatever cabin it has and nothing is logged. */
+  cabin: { id?: number; code: string; cost: number | null } | null;
   /** Whether a first cabin fit is logged for it already (a cabin row whose note starts with its registration). */
   cabinLogged: boolean;
   /** The airline's bases, its routes (removed ones too), markets and service profiles. */
@@ -504,6 +507,22 @@ export interface FilingInput {
 
 const clockMin = (s: string): number | null => time.parseClock(s);
 
+/** The cabin filing fits and logs (18 Oct): the plan card's, else the order's, else none. Never the airline's default
+ *  for the type: the cabin is chosen when the aircraft is planned, and a default would be logged at the wrong price. */
+export function filingCabin(card: Pick<PlanCardRow, "config_id"> | null | undefined, a: Pick<TailAircraft, "order_config_id">,
+  configs: ReadonlyMap<number, ConfigRow>): { id: number; code: string; cost: number | null; from: "card" | "order" } | null {
+  for (const [id, from] of [[card?.config_id, "card"], [a.order_config_id, "order"]] as const) {
+    const c = id == null ? undefined : configs.get(id);
+    if (c) return { id: c.id, code: c.code, cost: c.cost, from };
+  }
+  return null;
+}
+/** Choosing a plan card's cabin (or clearing it): one planner_save() change on the card. */
+export function cardCabinChange(card: PlanCardRow, configId: number | null): Change[] {
+  return (card.config_id ?? null) === configId ? []
+    : [{ table: "plan_cards", op: "update", key: { id: card.id }, base: card.updated_at, values: { config_id: configId } }];
+}
+
 /** Filing as one action: the aircraft in service (status active, its base and cabin), its first cabin fit in
  *  spending_log, each outbound and its return as a rotation with its two legs (a route added where the airline has none),
  *  and, filing with the game's times, the plan card's legs taking them. */
@@ -516,7 +535,8 @@ export function filingChanges(x: FilingInput): Change[] {
     const values: Values = { status: "active" };
     const base = x.card.base_code || a.order_base_code || null;
     if ((a.base_code ?? null) !== base) values.base_code = base;
-    if ((a.cabin_config_id ?? null) !== (a.order_config_id ?? null)) values.cabin_config_id = a.order_config_id ?? null;
+    // its cabin: the one chosen for it (the card's, else the order's); with none chosen it keeps what it has
+    if (x.cabin?.id != null && a.cabin_config_id !== x.cabin.id) values.cabin_config_id = x.cabin.id;
     if (a.retired_on != null) values.retired_on = null;
     for (const k of ["checked_on", "schedule_changed_on", "maintenance_note"] as const) if (a[k] != null) values[k] = null;
     out.push({ table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values });

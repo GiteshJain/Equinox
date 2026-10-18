@@ -10,10 +10,10 @@ import type { Change } from "../../data/save";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { readAirports } from "../routes/reads";
 import {
-  cardLegs, checkSummary, compareCard, daysSuffix, filingChanges, gameLink, withAirports, type CardCheck, type ConfigRow, type TailAircraft, type TailAirline,
+  cardLegs, checkSummary, compareCard, daysSuffix, filingCabin, filingChanges, gameLink, withAirports, type CardCheck, type ConfigRow, type TailAircraft, type TailAirline,
 } from "./model";
 import {
-  cabinLogged, orderCabin, readAircraft, readAirlineRoutes, readCard, readCardLegs, readGameSchedule, readMarkets, readProfiles,
+  cabinLogged, readAircraft, readAirlineRoutes, readCard, readCardLegs, readGameSchedule, readMarkets, readProfiles,
 } from "./reads";
 
 export interface FileState {
@@ -127,8 +127,8 @@ export function useFiling(opts: {
       const [routes, markets, profiles, logged] = await Promise.all([
         readAirlineRoutes(a.airline_id), readMarkets(w), readProfiles(w), cabinLogged(w, a.registration),
       ]);
-      const own = a.order_config_id == null ? null : opts.configs.get(a.order_config_id);
-      const cabin = own ? { code: own.code, cost: own.cost } : a.aircraft_type_id == null ? null : await orderCabin(a.airline_id, a.aircraft_type_id);
+      // its cabin: the plan card's, else the order's, else none (never the type's default: 18 Oct)
+      const cabin = filingCabin(card, a, opts.configs);
       const codes = [...new Set(fresh.flatMap((l) => [l.origin_code, l.dest_code]))];
       const airports = codes.length ? await readAirports(w, codes) : [];
       const changes = filingChanges({
@@ -140,7 +140,10 @@ export function useFiling(opts: {
       if (res.status === "preview") setState(null);
       if (res.status === "saved") {
         setState(null);
-        opts.onFiled(a.registration, words ?? (useGame ? `${a.registration} filed with the game's times.` : `${a.registration} filed with the plan card's times.`));
+        const filed = words ?? (useGame ? `${a.registration} filed with the game's times.` : `${a.registration} filed with the plan card's times.`);
+        const fit = cabin ? ` Cabin ${cabin.code}${logged ? "" : `, first fit logged at ${Math.round(Number(cabin.cost ?? 0)).toLocaleString("en-US")}`}.`
+          : ` No cabin: neither its plan card nor its order names one, so none was set or logged. Set it on Tails (the aircraft's config) once it's chosen.`;
+        opts.onFiled(a.registration, filed + fit);
       }
     } finally {
       setFiling(false);

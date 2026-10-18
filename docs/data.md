@@ -1058,6 +1058,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `extra` | jsonb | Fields the table doesn't know; the old planner's (the hidden copy of the legs among them) were cleared at the clean-up (build pull request 14). Expected empty |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
+| `config_id` | bigint | The cabin the aircraft is fitted with, chosen with its routes; filing gives the aircraft this cabin and logs its first fit at its price (null = not chosen yet) |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 

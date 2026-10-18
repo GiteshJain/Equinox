@@ -578,6 +578,17 @@
     "aircraft update maintenance_note": 1
    }
   },
+  "tails: choose a plan card's cabin": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save plan_cards update config_id": 1
+   },
+   "written": {
+    "plan_cards update config_id": 1
+   }
+  },
   "tails: file an arrived aircraft from its plan card, the game differing": {
    "logged": [
     "planner tab"

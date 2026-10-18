@@ -1085,14 +1085,14 @@ isOneToOne: false
                   ]
                 },"plan_cards": {
                   Row: {
-                    "aircraft_id": number,"airline_id": number,"base_code": string | null,"created_at": string,"extra": NonNullable<Json>,"id": number,"note": string | null,"title": string | null,"updated_at": string,"world_id": number
+                    "aircraft_id": number,"airline_id": number,"base_code": string | null,"config_id": number | null,"created_at": string,"extra": NonNullable<Json>,"id": number,"note": string | null,"title": string | null,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "aircraft_id": number,"airline_id": number,"base_code"?: string | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id": number
+                    "aircraft_id": number,"airline_id": number,"base_code"?: string | null,"config_id"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "aircraft_id"?: number,"airline_id"?: number,"base_code"?: string | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id"?: number
+                    "aircraft_id"?: number,"airline_id"?: number,"base_code"?: string | null,"config_id"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -1113,6 +1113,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "airports"
       referencedColumns: ["code"]
+    },{
+      foreignKeyName: "plan_cards_config_fkey"
+      columns: ["config_id","world_id"]
+isOneToOne: false
+      referencedRelation: "cabin_configs"
+      referencedColumns: ["id","world_id"]
     },{
       foreignKeyName: "plan_cards_world_id_fkey"
       columns: ["world_id"]

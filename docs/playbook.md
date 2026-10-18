@@ -261,8 +261,9 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
    - **All the same:** it files at once.
    - **Differences:** each flight shows the card's time and the game's (**same**, **different**, **not in the game**).
      File with **the game's times** if the game is right, or fix the game and file with **the plan card's times**.
-3. Filing puts the aircraft in service, logs its first cabin and adds each flight with its return as a round trip,
-   launched today.
+3. Filing puts the aircraft in service, fits the plan card's cabin (else the order's) and logs its first fit at that
+   cabin's price, and adds each flight with its return as a round trip, launched today. With no cabin on the card or the
+   order it sets none and says so: choose it on the card (**Cabin**) before filing.
 
 ### Step 7: Interline, if the route opens a new country
 - Planner → **Interline** shows the new airline–country row as **to sign**. Our airlines always interline with each
