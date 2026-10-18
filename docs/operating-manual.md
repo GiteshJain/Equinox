@@ -226,13 +226,13 @@ less important than another, point to point rather than hubs).*
   has; no 787, CRJ or A319. Each family is its own delivery line (the order queues, below). *Since 17 Oct · why
   (Gitesh): types are chosen per route, not fixed per airline; three maintenance families are free, a fourth costs 15%
   more maintenance (28 Sep).*
-  - **Size by city, as a guide:** 4- and 5-star cities get the A321neo (an XLR beyond its reach); 3-star cities the
-    A320neo, or the A321neo where the route is long or the city's demand is clearly strong; 2-star cities and short thin
-    routes the E195. The game's markets point the same way (its secondary and small markets default to the E195's
-    cabin). The delivery line counts too: the A320neo shares the A320-family line, the E195 has its own. Ryanair needs
-    an all-economy A320neo layout set up in the game before its first. *Since 18 Oct · why (Gitesh, agreed): the 7 days
-    to 18 Oct: 3-star routes still fill A321neos (96% economy) and E195s sell out everywhere but earn least a flight
-    (about 10k); the A320neo earns nearly an A321neo's profit a flight on 4-star routes (16.6k against 17.1k) for less.*
+  - **Size by city stars:** 1- and 2-star cities get the E195; 3-star the E195 or the A320neo; 4-star any of the
+    E195, A320neo and A321neo; 5-star the A320neo, A321neo or XLR (the XLR beyond an A321neo's reach). Within a band,
+    the bigger type goes where a heavy rival flies the pair or the sector is long. The game's markets point the same way
+    (its secondary and small markets default to the E195's cabin). The A320neo shares the A320-family line, the E195 has
+    its own. Ryanair needs an all-economy A320neo layout set up in the game before its first. *Since 18 Oct · why
+    (Gitesh): bookings are divided among the flights on offer (§9), so more, smaller flights take more of a market than
+    fewer big ones; the bigger types go where a city's demand is big enough to fill them.*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
   E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
   forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both
@@ -498,6 +498,8 @@ Each figure here is a `world_rules` row for Gander (§1, one source): the house 
 **Mechanics** (`demand_model`, `time_zones`, `subsidiaries_work`; the world's traffic rights, `treaties`, are still to
 be copied from the game's settings page)
 - Demand is per airport, not per city: Heathrow, Gatwick and Stansted are separate markets.
+- Bookings on a route are divided among the flights on offer, so more departures win more of a market than fewer,
+  bigger flights (Gitesh, from playing the game, 18 Oct).
 - Departure time of day doesn't affect demand; it matters only for connections.
 - Passengers book each direction separately; no location-based demand.
 - Maintenance need depends on take-offs and landings as well as hours, and can be done at any airport with a long
@@ -522,6 +524,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 18 Oct | Size by city, as a guide: 4- and 5-star the A321neo; 3-star the A320neo (or A321neo where long or strong); 2-star and short thin routes the E195 | By stars: 1–2 E195; 3 E195 or A320neo; 4 any of the three; 5 A320neo, A321neo or XLR (§3). Why: Gitesh, bookings are divided among the flights on offer |
 | 18 Oct | Order the type that earns most (the A321neo first), waiting for its cash rather than ordering an E195 sooner | Order across both lines: A321neos on big sold-out routes, E195s on short, thin and new markets when cash covers one but not an A321neo (§3). Why: Gitesh, market share first: more departures per dollar, sooner |
 | 18 Oct | Growth matters as much as profit: every airline's batch includes new markets, not only more flights on proven routes | Market share first, profit second: the biggest markets and rivals' pairs lead the route lists (§3). Why: Gitesh, capturing the demand and holding the slots keeps new competition out |
 | 18 Oct | One aircraft at a time, each decided and carded before the next; orders in batches | A route list per airline agreed each Saturday; arriving aircraft take its next routes and are filed within a day; orders every evening the forecast allows (§3, §4). Why: Gitesh, to add aircraft every day (option C) |
