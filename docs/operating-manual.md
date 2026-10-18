@@ -46,6 +46,10 @@ Until each is built and merged, the rules below stand as they are.
 - **Decided 17 Oct, for the Building chat:** route profit's add-a-flight or raise-fares mark by profit per aircraft
   hour (block time plus turnaround and margin) instead of profit per flight (§3). Until it's built, the mark compares
   profit per flight.
+- **Decided 18 Oct, for the Building chat:** the planner learns the default line's variants (§3): each new variant in
+  `aircraft_types` with its seats, speed, price and range with a full load (a new column), so the cash forecast tests
+  them and cards check reach. Until it's built, each order's variant is noted on its card and the Scheduling chat checks
+  reach against the table in §3.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
@@ -234,6 +238,30 @@ less important than another, point to point rather than hubs).*
     pick a type. *Since 18 Oct · why
     (Gitesh): bookings are divided among the flights on offer (§9), so more, smaller flights take more of a market than
     fewer big ones; the bigger types go where a city's demand is big enough to fill them.*
+- **The default line: the cheapest variant that seats the market and reaches the city.** Stars set the size (above),
+  smaller wins within the band, and distance picks the variant (list prices; range with a full load, from the game's
+  aircraft pages, 18 Oct). The current fleet stays as it is; new orders pick from this line.
+
+  | Size | Variant | Seats | Reach | List price | Use |
+  |---|---|---|---|---|---|
+  | Small | E195-E2 | 146 | 3,542 km | 35.4M | the default small aircraft |
+  | Small | E190-E2 | 114 | 4,065 km | 33.7M | 3,542–4,065 km, or the thinnest 1-star city |
+  | Mid | A320neo SHARP | 189 | 3,355 km | 41.2M | the default 189-seater |
+  | Mid | A320neo LIGHT | 189 | 3,690 km | 42.9M | 3,355–3,690 km |
+  | Mid | A320neo | 189 | 4,045 km | 43.4M | 3,690–4,045 km |
+  | Mid | A320neo Heavy | 189 | 4,708 km | 44.8M | 4,045–4,708 km |
+  | Large | A321neo LIGHT | 240 | 4,192 km | 48.0M | the default 240-seater, cheapest per seat |
+  | Large | A321neo | 240 | 4,742 km | 50.6M | 4,192–4,742 km |
+  | Large | A321LR | 240 | 5,809 km | 54.2M | 4,742–5,809 km |
+  | Large | A321XLR | 240 | 6,939 km | 57.2M | 5,809–6,939 km |
+  | Wide | A350-900 | 440 | 11,102 km | 140.1M | long-haul, when it comes |
+  | Wide | A350-900ULR | 440 | 11,690 km | 143.9M | 11,102–11,690 km |
+  | Wide | A350-1000 | 480 | 11,102 km | 157.1M | only where 440 seats sell out |
+
+  Left out because another variant beats them: the A319neo (more per seat than the A320neo SHARP at every reach), the
+  A321neo Medium, the A321XLR LIGHT and Heavy. Still three families: the A320 family, the E-jet E2 and the A350.
+  *Since 18 Oct · why (Gitesh, agreed): the LIGHT variants reach only 4,192 km (A321) and 3,690 km (A320); the LR
+  reaches 5,809 km for 3M less than the XLR, and the SHARP is the cheapest 189-seater.*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
   E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
   forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both
