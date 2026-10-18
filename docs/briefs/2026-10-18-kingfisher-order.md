@@ -20,3 +20,17 @@ Kingfisher's short domestic hops (6–8k a flight under 400 km).
 ## Outcome
 **18 Oct: B,** one A321neo based at Delhi, ordered after the 19 Oct capture if the forecast still allows. Kingfisher's first
 E195s go to 2-star cities later, as the size guide says.
+
+## Revisited on the 18 Oct 17:59 UTC capture (Scheduling chat, same day)
+Gitesh asked for every airline's order to be looked at again on this capture. Kingfisher has 3.19M and nothing on order,
+so no cabins are waiting to be paid; its lowest point in 14 days is now (`cash_forecast()`, each order's lease counted).
+
+| Option | Profit a week (after lease) | Cash at the lowest point | When it lands (A320-family line idle; manual §3) |
+|---|---|---|---|
+| **B now. One A321neo today** | **~0.49M (~70k a day)** | **0.59M** | **about 19 Oct 17:20 UTC** |
+| B as decided. One A321neo after the 19 Oct capture | ~0.49M | more (a day's income) | about 20 Oct 15:00 UTC |
+| C. One A320neo today | ~0.46M | about 0.88M | about 19 Oct 17:20 UTC |
+| A. One E195 today | ~0.21M | about 1.29M | about 19 Oct 11:20 UTC |
+
+**Recommendation:** the same choice, B, but today: the forecast already allows it with 0.09M to spare, and ordering now
+gains about a day of the aircraft's profit (~70k). Two at once don't fit (A321neo with an E195: −1.30M).
