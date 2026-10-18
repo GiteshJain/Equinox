@@ -12,7 +12,7 @@ profit second, the rule for the whole group (manual §3).
 | **B. The biggest markets, rivals' included, shorter sectors first** | **30 routes; the first four aircraft 56 departures a week each** | **expected below A: contested routes split demand, short sectors earn less a flight** | **the same** | **some profit a flight** | **contested routes may not fill as uncontested ones do** | **yes** |
 | C. Barcelona first | builds Barcelona fastest; Paris and Amsterdam wait | unproven: Barcelona–Vienna at 75% load | the same | Paris and Amsterdam stand still | one base carries the growth | yes |
 
-## The list (all A321neo, one daily rotation per route, 85% launch fare)
+## The list (one daily rotation per route, 85% launch fare; types re-sized 18 Oct by city stars, below)
 
 | # | Base | New routes (km, stars, rival departures a week in the 17 Oct scan) | Departures a week |
 |---|---|---|---|
@@ -52,3 +52,7 @@ Scheduling chat takes the next line on the list; times are set on the card, chec
 
 **18 Oct: B, agreed.** Gitesh: market share first, profit second, for the whole group; capturing the demand and holding
 more slots leaves new competition no room to move in. Manual §3 updated the same day.
+
+**18 Oct, later: types re-sized** under the new size-by-stars rule (manual §3) and bookings divided among flights (§9):
+line 1, 2, 3 and 9 A321neo; lines 5, 6 and 7 A320neo (all-economy layout to set up in the game before the first; a
+couple of minutes, never a constraint); lines 4 and 8 E195. Agreed (Gitesh).
