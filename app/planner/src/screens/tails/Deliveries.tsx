@@ -21,6 +21,12 @@ function Stn({ code, stations }: { code: string; stations?: ReadonlySet<string> 
   return stations && !stations.has(code) ? <span className="newstn" data-new-station={code} title="no station here yet for this airline">{code}</span> : <>{code}</>;
 }
 
+/** A card's title ("BTV + CHS + SAV"), each airport code in it highlighted when the airline has no station there yet. */
+function StnText({ text, stations }: { text: string; stations?: ReadonlySet<string> }) {
+  if (!stations) return <>{text}</>;
+  return <>{text.split(/\b([A-Z]{3})\b/).map((part, i) => (i % 2 ? <Stn key={i} code={part} stations={stations} /> : part))}</>;
+}
+
 export function PlanCard({ reg, base, title, type, config, card, legs, service, filed, canFile, busy, onFile, cabins, cardCabin, onCabin, stations }: {
   reg: string; base: string; title: string; type: string; config: string; card: PlanCardRow; legs: readonly CardLeg[]; filed: boolean; canFile: boolean; busy: boolean;
   /** Each leg's service issue, by its row id. */
@@ -35,7 +41,7 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
 }) {
   return (
     <div className="pcard" data-plan-card={reg}>
-      <div className="pch"><b>{reg} · {card.base_code || base} — {card.title || title}</b><span>{type} · {config ? <span data-card-cabin={config}>{config}</span> : <span className="pill warn sm" data-card-cabin="">no cabin chosen</span>}</span></div>
+      <div className="pch"><b>{reg} · {card.base_code || base} — <StnText text={card.title || title} stations={stations} /></b><span>{type} · {config ? <span data-card-cabin={config}>{config}</span> : <span className="pill warn sm" data-card-cabin="">no cabin chosen</span>}</span></div>
       <div className="tblwrap">
         <table className="tbl pt">
           <tbody>
