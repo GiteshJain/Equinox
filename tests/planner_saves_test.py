@@ -599,6 +599,8 @@ async def filing(s, pl, al, tag, now, t):
 
     # the card's cabin (since 18 Oct): chosen on the card, one change on plan_cards; put back after, so filing below takes
     # the order's cabin as before
+    await reload(pl)   # the aircraft and its card were made just now, after the planner read the tables
+
     async def pick_cabin():
         await to_screen(pl, "tails", "/tails?" + urlencode({"airline": code, "card": freg}))
         sel = f"[data-figure='tails: deliveries'] [data-card-cabin-pick={json.dumps(freg)}]"
