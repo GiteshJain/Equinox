@@ -37,3 +37,5 @@ its lowest point is now (`cash_forecast()`, each order's lease counted).
 **Recommendation:** keep A, ordered today. The XLR is now affordable, but reach first (manual §3) keeps new aircraft on
 short and medium-haul routes, and its natural use from Shanghai would be India, where Shanghai–Kolkata runs at 24%
 (briefing, 18 Oct 20:26 UTC).
+
+**Revisit outcome, 18 Oct:** A kept (Gitesh), one A321neo ordered today.
