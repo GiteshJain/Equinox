@@ -221,8 +221,8 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   doesn't need one.
 
 ### Step 3: Order in the game
-- **You order in the game** and tell the Scheduling chat. Claude logs it. The order is just the aircraft: no routes, no
-  cabin and no plan card yet.
+- **You order in the game** and tell the Scheduling chat. Claude logs it. The order is just the aircraft: no base (the airport
+  it's ordered under is a placeholder), no routes, no cabin and no plan card yet.
 - The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC).
 
 ### Step 4: When it arrives, plan its routes (Scheduling chat)
