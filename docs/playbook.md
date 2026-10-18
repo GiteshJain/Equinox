@@ -191,7 +191,7 @@ do unless Home or the Systems board shows red (section 11).
 ## 6. The growth loop: from order to flying
 This is the heart of the game. It runs whenever an airline can afford an aircraft and whenever one arrives.
 
-### Step 1: Can the airline order? (any time; always on Saturdays)
+### Step 1: Can the airline order? (every evening after the capture)
 - Planner → **Review** → the airline → **Cash, next 14 days**. It starts from today's captured cash, adds flight profit
   from the last day's bank statement, and takes away every scheduled lease and week-end closing (the weekly salary
   payment).
@@ -226,13 +226,13 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 - The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC).
 
 ### Step 4: When it arrives, plan its routes (Scheduling chat)
-1. Tell the Scheduling chat which aircraft arrived (or ask it to check). One aircraft at a time: each is decided and
-   carded before the next, even when an airline has several arriving.
-   Claude also writes that day's delivery post for the airline's newsroom (one post per airline per day).
-2. Claude runs the airline's briefing (`brief.py <airline>`): money, fleet, routes, hubs, deliveries and their plan
-   cards, to-dos, fare plan, rivals from the latest world scan and the capture's state, in one step.
-3. Claude gives the background (what loads, money, network and competition show) and the options. **You pick the
-   routes together.**
+1. Tell the Scheduling chat which aircraft arrived (or ask it to check). It takes the next routes on the airline's
+   **route list**, agreed at the Saturday review for the next two weeks. Claude also writes that day's delivery post
+   for the airline's newsroom (one post per airline per day).
+2. Claude runs the airline's briefing (`brief.py <airline>`) to check the routes still fit: money, fleet, routes, hubs,
+   deliveries and their plan cards, to-dos, fare plan, rivals from the latest world scan and the capture's state.
+3. Only if the list has run out, or a route no longer fits, Claude gives the background and options and **you pick**.
+   Otherwise the card follows the list.
 4. Claude writes the **plan card** (on Tails → Deliveries → **card**). Every card follows these rules:
 
 | Rule | The number |
@@ -312,7 +312,11 @@ first.
    - **The fare plan:** what last week's fare tests did (Review → the airline → Fare plan; each change is spotted by the
      next capture), and which new tests to make. Fare changes are only ever reviewed here, never as Needs attention.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold**; anything under **Fix or reduce**.
-   - **Orders:** each airline's cash forecast, and what to order next (section 6, steps 1 and 2).
+   - **Route lists:** each airline's routes for the next two weeks, in order, with type and why (one brief per airline).
+     Arriving aircraft take them without a new discussion.
+   - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
+   - **Orders:** each airline's cash forecast. Orders themselves go in every evening the forecast allows (section 6,
+     step 1), not in a Saturday batch.
    - **Hubs first:** each main hub's progress towards 750.
    - **To-dos:** go through the board.
    - **Triggers:** anything that needs a decision brief (Supabase's plan, a new base, a big refit).

@@ -239,6 +239,10 @@ less important than another, point to point rather than hubs).*
   after delivery. The airport it's ordered or logged under is only a placeholder. No plan card at order time.
   *Since 2 Oct; the base since 18 Oct · why (Gitesh): where the aircraft goes is part of the routes decision.*
 - **Who orders:** Claude recommends what to order; Gitesh orders in the game and says so; Claude logs it. *Since 2 Oct.*
+- **Order every evening the forecast allows, not in batches:** after each evening's capture, Home's Needs attention
+  shows which airlines can order safely; Gitesh asks the Scheduling chat, which recommends the type from the airline's
+  route list (§4) and its order queues, and he orders that evening. *Since 18 Oct (option C) · why (Gitesh): the group's
+  cash supports about two aircraft a day; weekly batches left it waiting.*
 - **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
   payment). An order is safe when **0.5M stays in hand at the lowest point** after it (`settings.order_cushion`).
@@ -292,16 +296,24 @@ less important than another, point to point rather than hubs).*
   nearly planned at Manchester on uncontested routes, which the old wording allowed.*
 
 ## 4. Scheduling
-- **How it runs:** once aircraft have arrived, one aircraft at a time: each is planned, decided and its card written before the next is raised, even when an airline has several arriving. Claude gives the background (loads, money,
-  network, competition) and options; we decide the routes together; Claude writes the plan cards, each with its cabin
-  (`plan_cards.config_id`, since 18 Oct: filing fits it and logs its first fit at its price); Gitesh schedules in
-  the game and presses File; the planner checks each card against the game. **The background starts from the airline's
-  briefing** (`python3 scripts/briefing/brief.py <airline>`, `scripts/README.md`), which gathers its money, fleet,
-  routes, hubs, deliveries and plan cards with their check, to-dos, fare plan, rivals from the latest scan (with its
-  date) and the capture's state in one step; anything more comes from the call the map's guide names
-  (`docs/architecture.md`, "Which call answers which question"), not from guessing at tables. *Since 2 Oct; the
-  briefing since 15 Oct · why: #24, the background was stitched by hand from about six calls each time, with wrong
-  column guesses. One aircraft at a time since 18 Oct · why (Gitesh): keeps each decision on its own.*
+- **How it runs: a route list each week, a card as each aircraft arrives.** At the Saturday review we agree each
+  airline's **route list** for the next two weeks: the routes its next aircraft will fly, in order, each with its type
+  and why (one brief per airline, from its briefing). When an aircraft arrives it takes the next routes on its
+  airline's list: Claude writes the plan card, with its cabin (`plan_cards.config_id`: filing fits it and logs its
+  first fit at its price), checked at both ends, and Gitesh schedules it in the game and **files it within a day of
+  arrival**; the planner checks each card against the game. Only a card that leaves the list (the list has run out, a
+  route no longer fits the aircraft, a rival has moved in) comes to Gitesh first, as options. **The background starts
+  from the airline's briefing** (`python3 scripts/briefing/brief.py <airline>`, `scripts/README.md`), which gathers its
+  money, fleet, routes, hubs, deliveries and plan cards with their check, to-dos, fare plan, rivals from the latest scan
+  (with its date) and the capture's state in one step; anything more comes from the call the map's guide names
+  (`docs/architecture.md`, "Which call answers which question"), not from guessing at tables. *Since 18 Oct (option
+  C) · why (Gitesh): to add aircraft every day. Cash supports about two a day; deciding each aircraft on its own, and
+  aircraft waiting days to be filed, were the limit. Brief: `docs/briefs/2026-10-18-accelerate.md`. The briefing
+  since 15 Oct (#24).*
+- **Fly each aircraft as much as it fits:** the Saturday review lists every aircraft under **12 block hours a day** and
+  whether one more short rotation fits it, Ryanair's and Virgin's first (11.0 and 11.2 hours a day on 17 Oct,
+  against Malaysia's 13.3). Tails' own flag stays at `settings.aircraft_block_target_h` (10). *Since 18 Oct (option
+  C) · why: more flying from aircraft already paid for raises profit per aircraft, and so the pace of orders.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
 - **Until 31 October, only new routes:** every flight planned from 18 to 31 Oct opens a route the airline doesn't fly
@@ -391,7 +403,8 @@ less important than another, point to point rather than hubs).*
     why: Gitesh, it repeated what four weekly reports already say;*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 10 minutes or less);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
-  - the weekly review together, including the fare plan.
+  - the weekly review together: the fare plan (fare tests on routes marked raise fares, §5), each airline's route
+    list for the next two weeks (§4), aircraft under 12 block hours a day (§4), orders and hubs first.
 
   *Since 5–8 Oct.*
 - **Every night, after the capture:** an automatic backup copies the database and the site's files, restores the copy
@@ -496,6 +509,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 18 Oct | One aircraft at a time, each decided and carded before the next; orders in batches | A route list per airline agreed each Saturday; arriving aircraft take its next routes and are filed within a day; orders every evening the forecast allows (§3, §4). Why: Gitesh, to add aircraft every day (option C) |
 | 18 Oct | An order is just the aircraft: routes and cabin are decided when it arrives (the base was taken from the order) | Base, routes and cabin all decided when it arrives; the order's airport is a placeholder (§3). Why: Gitesh, 18 Oct |
 | 18 Oct | Scheduling runs one airline at a time once aircraft have arrived | One aircraft at a time, each decided and carded before the next (§4). Why: Gitesh, 18 Oct |
 | 17 Oct | A sold-out route is marked add a flight when its profit per flight is at or above its airline's middle route, raise fares when below | Profit per aircraft hour (block time, turnaround and turn margin) against the middle route (§3). Why: Gitesh, profit per flight favoured long routes (brief `docs/briefs/2026-10-17-add-or-raise.md`) |
