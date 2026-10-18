@@ -290,7 +290,8 @@ less important than another, point to point rather than hubs).*
 
 ## 4. Scheduling
 - **How it runs:** once aircraft have arrived, one airline at a time. Claude gives the background (loads, money,
-  network, competition) and options; we decide the routes together; Claude writes the plan cards; Gitesh schedules in
+  network, competition) and options; we decide the routes together; Claude writes the plan cards, each with its cabin
+  (`plan_cards.config_id`, since 18 Oct: filing fits it and logs its first fit at its price); Gitesh schedules in
   the game and presses File; the planner checks each card against the game. **The background starts from the airline's
   briefing** (`python3 scripts/briefing/brief.py <airline>`, `scripts/README.md`), which gathers its money, fleet,
   routes, hubs, deliveries and plan cards with their check, to-dos, fare plan, rivals from the latest scan (with its

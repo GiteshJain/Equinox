@@ -132,15 +132,17 @@ as you make it. On a preview address the planner saves nothing and says **previe
   may have (Reference), and the cabins its kind of airline's.
 - **Deliveries:** every aircraft with a delivery, for the airline and the base and type picked above: **Open** (on
   order, or arrived and not scheduled), **On order**, **Arrived** or **Flying**, each with its date and time (UTC),
-  base, plan and status; **card** shows its plan card (title, base, each flight's number, route, times, block and
-  service). **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
+  base, plan and status; **card** shows its plan card (title, base, its cabin, each flight's number, route, times, block
+  and service). The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
+  it, and the card says **no cabin chosen** while neither the card nor the order names one. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
   points at it, goes; one that has flown or been paid for is retired; one in service just leaves the list.
 - **File into planner** (on an arrived aircraft's plan card, or from Home): the planner reads the airline's schedule
   from the game and compares each flight on the card. When every one is the same, it files at once. Otherwise it shows
   each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with **the
-  game's times** (the card takes them too) or **the plan card's times**. Filing puts the aircraft in service, logs its
-  first cabin fit (its order's cabin, or the one an order of its type comes with, from the database), and adds each
-  flight with its return as a round trip, launched today. It then opens the aircraft.
+  game's times** (the card takes them too) or **the plan card's times**. Filing puts the aircraft in service, fits its
+  cabin and logs the first fit at that cabin's price: the plan card's cabin, else the order's. With neither, it sets no
+  cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
+  as a round trip, launched today, and then opens the aircraft.
 - **The aircraft pop-up** (from Home's needs attention, or a frequency's aircraft on Routes): its base, block hours a
   day, legs a week, maintenance, the one-week check, every issue and its flights, with **Mark checked** and **Open in
   Tails**. While the checks are off (*aircraft_check_after_days* 0), there's no check line and no **Mark checked**.

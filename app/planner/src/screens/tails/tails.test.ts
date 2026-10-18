@@ -10,7 +10,7 @@ import { buildRules, type RulesInput, type TailIssue } from "@rules";
 import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
-  addTailChanges, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingChanges, filtersQuery,
+  addTailChanges, cardCabinChange, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin, filingChanges, filtersQuery,
   gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries, tailRows, tailsOf, typesFor, weekStrip,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
@@ -183,7 +183,7 @@ describe("filing", () => {
   ];
   const markets = new Map<number, MarketRow>([[1, { id: 1, airline_id: 1, name: "Asia", default_type_id: 1, default_config_id: 11, fare_y_pct: 105, fare_j_pct: null }]]);
   const x: FilingInput = {
-    worldId: 1, today: TODAY, nowMs: NOW, rand: () => 0.5, rules, aircraft: fleet[4] as TailAircraft, card, legs, game: null, cabin: { code: "321-LEI", cost: 450000 },
+    worldId: 1, today: TODAY, nowMs: NOW, rand: () => 0.5, rules, aircraft: fleet[4] as TailAircraft, card, legs, game: null, cabin: { id: 11, code: "321-LEI", cost: 450000 },
     cabinLogged: false, bases: ["HUB", "FOC"], routes, markets,
     profiles: [{ id: 1, code: "S1", airline_id: null, up_to_km: 1000 }, { id: 2, code: "S2", airline_id: null, up_to_km: 99999 }], airports: new Map(),
   };
@@ -222,6 +222,34 @@ describe("filing", () => {
       { table: "plan_card_legs", op: "update", key: { id: 73 }, base: T0, values: { dep_utc_min: 930, block_min: 85 } }]);
     // the card itself is left as it is: its legs are its rows (the old planner's copy of them went with the clean-up)
     expect(ch.map((c) => c.table)).not.toContain("plan_cards");
+  });
+  // 18 Oct: filing gave every new aircraft its order's cabin (none) and logged the type's default cabin's price
+  it("fits the plan card's cabin over the order's, and logs the first fit at its price", () => {
+    const cfg = new Map(configs.map((c) => [c.id, c]));
+    // the card names 321-CMF (14) and the order 321-LEI (11): the card's wins
+    const cabin = filingCabin({ config_id: 14 }, fleet[4] as TailAircraft, cfg);
+    expect(cabin).toEqual({ id: 14, code: "321-CMF", cost: 600000, from: "card" });
+    const ch = filingChanges({ ...x, card: { ...card, config_id: 14 }, cabin });
+    expect(ch[0]?.values).toEqual({ status: "active", base_code: "HUB", cabin_config_id: 14 });
+    expect(ch[1]).toEqual({ table: "spending_log", op: "insert", values: { world_id: 1, airline_id: 1, spent_on: TODAY, amount: 600000, kind: "cabin", aircraft_id: 5,
+      note: "T-005 first cabin fit (321-CMF)" } });
+    // no cabin on the card: the order's
+    expect(filingCabin({ config_id: null }, fleet[4] as TailAircraft, cfg)).toEqual({ id: 11, code: "321-LEI", cost: 450000, from: "order" });
+  });
+  it("with no cabin on the card or the order, sets none and logs nothing (never the type's default)", () => {
+    const cfg = new Map(configs.map((c) => [c.id, c]));
+    const bare = { ...(fleet[4] as TailAircraft), order_config_id: null };
+    expect(filingCabin({ config_id: null }, bare, cfg)).toBeNull();
+    const ch = filingChanges({ ...x, aircraft: bare, cabin: null });
+    expect(ch[0]?.values).toEqual({ status: "active", base_code: "HUB" });
+    expect(ch.map((c) => c.table)).not.toContain("spending_log");
+    // an aircraft given a cabin by hand before filing keeps it
+    expect(filingChanges({ ...x, aircraft: { ...bare, cabin_config_id: 13 }, cabin: null })[0]?.values).toEqual({ status: "active", base_code: "HUB" });
+  });
+  it("chooses or clears a plan card's cabin as one change on the card", () => {
+    expect(cardCabinChange(card, 14)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: 14 } }]);
+    expect(cardCabinChange({ ...card, config_id: 14 }, null)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: null } }]);
+    expect(cardCabinChange({ ...card, config_id: 14 }, 14)).toEqual([]);
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");
