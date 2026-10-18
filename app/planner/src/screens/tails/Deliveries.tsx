@@ -5,7 +5,10 @@
 // code isn't the one its route's distance calls for (or has none) shows it as an issue on the leg ("S1, wants S3"; the
 // plan card's service check, #18 build pull request 10). The card carries its cabin (since 18 Oct), chosen with its routes:
 // it shows beside the type ("no cabin chosen" when neither the card nor the order names one), and until the aircraft is
-// filed the card's Cabin box sets it; filing fits that cabin and logs its first fit at its price.
+// filed the card's Cabin box sets it; filing fits that cabin and logs its first fit at its price. Since 18 Oct a card opens
+// in its own window over the board (the rest of the screen dimmed, as the old planner's did), and an airport where the
+// airline has no station yet (stationsOf(): none of its flights or bases touch it) is highlighted on the card.
+import { useEffect } from "react";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
 import { comingIn, type CardLeg, type DeliveryRow, type DeliveryStatus, type PlanCardRow, type TailAirline } from "./model";
@@ -13,7 +16,12 @@ import { comingIn, type CardLeg, type DeliveryRow, type DeliveryStatus, type Pla
 const STATUS: readonly [DeliveryStatus, string][] = [["", "Open"], ["on order", "On order"], ["unscheduled", "Arrived"], ["flying", "Flying"]];
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function PlanCard({ reg, base, title, type, config, card, legs, service, filed, canFile, busy, onFile, cabins, cardCabin, onCabin }: {
+/** An airport code, highlighted when the airline has no station there yet. */
+function Stn({ code, stations }: { code: string; stations?: ReadonlySet<string> }) {
+  return stations && !stations.has(code) ? <span className="newstn" data-new-station={code} title="no station here yet for this airline">{code}</span> : <>{code}</>;
+}
+
+export function PlanCard({ reg, base, title, type, config, card, legs, service, filed, canFile, busy, onFile, cabins, cardCabin, onCabin, stations }: {
   reg: string; base: string; title: string; type: string; config: string; card: PlanCardRow; legs: readonly CardLeg[]; filed: boolean; canFile: boolean; busy: boolean;
   /** Each leg's service issue, by its row id. */
   service?: ReadonlyMap<number, string>;
@@ -22,6 +30,8 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
   cabins?: readonly string[];
   cardCabin?: string;
   onCabin?: (code: string) => void;
+  /** The airports where the airline has a station; the others are highlighted. */
+  stations?: ReadonlySet<string>;
 }) {
   return (
     <div className="pcard" data-plan-card={reg}>
@@ -33,7 +43,7 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
             {legs.map((l) => {
               const issue = service?.get(l.row.id);
               return (
-                <tr key={l.row.id} data-card-leg><td><b>{l.no}</b></td><td>{l.from}–{l.to}</td><td>{l.dep}</td><td>{l.arr}</td><td>{l.block}</td>
+                <tr key={l.row.id} data-card-leg><td><b>{l.no}</b></td><td><Stn code={l.from} stations={stations} />–<Stn code={l.to} stations={stations} /></td><td>{l.dep}</td><td>{l.arr}</td><td>{l.block}</td>
                   <td>{l.svc}{issue ? <> <span className="pill bad sm" data-service-issue title="the service code its route's distance calls for">{issue}</span></> : null}</td></tr>
               );
             })}
@@ -57,7 +67,7 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
   );
 }
 
-export function Deliveries({ all, shown, airline, filters, open, legsOf, serviceOf, filed, busy, now, onStatus, onCard, onFile, onRemove, cabinsFor, cabinCode, onCabin }: {
+export function Deliveries({ all, shown, airline, filters, open, legsOf, serviceOf, filed, busy, now, onStatus, onCard, onFile, onRemove, cabinsFor, cabinCode, onCabin, stations }: {
   all: readonly DeliveryRow[];
   shown: readonly DeliveryRow[];
   airline: TailAirline | undefined;
@@ -78,7 +88,17 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
   cabinsFor?: (r: DeliveryRow) => readonly string[];
   cabinCode?: (card: PlanCardRow) => string;
   onCabin?: (r: DeliveryRow, code: string) => void;
+  /** The airports where the airline has a station. */
+  stations?: ReadonlySet<string>;
 }) {
+  const shownCard = shown.find((r) => r.a.registration === open && r.card);
+  // Escape closes an open card
+  useEffect(() => {
+    if (!shownCard) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onCard(shownCard.a.registration); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [shownCard, onCard]);
   const openCount = all.filter((r) => r.status !== "flying").length;
   const head = (
     <h3 className="rh">Deliveries <span className="note">{openCount} aircraft on order or waiting to be scheduled · flying aircraft drop off this list on their own (the Flying filter shows them) · Claude fills this from your delivery reports</span></h3>
@@ -108,7 +128,6 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
             ) : null}
             {shown.map((r) => {
               const at = Number.isFinite(r.at) ? new Date(r.at) : null;
-              const arrived = r.status !== "on order";
               return [
                 <tr key={r.a.id} data-delivery={r.a.registration}>
                   <td><b>{r.a.registration}</b></td>
@@ -122,30 +141,35 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
                   <td className="n">{r.card ? <><button type="button" className="link" data-plancard={r.a.registration} onClick={() => onCard(r.a.registration)}>{open === r.a.registration ? "hide card" : "card"}</button>{" · "}</> : null}
                     <button type="button" className="link" data-deldel={r.a.registration} disabled={busy} onClick={() => onRemove(r)}>remove</button></td>
                 </tr>,
-                open === r.a.registration && r.card ? (
-                  <tr className="planrow" key={r.a.id + "-card"}>
-                    <td colSpan={8}>
-                      <CardRow r={r} legsOf={legsOf} serviceOf={serviceOf} filed={filed(r.a.id)} canFile={arrived && now > 0} busy={busy} onFile={() => onFile(r)}
-                        cabins={cabinsFor?.(r)} cardCabin={r.card ? cabinCode?.(r.card) : undefined} onCabin={onCabin ? (c) => onCabin(r, c) : undefined} />
-                    </td>
-                  </tr>
-                ) : null,
               ];
             })}
           </tbody>
         </table>
       </div>
+      {shownCard ? (
+        <div className="mback" onClick={(e) => { if (e.target === e.currentTarget) onCard(shownCard.a.registration); }}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={`Plan card ${shownCard.a.registration}`}>
+            <div className="mhead"><div><AirlineMark color={shownCard.airline?.color} /><b>Plan card · {shownCard.a.registration}</b></div>
+              <button type="button" className="mx" aria-label="Close" onClick={() => onCard(shownCard.a.registration)}>×</button></div>
+            <div className="mbody">
+              <CardRow r={shownCard} legsOf={legsOf} serviceOf={serviceOf} filed={filed(shownCard.a.id)} canFile={shownCard.status !== "on order" && now > 0} busy={busy}
+                onFile={() => onFile(shownCard)} cabins={cabinsFor?.(shownCard)} cardCabin={shownCard.card ? cabinCode?.(shownCard.card) : undefined}
+                onCabin={onCabin ? (c) => onCabin(shownCard, c) : undefined} stations={stations} />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function CardRow({ r, legsOf, serviceOf, filed, canFile, busy, onFile, cabins, cardCabin, onCabin }: {
+function CardRow({ r, legsOf, serviceOf, filed, canFile, busy, onFile, cabins, cardCabin, onCabin, stations }: {
   r: DeliveryRow; legsOf: (card: PlanCardRow) => CardLeg[]; serviceOf?: (card: PlanCardRow, legs: readonly CardLeg[]) => ReadonlyMap<number, string>;
   filed: boolean; canFile: boolean; busy: boolean; onFile: () => void;
-  cabins?: readonly string[]; cardCabin?: string; onCabin?: (code: string) => void;
+  cabins?: readonly string[]; cardCabin?: string; onCabin?: (code: string) => void; stations?: ReadonlySet<string>;
 }) {
   if (!r.card) return null;
   const legs = legsOf(r.card);
   return <PlanCard reg={r.a.registration} base={r.base} title={r.plan} type={r.type} config={r.config} card={r.card} legs={legs} service={serviceOf?.(r.card, legs)}
-    filed={filed} canFile={canFile} busy={busy} onFile={onFile} cabins={cabins} cardCabin={cardCabin} onCabin={onCabin} />;
+    filed={filed} canFile={canFile} busy={busy} onFile={onFile} cabins={cabins} cardCabin={cardCabin} onCabin={onCabin} stations={stations} />;
 }

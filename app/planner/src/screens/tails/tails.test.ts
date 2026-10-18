@@ -10,7 +10,7 @@ import { buildRules, type RulesInput, type TailIssue } from "@rules";
 import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
-  addTailChanges, cardCabinChange, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin, filingChanges, filtersQuery,
+  addTailChanges, cardCabinChange, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin, filingChanges, stationsOf, filtersQuery,
   gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries, tailRows, tailsOf, typesFor, weekStrip,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
@@ -245,6 +245,12 @@ describe("filing", () => {
     expect(ch.map((c) => c.table)).not.toContain("spending_log");
     // an aircraft given a cabin by hand before filing keeps it
     expect(filingChanges({ ...x, aircraft: { ...bare, cabin_config_id: 13 }, cabin: null })[0]?.values).toEqual({ status: "active", base_code: "HUB" });
+  });
+  it("knows where an airline has a station: its bases and every airport its flights touch", () => {
+    const s = stationsOf(rules, 1);
+    for (const code of ["HUB", "AAA", "FOC"]) expect(s.has(code)).toBe(true);
+    // DDD is only on T-005's plan card: no station yet
+    expect(s.has("DDD")).toBe(false);
   });
   it("chooses or clears a plan card's cabin as one change on the card", () => {
     expect(cardCabinChange(card, 14)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: 14 } }]);
