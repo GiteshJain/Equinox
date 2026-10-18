@@ -294,8 +294,9 @@ less important than another, point to point rather than hubs).*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
 - **Until 31 October, only new routes:** every flight planned from 18 to 31 Oct opens a route the airline doesn't fly
-  yet: no second dailies or extra frequency on existing routes, whatever the growth signals say. Cards already filed
-  stay as they are; unfiled frequency cards are replanned. *From 18 Oct to 31 Oct · why: Gitesh, 18 Oct.*
+  yet: no second dailies or extra frequency on existing routes, whatever the growth signals say. Plan cards made before
+  18 Oct stay as they are, filed or not (EI-ABS and EI-ABT keep their second dailies). *From 18 Oct to 31 Oct · why:
+  Gitesh, 18 Oct.*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
   0), and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`). Every new plan card
