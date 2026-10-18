@@ -250,7 +250,10 @@ less important than another, point to point rather than hubs).*
   another: an A320-family aircraft (A320neo, A321neo and XLR share the line) every 21 hours, an E195 every 15 hours, an
   A350 every 30 hours. Order planning keeps the queues in mind (Check → Growth → Order queues): what each airline still
   has to arrive on each line, when each line runs dry, and when a new order's aircraft would arrive. An empty line is a
-  line standing idle. *Since 17 Oct · why (Gitesh): plan future orders with the order queue in mind.*
+  line standing idle. A new order joins the end of its line: on an idle line its first aircraft arrives one interval
+  after the order (the 18 Oct orders: A321neos 21 hours later, E195s 15), on a busy line one interval after the last
+  aircraft already queued (EI-ABU, 21 hours after EI-ABT). *Since 17 Oct · why (Gitesh): plan future orders with the
+  order queue in mind.*
 - **Growth matters as much as profit:** every airline's batch includes new markets, not only more flights on proven
   routes. *Since 8 Oct.*
 - **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
@@ -290,6 +293,9 @@ less important than another, point to point rather than hubs).*
   column guesses.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
+- **Until 31 October, only new routes:** every flight planned from 18 to 31 Oct opens a route the airline doesn't fly
+  yet: no second dailies or extra frequency on existing routes, whatever the growth signals say. Cards already filed
+  stay as they are; unfiled frequency cards are replanned. *From 18 Oct to 31 Oct · why: Gitesh, 18 Oct.*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
   0), and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`). Every new plan card
