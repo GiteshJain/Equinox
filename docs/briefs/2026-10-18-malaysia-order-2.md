@@ -35,3 +35,8 @@ capture: after an E195 today, an XLR waits about two days.
 **18 Oct: B,** one XLR today for Sydney (Gitesh), after asking why not several E195s: two leave 0.44M before 9M-AAU's
 cabin (about 0.23M after), under the cushion. Gitesh orders in the game and tells Claude (to-do); routes confirmed on
 arrival.
+
+**Correction, 18 Oct (same day):** the brief said nobody flies KUL to Sydney or Melbourne. That was wrong: the rival
+check's result was lost when two queries ran in one call. World scan 4 (17 Oct) shows Qantas flying KUL–Sydney six times a
+week (A330-900) and Virgin Australia KUL–Melbourne daily; Perth, Brisbane and Auckland have no rival. The XLR (9M-AAV) is
+ordered; its routes are decided when it lands (20 Oct 00:34 UTC), with this in view.
