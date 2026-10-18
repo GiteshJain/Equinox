@@ -39,4 +39,5 @@ later. A is the choice if the E195's routes matter more than the order of earnin
 - Wanting both lines working as soon as possible: A.
 
 ## Outcome
-<to come>
+**18 Oct: A,** one E195 today (Gitesh); the A321neo when the cash forecast allows (about Wednesday). Gitesh orders
+in the game and tells Claude (to-do).
