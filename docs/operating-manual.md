@@ -46,6 +46,8 @@ Until each is built and merged, the rules below stand as they are.
 - **Decided 17 Oct, for the Building chat:** route profit's add-a-flight or raise-fares mark by profit per aircraft
   hour (block time plus turnaround and margin) instead of profit per flight (§3). Until it's built, the mark compares
   profit per flight.
+- **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
+  competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
@@ -381,7 +383,10 @@ less important than another, point to point rather than hubs).*
     (6 Oct), because no step called for it.*
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
-    results. It is the only investor report: on the first Saturday of the month it adds a page on the month just
+    results, and each of our airlines against its three biggest competitors: the three outside airlines with the most
+    weekly departures on its own city pairs in the latest scan, each with its size and growth since the previous scan
+    beside our airline's (*since 18 Oct · why (Gitesh): to see whether each airline is gaining on its rivals*). It is
+    the only investor report: on the first Saturday of the month it adds a page on the month just
     ended (month-on-month figures and the month's decisions). *The separate monthly report was dropped 15 Oct ·
     why: Gitesh, it repeated what four weekly reports already say;*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 10 minutes or less);
