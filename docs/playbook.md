@@ -134,6 +134,8 @@ database → Building.
   queues); plan orders with the queues in mind.
 - **Size by city (a guide):** 4–5-star cities the A321neo (XLR beyond reach), 3-star the A320neo (A321neo when the
   route is long or demand clearly strong), 2-star and short thin routes the E195.
+  **Both delivery lines:** A321neos on big sold-out routes; E195s on short, thin and new markets, ordered the evening cash
+  covers an E195 but not yet an A321neo.
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network. Long haul comes later.
 - **New airlines launch short haul:** one daily rotation per route, as many routes as possible.
 

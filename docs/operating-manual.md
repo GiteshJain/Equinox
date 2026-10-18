@@ -233,6 +233,14 @@ less important than another, point to point rather than hubs).*
     an all-economy A320neo layout set up in the game before its first. *Since 18 Oct · why (Gitesh, agreed): the 7 days
     to 18 Oct: 3-star routes still fill A321neos (96% economy) and E195s sell out everywhere but earn least a flight
     (about 10k); the A320neo earns nearly an A321neo's profit a flight on 4-star routes (16.6k against 17.1k) for less.*
+- **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
+  E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
+  forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both
+  lines keep delivering. Each route list says which type each line of it takes. *Since 18 Oct · why (Gitesh, agreed):
+  under market share first, an E195 buys about a third more departures for the money (about 310 a week per 10M against
+  235) and comes sooner on its own line, while the A321neo buys more seats (about 1,000 per 10M against 810); cash, not
+  the lines, limits orders (an aircraft every 2 to 2.5 days per airline against a line delivering every 15 or 21
+  hours).*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *Since 28 Sep.*
 - **An order is just the aircraft.** Its base, routes and cabin are all decided when it arrives; the cabin is fitted
@@ -514,6 +522,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 18 Oct | Order the type that earns most (the A321neo first), waiting for its cash rather than ordering an E195 sooner | Order across both lines: A321neos on big sold-out routes, E195s on short, thin and new markets when cash covers one but not an A321neo (§3). Why: Gitesh, market share first: more departures per dollar, sooner |
 | 18 Oct | Growth matters as much as profit: every airline's batch includes new markets, not only more flights on proven routes | Market share first, profit second: the biggest markets and rivals' pairs lead the route lists (§3). Why: Gitesh, capturing the demand and holding the slots keeps new competition out |
 | 18 Oct | One aircraft at a time, each decided and carded before the next; orders in batches | A route list per airline agreed each Saturday; arriving aircraft take its next routes and are filed within a day; orders every evening the forecast allows (§3, §4). Why: Gitesh, to add aircraft every day (option C) |
 | 18 Oct | An order is just the aircraft: routes and cabin are decided when it arrives (the base was taken from the order) | Base, routes and cabin all decided when it arrives; the order's airport is a placeholder (§3). Why: Gitesh, 18 Oct |
