@@ -33,4 +33,5 @@ aircraft follows two days later. B earns more a day but leaves the cushion thin 
 - Wanting the most profit first: B.
 
 ## Outcome
-<to come>
+**18 Oct: A,** one E195 today (Gitesh), for new 3-star cities from Gatwick; the A320-family order when the cash
+forecast allows. Gitesh orders in the game and tells Claude (to-do).

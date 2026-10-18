@@ -22,3 +22,18 @@ flight; so Urumqi (3,312) about 30k and Kota Kinabalu (2,866) about 29k, against
 ## Outcome
 **18 Oct: A,** one A321neo, based at Shanghai. Gitesh orders it in the game and tells Claude, who logs it. After this,
 Shanghai's new routes are mostly 3-star cities (E195 or A320neo work) or XLR cities beyond an A321neo's reach.
+
+## Revisited on the 18 Oct 17:59 UTC capture (Scheduling chat, same day)
+Gitesh asked for every airline's order to be looked at again on this capture. China Eastern has 3.92M and nothing on order;
+its lowest point is now (`cash_forecast()`, each order's lease counted).
+
+| Option | Profit a week (after lease) | Cash at the lowest point |
+|---|---|---|
+| **A as decided. One A321neo (Urumqi + Kota Kinabalu)** | **~0.59M** | **1.33M** (0.82M on the morning capture) |
+| An XLR | — | about 0.9M (now safe; it wasn't this morning) |
+| C. One E195 (Harbin, Jinan, Yantai) | ~0.23M | about 2.0M |
+| A321neo with an E195 | — | −0.57M: not safe |
+
+**Recommendation:** keep A, ordered today. The XLR is now affordable, but reach first (manual §3) keeps new aircraft on
+short and medium-haul routes, and its natural use from Shanghai would be India, where Shanghai–Kolkata runs at 24%
+(briefing, 18 Oct 20:26 UTC).
