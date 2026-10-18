@@ -32,4 +32,6 @@ capture: after an E195 today, an XLR waits about two days.
 - Wanting the most profit now, or Oceania opened first: B.
 
 ## Outcome
-<to come>
+**18 Oct: B,** one XLR today for Sydney (Gitesh), after asking why not several E195s: two leave 0.44M before 9M-AAU's
+cabin (about 0.23M after), under the cushion. Gitesh orders in the game and tells Claude (to-do); routes confirmed on
+arrival.
