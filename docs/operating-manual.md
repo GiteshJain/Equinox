@@ -230,7 +230,8 @@ less important than another, point to point rather than hubs).*
     E195, A320neo and A321neo; 5-star the A320neo, A321neo or XLR (the XLR beyond an A321neo's reach). Within a band,
     the bigger type goes where a heavy rival flies the pair or the sector is long. The game's markets point the same way
     (its secondary and small markets default to the E195's cabin). The A320neo shares the A320-family line, the E195 has
-    its own. Ryanair needs an all-economy A320neo layout set up in the game before its first. *Since 18 Oct · why
+    its own. A cabin layout takes a couple of minutes to set up in the game, so a missing layout is never a reason to
+    pick a type. *Since 18 Oct · why
     (Gitesh): bookings are divided among the flights on offer (§9), so more, smaller flights take more of a market than
     fewer big ones; the bigger types go where a city's demand is big enough to fill them.*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
