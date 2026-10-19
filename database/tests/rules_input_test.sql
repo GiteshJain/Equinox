@@ -104,6 +104,19 @@ begin
                                                  from jsonb_array_elements(d_cmp -> 'airports') with ordinality as x(e, i)));
       n_new := n_new + 1;
     end if;
+    -- the default line's variants (20261019180000): 8 more aircraft types and 28 more cabin layouts, and the sheet's
+    -- figures on the types we had (cruise speeds, the A350-900ULR's seats); while pending, the types and layouts are
+    -- checked here (every one from before still there, the new ones added) and taken out of the comparison
+    if jsonb_array_length(d_all -> 'aircraft_types') > jsonb_array_length(d_before -> 'aircraft_types') then
+      assert jsonb_array_length(d_all -> 'aircraft_types') = jsonb_array_length(d_before -> 'aircraft_types') + 8, 'all: the default line should add 8 aircraft types';
+      assert jsonb_array_length(d_all -> 'cabin_configs') = jsonb_array_length(d_before -> 'cabin_configs') + 28, 'all: the default line should add 28 cabin layouts';
+      assert not exists (select 1 from jsonb_array_elements(d_before -> 'aircraft_types') e
+                          where not exists (select 1 from jsonb_array_elements(d_all -> 'aircraft_types') x where x -> 'id' = e -> 'id')),
+        'all: an aircraft type from before is gone';
+      d_cmp := d_cmp - 'aircraft_types' - 'cabin_configs';
+      d_before := d_before - 'aircraft_types' - 'cabin_configs';
+      n_new := n_new + 1;
+    end if;
   end if;
   assert d_before is null or d_cmp = d_before, 'all: the document isn''t exactly what rules_input() gave before this rehearsal''s changes (the new settings aside)';
   assert (d_flown #>> '{world,id}')::bigint = w, 'flown: the document isn''t the default world''s';

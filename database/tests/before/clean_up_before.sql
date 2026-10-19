@@ -40,6 +40,12 @@ begin
 end
 $$;
 
+-- the aircraft types' figures and who may buy which, before the pending changes (20261019180000, the default line's
+-- variants, adds types and corrects deposits on purpose): the clean-up test puts them back to compare the rest
+create table rehearsal_before.clean_up_types as select t.id, t.price, t.seats_max, t.cruise_kmh, t.order_config_id from public.aircraft_types t;
+create table rehearsal_before.clean_up_may_buy as select x.airline_id, x.aircraft_type_id from public.airline_aircraft_types x;
+create table rehearsal_before.clean_up_own_cabins as select x.airline_id, x.aircraft_type_id from public.airline_order_cabins x;
+
 create table rehearsal_before.clean_up_archive as
   select t.table_name, private.archive_manifest((date_trunc('month', now() at time zone 'UTC') - interval '1 month')::date, t.table_name) as manifest
     from private.archive_tables() t;
