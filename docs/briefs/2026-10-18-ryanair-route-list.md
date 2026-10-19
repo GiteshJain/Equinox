@@ -56,3 +56,5 @@ more slots leaves new competition no room to move in. Manual §3 updated the sam
 **18 Oct, later: types re-sized** under the new size-by-stars rule (manual §3) and bookings divided among flights (§9):
 line 1, 2, 3 and 9 A321neo; lines 5, 6 and 7 A320neo (all-economy layout to set up in the game before the first; a
 couple of minutes, never a constraint); lines 4 and 8 E195. Agreed (Gitesh).
+
+**18 Oct, later:** the A320neo lines (5, 6, 7) are the A320neo SHARP, Standard.

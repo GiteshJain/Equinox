@@ -34,3 +34,5 @@ departures), with both delivery lines in use (§3, agreed today).
 - **If a short route sells out on an E195,** it gets an A321neo or a second daily from November.
 
 **18 Oct: B, agreed** (Gitesh), with E195s on lines 1 and 4.
+
+**18 Oct, later: variants from the default line** (manual §3): line 3 Madrid A321LR (5,809 km reach) instead of the XLR, cabin Comfort; line 7 Rome stays the XLR. The A321neo LIGHT lines mixing Leisure Plus and Leisure (2, 6, 8) are fitted Leisure Plus.

@@ -33,3 +33,5 @@ hubs first: everything at Gatwick until it reaches 750 weekly departures.
 - **Left out:** China (long-haul waits under reach first); UK–US (Pan Am's); the Gulf (long; Gulf carriers are rivals).
 
 **18 Oct: A, agreed** (Gitesh), sized by city stars.
+
+**18 Oct, later: variants from the default line** (manual §3): the A320neo lines (1, 2, 4) are the A320neo SHARP, Leisure. Jersey and Antalya sit in the Africa market (Comfort) by mistake; flown Leisure with their lines, and the market to be corrected in Reference.
