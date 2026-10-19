@@ -50,8 +50,8 @@ Until each is built and merged, the rules below stand as they are.
   variant is in `aircraft_types` with its seats, cruise speed, deposit (`price`) and range with a full load (`range_km`),
   from Gitesh's sheet of the game's pages, every airline may buy each (Ryanair no A350), so the cash forecast tests them,
   and their cabin layouts are in `cabin_configs`. The game shows no turnaround, so a new variant takes its family's (A320
-  family 66 minutes, E-jet E2 67, A350 90). *Still to build:* plan cards checking each leg against the aircraft's reach;
-  until then the Scheduling chat checks reach against the table in §3.
+  family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a
+  route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card).
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
@@ -267,20 +267,24 @@ less important than another, point to point rather than hubs).*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
   E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
   forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both
-  lines keep delivering. Each route list says which type each line of it takes. *Since 18 Oct · why (Gitesh, agreed):
+  lines keep delivering. The route list says which type each route takes. *Since 18 Oct · why (Gitesh, agreed):
   under market share first, an E195 buys about a third more departures for the money (about 310 a week per 10M against
   235) and comes sooner on its own line, while the A321neo buys more seats (about 1,000 per 10M against 810); cash, not
   the lines, limits orders (an aircraft every 2 to 2.5 days per airline against a line delivering every 15 or 21
   hours).*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *Since 28 Sep.*
-- **An order is just the aircraft.** Its base, routes and cabin are all decided when it arrives; the cabin is fitted
-  after delivery. The airport it's ordered or logged under is only a placeholder. No plan card at order time.
-  *Since 2 Oct; the base since 18 Oct · why (Gitesh): where the aircraft goes is part of the routes decision.*
+- **Route first, then the airline, then the aircraft.** The Scheduling chat picks the routes the group should open
+  next, then the airline that flies them (hubs first and one airline per city pair, below and §2), then the variant
+  that seats the market and reaches the city (the default line, above) and its cabin. That is what gets ordered: the
+  plan card, with its routes, variant and cabin (`plan_cards.config_id`), is written when the aircraft is ordered.
+  *Since 19 Oct · why (Gitesh): the variant can't be chosen without knowing where the aircraft will fly, so the routes
+  are decided first.*
 - **Who orders:** Claude recommends what to order; Gitesh orders in the game and says so; Claude logs it. *Since 2 Oct.*
 - **Order every evening the forecast allows, not in batches:** after each evening's capture, Home's Needs attention
-  shows which airlines can order safely; Gitesh asks the Scheduling chat, which recommends the type from the airline's
-  route list (§4) and its order queues, and he orders that evening. *Since 18 Oct (option C) · why (Gitesh): the group's
+  shows which airlines can order safely; Gitesh asks the Scheduling chat, which recommends the next routes on the
+  group's route list (§4) with their airline, variant and cabin, keeping the order queues in mind, and he orders that
+  evening. *Since 18 Oct (option C) · why (Gitesh): the group's
   cash supports about two aircraft a day; weekly batches left it waiting.*
 - **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
@@ -308,7 +312,7 @@ less important than another, point to point rather than hubs).*
   aircraft already queued (EI-ABU, 21 hours after EI-ABT). *Since 17 Oct · why (Gitesh): plan future orders with the
   order queue in mind.*
 - **Market share first, profit second:** every airline grows to take and hold the biggest markets, rivals' included.
-  Route lists lead with the largest city pairs (5-star, and the pairs rivals fly most) and prefer shorter sectors where
+  The route list leads with the largest city pairs (5-star, and the pairs rivals fly most) and prefer shorter sectors where
   they give an aircraft more departures a day; going head to head with a rival is welcome. Capturing the demand and
   holding the departures leaves new competition little room to move in. Profit still has to be there: the cash forecast
   and its cushion, the fare floor, the fix and losing-money marks, hubs first and one airline per city pair don't
@@ -340,18 +344,20 @@ less important than another, point to point rather than hubs).*
   nearly planned at Manchester on uncontested routes, which the old wording allowed.*
 
 ## 4. Scheduling
-- **How it runs: a route list each week, a card as each aircraft arrives.** At the Saturday review we agree each
-  airline's **route list** for the next two weeks: the routes its next aircraft will fly, in order, each with its type
-  and why (one brief per airline, from its briefing). When an aircraft arrives it takes the next routes on its
-  airline's list: Claude writes the plan card, with its cabin (`plan_cards.config_id`: filing fits it and logs its
-  first fit at its price), checked at both ends, and Gitesh schedules it in the game and **files it within a day of
-  arrival**; the planner checks each card against the game. Only a card that leaves the list (the list has run out, a
-  route no longer fits the aircraft, a rival has moved in) comes to Gitesh first, as options. **The background starts
+- **How it runs: one route list for the group, a card with each order.** At the Saturday review we agree the
+  group's **route list** for the next two weeks: the routes to open, in order, each with its airline, variant, cabin
+  and why (from the airlines' briefings). Each order takes the next routes on the list: when Gitesh orders, Claude
+  writes the plan card with its routes and cabin (`plan_cards.config_id`: filing fits it and logs its first fit at its
+  price), checked at both ends. When the aircraft arrives, Claude checks the card still holds; Gitesh schedules it in
+  the game and **files it within a day of arrival**, and the planner checks each card against the game. Only a card
+  that no longer holds (a rival has moved in, a route no longer fits) or an order with the list run out comes to
+  Gitesh first, as options. **The background starts
   from the airline's briefing** (`python3 scripts/briefing/brief.py <airline>`, `scripts/README.md`), which gathers its
   money, fleet, routes, hubs, deliveries and plan cards with their check, to-dos, fare plan, rivals from the latest scan
   (with its date) and the capture's state in one step; anything more comes from the call the map's guide names
-  (`docs/architecture.md`, "Which call answers which question"), not from guessing at tables. *Since 18 Oct (option
-  C) · why (Gitesh): to add aircraft every day. Cash supports about two a day; deciding each aircraft on its own, and
+  (`docs/architecture.md`, "Which call answers which question"), not from guessing at tables. *Since 19 Oct (one
+  list for the group, the card with the order: route first, then airline, Gitesh); the list and daily orders since
+  18 Oct (option C) · why (Gitesh): to add aircraft every day. Cash supports about two a day; deciding each aircraft on its own, and
   aircraft waiting days to be filed, were the limit. Brief: `docs/briefs/2026-10-18-accelerate.md`. The briefing
   since 15 Oct (#24).*
 - **Fly each aircraft as much as it fits:** the Saturday review lists every aircraft under **12 block hours a day** and
@@ -555,6 +561,9 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 19 Oct | An order is just the aircraft: base, routes and cabin decided when it arrives, no plan card at order time | Route first, then the airline, then the aircraft: the plan card with routes, variant and cabin is written when it's ordered (§3). Why: Gitesh, the variant depends on where the aircraft flies |
+| 19 Oct | A route list per airline agreed each Saturday; the card written when the aircraft arrives | One route list for the group, each route with its airline, variant and cabin; the card written with the order and checked on arrival (§4). Why: Gitesh, route first, then airline |
+| 19 Oct | Plan cards to check each leg against the aircraft's reach (decided 18 Oct, not built) | The Scheduling chat checks reach when it picks the variant (§3). Why: Gitesh, the routes are decided before the card |
 | 18 Oct | Size by city, as a guide: 4- and 5-star the A321neo; 3-star the A320neo (or A321neo where long or strong); 2-star and short thin routes the E195 | By stars: 1–2 E195; 3 E195 or A320neo; 4 any of the three; 5 A320neo, A321neo or XLR (§3). Why: Gitesh, bookings are divided among the flights on offer |
 | 18 Oct | Order the type that earns most (the A321neo first), waiting for its cash rather than ordering an E195 sooner | Order across both lines: A321neos on big sold-out routes, E195s on short, thin and new markets when cash covers one but not an A321neo (§3). Why: Gitesh, market share first: more departures per dollar, sooner |
 | 18 Oct | Growth matters as much as profit: every airline's batch includes new markets, not only more flights on proven routes | Market share first, profit second: the biggest markets and rivals' pairs lead the route lists (§3). Why: Gitesh, capturing the demand and holding the slots keeps new competition out |
