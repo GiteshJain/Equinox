@@ -364,6 +364,10 @@ less important than another, point to point rather than hubs).*
   whether one more short rotation fits it, Ryanair's and Virgin's first (11.0 and 11.2 hours a day on 17 Oct,
   against Malaysia's 13.3). Tails' own flag stays at `settings.aircraft_block_target_h` (10). *Since 18 Oct (option
   C) · why: more flying from aircraft already paid for raises profit per aircraft, and so the pace of orders.*
+- **Every aircraft is named by its tail number and base:** whenever the Scheduling chat mentions an aircraft (an order,
+  a plan card, an arrival, a retime, a proposal), it gives the registration and the base it flies from, e.g. "N019AW
+  (JFK)". For an order not yet registered, the airline, variant and base. *Since 19 Oct · why (Gitesh): so each
+  aircraft can be found in the game at once.*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *Since Sep.*
 - **Until 31 October, only new routes:** every flight planned from 18 to 31 Oct opens a route the airline doesn't fly
