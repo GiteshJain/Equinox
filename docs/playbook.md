@@ -101,7 +101,7 @@ database → Building.
   Delhi. When adding routes from a list, add missing lanes only and never change an owner.
 - **The destination shape:** in time, fly every route a real airline flies from each of our hubs and focus cities. Plan
   as if money weren't the limit, and grow at the group's own pace.
-- **Market share first, profit second.** The route list leads with the biggest markets, rivals' pairs included, and
+- **Market share first, profit second.** Route choices lead with the biggest markets, rivals' pairs included, and
   shorter sectors where they give an aircraft more departures a day. Capturing the demand and holding the departures
   keeps new competition out. The cash forecast, the fare floor and the fix marks still apply.
 - **Each airline has a real-world model to copy:** Virgin → British Airways, Pan Am → Pan Am, China Eastern → China
@@ -225,21 +225,17 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   doesn't need one.
 
 ### Step 3: Order in the game
-- **Route first, then the airline, then the aircraft.** The Scheduling chat takes the next routes on the group's
-  route list, the airline that flies them, the variant that seats the market and reaches the city, and its cabin.
+- **The order queues come first.** Each evening the Scheduling chat looks at each airline's delivery lines (A320
+  family, E-jet and A350; Ryanair the first two) and its cash forecast, and proposes the aircraft that can be ordered
+  and the routes for each: route first, then the airline, the variant that seats the market and reaches the city, and
+  its cabin. Where cash allows more than one option, the route we most want to fly decides.
 - **You order in the game** and tell the Scheduling chat. Claude logs it and writes the **plan card** with those routes
   and that cabin (Tails → Deliveries → **card**), following the rules in step 4.
 - The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC).
 
-### Step 4: When it arrives, check its card (Scheduling chat)
-1. Tell the Scheduling chat which aircraft arrived (or ask it to check). Its plan card was written with the order, from
-   the group's **route list** agreed at the Saturday review. Claude also writes that day's delivery post for the
-   airline's newsroom (one post per airline per day).
-2. Claude runs the airline's briefing (`brief.py <airline>`) to check the card still holds: money, fleet, routes, hubs,
-   deliveries and their plan cards, to-dos, fare plan, rivals from the latest world scan and the capture's state.
-3. Only if the card no longer holds (a rival has moved in, a route no longer fits), Claude gives the background and
-   options and **you pick**. Otherwise the card stands.
-4. Every plan card, written with the order or changed on arrival, follows these rules:
+### Step 4: The plan card's rules
+Every plan card, written with the order, follows these rules. When the aircraft arrives the card stands; go straight
+to step 5. (The Scheduling chat writes that day's delivery post for the airline's newsroom, one per airline per day.)
 
 | Rule | The number |
 |---|---|
@@ -318,8 +314,6 @@ first.
    - **The fare plan:** what last week's fare tests did (Review → the airline → Fare plan; each change is spotted by the
      next capture), and which new tests to make. Fare changes are only ever reviewed here, never as Needs attention.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold**; anything under **Fix or reduce**.
-   - **The route list:** the group's routes to open over the next two weeks, in order, each with its airline, variant,
-     cabin and why. Each evening's orders take the next routes without a new discussion.
    - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
    - **Orders:** each airline's cash forecast. Orders themselves go in every evening the forecast allows (section 6,
      step 1), not in a Saturday batch.
