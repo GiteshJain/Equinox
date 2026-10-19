@@ -275,7 +275,7 @@ do (all folded on arrival; click a title, or **Expand all**). Every money figure
 
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*
-- **Interline agreements:** one row per airline and interline country it flies to or has planned (on a plan card not
+- **Interline agreements:** one row per airline (its logo on every row) and interline country it flies to or has planned (on a plan card not
   yet filed), with the airports, round trips a day (or **planned**), the status (still to sign, signed or declined),
   the partner in the game, since when and notes. Each saves as you change it (a box when you leave it). The **Airline**
   and **Status** chips filter the rows and are in the address (/planner/interline?airline=KF&status=open). Home's
