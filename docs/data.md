@@ -145,6 +145,7 @@ file. How the parts fit together: `docs/architecture.md`.
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
 | `order_config_id` | bigint | The cabin layout an order of the type comes with (private.fig_order_cabin(): Tails, the cash forecast, the briefing), for every airline without its own in airline_order_cabins; empty for none. Filled on 15 Oct from the old rule (the old planner's DEFAULT_CABIN), changed in Reference |
+| `range_km` | integer | Range with a full load, km, from the game's aircraft page (manual §3, the default line) |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 

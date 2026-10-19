@@ -46,10 +46,12 @@ Until each is built and merged, the rules below stand as they are.
 - **Decided 17 Oct, for the Building chat:** route profit's add-a-flight or raise-fares mark by profit per aircraft
   hour (block time plus turnaround and margin) instead of profit per flight (§3). Until it's built, the mark compares
   profit per flight.
-- **Decided 18 Oct, for the Building chat:** the planner learns the default line's variants (§3): each new variant in
-  `aircraft_types` with its seats, speed, price and range with a full load (a new column), so the cash forecast tests
-  them and cards check reach. Until it's built, each order's variant is noted on its card and the Scheduling chat checks
-  reach against the table in §3.
+- **Decided 18 Oct, for the Building chat:** the planner learns the default line's variants (§3). *Built 19 Oct:* each
+  variant is in `aircraft_types` with its seats, cruise speed, deposit (`price`) and range with a full load (`range_km`),
+  from Gitesh's sheet of the game's pages, every airline may buy each (Ryanair no A350), so the cash forecast tests them,
+  and their cabin layouts are in `cabin_configs`. The game shows no turnaround, so a new variant takes its family's (A320
+  family 66 minutes, E-jet E2 67, A350 90). *Still to build:* plan cards checking each leg against the aircraft's reach;
+  until then the Scheduling chat checks reach against the table in §3.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.

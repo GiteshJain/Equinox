@@ -101,6 +101,17 @@ begin
   if (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def') not like '%aircraft_hours%' then
     execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def');
   end if;
+  -- the default line's variants (20261019180000) add types every airline may buy and correct the deposits and cruise
+  -- speeds on purpose (default_line_variants_test.sql checks them): while it is pending (the copy had fewer
+  -- aircraft types before), the types' figures and who may buy which are put back here (rolled back with the test), so everything else
+  -- must still be exactly as before. Once it is live, the figures before carry it too and nothing is changed here.
+  if to_regclass('rehearsal_before.clean_up_types') is not null
+     and (select count(*) from public.aircraft_types) > (select count(*) from rehearsal_before.clean_up_types) then
+    delete from public.airline_order_cabins x where not exists (select 1 from rehearsal_before.clean_up_own_cabins b where b.airline_id = x.airline_id and b.aircraft_type_id = x.aircraft_type_id);
+    delete from public.airline_aircraft_types x where not exists (select 1 from rehearsal_before.clean_up_may_buy b where b.airline_id = x.airline_id and b.aircraft_type_id = x.aircraft_type_id);
+    update public.aircraft_types t set price = b.price, seats_max = b.seats_max, cruise_kmh = b.cruise_kmh, order_config_id = b.order_config_id
+      from rehearsal_before.clean_up_types b where b.id = t.id;
+  end if;
   a := private.fig_export(w, v_at);
   -- the capture checks (#21, build 20261014220000) added each airline's latest verdicts to capture_status() on purpose:
   -- they're left out here, so the rest must still be exactly as before. Left out of both sides: once 20261014220000 is

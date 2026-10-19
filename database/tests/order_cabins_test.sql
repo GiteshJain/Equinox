@@ -60,8 +60,10 @@ begin
     join public.airlines a on a.id = b.airline_id join public.aircraft_types t on t.id = b.aircraft_type_id
    where private.fig_order_cabin(b.airline_id, b.aircraft_type_id) is distinct from b.config_id;
   assert n_moved = 0, format('%s of %s airline-and-type pairs get another order cabin than before: %s', n_moved, n_pairs, left(bad, 400));
-  -- every pair there is now was there before (no airline or type came or went with the changes)
-  assert (select count(*) from public.airlines a join public.aircraft_types t on t.world_id = a.world_id) = n_pairs,
+  -- every pair there is now was there before (no airline or type came or went with the changes), but for the types
+  -- the default line's variants (20261019180000) add while they are pending
+  assert (select count(*) from public.airlines a join public.aircraft_types t on t.world_id = a.world_id
+           where t.id in (select b.aircraft_type_id from rehearsal_before.order_cabins b)) = n_pairs,
     'the airlines and types aren''t the ones there were before the changes';
   -- each order cabin is a layout of its own type
   assert not exists (select 1 from public.aircraft_types t join public.cabin_configs c on c.id = t.order_config_id

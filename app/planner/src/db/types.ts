@@ -89,14 +89,14 @@ isOneToOne: false
                   ]
                 },"aircraft_types": {
                   Row: {
-                    "created_at": string,"cruise_kmh": number | null,"family_no": number | null,"gap_target_h": number | null,"ground_keep_min": number | null,"id": number,"maint_per_cycle": number | null,"maint_per_hour": number | null,"min_turn_min": number | null,"name": string,"order_config_id": number | null,"price": number | null,"seats_max": number | null,"updated_at": string,"world_id": number
+                    "created_at": string,"cruise_kmh": number | null,"family_no": number | null,"gap_target_h": number | null,"ground_keep_min": number | null,"id": number,"maint_per_cycle": number | null,"maint_per_hour": number | null,"min_turn_min": number | null,"name": string,"order_config_id": number | null,"price": number | null,"range_km": number | null,"seats_max": number | null,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name": string,"order_config_id"?: number | null,"price"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id": number
+                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name": string,"order_config_id"?: number | null,"price"?: number | null,"range_km"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name"?: string,"order_config_id"?: number | null,"price"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id"?: number
+                    "created_at"?: string,"cruise_kmh"?: number | null,"family_no"?: number | null,"gap_target_h"?: number | null,"ground_keep_min"?: number | null,"id"?: never,"maint_per_cycle"?: number | null,"maint_per_hour"?: number | null,"min_turn_min"?: number | null,"name"?: string,"order_config_id"?: number | null,"price"?: number | null,"range_km"?: number | null,"seats_max"?: number | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
