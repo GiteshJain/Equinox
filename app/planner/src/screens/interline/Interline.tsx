@@ -99,8 +99,6 @@ function Agreements(p: {
   const yes = Object.entries(p.rules.countries).sort((a, b) => p.ctryName(a[0]).localeCompare(p.ctryName(b[0])));
   const mark = (id: number) => <AirlineMark color={p.al(id)?.color} />;
   const enter = (e: KeyboardEvent<HTMLInputElement>) => { if (e.key === "Enter") e.currentTarget.blur(); };
-  // the airline's logo on its first row shown (the old table's last)
-  const firsts = new Set(shown.map((r, i) => (i === 0 || shown[i - 1]?.airline_id !== r.airline_id ? i : -1)).filter((i) => i >= 0));
   return (
     <div className="board" data-figure="interline: agreements">
       <h3 className="rh">Interline agreements <span className="note">{rows.length} airline–country pairs · {open} still to sign · each airline signs its own · the group's airlines already interline with each other</span></h3>
@@ -123,17 +121,16 @@ function Agreements(p: {
         <table className="tbl il">
           <tbody>
             <tr><th>Airline</th><th>Country</th><th>Airports we fly there</th><th>Round trips/day</th><th>Status</th><th>Partner in the game</th><th>Since</th><th>Notes</th></tr>
-            {shown.map((r, i) => {
+            {shown.map((r) => {
               const v = p.rec(r);
               const st = status(r);
               const k = `${p.codeOf(r.airline_id) ?? r.airline_id}|${r.cc}`;
-              const first = firsts.has(i);
               const a = p.al(r.airline_id);
               const logo = a ? p.logos[a.name] : undefined;
               return (
                 <tr key={k} className={st} data-il-row={k}>
-                  <td>{first ? (logo ? <img className="alogo" src={logo} alt={a?.name ?? ""} style={{ height: 16 } as CSSProperties} />
-                    : <>{mark(r.airline_id)}<b>{a?.name ?? ""}</b></>) : null}</td>
+                  <td>{logo ? <img className="alogo" src={logo} alt={a?.name ?? ""} style={{ height: 16 } as CSSProperties} />
+                    : <>{mark(r.airline_id)}<b>{a?.name ?? ""}</b></>}</td>
                   <td><b>{p.ctryName(r.cc)}</b></td>
                   <td>{airportsOf(r).map((ap, i) => <span key={ap}>{i ? " " : null}<span className="hubtag">{ap}</span></span>)}</td>
                   <td>{r.planned ? <span className="dim">planned</span> : rtWords(r.rt_day)}</td>
