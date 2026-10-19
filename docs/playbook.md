@@ -258,7 +258,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 ### Step 5: Set it up in the game (you)
 1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. Aircraft fly
    to their first departure on their own.
-2. **Cabin:** the market's default (Reference → markets), whatever the aircraft. If it came with another layout, refit
+2. **Cabin:** the plan card's cabin (chosen from the market's default, Reference → markets). If it came with another layout, refit
    it (about 0.2M, no time out of service) and record it in Check → **Cabins** → **Refitted to …**.
 3. **Fares:** launch at 100% of the standard fare in both cabins (Ryanair 85%, economy only). Don't launch cheap; cut a
    weak route instead. Where another player (or another of our airlines) flies the route, never go under 60% of
