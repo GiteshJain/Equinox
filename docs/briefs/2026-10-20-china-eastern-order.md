@@ -35,3 +35,4 @@ Daily. Cabin by the 65% rule: Penang takes 71% of the block time, and its market
 Plus, so E190-LP (89 seats).
 
 ## Outcome
+**20 Oct: A,** Penang, Nanchang and Nanjing (Gitesh). E190-E2, cabin E190-LP. Card written when the order is logged.
