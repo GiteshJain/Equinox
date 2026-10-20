@@ -235,7 +235,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 
 ### Step 4: The plan card's rules
 Every plan card, written with the order, follows these rules. When the aircraft arrives the card stands; go straight
-to step 5. (The Scheduling chat writes that day's delivery post for the airline's newsroom, one per airline per day.)
+to step 5.
 
 | Rule | The number |
 |---|---|

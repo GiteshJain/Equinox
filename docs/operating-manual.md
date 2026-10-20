@@ -184,7 +184,7 @@ Details and open points: `docs/decisions.md`.
 
   | Chat | Covers |
   |---|---|
-  | Scheduling | Aircraft that have arrived (and their delivery post), plan cards, retimes, route choices, what and when to order, interline requests |
+  | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
   | Saturday review | Every Saturday: the world scan, weekly report, connection audit, the airlines' newsroom roundups, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
@@ -509,12 +509,10 @@ less important than another, point to point rather than hubs).*
   and comparisons.
 - **Newsroom posts read like a real airline's:** no cabins, bank timings or other internal detail, and no references to
   the game. *Since 5 Oct.*
-- **What the newsroom posts:** *since 17 Oct · why (Gitesh): one post per airline reads like each airline's own news,
-  and deliveries are news on the day they happen.*
-  - **New routes:** one roundup per airline each Saturday, covering its new routes and extra flights since the last
-    one (Saturday review chat). No post for an airline with nothing new.
-  - **Deliveries:** one post per airline on each day it takes delivery of aircraft, covering all of that day's
-    aircraft (Scheduling chat, when it logs the arrival). No routes or plans in it; those go in Saturday's roundup.
+- **What the newsroom posts:** one roundup per airline each Saturday, covering its new routes and extra flights since
+  the last one (Saturday review chat). No post for an airline with nothing new. No posts for new aircraft. *Roundups
+  per airline since 17 Oct · why (Gitesh): one post per airline reads like each airline's own news. No delivery posts
+  since 20 Oct (Gitesh).*
 - **gander monthly** covers the whole Gander world impartially, without claiming to be impartial. It is marked as made
   by AI and published openly on the website. *Since 5–6 Oct.*
 - **Brand:** "equinox." — lowercase, with the full stop. Real airline names and logos, with a fan-project disclaimer in
@@ -565,6 +563,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 20 Oct | A newsroom post per airline on each day it takes delivery of aircraft (Scheduling chat) | No posts for new aircraft; the Saturday roundups of new routes stay (§8). Why: Gitesh, 20 Oct |
 | 19 Oct | An order is just the aircraft: base, routes and cabin decided when it arrives, no plan card at order time | Route first, then the airline, then the aircraft: the plan card with routes, variant and cabin is written when it's ordered (§3). Why: Gitesh, the variant depends on where the aircraft flies |
 | 19 Oct | A route list per airline agreed each Saturday; the card written when the aircraft arrives and checked against the list | Each evening the Scheduling chat proposes, from the order queues and the cash forecast, the aircraft to order and their routes; between options the route we most want to fly wins; the card is written with the order and stands on arrival (§3, §4). Why: Gitesh, route first, then airline; keeping the queues full comes first |
 | 19 Oct | Plan cards to check each leg against the aircraft's reach (decided 18 Oct, not built) | The Scheduling chat checks reach when it picks the variant (§3). Why: Gitesh, the routes are decided before the card |
