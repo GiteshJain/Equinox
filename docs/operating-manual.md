@@ -379,8 +379,14 @@ less important than another, point to point rather than hubs).*
 - **From 1 to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
   bases (hubs and focus cities, any of our airlines). Orders that month add flights on trunk routes we fly, and open
   trunk routes we don't, until each is fortified. *From 1 Nov to 30 Nov · why (Gitesh, 20 Oct): fortify the routes
-  that connect our bases completely.* What "fortified" means, and how the rule sits with hubs first and one airline per
-  city pair, is being settled with Gitesh (review chat, 20 Oct).
+  that connect our bases completely.*
+  - **Fortified** means it no longer sells out: flights are added while a trunk runs at 95% or more
+    (`settings.growth_*`'s sold-out test), and stop once its loads fall below that.
+  - **Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within reach of
+    the default line, §3) are chosen together, by profit per aircraft hour where flown and by market size where not.
+  - **Hubs first is suspended for trunks in November:** any base can take an aircraft for a trunk route. One airline per
+    city pair (§2) still applies, and so does the cash forecast's cushion.
+  *Details agreed 20 Oct (Gitesh).*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
   0), and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`). Every new plan card
