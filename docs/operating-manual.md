@@ -407,9 +407,11 @@ less important than another, point to point rather than hubs).*
   stay. *Since 26 and 28 Sep.*
 
 ## 5. Cabins and fares
-- **The cabin is chosen with each order,** for the routes the aircraft will fly, among the layouts set up for its
-  variant. The markets' stored defaults (Reference → markets) predate the new variants' layouts and no longer decide
-  it. A refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service. *Since 20 Oct · why
+- **The cabin is chosen with each order,** among the layouts set up for its variant: if one route takes more than
+  **65% of the aircraft's block time**, the layout that route's market calls for (Standard, Leisure, Leisure Plus or
+  Comfort); otherwise the layout with the most seats. Ryanair flies Standard only. The markets' stored default
+  configurations (Reference → markets) predate the new variants' layouts and are used only to tell which layout a
+  market calls for. A refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service. *Since 20 Oct · why
   (Gitesh): the new layouts aren't captured by the defaults.*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. Prices per
@@ -568,7 +570,7 @@ Kept so they don't come back. Newest first.
 | Ended | Old rule | Replaced by |
 |---|---|---|
 | 20 Oct | Within a star band, the bigger type goes where a heavy rival flies the pair or the sector is long | The smaller type wins, heavy routes included: more flights on more aircraft; a bigger variant only for reach (§3). Why: Gitesh, bookings are divided among flights and more flights give more connections |
-| 20 Oct | Cabin follows the market default, whatever the aircraft | The cabin is chosen with each order for its routes, among the variant's layouts (§5). Why: Gitesh, the defaults don't capture the new layouts |
+| 20 Oct | Cabin follows the market default, whatever the aircraft | The cabin is chosen with each order: the layout of the route flying over 65% of block time, else the layout with the most seats (§5). Why: Gitesh, the defaults don't capture the new layouts |
 | 20 Oct | A newsroom post per airline on each day it takes delivery of aircraft (Scheduling chat) | No posts for new aircraft; the Saturday roundups of new routes stay (§8). Why: Gitesh, 20 Oct |
 | 19 Oct | An order is just the aircraft: base, routes and cabin decided when it arrives, no plan card at order time | Route first, then the airline, then the aircraft: the plan card with routes, variant and cabin is written when it's ordered (§3). Why: Gitesh, the variant depends on where the aircraft flies |
 | 19 Oct | A route list per airline agreed each Saturday; the card written when the aircraft arrives and checked against the list | Each evening the Scheduling chat proposes, from the order queues and the cash forecast, the aircraft to order and their routes; between options the route we most want to fly wins; the card is written with the order and stands on arrival (§3, §4). Why: Gitesh, route first, then airline; keeping the queues full comes first |
