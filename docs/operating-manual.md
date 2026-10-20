@@ -455,7 +455,8 @@ less important than another, point to point rather than hubs).*
     (6 Oct), because no step called for it.*
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
-    results, and each of our airlines against its three biggest competitors: the three outside airlines with the most
+    results, each airline's net cash a day (flight profit less leases and salaries) against the price of one aircraft, the
+    pace towards an aircraft a day per airline (*since 20 Oct, Gitesh*), and each of our airlines against its three biggest competitors: the three outside airlines with the most
     weekly departures on its own city pairs in the latest scan, each with its size and growth since the previous scan
     beside our airline's (*since 18 Oct · why (Gitesh): to see whether each airline is gaining on its rivals*). It is
     the only investor report: on the first Saturday of the month it adds a page on the month just
