@@ -376,6 +376,11 @@ less important than another, point to point rather than hubs).*
   yet: no second dailies or extra frequency on existing routes, whatever the growth signals say. Plan cards made before
   18 Oct stay as they are, filed or not (EI-ABS and EI-ABT keep their second dailies). *From 18 Oct to 31 Oct · why:
   Gitesh, 18 Oct.*
+- **From 1 to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
+  bases (hubs and focus cities, any of our airlines). Orders that month add flights on trunk routes we fly, and open
+  trunk routes we don't, until each is fortified. *From 1 Nov to 30 Nov · why (Gitesh, 20 Oct): fortify the routes
+  that connect our bases completely.* What "fortified" means, and how the rule sits with hubs first and one airline per
+  city pair, is being settled with Gitesh (review chat, 20 Oct).
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
   0), and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`). Every new plan card
