@@ -79,6 +79,21 @@ end $function$
 
 ;
 
+-- cabin_charges(p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.cabin_charges(p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_cabin_charges(private.fig_world(null), coalesce(p_as_of, now()));
+end
+$function$
+
+;
+
 -- capture_airlines(p_key text)
 CREATE OR REPLACE FUNCTION public.capture_airlines(p_key text)
  RETURNS jsonb
@@ -1231,7 +1246,7 @@ CREATE OR REPLACE FUNCTION public.system_status(p_world_id bigint DEFAULT NULL::
  SET search_path TO ''
 AS $function$
 declare w bigint; v_at timestamptz := coalesce(p_as_of, now()); v_month timestamptz; v_snap jsonb; v_job jsonb; v_fb timestamptz;
-  v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_db bigint; v_pdf bigint; v_site bigint;
+  v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_db bigint; v_pdf bigint; v_site bigint;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the systems board' using errcode = '42501'; end if;
   w := private.fig_world(p_world_id);
@@ -1292,6 +1307,17 @@ begin
     from public.game_scans s
    where s.world_id = w and s.taken_at <= v_at and exists (select 1 from public.scan_airline_airports x where x.scan_id = s.id)
    order by s.taken_at desc, s.id desc limit 1;
+  -- a scan that stopped part-way since the latest finished one (spec docs/specs/2026-10-21-tidy-ups.md §1): marked stopped
+  -- when the next scan started, or left unfinished for over an hour (nothing carries it on: private.scan_open())
+  select jsonb_build_object('id', s.id, 'taken_at', private.fig_ts(s.taken_at), 'status', s.status, 'note', left(s.note, 300))
+         || private.scan_progress(s.id)
+    into v_stopped
+    from public.game_scans s
+   where s.world_id = w and s.taken_at <= v_at
+     and (s.status = 'stopped' or (s.status not in ('done', 'stopped') and s.taken_at <= v_at - interval '1 hour'))
+     and s.taken_at > coalesce((select max(d.taken_at) from public.game_scans d where d.world_id = w and d.status = 'done' and d.taken_at <= v_at),
+                               '-infinity'::timestamptz)
+   order by s.taken_at desc, s.id desc limit 1;
 
   -- usage the database can measure, each against its trigger (manual §1; #16, #17, #20): now, whatever the moment
   v_db := pg_database_size(current_database());
@@ -1306,6 +1332,7 @@ begin
     'archive', v_arch,
     'cleanup', v_clean,
     'scan', v_scan,
+    'scan_stopped', v_stopped,
     'usage', jsonb_build_array(
       jsonb_build_object('key', 'database', 'label', 'Database size', 'bytes', v_db, 'trigger_bytes', 350 * 1024 * 1024::bigint),
       jsonb_build_object('key', 'report_pdfs', 'label', 'Report PDFs', 'bytes', v_pdf, 'trigger_bytes', 50 * 1024 * 1024::bigint),
@@ -2619,6 +2646,114 @@ $function$
 
 ;
 
+-- private.fig_cabin_charges(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_cabin_charges(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint := p_world_id;
+  -- a fit with no charge yet is "not charged yet" once the airline's latest captured statement line is more than this
+  -- after the day it was logged (spec docs/specs/2026-10-21-tidy-ups.md §3)
+  v_wait constant interval := interval '2 days';
+  v_from date; v_from_at timestamptz; v_doc jsonb;
+begin
+  select (s.value #>> '{}')::date into v_from from public.settings s
+   where s.world_id = w and s.airline_id is null and s.key = 'cabin_charge_check_from';
+  v_from_at := v_from::timestamp at time zone 'UTC';
+  with
+  al as (select * from private.fig_airlines(w)),
+  -- each airline's latest captured statement line by the moment
+  st as (select al.airline_id, x.ts as last_ts from al
+           cross join lateral (select s.ts from public.game_statement s where s.airline_id = al.airline_id and s.captured_at <= p_as_of
+                                order by s.ts desc limit 1) x),
+  -- every first fit logged by the moment: spending_log kind cabin, "<reg> first cabin fit (<config>)", as Tails' filing
+  -- logs it at the config's price
+  fit as (select s.id, s.airline_id, s.aircraft_id, s.spent_on, s.amount, s.updated_at,
+                 coalesce(substring(s.note from '^(\S+) first cabin fit'), ac.registration) as reg,
+                 substring(s.note from 'first cabin fit \(([^)]*)\)') as config
+            from public.spending_log s
+            left join public.aircraft ac on ac.id = s.aircraft_id
+           where s.world_id = w and s.airline_id in (select al.airline_id from al) and s.kind = 'cabin'
+             and s.note ~ '^\S+ first cabin fit' and s.created_at <= p_as_of),
+  -- the game's cabin installations from the setting's day: game_payments kind cabin, "Installation of cabin interior
+  -- (<reg>)" (the pilot training an order brings, the same kind, left out), each as a cost (a credit counts against it)
+  ln as (select p.id, p.airline_id, p.paid_at, p.descr, p.aircraft_id,
+                case when p.side = 'C' then -p.amount else p.amount end as amount,
+                coalesce(p.registration, private.payment_registration(p.descr)) as reg
+           from public.game_payments p
+          where p.world_id = w and p.airline_id in (select al.airline_id from al) and p.kind = 'cabin'
+            and p.descr ilike 'Installation of cabin interior%' and p.paid_at >= v_from_at and p.created_at <= p_as_of),
+  -- each first fit from the setting's day with the installation lines for its registration in its airline
+  chk as (select f.*, st.last_ts,
+                 (select count(*) from ln where ln.airline_id = f.airline_id and ln.reg = f.reg)::int as n,
+                 (select ln.amount from ln where ln.airline_id = f.airline_id and ln.reg = f.reg order by ln.paid_at, ln.id limit 1) as game_amount,
+                 (select coalesce(jsonb_agg(jsonb_build_object('id', ln.id, 'paid_at', private.fig_ts(ln.paid_at), 'amount', ln.amount, 'descr', ln.descr)
+                                            order by ln.paid_at, ln.id), '[]'::jsonb)
+                    from ln where ln.airline_id = f.airline_id and ln.reg = f.reg) as lines
+            from fit f left join st on st.airline_id = f.airline_id
+           where v_from is not null and f.spent_on >= v_from),
+  ck as (select chk.*,
+                case when chk.n > 1 then 'charged_twice'
+                     when chk.n = 1 and abs(chk.game_amount - chk.amount) < 1 then 'matches'
+                     when chk.n = 1 then 'differs'
+                     when chk.last_ts > (chk.spent_on::timestamp at time zone 'UTC') + v_wait then 'not_charged'
+                     else 'waiting' end as state
+           from chk),
+  -- installations for a registration with no first fit logged at all, on any day
+  nl as (select ln.airline_id, ln.reg, min(ln.paid_at) as first_at, max(ln.aircraft_id) as aircraft_id,
+                jsonb_agg(jsonb_build_object('id', ln.id, 'paid_at', private.fig_ts(ln.paid_at), 'amount', ln.amount, 'descr', ln.descr)
+                          order by ln.paid_at, ln.id) as lines
+           from ln
+          where not exists (select 1 from fit f where f.airline_id = ln.airline_id and f.reg = ln.reg)
+          group by ln.airline_id, ln.reg),
+  pr as (select ck.airline_id, ck.state, ck.reg, ck.aircraft_id,
+                jsonb_build_object('id', ck.id, 'spent_on', ck.spent_on, 'amount', ck.amount, 'config', ck.config,
+                                   'updated_at', ck.updated_at) as logged,
+                ck.lines, case when ck.n = 1 then ck.game_amount end as game_amount,
+                case when ck.n = 1 then ck.game_amount - ck.amount end as difference,
+                ck.spent_on::timestamp at time zone 'UTC' as at
+           from ck where ck.state in ('differs', 'charged_twice', 'not_charged')
+         union all
+         select nl.airline_id, 'not_logged', nl.reg, nl.aircraft_id, null, nl.lines, null, null, nl.first_at
+           from nl)
+  select jsonb_build_object(
+           'counts', jsonb_build_object(
+             'checked', (select count(*) from ck),
+             'matches', (select count(*) from ck where ck.state = 'matches'),
+             'differs', (select count(*) from ck where ck.state = 'differs'),
+             'charged_twice', (select count(*) from ck where ck.state = 'charged_twice'),
+             'not_charged', (select count(*) from ck where ck.state = 'not_charged'),
+             'waiting', (select count(*) from ck where ck.state = 'waiting'),
+             'not_logged', (select count(*) from nl),
+             'problems', (select count(*) from pr)),
+           'problems', (select coalesce(jsonb_agg(jsonb_build_object(
+                          'state', pr.state, 'airline_id', pr.airline_id, 'code', al.iata_code, 'airline', al.name,
+                          'registration', pr.reg,
+                          'aircraft_id', coalesce(pr.aircraft_id, (select ac.id from public.aircraft ac
+                                                                    where ac.world_id = w and ac.airline_id = pr.airline_id and ac.registration = pr.reg
+                                                                    order by ac.id limit 1)),
+                          'logged', pr.logged, 'lines', pr.lines, 'game_amount', pr.game_amount, 'difference', pr.difference)
+                          order by al.ord, case pr.state when 'differs' then 1 when 'charged_twice' then 2 when 'not_charged' then 3 else 4 end,
+                                   pr.at, pr.reg), '[]'::jsonb)
+                          from pr join al on al.airline_id = pr.airline_id),
+           'latest_statement', (select coalesce(jsonb_object_agg(st.airline_id::text, private.fig_ts(st.last_ts)), '{}'::jsonb) from st))
+    into v_doc;
+
+  return jsonb_build_object(
+    'world_id', w, 'as_of', private.fig_ts(p_as_of), 'check_from', v_from, 'wait_days', 2,
+    'counts', v_doc -> 'counts', 'problems', v_doc -> 'problems', 'latest_statement', v_doc -> 'latest_statement',
+    'notes', jsonb_build_array(
+      case when v_from is null then 'The world has no cabin_charge_check_from setting: nothing is checked.'
+           else format('First fits logged from %s on (cabin_charge_check_from: the first day the plan card chose the cabin; earlier fits include refits), each against the game''s installation lines for its registration from that day on.', v_from) end,
+      'A fit matches with one line at its logged amount (to the dollar); differs with one line at another amount; is charged twice with more than one; is not charged yet with none once the airline''s latest captured statement line is more than 2 days after the day it was logged (waiting until then). An installation line for a registration with no first fit logged is not logged. Pilot training, the same kind on the statement, is left out.'));
+end
+$function$
+
+;
+
 -- private.fig_capex(p_airline_id bigint, p_d0 date, p_d1 date)
 CREATE OR REPLACE FUNCTION private.fig_capex(p_airline_id bigint, p_d0 date, p_d1 date)
  RETURNS numeric
@@ -3141,7 +3276,7 @@ begin
                  -- the stars' size band (manual §3): 1–2 stars small; 3 small or mid; 4 small, mid or large; 5 mid or large
                  case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end as band_lo,
                  case when coalesce(op0.stars, 0) <= 2 then 1 when op0.stars = 3 then 2 else 3 end as band_hi,
-                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size, v.own
+                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size, v.own, alt.name as alt_type
             from op0
             left join orv on orv.a = op0.a and orv.b = op0.b
             -- the variant (the default line): the smallest size in the band, else bigger for reach, whose range covers the
@@ -3157,7 +3292,16 @@ begin
                                                                            and n.range_km >= coalesce(op0.dist, 0))))
                order by t.own desc, t.size, case when t.size = 4 and coalesce(op0.dist, 0) > v_wide_km then -t.seats_max else 0 end,
                         t.price / t.seats_max, t.name
-               limit 1) v on true),
+               limit 1) v on true
+            -- the thinnest 1-star city (manual §3's default line: the E190-E2 for "3,542–4,065 km, or the thinnest 1-star
+            -- city"; spec docs/specs/2026-10-21-tidy-ups.md §2): nothing in our data says how thin a city is, so a 1-star
+            -- opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest
+            -- seats that the airline may buy and that reaches it (the E190-E2); the evening proposal decides
+            left join lateral (
+              select a.name from ty a
+               where a.own and a.size = 1 and a.range_km >= coalesce(op0.dist, 0) and a.seats_max < v.seats_max
+               order by a.seats_max, a.price / a.seats_max, a.name
+               limit 1) alt on coalesce(op0.stars, 0) = 1 and v.size = 1),
   -- hubs first (manual §3), from the latest scan: the busiest rival at a base, and each rival's departures a week from
   -- the base to the destination
   bt as (select x.airport_code, max(x.weekly_departures)::int as weekly from public.scan_airline_airports x
@@ -3200,6 +3344,10 @@ begin
                                            'size', (array['small', 'mid', 'large', 'wide'])[o.size], 'for_reach', o.size > o.band_hi, 'own', o.own),
              'allowed', o.allowed, 'allowed_by', o.allowed_by, 'reason', o.reason,
              'trunk', o.trunk, 'other_lists', coalesce(to_jsonb(l.codes), '[]'::jsonb))
+             -- a thin 1-star city's alternative, only where there is one
+             || case when o.alt_type is not null
+                     then jsonb_build_object('variant_alt', o.alt_type, 'variant_note', format('or the %s if thin', o.alt_type))
+                     else '{}'::jsonb end
              order by o.rank) filter (where o.rank <= v_limit), '[]'::jsonb) as d,
            count(*)::int as n, (count(*) filter (where o.allowed))::int as n_allowed, (count(*) filter (where o.trunk))::int as n_trunks
       from op4 o left join ol l on l.a = o.a and l.b = o.b),
@@ -3268,7 +3416,7 @@ begin
     'notes', jsonb_build_array(
       'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them, passenger flights only (freighters left out, as the weekly report counts). Our own now are the airline''s live legs; before, its flights in the week-before scan.',
       'From trunk_month_from to trunk_month_to (November, manual §4) the trunks, pairs between two of our bases (any of our airlines''), come first, shortest first: hubs first isn''t applied to them and no distance leaves one out. Whether a trunk makes sense stays the Scheduling chat''s judgment.',
-      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats.'));
+      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats. A 1-star opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest seats (variant_alt, the E190-E2, "or the E190-E2 if thin" in variant_note): the default line gives it to the thinnest 1-star city, and nothing in our data says how thin a city is, so the evening proposal decides.'));
 end
 $function$
 
@@ -4786,17 +4934,20 @@ begin
    where s.airline_id = p_airline_id and s.ts = any (p_minutes) and not private.is_payment_line(s.descr, s.blk)
      and f.airline_id = p_airline_id and f.posted_at = s.ts and f.statement_blk = s.blk;
 
-  -- 5. every other line is a payment, one row per statement line
-  insert into public.game_payments as p (world_id, airline_id, paid_at, kind, registration, descr, amount, side, occ,
-         statement_blk)
-  select v_world, p_airline_id, s.ts, private.payment_kind(s.descr), private.payment_registration(s.descr), s.descr,
-         s.amount, s.side, s.occ, s.blk
+  -- 5. every other line is a payment, one row per statement line; a cabin installation names its aircraft (since 22 Oct,
+  --    spec docs/specs/2026-10-21-tidy-ups.md §3: the cabin charge check), and one found once stays
+  insert into public.game_payments as p (world_id, airline_id, paid_at, kind, registration, aircraft_id, descr, amount, side,
+         occ, statement_blk)
+  select v_world, p_airline_id, s.ts, private.payment_kind(s.descr), private.payment_registration(s.descr),
+         private.payment_aircraft(v_world, p_airline_id, s.descr), s.descr, s.amount, s.side, s.occ, s.blk
     from public.game_statement s
    where s.airline_id = p_airline_id and s.ts = any (p_minutes) and s.flight_id is null
   on conflict (airline_id, paid_at, descr, amount, occ) do update set
-    kind = excluded.kind, registration = excluded.registration, side = excluded.side, statement_blk = excluded.statement_blk
-  where (p.kind, p.registration, p.side, p.statement_blk)
-        is distinct from (excluded.kind, excluded.registration, excluded.side, excluded.statement_blk);
+    kind = excluded.kind, registration = excluded.registration, aircraft_id = coalesce(excluded.aircraft_id, p.aircraft_id),
+    side = excluded.side, statement_blk = excluded.statement_blk
+  where (p.kind, p.registration, p.aircraft_id, p.side, p.statement_blk)
+        is distinct from (excluded.kind, excluded.registration, coalesce(excluded.aircraft_id, p.aircraft_id), excluded.side,
+                          excluded.statement_blk);
   delete from public.game_payments p
    where p.airline_id = p_airline_id and p.paid_at = any (p_minutes)
      and not exists (select 1 from public.game_statement s
@@ -5383,6 +5534,24 @@ $function$
 
 ;
 
+-- private.payment_aircraft(p_world_id bigint, p_airline_id bigint, p_descr text)
+CREATE OR REPLACE FUNCTION private.payment_aircraft(p_world_id bigint, p_airline_id bigint, p_descr text)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  -- the aircraft a cabin installation line names ("Installation of cabin interior (9M-AAV)"): the airline's own aircraft
+  -- with that registration; null for every other line, as before (spec docs/specs/2026-10-21-tidy-ups.md §3)
+  select ac.id from public.aircraft ac
+   where p_descr ilike 'Installation of cabin interior%'
+     and ac.world_id = p_world_id and ac.airline_id = p_airline_id and ac.registration = private.payment_registration(p_descr)
+   order by ac.id
+   limit 1
+$function$
+
+;
+
 -- private.payment_kind(p_descr text)
 CREATE OR REPLACE FUNCTION private.payment_kind(p_descr text)
  RETURNS text
@@ -5410,7 +5579,12 @@ CREATE OR REPLACE FUNCTION private.payment_registration(p_descr text)
  IMMUTABLE
  SET search_path TO ''
 AS $function$
-  select substring(p_descr from '(?:for|of) ([A-Z0-9]{1,3}-[A-Z0-9]{2,6}|N[0-9]{1,5}[A-Z]{0,2})(?:$|[ ,.;(])')
+  -- "Leasing rate for B-0161" and the like; and the game's cabin installations, "Installation of cabin interior (9M-AAV)",
+  -- since 22 Oct (spec docs/specs/2026-10-21-tidy-ups.md §3)
+  select coalesce(
+    substring(p_descr from '(?:for|of) ([A-Z0-9]{1,3}-[A-Z0-9]{2,6}|N[0-9]{1,5}[A-Z]{0,2})(?:$|[ ,.;(])'),
+    case when p_descr ilike 'Installation of cabin interior%'
+         then substring(p_descr from '\(([A-Z0-9]{1,3}-[A-Z0-9]{2,6}|N[0-9]{1,5}[A-Z]{0,2})\)') end)
 $function$
 
 ;
@@ -5777,6 +5951,8 @@ begin
     else
       v_world := p_world_id;
     end if;
+    -- the world's scans left unfinished more than an hour ago are stopped first (spec docs/specs/2026-10-21-tidy-ups.md §1)
+    perform private.scan_stop_unfinished(v_world, now());
     insert into public.game_scans (world_id, week, note) values (v_world, p_payload ->> 'week', p_payload ->> 'note')
     returning id into v_scan;
     v_res := jsonb_build_object('snapshot_id', v_scan);
@@ -5887,6 +6063,61 @@ AS $function$
 begin
   -- scripts/report/analyze.py's seats(): `if not t or t.endswith('F') or t in ('ATF','ABX','74Y','77X','76X'): return 0`
   return not (coalesce(p_type, '') = '' or p_type like '%F' or p_type in ('ATF', 'ABX', '74Y', '77X', '76X'));
+end
+$function$
+
+;
+
+-- private.scan_progress(p_scan_id bigint)
+CREATE OR REPLACE FUNCTION private.scan_progress(p_scan_id bigint)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  -- how far a world scan got: the airlines and airports it read, and the latest finished scan of its world before it
+  -- with what that one read (what a whole scan reads), for "stopped after 812 of 1,040 airlines"
+  with s as (select x.id, x.world_id, x.taken_at from public.game_scans x where x.id = p_scan_id),
+  b as (select d.id, d.taken_at from public.game_scans d join s on d.world_id = s.world_id
+         where d.status = 'done' and d.id <> s.id and d.taken_at <= s.taken_at
+         order by d.taken_at desc, d.id desc limit 1)
+  select jsonb_build_object(
+           'airlines', (select count(*) from public.game_scan_airlines a where a.scan_id = s.id),
+           'airports', (select count(*) from public.game_scan_airports a where a.scan_id = s.id),
+           'before_id', b.id, 'before_at', private.fig_ts(b.taken_at),
+           'airlines_expected', case when b.id is not null then (select count(*) from public.game_scan_airlines a where a.scan_id = b.id) end,
+           'airports_expected', case when b.id is not null then (select count(*) from public.game_scan_airports a where a.scan_id = b.id) end)
+    from s left join b on true
+$function$
+
+;
+
+-- private.scan_stop_unfinished(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.scan_stop_unfinished(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare r record; p jsonb; n int := 0;
+begin
+  -- a scan the capture started and never finished (the phone closed, the tab went away), more than an hour before: nothing
+  -- carries it on any more (private.scan_open() looks back an hour), so it's stopped, and its note says how far it got
+  for r in select s.id, s.note from public.game_scans s
+            where s.world_id = p_world_id and s.status not in ('done', 'stopped') and s.taken_at <= p_as_of - interval '1 hour'
+            order by s.taken_at, s.id
+              for update loop
+    p := private.scan_progress(r.id);
+    update public.game_scans
+       set status = 'stopped',
+           note = format('stopped part-way after %s%s airlines and %s%s airports (marked %s UTC)',
+                         p ->> 'airlines', coalesce(' of ' || (p ->> 'airlines_expected'), ''),
+                         p ->> 'airports', coalesce(' of ' || (p ->> 'airports_expected'), ''),
+                         to_char(p_as_of at time zone 'UTC', 'DD Mon HH24:MI'))
+                  || coalesce(' · ' || nullif(r.note, ''), '')
+     where id = r.id;
+    n := n + 1;
+  end loop;
+  return n;
 end
 $function$
 

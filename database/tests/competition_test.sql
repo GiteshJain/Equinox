@@ -39,8 +39,12 @@
 --      on 10 Nov 2026 the trunks (pairs between two of our bases, any airline's) come first, shortest first, allowed
 --      (hubs first suspended), a long one not left out for reach (C2 takes the world's A350); the other openings after as
 --      always; on 31 Oct and 1 Dec nothing changes.
---   On the copy (section 2, before the hand-made world so the rehearsal prints it): each airline's counts and how long it
---   takes (under the 8 s staff limit), the group's share, the top 5 openings and the latest scan's threats.
+--   9. The E190-E2 for thin 1-star cities (migration 20261022010000; spec docs/specs/2026-10-21-tidy-ups.md §2): a 1-star
+--      opening on the E195 names the E190 (variant_alt, "or the CT E190 if thin"); a 2-star one, a 1-star one already on
+--      the E190 and one on the A350 don't, nor any once the airline may not buy the E190.
+--   On the copy (section 2, before the hand-made world so the rehearsal prints it): each airline's counts (with how many
+--   of its top 50 openings carry the E190 note) and how long it takes (under the 8 s staff limit), the group's share, the
+--   top 5 openings and the latest scan's threats.
 
 create temporary table t_cp (k text primary key, v jsonb) on commit drop;
 grant select, insert, update on t_cp to authenticated, anon;
@@ -97,9 +101,10 @@ begin
     ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
     worst := greatest(worst, ms);
     first_doc := coalesce(first_doc, d);
-    counts := counts || format('%s %s markets, %s threats, %s openings (%s allowed, %s left out), %s profiles, %s ms', r.iata_code,
+    counts := counts || format('%s %s markets, %s threats, %s openings (%s allowed, %s left out; %s of the top 50 with the E190 note), %s profiles, %s ms', r.iata_code,
       jsonb_array_length(d -> 'markets'), jsonb_array_length(d -> 'threats'), d ->> 'openings_count', d ->> 'openings_allowed',
-      d ->> 'openings_left_out', jsonb_array_length(d -> 'profiles'), ms);
+      d ->> 'openings_left_out', (select count(*) from jsonb_array_elements(d -> 'openings') o where o ? 'variant_alt'),
+      jsonb_array_length(d -> 'profiles'), ms);
     tops := tops || format('%s: %s', r.iata_code, coalesce((select string_agg(format('%s. %s %s* %s km %s/wk %s%s', o ->> 'rank', o ->> 'route', o ->> 'stars',
         o ->> 'distance_km', o ->> 'rivals_weekly', o #>> '{variant,type}', case when (o ->> 'allowed')::boolean then '' else ' (not yet)' end), ', ' order by (o ->> 'rank')::int)
       from jsonb_array_elements(d -> 'openings') o where (o ->> 'rank')::int <= 5), 'none'));
@@ -545,5 +550,41 @@ begin
   end loop;
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
   raise notice 'November''s trunks: trunk_month_from and trunk_month_to (1 and 30 Nov 2026) in every world; on 10 Nov the trunks first, shortest first (YA1–YA3 900 km, then YA2–YB1 7,500 km, on C2''s list too), allowed with hubs first suspended, C2''s 7,500 and 8,000 km trunks on the world''s A350 rather than left out; then the rest as always; on 31 Oct and 1 Dec nothing changes';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 9. the E190-E2 for thin 1-star cities (spec docs/specs/2026-10-21-tidy-ups.md §2)
+-- The default line gives the E190-E2 for "3,542–4,065 km, or the thinnest 1-star city" (manual §3); nothing in our data
+-- says how thin a city is, so a 1-star opening whose variant is the default small aircraft also names the small type with
+-- the fewest seats (here CT E190): YA1–YCB (1 star, 1,200 km, CT E195) gets it with "or the CT E190 if thin"; YA1–YCC
+-- (2 stars, CT E195), YA1–YCD (1 star, 3,800 km: CT E190 already, past CT E195's reach) and YA2–YB1 (1 star, 7,500 km,
+-- the A350) don't; nor does YA1–YCB once C1 may not buy CT E190.
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); w bigint := (select (v #>> '{}')::bigint from t_cp where k = 'w');
+  t timestamptz := (select (v #>> '{}')::timestamptz from t_cp where k = 't'); d jsonb; got text; o jsonb;
+begin
+  perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'competition test', true);
+  insert into public.airports (code, utc_offset) select c, 0 from unnest(array['YCB', 'YCC', 'YCD']) c
+  on conflict (code) do update set utc_offset = excluded.utc_offset;
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YCB', 1, 1200, null, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YCC', 2, 1300, null, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YCD', 1, 3800, null, false, null, 0);
+  d := private.fig_competition(c1, t);
+  select x into o from jsonb_array_elements(d -> 'openings') x where x ->> 'route' = 'YA1–YCB';
+  assert o #>> '{variant,type}' = 'CT E195' and o ->> 'variant_alt' = 'CT E190' and o ->> 'variant_note' = 'or the CT E190 if thin',
+    'the 1-star opening on the E195 doesn''t name the E190 "if thin": ' || coalesce(o::text, 'not listed');
+  select string_agg(x ->> 'route' || ' ' || (x ->> 'stars') || '* ' || (x #>> '{variant,type}'), ', ' order by (x ->> 'rank')::int) into got
+    from jsonb_array_elements(d -> 'openings') x where x ? 'variant_alt' or x ? 'variant_note';
+  assert got = 'YA1–YCB 1* CT E195', 'only YA1–YCB should carry the E190 note, not: ' || coalesce(got, 'none');
+  assert (select string_agg(x ->> 'route' || ' ' || (x #>> '{variant,type}'), ', ' order by x ->> 'route') from jsonb_array_elements(d -> 'openings') x
+           where x ->> 'route' in ('YA1–YCC', 'YA1–YCD', 'YA2–YB1')) = 'YA1–YCC CT E195, YA1–YCD CT E190, YA2–YB1 CT A350-900',
+    'YA1–YCC, YA1–YCD and YA2–YB1 aren''t on CT E195, CT E190 and the A350: ' || (d -> 'openings')::text;
+  -- an airline that may not buy the E190 gets no note
+  delete from public.airline_aircraft_types x using public.aircraft_types ty
+   where ty.id = x.aircraft_type_id and x.airline_id = c1 and ty.world_id = w and ty.name = 'CT E190';
+  d := private.fig_competition(c1, t);
+  assert not exists (select 1 from jsonb_array_elements(d -> 'openings') x where x ? 'variant_alt'), 'an airline that may not buy the E190 got the note';
+  perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
+  raise notice 'the E190 for thin 1-star cities: YA1–YCB (1 star, CT E195) names CT E190 "or the CT E190 if thin"; a 2-star opening on CT E195, a 1-star one already on CT E190 and one on the A350 don''t; nor does any once the airline may not buy the E190';
 end
 $test$;

@@ -21,7 +21,7 @@ export interface AttItem {
 export const ATT_KIND = {
   capture: "Capture", backup: "Backup", jobs: "Nightly jobs", todo: "To-dos", check: "One-week checks due", maint: "Maintenance",
   turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix",
-  order: "Can order", monthly: "Monthly checks", interline: "Interline", threat: "Rival moves",
+  order: "Can order", monthly: "Monthly checks", interline: "Interline", threat: "Rival moves", cabin: "Cabin charges",
 } as const;
 export type AttKind = keyof typeof ATT_KIND | "other";
 

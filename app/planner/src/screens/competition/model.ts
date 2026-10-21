@@ -38,6 +38,10 @@ export interface Opening {
   trunk?: boolean;
   /** Our other airlines with the pair on their own list (one airline per city pair, manual §2, decides). */
   other_lists?: string[];
+  /** A 1-star opening on the E195-E2 also names the E190-E2, the default line's for the thinnest 1-star city (since
+   *  22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §2): the type and the words, "or the E190-E2 if thin". */
+  variant_alt?: string | null;
+  variant_note?: string | null;
 }
 export interface Profile {
   airline_id: number; name: string; pairs_shared: number; weekly_on_pairs: number;
@@ -152,6 +156,9 @@ export function rivalsWords(o: Pick<Opening, "rivals">, top = 2): string {
 export function variantWords(v: Variant): string {
   return v.type ? `${v.type}${v.for_reach ? " (for reach)" : ""}${v.own === false ? " (not on its list)" : ""}` : "—";
 }
+/** The line under the variant for a thin 1-star city: the database's words ("or the E190-E2 if thin"), or none; the
+ *  evening proposal decides which (manual §3's default line). */
+export const variantNoteWords = (o: Pick<Opening, "variant_note">): string | null => (o.variant_note ? o.variant_note : null);
 
 /** The trunk month's line over the openings, or nothing outside it: "November's trunks first (1–30 Nov): 4 trunks, shortest
  *  first, hubs first suspended for them (manual §4). Whether each makes sense stays the Scheduling chat's call." */

@@ -9,17 +9,21 @@
 //   - Aircraft checks: the one-week checks due (the library's checks.oneWeek), with each aircraft's issues and its routes'
 //     load patterns, the ones coming up by date and how many are done; Mark checked. Shown only while the checks are on
 //     (aircraft_check_after_days above 0; manual §1 has none since 15 Oct) (Check's).
+//   - Cabin charges (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): each first cabin fit logged against the
+//     game's charge (cabin_charges()), the problems listed with Use the game's amount on a differing one; open on arrival
+//     when Today's item sent you (#cabin-charges).
 // The Cabins board (each aircraft's cabin against its markets, with Refitted to, Keep as is and Show again; Check's) went
 // on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1): the cabin is chosen with each order, and the plan card
 // suggests it (Tails).
 // Address: /planner/systems, and the aircraft pop-up (?aircraft=REG, Tails' AircraftPopup). Every action is one
 // planner_save() call.
 import { useMemo, useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import { checks, game, tails } from "@rules";
 import { ourAirlines, type OurAirline } from "../../data/airlines";
 import { buildStamp } from "../../data/build";
 import { useNow } from "../../data/clock";
+import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
@@ -34,25 +38,30 @@ import { figuresOf, issueWords, markCheckedChange, rulesLegs, typeName, type Tai
 import { useLaunches, useTailsAircraft } from "../tails/reads";
 import { ManualEntry } from "./ManualEntry";
 import {
-  BOARDS, CAPTURE_KINDS, backupWords, captureCell, captureStatus, patternPill, patternRanks, shownBoards, upcomingByDay, type BoardKey,
+  BOARDS, CABIN_STATE_WORDS, CAPTURE_KINDS, backupWords, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus,
+  gameAmountChange, patternPill, patternRanks, shownBoards, signedAsd, upcomingByDay, type BoardKey, type CabinCharges, type CabinProblem,
 } from "./model";
-import { useBackupLine, useCapture, useCashLog, useSystemStatus } from "./reads";
+import { useBackupLine, useCabinCharges, useCapture, useCashLog, useSystemStatus } from "./reads";
 import { SystemsBoard } from "./SystemsBoard";
 import { systemLines } from "./systems";
 
 const NOTES: Record<BoardKey, string> = {
   "Capture": "what the one-click capture collected from the game, per airline · times in UTC · cash and fixed costs go straight into Performance",
+  "Cabin charges": "each first cabin fit filing logged, against the game's \"Installation of cabin interior\" line on the bank statement",
   "Manual entry": "only needed if a night's capture failed · cash, fixed costs and loads normally come from the capture",
   "Aircraft checks": "one check, a week after an aircraft is scheduled · once marked checked it only comes back when that aircraft's schedule changes",
 };
 const FIGURE: Record<BoardKey, string> = {
-  "Capture": "systems: capture", "Manual entry": "systems: manual entry", "Aircraft checks": "systems: aircraft checks",
+  "Capture": "systems: capture", "Cabin charges": "systems: cabin charges", "Manual entry": "systems: manual entry", "Aircraft checks": "systems: aircraft checks",
 };
+/** The board Today's cabin charges item opens (/planner/systems#cabin-charges). */
+const CABIN_HASH = "#cabin-charges";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
 export function Systems() {
   const [search, setSearch] = useSearchParams();
+  const loc = useLocation();
   const now = useNow();
   const today = todayAt(now);
   const world = useWorld();
@@ -66,7 +75,9 @@ export function Systems() {
   const aircraftQ = useTailsAircraft(w);
   const launchesQ = useLaunches(w);
   const signalsQ = useGrowthSignals(w);
-  const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS));
+  const cabinsQ = useCabinCharges(w !== undefined);
+  // every board folded on arrival, but Cabin charges open when Today's item sent you here
+  const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS.filter((k) => !(k === "Cabin charges" && loc.hash === CABIN_HASH))));
   const [busy, setBusy] = useState(false);
   const tailPopup = search.get("aircraft");
   const setTailPopup = (reg: string | null) => setSearch((s) => {
@@ -88,7 +99,10 @@ export function Systems() {
     setBusy(true);
     try {
       const res = await saver.save(changes);
-      if (res.status === "saved") refreshFigures();
+      if (res.status === "saved") {
+        refreshFigures();
+        if (changes.some((c) => c.table === "spending_log")) void queryClient.invalidateQueries({ queryKey: ["figures", "cabin_charges"] });
+      }
       return res;
     } finally {
       setBusy(false);
@@ -108,13 +122,13 @@ export function Systems() {
   const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now, Number.isFinite(scanEvery) ? scanEvery : null) : null),
     [systemQ.data, now, scanEvery]);
   const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && aircraftQ.data && launchesQ.data
-    && signalsQ.data && checkList);
-  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, aircraftQ, launchesQ, signalsQ);
+    && signalsQ.data && checkList && cabinsQ.data);
+  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, aircraftQ, launchesQ, signalsQ, cabinsQ);
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   // Aircraft checks only while the checks are on (aircraft_check_after_days above 0)
   const shown = rules ? shownBoards(rules, airlines.map((a) => a.id)) : BOARDS;
-  const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k]) => (shown.includes(k)
-    ? <FoldBoard key={k} k={k} note={note} folded={folded.has(k)} onToggle={() => toggle(k)} figure={FIGURE[k]}>{children}</FoldBoard> : null);
+  const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k], id?: string) => (shown.includes(k)
+    ? <FoldBoard key={k} k={k} id={id} note={note} folded={folded.has(k)} onToggle={() => toggle(k)} figure={FIGURE[k]}>{children}</FoldBoard> : null);
   const backup = backupWords(backupsQ.data, (d) => niceDate(d));
 
   return (
@@ -155,6 +169,10 @@ export function Systems() {
             <div className="note">Flights are counted by their departure date (local time), as the game lists them.</div>
             {backup ? <div className="note">{backup.ok === false ? <><span className="pill bad sm">Backup failed</span> {backup.text}</> : backup.text}</div> : null}
           </>)}
+          {cabinsQ.data ? board("Cabin charges", <CabinChargesBody c={cabinsQ.data} airline={airline} busy={busy}
+            onUse={(p) => void save(gameAmountChange(p))} />,
+          <>{cabinsQ.data.counts.problems ? <span className="pill warn sm" data-cabin-problems={cabinsQ.data.counts.problems}>{cabinsQ.data.counts.problems} to look at</span> : null}
+            {" "}{cabinCountsWords(cabinsQ.data)}</>, "cabin-charges") : null}
           {board("Manual entry", <ManualEntry worldId={w} rules={rules} log={{ ...logQ.data, airlines: logQ.data.airlines.map((a) => ({ ...a, name: airline(a.airline_id)?.name ?? a.name })) }}
             airlines={airlines} busy={busy} now={now} onSave={save} />)}
           {board("Aircraft checks", <ChecksBody list={checkList} today={today} rules={rules} byId={byId} airline={airline} freqs={freqs} ranks={ranks}
@@ -164,6 +182,49 @@ export function Systems() {
       ) : null}
       {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
     </main>
+  );
+}
+
+/** Cabin charges (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): every first fit that doesn't match the game's
+ *  charge, with what we logged and what the game charged; Use the game's amount on a differing one. Matches are counted
+ *  in the title, not listed. */
+function CabinChargesBody({ c, airline, busy, onUse }: {
+  c: CabinCharges;
+  airline: (id: number) => OurAirline | undefined;
+  busy: boolean;
+  onUse: (p: CabinProblem) => void;
+}) {
+  if (!c.problems.length) {
+    return <div className="dim">{c.check_from ? "Every cabin charge the game made matches the first fit we logged." : "Nothing is checked: the world has no cabin_charge_check_from setting."}</div>;
+  }
+  return (
+    <>
+      <div className="tblwrap">
+        <table className="tbl" data-figure="systems: cabin charges table">
+          <tbody>
+            <tr><th>Airline</th><th>Aircraft</th><th>State</th><th>We logged</th><th>The game charged</th><th className="num">Difference</th><th></th></tr>
+            {c.problems.map((p, i) => {
+              const al = airline(p.airline_id);
+              const key = `${p.state}:${p.logged?.id ?? "p" + (p.lines[0]?.id ?? i)}`;
+              return (
+                <tr key={key} data-cabin={p.registration ?? ""} data-cabin-state={p.state}>
+                  <td><AirlineMark color={al?.color} /><b>{al?.name ?? p.airline ?? p.code}</b></td>
+                  <td><b>{p.registration ?? "—"}</b></td>
+                  <td><span className="pill warn sm">{CABIN_STATE_WORDS[p.state]}</span></td>
+                  <td>{cabinLoggedWords(p)}</td>
+                  <td>{cabinGameWords(p).map((x, k) => <div key={k}>{x}</div>)}</td>
+                  <td className="num">{p.difference != null ? signedAsd(p.difference) : "—"}</td>
+                  <td className="n">{p.state === "differs" && p.logged ? (
+                    <button type="button" className="primary sm" data-cabin-use={p.logged.id} disabled={busy} onClick={() => onUse(p)}>Use the game's amount</button>
+                  ) : null}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="note">Not charged yet: no installation line more than {c.wait_days} days after the fit was logged. Not logged: the game charged a cabin for an aircraft with no first fit logged. <b>Use the game's amount</b> changes the logged fit to what the game charged.</div>
+    </>
   );
 }
 

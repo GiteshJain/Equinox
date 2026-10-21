@@ -94,6 +94,13 @@ flowchart LR
      `system_status()` give each airline's latest;
    - the bank statement's lines go to `game_statement`; each flight's lines (grouped by minute and block) become one
      `game_flights` row with its money, and every other line (leases, salaries, purchases, cabins, and since 15 Oct the pilot training an order brings, kind cabin) a `game_payments` row;
+   - **the cabin charge check** (since 22 Oct, spec `docs/specs/2026-10-21-tidy-ups.md` §3; manual §4): a cabin
+     installation line ("Installation of cabin interior (9M-AAV)") names its registration and the airline's aircraft
+     (`private.payment_registration()`, `private.payment_aircraft()`), and `cabin_charges()` (staff, read with GET; its
+     builder `private.fig_cabin_charges()`, a captured figure) sets each first cabin fit Tails' filing logged in
+     `spending_log` since `settings.cabin_charge_check_from` (18 Oct) against them: matches, differs, charged twice, not
+     charged yet (none 2 days after it was logged) or not logged. Systems' Cabin charges board lists the problems, with
+     **Use the game's amount** (the fit's amount through `planner_save()`), and Today's needs attention has one item;
    - loads go to `game_flights` too. A flight's money and its loads are matched by route and time into one row
      (`private.match_flights()`) as the pages arrive, using the airports' UTC offsets (loaded by #13, pull request 4).
      A row stays one-sided until its partner arrives (the statement covers 3 days, the loads page 24 hours);
@@ -112,7 +119,9 @@ flowchart LR
      the planner and the scripts exactly what the old tables gave;
    - **the world scan** (since 21 Oct): after the last airline, when `capture_airlines()` said a scan is due and every
      page went in, the userscript reads the world's airlines and airport pages and sends them to `capture_scan()` with
-     the capture key: start (an unfinished scan of the world from the last hour is carried on instead), each airline's
+     the capture key: start (an unfinished scan of the world from the last hour is carried on instead; since 22 Oct one
+     left unfinished longer is marked stopped first, with a note of how far it got, and the Systems board's scan line
+     says so in amber while no finished scan came after it), each airline's
      schedule, each airport page, then finish, which marks the scan done and builds its airport summaries
      (`scan_airline_airports`). Every airline it sees gets an `airlines` row (change log actor `capture`). The work is
      `private.scan_ingest()`, which `ingest_snapshot()` shares; the Systems board's scan line reads the latest finished
@@ -217,7 +226,8 @@ called wrongly here fails that check.
 | This Saturday's fare moves: each route and cabin's level, move and why, its fare index, and the game actions that make them, the routes off their level set back first (manual §5) | `fare_ladder()` | `select public.fare_ladder(2);` |
 | Cash and fixed costs by day, the nightly log (Systems → Manual entry) | `cash_log()` | `select public.cash_log();` |
 | The capture's state: each airline's pages, and #21's verdict | `capture_status()` | `select public.capture_status();` |
-| The systems' state: capture, snapshot, backup, archive, clean-ups, the scan's age, usage | `system_status()` | `select public.system_status();` |
+| The systems' state: capture, snapshot, backup, archive, clean-ups, the scan's age (and a scan that stopped part-way), usage | `system_status()` | `select public.system_status();` |
+| Does the game's cabin charge match the first fit we logged? (each fit since `cabin_charge_check_from`: matches, differs, charged twice, not charged yet, not logged) | `cabin_charges()` | `select public.cabin_charges();` |
 | Whether tonight's capture scans the world (the latest finished scan's age against `scan_every_days`), an open scan, and the airports it reads | `capture_airlines()` with the capture key (its scan part, for a chat as postgres) | `select private.capture_scan_plan((select id from public.worlds where is_default), now());` |
 | The world scans, and how old the latest is | `export_for_report()`, kind `snapshots` | `select public.export_for_report((select secret from public.ingest_secret limit 1), 'snapshots');` |
 | The rivals: every airline's schedule in a scan (the briefing counts them by route and airport) | `export_for_report()`, kind `airlines` | `select jsonb_array_length(public.export_for_report((select secret from public.ingest_secret limit 1), 'airlines', (select max(id) from public.game_scans where status = 'done')::text));` |

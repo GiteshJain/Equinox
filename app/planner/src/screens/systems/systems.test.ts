@@ -1,10 +1,11 @@
 // The Systems board's marks at each limit (decision #23, spec part 2 and "Checks"): the capture at 26 and 48 hours and
 // with #21's verdicts, the snapshot and backup at 30 hours (red at 54, as Home), the archive by the 3rd, a failed run,
-// the world scan at 8 and 15 days, usage at 70% and at the trigger, and the planner's build stamp.
+// the world scan at 8 and 15 days (and amber for a scan that stopped part-way, 22 Oct), usage at 70% and at the trigger,
+// and the planner's build stamp.
 import { describe, expect, it } from "vitest";
 import {
-  ageMark, archiveLine, backupLine, boardSummary, buildLine, captureLine, cleanupLine, scanEveryWords, scanLine, sizeWords, snapshotLine, systemLines, usageLine, usageMark,
-  type SysCapture, type SystemStatus,
+  ageMark, archiveLine, backupLine, boardSummary, buildLine, captureLine, cleanupLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
+  usageLine, usageMark, type ScanStopped, type SysCapture, type SystemStatus,
 } from "./systems";
 
 const now = new Date("2026-10-15T12:00:00Z");
@@ -100,6 +101,28 @@ describe("the jobs", () => {
     expect(scanLine(null, now).text).toBe("no world scan yet · runs with the evening capture when one is due (scan_every_days)");
     expect(scanEveryWords(2)).toBe("every 2 capture days (scan_every_days 2)");
     for (const x of [scanLine(scan(1), now, 1), scanLine(scan(20), now, 1), scanLine(null, now)]) expect(x.text).not.toMatch(/Saturday/);
+  });
+  it("a scan that stopped part-way, with none finished after it: amber, not red, saying how far it got (22 Oct)", () => {
+    const scan = (d: number) => ({ taken_at: ago(d * 24), week: "43", status: "done" });
+    const stopped = (x: Partial<ScanStopped> = {}): ScanStopped => ({
+      id: 9, taken_at: "2026-10-14T01:10:00.000Z", status: "stopped", note: "stopped part-way…", airlines: 812, airports: 0,
+      airlines_expected: 1040, airports_expected: 97, ...x,
+    });
+    expect(stoppedWords(stopped())).toBe("the scan of 14 Oct stopped after 812 of 1,040 airlines");
+    expect(stoppedWords(stopped({ airlines_expected: null, airlines: 1 }))).toBe("the scan of 14 Oct stopped after 1 airline");
+    const l = scanLine(scan(2), now, 1, stopped());
+    expect(l.mark).toBe("warn");
+    expect(l.text).toBe("2 days ago (week 43) · the scan of 14 Oct stopped after 812 of 1,040 airlines; the next capture scans again · runs with the evening capture every evening (scan_every_days 1)");
+    // red stays red by age; with no stop, as before
+    expect(scanLine(scan(16), now, 1, stopped()).mark).toBe("bad");
+    expect(scanLine(scan(2), now, 1, null).mark).toBe("ok");
+    expect(scanLine(null, now, 1, stopped()).text).toMatch(/^no world scan yet · the scan of 14 Oct stopped after 812 of 1,040 airlines; the next capture scans again · /);
+    // system_status()'s scan_stopped reaches the line
+    const s: SystemStatus = {
+      as_of: now.toISOString(), capture: [], snapshot: {}, backup: { last: null, last_good: null }, archive: null, cleanup: null,
+      scan: scan(1), scan_stopped: stopped(), usage: [],
+    };
+    expect(systemLines(s, null, now, 1).find((x) => x.key === "scan")?.mark).toBe("warn");
   });
 });
 

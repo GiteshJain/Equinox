@@ -8,14 +8,17 @@
 // airline_cards(); the interline line from Interline's rows (the setting interline_rules, build pull request 13) and
 // interline_agreements; to-dos from the table; and since 21 Oct (spec docs/specs/2026-10-21-competition-analysis.md §3)
 // the rivals' moves the latest world scan showed on our routes, from competition() (each airline's threats with latest
-// true), linking to Competition: they aren't fare moves, so the fare ladder's rule doesn't keep them off. This file only
-// words them. Monthly checks have none since 8 Oct, as in the old planner.
+// true), linking to Competition: they aren't fare moves, so the fare ladder's rule doesn't keep them off; and since 22 Oct
+// (spec docs/specs/2026-10-21-tidy-ups.md §3) one item when a cabin charge doesn't match the first fit we logged, from
+// cabin_charges(), linking to Systems' Cabin charges. This file only words them. Monthly checks have none since 8 Oct, as
+// in the old planner.
 import { aircraftWeek, block, maintenance, schedule, type OneWeekCheck, type Rules } from "@rules";
 import type { AttItem } from "../../ui/attention";
 import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
 import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAirline, JobRun, JobsRead, TodoRow } from "../home/reads";
 import { threatItemWords, threatKey, type ThreatItem } from "../competition/model";
+import { cabinAttention, type CabinCharges } from "../systems/model";
 
 /** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
 export type { HomeAirline };
@@ -38,6 +41,8 @@ export interface AttentionInput {
   interlineOpen: number | null;
   /** The rivals' moves the latest world scan showed on our routes (competition(), latestThreats()), or null until read. */
   threats?: readonly ThreatItem[] | null;
+  /** The cabin charge check (cabin_charges(), since 22 Oct), or null until read. */
+  cabins?: CabinCharges | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -169,6 +174,11 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       items.push({ key: `capture|verdict|${name(v.airline_id)}|${v.at}`, cls: v.verdict === "broken" ? "bad" : "warn", screen: "systems", text: words });
     }
   }
+
+  // the cabin charge check (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): one item when any first fit doesn't
+  // match the game's charge, linking to Systems' Cabin charges board
+  const cab = cabinAttention(x.cabins);
+  if (cab) items.push({ key: cab.key, cls: "warn", screen: "systems", text: cab.text });
 
   // the backup: no good copy for 30 hours, or the last run failed
   if (x.backups) {

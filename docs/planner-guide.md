@@ -114,6 +114,9 @@ important first; nothing folds.
     pairs in the latest world scan, against the scan before it: "Air China started on PVG–CAN, 14 a week", linking to
     its airline's Competition page. They aren't fare moves, so they're listed here; the route's fares hold for a week
     on their own (Performance's fare ladder).
+  - **Cabin charges** (since 22 Oct): one amber item when a cabin charge on the game's bank statement doesn't match the
+    first fit filing logged ("2 cabin charges don't match what we logged"), linking to Systems' Cabin charges board,
+    which opens on arrival. Dismissed, it comes back when a new one appears.
 
   **×** dismisses an item and **show again** brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
@@ -334,7 +337,9 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   - **Openings:** the pairs on its list no airline of ours flies, ranked: stars, then the rivals' departures a week on
     the pair, then the shorter distance, then the pair's code. Each with its stars, distance, the rivals and their
     departures, the **variant** from the default line (manual §3: the smallest size the stars allow, bigger only "for
-    reach", the cheapest per seat whose range covers it, among the types the airline may buy) and **Hubs first**:
+    reach", the cheapest per seat whose range covers it, among the types the airline may buy; since 22 Oct a 1-star
+    city on the E195-E2 says "or the E190-E2 if thin" under it: the default line gives the E190-E2 to the thinnest
+    1-star city, nothing in our data says how thin a city is, so the evening proposal decides) and **Hubs first**:
     **yes** with why (main hub, contested base or route, main hub at its target, exempt), or **not yet** with the
     reason, listed after the allowed ones. The first 10, with **show all** (the top 50; a chat reads more with
     *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted. A pair
@@ -409,7 +414,7 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 ## Systems
 *Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board, Capture and aircraft checks,
 and Review's Manual entry; Check's Cabins board went on 21 Oct: we don't refit, and the plan card suggests the cabin on
-Tails). The Systems board stays open at the top; the boards under it are folded on
+Tails; Cabin charges came on 22 Oct). The Systems board stays open at the top; the boards under it are folded on
 arrival: click a board's title to open or fold it, or use **Expand all** and **Collapse all**. Each button is saved on
 its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
 - **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when,
@@ -426,7 +431,10 @@ its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
   - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
   - **World scan:** its age, and that it runs with the evening capture when one is due ("every evening
     (scan_every_days 1)", since 21 Oct; Reference → Constants changes it); amber over 8 days, red over 15, when it
-    adds "capture again while it's due, or gscan.py by hand".
+    adds "capture again while it's due, or gscan.py by hand". Since 22 Oct, when a scan stopped part-way (the phone
+    closed, the tab went away) and no finished scan came after it, it adds "the scan of 21 Oct stopped after 812 of
+    1,040 airlines" (of the finished scan before it) in amber, not red: the next capture scans again. A scan left
+    unfinished for over an hour is marked stopped when the next one starts, with a note of how far it got.
   - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
     minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
   - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),
@@ -436,6 +444,16 @@ its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
 - **Capture:** what the capture collected for each airline, and when (UTC), with **Reload** and the backup's line. If
   an airline is missing, press the capture again. Each page is checked as it arrives (#21): the capture's panel in the
   game ends each airline with "all good" or what came in short or broken, and the Systems board above shows the same.
+- **Cabin charges** (since 22 Oct; manual §4): each first cabin fit filing logged since *cabin_charge_check_from* (18
+  Oct, the first day the plan card chose the cabin; earlier fits include refits), against the game's "Installation of
+  cabin interior (<reg>)" line on the bank statement (pilot training, which comes with an order, is left out). Its title
+  says how they came out ("first fits since 18 Oct: 14 match · 2 waiting for the game's charge"), with an amber count
+  when any needs a look. Matches are counted, not listed; each other one is a row with the airline, aircraft, what we
+  logged (day, amount, cabin), what the game charged (each line) and the difference: **differs** (one line at another
+  amount, with **Use the game's amount**, which changes the logged fit to the game's, one change), **charged twice**
+  (more than one line), **not charged yet** (no line, and the airline's latest statement more than 2 days after the
+  fit was logged; until then it's waiting) and **not logged** (the game charged a cabin for an aircraft with no first
+  fit logged). Today's needs attention has one item while any is there, and opens this board.
 - **Manual entry:** only if a night's capture failed. Cash and fixed costs for today (**Save** keeps a figure only
   where it differs from the capture's), the nightly log, and **Loads by hand**: type each airline's flights under 95%,
   or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads typed or

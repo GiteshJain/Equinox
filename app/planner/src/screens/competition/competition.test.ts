@@ -10,7 +10,8 @@ import { homeAttention, type AttentionInput } from "../today/attention";
 import { ATT_KIND, attKind, groupAttention } from "../../ui/attention";
 import {
   allowedWords, changeWords, dayWords, groupWords, kmWords, latestThreats, n0, openingsLine, otherListsWords, overallShare, pctWords, profileWords, rivalsWords,
-  scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening,
+  scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer,
+  type Market, type Opening,
   type Threat,
 } from "./model";
 
@@ -104,6 +105,12 @@ describe("threats, openings and profiles", () => {
     expect(otherListsWords(opening({ other_lists: ["VS"] }))).toBe("also on VS's list");
     expect(otherListsWords(opening())).toBeNull();
     expect(allowedWords(opening({ trunk: true, allowed_by: "November trunk" }))).toEqual({ ok: true, text: "yes", why: "November trunk" });
+  });
+  it("a thin 1-star city (22 Oct): the E190 under the variant, in the database's words; nothing on any other opening", () => {
+    const thin = opening({ stars: 1, variant: { ...opening().variant, type: "E195-E2", seats: 146, size: "small" }, variant_alt: "E190-E2", variant_note: "or the E190-E2 if thin" });
+    expect([variantWords(thin.variant), variantNoteWords(thin)]).toEqual(["E195-E2", "or the E190-E2 if thin"]);
+    expect(variantNoteWords(opening())).toBeNull();
+    expect(variantNoteWords(opening({ variant_note: null }))).toBeNull();
   });
   it("a profile's line: its size, growth since the week-before scan and airports", () => {
     const p = { airline_id: 9, name: "Air China", pairs_shared: 12, weekly_on_pairs: 140, weekly: 6552, weekly_before: 5012, change: 1540, airports: 120, pairs: [], biggest_airports: [] };
