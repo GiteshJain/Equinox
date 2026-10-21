@@ -440,7 +440,9 @@ async def plan_card_cabins(pl):
     planning library (tests/plan_card_cabins.mjs: card.cabinFor on rules_input(world, 'all')), printed one line each
     (registration, the card's cabin, the suggestion and its reason, and whether it differs: codes only), the cards that
     differ counted. Then the first such card with legs, opened on Tails, says "suggested: <the library's code>" beside its
-    Cabin box, with Use the suggestion when the card's own cabin isn't it, and a card cabin that differs in amber."""
+    Cabin box, with Use the suggestion when the card's own cabin isn't it, and a card cabin that differs in amber; and
+    (21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §2) the fare level of each route it flies, once per
+    route, in the game's words, printed."""
     cards = json.loads(psql(f"""select coalesce(json_agg(json_build_object('registration', a.registration, 'aircraft_id', a.id, 'airline', al.iata_code,
                   'config_id', pc.config_id, 'card_code', cc.code, 'order_code', oc.code, 'on_board', a.delivery_at is not null,
                   'one_card', (select count(*) from public.plan_cards o where o.aircraft_id = a.id) = 1,
@@ -493,6 +495,23 @@ async def plan_card_cabins(pl):
             differs = bool(shown["cabin"]) and shown["cabin"] != x["suggested"]
             if shown["amber"] != differs:
                 problems.append(f"{c['registration']}'s cabin {shown['cabin'] or 'none'} {'is' if shown['amber'] else 'is not'} amber against {x['suggested']}")
+        # the fare level of each route it flies (21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §2): once per
+        # route, on the route's first leg, once fare_ladder() for the airline is read; printed (codes and levels only)
+        pairs = []
+        for leg in c["legs"]:
+            k = "-".join(sorted((leg["origin_code"], leg["dest_code"])))
+            if k not in pairs:
+                pairs.append(k)
+        try:
+            await pl.pg.wait_for_function("([sel, n]) => document.querySelectorAll(sel + ' [data-card-fare]').length === n", arg=[card, len(pairs)], timeout=30000)
+        except Exception:
+            problems.append(f"{c['registration']}'s plan card on Tails doesn't show a fare level for each of its {len(pairs)} routes within 30 s")
+        fares = await pl.pg.evaluate("sel => [...document.querySelectorAll(sel + ' [data-card-fare]')].map(td => [td.dataset.cardFare, td.textContent])", card)
+        print(f"      on Tails, {c['registration']}'s fare levels ({len(fares)} of its {len(pairs)} routes): "
+              + ("; ".join(f"{k} {t}" for k, t in fares) or "none"), flush=True)
+        if any(not re.fullmatch(r"(economy|business) [+−]\d+(\.\d)?%(, (economy|business) [+−]\d+(\.\d)?%)* of the default price|launch \([+−]\d+(\.\d)?% of the default price\)", t)
+               for _, t in fares):
+            problems.append(f"{c['registration']}'s fare levels aren't in the game's words: {fares}")
         await pl.pg.goto(f"http://{LIVE_HOST}:{pl.port}{NEW_PLANNER}")
         await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     differ = [x["registration"] for x in got if x["differs"] and not x["missing"]]
@@ -565,7 +584,8 @@ async def performance_opens(pl):
     shown, Growth signals, Main hubs, Flights by day); each growth list shows its first 10 rows with "show all N" (21 Oct),
     which opens the rest in place and "show fewer" closes; the fare ladder has a section for each airline with its moves
     in one line ("12 up, 30 hold, 2 down"), the count of changes in the game in its heading ("24 changes in the game", as
-    many as its game actions), Put on the fare plan, and its game actions and routes table each cut to 10
+    many as its game actions: since 21 Oct the set-back changes, in their own list first with its heading "3 routes off
+    their level", and the week's moves), Put on the fare plan, and its game actions and routes table each cut to 10
     rows the same way (one of each opened and closed again); tapping the first scorecard opens that airline's page, its
     own scorecard and its four boards open, the route profit table with its fare index and 14-day load sparkline. Each
     airline's moves and how many game actions it has are printed (counts only)."""
@@ -596,8 +616,10 @@ async def performance_opens(pl):
         code: x.dataset.ladder, moves: (x.querySelector('[data-ladder-moves]') || {}).textContent || '',
         changes: (x.querySelector('[data-ladder-changes]') || {}).textContent || '',
         plan: !!x.querySelector('[data-ladder-plan]'),
+        off: (x.querySelector('[data-ladder-off]') || {}).textContent || '',
+        fix_routes: new Set([...x.querySelectorAll('[data-ladder-fixes] li[data-route]')].map(li => li.dataset.route)).size,
         lists: [...x.querySelectorAll('[data-list]')].map(d => ({ list: d.dataset.list, rows: +d.dataset.listRows,
-          shown: d.dataset.list.startsWith('actions ') ? d.querySelectorAll('ol > li').length : d.querySelectorAll('table tr').length - 1,
+          shown: d.dataset.list.startsWith('actions ') || d.dataset.list.startsWith('fixes ') ? d.querySelectorAll('ol > li').length : d.querySelectorAll('table tr').length - 1,
           button: (d.querySelector(':scope > [data-list-more]') || {}).textContent || '' })) }))"""
     ladder = await pl.pg.evaluate(ladder_js)
     if not ladder:
@@ -607,17 +629,27 @@ async def performance_opens(pl):
             problems.append(f"the fare ladder's line for {x['code']} is {x['moves']!r}, not \"N up, N hold, N down\"")
         if not x["plan"]:
             problems.append(f"the fare ladder has no Put on the fare plan for {x['code']}")
-        # 21 Oct (route by route): the heading counts the changes to make in the game, as many as the actions listed
+        # 21 Oct (route by route): the heading counts the changes to make in the game, as many as the actions listed: the
+        # set-back changes (their own list, first, since 21 Oct) and the week's moves
         m = re.fullmatch(r"· (\d+|no) changes? in the game", x["changes"])
-        n_actions = next((lst["rows"] for lst in x["lists"] if lst["list"].startswith("actions ")), 0)
+        n_moves = next((lst["rows"] for lst in x["lists"] if lst["list"].startswith("actions ")), 0)
+        n_fixes = next((lst["rows"] for lst in x["lists"] if lst["list"].startswith("fixes ")), 0)
+        n_actions = n_moves + n_fixes
         if not m or (0 if m.group(1) == "no" else int(m.group(1))) != n_actions:
             problems.append(f"the fare ladder's heading for {x['code']} says {x['changes']!r}, not its {n_actions} game actions")
+        # the set-back list's heading names the routes it sets back ("3 routes off their level"); none without one
+        n_off = x["fix_routes"]
+        want_off = "" if not n_fixes else f"{n_off} route{'' if n_off == 1 else 's'} off {'its' if n_off == 1 else 'their'} level"
+        if n_fixes and n_fixes <= 10 and x["off"] != want_off:
+            problems.append(f"the fare ladder's set-back list for {x['code']} is headed {x['off']!r}, not {want_off!r}")
+        if not n_fixes and x["off"]:
+            problems.append(f"the fare ladder for {x['code']} has a set-back heading ({x['off']!r}) but no set-back changes")
         for lst in x["lists"]:
             want_shown, want_button = (10, f"show all {lst['rows']}") if lst["rows"] > 10 else (lst["rows"], "")
             if lst["shown"] != want_shown or lst["button"] != want_button:
                 problems.append(f"the fare ladder's {lst['list']!r} ({lst['rows']}) shows {lst['shown']} rows with {lst['button']!r}, not {want_shown} with {want_button!r}")
     opened_lists = []
-    for kind in ("actions ", "ladder "):
+    for kind in ("fixes ", "actions ", "ladder "):
         long_ladder = next((lst for x in ladder for lst in x["lists"] if lst["list"].startswith(kind) and lst["rows"] > 10), None)
         if not long_ladder:
             continue
@@ -629,7 +661,7 @@ async def performance_opens(pl):
         await pl.pg.click(sel)
         opened_lists.append(long_ladder["list"])
     count = lambda x, kind: next((lst["rows"] for lst in x["lists"] if lst["list"].startswith(kind)), 0)
-    ladder_words = ("; the fare ladder: " + " · ".join(f"{x['code']} {x['moves']} ({count(x, 'actions ')} game actions, {count(x, 'ladder ')} routes and cabins)" for x in ladder)
+    ladder_words = ("; the fare ladder: " + " · ".join(f"{x['code']} {x['moves']} ({count(x, 'fixes ')} set-back and {count(x, 'actions ')} other game actions, {count(x, 'ladder ')} routes and cabins)" for x in ladder)
                     + (f", {' and '.join(repr(n) for n in opened_lists)} opened and closed" if opened_lists else "")) if ladder else ""
     if got["folded"]:
         problems.append(f"{got['folded']} of Performance's boards are folded on arrival (all should be open)")

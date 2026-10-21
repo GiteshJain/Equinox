@@ -3,7 +3,7 @@
 import {
   aircraftWeek, airport, banks, block, buildRules, card, checks, connections, frequency, game, growth, loadReport, maintenance, optimiser, positions, schedule,
   service, summary, tails, time, turns, findType,
-  type Card, type CheckFacts, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
+  type Card, type CheckFacts, type FareLadder, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
   type MoveFacts, type Move, type PlannedCardLeg, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
@@ -143,6 +143,13 @@ export function ask(input: RulesInput, q: Ask): unknown {
     }
     case "check_card":
       return card.checkCard(rules, q.card as unknown as Card);
+    // each route's fare level on a plan card (spec docs/specs/2026-10-21-frequencies-and-fares.md §2): cardFares, and the
+    // card check's fares when handed the same ladder
+    case "card_fares": {
+      const c = q.card as unknown as Card, ladder = q.ladder as unknown as FareLadder;
+      const fares = card.cardFares(rules, c, ladder);
+      return { fares, check: c.legs.length ? card.checkCard(rules, c, { fares: ladder }).fares : null };
+    }
     // the plan card's cabin (spec docs/specs/2026-10-21-cabins-new-rule.md §3): the suggestion, and the card check's
     // problems that name the cabin
     case "cabin_for": {

@@ -4,8 +4,9 @@
 //     a week, block hours a day, maintenance (with the hours on hover) and routes; Add a tail; remove;
 //   - an aircraft (AircraftPage.tsx): its header, the fields that change it, its week and every issue;
 //   - the deliveries board (Deliveries.tsx): aircraft on order, arrived or flying, each with its plan card (since 21 Oct
-//     with the cabin its routes call for and Use the suggestion), and filing an arrived one into the planner after checking
-//     it against the game (Filing.tsx).
+//     with the cabin its routes call for and Use the suggestion, and the fare level of each route it flies, from
+//     fare_ladder() for the card's airline, read while a card is open), and filing an arrived one into the planner after
+//     checking it against the game (Filing.tsx).
 // Addresses: /planner/tails (filters in the address: ?airline=PA&base=JFK&type=...&status=warn&del=on+order&card=REG)
 // and /planner/tails/<registration>. Home's "File into planner" opens ?file=<registration>, which starts filing at
 // once, as the old Home's button did. Each action is one planner_save() call; the start's rules are read again after it.
@@ -23,12 +24,13 @@ import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
+import { useFareLadder } from "../performance/reads";
 import { useAirlineRoutes, useAirports, useMarkets } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardCabin, cardCabinChange, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
+  addTailChanges, basesOf, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
@@ -101,6 +103,12 @@ export function Tails() {
   // the cabin the card's routes call for (manual §5; the library's card.cabinFor)
   const suggestionOf = useMemo(() => (r: DeliveryRow) => (serviceRules && r.card ? cardCabin(serviceRules, r.card, legsByCard.get(r.card.id) ?? []) : null),
     [serviceRules, legsByCard]);
+  // the fare level of each route the open card flies (manual §5, since 21 Oct; the library's card.cardFares), from
+  // fare_ladder() for the airline, read only while a card is open
+  const ladderQ = useFareLadder(filters.card && airline ? airline.id : undefined);
+  const faresOf = useMemo(() => (card: PlanCardRow, legs: readonly CardLeg[]) =>
+    (serviceRules ? fareCells(legs, cardFareLevels(serviceRules, card, legsByCard.get(card.id) ?? [], ladderQ.data)) : new Map<number, string>()),
+  [serviceRules, legsByCard, ladderQ.data]);
 
   const fig = useMemo(() => (rules && open ? tailRows([open], { base: "", type: "", status: "" }, rules, configs)[0]?.fig : undefined), [rules, open, configs]);
   const issues: TailIssue[] = useMemo(() => (rules && open && fig?.week ? tailRules.issues(rules, open.id, rulesLegs(rules), fig.week, fig.maint) : []), [rules, open, fig]);
@@ -292,7 +300,7 @@ export function Tails() {
         onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery}
         onRemove={(r) => void onRemoveDelivery(r)}
         cabinsFor={(r) => cfgList(r.type)} cabinCode={(c) => (c.config_id == null ? "" : configs.get(c.config_id)?.code ?? "")}
-        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} suggestionOf={suggestionOf} />
+        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} suggestionOf={suggestionOf} faresOf={faresOf} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
     </main>
   );

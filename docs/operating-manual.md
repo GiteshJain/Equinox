@@ -55,12 +55,13 @@ Until each is built and merged, the rules below stand as they are.
 - **The fare ladder is built** (21 Oct, pull request #56): `fare_ladder()` works out each route's level and Saturday's
   moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause waits for
   competition analysis; until then the Saturday review checks the scan by hand.
-- **Decided 21 Oct, for the Building chat:** new frequencies and the fare ladder (§5; spec
-  `docs/specs/2026-10-21-frequencies-and-fares.md`), after the fares userscript: a route that gained a frequency in the
-  last 7 days holds; the plan card shows each route's fare level; and a route whose captured fare doesn't match its
-  level gets a change that sets it back (which also shows whether the game prices a new flight number at the default
-  price, as Gitesh thinks). Until it's built, the Scheduling chat writes the route's level in the card's note and the
-  Saturday review holds such routes by hand.
+- **New frequencies and the fare ladder are built** (21 Oct, pull request #60; spec
+  `docs/specs/2026-10-21-frequencies-and-fares.md`, §5): a route that gained a frequency in the last 7 days holds
+  (`settings.fare_ladder_capacity_hold_days`); every plan card shows each route's fare level (Tails → Deliveries, the
+  card check's `fares`, the airline briefing); and a route whose captured fares don't match its level gets a change
+  that sets it back, first in Performance's fare ladder and made by the fares userscript (which also shows whether the
+  game prices a new flight number at the default price, as Gitesh thinks). The fare index reads each flight of the
+  latest captured day against its route's fare on 21 Oct 2026. A frequency taken away isn't tracked yet.
 - **Next for the Building chat (Gitesh, 21 Oct):** the planner work's next big step is competition analysis with its
   ranked openings, before the route page.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
@@ -480,8 +481,13 @@ less important than another, point to point rather than hubs).*
   - **down 5 points** when under 90% sold out, then hold for 2 weeks before climbing again.
 
   New routes start after their first 7 days (§3), and **a route that gained a frequency in the last 7 days holds**
-  for that week, so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct). Every
-  plan card shows the fare level of each route it flies, so a new flight is priced like the rest of its route.
+  for that week (`settings.fare_ladder_capacity_hold_days`, 7: its newest rotation under 7 days old, its first older),
+  so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct). Every
+  plan card shows the fare level of each route it flies, so a new flight is priced like the rest of its route. **A
+  route whose captured fares don't match its level is set back to it:** when any flight of its latest captured day is
+  more than a point off (against the route's fare on 21 Oct, when every route was at its launch level), the planner
+  lists a change each way at its level, first, and the fares userscript makes it with the week's changes; not for a
+  route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).
   The level never goes under launch, nor under the 60% floor where
   another player flies the route. **For now it goes at most 20 points above launch** (120%, Ryanair 105%): the game's
   passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads
@@ -497,7 +503,8 @@ less important than another, point to point rather than hubs).*
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. *Since
   21 Oct · why (Gitesh): the route-by-route changes are a few hundred on a Saturday; his decision, knowing the game's
   terms (simulogics §4 II) don't allow scripts (spec `docs/specs/2026-10-21-fares-userscript.md`).* Fare moves never
-  appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap). *Since 21 Oct · why (Gitesh, option A
+  appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and since 21 Oct the hold
+  after a new flight, `fare_ladder_capacity_hold_days`). *Since 21 Oct · why (Gitesh, option A
   of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at
   launch fares, no fare had ever been raised, and each 5% step that holds is worth about 5M a week.*
 

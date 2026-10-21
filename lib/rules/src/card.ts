@@ -5,7 +5,9 @@
 // against the one its route's distance calls for (service.ts's checkLegs, #18 build pull request 10): a wrong code or
 // none is a problem naming the leg, the code given and the code wanted. Since 21 Oct (manual §5; spec
 // docs/specs/2026-10-21-cabins-new-rule.md §3) the card's cabin is checked too: cabinFor() works out the cabin the rule
-// calls for, and a card whose cabin is missing or differs from it is a problem with the reason.
+// calls for, and a card whose cabin is missing or differs from it is a problem with the reason. And since 21 Oct (manual
+// §5; spec docs/specs/2026-10-21-frequencies-and-fares.md §2) the check gives each route's fare level when it is handed
+// fare_ladder()'s answer for the card's airline (cardFares): a new flight is priced like the rest of its route.
 import { forAircraft as aircraftWeek } from "./aircraftWeek.js";
 import { bankOfArrival, bankOfDeparture, baseAt, isFocus } from "./banks.js";
 import { blockFor, timedLegs } from "./block.js";
@@ -192,6 +194,95 @@ export function cabinFor(rules: Rules, card: Card): CabinSuggestion {
   };
 }
 
+// ---------- the fare level of each route the card flies (manual §5, since 21 Oct; spec
+// docs/specs/2026-10-21-frequencies-and-fares.md §2): a new flight on a route already flown launches at that route's level
+/** One route and cabin of fare_ladder()'s answer, as much as the card needs (the briefing's fare_ladder has the same). */
+export interface FareLadderRow {
+  route_id?: number | null;
+  hub: string;
+  dest: string;
+  cabin: string;
+  /** Its level, % of the game's default price. */
+  level: number | string;
+  /** This Saturday's new level, and whether it's on the fare plan already. */
+  new_level?: number | string | null;
+  planned?: boolean | null;
+}
+/** fare_ladder()'s answer for the card's airline (or the briefing's fare_ladder): its routes and cabins, and the launch
+ *  level for a route the airline doesn't fly yet. */
+export interface FareLadder {
+  routes: readonly FareLadderRow[];
+  settings?: { launch_pct?: number | string | null } | null;
+}
+/** One cabin's level on a route: the ladder's, or this week's new level once it's on the fare plan. */
+export interface CabinFare {
+  cabin: string;
+  level: number;
+  /** The level is this week's move, on the fare plan already. */
+  planned: boolean;
+}
+/** The fare level of one route the card flies. */
+export interface RouteFare {
+  /** The airline's route (the ladder's, else its route list's), or null when it has none for the airports yet. */
+  route_id: number | null;
+  /** "JFK–LHR": the route's hub and destination, or the leg's airports when the airline has no route for them. */
+  route: string;
+  /** On the fare ladder, so flown already; otherwise it launches at the launch level. */
+  flown: boolean;
+  /** Each cabin's level, economy first: the ladder's cabins for a route flown, none for one that isn't. */
+  cabins: CabinFare[];
+  /** settings.fare_launch_pct, the airline's own where it has one (Ryanair 85). */
+  launch_pct: number;
+  /** What to set in the game's Ticket price adjustment (baseline default price): "economy +10%, business +5% of the
+   *  default price", or for a route not flown yet "launch (+0% of the default price)" ("launch (−15% …)" for Ryanair). */
+  words: string;
+}
+const asNumber = (v: number | string | null | undefined): number | null => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+/** A level against the game's default price, as Ticket price adjustment takes it: 110 → "+10%", 85 → "−15%", 100 → "+0%". */
+export function levelPct(level: number): string {
+  const d = Math.round((level - 100) * 10) / 10;
+  return `${d < 0 ? "−" : "+"}${Math.abs(d)}%`;
+}
+/** The fare level of each route the card flies, once per route, in the order of its legs (manual §5, since 21 Oct): from
+ *  fare_ladder()'s routes for the card's airline, the level in each cabin it has there (this week's new level once the
+ *  move is on the fare plan); a route not on the ladder (one the airline doesn't fly yet) launches at the launch level,
+ *  the ladder's settings.launch_pct, else the airline's fare_launch_pct. Nothing is stored on the card. */
+export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFare[] {
+  if (!card || !Array.isArray(card.legs)) throw new RulesError("the card has no list of legs");
+  if (!ladder || !Array.isArray(ladder.routes)) throw new RulesError("the fare ladder has no list of routes (fare_ladder()'s answer for the card's airline)");
+  const { airlineId } = cardBasics(rules, card);
+  const launch = asNumber(ladder.settings?.launch_pct) ?? settingNumber(rules, "fare_launch_pct", airlineId);
+  const byPair = new Map<string, FareLadderRow[]>();
+  for (const r of ladder.routes) {
+    const k = pairKey(r.hub, r.dest);
+    byPair.set(k, [...(byPair.get(k) ?? []), r]);
+  }
+  const out: RouteFare[] = [];
+  const seen = new Set<string>();
+  for (const l of card.legs) {
+    const pair = pairKey(l.origin_code, l.dest_code);
+    if (seen.has(pair)) continue;
+    seen.add(pair);
+    const rows = byPair.get(pair) ?? [];
+    const route = (rules.routesByPair.get(pair) ?? []).find((r) => r.airline_id === airlineId);
+    const first = rows[0];
+    const cabins: CabinFare[] = rows
+      .map((r) => {
+        const planned = !!r.planned && asNumber(r.new_level) != null;
+        return { cabin: r.cabin, level: (planned ? asNumber(r.new_level) : asNumber(r.level)) ?? launch, planned };
+      })
+      .sort((a, b) => Number(a.cabin === "business") - Number(b.cabin === "business") || a.cabin.localeCompare(b.cabin));
+    const flown = cabins.length > 0;
+    out.push({
+      route_id: first?.route_id ?? route?.id ?? null,
+      route: first ? `${first.hub}–${first.dest}` : route ? `${route.hub_code}–${route.dest_code}` : `${l.origin_code}–${l.dest_code}`,
+      flown, cabins, launch_pct: launch,
+      words: flown ? `${cabins.map((c) => `${c.cabin} ${levelPct(c.level)}`).join(", ")} of the default price` : `launch (${levelPct(launch)} of the default price)`,
+    });
+  }
+  return out;
+}
+
 /** The cabin check's problem, or null: none chosen while there is one to suggest, or one that differs. */
 function cabinProblem(c: CabinSuggestion): string | null {
   if (!c.code) return null;
@@ -200,8 +291,9 @@ function cabinProblem(c: CabinSuggestion): string | null {
   return null;
 }
 
-/** Checks a plan card; see the top of this file. */
-export function checkCard(rules: Rules, card: Card) {
+/** Checks a plan card; see the top of this file. With fare_ladder()'s answer for the card's airline (options.fares), the
+ *  answer's fares gives each route's fare level (cardFares, since 21 Oct); without it, fares is null. */
+export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadder | null } = {}) {
   if (!card || !Array.isArray(card.legs) || !card.legs.length) throw new RulesError("the card has no legs");
   const { ac, type, airlineId } = cardBasics(rules, card);
 
@@ -275,5 +367,6 @@ export function checkCard(rules: Rules, card: Card) {
     aircraft: ac?.registration ?? null, type: type.name, airline_id: airlineId, ok: problems.length === 0, problems,
     legs: perLeg, turns_not_ok: turns.length, maintenance: maint, night_bans: nightBans, route_gaps: routeGaps, flight_number_clashes: clashes,
     departures: caps, legs_week: week?.legs_week ?? 0, block_hours_day: week?.block_hours_day ?? 0, service: svc, cabin,
+    fares: options.fares ? cardFares(rules, card, options.fares) : null,
   };
 }

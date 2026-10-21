@@ -2,7 +2,8 @@
 // trip search, the optimiser and Claude. Plain data in, plain data out; no screen code, no clock, no network.
 // Each part is exported under its name (time, block, turns, connections, banks, maintenance, aircraftWeek, schedule,
 // positions, summary, checks, optimiser, tails, and for the Check screen game, loadReport and growth), plus card (a plan card
-// checked against all of them, and the cabin its routes call for: cabinFor) and airport (connection times, night bans). The
+// checked against all of them, the cabin its routes call for: cabinFor, and since 21 Oct each route's fare level from
+// fare_ladder(): cardFares) and airport (connection times, night bans). The
 // Cabins board's part, cabins, went on 21 Oct with the board. What each does, with an example: lib/rules/README.md.
 //   import { buildRules, connections } from "@rules";
 //   const rules = buildRules(await rulesInput());      // rules_input()'s answer
@@ -41,7 +42,7 @@ export type { AirlineCard, CardBase, KeyFigures, NowFigures, SummaryFigures } fr
 export type { CheckFacts, OneWeekCheck } from "./checks.js";
 export type { ZoneClock } from "./time.js";
 export type { OptimiseAnswer, OptimiseOptions, OptimisedPlan, PlannedLeg } from "./optimiser.js";
-export type { CabinRouteShare, CabinSuggestion, Card, CardLeg } from "./card.js";
+export type { CabinFare, CabinRouteShare, CabinSuggestion, Card, CardLeg, FareLadder, FareLadderRow, RouteFare } from "./card.js";
 export type { Wave } from "./banks.js";
 export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, LocalTimes, OtherLeg, StoredLeg, Way } from "./frequency.js";
 export type { ServiceCheck, ServiceIssue, ServiceLeg, ServiceLegAnswer, ServiceProfile } from "./service.js";

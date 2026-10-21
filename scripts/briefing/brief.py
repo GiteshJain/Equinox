@@ -11,9 +11,11 @@ It only gathers. Each figure comes from its one home (#19), downloaded through e
   patterns (growth_signals()), hubs first (hub_progress()) and the capture's state with #21's verdict (capture_status());
 - kind rules: the planning library's input, which the library's command reads (node lib/rules/dist/cli.js): each
   aircraft's legs a week, block hours a day, maintenance and issues (aircraft), and each plan card's check (check-card,
-  service codes included, and since 21 Oct its cabin against the one its routes call for: the card's config_id);
+  service codes included, and since 21 Oct its cabin against the one its routes call for: the card's config_id, and the
+  fare level of each route it flies: --fares with the briefing's fare_ladder);
 - kind briefing: the airline's deliveries (aircraft on order or arrived, not yet filed) with their plan cards and legs,
-  its open to-dos and the group's, its fare plan (fare_plan_status()) and its loads by route over 7 days (route_loads());
+  its open to-dos and the group's, its fare plan (fare_plan_status()), each route's fare level (fare_ladder()'s, since
+  21 Oct) and its loads by route over 7 days (route_loads());
 - kinds snapshots and airlines: the latest finished world scan by the moment, for the rivals on the routes it flies and
   at the airports it serves, counted as the weekly report counts them (scripts/report/analyze.py's passenger-flight rule).
 
@@ -233,7 +235,13 @@ def gather(inp, ident, workdir):
     # ---- the hubs (hub_progress())
     out["hubs"] = next((h for h in (F.get("hub_progress") or {}).get("airlines") or [] if h.get("airline_id") == aid), None)
 
-    # ---- deliveries and plan cards (the briefing kind; the library's check-card)
+    # ---- deliveries and plan cards (the briefing kind; the library's check-card), each card with the fare level of each
+    # route it flies (since 21 Oct: the briefing's fare_ladder, fare_ladder()'s levels; none in inputs made before it)
+    fares_args = []
+    if isinstance(B.get("fare_ladder"), dict) and isinstance(B["fare_ladder"].get("routes"), list):
+        ladder_path = pathlib.Path(workdir) / "fare_ladder.json"
+        ladder_path.write_text(json.dumps(B["fare_ladder"]))
+        fares_args = ["--fares", ladder_path]
     deliveries = []
     for d in B.get("deliveries") or []:
         cards = []
@@ -244,7 +252,7 @@ def gather(inp, ident, workdir):
                 # the card's cabin (config_id, since 21 Oct) is checked against the one its routes call for
                 card_path.write_text(json.dumps({"aircraft": d["aircraft_id"], "config_id": c.get("config_id"), "legs": c["legs"]}))
                 try:
-                    check = library("check-card", rules_path, card_path)
+                    check = library("check-card", rules_path, card_path, *fares_args)
                 except RuntimeError as e:
                     check = {"ok": False, "error": str(e), "problems": [str(e)]}
             cards.append(dict(c, check=check))
@@ -331,6 +339,26 @@ def next_order(no):
     return w or "—"
 
 
+def fare_words(fares):
+    """Each route's fare level on a card, in one line: "HUB–AAA economy +10%, business +5%; HUB–NBN launch +0% of the
+    default price" (the library's cardFares, through check-card --fares)."""
+    if not fares:
+        return ""
+    def one(f):
+        if f.get("flown"):
+            return f"{f['route']} " + ", ".join(f"{c['cabin']} {level_pct(c['level'])}" for c in f.get("cabins") or [])
+        return f"{f['route']} launch {level_pct(f.get('launch_pct'))}"
+    return "; ".join(one(f) for f in fares) + " of the default price"
+
+
+def level_pct(level):
+    """A level against the default price, as the game takes it: 110 → +10%, 85 → −15%."""
+    if level is None:
+        return "?"
+    d = round(float(level) - 100, 1)
+    return ("−" if d < 0 else "+") + f"{abs(d):g}%"
+
+
 def render(b):
     A, L = b["airline"], []
     put = L.append
@@ -408,7 +436,8 @@ def render(b):
         for pc in d["plan_cards"]:
             ck = pc.get("check")
             res = "no legs" if ck is None else "check ok" if ck.get("ok") else f"{len(ck.get('problems') or [])} problem(s): {(ck.get('problems') or ['?'])[0]}"
-            put(f"    card \"{pc.get('title') or pc['id']}\", {len(pc.get('legs') or [])} legs: {res}")
+            fw = fare_words((ck or {}).get("fares"))
+            put(f"    card \"{pc.get('title') or pc['id']}\", {len(pc.get('legs') or [])} legs: {res}" + (f" · fares: {fw}" if fw else ""))
 
     T = b["todos"]
     put("")
