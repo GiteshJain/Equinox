@@ -6,13 +6,16 @@
 // from capture_status() (when, and since #21 each airline's latest verdict: a short or broken page the same night); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
 // (or, with no profit captured, the routes its load patterns mark cut, as the old Home fell back); can order from
 // airline_cards(); the interline line from Interline's rows (the setting interline_rules, build pull request 13) and
-// interline_agreements; to-dos from the table. This file only words them. Monthly checks have none since 8 Oct, as in
-// the old planner.
+// interline_agreements; to-dos from the table; and since 21 Oct (spec docs/specs/2026-10-21-competition-analysis.md §3)
+// the rivals' moves the latest world scan showed on our routes, from competition() (each airline's threats with latest
+// true), linking to Competition: they aren't fare moves, so the fare ladder's rule doesn't keep them off. This file only
+// words them. Monthly checks have none since 8 Oct, as in the old planner.
 import { aircraftWeek, block, maintenance, schedule, type OneWeekCheck, type Rules } from "@rules";
 import type { AttItem } from "../../ui/attention";
 import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
 import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAirline, JobRun, JobsRead, TodoRow } from "../home/reads";
+import { threatItemWords, threatKey, type ThreatItem } from "../competition/model";
 
 /** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
 export type { HomeAirline };
@@ -33,6 +36,8 @@ export interface AttentionInput {
   /** How many airline–country pairs Interline lists without an agreement (not signed, declined or without a partner),
    *  or null until read. */
   interlineOpen: number | null;
+  /** The rivals' moves the latest world scan showed on our routes (competition(), latestThreats()), or null until read. */
+  threats?: readonly ThreatItem[] | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -140,6 +145,10 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       items.push({ key: "route|" + key, cls: "warn", screen: "routes", route: key, text: `${p.hub}–${p.dest}: loads say reduce — ${p.why}` });
     }
   }
+
+  // the rivals' moves the latest world scan showed on our routes (since 21 Oct): "Air China started on PVG–CAN, 14 a week",
+  // each linking to its airline's Competition page
+  for (const t of x.threats ?? []) items.push({ key: threatKey(t), cls: "warn", screen: "competition", text: threatItemWords(t.threat) });
 
   // the capture: an airline not captured for over a day
   if (x.capture) {

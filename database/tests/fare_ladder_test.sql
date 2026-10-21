@@ -1,6 +1,7 @@
--- The fare ladder (manual §5; migrations 20261021120000_fare_ladder.sql, 20261021190000_fare_actions_by_route.sql and
--- 20261021230000_frequencies_and_fares.sql; specs docs/specs/2026-10-21-fare-ladder.md,
--- docs/specs/2026-10-21-fare-actions-by-route.md and docs/specs/2026-10-21-frequencies-and-fares.md). Run by
+-- The fare ladder (manual §5; migrations 20261021120000_fare_ladder.sql, 20261021190000_fare_actions_by_route.sql,
+-- 20261021230000_frequencies_and_fares.sql and 20261021235000_competition.sql; specs docs/specs/2026-10-21-fare-ladder.md,
+-- docs/specs/2026-10-21-fare-actions-by-route.md, docs/specs/2026-10-21-frequencies-and-fares.md and
+-- docs/specs/2026-10-21-competition-analysis.md §2). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says which (codes, levels, moves and words of the hand-made routes only).
 -- Everything is made in a world of its own, so nothing on the copy is touched or counted.
@@ -38,6 +39,12 @@
 --        Ryanair's four early cuts: its baseline is its fare on 20 Oct 2026, the latest captured day on or before 21 Oct,
 --        so its index is 85 (the first fare would make it 72); ZW2 with no flights on or before 21 Oct but the daily
 --        history's economy fare that day (255): index 85.
+--     L7 (launch 100%), the rival pause (competition analysis, spec §2): every route sold out 14 of 14. The world's finished
+--        scans are 4, 11, 16 and 17 Jan (and one still running on 18 Jan); Quest Air, a rival, flies L7's pairs: ZQ1 started
+--        on 16 Jan (paused: "rival Quest Air started here on 16 Jan: paused until 23 Jan"); ZQ2 7 → 14 on 16 Jan (paused,
+--        "added 7 a week"); ZQ3 7 → 10 (3 added, under competition_threat_min_weekly: moves up); ZQ4 started on 11 Jan, more
+--        than 7 days before (no longer paused: moves up); ZQ5 started on 16 Jan with a flight added on 16 Jan too (added
+--        comes first). L3's rival flies ZU1 and ZU2 in every one of them, so it never started there.
 --   1. The seven settings, in every world, described; fare_plan's two new columns described, and a move it doesn't know refused.
 --   2. Who may call fare_ladder(): signed in only, stable, as owner with an empty search path, described; its builder internal.
 --   3. L5, a new frequency holds the route for a week (spec part 1): after planned, new and few; the same route 8 days on
@@ -57,6 +64,9 @@
 --   9. fare_plan_status(): a ladder row is seen when the fare moves by its ratio within 1% (not at half the change), in its
 --      own cabin.
 --  10. Signed out and an account that isn't staff are refused; staff get what postgres gets.
+--  11. L7: the rival pause (spec §2): a rival that started or added competition_threat_min_weekly a week in a scan of the
+--      last 7 days holds the route with its reason, after added and before the sold-out share; one under the threshold or
+--      older than 7 days doesn't; nothing to put on the fare plan and no game action for a paused route.
 -- The routes off their level on the copy, before and after the new index, are counted in frequencies_and_fares_test.sql.
 
 create temporary table t_fl (k text primary key, v jsonb) on commit drop;
@@ -184,14 +194,16 @@ $test$;
 do $setup$
 declare
   dw bigint := (select id from public.worlds where is_default);
-  w bigint; g bigint; gr bigint; l1 bigint; l2 bigint; l3 bigint; l4 bigint; l5 bigint; l6 bigint; rv bigint; ty bigint; cy bigint; cj bigint;
+  w bigint; g bigint; gr bigint; l1 bigint; l2 bigint; l3 bigint; l4 bigint; l5 bigint; l6 bigint; l7 bigint; rv bigint; rq bigint;
+  ty bigint; cy bigint; cj bigint;
   sc bigint; r bigint; rot bigint; x record;
 begin
   perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'fare ladder test', true);
   insert into public.airports (code, utc_offset)
   select c, 0 from unnest(array['ZA1', 'ZA2', 'ZB1', 'ZB2', 'ZB3', 'ZB4', 'ZB5', 'ZB6', 'ZC1', 'ZC2', 'ZC3', 'ZC4', 'ZR1', 'ZS1', 'ZS2', 'ZS3', 'ZS4',
                                 'ZT1', 'ZU1', 'ZU2', 'ZU3', 'ZU4', 'ZU5', 'ZD1', 'ZE1', 'ZE2', 'ZE3', 'ZE4', 'ZE5', 'ZE6', 'ZE7', 'ZE8',
-                                'ZE9', 'ZEA', 'ZK1', 'ZK2', 'ZK3', 'ZK4', 'ZK5', 'ZK6', 'ZK7', 'ZK8', 'ZKA', 'ZW0', 'ZW1', 'ZW2']) c
+                                'ZE9', 'ZEA', 'ZK1', 'ZK2', 'ZK3', 'ZK4', 'ZK5', 'ZK6', 'ZK7', 'ZK8', 'ZKA', 'ZW0', 'ZW1', 'ZW2',
+                                'ZQ0', 'ZQ1', 'ZQ2', 'ZQ3', 'ZQ4', 'ZQ5']) c
   on conflict (code) do update set utc_offset = excluded.utc_offset;
   insert into public.worlds (name, game_host, kind) values ('fare ladder test', 'fare-ladder.test', 'exclusive') returning id into w;
   insert into public.settings (world_id, airline_id, key, value, unit, description)
@@ -207,21 +219,25 @@ begin
     (w, g, 990303, 'Ladder Three', 'L Three', 'L3', 'ZT1', true, 3),
     (w, g, 990304, 'Ladder Four', 'L Four', 'L4', 'ZD1', true, 4),
     (w, g, 990305, 'Ladder Five', 'L Five', 'L5', 'ZK1', true, 5),
-    (w, g, 990306, 'Ladder Six', 'L Six', 'L6', 'ZW0', true, 6);
+    (w, g, 990306, 'Ladder Six', 'L Six', 'L6', 'ZW0', true, 6),
+    (w, g, 990307, 'Ladder Seven', 'L Seven', 'L7', 'ZQ0', true, 7);
   select id into l1 from public.airlines where world_id = w and iata_code = 'L1';
   select id into l2 from public.airlines where world_id = w and iata_code = 'L2';
   select id into l3 from public.airlines where world_id = w and iata_code = 'L3';
   select id into l4 from public.airlines where world_id = w and iata_code = 'L4';
   select id into l5 from public.airlines where world_id = w and iata_code = 'L5';
   select id into l6 from public.airlines where world_id = w and iata_code = 'L6';
+  select id into l7 from public.airlines where world_id = w and iata_code = 'L7';
   insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, gr, 990399, 'Rival Air', true) returning id into rv;
+  insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, gr, 990398, 'Quest Air', true) returning id into rq;
   insert into public.settings (world_id, airline_id, key, value, unit, description) values
     (w, l2, 'fare_launch_pct', '85'::jsonb, '% of standard', 'test: launches at 85%, as Ryanair'),
     (w, l3, 'fare_launch_pct', '55'::jsonb, '% of standard', 'test: launches at 55%, under the house floor'),
     (w, l6, 'fare_launch_pct', '85'::jsonb, '% of standard', 'test: launches at 85%, as Ryanair');
   insert into public.airline_bases (world_id, airline_id, airport_code, role, is_main, position) values
     (w, l1, 'ZA1', 'hub', true, 1), (w, l1, 'ZA2', 'hub', false, 2), (w, l2, 'ZR1', 'hub', true, 1),
-    (w, l3, 'ZT1', 'hub', true, 1), (w, l4, 'ZD1', 'hub', true, 1), (w, l5, 'ZK1', 'hub', true, 1), (w, l6, 'ZW0', 'hub', true, 1);
+    (w, l3, 'ZT1', 'hub', true, 1), (w, l4, 'ZD1', 'hub', true, 1), (w, l5, 'ZK1', 'hub', true, 1), (w, l6, 'ZW0', 'hub', true, 1),
+    (w, l7, 'ZQ0', 'hub', true, 1);
   insert into public.aircraft_types (world_id, name, min_turn_min, cruise_kmh) values (w, 'LADDER TEST TYPE', 60, 800) returning id into ty;
   insert into public.cabin_configs (world_id, code, aircraft_type_id, cabin, seats, business_seats, economy_seats) values
     (w, 'LAD-Y', ty, 'Standard', 180, 0, 180) returning id into cy;
@@ -257,7 +273,24 @@ begin
   end loop;
   insert into public.game_scans (world_id, taken_at, status) values (w, '2030-01-17 08:00:00+00', 'done') returning id into sc;
   insert into public.game_scan_schedules (scan_id, world_id, airline_id, flights) values
-    (sc, w, rv, '[["RV", 11, "ZU1", "ZT1", "1234567", "08:00", "09:00", "A320", ""], ["RV", 13, "ZT1", "ZU2", "135", "10:00", "11:00", "A320", ""]]');
+    (sc, w, rv, '[["RV", 11, "ZU1", "ZT1", "1234567", "08:00", "09:00", "A320", ""], ["RV", 13, "ZT1", "ZU2", "135", "10:00", "11:00", "A320", ""]]'),
+    -- L7's rival on 17 Jan, as on 16 Jan (below)
+    (sc, w, rq, '[["QQ", 1, "ZQ0", "ZQ1", "1234567", "08:00", "09:00", "A320", ""], ["QQ", 2, "ZQ2", "ZQ0", "1234567", "08:00", "09:00", "A320", ""],
+                  ["QQ", 3, "ZQ0", "ZQ2", "1234567", "12:00", "13:00", "A320", ""], ["QQ", 4, "ZQ0", "ZQ3", "1234567", "08:00", "09:00", "A320", ""],
+                  ["QQ", 5, "ZQ3", "ZQ0", "135", "10:00", "11:00", "A320", ""], ["QQ", 6, "ZQ0", "ZQ4", "1234567", "08:00", "09:00", "A320", ""],
+                  ["QQ", 7, "ZQ5", "ZQ0", "1234567", "08:00", "09:00", "A320", ""]]');
+  -- the finished scans before it (the rival pause, L7): L3's rival on ZU1 and ZU2 in each, so it never started there;
+  -- Quest Air on L7's pairs: on 4 Jan ZQ2 and ZQ3 daily; on 11 Jan ZQ4 starts; on 16 Jan ZQ1 and ZQ5 start, ZQ2 doubles
+  -- (7 → 14) and ZQ3 gains 3 (7 → 10)
+  for x in select * from (values (timestamptz '2030-01-04 08:00:00+00', '[["QQ", 2, "ZQ2", "ZQ0", "1234567", "08:00", "09:00", "A320", ""], ["QQ", 4, "ZQ0", "ZQ3", "1234567", "08:00", "09:00", "A320", ""]]'::jsonb),
+                                 (timestamptz '2030-01-11 08:00:00+00', '[["QQ", 2, "ZQ2", "ZQ0", "1234567", "08:00", "09:00", "A320", ""], ["QQ", 4, "ZQ0", "ZQ3", "1234567", "08:00", "09:00", "A320", ""],
+                                                                          ["QQ", 6, "ZQ0", "ZQ4", "1234567", "08:00", "09:00", "A320", ""]]'::jsonb),
+                                 (timestamptz '2030-01-16 08:00:00+00', (select f.flights from public.game_scan_schedules f where f.scan_id = sc and f.airline_id = rq))) v(at, fl) loop
+    insert into public.game_scans (world_id, taken_at, status) values (w, x.at, 'done') returning id into r;
+    insert into public.game_scan_schedules (scan_id, world_id, airline_id, flights)
+    select r, w, rv, f.flights from public.game_scan_schedules f where f.scan_id = sc and f.airline_id = rv
+    union all select r, w, rq, x.fl;
+  end loop;
   -- a later scan still running doesn't count
   insert into public.game_scans (world_id, taken_at, status) values (w, '2030-01-18 08:00:00+00', 'running') returning id into sc;
   insert into public.game_scan_schedules (scan_id, world_id, airline_id, flights) values
@@ -328,9 +361,15 @@ begin
   r := pg_temp.ladder_route(w, l6, 'ZW0', 'ZW2', 72, 14, 14, date '2026-09-30', ty, cy, 255, with_base => false);
   perform pg_temp.ladder_history(w, l6, r, 'ZW0', 'ZW2', date '2026-10-21', 255);
 
+  -- L7: the rival pause; ZQ5's second rotation launched 16 Jan (a flight added)
+  for x in select * from (values ('ZQ1', 81), ('ZQ2', 82), ('ZQ3', 83), ('ZQ4', 84), ('ZQ5', 85)) v(dest, k) loop
+    r := pg_temp.ladder_route(w, l7, 'ZQ0', x.dest, x.k, 14, 14, date '2029-12-01', ty, cy);
+    if x.dest = 'ZQ5' then insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, l7, r, date '2030-01-16'); end if;
+  end loop;
+
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
   insert into t_fl values ('w', to_jsonb(w)), ('l1', to_jsonb(l1)), ('l2', to_jsonb(l2)), ('l3', to_jsonb(l3)), ('l4', to_jsonb(l4)),
-                          ('l5', to_jsonb(l5)), ('l6', to_jsonb(l6)), ('t', to_jsonb(timestamptz '2030-01-19 12:00:00+00'));
+                          ('l5', to_jsonb(l5)), ('l6', to_jsonb(l6)), ('l7', to_jsonb(l7)), ('t', to_jsonb(timestamptz '2030-01-19 12:00:00+00'));
 end
 $setup$;
 
@@ -571,7 +610,9 @@ begin
   assert d -> 'moves' = '{"up": 7, "hold": 15, "down": 0}'::jsonb, 'L4''s moves: ' || (d -> 'moves')::text;
   assert (d ->> 'off_level')::int = 0 and not exists (select 1 from jsonb_array_elements(d -> 'routes') x where not (x ->> 'index_matches')::boolean),
     'L4 has a route off its level, every fare at it: ' || (d -> 'routes')::text;
-  assert jsonb_array_length(d -> 'notes') = 2 and d ->> 'notes' like '%step 4%', 'the notes don''t say rivals'' pauses wait for step 4';
+  -- the rival pause is built (competition analysis, spec §2): the note that said it waited for step 4 is gone
+  assert jsonb_array_length(d -> 'notes') = 1 and d ->> 'notes' not like '%step 4%' and d ->> 'notes' like '%fare index%',
+    'the notes still say rivals'' pauses wait for step 4, or lost the fare index''s: ' || (d -> 'notes')::text;
   raise notice 'L4: economy capped at 120%% while business climbs; held 2 weeks after a step down (with a hold to record), then climbs; a new route and 4 departures hold; this Saturday''s move already on the fare plan; the fare index 105 from 300 to 315; 12 game actions: one cabin moving (2 each), both cabins to 105 (ZE9: 2, both classes), to 110 and 105 (ZEA: 4, one per cabin each way), none for the capped, held, new and few';
 end
 $test$;
@@ -629,3 +670,31 @@ end
 $test$;
 reset role;
 do $test$ begin raise notice 'signed out and an account that isn''t staff are refused fare_ladder(); staff get what postgres gets'; end $test$;
+
+-- ---------------------------------------------------------------- 11. L7: the rival pause (competition analysis, spec §2)
+do $test$
+declare l7 bigint := (select (v #>> '{}')::bigint from t_fl where k = 'l7'); t timestamptz := (select (v #>> '{}')::timestamptz from t_fl where k = 't');
+  d jsonb; got text;
+begin
+  d := private.fig_fare_ladder(l7, t);
+  select string_agg(x ->> 'dest' || ' ' || pg_temp.ladder_line(d, x ->> 'dest'), '; ' order by x ->> 'dest') into got from jsonb_array_elements(d -> 'routes') x;
+  assert got = 'ZQ1 hold 100>100 (rival Quest Air started here on 16 Jan: paused until 23 Jan); '
+            || 'ZQ2 hold 100>100 (rival Quest Air added 7 a week here on 16 Jan: paused until 23 Jan); '
+            || 'ZQ3 up 100>105 (sold out 14 of 14); ZQ4 up 100>105 (sold out 14 of 14); '
+            || 'ZQ5 hold 100>100 (a flight added on 16 Jan: judged at its new size from 23 Jan)',
+    'L7''s moves are ' || got;
+  assert (select string_agg(x ->> 'route', ',' order by (x ->> 'n')::int) from jsonb_array_elements(d -> 'actions') x) = 'ZQ0–ZQ3,ZQ0–ZQ3,ZQ0–ZQ4,ZQ0–ZQ4',
+    'a paused route has a game action, or a moving one hasn''t: ' || (d -> 'actions')::text;
+  assert (select string_agg(x ->> 'dest', ',' order by x ->> 'dest') from jsonb_array_elements(d -> 'routes') x where (x ->> 'to_plan')::boolean) = 'ZQ3,ZQ4',
+    'Put on the fare plan would write a paused route: ' || (d -> 'routes')::text;
+  -- the same threats as competition() lists (one home, private.competition_threats())
+  assert (select string_agg(x ->> 'route' || ' ' || (x ->> 'kind'), ', ' order by x ->> 'route') from jsonb_array_elements(private.fig_competition(l7, t) -> 'threats') x)
+       = 'ZQ0–ZQ1 started, ZQ0–ZQ2 added, ZQ0–ZQ5 started',
+    'competition() lists other threats than the fare ladder pauses: ' || (private.fig_competition(l7, t) -> 'threats')::text;
+  -- a week on (26 Jan, the threats of 16 Jan gone): nothing paused
+  d := private.fig_fare_ladder(l7, t + interval '7 days');
+  assert not exists (select 1 from jsonb_array_elements(d -> 'routes') x where x ->> 'reason' like 'rival %'),
+    'a threat older than 7 days still pauses a route: ' || (d -> 'routes')::text;
+  raise notice 'the rival pause: a rival that started (ZQ1) or added 7 a week (ZQ2) in a scan of the last 7 days holds the route ("rival Quest Air started here on 16 Jan: paused until 23 Jan"), with no game action and nothing to put on the fare plan; 3 added (ZQ3) or a start 8 days before (ZQ4) doesn''t; a flight added comes first (ZQ5); the threats are competition()''s; a week on nothing is paused';
+end
+$test$;

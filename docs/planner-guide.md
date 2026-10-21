@@ -17,7 +17,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
   /planner/.
 - **The screens are grouped by when they're used** (since 20 Oct, spec
   docs/specs/2026-10-20-today-performance-systems.md): **Today** answers "what do I do now?", **Performance** "how are
-  we doing, and why?", and **Systems** holds the plumbing. Check, Review and Hubs went: their boards are on those three,
+  we doing, and why?", **Competition** (since 21 Oct) "who are we up against, and where do we open next?", and
+  **Systems** holds the plumbing. Check, Review and Hubs went: their boards are on those three,
   and their old addresses lead there (/planner/check to Today, a load report's day to Performance's Flights by day;
   /planner/review/VS to /planner/performance/VS; /planner/hubs to Performance). Each screen answers its question at the
   top; colour is only on what needs doing, red and amber; nothing that's fine gets a pill.
@@ -25,7 +26,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
 ## Signing in and the header
 - **Signing in:** the same email and password as before. An account that isn't staff is signed out with **This account
   doesn't have access to the planner.**
-- **The header:** the nine screens (Home, Today, Routes, Tails, Performance, Interline, Photos, Reference, Systems), the
+- **The header:** the ten screens (Home, Today, Routes, Tails, Performance, Competition, Interline, Photos, Reference,
+  Systems), the
   **search** box, **Local** / **UTC** (it starts as the planner's
   setting and remembers your choice on this device), the save state, **Website** (the public site) and **Sign out**. On
   a phone the screens sit on their own row, which you swipe sideways. Under it, on every screen, the **game clocks**:
@@ -107,7 +109,11 @@ important first; nothing folds.
     a partner in the game), from the same rows and rules as Interline (the setting *interline_rules*);
   - routes to fix, from the captured profit (with none captured, from the load patterns, as on the old Home), linking
     to the route on its airline's Performance page;
-  - when an airline can safely order, linking to its Performance page.
+  - when an airline can safely order, linking to its Performance page;
+  - **Rival moves** (since 21 Oct): each rival that started on, or added a daily flight or more to, one of our city
+    pairs in the latest world scan, against the scan before it: "Air China started on PVG–CAN, 14 a week", linking to
+    its airline's Competition page. They aren't fare moves, so they're listed here; the route's fares hold for a week
+    on their own (Performance's fare ladder).
 
   **×** dismisses an item and **show again** brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
@@ -251,9 +257,10 @@ money figure is the database's. Its boards are open on arrival, the most importa
     with **show all N**, as the growth lists do. A level the captured fares don't match shows its fare index beside it
     ("· index 100 · set back" when it's set back).
 
-  A rival starting on a pair should pause that route for a week (manual §5); the planner can't see that yet (step 4),
-  so the Saturday review checks the scan by hand. Fare moves never appear on Today or in Needs attention. In a chat,
-  `select public.fare_ladder(<airline id>);` gives the same list.
+  **A rival's pause** (since 21 Oct, manual §5): a route whose pair a rival started on, or added a daily flight or more
+  to (*competition_threat_min_weekly*, 7), in a world scan of the last 7 days holds, with why: "rival Air China started
+  here on 22 Oct: paused until 29 Oct". The threats are Competition's. Fare moves never appear on Today or in Needs
+  attention (a rival's move does, as itself). In a chat, `select public.fare_ladder(<airline id>);` gives the same list.
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
   business (manual §5).
@@ -305,6 +312,45 @@ money figure is the database's. Its boards are open on arrival, the most importa
     its change shows, a ladder's move once its fare moves by the change, within 1%, in its own cabin. It's reviewed
     together on Saturdays.
 
+## Competition
+*Who are we up against, and where do we open next?* (Since 21 Oct, spec docs/specs/2026-10-21-competition-analysis.md;
+manual §3, market share first.) Every figure is *competition()*'s, from the world scans the evening capture takes
+(`scan_every_days`). Rivals are every airline in the scan that isn't one of ours; departures a week count each
+flight's days, as *gscan.py* counts them, passenger flights only: freighters (a type ending in F, or ATF, ABX, 74Y,
+77X, 76X, or none, the weekly report's rule) are no one's rivals, anywhere here. Read only: nothing here saves.
+- **At the top:** the scans' dates ("latest scan 17 Oct, compared with 6 Oct": the latest finished scan, against the
+  latest one at least 6 days older, else the oldest there is) and the group line: our airlines' departures a week
+  against the world's, our share and its arrow.
+- **The group** (/planner/competition): a card per airline with its share across its markets and its arrow, its
+  threats in the last 7 days (amber) and its openings with the top 3; tap one to open it. Under them, **Threats**, every
+  airline's.
+- **An airline** (/planner/competition/MU), with the airlines along the top:
+  - **Market share:** a card per market (the airline's routes, flown or not, either direction): our share with its
+    arrow against the week-before scan, and the top rivals as a bar (ours dark, the rivals grey) and a list with their
+    departures, share and change. Our own departures are the live schedule's; a week before, the scan's.
+  - **Threats:** each rival who started on a pair the airline flies (none in the scan before) or added at least 7
+    departures a week (*competition_threat_min_weekly*), with the numbers then and now, ours, the day and until when
+    the route's fares hold (7 days on).
+  - **Openings:** the pairs on its list no airline of ours flies, ranked: stars, then the rivals' departures a week on
+    the pair, then the shorter distance, then the pair's code. Each with its stars, distance, the rivals and their
+    departures, the **variant** from the default line (manual §3: the smallest size the stars allow, bigger only "for
+    reach", the cheapest per seat whose range covers it, among the types the airline may buy) and **Hubs first**:
+    **yes** with why (main hub, contested base or route, main hub at its target, exempt), or **not yet** with the
+    reason, listed after the allowed ones. The first 10, with **show all** (the top 50; a chat reads more with
+    *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted. A pair
+    another airline of ours has on its list says so ("also on VS's list"): one airline per city pair decides.
+  - **In November** (*trunk_month_from* to *trunk_month_to*, 1 to 30 Nov; manual §4) a line over the openings says the
+    trunks come first: each pair between two of our bases is marked **trunk**, listed first, shortest first, allowed
+    with hubs first suspended ("November trunk"), and never left out for reach (a type the airline can't buy says "not
+    on its list"). The list marks trunks; whether each makes sense stays the Scheduling chat's call. Outside those days
+    nothing changes.
+  - **Rival profiles:** the 10 rivals who fly most of its city pairs: their size and growth since the week-before
+    scan, airports, the pairs shared (theirs and ours a week) and their biggest airports.
+- **No scan, or one:** with none, the openings rank by stars and distance and only the main hub's are allowed; with
+  one, nothing is compared and there are no threats.
+- In a chat, `select public.competition(<airline id>);` gives the same, and the airline briefing carries the top 20
+  openings and the threats (the evening proposal reads them, manual §3).
+
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*
 - **Interline agreements:** one row per airline (its logo on every row) and interline country it flies to or has planned (on a plan card not
@@ -334,7 +380,8 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 - **Hubs, focus cities and banks:** a hub runs banks and connections. A focus city is a base that serves its own market
   and feeds a hub.
 - **Constants** are rule numbers (the settings, the departures cap in the world's rules): only numbers are taken, and a
-  change to one goes in the operating manual too.
+  change to one goes in the operating manual too. Since 21 Oct **World scan every** (*scan_every_days*: 1 is every
+  evening, 3 about twice a week) is one of them.
 - **Aircraft** and **Configs:** block estimates are the block allowance plus the distance at the type's cruise speed
   (manual §4); seats per cabin config.
 - **Order cabin** (in Aircraft, since 15 Oct): the layout a new order of each type comes with, picked from the type's
@@ -377,8 +424,9 @@ its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
     54 or when the last run failed.
   - **Monthly archive:** whether it ran this month; amber from the 3rd if it hasn't, red if a table and month failed.
   - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
-  - **World scan:** its age (the evening capture runs it when one is due, `scan_every_days`, since 21 Oct; `gscan.py` by
-    hand if it's old); amber over 8 days, red over 15.
+  - **World scan:** its age, and that it runs with the evening capture when one is due ("every evening
+    (scan_every_days 1)", since 21 Oct; Reference → Constants changes it); amber over 8 days, red over 15, when it
+    adds "capture again while it's due, or gscan.py by hand".
   - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
     minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
   - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),

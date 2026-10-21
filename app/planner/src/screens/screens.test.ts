@@ -6,14 +6,15 @@ import redirectsFile from "../../../../web/_redirects?raw";
 import { SCREENS, itemRoute, movedTo, screenForPath, screenHref } from "./screens";
 
 describe("the screens", () => {
-  it("are the nine grouped by when they're used: Home, Today, Routes, Tails, Performance, Interline, Photos, Reference, Systems", () => {
-    expect(SCREENS.map((s) => s.name)).toEqual(["Home", "Today", "Routes", "Tails", "Performance", "Interline", "Photos", "Reference", "Systems"]);
+  it("are the ten grouped by when they're used: Home, Today, Routes, Tails, Performance, Competition, Interline, Photos, Reference, Systems", () => {
+    // Competition since 21 Oct (spec docs/specs/2026-10-21-competition-analysis.md §3), after Performance
+    expect(SCREENS.map((s) => s.name)).toEqual(["Home", "Today", "Routes", "Tails", "Performance", "Competition", "Interline", "Photos", "Reference", "Systems"]);
     expect(SCREENS.map((s) => s.name)).not.toContain("Hubs");
   });
 
   it("each has its own address under /planner/", () => {
     expect(SCREENS.map(screenHref)).toEqual([
-      "/planner/", "/planner/today", "/planner/routes", "/planner/tails", "/planner/performance",
+      "/planner/", "/planner/today", "/planner/routes", "/planner/tails", "/planner/performance", "/planner/competition",
       "/planner/interline", "/planner/photos", "/planner/reference", "/planner/systems",
     ]);
     for (const s of SCREENS) expect(screenForPath(screenHref(s))?.id).toBe(s.id);
@@ -38,6 +39,8 @@ describe("the screens", () => {
     expect(itemRoute("performance", { airline: "PA", hub: "JFK", dest: "ORD" })).toBe("/performance/PA/JFK-ORD");
     expect(itemRoute("performance", { airline: "VS" })).toBe("/performance/VS");
     expect(itemRoute("performance")).toBe("/performance");
+    expect(itemRoute("competition", { airline: "MU" })).toBe("/competition/MU");
+    expect(screenForPath("/planner/competition/MU")?.id).toBe("competition");
     expect(itemRoute("today", { hash: "todo" })).toBe("/today#todo");
     expect(itemRoute("home")).toBe("/");
     expect(itemRoute("systems")).toBe("/systems");

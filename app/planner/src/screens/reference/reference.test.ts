@@ -2,7 +2,7 @@
 // planner_apply_tidy), and its addresses.
 import { describe, expect, it } from "vitest";
 import {
-  LAYOUTS, addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
+  CONSTANTS, LAYOUTS, addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
   layoutsOf, marketChange, mctChange, mctHours, numOf, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, restoreChange, scheduleLink, sectionOf, serviceChange,
   typeChange, worldRowChange, type BaseRow, type RemovedRoute, type WorldAirportRow,
 } from "./model";
@@ -80,6 +80,12 @@ describe("constants, types, layouts, markets and service profiles", () => {
       values: { value: { value: 4000, note: "the game's cap" } } });
     expect(constantChange("bank_buffer_min", "0", settings, rules)).toBeNull();
     expect(constantChange("bank_buffer_min", "soon", settings, rules)).toHaveProperty("error");
+  });
+  it("scan_every_days is a constant (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): how often the evening capture scans the world", () => {
+    expect(CONSTANTS.find(([, , key]) => key === "scan_every_days")?.[0]).toBe("scanEvery");
+    const s = [...settings, { id: 9, key: "scan_every_days", value: 1, updated_at: "e" }];
+    expect(constantValue("scan_every_days", s, rules)).toBe("1");
+    expect(constantChange("scan_every_days", "3", s, rules)).toEqual({ table: "settings", op: "update", key: { id: 9 }, base: "e", values: { value: 3 } });
   });
   it("a type's, a layout's, a market's and a profile's box: that column only", () => {
     const t = { id: 3, name: "E195-E2", family_no: 83, seats_max: 146, cruise_kmh: 831, min_turn_min: 67, gap_target_h: 3, order_config_id: null, updated_at: "y" };

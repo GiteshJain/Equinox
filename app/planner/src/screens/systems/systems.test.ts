@@ -3,7 +3,7 @@
 // the world scan at 8 and 15 days, usage at 70% and at the trigger, and the planner's build stamp.
 import { describe, expect, it } from "vitest";
 import {
-  ageMark, archiveLine, backupLine, boardSummary, buildLine, captureLine, cleanupLine, scanLine, sizeWords, snapshotLine, systemLines, usageLine, usageMark,
+  ageMark, archiveLine, backupLine, boardSummary, buildLine, captureLine, cleanupLine, scanEveryWords, scanLine, sizeWords, snapshotLine, systemLines, usageLine, usageMark,
   type SysCapture, type SystemStatus,
 } from "./systems";
 
@@ -92,6 +92,14 @@ describe("the jobs", () => {
     const scan = (d: number) => ({ taken_at: ago(d * 24), week: "41", status: "done" });
     expect([scanLine(scan(8), now).mark, scanLine(scan(8.1), now).mark, scanLine(scan(15), now).mark, scanLine(scan(15.1), now).mark, scanLine(null, now).mark])
       .toEqual(["ok", "warn", "warn", "bad", "bad"]);
+  });
+  it("the world scan runs with the evening capture (scan_every_days), not at the Saturday review (21 Oct)", () => {
+    const scan = (d: number) => ({ taken_at: ago(d * 24), week: "43", status: "done" });
+    expect(scanLine(scan(0.5), now, 1).text).toMatch(/ · runs with the evening capture every evening \(scan_every_days 1\)$/);
+    expect(scanLine(scan(9), now, 3).text).toMatch(/runs with the evening capture every 3 capture days \(scan_every_days 3\); capture again while it's due, or gscan\.py by hand$/);
+    expect(scanLine(null, now).text).toBe("no world scan yet · runs with the evening capture when one is due (scan_every_days)");
+    expect(scanEveryWords(2)).toBe("every 2 capture days (scan_every_days 2)");
+    for (const x of [scanLine(scan(1), now, 1), scanLine(scan(20), now, 1), scanLine(null, now)]) expect(x.text).not.toMatch(/Saturday/);
   });
 });
 

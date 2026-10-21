@@ -1,10 +1,12 @@
-// The shell (decision #18, build pull request 1): sign-in and the staff check, then the header and the nine screens
-// (grouped by when they're used since 20 Oct: spec docs/specs/2026-10-20-today-performance-systems.md).
+// The shell (decision #18, build pull request 1): sign-in and the staff check, then the header and the ten screens
+// (grouped by when they're used since 20 Oct: spec docs/specs/2026-10-20-today-performance-systems.md; Competition since
+// 21 Oct: spec docs/specs/2026-10-21-competition-analysis.md).
 import { useEffect, type ComponentType } from "react";
 import { Outlet, createBrowserRouter, useLocation, useNavigate } from "react-router";
 import { BASENAME } from "./data/config";
 import { PREVIEW } from "./data/preview";
 import { useAccess } from "./data/session";
+import { Competition } from "./screens/competition/Competition";
 import { Home } from "./screens/home/Home";
 import { Interline } from "./screens/interline/Interline";
 import { Performance } from "./screens/performance/Performance";
@@ -22,8 +24,8 @@ import { Messages } from "./ui/Messages";
 import { SignIn } from "./ui/SignIn";
 
 const COMPONENTS: Record<ScreenId, ComponentType> = {
-  home: Home, today: Today, routes: Routes, tails: Tails, performance: Performance, interline: Interline, photos: Photos, reference: Reference,
-  systems: Systems,
+  home: Home, today: Today, routes: Routes, tails: Tails, performance: Performance, competition: Competition, interline: Interline, photos: Photos,
+  reference: Reference, systems: Systems,
 };
 
 function PreviewNotice() {

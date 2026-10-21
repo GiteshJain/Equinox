@@ -1,4 +1,4 @@
-// The header (spec §3): the brand as the old planner shows it, the nine screens, the search box (flights, aircraft,
+// The header (spec §3): the brand as the old planner shows it, the ten screens (Competition since 21 Oct), the search box (flights, aircraft,
 // airports; build pull request 12), the local/UTC toggle, the save state, sign-out and the Website button. On a phone the
 // screens wrap onto their own row, which scrolls sideways inside itself, and the search box and Website button are hidden,
 // as in the old header.
