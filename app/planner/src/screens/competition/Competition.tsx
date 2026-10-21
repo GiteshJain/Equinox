@@ -5,9 +5,10 @@
 //     markets with its arrow, its threats and its top openings; tap to open it) and every airline's threats.
 //   - An airline (/planner/competition/<code>): the scans and the group line on top, then Market share (one card per
 //     market: our share with its arrow and the top rivals as a bar), Threats (each with the rival, the pair, the numbers
-//     and the day), Openings (the ranked table: rank, pair, stars, distance, rivals, variant and allowed under hubs first,
-//     cut to 10 with "show all"; since 22 Oct a 1-star opening on the E195-E2 says "or the E190-E2 if thin" under its
-//     variant, spec docs/specs/2026-10-21-tidy-ups.md §2) and Rival profiles (cards).
+//     and the day, and since 22 Oct a link to the route's page on Performance), Openings (the ranked table: rank, pair,
+//     stars, distance, rivals, variant and allowed under hubs first, cut to 10 with "show all"; since 22 Oct a 1-star
+//     opening on the E195-E2 says "or the E190-E2 if thin" under its variant, spec docs/specs/2026-10-21-tidy-ups.md §2)
+//     and Rival profiles (cards).
 // Read only: nothing here saves. Phone first: cards stack, the openings table scrolls inside its own box.
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -143,7 +144,7 @@ function AirlinePage({ airline, a }: { airline: OurAirline; a: CompetitionAnswer
       </Board>
       <Board title="Threats" figure={`competition ${airline.name}: threats`} board="Threats"
         note="rivals who started on, or added a daily flight or more to, a pair it flies since the scan before · listed for 7 days; the route's fares hold until then (manual §5)">
-        {a.threats.length ? <ThreatList items={a.threats} /> : <div className="dim">No rival moves on its routes in the last 7 days.</div>}
+        {a.threats.length ? <ThreatList items={a.threats} code={airline.code} /> : <div className="dim">No rival moves on its routes in the last 7 days.</div>}
       </Board>
       <Board title="Openings" figure={`competition ${airline.name}: openings`} board="Openings"
         note={`the pairs on its list no airline of ours flies, ranked: stars, then rivals' departures a week, then the shorter distance (manual §3) · ${openingsLine(a)}`}>
@@ -187,16 +188,21 @@ function MarketCard({ m }: { m: Market }) {
   );
 }
 
-/** The threats: the rival, the pair, the numbers and the day. */
-function ThreatList({ items }: { items: readonly (Threat & { al?: OurAirline })[] }) {
+/** The threats: the rival, the pair, the numbers and the day; each pair we fly links to its route page (since 22 Oct, spec
+ *  docs/specs/2026-10-21-route-page.md §3: a threat is always on a pair the airline flies). */
+function ThreatList({ items, code }: { items: readonly (Threat & { al?: OurAirline })[]; code?: string | null }) {
   return (
     <ul className="cpthreats">
-      {items.map((t) => (
-        <li key={`${t.al?.id ?? ""}|${t.pair}|${t.rival_id}`} data-threat={t.route} data-kind={t.kind}>
-          {t.al ? <><AirlineMark color={t.al.color} /><Link className="link" to={itemRoute("competition", { airline: t.al.code ?? String(t.al.id) })}>{t.al.code}</Link> · </> : null}
-          <b>{t.words}</b> <span className="dim">· {threatNumbers(t)} · {threatWhen(t)}</span>
-        </li>
-      ))}
+      {items.map((t) => {
+        const al = t.al?.code ?? code;
+        return (
+          <li key={`${t.al?.id ?? ""}|${t.pair}|${t.rival_id}`} data-threat={t.route} data-kind={t.kind}>
+            {t.al ? <><AirlineMark color={t.al.color} /><Link className="link" to={itemRoute("competition", { airline: t.al.code ?? String(t.al.id) })}>{t.al.code}</Link> · </> : null}
+            <b>{t.words}</b> <span className="dim">· {threatNumbers(t)} · {threatWhen(t)}</span>
+            {al ? <>{" "}<Link className="link" to={itemRoute("performance", { airline: al, hub: t.hub, dest: t.dest })} data-route-page-link>{t.route} ›</Link></> : null}
+          </li>
+        );
+      })}
     </ul>
   );
 }

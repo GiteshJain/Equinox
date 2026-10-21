@@ -5,7 +5,10 @@
 // does (web/planner/index.html: renderFinance, groupOverviewHtml, finStats' card, barChart, spark, fcNext,
 // forecastBoard, routeProfitBoard, farePlanBoard and reviewClick), lays out its charts, builds the fare plan's rows exactly
 // as the old planner writes them, and sets each scorecard's figures against the same day last week from the daily
-// history (airline_days). Manual entry's logic moved to Systems (screens/systems/model.ts) with its board.
+// history (airline_days). Manual entry's logic moved to Systems (screens/systems/model.ts) with its board. Since 22 Oct
+// (spec docs/specs/2026-10-21-route-page.md §3) the route page's too: route_story()'s answer worded, its charts laid out,
+// and the connections at both ends from the planning library.
+import { block, connections, time, type Rules, type TimedLeg } from "@rules";
 import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
 
@@ -225,8 +228,16 @@ export interface BarLayout {
   bars: { x: number; y: number; w: number; h: number; neg: boolean; hitX: number; hitW: number; label: string; tip: string }[];
   avg: { y: number; text: string } | null;
 }
+/** A bar chart's figure: millions ("0.25M", the profit chart's) or, since 22 Oct, thousands ("12k", the route page's
+ *  profit per aircraft hour). */
+export type BarUnit = "M" | "k";
+const barLabel = (v: number, unit: BarUnit): string => (unit === "k" ? `${Math.round(v * 1000)}k` : `${+v.toFixed(2)}M`);
+const barAvg = (v: number, unit: BarUnit): string => (unit === "k"
+  ? `average ${v >= 0 ? "+" : "−"}${Math.round(Math.abs(v) * 1000)}k`
+  : `average ${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}M a day`);
+
 /** The old barChart's layout: 1120 × 260, a bar per interval, the zero line, gridlines at a nice step, the average. */
-export function barLayout(pts: readonly { x: string; y: number; tip: string }[], avg: number | null): BarLayout {
+export function barLayout(pts: readonly { x: string; y: number; tip: string }[], avg: number | null, unit: BarUnit = "M"): BarLayout {
   const W = 1120, H = 260, L = 58, R = 16, T = 16, B = 30;
   const ys = pts.map((p) => p.y);
   let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys);
@@ -240,13 +251,13 @@ export function barLayout(pts: readonly { x: string; y: number; tip: string }[],
   const bw = Math.min(46, (W - L - R) / Math.max(1, pts.length) * 0.62);
   const X = (i: number) => L + (i + 0.5) * (W - L - R) / pts.length, Y = (v: number) => T + (hi - v) / (hi - lo) * (H - T - B);
   const grid: BarLayout["grid"] = [];
-  for (let v = lo; v <= hi + 1e-9; v += step) grid.push({ y: Y(v), v, zero: Math.abs(v) < 1e-9, label: `${+v.toFixed(2)}M` });
+  for (let v = lo; v <= hi + 1e-9; v += step) grid.push({ y: Y(v), v, zero: Math.abs(v) < 1e-9, label: barLabel(v, unit) });
   const bars = pts.map((p, i) => {
     const y0 = Y(0), y1 = Y(p.y);
     return { x: X(i) - bw / 2, y: Math.min(y0, y1), w: bw, h: Math.max(1, Math.abs(y1 - y0)), neg: p.y < 0, hitX: X(i) - bw / 2 - 4, hitW: bw + 8,
       label: `${p.x.slice(8)}/${p.x.slice(5, 7)}`, tip: p.tip };
   });
-  return { W, H, L, R, T, B, grid, bars, avg: avg == null ? null : { y: Y(avg), text: `average ${avg >= 0 ? "+" : "−"}${Math.abs(avg).toFixed(2)}M a day` } };
+  return { W, H, L, R, T, B, grid, bars, avg: avg == null ? null : { y: Y(avg), text: barAvg(avg, unit) } };
 }
 
 /** The card's sparkline (spark): one small bar per interval, scaled to the largest, above or below the middle. */
@@ -717,3 +728,339 @@ export const BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Fare pla
 export type BoardKey = (typeof BOARDS)[number];
 export const GROUP_BOARDS = ["Fare ladder", "The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
 export type GroupBoardKey = (typeof GROUP_BOARDS)[number];
+
+// ---------- the route page (spec docs/specs/2026-10-21-route-page.md §3): a route's story since launch, from
+// route_story() (the database's, private.fig_route_story()); here only worded, compared and laid out. Its connections are
+// the planning library's (connections.connectionsAtBothEnds, the plan card's rule), on the schedule the planner reads.
+export interface StoryFigures {
+  flights: number;
+  passengers: number | null;
+  seats: number | null;
+  /** Passengers on the flights whose loads were captured ÷ their seats, both directions. */
+  load_pct: number | null;
+  eco_pax: number | null;
+  eco_seats: number | null;
+  eco_load_pct: number | null;
+  bus_pax: number | null;
+  bus_seats: number | null;
+  bus_load_pct: number | null;
+  /** AS$, weighted by passengers. */
+  eco_fare: number | null;
+  bus_fare: number | null;
+  /** Millions of AS$. */
+  revenue: number | null;
+  costs: number | null;
+  profit: number | null;
+  block_hours: number | null;
+  /** Profit ÷ block hours, millions of AS$ an hour. */
+  profit_per_hour: number | null;
+}
+export interface StoryDay extends StoryFigures { day: string }
+export interface StoryWeek extends StoryFigures { from: string; to: string; days: number }
+export type StoryKind = "launched" | "frequency added" | "frequency removed" | "aircraft changed" | "retimed" | "fare" | "cabin" | "rival";
+export interface StoryEvent {
+  day: string;
+  kind: StoryKind;
+  words: string;
+  at?: string | null;
+  /** A fare event's: its cabin, level (a ladder move) or change (a fare test), move and whether it was dropped. */
+  cabin?: string | null;
+  level?: number | null;
+  change_pct?: number | null;
+  move?: string | null;
+  dropped?: boolean;
+  /** A rival's: who, started or added, and its departures a week then and now. */
+  rival?: string;
+  rival_id?: number;
+  change?: "started" | "added";
+  then?: number;
+  now?: number;
+}
+export type StoryFare = Omit<LadderRoute, "route_id" | "hub" | "dest">;
+export interface StoryRival { airline_id: number; name: string; weekly: number; weekly_before: number | null; change: number | null }
+export interface StoryShare { scan_id: number; taken_at: string; ours: number; rivals: number; share: number | null }
+export interface ScanRef { id: number; taken_at: string }
+export interface RouteStory {
+  route_id: number;
+  as_of: string;
+  latest_day: string | null;
+  route: {
+    id: number; hub: string; dest: string; pair: string; city: string | null; stars: number | null; distance_km: number | null; removed: boolean;
+    market: { id: number; name: string; layout: string | null } | null;
+    cabin: { layout: string | null; own: boolean; market_layout: string | null };
+    airline: { id: number; code: string | null; name: string };
+    launched: string | null; launched_from: "rotation" | "history" | null; launched_days: number | null;
+  };
+  now: {
+    departures: { out: number; back: number };
+    rotations: number;
+    types: { type_id: number; type: string; aircraft: number }[];
+    fares: StoryFare[];
+    launch_pct: number | null;
+    week_of: string | null;
+  };
+  days: StoryDay[];
+  weeks: StoryWeek[];
+  events: StoryEvent[];
+  rivals: {
+    scan: ScanRef | null; week_before: ScanRef | null;
+    ours: number; rivals_weekly: number; share: number | null;
+    ours_before: number | null; rivals_before: number | null; share_before: number | null;
+    airlines: StoryRival[]; shares: StoryShare[];
+  };
+  scans: { latest: ScanRef | null; week_before: ScanRef | null; since_launch: ScanRef[] };
+  notes: string[];
+}
+
+const pct1 = (v: number | null | undefined): string => (v == null ? "—" : `${Math.round(v * 10) / 10}%`);
+const thousands = (v: number | null | undefined): string => (v == null ? "—" : `${v < 0 ? "−" : ""}${Math.round(Math.abs(v) * 1000)}k`);
+const whole = (v: number | null | undefined): string => (v == null ? "—" : Math.round(v).toLocaleString("en-GB"));
+
+/** The route page's header in words: the route and its city, the airline, distance, market and the cabin it calls for,
+ *  launched (date and days), departures a week each way, the types, and each cabin's fare level with this Saturday's move. */
+export function storyHeader(s: RouteStory, nice: (day: string) => string) {
+  const r = s.route, d = s.now.departures;
+  const cabin = r.cabin.layout ? `layout ${r.cabin.layout}${r.cabin.own ? " (the route's own)" : ""}` : "no layout";
+  const launched = r.launched == null ? "not flown yet"
+    : `${r.launched_from === "history" ? "first flights" : "launched"} ${nice(r.launched)}${r.launched_days != null ? ` · ${r.launched_days} day${r.launched_days === 1 ? "" : "s"}` : ""}`;
+  const departures = !d.out && !d.back ? "no flights in the schedule"
+    : d.out === d.back ? `${d.out} a week each way` : `${d.out} a week out, ${d.back} back`;
+  return {
+    title: `${r.hub}–${r.dest}`,
+    city: r.city ?? "",
+    line: [r.airline.name, r.distance_km == null ? null : `${whole(r.distance_km)} km`, r.market?.name ?? "no market", cabin].filter(Boolean).join(" · "),
+    launched,
+    departures,
+    types: s.now.types.map((t) => `${shortType(t.type)}${t.aircraft > 1 ? ` ×${t.aircraft}` : ""}`).join(", "),
+    fares: s.now.fares.map((f) => storyFareWords(f)),
+  };
+}
+/** A cabin's fare level with this Saturday's move: "economy 105% · up to 110%", "business 100% · hold", with " · on the
+ *  fare plan" (or "· seen in the game") once the move is planned. */
+export function storyFareWords(f: Pick<StoryFare, "cabin" | "level" | "move" | "new_level" | "planned" | "applied">): string {
+  const m = moveWords(f);
+  return `${f.cabin} ${pts(f.level)}% · ${m.text}${f.planned ? (f.applied ? " · seen in the game" : " · on the fare plan") : ""}`;
+}
+
+/** One figure of the last 7 days against the 7 before, with its arrow. */
+export interface StoryChange { key: string; label: string; now: string; then: string; arrow: "up" | "down" | "same" | null; text: string }
+/** The last 7 days (the week ending on the latest captured day) against the 7 before: load %, passengers, profit, profit
+ *  an aircraft hour, and the economy and business fares (business only where either week has one). Without either week
+ *  each change is "—". */
+export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: string | null; compared: boolean; rows: StoryChange[] } {
+  const last = s.latest_day ? s.weeks.find((w) => w.to === s.latest_day) : undefined;
+  const prevTo = s.latest_day ? dayMinus(s.latest_day, 7) : null;
+  const prev = prevTo ? s.weeks.find((w) => w.to === prevTo) : undefined;
+  const one = (key: string, label: string, pick: (w: StoryWeek) => number | null, fmt: (v: number | null) => string, delta: (d: number) => string): StoryChange => {
+    const a = last ? pick(last) : null, b = prev ? pick(prev) : null;
+    if (a == null || b == null) return { key, label, now: fmt(a), then: fmt(b), arrow: null, text: "—" };
+    const dv = Math.round((a - b) * 1e6) / 1e6;
+    if (Math.abs(dv) < 1e-9) return { key, label, now: fmt(a), then: fmt(b), arrow: "same", text: "= same" };
+    return { key, label, now: fmt(a), then: fmt(b), arrow: dv > 0 ? "up" : "down", text: `${dv > 0 ? "▲" : "▼"} ${delta(Math.abs(dv))}` };
+  };
+  const fare = (v: number | null): string => (v == null ? "—" : `${whole(v)} AS$`);
+  const rows = [
+    one("load", "Load", (w) => w.load_pct, pct1, (d) => `${Math.round(d * 10) / 10} pt${Math.round(d * 10) / 10 === 1 ? "" : "s"}`),
+    one("passengers", "Passengers", (w) => w.passengers, whole, (d) => whole(d)),
+    one("profit", "Profit", (w) => w.profit, thousands, (d) => thousands(d)),
+    one("per_hour", "Profit an aircraft hour", (w) => w.profit_per_hour, thousands, (d) => thousands(d)),
+    one("eco_fare", "Economy fare", (w) => w.eco_fare, fare, (d) => fare(d)),
+  ];
+  if ((last?.bus_fare ?? prev?.bus_fare) != null) rows.push(one("bus_fare", "Business fare", (w) => w.bus_fare, fare, (d) => fare(d)));
+  return { from: last?.from ?? null, to: last?.to ?? null, compared: !!(last && prev), rows };
+}
+
+// the since-launch chart: daily economy and business loads, the fare level as a step line on its own scale, and each event
+export const STORY_MIN_DAYS = 14;
+const KIND_WORDS: Record<StoryKind, string> = {
+  launched: "launched", "frequency added": "frequency added", "frequency removed": "frequency removed", "aircraft changed": "aircraft changed",
+  retimed: "retimed", fare: "fare", cabin: "cabin", rival: "rival",
+};
+/** An event as the list shows it: its kind and its words, "rival · Air China started here, 14 a week" ("launched" alone). */
+export const eventWords = (e: Pick<StoryEvent, "kind" | "words">): string => {
+  const k = KIND_WORDS[e.kind] ?? e.kind;
+  return e.words === k ? k : `${k} · ${e.words}`;
+};
+
+/** Each cabin's fare level on each day given: the launch level, then each of the ladder's fare plan rows (an event with a
+ *  level, not dropped) from the day it was proposed. Null for business with no ladder row of its own. */
+export function levelSteps(s: RouteStory, cabin: "economy" | "business", days: readonly string[]): (number | null)[] | null {
+  const rows = s.events.filter((e) => e.kind === "fare" && e.level != null && !e.dropped && (e.cabin ?? "economy") === cabin)
+    .slice().sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  if (cabin === "business" && !rows.length) return null;
+  return days.map((d) => {
+    let lv = s.now.launch_pct;
+    for (const r of rows) if (r.day <= d) lv = r.level ?? lv;
+    return lv;
+  });
+}
+
+export interface StoryChartLayout {
+  W: number; H: number; L: number; R: number; T: number; B: number;
+  days: string[];
+  grid: { y: number; label: string }[];
+  rgrid: { y: number; label: string }[];
+  eco: string; bus: string | null; level: string | null; levelBus: string | null;
+  xLabels: { x: number; label: string }[];
+  markers: { x: number; y: number; kinds: string; tip: string }[];
+  cols: { x: number; w: number; tip: string }[];
+}
+/** The since-launch chart's layout (1120 × 300, as the profit chart's): a column a day from the first day with flights to
+ *  the latest captured day; economy and business loads (0–100%, left) as lines, broken over days without flights; the fare
+ *  level (right, its own scale) as a step line, economy, and business dashed when it has a ladder row of its own; each
+ *  day's events as a marker on the day axis; a tip for each day. Null under 14 days with flights: the page says so. */
+export function storyChartLayout(s: RouteStory, nice: (day: string) => string): StoryChartLayout | null {
+  if (s.days.length < STORY_MIN_DAYS) return null;
+  const first = s.days[0]?.day ?? "";
+  const lastFlown = s.days[s.days.length - 1]?.day ?? first;
+  const lastDay = s.latest_day && s.latest_day > lastFlown ? s.latest_day : lastFlown;
+  const n = Math.round((Date.parse(lastDay + "T00:00:00Z") - Date.parse(first + "T00:00:00Z")) / 86_400_000) + 1;
+  const days = Array.from({ length: n }, (_, i) => dayMinus(first, -i));
+  const W = 1120, H = 300, L = 46, R = 52, T = 14, B = 46;
+  const cw = (W - L - R) / n, X = (i: number) => L + (i + 0.5) * cw;
+  const Y = (v: number) => T + (100 - Math.max(0, Math.min(100, v))) / 100 * (H - T - B);
+  const byDay = new Map(s.days.map((d) => [d.day, d]));
+  const path = (pick: (d: StoryDay) => number | null): string => {
+    let out = "", open = false;
+    days.forEach((day, i) => {
+      const d = byDay.get(day), v = d ? pick(d) : null;
+      if (v == null) { open = false; return; }
+      out += `${open ? " L" : out ? " M" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`;
+      open = true;
+    });
+    return out;
+  };
+  const eco = path((d) => d.eco_load_pct);
+  const bus = s.days.some((d) => d.bus_load_pct != null) ? path((d) => d.bus_load_pct) : null;
+  const lv = levelSteps(s, "economy", days), lvb = levelSteps(s, "business", days);
+  const all = [...(lv ?? []), ...(lvb ?? [])].filter((v): v is number => v != null);
+  const lo = all.length ? Math.floor((Math.min(...all) - 5) / 5) * 5 : 0, hi = all.length ? Math.ceil((Math.max(...all) + 5) / 5) * 5 : 1;
+  const RY = (v: number) => T + (hi - v) / (hi - lo || 1) * (H - T - B);
+  const step = (vals: (number | null)[] | null): string | null => {
+    if (!vals || !vals.some((v) => v != null)) return null;
+    let out = "", prev: number | null = null;
+    vals.forEach((v, i) => {
+      if (v == null) return;
+      const x0 = L + i * cw, x1 = L + (i + 1) * cw;
+      if (prev == null) out += `M${x0.toFixed(1)},${RY(v).toFixed(1)}`;
+      else if (prev !== v) out += ` L${x0.toFixed(1)},${RY(prev).toFixed(1)} L${x0.toFixed(1)},${RY(v).toFixed(1)}`;
+      out += ` L${x1.toFixed(1)},${RY(v).toFixed(1)}`;
+      prev = v;
+    });
+    return out;
+  };
+  const evOn = new Map<string, StoryEvent[]>();
+  for (const e of s.events) if (e.day >= first && e.day <= lastDay) evOn.set(e.day, [...(evOn.get(e.day) ?? []), e]);
+  const every = Math.max(1, Math.ceil(n / 12));
+  return {
+    W, H, L, R, T, B, days,
+    grid: [0, 25, 50, 75, 100].map((v) => ({ y: Y(v), label: `${v}%` })),
+    rgrid: all.length ? [lo, (lo + hi) / 2, hi].map((v) => ({ y: RY(v), label: `${Math.round(v * 10) / 10}%` })) : [],
+    eco, bus, level: step(lv), levelBus: step(lvb),
+    xLabels: days.flatMap((d, i) => (i % every === 0 || i === n - 1 ? [{ x: X(i), label: `${d.slice(8)}/${d.slice(5, 7)}` }] : [])),
+    markers: days.flatMap((d, i) => {
+      const ev = evOn.get(d);
+      return ev ? [{ x: X(i), y: H - B + 12, kinds: [...new Set(ev.map((e) => e.kind))].join(" "), tip: `${nice(d)} · ${ev.map(eventWords).join(" · ")}` }] : [];
+    }),
+    cols: days.map((d, i) => {
+      const x = byDay.get(d), parts = [nice(d)];
+      if (x) {
+        parts.push(`load ${pct1(x.load_pct)}`, `economy ${pct1(x.eco_load_pct)}`);
+        if (x.bus_load_pct != null) parts.push(`business ${pct1(x.bus_load_pct)}`);
+        parts.push(`${x.flights} flight${x.flights === 1 ? "" : "s"}`);
+      } else parts.push("no flights");
+      const e = lv?.[i], b = lvb?.[i];
+      if (e != null) parts.push(`fare level ${pts(e)}%${b != null && b !== e ? `, business ${pts(b)}%` : ""}`);
+      for (const ev of evOn.get(d) ?? []) parts.push(eventWords(ev));
+      return { x: L + i * cw, w: cw, tip: parts.join(" · ") };
+    }),
+  };
+}
+
+/** Profit an aircraft hour by week, oldest first, for the bar chart (in thousands): a bar for each week with block hours. */
+export function weekBars(s: RouteStory, nice: (day: string) => string): { x: string; y: number; tip: string }[] {
+  return s.weeks.filter((w) => w.profit_per_hour != null).slice().reverse().map((w) => ({
+    x: w.to, y: w.profit_per_hour as number,
+    tip: `${nice(w.from)} to ${nice(w.to)} · ${thousands(w.profit_per_hour)} an aircraft hour · profit ${thousands(w.profit)} over ${Math.round((w.block_hours ?? 0) * 10) / 10} block hours · ${w.flights} flights`,
+  }));
+}
+
+/** The rivals on the pair in words: each rival with its departures a week and its change against the week-before scan,
+ *  ours and our share, and which scans. */
+export function rivalLines(s: RouteStory, day: (iso: string) => string) {
+  const r = s.rivals;
+  const change = (v: number | null): string => (v == null ? "" : v > 0 ? `▲ ${v}` : v < 0 ? `▼ ${-v}` : "=");
+  return {
+    none: !r.airlines.length,
+    rows: r.airlines.map((a) => ({ id: a.airline_id, name: a.name, weekly: a.weekly, change: change(a.change), before: a.weekly_before })),
+    ours: `ours ${r.ours} a week${r.share != null ? `, ${pct1(r.share)} of the pair` : ""}${r.share_before != null ? ` (${pct1(r.share_before)} in the week-before scan)` : ""}`,
+    scans: r.scan ? `latest scan ${day(r.scan.taken_at)}${r.week_before ? `, against ${day(r.week_before.taken_at)}` : ", the only one"}` : "no world scan yet",
+  };
+}
+
+/** Our share at each scan since launch as a small line (160 × 40, 0–100%), with each point's tip. Null under two scans. */
+export function shareLine(shares: readonly StoryShare[], day: (iso: string) => string): { W: number; H: number; path: string; dots: { x: number; y: number; tip: string }[] } | null {
+  const shown = shares.filter((x) => x.share != null);
+  if (shown.length < 2) return null;
+  const W = 160, H = 40, X = (i: number) => 4 + i * (W - 8) / (shown.length - 1), Y = (v: number) => H - 4 - v / 100 * (H - 8);
+  return {
+    W, H,
+    path: shown.map((x, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(x.share as number).toFixed(1)}`).join(" "),
+    dots: shown.map((x, i) => ({ x: X(i), y: Y(x.share as number), tip: `${day(x.taken_at)}: ${pct1(x.share)} (ours ${x.ours}, rivals ${x.rivals} a week)` })),
+  };
+}
+
+/** A city beyond one end of the route: its times a week onward (to) and feeding (from), and both together. */
+export interface EndCity { city: string; to: number; from: number; total: number }
+export interface RouteEnd { at: string; other: string; pairs: number; top: EndCity[] }
+/** The connections at both ends of a route, from the planning library on the schedule the planner reads (all our
+ *  airlines' flights): for each of its legs, connections.connectionsAtBothEnds (the plan card's rule: the airport's minimum
+ *  connection time up to connection_max_wait_h). At each end, each city beyond it is a city pair: its times a week onward
+ *  (each departure of ours landing there that makes one of the city's flights) and feeding (each departure of ours
+ *  leaving there that one of the city's flights connects onto). The top 10 by the two together, then by code. */
+export function routeConnections(rules: Rules, route: { id: number; hub: string; dest: string }, top = 10): RouteEnd[] {
+  const legs = block.timedLegs(rules);
+  const mine = legs.filter((l) => l.route_id === route.id);
+  const ends = new Map<string, Map<string, { to: number; from: number }>>([[route.hub, new Map()], [route.dest, new Map()]]);
+  const add = (at: string, city: string, k: "to" | "from", n: number) => {
+    const m = ends.get(at);
+    if (!n || !m) return;
+    const c = m.get(city) ?? { to: 0, from: 0 };
+    c[k] += n;
+    m.set(city, c);
+  };
+  const cities = (xs: readonly { leg: TimedLeg }[], pick: (l: TimedLeg) => string) => [...new Set(xs.map((x) => pick(x.leg)))];
+  for (const leg of mine) {
+    const both = connections.connectionsAtBothEnds(rules, legs, leg);
+    // onward: our flight lands at leg.dest; each of its departures that makes a flight on to the city counts once
+    const onLim = connections.connectionLimits(rules, leg.dest);
+    const arrivals = connections.arrivalsOf(leg);
+    for (const city of cities(both.onward, (l) => l.dest)) {
+      const deps = both.onward.filter((x) => x.leg.dest === city).flatMap((x) => connections.departuresOf(x.leg));
+      add(leg.dest, city, "to", arrivals.filter((a) => deps.some((d) => connections.isConnection(time.mod(d - a, time.WEEK), onLim))).length);
+    }
+    // feeding: our flight leaves leg.origin; each of its departures that a flight from the city connects onto counts once
+    const feedLim = connections.connectionLimits(rules, leg.origin);
+    const departures = connections.departuresOf(leg);
+    for (const city of cities(both.feeders, (l) => l.origin)) {
+      const arrs = both.feeders.filter((x) => x.leg.origin === city).flatMap((x) => connections.arrivalsOf(x.leg));
+      add(leg.origin, city, "from", departures.filter((d) => arrs.some((a) => connections.isConnection(time.mod(d - a, time.WEEK), feedLim))).length);
+    }
+  }
+  return [[route.hub, route.dest], [route.dest, route.hub]].map(([at = "", other = ""]) => {
+    const rows = [...(ends.get(at) ?? new Map<string, { to: number; from: number }>())].map(([city, c]) => ({ city, to: c.to, from: c.from, total: c.to + c.from }))
+      .sort((a, b) => b.total - a.total || (a.city < b.city ? -1 : a.city > b.city ? 1 : 0));
+    return { at, other, pairs: rows.length, top: rows.slice(0, top) };
+  });
+}
+
+/** The route page's boards, top to bottom (the header and the week's comparison above them aren't boards). */
+export const ROUTE_BOARDS = ["Since launch", "Profit an aircraft hour", "Events", "Rivals on the pair", "Connections"] as const;
+export type RouteBoardKey = (typeof ROUTE_BOARDS)[number];
+/** The route in the address, "JFK-ORD", as its two codes; null when it isn't two codes. */
+export function parseRouteKey(key: string | undefined): { hub: string; dest: string } | null {
+  let k: string;
+  try { k = decodeURIComponent(key ?? ""); } catch { return null; }
+  const m = /^([A-Z0-9]{3,4})-([A-Z0-9]{3,4})$/.exec(k.toUpperCase());
+  return m ? { hub: m[1] as string, dest: m[2] as string } : null;
+}

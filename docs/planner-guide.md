@@ -108,7 +108,7 @@ important first; nothing folds.
   - **Interline:** how many airline–country pairs on Interline have no agreement yet (not signed, declined or without
     a partner in the game), from the same rows and rules as Interline (the setting *interline_rules*);
   - routes to fix, from the captured profit (with none captured, from the load patterns, as on the old Home), linking
-    to the route on its airline's Performance page;
+    to the route's page on Performance (since 22 Oct; the load patterns' to the route on Routes);
   - when an airline can safely order, linking to its Performance page;
   - **Rival moves** (since 21 Oct): each rival that started on, or added a daily flight or more to, one of our city
     pairs in the latest world scan, against the scan before it: "Air China started on PVG–CAN, 14 a week", linking to
@@ -147,7 +147,8 @@ important first; nothing folds.
   its own cabin choice, which wins: manual §5; since 21 Oct, in place of the market's aircraft, plan and prices), the
   service profile and the hub's banks;
   **edit route** (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies,
-  after asking in the page). Not flown yet, it shows the next free flight numbers; flown, its loads over 7 days.
+  after asking in the page). Not flown yet, it shows the next free flight numbers; flown, its loads over 7 days and,
+  since 22 Oct, **How it's doing ›** beside its name, which opens its route page on Performance.
 - **Each frequency:** the outbound and the return with their times (local, or UTC as the header says, the other shown
   small), the block time (typed, or **est** from the planning library's estimate), **+1** where a time falls on a later
   day, and each flight's load. Then every check: night bans, a number used twice, the bank fit at both ends, the turn at
@@ -215,9 +216,10 @@ important first; nothing folds.
 *How are we doing, and why?* (since 20 Oct: Review's screen, with Check's growth boards and daily load report). Every
 money figure is the database's. Its boards are open on arrival, the most important first; **Collapse all** and
 **Expand all** fold them, and a board's title folds it.
-- **The address:** /planner/performance is the group; /planner/performance/VS one airline's page. A link from Today's
-  needs attention (/planner/performance/PA/JFK-ORD) opens the airline with the route profit table filtered to that
-  route. Old Review addresses (/planner/review/VS) lead here.
+- **The address:** /planner/performance is the group; /planner/performance/VS one airline's page;
+  /planner/performance/PA/JFK-ORD a route's page (since 22 Oct, below; until then that address opened the airline with
+  the route profit table filtered to the route, which its search box still does). Old Review addresses
+  (/planner/review/VS) lead here.
 - **The scorecards, one per airline:** Review's cards, with every figure: **profit a day** over the last 7 days, with
   its sparkline; **per aircraft** (profit a day ÷ aircraft flying); **return on fleet** (a week's profit ÷ the value of
   the aircraft flying); **an aircraft pays back in** (average aircraft price ÷ profit per aircraft a day); **funds a new
@@ -308,12 +310,43 @@ money figure is the database's. Its boards are open on arrival, the most importa
     route was at its launch level, or its first fare for a route launched later, times the launch level: a route still
     at launch reads 100, Ryanair's 85; a level on the fare ladder the fares don't match is named beside it) and a
     **14-day** sparkline of its loads, a bar a day from the daily history (*route_days*: passengers ÷ seats, both
-    directions; lighter under 85%). Under it, the **aircraft** (each one's flight profit a day, less its lease) and the
-    **fare changes** spotted in the captures, with the load the day before and after.
+    directions; lighter under 85%). Each route's name opens its route page (since 22 Oct; Routes until then). Under it,
+    the **aircraft** (each one's flight profit a day, less its lease) and the **fare changes** spotted in the captures,
+    with the load the day before and after.
   - **Fare plan:** the fare changes to make in the game, with **remove**: fare tests, and since 21 Oct the fare ladder's
     moves, each with its move and level ("+5% · up to 105%"). The next capture spots each one: a fare test once half
     its change shows, a ladder's move once its fare moves by the change, within 1%, in its own cabin. It's reviewed
     together on Saturdays.
+
+- **A route's page** (since 22 Oct, spec docs/specs/2026-10-21-route-page.md; /planner/performance/PA/JFK-ORD): its
+  story since launch, so a fare move, a new frequency or a rival can be judged by what happened after it. Both
+  directions count together; every figure is *route_story()*'s, from the daily history. Read only.
+  - **The header:** the route and its city, stars, airline, distance, market and the cabin it calls for (its own, else
+    its market's), **launched** (the first frequency's launch day, and how many days ago), departures a week each way,
+    the types flying it, and each cabin's fare level with this Saturday's move. **‹ <airline>** goes back to the
+    airline's page; **Schedule in Routes** opens the route on Routes.
+  - **The last 7 days against the 7 before:** load, passengers, profit, profit an aircraft hour and the economy and
+    business fares, each with its arrow (the week ending on the latest captured day; nothing to compare without a week
+    before it).
+  - **Since launch:** one chart: the economy and business loads a day, the fare level as a dashed step (its scale on the
+    right: the launch level, then each level the fare ladder put on the fare plan), and a dot under each day with an
+    event. Point at a day for its figures and events. Under 14 days of flights it says so instead.
+  - **Profit an aircraft hour:** a bar a week (profit ÷ the block hours flown), up to 13 weeks. The airline's average
+    isn't drawn: route profit covers only the last few days.
+  - **Events,** newest first, 10 shown with **show all**: launched; a frequency added or removed, an aircraft changed or
+    a retime (each save on Routes, Tails or Today's Game check, from the change log; a data fix made by a migration isn't
+    one); each fare plan row (a fare test, or the ladder's move, and whether it was dropped); the route's own cabin
+    changed; and a rival who started on the pair, or added a daily flight or more, between two world scans
+    (*competition_threat_min_weekly*; passenger flights only).
+  - **Rivals on the pair:** every other airline flying it either way in the latest scan, with its departures a week and
+    its change since the week-before scan; ours and our share, and our share at each scan since launch as a small line.
+    "No rival flies this pair" when none does.
+  - **Connections:** at each end, how many city pairs its flights connect to and the top 10 with how many times a week,
+    onward (from the far end through this one) and feeding (into the far end), from the minimum connection time up to
+    8 hours across all our airlines (the plan card's rule).
+  - **Links to it:** each route's name in the route profit table, **How it's doing ›** on a flown route on Routes,
+    Today's routes to fix, and Competition's threats. In a chat, `select public.route_story(<route id>);` gives the
+    same.
 
 ## Competition
 *Who are we up against, and where do we open next?* (Since 21 Oct, spec docs/specs/2026-10-21-competition-analysis.md;
@@ -333,7 +366,7 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     departures, share and change. Our own departures are the live schedule's; a week before, the scan's.
   - **Threats:** each rival who started on a pair the airline flies (none in the scan before) or added at least 7
     departures a week (*competition_threat_min_weekly*), with the numbers then and now, ours, the day and until when
-    the route's fares hold (7 days on).
+    the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance.
   - **Openings:** the pairs on its list no airline of ours flies, ranked: stars, then the rivals' departures a week on
     the pair, then the shorter distance, then the pair's code. Each with its stars, distance, the rivals and their
     departures, the **variant** from the default line (manual §3: the smallest size the stars allow, bigger only "for

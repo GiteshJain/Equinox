@@ -1191,14 +1191,14 @@ isOneToOne: false
                   ]
                 },"route_days": {
                   Row: {
-                    "airline_id": number,"costs": number | null,"day": string,"dest_code": string,"eco_fare_avg": number | null,"flights": number,"origin_code": string,"passengers": number | null,"profit": number | null,"revenue": number | null,"route_id": number | null,"seats": number | null,"world_id": number
+                    "airline_id": number,"block_min": number | null,"bus_fare_avg": number | null,"bus_pax": number | null,"bus_seats": number | null,"costs": number | null,"day": string,"dest_code": string,"eco_fare_avg": number | null,"eco_pax": number | null,"eco_seats": number | null,"flights": number,"origin_code": string,"passengers": number | null,"profit": number | null,"revenue": number | null,"route_id": number | null,"seats": number | null,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "airline_id": number,"costs"?: number | null,"day": string,"dest_code": string,"eco_fare_avg"?: number | null,"flights": number,"origin_code": string,"passengers"?: number | null,"profit"?: number | null,"revenue"?: number | null,"route_id"?: number | null,"seats"?: number | null,"world_id": number
+                    "airline_id": number,"block_min"?: number | null,"bus_fare_avg"?: number | null,"bus_pax"?: number | null,"bus_seats"?: number | null,"costs"?: number | null,"day": string,"dest_code": string,"eco_fare_avg"?: number | null,"eco_pax"?: number | null,"eco_seats"?: number | null,"flights": number,"origin_code": string,"passengers"?: number | null,"profit"?: number | null,"revenue"?: number | null,"route_id"?: number | null,"seats"?: number | null,"world_id": number
                   }
                   Update: {
-                    "airline_id"?: number,"costs"?: number | null,"day"?: string,"dest_code"?: string,"eco_fare_avg"?: number | null,"flights"?: number,"origin_code"?: string,"passengers"?: number | null,"profit"?: number | null,"revenue"?: number | null,"route_id"?: number | null,"seats"?: number | null,"world_id"?: number
+                    "airline_id"?: number,"block_min"?: number | null,"bus_fare_avg"?: number | null,"bus_pax"?: number | null,"bus_seats"?: number | null,"costs"?: number | null,"day"?: string,"dest_code"?: string,"eco_fare_avg"?: number | null,"eco_pax"?: number | null,"eco_seats"?: number | null,"flights"?: number,"origin_code"?: string,"passengers"?: number | null,"profit"?: number | null,"revenue"?: number | null,"route_id"?: number | null,"seats"?: number | null,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -1778,6 +1778,9 @@ isOneToOne: false
                            },
 "route_profit":
 { Args: { "p_airline_id": number,"p_as_of"?: string,"p_days"?: number }; Returns: Json
+                           },
+"route_story":
+{ Args: { "p_as_of"?: string,"p_route_id": number }; Returns: Json
                            },
 "rules_input":
 { Args: { "p_routes"?: string,"p_world_id"?: number }; Returns: Json
