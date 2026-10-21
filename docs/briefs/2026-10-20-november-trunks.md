@@ -11,7 +11,7 @@ list once its last week's loads fall under 95%.
 ## The trunk map (from the planner and the 17 Oct scan, 20 Oct)
 - 24 base airports, 276 pairs. 50 are flown: all but four run at 92–100% and sell out on nearly every departure.
 - Of the 226 unflown, most are out of narrowbody reach or don't make sense (secondary India–China, India–US, Europe–India
-  while Kingfisher's long-haul is weak). 31 pass, below.
+  while Kingfisher's long-haul is weak). 34 pass, below.
 - **Not fortified (weak):** PVG–Kolkata (MU, 28%, fix), Delhi–JFK (KF, 56% economy, fix, review 28 Nov), Delhi–Amsterdam
   (KF, fix), KUL–Hyderabad (MH, sold out on 56% of departures), KUL–Kunming (MH, 46%), Delhi–Paris (KF, 31%),
   Amsterdam–Munich (FR, 3k a flight: raise fares instead), Paris–Amsterdam (FR, 87%: watch).
