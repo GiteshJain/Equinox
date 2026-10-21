@@ -4,7 +4,9 @@
 // - the captured figures: airline_cards() (the scorecards and the group today), airline_profit() for every airline (the
 //   scorecards' sparklines, and the airline page's chart and table), cash_forecast() (the airline page; Today's orders
 //   too), route_profit() and aircraft_profit() for the period picked, fare_changes(), fare_plan_status(),
-//   growth_signals() (the growth signals) and hub_progress() (main hubs towards their target);
+//   growth_signals() (the growth signals), hub_progress() (main hubs towards their target) and, since 21 Oct,
+//   fare_ladder() for every airline (the fare ladder board; on the airline page the route profit table's fare index);
+// - the daily history by route, route_days (the route profit table's 14-day load sparkline; staff read it);
 // - the daily history, airline_days (each airline's fleet, schedule and loads each evening: the scorecards' change
 //   against the same day last week; staff read it);
 // - for Flights by day, one day's captured loads (game_loads, the old planner's CAP.loads, which held the last 9 days)
@@ -15,7 +17,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { queryClient, tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import type { AircraftRow, CardsAnswer, DayRow, FareChange, FarePlanAnswer, Forecast, ProfitAnswer, RouteProfitAnswer } from "./model";
+import type { AircraftRow, CardsAnswer, DayRow, FareChange, FarePlanAnswer, Forecast, LadderAnswer, ProfitAnswer, RouteDayRow, RouteProfitAnswer } from "./model";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -117,6 +119,41 @@ export function useFarePlan(airlineId: number | undefined) {
     queryKey: tableKey("fare_plan", "status", airlineId),
     enabled: airlineId !== undefined,
     queryFn: () => rpc<FarePlanAnswer>("the fare plan", "fare_plan_status", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
+  });
+}
+
+/** The fare ladder for each airline (fare_ladder(), manual §5): this Saturday's move for each route and cabin and the game
+ *  actions that make them. Keyed under the fare plan's table, which it reads, so Put on the fare plan reads it again. */
+export function useFareLadders(airlineIds: readonly number[]) {
+  return useQueries({
+    queries: airlineIds.map((id) => ({
+      queryKey: tableKey("fare_plan", "ladder", id),
+      queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: id, p_as_of: asOf() }),
+    })),
+  });
+}
+
+/** One airline's fare ladder (the same read as useFareLadders): the route profit table's fare index. */
+export function useFareLadder(airlineId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("fare_plan", "ladder", airlineId),
+    enabled: airlineId !== undefined,
+    queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
+  });
+}
+
+/** One airline's daily history by route, direction and day from a day to another (route_days): the route profit
+ *  table's 14-day load sparkline. Only the columns it uses. */
+export function useRouteDays(airlineId: number | undefined, from: string, to: string) {
+  return useQuery({
+    queryKey: tableKey("route_days", "sparkline", airlineId, from, to),
+    enabled: airlineId !== undefined,
+    queryFn: async (): Promise<RouteDayRow[]> => {
+      const rows = await pages<RouteDayRow>("the daily history by route", (a, b) => supabase.from("route_days")
+        .select("route_id, origin_code, dest_code, day, passengers, seats")
+        .eq("airline_id", airlineId ?? 0).gte("day", from).lte("day", to).order("day").order("origin_code").order("dest_code").range(a, b) as unknown as Answer<RouteDayRow[]>);
+      return rows.map((r) => ({ ...r, route_id: num(r.route_id as Json), passengers: num(r.passengers as Json), seats: num(r.seats as Json) }));
+    },
   });
 }
 

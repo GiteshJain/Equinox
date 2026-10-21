@@ -68,8 +68,8 @@ begin
   -- 'all' is the document exactly as rules_input() gave it before this rehearsal's changes (when the copy had it: a backup
   -- taken before 20261012180000 went live has none, and then section 2's counts against the tables are the check), but
   -- for the two settings 20261013200000 adds, the one 20261013230000 (Tails) adds, the seven 20261013235900 (Check)
-  -- adds, the two 20261014220000 (the capture checks, #21) adds and the one 20261016120000 (new routes' age) adds,
-  -- which are new in it: they're
+  -- adds, the two 20261014220000 (the capture checks, #21) adds, the one 20261016120000 (new routes' age) adds and the
+  -- six 20261021120000 (the fare ladder) adds, which are new in it: they're
   -- checked, then taken out (from the world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
   d_cmp := d_all;
@@ -77,7 +77,9 @@ begin
     foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h', 'cabin_refit_cost',
                              'cabin_refit_share_pct', 'growth_big_min_stars', 'growth_ready_min_days', 'growth_ready_full_share',
                              'order_queue_grace_h', 'order_queue_warn_h', 'fare_plan_raise_pct', 'suggested_size', 'interline_rules',
-                             'capture_loads_min_share', 'capture_statement_min_share', 'growth_new_route_days'] loop
+                             'capture_loads_min_share', 'capture_statement_min_share', 'growth_new_route_days',
+                             'fare_ladder_step_pts', 'fare_ladder_up_share', 'fare_ladder_down_share', 'fare_ladder_min_departures',
+                             'fare_ladder_hold_weeks', 'fare_ladder_cap_pts'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

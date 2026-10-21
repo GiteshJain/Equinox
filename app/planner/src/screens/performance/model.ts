@@ -127,6 +127,9 @@ export interface PlanRow {
   seen_on: string | null;
   economy_before: number | null;
   economy_after: number | null;
+  /** The fare ladder's rows (since 21 Oct): the level they set, % of the default price, and the move. */
+  level_pct?: number | null;
+  ladder_move?: string | null;
 }
 export interface FarePlanAnswer { plan: PlanRow[]; fares: { route_id: number; hub: string; dest: string; day: string; fare: number }[] }
 
@@ -432,7 +435,8 @@ export function planWords(p: PlanRow, nice: (day: string) => string) {
   return {
     route: `${p.hub ?? ""}–${p.dest ?? ""}`,
     cls: p.cabin_class || "economy",
-    change: `${(p.change_pct ?? 0) > 0 ? "+" : ""}${p.change_pct}%`,
+    change: `${(p.change_pct ?? 0) > 0 ? "+" : ""}${p.change_pct}%`
+      + (p.level_pct != null ? ` · ${p.ladder_move ?? "ladder"} to ${Math.round(p.level_pct * 10) / 10}%` : ""),
     fares: `${Math.round(p.fare_from ?? NaN)} → ${Math.round(p.target ?? NaN)}`,
     now: p.fare_now == null ? "—" : String(Math.round(p.fare_now)),
     status: p.applied ? { kind: "ok" as const, text: `seen in the game ${nice(p.seen_on ?? "")}` } : { kind: "warn" as const, text: "to do in the game" },
@@ -519,8 +523,170 @@ export function weekOnWeek(rows: readonly DayRow[], airlineId: number, today: st
 /** The first day the scorecards read the history from: two weeks and a day before today (the 7 days' load a week ago). */
 export const historyFrom = (today: string): string => dayMinus(today, 15);
 
+// ---------- the fare ladder (manual §5, since 21 Oct; spec docs/specs/2026-10-21-fare-ladder.md): fare_ladder()'s answer,
+// worded for the board, sorted, and Put on the fare plan's rows. Every level, move and game action is the database's.
+export type LadderMove = "up" | "hold" | "down";
+export type LadderCabin = "economy" | "business";
+export interface LadderRoute {
+  route_id: number;
+  hub: string;
+  dest: string;
+  cabin: LadderCabin;
+  departures: number;
+  sold_out: number;
+  sold_out_share: number | null;
+  average_fare: number | null;
+  first_fare: number | null;
+  first_on: string | null;
+  latest_fare: number | null;
+  latest_on: string | null;
+  /** The latest captured fare against the first, times the launch level; index_matches false flags a level more than
+   *  1 point from it. */
+  fare_index: number | null;
+  index_matches: boolean | null;
+  /** The level, % of the game's default price, and how many steps above launch. */
+  level: number;
+  recorded: boolean;
+  steps: number;
+  move: LadderMove;
+  new_level: number;
+  new_steps: number;
+  change_pct: number | null;
+  reason: string;
+  contested: boolean;
+  floor: number;
+  cap: number;
+  new_route: boolean;
+  /** This Saturday's move is on the fare plan already (and, applied, the captures show it). */
+  planned: boolean;
+  plan_id: number | null;
+  applied: boolean;
+  seen_on: string | null;
+  /** What Put on the fare plan writes: a level that changes, or a hold that follows a step down. */
+  to_plan: boolean;
+}
+export interface LadderAction {
+  n: number;
+  kind: "base" | "route";
+  base?: string;
+  route?: string;
+  cabin: LadderCabin;
+  from: string;
+  to: string;
+  level: number;
+  sign: "+" | "-";
+  pct: number;
+  baseline: string;
+  text: string;
+}
+export interface LadderAnswer {
+  airline_id: number;
+  as_of: string;
+  week_of: string;
+  settings: { step_pts: number; launch_pct: number; cap_pct: number; up_share: number; down_share: number; min_departures: number; hold_weeks: number };
+  moves: { up: number; hold: number; down: number };
+  to_plan: number;
+  planned: number;
+  routes: LadderRoute[];
+  actions: LadderAction[];
+  notes: string[];
+}
+
+/** This Saturday's moves in one line: "12 up, 30 hold, 2 down". */
+export const ladderLine = (m: LadderAnswer["moves"]): string => `${m.up} up, ${m.hold} hold, ${m.down} down`;
+const pts = (v: number): string => String(Math.round(v * 10) / 10);
+/** Steps above launch in words: "launch", "1 step up", "3 steps up", "1 step under launch". */
+export function stepWords(steps: number): string {
+  const s = Math.round(steps * 10) / 10;
+  if (s === 0) return "launch";
+  const n = Math.abs(s);
+  return `${pts(n)} step${n === 1 ? "" : "s"} ${s > 0 ? "up" : "under launch"}`;
+}
+/** A level with its steps above launch: "105% · 1 step up", "100% · launch". */
+export const levelWords = (level: number, steps: number): string => `${pts(level)}% · ${stepWords(steps)}`;
+/** The move, as the board shows it: up plain, down in amber (colour only for action), hold quiet. */
+export function moveWords(r: Pick<LadderRoute, "move" | "new_level">): { text: string; kind: "up" | "down" | "hold" } {
+  if (r.move === "up") return { text: `up to ${pts(r.new_level)}%`, kind: "up" };
+  if (r.move === "down") return { text: `down to ${pts(r.new_level)}%`, kind: "down" };
+  return { text: "hold", kind: "hold" };
+}
+/** The sold-out share: "14/14 · 100%", or "no flights" with none captured. */
+export const soldWords = (r: Pick<LadderRoute, "departures" | "sold_out" | "sold_out_share">): string =>
+  r.departures ? `${r.sold_out}/${r.departures} · ${Math.round(r.sold_out_share ?? (r.sold_out / r.departures) * 100)}%` : "no flights";
+/** A move already on the fare plan this Saturday, and whether the captures show it yet. */
+export function plannedWords(r: Pick<LadderRoute, "planned" | "applied" | "seen_on">, nice: (day: string) => string): string {
+  if (!r.planned) return "";
+  return r.applied ? `on the fare plan · seen in the game ${nice(r.seen_on ?? "")}` : "on the fare plan · to do in the game";
+}
+/** Put on the fare plan's button and the line beside it. */
+export function planButton(a: Pick<LadderAnswer, "to_plan" | "planned" | "routes">): { text: string; enabled: boolean; note: string } {
+  const seen = a.routes.filter((r) => r.planned && r.applied).length;
+  const done = a.planned ? `${a.planned} on the fare plan this Saturday, ${seen} seen in the game` : "";
+  if (a.to_plan) return { text: `Put on the fare plan (${a.to_plan})`, enabled: true, note: done };
+  if (a.planned) return { text: "On the fare plan", enabled: false, note: done };
+  return { text: "Nothing to put on the fare plan", enabled: false, note: "" };
+}
+/** The routes table's sorts: the moves first (down, up, then holds), by route, by level (highest first), by the
+ *  sold-out share (lowest first). Each keeps the database's order (route, then economy before business) on a tie. */
+export type LadderSort = "move" | "route" | "level" | "sold";
+export const LADDER_SORTS: readonly [LadderSort, string][] = [["move", "moves first"], ["route", "route"], ["level", "level"], ["sold", "sold out"]];
+export function ladderRows(rows: readonly LadderRoute[], sort: LadderSort): LadderRoute[] {
+  const rank: Record<LadderMove, number> = { down: 0, up: 1, hold: 2 };
+  const by: Record<LadderSort, (a: LadderRoute, b: LadderRoute) => number> = {
+    move: (a, b) => rank[a.move] - rank[b.move],
+    route: () => 0,
+    level: (a, b) => b.level - a.level,
+    sold: (a, b) => (a.departures ? a.sold_out_share ?? 0 : 101) - (b.departures ? b.sold_out_share ?? 0 : 101),
+  };
+  return rows.slice().sort(by[sort] ?? by.move);
+}
+/** Put on the fare plan: one insert per route and cabin the database marks to_plan (each level that changes, and each
+ *  hold that follows a step down), all in one planner_save() call. The level and the move are the ladder's; the fare
+ *  then is the latest captured fare in that cabin (fare_plan_status() ticks a row off when the captured fare moves by
+ *  its change, within 1%); proposed on the UTC day, the day the database's week is counted in. */
+export function ladderPlanChanges(x: { worldId: number; airlineId: number; routes: readonly LadderRoute[]; utcDay: string; nowMs: number }): Change[] {
+  return x.routes.filter((r) => r.to_plan).map((r, i) => ({ table: "fare_plan", op: "insert", values: {
+    world_id: x.worldId, airline_id: x.airlineId, route_id: r.route_id, legacy_key: `fl${x.nowMs.toString(36)}-${i}`, cabin_class: r.cabin,
+    change_pct: r.change_pct ?? 0, fare_from: r.latest_fare == null ? null : Math.round(r.latest_fare * 100) / 100, proposed_on: x.utcDay,
+    status: "planned", reason: r.reason, level_pct: r.new_level, ladder_move: r.move } }));
+}
+/** The fare index for the route profit table, from the ladder's economy row: "105", flagged when the level recorded
+ *  differs from it by more than a point. */
+export function indexWords(r: Pick<LadderRoute, "fare_index" | "index_matches" | "level"> | undefined): { text: string; flag: string } {
+  if (!r || r.fare_index == null) return { text: "—", flag: "" };
+  return { text: String(Math.round(r.fare_index)), flag: r.index_matches === false ? `level ${pts(r.level)}%` : "" };
+}
+
+// ---------- the route profit table's 14-day load sparkline, from the daily history (route_days)
+export interface RouteDayRow { route_id: number | null; origin_code: string; dest_code: string; day: string; passengers: number | null; seats: number | null }
+export const SPARK_DAYS = 14;
+/** Each route's load on each of the 14 days to today (oldest first), both directions together: the day's passengers ÷
+ *  seats on the flights whose loads were captured, at most 100%; null on a day with no seats. By the route's id, or by
+ *  its two airports either way round where the history has no route. */
+export function loads14(rows: readonly RouteDayRow[], route: { route_id: number | null; hub: string; dest: string }, today: string): (number | null)[] {
+  const days = Array.from({ length: SPARK_DAYS }, (_, i) => dayMinus(today, SPARK_DAYS - 1 - i));
+  const mine = rows.filter((r) => (route.route_id != null && r.route_id === route.route_id)
+    || (r.route_id == null && ((r.origin_code === route.hub && r.dest_code === route.dest) || (r.origin_code === route.dest && r.dest_code === route.hub))));
+  return days.map((d) => {
+    const on = mine.filter((r) => r.day === d);
+    const seats = on.reduce((s, r) => s + (r.seats ?? 0), 0), pax = on.reduce((s, r) => s + (r.passengers ?? 0), 0);
+    return seats > 0 ? Math.min(100, (pax / seats) * 100) : null;
+  });
+}
+/** The sparkline: a bar a day, 56 × 16, its height the day's load; a day with none has no bar. */
+export function loadSparkBars(values: readonly (number | null)[]): { x: number; y: number; w: number; h: number; low: boolean }[] {
+  const W = 56, H = 16, n = Math.max(1, values.length), w = (W / n) * 0.7;
+  return values.flatMap((v, i) => (v == null ? [] : [{ x: (i + 0.15) * (W / n), y: H - Math.max(1, (v / 100) * H), w, h: Math.max(1, (v / 100) * H), low: v < 85 }]));
+}
+/** The sparkline's words, for its title: "14 days' load: 92% to 100%, 98% on average". */
+export function sparkWords(values: readonly (number | null)[]): string {
+  const vs = values.filter((v): v is number => v != null);
+  if (!vs.length) return "no loads in the daily history for the last 14 days";
+  return `${vs.length} day${vs.length === 1 ? "" : "s"}' load: ${Math.round(Math.min(...vs))}% to ${Math.round(Math.max(...vs))}%, ${Math.round(vs.reduce((a, b) => a + b, 0) / vs.length)}% on average`;
+}
+
 // ---------- the boards: the airline's page, and the group's
 export const BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Fare plan"] as const;
 export type BoardKey = (typeof BOARDS)[number];
-export const GROUP_BOARDS = ["The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
+export const GROUP_BOARDS = ["Fare ladder", "The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
 export type GroupBoardKey = (typeof GROUP_BOARDS)[number];

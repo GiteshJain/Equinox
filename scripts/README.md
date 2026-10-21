@@ -145,7 +145,7 @@ from a clone of the repository, with Node 22:
 
 ## The captured figures (any chat)
 The figures worked out from what the capture recorded live in the database (decision #19, design §8): the cash
-forecast and when an airline can order (manual §3), Review's cards and profit by day, route and aircraft profit, fare
+forecast and when an airline can order (manual §3), Performance's scorecards and profit by day, route and aircraft profit, fare
 changes, the growth signals and load patterns, hub progress and the capture board. Each is a function with an "as of"
 moment (now by default); `docs/data.md` says what each answers. Scripts get all of them, for every airline, in one
 document through `export_for_report()` with kind `figures` and the ingest secret; the third argument is a JSON object,
@@ -162,7 +162,9 @@ It holds `airline_cards`, `growth_signals`, `hub_progress`, `capture_status`, an
 `airline_profit`, `route_profit` and `aircraft_profit` (each over 1, 3 and 7 days) and `fare_changes`. Money is in
 millions of AS$, unrounded; moments are UTC. In a chat with the Supabase connection, Claude calls the functions
 themselves as postgres, e.g. `select public.cash_forecast(<airline id>, '[{"type": "A321 NEO LIGHT", "count": 2}]');`
-to test orders. The weekly report reads its money from them (above).
+to test orders. The weekly report reads its money from them (above). This Saturday's fare moves and the game actions
+that make them are one more call, `select public.fare_ladder(<airline id>);` (manual §5, since 21 Oct); kind `figures`
+doesn't carry them.
 
 ## Where the inputs come from
 - **The planner's old document** is gone with the old planner (the clean-up, build pull request 14): `export_for_report()`

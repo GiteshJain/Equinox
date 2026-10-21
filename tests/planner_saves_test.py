@@ -30,7 +30,8 @@ the saves' names follow their screens, and Log an order as went with the order r
     differing (File with the game's times).
   Systems: Mark checked; Keep as is; Show again; Refitted to; cash and fixed costs; loads typed; loads pasted with the
     day marked complete.
-  Performance: + fare plan; remove.
+  Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct: one row per route and cabin it marks,
+    how many depending on the night).
   Interline: a status; a note.
   Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
@@ -914,6 +915,26 @@ async def review(s, pl, al, now):
         await s.act("performance: remove a planned fare change", lambda: pg.click(f"[data-faredel='{int(fp)}']"))
 
 
+# ---------- Performance → the fare ladder (21 Oct, spec docs/specs/2026-10-21-fare-ladder.md)
+async def fare_ladder(s, pl):
+    """Put on the fare plan for the first airline with a move to put there: one planner_save() call, a fare_plan row for
+    each route and cabin the ladder marks (how many depends on the night, so recorded as *); then the board says the moves
+    are on the fare plan."""
+    pg = pl.pg
+    await to_screen(pl, "performance", "/performance")
+    code = await pg.evaluate("(document.querySelector('[data-ladder-plan]:not([disabled])') || {dataset: {}}).dataset.ladderPlan || ''")
+    if not code:
+        s.not_tried("no airline has a fare ladder move to put on the fare plan on this copy", "performance: put the fare ladder on the fare plan")
+        return
+    await s.act("performance: put the fare ladder on the fare plan", lambda: pg.click(f"[data-ladder-plan={json.dumps(code)}]"),
+                variable=("planner_save fare_plan insert", "fare_plan insert"))
+    try:
+        await pg.wait_for_function(f"""() => {{ const b = document.querySelector('[data-ladder-plan={json.dumps(code)}]');
+            return !!b && b.disabled && b.textContent === 'On the fare plan'; }}""", timeout=30000)
+    except Exception as e:
+        step(False, f"performance: the fare ladder for {code} says its moves are on the fare plan", [why(e)])
+
+
 # ---------- Interline, Reference and Photos
 INTERLINE_READY = "main[data-screen=interline][data-interline-ready=yes]"
 REF_READY = "main[data-screen=reference][data-reference-ready=yes]"
@@ -1116,7 +1137,8 @@ async def main():
                 await pl.pg.emulate_media(reduced_motion="reduce")
                 await pl.sign_in(*staff)
                 for name, part in (("Today", lambda: today_board(s, pl, tag)), ("Routes", lambda: routes(s, pl, al)), ("Tails", lambda: tails(s, pl, al, tag, now)),
-                                   ("Check's saves (Today, Systems)", lambda: check(s, pl, al, now[:10])), ("Review's saves (Systems, Performance)", lambda: review(s, pl, al, now)), ("Interline", lambda: interline(s, pl)),
+                                   ("Check's saves (Today, Systems)", lambda: check(s, pl, al, now[:10])), ("Review's saves (Systems, Performance)", lambda: review(s, pl, al, now)),
+                                   ("Performance's fare ladder", lambda: fare_ladder(s, pl)), ("Interline", lambda: interline(s, pl)),
                                    ("Reference", lambda: reference(s, pl)), ("Photos", lambda: photos(s, pl))):
                     t = time.monotonic()
                     try:

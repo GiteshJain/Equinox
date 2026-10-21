@@ -4,17 +4,20 @@
 // most important first (Collapse all and Expand all fold them).
 //   - The group (/planner/performance): the scorecards, one per airline (Review's cards, airline_cards(), with each
 //     airline's sparkline from airline_profit(), and the fleet, flights a day and average load against the same day last
-//     week from the daily history, airline_days, with an arrow); tap one to open the airline. Then the group today (each
+//     week from the daily history, airline_days, with an arrow); tap one to open the airline. Then the fare ladder (since 21
+//     Oct, spec docs/specs/2026-10-21-fare-ladder.md: fare_ladder() for each airline, FareLadder.tsx), the group today (each
 //     airline's flight profit, leases and week-end closing, net; no group totals, manual §5), the growth signals (ready
 //     for another flight, raise fares, fix or reduce, aircraft losing money after their lease: growth_signals()), the
 //     main hubs towards 750 (hub_progress(), with hub readiness, the library's growth.hubReadiness, folded into each line)
 //     and Flights by day (Check's daily load report, renamed; its day in the address, ?day=).
 //   - The airline (/planner/performance/<code>): its scorecard, then Review's page: the profit chart for the last 14
 //     intervals with its average and the table of reported days (airline_profit()), Cash, next 14 days (cash_forecast()),
-//     Route profit with its aircraft and fare changes (route_profit(), aircraft_profit(), fare_changes()) and the Fare
-//     plan (fare_plan_status()). With a route after it (/performance/PA/JFK-ORD, from Today's needs attention) the route
+//     Route profit with its aircraft and fare changes (route_profit(), aircraft_profit(), fare_changes(); since 21 Oct each
+//     route's fare index from fare_ladder() and its 14-day load sparkline from route_days) and the Fare plan
+//     (fare_plan_status()). With a route after it (/performance/PA/JFK-ORD, from Today's needs attention) the route
 //     profit table opens filtered to that route.
-// Manual entry moved to Systems. The saves here, + fare plan and remove, are one planner_save() call each.
+// Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
+// planner_save() call each.
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { game, growth, loadReport, setting } from "@rules";
@@ -35,21 +38,24 @@ import { useAirports, useAllRoutes, useLoads, useMarkets } from "../routes/reads
 import { itemRoute } from "../screens";
 import { rulesLegs, typeName, type PlanLegRow } from "../tails/model";
 import { useLaunches, usePlanCards, usePlanLegs, useTailsAircraft } from "../tails/reads";
-import { BarChart, CostChart, ForecastChart, GroupChart, Scatter, Spark, TailChart } from "./Charts";
+import { BarChart, CostChart, ForecastChart, GroupChart, LoadSpark, Scatter, Spark, TailChart } from "./Charts";
+import { FareLadderBoard } from "./FareLadder";
 import { daySummary, loadKey, loadsByFlight, moveDay, parseDay, utcToday } from "./flights";
 import { FlightsByDay } from "./FlightsByDay";
 import { GrowthSignals, MainHubs, type ReadyRow } from "./Growth";
 import {
-  BOARDS, GROUP_BOARDS, MARKS, MARK_ORDER, PERIODS, SORTS, barTip, capturedLine, cardWords, chartIntervals, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, kk, markCounts, ms,
-  offersFarePlan, pc, planWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow, type BoardKey, type Card, type FareChange, type FarePlanAnswer,
-  type Forecast, type GroupBoardKey, type Mark, type ProfitAnswer, type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
+  BOARDS, GROUP_BOARDS, MARKS, MARK_ORDER, PERIODS, SORTS, barTip, capturedLine, cardWords, chartIntervals, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, indexWords, kk,
+  ladderLine, ladderPlanChanges, loads14, markCounts, ms, offersFarePlan, pc, planWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
+  type BoardKey, type Card, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
+  type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
 } from "./model";
 import {
-  refreshFigures, useAircraftProfit, useAirlineDays, useDayLoads, useFareChanges, useFarePlan, useForecast, useGrowthSignals, useHandLoads, useHubProgress, useProfits,
-  useReviewCards, useRouteProfit,
+  refreshFigures, useAircraftProfit, useAirlineDays, useDayLoads, useFareChanges, useFareLadder, useFareLadders, useFarePlan, useForecast, useGrowthSignals, useHandLoads,
+  useHubProgress, useProfits, useReviewCards, useRouteDays, useRouteProfit,
 } from "./reads";
 
 const NOTES: Record<BoardKey | GroupBoardKey, string> = {
+  "Fare ladder": "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90% (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off",
   "The group today": "from last night's capture · flight profit is before leases; leases and the week-end closing are this week's scheduled payments, per day",
   "Growth signals": "where each airline should grow next, and what to trim · from the nightly capture",
   "Main hubs": "",
@@ -98,9 +104,14 @@ export function Performance() {
   const aircraftQ = useAircraftProfit(selId, days);
   const changesQ = useFareChanges(selId);
   const planQ = useFarePlan(selId);
+  const ladderQ = useFareLadder(selId);
+  const routeDaysQ = useRouteDays(selId, moveDay(utcDay, -13), utcDay);
 
   // ---------- the group's boards
   const group = !isAirline ? w : undefined;
+  const laddersQ = useFareLadders(group !== undefined ? cards.map((c) => c.airline_id) : []);
+  const ladders = new Map<number, LadderAnswer>();
+  laddersQ.forEach((q, i) => { const c = cards[i]; if (c && q.data) ladders.set(c.airline_id, q.data); });
   const signalsQ = useGrowthSignals(group);
   const progressQ = useHubProgress(group);
   const routesQ = useAllRoutes(group);
@@ -184,11 +195,14 @@ export function Performance() {
 
   const selProfit = selId != null ? profitOf.get(selId) : undefined;
   const common = !!(cardsQ.data && airlinesQ.data && rules && profitsQ.every((q) => q.data) && daysQ.data);
-  const airlineReady = !!(sel && selProfit && forecastQ.data && routeQ.data && !routeQ.isFetching && aircraftQ.data && !aircraftQ.isFetching && changesQ.data && planQ.data);
-  const groupReady = !!(signalsQ.data && progressQ.data && growthParts && (!cardCodes.length || airportsQ.data) && launchesQ.data && dayReady);
+  const airlineReady = !!(sel && selProfit && forecastQ.data && routeQ.data && !routeQ.isFetching && aircraftQ.data && !aircraftQ.isFetching && changesQ.data && planQ.data
+    && ladderQ.data && routeDaysQ.data);
+  const groupReady = !!(signalsQ.data && progressQ.data && growthParts && (!cardCodes.length || airportsQ.data) && launchesQ.data && dayReady
+    && laddersQ.every((q) => q.data && !q.isFetching));
   const ready = common && (isAirline ? airlineReady : groupReady);
   const loadError = firstError(world, airlinesQ, rulesQ, cardsQ, daysQ, ...profitsQ,
-    ...(isAirline ? [forecastQ, routeQ, aircraftQ, changesQ, planQ] : [signalsQ, progressQ, routesQ, loadsQ, marketsQ, tailsQ, planCardsQ, planLegsQ, launchesQ, airportsQ, dayLoadsQ, handQ]));
+    ...(isAirline ? [forecastQ, routeQ, aircraftQ, changesQ, planQ, ladderQ, routeDaysQ]
+      : [...laddersQ, signalsQ, progressQ, routesQ, loadsQ, marketsQ, tailsQ, planCardsQ, planLegsQ, launchesQ, airportsQ, dayLoadsQ, handQ]));
   const board = (k: BoardKey | GroupBoardKey, children: ReactNode, opts: { title?: ReactNode; note?: ReactNode; figure?: string } = {}) => (
     <FoldBoard key={k} k={k} title={opts.title} note={opts.note ?? NOTES[k]} folded={folded.has(k)} onToggle={() => toggle(k)} figure={opts.figure}>{children}</FoldBoard>
   );
@@ -207,7 +221,7 @@ export function Performance() {
       <div className="vh">
         <h1>{sel ? <>{sel.name}</> : "Performance"}</h1>
         <p>{sel ? "How it's doing, and why: profit, cash for the next 14 days, route profit, aircraft, fare changes and the fare plan."
-          : "How each airline is doing, and why: the scorecards against last week, the growth signals, the main hubs and the flights by day."}</p>
+          : "How each airline is doing, and why: the scorecards against last week, this Saturday's fare ladder, the growth signals, the main hubs and the flights by day."}</p>
       </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
@@ -233,6 +247,7 @@ export function Performance() {
             figure: `performance ${sel.name}: Cash, next 14 days` }) : null}
           {routeQ.data && aircraftQ.data && changesQ.data && planQ.data ? board("Route profit", (
             <RouteProfitBody key={sel.airline_id + "|" + (routeKey ?? "")} airline={sel} r={routeQ.data} aircraft={aircraftQ.data} changes={changesQ.data} plan={planQ.data}
+              ladder={ladderQ.data} routeDays={routeDaysQ.data ?? []} today={utcDay}
               days={days} onDays={setDays} busy={busy} initialQuery={routeKey ? routeKey.replace("-", " ") : ""}
               city={(c) => rules.airports.get(c)?.city ?? ""} soldOutMin={String(setting(rules, "growth_sold_out_min_departures", sel.airline_id) ?? "")}
               raisePct={Number(setting(rules, "fare_plan_raise_pct", sel.airline_id) ?? NaN)}
@@ -251,6 +266,11 @@ export function Performance() {
         <>
           <div className="fgrid" data-figure="performance: scorecards">{cards.map((c) => card(c, false))}</div>
           <FoldTools onCollapse={() => setFolded(new Set(allFolds))} onExpand={() => setFolded(new Set())} />
+          {board("Fare ladder", <FareLadderBoard airlines={airlines} ladders={ladders} busy={busy} onPlan={(a, ladder) => {
+            const ch = w !== undefined ? ladderPlanChanges({ worldId: w, airlineId: a.id, routes: ladder.routes, utcDay, nowMs: Date.now() }) : [];
+            if (!ch.length) { showMessage(`Nothing of ${a.name}'s to put on the fare plan.`); return; }
+            void save(ch).then((res) => { if (res?.status === "saved") showMessage(`${a.name}: ${ch.length} on the fare plan (${ladderLine(ladder.moves)}). Make them in the game; the next capture ticks each off.`); });
+          }} />, { title: "The fare ladder", figure: "performance: fare ladder board" })}
           {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={groupRows} />, { figure: "performance: the group today" }) : null}
           {signalsQ.data && growthParts ? board("Growth signals", <GrowthSignals rules={rules} signals={signalsQ.data} ready={growthParts.ready} airlines={airlines} />,
             { figure: "performance: growth signals" }) : null}
@@ -354,13 +374,17 @@ function ForecastBody({ fc, cushion, airline }: { fc: Forecast; cushion: number;
   );
 }
 
-/** Route profit, its aircraft and the fare changes, for the period picked. */
-function RouteProfitBody({ airline, r, aircraft, changes, plan, days, onDays, busy, initialQuery, city, soldOutMin, raisePct, onAdd }: {
+/** Route profit, its aircraft and the fare changes, for the period picked; each route with its fare index (the fare
+ *  ladder's economy row) and its 14-day load sparkline (route_days) since 21 Oct. */
+function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDays, today, days, onDays, busy, initialQuery, city, soldOutMin, raisePct, onAdd }: {
   airline: Card;
   r: RouteProfitAnswer;
   aircraft: AircraftRow[];
   changes: FareChange[];
   plan: FarePlanAnswer;
+  ladder: LadderAnswer | undefined;
+  routeDays: readonly RouteDayRow[];
+  today: string;
   days: number;
   onDays: (d: number) => void;
   busy: boolean;
@@ -379,6 +403,8 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, days, onDays, bu
   const shown = shownRoutes(r.routes, mark, sort);
   const query = q.trim().toLowerCase();
   const k = (v: number) => (v >= 0 ? "+" : "−") + Math.round(Math.abs(v) * 1000) + "k";
+  const indexOf = (x: { route_id: number | null; hub: string; dest: string }) => indexWords(ladder?.routes.find((l) => l.cabin === "economy"
+    && (x.route_id != null ? l.route_id === x.route_id : (l.hub === x.hub && l.dest === x.dest) || (l.hub === x.dest && l.dest === x.hub))));
   return (
     <>
       <div className="rpf">
@@ -403,7 +429,7 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, days, onDays, bu
       <div className="tscroll">
         <table className="tbl rptbl" id="rp-table" data-figure="performance: route profit table">
           <tbody>
-            <tr><th>Route</th><th className="num">Flights</th><th className="num">Profit a flight</th><th className="num">Margin</th><th className="num">A week</th><th className="num">Economy</th><th className="num">Sold out</th><th className="num">Business</th><th className="num">Cargo</th><th className="num">Economy fare</th><th>Signal</th></tr>
+            <tr><th>Route</th><th className="num">Flights</th><th className="num">Profit a flight</th><th className="num">Margin</th><th className="num">A week</th><th className="num">Economy</th><th className="num">Sold out</th><th className="num">Business</th><th className="num">Cargo</th><th className="num">Economy fare</th><th className="num" title="the latest captured economy fare against the first, times the launch level (the fare ladder)">Fare index</th><th>14 days</th><th>Signal</th></tr>
             {shown.map((x) => {
               const txt = routeSearchText(x, city);
               return (
@@ -418,6 +444,8 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, days, onDays, bu
                   <td className="num">{pc(x.business)}</td>
                   <td className="num">{pc(x.cargo)}</td>
                   <td className="num">{x.economy_fare == null ? "—" : Math.round(x.economy_fare)}</td>
+                  {(() => { const ix = indexOf(x); return <td className="num" data-fare-index={ix.text} title={ix.flag ? `the fare ladder records ${ix.flag}: the captured fares don't match it` : undefined}>{ix.text}{ix.flag ? <span className="dim"> · {ix.flag}</span> : null}</td>; })()}
+                  <td><LoadSpark values={loads14(routeDays, x, today)} /></td>
                   <td>
                     <span className={`pill ${MARKS[x.mark].cls} sm`} title={x.why}>{MARKS[x.mark].label}</span>
                     {offersFarePlan(x, plan.plan) ? <> <button type="button" className="link sm" data-fareadd={`${x.hub}-${x.dest}`} disabled={busy}

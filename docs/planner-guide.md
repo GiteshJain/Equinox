@@ -209,6 +209,28 @@ money figure is the database's. Its boards are open on arrival, the most importa
   own "+N this week" (counted from the schedule's flights that day, so it can differ) isn't shown. An airline with no
   day a week ago says so, shows no arrow and keeps the card's "+N this week". The money figures have no such change: the
   history keeps no profit a day, and their trend is the sparkline. Tap a scorecard to open the airline.
+- **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves, one section per airline. Each cabin of
+  each route has a **level**, its fare as a % of the game's default price (the latest the fare plan recorded, else the
+  launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin it goes **up** 5 points when every
+  flight sold out (at least 5 departures), **holds** at 90–99%, and goes **down** 5 points under 90%, then holds 2
+  weeks. It holds while a route is under 7 days old, never goes more than 20 points above launch for now, and never
+  under launch (nor under the 60% floor where another player flies the pair). Each airline's section has:
+  - its moves in one line: "12 up, 30 hold, 2 down";
+  - **the game actions**, numbered and in order, each with **copy**: in the game, **Ticket price adjustment** with the
+    calculation baseline **default price** (each action sets the level itself). Where most of a base's routes move to
+    the same level, its two base actions come first (From the base to anywhere, From anywhere to the base), then the
+    single routes that differ, two actions each (From A to B, From B to A). The first 10 show, with **show all N** for
+    the rest (an airline can have 50 or more while most routes still sit at launch);
+  - **Put on the fare plan:** one tap writes a fare plan row for each level that changes, and for a hold that follows a
+    step down (so the hold has a record). The button then says **On the fare plan**, with how many the captures show
+    in the game; the next capture ticks each off (the Fare plan board on the airline's page);
+  - the routes table: route, cabin, level with its steps above launch, the sold-out share, the move (a step down in
+    amber) and its reason. **Sort** by the moves (first), route, level or sold-out share. It shows its first 10 rows,
+    with **show all N**, as the growth lists do. A level the captured fares don't match shows its fare index beside it.
+
+  A rival starting on a pair should pause that route for a week (manual §5); the planner can't see that yet (step 4),
+  so the Saturday review checks the scan by hand. Fare moves never appear on Today or in Needs attention. In a chat,
+  `select public.fare_ladder(<airline id>);` gives the same list.
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
   business (manual §5).
@@ -248,11 +270,16 @@ money figure is the database's. Its boards are open on arrival, the most importa
   - **Route profit:** each captured flight's income minus its flight costs (fuel, handling, on-board, landing and
     air-traffic fees, maintenance), from the bank statement, for the last day, 3 days or 7 days, with the filters,
     both charts and the table; each route is marked **add a flight**, **raise fares** or **hold**. **+ fare plan** plans
-    a 5% economy rise (the setting *fare_plan_raise_pct*) from the route's latest captured fare. Under it, the
-    **aircraft** (each one's flight profit a day, less its lease) and the **fare changes** spotted in the captures,
-    with the load the day before and after.
-  - **Fare plan:** the fare changes to make in the game, with **remove**. The next capture spots each one. It's
-    reviewed together on Saturdays.
+    a 5% economy rise (the setting *fare_plan_raise_pct*) from the route's latest captured fare. Since 21 Oct each route
+    also has its **fare index** (the latest captured economy fare against the first, times the launch level: a route
+    still at launch reads 100, Ryanair's 85; a level on the fare ladder the fares don't match is named beside it) and a
+    **14-day** sparkline of its loads, a bar a day from the daily history (*route_days*: passengers ÷ seats, both
+    directions; lighter under 85%). Under it, the **aircraft** (each one's flight profit a day, less its lease) and the
+    **fare changes** spotted in the captures, with the load the day before and after.
+  - **Fare plan:** the fare changes to make in the game, with **remove**: fare tests, and since 21 Oct the fare ladder's
+    moves, each with its move and level ("+5% · up to 105%"). The next capture spots each one: a fare test once half
+    its change shows, a ladder's move once its fare moves by the change, within 1%, in its own cabin. It's reviewed
+    together on Saturdays.
 
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*

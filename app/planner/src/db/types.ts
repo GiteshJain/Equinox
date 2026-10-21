@@ -427,14 +427,14 @@ isOneToOne: false
                   ]
                 },"fare_plan": {
                   Row: {
-                    "airline_id": number,"cabin_class": string | null,"change_pct": number | null,"created_at": string,"extra": NonNullable<Json>,"fare_from": number | null,"id": number,"legacy_key": string | null,"proposed_on": string | null,"reason": string | null,"route_id": number | null,"status": string,"updated_at": string,"world_id": number
+                    "airline_id": number,"cabin_class": string | null,"change_pct": number | null,"created_at": string,"extra": NonNullable<Json>,"fare_from": number | null,"id": number,"ladder_move": string | null,"legacy_key": string | null,"level_pct": number | null,"proposed_on": string | null,"reason": string | null,"route_id": number | null,"status": string,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "airline_id": number,"cabin_class"?: string | null,"change_pct"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"fare_from"?: number | null,"id"?: never,"legacy_key"?: string | null,"proposed_on"?: string | null,"reason"?: string | null,"route_id"?: number | null,"status": string,"updated_at"?: string,"world_id": number
+                    "airline_id": number,"cabin_class"?: string | null,"change_pct"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"fare_from"?: number | null,"id"?: never,"ladder_move"?: string | null,"legacy_key"?: string | null,"level_pct"?: number | null,"proposed_on"?: string | null,"reason"?: string | null,"route_id"?: number | null,"status": string,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "airline_id"?: number,"cabin_class"?: string | null,"change_pct"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"fare_from"?: number | null,"id"?: never,"legacy_key"?: string | null,"proposed_on"?: string | null,"reason"?: string | null,"route_id"?: number | null,"status"?: string,"updated_at"?: string,"world_id"?: number
+                    "airline_id"?: number,"cabin_class"?: string | null,"change_pct"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"fare_from"?: number | null,"id"?: never,"ladder_move"?: string | null,"legacy_key"?: string | null,"level_pct"?: number | null,"proposed_on"?: string | null,"reason"?: string | null,"route_id"?: number | null,"status"?: string,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -1738,6 +1738,9 @@ isOneToOne: false
 { Args: { "p_secret": string }; Returns: Json
                            },
 "fare_changes":
+{ Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
+                           },
+"fare_ladder":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
                            },
 "fare_plan_status":
