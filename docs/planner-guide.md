@@ -219,7 +219,8 @@ money figure is the database's. Its boards are open on arrival, the most importa
   - **the game actions**, numbered and in order, each with **copy**: in the game, **Ticket price adjustment** with the
     calculation baseline **default price** (each action sets the level itself). Where most of a base's routes move to
     the same level, its two base actions come first (From the base to anywhere, From anywhere to the base), then the
-    single routes that differ, two actions each (From A to B, From B to A);
+    single routes that differ, two actions each (From A to B, From B to A). The first 10 show, with **show all N** for
+    the rest (an airline can have 50 or more while most routes still sit at launch);
   - **Put on the fare plan:** one tap writes a fare plan row for each level that changes, and for a hold that follows a
     step down (so the hold has a record). The button then says **On the fare plan**, with how many the captures show
     in the game; the next capture ticks each off (the Fare plan board on the airline's page);

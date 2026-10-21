@@ -1,8 +1,8 @@
 // Performance → the fare ladder (manual §5, since 21 Oct; spec docs/specs/2026-10-21-fare-ladder.md §3): for each airline,
 // this Saturday's moves in one line, the game actions to make (Ticket price adjustment, baseline default price), numbered
 // and in order, each copyable, Put on the fare plan (one planner_save() call: model.ts's ladderPlanChanges), and the
-// routes table (route, cabin, level with its steps above launch, the sold-out share, the move and its reason), sortable
-// and cut to 10 rows with "show all" as the growth lists are. Every level, move and action is fare_ladder()'s. Colour
+// routes table (route, cabin, level with its steps above launch, the sold-out share, the move and its reason), sortable;
+// the actions and the routes each cut to 10 rows with "show all" as the growth lists are. Every level, move and action is fare_ladder()'s. Colour
 // only for action: a step down in amber, a step up plain. The moves never appear on Today or in Needs attention.
 import { useState } from "react";
 import { Link } from "react-router";
@@ -84,9 +84,12 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
   );
 }
 
-/** The game actions, numbered and in order, each with its own copy button. */
+/** The game actions, numbered and in order, each with its own copy button; the first 10 with "show all N", as the routes
+ *  table (on the copy of 20 Oct an airline had 50 to 76, and the screen ran to 15,660 px with them all open). */
 function Actions({ code, actions }: { code: string; actions: readonly LadderAction[] }) {
+  const [open, setOpen] = useState(false);
   if (!actions.length) return <div className="dim flnone">No changes to make in the game this Saturday.</div>;
+  const cut = listCut(actions, open);
   const copy = (a: LadderAction) => {
     const done = () => showMessage(`Copied: ${a.text}`);
     try {
@@ -98,16 +101,17 @@ function Actions({ code, actions }: { code: string; actions: readonly LadderActi
     }
   };
   return (
-    <div className="flacts" data-ladder-actions={code}>
+    <div className="flacts" data-ladder-actions={code} data-list={`actions ${code}`} data-list-rows={actions.length} data-list-shown={cut.shown.length}>
       <div className="dim">In the game, Ticket price adjustment with the calculation baseline default price, in this order ({actions.length}):</div>
       <ol>
-        {actions.map((a) => (
-          <li key={a.n} data-action={a.n} data-kind={a.kind}>
+        {cut.shown.map((a) => (
+          <li key={a.n} value={a.n} data-action={a.n} data-kind={a.kind}>
             <span className="fltext">{a.text}</span>{a.kind === "base" ? <span className="dim"> · the whole base</span> : null}{" "}
             <button type="button" className="link sm" data-copy-action={a.n} onClick={() => copy(a)}>copy</button>
           </li>
         ))}
       </ol>
+      {cut.button ? <button type="button" className="link gmore" data-list-more={`actions ${code}`} aria-expanded={open} onClick={() => setOpen(!open)}>{cut.button}</button> : null}
     </div>
   );
 }
