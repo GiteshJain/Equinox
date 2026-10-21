@@ -14,8 +14,10 @@ import type { RouteRow as TableRoute } from "../routes/model";
 import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
 import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
-  CHART_INTERVALS, LIST_TOP, barLayout, barTip, capturedLine, cardWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, kk, listCut, markCounts, nextOrderWords,
-  offersFarePlan, planWords, safeWords, sg, shownRoutes, sparkBars, weekOnWeek, type Card, type DayRow, type PlanRow, type ProfitDay, type RouteRow,
+  CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat,
+  historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords, offersFarePlan,
+  planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, stepWords, weekOnWeek, type Card, type DayRow, type LadderRoute,
+  type PlanRow, type ProfitDay, type RouteDayRow, type RouteRow,
 } from "./model";
 import type { CapturedLoad, HandLoads } from "./reads";
 
@@ -230,6 +232,98 @@ describe("the growth lists cut to their first 10 rows (21 Oct: Performance ran t
     expect(listCut(rows.slice(0, 3), false).shown).toHaveLength(3);
     expect(listCut([], false)).toEqual({ shown: [], button: null });
     expect(listCut(rows.slice(0, 11), false)).toEqual({ shown: rows.slice(0, 10), button: "show all 11" });
+  });
+});
+
+const lr = (hub: string, dest: string, x: Partial<LadderRoute> = {}): LadderRoute => ({
+  route_id: 1, hub, dest, cabin: "economy", departures: 14, sold_out: 14, sold_out_share: 100, average_fare: 300, first_fare: 300, first_on: "2026-10-06",
+  latest_fare: 300, latest_on: "2026-10-20", fare_index: 100, index_matches: true, level: 100, recorded: false, steps: 0, move: "up", new_level: 105, new_steps: 1,
+  change_pct: 5, reason: "sold out 14 of 14", contested: false, floor: 100, cap: 120, new_route: false, planned: false, plan_id: null, applied: false, seen_on: null,
+  to_plan: true, ...x,
+});
+
+describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and Put on the fare plan's rows", () => {
+  it("this Saturday's moves in one line", () => {
+    expect(ladderLine({ up: 12, hold: 30, down: 2 })).toBe("12 up, 30 hold, 2 down");
+    expect(ladderLine({ up: 0, hold: 0, down: 0 })).toBe("0 up, 0 hold, 0 down");
+  });
+  it("a level with its steps above launch", () => {
+    expect([levelWords(100, 0), levelWords(105, 1), levelWords(120, 4), levelWords(102, 0.4), levelWords(95, -1)])
+      .toEqual(["100% · launch", "105% · 1 step up", "120% · 4 steps up", "102% · 0.4 steps up", "95% · 1 step under launch"]);
+    expect(stepWords(2)).toBe("2 steps up");
+  });
+  it("the move: up plain, down in amber, hold quiet", () => {
+    expect(moveWords(lr("A", "B"))).toEqual({ text: "up to 105%", kind: "up" });
+    expect(moveWords(lr("A", "B", { move: "down", new_level: 100 }))).toEqual({ text: "down to 100%", kind: "down" });
+    expect(moveWords(lr("A", "B", { move: "hold", new_level: 90 }))).toEqual({ text: "hold", kind: "hold" });
+  });
+  it("the sold-out share, and a route with no flights captured", () => {
+    expect(soldWords(lr("A", "B", { sold_out: 13, sold_out_share: 92.9 }))).toBe("13/14 · 93%");
+    expect(soldWords(lr("A", "B", { departures: 0, sold_out: 0, sold_out_share: null }))).toBe("no flights");
+  });
+  it("a move on the fare plan already: to do in the game, or seen", () => {
+    expect(plannedWords(lr("A", "B"), (d) => d)).toBe("");
+    expect(plannedWords(lr("A", "B", { planned: true }), (d) => d)).toBe("on the fare plan · to do in the game");
+    expect(plannedWords(lr("A", "B", { planned: true, applied: true, seen_on: "2026-10-25" }), (d) => d)).toBe("on the fare plan · seen in the game 2026-10-25");
+  });
+  it("Put on the fare plan: how many, or on the plan already, or nothing to put", () => {
+    const routes = [lr("A", "B"), lr("A", "C", { to_plan: false, planned: true, applied: true }), lr("A", "D", { to_plan: false, planned: true })];
+    expect(planButton({ to_plan: 1, planned: 2, routes })).toEqual({ text: "Put on the fare plan (1)", enabled: true, note: "2 on the fare plan this Saturday, 1 seen in the game" });
+    expect(planButton({ to_plan: 0, planned: 2, routes })).toEqual({ text: "On the fare plan", enabled: false, note: "2 on the fare plan this Saturday, 1 seen in the game" });
+    expect(planButton({ to_plan: 0, planned: 0, routes: [] })).toEqual({ text: "Nothing to put on the fare plan", enabled: false, note: "" });
+  });
+  it("sorts: moves first (down, up, hold), by route, by level, by the sold-out share (lowest first, no flights last); ties keep the database's order", () => {
+    const rows = [lr("A", "B", { move: "hold", level: 110 }), lr("A", "C", { move: "up", sold_out_share: 100 }), lr("A", "D", { move: "down", sold_out_share: 70, level: 115 }),
+      lr("A", "E", { move: "up", cabin: "business", departures: 0, sold_out_share: null }), lr("A", "F", { move: "hold", sold_out_share: 93 })];
+    expect(ladderRows(rows, "move").map((r) => r.dest)).toEqual(["D", "C", "E", "B", "F"]);
+    expect(ladderRows(rows, "route").map((r) => r.dest)).toEqual(["B", "C", "D", "E", "F"]);
+    expect(ladderRows(rows, "level").map((r) => r.dest)).toEqual(["D", "B", "C", "E", "F"]);
+    expect(ladderRows(rows, "sold").map((r) => r.dest)).toEqual(["D", "F", "B", "C", "E"]);
+    expect(LADDER_SORTS.map((s) => s[0])).toEqual(["move", "route", "level", "sold"]);
+  });
+  it("Put on the fare plan's rows: one insert per route and cabin marked to_plan, the level and move the ladder's, on the UTC day", () => {
+    const routes = [lr("A", "B", { route_id: 7 }), lr("A", "C", { route_id: 8, to_plan: false }),
+      lr("A", "D", { route_id: 9, cabin: "business", move: "hold", new_level: 105, level: 105, change_pct: 0, reason: "held after a step down on 18 Oct", latest_fare: 912.346 }),
+      lr("A", "E", { route_id: 10, move: "down", level: 110, new_level: 105, change_pct: -4.5, reason: "sold out 11 of 14", latest_fare: null })];
+    const ch = ladderPlanChanges({ worldId: 1, airlineId: 2, routes, utcDay: "2026-10-24", nowMs: 1_793_000_000_000 });
+    const key = (i: number) => `fl${(1_793_000_000_000).toString(36)}-${i}`;
+    expect(ch).toEqual([
+      { table: "fare_plan", op: "insert", values: { world_id: 1, airline_id: 2, route_id: 7, legacy_key: key(0), cabin_class: "economy", change_pct: 5, fare_from: 300,
+        proposed_on: "2026-10-24", status: "planned", reason: "sold out 14 of 14", level_pct: 105, ladder_move: "up" } },
+      { table: "fare_plan", op: "insert", values: { world_id: 1, airline_id: 2, route_id: 9, legacy_key: key(1), cabin_class: "business", change_pct: 0, fare_from: 912.35,
+        proposed_on: "2026-10-24", status: "planned", reason: "held after a step down on 18 Oct", level_pct: 105, ladder_move: "hold" } },
+      { table: "fare_plan", op: "insert", values: { world_id: 1, airline_id: 2, route_id: 10, legacy_key: key(2), cabin_class: "economy", change_pct: -4.5, fare_from: null,
+        proposed_on: "2026-10-24", status: "planned", reason: "sold out 11 of 14", level_pct: 105, ladder_move: "down" } },
+    ]);
+    expect(ladderPlanChanges({ worldId: 1, airlineId: 2, routes: [routes[1] as LadderRoute], utcDay: "2026-10-24", nowMs: 1 })).toEqual([]);
+  });
+  it("the fare plan words a ladder row with its move and level, and a fare test as before", () => {
+    expect(planWords(plan({ change_pct: 5, level_pct: 105, ladder_move: "up" }), (d) => d).change).toBe("+5% · up to 105%");
+    expect(planWords(plan({ change_pct: 0, level_pct: 105, ladder_move: "hold" }), (d) => d).change).toBe("0% · hold to 105%");
+    expect(planWords(plan(), (d) => d).change).toBe("+5%");
+  });
+  it("the route profit table's fare index, flagged when the level recorded doesn't match it", () => {
+    expect(indexWords(lr("A", "B", { fare_index: 104.96 }))).toEqual({ text: "105", flag: "" });
+    expect(indexWords(lr("A", "B", { fare_index: 100, index_matches: false, level: 110 }))).toEqual({ text: "100", flag: "level 110%" });
+    expect(indexWords(lr("A", "B", { fare_index: null }))).toEqual({ text: "—", flag: "" });
+    expect(indexWords(undefined)).toEqual({ text: "—", flag: "" });
+  });
+  it("the 14-day load sparkline: both directions together, by the route or its two airports, at most 100%, a day with no seats empty", () => {
+    const d = (day: string, o: string, t: string, pax: number | null, seats: number | null, route_id: number | null = 7): RouteDayRow =>
+      ({ route_id, origin_code: o, dest_code: t, day, passengers: pax, seats });
+    const rows = [d("2026-10-20", "AAA", "BBB", 170, 180), d("2026-10-20", "BBB", "AAA", 190, 180), d("2026-10-19", "AAA", "BBB", 90, 180),
+      d("2026-10-18", "BBB", "AAA", 200, 180, null), d("2026-10-06", "AAA", "BBB", 180, 180), d("2026-10-07", "AAA", "BBB", 50, null), d("2026-10-20", "AAA", "CCC", 10, 180, 8)];
+    const v = loads14(rows, { route_id: 7, hub: "AAA", dest: "BBB" }, "2026-10-20");
+    expect(v).toHaveLength(SPARK_DAYS);
+    expect(v.slice(-3)).toEqual([100, 50, 100]);
+    expect(v[0]).toBeNull();
+    expect(v[1]).toBeNull();
+    expect(v.filter((x) => x != null)).toHaveLength(3);
+    const bars = loadSparkBars(v);
+    expect(bars).toHaveLength(3);
+    expect(bars.map((b) => [b.h, b.low])).toEqual([[16, false], [8, true], [16, false]]);
+    expect(sparkWords(v)).toBe("3 days' load: 50% to 100%, 83% on average");
+    expect(sparkWords(Array(14).fill(null))).toBe("no loads in the daily history for the last 14 days");
   });
 });
 

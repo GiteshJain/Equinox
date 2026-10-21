@@ -3,7 +3,7 @@
 // over anything with a data-tip, as the old .maptip does.
 import { useRef, type MouseEvent as RMouseEvent, type ReactNode } from "react";
 import {
-  barLayout, costParts, forecastLayout, groupLayout, scatterLayout, sparkBars, tailBars, type AircraftRow, type AverageFlight, type Forecast, type GroupRow,
+  barLayout, costParts, forecastLayout, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type Forecast, type GroupRow,
   type ProfitDay, type RouteRow,
 } from "./model";
 
@@ -68,6 +68,18 @@ export function Spark({ days }: { days: readonly ProfitDay[] }) {
     <svg className="spark" viewBox="0 0 120 30" aria-hidden="true">
       <line x1="0" x2="120" y1="15" y2="15" className="zero" />
       {sparkBars(days).map((b, i) => <rect key={i} x={b.x.toFixed(1)} y={b.y.toFixed(1)} width={b.w.toFixed(1)} height={b.h.toFixed(1)} rx="1.5" className={b.neg ? "bneg" : "bpos"} />)}
+    </svg>
+  );
+}
+
+/** The route profit table's 14-day load sparkline (route_days): a bar a day, under 85% a shade lighter. */
+export function LoadSpark({ values }: { values: readonly (number | null)[] }) {
+  const bars = loadSparkBars(values);
+  return (
+    <svg className="lspark" viewBox="0 0 56 16" role="img" aria-label={sparkWords(values)} data-spark-days={bars.length}>
+      <title>{sparkWords(values)}</title>
+      <line x1="0" x2="56" y1="15.5" y2="15.5" className="zero" />
+      {bars.map((b, i) => <rect key={i} x={b.x.toFixed(1)} y={b.y.toFixed(1)} width={b.w.toFixed(1)} height={b.h.toFixed(1)} rx="0.8" className={b.low ? "blow" : "bpos"} />)}
     </svg>
   );
 }

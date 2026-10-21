@@ -17,8 +17,10 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    with a card for each of our airlines, Aircraft to file, Needs attention, Game check, the to-do board and Coming up, all
    open, with no Collapse all; Routes on its list, with our airlines on its buttons in their order; Tails, its list and
    the deliveries board; Performance, a scorecard for each of the copy's airlines in their order and the group's boards
-   open (the group today when shown, Growth signals, Main hubs, Flights by day), then a scorecard opens its airline's
-   page (Profit, Cash next 14 days, Route profit, Fare plan, open); Systems, the Systems board first, then its four
+   open (the fare ladder since 21 Oct, the group today when shown, Growth signals, Main hubs, Flights by day; the fare
+   ladder with a section for each airline, its moves in one line and its routes table cut to 10 rows with "show all N"),
+   then a scorecard opens its airline's page (Profit, Cash next 14 days, Route profit with its fare index and 14-day
+   load sparkline, Fare plan, open); Systems, the Systems board first, then its four
    boards folded (Capture with the copy's airlines, Manual entry, Cabins, Aircraft checks), and three (no Aircraft checks)
    with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
@@ -33,7 +35,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
 5. A preview address (127.0.0.1) reads, says "preview · not saved", sends no write, and its notice links to the live
    planner at /planner/.
 6. Every screen opens at the frozen moment (the copy's latest capture plus one hour), at 1280 and 380 px wide: ready,
-   no errors, no sideways scroll (Systems with every board open, Reference with every section open), no link into the
+   no errors, no sideways scroll (Systems with every board open, Reference with every section open, Performance's fare
+   ladder with every routes table cut and then opened in full), no link into the
    old planner's address (/planner/old/), one used while the planner was built (/planner/next/) or a screen that went
    on 20 Oct (/planner/hubs, /planner/check, /planner/review); and one airline's Performance page the same way; a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
@@ -488,9 +491,13 @@ async def systems_opens(pl):
 async def performance_opens(pl):
     """Performance (20 Oct; Review's screen with Check's growth boards and load report until then): a scorecard for each of
     our airlines the captured figures cover, in their order, each with its figures against the same day last week (or
-    saying there's no day a week ago), and the group's boards open (the group today when shown, Growth signals, Main hubs,
-    Flights by day); each growth list shows its first 10 rows with "show all N" (21 Oct), which opens the rest in place and
-    "show fewer" closes; tapping the first scorecard opens that airline's page, its own scorecard and its four boards open."""
+    saying there's no day a week ago), and the group's boards open (the fare ladder since 21 Oct, the group today when
+    shown, Growth signals, Main hubs, Flights by day); each growth list shows its first 10 rows with "show all N" (21 Oct),
+    which opens the rest in place and "show fewer" closes; the fare ladder has a section for each airline with its moves
+    in one line ("12 up, 30 hold, 2 down"), Put on the fare plan and its routes table cut to 10 rows the same way (one
+    opened and closed again); tapping the first scorecard opens that airline's page, its own scorecard and its four boards
+    open, the route profit table with its fare index and 14-day load sparkline. Each airline's moves are printed (counts
+    only); with PLANNER_SCREENS_DIR set, each airline's moves and game actions go to fare-ladder.txt there."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
@@ -511,8 +518,41 @@ async def performance_opens(pl):
     if len(got["wow"]) != len(got["cards"]) or not all(got["wow"]):
         problems.append("a scorecard doesn't say what it's compared with")
     group = [b for b in got["boards"] if b != "The group today"]
-    if group != ["Growth signals", "Main hubs", "Flights by day"]:
+    if group != ["Fare ladder", "Growth signals", "Main hubs", "Flights by day"]:
         problems.append(f"Performance's group boards are {got['boards']}")
+    # 21 Oct: the fare ladder, a section for each airline with its moves, its game actions and its routes table cut to 10
+    ladder_js = """[...document.querySelectorAll('main[data-screen=performance] [data-figure="performance: fare ladder"] [data-ladder]')].map(x => ({
+        code: x.dataset.ladder, moves: (x.querySelector('[data-ladder-moves]') || {}).textContent || '',
+        plan: !!x.querySelector('[data-ladder-plan]'),
+        actions: [...x.querySelectorAll('[data-ladder-actions] li .fltext')].map(t => t.textContent),
+        list: (() => { const d = x.querySelector('[data-list]'); return d ? { list: d.dataset.list, rows: +d.dataset.listRows, shown: d.querySelectorAll('table tr').length - 1,
+          button: (d.querySelector(':scope > [data-list-more]') || {}).textContent || '' } : null; })() }))"""
+    ladder = await pl.pg.evaluate(ladder_js)
+    if not ladder:
+        problems.append("the fare ladder board has no airline's section")
+    for x in ladder:
+        if not re.fullmatch(r"\d+ up, \d+ hold, \d+ down", x["moves"]):
+            problems.append(f"the fare ladder's line for {x['code']} is {x['moves']!r}, not \"N up, N hold, N down\"")
+        if not x["plan"]:
+            problems.append(f"the fare ladder has no Put on the fare plan for {x['code']}")
+        lst = x["list"]
+        if lst:
+            want_shown, want_button = (10, f"show all {lst['rows']}") if lst["rows"] > 10 else (lst["rows"], "")
+            if lst["shown"] != want_shown or lst["button"] != want_button:
+                problems.append(f"the fare ladder's routes for {x['code']} ({lst['rows']}) show {lst['shown']} rows with {lst['button']!r}, not {want_shown} with {want_button!r}")
+    long_ladder = next((x["list"] for x in ladder if x["list"] and x["list"]["rows"] > 10), None)
+    if long_ladder:
+        sel = f"main[data-screen=performance] [data-list={json.dumps(long_ladder['list'])}] > [data-list-more]"
+        await pl.pg.click(sel)
+        opened = next((x["list"] for x in await pl.pg.evaluate(ladder_js) if x["list"] and x["list"]["list"] == long_ladder["list"]), {})
+        if opened.get("shown") != long_ladder["rows"] or opened.get("button") != "show fewer":
+            problems.append(f"\"show all {long_ladder['rows']}\" on {long_ladder['list']!r} shows {opened.get('shown')} rows with {opened.get('button')!r}")
+        await pl.pg.click(sel)
+    ladder_words = ("; the fare ladder: " + " · ".join(f"{x['code']} {x['moves']} ({len(x['actions'])} game actions)" for x in ladder)) if ladder else ""
+    if SCREENS_DIR and ladder:
+        Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
+        (Path(SCREENS_DIR) / "fare-ladder.txt").write_text("".join(
+            f"{x['code']}: {x['moves']}\n" + "".join(f"  {i + 1}. {t}\n" for i, t in enumerate(x["actions"])) for x in ladder))
     if got["folded"]:
         problems.append(f"{got['folded']} of Performance's boards are folded on arrival (all should be open)")
     # 21 Oct: each growth list shows its first 10 rows with "show all N", which opens the rest in place and closes again
@@ -544,6 +584,11 @@ async def performance_opens(pl):
     one = await pl.pg.evaluate(page)
     if one["boards"] != ["Profit", "Cash, next 14 days", "Route profit", "Fare plan"]:
         problems.append(f"the airline's page has the boards {one['boards']}")
+    cols = await pl.pg.evaluate("""(() => { const t = document.querySelector('main[data-screen=performance] [data-figure="performance: route profit table"]');
+        return t ? { head: [...t.querySelectorAll('tr:first-child th')].map(h => h.textContent), sparks: t.querySelectorAll('svg.lspark').length,
+                     rows: t.querySelectorAll('tr[data-rprow]').length } : null; })()""")
+    if cols and ("Fare index" not in cols["head"] or "14 days" not in cols["head"] or cols["sparks"] != cols["rows"]):
+        problems.append(f"the route profit table's columns are {cols['head']}, with {cols['sparks']} sparklines for {cols['rows']} routes")
     if one["folded"]:
         problems.append("the airline's page has boards folded on arrival")
     if want and one["cards"] != want[:1]:
@@ -553,7 +598,8 @@ async def performance_opens(pl):
     await pl.pg.click("[data-screen-link=home]")
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Performance opens with a scorecard for each of the copy's {len(got['cards'])} airlines in order ({'; '.join(got['wow'][:1])}) and the group's "
-            f"{len(got['boards'])} boards open{cut_words}; the first scorecard opens {one['path']} with its {len(one['boards'])} boards open"), problems
+            f"{len(got['boards'])} boards open{cut_words}{ladder_words}; the first scorecard opens {one['path']} with its {len(one['boards'])} boards open"
+            + (f", its route profit table with the fare index and a 14-day sparkline on each of its {cols['rows']} routes" if cols else "")), problems
 
 
 async def last_screens_open(pl):
@@ -794,6 +840,19 @@ async def screens(p, port, env, facts, staff, seen, moment):
                 over = await ph.pg.evaluate(scroll)
                 if over > 0:
                     problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")
+                if name == "performance":
+                    # the fare ladder (21 Oct): there, and its routes tables opened in full, then cut again
+                    more = "main[data-screen=performance] [data-list^='ladder '] > [data-list-more]"
+                    if not await ph.pg.evaluate("""!!document.querySelector('main[data-screen=performance] [data-figure="performance: fare ladder"]')"""):
+                        problems.append(f"performance at {width} px: no fare ladder board")
+                    n_open = await ph.pg.evaluate(f"(() => {{ const b = [...document.querySelectorAll({json.dumps(more)})]; b.forEach(x => x.click()); return b.length; }})()")
+                    if n_open:
+                        await settle(ph.pg, 300)
+                        over = await ph.pg.evaluate(scroll)
+                        if over > 0:
+                            problems.append(f"performance: with the fare ladder's tables open, the page scrolls sideways by {over} px at {width} px wide")
+                        await ph.pg.evaluate(f"document.querySelectorAll({json.dumps(more)}).forEach(x => x.click())")
+                        await settle(ph.pg, 200)
                 hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
                 links += len(hrefs)
                 problems.extend(f"{name}: a link to {h}" for h in hrefs if OLD_LINK.match(h or ""))
