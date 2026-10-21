@@ -26,9 +26,9 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    load sparkline, Fare plan, open), and (22 Oct) its first route's name opens the route page: its header, the last 7
    days against the 7 before, its five boards open with as many events and rivals as route_story() gives, its links to
    Routes (which links back, "How it's doing ›") and to the airline's page, and Competition's threats each linking to
-   their route's page; Systems, the Systems board first, then its three
-   boards folded (Capture with the copy's airlines, Manual entry, Aircraft checks; Cabins went on 21 Oct), and two (no
-   Aircraft checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
+   their route's page; Systems, the Systems board first, then its four boards folded (Capture with the copy's
+   airlines, Cabin charges since 22 Oct, Manual entry, Aircraft checks; Cabins went on 21 Oct), and three (no Aircraft
+   checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
    pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)

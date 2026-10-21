@@ -4,7 +4,7 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-58 tables, 7 views and 43 functions, all in Supabase's `public` schema, plus 113 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+58 tables, 7 views and 44 functions, all in Supabase's `public` schema, plus 114 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
