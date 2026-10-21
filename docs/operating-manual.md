@@ -460,7 +460,9 @@ less important than another, point to point rather than hubs).*
 - **The cabin is chosen with each order,** among the layouts set up for its variant: if one route takes more than
   **65% of the aircraft's block time** (`settings.cabin_route_share_pct`), the layout that route's market calls for
   (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins
-  over it); otherwise the layout with the most seats. Ryanair flies Standard only. We don't refit. The plan card
+  over it); otherwise the layout with the most seats. Ryanair flies Standard only; Standard (economy only, no business)
+  is Ryanair's, so the other airlines choose among the two-cabin layouts (Leisure, Leisure Plus, Comfort), and "the most
+  seats" for them is Leisure (clarified 21 Oct, Gitesh). We don't refit. The plan card
   suggests its cabin by this rule (Tails → Deliveries, with **Use the suggestion**) and the card check flags a card whose
   cabin is missing or differs. *Since 20 Oct · why (Gitesh): the new layouts aren't captured by the defaults. Built 21 Oct
   (spec `docs/specs/2026-10-21-cabins-new-rule.md`): the Cabins board and its refit settings went, and each market keeps
