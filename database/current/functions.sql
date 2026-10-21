@@ -2162,6 +2162,8 @@ begin
     end loop;
     perform private.fold_statement(r.airline_id, array(select distinct x from unnest(v_minutes) x));
     perform private.match_flights(r.airline_id);
+    -- each captured flight still without them gets its route and aircraft (since 22 Oct)
+    perform private.fill_flight_links(r.world_id);
 
   elsif r.kind = 'events' then
     select private.airport_offset_min(a.world_id, a.home_airport_code) into v_off from public.airlines a where a.id = r.airline_id;
@@ -2220,6 +2222,7 @@ begin
     end loop;
     perform private.fill_flight_times(r.airline_id);
     perform private.match_flights(r.airline_id);
+    perform private.fill_flight_links(r.world_id);
 
   elsif r.kind = 'pnl' then
     v_day := private.capture_day(r.world_id, v_at);
@@ -2301,7 +2304,7 @@ CREATE OR REPLACE FUNCTION private.capture_refresh(p_world_id bigint)
  LANGUAGE plpgsql
  SET search_path TO ''
 AS $function$
-declare a record; v_times int := 0; v_due int := 0; v_matched int := 0;
+declare a record; v_times int := 0; v_due int := 0; v_matched int := 0; v_links jsonb;
 begin
   for a in select al.id from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
             where al.world_id = p_world_id and g.kind = 'ours' order by al.id loop
@@ -2309,7 +2312,9 @@ begin
     v_due := v_due + private.fill_due_at(a.id);
     v_matched := v_matched + private.match_flights(a.id);
   end loop;
-  return jsonb_build_object('times', v_times, 'due_at', v_due, 'matched', v_matched);
+  -- then each captured flight still without them gets its route and aircraft (since 22 Oct)
+  v_links := private.fill_flight_links(p_world_id);
+  return jsonb_build_object('times', v_times, 'due_at', v_due, 'matched', v_matched, 'links', v_links);
 end
 $function$
 
@@ -3667,14 +3672,17 @@ begin
           group by lc.route_id, lc.cabin),
   -- the fare index's baseline (manual §5, since 21 Oct). Each captured day's fare by cabin and direction: the flights'
   -- lowest (one the game priced otherwise, as a new flight at the default price on a Ryanair route, sits above it), else
-  -- the daily history's average economy fare (route_days, kept for good once the flights are archived)
+  -- the daily history's average fare in that cabin (route_days, kept for good once the flights are archived): economy's,
+  -- and since 22 Oct business's, on a day with business passengers
   dd as (select lc.route_id, lc.cabin, lc.o, lc.game_date as day, min(lc.fare) as fare from lc where lc.fare > 0 group by 1, 2, 3, 4),
-  hd as (select coalesce(r1.id, r2.id) as route_id, 'economy'::text as cabin, d.origin_code as o, d.day, avg(d.eco_fare_avg) as fare
+  hd as (select coalesce(r1.id, r2.id) as route_id, c.cabin, d.origin_code as o, d.day, avg(c.fare) as fare
            from public.route_days d
            left join ro r1 on r1.hub_code = d.origin_code and r1.dest_code = d.dest_code
            left join ro r2 on r2.hub_code = d.dest_code and r2.dest_code = d.origin_code
-          where d.airline_id = p_airline_id and d.eco_fare_avg > 0 and d.day <= v_today and coalesce(r1.id, r2.id) is not null
-          group by 1, 3, 4),
+           cross join lateral (values ('economy'::text, case when d.eco_fare_avg > 0 then d.eco_fare_avg end),
+                                      ('business'::text, case when d.bus_pax > 0 and d.bus_fare_avg > 0 then d.bus_fare_avg end)) c (cabin, fare)
+          where d.airline_id = p_airline_id and c.fare is not null and d.day <= v_today and coalesce(r1.id, r2.id) is not null
+          group by 1, 2, 3, 4),
   bd as materialized (
     select coalesce(dd.route_id, hd.route_id) as route_id, coalesce(dd.cabin, hd.cabin) as cabin, coalesce(dd.o, hd.o) as o,
            coalesce(dd.day, hd.day) as day, coalesce(dd.fare, hd.fare) as fare
@@ -5226,20 +5234,25 @@ CREATE OR REPLACE FUNCTION private.fill_flight_links(p_world_id bigint)
 AS $function$
 declare v_routes int; v_aircraft int;
 begin
+  -- only the flights still without a link (since 22 Oct each capture page and the daily snapshot call this, so it must
+  -- stay cheap): the route by the schedule's leg with that number and direction, else the airline's route on its
+  -- airports, either way round: one that isn't removed first (since 22 Oct; before, a removed route that way round won
+  -- over a live one the other way), then the one that way round
   update public.game_flights f
      set route_id = coalesce(
            (select r.route_id from public.flight_legs l join public.rotations r on r.id = l.rotation_id
              where l.airline_id = f.airline_id and l.flight_no = f.flight_no and l.origin_code = f.origin_code
                and l.dest_code = f.dest_code
              order by r.id limit 1),
-           (select r.id from public.routes r where r.airline_id = f.airline_id and r.hub_code = f.origin_code
-               and r.dest_code = f.dest_code),
-           (select r.id from public.routes r where r.airline_id = f.airline_id and r.hub_code = f.dest_code
-               and r.dest_code = f.origin_code))
+           (select r.id from public.routes r
+             where r.airline_id = f.airline_id
+               and ((r.hub_code, r.dest_code) = (f.origin_code, f.dest_code) or (r.hub_code, r.dest_code) = (f.dest_code, f.origin_code))
+             order by r.removed, r.hub_code <> f.origin_code, r.id limit 1))
    where f.world_id = p_world_id and f.route_id is null and f.origin_code is not null and f.dest_code is not null
      and exists (select 1 from public.routes r where r.airline_id = f.airline_id
                     and ((r.hub_code, r.dest_code) = (f.origin_code, f.dest_code) or (r.hub_code, r.dest_code) = (f.dest_code, f.origin_code)));
   get diagnostics v_routes = row_count;
+  -- the aircraft by the registration the loads page or the statement names
   update public.game_flights f set aircraft_id = a.id
     from public.aircraft a
    where f.world_id = p_world_id and f.aircraft_id is null and a.world_id = f.world_id
@@ -5934,10 +5947,13 @@ begin
   if not found then return false; end if;
   delete from public.game_flights where id = p_loads_id and posted_at is null and flight_no is not null returning * into l;
   if not found then return false; end if;
+  -- the route the loads row had (by its flight number), else none: the capture fills the links right after matching
+  -- (private.fill_flight_links()), so a flight whose money came first is linked by its number, not by the airports its
+  -- money-only row was linked by (since 22 Oct)
   update public.game_flights
      set game_date = l.game_date, flight_no = l.flight_no, origin_code = l.origin_code, dest_code = l.dest_code,
          dep_local = l.dep_local, arr_local = l.arr_local, dep_at = l.dep_at, arr_at = l.arr_at,
-         route_id = coalesce(route_id, l.route_id), aircraft_id = coalesce(aircraft_id, l.aircraft_id),
+         route_id = l.route_id, aircraft_id = coalesce(aircraft_id, l.aircraft_id),
          registration = l.registration, status = l.status,
          eco_pax = l.eco_pax, eco_seats = l.eco_seats, eco_fare = l.eco_fare, eco_pct = l.eco_pct,
          bus_pax = l.bus_pax, bus_seats = l.bus_seats, bus_fare = l.bus_fare, bus_pct = l.bus_pct,
@@ -6695,7 +6711,7 @@ CREATE OR REPLACE FUNCTION private.take_snapshot(p_world_id bigint, p_day date, 
  LANGUAGE plpgsql
  SET search_path TO ''
 AS $function$
-declare v_at timestamptz := coalesce(p_at, now()); v_complete boolean; n int; v_flows jsonb;
+declare v_at timestamptz := coalesce(p_at, now()); v_complete boolean; n int; v_flows jsonb; v_links jsonb;
 begin
   if p_source is null or p_source not in ('capture', 'fallback', 'backfill') then
     raise exception 'take_snapshot: source must be capture, fallback or backfill, not %', coalesce(p_source, 'null');
@@ -6719,9 +6735,15 @@ begin
     destinations = excluded.destinations, cash = excluded.cash, fixed_next7 = excluded.fixed_next7, cash_at = excluded.cash_at
   where x.source <> 'capture' or excluded.source = 'capture';
   get diagnostics n = row_count;
-  if p_flows then v_flows := private.history_flows(p_world_id, p_day - 2, p_day); end if;
+  -- the flows, once each captured flight still without them has its route and aircraft, so each route day written has
+  -- its route (since 22 Oct)
+  if p_flows then
+    v_links := private.fill_flight_links(p_world_id);
+    v_flows := private.history_flows(p_world_id, p_day - 2, p_day);
+  end if;
   return jsonb_build_object('day', p_day, 'source', p_source, 'complete', v_complete, 'at', v_at, 'airlines', n)
-         || coalesce(v_flows, '{}'::jsonb);
+         || coalesce(v_flows, '{}'::jsonb)
+         || case when v_links is null then '{}'::jsonb else jsonb_build_object('links', v_links) end;
 end
 $function$
 
