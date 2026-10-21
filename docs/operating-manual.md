@@ -474,8 +474,9 @@ less important than another, point to point rather than hubs).*
   passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads
   and image show it's safe. A rival starting on the pair (from the scan) pauses that route for a week. The planner
   works out each route's level and Saturday's moves, and lists the fewest changes to make in the game: **Ticket price
-  adjustment** with the calculation baseline **default price**, so each change sets the level itself, whole bases first
-  and single routes after. The fare plan records them and the next capture ticks each off. Fare moves never appear in
+  adjustment** with the calculation baseline **default price**, so each change sets the level itself, **route by route
+  only** (From A to B, and From B to A): never a whole base, so routes under 7 days old are never touched (Gitesh,
+  21 Oct: loads are high because the world is young). The fare plan records them and the next capture ticks each off. Fare moves never appear in
   Needs attention. The numbers are settings (step, up, down, hold weeks, cap). *Since 21 Oct · why (Gitesh, option A
   of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at
   launch fares, no fare had ever been raised, and each 5% step that holds is worth about 5M a week.*
@@ -630,6 +631,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |
 | 21 Oct | Fare changes are occasional tests through the fare plan, reviewed on Saturdays | The fare ladder: each Saturday, up 5 points on every route and cabin that sold out all week, hold at 90–99%, down under 90%; at most 20 points above launch for now (§5). Why: Gitesh, option A of the fare ladder brief; almost every flight sells out and no fare had been raised |
 | 20 Oct | Order rotation: each airline's orders rotate big market → more frequency → smaller feeders (Check → Growth → Next move, Log an order as) | Route first, then the airline: each evening's proposal picks by the route we most want to fly (§3). Why: Gitesh, 20 Oct; the board goes with the Today, Performance and Systems build |
 | 20 Oct | Within a star band, the bigger type goes where a heavy rival flies the pair or the sector is long | The smaller type wins, heavy routes included: more flights on more aircraft; a bigger variant only for reach (§3). Why: Gitesh, bookings are divided among flights and more flights give more connections |
