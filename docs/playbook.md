@@ -465,7 +465,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
   reviews it, and **you say "merge"** to make it live. Database changes are applied after the merge. Anything that
   removes something from the database is run by you in Supabase's SQL editor.
 - **Rule changes:** agreed in chat, then written into the manual the same day, with the date and why; the old rule moves
-  to *Retired rules*.
+  to the rule history (`docs/rule-history.md`).
 - **Decisions:** one at a time, each with a full brief, and you decide. Nothing is built on Claude's initiative.
 - **Claude says first** when something will take more than 5 minutes, and gives manual steps one at a time.
 - **Things for you to check or do** go on the planner's To-do board; Claude ticks them when you report back.

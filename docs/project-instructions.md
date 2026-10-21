@@ -15,7 +15,7 @@ Systems:
   files as `claude/operating-manual.md`. Follow it.
 - **Where the manual and memory disagree, the manual wins.** Memory is background only.
 - **When a rule changes, update the manual in the same turn:** the repository file and the project copy, with the date
-  and the reason, and move the old rule to *Retired rules*. Rule changes Gitesh agrees in chat are committed directly.
+  and the reason, replace the old sentence and log the old one in `docs/rule-history.md`. Rule changes Gitesh agrees in chat are committed directly.
 - Foundation decisions and their reasons are in `docs/decisions.md` (copy: `claude/decisions.md`).
 
 ## Starting a chat
