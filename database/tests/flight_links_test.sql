@@ -8,8 +8,8 @@
 --      linked, what is left without and why, links to a removed route where the pair has a live one; how long
 --      private.fill_flight_links() takes for a capture page (with nothing to link, and with the latest loads page's
 --      flights to link again, each linked as before) and its plan; and the fare ladder's rows whose baseline or index the
---      business index from the daily history changed (spec §2: expected none while game_flights holds every day since
---      6 Oct), with any other row that moved.
+--      business index from the daily history changes (spec §2: expected none while game_flights holds every day since
+--      6 Oct), read against the same ladder with the daily history's business fares hidden; nothing else may move.
 --   3. In a world of its own made inside the test, through the capture's own path (private.capture_store(), which calls
 --      private.capture_page()), with every airport on UTC. Links Test Air flies QLA–QLB (rotation LK 101 out, LK 102 back on
 --      LK-AAA) and has a research route the other way round (QLB–QLA); a removed QLA–QLC and a live QLC–QLA; only a removed
@@ -167,45 +167,51 @@ begin
 end
 $test$;
 
--- 2c. the fare ladder's rows the business index from the daily history changed, at the moment the before file read them
+-- 2c. the fare ladder's rows the business index from the daily history changes (spec §2), at the planner's frozen moment
+-- (the copy's latest capture plus an hour): each of our airlines' ladder as it reads now, against the same ladder with the
+-- daily history's business fares hidden (route_days.bus_fare_avg emptied inside this rolled-back test), which is exactly
+-- the step before 22 Oct. Read this way, the copy's other pending changes to the ladder can't show up as this build's.
 do $test$
-declare v_at timestamptz; al record; n_rows int; n_bus int; n_bus_moved int; n_other int; ids text; others text; n_new int;
+declare v_at timestamptz := date_trunc('minute', coalesce((select max(r.captured_at) from public.game_capture_raw r), now())) + interval '1 hour';
+  al record; v_k text; n_rows int; n_bus int; n_hist int; n_bus_moved int; n_new int; n_fix int; n_other int; ids text; others text;
 begin
-  if to_regclass('rehearsal_before.flight_links_ladder') is null then
-    raise notice 'on the copy, the fare ladder''s rows before the changes weren''t saved: nothing to compare';
-    return;
-  end if;
-  select x.as_of into v_at from rehearsal_before.flight_links x;
-  create temporary table t_lk_ladder on commit drop as select * from rehearsal_before.flight_links_ladder where false;
-  for al in select x.airline_id, a.iata_code from private.fig_airlines(private.fig_world(null)) x join public.airlines a on a.id = x.airline_id loop
-    insert into t_lk_ladder
-    select al.airline_id, al.iata_code, (e ->> 'route_id')::bigint, e ->> 'hub', e ->> 'dest', e ->> 'cabin',
-           (e ->> 'baseline_fare')::numeric, (e ->> 'baseline_on')::date, (e ->> 'fare_index')::numeric,
-           (e ->> 'index_matches')::boolean, (e ->> 'level')::numeric, e ->> 'move', (e ->> 'new_level')::numeric, (e ->> 'fix')::boolean
-      from jsonb_array_elements(private.fig_fare_ladder(al.airline_id, v_at) -> 'routes') e;
+  create temporary table t_lk_ladder (which text, airline_id bigint, iata text, route_id bigint, cabin text, baseline_fare numeric,
+    baseline_on date, fare_index numeric, index_matches boolean, level numeric, move text, new_level numeric, fix boolean) on commit drop;
+  select count(*) into n_hist from public.route_days d where d.bus_pax > 0 and d.bus_fare_avg > 0;
+  foreach v_k in array array['now', 'before'] loop
+    if v_k = 'before' then
+      update public.route_days set bus_fare_avg = null where bus_fare_avg is not null;
+    end if;
+    for al in select x.airline_id, a.iata_code from private.fig_airlines(private.fig_world(null)) x join public.airlines a on a.id = x.airline_id loop
+      insert into t_lk_ladder
+      select v_k, al.airline_id, al.iata_code, (e ->> 'route_id')::bigint, e ->> 'cabin', (e ->> 'baseline_fare')::numeric,
+             (e ->> 'baseline_on')::date, (e ->> 'fare_index')::numeric, (e ->> 'index_matches')::boolean, (e ->> 'level')::numeric,
+             e ->> 'move', (e ->> 'new_level')::numeric, (e ->> 'fix')::boolean
+        from jsonb_array_elements(private.fig_fare_ladder(al.airline_id, v_at) -> 'routes') e;
+    end loop;
   end loop;
-  select count(*), count(*) filter (where n.cabin = 'business') into n_rows, n_bus from t_lk_ladder n;
-  -- business rows whose baseline or index changed (or that came or went)
-  with j as (select coalesce(n.airline_id, b.airline_id) as airline_id, coalesce(n.iata, b.iata) as iata, coalesce(n.route_id, b.route_id) as route_id,
-                    coalesce(n.cabin, b.cabin) as cabin, n.route_id is null or b.route_id is null as came_or_went,
-                    (n.baseline_fare, n.baseline_on, n.fare_index, n.index_matches) is distinct from (b.baseline_fare, b.baseline_on, b.fare_index, b.index_matches) as index_moved,
-                    (n.level, n.move, n.new_level, n.fix) is distinct from (b.level, b.move, b.new_level, b.fix) as move_moved,
-                    b.baseline_fare is null and n.baseline_fare is not null as new_baseline
-               from t_lk_ladder n full join rehearsal_before.flight_links_ladder b
-                 on b.airline_id = n.airline_id and b.route_id = n.route_id and b.cabin = n.cabin)
-  select count(*) filter (where j.cabin = 'business' and (j.came_or_went or j.index_moved)),
-         string_agg(j.iata || ' ' || j.route_id, ', ' order by j.iata, j.route_id) filter (where j.cabin = 'business' and (j.came_or_went or j.index_moved)),
+  select count(*), count(*) filter (where n.cabin = 'business') into n_rows, n_bus from t_lk_ladder n where n.which = 'now';
+  with n as (select * from t_lk_ladder x where x.which = 'now'), b as (select * from t_lk_ladder x where x.which = 'before'),
+  j as (select coalesce(n.iata, b.iata) as iata, coalesce(n.route_id, b.route_id) as route_id, coalesce(n.cabin, b.cabin) as cabin,
+               n.route_id is null or b.route_id is null as came_or_went,
+               (n.baseline_fare, n.baseline_on, n.fare_index, n.index_matches) is distinct from (b.baseline_fare, b.baseline_on, b.fare_index, b.index_matches) as index_moved,
+               (n.level, n.move, n.new_level) is distinct from (b.level, b.move, b.new_level) as move_moved,
+               n.fix is distinct from b.fix as fix_moved,
+               b.baseline_fare is null and n.baseline_fare is not null as new_baseline
+          from n full join b on b.airline_id = n.airline_id and b.route_id = n.route_id and b.cabin = n.cabin)
+  select count(*) filter (where j.cabin = 'business' and j.index_moved),
+         string_agg(j.iata || ' ' || j.route_id, ', ' order by j.iata, j.route_id) filter (where j.cabin = 'business' and j.index_moved),
          count(*) filter (where j.cabin = 'business' and j.new_baseline),
-         count(*) filter (where j.cabin <> 'business' and (j.came_or_went or j.index_moved or j.move_moved)
-                             or j.cabin = 'business' and j.move_moved and not j.index_moved),
+         count(*) filter (where j.cabin = 'business' and j.fix_moved),
+         count(*) filter (where j.came_or_went or j.move_moved or (j.cabin <> 'business' and (j.index_moved or j.fix_moved))),
          string_agg(j.iata || ' ' || j.route_id || ' ' || j.cabin, ', ' order by j.iata, j.route_id)
-           filter (where j.cabin <> 'business' and (j.came_or_went or j.index_moved or j.move_moved) or j.cabin = 'business' and j.move_moved and not j.index_moved)
-    into n_bus_moved, ids, n_new, n_other, others
+           filter (where j.came_or_went or j.move_moved or (j.cabin <> 'business' and (j.index_moved or j.fix_moved)))
+    into n_bus_moved, ids, n_new, n_fix, n_other, others
     from j;
-  raise notice '%', format('on the copy, the fare ladder at %s: %s rows, %s in business; business rows whose baseline or index changed: %s%s (%s with a baseline they had none before); any other row that moved: %s%s',
-                           to_char(v_at at time zone 'UTC', 'DD Mon HH24:MI'), n_rows, n_bus, n_bus_moved,
-                           case when ids is null then '' else ' (route ids ' || ids || ')' end, n_new,
-                           n_other, case when others is null then '' else ' (' || others || ')' end);
+  assert n_other = 0, format('the business index from the daily history moved %s other row(s) of the ladder (a level, a move, an economy row, a row that came or went): %s', n_other, others);
+  raise notice '%', format('on the copy, the fare ladder at %s: %s rows, %s in business; the daily history''s business days with a fare: %s; business rows whose baseline or index the daily history''s business fare changed: %s%s (%s with a baseline they had none before; %s set-back changes added or taken away); nothing else in the ladder moved',
+                           to_char(v_at at time zone 'UTC', 'DD Mon HH24:MI'), n_rows, n_bus, n_hist, n_bus_moved,
+                           case when ids is null then '' else ' (route ids ' || ids || ')' end, n_new, n_fix);
 end
 $test$;
 
