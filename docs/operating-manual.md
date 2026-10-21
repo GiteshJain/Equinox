@@ -7,7 +7,7 @@ Every rule in force for the equinox. group, with the date it started and why. De
 - When a rule changes in any chat, that chat updates this file (and the copy in the Equinox project's files) **in the
   same turn**, and moves the old rule to *Retired rules* at the bottom with the date it ended.
 - Rule changes Gitesh agrees in chat are committed directly. Code changes still go through pull requests.
-- Numbers that change often (prices per market, cabins, bank times, interline status, route lists) live in the planner;
+- Numbers that change often (fare levels, cabins, bank times, interline status) live in the planner;
   this manual says where. Foundation decisions are logged in `decisions.md`.
 - `playbook.md`, the handover guide, puts these rules in the order we use them (the growth loop, daily, Saturday,
   monthly, every check and what to do when one fails). Where it and
@@ -326,7 +326,6 @@ less important than another, point to point rather than hubs).*
     crew pay is extra buffer. Several orders are tested together, each with its lease. A type never leased yet is
     taken at 10% of its price a week (`settings.lease_estimate_pct`). *Since 8 Oct · why: the cushion alone covered
     only one order's lease.*
-  - Planned refits are not in the forecast; say so with each recommendation.
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
   - The forecast is worked out by `cash_forecast()` in the database (several orders tested together with `p_orders`);
     the planner's Performance screen shows it, and Today's Orders the types safe now (#19, build pull request 3).
@@ -451,10 +450,10 @@ less important than another, point to point rather than hubs).*
   Balkans and long-haul are out. *Since 25 Sep.*
 - **London:** for airlines other than Virgin, new London routes go to Gatwick before Heathrow; existing Heathrow flights
   stay. *Since 26 and 28 Sep.*
-
-## 5. Cabins and fares
   New Virgin Heathrow routes (Manchester and Edinburgh to Heathrow, as feeders for the group's long-haul there) are a
   late-game step, once the other hubs are built out. *Since 21 Oct (Gitesh).*
+
+## 5. Cabins and fares
 - **The cabin is chosen with each order,** among the layouts set up for its variant: if one route takes more than
   **65% of the aircraft's block time** (`settings.cabin_route_share_pct`), the layout that route's market calls for
   (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins
