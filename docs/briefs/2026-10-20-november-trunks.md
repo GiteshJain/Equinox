@@ -10,7 +10,7 @@ list once its last week's loads fall under 95%.
 ## The trunk map (from the planner and the 17 Oct scan, 20 Oct)
 - 24 base airports, 276 pairs. 50 are flown: all but four run at 92–100% and sell out on nearly every departure.
 - Of the 226 unflown, most are out of narrowbody reach or don't make sense (secondary India–China, India–US, Europe–India
-  while Kingfisher's long-haul is weak). 41 pass, below.
+  while Kingfisher's long-haul is weak). 41 narrowbody trunks and 46 long-haul pass, below.
 - **Not fortified (weak):** PVG–Kolkata (MU, 28%, fix), Delhi–JFK (KF, 56% economy, fix, review 28 Nov), Delhi–Amsterdam
   (KF, fix), KUL–Hyderabad (MH, sold out on 56% of departures), KUL–Kunming (MH, 46%), Delhi–Paris (KF, 31%),
   Amsterdam–Munich (FR, 3k a flight: raise fares instead), Paris–Amsterdam (FR, 87%: watch).
@@ -108,7 +108,30 @@ the A321XLR's 6,939 km, so they wait for long-haul.*
 | 7 | Paris–Barcelona | flown | 4.6k; Air France, Air Europa 140 a week |
 | 8 | Amsterdam–Malpensa | flown | 3.7k |
 
-## Types (default line, §3)
+## Long-haul trunks (added 20 Oct: everything that makes sense, at any distance)
+A350-900 (440 seats, 11,102 km, about 7.0M plus the cabin); the A350-900ULR only beyond 11,102 km. One A350 flies a
+daily rotation on most of these; the longest need two for a daily. Owners by §2.
+
+| Airline | Trunks (km; rival departures a week) |
+|---|---|
+| Pan Am, US–London | Dallas–Gatwick 7,660 · Seattle–Gatwick 7,742 · San Francisco–Gatwick 8,655 · Los Angeles–Gatwick 8,798 |
+| Pan Am, US–Europe | Chicago–Barcelona 7,094 · Chicago–Malpensa 7,259 · Chicago–Munich 7,270 · Dallas–Amsterdam 7,900 (KLM 14) · Dallas–Paris 7,945 · Seattle–Amsterdam 7,840 · San Francisco–Paris 8,963 (Air Tahiti Nui 14) · Los Angeles–Paris 9,103 (Air France 8) · San Francisco–Amsterdam 8,785 · Los Angeles–Amsterdam 8,956 (Republic 14) |
+| Pan Am, US–China | Seattle–Daxing 8,741 · Seattle–Shanghai 9,188 · San Francisco–Daxing 9,552 · San Francisco–Shanghai 9,877 · Los Angeles–Daxing 10,095 · Los Angeles–Shanghai 10,415 · Chicago–Daxing 10,629 · JFK–Daxing 11,044 |
+| China Eastern, Europe–China | Amsterdam–Daxing 7,869 · Munich–Daxing 7,757 · Paris–Daxing 8,229 · Malpensa–Daxing 8,127 · Munich–Shanghai 8,778 · Amsterdam–Shanghai 8,910 · Malpensa–Shanghai 9,144 · Paris–Shanghai 9,267 · Barcelona–Shanghai 9,864 |
+| Virgin, UK–China and Malaysia | Gatwick–Daxing 8,208 · Gatwick–Shanghai 9,252 · Gatwick–KUL 10,594 |
+| Kingfisher, India–UK | Mumbai–Gatwick 7,193 · Mumbai–Manchester 7,337 · Hyderabad–Gatwick 7,737 · Bengaluru–Gatwick 8,027 · Chennai–Gatwick 8,216 (Delhi–Gatwick and Heathrow sell out every flight) |
+| Malaysia, Europe | Amsterdam–KUL 10,237 · Paris–KUL 10,442 (sets aside the feeder-first order for November) |
+
+**Left out as not making sense:** India–continental Europe (Delhi–Paris sold out on 31% of departures, Delhi–Amsterdam
+58%), India–US (Delhi–JFK 56%), Kolkata long-haul, secondary India–China (PVG–Kolkata 28%), secondary China–Europe and
+China–US (Kunming, Xi'an, Shenzhen), UK regional–Asia, and the US's secondary transatlantic (Dallas–Manchester,
+Los Angeles–Munich and the like).
+
+**Cash:** 46 long-haul trunks would need roughly 50–60 A350s, about 350–420M: more than all six airlines earn in November
+(about 1.3–2.5M a day each). One A350 costs as much as three to four narrowbodies. So the order of the month matters:
+see the open question in the review chat, 20 Oct.
+
+
 Every base is a 5-star city, so the A320neo SHARP by default (within 3,355 km), the A321neo LIGHT where a heavy rival
 flies the pair or the trunk already sells out a 240-seater, the A321LR to 5,809 km and the A321XLR to 6,939 km. Cabins
 follow the market default.

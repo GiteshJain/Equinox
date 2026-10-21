@@ -389,6 +389,9 @@ less important than another, point to point rather than hubs).*
   - **Only trunks that make sense:** a pair is opened only where the market is there and the route makes business sense
     (no Kolkata–US direct, say), within reach of the default line. Munich, Milan Malpensa, Los Angeles
     and Dallas count as bases; no base is on hold (Gitesh, 20 Oct).
+  - **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where
+    beyond the A321XLR. For November's trunks this sets aside reach first (below) and Malaysia's feeder-first order
+    (§2). *Since 20 Oct (Gitesh): "for this plan, everything which makes sense."*
   *Details agreed 20 Oct (Gitesh).*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
