@@ -66,8 +66,16 @@ Until each is built and merged, the rules below stand as they are.
   brief `docs/briefs/2026-10-21-competition-analysis.md`): `competition()` gives each airline's market share by market,
   the rivals' threats, its openings ranked (§3) and the rival profiles from the world scans; the planner's
   **Competition** screen shows them, Today lists the latest scan's threats, the fare ladder's rival pause works (§5),
-  and the airline briefing carries the top 20 openings for the evening proposal. Next for the Building chat: the route
-  page (step 4).
+  and the airline briefing carries the top 20 openings for the evening proposal.
+- **The route page is built** (21 Oct, pull request #65; spec `docs/specs/2026-10-21-route-page.md`): `route_story()`
+  tells a route's story since launch (loads and fares by cabin, profit an aircraft hour, the events on it: fare moves,
+  frequencies, cabin changes and rivals, who else flies the pair), shown at `/planner/performance/<code>/<route>` and
+  linked from Routes, Performance, Today and Competition. The daily history (`route_days`) now keeps each cabin's
+  passengers, seats and fares and the hours flown. With it the four steps of the 20 Oct planner work are done.
+- **The tidy-ups are built** (21 Oct, pull request #64; spec `docs/specs/2026-10-21-tidy-ups.md`): a world scan that
+  stops part-way is marked stopped and Systems says so; a 1-star opening on the E195-E2 also names the E190-E2 "if
+  thin" (the evening proposal decides, §3); and Systems → **Cabin charges** checks each first cabin fit logged since
+  18 Oct against the game's charge, with one Today item when any doesn't match (§4).
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
