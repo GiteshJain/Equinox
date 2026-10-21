@@ -42,9 +42,9 @@
 --   9. The E190-E2 for thin 1-star cities (migration 20261022010000; spec docs/specs/2026-10-21-tidy-ups.md §2): a 1-star
 --      opening on the E195 names the E190 (variant_alt, "or the CT E190 if thin"); a 2-star one, a 1-star one already on
 --      the E190 and one on the A350 don't, nor any once the airline may not buy the E190.
---   On the copy (section 2, before the hand-made world so the rehearsal prints it): each airline's counts (with how many
---   of its top 50 openings carry the E190 note) and how long it takes (under the 8 s staff limit), the group's share, the
---   top 5 openings and the latest scan's threats.
+--   On the copy (section 2, before the hand-made world so the rehearsal prints it): each airline's counts and how long it
+--   takes (under the 8 s staff limit), how many of its 1-star openings carry the E190 note (across every opening, and in
+--   the top 50 the screen shows), the group's share, the top 5 openings and the latest scan's threats.
 
 create temporary table t_cp (k text primary key, v jsonb) on commit drop;
 grant select, insert, update on t_cp to authenticated, anon;
@@ -94,6 +94,7 @@ do $test$
 declare r record; d jsonb; t0 timestamptz; ms int; worst int := 0; w bigint := (select id from public.worlds where is_default);
   v_scan timestamptz := (select max(s.taken_at) from public.game_scans s where s.world_id = (select id from public.worlds where is_default) and s.status = 'done');
   first_doc jsonb; th jsonb; counts text[] := '{}'; tops text[] := '{}'; threats text[] := '{}'; nov text[] := '{}'; dn jsonb;
+  e190 text[] := '{}'; v_e190 text;
 begin
   for r in select al.airline_id, al.iata_code from private.fig_airlines(w) al order by al.ord loop
     t0 := clock_timestamp();
@@ -101,10 +102,15 @@ begin
     ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
     worst := greatest(worst, ms);
     first_doc := coalesce(first_doc, d);
-    counts := counts || format('%s %s markets, %s threats, %s openings (%s allowed, %s left out; %s of the top 50 with the E190 note), %s profiles, %s ms', r.iata_code,
+    counts := counts || format('%s %s markets, %s threats, %s openings (%s allowed, %s left out), %s profiles, %s ms', r.iata_code,
       jsonb_array_length(d -> 'markets'), jsonb_array_length(d -> 'threats'), d ->> 'openings_count', d ->> 'openings_allowed',
-      d ->> 'openings_left_out', (select count(*) from jsonb_array_elements(d -> 'openings') o where o ? 'variant_alt'),
-      jsonb_array_length(d -> 'profiles'), ms);
+      d ->> 'openings_left_out', jsonb_array_length(d -> 'profiles'), ms);
+    -- the E190 note (22 Oct): across every opening, not only the top 50 (1-star cities rank last), untimed
+    select format('%s %s of %s 1-star openings (%s in the top 50)', r.iata_code, count(*) filter (where o ? 'variant_alt'),
+                  count(*) filter (where (o ->> 'stars')::int = 1),
+                  count(*) filter (where o ? 'variant_alt' and (o ->> 'rank')::int <= 50))
+      into v_e190 from jsonb_array_elements(private.fig_competition(r.airline_id, now(), 100000) -> 'openings') o;
+    e190 := e190 || v_e190;
     tops := tops || format('%s: %s', r.iata_code, coalesce((select string_agg(format('%s. %s %s* %s km %s/wk %s%s', o ->> 'rank', o ->> 'route', o ->> 'stars',
         o ->> 'distance_km', o ->> 'rivals_weekly', o #>> '{variant,type}', case when (o ->> 'allowed')::boolean then '' else ' (not yet)' end), ', ' order by (o ->> 'rank')::int)
       from jsonb_array_elements(d -> 'openings') o where (o ->> 'rank')::int <= 5), 'none'));
@@ -127,10 +133,11 @@ begin
         from jsonb_array_elements(dn -> 'openings') o), 'none'));
   end loop;
   assert worst < 8000, format('competition() took %s ms for one airline on the copy: over the 8 s staff limit', worst);
-  raise notice '%', format('on the copy: the scans %s against %s; our airlines %s of %s departures a week, %s%% (then %s of %s, %s%%); %s; the slowest %s ms (staff limit 8 s)',
+  raise notice '%', format('on the copy: the scans %s against %s; our airlines %s of %s departures a week, %s%% (then %s of %s, %s%%); %s; the slowest %s ms (staff limit 8 s); the E190 note ("or the E190-E2 if thin"): %s',
     coalesce(left(first_doc #>> '{scans,latest,taken_at}', 10), 'none'), coalesce(left(first_doc #>> '{scans,week_before,taken_at}', 10), 'none'),
     first_doc #>> '{group,ours}', first_doc #>> '{group,world}', first_doc #>> '{group,share}',
-    first_doc #>> '{group,ours_before}', first_doc #>> '{group,world_before}', first_doc #>> '{group,share_before}', array_to_string(counts, '; '), worst);
+    first_doc #>> '{group,ours_before}', first_doc #>> '{group,world_before}', first_doc #>> '{group,share_before}', array_to_string(counts, '; '), worst,
+    array_to_string(e190, '; '));
   raise notice '%', 'on the copy, the top 5 openings: ' || array_to_string(tops, ' | ');
   raise notice '%', format('on the copy, the threats with the latest scan (%s, against the one before): %s', coalesce(left(v_scan::text, 10), 'none'),
     coalesce(nullif(array_to_string(threats, ' | '), ''), 'none'));
