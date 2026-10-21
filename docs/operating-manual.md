@@ -591,6 +591,10 @@ less important than another, point to point rather than hubs).*
   the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
   nightly adjustment of all six airlines was inflating salaries.*
 - **Every Saturday:**
+  - first, the document check (about 5 minutes): the project's copies of the manual, playbook, map and decisions
+    match the repository; no document states a retired rule; the playbook refers to rules rather than stating them; and
+    memory holds no game rules. Facts are fixed on the spot; anything needing a ruling goes to Gitesh one at a time.
+    *Since 21 Oct · why (Gitesh, option A): stale copies of the rules in the playbook, the project files and memory led to the 21 Oct contradictions.*
   - the world scan runs with the evening capture (`scan_every_days`, above), so the report and gander monthly read
     this week's rivals; if the Systems board shows it old (amber over 8 days), run `scripts/scanner/gscan.py` by hand
     first (the Saturday chat; about 5 to 10 minutes). *Since 21 Oct (spec `docs/specs/2026-10-21-scan-in-capture.md`);
