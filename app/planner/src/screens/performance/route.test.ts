@@ -98,7 +98,7 @@ describe("the last 7 days against the 7 before", () => {
       ["load", "91.2%", "88.9%", "▲ 2.3 pts"],
       ["passengers", "2,300", "2,240", "▲ 60"],
       ["profit", "310k", "280k", "▲ 30k"],
-      ["per_hour", "11k", "10k", "▲ 1k"],
+      ["per_hour", "11.0k", "10.0k", "▲ 1.0k"],
       ["eco_fare", "315 AS$", "300 AS$", "▲ 15 AS$"],
       ["bus_fare", "900 AS$", "900 AS$", "= same"],
     ]);
@@ -117,6 +117,10 @@ describe("the last 7 days against the 7 before", () => {
     const r = storyWeekOnWeek(s).rows;
     expect(r.find((x) => x.key === "load")).toMatchObject({ arrow: "down", text: "▼ 1 pt" });
     expect(r.find((x) => x.key === "profit")).toMatchObject({ now: "−20k", arrow: "down", text: "▼ 50k" });
+  });
+  it("words profit an aircraft hour to a tenth of a thousand, so a small rise isn't '▲ 0k' (the copy's DEL–CCU, 21 Oct)", () => {
+    const s = story({ weeks: [week("2026-10-15", "2026-10-21", { profit_per_hour: 0.00996 }), week("2026-10-08", "2026-10-14", { profit_per_hour: 0.00956 })] });
+    expect(storyWeekOnWeek(s).rows.find((x) => x.key === "per_hour")).toMatchObject({ now: "10.0k", then: "9.6k", arrow: "up", text: "▲ 0.4k" });
   });
 });
 
@@ -161,7 +165,7 @@ describe("profit an aircraft hour by week", () => {
   it("gives a bar for each week with block hours, oldest first, in thousands", () => {
     const b = weekBars(story(), nice);
     expect(b.map((x) => [x.x, x.y])).toEqual([["2026-10-14", 0.01], ["2026-10-21", 0.011]]);
-    expect(b[1]?.tip).toBe("2026-10-15 to 2026-10-21 · 11k an aircraft hour · profit 310k over 28 block hours · 14 flights");
+    expect(b[1]?.tip).toBe("2026-10-15 to 2026-10-21 · 11.0k an aircraft hour · profit 310k over 28 block hours · 14 flights");
     const g = barLayout(b, null, "k");
     expect(g.grid.map((l) => l.label)).toContain("10k");
     expect(g.avg).toBeNull();

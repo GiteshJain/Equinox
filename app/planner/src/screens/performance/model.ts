@@ -814,6 +814,8 @@ export interface RouteStory {
 
 const pct1 = (v: number | null | undefined): string => (v == null ? "—" : `${Math.round(v * 10) / 10}%`);
 const thousands = (v: number | null | undefined): string => (v == null ? "—" : `${v < 0 ? "−" : ""}${Math.round(Math.abs(v) * 1000)}k`);
+/** Profit an aircraft hour, a few thousand: to a tenth of a thousand, so 9.1k to 10.0k doesn't read "9k", "10k", "▲ 0k". */
+const thousands1 = (v: number | null | undefined): string => (v == null ? "—" : `${v < 0 ? "−" : ""}${(Math.round(Math.abs(v) * 10000) / 10).toFixed(1)}k`);
 const whole = (v: number | null | undefined): string => (v == null ? "—" : Math.round(v).toLocaleString("en-GB"));
 
 /** The route page's header in words: the route and its city, the airline, distance, market and the cabin it calls for,
@@ -863,7 +865,7 @@ export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: strin
     one("load", "Load", (w) => w.load_pct, pct1, (d) => `${Math.round(d * 10) / 10} pt${Math.round(d * 10) / 10 === 1 ? "" : "s"}`),
     one("passengers", "Passengers", (w) => w.passengers, whole, (d) => whole(d)),
     one("profit", "Profit", (w) => w.profit, thousands, (d) => thousands(d)),
-    one("per_hour", "Profit an aircraft hour", (w) => w.profit_per_hour, thousands, (d) => thousands(d)),
+    one("per_hour", "Profit an aircraft hour", (w) => w.profit_per_hour, thousands1, (d) => thousands1(d)),
     one("eco_fare", "Economy fare", (w) => w.eco_fare, fare, (d) => fare(d)),
   ];
   if ((last?.bus_fare ?? prev?.bus_fare) != null) rows.push(one("bus_fare", "Business fare", (w) => w.bus_fare, fare, (d) => fare(d)));
@@ -983,7 +985,7 @@ export function storyChartLayout(s: RouteStory, nice: (day: string) => string): 
 export function weekBars(s: RouteStory, nice: (day: string) => string): { x: string; y: number; tip: string }[] {
   return s.weeks.filter((w) => w.profit_per_hour != null).slice().reverse().map((w) => ({
     x: w.to, y: w.profit_per_hour as number,
-    tip: `${nice(w.from)} to ${nice(w.to)} · ${thousands(w.profit_per_hour)} an aircraft hour · profit ${thousands(w.profit)} over ${Math.round((w.block_hours ?? 0) * 10) / 10} block hours · ${w.flights} flights`,
+    tip: `${nice(w.from)} to ${nice(w.to)} · ${thousands1(w.profit_per_hour)} an aircraft hour · profit ${thousands(w.profit)} over ${Math.round((w.block_hours ?? 0) * 10) / 10} block hours · ${w.flights} flights`,
   }));
 }
 
