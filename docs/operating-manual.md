@@ -501,8 +501,9 @@ less important than another, point to point rather than hubs).*
   seen yet (`capture_fare_actions()`, with the capture key), shows each airline's count and asks once, then makes them
   for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. *Since
-  21 Oct · why (Gitesh): the route-by-route changes are a few hundred on a Saturday; his decision, knowing the game's
-  terms (simulogics §4 II) don't allow scripts (spec `docs/specs/2026-10-21-fares-userscript.md`).* Fare moves never
+  21 Oct · why (Gitesh): the route-by-route changes are a few hundred on a Saturday; his decision. The simulogics terms (§4 II) forbid scripts in general, but Gander is an exclusive world whose owner
+  sets the rules (§9): the capture, the salary script and the scanner are allowed there; the fares script is to be
+  recorded the same way once Gitesh confirms it with the owner (spec `docs/specs/2026-10-21-fares-userscript.md`).* Fare moves never
   appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and since 21 Oct the hold
   after a new flight, `fare_ladder_capacity_hold_days`). *Since 21 Oct · why (Gitesh, option A
   of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at
