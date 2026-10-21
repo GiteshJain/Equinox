@@ -83,12 +83,13 @@ $test$;
 -- ---------------------------------------------------------------- 2. the copy (counts and codes only)
 -- Each of our airlines' answer now, and how long it took (signed in, staff have 8 s); the pull request's numbers (spec
 -- §Checks): the group's share, each airline's top 5 openings, and the threats the latest scan showed against the one before
--- it (read an hour after the latest scan, so they're in their 7 days whenever this runs). Three notices, first after the
--- setting's, since the rehearsal prints a passing test's first six.
+-- it (read an hour after the latest scan, so they're in their 7 days whenever this runs); the types of the flights airlines
+-- named Cargo fly on our pairs; and November's list (as of 10 Nov 2026: each airline's trunks and its first 5). Five
+-- notices, first after the setting's, since the rehearsal prints a passing test's first six.
 do $test$
 declare r record; d jsonb; t0 timestamptz; ms int; worst int := 0; w bigint := (select id from public.worlds where is_default);
   v_scan timestamptz := (select max(s.taken_at) from public.game_scans s where s.world_id = (select id from public.worlds where is_default) and s.status = 'done');
-  first_doc jsonb; th jsonb; counts text[] := '{}'; tops text[] := '{}'; threats text[] := '{}';
+  first_doc jsonb; th jsonb; counts text[] := '{}'; tops text[] := '{}'; threats text[] := '{}'; nov text[] := '{}'; dn jsonb;
 begin
   for r in select al.airline_id, al.iata_code from private.fig_airlines(w) al order by al.ord loop
     t0 := clock_timestamp();
@@ -108,6 +109,17 @@ begin
         coalesce(' (' || (select string_agg(t ->> 'words', '; ' order by i) from jsonb_array_elements(th) with ordinality e(t, i) where i <= 8)
                  || case when jsonb_array_length(th) > 8 then format('; +%s more', jsonb_array_length(th) - 8) else '' end || ')', ''));
     end if;
+    -- November (manual §4): the trunks first, shortest first
+    t0 := clock_timestamp();
+    dn := private.fig_competition(r.airline_id, '2026-11-10 12:00+00'::timestamptz, 5);
+    ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
+    worst := greatest(worst, ms);
+    nov := nov || format('%s %s trunks of %s openings, %s ms: %s', r.iata_code, dn ->> 'openings_trunks', dn ->> 'openings_count', ms,
+      coalesce((select string_agg(format('%s. %s%s %s km %s%s%s%s', o ->> 'rank', o ->> 'route', case when (o ->> 'trunk')::boolean then ' trunk' else '' end,
+          o ->> 'distance_km', o #>> '{variant,type}', case when (o #>> '{variant,own}')::boolean is false then ' (not its own)' else '' end,
+          case when (o ->> 'allowed')::boolean then '' else ' (not yet)' end,
+          coalesce(' also ' || nullif((select string_agg(x, '+') from jsonb_array_elements_text(o -> 'other_lists') x), ''), '')), ', ' order by (o ->> 'rank')::int)
+        from jsonb_array_elements(dn -> 'openings') o), 'none'));
   end loop;
   assert worst < 8000, format('competition() took %s ms for one airline on the copy: over the 8 s staff limit', worst);
   raise notice '%', format('on the copy: the scans %s against %s; our airlines %s of %s departures a week, %s%% (then %s of %s, %s%%); %s; the slowest %s ms (staff limit 8 s)',
@@ -131,6 +143,7 @@ begin
                and jsonb_typeof(f) = 'array'
                and exists (select 1 from fp where fp.a = least(f ->> 2, f ->> 3) and fp.b = greatest(f ->> 2, f ->> 3))
              group by 1, 2, 3) x), 'none');
+  raise notice '%', 'on the copy in November (as of 10 Nov 2026), each airline''s trunks and its first 5 openings: ' || array_to_string(nov, ' | ');
 end
 $test$;
 
