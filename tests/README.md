@@ -30,12 +30,22 @@ whose answers are the rows the side by sides proved, recorded in the same run); 
 library's cases, the database's figure tests and saved answers, with the screens' own figures added on a fixed, dated
 sample (`planner_figures.mjs`). The rehearsal went from about 20 minutes (with the side by sides) to under 10.
 
-Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.56 and its Chromium, reportlab 5.0.1, matplotlib
+Run them all: `bash tests/run_all.sh` (needs Python with Playwright 1.61.0 and its Chromium, reportlab 5.0.1, matplotlib
 3.11.2 and pypdf 5.9.0, the Liberation Sans fonts, and Node 22). The planner's and the planning library's own steps
 alone: `npm ci`, then `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`; then
 `node tests/planner_figures.mjs` for the screens' figures, `node tests/fares_userscript_test.mjs` for the fares userscript, `node tests/capture_scan_test.mjs` for the capture's world scan, `python3 tests/optimiser_saved_answer_test.py` for the optimiser against plan.py's saved answer,
 `python3 tests/report_test.py` for the weekly report, `python3 tests/briefing_test.py` for the airline briefing, and
 `python3 tests/market_definitions_test.py` for the market definitions.
+
+**The test browser.** Both workflows run on `ubuntu-latest` and install Playwright 1.61.0 for Python, with its
+Chromium 149 (`checks.yml` and `database-rehearsal.yml` pin the same version). It is the oldest Playwright that installs
+its browser's system libraries on Ubuntu 26.04. The tests use Playwright from Python only; the Node side has none.
+Screenshots are kept for review and never compared, so a newer browser moves no saved answer. History:
+- Until 20 Oct 2026: Playwright 1.56.0 (Chromium 141) on `ubuntu-latest`.
+- 20 Oct: `ubuntu-latest` became Ubuntu 26.04, where 1.56.0 can't install its libraries; both workflows were pinned to
+  `ubuntu-24.04` to stay green (pull request #55).
+- 21 Oct: Playwright 1.61.0, and both workflows back on `ubuntu-latest` (spec
+  `docs/specs/2026-10-21-test-browser-upgrade.md`).
 
 **The planner's types.** `app/planner/src/db/types.ts` is generated, never edited by hand: the rehearsal makes it
 from last night's copy after the pull request's migrations. A pull request that changes the database's tables, views or

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs every automatic check (decision #9); GitHub runs this on every pull request and every change to main.
-# Exit code 1 if any check fails. Needs Python with Playwright (and its Chromium), reportlab, matplotlib and pypdf (the
-# weekly report's test), the Liberation Sans fonts, and Node 22.
+# Exit code 1 if any check fails. Needs Python with Playwright 1.61.0 (and its Chromium), reportlab, matplotlib and
+# pypdf (the weekly report's test), the Liberation Sans fonts, and Node 22.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 status=0; summary=()

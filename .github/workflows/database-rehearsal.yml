@@ -62,8 +62,7 @@ concurrency:
 
 jobs:
   rehearse:
-    # Ubuntu 24.04, pinned: ubuntu-latest became 26.04 on 20 Oct, where Playwright 1.56 can't install its dependencies
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
       run:
@@ -110,9 +109,10 @@ jobs:
         with:
           node-version: "22"
 
+      # Pinned, the same as checks.yml: the oldest Playwright that installs on Ubuntu 26.04 (tests/README.md, "The test browser")
       - name: Install the test browser
         run: |
-          pip install -q playwright==1.56.0
+          pip install -q playwright==1.61.0
           python -m playwright install --with-deps chromium > /dev/null
 
       # A pull request that changes how the test sample is made also gets a new one, made from the rehearsal's copy after
