@@ -1,0 +1,495 @@
+<!doctype html>
+<!-- AirlineSim Gander, /action/enterprise/flightsPrices, saved 21 Oct 2026 (v6.13.17); cut down to the form, no account data -->
+<html><head><meta charset="utf-8"><title>AirlineSim</title></head><body>
+<form method="get" action="flightsPrices" class="as-panel">
+                <input type="hidden" name="adjust" value="true">
+
+                <div class="form-group">
+                    <label for="fromCode">From</label>
+                    <select name="fromCode" id="fromCode" size="1" class="form-control">
+                        <option value="">anywhere</option>
+                        
+                            <option value="c:75">Canada</option>
+                            
+                                <option value="a:1701">-- Toronto Pearson (YYZ)</option>
+                            
+                        
+                            <option value="c:47">France</option>
+                            
+                                <option value="a:878">-- Paris Charles de Gaulle (CDG)</option>
+                            
+                        
+                            <option value="c:35">Germany</option>
+                            
+                                <option value="a:712">-- Frankfurt International (FRA)</option>
+                            
+                        
+                            <option value="c:65">Ireland</option>
+                            
+                                <option value="a:1317">-- Dublin (DUB)</option>
+                            
+                        
+                            <option value="c:106">Mexico</option>
+                            
+                                <option value="a:2067">-- Cancun (CUN)</option>
+                            
+                                <option value="a:2098">-- Mexico City (MEX)</option>
+                            
+                        
+                            <option value="c:118">Netherlands</option>
+                            
+                                <option value="a:2245">-- Amsterdam Schiphol (AMS)</option>
+                            
+                        
+                            <option value="c:154">Spain</option>
+                            
+                                <option value="a:2797">-- Barcelona El Prat (BCN)</option>
+                            
+                        
+                            <option value="c:54">United Kingdom</option>
+                            
+                                <option value="a:1053">-- London Gatwick (LGW)</option>
+                            
+                                <option value="a:1054">-- London Heathrow (LHR)</option>
+                            
+                        
+                            <option value="c:182">USA</option>
+                            
+                                <option value="a:3330">-- Atlanta (ATL)</option>
+                            
+                                <option value="a:3448">-- Boston Logan International (BOS)</option>
+                            
+                                <option value="a:3690">-- Burlington, VT, US (BTV)</option>
+                            
+                                <option value="a:3638">-- Charleston, SC, US (CHS)</option>
+                            
+                                <option value="a:3562">-- Charlotte Douglas (CLT)</option>
+                            
+                                <option value="a:3360">-- Chicago O'Hare (ORD)</option>
+                            
+                                <option value="a:3665">-- Dallas Fort Worth International (DFW)</option>
+                            
+                                <option value="a:3292">-- Denver (DEN)</option>
+                            
+                                <option value="a:3456">-- Detroit Metropolitan (DTW)</option>
+                            
+                                <option value="a:3671">-- Houston Intercontinental (IAH)</option>
+                            
+                                <option value="a:3525">-- Las Vegas Harry Reid (LAS)</option>
+                            
+                                <option value="a:3395">-- Los Angeles (LAX)</option>
+                            
+                                <option value="a:3315">-- Miami International (MIA)</option>
+                            
+                                <option value="a:3479">-- Minneapolis/St. Paul (MSP)</option>
+                            
+                                <option value="a:3655">-- Nashville (BNA)</option>
+                            
+                                <option value="a:3436">-- New Orleans (MSY)</option>
+                            
+                                <option value="a:3551">-- New York John F. Kennedy (JFK)</option>
+                            
+                                <option value="a:3552">-- New York La Guardia (LGA)</option>
+                            
+                                <option value="a:3532">-- New York Newark (EWR)</option>
+                            
+                                <option value="a:3319">-- Orlando International (MCO)</option>
+                            
+                                <option value="a:3622">-- Pittsburgh (PIT)</option>
+                            
+                                <option value="a:3408">-- San Francisco (SFO)</option>
+                            
+                                <option value="a:3335">-- Savannah (SAV)</option>
+                            
+                                <option value="a:3723">-- Seattle/Tacoma (SEA)</option>
+                            
+                                <option value="a:3558">-- Syracuse (SYR)</option>
+                            
+                                <option value="a:3729">-- Washington Dulles (IAD)</option>
+                            
+                                <option value="a:3730">-- Washington Reagan National (DCA)</option>
+                            
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toCode">To</label>
+                    <select name="toCode" id="toCode" size="1" class="form-control">
+                        <option value="">anywhere</option>
+                        
+                            <option value="c:75">Canada</option>
+                            
+                                <option value="a:1701">-- Toronto Pearson (YYZ)</option>
+                            
+                        
+                            <option value="c:47">France</option>
+                            
+                                <option value="a:878">-- Paris Charles de Gaulle (CDG)</option>
+                            
+                        
+                            <option value="c:35">Germany</option>
+                            
+                                <option value="a:712">-- Frankfurt International (FRA)</option>
+                            
+                        
+                            <option value="c:65">Ireland</option>
+                            
+                                <option value="a:1317">-- Dublin (DUB)</option>
+                            
+                        
+                            <option value="c:106">Mexico</option>
+                            
+                                <option value="a:2067">-- Cancun (CUN)</option>
+                            
+                                <option value="a:2098">-- Mexico City (MEX)</option>
+                            
+                        
+                            <option value="c:118">Netherlands</option>
+                            
+                                <option value="a:2245">-- Amsterdam Schiphol (AMS)</option>
+                            
+                        
+                            <option value="c:154">Spain</option>
+                            
+                                <option value="a:2797">-- Barcelona El Prat (BCN)</option>
+                            
+                        
+                            <option value="c:54">United Kingdom</option>
+                            
+                                <option value="a:1053">-- London Gatwick (LGW)</option>
+                            
+                                <option value="a:1054">-- London Heathrow (LHR)</option>
+                            
+                        
+                            <option value="c:182">USA</option>
+                            
+                                <option value="a:3330">-- Atlanta (ATL)</option>
+                            
+                                <option value="a:3448">-- Boston Logan International (BOS)</option>
+                            
+                                <option value="a:3690">-- Burlington, VT, US (BTV)</option>
+                            
+                                <option value="a:3638">-- Charleston, SC, US (CHS)</option>
+                            
+                                <option value="a:3562">-- Charlotte Douglas (CLT)</option>
+                            
+                                <option value="a:3360">-- Chicago O'Hare (ORD)</option>
+                            
+                                <option value="a:3665">-- Dallas Fort Worth International (DFW)</option>
+                            
+                                <option value="a:3292">-- Denver (DEN)</option>
+                            
+                                <option value="a:3456">-- Detroit Metropolitan (DTW)</option>
+                            
+                                <option value="a:3671">-- Houston Intercontinental (IAH)</option>
+                            
+                                <option value="a:3525">-- Las Vegas Harry Reid (LAS)</option>
+                            
+                                <option value="a:3395">-- Los Angeles (LAX)</option>
+                            
+                                <option value="a:3315">-- Miami International (MIA)</option>
+                            
+                                <option value="a:3479">-- Minneapolis/St. Paul (MSP)</option>
+                            
+                                <option value="a:3655">-- Nashville (BNA)</option>
+                            
+                                <option value="a:3436">-- New Orleans (MSY)</option>
+                            
+                                <option value="a:3551">-- New York John F. Kennedy (JFK)</option>
+                            
+                                <option value="a:3552">-- New York La Guardia (LGA)</option>
+                            
+                                <option value="a:3532">-- New York Newark (EWR)</option>
+                            
+                                <option value="a:3319">-- Orlando International (MCO)</option>
+                            
+                                <option value="a:3622">-- Pittsburgh (PIT)</option>
+                            
+                                <option value="a:3408">-- San Francisco (SFO)</option>
+                            
+                                <option value="a:3335">-- Savannah (SAV)</option>
+                            
+                                <option value="a:3723">-- Seattle/Tacoma (SEA)</option>
+                            
+                                <option value="a:3558">-- Syracuse (SYR)</option>
+                            
+                                <option value="a:3729">-- Washington Dulles (IAD)</option>
+                            
+                                <option value="a:3730">-- Washington Reagan National (DCA)</option>
+                            
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="serviceProfileId">Service Profile</label>
+                    <select name="serviceProfileId" id="serviceProfileId" size="1" class="form-control">
+                        <option value="0">any</option>
+                        
+                            <option value="294">S1</option>
+                        
+                            <option value="295">S2</option>
+                        
+                            <option value="296">S3</option>
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="factor">Price adjustment</label>
+                    <div class="row">
+                        <div class="col-xs-2">
+                            <select name="factor" id="factor" size="1" class="form-control">
+                                <option value="1">+</option>
+                                <option value="-1">-</option>
+                            </select>
+                        </div>
+                        <div class="col-xs-10">
+                            <div class="input-group">
+                                <select name="percent" size="1" class="form-control text-right">
+                                    
+                                        <option>0</option>
+                                    
+                                        <option>1</option>
+                                    
+                                        <option>2</option>
+                                    
+                                        <option>3</option>
+                                    
+                                        <option>4</option>
+                                    
+                                        <option>5</option>
+                                    
+                                        <option>6</option>
+                                    
+                                        <option>7</option>
+                                    
+                                        <option>8</option>
+                                    
+                                        <option>9</option>
+                                    
+                                        <option>10</option>
+                                    
+                                        <option>11</option>
+                                    
+                                        <option>12</option>
+                                    
+                                        <option>13</option>
+                                    
+                                        <option>14</option>
+                                    
+                                        <option>15</option>
+                                    
+                                        <option>16</option>
+                                    
+                                        <option>17</option>
+                                    
+                                        <option>18</option>
+                                    
+                                        <option>19</option>
+                                    
+                                        <option>20</option>
+                                    
+                                        <option>21</option>
+                                    
+                                        <option>22</option>
+                                    
+                                        <option>23</option>
+                                    
+                                        <option>24</option>
+                                    
+                                        <option>25</option>
+                                    
+                                        <option>26</option>
+                                    
+                                        <option>27</option>
+                                    
+                                        <option>28</option>
+                                    
+                                        <option>29</option>
+                                    
+                                        <option>30</option>
+                                    
+                                        <option>31</option>
+                                    
+                                        <option>32</option>
+                                    
+                                        <option>33</option>
+                                    
+                                        <option>34</option>
+                                    
+                                        <option>35</option>
+                                    
+                                        <option>36</option>
+                                    
+                                        <option>37</option>
+                                    
+                                        <option>38</option>
+                                    
+                                        <option>39</option>
+                                    
+                                        <option>40</option>
+                                    
+                                        <option>41</option>
+                                    
+                                        <option>42</option>
+                                    
+                                        <option>43</option>
+                                    
+                                        <option>44</option>
+                                    
+                                        <option>45</option>
+                                    
+                                        <option>46</option>
+                                    
+                                        <option>47</option>
+                                    
+                                        <option>48</option>
+                                    
+                                        <option>49</option>
+                                    
+                                        <option>50</option>
+                                    
+                                        <option>51</option>
+                                    
+                                        <option>52</option>
+                                    
+                                        <option>53</option>
+                                    
+                                        <option>54</option>
+                                    
+                                        <option>55</option>
+                                    
+                                        <option>56</option>
+                                    
+                                        <option>57</option>
+                                    
+                                        <option>58</option>
+                                    
+                                        <option>59</option>
+                                    
+                                        <option>60</option>
+                                    
+                                        <option>61</option>
+                                    
+                                        <option>62</option>
+                                    
+                                        <option>63</option>
+                                    
+                                        <option>64</option>
+                                    
+                                        <option>65</option>
+                                    
+                                        <option>66</option>
+                                    
+                                        <option>67</option>
+                                    
+                                        <option>68</option>
+                                    
+                                        <option>69</option>
+                                    
+                                        <option>70</option>
+                                    
+                                        <option>71</option>
+                                    
+                                        <option>72</option>
+                                    
+                                        <option>73</option>
+                                    
+                                        <option>74</option>
+                                    
+                                        <option>75</option>
+                                    
+                                        <option>76</option>
+                                    
+                                        <option>77</option>
+                                    
+                                        <option>78</option>
+                                    
+                                        <option>79</option>
+                                    
+                                        <option>80</option>
+                                    
+                                        <option>81</option>
+                                    
+                                        <option>82</option>
+                                    
+                                        <option>83</option>
+                                    
+                                        <option>84</option>
+                                    
+                                        <option>85</option>
+                                    
+                                        <option>86</option>
+                                    
+                                        <option>87</option>
+                                    
+                                        <option>88</option>
+                                    
+                                        <option>89</option>
+                                    
+                                        <option>90</option>
+                                    
+                                        <option>91</option>
+                                    
+                                        <option>92</option>
+                                    
+                                        <option>93</option>
+                                    
+                                        <option>94</option>
+                                    
+                                        <option>95</option>
+                                    
+                                        <option>96</option>
+                                    
+                                        <option>97</option>
+                                    
+                                        <option>98</option>
+                                    
+                                        <option>99</option>
+                                    
+                                        <option>100</option>
+                                    
+                                </select>
+                                <span class="input-group-addon">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="base">Calculation baseline</label>
+                    <select name="base" id="base" size="1" class="form-control">
+                        <option value="standard">default price</option>
+                        <option value="current">current price</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <div>
+                        <strong>Class</strong>
+                    </div>
+                    <label>
+                        <input type="checkbox" name="economy" value="true">
+                        Economy
+                    </label>
+                    <label>
+                        <input type="checkbox" name="business" value="true">
+                        Business
+                    </label>
+                    <label>
+                        <input type="checkbox" name="first" value="true">
+                        First
+                    </label>
+                    <label>
+                        <input type="checkbox" name="cargo" value="true">
+                        Cargo
+                    </label>
+                </div>
+
+                <div class="form-group submit">
+                    <input type="submit" value="Change price..." class="btn btn-default">
+                </div>
+            </form>
+</body></html>
