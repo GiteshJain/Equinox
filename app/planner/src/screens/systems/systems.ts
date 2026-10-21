@@ -4,8 +4,9 @@
 // usage the database can measure against its triggers. The figures come from system_status() (one staff call, read only)
 // and the build's stamp; this file only marks and words them, so the unit tests can try every limit. The limits are
 // Home's (manual §7): capture 26 and 48 hours, backup and snapshot 30 hours (red at 54, as Home), the archive by the 3rd,
-// a job whose last run failed; the world scan amber over 8 days and red over 15; usage amber from 70% and red at the
-// trigger. Home keeps flagging problems; the board is where "all good" shows.
+// a job whose last run failed; the world scan amber over 8 days and red over 15, and amber when a scan stopped part-way
+// with none finished after it (22 Oct); usage amber from 70% and red at the trigger. Home keeps flagging problems; the
+// board is where "all good" shows.
 import type { BuildStamp } from "../../data/build";
 import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H } from "../today/attention";
 
@@ -58,7 +59,21 @@ export interface SystemStatus {
   } | null;
   cleanup: SysJob | null;
   scan: { taken_at: string; week: string | null; status: string | null } | null;
+  /** A scan that stopped part-way since the latest finished one (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md
+   *  §1): marked stopped when the next scan started, or left unfinished over an hour; null when there's none. */
+  scan_stopped?: ScanStopped | null;
   usage: { key: string; label: string; bytes: number; trigger_bytes: number }[];
+}
+/** A stopped scan as system_status() gives it: how far it got against the finished scan before it (private.scan_progress()). */
+export interface ScanStopped {
+  id: number;
+  taken_at: string;
+  status: string | null;
+  note: string | null;
+  airlines: number;
+  airports: number;
+  airlines_expected: number | null;
+  airports_expected: number | null;
 }
 
 /** One line of the board. */
@@ -204,16 +219,27 @@ export function scanEveryWords(everyDays: number | null | undefined): string {
   return n <= 1 ? "every evening (scan_every_days 1)" : `every ${n} capture days (scan_every_days ${n})`;
 }
 
+/** A stopped scan in words: "the scan of 21 Oct stopped after 812 of 1,040 airlines" (of the finished scan before it), or
+ *  "stopped after 812 airlines" when there was none to compare with. */
+export function stoppedWords(x: ScanStopped): string {
+  const n = (v: number) => Number(v).toLocaleString("en-US");
+  const of = x.airlines_expected != null ? ` of ${n(x.airlines_expected)}` : "";
+  return `the scan of ${dayWords(String(x.taken_at).slice(0, 10))} stopped after ${n(x.airlines)}${of} airline${x.airlines_expected == null && Number(x.airlines) === 1 ? "" : "s"}`;
+}
+
 /** The world scan's age: amber over 8 days, red over 15. Since 21 Oct it runs with the evening capture when one is due
- *  (settings.scan_every_days; spec docs/specs/2026-10-21-competition-analysis.md §3), not at the Saturday review. */
-export function scanLine(s: SystemStatus["scan"], now: Date, everyDays?: number | null): SysLine {
+ *  (settings.scan_every_days; spec docs/specs/2026-10-21-competition-analysis.md §3), not at the Saturday review. Since
+ *  22 Oct (spec docs/specs/2026-10-21-tidy-ups.md §1) a scan that stopped part-way, with no finished scan after it, says
+ *  so in amber, not red: the next capture scans again. */
+export function scanLine(s: SystemStatus["scan"], now: Date, everyDays?: number | null, stopped?: ScanStopped | null): SysLine {
   const h = hoursSince(s?.taken_at, now);
   const d = h == null ? null : h / 24;
-  const mark: Mark = d == null || d > SCAN_BAD_D ? "bad" : d > SCAN_LATE_D ? "warn" : "ok";
+  const age: Mark = d == null || d > SCAN_BAD_D ? "bad" : d > SCAN_LATE_D ? "warn" : "ok";
   const runs = `runs with the evening capture ${scanEveryWords(everyDays)}`;
-  const text = !s ? `no world scan yet · ${runs}` : `${agoWords(h)}${s.week ? ` (week ${s.week})` : ""} · ${runs}`
-    + (mark === "ok" ? "" : "; capture again while it's due, or gscan.py by hand");
-  return { key: "scan", label: "World scan", mark, when: whenWords(s?.taken_at), text };
+  const stop = stopped ? ` · ${stoppedWords(stopped)}; the next capture scans again` : "";
+  const text = !s ? `no world scan yet${stop} · ${runs}` : `${agoWords(h)}${s.week ? ` (week ${s.week})` : ""}${stop} · ${runs}`
+    + (age === "ok" ? "" : "; capture again while it's due, or gscan.py by hand");
+  return { key: "scan", label: "World scan", mark: stopped ? worse(age, "warn") : age, when: whenWords(s?.taken_at), text };
 }
 
 /** The planner's own build: when and from which change (after a merge, a time that hasn't moved means the deploy failed). */
@@ -240,7 +266,7 @@ export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date
     backupLine(s.backup ?? { last: null, last_good: null }, now),
     archiveLine(s.archive, now),
     cleanupLine(s.cleanup, now),
-    scanLine(s.scan, now, scanEveryDays),
+    scanLine(s.scan, now, scanEveryDays, s.scan_stopped),
     buildLine(build),
     ...(s.usage ?? []).map(usageLine),
   ];

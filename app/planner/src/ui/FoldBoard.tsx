@@ -3,8 +3,10 @@
 // text is the board's key (data-rkey); clicks on a button, box or link in the title don't fold.
 import type { ReactNode } from "react";
 
-export function FoldBoard({ k, title, note, folded, onToggle, figure, children }: {
+export function FoldBoard({ k, id, title, note, folded, onToggle, figure, children }: {
   k: string;
+  /** The board's anchor in the address (#cabin-charges), when a link opens it. */
+  id?: string;
   title?: ReactNode;
   note?: ReactNode;
   folded: boolean;
@@ -14,7 +16,7 @@ export function FoldBoard({ k, title, note, folded, onToggle, figure, children }
   children?: ReactNode;
 }) {
   return (
-    <section className={"board" + (folded ? " rcol" : "")} data-figure={figure} data-board={k}>
+    <section id={id} className={"board" + (folded ? " rcol" : "")} data-figure={figure} data-board={k}>
       <h3 className="rh rch" data-rkey={k} tabIndex={0} aria-expanded={!folded}
         onClick={(e) => { if (!(e.target as HTMLElement).closest("button, input, select, a, label")) onToggle(); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}>

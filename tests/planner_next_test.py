@@ -605,9 +605,10 @@ async def no_hubs(pl):
 
 async def systems_opens(pl):
     """Systems (20 Oct; Check's boards and Review's Manual entry until then): the Systems board first and open, then its
-    three boards folded on arrival, in order (Capture, Manual entry, Aircraft checks; the Cabins board went on 21 Oct, spec
-    docs/specs/2026-10-21-cabins-new-rule.md §1), the Capture board listing our airlines the capture covers, in their
-    order. With the one-week checks off (aircraft_check_after_days 0, set by the test), two: no Aircraft checks."""
+    four boards folded on arrival, in order (Capture, Cabin charges since 22 Oct, Manual entry, Aircraft checks; the Cabins
+    board went on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1), the Capture board listing our airlines the
+    capture covers, in their order. With the one-week checks off (aircraft_check_after_days 0, set by the test), three:
+    no Aircraft checks."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD}
@@ -623,7 +624,7 @@ async def systems_opens(pl):
     problems = []
     if got["first"] != "systems":
         problems.append(f"the Systems board isn't the first board on Systems (the first is {got['first'] or 'none'})")
-    order = ["Capture", "Manual entry", "Aircraft checks"]
+    order = ["Capture", "Cabin charges", "Manual entry", "Aircraft checks"]
     if got["boards"] != order:
         problems.append(f"Systems' boards are {got['boards']}, not {order}")
     if not got["folded"]:
@@ -641,7 +642,7 @@ async def systems_opens(pl):
     finally:
         set_check_days(7)
     if off != [k for k in order if k != "Aircraft checks"]:
-        problems.append(f"with the checks off (0), Systems' boards are {off}, not the two without Aircraft checks")
+        problems.append(f"with the checks off (0), Systems' boards are {off}, not the three without Aircraft checks")
     await pl.pg.reload()
     await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
     await pl.pg.click("[data-screen-link=home]")

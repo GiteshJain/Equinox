@@ -30,7 +30,8 @@ the saves' names follow their screens, and Log an order as went with the order r
     differing (File with the game's times).
   Systems: Mark checked; cash and fixed costs; loads typed; loads pasted with the day marked complete. (Keep as is, Show
     again and Refitted to went with the Cabins board on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and
-    their recorded rows with them.)
+    their recorded rows with them.) Since 22 Oct, Cabin charges' Use the game's amount, on a first fit made to differ
+    for the test (spec docs/specs/2026-10-21-tidy-ups.md §3).
   Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct: one row per route and cabin it marks,
     how many depending on the night).
   Interline: a status; a note.
@@ -901,6 +902,44 @@ async def fare_ladder(s, pl):
         step(False, f"performance: the fare ladder for {code} says its moves are on the fare plan", [why(e)])
 
 
+# ---------- Systems' Cabin charges (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): Use the game's amount
+async def cabin_charges(s, pl, now):
+    """A first cabin fit that matches its one game line on the copy is made to differ for the test (its logged amount up
+    by AS$1,000, as the test), then Use the game's amount on Systems' Cabin charges board sets it back to the game's: one
+    spending_log update through planner_save(). If the save didn't go through, the test puts the amount back itself."""
+    pg = pl.pg
+    w = COPY["world"]
+    since = f"(select (x.value #>> '{{}}')::date from public.settings x where x.world_id = {w} and x.airline_id is null and x.key = 'cabin_charge_check_from')"
+    pick = one(f"""with f as (
+                     select s.id, s.airline_id, s.amount, substring(s.note from '^(\\S+) first cabin fit') as reg
+                       from public.spending_log s
+                      where s.world_id = {w} and s.kind = 'cabin' and s.note ~ '^\\S+ first cabin fit' and s.created_at <= :'m'::timestamptz
+                        and s.spent_on >= {since})
+                   select json_build_object('id', f.id, 'reg', f.reg, 'amount', f.amount) from f
+                    where (select count(*) from public.game_payments p
+                            where p.airline_id = f.airline_id and p.kind = 'cabin' and p.descr ilike 'Installation of cabin interior%'
+                              and p.registration = f.reg and p.created_at <= :'m'::timestamptz and p.paid_at >= {since}::timestamp at time zone 'UTC'
+                              and abs(p.amount - f.amount) < 1) = 1
+                      and (select count(*) from public.game_payments p
+                            where p.airline_id = f.airline_id and p.kind = 'cabin' and p.descr ilike 'Installation of cabin interior%'
+                              and p.registration = f.reg and p.created_at <= :'m'::timestamptz and p.paid_at >= {since}::timestamp at time zone 'UTC') = 1
+                    order by f.id limit 1""", m=now)
+    if not pick:
+        s.not_tried("no first cabin fit since cabin_charge_check_from that matches one game line on this copy", "systems: Use the game's amount")
+        return
+    fid = int(pick["id"])
+    as_test(f"update public.spending_log set amount = amount + 1000 where id = {fid}")
+    try:
+        await reload(pl)
+        await to_screen(pl, "systems", "/systems")
+        await pg.click("#rev-expall")
+        await settle(pg, 200)
+        await pg.wait_for_selector(f"[data-cabin-use='{fid}']", timeout=30000)
+        await s.act("systems: Use the game's amount (a cabin fit made to differ for the test)", lambda: pg.click(f"[data-cabin-use='{fid}']"))
+    finally:
+        quietly(f"update public.spending_log set amount = :'a'::numeric where id = {fid} and amount <> :'a'::numeric", a=str(pick["amount"]))
+
+
 # ---------- Interline, Reference and Photos
 INTERLINE_READY = "main[data-screen=interline][data-interline-ready=yes]"
 REF_READY = "main[data-screen=reference][data-reference-ready=yes]"
@@ -1105,6 +1144,7 @@ async def main():
                 for name, part in (("Today", lambda: today_board(s, pl, tag)), ("Routes", lambda: routes(s, pl, al)), ("Tails", lambda: tails(s, pl, al, tag, now)),
                                    ("Check's saves (Today, Systems)", lambda: check(s, pl, al, now[:10])), ("Review's saves (Systems, Performance)", lambda: review(s, pl, al, now)),
                                    ("Performance's fare ladder", lambda: fare_ladder(s, pl)), ("Interline", lambda: interline(s, pl)),
+                                   ("Systems' cabin charges (22 Oct)", lambda: cabin_charges(s, pl, now)),
                                    ("Reference", lambda: reference(s, pl)), ("Photos", lambda: photos(s, pl))):
                     t = time.monotonic()
                     try:

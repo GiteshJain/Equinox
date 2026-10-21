@@ -282,6 +282,28 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(homeAttention(input({ capture: { last: [{ airline_id: 1, at: at(1) }, { airline_id: 2, at: at(1) }], verdicts: [
       { airline_id: 1, verdict: "short", words: "short: statement: no lines", at: at(27) }] } }))).toEqual([]);
   });
+  it("the cabin charges (22 Oct): one amber item when any doesn't match, after the capture, grouped as Cabin charges, linking to Systems", () => {
+    const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+    const problem = (state: "differs" | "not_logged", id: number) => ({
+      state, airline_id: 1, code: "TA", airline: "Test Air", registration: `T-00${id}`, aircraft_id: id,
+      logged: state === "differs" ? { id, spent_on: "2026-10-12", amount: 97000, config: "E195-LEI", updated_at: T0 } : null,
+      lines: [{ id: 100 + id, paid_at: at(20), amount: 99000, descr: `Installation of cabin interior (T-00${id})` }],
+      game_amount: state === "differs" ? 99000 : null, difference: state === "differs" ? 2000 : null,
+    });
+    const cabins = (problems: ReturnType<typeof problem>[]) => ({
+      check_from: "2026-10-18", wait_days: 2, problems,
+      counts: { checked: 3, matches: 2, differs: 1, charged_twice: 0, not_charged: 0, waiting: 0, not_logged: problems.length - 1, problems: problems.length },
+    });
+    const got = homeAttention(input({ capture: { last: [{ airline_id: 1, at: at(30) }, { airline_id: 2, at: at(1) }] }, cabins: cabins([problem("differs", 1), problem("not_logged", 2)]) }));
+    expect(got.map((a) => [a.key, a.cls, a.screen, a.text])).toEqual([
+      ["capture|2026-10-13", "warn", "systems", "Not captured for over a day: Test Air. Press Capture all airlines in the game"],
+      ["cabin|differs:1,not_logged:p102", "warn", "systems", "2 cabin charges don't match what we logged"],
+    ]);
+    expect(groupAttention(got).map((g) => g.label)).toEqual(["Capture", "Cabin charges"]);
+    // all match, or not read yet: nothing
+    expect(homeAttention(input({ cabins: cabins([]) }))).toEqual([]);
+    expect(homeAttention(input({ cabins: null }))).toEqual([]);
+  });
   it("the backup: late, failed, none yet; a test run doesn't count", () => {
     const run = (h: number, ok: boolean, kind = "nightly", note: string | null = null) => ({ ran_at: new Date(now.getTime() - h * 3_600_000).toISOString(), kind, ok, note });
     expect(homeAttention(input({ backups: [run(5, true)] }))).toEqual([]);

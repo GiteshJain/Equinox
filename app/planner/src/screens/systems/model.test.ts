@@ -2,7 +2,8 @@
 // until 20 Oct, specs docs/specs/2026-10-13-check.md and docs/specs/2026-10-14-review.md): the capture board's cells and
 // the backup's line; the one-week check's status (due, coming up, done, and due again when a schedule changes) as the
 // board lists it, and the board shown only while the checks are on (the Cabins board's fit, keep and refit went with it
-// on 21 Oct); and Manual entry: cash and fixed costs (the rows the old planner's adapter writes), the nightly log, the
+// on 21 Oct); Cabin charges (22 Oct): the board's line, each row's words, Use the game's amount and Today's one item;
+// and Manual entry: cash and fixed costs (the rows the old planner's adapter writes), the nightly log, the
 // load paste reader (the old parseLoadPaste, with the old planner test's case) and the typed loads with their rows. The
 // planning rules themselves are the library's, with their own cases (lib/rules/cases/checks.json); these run the
 // screen's words and saves on the cases' small world. The Systems board's own marks are systems.test.ts's.
@@ -10,8 +11,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildRules, checks, type RulesInput } from "@rules";
 import {
-  BOARDS, backupWords, captureCell, captureStatus, cashChanges, dayStatus, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, patternPill,
-  shownBoards, typedLoads, typedSave, underList, upcomingByDay, type CashToday,
+  BOARDS, CABIN_STATE_WORDS, asd, backupWords, cabinAttention, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus, cashChanges,
+  dayStatus, gameAmountChange, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, patternPill, shownBoards, signedAsd, typedLoads, typedSave,
+  underList, upcomingByDay, type CabinCharges, type CabinProblem, type CashToday,
 } from "./model";
 
 const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
@@ -77,12 +79,53 @@ describe("the aircraft checks", () => {
     expect(shownBoards(at(without), [1, 2])).toEqual(noChecks);
     expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }, [{ id: 1 }, { id: 2, settings: { aircraft_check_after_days: 7 } }]), [1, 2])).toEqual(BOARDS);
     expect(checks.oneWeek(at({ ...input.settings, aircraft_check_after_days: 0 }), facts(null, null), "2026-10-12")).toEqual([]);
-    // the Cabins board went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1)
-    expect(BOARDS).toEqual(["Capture", "Manual entry", "Aircraft checks"]);
+    // the Cabins board went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1); Cabin charges came on 22 Oct
+    // (spec docs/specs/2026-10-21-tidy-ups.md §3), after Capture
+    expect(BOARDS).toEqual(["Capture", "Cabin charges", "Manual entry", "Aircraft checks"]);
   });
   it("words a route's load pattern on a check: its share of departures at 95%+ and its mark", () => {
     expect(patternPill({ hub: "HUB", dest: "AAA", departures: 14, full: 13, mark: "add" })).toEqual({ cls: "ok", text: "HUB–AAA: 93% of departures 95%+" });
     expect(patternPill({ hub: "HUB", dest: "DDD", departures: 0, full: 0, mark: "hold" })).toEqual({ cls: "mute", text: "HUB–DDD: 0% of departures 95%+" });
+  });
+});
+
+describe("Cabin charges (22 Oct): each first fit against the game's charge", () => {
+  const problem = (x: Partial<CabinProblem> = {}): CabinProblem => ({
+    state: "differs", airline_id: 6, code: "MH", airline: "Malaysia Airlines", registration: "9M-AAV", aircraft_id: 41,
+    logged: { id: 77, spent_on: "2026-10-19", amount: 97000, config: "E195-LEI", updated_at: "2026-10-19T02:10:11.123456+00:00" },
+    lines: [{ id: 501, paid_at: "2026-10-18T22:04:00.000Z", amount: 99000, descr: "Installation of cabin interior (9M-AAV)" }],
+    game_amount: 99000, difference: 2000, ...x,
+  });
+  const charges = (problems: CabinProblem[], x: Partial<CabinCharges["counts"]> = {}): CabinCharges => ({
+    check_from: "2026-10-18", wait_days: 2, problems,
+    counts: { checked: 16, matches: 14, differs: 1, charged_twice: 0, not_charged: 0, waiting: 1, not_logged: 0, problems: problems.length, ...x },
+  });
+  it("the board's line: what was checked and how it came out, nothing without the setting", () => {
+    expect(cabinCountsWords(charges([problem()]))).toBe("first fits since 18 Oct: 14 match · 1 differs · 1 waiting for the game's charge");
+    expect(cabinCountsWords(charges([], { matches: 1, differs: 0, waiting: 0, charged_twice: 2, not_charged: 1, not_logged: 3 })))
+      .toBe("first fits since 18 Oct: 1 matches · 2 charged twice · 1 not charged yet · 3 not logged");
+    expect(cabinCountsWords({ ...charges([]), check_from: null })).toBe("nothing checked: the world has no cabin_charge_check_from setting");
+  });
+  it("each row: what we logged, what the game charged (each line), the difference with its sign", () => {
+    expect(cabinLoggedWords(problem())).toBe("19 Oct · AS$97,000 · E195-LEI");
+    expect(cabinLoggedWords(problem({ state: "not_logged", logged: null }))).toBe("—");
+    expect(cabinGameWords(problem())).toEqual(["18 Oct 22:04 · AS$99,000"]);
+    expect(cabinGameWords(problem({ state: "not_charged", lines: [] }))).toEqual(["—"]);
+    expect([signedAsd(2000), signedAsd(-500.4), signedAsd(null)]).toEqual(["+AS$2,000", "−AS$500", "—"]);
+    expect(asd(97000.4)).toBe("AS$97,000");
+    expect(CABIN_STATE_WORDS.not_charged).toBe("not charged yet");
+  });
+  it("Use the game's amount: the fit's spending_log amount from the figure's updated_at, one change; nothing on any other state", () => {
+    expect(gameAmountChange(problem())).toEqual([{ table: "spending_log", op: "update", key: { id: 77 }, base: "2026-10-19T02:10:11.123456+00:00", values: { amount: 99000 } }]);
+    for (const state of ["charged_twice", "not_charged", "not_logged"] as const) expect(gameAmountChange(problem({ state }))).toEqual([]);
+    expect(gameAmountChange(problem({ logged: null }))).toEqual([]);
+  });
+  it("Today's one item: how many don't match, keyed by the problems so a new one shows again; none when all match", () => {
+    expect(cabinAttention(charges([problem(), problem({ state: "not_logged", logged: null, registration: "9M-AAZ", lines: [{ id: 502, paid_at: "2026-10-20T01:00:00Z", amount: 88000, descr: "x" }] })])))
+      .toEqual({ key: "cabin|differs:77,not_logged:p502", text: "2 cabin charges don't match what we logged" });
+    expect(cabinAttention(charges([problem()]))?.text).toBe("1 cabin charge doesn't match what we logged");
+    expect(cabinAttention(charges([]))).toBeNull();
+    expect(cabinAttention(null)).toBeNull();
   });
 });
 

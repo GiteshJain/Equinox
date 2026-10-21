@@ -6,14 +6,15 @@
 // - the capture board: capture_status() at the screen's moment, and the nightly backup's latest runs (its line);
 // - Manual entry: the nightly log and today's cash entry figures (cash_log()), and a loads day as the planner holds it
 //   (loads_by_day(): the captured and typed loads, the latest winning, and the typed rows behind them, which Loads by
-//   hand saves through planner_save() since the clean-up, build pull request 14).
+//   hand saves through planner_save() since the clean-up, build pull request 14);
+// - Cabin charges (since 22 Oct): cabin_charges(), each first cabin fit logged against the game's charge.
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview (decision #8) reads them too.
 import { useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import type { CashLog, LoadsDay } from "./model";
+import type { CabinCharges, CashLog, LoadsDay } from "./model";
 import type { SystemStatus } from "./systems";
 
 const fail = (what: string, message: string): never => {
@@ -69,9 +70,19 @@ export function useSystemStatus(worldId: number | undefined) {
       const d = data as unknown as Partial<SystemStatus>;
       return {
         as_of: String(d.as_of ?? ""), capture: d.capture ?? [], snapshot: d.snapshot ?? {}, backup: d.backup ?? { last: null, last_good: null },
-        archive: d.archive ?? null, cleanup: d.cleanup ?? null, scan: d.scan ?? null, usage: d.usage ?? [],
+        archive: d.archive ?? null, cleanup: d.cleanup ?? null, scan: d.scan ?? null, scan_stopped: d.scan_stopped ?? null, usage: d.usage ?? [],
       };
     },
+  });
+}
+
+/** The cabin charge check (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): cabin_charges(), one staff call
+ *  that only reads, at the screen's moment; Systems' Cabin charges board and Today's needs attention read it. */
+export function useCabinCharges(enabled = true) {
+  return useQuery({
+    queryKey: ["figures", "cabin_charges"],
+    enabled,
+    queryFn: () => rpc<CabinCharges>("the cabin charges", "cabin_charges", { p_as_of: asOf() }),
   });
 }
 

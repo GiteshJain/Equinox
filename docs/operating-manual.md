@@ -278,7 +278,7 @@ less important than another, point to point rather than hubs).*
   | Size | Variant | Seats | Reach | List price | Use |
   |---|---|---|---|---|---|
   | Small | E195-E2 | 146 | 3,542 km | 35.4M | the default small aircraft |
-  | Small | E190-E2 | 114 | 4,065 km | 33.7M | 3,542–4,065 km, or the thinnest 1-star city |
+  | Small | E190-E2 | 114 | 4,065 km | 33.7M | 3,542–4,065 km, or the thinnest 1-star city (the openings name it beside the E195-E2 on a 1-star city, "or the E190-E2 if thin", and the evening proposal decides: nothing in our data says how thin a city is; since 22 Oct) |
   | Mid | A320neo SHARP | 189 | 3,355 km | 41.2M | the default 189-seater |
   | Mid | A320neo LIGHT | 189 | 3,690 km | 42.9M | 3,355–3,690 km |
   | Mid | A320neo | 189 | 4,045 km | 43.4M | 3,690–4,045 km |
@@ -399,7 +399,8 @@ less important than another, point to point rather than hubs).*
 - **How it runs: every evening, from the order queues; a card with each order.** After the capture the Scheduling
   chat proposes the aircraft to order and the routes for each (§3, "Order every evening"). When Gitesh orders, Claude
   writes the plan card with its routes and cabin (`plan_cards.config_id`: filing fits it and logs its first fit at its
-  price), checked at both ends. The card stands: when the aircraft arrives, Gitesh schedules it in the game as the card
+  price, and the planner checks the game's charge against that first fit: Systems → Cabin charges, with one item on
+  Today when one doesn't match, since 22 Oct), checked at both ends. The card stands: when the aircraft arrives, Gitesh schedules it in the game as the card
   says and **files it within a day of arrival**, and the planner checks each card against the game. **The background
   starts
   from the airline's briefing** (`python3 scripts/briefing/brief.py <airline>`, `scripts/README.md`), which gathers its

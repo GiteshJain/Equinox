@@ -364,6 +364,17 @@
     "aircraft update checked_on": 1
    }
   },
+  "systems: Use the game's amount (a cabin fit made to differ for the test)": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save spending_log update amount": 1
+   },
+   "written": {
+    "spending_log update amount": 1
+   }
+  },
   "systems: cash and fixed costs for today": {
    "logged": [
     "planner tab"

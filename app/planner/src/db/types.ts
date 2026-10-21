@@ -1701,6 +1701,9 @@ isOneToOne: false
 "as_num":
 { Args: { "p": string }; Returns: number
                            },
+"cabin_charges":
+{ Args: { "p_as_of"?: string }; Returns: Json
+                           },
 "capture_airlines":
 { Args: { "p_key": string }; Returns: Json
                            },

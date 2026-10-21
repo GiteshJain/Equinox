@@ -5,15 +5,16 @@
 // as the old planner's renderReview, cashEntryHtml, manualLoadsHtml and parseLoadPaste word them, and every action as
 // the rows of one planner_save() call: mark checked (Tails' markCheckedChange), cash and fixed costs, loads typed or
 // pasted. The Cabins board (its refit, keep as is and show again) went on 21 Oct (spec
-// docs/specs/2026-10-21-cabins-new-rule.md §1). The Systems board's own marks are systems.ts's. No screen code, so the
-// unit tests run it.
+// docs/specs/2026-10-21-cabins-new-rule.md §1). Since 22 Oct the Cabin charges board (spec docs/specs/2026-10-21-tidy-ups.md
+// §3): cabin_charges()'s counts and problems, Use the game's amount and Today's one item. The Systems board's own marks
+// are systems.ts's. No screen code, so the unit tests run it.
 import { checks, loadReport, type Rules } from "@rules";
 import type { Change, Values } from "../../data/save";
 import { dayDiff } from "../../ui/dates";
 import type { BackupRun, CaptureAirline, CapturePages } from "./reads";
 
-// ---------- the boards that fold under the Systems board, in their order
-export const BOARDS = ["Capture", "Manual entry", "Aircraft checks"] as const;
+// ---------- the boards that fold under the Systems board, in their order (Cabin charges since 22 Oct)
+export const BOARDS = ["Capture", "Cabin charges", "Manual entry", "Aircraft checks"] as const;
 export type BoardKey = (typeof BOARDS)[number];
 /** The boards shown: Aircraft checks only while the checks are on for one of our airlines (aircraft_check_after_days
  *  above 0, the library's checks.on; spec docs/specs/2026-10-15-aircraft-checks-off.md). */
@@ -46,6 +47,83 @@ export function backupWords(runs: readonly BackupRun[] | undefined, niceDate: (d
   return b.ok
     ? { ok: true, text: `Backup: copied ${when} · ${b.tables ?? "?"} tables, ${b.rows != null ? Number(b.rows).toLocaleString("en-US") : "?"} rows, ${b.files ?? "?"} files · restore check passed` }
     : { ok: false, text: `${when} · ${String(b.note ?? "").slice(0, 200)}` };
+}
+
+// ---------- Cabin charges (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): each first cabin fit Tails' filing
+// logged against the game's "Installation of cabin interior (<reg>)" line, from cabin_charges()
+export type CabinState = "differs" | "charged_twice" | "not_charged" | "not_logged";
+export interface CabinLine { id: number; paid_at: string; amount: number; descr: string }
+export interface CabinProblem {
+  state: CabinState;
+  airline_id: number;
+  code: string | null;
+  airline: string | null;
+  registration: string | null;
+  aircraft_id: number | null;
+  /** The spending_log row of the first fit: a change to its amount is made from its updated_at. Null when not logged. */
+  logged: { id: number; spent_on: string; amount: number; config: string | null; updated_at: string } | null;
+  lines: CabinLine[];
+  game_amount: number | null;
+  difference: number | null;
+}
+export interface CabinCharges {
+  check_from: string | null;
+  wait_days: number;
+  counts: { checked: number; matches: number; differs: number; charged_twice: number; not_charged: number; waiting: number; not_logged: number; problems: number };
+  problems: CabinProblem[];
+}
+
+/** Each state as the board names it. */
+export const CABIN_STATE_WORDS: Record<CabinState, string> = {
+  differs: "differs", charged_twice: "charged twice", not_charged: "not charged yet", not_logged: "not logged",
+};
+/** An amount in AS$, whole dollars: "AS$97,000". */
+export const asd = (v: number | null | undefined): string => (v == null ? "—" : `AS$${Math.round(Number(v)).toLocaleString("en-US")}`);
+/** A difference with its sign: "+AS$2,000", "−AS$500". */
+export const signedAsd = (v: number | null | undefined): string =>
+  (v == null ? "—" : `${Number(v) < 0 ? "−" : "+"}${asd(Math.abs(Number(v)))}`);
+/** A UTC day as the board writes it: "18 Oct". */
+const shortDay = (iso: string | null | undefined): string => {
+  const d = new Date(String(iso ?? "").slice(0, 10) + "T00:00:00Z");
+  return Number.isNaN(d.getTime()) ? "" : `${d.getUTCDate()} ${d.toLocaleString("en-GB", { month: "short", timeZone: "UTC" })}`;
+};
+
+/** The board's line: what was checked and how it came out, "since 18 Oct: 14 match · 1 differs · 2 waiting for the game's
+ *  charge", or that nothing is checked without the setting. */
+export function cabinCountsWords(c: CabinCharges): string {
+  if (!c.check_from) return "nothing checked: the world has no cabin_charge_check_from setting";
+  const k = c.counts;
+  const parts = [
+    `${k.matches} match${k.matches === 1 ? "es" : ""}`,
+    k.differs ? `${k.differs} differ${k.differs === 1 ? "s" : ""}` : "",
+    k.charged_twice ? `${k.charged_twice} charged twice` : "",
+    k.not_charged ? `${k.not_charged} not charged yet` : "",
+    k.not_logged ? `${k.not_logged} not logged` : "",
+    k.waiting ? `${k.waiting} waiting for the game's charge` : "",
+  ].filter(Boolean);
+  return `first fits since ${shortDay(c.check_from)}: ${parts.join(" · ")}`;
+}
+/** What we logged for a fit: "18 Oct · AS$97,000 · E195-LEI", or "—" when not logged. */
+export function cabinLoggedWords(p: CabinProblem): string {
+  return p.logged ? [shortDay(p.logged.spent_on), asd(p.logged.amount), p.logged.config].filter(Boolean).join(" · ") : "—";
+}
+/** What the game charged: each line "18 Oct 22:04 · AS$99,000", or "—" for none. */
+export function cabinGameWords(p: CabinProblem): string[] {
+  return p.lines.length ? p.lines.map((l) => `${shortDay(l.paid_at)} ${String(l.paid_at).slice(11, 16)} · ${asd(l.amount)}`) : ["—"];
+}
+/** Use the game's amount, on a differing fit: its spending_log row's amount set to the game's, one planner_save() change
+ *  from the updated_at the figure read it at. Nothing for any other state. */
+export function gameAmountChange(p: CabinProblem): Change[] {
+  if (p.state !== "differs" || !p.logged || p.game_amount == null) return [];
+  return [{ table: "spending_log", op: "update", key: { id: p.logged.id }, base: p.logged.updated_at, values: { amount: Number(p.game_amount) } }];
+}
+/** Today's needs attention: one item when anything isn't a match, "2 cabin charges don't match what we logged", keyed by
+ *  the problems themselves so a new one shows again after a dismissal; null when there's none. */
+export function cabinAttention(c: CabinCharges | null | undefined): { key: string; text: string } | null {
+  const n = c?.problems.length ?? 0;
+  if (!c || !n) return null;
+  const keys = c.problems.map((p) => `${p.state}:${p.logged?.id ?? "p" + (p.lines[0]?.id ?? p.registration ?? "")}`).sort();
+  return { key: "cabin|" + keys.join(","), text: n === 1 ? "1 cabin charge doesn't match what we logged" : `${n} cabin charges don't match what we logged` };
 }
 
 // ---------- Aircraft checks

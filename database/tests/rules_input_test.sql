@@ -72,9 +72,10 @@ begin
   -- for the two settings 20261013200000 adds, the one 20261013230000 (Tails) adds, the seven 20261013235900 (Check)
   -- adds, the two 20261014220000 (the capture checks, #21) adds, the one 20261016120000 (new routes' age) adds, the
   -- six 20261021120000 (the fare ladder) adds, the one 20261021230000 (a new frequency's hold) adds, the one
-  -- 20261021233000 (the world scan in the capture, scan_every_days) adds and the three 20261021235000 (competition
-  -- analysis: competition_threat_min_weekly, trunk_month_from, trunk_month_to) adds, which are new in it: they're
-  -- checked, then taken out (from the world's settings and each airline's) before comparing
+  -- 20261021233000 (the world scan in the capture, scan_every_days) adds, the three 20261021235000 (competition
+  -- analysis: competition_threat_min_weekly, trunk_month_from, trunk_month_to) adds and the one 20261022010000 (the
+  -- cabin charge check, cabin_charge_check_from) adds, which are new in it: they're checked, then taken out (from the
+  -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
   d_cmp := d_all;
   if d_before is not null then
@@ -86,7 +87,8 @@ begin
                              'capture_loads_min_share', 'capture_statement_min_share', 'growth_new_route_days',
                              'fare_ladder_step_pts', 'fare_ladder_up_share', 'fare_ladder_down_share', 'fare_ladder_min_departures',
                              'fare_ladder_hold_weeks', 'fare_ladder_cap_pts', 'cabin_route_share_pct', 'fare_ladder_capacity_hold_days',
-                             'scan_every_days', 'competition_threat_min_weekly', 'trunk_month_from', 'trunk_month_to'] loop
+                             'scan_every_days', 'competition_threat_min_weekly', 'trunk_month_from', 'trunk_month_to',
+                             'cabin_charge_check_from'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

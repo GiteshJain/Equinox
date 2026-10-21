@@ -20,6 +20,11 @@
 --      read, are refused, writing nothing.
 --   5. scan_due around the setting (1, 3, 0 and none) as the scan ages by capture days; scan_open within the hour and not
 --      after; the airports to read: the bases, the hubs, then the scan's 20 busiest airports without repeats.
+--   6. Scans that stop part-way (migration 20261022010000; spec docs/specs/2026-10-21-tidy-ups.md §1): a scan left
+--      unfinished after one airline, a new one started two hours later: the first one stopped with its note ("stopped
+--      part-way after 1 of 2 airlines and 0 of 1 airports"), system_status()'s scan_stopped before and after, cleared once
+--      a scan finishes after it; one started within the hour still reused as now; a start in another world leaves it
+--      alone. On the copy, the scans marked stopped (ids and days) and the scans by status.
 
 create temporary table t_cs (k text primary key, v jsonb) on commit drop;
 grant select, insert, update on t_cs to anon, authenticated;
@@ -353,6 +358,88 @@ begin
   assert public.capture_airlines(v_key) -> 'scan_open' = 'null'::jsonb, 'a finished scan is open';
   raise notice 'scan_due by capture day: 1 day old due with 1, not with 3 until 3 days; 00:30 UTC due again at 23:30 UTC the same date, not at 01:00; 23:30 UTC not again at 00:30; 0 always; no setting never. scan_open within the hour only, a start after it a new scan; the airports to read: 2 bases, % hubs, then the busiest 20 less the 2 bases',
     cardinality(c_hubs);
+end
+$test$;
+
+-- ---------------------------------------------------------------- 6. scans that stop part-way (spec docs/specs/2026-10-21-tidy-ups.md §1)
+-- In the hand-made world: the finished scan b (two airlines, one airport) a day old, and a scan left unfinished two hours
+-- ago after one airline. Systems sees it stopped (nothing carries it on), and the next start marks it stopped with its note;
+-- a start within the hour still carries on; once a scan finishes after it, Systems says nothing. A start in another world
+-- leaves this world's scans alone. On the copy: the scans marked stopped.
+do $test$
+declare w bigint := (select (v #>> '{}')::bigint from t_cs where k = 'w'); b bigint := (select (v #>> '{}')::bigint from t_cs where k = 'b');
+  dw bigint := (select id from public.worlds where is_default); p_rival jsonb := (select v from t_cs where k = 'rival'); e bigint; s jsonb;
+  v_note text;
+begin
+  -- the funcs: internal, run as the caller with an empty search path, described
+  foreach v_note in array array['private.scan_progress(bigint)', 'private.scan_stop_unfinished(bigint, timestamptz)'] loop
+    assert not has_function_privilege('anon', v_note, 'execute') and not has_function_privilege('authenticated', v_note, 'execute'), v_note || ' can be called from outside';
+    assert (select not p.prosecdef and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = v_note::regprocedure),
+      v_note || ' runs as owner or has no empty search path';
+    assert length(coalesce(obj_description(v_note::regprocedure, 'pg_proc'), '')) > 100, v_note || ' has no description';
+  end loop;
+  assert col_description('public.game_scans'::regclass, (select attnum from pg_attribute where attrelid = 'public.game_scans'::regclass and attname = 'status')) like '%stopped%',
+    'game_scans.status doesn''t say what stopped means';
+
+  -- the world as section 5 left it: b finished a day ago is the latest finished, and nothing else
+  delete from public.game_scans where world_id = w and id <> b;
+  update public.game_scans set taken_at = now() - interval '1 day', status = 'done' where id = b;
+  insert into public.game_scans (world_id, week, note, taken_at) values (w, '43', 'Capture all airlines 1.5', now() - interval '2 hours') returning id into e;
+  perform private.scan_ingest(w, 'airline', p_rival || jsonb_build_object('snapshot_id', e));
+  assert private.scan_progress(e) = jsonb_build_object('airlines', 1, 'airports', 0, 'before_id', b, 'before_at', private.fig_ts(now() - interval '1 day'),
+                                                       'airlines_expected', 2, 'airports_expected', 1),
+    'the unfinished scan''s progress isn''t 1 of 2 airlines and 0 of 1 airports, against b: ' || private.scan_progress(e)::text;
+  -- Systems, before anything marks it: unfinished for over an hour, nothing carries it on
+  s := public.system_status(w, now()) -> 'scan_stopped';
+  assert (s ->> 'id')::bigint = e and s ->> 'status' = 'running' and (s ->> 'airlines')::int = 1 and (s ->> 'airlines_expected')::int = 2,
+    'system_status() doesn''t give the scan left unfinished two hours ago: ' || coalesce(s::text, 'null');
+  -- a start in another world leaves it alone
+  perform private.scan_ingest(dw, 'start', '{"week": "43", "note": "capture scan test, the default world"}');
+  assert (select status from public.game_scans where id = e) = 'running', 'a start in another world stopped this world''s scan';
+  insert into t_cs values ('e', to_jsonb(e));
+end
+$test$;
+
+set local role anon;
+do $test$
+declare e bigint := (select (v #>> '{}')::bigint from t_cs where k = 'e'); v_key text := 'capture-scan-test-key'; r jsonb; f bigint;
+begin
+  -- the next evening's capture starts a scan: the one left unfinished is stopped, and a new one starts
+  assert (public.capture_airlines(v_key) -> 'scan_open') = 'null'::jsonb, 'a scan unfinished for two hours is open';
+  r := public.capture_scan(v_key, 'start', '{"week": "43", "note": "Capture all airlines 1.5"}');
+  f := (r ->> 'snapshot_id')::bigint;
+  assert r ->> 'ok' = 'true' and (r ->> 'carried_on')::boolean is false and f <> e, 'the next start didn''t start a new scan: ' || r::text;
+  -- a start within the hour still carries on with it, as before
+  r := public.capture_scan(v_key, 'start', '{"week": "43", "note": "again"}');
+  assert r = jsonb_build_object('ok', true, 'snapshot_id', f, 'carried_on', true), 'a start within the hour didn''t carry on: ' || r::text;
+  insert into t_cs values ('f', to_jsonb(f));
+end
+$test$;
+reset role;
+
+do $test$
+declare w bigint := (select (v #>> '{}')::bigint from t_cs where k = 'w'); e bigint := (select (v #>> '{}')::bigint from t_cs where k = 'e');
+  f bigint := (select (v #>> '{}')::bigint from t_cs where k = 'f'); s jsonb; v_note text; v_copy text;
+begin
+  select note into v_note from public.game_scans where id = e and status = 'stopped';
+  assert v_note ~ '^stopped part-way after 1 of 2 airlines and 0 of 1 airports \(marked \d{2} [A-Z][a-z]{2} \d{2}:\d{2} UTC\) · Capture all airlines 1\.5$',
+    'the scan left unfinished isn''t stopped with its note: ' || coalesce(v_note, '(not stopped)');
+  assert (select status from public.game_scans where id = f) = 'running', 'the new scan was stopped';
+  s := public.system_status(w, now()) -> 'scan_stopped';
+  assert (s ->> 'id')::bigint = e and s ->> 'status' = 'stopped' and s ->> 'note' = v_note and (s ->> 'airports_expected')::int = 1,
+    'system_status() doesn''t give the stopped scan: ' || coalesce(s::text, 'null');
+  -- a scan that finishes after it: Systems says nothing more
+  perform private.scan_ingest(w, 'finish', jsonb_build_object('snapshot_id', f, 'note', 'full scan'));
+  assert public.system_status(w, now()) -> 'scan_stopped' = 'null'::jsonb, 'a stopped scan still shows after a finished one';
+  -- a stopped scan is read by nothing that reads finished scans: capture_airlines()'s latest is the finished one
+  assert (private.capture_scan_plan(w, now()) #>> '{scan_latest,id}')::bigint = f, 'the latest finished scan isn''t the new one';
+  -- the copy: the scans the migration marked stopped (ids, days and counts only; this test's own scans left out)
+  select string_agg(format('%s of %s', s2.id, to_char(s2.taken_at at time zone 'UTC', 'DD Mon')), ', ' order by s2.id) into v_copy
+    from public.game_scans s2 where s2.status = 'stopped' and s2.world_id <> w and s2.taken_at < now();
+  raise notice 'scans that stop part-way: left unfinished two hours, Systems shows it (1 of 2 airlines); the next start marks it stopped ("stopped part-way after 1 of 2 airlines and 0 of 1 airports"), a start within the hour still carries on, a start in another world leaves it alone, and a finished scan after it clears Systems. On the copy, stopped scans: %; the copy''s scans by status: %',
+    coalesce(v_copy, 'none'),
+    (select string_agg(x.status || ' ' || x.n, ', ' order by x.status)
+       from (select s3.status, count(*) as n from public.game_scans s3 where s3.world_id <> w and s3.taken_at < now() group by 1) x);
 end
 $test$;
 

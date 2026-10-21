@@ -6,7 +6,8 @@
 //   - An airline (/planner/competition/<code>): the scans and the group line on top, then Market share (one card per
 //     market: our share with its arrow and the top rivals as a bar), Threats (each with the rival, the pair, the numbers
 //     and the day), Openings (the ranked table: rank, pair, stars, distance, rivals, variant and allowed under hubs first,
-//     cut to 10 with "show all") and Rival profiles (cards).
+//     cut to 10 with "show all"; since 22 Oct a 1-star opening on the E195-E2 says "or the E190-E2 if thin" under its
+//     variant, spec docs/specs/2026-10-21-tidy-ups.md §2) and Rival profiles (cards).
 // Read only: nothing here saves. Phone first: cards stack, the openings table scrolls inside its own box.
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -19,7 +20,7 @@ import { listCut } from "../performance/model";
 import { itemRoute } from "../screens";
 import {
   allowedWords, changeWords, dayWords, groupWords, kmWords, n0, openingsLine, otherListsWords, overallShare, pctWords, profileWords, rivalsWords, scansWords, shareBar,
-  starsWords, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening, type Profile, type Threat,
+  starsWords, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer, type Market, type Opening, type Profile, type Threat,
 } from "./model";
 import { useCompetition, useCompetitions } from "./reads";
 
@@ -222,7 +223,7 @@ function Openings({ code, openings, total }: { code: string; openings: readonly 
                   <td>{starsWords(o.stars)}</td>
                   <td className="num">{kmWords(o.distance_km)}</td>
                   <td><span className="num">{n0(o.rivals_weekly)}</span> <span className="dim">{rivalsWords(o)}</span></td>
-                  <td>{variantWords(o.variant)}</td>
+                  <td>{variantWords(o.variant)}{variantNoteWords(o) ? <div className="dim cpcity" data-variant-note>{variantNoteWords(o)}</div> : null}</td>
                   <td>{al.ok ? <span title={al.why}>{al.text} <span className="dim">· {al.why}</span></span>
                     : <span className="pill mute sm" title={al.why}>{al.text}</span>}{al.ok ? null : <div className="dim cpwhy">{al.why}</div>}</td>
                 </tr>
