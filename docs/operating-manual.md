@@ -313,6 +313,12 @@ less important than another, point to point rather than hubs).*
   235) and comes sooner on its own line, while the A321neo buys more seats (about 1,000 per 10M against 810); cash, not
   the lines, limits orders (an aircraft every 2 to 2.5 days per airline against a line delivering every 15 or 21
   hours).*
+- **When cash doesn't cover the aircraft the top openings need, cash decides:** that evening the airline orders the
+  biggest type the cash forecast allows, and it takes the best openings that type can fly (by the openings' order, among
+  those its size band allows: an E195 takes the top 1- to 4-star openings). The openings that need a bigger type wait for
+  an evening when cash covers it. A line is never left idle to wait for cash. *Since 21 Oct · why (Gitesh, option B):
+  keeping the order queues full comes first; on 21 Oct Pan Am's top openings were 5-star cities needing an A320neo, cash
+  covered only an E195, and it took the best 4-star openings instead.*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *Since 28 Sep.*
 - **Route first, then the airline, then the aircraft.** The Scheduling chat picks the routes the group should open
