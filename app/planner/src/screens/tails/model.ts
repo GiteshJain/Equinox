@@ -372,7 +372,10 @@ export function deliveryRows(aircraft: readonly TailAircraft[], airlines: readon
       const arrived = ok ? at <= now : !!due && due <= today;
       return {
         a, airline: airlines.find((x) => x.id === a.airline_id), type: typeName(rules, a.aircraft_type_id), config: configCode(configs, cardOf.get(a.id)?.config_id ?? a.order_config_id),
-        at, due, hrs: ok ? (at - now) / 36e5 : null, base: a.order_base_code ?? "", plan: String(a.order_note ?? "").replace(/^lands [^·]+· /, ""),
+        // the plan card's title (since 19 Oct the card is written with the order, and the order carries no note), else the
+        // old order note without its "lands …" part
+        at, due, hrs: ok ? (at - now) / 36e5 : null, base: a.order_base_code ?? "",
+        plan: cardOf.get(a.id)?.title?.trim() || String(a.order_note ?? "").replace(/^lands [^·]+· /, ""),
         status: flying.has(a.id) ? "flying" : arrived ? "unscheduled" : "on order", card: cardOf.get(a.id),
       };
     })

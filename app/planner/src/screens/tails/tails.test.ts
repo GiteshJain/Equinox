@@ -111,6 +111,19 @@ describe("deliveries", () => {
       ["T-005", "unscheduled", "2026-10-12", "AAA + DDD", "321-LEI", 7], ["T-006", "on order", "2026-10-15", "", "", null], ["T-001", "flying", "2026-10-01", "", "", null]]);
     expect(Math.round((rows[1]?.hrs ?? 0) * 10) / 10).toBe(54);
   });
+  it("names each one's plan card by its title, else by the old order note (21 Oct: a card with no order note showed blank)", () => {
+    const noNote = { ...ac(9, "T-009"), delivery_at: "2026-10-20T07:08:00+00:00", order_base_code: "HUB" };
+    const noteOnly = { ...ac(10, "T-010"), delivery_at: "2026-10-20T08:00:00+00:00", order_base_code: "HUB", order_note: "lands HUB · BBB" };
+    const both = { ...ac(11, "T-011"), delivery_at: "2026-10-20T09:00:00+00:00", order_base_code: "HUB", order_note: "lands HUB · old words" };
+    const blankTitle = { ...ac(12, "T-012"), delivery_at: "2026-10-20T10:00:00+00:00", order_base_code: "HUB", order_note: "lands HUB · CCC" };
+    const cards2: PlanCardRow[] = [
+      { id: 21, airline_id: 1, aircraft_id: 9, base_code: "HUB", title: "MCI + STL + IND", note: null, updated_at: T0 },
+      { id: 22, airline_id: 1, aircraft_id: 11, base_code: "HUB", title: "AAA + DDD", note: null, updated_at: T0 },
+      { id: 23, airline_id: 1, aircraft_id: 12, base_code: "HUB", title: "  ", note: null, updated_at: T0 },
+    ];
+    const plans = new Map(deliveryRows([noNote, noteOnly, both, blankTitle], airlines, rules, configMap, cards2, NOW, TODAY).map((r) => [r.a.registration, r.plan]));
+    expect(plans).toEqual(new Map([["T-009", "MCI + STL + IND"], ["T-010", "BBB"], ["T-011", "AAA + DDD"], ["T-012", "CCC"]]));
+  });
   it("shows the open ones by default, and each status, base and type when asked", () => {
     expect(shownDeliveries(rows, 1, { base: "", type: "", del: "" }).map((r) => r.a.registration)).toEqual(["T-005", "T-006"]);
     expect(shownDeliveries(rows, 1, { base: "", type: "", del: "flying" }).map((r) => r.a.registration)).toEqual(["T-001"]);
