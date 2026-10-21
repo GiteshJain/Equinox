@@ -78,11 +78,15 @@ important first; nothing folds.
   missing (an airline not captured for over a day; red after 48 hours), short (amber) or broken (red), with what came
   in ("short: Kingfisher (loads 12 of 78 flights)"). **Systems ›** has each page.
 - **Orders:** a card per airline: **Can order now** (amber: something to do), or **Safe from** a day, **Needs a
-  capture** or **Not within 14 days**, from the cash forecast (*cash_forecast()*, through *airline_cards()*); the types
-  that are safe, by when: **now** first, then each day from which more are safe, each short name once ("Safe now:
-  A321neo, E195 · from Thu, Oct 22: XLR, A320neo"); and each delivery line the airline may have, with how many
-  are on order and when it runs dry (UTC), amber when that's within *order_queue_warn_h* (48 hours), or **empty**.
-  **Cash, next 14 days ›** opens the airline on Performance. (Check → Growth's can order and order queues until 20 Oct.)
+  capture** or **Not within 14 days**, from the cash forecast (*cash_forecast()*, through *airline_cards()*). Then each
+  delivery line the airline may have, read once: when its first type is safe to order (**safe now**, **safe from** a
+  day, or **not safe within 14 days**: the earliest safe day of the line's types, by the same family the order queues
+  use), how many are on order and when it runs dry (UTC), amber when that's within *order_queue_warn_h* (48 hours), or
+  **empty**. For example: "A320 family — safe from Wed, Oct 21 · 1 on order · runs dry 10-20 19:14 UTC (in 17 h)". A
+  line with no type in the forecast (no capture yet) says only what's on order. **all safe types**, folded under the
+  card, lists every safe type by when: **now** first, then each day from which more are safe, each short name once
+  ("Safe now: A321neo, E195 · from Thu, Oct 22: XLR, A320neo"). **Cash, next 14 days ›** opens the airline on
+  Performance. (Check → Growth's can order and order queues until 20 Oct.)
 - **Aircraft to file:** each aircraft that has arrived in the game with a plan card, with **File into planner**, which
   files it on Tails (below). Home's Aircraft on order had the button until 20 Oct.
 - **Needs attention** (moved whole from Home on 20 Oct): things to act on, grouped by kind as on the old Home, each item
@@ -219,6 +223,10 @@ money figure is the database's. Its boards are open on arrival, the most importa
   - **Aircraft losing money after their lease.**
   - With no profit captured yet: ready for another flight from the load reports, and the routes to reduce from the
     load patterns.
+
+  Each list shows its first 10 rows, in its own order, with **show all N** under it to open the rest in place and
+  **show fewer** to close them again (21 Oct: the screen ran to almost 12,000 px with every row). The count stays in
+  each list's heading.
 
   The order rotation's **Next move for each airline** and **Log an order as** went on 20 Oct (spec decision 2): each
   evening's proposal picks by the route we most want to fly (manual §3). The moves logged stay in `growth_log`.

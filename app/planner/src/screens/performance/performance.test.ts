@@ -14,7 +14,7 @@ import type { RouteRow as TableRoute } from "../routes/model";
 import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
 import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
-  CHART_INTERVALS, barLayout, barTip, capturedLine, cardWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, kk, markCounts, nextOrderWords,
+  CHART_INTERVALS, LIST_TOP, barLayout, barTip, capturedLine, cardWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, kk, listCut, markCounts, nextOrderWords,
   offersFarePlan, planWords, safeWords, sg, shownRoutes, sparkBars, weekOnWeek, type Card, type DayRow, type PlanRow, type ProfitDay, type RouteRow,
 } from "./model";
 import type { CapturedLoad, HandLoads } from "./reads";
@@ -207,6 +207,29 @@ describe("the scorecards: each figure against the same day last week, from the d
     const x = weekOnWeek([row(1, "2026-10-08", 10, 280, 90), row(1, "2026-10-15", 10, 280, 91)], 1, "2026-10-15");
     expect(x.changes.load.text).toBe("▲ 1 pt");
     expect(weekOnWeek([row(1, "2026-10-08", 10, 280, 90), row(1, "2026-10-15", 10, 280, 88)], 1, "2026-10-15").changes.load.text).toBe("▼ 2 pts");
+  });
+});
+
+describe("the growth lists cut to their first 10 rows (21 Oct: Performance ran to 11,890 px)", () => {
+  const rows = Array.from({ length: 94 }, (_, i) => ({ route: `R${i + 1}` }));
+  it("10 shown of 94, in the list's own order, with \"show all 94\"", () => {
+    const c = listCut(rows, false);
+    expect(c.shown.map((r) => r.route)).toEqual(["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]);
+    expect(c.button).toBe("show all 94");
+    expect(LIST_TOP).toBe(10);
+  });
+  it("all 94 shown when opened, with \"show fewer\"", () => {
+    const c = listCut(rows, true);
+    expect(c.shown).toHaveLength(94);
+    expect(c.shown[93]).toEqual({ route: "R94" });
+    expect(c.button).toBe("show fewer");
+  });
+  it("no button with 10 rows or fewer, open or not", () => {
+    expect(listCut(rows.slice(0, 10), false)).toEqual({ shown: rows.slice(0, 10), button: null });
+    expect(listCut(rows.slice(0, 10), true)).toEqual({ shown: rows.slice(0, 10), button: null });
+    expect(listCut(rows.slice(0, 3), false).shown).toHaveLength(3);
+    expect(listCut([], false)).toEqual({ shown: [], button: null });
+    expect(listCut(rows.slice(0, 11), false)).toEqual({ shown: rows.slice(0, 10), button: "show all 11" });
   });
 });
 

@@ -99,11 +99,15 @@ export interface OrderRow {
   airline: OurAirline;
   /** Can order now (an action: amber), safe from a day, needs a capture, or not within 14 days. */
   status: { kind: "now" | "later" | "needs" | "none"; text: string };
-  /** The types safe to order (cash_forecast()'s), by when: now, then each day from which some are safe; none when it can't say. */
+  /** Every type safe to order (cash_forecast()'s), by when: now, then each day from which some are safe; none when it
+   *  can't say. Folded under the card ("all safe types") since 21 Oct. */
   types: { when: string; now: boolean; names: string[] }[];
-  /** Each delivery line the airline may have: how many on order and when it runs dry, or empty. */
-  lines: { family: string; text: string; warn: boolean; soon: string | null }[];
+  /** Each delivery line the airline may have, read once: when its first type is safe to order (null when the forecast
+   *  has no type of that line), how many are on order and when it runs dry, or empty. */
+  lines: { family: string; safe: LineSafe | null; text: string; warn: boolean; soon: string | null }[];
 }
+/** When a delivery line's first type is safe to order: "safe now", "safe from Wed, Oct 21" or "not safe within 14 days". */
+export interface LineSafe { now: boolean; text: string }
 
 /** When an order queue runs dry, in UTC: "10-14 05:53". */
 export const runsDryWords = (ms: number): string => new Date(ms).toISOString().slice(5, 16).replace("T", " ");
@@ -135,12 +139,28 @@ export function safeTypes(types: readonly ForecastType[] | undefined): OrderRow[
   return [...groups.values()].sort((a, b) => a.day - b.day).map(({ when, now, names }) => ({ when, now, names }));
 }
 
-/** Each delivery line the airline may have (the families not in its fleet left out): how many on order and when the
- *  last arrives, warned when it runs dry within order_queue_warn_h; or empty, standing idle. */
-export function deliveryLines(cells: readonly QueueCell[]): OrderRow["lines"] {
-  return cells.filter((c) => c.in_fleet).map((c) => (c.count && c.last_ms != null
-    ? { family: c.family, text: `${c.count} on order · runs dry ${runsDryWords(c.last_ms)} UTC`, warn: c.warn, soon: c.warn && c.hours != null ? soonWords(c.hours) : null }
-    : { family: c.family, text: "empty: nothing on order", warn: false, soon: null }));
+/** When a delivery line's first type is safe to order, from cash_forecast()'s types of that line's family (the family
+ *  the order queues use): the earliest safe day of any of them, "safe now" or "safe from" that day; "not safe within 14
+ *  days" when none is; null when the forecast has no type of the line (no forecast yet, or none of its types). */
+export function lineSafe(family: string, types: readonly ForecastType[] | undefined, familyOfType: (t: ForecastType) => string): LineSafe | null {
+  const mine = (types ?? []).filter((t) => familyOfType(t) === family);
+  if (!mine.length) return null;
+  const safe = mine.filter((t) => t.safe_day === 0 || (t.safe_day != null && t.safe_from));
+  if (!safe.length) return { now: false, text: "not safe within 14 days" };
+  const first = safe.reduce((a, b) => ((b.safe_day as number) < (a.safe_day as number) ? b : a));
+  return first.safe_day === 0 ? { now: true, text: "safe now" } : { now: false, text: `safe from ${fcDay(first.safe_from as string)}` };
+}
+
+/** Each delivery line the airline may have (the families not in its fleet left out), read once: when its first type is
+ *  safe to order (lineSafe), then how many on order and when the last arrives, warned when it runs dry within
+ *  order_queue_warn_h; or empty, standing idle. */
+export function deliveryLines(cells: readonly QueueCell[], types?: readonly ForecastType[], familyOfType?: (t: ForecastType) => string): OrderRow["lines"] {
+  return cells.filter((c) => c.in_fleet).map((c) => {
+    const safe = familyOfType ? lineSafe(c.family, types, familyOfType) : null;
+    return c.count && c.last_ms != null
+      ? { family: c.family, safe, text: `${c.count} on order · runs dry ${runsDryWords(c.last_ms)} UTC`, warn: c.warn, soon: c.warn && c.hours != null ? soonWords(c.hours) : null }
+      : { family: c.family, safe, text: "empty: nothing on order", warn: false, soon: null };
+  });
 }
 
 // ---------- aircraft to file: arrived with a plan card (Home's Aircraft on order, whose File into planner moved here)

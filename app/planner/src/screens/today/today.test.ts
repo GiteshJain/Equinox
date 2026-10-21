@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildRules, checks as checkRules, game, type GameFlight, type OneWeekCheck, type QueueCell, type RulesInput } from "@rules";
 import type { Change } from "../../data/save";
+import { familyOf } from "../../ui/aircraftNames";
 import { attKind, dismissKey, groupAttention, withoutDismissed, type AttItem } from "../../ui/attention";
 import type { OnOrderGroup } from "../home/onOrder";
 import type { HomeAirline, TodoItemRow, TodoRow } from "../home/reads";
@@ -16,7 +17,7 @@ import type { TailAircraft } from "../tails/model";
 import { homeAttention, type AttentionInput } from "./attention";
 import { comingUp, upFilters } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
-import { captureLine, clockWords, deliveryLines, orderStatus, runsDryWords, safeTypes, soonWords, toFile, waitingWords } from "./model";
+import { captureLine, clockWords, deliveryLines, lineSafe, orderStatus, runsDryWords, safeTypes, soonWords, toFile, waitingWords } from "./model";
 import type { LegNow } from "./reads";
 import { addChanges, deleteChanges, dismissChanges, showAgainChanges, sortTodos, tickChanges, todoBoard, todoViews } from "./todos";
 
@@ -107,12 +108,39 @@ describe("orders: can order now or from when, the types that are safe, and each 
     const cell = (family: string, x: Partial<QueueCell>): QueueCell => ({ family, in_fleet: true, count: 0, last_ms: null, hours: null, warn: false, ...x });
     expect(deliveryLines([cell("A320 family", { count: 3, last_ms: Date.parse("2026-10-24T05:53:00Z"), hours: 80 }),
       cell("A350", { count: 1, last_ms: Date.parse("2026-10-20T20:00:00Z"), hours: 12.4, warn: true }), cell("E195", {}), cell("A220", { in_fleet: false })])).toEqual([
-      { family: "A320 family", text: "3 on order · runs dry 10-24 05:53 UTC", warn: false, soon: null },
-      { family: "A350", text: "1 on order · runs dry 10-20 20:00 UTC", warn: true, soon: "in 12 h" },
-      { family: "E195", text: "empty: nothing on order", warn: false, soon: null },
+      { family: "A320 family", safe: null, text: "3 on order · runs dry 10-24 05:53 UTC", warn: false, soon: null },
+      { family: "A350", safe: null, text: "1 on order · runs dry 10-20 20:00 UTC", warn: true, soon: "in 12 h" },
+      { family: "E195", safe: null, text: "empty: nothing on order", warn: false, soon: null },
     ]);
     expect(runsDryWords(Date.parse("2026-10-14T05:53:00Z"))).toBe("10-14 05:53");
     expect([soonWords(-2), soonWords(0.4), soonWords(21.6)]).toEqual(["now", "in 0 h", "in 22 h"]);
+  });
+
+  // 21 Oct: each delivery line says when its first type is safe, so the card reads each line once
+  const ft = (type: string, safe_day: number | null, safe_from: string | null) =>
+    ({ aircraft_type_id: 1, type, price_with_cabin: 60, lease_week: 0.8, lease_seen: true, safe_day, safe_from, count_today: 1 });
+  const fam = (t: { type: string }) => familyOf(t.type);
+  const forecast = [
+    ft("A321XLR", 2, "2026-10-22T05:00:00Z"), ft("A320NEO LIGHT", 1, "2026-10-21T05:00:00Z"), ft("A321 NEO LIGHT", 4, "2026-10-24T05:00:00Z"),
+    ft("E195-E2", 0, "2026-10-20T05:00:00Z"), ft("E190-E2", 3, "2026-10-23T05:00:00Z"),
+    ft("A350-900ULR", null, null), ft("A350-900", null, null),
+  ];
+  it("a line's earliest safe day: now; a day (the earliest of its types); not within 14 days; nothing for a line with no type in the forecast", () => {
+    expect(lineSafe("E195", forecast, fam)).toEqual({ now: true, text: "safe now" });
+    expect(lineSafe("A320 family", forecast, fam)).toEqual({ now: false, text: "safe from Wed, Oct 21" });
+    expect(lineSafe("A350", forecast, fam)).toEqual({ now: false, text: "not safe within 14 days" });
+    expect(lineSafe("A220", forecast, fam)).toBeNull();
+    expect(lineSafe("A320 family", undefined, fam)).toBeNull();
+    expect(lineSafe("A320 family", [], fam)).toBeNull();
+  });
+  it("each line read once: when it's safe, then what's on order", () => {
+    const cell = (family: string, x: Partial<QueueCell>): QueueCell => ({ family, in_fleet: true, count: 0, last_ms: null, hours: null, warn: false, ...x });
+    expect(deliveryLines([cell("A320 family", { count: 1, last_ms: Date.parse("2026-10-20T19:14:00Z"), hours: 17, warn: true }), cell("E195", {}),
+      cell("A350", {}), cell("A220", { in_fleet: false })], forecast, fam)).toEqual([
+      { family: "A320 family", safe: { now: false, text: "safe from Wed, Oct 21" }, text: "1 on order · runs dry 10-20 19:14 UTC", warn: true, soon: "in 17 h" },
+      { family: "E195", safe: { now: true, text: "safe now" }, text: "empty: nothing on order", warn: false, soon: null },
+      { family: "A350", safe: { now: false, text: "not safe within 14 days" }, text: "empty: nothing on order", warn: false, soon: null },
+    ]);
   });
 });
 

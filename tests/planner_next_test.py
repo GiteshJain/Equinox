@@ -327,8 +327,8 @@ async def home_opens(pl):
 async def today_opens(pl):
     """Today (20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md): its answer at the top (All clear or what's
     waiting) with the capture in one line linking to Systems; then every board open, in order: Orders with a card for each
-    of our airlines in their order, Aircraft to file, Needs attention, Game check, the to-do board and Coming up; and no
-    Collapse all."""
+    of our airlines in their order (each delivery line once, with when it's safe; all safe types folded under the card
+    since 21 Oct), Aircraft to file, Needs attention, Game check, the to-do board and Coming up; and no Collapse all."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
@@ -344,6 +344,9 @@ async def today_opens(pl):
         boards: [...document.querySelectorAll('main[data-screen=today] .board > h3.rh')].map(h => h.textContent.trim().split('\\n')[0]),
         figures: [...document.querySelectorAll('main[data-screen=today] [data-figure]')].map(b => b.dataset.figure),
         orders: [...document.querySelectorAll('[data-figure="today: orders"] .ordcard .ordh b')].map(b => b.textContent),
+        lines: document.querySelectorAll('[data-figure="today: orders"] [data-order-line]').length,
+        allSafe: document.querySelectorAll('[data-figure="today: orders"] details.ordall').length,
+        allSafeOpen: document.querySelectorAll('[data-figure="today: orders"] details.ordall[open]').length,
         todo: !!document.querySelector('main[data-screen=today] #todo'), comingUp: !!document.querySelector('main[data-screen=today] #coming-up'),
         attention: !!document.querySelector('main[data-screen=today] #attention'), game: !!document.querySelector('main[data-screen=today] [data-board="Game check"] #gcheck'),
         folded: document.querySelectorAll('main[data-screen=today] .board.rcol').length, collapse: !!document.querySelector('main[data-screen=today] #rev-colall') })""")
@@ -360,6 +363,8 @@ async def today_opens(pl):
         problems.append(f"Today's boards are {seen}, not {order} in that order")
     if got["orders"] != want:
         problems.append(f"Today's orders are for {got['orders']}, the copy's airlines are {want}")
+    if got["allSafeOpen"]:
+        problems.append(f"{got['allSafeOpen']} order cards show all safe types on arrival (they should be folded)")
     problems += [f"Today has no {k}" for k in ("todo", "comingUp", "attention", "game") if not got[k]]
     if got["folded"]:
         problems.append(f"{got['folded']} of Today's boards are folded on arrival (all should be open)")
@@ -368,7 +373,8 @@ async def today_opens(pl):
     await pl.pg.click("[data-screen-link=home]")
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Today opens with its answer ({got['title'] or '?'}), the capture line ({got['capture']}) linking to Systems, and every board open: "
-            f"orders for the copy's {len(got['orders'])} airlines, aircraft to file, needs attention, Game check, the to-do board and coming up"), problems
+            f"orders for the copy's {len(got['orders'])} airlines ({got['lines']} delivery lines, all safe types folded on {got['allSafe']} cards), "
+            f"aircraft to file, needs attention, Game check, the to-do board and coming up"), problems
 
 
 async def routes_opens(pl):
@@ -483,7 +489,8 @@ async def performance_opens(pl):
     """Performance (20 Oct; Review's screen with Check's growth boards and load report until then): a scorecard for each of
     our airlines the captured figures cover, in their order, each with its figures against the same day last week (or
     saying there's no day a week ago), and the group's boards open (the group today when shown, Growth signals, Main hubs,
-    Flights by day); tapping the first scorecard opens that airline's page, its own scorecard and its four boards open."""
+    Flights by day); each growth list shows its first 10 rows with "show all N" (21 Oct), which opens the rest in place and
+    "show fewer" closes; tapping the first scorecard opens that airline's page, its own scorecard and its four boards open."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
@@ -508,6 +515,28 @@ async def performance_opens(pl):
         problems.append(f"Performance's group boards are {got['boards']}")
     if got["folded"]:
         problems.append(f"{got['folded']} of Performance's boards are folded on arrival (all should be open)")
+    # 21 Oct: each growth list shows its first 10 rows with "show all N", which opens the rest in place and closes again
+    lists_js = """[...document.querySelectorAll('main[data-screen=performance] [data-figure="performance: growth lists"] [data-list]')].map(d => ({
+        list: d.dataset.list, rows: +d.dataset.listRows, shown: d.querySelectorAll('table tr').length - 1,
+        button: (d.querySelector(':scope > [data-list-more]') || {}).textContent || '', visible: !!d.offsetParent }))"""
+    lists = await pl.pg.evaluate(lists_js)
+    for x in lists:
+        want_shown, want_button = (10, f"show all {x['rows']}") if x["rows"] > 10 else (x["rows"], "")
+        if x["shown"] != want_shown or x["button"] != want_button:
+            problems.append(f"growth list {x['list']!r} of {x['rows']} shows {x['shown']} rows with {x['button']!r}, not {want_shown} with {want_button!r}")
+    long = next((x for x in lists if x["rows"] > 10 and x["visible"]), None)
+    if long:
+        sel = f"main[data-screen=performance] [data-list={json.dumps(long['list'])}] > [data-list-more]"
+        await pl.pg.click(sel)
+        opened = next((x for x in await pl.pg.evaluate(lists_js) if x["list"] == long["list"]), {})
+        if opened.get("shown") != long["rows"] or opened.get("button") != "show fewer":
+            problems.append(f"\"show all {long['rows']}\" on {long['list']!r} shows {opened.get('shown')} rows with {opened.get('button')!r}")
+        await pl.pg.click(sel)
+        closed = next((x for x in await pl.pg.evaluate(lists_js) if x["list"] == long["list"]), {})
+        if closed.get("shown") != 10:
+            problems.append(f"\"show fewer\" on {long['list']!r} leaves {closed.get('shown')} rows")
+    sizes = ", ".join("%s %d" % (x["list"], x["rows"]) for x in lists)
+    cut_words = ("; growth lists cut to 10 (" + sizes + ")" + (", %r opened and closed" % long["list"] if long else "")) if lists else ""
     await pl.pg.click("main[data-screen=performance] [data-figure='performance: scorecards'] .fcard")
     await pl.pg.wait_for_function("() => !!(document.querySelector('main[data-screen=performance]') || {dataset: {}}).dataset.airline", timeout=30000)
     await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
@@ -524,7 +553,7 @@ async def performance_opens(pl):
     await pl.pg.click("[data-screen-link=home]")
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Performance opens with a scorecard for each of the copy's {len(got['cards'])} airlines in order ({'; '.join(got['wow'][:1])}) and the group's "
-            f"{len(got['boards'])} boards open; the first scorecard opens {one['path']} with its {len(one['boards'])} boards open"), problems
+            f"{len(got['boards'])} boards open{cut_words}; the first scorecard opens {one['path']} with its {len(one['boards'])} boards open"), problems
 
 
 async def last_screens_open(pl):

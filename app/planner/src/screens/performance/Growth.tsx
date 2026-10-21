@@ -4,7 +4,9 @@
 // towards its weekly target (hub_progress()) with hub readiness (how many cities feed each bank, the library's
 // growth.hubReadiness) folded into its line. Can order and the order queues moved to Today; the order rotation's next
 // move and its Log an order as went (spec decision 2). The planning parts are the library's (growth, the suggested
-// aircraft size after a route too, growth.suggestedSize); the captured figures the database's.
+// aircraft size after a route too, growth.suggestedSize); the captured figures the database's. Since 21 Oct each list
+// shows its first 10 rows, in its own order, with "show all N" under it (model.ts's listCut); its count stays in its heading.
+import { useState } from "react";
 import { Link } from "react-router";
 import type { GrowthRoute, ReadinessRow, Rules } from "@rules";
 import type { OurAirline } from "../../data/airlines";
@@ -12,6 +14,7 @@ import { AirlineMark } from "../../ui/AirlineMark";
 import { loadClass, loadTip, type Load } from "../routes/model";
 import { itemRoute } from "../screens";
 import { H, hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords } from "./growth";
+import { listCut } from "./model";
 import type { GrowthRead, HubProgressAirline, Pattern, SignalAircraft, SignalRoute } from "./reads";
 
 export interface ReadyRow { route: GrowthRoute & { airline_id: number; round_trips_day: number }; load: Load & { average: number }; flyingOn: string; size: string | null }
@@ -20,16 +23,33 @@ const routeLink = (code: string | null | undefined, hub: string, dest: string) =
   <Link className="link" to={itemRoute("routes", { airline: code, hub, dest })}><b>{hub}–{dest}</b></Link>
 );
 
-function Table<T>({ rows, cols }: { rows: readonly T[]; cols: readonly [string, (r: T) => React.ReactNode, boolean?][] }) {
+/** A growth list cut to its first 10 rows, with "show all N" under it to open the rest in place and "show fewer" to
+ *  close them (model.ts's listCut). */
+function Cut<T>({ rows, list, children }: { rows: readonly T[]; list: string; children: (shown: readonly T[]) => React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const c = listCut(rows, open);
   return (
-    <div className="tscroll">
-      <table className="tbl gtbl">
-        <tbody>
-          <tr>{cols.map((c, i) => <th key={i} className={c[2] ? "num" : undefined}>{c[0]}</th>)}</tr>
-          {rows.map((r, i) => <tr key={i}>{cols.map((c, j) => <td key={j} className={c[2] ? "num" : undefined}>{c[1](r)}</td>)}</tr>)}
-        </tbody>
-      </table>
+    <div data-list={list} data-list-rows={rows.length} data-list-shown={c.shown.length}>
+      {children(c.shown)}
+      {c.button ? <button type="button" className="link gmore" data-list-more={list} aria-expanded={open} onClick={() => setOpen(!open)}>{c.button}</button> : null}
     </div>
+  );
+}
+
+function Table<T>({ rows, cols, list }: { rows: readonly T[]; cols: readonly [string, (r: T) => React.ReactNode, boolean?][]; list: string }) {
+  return (
+    <Cut rows={rows} list={list}>
+      {(shown) => (
+        <div className="tscroll">
+          <table className="tbl gtbl">
+            <tbody>
+              <tr>{cols.map((c, i) => <th key={i} className={c[2] ? "num" : undefined}>{c[0]}</th>)}</tr>
+              {shown.map((r, i) => <tr key={i}>{cols.map((c, j) => <td key={j} className={c[2] ? "num" : undefined}>{c[1](r)}</td>)}</tr>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Cut>
   );
 }
 
@@ -107,21 +127,21 @@ function Signals({ rules, s, airlines }: { rules: Rules; s: GrowthRead; airlines
   return (
     <>
       <h4 className="gh">Ready for another flight <span className="note">sold out on most captured departures in the last {s.days} days, and profit an aircraft hour (block time, turnaround and turn margin) at or above the airline's middle route · {s.ready_for_another_flight.length}</span></h4>
-      {s.ready_for_another_flight.length ? <Table rows={s.ready_for_another_flight} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
+      {s.ready_for_another_flight.length ? <Table list="ready" rows={s.ready_for_another_flight} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
         ["An aircraft hour", (r) => (r.profit_per_aircraft_hour == null ? "—" : kWords(r.profit_per_aircraft_hour)), true],
         ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true], ["A week", (r) => weekWords(r.profit_week ?? 0), true]]} />
         : <div className="dim">Nothing yet. A route needs at least {setting("growth_sold_out_min_departures")} captured departures, most of them sold out.</div>}
       <h4 className="gh">Raise fares <span className="note">sold out, but less profit an aircraft hour than the airline's middle route: a higher fare earns more from the same seats · {s.raise_fares.length}</span></h4>
-      {s.raise_fares.length ? <Table rows={s.raise_fares} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
+      {s.raise_fares.length ? <Table list="raise" rows={s.raise_fares} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
         ["An aircraft hour", (r) => (r.profit_per_aircraft_hour == null ? "—" : kWords(r.profit_per_aircraft_hour)), true],
         ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true], ["Economy fare", (r) => (r.economy_fare == null ? "—" : Math.round(r.economy_fare)), true]]} />
         : <div className="dim">Nothing yet.</div>}
       <h4 className="gh">Fix or reduce <span className="note">losing money, economy under {setting("growth_fix_economy_pct")}%, or bottom-quarter profit on a thin margin · {s.fix_or_reduce.length}</span></h4>
-      {s.fix_or_reduce.length ? <Table rows={s.fix_or_reduce} cols={[["Route", rl], AL, ["Economy", (r) => pctWords(r.economy), true], ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true],
+      {s.fix_or_reduce.length ? <Table list="fix" rows={s.fix_or_reduce} cols={[["Route", rl], AL, ["Economy", (r) => pctWords(r.economy), true], ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true],
         ["Why", (r) => r.why]]} />
         : <div className="dim">Nothing to fix.</div>}
       <h4 className="gh">Aircraft losing money after their lease <span className="note">flight profit a day below the lease · {s.aircraft_losing_after_lease.length}</span></h4>
-      {s.aircraft_losing_after_lease.length ? <Table<SignalAircraft> rows={s.aircraft_losing_after_lease} cols={[["Aircraft", (r) => <b>{r.registration}</b>], AL, ["Type", (r) => r.type],
+      {s.aircraft_losing_after_lease.length ? <Table<SignalAircraft> list="losing" rows={s.aircraft_losing_after_lease} cols={[["Aircraft", (r) => <b>{r.registration}</b>], AL, ["Type", (r) => r.type],
         ["After lease a day", (r) => kWords(r.net_day ?? 0), true], ["Routes", (r) => r.routes.join(", ")]]} />
         : <div className="dim">Every aircraft covers its lease.</div>}
       <div className="note">From the nightly capture, last {s.days} days. The full picture for each airline, with charts, is on its own page: tap its scorecard.</div>
@@ -146,40 +166,48 @@ function FromLoads({ rules, ready, patterns, airlines }: { rules: Rules; ready: 
           {byAl.map((x) => (
             <details className="gsec" key={x.a.id}>
               <summary><AirlineMark color={x.a.color} /><b>{x.a.name}</b> <span className="dim">{x.list.length} route{x.list.length === 1 ? "" : "s"} ready · top: {x.list.slice(0, 3).map((r) => r.route.hub + "–" + r.route.dest).join(", ")}</span></summary>
-              <div className="tscroll">
-                <table className="tbl gtbl">
-                  <tbody>
-                    <tr><th>Route</th><th>Demand</th><th>Flights a day</th><th>Loads (7 days)</th><th>Flying on</th><th>Add</th></tr>
-                    {x.list.map((r) => (
-                      <tr key={r.route.id}>
-                        <td>{routeLink(x.a.code, r.route.hub, r.route.dest)}</td>
-                        <td><span className="stars">{"★".repeat(Math.max(0, r.route.stars))}</span></td>
-                        <td>{perDayWords(r.route.round_trips_day)}</td>
-                        <td><span className={`pill ${loadClass(r.load.average)} lfc`} title={loadTip(r.load)}>≈{Math.round(r.load.average)}%</span> <span className="dim">{r.load.days} days</span></td>
-                        <td className="dim">{r.flyingOn || "—"}</td>
-                        <td><b>{r.size ?? ""}</b></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Cut rows={x.list} list={`ready ${x.a.code ?? x.a.id}`}>
+                {(shown) => (
+                  <div className="tscroll">
+                    <table className="tbl gtbl">
+                      <tbody>
+                        <tr><th>Route</th><th>Demand</th><th>Flights a day</th><th>Loads (7 days)</th><th>Flying on</th><th>Add</th></tr>
+                        {shown.map((r) => (
+                          <tr key={r.route.id}>
+                            <td>{routeLink(x.a.code, r.route.hub, r.route.dest)}</td>
+                            <td><span className="stars">{"★".repeat(Math.max(0, r.route.stars))}</span></td>
+                            <td>{perDayWords(r.route.round_trips_day)}</td>
+                            <td><span className={`pill ${loadClass(r.load.average)} lfc`} title={loadTip(r.load)}>≈{Math.round(r.load.average)}%</span> <span className="dim">{r.load.days} days</span></td>
+                            <td className="dim">{r.flyingOn || "—"}</td>
+                            <td><b>{r.size ?? ""}</b></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Cut>
             </details>
           ))}
         </>
       )}
       <h4 className="gh">Reduce <span className="note">under 85% on most departures over the last {window} days</span></h4>
       {cut.length ? (
-        <div className="tscroll">
-          <table className="tbl">
-            <tbody>
-              <tr><th>Route</th><th>Airline</th><th>Departures seen</th><th>Under 85%</th></tr>
-              {cut.map((x) => (
-                <tr key={x.route_id}><td>{routeLink(al(x.airline_id)?.code, x.hub, x.dest)}</td><td><AirlineMark color={al(x.airline_id)?.color} />{al(x.airline_id)?.name ?? ""}</td>
-                  <td>{x.departures}</td><td>{x.under_85 + x.under_70}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Cut rows={cut} list="reduce">
+          {(shown) => (
+            <div className="tscroll">
+              <table className="tbl">
+                <tbody>
+                  <tr><th>Route</th><th>Airline</th><th>Departures seen</th><th>Under 85%</th></tr>
+                  {shown.map((x) => (
+                    <tr key={x.route_id}><td>{routeLink(al(x.airline_id)?.code, x.hub, x.dest)}</td><td><AirlineMark color={al(x.airline_id)?.color} />{al(x.airline_id)?.name ?? ""}</td>
+                      <td>{x.departures}</td><td>{x.under_85 + x.under_70}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Cut>
       ) : <div className="dim">No route is clearly under-performing yet.</div>}
     </>
   );

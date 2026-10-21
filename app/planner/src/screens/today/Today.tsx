@@ -129,7 +129,8 @@ export function Today() {
       const allowed = new Set(buyQ.data.filter((b) => b.airline_id === a.id).map((b) => family(b.aircraft_type_id)));
       const cells = growth.orderQueues(rules, a.id, families, allowed,
         unfiled.filter((x) => x.airline_id === a.id && x.delivery_at).map((x) => ({ family: family(x.aircraft_type_id), delivery_ms: toMinute(x.delivery_at as string) })), now.getTime());
-      return { airline: a, status: orderStatus(card?.next_order, card?.can_order_now), types: safeTypes(forecastsQ[i]?.data?.types), lines: deliveryLines(cells) };
+      const types = forecastsQ[i]?.data?.types;
+      return { airline: a, status: orderStatus(card?.next_order, card?.can_order_now), types: safeTypes(types), lines: deliveryLines(cells, types, (t) => family(t.aircraft_type_id)) };
     });
   }, [rules, cardsQ.data, buyQ.data, aircraftQ.data, forecastsQ, airlines, ordering, now]);
 
@@ -256,7 +257,7 @@ export function Today() {
       </section>
 
       <Board title="Orders" figure="today: orders" id="orders"
-        note="from the cash forecast: an order is safe when the cushion stays in hand at its lowest point · each delivery line, and when it runs dry (UTC)">
+        note="from the cash forecast: an order is safe when the cushion stays in hand at its lowest point · each delivery line: when its first type is safe, what's on order and when it runs dry (UTC)">
         {!orders ? <div className="loading">Loading…</div> : (
           <div className="ordgrid">
             {orders.map((o) => (
@@ -265,17 +266,24 @@ export function Today() {
                   <AirlineMark color={o.airline.color} /><b>{o.airline.name}</b>
                   {o.status.kind === "now" ? <span className="pill warn" data-can-order>{o.status.text}</span> : <span className="dim">{o.status.text}</span>}
                 </div>
-                {o.types.length ? (
-                  <div className="ordtypes"><span className="dim">Safe</span> {o.types.map((g, i) => (
-                    <span key={g.when}>{i ? <span className="dim"> · </span> : null}{g.now ? <b>{g.when}: {g.names.join(", ")}</b> : <span className="dim">{g.when}: {g.names.join(", ")}</span>}</span>
-                  ))}</div>
-                ) : null}
                 {o.lines.length ? (
                   <ul className="ordlines">
                     {o.lines.map((l) => (
-                      <li key={l.family}><b>{l.family}</b> <span className={l.text.startsWith("empty") ? "dim" : undefined}>{l.text}</span>{l.soon ? <> <span className="pill warn sm">{l.soon}</span></> : null}</li>
+                      <li key={l.family} data-order-line={l.family}>
+                        <b>{l.family}</b> —{" "}
+                        {l.safe ? <>{l.safe.now ? <b>{l.safe.text}</b> : <span>{l.safe.text}</span>} <span className="dim">·</span> </> : null}
+                        <span className={l.text.startsWith("empty") ? "dim" : undefined}>{l.text}</span>{l.soon ? <> <span className="pill warn sm">{l.soon}</span></> : null}
+                      </li>
                     ))}
                   </ul>
+                ) : null}
+                {o.types.length ? (
+                  <details className="ordall" data-all-safe={o.airline.code ?? ""}>
+                    <summary>all safe types</summary>
+                    <div className="ordtypes"><span className="dim">Safe</span> {o.types.map((g, i) => (
+                      <span key={g.when}>{i ? <span className="dim"> · </span> : null}{g.now ? <b>{g.when}: {g.names.join(", ")}</b> : <span className="dim">{g.when}: {g.names.join(", ")}</span>}</span>
+                    ))}</div>
+                  </details>
                 ) : null}
                 {o.airline.code ? <Link className="link" to={itemRoute("performance", { airline: o.airline.code })}>Cash, next 14 days ›</Link> : null}
               </div>

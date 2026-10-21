@@ -417,6 +417,16 @@ export function groupLayout(rows: readonly GroupRow[]) {
   };
 }
 
+// ---------- the growth lists' cut (21 Oct: Performance ran to 11,890 px with every row of each list)
+/** How many rows a growth list shows before "show all N". */
+export const LIST_TOP = 10;
+/** A growth list's rows as shown: its first LIST_TOP in its own order, with "show all N" to open the rest in place and
+ *  "show fewer" to close them again; every row and no button with LIST_TOP or fewer. Its count stays in its heading. */
+export function listCut<T>(rows: readonly T[], open: boolean, top = LIST_TOP): { shown: readonly T[]; button: string | null } {
+  if (rows.length <= top) return { shown: rows, button: null };
+  return open ? { shown: rows, button: "show fewer" } : { shown: rows.slice(0, top), button: `show all ${rows.length}` };
+}
+
 // ---------- the fare plan (farePlanBoard) and "+ fare plan"
 export function planWords(p: PlanRow, nice: (day: string) => string) {
   return {
