@@ -129,7 +129,7 @@ Los Angeles–Munich and the like).
 
 **Cash:** 41 long-haul trunks would need roughly 45–50 A350s, about 330–370M: more than all six airlines earn in November
 (about 1.3–2.5M a day each). One A350 costs as much as three to four narrowbodies. So the order of the month matters:
-see the open question in the review chat, 20 Oct.
+**narrowbody trunks first, then the A350 trunks, biggest market first** (Gitesh, 20 Oct).
 
 
 Every base is a 5-star city, so the A320neo SHARP by default (within 3,355 km), the A321neo LIGHT where a heavy rival
