@@ -9,8 +9,11 @@
 //   block <origin> <dest> <type>                 the block-time estimate for a leg not yet timed
 //   connections <airport>                        every connection there, with days and gaps, the city pairs and banks
 //   aircraft [registration]                      one aircraft's week and maintenance; every aircraft's figures without one
-//   check-card <card.json>                       a plan card's legs checked against every rule, at both ends, and its
-//                                                cabin (config_id) against the one its routes call for (cabin, 21 Oct)
+//   check-card <card.json> [--fares <ladder.json>]
+//                                                a plan card's legs checked against every rule, at both ends, and its
+//                                                cabin (config_id) against the one its routes call for (cabin, 21 Oct);
+//                                                with fare_ladder()'s answer for its airline (or the briefing's), each
+//                                                route's fare level (fares, 21 Oct)
 //   optimise <base> <dest,dest,...> --type <type> [--start 05:00-11:00] [--step 5] [--hubs X,Y] [--airline <id>]
 //                                                the best day's schedule for one aircraft
 // The optimiser's start window and step default to plan.py's (05:00 to 11:00 local at the base, every 5 minutes):
@@ -19,7 +22,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { forAircraft as aircraftWeekFor } from "./aircraftWeek.js";
 import { blockFor, timedLegs } from "./block.js";
-import { checkCard, type Card } from "./card.js";
+import { checkCard, type Card, type FareLadder } from "./card.js";
 import { connectionsAt } from "./connections.js";
 import { RulesError, buildRules } from "./input.js";
 import { forAircraft as maintenanceFor } from "./maintenance.js";
@@ -31,9 +34,10 @@ const USAGE = `usage: node lib/rules/dist/cli.js <command> <input.json> [argumen
   block <origin> <dest> <type>
   connections <airport>
   aircraft [registration]
-  check-card <card.json>
+  check-card <card.json> [--fares <ladder.json>]
   optimise <base> <dest,dest,...> --type <type> [--start 05:00-11:00] [--step 5] [--hubs X,Y] [--airline <id>]
-input.json is rules_input()'s answer (export_for_report(secret, 'rules') for the scripts).`;
+input.json is rules_input()'s answer (export_for_report(secret, 'rules') for the scripts); ladder.json is fare_ladder()'s
+answer for the card's airline (select public.fare_ladder(<airline id>)), or the briefing's (its fare_ladder).`;
 
 class UsageError extends Error {}
 
@@ -54,6 +58,21 @@ function unwrap(x: unknown): RulesInput {
     if (inner) v = inner;
   }
   return v as RulesInput;
+}
+
+/** fare_ladder()'s answer, also when saved wrapped (as the data API answers an RPC, a one-row result, or the airline
+ *  briefing's document or JSON, whose fare_ladder it is). */
+function unwrapLadder(x: unknown): FareLadder {
+  let v = x;
+  if (Array.isArray(v) && v.length === 1) v = v[0];
+  for (let i = 0; i < 2 && v && typeof v === "object" && !Array.isArray((v as Record<string, unknown>).routes); i++) {
+    const o = v as Record<string, unknown>;
+    v = o.fare_ladder ?? (o.briefing as Record<string, unknown> | undefined)?.fare_ladder ?? v;
+  }
+  if (!v || typeof v !== "object" || !Array.isArray((v as Record<string, unknown>).routes)) {
+    throw new UsageError("--fares needs fare_ladder()'s answer (or the briefing's fare_ladder): a document with its routes");
+  }
+  return v as FareLadder;
 }
 
 function options(args: string[]): { pos: string[]; opt: Record<string, string> } {
@@ -128,8 +147,9 @@ export function run(argv: string[]): Json {
       return aircraftAnswer(rules, pos[0]);
     case "check-card": {
       const [cardPath] = pos;
-      if (!cardPath) throw new UsageError("check-card <card.json>");
-      return checkCard(rules, readJson(cardPath) as Card) as unknown as Json;
+      if (!cardPath) throw new UsageError("check-card <card.json> [--fares <ladder.json>]");
+      const fares = opt.fares ? unwrapLadder(readJson(opt.fares)) : null;
+      return checkCard(rules, readJson(cardPath) as Card, { fares }) as unknown as Json;
     }
     case "optimise":
     case "optimize": {

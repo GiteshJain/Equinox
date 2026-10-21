@@ -7,8 +7,8 @@
 // rows to it and words what it answers, as the old planner words it.
 import {
   RulesError, aircraftWeek, banks, block, buildRules, card as cardRules, frequency, game, maintenance, service, tails, time, type AircraftWeek, type AirportRow,
-  type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
-  type NoMaintenance, type Rules, type ServiceProfile, type TailIssue, type TimedLeg, type WeekLeg,
+  type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type FareLadder, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
+  type NoMaintenance, type RouteFare, type Rules, type ServiceProfile, type TailIssue, type TimedLeg, type WeekLeg,
 } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
@@ -457,6 +457,40 @@ export function cardCabin(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | 
     if (e instanceof RulesError) return null;
     throw e;
   }
+}
+// ---------- the plan card's fares (manual §5, since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2): the
+// library's card.cardFares on the card's legs, from fare_ladder()'s answer for the card's airline; nothing is stored on
+// the card
+/** Each route the card flies with its fare level, once per route in the order of its legs; null when it can't be worked
+ *  out (no ladder yet, an aircraft without a type, a missing setting). */
+export function cardFareLevels(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | "config_id">, legs: readonly PlanLegRow[], ladder: FareLadder | null | undefined): RouteFare[] | null {
+  if (!ladder) return null;
+  try {
+    return cardRules.cardFares(rules, {
+      aircraft: card.aircraft_id, config_id: card.config_id ?? null,
+      legs: [...legs].sort((a, b) => a.position - b.position).map((l) => ({ flight_no: l.flight_no, origin_code: l.origin_code, dest_code: l.dest_code })),
+    }, ladder);
+  } catch (e) {
+    if (e instanceof RulesError) return null;
+    throw e;
+  }
+}
+/** The card's Fare column: each route's fare level on the first of its legs on the card (by the leg's row id), so each
+ *  route shows once ("economy +10%, business +5% of the default price", "launch (+0% of the default price)"). */
+export function fareCells(legs: readonly CardLeg[], fares: readonly RouteFare[] | null): Map<number, string> {
+  const out = new Map<number, string>();
+  if (!fares) return out;
+  const pair = (a: string, b: string) => [a, b].sort().join("|");
+  const byPair = new Map(fares.map((f) => [pair(...(f.route.split("–") as [string, string])), f]));
+  const done = new Set<string>();
+  for (const L of legs) {
+    const k = pair(L.from, L.to);
+    const f = byPair.get(k);
+    if (!f || done.has(k)) continue;
+    done.add(k);
+    out.set(L.row.id, f.words);
+  }
+  return out;
 }
 /** The suggestion beside the card's Cabin box: "suggested: 321-LP", with its reason; null when there's none. */
 export function suggestionWords(s: CabinSuggestion | null): { text: string; reason: string } | null {

@@ -1,14 +1,17 @@
 // ==UserScript==
 // @name         equinox. apply fare plan
 // @namespace    equinox
-// @version      1.0
-// @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, for every airline (the database lists them, capture_fare_actions), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan. Install it as the capture script, with your capture key in place of the placeholder.
+// @version      1.1
+// @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, capture_fare_actions), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
-// Spec docs/specs/2026-10-21-fares-userscript.md; manual §5. The logic (reading the form, building a change's address,
-// checking the game's answer) is plain functions over the pages' HTML, without the page, so tests/fares_userscript_test.mjs
-// runs this same file in Node: there, with no page, it only hands those functions over (as eqFares) and does nothing else.
+// Spec docs/specs/2026-10-21-fares-userscript.md; manual §5. Since 1.1 (spec docs/specs/2026-10-21-frequencies-and-fares.md
+// §3) the list also holds set-back changes (fix: a route whose captured fares don't match its level, with no fare plan
+// row): each is made exactly as any other change, and the panel says "set back" for it. The logic (reading the form,
+// building a change's address, checking the game's answer) is plain functions over the pages' HTML, without the page,
+// so tests/fares_userscript_test.mjs runs this same file in Node: there, with no page, it only hands those functions over
+// (as eqFares) and does nothing else.
 (function (root) {
   "use strict";
   const FORM = "/action/enterprise/flightsPrices";   // the game's Ticket price adjustment, for the airline active in the session
@@ -127,24 +130,30 @@
     return { ok: true, rows: found };
   }
 
-  // capture_fare_actions()'s answer as the run needs it: each airline (in the database's order) with its changes, the
-  // total, and any change that can't be made as it stands
+  // capture_fare_actions()'s answer as the run needs it: each airline (in the database's order) with its changes and how
+  // many of them set a route back (fix), the totals, and any change that can't be made as it stands
   function planOf(doc) {
     if (!doc || doc.ok !== true || !Array.isArray(doc.airlines) || !Array.isArray(doc.actions))
       return { error: (doc && (doc.error || doc.message || doc.hint)) || "no answer" };
     const airlines = doc.airlines.map(al => ({ game_id: String(al.game_id), name: al.name || al.game_name || String(al.game_id),
                                               actions: doc.actions.filter(x => String(x.game_id) === String(al.game_id)) }));
+    for (const al of airlines) al.fixes = al.actions.filter(a => a.fix === true).length;
     const problems = [];
     for (const al of airlines) for (const a of al.actions) { const p = actionProblem(a); if (p) problems.push({ airline: al.name, action: a, why: p }); }
     for (const a of doc.actions) if (!airlines.some(al => al.game_id === String(a.game_id))) problems.push({ airline: String(a.game_id), action: a, why: "an airline the list doesn't name" });
-    return { week_of: doc.week_of || null, airlines, total: airlines.reduce((n, al) => n + al.actions.length, 0), problems };
+    return { week_of: doc.week_of || null, airlines, total: airlines.reduce((n, al) => n + al.actions.length, 0),
+             fixes: airlines.reduce((n, al) => n + al.fixes, 0), problems };
   }
 
-  const changeWords = a => a.text || `From ${a.from} to ${a.to}: ${a.sign === "-" ? "−" : "+"}${a.pct}% of the default price, ${a.classes.join(" and ")}`;
+  // a change in words; a set-back change (fix) says so first
+  const changeWords = a => (a.fix === true ? "set back: " : "")
+    + (a.text || `From ${a.from} to ${a.to}: ${a.sign === "-" ? "−" : "+"}${a.pct}% of the default price, ${a.classes.join(" and ")}`);
+  // an airline's count for the panel: "12 changes (2 set back)"
+  const countWords = al => plural(al.actions.length, "change", "changes") + (al.fixes ? ` (${al.fixes} set back)` : "");
   const progressWords = (name, done, total) => `${name}: ${done} of ${total}`;
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
-  const lib = { FORM, PAUSE_MS, selectOptions, airportsOf, actionProblem, idsFor, changeUrl, changedPairs, checkAnswer, planOf, changeWords, progressWords };
+  const lib = { FORM, PAUSE_MS, selectOptions, airportsOf, actionProblem, idsFor, changeUrl, changedPairs, checkAnswer, planOf, changeWords, countWords, progressWords };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqFares = lib; return; }
 
   // ---------------------------------------------------------------- in the game
@@ -198,7 +207,7 @@
     clear();
     const made = s.airlines.filter(al => al.actions.length).map(al => `${al.name}: ${plural(s.made[al.game_id] || 0, "change", "changes")} made of ${al.actions.length}`);
     show((why ? "Stopped. " + why + "\n\n" : "Done: every planned fare change is made.\n\n") + made.join("\n")
-      + "\n\nThe next capture ticks them off on the fare plan."
+      + "\n\nThe next capture ticks them off on the fare plan" + (s.airlines.some(al => al.fixes) ? ", and shows the routes set back at their level." : ".")
       + (why ? " What's done stays done: run Apply fare plan again to make the rest (it reads only what the captures haven't seen yet, and a change made twice does no harm)." : ""),
       [["Close", close, true]]);
   }
@@ -271,10 +280,10 @@
       const p = plan.problems[0];
       return show(`equinox. fares: a change on the fare plan can't be made as it stands, so nothing was changed.\n${p.airline}: ${p.action && p.action.from ? changeWords(p.action) : "a change"}.\nWhy: ${p.why}.`, [["Close", close, true]]);
     }
-    if (!plan.total) return show("equinox. fares: nothing to change. The fare plan has no changes this week that the captures haven't seen yet. Put the week's moves on the fare plan in Performance first.", [["Close", close, true]]);
+    if (!plan.total) return show("equinox. fares: nothing to change. The fare plan has no changes this week that the captures haven't seen yet, and no route is off its level. Put the week's moves on the fare plan in Performance first.", [["Close", close, true]]);
     const minutes = Math.max(1, Math.round(plan.total * (PAUSE_MS + 1000) / 60000));
-    show(`Apply fare plan${plan.week_of ? ", week of " + plan.week_of : ""}\n\n` + plan.airlines.map(al => `${al.name}: ${plural(al.actions.length, "change", "changes")}`).join("\n")
-      + `\n\n${plural(plan.total, "change", "changes")} in all, one every 2 seconds: about ${plural(minutes, "minute", "minutes")}. Leave this tab open and watch; Stop is here throughout. It changes prices only.`,
+    show(`Apply fare plan${plan.week_of ? ", week of " + plan.week_of : ""}\n\n` + plan.airlines.map(al => `${al.name}: ${countWords(al)}`).join("\n")
+      + `\n\n${plural(plan.total, "change", "changes")} in all${plan.fixes ? `, ${plan.fixes} of them setting a route back to its level` : ""}, one every 2 seconds: about ${plural(minutes, "minute", "minutes")}. Leave this tab open and watch; Stop is here throughout. It changes prices only.`,
       [["Go ahead", () => {
         const first = plan.airlines.findIndex(al => al.actions.length);
         const t = { phase: "switch", i: first, j: 0, airlines: plan.airlines, made: {}, names: null, stop: false, log: [] };

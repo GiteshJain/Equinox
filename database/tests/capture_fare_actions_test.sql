@@ -1,5 +1,6 @@
--- The fares userscript's list (spec docs/specs/2026-10-21-fares-userscript.md §1; migration
--- 20261021210000_capture_fare_actions.sql). Run by database/rehearse.sh on the copy of last night's backup, after the new
+-- The fares userscript's list (spec docs/specs/2026-10-21-fares-userscript.md §1; migrations
+-- 20261021210000_capture_fare_actions.sql and 20261021230000_frequencies_and_fares.sql: the set-back changes, spec
+-- docs/specs/2026-10-21-frequencies-and-fares.md §3). Run by database/rehearse.sh on the copy of last night's backup, after the new
 -- migrations, inside a transaction that is rolled back. A failed check stops with an error that says which (codes, ids
 -- and counts of the hand-made worlds only).
 -- Two worlds of their own, made inside the test around its moment (now(); the fare plan's rows of this week are dated
@@ -11,19 +12,22 @@
 --        not on the plan; ZG6 economy on the plan and business sold out all week but not on the plan, both to 105 (one
 --        action naming both classes).
 --     F2 (hub ZF2, no website name): ZG7 at 105 since last week, on the plan to 110 this week (+10, unseen).
---     F3: nothing on the plan. F4, inactive, and the rival: a route each on the plan.
+--     F3: nothing on the plan this week; ZGB at 110 since last week, launched 10 days ago, its fares at 100%: set back to
+--        110 (two fix actions, no plan rows), while its move up (sold out, not on the plan) is left out.
+--     F4, inactive, and the rival: a route each on the plan.
 --   world 2, one airline of ours: a route on the plan.
 --   1. Who may call capture_fare_actions(): signed out and signed in, stable, as owner with an empty search path and its
 --      own 30-second statement limit, described; its builder internal, as the caller, with an empty search path.
 --   2. A bad key (wrong or missing) is refused as capture_airlines() refuses it, signed out.
 --   3. World 1's key, signed out: its three active airlines of ours in order with their counts, the inactive and the
 --      rival's left out; only actions whose every class is on the plan this week and unseen (ZG1, ZG2, ZG4's economy and
---      ZG7), each with its game ID, name, n, from, to, sign, pct, classes and plan row ids; the seen, the unplanned and
---      the half-planned left out, though fare_ladder() lists them.
+--      ZG7), each with its game ID, name, n, from, to, sign, pct, classes and plan row ids, and the set-back changes
+--      (ZGB: fix, its reason, no plan rows); the seen, the unplanned and the half-planned left out, though fare_ladder()
+--      lists them.
 --   4. World 2's key: only its own airline; world 1's airlines left out.
 --   5. On the copy: Gander with a key of its own, signed out, as the userscript calls it: every active airline of ours
 --      listed, each action a whole percent with its sign and classes, and each of its plan rows on this week's fare plan
---      for that airline; how long it took (counts and milliseconds only).
+--      for that airline (a set-back change has none); how long it took (counts and milliseconds only).
 
 create temporary table t_fa (k text primary key, v jsonb) on commit drop;
 grant select, insert on t_fa to anon, authenticated;
@@ -102,7 +106,7 @@ begin
   v_week := v_today - ((extract(isodow from v_today)::int + 1) % 7);
   perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'capture fare actions test', true);
   insert into public.airports (code, utc_offset)
-  select c, 0 from unnest(array['ZF1', 'ZF2', 'ZF3', 'ZF4', 'ZF5', 'ZG1', 'ZG2', 'ZG3', 'ZG4', 'ZG5', 'ZG6', 'ZG7', 'ZG8', 'ZG9', 'ZGA']) c
+  select c, 0 from unnest(array['ZF1', 'ZF2', 'ZF3', 'ZF4', 'ZF5', 'ZG1', 'ZG2', 'ZG3', 'ZG4', 'ZG5', 'ZG6', 'ZG7', 'ZG8', 'ZG9', 'ZGA', 'ZGB']) c
   on conflict (code) do update set utc_offset = excluded.utc_offset;
   insert into public.worlds (name, game_host, kind) values ('fare actions test', 'fare-actions.test', 'exclusive') returning id into w1;
   insert into public.worlds (name, game_host, kind) values ('fare actions other', 'fare-actions-other.test', 'exclusive') returning id into w2;
@@ -152,6 +156,10 @@ begin
   r := pg_temp.fa_route(w1, f2, 'ZF2', 'ZG7', 7);
   perform pg_temp.fa_plan(w1, f2, r, 'economy', 105, 'up', v_week - 7, 300, 5);
   p := p || jsonb_build_object('zg7', pg_temp.fa_plan(w1, f2, r, 'economy', 110, 'up', v_week, 315, 4.8));
+  -- F3: ZGB launched 10 days ago (its first fares, 300, at launch), at 110 since last week: set back
+  r := pg_temp.fa_route(w1, f3, 'ZF1', 'ZGB', 11, 14);
+  insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w1, f3, r, v_today - 10);
+  perform pg_temp.fa_plan(w1, f3, r, 'economy', 110, 'up', v_week - 7, 300, 10);
   -- F4 (inactive), the rival, and world 2's airline
   r := pg_temp.fa_route(w1, f4, 'ZF3', 'ZG8', 8);
   perform pg_temp.fa_plan(w1, f4, r, 'economy', 105, 'up', v_week, 300, 5);
@@ -161,7 +169,7 @@ begin
   p := p || jsonb_build_object('zga', pg_temp.fa_plan(w2, o1, r, 'economy', 105, 'up', v_week, 300, 5));
 
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
-  insert into t_fa values ('plans', p), ('f1', to_jsonb(f1)), ('f4', to_jsonb(f4)), ('rv', to_jsonb(rv)), ('week', to_jsonb(v_week));
+  insert into t_fa values ('plans', p), ('f1', to_jsonb(f1)), ('f3', to_jsonb(f3)), ('f4', to_jsonb(f4)), ('rv', to_jsonb(rv)), ('week', to_jsonb(v_week));
 end
 $setup$;
 
@@ -186,7 +194,14 @@ begin
     'the hand-made F1''s routes aren''t planned and seen as meant: ' || coalesce(got, 'none');
   assert jsonb_array_length(private.fig_fare_ladder(f4, now()) -> 'actions') = 2 and jsonb_array_length(private.fig_fare_ladder(rv, now()) -> 'actions') = 2,
     'the inactive airline and the rival haven''t their 2 actions each';
-  raise notice 'the hand-made world as the fare ladder sees it: F1 14 actions (ZG3 seen, ZG4 business seen, ZG5 not planned, ZG6 business not planned), F4 and the rival 2 each';
+  assert not exists (select 1 from jsonb_array_elements(d -> 'actions') x where (x ->> 'fix')::boolean), 'F1 has a set-back change: none of its routes is off its level';
+  -- F3: ZGB's two set-back changes first, then its move up (sold out, not on the plan)
+  d := private.fig_fare_ladder((select (v #>> '{}')::bigint from t_fa where k = 'f3'), now());
+  select string_agg((x ->> 'n') || ' ' || (x ->> 'from') || '>' || (x ->> 'to') || ' ' || (x ->> 'sign') || (x ->> 'pct') || ' ' || (x ->> 'fix'), ' | ' order by (x ->> 'n')::int)
+    into got from jsonb_array_elements(d -> 'actions') x;
+  assert got = '1 ZF1>ZGB +10 true | 2 ZGB>ZF1 +10 true | 3 ZF1>ZGB +15 false | 4 ZGB>ZF1 +15 false',
+    'the hand-made F3 isn''t as the fare ladder should see it: ' || coalesce(got, 'no actions');
+  raise notice 'the hand-made world as the fare ladder sees it: F1 14 actions (ZG3 seen, ZG4 business seen, ZG5 not planned, ZG6 business not planned, none set back), F3 2 set-back changes and a move not planned, F4 and the rival 2 each';
 end
 $test$;
 
@@ -208,7 +223,7 @@ begin
     'world 1''s key didn''t answer for its world and this Saturday: ' || jsonb_build_object('ok', r -> 'ok', 'world', r -> 'world', 'week_of', r -> 'week_of')::text;
   select string_agg((a ->> 'game_id') || ' ' || (a ->> 'name') || ' ' || (a ->> 'code') || ' ' || (a ->> 'count'), ' | ' order by i)
     into got from jsonb_array_elements(r -> 'airlines') with ordinality as t(a, i);
-  assert got = '990501 Fares One F1 6 | 990502 Fares Two Planner F2 2 | 990503 Fares Three F3 0',
+  assert got = '990501 Fares One F1 6 | 990502 Fares Two Planner F2 2 | 990503 Fares Three F3 2',
     'world 1''s airlines (in order, the inactive and the rival''s left out) are ' || coalesce(got, 'none');
   select string_agg((x ->> 'game_id') || ' ' || (x ->> 'airline') || ' ' || (x ->> 'n') || ' ' || (x ->> 'route') || ' ' || (x ->> 'from') || '>'
                     || (x ->> 'to') || ' ' || (x ->> 'sign') || (x ->> 'pct') || ' ' || (x ->> 'level') || ' '
@@ -217,8 +232,17 @@ begin
   assert got = '990501 Fares One 1 ZF1–ZG1 ZF1>ZG1 +5 105 economy | 990501 Fares One 2 ZF1–ZG1 ZG1>ZF1 +5 105 economy | '
             || '990501 Fares One 3 ZF1–ZG2 ZF1>ZG2 +5 105 economy,business | 990501 Fares One 4 ZF1–ZG2 ZG2>ZF1 +5 105 economy,business | '
             || '990501 Fares One 7 ZF1–ZG4 ZF1>ZG4 -5 95 economy | 990501 Fares One 8 ZF1–ZG4 ZG4>ZF1 -5 95 economy | '
-            || '990502 Fares Two Planner 1 ZF2–ZG7 ZF2>ZG7 +10 110 economy | 990502 Fares Two Planner 2 ZF2–ZG7 ZG7>ZF2 +10 110 economy',
-    'world 1''s actions (only every class planned and unseen) are ' || coalesce(got, 'none');
+            || '990502 Fares Two Planner 1 ZF2–ZG7 ZF2>ZG7 +10 110 economy | 990502 Fares Two Planner 2 ZF2–ZG7 ZG7>ZF2 +10 110 economy | '
+            || '990503 Fares Three 1 ZF1–ZGB ZF1>ZGB +10 110 economy | 990503 Fares Three 2 ZF1–ZGB ZGB>ZF1 +10 110 economy',
+    'world 1''s actions (every class planned and unseen, and the set-back changes) are ' || coalesce(got, 'none');
+  -- the set-back changes: fix, with the reason, no plan rows; the others not fixes; each airline's count of them
+  select string_agg((x ->> 'route') || ' ' || (x ->> 'fix') || ' ' || coalesce(x ->> 'reason', '-') || ' ' || (x -> 'plan_ids')::text, ' | ' order by i)
+    into got from jsonb_array_elements(r -> 'actions') with ordinality as t(x, i) where (x ->> 'fix')::boolean or x ->> 'route' = 'ZF2–ZG7';
+  assert got = 'ZF2–ZG7 false - [' || (select v ->> 'zg7' from t_fa where k = 'plans') || '] | ZF2–ZG7 false - [' || (select v ->> 'zg7' from t_fa where k = 'plans') || '] | '
+            || 'ZF1–ZGB true captured fare at 100%, level 110% [] | ZF1–ZGB true captured fare at 100%, level 110% []',
+    'the set-back changes aren''t fix with their reason and no plan rows: ' || coalesce(got, 'none');
+  assert (select string_agg((a ->> 'code') || ' ' || (a ->> 'fixes'), ', ' order by i) from jsonb_array_elements(r -> 'airlines') with ordinality as t(a, i)) = 'F1 0, F2 0, F3 2',
+    'the airlines'' counts of set-back changes aren''t F1 0, F2 0, F3 2: ' || (r -> 'airlines')::text;
   assert not exists (select 1 from jsonb_array_elements(r -> 'actions') x
                       where jsonb_typeof(x -> 'pct') <> 'number' or jsonb_typeof(x -> 'game_id') <> 'number' or x ->> 'text' not like 'From %'),
     'an action''s pct or game ID isn''t a number, or it has no words';
@@ -241,12 +265,12 @@ declare p jsonb := (select v from t_fa where k = 'plans'); r jsonb := (select v 
 begin
   select string_agg((x ->> 'from') || '>' || (x ->> 'to') || ' ' || (x -> 'plan_ids')::text, ' | ' order by i)
     into got from jsonb_array_elements(r -> 'actions') with ordinality as t(x, i);
-  assert got = format('ZF1>ZG1 [%s] | ZG1>ZF1 [%s] | ZF1>ZG2 [%s, %s] | ZG2>ZF1 [%s, %s] | ZF1>ZG4 [%s] | ZG4>ZF1 [%s] | ZF2>ZG7 [%s] | ZG7>ZF2 [%s]',
+  assert got = format('ZF1>ZG1 [%s] | ZG1>ZF1 [%s] | ZF1>ZG2 [%s, %s] | ZG2>ZF1 [%s, %s] | ZF1>ZG4 [%s] | ZG4>ZF1 [%s] | ZF2>ZG7 [%s] | ZG7>ZF2 [%s] | ZF1>ZGB [] | ZGB>ZF1 []',
                       p ->> 'zg1', p ->> 'zg1', p ->> 'zg2e', p ->> 'zg2b', p ->> 'zg2e', p ->> 'zg2b', p ->> 'zg4e', p ->> 'zg4e', p ->> 'zg7', p ->> 'zg7'),
     'the actions'' plan rows are ' || coalesce(got, 'none');
   assert (select v -> 'actions' -> 0 -> 'plan_ids' from t_fa where k = 'w2') = jsonb_build_array((p ->> 'zga')::bigint),
     'world 2''s action doesn''t name its plan row';
-  raise notice 'world 1: F1 (6 actions: ZG1 and ZG2 both ways, ZG2 with both classes, ZG4''s economy −5), F2 (2: ZG7 +10), F3 (0), each with its plan rows; the seen (ZG3, ZG4 business), the unplanned (ZG5) and the half-planned (ZG6) left out, the inactive airline and the rival not listed; world 2 only its own airline';
+  raise notice 'world 1: F1 (6 actions: ZG1 and ZG2 both ways, ZG2 with both classes, ZG4''s economy −5), F2 (2: ZG7 +10), each with its plan rows, F3 (2: ZGB set back to 110, fix, no plan rows, its move not planned left out); the seen (ZG3, ZG4 business), the unplanned (ZG5) and the half-planned (ZG6) left out, the inactive airline and the rival not listed; world 2 only its own airline';
 end
 $test$;
 
@@ -286,18 +310,19 @@ begin
    where x ->> 'sign' not in ('+', '-') or jsonb_typeof(x -> 'pct') <> 'number' or (x ->> 'pct')::numeric <> trunc((x ->> 'pct')::numeric)
       or (x ->> 'pct')::numeric not between 0 and 100 or jsonb_array_length(x -> 'classes') not in (1, 2)
       or exists (select 1 from jsonb_array_elements_text(x -> 'classes') c where c not in ('economy', 'business'))
-      or jsonb_array_length(x -> 'plan_ids') <> jsonb_array_length(x -> 'classes')
+      or jsonb_array_length(x -> 'plan_ids') <> case when (x ->> 'fix')::boolean then 0 else jsonb_array_length(x -> 'classes') end
       or coalesce(x ->> 'from', '') !~ '^[A-Z0-9]{3}$' or coalesce(x ->> 'to', '') !~ '^[A-Z0-9]{3}$' or x ->> 'from' = x ->> 'to';
   assert bad is null, 'actions the userscript couldn''t make (game ID and n): ' || bad;
-  -- each plan row a ladder row of this week's fare plan, of that airline, in the class it names
+  -- each plan row a ladder row of this week's fare plan, of that airline, in the class it names (a set-back change has none)
   select string_agg(x ->> 'game_id' || ' ' || (x ->> 'n'), ', ') into bad
     from jsonb_array_elements(r -> 'actions') x
     cross join lateral jsonb_array_elements_text(x -> 'classes') with ordinality as c(cabin, k)
-   where not exists (select 1 from public.fare_plan fp join public.airlines a on a.id = fp.airline_id
+   where not (x ->> 'fix')::boolean and not exists (select 1 from public.fare_plan fp join public.airlines a on a.id = fp.airline_id
                       where fp.id = (x -> 'plan_ids' ->> (c.k::int - 1))::bigint and a.world_id = dw and a.game_id = (x ->> 'game_id')::int
                         and fp.status = 'planned' and fp.level_pct is not null and fp.proposed_on >= v_week and coalesce(fp.cabin_class, 'economy') = c.cabin);
   assert bad is null, 'actions whose plan rows aren''t this week''s for that airline and class (game ID and n): ' || bad;
-  raise notice 'on the copy, signed out: % airlines, % changes still to make this week, in % ms (the call''s own limit is 30 s; signed out the role''s is 3 s)',
-    jsonb_array_length(r -> 'airlines'), jsonb_array_length(r -> 'actions'), ms;
+  raise notice 'on the copy, signed out: % airlines, % changes still to make this week (% of them set-back changes), in % ms (the call''s own limit is 30 s; signed out the role''s is 3 s)',
+    jsonb_array_length(r -> 'airlines'), jsonb_array_length(r -> 'actions'),
+    (select count(*) from jsonb_array_elements(r -> 'actions') x where (x ->> 'fix')::boolean), ms;
 end
 $test$;

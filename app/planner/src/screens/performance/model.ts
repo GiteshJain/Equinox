@@ -536,12 +536,14 @@ export interface LadderRoute {
   sold_out: number;
   sold_out_share: number | null;
   average_fare: number | null;
-  first_fare: number | null;
-  first_on: string | null;
+  /** The fare index's baseline (since 21 Oct): the route's fare on 21 Oct 2026, when every route was at its launch
+   *  level, or its first captured fare for a route launched later; and the day it's from. */
+  baseline_fare: number | null;
+  baseline_on: string | null;
   latest_fare: number | null;
   latest_on: string | null;
-  /** The latest captured fare against the first, times the launch level; index_matches false flags a level more than
-   *  1 point from it. */
+  /** Each flight of the latest captured day against the baseline, times the launch level (their average);
+   *  index_matches false when any flight is more than 1 point off the level the game should show. */
   fare_index: number | null;
   index_matches: boolean | null;
   /** The level, % of the game's default price, and how many steps above launch. */
@@ -564,6 +566,10 @@ export interface LadderRoute {
   seen_on: string | null;
   /** What Put on the fare plan writes: a level that changes, or a hold that follows a step down. */
   to_plan: boolean;
+  /** Off its level and set back to it (since 21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §3), with
+   *  why: "captured fare at 100%, level 110%". */
+  fix?: boolean;
+  fix_reason?: string | null;
 }
 /** One Ticket price adjustment, route by route only since 21 Oct (spec docs/specs/2026-10-21-fare-actions-by-route.md):
  *  never a whole base, each direction its own action (From hub to dest, then From dest to hub). */
@@ -581,6 +587,9 @@ export interface LadderAction {
   baseline: string;
   /** In the game's words, naming the classes: "From JFK to ORD: +5% of the default price, economy and business". */
   text: string;
+  /** A change that sets the route back to its level (since 21 Oct), listed first, with why. */
+  fix?: boolean;
+  reason?: string | null;
 }
 export interface LadderAnswer {
   airline_id: number;
@@ -590,11 +599,23 @@ export interface LadderAnswer {
   moves: { up: number; hold: number; down: number };
   to_plan: number;
   planned: number;
+  /** How many routes are set back to their level (since 21 Oct). */
+  off_level?: number;
   routes: LadderRoute[];
   actions: LadderAction[];
   notes: string[];
 }
 
+/** The set-back changes (fix, since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §3), which the board
+ *  lists first in their own short list, and the week's moves, each in fare_ladder()'s order. */
+export function splitActions(actions: readonly LadderAction[]): { fixes: LadderAction[]; moves: LadderAction[] } {
+  return { fixes: actions.filter((a) => a.fix === true), moves: actions.filter((a) => a.fix !== true) };
+}
+/** The set-back list's heading, by the routes it sets back: "3 routes off their level", "1 route off its level". */
+export function offLevelWords(fixes: readonly LadderAction[]): string {
+  const n = new Set(fixes.map((a) => a.route)).size;
+  return `${n} route${n === 1 ? "" : "s"} off ${n === 1 ? "its" : "their"} level`;
+}
 /** This Saturday's moves in one line: "12 up, 30 hold, 2 down". */
 export const ladderLine = (m: LadderAnswer["moves"]): string => `${m.up} up, ${m.hold} hold, ${m.down} down`;
 /** How many changes to make in the game, for the airline's heading: "24 changes in the game", "1 change in the game",

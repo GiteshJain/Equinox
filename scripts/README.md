@@ -33,7 +33,7 @@ else the current folder). It only gathers: each figure comes from its one home (
 | `fleet` | Each aircraft flying or in service: base, type, cabin, legs a week, block hours a day, maintenance, issues (short or tight turns, position breaks, overlaps, estimated blocks, low maintenance), profit a day after its lease | The library's `aircraft` (kind `rules`); `aircraft_profit()` over 7 days |
 | `routes` | Each route: load over 7 days, profit a week, its mark and why, the growth lists it's on and its load pattern | `route_loads()` (kind `briefing`), `route_profit()` over 7 days and `growth_signals()` (kind `figures`) |
 | `hubs` | Hubs first and each base's busiest rival, contested or not | `hub_progress()` |
-| `deliveries` | Aircraft on order, or arrived and not yet filed, each with its plan cards (with each one's cabin, `config_id`, since 21 Oct), their legs and each card's check at both ends, service codes and the cabin the rule calls for included | Kind `briefing`; the library's `check-card` |
+| `deliveries` | Aircraft on order, or arrived and not yet filed, each with its plan cards (with each one's cabin, `config_id`, since 21 Oct), their legs and each card's check at both ends, service codes and the cabin the rule calls for included, and each route's fare level (the check's `fares`, since 21 Oct: "economy +10%, business +5% of the default price", or launch for a route not flown yet; printed under the card) | Kind `briefing` (its `fare_ladder`, `fare_ladder()`'s levels); the library's `check-card --fares` |
 | `todos` | Open to-dos, the airline's and the group's, with their steps | Kind `briefing` |
 | `fare_plan` | Fare changes planned, and whether the captures show each | `fare_plan_status()` (kind `briefing`) |
 | `rivals` | From the latest finished world scan by the moment (its id, date and age): the routes it flies now and in the scan, with each rival's departures a week on the pair, and the busiest rivals at each of its airports | Kinds `snapshots` and `airlines`; passenger flights only, by the weekly report's rule (`report/analyze.py`'s market block) |
@@ -138,7 +138,9 @@ from a clone of the repository, with Node 22:
    - `check-card card.json`: a plan card's legs checked against every rule, at both ends, each leg's service code
      (`service_code`) against the one its route's distance calls for included, and since 21 Oct its cabin
      (`config_id`, an id or a layout's code) against the one its routes call for (manual §5: the answer's `cabin`, with
-     the reason; a card with none, or another, is a problem);
+     the reason; a card with none, or another, is a problem); with `--fares ladder.json` (`fare_ladder()`'s answer for
+     the card's airline, or the briefing's), each route's fare level too (the answer's `fares`, since 21 Oct: what to
+     set each new flight's fare to, Ticket price adjustment with the default price);
    - `optimise KUL KCH,PQC,PEN --type "A321 NEO LIGHT" [--start 05:00-11:00] [--step 5] [--hubs DEL]`: the best day's
      schedule for one aircraft, by connections, then maintenance.
 

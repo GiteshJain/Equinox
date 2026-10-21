@@ -1,0 +1,99 @@
+{
+  "part": "cardFares",
+  "note": "The fare level of each route a plan card flies (manual §5, since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2): from fare_ladder()'s answer for the card's airline, once per route in the order of the card's legs, each cabin the ladder has for the route at its level (this week's new level once the move is on the fare plan), worded as the game's Ticket price adjustment takes it with the baseline default price; a route not on the ladder (not flown yet) at launch, the ladder's settings.launch_pct, else the airline's fare_launch_pct. Each answer's check is the card check's fares when handed the same ladder (null without one). The world: Test Air (1, launch 100%) and Other Air (2, launch 85%, as Ryanair). Test Air's routes: HUB–AAA (1), HUB–DDD (4), HUB–NBN (6); Other Air's AAA–BBB (7), which Test Air doesn't fly.",
+  "input": {
+    "settings": { "fare_launch_pct": 100 },
+    "airlines": [
+      { "id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true },
+      { "id": 2, "iata_code": "OA", "planner_name": "Other Air", "position": 2, "active": true, "ours": true, "settings": { "fare_launch_pct": 85 } }
+    ]
+  },
+  "cases": [
+    {
+      "name": "each route once, in the legs' order: one flown at its levels (economy +10%, business +5%), one whose move is on the fare plan at its new level, one not flown yet at launch",
+      "rule": "manual §5: every plan card shows the fare level of each route it flies, so a new flight is priced like the rest of its route",
+      "ask": {
+        "what": "card_fares",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            { "flight_no": 101, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 360, "block_min": 90 },
+            { "flight_no": 102, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 540, "block_min": 90 },
+            { "flight_no": 103, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 720, "block_min": 120 },
+            { "flight_no": 104, "origin_code": "DDD", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 930, "block_min": 120 },
+            { "flight_no": 105, "origin_code": "HUB", "dest_code": "NBN", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1140, "block_min": 60 },
+            { "flight_no": 106, "origin_code": "NBN", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1290, "block_min": 60 }
+          ]
+        },
+        "ladder": {
+          "settings": { "launch_pct": 100 },
+          "routes": [
+            { "route_id": 1, "hub": "HUB", "dest": "AAA", "cabin": "economy", "level": 110, "new_level": 115, "planned": false },
+            { "route_id": 1, "hub": "HUB", "dest": "AAA", "cabin": "business", "level": 105, "new_level": 105, "planned": false },
+            { "route_id": 4, "hub": "HUB", "dest": "DDD", "cabin": "economy", "level": 100, "new_level": 105, "planned": true }
+          ]
+        }
+      },
+      "answer": {
+        "fares": [
+          { "route_id": 1, "route": "HUB–AAA", "flown": true, "launch_pct": 100,
+            "cabins": [{ "cabin": "economy", "level": 110, "planned": false }, { "cabin": "business", "level": 105, "planned": false }],
+            "words": "economy +10%, business +5% of the default price" },
+          { "route_id": 4, "route": "HUB–DDD", "flown": true, "cabins": [{ "cabin": "economy", "level": 105, "planned": true }],
+            "words": "economy +5% of the default price" },
+          { "route_id": 6, "route": "HUB–NBN", "flown": false, "cabins": [], "words": "launch (+0% of the default price)" }
+        ],
+        "check": [
+          { "route": "HUB–AAA", "words": "economy +10%, business +5% of the default price" },
+          { "route": "HUB–DDD", "words": "economy +5% of the default price" },
+          { "route": "HUB–NBN", "words": "launch (+0% of the default price)" }
+        ]
+      }
+    },
+    {
+      "name": "Ryanair's launch: a route it doesn't fly yet launches at −15% (its own fare_launch_pct, the ladder giving none)",
+      "ask": {
+        "what": "card_fares",
+        "card": {
+          "aircraft": "O-001",
+          "legs": [
+            { "flight_no": 201, "origin_code": "AAA", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 400, "block_min": 80 },
+            { "flight_no": 202, "origin_code": "DDD", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 560, "block_min": 80 }
+          ]
+        },
+        "ladder": { "routes": [{ "route_id": 7, "hub": "AAA", "dest": "BBB", "cabin": "economy", "level": 90 }] }
+      },
+      "answer": {
+        "fares": [{ "route_id": null, "route": "AAA–DDD", "flown": false, "cabins": [], "launch_pct": 85, "words": "launch (−15% of the default price)" }],
+        "check": [{ "route": "AAA–DDD", "words": "launch (−15% of the default price)" }]
+      }
+    },
+    {
+      "name": "a route on the ladder the other way round from the card's first leg, its level given as text (+2.5%); a pair the airline has no route for, named by the leg's airports",
+      "ask": {
+        "what": "card_fares",
+        "card": {
+          "aircraft": "T-002",
+          "legs": [
+            { "flight_no": 301, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 3, 5], "dep_utc_min": 300, "block_min": 90 },
+            { "flight_no": 302, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 3, 5], "dep_utc_min": 480, "block_min": 90 },
+            { "flight_no": 303, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 3, 5], "dep_utc_min": 660, "block_min": 100 },
+            { "flight_no": 304, "origin_code": "BBB", "dest_code": "AAA", "days_utc": [1, 3, 5], "dep_utc_min": 840, "block_min": 100 }
+          ]
+        },
+        "ladder": { "settings": { "launch_pct": "100" }, "routes": [{ "route_id": 1, "hub": "HUB", "dest": "AAA", "cabin": "economy", "level": "102.5", "new_level": "107.5", "planned": false }] }
+      },
+      "answer": {
+        "fares": [
+          { "route_id": 1, "route": "HUB–AAA", "flown": true, "cabins": [{ "cabin": "economy", "level": 102.5, "planned": false }], "words": "economy +2.5% of the default price" },
+          { "route_id": null, "route": "AAA–BBB", "flown": false, "words": "launch (+0% of the default price)" }
+        ]
+      }
+    },
+    {
+      "name": "a ladder without its list of routes is refused",
+      "ask": { "what": "card_fares", "card": { "aircraft": "T-001", "legs": [] }, "ladder": { "airline_id": 1 } },
+      "answer": { "error": "the fare ladder has no list of routes" }
+    }
+  ]
+}

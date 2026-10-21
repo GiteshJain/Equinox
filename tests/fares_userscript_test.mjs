@@ -4,7 +4,9 @@
 // the answer to one change, made by hand from his screenshot (tests/fixtures/flightsPrices_answer_2026-10-21.html).
 // Checks: the airport map read from the form; the GET address for a + and a − change, with one class and with both; the
 // answer read, the right rows found and a missing row caught; a change that can't be made refused before anything is
-// sent; capture_fare_actions()'s answer grouped by airline; and the file's header, key placeholder, pause and no dialogs.
+// sent; capture_fare_actions()'s answer grouped by airline; a set-back change (fix, spec
+// docs/specs/2026-10-21-frequencies-and-fares.md §3) built as the same GET as any other, with no fare plan rows, counted
+// and said "set back" in the panel; and the file's header, key placeholder, pause and no dialogs.
 // Usage: node tests/fares_userscript_test.mjs
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
@@ -152,6 +154,34 @@ await check("the panel's words: progress, and a change in words", () => {
   assert.equal(F.changeWords(action("LHR", "JFK", "-", 5, ["economy", "business"])), "From LHR to JFK: −5% of the default price, economy and business");
   assert.equal(F.changeWords(action("LHR", "JFK", "+", 5, ["economy"], { text: "From LHR to JFK: +5% of the default price, economy" })),
     "From LHR to JFK: +5% of the default price, economy");
+});
+
+// ---------------------------------------------------------------- set-back changes (spec docs/specs/2026-10-21-frequencies-and-fares.md §3)
+// a route whose captured fares don't match its level: fix, with its reason and no fare plan rows
+const fix = (from, to, sign, pct, classes, extra = {}) => action(from, to, sign, pct, classes,
+  { fix: true, plan_ids: [], reason: "captured fare at 100%, level 110%", text: `From ${from} to ${to}: ${sign === "-" ? "−" : "+"}${pct}% of the default price, ${classes.join(" and ")}`, ...extra });
+await check("a set-back change (fix) builds the same GET as any other change, and can be made without fare plan rows", () => {
+  for (const [from, to, sign, pct, classes] of [["JFK", "LHR", "+", 10, ["economy"]], ["LHR", "JFK", "-", 15, ["economy", "business"]]]) {
+    const a = fix(from, to, sign, pct, classes), b = action(from, to, sign, pct, classes);
+    assert.equal(F.actionProblem(a), null);
+    assert.equal(F.changeUrl(a, ids(a)), F.changeUrl(b, ids(b)));
+  }
+  assert.equal(F.changeUrl(fix("JFK", "LHR", "+", 10, ["economy"]), ids(fix("JFK", "LHR", "+", 10, ["economy"]))),
+    "/action/enterprise/flightsPrices?adjust=true&fromCode=a%3A3551&toCode=a%3A1054&serviceProfileId=0&factor=1&percent=10&base=standard&economy=true");
+});
+await check("set-back changes in the panel: counted per airline and in all, and said in words (\"set back\")", () => {
+  const doc = { ok: true, world: "Gander", week_of: "2026-10-24",
+    airlines: [{ game_id: 112, name: "Pan Am", count: 4, fixes: 2 }, { game_id: 114, name: "Ryanair", count: 1, fixes: 0 }],
+    actions: [fix("JFK", "LHR", "+", 10, ["economy"]), fix("LHR", "JFK", "+", 10, ["economy"]), action("JFK", "ORD", "+", 5, ["economy"]),
+              action("ORD", "JFK", "+", 5, ["economy"]), action("CDG", "DUB", "-", 10, ["economy"], { game_id: 114, airline: "Ryanair" })] };
+  const p = plain(F.planOf(doc));
+  assert.deepEqual(p.problems, []);
+  assert.equal(p.total, 5); assert.equal(p.fixes, 2);
+  assert.deepEqual(p.airlines.map(a => [a.name, a.actions.length, a.fixes]), [["Pan Am", 4, 2], ["Ryanair", 1, 0]]);
+  assert.equal(F.countWords(p.airlines[0]), "4 changes (2 set back)");
+  assert.equal(F.countWords(p.airlines[1]), "1 change");
+  assert.equal(F.changeWords(doc.actions[0]), "set back: From JFK to LHR: +10% of the default price, economy");
+  assert.equal(F.changeWords(doc.actions[2]), "From JFK to ORD: +5% of the default price, economy");
 });
 
 // ---------------------------------------------------------------- the file itself

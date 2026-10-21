@@ -60,7 +60,14 @@ its block time; over `cabin_route_share_pct` the route's own `cabin_choice`, els
 layout with the most seats; a low-cost airline Standard only; then the variant's layout of that name, among those the
 airline may choose), with the reason in words ("JFK–LHR is 72% of block time: Leisure Plus", "no route over 65%: the
 most seats"), and a card whose cabin is missing or differs is a problem; an input without the variant's layouts, or
-without `cabin_route_share_pct` (made before 21 Oct), isn't checked for its cabin (`cases/cabinFor.json`). `airport` gives an airport's minimum connection time and night ban.
+without `cabin_route_share_pct` (made before 21 Oct), isn't checked for its cabin (`cases/cabinFor.json`). Since 21 Oct
+(manual §5; spec `docs/specs/2026-10-21-frequencies-and-fares.md` §2) `card.cardFares()` gives the fare level of each route
+the card flies, once per route in the order of its legs, from `fare_ladder()`'s answer for the card's airline: each cabin
+the ladder has for the route at its level (this week's new level once the move is on the fare plan), worded as the
+game's Ticket price adjustment takes it ("economy +10%, business +5% of the default price"), and a route not flown yet
+at launch ("launch (+0% of the default price)", Ryanair −15%); handed the same ladder, `checkCard()`'s answer has them
+as `fares` (`cases/cardFares.json`). Nothing is stored on the card. `airport` gives an airport's minimum connection time
+and night ban.
 
 ## The command
 For Claude and the scripts (how to get the input: `scripts/README.md`). `npm run build` writes it to `dist/`.
@@ -69,7 +76,7 @@ For Claude and the scripts (how to get the input: `scripts/README.md`). `npm run
 node lib/rules/dist/cli.js block       rules.json DEL BOM "A321 NEO LIGHT"
 node lib/rules/dist/cli.js connections rules.json KUL
 node lib/rules/dist/cli.js aircraft    rules.json            # every aircraft; or add a registration for one week
-node lib/rules/dist/cli.js check-card  rules.json card.json
+node lib/rules/dist/cli.js check-card  rules.json card.json [--fares ladder.json]
 node lib/rules/dist/cli.js optimise    rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --start 05:00-11:00 --hubs DEL
 ```
 
@@ -78,6 +85,8 @@ It answers in JSON; an error goes to standard error with a non-zero exit. A card
 "days_local": [1, 2, 3, 4, 5, 6, 7]}, ...]}` (or `dep_utc_min` and `days_utc`, as `plan_card_legs` stores them), each with its `service_code`; a leg
 without `block_min` gets the estimate, and an aircraft not in the input needs `type` and `airline`. The card's cabin is
 `config_id` (as `plan_cards` stores it, or a layout's code such as `"321-LP"`); the answer's `cabin` is the suggestion.
+With `--fares`, `fare_ladder()`'s answer for the card's airline (`select public.fare_ladder(<id>);`, or the airline
+briefing's `fare_ladder`, or its whole JSON), the answer's `fares` is each route's fare level (since 21 Oct).
 The optimiser's
 start window and step default to 05:00 to 11:00 local and 5 minutes.
 

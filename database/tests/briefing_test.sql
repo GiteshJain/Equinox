@@ -106,7 +106,8 @@ create temporary table t_br_counts on commit drop as select * from t_br_now;
 do $test$
 declare
   s text := (select v from t_br where k = 'secret'); w bigint := private.fig_world(null); r record; d jsonb; rl jsonb;
-  n_al int := 0; n_del int := 0; n_cards int := 0; n_legs int := 0; n_todos int := 0; n_fare int := 0; n_routes int := 0; bad text;
+  n_al int := 0; n_del int := 0; n_cards int := 0; n_legs int := 0; n_todos int := 0; n_fare int := 0; n_routes int := 0; n_levels int := 0; bad text;
+  fl jsonb;
 begin
   for r in select al.airline_id, al.iata_code, a.planner_name from private.fig_airlines(w) al join public.airlines a on a.id = al.airline_id order by al.ord loop
     n_al := n_al + 1;
@@ -151,6 +152,16 @@ begin
     assert jsonb_array_length(d -> 'fare_plan' -> 'plan') = (select count(*) from public.fare_plan f where f.airline_id = r.airline_id and f.status <> 'dropped'),
       format('airline %s: the fare plan''s changes differ from the table''s', r.airline_id);
     n_fare := n_fare + jsonb_array_length(d -> 'fare_plan' -> 'plan');
+    -- the fare levels (since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2): fare_ladder()'s routes and
+    -- cabins, each with its level, new level and whether this week's move is on the fare plan, and the launch level
+    fl := private.fig_fare_ladder(r.airline_id, (d ->> 'as_of')::timestamptz);
+    assert d -> 'fare_ladder' -> 'routes' = coalesce((select jsonb_agg(jsonb_build_object('route_id', e -> 'route_id', 'hub', e -> 'hub', 'dest', e -> 'dest',
+                                                                                          'cabin', e -> 'cabin', 'level', e -> 'level', 'new_level', e -> 'new_level',
+                                                                                          'planned', e -> 'planned') order by o)
+                                                        from jsonb_array_elements(fl -> 'routes') with ordinality x(e, o)), '[]'::jsonb)
+       and d #> '{fare_ladder,settings,launch_pct}' = fl #> '{settings,launch_pct}' and d -> 'fare_ladder' -> 'week_of' = fl -> 'week_of',
+      format('airline %s: the fare levels differ from fare_ladder()''s', r.airline_id);
+    n_levels := n_levels + jsonb_array_length(d -> 'fare_ladder' -> 'routes');
     -- the loads: route_loads()'s rows for this airline, every one and no other
     rl := private.fig_route_loads(w, (d ->> 'as_of')::timestamptz);
     assert not exists (select 1 from jsonb_array_elements(d -> 'route_loads' -> 'routes') x where (x ->> 'airline_id')::bigint <> r.airline_id)
@@ -162,8 +173,8 @@ begin
     n_routes := n_routes + jsonb_array_length(d -> 'route_loads' -> 'routes');
   end loop;
   assert n_al > 0, 'the copy has none of our airlines';
-  raise notice 'one airline only, for % airlines: % deliveries, % plan cards, % legs, % open to-dos (the group''s in each), % fare changes, % routes'' loads, each as the tables hold them',
-    n_al, n_del, n_cards, n_legs, n_todos, n_fare, n_routes;
+  raise notice 'one airline only, for % airlines: % deliveries, % plan cards, % legs, % open to-dos (the group''s in each), % fare changes, % routes'' and cabins'' fare levels (fare_ladder()''s), % routes'' loads, each as the tables hold them',
+    n_al, n_del, n_cards, n_legs, n_todos, n_fare, n_levels, n_routes;
 end
 $test$;
 

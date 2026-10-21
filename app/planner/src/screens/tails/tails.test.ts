@@ -1,8 +1,8 @@
 // Tails' logic (spec docs/specs/2026-10-13-tails.md, "Checks"): the list's filters, the deliveries' status, the plan card
 // checked against the game (same, different, missing, the game not read), filing's one action (each outbound paired with
 // its return as the old filePlan pairs them, local times stored in UTC, the aircraft in service, its first cabin fit, the
-// card taking the game's times), the cabin the card's routes call for (21 Oct), and adding, editing and removing an
-// aircraft. The planning rules themselves are the
+// card taking the game's times), the cabin the card's routes call for (21 Oct), each route's fare level on the card (21
+// Oct), and adding, editing and removing an aircraft. The planning rules themselves are the
 // library's, with their own cases (lib/rules/cases/tails.json, aircraftWeek.json, frequency.json); these run the screen's
 // joins on the cases' small world.
 import { readFileSync } from "node:fs";
@@ -11,7 +11,7 @@ import { buildRules, type RulesInput, type TailIssue } from "@rules";
 import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
-  addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
+  addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
   filingChanges, stationsOf, filtersQuery, gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
   suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
@@ -286,6 +286,25 @@ describe("filing", () => {
     expect(cardCabin(withRoutes(start, routes), card, planLegs)).toMatchObject({ code: "321-LEI", reason: "HUB–DDD is 81% of block time, but it has no market layout: the most seats" });
     // an aircraft the start doesn't hold: nothing to suggest
     expect(cardCabin(laid, { ...card, aircraft_id: 99 }, planLegs)).toBeNull();
+  });
+  // 21 Oct (spec docs/specs/2026-10-21-frequencies-and-fares.md §2): every plan card shows the fare level of each route it flies
+  it("shows each route's fare level once, on its first leg: the ladder's levels, the new one once on the fare plan, launch for a route not flown yet", () => {
+    const ladder = { settings: { launch_pct: 100 }, routes: [
+      { route_id: 1, hub: "HUB", dest: "AAA", cabin: "economy", level: 110, new_level: 115, planned: true },
+      { route_id: 1, hub: "HUB", dest: "AAA", cabin: "business", level: 105, new_level: 110, planned: false }] };
+    // HUB–DDD (legs 71 and 72) isn't on the ladder: launch; HUB–AAA (73 and 74) at its levels, economy's move on the fare plan
+    const fares = cardFareLevels(launch, card, planLegs, ladder);
+    expect(fares?.map((f) => [f.route, f.flown, f.words])).toEqual([
+      ["HUB–DDD", false, "launch (+0% of the default price)"], ["HUB–AAA", true, "economy +15%, business +5% of the default price"]]);
+    expect([...fareCells(legs, fares)]).toEqual([[71, "launch (+0% of the default price)"], [73, "economy +15%, business +5% of the default price"]]);
+    // Ryanair's launch: −15%, from the airline's own setting when the ladder gives none
+    const ryan = buildRules({ ...input, settings: { ...input.settings, fare_launch_pct: 100 },
+      airlines: input.airlines.map((a) => (a.id === 1 ? { ...a, settings: { fare_launch_pct: 85 } } : a)) });
+    expect(cardFareLevels(ryan, card, planLegs, { routes: [] })?.map((f) => f.words)).toEqual(["launch (−15% of the default price)", "launch (−15% of the default price)"]);
+    // no ladder read yet, or an aircraft the start doesn't hold: nothing shown
+    expect(cardFareLevels(launch, card, planLegs, undefined)).toBeNull();
+    expect(cardFareLevels(launch, { ...card, aircraft_id: 99 }, planLegs, ladder)).toBeNull();
+    expect(fareCells(legs, null).size).toBe(0);
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");

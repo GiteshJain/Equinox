@@ -272,9 +272,12 @@ to step 5.
 2. **Cabin:** the plan card's cabin, as the rule calls for it (manual §5: the layout of the route flying over 65% of the
    block time, else the most seats; Ryanair Standard). The card shows it (**suggested: …**, with **Use the suggestion**),
    and the card check flags a card whose cabin differs. We don't refit.
-3. **Fares:** launch at 100% of the standard fare in both cabins (Ryanair 85%, economy only). Don't launch cheap; cut a
-   weak route instead. Where another player (or another of our airlines) flies the route, never go under 60% of
-   standard.
+3. **Fares:** set each new flight's fare to its route's level from the card (Tails → Deliveries → **card**, its **Fare
+   level** column: **Ticket price adjustment**, baseline **default price**), or leave it to the fares userscript's next
+   run, which sets back any route whose fares are off its level (since 21 Oct, manual §5). A route not flown yet
+   launches at 100% of the default price in both cabins (Ryanair 85%, economy only); a new flight on a route already
+   flown launches at that route's level. Don't launch cheap; cut a weak route instead. Where another player (or another
+   of our airlines) flies the route, never go under 60% of standard.
 
 ### Step 6: File it in the planner (you)
 1. Today → Aircraft to file → **File into planner**, or Tails → Deliveries → the aircraft's card.
@@ -330,12 +333,13 @@ first.
    posts go out on the day, from the Scheduling chat: one per airline per day of deliveries.)
 5. **The weekly review together:**
    - **The fare ladder:** each route and cabin goes up 5 points if it sold out all week, holds at 90–99%, and goes down
-     under 90%, at most 20 points above launch for now (manual §5). Performance → **The fare ladder** lists each
-     airline's moves and the game actions that make them, in order (in this chat, `select public.fare_ladder(<airline
-     id>);` gives the same). Press **Put on the fare plan**, then in the game press **Apply fare plan** (the fares
-     userscript) and watch it: it shows each airline's count and asks once, then makes every planned change for every
-     airline (**Ticket price adjustment**, baseline **default price**, route by route, each direction on its own), one
-     every 2 seconds. It stops at the first problem and says which change and why; what's done stays done, and pressing
+     under 90%, at most 20 points above launch for now, and holds a week after a route gains a flight (manual §5).
+     Performance → **The fare ladder** lists each airline's moves and the game actions that make them, in order, and
+     first, since 21 Oct, the routes off their level with the changes that set them back (in this chat, `select
+     public.fare_ladder(<airline id>);` gives the same). Press **Put on the fare plan**, then in the game press **Apply
+     fare plan** (the fares userscript) and watch it: it shows each airline's count (and how many set a route back) and
+     asks once, then makes every planned change and every set-back for every airline (**Ticket price adjustment**,
+     baseline **default price**, route by route, each direction on its own), one every 2 seconds. It stops at the first problem and says which change and why; what's done stays done, and pressing
      it again makes only what the captures haven't seen yet (a change made twice does no harm). The next capture ticks
      the changes off on the fare plan. A rival starting on a pair isn't paused by the planner yet (step 4): check the
      scan by hand. Fare moves are only ever reviewed here, never as Needs attention.
