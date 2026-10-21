@@ -3,11 +3,14 @@
 // free numbers when it isn't flown, its loads when it is; each frequency; and Add frequency. Every action is one
 // planner_save() call; the questions are asked in the page. Since 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md
 // §2) the header shows the layout the route calls for (its own cabin choice, else its market's) where it showed the
-// market's aircraft, cabin and fares, and the block is estimated on the airline's most-flown type.
+// market's aircraft, cabin and fares, and the block is estimated on the airline's most-flown type. Since 22 Oct (spec
+// docs/specs/2026-10-21-route-page.md §3) a flown route's header links to its route page on Performance, "How it's doing ›".
 import { useState, type FocusEvent, type KeyboardEvent } from "react";
+import { Link } from "react-router";
 import { block, findType, game, type FrequencyChecks, type Rules } from "@rules";
 import { ConfirmPanel } from "../../ui/Confirm";
 import { showMessage } from "../../ui/messages";
+import { itemRoute } from "../screens";
 import { Frequency } from "./Frequency";
 import {
   disp, hhmm, layoutWords, moveWords, nextPair, parseOffset, priceFor, serviceFor,
@@ -91,7 +94,10 @@ export function RouteDetail(p: DetailProps) {
     <div data-route-detail={`${r.hub}-${r.dest}`}>
       <div className="dhead" data-figure="routes: header">
         <button type="button" className="back" id="back-route" onClick={p.onBack}>‹ Routes</button>
-        <h2>{r.hub}–{r.dest} <span className="city">{r.city}</span></h2>
+        <h2>{r.hub}–{r.dest} <span className="city">{r.city}</span>
+          {p.freqs.length && p.airline.code ? <>{" "}<Link className="link rpgo" to={itemRoute("performance", { airline: p.airline.code, hub: r.hub, dest: r.dest })}
+            data-route-page-link title="its story since launch, on Performance">How it's doing ›</Link></> : null}
+        </h2>
         <div className="dsub" data-dsub="1">
           <Stars n={r.stars} /> {p.airline.name} · {r.market} · {(r.dist ?? 0).toLocaleString()} km · UTC offsets{" "}
           <OffsetInput code={r.hub} value={String(offH(r.hub))} className="tiny" onOffset={(c, t) => void askOffset(c, t)} /> {r.hub}{" "}

@@ -966,3 +966,44 @@ button.link.gmore{display:inline-block;margin:6px 0 2px}
 .cpmore{font-size:12.5px;margin-top:4px}
 .cptrunks{font-size:13px;margin:0 0 8px;overflow-wrap:anywhere}
 @media (max-width:560px){ .cpmk{grid-template-columns:minmax(0,1fr)} }
+
+/* ---------- the route page (22 Oct, spec docs/specs/2026-10-21-route-page.md §3): the header, the last 7 days against
+   the 7 before as tiles, the since-launch chart (economy ink, business grey, the fare level dashed on its own scale, the
+   events as dots under the days), the events, the rivals and our share as a small line, the connections at each end.
+   Colour only for action: nothing here is red or amber. Phone first: tiles wrap, tables scroll in their own box. */
+.rphead h1{overflow-wrap:anywhere}
+.rphead h1 .city{color:#B8C0DA;font:500 15px/1.3 var(--font);letter-spacing:0}
+.rphead .rpline{margin:6px 0;overflow-wrap:anywhere}
+.rphead .stars .off{color:#56607C}
+a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
+.rpweek{margin:0 0 16px;min-width:0}
+.rpweekh{font-size:13px;margin:0 0 8px;overflow-wrap:anywhere}
+.rpwgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;min-width:0}
+.rpw{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:10px 12px;min-width:0;font-size:12.5px}
+.rpwv{font-size:15px;margin:2px 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.rpwv .wow{font-size:12px;color:var(--muted);white-space:nowrap}
+.rpwv .wow.up,.rpwv .wow.down{color:var(--ink);font-weight:600}
+.rpwt{font-size:11.5px;min-height:1em}
+.storychart path{fill:none;stroke-linejoin:round}
+.storychart path.eco,.storychart .lgd line.eco{stroke:var(--ink);stroke-width:2}
+.storychart path.bus,.storychart .lgd line.bus{stroke:#8C94AD;stroke-width:1.6}
+.storychart path.lvl,.storychart .lgd line.lvl{stroke:#3B3FD8;stroke-width:1.4;stroke-dasharray:5 4}
+.storychart path.lvl.bus{stroke:#9AA4C4}
+.storychart .lvt{fill:#3B3FD8}
+.storychart circle.mk{fill:#fff;stroke:var(--ink);stroke-width:1.6;cursor:default}
+.storychart circle.mk.rival{fill:var(--ink)}
+.storychart .lgd text{font:500 11px/1 var(--font);fill:#5B647E}
+.rpevents{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:13px}
+.rpevents li{overflow-wrap:anywhere}
+.rprivals{display:grid;gap:8px;min-width:0;font-size:13px}
+.rprivals .rptbl{max-width:420px}
+.rpnone{font-size:13px}
+.rpours{overflow-wrap:anywhere}
+.rpshare{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12.5px}
+.sharewrap{margin:0}
+.shareline{width:160px;height:40px;display:block}
+.shareline path{fill:none;stroke:var(--ink);stroke-width:1.6} .shareline circle{fill:var(--ink)} .shareline .zero{stroke:#E1E6EE}
+.rpconns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 18px;min-width:0}
+.rpend{min-width:0}
+.rpendh{margin:0 0 6px;font-size:13.5px;overflow-wrap:anywhere}
+.rpmore{font-size:12px;margin-top:4px}

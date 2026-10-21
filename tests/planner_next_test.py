@@ -23,9 +23,12 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    ladder with a section for each airline, its moves in one line, its count of changes in the game matching its game
    actions (route by route since 21 Oct), its game actions and its routes table each cut to 10 rows with "show all N"),
    then a scorecard opens its airline's page (Profit, Cash next 14 days, Route profit with its fare index and 14-day
-   load sparkline, Fare plan, open); Systems, the Systems board first, then its three
-   boards folded (Capture with the copy's airlines, Manual entry, Aircraft checks; Cabins went on 21 Oct), and two (no
-   Aircraft checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
+   load sparkline, Fare plan, open), and (22 Oct) its first route's name opens the route page: its header, the last 7
+   days against the 7 before, its five boards open with as many events and rivals as route_story() gives, its links to
+   Routes (which links back, "How it's doing ›") and to the airline's page, and Competition's threats each linking to
+   their route's page; Systems, the Systems board first, then its four boards folded (Capture with the copy's
+   airlines, Cabin charges since 22 Oct, Manual entry, Aircraft checks; Cabins went on 21 Oct), and three (no Aircraft
+   checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
    pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
@@ -41,7 +44,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    no errors, no sideways scroll (Systems with every board open, Reference with every section open, Performance's fare
    ladder with every list cut and then opened in full), no link into the
    old planner's address (/planner/old/), one used while the planner was built (/planner/next/) or a screen that went
-   on 20 Oct (/planner/hubs, /planner/check, /planner/review); and one airline's Performance page the same way; a
+   on 20 Oct (/planner/hubs, /planner/check, /planner/review); and one airline's Performance page the same way, and
+   (22 Oct) the route pages of a busy legacy route and a busy Ryanair route (every event shown, then cut again); a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
@@ -786,6 +790,135 @@ async def performance_opens(pl):
             + (f", its route profit table with the fare index and a 14-day sparkline on each of its {cols['rows']} routes" if cols else "")), problems
 
 
+def busiest_route(code=None, not_code=None):
+    """A busy route of our airline with that code, or of any of our airlines but not_code: the one with the most days
+    with flights in the daily history (its airports either way, matched to it or to no route, as route_story() reads
+    them), so its route page draws its since-launch chart where any can, then the most flights over the last 14 days:
+    {code, id, hub, dest}, or None."""
+    cond = f"a.iata_code = '{code}'" if code else f"a.iata_code is distinct from '{not_code}'"
+    out = psql(f"""select a.iata_code || ' ' || r.id || ' ' || r.hub_code || ' ' || r.dest_code
+                     from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                     join public.routes r on r.airline_id = a.id and not r.removed
+                     join lateral (select count(distinct d.day) as days,
+                                          coalesce(sum(d.flights) filter (where d.day > (select max(x.day) from public.route_days x where x.airline_id = a.id) - 14), 0) as flights
+                                     from public.route_days d
+                                    where d.airline_id = a.id and d.flights > 0 and (d.route_id = r.id or d.route_id is null)
+                                      and ((d.origin_code = r.hub_code and d.dest_code = r.dest_code) or (d.origin_code = r.dest_code and d.dest_code = r.hub_code))) b on b.days > 0
+                    where g.kind = 'ours' and a.world_id = {WORLD} and a.active and a.iata_code is not null and {cond}
+                      and exists (select 1 from public.rotations rt where rt.route_id = r.id)
+                    order by b.days desc, b.flights desc, a.position nulls last, a.id, r.id limit 1""").strip()
+    if not out:
+        return None
+    c, rid, hub, dest = out.split()
+    return {"code": c, "id": int(rid), "hub": hub, "dest": dest}
+
+
+ROUTE_PAGE_JS = """(() => { const m = document.querySelector('main[data-route-page]'); if (!m) return null;
+    const q = (s) => m.querySelector(s);
+    return { path: location.pathname, route: m.dataset.routePage, airline: m.dataset.airline,
+      title: (q('.rphead h1') || {}).textContent || '', fares: (q('[data-fares]') || {}).textContent || '',
+      boards: [...m.querySelectorAll('.board > h3.rh')].map(h => h.dataset.rkey), folded: m.querySelectorAll('.board.rcol').length,
+      tiles: m.querySelectorAll('[data-wk]').length, compared: (q('[data-figure="performance route: last 7 days"]') || {dataset: {}}).dataset.compared || '',
+      chart: !!q('svg.storychart'), short: !!q('[data-story-short]'), markers: +((q('svg.storychart') || {dataset: {}}).dataset.markers || 0),
+      events: +((q('[data-list="route events"]') || {dataset: {}}).dataset.listRows || 0),
+      shown: m.querySelectorAll('[data-list="route events"] li').length,
+      rivals: m.querySelectorAll('[data-rival]').length, ends: [...m.querySelectorAll('[data-end]')].map(e => e.dataset.end),
+      conns: m.querySelectorAll('[data-conn]').length,
+      back: (q('[data-back]') || {}).getAttribute ? q('[data-back]').getAttribute('href') : '',
+      schedule: (q('[data-schedule]') || {}).getAttribute ? q('[data-schedule]').getAttribute('href') : '' }; })()"""
+
+
+async def route_page_opens(pl):
+    """The route page (22 Oct, spec docs/specs/2026-10-21-route-page.md §3): from the first airline's route profit table, its
+    first route's name opens /planner/performance/<code>/<route>: the header (the route, its fare levels), the last 7 days
+    against the 7 before (a tile for load, passengers, profit, profit an aircraft hour and the fares), and its five boards
+    open (Since launch, Profit an aircraft hour, Events, Rivals on the pair, Connections), the chart there from 14 days
+    with flights and a line saying so before, as many events and rivals as route_story() gives on the copy, 10 events
+    shown at most, the connections at both ends. Its links: "Schedule in Routes" opens the route on Routes, whose header
+    links back with "How it's doing ›" (a flown route), and "‹ <airline>" opens the airline's page. Competition's threats
+    each link to their route's page. Counts and codes only."""
+    problems = []
+    await pl.pg.click("[data-screen-link=performance]")
+    await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
+    await pl.pg.click("main[data-screen=performance] [data-figure='performance: scorecards'] .fcard")
+    await pl.pg.wait_for_function("() => !!(document.querySelector('main[data-screen=performance]') || {dataset: {}}).dataset.airline", timeout=30000)
+    await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
+    link = await pl.pg.evaluate("(document.querySelector('[data-figure=\"performance: route profit table\"] a[data-route-link]') || {getAttribute: () => ''}).getAttribute('href')")
+    code = await pl.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline")
+    if link:
+        await pl.pg.click("[data-figure='performance: route profit table'] a[data-route-link]")
+    else:
+        b = busiest_route(code=code) or busiest_route(not_code="")
+        if not b:
+            return "the route page: no route with flights on the copy to open", []
+        link = f"/planner/performance/{b['code']}/{b['hub']}-{b['dest']}"
+        await pl.pg.goto(f"http://{LIVE_HOST}:{pl.port}{link}")
+    await pl.pg.wait_for_selector("main[data-route-page][data-performance-ready=yes]", timeout=90000)
+    await settle(pl.pg, 300)
+    got = await pl.pg.evaluate(ROUTE_PAGE_JS)
+    if not got:
+        return "the route page", ["the route profit table's route didn't open a route page"]
+    if got["path"] != link:
+        problems.append(f"the route's link is {link}, but the page is at {got['path']}")
+    acode, key = got["airline"], got["route"]
+    hub, dest = (key.split("-") + ["", ""])[:2]
+    rid = one(f"""select to_json(r.id) from public.routes r join public.airlines a on a.id = r.airline_id
+                   where a.world_id = {WORLD} and a.iata_code = '{acode}' and r.hub_code = '{hub}' and r.dest_code = '{dest}' order by r.removed, r.id limit 1""")
+    doc = one(f"select public.route_story({int(rid)})") if rid else None
+    if not doc:
+        return "the route page", [f"no route {acode} {key} on the copy"]
+    if got["boards"] != ["Since launch", "Profit an aircraft hour", "Events", "Rivals on the pair", "Connections"] or got["folded"]:
+        problems.append(f"the route page's boards are {got['boards']} ({got['folded']} folded)")
+    if not got["title"].startswith(f"{hub}–{dest}"):
+        problems.append(f"the route page's title is {got['title']!r}")
+    if got["tiles"] not in (5, 6):
+        problems.append(f"the last 7 days have {got['tiles']} tiles, not 5 or 6")
+    if len(doc["days"]) >= 14 and not got["chart"]:
+        problems.append(f"{len(doc['days'])} days with flights, but no since-launch chart")
+    if len(doc["days"]) < 14 and not got["short"]:
+        problems.append(f"{len(doc['days'])} days with flights, but no line saying the chart starts at 14")
+    if got["events"] != len(doc["events"]) or got["shown"] != min(10, len(doc["events"])):
+        problems.append(f"the page lists {got['events']} events ({got['shown']} shown); route_story() gives {len(doc['events'])}")
+    if got["rivals"] != len(doc["rivals"]["airlines"]):
+        problems.append(f"the page lists {got['rivals']} rivals; route_story() gives {len(doc['rivals']['airlines'])}")
+    if got["ends"] != [hub, dest]:
+        problems.append(f"the connections are at {got['ends']}, not {hub} and {dest}")
+    if got["back"] != f"/planner/performance/{acode}" or got["schedule"] != f"/planner/routes/{acode}/{key}":
+        problems.append(f"the route page links to {got['back']!r} and {got['schedule']!r}")
+    # Schedule in Routes, and back with How it's doing ›
+    await pl.pg.click("main[data-route-page] [data-schedule]")
+    await pl.pg.wait_for_selector("main[data-screen=routes][data-routes-ready=yes]", timeout=60000)
+    await pl.pg.wait_for_selector("[data-route-detail]", timeout=30000)
+    back = await pl.pg.evaluate("(document.querySelector('[data-route-detail] [data-route-page-link]') || {getAttribute: () => ''}).getAttribute('href')")
+    flown = doc["now"]["departures"]["out"] or doc["now"]["departures"]["back"]
+    if flown and back != link:
+        problems.append(f"Routes' {key} links to {back!r}, not the route page {link}")
+    if back:
+        await pl.pg.click("[data-route-detail] [data-route-page-link]")
+        await pl.pg.wait_for_selector("main[data-route-page][data-performance-ready=yes]", timeout=90000)
+    else:
+        await pl.pg.go_back()
+        await pl.pg.wait_for_selector("main[data-route-page][data-performance-ready=yes]", timeout=90000)
+    await pl.pg.click("main[data-route-page] [data-back]")
+    await pl.pg.wait_for_function(f"() => location.pathname === '/planner/performance/{acode}'", timeout=30000)
+    await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]:not([data-route-page])", timeout=90000)
+    # Competition's threats: each links to its route's page
+    await pl.pg.click("[data-screen-link=competition]")
+    await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
+    threats = await pl.pg.evaluate("""({ n: document.querySelectorAll('[data-threat]').length,
+        links: [...document.querySelectorAll('[data-threat] a[data-route-page-link]')].map(a => a.getAttribute('href')) })""")
+    if len(threats["links"]) != threats["n"] or any(not re.fullmatch(r"/planner/performance/[A-Z0-9]+/[A-Z0-9]{3,4}-[A-Z0-9]{3,4}", h or "") for h in threats["links"]):
+        problems.append(f"{threats['n']} threats on Competition, {len(threats['links'])} linking to a route page")
+    await pl.pg.click("[data-screen-link=home]")
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return (f"the route page: {acode} {key} opens from the route profit table with its header, {got['tiles']} tiles for the last 7 days "
+            f"({'compared' if got['compared'] == 'yes' else 'nothing to compare'}), its five boards open, "
+            f"{'the since-launch chart (' + str(got['markers']) + ' event markers)' if got['chart'] else 'the chart waiting for 14 days'}, "
+            f"{got['events']} events ({got['shown']} shown), {got['rivals']} rivals and {got['conns']} city pairs shown at its two ends, as route_story() "
+            f"gives them; Schedule in Routes and back ({'How it' + chr(39) + 's doing ›' if back else 'not flown: no link back'}), ‹ airline to its page; "
+            f"Competition's {threats['n']} threats each link to their route's page"), problems
+
+
 async def last_screens_open(pl):
     """Interline, Photos and Reference are rebuilt (build pull request 12): no screen is a placeholder any more. Interline
     shows its agreements board and the interline countries; Photos a logo card for each of our airlines; Reference its
@@ -1002,6 +1135,9 @@ async def screens(p, port, env, facts, staff, seen, moment):
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
     links = shots = 0
     code = first_airline()
+    # the route page (22 Oct): a busy legacy route (any of our airlines but Ryanair) and a busy Ryanair route, each the one
+    # with the most days with flights, so the since-launch chart is drawn where any route has 14
+    route_pages = [r for r in (busiest_route(not_code="FR"), busiest_route(code="FR")) if r]
     if SCREENS_DIR:
         Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
     for width, height in ((1280, 900), (380, 800)):
@@ -1025,6 +1161,16 @@ async def screens(p, port, env, facts, staff, seen, moment):
                 over = await ph.pg.evaluate(scroll)
                 if over > 0:
                     problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")
+                if name.startswith("route-"):
+                    # the route page's events (22 Oct): every one shown, then cut to 10 again
+                    more = "main[data-route-page] [data-list-more]"
+                    if await ph.pg.evaluate(f"(() => {{ const b = document.querySelector({json.dumps(more)}); if (b) b.click(); return !!b; }})()"):
+                        await settle(ph.pg, 300)
+                        over = await ph.pg.evaluate(scroll)
+                        if over > 0:
+                            problems.append(f"{name}: with every event shown, the page scrolls sideways by {over} px at {width} px wide")
+                        await ph.pg.evaluate(f"document.querySelector({json.dumps(more)}).click()")
+                        await settle(ph.pg, 200)
                 if name == "competition-airline":
                     # the openings (21 Oct): opened in full, the widest the page gets, then cut again
                     more = "main[data-screen=competition] [data-list-more]"
@@ -1089,10 +1235,25 @@ async def screens(p, port, env, facts, staff, seen, moment):
                 problems.append(f"competition/{code}: it isn't ready at {width} px wide")
             await look("competition", "competition-airline")
             problems += [f"competition/{code} at {width} px: {e}" for e in ph.errors[e0:]]
+            # the route page (22 Oct), opened directly by its address: a busy legacy route and a Ryanair route
+            for r in route_pages:
+                e0 = len(ph.errors)
+                addr = f"/planner/performance/{r['code']}/{r['hub']}-{r['dest']}"
+                await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                try:
+                    await ph.pg.wait_for_selector("main[data-route-page][data-performance-ready=yes]", timeout=90000)
+                    await settle(ph.pg, 400)
+                    if not await ph.pg.evaluate("!!document.querySelector('main[data-route-page] .rphead')"):
+                        problems.append(f"{addr} at {width} px: no route page header")
+                except Exception:
+                    problems.append(f"{addr}: it isn't ready at {width} px wide")
+                await look("performance", f"route-{r['code']}")
+                problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
             problems += [e for e in ph.errors if not any(e in x for x in problems)]
         finally:
             await ph.close()
-    return (f"every screen ({len(SCREENS)}) and {code}'s Performance and Competition pages open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
+    routes_words = " and ".join(f"{r['code']} {r['hub']}–{r['dest']}" for r in route_pages) or "no route with flights"
+    return (f"every screen ({len(SCREENS)}), {code}'s Performance and Competition pages and the route pages of {routes_words} open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
             f"ready, no errors, no sideways scroll (Systems with every board open, Reference with every section open), and none of their {links} "
             f"links goes into the old planner, to /planner/next/ or to Hubs, Check or Review" + (f"; {shots} screenshots kept" if shots else "")), problems
 
@@ -1349,8 +1510,8 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, today_opens, routes_opens, tails_opens, plan_card_cabins, no_hubs, performance_opens, competition_opens, systems_opens,
-                              last_screens_open, tick_todo):
+                for check in (home_opens, today_opens, routes_opens, tails_opens, plan_card_cabins, no_hubs, performance_opens, route_page_opens, competition_opens,
+                              systems_opens, last_screens_open, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

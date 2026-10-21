@@ -3,8 +3,8 @@
 // over anything with a data-tip, as the old .maptip does.
 import { useRef, type MouseEvent as RMouseEvent, type ReactNode } from "react";
 import {
-  barLayout, costParts, forecastLayout, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type Forecast, type GroupRow,
-  type ProfitDay, type RouteRow,
+  barLayout, costParts, forecastLayout, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type BarUnit, type Forecast,
+  type GroupRow, type ProfitDay, type RouteRow, type StoryChartLayout,
 } from "./model";
 
 /** A chart with the old planner's pointer tip. */
@@ -30,10 +30,13 @@ function ChartWrap({ children, className = "chartwrap" }: { children: ReactNode;
   );
 }
 
-/** The profit chart: a bar per interval, the zero line, the average. */
-export function BarChart({ pts, avg, figure }: { pts: readonly { x: string; y: number; tip: string }[]; avg: number | null; figure?: string }) {
-  if (!pts.length) return <div className="empty">Needs two nights of cash to show a day's profit.</div>;
-  const g = barLayout(pts, avg);
+/** The profit chart: a bar per interval, the zero line, the average. Since 22 Oct also the route page's profit an aircraft
+ *  hour by week, in thousands (unit "k"). */
+export function BarChart({ pts, avg, figure, unit = "M", empty = "Needs two nights of cash to show a day's profit." }: {
+  pts: readonly { x: string; y: number; tip: string }[]; avg: number | null; figure?: string; unit?: BarUnit; empty?: string;
+}) {
+  if (!pts.length) return <div className="empty">{empty}</div>;
+  const g = barLayout(pts, avg, unit);
   return (
     <ChartWrap>
       <svg className="lchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" data-figure={figure} data-bars={g.bars.length}>
@@ -181,6 +184,53 @@ export function TailChart({ rows }: { rows: readonly AircraftRow[] }) {
       ))}
       {g.mid != null ? <line x1={g.mid} x2={g.mid} y1="0" y2={g.H - 2} stroke="#C3C9D9" /> : null}
     </svg>
+  );
+}
+
+/** The route page's since-launch chart (spec docs/specs/2026-10-21-route-page.md §3.3): economy and business loads by
+ *  day, the fare level as a step line on its own scale (right), each event as a marker on the day axis, a tip for each
+ *  day (storyChartLayout() in model.ts). */
+export function StoryChart({ g }: { g: StoryChartLayout }) {
+  const legendY = g.H - 8;
+  return (
+    <ChartWrap>
+      <svg className="lchart storychart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Loads by day since launch, the fare level and the events"
+        data-figure="performance route: since launch" data-days={g.days.length} data-markers={g.markers.length}>
+        {g.grid.map((l, i) => (
+          <g key={"g" + i}>
+            <line x1={g.L} x2={g.W - g.R} y1={l.y.toFixed(1)} y2={l.y.toFixed(1)} className={i === 0 ? "zero" : "grid"} />
+            <text x={g.L - 6} y={(l.y + 4).toFixed(1)} textAnchor="end">{l.label}</text>
+          </g>
+        ))}
+        {g.rgrid.map((l, i) => <text key={"r" + i} x={g.W - g.R + 6} y={(l.y + 4).toFixed(1)} className="lvt">{l.label}</text>)}
+        {g.level ? <path d={g.level} className="lvl" /> : null}
+        {g.levelBus ? <path d={g.levelBus} className="lvl bus" /> : null}
+        <path d={g.eco} className="eco" />
+        {g.bus ? <path d={g.bus} className="bus" /> : null}
+        {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 28} textAnchor="middle">{l.label}</text>)}
+        {g.markers.map((m, i) => <circle key={"m" + i} cx={m.x.toFixed(1)} cy={m.y.toFixed(1)} r="4.5" className={"mk " + m.kinds} data-tip={m.tip} />)}
+        {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
+        <g className="lgd" transform={`translate(${g.L},${legendY})`}>
+          <line x1="0" x2="18" y1="-4" y2="-4" className="eco" /><text x="22" y="0">economy load</text>
+          {g.bus ? <><line x1="120" x2="138" y1="-4" y2="-4" className="bus" /><text x="142" y="0">business load</text></> : null}
+          {g.level ? <><line x1="250" x2="268" y1="-4" y2="-4" className="lvl" /><text x="272" y="0">fare level (right)</text></> : null}
+          {g.markers.length ? <><circle cx="400" cy="-4" r="4" className="mk" /><text x="408" y="0">an event</text></> : null}
+        </g>
+      </svg>
+    </ChartWrap>
+  );
+}
+
+/** Our share of the pair at each scan since launch, as a small line with a tip on each point. */
+export function ShareLine({ s }: { s: { W: number; H: number; path: string; dots: { x: number; y: number; tip: string }[] } }) {
+  return (
+    <ChartWrap className="chartwrap sharewrap">
+      <svg className="shareline" viewBox={`0 0 ${s.W} ${s.H}`} role="img" aria-label="Our share at each scan" data-figure="performance route: share at each scan">
+        <line x1="0" x2={s.W} y1={s.H - 4} y2={s.H - 4} className="zero" />
+        <path d={s.path} />
+        {s.dots.map((d, i) => <circle key={i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r="3" data-tip={d.tip} />)}
+      </svg>
+    </ChartWrap>
   );
 }
 

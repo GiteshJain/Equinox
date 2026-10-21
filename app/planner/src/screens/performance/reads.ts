@@ -7,6 +7,7 @@
 //   growth_signals() (the growth signals), hub_progress() (main hubs towards their target) and, since 21 Oct,
 //   fare_ladder() for every airline (the fare ladder board; on the airline page the route profit table's fare index);
 // - the daily history by route, route_days (the route profit table's 14-day load sparkline; staff read it);
+// - since 22 Oct, the route page: the route the address names (routes) and its story, route_story();
 // - the daily history, airline_days (each airline's fleet, schedule and loads each evening: the scorecards' change
 //   against the same day last week; staff read it);
 // - for Flights by day, one day's captured loads (game_loads, the old planner's CAP.loads, which held the last 9 days)
@@ -17,7 +18,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { queryClient, tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import type { AircraftRow, CardsAnswer, DayRow, FareChange, FarePlanAnswer, Forecast, LadderAnswer, ProfitAnswer, RouteDayRow, RouteProfitAnswer } from "./model";
+import type { AircraftRow, CardsAnswer, DayRow, FareChange, FarePlanAnswer, Forecast, LadderAnswer, ProfitAnswer, RouteDayRow, RouteProfitAnswer, RouteStory } from "./model";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -154,6 +155,33 @@ export function useRouteDays(airlineId: number | undefined, from: string, to: st
         .eq("airline_id", airlineId ?? 0).gte("day", from).lte("day", to).order("day").order("origin_code").order("dest_code").range(a, b) as unknown as Answer<RouteDayRow[]>);
       return rows.map((r) => ({ ...r, route_id: num(r.route_id as Json), passengers: num(r.passengers as Json), seats: num(r.seats as Json) }));
     },
+  });
+}
+
+/** The route an address names (/performance/PA/JFK-ORD, the route page): the airline's route from that hub to that
+ *  destination, removed or not, else the other way round; null when it has neither. */
+export function useRouteAt(airlineId: number | undefined, hub: string | undefined, dest: string | undefined) {
+  return useQuery({
+    queryKey: tableKey("routes", "route page", airlineId, hub, dest),
+    enabled: airlineId !== undefined && !!hub && !!dest,
+    queryFn: async (): Promise<{ id: number; hub: string; dest: string } | null> => {
+      const { data, error } = await supabase.from("routes").select("id, hub_code, dest_code, removed")
+        .eq("airline_id", airlineId ?? 0).in("hub_code", [hub ?? "", dest ?? ""]).in("dest_code", [hub ?? "", dest ?? ""]).order("removed").order("id");
+      if (error) return fail("the route", error.message);
+      const rows = (data ?? []) as { id: number; hub_code: string; dest_code: string }[];
+      const r = rows.find((x) => x.hub_code === hub && x.dest_code === dest) ?? rows.find((x) => x.hub_code === dest && x.dest_code === hub);
+      return r ? { id: Number(r.id), hub: r.hub_code, dest: r.dest_code } : null;
+    },
+  });
+}
+
+/** A route's story since launch (route_story(), spec docs/specs/2026-10-21-route-page.md §2): the route page. Keyed under
+ *  the fare plan's table, whose rows are among its events, so a save there reads it again. */
+export function useRouteStory(routeId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("fare_plan", "route story", routeId),
+    enabled: routeId !== undefined,
+    queryFn: () => rpc<RouteStory>("the route's story", "route_story", { p_route_id: routeId ?? 0, p_as_of: asOf() }),
   });
 }
 

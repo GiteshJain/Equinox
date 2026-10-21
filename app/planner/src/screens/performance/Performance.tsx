@@ -14,8 +14,10 @@
 //     intervals with its average and the table of reported days (airline_profit()), Cash, next 14 days (cash_forecast()),
 //     Route profit with its aircraft and fare changes (route_profit(), aircraft_profit(), fare_changes(); since 21 Oct each
 //     route's fare index from fare_ladder() and its 14-day load sparkline from route_days) and the Fare plan
-//     (fare_plan_status()). With a route after it (/performance/PA/JFK-ORD, from Today's needs attention) the route
-//     profit table opens filtered to that route.
+//     (fare_plan_status()). Each route's name in the route profit table opens its route page; the table's search box
+//     filters it to a route (what /performance/PA/JFK-ORD did until 22 Oct).
+//   - A route (/planner/performance/<code>/<route>, since 22 Oct, spec docs/specs/2026-10-21-route-page.md): the route
+//     page, its story since launch (RoutePage.tsx, route_story()).
 // Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
 // planner_save() call each.
 import { useMemo, useState, type ReactNode } from "react";
@@ -43,6 +45,7 @@ import { FareLadderBoard } from "./FareLadder";
 import { daySummary, loadKey, loadsByFlight, moveDay, parseDay, utcToday } from "./flights";
 import { FlightsByDay } from "./FlightsByDay";
 import { GrowthSignals, MainHubs, type ReadyRow } from "./Growth";
+import { RoutePage } from "./RoutePage";
 import {
   BOARDS, GROUP_BOARDS, MARKS, MARK_ORDER, PERIODS, SORTS, barTip, capturedLine, cardWords, chartIntervals, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, indexWords, kk,
   ladderLine, ladderPlanChanges, loads14, markCounts, ms, offersFarePlan, pc, planWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
@@ -68,7 +71,15 @@ const NOTES: Record<BoardKey | GroupBoardKey, string> = {
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
+/** Performance: the group, an airline's page, or (with a route after the airline, since 22 Oct) the route page. */
 export function Performance() {
+  const params = useParams();
+  const [code, routeKey] = (params["*"] ?? "").split("/").filter(Boolean);
+  if (code && routeKey) return <RoutePage key={`${code}/${routeKey}`} code={code} routeKey={routeKey} />;
+  return <PerformanceScreen />;
+}
+
+function PerformanceScreen() {
   const params = useParams();
   const loc = useLocation();
   const navigate = useNavigate();
@@ -91,7 +102,7 @@ export function Performance() {
   profitsQ.forEach((q, i) => { const c = cards[i]; if (c && q.data) profitOf.set(c.airline_id, q.data); });
   const wowOf = useMemo(() => new Map(cards.map((c) => [c.airline_id, weekOnWeek(daysQ.data ?? [], c.airline_id, utcDay)])), [cards, daysQ.data, utcDay]);
 
-  const [code, routeKey] = (params["*"] ?? "").split("/").filter(Boolean);
+  const [code] = (params["*"] ?? "").split("/").filter(Boolean);
   const colorOf = (id: number) => airlines.find((a) => a.id === id)?.color ?? null;
   const sel = code ? cards.find((c) => c.code === code) : undefined;
   const selId = sel?.airline_id;
@@ -207,7 +218,7 @@ export function Performance() {
     <FoldBoard key={k} k={k} title={opts.title} note={opts.note ?? NOTES[k]} folded={folded.has(k)} onToggle={() => toggle(k)} figure={opts.figure}>{children}</FoldBoard>
   );
   const cushion = (fc: Forecast | undefined) => (fc?.cushion != null ? fc.cushion : rules && selId != null ? Number(setting(rules, "order_cushion", selId) ?? 0) / 1_000_000 : 0);
-  const view = "/performance" + (code ? "/" + code : "") + (routeKey ? "/" + routeKey : "");
+  const view = "/performance" + (code ? "/" + code : "");
   const target = (progressQ.data ?? []).find((x) => !x.exempt && x.main_hub)?.target ?? progressQ.data?.[0]?.target ?? 750;
   const exempt = (progressQ.data ?? []).filter((x) => x.exempt).map((x) => named.get(x.airline_id)).filter(Boolean);
   const card = (c: Card, on: boolean) => (
@@ -246,9 +257,9 @@ export function Performance() {
             note: `captured cash + flight profit from the last day's bank statement − every scheduled lease payment and week-end closing (repeated weekly beyond what the game lists) · an order is "safe" when ${cushion(forecastQ.data).toFixed(1)}M stays in hand at the lowest point afterwards, counting its own weekly lease from 7 days after it arrives (taken as the day it's ordered)`,
             figure: `performance ${sel.name}: Cash, next 14 days` }) : null}
           {routeQ.data && aircraftQ.data && changesQ.data && planQ.data ? board("Route profit", (
-            <RouteProfitBody key={sel.airline_id + "|" + (routeKey ?? "")} airline={sel} r={routeQ.data} aircraft={aircraftQ.data} changes={changesQ.data} plan={planQ.data}
+            <RouteProfitBody key={sel.airline_id} airline={sel} r={routeQ.data} aircraft={aircraftQ.data} changes={changesQ.data} plan={planQ.data}
               ladder={ladderQ.data} routeDays={routeDaysQ.data ?? []} today={utcDay}
-              days={days} onDays={setDays} busy={busy} initialQuery={routeKey ? routeKey.replace("-", " ") : ""}
+              days={days} onDays={setDays} busy={busy}
               city={(c) => rules.airports.get(c)?.city ?? ""} soldOutMin={String(setting(rules, "growth_sold_out_min_departures", sel.airline_id) ?? "")}
               raisePct={Number(setting(rules, "fare_plan_raise_pct", sel.airline_id) ?? NaN)}
               onAdd={(row) => {
@@ -375,8 +386,9 @@ function ForecastBody({ fc, cushion, airline }: { fc: Forecast; cushion: number;
 }
 
 /** Route profit, its aircraft and the fare changes, for the period picked; each route with its fare index (the fare
- *  ladder's economy row) and its 14-day load sparkline (route_days) since 21 Oct. */
-function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDays, today, days, onDays, busy, initialQuery, city, soldOutMin, raisePct, onAdd }: {
+ *  ladder's economy row) and its 14-day load sparkline (route_days) since 21 Oct; each route's name opens its route page
+ *  since 22 Oct (the search box filters the table to a route). */
+function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDays, today, days, onDays, busy, city, soldOutMin, raisePct, onAdd }: {
   airline: Card;
   r: RouteProfitAnswer;
   aircraft: AircraftRow[];
@@ -388,7 +400,6 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDay
   days: number;
   onDays: (d: number) => void;
   busy: boolean;
-  initialQuery: string;
   city: (code: string) => string;
   soldOutMin: string;
   raisePct: number;
@@ -396,7 +407,7 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDay
 }) {
   const [mark, setMark] = useState<Mark | "">("");
   const [sort, setSort] = useState<RouteSort>("pwk");
-  const [q, setQ] = useState(initialQuery);
+  const [q, setQ] = useState("");
   const [tailsOpen, setTailsOpen] = useState(false);
   if (!r.flights) return <div className="dim">Fills in once {airline.name}'s bank statement has been captured.</div>;
   const cnt = markCounts(r.routes);
@@ -434,7 +445,7 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDay
               const txt = routeSearchText(x, city);
               return (
                 <tr key={`${x.hub}-${x.dest}`} data-rprow={txt} style={query && !txt.includes(query) ? { display: "none" } : undefined}>
-                  <td><Link className="link" to={itemRoute("routes", { airline: airline.code, hub: x.hub, dest: x.dest })}><b>{x.hub}–{x.dest}</b></Link></td>
+                  <td><Link className="link" to={itemRoute("performance", { airline: airline.code, hub: x.hub, dest: x.dest })} data-route-link title="its route page: the story since launch"><b>{x.hub}–{x.dest}</b></Link></td>
                   <td className="num">{x.flights}</td>
                   <td className={"num" + (x.profit_per_flight < 0 ? " neg" : "")}>{k(x.profit_per_flight)}</td>
                   <td className="num">{x.margin == null ? "—" : Math.round(x.margin * 100) + "%"}</td>
