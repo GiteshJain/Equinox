@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEve
 import { summary, type Rules } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { loadWorld } from "../../ui/siteFiles";
-import type { HomeAirline } from "./attention";
+import type { HomeAirline } from "./reads";
 import {
   MAPH, MAPW, arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, toMap, zoomView, type LatLon, type MapView,
 } from "./map";

@@ -1,19 +1,22 @@
-// Check → Daily load report (the old renderReview's report): one day at a time (‹ ›, the day in the address), every
-// departure of the day by airline (the library's loadReport.flightsOn) with its captured loads by class (game_loads), and
-// the day's summary: from the captured loads, else from loads typed by hand once the day was marked complete.
+// Performance → Flights by day (Check's daily load report until 20 Oct, renamed): one day at a time (‹ ›, the day in the
+// address, ?day=), every departure of the day by airline (the library's loadReport.flightsOn) with its captured loads by
+// class (game_loads), and the day's summary: from the captured loads, else from loads typed by hand once the day was
+// marked complete.
 import { useEffect, useState } from "react";
 import type { DayFlight } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
 import { loadLogos } from "../../ui/siteFiles";
-import { airlineDay, capLine, pctWords, summaryWords, type CheckAirline, type DaySummary } from "./model";
+import type { OurAirline } from "../../data/airlines";
+import { airlineDay, capLine, summaryWords, type DaySummary } from "./flights";
+import { pctWords } from "./growth";
 import type { CapturedLoad } from "./reads";
 
-export function LoadReport({ day, flights, summary, airlines, loadOf, onDay, loading }: {
+export function FlightsByDay({ day, flights, summary, airlines, loadOf, onDay, loading }: {
   day: string;
   flights: readonly DayFlight[];
   summary: DaySummary;
-  airlines: readonly CheckAirline[];
+  airlines: readonly OurAirline[];
   loadOf: (f: DayFlight) => CapturedLoad | undefined;
   onDay: (n: number) => void;
   /** The day's loads are still being read. */
@@ -28,7 +31,7 @@ export function LoadReport({ day, flights, summary, airlines, loadOf, onDay, loa
   const byAl = airlines.map((a) => ({ a, list: flights.filter((f) => f.airline_id === a.id) })).filter((x) => x.list.length);
   return (
     <>
-      <div className="toolbar" data-figure="check: load report summary">
+      <div className="toolbar" data-figure="performance: flights by day summary">
         <button type="button" className="secondary" data-lfday="-1" onClick={() => onDay(-1)} aria-label="The day before">‹</button>
         <b style={{ minWidth: 120, textAlign: "center" }} data-lfdate={day}>{niceDate(day)}</b>
         <button type="button" className="secondary" data-lfday="1" onClick={() => onDay(1)} aria-label="The day after">›</button>

@@ -1,13 +1,13 @@
-// Review's logic, kept apart from its screen so the unit tests can run it (decision #18, build pull request 10; spec
-// docs/specs/2026-10-14-review.md). Every money figure comes from the database's figures (design §8: airline_cards(),
-// airline_profit(), cash_forecast(), route_profit(), aircraft_profit(), fare_changes(), fare_plan_status(), cash_log());
-// what is here only words them as the old Review does (web/planner/index.html: renderFinance, groupOverviewHtml,
-// finStats' card, barChart, spark, fcNext, forecastBoard, routeProfitBoard, farePlanBoard, cashEntryHtml, manualLoadsHtml,
-// parseLoadPaste, lfPastePreview and reviewClick), lays out its charts, reads a paste from the game, and builds each
-// save's rows exactly as the old planner writes them.
-import type { Change, Values } from "../../data/save";
+// Performance's logic (spec docs/specs/2026-10-20-today-performance-systems.md; Review's until 20 Oct, decision #18, build
+// pull request 10, spec docs/specs/2026-10-14-review.md), kept apart from its screen so the unit tests can run it. Every
+// money figure comes from the database's figures (design §8: airline_cards(), airline_profit(), cash_forecast(),
+// route_profit(), aircraft_profit(), fare_changes(), fare_plan_status()); what is here only words them as the old Review
+// does (web/planner/index.html: renderFinance, groupOverviewHtml, finStats' card, barChart, spark, fcNext,
+// forecastBoard, routeProfitBoard, farePlanBoard and reviewClick), lays out its charts, builds the fare plan's rows exactly
+// as the old planner writes them, and sets each scorecard's figures against the same day last week from the daily
+// history (airline_days). Manual entry's logic moved to Systems (screens/systems/model.ts) with its board.
+import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
-import { dayDiff } from "../../ui/dates";
 
 // ---------- the database's answers
 export interface NextOrder { when: "needs" | "now" | "later" | "not within 14 days"; missing?: string; types?: string[]; type?: string; safe_from?: string }
@@ -129,18 +129,6 @@ export interface PlanRow {
   economy_after: number | null;
 }
 export interface FarePlanAnswer { plan: PlanRow[]; fares: { route_id: number; hub: string; dest: string; day: string; fare: number }[] }
-export interface CashToday {
-  day: string;
-  shown_cash: number | null;
-  shown_fixed: number | null;
-  stored_cash: number | null;
-  stored_fixed: number | null;
-  captured_cash: number | null;
-  captured_fixed: number | null;
-  entry: { cash: number | null; fixed_next7: number | null; updated_at: string } | null;
-}
-export interface CashLogAirline { airline_id: number; code: string | null; name: string; days: { day: string; cash: number; fixed: number | null }[]; today: CashToday }
-export interface CashLog { today: string; airlines: CashLogAirline[] }
 
 // ---------- words, as the old Review writes its figures (renderFinance's sg, kk and dd; forecastBoard's fcDay and fcWhat)
 /** A signed money figure in millions: "+1.23M", "−0.40M". */
@@ -456,186 +444,73 @@ export function farePlanAdd(x: { worldId: number; airlineId: number; routeId: nu
 /** "remove": the change dropped, as the old planner keeps it (status dropped). */
 export const farePlanDrop = (p: PlanRow): Change => ({ table: "fare_plan", op: "update", key: { id: p.id }, base: p.updated_at, values: { status: "dropped" } });
 
-// ---------- cash and fixed costs for today (cashEntryHtml and its save, as the old planner's adapter writes them)
-/** A typed box: the number in it, or null when it's empty or not a number (the old parseFloat, commas dropped). */
-export function typedNumber(s: string | null | undefined): number | null {
-  const v = parseFloat(String(s ?? "").replace(/,/g, ""));
-  return Number.isNaN(v) ? null : v;
+// ---------- the scorecards: each figure against the same day last week, from the daily history (airline_days)
+/** An airline's row of the daily history, the columns the scorecards compare. */
+export interface DayRow { airline_id: number; day: string; aircraft_total: number | null; weekly_departures: number | null; eco_load_pct: number | null }
+export type WeekKey = "fleet" | "flights" | "load";
+export interface WeekChange {
+  /** The figure on the latest day and on the same day a week before (null when the history has none). */
+  now: number | null;
+  then: number | null;
+  /** now − then, to one decimal; null without both. */
+  delta: number | null;
+  arrow: "up" | "down" | "same" | null;
+  /** The change in words: "▲ 2", "▼ 1.4 pts", "= same", or "—" with nothing to compare. */
+  text: string;
 }
-/** What a box shows to begin with: the figure as the old planner held it, or empty. */
-export const boxValue = (v: number | null | undefined): string => (v == null ? "" : String(v));
+export interface WeekOnWeek {
+  /** The latest day of the airline's history (at or before today), and the same day a week before it. */
+  day: string | null;
+  weekAgo: string | null;
+  /** True when the history has that day a week before: without it every change is "—". */
+  compared: boolean;
+  changes: Record<WeekKey, WeekChange>;
+}
+const dayMinus = (day: string, n: number): string => new Date(Date.parse(day + "T00:00:00Z") - n * 86_400_000).toISOString().slice(0, 10);
+const round1 = (v: number): number => Math.round(v * 10) / 10;
 
-/** Save cash and fixed costs: for each airline whose figure changed from what the tables hold, a cash_entries row keeps a
- *  figure only where it differs from the capture's (rounded as the planner rounds), in AS$; the row goes once both agree
- *  again (the old planner's planner_apply_money). One action. */
-export function cashChanges(worldId: number, rows: readonly { airline_id: number; today: CashToday; cash: string; fixed: string }[], nowIso: string): Change[] {
-  const out: Change[] = [];
-  const same = (a: number | null | undefined, b: number | null | undefined) => (a ?? null) === (b ?? null);
-  const asd = (v: number | null, cap: number | null) => (v != null && v !== cap && Math.abs(v) < 1_000_000 ? Math.round(v * 1_000_000 * 100) / 100 : null);
-  for (const r of rows) {
-    const t = r.today;
-    const stCash = typedNumber(r.cash) ?? t.shown_cash, stFixed = typedNumber(r.fixed) ?? t.shown_fixed;
-    if (same(stCash, t.stored_cash) && same(stFixed, t.stored_fixed)) continue;
-    const cash = asd(stCash, t.captured_cash), fixed = asd(stFixed, t.captured_fixed);
-    const key = { airline_id: r.airline_id, day: t.day };
-    if (cash != null || fixed != null) {
-      if (!t.entry) {
-        out.push({ table: "cash_entries", op: "insert", values: { world_id: worldId, airline_id: r.airline_id, day: t.day, cash, fixed_next7: fixed, entered_at: nowIso } });
-      } else if (!same(t.entry.cash, cash) || !same(t.entry.fixed_next7, fixed)) {
-        out.push({ table: "cash_entries", op: "update", key, base: t.entry.updated_at, values: { cash, fixed_next7: fixed, entered_at: nowIso } });
-      }
-    } else if (t.entry) {
-      out.push({ table: "cash_entries", op: "delete", key, base: t.entry.updated_at });
-    }
-  }
-  return out;
+function change(now: number | null, then: number | null, unit = ""): WeekChange {
+  if (now == null || then == null) return { now, then, delta: null, arrow: null, text: "—" };
+  const delta = round1(now - then);
+  if (delta === 0) return { now, then, delta: 0, arrow: "same", text: "= same" };
+  const size = Math.abs(delta);
+  return { now, then, delta, arrow: delta > 0 ? "up" : "down", text: `${delta > 0 ? "▲" : "▼"} ${size % 1 ? size.toFixed(1) : String(size)}${unit}` };
 }
 
-/** The nightly log: every reported day across our airlines, newest first, with each airline's cash and fixed costs. */
-export function nightlyLog(log: CashLog): { day: string; cells: ({ cash: string; fixed: string | null } | null)[] }[] {
-  const days = [...new Set(log.airlines.flatMap((a) => a.days.map((d) => d.day)))].sort().reverse();
-  return days.map((day) => ({
-    day,
-    cells: log.airlines.map((a) => {
-      const p = a.days.find((d) => d.day === day);
-      return p ? { cash: p.cash.toFixed(2), fixed: p.fixed != null ? p.fixed.toFixed(2) : null } : null;
-    }),
-  }));
-}
-/** An airline's short name, as the old entry boxes and log head it: its first word. */
-export const firstWord = (name: string): string => name.split(" ")[0] ?? name;
-
-// ---------- loads by hand (manualLoadsHtml, parseLoadPaste, lfPastePreview), saved through planner_save() into load_entries
-// and load_days (since the clean-up, build pull request 14; until then through the old planner's save_loads())
-/** A loads day as the planner holds it (loads_by_day()): the flights' economy loads keyed "Airline|number" (captured or
- *  typed, the latest wins), whether it is complete, whether a capture reached it (source "capture"), when it was last saved
- *  by hand (savedAt, ms); and the typed rows behind it, with their updated_at, the base a save changes them from. */
-export interface LoadsDay {
-  done: boolean;
-  f: Record<string, number>;
-  source?: string;
-  savedAt?: number;
-  entries?: { airline_id: number; flight_no: number; eco_pct: number | null; updated_at: string }[];
-  flags?: { done: boolean; saved_at_ms: number | null; updated_at: string } | null;
-}
-/** A day's change as the old planner's save sent it: the whole day's flights (f), or single flights set and cleared, and
- *  the day's flags. */
-export interface DayPatch { f?: Record<string, number>; set?: Record<string, number>; del?: string[]; done?: boolean; savedAt?: number }
-/** The day after the change, as the old save_loads() merged it: f replaces the day's flights, or set and del change single
- *  ones; done and savedAt as given, else as they were. */
-export function mergeDay(got: LoadsDay | null, p: DayPatch): { f: Record<string, number>; done: boolean; savedAt?: number } {
-  let f: Record<string, number>;
-  if (p.f !== undefined) f = { ...p.f };
-  else {
-    f = { ...(got?.f ?? {}), ...(p.set ?? {}) };
-    for (const k of p.del ?? []) delete f[k];
-  }
-  const savedAt = p.savedAt !== undefined ? p.savedAt : got?.savedAt;
-  return { f, done: p.done !== undefined ? p.done : got?.done ?? false, ...(savedAt !== undefined ? { savedAt } : {}) };
-}
-/** The rows a day's change writes, as the old save_loads() wrote them (private.loads_mirror_days): a load_entries row for
- *  each flight whose load now differs from the day as it stood (null where it's cleared), and the day's load_days row
- *  when its complete mark or its saved time changed, each stamped as entered now. A row there already is changed from its
- *  updated_at; otherwise it's added. airlines: our airlines' names (the key's first part) to their ids. */
-export function loadsChanges(worldId: number, day: string, got: LoadsDay | null, p: DayPatch, airlines: ReadonlyMap<string, number>, nowIso: string): Change[] {
-  const v = mergeDay(got, p);
-  const gotF = got?.f ?? {};
-  const out: Change[] = [];
-  for (const k of [...new Set([...Object.keys(gotF), ...Object.keys(v.f)])].sort()) {
-    const tv = v.f[k], gv = gotF[k];
-    if (tv === gv) continue;
-    const [name, no] = [k.slice(0, k.lastIndexOf("|")), Number(k.slice(k.lastIndexOf("|") + 1))];
-    const airline = airlines.get(name);
-    if (airline === undefined || !Number.isInteger(no) || no < 0 || no > 2000000000) continue;
-    const eco = typeof tv === "number" && Number.isFinite(tv) && Math.abs(tv) < 10000 ? tv : null;
-    const row = got?.entries?.find((e) => e.airline_id === airline && e.flight_no === no);
-    out.push(row
-      ? { table: "load_entries", op: "update", key: { airline_id: airline, game_date: day, flight_no: no }, base: row.updated_at, values: { eco_pct: eco, entered_at: nowIso } }
-      : { table: "load_entries", op: "insert", values: { world_id: worldId, airline_id: airline, game_date: day, flight_no: no, eco_pct: eco, entered_at: nowIso } });
-  }
-  if (v.done !== (got?.done ?? false) || v.savedAt !== got?.savedAt) {
-    const values: Values = { done: v.done, saved_at_ms: v.savedAt ?? null, entered_at: nowIso };
-    out.push(got?.flags
-      ? { table: "load_days", op: "update", key: { world_id: worldId, game_date: day }, base: got.flags.updated_at, values }
-      : { table: "load_days", op: "insert", values: { world_id: worldId, game_date: day, ...values } });
-  }
-  return out;
-}
-/** The day's status after its date. */
-export const dayStatus = (d: LoadsDay | null): string => (d?.done ? (d.source === "capture" ? "captured" : "entered by hand") : "nothing yet");
-/** An airline's box: its flights under 95%, lowest first, "flight load" pairs. */
-export function underList(d: LoadsDay | null, airline: string): string {
-  return Object.entries(d?.f ?? {}).filter(([k, v]) => k.startsWith(airline + "|") && +v < 95).sort((x, y) => x[1] - y[1])
-    .map(([k, v]) => k.split("|")[1] + " " + v).join(", ");
+/** The 7 days' average of a figure ending on a day (the days with a figure), or null with none. */
+function weekAverage(rows: readonly DayRow[], day: string, pick: (r: DayRow) => number | null): number | null {
+  const from = dayMinus(day, 6);
+  const vals = rows.filter((r) => r.day >= from && r.day <= day).map(pick).filter((v): v is number => v != null && Number.isFinite(v));
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 
-/** The typed boxes read as the old lfsave reads them: number then load, pairs, an airline prefix ("AW") allowed, each load
- *  kept to 0 to 94; flights that don't operate that day are named (they're saved, but won't count). */
-export function typedLoads(boxes: readonly { airline: string; text: string }[], valid: ReadonlySet<string>): { f: Record<string, number>; unknown: string[] } {
-  const f: Record<string, number> = {}, unknown: string[] = [];
-  for (const b of boxes) {
-    const toks = (b.text || "").toUpperCase().replace(/[A-Z]{2}\s*(?=\d)/g, "").replace(/%/g, "").split(/[^0-9.]+/).filter(Boolean).map(Number);
-    for (let i = 0; i + 1 < toks.length; i += 2) {
-      const no = String(Math.round(toks[i] as number)), val = toks[i + 1] as number, key = b.airline + "|" + no;
-      if (!valid.has(key)) unknown.push(firstWord(b.airline) + " " + no);
-      f[key] = Math.min(94, Math.max(0, Math.round(val)));
-    }
-  }
-  return { f, unknown };
+/** An airline's scorecard figures against the same day last week, from the daily history (airline_days): its latest
+ *  day at or before today, and that day a week earlier. Fleet is the aircraft flying (aircraft_total), flights a day the
+ *  schedule's departures a week ÷ 7 (weekly_departures), the average load the economy load averaged over the 7 days to
+ *  each day (eco_load_pct). An airline with no day a week ago (a new one, or a gap in the history) gets "—" for each. */
+export function weekOnWeek(rows: readonly DayRow[], airlineId: number, today: string): WeekOnWeek {
+  const mine = rows.filter((r) => r.airline_id === airlineId && r.day <= today).sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  const last = mine[mine.length - 1];
+  const empty = { fleet: change(null, null), flights: change(null, null), load: change(null, null) };
+  if (!last) return { day: null, weekAgo: null, compared: false, changes: empty };
+  const weekAgo = dayMinus(last.day, 7);
+  const then = mine.find((r) => r.day === weekAgo);
+  if (!then) return { day: last.day, weekAgo, compared: false, changes: empty };
+  const perDay = (r: DayRow) => (r.weekly_departures == null ? null : round1(r.weekly_departures / 7));
+  return {
+    day: last.day, weekAgo, compared: true,
+    changes: {
+      fleet: change(last.aircraft_total, then.aircraft_total),
+      flights: change(perDay(last), perDay(then)),
+      load: change(weekAverage(mine, last.day, (r) => r.eco_load_pct), weekAverage(mine, weekAgo, (r) => r.eco_load_pct), " pts"),
+    },
+  };
 }
-/** The typed day's change: that day's flights (replacing them), complete, saved now. */
-export const typedSave = (day: string, f: Record<string, number>, nowMs: number): Record<string, DayPatch> => ({ [day]: { f, done: true, savedAt: nowMs } });
+/** The first day the scorecards read the history from: two weeks and a day before today (the 7 days' load a week ago). */
+export const historyFrom = (today: string): string => dayMinus(today, 15);
 
-export interface PastedLoad { airline: string; no: string; tail: string; from: string; to: string; date: string; dep: string; pax: number; seats: number; pct: number; key: string }
-/** The game's load table pasted (parseLoadPaste): each row from its flight code (an airline of ours by its code), tail,
- *  airports, local departure "DD.MM. HH:MM" and each cabin's price then "pax / seats"; the load is economy, business and
- *  first together (no cargo). A date more than 60 days after today is last year's. codes: our airlines' codes → names. */
-export function parseLoadPaste(text: string, codes: ReadonlyMap<string, string>, today: string): PastedLoad[] {
-  const toks = String(text || "").split(/\t|\r?\n/).map((x) => x.trim()).filter(Boolean);
-  const out: PastedLoad[] = [];
-  const yNow = +today.slice(0, 4);
-  for (let i = 0; i < toks.length; i++) {
-    const m = /^([A-Z0-9]{2})\s*(\d{1,4})$/.exec(toks[i] as string);
-    const airline = m ? codes.get(m[1] as string) : undefined;
-    if (!m || !airline) continue;
-    const tail = toks[i + 1] || "", from = toks[i + 2] || "", dm = /^(\d{2})\.(\d{2})\.?\s+(\d{2}):(\d{2})/.exec(toks[i + 3] || ""), to = toks[i + 4] || "";
-    if (!dm || !/^[A-Z0-9]{3}$/.test(from) || !/^[A-Z0-9]{3}$/.test(to)) continue;
-    let date = `${yNow}-${dm[2]}-${dm[1]}`;
-    if (dayDiff(today, date) > 60) date = `${yNow - 1}-${dm[2]}-${dm[1]}`;
-    let j = i + 6;
-    const cab: ({ pax: number; seats: number } | null)[] = [];
-    for (let c = 0; c < 4 && j < toks.length; c++) {
-      const price = toks[j++];
-      const pax = toks[j++] || "";
-      const pm = /^([\d,]+)\s*\/\s*([\d,]+)/.exec(pax);
-      cab.push(pm ? { pax: +(pm[1] as string).replace(/,/g, ""), seats: +(pm[2] as string).replace(/,/g, "") } : null);
-      if (price === undefined) break;
-    }
-    const pcs = cab.slice(0, 3).filter((c): c is { pax: number; seats: number } => !!c);
-    const pax = pcs.reduce((a, c) => a + c.pax, 0), seats = pcs.reduce((a, c) => a + c.seats, 0);
-    if (!seats) continue;
-    const no = String(+(m[2] as string));
-    out.push({ airline, no, tail, from, to, date, dep: dm[3] + ":" + dm[4], pax, seats, pct: Math.round(pax / seats * 100), key: airline + "|" + no });
-    i = j - 1;
-  }
-  return out;
-}
-/** A pasted load's pill, as the preview colours it. */
-export const pastePill = (pct: number): "ok" | "warn" | "orange" | "bad" => (pct >= 95 ? "ok" : pct >= 85 ? "warn" : pct >= 70 ? "orange" : "bad");
-/** The pasted loads saved (lfpaste-save): each day's flights under 95% set and those at 95% or more cleared, and the days
- *  ticked marked complete. */
-export function pasteSaves(parsed: readonly PastedLoad[], marked: readonly string[], nowMs: number): Record<string, DayPatch> {
-  const send: Record<string, { set: Record<string, number>; del: string[]; done?: boolean; savedAt?: number }> = {};
-  const patch = (d: string) => (send[d] ??= { set: {}, del: [] });
-  for (const x of parsed) {
-    const p = patch(x.date);
-    if (x.pct < 95) p.set[x.key] = x.pct;
-    else p.del.push(x.key);
-  }
-  for (const d of marked) Object.assign(patch(d), { done: true, savedAt: nowMs });
-  return send;
-}
-
-// ---------- the fold
-export const BOARDS = ["The group today", "Profit", "Cash, next 14 days", "Route profit", "Fare plan", "Manual entry"] as const;
+// ---------- the boards: the airline's page, and the group's
+export const BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Fare plan"] as const;
 export type BoardKey = (typeof BOARDS)[number];
+export const GROUP_BOARDS = ["The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
+export type GroupBoardKey = (typeof GROUP_BOARDS)[number];

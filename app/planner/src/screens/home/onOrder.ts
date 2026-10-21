@@ -3,7 +3,7 @@
 import type { Rules } from "@rules";
 import { familyOf, shortType } from "../../ui/aircraftNames";
 import { toMinute } from "../../ui/dates";
-import type { HomeAirline } from "./attention";
+import type { HomeAirline } from "./reads";
 import type { AircraftRow } from "./reads";
 
 export interface OnOrderRow {

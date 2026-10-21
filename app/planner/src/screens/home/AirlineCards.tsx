@@ -10,7 +10,7 @@ import { Link } from "react-router";
 import type { AirlineCard } from "@rules";
 import { Pill } from "../../ui/Pill";
 import { loadLogos } from "../../ui/siteFiles";
-import type { HomeAirline } from "./attention";
+import type { HomeAirline } from "./reads";
 
 export function AirlineCards({ cards, airlines, photos }: {
   cards: readonly AirlineCard[]; airlines: readonly HomeAirline[]; photos: Record<string, { url: string }> | undefined;

@@ -1,4 +1,4 @@
-// Check → Game check (the old renderGameCheck, gcDetail and gcModal): "Check against the game" reads each airline's public
+// Today → Game check (moved from Check on 20 Oct; the old renderGameCheck, gcDetail and gcModal): "Check against the game" reads each airline's public
 // schedule (/api/game-schedule, with its game link) and compares it with the planner's flights (the library's game part,
 // the same code Tails' check before filing uses). Each airline's line says how many flights are in each and the
 // differences; its pop-up lists them, with "Use the game's times" on each one that's only a time or a day change, "Fix all
@@ -6,10 +6,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { GameComparison, ImportCandidate } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
-import { gameSummary, type CheckAirline } from "./model";
+import type { OurAirline } from "../../data/airlines";
+import { gameSummary } from "./game";
 
 export interface GameLine {
-  airline: CheckAirline;
+  airline: OurAirline;
   error?: string;
   cmp?: GameComparison;
   cands?: ImportCandidate[];
@@ -85,7 +86,7 @@ export function GameModal({ line, tails, busy, onFix, onFixAll, onAdd, onClose }
         <div className="mbody">
           {n ? (
             <div className="tblwrap">
-              <table className="tbl gct" data-figure="check: game differences">
+              <table className="tbl gct" data-figure="today: game differences">
                 <tbody>
                   <tr><th style={{ width: 70 }}>Flight</th><th style={{ width: 210 }}>What</th><th>In the game</th><th>In the planner</th><th style={{ width: 150 }}></th></tr>
                   {c.issues.map((i, k) => (
@@ -105,7 +106,7 @@ export function GameModal({ line, tails, busy, onFix, onFixAll, onAdd, onClose }
             </div>
           ) : null}
           {cands.length ? (
-            <div className="imp" data-figure="check: game flights to add">
+            <div className="imp" data-figure="today: game flights to add">
               <b>In the game, not in the planner — add them:</b>
               {cands.map((x, i) => {
                 const k = x.a.no;

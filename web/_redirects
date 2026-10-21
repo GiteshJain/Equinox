@@ -7,9 +7,18 @@
 # The addresses used while it was built, /planner/next/..., move to the same address under /planner/ (301), so old
 # links and bookmarks still work. The old planner's address, /planner/old/, goes to /planner/ (301) since the clean-up
 # (build pull request 14) removed it.
+# Check, Review and Hubs went on 20 Oct (spec docs/specs/2026-10-20-today-performance-systems.md): Check's address goes
+# to Today (its load report's day, ?day=, which the query keeps, then on to Performance's Flights by day), Review's to
+# Performance with the airline and route kept, and Hubs' to Performance.
 /planner/next     /planner/           301
 /planner/next/*   /planner/:splat     301
 /planner/old      /planner/           301
 /planner/old/*    /planner/           301
+/planner/check    /planner/today      301
+/planner/check/*  /planner/today      301
+/planner/review   /planner/performance  301
+/planner/review/* /planner/performance/:splat  301
+/planner/hubs     /planner/performance  301
+/planner/hubs/*   /planner/performance  301
 /planner          /planner/           301
 /planner/*        /app/               200

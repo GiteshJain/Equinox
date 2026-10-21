@@ -18,15 +18,19 @@ a to-do's key is made from the time), and nothing goes outside. /api/game-schedu
 (the saved sample tests/fixtures/schedule_113.expected.json, and the airline's own flights with a few changes), and the
 photo bucket in the browser (the copy has no storage service).
 
-Each save, through the screen's own controls, one action at a time:
-  Home: add a to-do with two steps; tick it; add another and delete it; dismiss an item of needs attention; show again.
+Each save, through the screen's own controls, one action at a time (the screens as grouped since 20 Oct, spec
+docs/specs/2026-10-20-today-performance-systems.md: each save moved with its board and writes the rows it wrote before;
+the saves' names follow their screens, and Log an order as went with the order rotation, spec decision 2):
+  Today: add a to-do with two steps; tick it; add another and delete it; dismiss an item of needs attention; show again;
+    the game check's fix one, fix all and add a flight.
   Routes: add a route; edit its stars; edit its market; add a frequency; type its days and four times (each box one
     action); change its departure; delete it; remove the route; change an airport's UTC offset; put it back.
   Tails: add a tail; change its maintenance gap; change its base; remove it; remove a delivery (one made for the test);
     file an arrived aircraft (made for the test) from its plan card with the game matching, then again with it
     differing (File with the game's times).
-  Check: the game check's fix one, fix all and add a flight; Mark checked; Keep as is; Show again; Refitted to; log an order.
-  Review: cash and fixed costs; loads typed; loads pasted with the day marked complete; + fare plan; remove.
+  Systems: Mark checked; Keep as is; Show again; Refitted to; cash and fixed costs; loads typed; loads pasted with the
+    day marked complete.
+  Performance: + fare plan; remove.
   Interline: a status; a note.
   Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
@@ -326,7 +330,7 @@ async def reload(pl):
 
 
 def screen_ready(sid, view=None):
-    attr = {"routes": "routes", "tails": "tails", "check": "check", "review": "review"}.get(sid)
+    attr = {"routes": "routes", "tails": "tails", "today": "today", "performance": "performance", "systems": "systems"}.get(sid)
     sel = f"main[data-screen={sid}][data-{sid}-ready=yes]"
     if view is not None and attr:
         return sel, f"""() => {{ const m = document.querySelector('main[data-screen={sid}]');
@@ -357,10 +361,10 @@ def hhmm(m):
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-# ---------- Home
-async def home(s, pl, tag):
+# ---------- Today: the to-do board and needs attention (Home's until 20 Oct)
+async def today_board(s, pl, tag):
     pg = pl.pg
-    await to_screen(pl, "home", "/")
+    await to_screen(pl, "today", "/today")
     title = f"Saves test {tag}"
     await pg.wait_for_selector("#todo-title", timeout=30000)
 
@@ -368,17 +372,17 @@ async def home(s, pl, tag):
         await pg.fill("#todo-title", t)
         await pg.fill("#todo-steps", "First step\nSecond step")
         await pg.click("#todo-add")
-    await s.act("home: add a to-do with two steps", lambda: add(title), rows=3)
+    await s.act("today: add a to-do with two steps", lambda: add(title), rows=3)
     key = psql(f"select coalesce((select legacy_key from public.todos where world_id = {WORLD} and title = :'t' order by id desc limit 1), '')", t=title).strip()
     sel = f"[data-todo-list=open] > li[data-todo='{key}']"
     try:
         await pg.wait_for_selector(sel, timeout=30000)
-        await s.act("home: tick a to-do", lambda: pg.click(f"{sel} input[type=checkbox]"))
+        await s.act("today: tick a to-do", lambda: pg.click(f"{sel} input[type=checkbox]"))
     except Exception as e:
-        step(False, "home: tick a to-do", [why(e)])
+        step(False, "today: tick a to-do", [why(e)])
 
     other = title + " (to delete)"
-    await s.act("home: add a to-do, to delete", lambda: add(other), rows=3)
+    await s.act("today: add a to-do, to delete", lambda: add(other), rows=3)
     key2 = psql(f"select coalesce((select legacy_key from public.todos where world_id = {WORLD} and title = :'t' order by id desc limit 1), '')", t=other).strip()
     sel2 = f"[data-todo-list=open] > li[data-todo='{key2}']"
 
@@ -387,14 +391,14 @@ async def home(s, pl, tag):
         await pg.click(f"{sel2} button.dismiss")
         await pg.wait_for_selector(f"{sel2} [data-confirm]", timeout=10000)
         await pg.click(f"{sel2} [data-confirm-yes]")
-    await s.act("home: delete a to-do (the page asks itself)", delete, rows=3)
+    await s.act("today: delete a to-do (the page asks itself)", delete, rows=3)
 
     await pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")
     if not await pg.evaluate("!!document.querySelector('#attention [data-att-item] button.dismiss')"):
-        s.not_tried("needs attention lists nothing", "home: dismiss an item", "home: show again")
+        s.not_tried("needs attention lists nothing", "today: dismiss an item", "today: show again")
         return
-    await s.act("home: dismiss an item of needs attention", lambda: pg.locator("#attention [data-att-item]").first.locator("button.dismiss").click())
-    await s.act("home: show again", lambda: pg.click("#attention [data-show-again]"), variable=("planner_save dismissals delete", "dismissals delete"))
+    await s.act("today: dismiss an item of needs attention", lambda: pg.locator("#attention [data-att-item]").first.locator("button.dismiss").click())
+    await s.act("today: show again", lambda: pg.click("#attention [data-show-again]"), variable=("planner_save dismissals delete", "dismissals delete"))
 
 
 # ---------- Routes
@@ -657,13 +661,16 @@ def planner_flights(airline_id):
     return json.loads(r.stdout)
 
 
+# ---------- Check's saves until 20 Oct: the game check on Today; Mark checked and the cabins on Systems
 async def check(s, pl, al, today):
     pg = pl.pg
 
-    async def to_check():
-        await to_screen(pl, "check", "/check")
-        await pg.wait_for_function("() => !!window.EQ_LOGOS", timeout=20000)
+    async def to_today():
+        await to_screen(pl, "today", "/today")
         await settle(pg, 300)
+
+    async def to_systems():
+        await to_screen(pl, "systems", "/systems")
         await pg.click("#rev-expall")
         await settle(pg, 200)
 
@@ -672,7 +679,7 @@ async def check(s, pl, al, today):
     try:
         flights = planner_flights(al["id"])
     except Exception as e:
-        step(False, "check: the airline's flights for the game check", [why(e)])
+        step(False, "today: the airline's flights for the game check", [why(e)])
         flights = {}
     legs = {str(x["no"]): x for x in json.loads(psql(f"""select coalesce(json_agg(json_build_object('no', l.flight_no, 'dep', l.dep_utc_min, 'days', l.days_utc)), '[]')
               from public.flight_legs l where l.airline_id = {int(al['id'])} and l.flight_no is not null""").strip())}
@@ -683,7 +690,7 @@ async def check(s, pl, al, today):
               from public.routes r join public.airline_bases b on b.airline_id = r.airline_id and b.airport_code = r.hub_code
              where r.airline_id = {int(al['id'])} and not r.removed order by exists (select 1 from public.rotations o where o.route_id = r.id), r.id limit 1""")
     if len(single) < 2 or not route or not al.get("game_id"):
-        s.not_tried(f"{al['code']} has fewer than two flights to change, no route or no game ID", "check: the game check")
+        s.not_tried(f"{al['code']} has fewer than two flights to change, no route or no game ID", "today: the game check")
     else:
         t0, t1 = single[0], single[1]
         game = []
@@ -724,7 +731,7 @@ async def check(s, pl, al, today):
 
         async def game_open(what):
             await reload(pl)
-            await to_check()
+            await to_today()
             await pg.click("#gcheck")
             await pg.wait_for_function("() => /Last checked/.test((document.querySelector('[data-board=\"Game check\"] .toolbar .count') || {}).textContent || '')", timeout=60000)
             await settle(pg, 300)
@@ -743,7 +750,7 @@ async def check(s, pl, al, today):
         for what, label in (("fix one", "the game check: fix one (a flight's times)"), ("fix all", "the game check: fix all (a time and a day change)"),
                             ("add", "the game check: add a flight (a round trip on a route it has)")):
             try:
-                await s.act(f"check: {label}", lambda what=what: game_open(what), quiet=2.5)
+                await s.act(f"today: {label}", lambda what=what: game_open(what), quiet=2.5)
             finally:
                 put_back()
         pl.game = {}
@@ -755,14 +762,14 @@ async def check(s, pl, al, today):
                    and not exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on > :'t'::date - 8)
                  order by a.id limit 1""", t=today)
     if not pick:
-        s.not_tried("no aircraft with every rotation launched more than a week ago", "check: Mark checked")
+        s.not_tried("no aircraft with every rotation launched more than a week ago", "systems: Mark checked")
     else:
         checks_were = set_check_days(7)
         try:
             as_test(f"update public.aircraft set checked_on = null, schedule_changed_on = null where id = {int(pick['id'])}")
             await reload(pl)
-            await to_check()
-            await s.act("check: Mark checked (an aircraft made due for the test)", lambda: pg.click(f"[data-checked={json.dumps(pick['reg'])}]"))
+            await to_systems()
+            await s.act("systems: Mark checked (an aircraft made due for the test)", lambda: pg.click(f"[data-checked={json.dumps(pick['reg'])}]"))
         finally:
             put_back_check_days(checks_were)
 
@@ -770,7 +777,7 @@ async def check(s, pl, al, today):
     # test, so the board offers its own back: Keep as is, Show again, then Refitted to
     made = None
     await reload(pl)
-    await to_check()
+    await to_systems()
     listed = set(await pg.evaluate("[...document.querySelectorAll('[data-cabkeep]')].map(b => b.dataset.cabkeep.split('|')[0])"
                                    ".concat([...document.querySelectorAll('[data-cabundo]')].map(b => b.dataset.cabundo.split('|')[0]))"))
     for x in json.loads(psql(f"""select coalesce(json_agg(x order by x.id), '[]') from (
@@ -784,37 +791,32 @@ async def check(s, pl, al, today):
             continue
         as_test(f"update public.aircraft set cabin_config_id = {int(x['other'])} where id = {int(x['id'])}")
         await reload(pl)
-        await to_check()
+        await to_systems()
         if await pg.evaluate("r => !!document.querySelector(`[data-refit^='${r}|']`) && !!document.querySelector(`[data-cabkeep^='${r}|']`)", x["reg"]):
             made = x
             break
         as_test(f"update public.aircraft set cabin_config_id = {int(x['cfg'])} where id = {int(x['id'])}")
     if not made:
-        s.not_tried("no aircraft could be given a layout to refit from", "check: Keep as is", "check: Show again", "check: Refitted to")
+        s.not_tried("no aircraft could be given a layout to refit from", "systems: Keep as is", "systems: Show again", "systems: Refitted to")
     else:
         k = await pg.evaluate("r => document.querySelector(`[data-cabkeep^='${r}|']`).dataset.cabkeep", made["reg"])
-        await s.act("check: Keep as is", lambda: pg.click(f"[data-cabkeep={json.dumps(k)}]"))
+        await s.act("systems: Keep as is", lambda: pg.click(f"[data-cabkeep={json.dumps(k)}]"))
 
         async def undo():
             await pg.evaluate("document.querySelector('[data-board=Cabins] details.gsub').open = true")
             await pg.click(f"[data-cabundo={json.dumps(k)}]")
-        await s.act("check: Show again", undo)
+        await s.act("systems: Show again", undo)
         refit = await pg.evaluate("r => (document.querySelector(`[data-refit^='${r}|']`) || {dataset: {}}).dataset.refit || ''", made["reg"])
-        await s.act("check: Refitted to", lambda: pg.click(f"[data-refit={json.dumps(refit)}]"), rows=2)
-
-    await reload(pl)
-    await to_check()
-    a = COPY["airlines"][0]
-    await s.act("check: log an order (as Frequency)", lambda: pg.click(f"[data-gmove={json.dumps((a['code'] or '') + '|freq')}]"))
+        await s.act("systems: Refitted to", lambda: pg.click(f"[data-refit={json.dumps(refit)}]"), rows=2)
 
 
-# ---------- Review
+# ---------- Review's saves until 20 Oct: Manual entry on Systems; + fare plan and remove on Performance
 async def review(s, pl, al, now):
     pg = pl.pg
     code, aid = al["code"], int(al["id"])
 
-    async def to_review():
-        await to_screen(pl, "review", f"/review/{code}")
+    async def to_entry():
+        await to_screen(pl, "systems", "/systems")
         await pg.click("#rev-expall")
         await settle(pg, 200)
 
@@ -822,11 +824,11 @@ async def review(s, pl, al, now):
     log = json.loads(psql("select private.fig_cash_log(:'w'::bigint, :'m'::timestamptz)", w=COPY["world"], m=now).strip())
     me = next((x for x in log["airlines"] if x["airline_id"] == aid), None)
     if not me:
-        s.not_tried(f"{code} isn't in the nightly log", "review: cash and fixed costs")
+        s.not_tried(f"{code} isn't in the nightly log", "systems: cash and fixed costs")
     else:
         as_test(f"delete from public.cash_entries where airline_id = {aid} and day = :'d'::date", d=log["today"])
         await reload(pl)
-        await to_review()
+        await to_entry()
         cash = f"{round((me['today']['shown_cash'] or 10) + 1.11, 2)}"
         fixed = f"{round((me['today']['shown_fixed'] or 0) + 0.37, 2)}"
 
@@ -834,13 +836,13 @@ async def review(s, pl, al, now):
             await pg.fill(f"[data-cash={json.dumps(code)}]", cash)
             await pg.fill(f"[data-fixed={json.dumps(code)}]", fixed)
             await pg.click("#cashsave")
-        await s.act("review: cash and fixed costs for today", save_cash)
+        await s.act("systems: cash and fixed costs for today", save_cash)
 
     # loads by hand, on days after the moment that no capture or typed load has reached: the first such day from two days on
     # typed, the day after it pasted
     async def open_loads(ahead):
         await reload(pl)
-        await to_review()
+        await to_entry()
         await pg.evaluate("document.querySelector('[data-loads-by-hand]').open = true")
         for _ in range(ahead):
             await pg.click("[data-lfday='1']")
@@ -858,24 +860,24 @@ async def review(s, pl, al, now):
             break
     no = psql(f"select coalesce(min(flight_no)::text, '') from public.flight_legs where airline_id = {aid} and flight_no is not null").strip()
     if not picked or not no:
-        s.not_tried("no day ahead free of loads, or no flight number", "review: loads typed", "review: loads pasted")
+        s.not_tried("no day ahead free of loads, or no flight number", "systems: loads typed", "systems: loads pasted")
     else:
         ahead, day = picked
         await open_loads(ahead)
         box = f"[data-q={json.dumps(code + '|x')}]"
         if not await pg.evaluate("s => !!document.querySelector(s)", box):
-            s.not_tried(f"{code} has no box on {day}", "review: loads typed")
+            s.not_tried(f"{code} has no box on {day}", "systems: loads typed")
         else:
             async def typed():
                 await pg.fill(box, f"{no} 60")
                 await pg.click("#lfsave")
-            await s.act("review: loads typed (one flight, a day with nothing yet)", typed, rows=2)
+            await s.act("systems: loads typed (one flight, a day with nothing yet)", typed, rows=2)
         day2 = psql("select (:'d'::date + 1)::text", d=day).strip()
         clear = psql(f"""select not exists (select 1 from public.load_entries e where e.world_id = {COPY['world']} and e.game_date = :'d'::date)
                             and not exists (select 1 from public.load_days x where x.world_id = {COPY['world']} and x.game_date = :'d'::date)""", d=day2).strip() == "t"
         nos = [n for n in psql(f"select distinct flight_no from public.flight_legs where airline_id = {aid} and flight_no is not null order by 1 limit 2").split() if n]
         if not clear or len(nos) < 2:
-            s.not_tried("the next day has loads already, or fewer than two flight numbers", "review: loads pasted")
+            s.not_tried("the next day has loads already, or fewer than two flight numbers", "systems: loads pasted")
         else:
             text = (FIX / "load_table_sample.tsv").read_text()
             for k, v in {"{CODE}": code, "{NO1}": nos[0], "{NO2}": nos[1], "{TAIL}": "X-TEST", "{FROM1}": "AAA", "{TO1}": "BBB", "{FROM2}": "BBB",
@@ -891,25 +893,25 @@ async def review(s, pl, al, now):
                 if not await pg.evaluate("d => !!(document.querySelector(`[data-lfmark='${d}']`) || {}).checked", day2):
                     await pg.click(f"[data-lfmark='{day2}']")
                 await pg.click("#lfpaste-save")
-            await s.act("review: loads pasted (one under 95%, one full), the day marked complete", pasted, rows=2)
+            await s.act("systems: loads pasted (one under 95%, one full), the day marked complete", pasted, rows=2)
 
     # + fare plan on a route that offers it, then remove a planned change
     offer = None
     for a in COPY["airlines"]:
-        await to_screen(pl, "review", f"/review/{a['code']}")
+        await to_screen(pl, "performance", f"/performance/{a['code']}")
         await pg.click("#rev-expall")
         key = await pg.evaluate("(document.querySelector('[data-fareadd]') || {dataset: {}}).dataset.fareadd || ''")
         if key:
             offer = (a, key)
             break
     if not offer:
-        s.not_tried("no route offers a fare plan on this copy", "review: + fare plan", "review: remove a planned fare change")
+        s.not_tried("no route offers a fare plan on this copy", "performance: + fare plan", "performance: remove a planned fare change")
         return
     a, key = offer
-    await s.act("review: + fare plan", lambda: pg.click(f"[data-fareadd={json.dumps(key)}]"))
+    await s.act("performance: + fare plan", lambda: pg.click(f"[data-fareadd={json.dumps(key)}]"))
     fp = psql(f"select coalesce((select id::text from public.fare_plan where airline_id = {int(a['id'])} and status = 'planned' order by id desc limit 1), '')").strip()
     if fp:
-        await s.act("review: remove a planned fare change", lambda: pg.click(f"[data-faredel='{int(fp)}']"))
+        await s.act("performance: remove a planned fare change", lambda: pg.click(f"[data-faredel='{int(fp)}']"))
 
 
 # ---------- Interline, Reference and Photos
@@ -1113,8 +1115,8 @@ async def main():
                 await pl.open(moment=now)
                 await pl.pg.emulate_media(reduced_motion="reduce")
                 await pl.sign_in(*staff)
-                for name, part in (("Home", lambda: home(s, pl, tag)), ("Routes", lambda: routes(s, pl, al)), ("Tails", lambda: tails(s, pl, al, tag, now)),
-                                   ("Check", lambda: check(s, pl, al, now[:10])), ("Review", lambda: review(s, pl, al, now)), ("Interline", lambda: interline(s, pl)),
+                for name, part in (("Today", lambda: today_board(s, pl, tag)), ("Routes", lambda: routes(s, pl, al)), ("Tails", lambda: tails(s, pl, al, tag, now)),
+                                   ("Check's saves (Today, Systems)", lambda: check(s, pl, al, now[:10])), ("Review's saves (Systems, Performance)", lambda: review(s, pl, al, now)), ("Interline", lambda: interline(s, pl)),
                                    ("Reference", lambda: reference(s, pl)), ("Photos", lambda: photos(s, pl))):
                     t = time.monotonic()
                     try:

@@ -1,77 +1,52 @@
-// Home (decision #18, build pull request 5; spec docs/specs/2026-10-13-home.md, and the Building chat's review): what the
-// old planner's Home shows, from the same data, with the same figures and look. Above the page, the operations hero (the
-// globe, aircraft in the air and four tiles), which on the old Home stands in for the page heading and the key-figure
-// row (that row stays in the page, hidden, as there); then the network map, aircraft on order, needs attention, coming
-// up, the to-do board and the airline cards. Every figure comes from its one home (decision #19): the planning library
-// on rules_input(world, 'flown') for the key figures, the hero, positions, the airline cards, the one-week checks and
-// the schedule checks; the database's captured figures for the capture, the group's average load, can order, routes to
-// fix and the loads per route; the tables for the rest. Home only words and arranges them. It moves on with the clock
-// each minute.
+// Home (decision #18, build pull request 5; spec docs/specs/2026-10-13-home.md, and the Building chat's review): the
+// network at a glance, as the old planner's Home shows it, from the same data, with the same figures and look. Above the
+// page, the operations hero (the globe, aircraft in the air and four tiles), which on the old Home stands in for the page
+// heading and the key-figure row (that row stays in the page, hidden, as there); then the network map, aircraft on order
+// and the airline cards. Needs attention, Coming up and the to-do board moved to Today on 20 Oct (spec
+// docs/specs/2026-10-20-today-performance-systems.md), and File into planner with them, so each thing lives in one place.
+// Every figure comes from its one home (decision #19): the planning library on rules_input(world, 'flown') for the key
+// figures, the hero, positions and the airline cards; the database's captured figures for the group's average load and
+// the loads per route; the tables for the rest. Home only words and arranges them. It moves on with the clock each
+// minute.
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { checks as checkRules, positions, summary } from "@rules";
+import { positions, summary } from "@rules";
 import { useNow } from "../../data/clock";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
-import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
-import { AttentionList } from "../../ui/AttentionList";
-import { dismissKey, withoutDismissed, type AttItem } from "../../ui/attention";
 import { Board } from "../../ui/Board";
-import { inDays, niceDate, todayAt, untilText } from "../../ui/dates";
+import { niceDate, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { Pill } from "../../ui/Pill";
-import { isOpen, statusOf } from "../interline/model";
-import { useAgreements } from "../interline/reads";
-import { useInterlineRows } from "../interline/useRows";
 import { RoutePopup } from "../routes/RoutePopup";
 import { itemRoute } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
+import type { HomeAirline } from "./reads";
 import { AirlineCards } from "./AirlineCards";
-import { homeAttention, type HomeAirline } from "./attention";
-import { comingUp, UP_LABEL, upFilters, type UpEvent } from "./comingUp";
 import { greeting, heroFigures, keyFigureTiles } from "./figures";
 import { Hero } from "./Hero";
 import type { HeroPlane, HeroRoute, LatLon } from "./heroScene";
 import { NetworkMap } from "./NetworkMap";
 import { familyWords, onOrder } from "./onOrder";
-import {
-  useAirlineCards, useBackups, useCaptureStatus, useDismissals, useGrowth, useHomeAircraft, useJobs, usePlanCards, useRotations,
-  useSitePhotos, useTodoItems, useTodos,
-} from "./reads";
-import { TodoBoard } from "./TodoBoard";
-import { dismissChanges, showAgainChanges, todoViews } from "./todos";
+import { useAirlineCards, useHomeAircraft, usePlanCards, useSitePhotos } from "./reads";
 
 const first = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
 export function Home() {
   const now = useNow();
-  const today = todayAt(now);
   const world = useWorld();
   const w = world.data?.id;
   const airlinesQ = useOurAirlines(w);
   const rulesQ = useRules(w);
   const aircraftQ = useHomeAircraft(w);
-  const rotationsQ = useRotations(w);
   const planCardsQ = usePlanCards(w);
-  const todosQ = useTodos(w);
-  const itemsQ = useTodoItems(w);
-  const dismissalsQ = useDismissals(w);
-  const backupsQ = useBackups();
-  const jobsQ = useJobs();
-  const captureQ = useCaptureStatus(w);
   const cardsQ = useAirlineCards(w);
-  const growthQ = useGrowth(w);
   const photosQ = useSitePhotos();
-  // the interline line: Interline's rows (shared, interline/useRows.ts) and the world's agreements
-  const interline = useInterlineRows(w);
-  const agreementsQ = useAgreements(w);
-  // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
-  const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
   // the route pop-up a click on the map's route opens (Routes' RoutePopup, build pull request 6)
   const [popup, setPopup] = useState<number | null>(null);
-  // the aircraft pop-up an item about one aircraft opens, as on the old Home (Tails' AircraftPopup, build pull request 7),
-  // kept in the address (/planner/?aircraft=N001AW) so a link or the back button reopens it
+  // the aircraft pop-up (Tails' AircraftPopup, build pull request 7), kept in the address (/planner/?aircraft=N001AW) so a
+  // link or the back button reopens it
   const [search, setSearch] = useSearchParams();
   const tailPopup = search.get("aircraft");
   const setTailPopup = (reg: string | null) => setSearch((s) => {
@@ -89,21 +64,7 @@ export function Home() {
   const figures = useMemo(() => (rules ? summary.keyFigures(rules) : null), [rules]);
   const cards = useMemo(() => (rules ? summary.airlineCards(rules) : null), [rules]);
   const nowFigures = useMemo(() => (rules ? summary.now(rules, now.toISOString()) : null), [rules, now]);
-  const checks = useMemo(() => (rules && aircraftQ.data && rotationsQ.data
-    ? checkRules.oneWeek(rules, { aircraft: aircraftQ.data, rotations: rotationsQ.data }, today) : null), [rules, aircraftQ.data, rotationsQ.data, today]);
-  const todos = useMemo(() => (todosQ.data && itemsQ.data ? todoViews(todosQ.data, itemsQ.data) : null), [todosQ.data, itemsQ.data]);
-  const interlineOpen = useMemo(() => {
-    if (!interline.rows || !agreementsQ.data) return null;
-    const records = new Map(agreementsQ.data.map((a) => [a.airline_id + "|" + a.country_code, a]));
-    return interline.rows.filter((r) => isOpen(statusOf(records.get(r.airline_id + "|" + r.cc)))).length;
-  }, [interline.rows, agreementsQ.data]);
-  const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
-    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null);
-  const attention = useMemo(() => (rules && checks && todosQ.data ? homeAttention({
-    now, today, airlines, rules, checks, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
-    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen,
-  }) : null), [now, today, airlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen]);
-  const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
+  const ready = !!(rules && cardsQ.data && aircraftQ.data && planCardsQ.data && airlinesQ.data);
 
   // the hero's globe: every flying route, and each aircraft in the air at this minute (the library's positions)
   const coords = useMemo(() => {
@@ -125,29 +86,7 @@ export function Home() {
       return a && b && p.share != null ? [{ a, b, share: p.share }] : [];
     }), [rules, now, coords]);
 
-  const hrefOf = (a: AttItem) => {
-    if (a.screen === "home") return itemRoute("home", { hash: "todo" });
-    if (a.tail) return itemRoute(a.screen, { tail: a.tail });
-    if (a.route) {
-      const [al = "", hub = "", dest = ""] = a.route.split("|");
-      return itemRoute(a.screen, { airline: airlines.find((x) => x.name === al)?.code, hub, dest });
-    }
-    return itemRoute(a.screen);
-  };
-
-  async function dismiss(a: AttItem) {
-    if (w === undefined) return;
-    const key = dismissKey(a);
-    setDismissedHere((s) => new Set([...s, key]));
-    const res = await saver.save(dismissChanges(w, key, today));
-    if (res.status === "clash") setDismissedHere((s) => new Set([...s].filter((k) => k !== key)));
-  }
-  async function showAgain() {
-    setDismissedHere(new Set());
-    if (dismissalsQ.data?.length) await saver.save(showAgainChanges(dismissalsQ.data));
-  }
-
-  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, rotationsQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ);
+  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, planCardsQ, cardsQ);
   return (
     <>
       <Hero figures={nowFigures ? heroFigures(nowFigures, cardsQ.data) : null} hello={greeting(now)} routes={heroRoutes} planes={planes} now={now} />
@@ -170,42 +109,19 @@ export function Home() {
           ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), airlines, now.getTime())} now={now.getTime()} />
           : null}
 
-        <div className="hgrid">
-          <Board title="Needs attention" figure="home: needs attention" id="attention"
-            note={attention ? (() => { const n = withoutDismissed(attention, dismissed).shown.length; return n ? `${n} item${n === 1 ? "" : "s"}` : "nothing right now"; })() : ""}>
-            {!attention || !ready ? <div className="loading">Loading…</div> : (() => {
-              const { shown, hidden } = withoutDismissed(attention, dismissed);
-              return (
-                <>
-                  {hidden ? (
-                    <div className="dim hiddenline" data-dismissed={hidden}>
-                      {hidden} dismissed · <button type="button" className="link" onClick={() => void showAgain()} data-show-again>show again</button>
-                    </div>
-                  ) : null}
-                  {shown.length ? <AttentionList items={shown} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)}
-                    onOpen={(a) => { if (!a.tail || a.route || a.screen !== "tails") return false; setTailPopup(a.tail); return true; }} />
-                    : <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div>}
-                </>
-              );
-            })()}
-          </Board>
-          <ComingUp events={checks && todosQ.data ? comingUp(checks, todosQ.data, today) : null} today={today}
-            filters={upFilters(rules, airlines.map((a) => a.id))} />
-        </div>
-
-        <TodoBoard worldId={w} todos={todos} today={today} now={now} />
-
         {cards ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} /> : null}
       </main>
     </>
   );
 }
 
+/** Aircraft on order, by airline: an arrived one with a plan card is filed from Today (its File into planner moved there
+ *  on 20 Oct). */
 function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: number }) {
   if (!data.count) return null;
   return (
     <Board title="Aircraft on order" className="oob" figure="home: aircraft on order"
-      note={`${data.count} aircraft · "File into planner" appears once one arrives, and files it on Tails`}>
+      note={`${data.count} aircraft · one that has arrived with a plan card is filed from Today`}>
       <div className="gsum">
         {data.groups.map((g) => <span className="gchip" key={g.airline.id} data-oo-count={g.airline.name}><AirlineMark color={g.airline.color} />{g.airline.name} <b>{g.rows.length}</b></span>)}
       </div>
@@ -233,7 +149,7 @@ function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: nu
                       <td>{r.arrived ? <Pill kind="warn" small>arrived</Pill> : <span className="dim">{untilText(r.at, now)}</span>}</td>
                       <td>{r.base}</td>
                       <td className="dim">{r.plan}</td>
-                      <td className="n ooact">{r.hasCard ? (r.arrived ? <Link className="primary sm" to={"/tails?" + new URLSearchParams({ ...(g.airline.code ? { airline: g.airline.code } : {}), file: r.registration }).toString()} data-file-into-planner>File into planner</Link> : null)
+                      <td className="n ooact">{r.hasCard ? (r.arrived ? <Link className="link" to={itemRoute("today", { hash: "to-file" })}>to file on Today</Link> : null)
                         : <span className="dim">no plan card</span>}</td>
                     </tr>
                   ))}
@@ -243,42 +159,6 @@ function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: nu
           </details>
         );
       })}
-    </Board>
-  );
-}
-
-function ComingUp({ events, today, filters }: { events: UpEvent[] | null; today: string; filters: ReturnType<typeof upFilters> }) {
-  const [kinds, setKinds] = useState<ReadonlySet<UpEvent["type"]>>(new Set());
-  const toggle = (k: UpEvent["type"] | "") => setKinds((s) => {
-    if (!k) return new Set();
-    const n = new Set(s);
-    if (n.has(k)) n.delete(k);
-    else n.add(k);
-    return n;
-  });
-  const shown = (events ?? []).filter((e) => !kinds.size || kinds.has(e.type));
-  return (
-    <Board title="Coming up" note="next 14 days" id="coming-up">
-      <div className="mleg upf">
-        {filters.map(([k, l]) => (
-          <button type="button" key={l} className={"mf" + ((k ? kinds.has(k) : !kinds.size) ? " on" : "")} onClick={() => toggle(k)}>{l}</button>
-        ))}
-      </div>
-      {!events ? <div className="loading">Loading…</div> : shown.length ? (
-        <div className="tblwrap">
-          <table className="tbl" data-board="coming-up">
-            <thead><tr><th className="when">When</th><th>What</th></tr></thead>
-            <tbody>
-              {shown.map((e, i) => (
-                <tr key={`${e.date}|${e.type}|${i}`} data-up={e.type}>
-                  <td><b>{niceDate(e.date)}</b> <span className="dim">· {inDays(e.date, today)}</span></td>
-                  <td><span className={"evt " + e.type}>{UP_LABEL[e.type]}</span> {e.text}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : <div className="dim">Nothing coming up{kinds.size ? " of those kinds" : ""} in the next 14 days.</div>}
     </Board>
   );
 }

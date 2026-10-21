@@ -130,8 +130,8 @@ database → Building.
 - **Types, as the route needs:** any airline may fly any of our types: the A321neo by default, the A320neo where an
   A321neo would fly part-empty, the A321XLR beyond an A321neo's reach, the E195-E2 for thin routes, the A350 only where
   range demands it (Ryanair: no A350). Three families at most (A320 family, E195, A350; a fourth costs 15% more
-  maintenance). No 787, CRJ or A319. Each family is its own delivery line, one after another (Check → Growth → Order
-  queues); plan orders with the queues in mind.
+  maintenance). No 787, CRJ or A319. Each family is its own delivery line, one after another (Today → **Orders**, each
+  airline's delivery lines); plan orders with the queues in mind.
 - **Size by city stars:** 1–2-star the E195; 3-star the E195 or A320neo; 4-star any of the E195, A320neo and A321neo;
   5-star the A320neo, A321neo or XLR. The bigger type where a heavy rival flies the pair or the sector is long. Bookings
   are divided among the flights on offer, so more, smaller flights take more of a market.
@@ -143,19 +143,23 @@ database → Building.
 ---
 
 ## 4. The planner, as you'll use it
-The nine screens, in the order of the header. The planner guide has every button.
+The nine screens, in the order of the header, grouped by when they're used (since 20 Oct). The planner guide has every
+button.
 
 | Screen | Use it for | Look at it |
 |---|---|---|
-| **Home** | The network at a glance. **Needs attention** (what to act on), **Aircraft on order** (with **File into planner** once one arrives), **Coming up**, the **To-do** board, the airline cards | Every evening after the capture |
+| **Home** | The network at a glance: the globe, the map, **Aircraft on order**, the airline cards | Whenever |
+| **Today** | What to do now. At the top **All clear**, or what's waiting, and the capture in one line. Then **Orders** (who can order now or from when, the safe types, each delivery line), **Aircraft to file** (with **File into planner**), **Needs attention**, **Game check** (planner against the game), the **To-do** board and **Coming up** | Every evening after the capture |
 | **Routes** | Every route by airline: stars, market, distance, load, round trips. Open a route to see or edit its frequencies, with every check (night bans, banks, turns, position, second-daily gap, connections at both ends) | When planning or retiming |
-| **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards and the service check. **File into planner** is here | When an aircraft arrives; when something needs a look |
-| **Hubs** | Each base's day: banks, arrivals and departures, and which flights connect. Read only | When planning connections |
-| **Check** | The **Systems** board (is everything working?), then Capture, Growth (where to grow next, what's sold out, what's losing), Cabins (refits), **Game check** (planner against the game) and the daily load report | Systems every evening; Growth on Saturdays and before an order |
-| **Review** | Each airline's money: profit a day, **Cash, next 14 days** (when it can order), route profit, aircraft profit, the fare plan. **Manual entry** if a capture fails | Before every order; on Saturdays |
+| **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards and the service check. Filing happens here | When an aircraft arrives; when something needs a look |
+| **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, raise fares, fix or reduce, losing after lease), **Main hubs towards 750**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, the fare plan | Before every order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and the rules | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
 | **Reference** | The rule numbers (settings), aircraft types and cabins, order cabins, markets and their defaults, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together |
+| **Systems** | The plumbing. The **Systems** board (is everything working?), then the capture's details, **Manual entry** if a capture fails, **Cabins** (refits) and the aircraft checks while they're on | When Today's capture line or needs attention points there |
+
+Check, Review and Hubs went on 20 Oct: their boards are on Today, Performance and Systems, and their old addresses
+lead there. A frequency's bank fit and its connections at both ends are on Routes.
 
 **Saving:** each change saves on its own. **saved** means it's in. **not saved · retry** means tap it to send again
 (closing the tab loses it). A preview address saves nothing.
@@ -174,10 +178,15 @@ The nine screens, in the order of the header. The planner guide has every button
 3. **Read the panel.** Each airline ends with **all good**, or with what came in short or broken (for example "short:
    loads 12 of 78 flights").
 4. **If a page is short or broken, capture that airline again** the same evening, while the game still holds its last
-   24 hours of loads. If it keeps failing, enter that night's cash and loads by hand in Review → **Manual entry** (loads
+   24 hours of loads. If it keeps failing, enter that night's cash and loads by hand in Systems → **Manual entry** (loads
    under 95% only, or paste the game's load table).
-5. **Open the planner.** On Home, read **Needs attention**. On Check, the **Systems** board should say **all good**.
-6. **Optional:** run the salaries script for one airline when you choose (section 9).
+5. **Open the planner on Today.** The top says **All clear**, or what's waiting. The capture line should read "All six
+   airlines captured, all good" with the time; if not, it says what's missing, short or broken, and **Systems ›** has
+   each page.
+6. **Work down Today:** **Orders** (an airline that can order: the Scheduling chat proposes the aircraft and routes),
+   **Aircraft to file** (**File into planner**), **Needs attention** (each item links to where it's fixed), **Game
+   check** when something looks off, and the **To-do** board. When nothing is left, Today says **All clear**.
+7. **Optional:** run the salaries script for one airline when you choose (section 9).
 
 **What "short" means:**
 - **Loads:** under 90% of the flights the airline had scheduled in the 24 hours before the capture. A new rotation
@@ -188,7 +197,7 @@ The nine screens, in the order of the header. The planner guide has every button
 
 **Overnight, on its own:** the backup at 07:17 UTC (copied, restored to prove it works, sent to R2), the snapshot
 fallback at 10:00 UTC, the clean-ups at 10:20 UTC and, on the first night of a month, the monthly archive. Nothing to
-do unless Home or the Systems board shows red (section 11).
+do unless Today or the Systems board shows red (section 11).
 
 ---
 
@@ -196,7 +205,8 @@ do unless Home or the Systems board shows red (section 11).
 This is the heart of the game. It runs whenever an airline can afford an aircraft and whenever one arrives.
 
 ### Step 1: Can the airline order? (every evening after the capture)
-- Planner → **Review** → the airline → **Cash, next 14 days**. It starts from today's captured cash, adds flight profit
+- Planner → **Today** → **Orders** says which airlines can order now, or from when, and the types that are safe. The
+  detail is Performance → the airline → **Cash, next 14 days**. It starts from today's captured cash, adds flight profit
   from the last day's bank statement, and takes away every scheduled lease and week-end closing (the weekly salary
   payment).
 - An order is **safe** when **0.5M stays in hand at the lowest point** afterwards. The forecast counts the new
@@ -204,18 +214,18 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   case). Several orders are tested together. A type never leased yet is taken at 10% of its price a week.
 - Prices include the cabin. Planned refits aren't in the forecast, so allow for them.
 - If the airline wasn't captured last night, capture it first. Never decide from an old figure.
-- Home's Needs attention also says when an airline can safely order.
+- Today's Needs attention also says when an airline can safely order.
 
 ### Step 2: What and where?
 - **Hubs first:** until the main hub has 750 departures a week, every new aircraft goes there. Any other base gets one
   only for a **contested** route: a rival with over 250 departures a week at that base, or over 2 flights a day on the
-  route. A base contested for one route doesn't open its other routes. Check → Growth → **Main hubs towards 750** shows
-  progress. Ryanair is exempt.
-- **Growth signals** (Check → Growth): **Ready for another flight** (sold out on most departures and earning at least
-  the airline's middle route an aircraft hour: block time, turnaround and turn margin), **Raise fares** (sold out but
-  earning less an aircraft hour), **Fix or reduce** (losing money, economy under
-  75%, or a thin margin; not for a route under 7 days old), **Aircraft losing money after their lease**, **Order queues**
-  (how long each delivery line has left).
+  route. A base contested for one route doesn't open its other routes. Performance → **Main hubs towards 750** shows
+  progress, with each hub's readiness (the cities feeding each bank) folded into its line. Ryanair is exempt.
+- **Growth signals** (Performance → Growth signals): **Ready for another flight** (sold out on most departures and
+  earning at least the airline's middle route an aircraft hour: block time, turnaround and turn margin), **Raise fares**
+  (sold out but earning less an aircraft hour), **Fix or reduce** (losing money, economy under 75%, or a thin margin; not
+  for a route under 7 days old), **Aircraft losing money after their lease**. How long each delivery line has left is on
+  Today → **Orders**.
 - **Type:** whichever of our types the route needs (section 3). Ryanair: no A350.
 - **A real decision gets a full brief** from Claude: the answer and an options table first (growth, profit a week, cash
   at the lowest point, opportunity cost, risk, how easy it is to undo), then the background. Applying an existing rule
@@ -228,7 +238,8 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   its cabin. Where cash allows more than one option, the route we most want to fly decides.
 - **You order in the game** and tell the Scheduling chat. Claude logs it and writes the **plan card** with those routes
   and that cabin (Tails → Deliveries → **card**), following the rules in step 4.
-- The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC).
+- The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC), and on
+  Today's **Aircraft to file** once it arrives.
 
 ### Step 4: The plan card's rules
 Every plan card, written with the order, follows these rules. When the aircraft arrives the card stands; go straight
@@ -252,13 +263,13 @@ to step 5.
 1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. Aircraft fly
    to their first departure on their own.
 2. **Cabin:** the plan card's cabin (chosen from the market's default, Reference → markets). If it came with another layout, refit
-   it (about 0.2M, no time out of service) and record it in Check → **Cabins** → **Refitted to …**.
+   it (about 0.2M, no time out of service) and record it in Systems → **Cabins** → **Refitted to …**.
 3. **Fares:** launch at 100% of the standard fare in both cabins (Ryanair 85%, economy only). Don't launch cheap; cut a
    weak route instead. Where another player (or another of our airlines) flies the route, never go under 60% of
    standard.
 
 ### Step 6: File it in the planner (you)
-1. Tails → Deliveries → the aircraft's card, or Home → Aircraft on order → **File into planner**.
+1. Today → Aircraft to file → **File into planner**, or Tails → Deliveries → the aircraft's card.
 2. The planner reads the airline's schedule from the game and compares each flight with the card.
    - **All the same:** it files at once.
    - **Differences:** each flight shows the card's time and the game's (**same**, **different**, **not in the game**).
@@ -280,7 +291,7 @@ to step 5.
 ### Step 8: Confirm it flies
 - The next evening's capture should show the new flights. The loads check only counts a new aircraft once it has
   flown, so a new aircraft won't make the night show "short".
-- If anything looks off, Check → **Game check** → **Check against the game** compares every airline's live schedule with
+- If anything looks off, Today → **Game check** → **Check against the game** compares every airline's live schedule with
   the planner and offers **Use the game's times**, **Fix all from the game** or **Add to planner**.
 - There are no one-week aircraft checks any more (retired 15 Oct).
 
@@ -291,7 +302,7 @@ Run in the **Saturday review chat**, in this order. It takes most of the morning
 first.
 
 1. **World scan** (`gscan.py`, 5 to 10 minutes): every airline in Gander with its schedule, and the airport pages for
-   our hubs and the big rival hubs. Everything after reads this week's rivals. Check → Systems turns amber when the scan
+   our hubs and the big rival hubs. Everything after reads this week's rivals. The Systems board turns amber when the scan
    is over 8 days old.
 2. **The weekly report:** a PDF written like a briefing for a CEO, with no fixed template. It covers:
    - competition by market, for the group and for each airline;
@@ -308,14 +319,15 @@ first.
    like a real airline's news. No cabins, bank times or other internal detail, and no mention of the game. (Delivery
    posts go out on the day, from the Scheduling chat: one per airline per day of deliveries.)
 5. **The weekly review together:**
-   - **The fare plan:** what last week's fare tests did (Review → the airline → Fare plan; each change is spotted by the
+   - **The fare plan:** what last week's fare tests did (Performance → the airline → Fare plan; each change is spotted by the
      next capture), and which new tests to make. Fare changes are only ever reviewed here, never as Needs attention.
-   - **Route profit:** routes marked **add a flight**, **raise fares** or **hold**; anything under **Fix or reduce**.
+   - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
+     under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
    - **Orders:** each airline's cash forecast. Orders themselves go in every evening the forecast allows (section 6,
      step 1), not in a Saturday batch.
-   - **Hubs first:** each main hub's progress towards 750.
-   - **To-dos:** go through the board.
+   - **Hubs first:** each main hub's progress towards 750 (Performance → Main hubs).
+   - **To-dos:** go through the board (Today).
    - **Triggers:** anything that needs a decision brief (Supabase's plan, a new base, a big refit).
 
 ---
@@ -329,8 +341,8 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
    made by AI and published on the website.
 3. **The strategy session:** bases and holds, each airline's next step, fleet and long haul, the decision list.
 4. **Supabase's usage page:** egress against 4 GB a month, and the website's calls a day against 1,000. The database's
-   size, the report PDFs and the website's data are on Check → Systems already.
-5. **The archive:** by the 3rd, Check → Systems should show the month archived (detail over a month old moves to R2 and
+   size, the report PDFs and the website's data are on the Systems board already.
+5. **The archive:** by the 3rd, the Systems board should show the month archived (detail over a month old moves to R2 and
    GitHub). The first one runs on 1 December.
 
 ---
@@ -339,7 +351,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 - **Salaries:** go to the airline in the game and press the salaries script's button. It sets every position to 10%
   above the country average, for that airline only. Run it when you choose, not every night (the old nightly run
   across all six seemed to inflate salaries).
-- **Cabin refits:** Check → **Cabins** lists aircraft whose cabin doesn't match the markets they fly. Refit in the game,
+- **Cabin refits:** Systems → **Cabins** lists aircraft whose cabin doesn't match the markets they fly. Refit in the game,
   then **Refitted to …** (the 0.2M counts as that day's cost). **Keep as is** takes one off the list.
 - **Retimes:** change times on Routes (local time at each end; each box saves when you leave it), make the same change in
   the game, and check both ends' connections.
@@ -355,17 +367,17 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | When | Check | Green means | If not |
 |---|---|---|---|
 | Every evening | The capture panel | Every airline "all good" | Capture that airline again tonight; Manual entry if it keeps failing |
-| Every evening | Home → Needs attention | Nothing you didn't expect | Each item links to where it's fixed |
-| Every evening | Check → Systems | "all good": capture, snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
+| Every evening | Today | **All clear**, and the capture line "all good" | Work down Today; each item links to where it's fixed |
+| Every evening | Systems → the Systems board | "all good": capture, snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
 | After filing an aircraft | The filing comparison | Every flight **same** | Fix the game or file with the game's times |
-| The evening after filing | The capture | The new flights appear | Check → Game check |
-| After a merge | Check → Systems → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |
-| Before an order | Review → Cash, next 14 days | **safe**, 0.5M at the lowest point | Wait, or order a smaller or cheaper type |
+| The evening after filing | The capture | The new flights appear | Today → Game check |
+| After a merge | Systems → the Systems board → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |
+| Before an order | Today → Orders, then Performance → the airline → Cash, next 14 days | **safe**, 0.5M at the lowest point | Wait, or order a smaller or cheaper type |
 | Saturday | World scan age | Under 8 days | Run the scan first |
 | Saturday | Fare plan, route profit, growth signals | Reviewed together | Decide fare tests and orders |
 | Saturday | Connection audit | Near misses fixed where a 10-minute retime does it | Retime on Routes and in the game |
 | First Saturday | Supabase usage page | Egress under 4 GB; website under 1,000 calls a day | A brief at the next review (paid plan is $25 a month) |
-| By the 3rd | Check → Systems → Monthly archive | Ran this month | Ask the Building chat |
+| By the 3rd | Systems → the Systems board → Monthly archive | Ran this month | Ask the Building chat |
 | Any time | Database size, report PDFs, website data (Systems) | Under 70% of 350 MB, 50 MB, 500 KB | Amber means plan; red means a brief |
 
 ---
@@ -381,7 +393,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | Planner build time didn't move after a merge | Cloudflare's build failed; the last good version stays live. The build log is in Cloudflare's dashboard; the Building chat fixes it |
 | The site or planner broke after a change | Revert that pull request on GitHub; Cloudflare republishes the previous version within minutes |
 | A planner row was changed or deleted by mistake | One row can be put back from the change log; many from last night's backup. Ask the Building chat |
-| The planner and the game disagree | Check → Game check; the game is the truth |
+| The planner and the game disagree | Today → Game check; the game is the truth |
 | The whole database is lost | Restore from R2 (or the month's GitHub copy) into a new Supabase project, then issue new keys and schedule the jobs again. The steps are in `equinox-backups`' README |
 | A key may have leaked | Issue a new one and replace it where it lives (the map's key table); for the capture key, update the userscript |
 | A check on a pull request is red | Don't merge. The pull request says which check and why |
@@ -446,4 +458,5 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | **Fare plan** | The list of fare tests to make in the game, reviewed on Saturdays |
 | **Week-end closing** | The game's weekly salary payment |
 | **Interline** | An agreement to sell connections on another airline's flights |
-| **Systems board** | The top of Check: one line per thing that must work, green, amber or red |
+| **Systems board** | The top of Systems: one line per thing that must work, green, amber or red |
+| **All clear** | What Today says when nothing is waiting: no order possible, nothing to file, nothing in needs attention, no Game check differences |

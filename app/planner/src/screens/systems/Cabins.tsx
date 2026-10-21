@@ -1,14 +1,15 @@
-// Check → Cabins (the old cabinsBoard): each aircraft's cabin against what its markets want (the library's cabins.fit),
+// Systems → Cabins (Check's until 20 Oct; the old cabinsBoard): each aircraft's cabin against what its markets want (the library's cabins.fit),
 // with "Refitted to …" (the aircraft takes the layout and the refit's cost, cabin_refit_cost, is logged as a loss), "Keep as
 // is" (until its routes call for a different cabin), and the ones kept, each with "Show again".
 import type { CabinFit } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
-import { costWords, haveWords, keepKey, mixWords, type CheckAirline } from "./model";
+import type { OurAirline } from "../../data/airlines";
+import { costWords, haveWords, keepKey, mixWords } from "./model";
 
 export function CabinsList({ list, airlines, cost, sharePct, busy, onRefit, onKeep, onUndo, onAircraft }: {
   list: readonly CabinFit[];
-  airlines: readonly CheckAirline[];
+  airlines: readonly OurAirline[];
   cost: number;
   sharePct: number;
   busy: boolean;

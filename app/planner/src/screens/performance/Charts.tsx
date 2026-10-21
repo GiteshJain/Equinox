@@ -141,7 +141,7 @@ export function CostChart({ avg }: { avg: AverageFlight | null }) {
     );
   };
   return (
-    <svg className="rpsvg" viewBox={`0 0 ${W} 140`} role="img" aria-label="Income and costs of an average flight" data-figure="review: an average flight">
+    <svg className="rpsvg" viewBox={`0 0 ${W} 140`} role="img" aria-label="Income and costs of an average flight" data-figure="performance: an average flight">
       {bar("Income", c.income, 8)}
       {bar("Costs", c.costs, 38)}
       <text x={x0} y="80" fontSize="12" fill="#0A1230" fontWeight="700">Profit {c.profitK.toFixed(1)}k a flight · {c.marginPct}% margin</text>
@@ -176,7 +176,7 @@ export function TailChart({ rows }: { rows: readonly AircraftRow[] }) {
 export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
   const g = groupLayout(rows);
   return (
-    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Flight profit against leases, by airline" data-figure="review: the group today">
+    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Flight profit against leases, by airline" data-figure="performance: the group today">
       {g.rows.map((x) => (
         <g key={x.r.airline_id} data-group-row={x.r.code ?? x.r.name}>
           <text x="0" y={x.y + 16} fontSize="11.5" fill="#0A1230">{x.r.name}</text>
