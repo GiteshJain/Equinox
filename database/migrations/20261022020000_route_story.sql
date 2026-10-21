@@ -23,7 +23,7 @@
 -- route_story() is granted to staff (signed in) only; the private functions get no grants, as the other figures.
 
 select set_config('equinox.actor', 'migration', true),
-       set_config('equinox.actor_detail', '20261022000000_route_story', true);
+       set_config('equinox.actor_detail', '20261022020000_route_story', true);
 
 -- ============================================================ 1. the daily history by cabin
 alter table public.route_days

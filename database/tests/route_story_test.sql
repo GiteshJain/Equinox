@@ -1,4 +1,4 @@
--- The route page's figure (spec docs/specs/2026-10-21-route-page.md §1–2; migration 20261022000000_route_story.sql). Run
+-- The route page's figure (spec docs/specs/2026-10-21-route-page.md §1–2; migration 20261022020000_route_story.sql). Run
 -- by database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is
 -- rolled back. A failed check stops with an error that says which (codes, counts and words of the hand-made world only).
 --   1. route_days' new columns (eco_pax, eco_seats, bus_pax, bus_seats, bus_fare_avg, block_min), each described;
