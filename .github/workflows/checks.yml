@@ -21,7 +21,8 @@ concurrency:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04, pinned: ubuntu-latest became 26.04 on 20 Oct, where Playwright 1.56 can't install its dependencies
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
