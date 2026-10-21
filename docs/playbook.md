@@ -61,12 +61,12 @@ and the capture should show Kingfisher's VT-AAE flying 1049/1050 from 16 Oct, no
 | Tool | What it's for | Where |
 |---|---|---|
 | **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries | gander.airlinesim.aero, one account with all six airlines |
-| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database | `capture/capture_all.user.js`, installed in a userscript manager (such as Tampermonkey) in your browser, with your capture key in place of `__CAPTURE_KEY__` |
+| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then, when a world scan is due, scans the world (every airline's schedule and the airport pages; since 21 Oct, version 1.5) | `capture/capture_all.user.js`, installed in a userscript manager (such as Tampermonkey) in your browser, with your capture key in place of `__CAPTURE_KEY__` |
 | **Salaries userscript** | One button sets every position of the airline you're on to 10% above the country average | `capture/salary_adjust.user.js`, installed the same way |
 | **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one every 2 seconds, while you watch (section 7) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
-| **Claude (Equinox project)** | Three chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (scan, weekly report, audit, newsroom, review, and on the month's first Saturday the weekly report's month page, gander monthly and strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
+| **Claude (Equinox project)** | Three chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (the scan's age, weekly report, audit, newsroom, review, and on the month's first Saturday the weekly report's month page, gander monthly and strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
 | **Supabase** | The database, sign-in and photo files. Free plan | project `ulecwsyedvwcxgdzmhoq` |
 | **GitHub** | All code and documents (`GiteshJain/Equinox`); the nightly backup job and monthly copies (`equinox-backups`, private) | github.com |
 | **Cloudflare** | Hosts the website and planner (Pages) and keeps the backups (R2). The domain renews each October | dash.cloudflare.com |
@@ -181,9 +181,14 @@ lead there. A frequency's bank fit and its connections at both ends are on Route
 **Steps:**
 1. Sign in to the game.
 2. Press **Capture all airlines** (the userscript's panel). It works through every airline in the world's list. Leave
-   the tab open until it finishes.
+   the tab open until it finishes. **On a scan evening it then scans the world** (every evening while
+   `scan_every_days` is 1): it takes a few minutes longer, about 5, so **keep the page open**. The panel shows "World
+   scan: 120 of 163 airlines…", then "World scan done"; **Stop** ends it early (the scan isn't finished, and the next
+   evening's capture scans again). If the page reloads, it carries on where it was. No scan follows a capture page that
+   failed: capture again, and the scan follows.
 3. **Read the panel.** Each airline ends with **all good**, or with what came in short or broken (for example "short:
-   loads 12 of 78 flights").
+   loads 12 of 78 flights"). The last line says whether the world scan ran ("World scan done"), wasn't due, or why it
+   didn't finish.
 4. **If a page is short or broken, capture that airline again** the same evening, while the game still holds its last
    24 hours of loads. If it keeps failing, enter that night's cash and loads by hand in Systems → **Manual entry** (loads
    under 95% only, or paste the game's load table).
@@ -312,9 +317,9 @@ to step 5.
 Run in the **Saturday review chat**, in this order. It takes most of the morning. Capture as normal on Friday evening
 first.
 
-1. **World scan** (`gscan.py`, 5 to 10 minutes): every airline in Gander with its schedule, and the airport pages for
-   our hubs and the big rival hubs. Everything after reads this week's rivals. The Systems board turns amber when the scan
-   is over 8 days old.
+1. **World scan:** it runs with the evening capture (section 5), so there's nothing to run. Check its age on the
+   Systems board: amber over 8 days means the captures haven't scanned (the capture panel said why); run `gscan.py` by
+   hand first then (5 to 10 minutes, the fallback; `scripts/README.md`). Everything after reads this week's rivals.
 2. **The weekly report:** a PDF written like a briefing for a CEO, with no fixed template. It covers:
    - competition by market, for the group and for each airline;
    - risks and opportunities;
@@ -393,7 +398,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | The evening after filing | The capture | The new flights appear | Today → Game check |
 | After a merge | Systems → the Systems board → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |
 | Before an order | Today → Orders, then Performance → the airline → Cash, next 14 days | **safe**, 0.5M at the lowest point | Wait, or order a smaller or cheaper type |
-| Saturday | World scan age | Under 8 days | Run the scan first |
+| Saturday | World scan age (the evening capture runs it) | Under 8 days | Run `gscan.py` by hand first (Saturday chat) |
 | Saturday | Fare ladder, route profit, growth signals | Reviewed together | Make the fare moves; decide orders |
 | Saturday | Connection audit | Near misses fixed where a 10-minute retime does it | Retime on Routes and in the game |
 | First Saturday | Supabase usage page | Egress under 4 GB; website under 1,000 calls a day | A brief at the next review (paid plan is $25 a month) |

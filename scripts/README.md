@@ -1,6 +1,7 @@
 # Scripts
 
-The Python scripts Claude runs for the airline briefing, the weekly report, gander monthly and the world scan, and the
+The Python scripts Claude runs for the airline briefing, the weekly report, gander monthly and the world scan by hand (the
+fallback: since 21 Oct the evening capture scans the world itself), and the
 planning library's command, which is the schedule optimiser (decision #10; #19; #24). They are Claude's working tools, not part of the website or
 planner, and they run in Claude's workspace.
 
@@ -84,9 +85,20 @@ on a small dated sample on every pull request and keep the PDF (`tests/report_te
 
 ## The world scan
 
+**Since 21 Oct the evening capture scans the world** (`capture/capture_all.user.js` 1.5, manual §7; spec
+`docs/specs/2026-10-21-scan-in-capture.md`): after our airlines, when the latest finished scan is at least
+`settings.scan_every_days` capture days old (1: every evening), it reads the same pages as `gscan.py`, at the same pace,
+and sends them with the capture key through `capture_scan()`, which stores them exactly as `ingest_snapshot()` does (both
+through `private.scan_ingest()`). The airports it reads come from `capture_airlines()`: our bases, `gscan.py`'s big rival
+hubs (its `AP` list, copied into `private.capture_scan_plan()`; `tests/capture_scan_test.mjs` checks they're the same) and
+the latest finished scan's 20 busiest airports (what `top_airports.json` was for). **`gscan.py` stays as the fallback,
+run by hand** from a chat when the Systems board shows the scan old (amber over 8 days) or a scan is wanted between
+captures; it's unchanged, and `tests/gscan_reference.py` runs it on saved pages so the capture's reading is checked
+against it on every pull request.
+
 | Script | What it does | How to run | Makes |
 |---|---|---|---|
-| `scanner/gscan.py` | Reads every airline in Gander and its schedule, then the airport pages for our hubs and the big rival hubs. Saves them as a scan through `ingest_snapshot()`, which feeds the weekly report and gander monthly. Every airline a scan sees becomes an `airlines` row by game ID, so rivals can be placed in groups. | First start a scan: call `ingest_snapshot()` with kind `start` to get its number (`snapshot_id`). Then run `python3 gscan.py airlines <scan> [from] [to]` (in slices if needed) and `python3 gscan.py airports <scan>`, which marks the scan finished and builds its airport summaries. | Rows in `game_scans`, `game_scan_airlines` (totals, kept for good), `game_scan_schedules` and `game_scan_airports` (kept a month, then archived) and `scan_airline_airports` (each airline's departures and destinations per airport, kept for good); working files `~/ents.json`, `~/apid.json` |
+| `scanner/gscan.py` | The fallback, by hand (above). Reads every airline in Gander and its schedule, then the airport pages for our hubs and the big rival hubs. Saves them as a scan through `ingest_snapshot()`, which feeds the weekly report and gander monthly. Every airline a scan sees becomes an `airlines` row by game ID, so rivals can be placed in groups. | First start a scan: call `ingest_snapshot()` with kind `start` to get its number (`snapshot_id`). Then run `python3 gscan.py airlines <scan> [from] [to]` (in slices if needed) and `python3 gscan.py airports <scan>`, which marks the scan finished and builds its airport summaries. | Rows in `game_scans`, `game_scan_airlines` (totals, kept for good), `game_scan_schedules` and `game_scan_airports` (kept a month, then archived) and `scan_airline_airports` (each airline's departures and destinations per airport, kept for good); working files `~/ents.json`, `~/apid.json` |
 | `gfetch.py` | Fetches one page from the game, keeping the session cookie. Used by the scanner, and handy on its own. | `python3 gfetch.py <url> <file>` | The page, saved to the file |
 
 The scanner waits between pages (0.25 to 0.5 seconds) so it doesn't load the game's servers. A full scan takes a

@@ -377,7 +377,8 @@ its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
     54 or when the last run failed.
   - **Monthly archive:** whether it ran this month; amber from the 3rd if it hasn't, red if a table and month failed.
   - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
-  - **World scan:** its age (the Saturday review runs it first); amber over 8 days, red over 15.
+  - **World scan:** its age (the evening capture runs it when one is due, `scan_every_days`, since 21 Oct; `gscan.py` by
+    hand if it's old); amber over 8 days, red over 15.
   - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
     minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
   - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),
