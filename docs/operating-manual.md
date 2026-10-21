@@ -52,6 +52,14 @@ Until each is built and merged, the rules below stand as they are.
   and their cabin layouts are in `cabin_configs`. The game shows no turnaround, so a new variant takes its family's (A320
   family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a
   route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card).
+- **Decided 21 Oct, for the Building chat:** the fare ladder in the planner (§5; spec
+  `docs/specs/2026-10-21-fare-ladder.md`): `fare_ladder()` works out each route's level and Saturday's moves, and
+  Performance lists the fewest game actions. Until it's merged, the Saturday review lists the moves by hand.
+- **Decided 21 Oct, for the Building chat:** cabins follow the new rule (§5; spec
+  `docs/specs/2026-10-21-cabins-new-rule.md`), after the fare ladder: the Cabins board and its refit settings go; each
+  market keeps only its layout (no default type, fare % or old cabin); the plan card suggests its cabin by the 65% rule
+  and warns when the chosen one differs. Until then the Scheduling chat applies the rule by hand. The planner work's
+  next big step after that is competition analysis with its ranked openings (Gitesh, 21 Oct: before the route page).
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
