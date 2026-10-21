@@ -924,6 +924,7 @@ button.link.gmore{display:inline-block;margin:6px 0 2px}
 .flnone{margin:4px 0 10px;font-size:13px}
 .flsort{margin:6px 0}
 .flup{font-weight:600;color:var(--ink);white-space:nowrap}
+.fltbl td,.fltbl th{white-space:nowrap}
 .fltbl td:last-child{white-space:normal;min-width:12em}
 .flnotes{margin-top:8px}
 .lspark{width:56px;height:16px;display:block} .lspark .zero{stroke:#E1E6EE}
