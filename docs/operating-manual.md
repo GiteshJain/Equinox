@@ -211,6 +211,10 @@ Details and open points: `docs/decisions.md`.
   first-listed hub (DEL–BOM under DEL). Across airlines, by country pair: US/UK–India → Kingfisher; US–UK, Europe or
   China → Pan Am; UK–Europe, China or Malaysia → Virgin; Europe or India–China → China Eastern; Malaysia → Malaysia.
   Virgin doesn't fly JFK or Delhi. When merging Gitesh's route lists, add missing lanes only; never change ownership.
+  **The country rule applies where the rightful airline can fly the pair from one of its own bases.** Where it can't
+  (Gatwick–Atlanta: Pan Am has no base at either end), the airline that has the pair on its list keeps it, so no market
+  drops off the map. *Since 21 Oct · why (Gitesh): applying the country rule literally removed 53 pairs no other airline
+  could fly; they were restored the same night.*
   *Since 23 and 26 Sep · why: our airlines shouldn't compete with each other.*
 - **Destination shape:** in time, fly every route a real airline flies from each hub and focus city. Plan as if money
   isn't the limit, and grow at the group's own pace. *Since 23 and 29 Sep.*
