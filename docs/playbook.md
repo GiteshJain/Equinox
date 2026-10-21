@@ -45,7 +45,7 @@ Malaysia 2). Each one needs the growth loop in section 6 as it arrives.
 **Open to-dos on the planner's board (15 Oct):**
 - Decide the two low-demand holdings (new airlines): not before January 2027.
 - Cancel Pan Am's interline with British Caledonian.
-- Refit the 35 A321s still on the old 321-LEI layout to the new 195-seat one (about 0.19M each, 6.7M in all).
+- (Dropped 21 Oct: refitting the 35 A321s still on the old 321-LEI layout. We no longer refit; manual §5.)
 - Fix Delhi's early-morning connections when the next Kingfisher aircraft is planned.
 - Run `scan_markets.py` once for the 6 Oct world scan (Saturday review chat).
 - Review Kingfisher's two Delhi–JFK A350s at the Saturday review on 28 Nov.
@@ -157,12 +157,12 @@ button.
 | **Home** | The network at a glance: the globe, the map, **Aircraft on order**, the airline cards | Whenever |
 | **Today** | What to do now. At the top **All clear**, or what's waiting, and the capture in one line. Then **Orders** (who can order now or from when, the safe types, each delivery line), **Aircraft to file** (with **File into planner**), **Needs attention**, **Game check** (planner against the game), the **To-do** board and **Coming up** | Every evening after the capture |
 | **Routes** | Every route by airline: stars, market, distance, load, round trips. Open a route to see or edit its frequencies, with every check (night bans, banks, turns, position, second-daily gap, connections at both ends) | When planning or retiming |
-| **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards and the service check. Filing happens here | When an aircraft arrives; when something needs a look |
+| **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards, the service check and the cabin the rule calls for (**Use the suggestion**). Filing happens here | When an aircraft arrives; when something needs a look |
 | **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, raise fares, fix or reduce, losing after lease), **Main hubs towards 750**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, the fare plan | Before every order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and the rules | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
-| **Reference** | The rule numbers (settings), aircraft types and cabins, order cabins, markets and their defaults, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together |
-| **Systems** | The plumbing. The **Systems** board (is everything working?), then the capture's details, **Manual entry** if a capture fails, **Cabins** (refits) and the aircraft checks while they're on | When Today's capture line or needs attention points there |
+| **Reference** | The rule numbers (settings), aircraft types and cabins, order cabins, markets and their layouts, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together |
+| **Systems** | The plumbing. The **Systems** board (is everything working?), then the capture's details, **Manual entry** if a capture fails, and the aircraft checks while they're on | When Today's capture line or needs attention points there |
 
 Check, Review and Hubs went on 20 Oct: their boards are on Today, Performance and Systems, and their old addresses
 lead there. A frequency's bank fit and its connections at both ends are on Routes.
@@ -218,7 +218,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 - An order is **safe** when **0.5M stays in hand at the lowest point** afterwards. The forecast counts the new
   aircraft's own weekly lease from 7 days after it arrives, and treats it as arriving the day it's ordered (the worst
   case). Several orders are tested together. A type never leased yet is taken at 10% of its price a week.
-- Prices include the cabin. Planned refits aren't in the forecast, so allow for them.
+- Prices include the cabin.
 - If the airline wasn't captured last night, capture it first. Never decide from an old figure.
 - Today's Needs attention also says when an airline can safely order.
 
@@ -268,8 +268,9 @@ to step 5.
 ### Step 5: Set it up in the game (you)
 1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. Aircraft fly
    to their first departure on their own.
-2. **Cabin:** the plan card's cabin (chosen from the market's default, Reference → markets). If it came with another layout, refit
-   it (about 0.2M, no time out of service) and record it in Systems → **Cabins** → **Refitted to …**.
+2. **Cabin:** the plan card's cabin, as the rule calls for it (manual §5: the layout of the route flying over 65% of the
+   block time, else the most seats; Ryanair Standard). The card shows it (**suggested: …**, with **Use the suggestion**),
+   and the card check flags a card whose cabin differs. We don't refit.
 3. **Fares:** launch at 100% of the standard fare in both cabins (Ryanair 85%, economy only). Don't launch cheap; cut a
    weak route instead. Where another player (or another of our airlines) flies the route, never go under 60% of
    standard.
@@ -282,7 +283,7 @@ to step 5.
      File with **the game's times** if the game is right, or fix the game and file with **the plan card's times**.
 3. Filing puts the aircraft in service, fits the plan card's cabin (else the order's) and logs its first fit at that
    cabin's price, and adds each flight with its return as a round trip, launched today. With no cabin on the card or the
-   order it sets none and says so: choose it on the card (**Cabin**) before filing.
+   order it sets none and says so: choose it on the card (**Cabin**, or **Use the suggestion**) before filing.
 
 ### Step 7: Interline, if the route opens a new country
 - Planner → **Interline** shows the new airline–country row as **to sign**. Our airlines always interline with each
@@ -340,7 +341,7 @@ first.
      step 1), not in a Saturday batch.
    - **Hubs first:** each main hub's progress towards 750 (Performance → Main hubs).
    - **To-dos:** go through the board (Today).
-   - **Triggers:** anything that needs a decision brief (Supabase's plan, a new base, a big refit).
+   - **Triggers:** anything that needs a decision brief (Supabase's plan, a new base).
 
 ---
 
@@ -363,8 +364,6 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 - **Salaries:** go to the airline in the game and press the salaries script's button. It sets every position to 10%
   above the country average, for that airline only. Run it when you choose, not every night (the old nightly run
   across all six seemed to inflate salaries).
-- **Cabin refits:** Systems → **Cabins** lists aircraft whose cabin doesn't match the markets they fly. Refit in the game,
-  then **Refitted to …** (the 0.2M counts as that day's cost). **Keep as is** takes one off the list.
 - **Retimes:** change times on Routes (local time at each end; each box saves when you leave it), make the same change in
   the game, and check both ends' connections.
 - **Cutting a route:** remove its frequencies in the game and on Routes; an unflown route can be removed and restored
@@ -466,7 +465,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | **Contested route** | One where a rival has over 250 departures a week at the base, or over 2 a day on the route |
 | **Hubs first** | Every new aircraft to the main hub until it reaches 750 departures a week |
 | **Service code** | The on-board service level by distance: S1, S2, S3, or R for Ryanair |
-| **Market default** | The cabin layout a market's routes use |
+| **Market layout** | The cabin layout a market calls for (Standard, Leisure, Leisure Plus or Comfort; Reference → Markets): a plan card takes it where one route of the market flies over 65% of the block time (its market default until 21 Oct) |
 | **Fare plan** | The list of fare tests to make in the game, reviewed on Saturdays |
 | **Week-end closing** | The game's weekly salary payment |
 | **Interline** | An agreement to sell connections on another airline's flights |

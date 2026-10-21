@@ -134,7 +134,9 @@ important first; nothing folds.
   (city and distance from the airport list, or typed); **Remove N unflown routes shown** removes those after asking in
   the page. Removed routes can be restored from Reference.
 - **A route** (its own address, such as /planner/routes/PA/JFK-ORD): stars, airline, market, distance and the two UTC
-  offsets; the estimated block on the market's aircraft, its plan and prices, the service profile and the hub's banks;
+  offsets; the estimated block on the airline's most-flown type, the **layout** the route calls for (its market's, or
+  its own cabin choice, which wins: manual §5; since 21 Oct, in place of the market's aircraft, plan and prices), the
+  service profile and the hub's banks;
   **edit route** (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies,
   after asking in the page). Not flown yet, it shows the next free flight numbers; flown, its loads over 7 days.
 - **Each frequency:** the outbound and the return with their times (local, or UTC as the header says, the other shown
@@ -149,7 +151,8 @@ important first; nothing folds.
   moves and asks. Empty the box to go back to the game's offset.
 - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
   type's speed, manual §4) is used, so it can differ by a few minutes from the old planner's, which it fitted to the
-  times typed in.
+  times typed in. A frequency with no aircraft is estimated on the airline's most-flown type (its market's aircraft
+  until 21 Oct). A new frequency's price is the airline's launch fare (*fare_launch_pct*: 100%, Ryanair 85%).
 
 ## Tails
 *Every aircraft: what it flies each week and how hard it works.*
@@ -173,7 +176,10 @@ important first; nothing folds.
   base, plan and status; **card** opens its plan card in its own window, the rest of the screen dimmed (title, base,
   its cabin, each flight's number, route, times, block and service; × or Escape closes it). An airport where the
   airline has no station yet (none of its flights or bases touch it) is highlighted on the card. The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
-  it, and the card says **no cabin chosen** while neither the card nor the order names one. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
+  it, and the card says **no cabin chosen** while neither the card nor the order names one. Beside the box (since
+  21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason ("JFK–LHR is
+  72% of block time: Leisure Plus", or "no route over 65%: the most seats"; Ryanair Standard only), and **Use the
+  suggestion** sets it in one tap; a cabin that differs from the suggestion shows in amber. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
   points at it, goes; one that has flown or been paid for is retired; one in service just leaves the list.
 - **File into planner** (on an arrived aircraft's plan card, or from Today's Aircraft to file): the planner reads the
   airline's schedule from the game and compares each flight on the card. When every one is the same, it files at once.
@@ -182,7 +188,7 @@ important first; nothing folds.
   cabin and logs the first fit at that cabin's price: the plan card's cabin, else the order's. With neither, it sets no
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
   as a round trip, launched today, and then opens the aircraft.
-- **The aircraft pop-up** (from Today's needs attention, Systems' cabins and checks, or a frequency's aircraft on
+- **The aircraft pop-up** (from Today's needs attention, Systems' checks, or a frequency's aircraft on
   Routes): its base, block hours a day, legs a week, maintenance, the one-week check, every issue and its flights, with
   **Mark checked** and **Open in Tails**. While the checks are off (*aircraft_check_after_days* 0), there's no check line and no **Mark checked**.
 - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
@@ -318,7 +324,12 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
   cash forecast prices an order with it. **An airline's own order cabin**, below the table, is for an airline whose orders
   come with another layout (Ryanair's Standard cabins): pick the airline and type and **Add** (it starts as the type's),
   then pick its layout; **remove** gives it the type's again. Each pick saves as one change.
-- **Market defaults** and **Service profiles:** what a new frequency starts with.
+- **Markets** (Market defaults until 21 Oct): each market's **layout**, the cabin it calls for (Standard, Leisure,
+  Leisure Plus or Comfort; manual §5): a plan card takes it where one route of the market flies more than 65% of the
+  aircraft's block time, unless the route has its own choice. Pick it from the box; it saves as one change. A market
+  keeps nothing else since 21 Oct: its default aircraft, cabin and fares went (a new frequency launches at the airline's
+  launch fare).
+- **Service profiles:** what a new frequency starts with.
 - **Removed routes:** **restore** (or **restore all**) any route removed from Routes.
 - **Night bans:** airports that close overnight (find, change, remove, **Add**). Flights inside a ban are flagged on
   their route.
@@ -326,12 +337,14 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 - **Time zones:** the game runs standard time all year. Override an airport only if the game disagrees; **Set** lists
   the flights whose UTC time moves and asks first, as Routes does.
 - **Storage:** whether saving works, with **Save now**; nothing is kept on the device.
-- **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**. Importing a backup and clearing
+- **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**, whose last column (since 21 Oct)
+  is the layout each flight's route calls for (its own choice, else its market's). Importing a backup and clearing
   everything are gone with the tables (design §14): the nightly backup and the change log are the safety net.
 
 ## Systems
-*Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board, Capture, Cabins and aircraft
-checks, and Review's Manual entry). The Systems board stays open at the top; the boards under it are folded on
+*Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board, Capture and aircraft checks,
+and Review's Manual entry; Check's Cabins board went on 21 Oct: we don't refit, and the plan card suggests the cabin on
+Tails). The Systems board stays open at the top; the boards under it are folded on
 arrival: click a board's title to open or fold it, or use **Expand all** and **Collapse all**. Each button is saved on
 its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
 - **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when,
@@ -361,9 +374,6 @@ its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
   or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads typed or
   pasted change only the days and flights you enter; captured days stay as they are. A typed figure wins over the
   capture's where it is newer.
-- **Cabins:** each aircraft's cabin against the usual cabin of the markets it flies. **Refitted to …** records a refit
-  done in the game: the aircraft takes the cabin and the refit's cost (0.2M, the setting *cabin_refit_cost*) counts as a
-  loss that day. **Keep as is** takes an aircraft off the list; **Show again**, under "kept as is", brings it back.
 - **Aircraft checks:** one check a week after an aircraft is scheduled, with the aircraft's issues and its routes' load
   pills; the ones coming up by day. You do these in the game, and only you mark them checked (**Mark checked**). The
   board isn't shown while the checks are off: the setting *aircraft_check_after_days* at 0 (manual §1, none since

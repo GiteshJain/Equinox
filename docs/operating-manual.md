@@ -58,13 +58,10 @@ Until each is built and merged, the rules below stand as they are.
 - **Decided 21 Oct, for the Building chat:** a **fares userscript** that makes the fare plan's changes in the game
   for Gitesh (Ticket price adjustment, route by route, both directions, economy and business together where they move
   alike), one change at a time with a pause, while he watches; it reads the planned changes with the capture key.
-  Gitesh's decision, knowing the game's terms (simulogics §4 II) don't allow scripts. Needs the game page's HTML from
-  Gitesh first. Until it's built, he makes the changes by hand from Performance's list.
-- **Decided 21 Oct, for the Building chat:** cabins follow the new rule (§5; spec
-  `docs/specs/2026-10-21-cabins-new-rule.md`), after the fare ladder: the Cabins board and its refit settings go; each
-  market keeps only its layout (no default type, fare % or old cabin); the plan card suggests its cabin by the 65% rule
-  and warns when the chosen one differs. Until then the Scheduling chat applies the rule by hand. The planner work's
-  next big step after that is competition analysis with its ranked openings (Gitesh, 21 Oct: before the route page).
+  Gitesh's decision, knowing the game's terms (simulogics §4 II) don't allow scripts. Spec
+  `docs/specs/2026-10-21-fares-userscript.md`. Until it's built, he makes the changes by hand from Performance's list.
+- **Next for the Building chat (Gitesh, 21 Oct):** the planner work's next big step is competition analysis with its
+  ranked openings, before the route page.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
@@ -459,14 +456,15 @@ less important than another, point to point rather than hubs).*
   New Virgin Heathrow routes (Manchester and Edinburgh to Heathrow, as feeders for the group's long-haul there) are a
   late-game step, once the other hubs are built out. *Since 21 Oct (Gitesh).*
 - **The cabin is chosen with each order,** among the layouts set up for its variant: if one route takes more than
-  **65% of the aircraft's block time**, the layout that route's market calls for (Standard, Leisure, Leisure Plus or
-  Comfort); otherwise the layout with the most seats. Ryanair flies Standard only. The markets' stored default
-  configurations (Reference → markets) predate the new variants' layouts and are used only to tell which layout a
-  market calls for. A refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service. *Since 20 Oct · why
-  (Gitesh): the new layouts aren't captured by the defaults.*
+  **65% of the aircraft's block time** (`settings.cabin_route_share_pct`), the layout that route's market calls for
+  (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins
+  over it); otherwise the layout with the most seats. Ryanair flies Standard only. We don't refit. The plan card
+  suggests its cabin by this rule (Tails → Deliveries, with **Use the suggestion**) and the card check flags a card whose
+  cabin is missing or differs. *Since 20 Oct · why (Gitesh): the new layouts aren't captured by the defaults. Built 21 Oct
+  (spec `docs/specs/2026-10-21-cabins-new-rule.md`): the Cabins board and its refit settings went, and each market keeps
+  only its layout.*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
-  (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. Prices per
-  market are in the planner (`markets`). *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low
+  (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low
   then raising across 50 routes is too much work.*
 - **The fare ladder, every Saturday.** Each cabin of each route has a **level**: its fare as a % of the game's default
   price (launch: 100%, Ryanair 85%). At the Saturday review, from the week's captured flights in that cabin:
@@ -637,6 +635,7 @@ Kept so they don't come back. Newest first.
 | Ended | Old rule | Replaced by |
 |---|---|---|
 | 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |
+| 21 Oct | Refits: a refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service; Systems' Cabins board listed each aircraft whose cabin differed from what most of its flying wanted (a refit paying from 70%, `cabin_refit_share_pct`), with Refitted to, Keep as is and Show again; each market kept a default aircraft, default cabin and fares (Reference → market defaults), used only to tell which layout it called for | We don't refit: the cabin is chosen with each order, and the plan card suggests it by the 65% rule (`cabin_route_share_pct`), warning when the chosen one differs; each market keeps only its layout (`markets.layout`) (§5). Why: Gitesh, 21 Oct; the defaults didn't capture the new layouts |
 | 21 Oct | Fare changes are occasional tests through the fare plan, reviewed on Saturdays | The fare ladder: each Saturday, up 5 points on every route and cabin that sold out all week, hold at 90–99%, down under 90%; at most 20 points above launch for now (§5). Why: Gitesh, option A of the fare ladder brief; almost every flight sells out and no fare had been raised |
 | 20 Oct | Order rotation: each airline's orders rotate big market → more frequency → smaller feeders (Check → Growth → Next move, Log an order as) | Route first, then the airline: each evening's proposal picks by the route we most want to fly (§3). Why: Gitesh, 20 Oct; the board goes with the Today, Performance and Systems build |
 | 20 Oct | Within a star band, the bigger type goes where a heavy rival flies the pair or the sector is long | The smaller type wins, heavy routes included: more flights on more aircraft; a bigger variant only for reach (§3). Why: Gitesh, bookings are divided among flights and more flights give more connections |
