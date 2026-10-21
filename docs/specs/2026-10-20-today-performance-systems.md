@@ -55,15 +55,13 @@ airline cards. Needs attention, Coming up and the to-do board move to Today, so 
   too, and the pull request says which.
 - **Check and Review as screens.** Their boards move as above; their files go once nothing imports them.
 
-## Decisions Gitesh makes before the build (in the Building chat)
-1. **"Today" or "Tonight"?** Captures land at any hour (20 Oct's came in at 11:16), so this spec says **Today**.
-2. **The order rotation** (Check → Growth → "Next move for each airline", with **Log an order as** Big, Frequency or
-   Feeder). This came before "route first, then airline" (manual §3, 19 Oct): each evening's proposal now picks by the
-   route we most want to fly. Recommendation: **retire it.** That means the board, its buttons and the manual's "Order
-   rotation" rule (moved to Retired rules). `growth_log` keeps its rows, but nothing new is written. The other choice is
-   to keep it on Performance as it is.
-3. **The to-do board leaves Home** for Today, as above. Recommendation: yes. The other choice is to keep it in both
-   places.
+## Decisions (Gitesh, 20 Oct: "go", on the recommendations)
+1. **Today**, not Tonight: captures land at any hour (20 Oct's came in at 11:16).
+2. **The order rotation is retired** (Check → Growth → "Next move for each airline", with **Log an order as** Big,
+   Frequency or Feeder). It came before "route first, then airline" (manual §3, 19 Oct): each evening's proposal now
+   picks by the route we most want to fly. The board and its buttons go; `growth_log` keeps its rows, but nothing new
+   is written. The manual's rule was retired on 20 Oct, directly, as a rule change.
+3. **The to-do board leaves Home** for Today.
 
 ## Saves
 Every action that moves keeps its `planner_save()` call and its rows. The actions are:
@@ -77,7 +75,7 @@ Every action that moves keeps its `planner_save()` call and its rows. The action
 - the fare plan's add and remove.
 
 `tests/planner_saves_test.py` drives each one from its new screen. **Its recorded rows don't change**, except Log an
-order as, which goes if decision 2 retires it.
+order as, which goes (decision 2).
 
 ## Checks
 - `bash tests/run_all.sh` all green.
@@ -97,7 +95,7 @@ order as, which goes if decision 2 retires it.
 - `docs/planner-guide.md`: Today, Performance and Systems replace Check, Review and Hubs; Home shortened.
 - `docs/architecture.md`: the Planner row (screens, sources, saves).
 - `docs/playbook.md`: every "Check → …" and "Review → …" path (24 of them), and the evening steps on Today.
-- `docs/operating-manual.md`: the paths it names (13), and decision 2's outcome.
+- `docs/operating-manual.md`: the paths it names (13).
 - `tests/README.md` where it names screens.
 - The Building chat updates the project copies after the merge.
 
@@ -105,4 +103,4 @@ order as, which goes if decision 2 retires it.
 - The fare ladder, the route table's sparklines and the fare on each route (step 2).
 - The route page (step 3).
 - Competition analysis and rival alerts on Today (step 4; they need the world scans compared).
-- Any change to a figure, a database function or a rule, apart from decision 2.
+- Any change to a figure, a database function or a rule, apart from removing the order rotation (decision 2).
