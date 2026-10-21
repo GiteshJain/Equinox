@@ -55,6 +55,11 @@ Until each is built and merged, the rules below stand as they are.
 - **The fare ladder is built** (21 Oct, pull request #56): `fare_ladder()` works out each route's level and Saturday's
   moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause waits for
   competition analysis; until then the Saturday review checks the scan by hand.
+- **Decided 21 Oct, for the Building chat:** a **fares userscript** that makes the fare plan's changes in the game
+  for Gitesh (Ticket price adjustment, route by route, both directions, economy and business together where they move
+  alike), one change at a time with a pause, while he watches; it reads the planned changes with the capture key.
+  Gitesh's decision, knowing the game's terms (simulogics §4 II) don't allow scripts. Needs the game page's HTML from
+  Gitesh first. Until it's built, he makes the changes by hand from Performance's list.
 - **Decided 21 Oct, for the Building chat:** cabins follow the new rule (§5; spec
   `docs/specs/2026-10-21-cabins-new-rule.md`), after the fare ladder: the Cabins board and its refit settings go; each
   market keeps only its layout (no default type, fare % or old cabin); the plan card suggests its cabin by the 65% rule
