@@ -38,7 +38,10 @@
 --     L6 (launch 85%, as Ryanair): ZW1 launched 30 Sep 2026 at the default price (300) and cut to 85% (255) on 5 Oct, like
 --        Ryanair's four early cuts: its baseline is its fare on 20 Oct 2026, the latest captured day on or before 21 Oct,
 --        so its index is 85 (the first fare would make it 72); ZW2 with no flights on or before 21 Oct but the daily
---        history's economy fare that day (255): index 85.
+--        history's economy fare that day (255): index 85. ZW3 (business seats; migration 20261022030000, spec
+--        docs/specs/2026-10-21-links-and-business-index.md §2) the same in both cabins: only the daily history holds its
+--        days up to 21 Oct, economy at 255 on 20 and 21 Oct, business at 765 on 20 Oct with business passengers and at 900
+--        on 21 Oct with none (no one paid it: not a baseline); its business index is 85 from the 20 Oct fare.
 --     L7 (launch 100%), the rival pause (competition analysis, spec §2): every route sold out 14 of 14. The world's finished
 --        scans are 4, 11, 16 and 17 Jan (and one still running on 18 Jan); Quest Air, a rival, flies L7's pairs: ZQ1 started
 --        on 16 Jan (paused: "rival Quest Air started here on 16 Jan: paused until 23 Jan"); ZQ2 7 → 14 on 16 Jan (paused,
@@ -52,7 +55,9 @@
 --   4. L5 and L6, the set-back changes and the fare index (spec part 3): none for a route on the fare plan this week, a new
 --      route, or one not captured since its newest rotation launched; each flight compared; both classes in one action;
 --      the 21 Oct baseline (Ryanair's early cuts), the daily history's, and no business index once its first days are
---      archived. (L1's ZB6, below, is the route at 100% against 110% with its two fix actions at +10%.)
+--      archived with no business fare in the daily history; since 22 Oct a business baseline only the daily history holds,
+--      from a day with business passengers. (L1's ZB6, below, is the route at 100% against 110% with its two fix actions
+--      at +10%.)
 --   5. L1: each move, level and reason; the counts; what Put on the fare plan writes; the game actions route by route, in
 --      order, with no base action (a route between two bases is a route like any other); ZB6 set back first.
 --   6. L2: Ryanair's 85% launch, the cap at 105% and a step up to the cap; a capped route gets no action.
@@ -202,7 +207,7 @@ begin
   insert into public.airports (code, utc_offset)
   select c, 0 from unnest(array['ZA1', 'ZA2', 'ZB1', 'ZB2', 'ZB3', 'ZB4', 'ZB5', 'ZB6', 'ZC1', 'ZC2', 'ZC3', 'ZC4', 'ZR1', 'ZS1', 'ZS2', 'ZS3', 'ZS4',
                                 'ZT1', 'ZU1', 'ZU2', 'ZU3', 'ZU4', 'ZU5', 'ZD1', 'ZE1', 'ZE2', 'ZE3', 'ZE4', 'ZE5', 'ZE6', 'ZE7', 'ZE8',
-                                'ZE9', 'ZEA', 'ZK1', 'ZK2', 'ZK3', 'ZK4', 'ZK5', 'ZK6', 'ZK7', 'ZK8', 'ZKA', 'ZW0', 'ZW1', 'ZW2',
+                                'ZE9', 'ZEA', 'ZK1', 'ZK2', 'ZK3', 'ZK4', 'ZK5', 'ZK6', 'ZK7', 'ZK8', 'ZKA', 'ZW0', 'ZW1', 'ZW2', 'ZW3',
                                 'ZQ0', 'ZQ1', 'ZQ2', 'ZQ3', 'ZQ4', 'ZQ5']) c
   on conflict (code) do update set utc_offset = excluded.utc_offset;
   insert into public.worlds (name, game_host, kind) values ('fare ladder test', 'fare-ladder.test', 'exclusive') returning id into w;
@@ -360,6 +365,14 @@ begin
   perform pg_temp.ladder_day(w, l6, 'ZW0', 'ZW1', 71, date '2026-10-23', 255);
   r := pg_temp.ladder_route(w, l6, 'ZW0', 'ZW2', 72, 14, 14, date '2026-09-30', ty, cy, 255, with_base => false);
   perform pg_temp.ladder_history(w, l6, r, 'ZW0', 'ZW2', date '2026-10-21', 255);
+  -- ZW3, business seats: its days up to 21 Oct only in the daily history, both cabins (the business fare since 22 Oct);
+  -- business at 765 (85% of 900) on 20 Oct with business passengers, at 900 on 21 Oct with none; in the week 255 and 765
+  r := pg_temp.ladder_route(w, l6, 'ZW0', 'ZW3', 73, 14, 14, date '2026-09-30', ty, cj, 255, 14, 765, with_base => false);
+  insert into public.route_days (world_id, airline_id, route_id, origin_code, dest_code, day, flights, passengers, seats, eco_fare_avg,
+                                 eco_pax, eco_seats, bus_pax, bus_seats, bus_fare_avg)
+  select w, l6, r, h.o, h.d, h.day, 1, 168 + h.bus_pax, 180, 255, 168, 168, h.bus_pax, 12, h.bus_fare
+    from (values ('ZW0', 'ZW3', date '2026-10-20', 12, 765), ('ZW3', 'ZW0', date '2026-10-20', 12, 765),
+                 ('ZW0', 'ZW3', date '2026-10-21', 0, 900), ('ZW3', 'ZW0', date '2026-10-21', 0, 900)) h(o, d, day, bus_pax, bus_fare);
 
   -- L7: the rival pause; ZQ5's second rotation launched 16 Jan (a flight added)
   for x in select * from (values ('ZQ1', 81), ('ZQ2', 82), ('ZQ3', 83), ('ZQ4', 84), ('ZQ5', 85)) v(dest, k) loop
@@ -447,10 +460,17 @@ begin
   d := private.fig_fare_ladder(l6, t);
   select string_agg(x ->> 'dest' || ' ' || (x ->> 'fare_index') || ' ' || (x ->> 'index_matches') || ' ' || (x ->> 'baseline_on') || ' ' || trim_scale((x ->> 'baseline_fare')::numeric),
                     '; ' order by x ->> 'dest') into got
-    from jsonb_array_elements(d -> 'routes') x;
+    from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' <> 'ZW3';
   assert got = 'ZW1 85.0 true 2026-10-20 255; ZW2 85.0 true 2026-10-21 255' and (d ->> 'off_level')::int = 0 and d #>> '{settings,baseline_day}' = '2026-10-21',
     'L6''s routes aren''t at 85 from their fares of 20 and 21 Oct 2026: ' || coalesce(got, 'none');
-  raise notice 'set back (spec part 3): a route at 100%% against 110%% gets two fix actions at +10%% (both classes in one action each way when both cabins are off), first in the list with the reason; none for one on the fare plan this week, a new route, or one not captured since its newest rotation launched; each flight compared (one at 98%% among four, the day''s average 99.5); a cut early in October read from its fare of 20 Oct 2026 (85, not 72), the daily history''s fare of 21 Oct, no business index once its first days are archived';
+  -- ZW3 (since 22 Oct): both cabins' baselines from the daily history alone, business's from 20 Oct (765), the day with
+  -- business passengers, not 21 Oct (900, no one paid it); both at 85, nothing set back
+  select string_agg(x ->> 'cabin' || ' ' || (x ->> 'fare_index') || ' ' || (x ->> 'index_matches') || ' ' || (x ->> 'baseline_on') || ' '
+                    || trim_scale((x ->> 'baseline_fare')::numeric) || ' ' || (x ->> 'fix'), '; ' order by x ->> 'cabin') into got
+    from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZW3';
+  assert got = 'business 85.0 true 2026-10-20 765 false; economy 85.0 true 2026-10-21 255 false',
+    'ZW3''s baselines aren''t the daily history''s, business 765 on 20 Oct and economy 255 on 21 Oct, both at 85: ' || coalesce(got, 'none');
+  raise notice 'set back (spec part 3): a route at 100%% against 110%% gets two fix actions at +10%% (both classes in one action each way when both cabins are off), first in the list with the reason; none for one on the fare plan this week, a new route, or one not captured since its newest rotation launched; each flight compared (one at 98%% among four, the day''s average 99.5); a cut early in October read from its fare of 20 Oct 2026 (85, not 72), the daily history''s fare of 21 Oct, no business index once its first days are archived with no business fare in the daily history, and since 22 Oct a business baseline from the daily history alone (85 from 20 Oct, a day with no business passengers skipped)';
 end
 $test$;
 

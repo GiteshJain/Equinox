@@ -104,6 +104,12 @@ flowchart LR
    - loads go to `game_flights` too. A flight's money and its loads are matched by route and time into one row
      (`private.match_flights()`) as the pages arrive, using the airports' UTC offsets (loaded by #13, pull request 4).
      A row stays one-sided until its partner arrives (the statement covers 3 days, the loads page 24 hours);
+   - **the links** (since 22 Oct, spec `docs/specs/2026-10-21-links-and-business-index.md`): after every statement and
+     loads page, once the matching is done, each flight still without them gets its route and aircraft
+     (`private.fill_flight_links()`: the schedule's leg with that number and direction, else the airline's route on its
+     airports, either way round, one that isn't removed first; the aircraft by registration), so a flight carries them
+     from the evening it's captured. A flight whose money came first is linked by its number once its loads join it.
+     Until 22 Oct they were filled only once, at the 10 Oct data load;
    - payments ahead go to `game_events`;
    - the balance sheet goes to `game_balance` (account 2800 is cash), the income statement to `game_pnl`, each with
      its capture day (the evening it was taken, 10:00 to 10:00 UTC). A second capture the same UTC date replaces a
@@ -113,7 +119,8 @@ flowchart LR
      all five pages) also takes the snapshot (`private.take_snapshot()`): each airline's fleet, weekly schedule and
      cash into `airline_days`, and the flights, passengers, money and payments of that UTC day and the two before
      (recomputed, since a late capture can still add to them) into `airline_days` and `route_days` (each route day with its
-     economy and business passengers and seats, business fare and block minutes since 22 Oct); one `job_runs` row.
+     economy and business passengers and seats, business fare and block minutes since 22 Oct, and, the links filled first
+     since 22 Oct, its route); one `job_runs` row.
      A second complete capture the same evening takes it again. With no complete capture, the 10:00 UTC job takes it
      (step 6);
    - the views `game_loads`, `game_flight_pnl` (profit per flight) and `game_ops_recent` (the last 24 hours) give
