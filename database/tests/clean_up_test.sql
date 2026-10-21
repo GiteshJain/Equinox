@@ -122,6 +122,14 @@ begin
     b := jsonb_set(b, '{capture_status,airlines}', coalesce((select jsonb_agg(x - array['last_at', 'verdict', 'verdict_words', 'verdict_at', 'verdict_day', 'verdicts'] order by i)
                                                               from jsonb_array_elements(b #> '{capture_status,airlines}') with ordinality e(x, i)), '[]'::jsonb));
   end if;
+  -- the weekly report's three biggest competitors (20261022040000) add each airline's competitors, self and scans to the
+  -- figures on purpose (competition_test.sql and report_competitors_test.sql check them): while it is pending (the figures
+  -- before have none), they're left out here, so the rest must still be exactly as before. Once it is live, the figures
+  -- before carry them too and nothing is left out.
+  if not exists (select 1 from jsonb_array_elements(b -> 'airlines') x where x ? 'competitors') then
+    a := jsonb_set(a, '{airlines}', coalesce((select jsonb_agg(x - array['competitors', 'self', 'scans'] order by i)
+                                              from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
+  end if;
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;
