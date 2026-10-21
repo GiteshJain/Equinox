@@ -68,4 +68,8 @@ across the group, and we've never raised a single fare.
   hit to the airline's image, a slower ladder or a cap would be safer.
 
 ## Outcome
-<Gitesh's decision and the date>
+**A, the weekly ladder** (Gitesh, 21 Oct). The game changes fares in bulk (**Ticket price adjustment**: from, to,
+service profile, + or − %, baseline default price or current, by class), so the work is a handful of actions per
+airline, not 100–200. He expects the game's passengers to be price-sensitive and higher fares may hurt image, so the
+ladder goes **at most 20 points above launch for now**, lifted only when loads and image show it's safe. Manual §5
+updated the same day; the old rule is under Retired rules.

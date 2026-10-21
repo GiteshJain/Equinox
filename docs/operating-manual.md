@@ -445,8 +445,22 @@ less important than another, point to point rather than hubs).*
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. Prices per
   market are in the planner (`markets`). *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low
   then raising across 50 routes is too much work.*
-- **Fare changes are occasional tests** through the planner's fare plan, reviewed together once a week at the Saturday
-  review. They never appear in Needs attention. *Since 28 Sep and 8 Oct.*
+- **The fare ladder, every Saturday.** Each cabin of each route has a **level**: its fare as a % of the game's default
+  price (launch: 100%, Ryanair 85%). At the Saturday review, from the week's captured flights in that cabin:
+  - **up 5 points** when every flight sold out (at least 5 departures in the 7 days);
+  - **hold** when 90–99% sold out;
+  - **down 5 points** when under 90% sold out, then hold for 2 weeks before climbing again.
+
+  New routes start after their first 7 days (§3). The level never goes under launch, nor under the 60% floor where
+  another player flies the route. **For now it goes at most 20 points above launch** (120%, Ryanair 105%): the game's
+  passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads
+  and image show it's safe. A rival starting on the pair (from the scan) pauses that route for a week. The planner
+  works out each route's level and Saturday's moves, and lists the fewest changes to make in the game: **Ticket price
+  adjustment** with the calculation baseline **default price**, so each change sets the level itself, whole bases first
+  and single routes after. The fare plan records them and the next capture ticks each off. Fare moves never appear in
+  Needs attention. The numbers are settings (step, up, down, hold weeks, cap). *Since 21 Oct · why (Gitesh, option A
+  of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at
+  launch fares, no fare had ever been raised, and each 5% step that holds is worth about 5M a week.*
 
 ## 6. Interline
 - **Our airlines interline with each other.**
@@ -492,8 +506,8 @@ less important than another, point to point rather than hubs).*
     why: Gitesh, it repeated what four weekly reports already say;*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 10 minutes or less);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
-  - the weekly review together: the fare plan (fare tests on routes marked raise fares, §5), each airline's route
-    list for the next two weeks (§4), aircraft under 12 block hours a day (§4), orders and hubs first.
+  - the weekly review together: the fare ladder's moves (§5), aircraft under 12 block hours a day (§4), orders and
+    hubs first.
 
   *Since 5–8 Oct.*
 - **Every night, after the capture:** an automatic backup copies the database and the site's files, restores the copy
@@ -598,6 +612,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 21 Oct | Fare changes are occasional tests through the fare plan, reviewed on Saturdays | The fare ladder: each Saturday, up 5 points on every route and cabin that sold out all week, hold at 90–99%, down under 90%; at most 20 points above launch for now (§5). Why: Gitesh, option A of the fare ladder brief; almost every flight sells out and no fare had been raised |
 | 20 Oct | Order rotation: each airline's orders rotate big market → more frequency → smaller feeders (Check → Growth → Next move, Log an order as) | Route first, then the airline: each evening's proposal picks by the route we most want to fly (§3). Why: Gitesh, 20 Oct; the board goes with the Today, Performance and Systems build |
 | 20 Oct | Within a star band, the bigger type goes where a heavy rival flies the pair or the sector is long | The smaller type wins, heavy routes included: more flights on more aircraft; a bigger variant only for reach (§3). Why: Gitesh, bookings are divided among flights and more flights give more connections |
 | 20 Oct | Cabin follows the market default, whatever the aircraft | The cabin is chosen with each order: the layout of the route flying over 65% of block time, else the layout with the most seats (§5). Why: Gitesh, the defaults don't capture the new layouts |

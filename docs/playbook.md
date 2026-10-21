@@ -319,8 +319,10 @@ first.
    like a real airline's news. No cabins, bank times or other internal detail, and no mention of the game. (Delivery
    posts go out on the day, from the Scheduling chat: one per airline per day of deliveries.)
 5. **The weekly review together:**
-   - **The fare plan:** what last week's fare tests did (Performance → the airline → Fare plan; each change is spotted by the
-     next capture), and which new tests to make. Fare changes are only ever reviewed here, never as Needs attention.
+   - **The fare ladder:** each route and cabin goes up 5 points if it sold out all week, holds at 90–99%, and goes down
+     under 90%, at most 20 points above launch for now (manual §5). Make the moves in the game with **Ticket price
+     adjustment**, baseline **default price**. Until the planner lists them (step 2), Claude lists them here. Fare
+     moves are only ever reviewed here, never as Needs attention.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
      under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
@@ -374,7 +376,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | After a merge | Systems → the Systems board → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |
 | Before an order | Today → Orders, then Performance → the airline → Cash, next 14 days | **safe**, 0.5M at the lowest point | Wait, or order a smaller or cheaper type |
 | Saturday | World scan age | Under 8 days | Run the scan first |
-| Saturday | Fare plan, route profit, growth signals | Reviewed together | Decide fare tests and orders |
+| Saturday | Fare ladder, route profit, growth signals | Reviewed together | Make the fare moves; decide orders |
 | Saturday | Connection audit | Near misses fixed where a 10-minute retime does it | Retime on Routes and in the game |
 | First Saturday | Supabase usage page | Egress under 4 GB; website under 1,000 calls a day | A brief at the next review (paid plan is $25 a month) |
 | By the 3rd | Systems → the Systems board → Monthly archive | Ran this month | Ask the Building chat |
