@@ -565,18 +565,21 @@ export interface LadderRoute {
   /** What Put on the fare plan writes: a level that changes, or a hold that follows a step down. */
   to_plan: boolean;
 }
+/** One Ticket price adjustment, route by route only since 21 Oct (spec docs/specs/2026-10-21-fare-actions-by-route.md):
+ *  never a whole base, each direction its own action (From hub to dest, then From dest to hub). */
 export interface LadderAction {
   n: number;
-  kind: "base" | "route";
-  base?: string;
-  route?: string;
-  cabin: LadderCabin;
+  /** The route, "JFK–ORD". */
+  route: string;
+  /** The classes it changes: both when the route's two cabins move to the same new level, else one. */
+  classes: LadderCabin[];
   from: string;
   to: string;
   level: number;
   sign: "+" | "-";
   pct: number;
   baseline: string;
+  /** In the game's words, naming the classes: "From JFK to ORD: +5% of the default price, economy and business". */
   text: string;
 }
 export interface LadderAnswer {
@@ -594,6 +597,9 @@ export interface LadderAnswer {
 
 /** This Saturday's moves in one line: "12 up, 30 hold, 2 down". */
 export const ladderLine = (m: LadderAnswer["moves"]): string => `${m.up} up, ${m.hold} hold, ${m.down} down`;
+/** How many changes to make in the game, for the airline's heading: "24 changes in the game", "1 change in the game",
+ *  "no changes in the game". */
+export const changesWords = (n: number): string => (n ? `${n} change${n === 1 ? "" : "s"} in the game` : "no changes in the game");
 const pts = (v: number): string => String(Math.round(v * 10) / 10);
 /** Steps above launch in words: "launch", "1 step up", "3 steps up", "1 step under launch". */
 export function stepWords(steps: number): string {

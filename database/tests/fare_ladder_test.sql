@@ -1,4 +1,5 @@
--- The fare ladder (manual §5; migration 20261021120000_fare_ladder.sql; spec docs/specs/2026-10-21-fare-ladder.md). Run by
+-- The fare ladder (manual §5; migrations 20261021120000_fare_ladder.sql and 20261021190000_fare_actions_by_route.sql;
+-- specs docs/specs/2026-10-21-fare-ladder.md and docs/specs/2026-10-21-fare-actions-by-route.md). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says which (codes, levels, moves and words of the hand-made routes only).
 -- Everything is made in a world of its own, so nothing on the copy is touched or counted.
@@ -8,25 +9,29 @@
 --     L1 (launch 100%; bases ZA1 then ZA2, economy only): ZA1 to ZB1, ZB2, ZB3, ZB4 sold out 14 of 14 (up to 105); ZB5 13
 --        of 14 (hold); ZB6 at 110% since 12 Jan, 10 of 14 (down to 105, its fare index 100 flagged); ZA1–ZA2 14 of 14 (up:
 --        a route between two of its bases); ZA2 to ZC1 14 of 14 (up), ZC2, ZC3, ZC4 13 of 14 (hold).
---        So 6 up, 4 hold, 1 down, and the game actions: ZA1's two base actions at +5% (most of its routes move together),
---        then ZA1–ZB5 back at +0% and ZA2–ZC1 at +5% (few of ZA2's routes move, so single routes; ZA1–ZA2 is covered by
---        ZA1's base actions).
+--        So 6 up, 4 hold, 1 down, and the game actions route by route only (since 21 Oct: never a whole base): each of the
+--        7 routes that move, From hub to dest then From dest to hub, economy; the 4 that hold get none.
 --     L2 (launch 85%, as Ryanair; economy only): ZS1 up to 90; ZS2 at 105 capped; ZS3 at 102 up to the 105 cap; ZS4 at 90
---        since 12 Jan (a ladder row: fare 85 → 88 on 13 Jan, 90 from 14 Jan) up to 95. Few move together: single routes.
+--        since 12 Jan (a ladder row: fare 85 → 88 on 13 Jan, 90 from 14 Jan) up to 95. Capped ZS2 gets no action.
 --     L3 (launch 55%): ZU1 and ZU2 flown by a rival in the latest scan, ZU5 by L4 (our own airline): 62 down to the 60%
 --        floor, 60 holds at it, 62 down to 60; ZU3 at 60 down to 55 (launch), ZU4 at launch holds; all 10 of 14.
 --     L4 (launch 100%; business seats): ZE1 at 120 in economy (capped) while business climbs from 100 (each cabin on its
 --        own); ZE2 stepped down on 12 Jan (held, with a hold to record); ZE3 stepped down on 5 Jan (two weeks: climbs
 --        again); ZE4 launched 15 Jan (new: holds); ZE5 only 4 departures (holds); ZE6 up already on the fare plan this
 --        Saturday; ZE7 at 105 since 12 Jan with its fare 300 → 315 (index 105, matches); ZE8 a business ladder row from 900
---        (930 on 13 Jan, 945 from 15 Jan).
+--        (930 on 13 Jan, 945 from 15 Jan); ZE9 sold out in both cabins, both up from 100 to 105 (one action each way with
+--        both classes); ZEA economy at 105 since 12 Jan up to 110 and business up from 100 to 105 (different levels: one
+--        action each way for each cabin).
 --   1. The six settings, in every world, described; fare_plan's two new columns described, and a move it doesn't know refused.
 --   2. Who may call fare_ladder(): signed in only, stable, as owner with an empty search path, described; its builder internal.
---   3. L1: each move, level and reason; the counts; what Put on the fare plan writes; the game actions, in order.
---   4. L2: Ryanair's 85% launch, the cap at 105% and a step up to the cap; single routes when few move together.
+--   3. L1: each move, level and reason; the counts; what Put on the fare plan writes; the game actions route by route, in
+--      order, with no base action (a route between two bases is a route like any other).
+--   4. L2: Ryanair's 85% launch, the cap at 105% and a step up to the cap; a capped route gets no action.
 --   5. L3: the 60% floor where another player flies the pair (a rival in the scan, or our own airline), and the launch floor.
 --   6. L4: the cap, each cabin on its own, the 2-week hold after a step down and after it, a new route, too few departures,
---      a move already on the fare plan this Saturday, and the fare index.
+--      a move already on the fare plan this Saturday, and the fare index. The game actions: one cabin moving (economy or
+--      business), both cabins to the same level (both classes in one action each way) and to different levels (one
+--      action each way per cabin); a held, new, capped or few-departures route never listed.
 --   7. fare_plan_status(): a ladder row is seen when the fare moves by its ratio within 1% (not at half the change), in its
 --      own cabin.
 --   8. Signed out and an account that isn't staff are refused; staff get what postgres gets.
@@ -126,7 +131,8 @@ begin
   perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'fare ladder test', true);
   insert into public.airports (code, utc_offset)
   select c, 0 from unnest(array['ZA1', 'ZA2', 'ZB1', 'ZB2', 'ZB3', 'ZB4', 'ZB5', 'ZB6', 'ZC1', 'ZC2', 'ZC3', 'ZC4', 'ZR1', 'ZS1', 'ZS2', 'ZS3', 'ZS4',
-                                'ZT1', 'ZU1', 'ZU2', 'ZU3', 'ZU4', 'ZU5', 'ZD1', 'ZE1', 'ZE2', 'ZE3', 'ZE4', 'ZE5', 'ZE6', 'ZE7', 'ZE8']) c
+                                'ZT1', 'ZU1', 'ZU2', 'ZU3', 'ZU4', 'ZU5', 'ZD1', 'ZE1', 'ZE2', 'ZE3', 'ZE4', 'ZE5', 'ZE6', 'ZE7', 'ZE8',
+                                'ZE9', 'ZEA']) c
   on conflict (code) do update set utc_offset = excluded.utc_offset;
   insert into public.worlds (name, game_host, kind) values ('fare ladder test', 'fare-ladder.test', 'exclusive') returning id into w;
   insert into public.settings (world_id, airline_id, key, value, unit, description)
@@ -212,6 +218,10 @@ begin
   update public.game_flights set bus_fare = case game_date when '2030-01-12' then 900 when '2030-01-13' then 930 when '2030-01-14' then 930 else 945 end
    where airline_id = l4 and registration = 'ZL-48';
   insert into t_fl values ('ze8', to_jsonb(r));
+  -- both cabins sold out: to the same level (ZE9), and to different levels (ZEA, its economy a step up already)
+  r := pg_temp.ladder_route(w, l4, 'ZD1', 'ZE9', 50, 14, 14, date '2029-12-01', ty, cj, 300, 14);
+  r := pg_temp.ladder_route(w, l4, 'ZD1', 'ZEA', 51, 14, 14, date '2029-12-01', ty, cj, 315, 14);
+  perform pg_temp.ladder_row(w, l4, r, 'economy', 105, 'up', date '2030-01-12');
   -- L4 flies ZU5–ZT1 too (no flights captured): the pair L3 flies is another of our airlines'
   r := pg_temp.ladder_route(w, l4, 'ZU5', 'ZT1', 49, 0, 0, date '2029-12-01', ty, cj);
 
@@ -252,15 +262,24 @@ begin
   assert (select string_agg(x ->> 'dest', ',' order by x ->> 'dest') from jsonb_array_elements(d -> 'routes') x where not (x ->> 'index_matches')::boolean) = 'ZB6'
      and (select (x ->> 'fare_index')::numeric from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZB6') = 100,
     'only ZB6 (index 100 against 110) should be flagged: ' || (d -> 'routes')::text;
-  select string_agg(x ->> 'n' || '. ' || (x ->> 'text') || ' [' || (x ->> 'kind') || ']', ' | ' order by (x ->> 'n')::int) into got from jsonb_array_elements(d -> 'actions') x;
-  want := '1. From ZA1 to anywhere: +5% of the default price, economy [base] | 2. From anywhere to ZA1: +5% of the default price, economy [base] | '
-       || '3. From ZA1 to ZB5: +0% of the default price, economy [route] | 4. From ZB5 to ZA1: +0% of the default price, economy [route] | '
-       || '5. From ZA2 to ZC1: +5% of the default price, economy [route] | 6. From ZC1 to ZA2: +5% of the default price, economy [route]';
+  -- route by route only (21 Oct): each route that moves, both ways, in the routes' order; no base action, none for a hold
+  select string_agg(x ->> 'n' || '. ' || (x ->> 'text'), ' | ' order by (x ->> 'n')::int) into got from jsonb_array_elements(d -> 'actions') x;
+  want := '1. From ZA1 to ZA2: +5% of the default price, economy | 2. From ZA2 to ZA1: +5% of the default price, economy | '
+       || '3. From ZA1 to ZB1: +5% of the default price, economy | 4. From ZB1 to ZA1: +5% of the default price, economy | '
+       || '5. From ZA1 to ZB2: +5% of the default price, economy | 6. From ZB2 to ZA1: +5% of the default price, economy | '
+       || '7. From ZA1 to ZB3: +5% of the default price, economy | 8. From ZB3 to ZA1: +5% of the default price, economy | '
+       || '9. From ZA1 to ZB4: +5% of the default price, economy | 10. From ZB4 to ZA1: +5% of the default price, economy | '
+       || '11. From ZA1 to ZB6: +5% of the default price, economy | 12. From ZB6 to ZA1: +5% of the default price, economy | '
+       || '13. From ZA2 to ZC1: +5% of the default price, economy | 14. From ZC1 to ZA2: +5% of the default price, economy';
   assert got = want, 'L1''s game actions are ' || got;
-  assert (select x -> 'sign' = '"+"'::jsonb and x -> 'pct' = '5'::jsonb and x -> 'level' = '105'::jsonb and x ->> 'baseline' = 'default price' and x ->> 'cabin' = 'economy'
-            from jsonb_array_elements(d -> 'actions') x where (x ->> 'n')::int = 1), 'the first action''s fields aren''t +, 5, 105, default price, economy';
+  assert (select x -> 'sign' = '"+"'::jsonb and x -> 'pct' = '5'::jsonb and x -> 'level' = '105'::jsonb and x ->> 'baseline' = 'default price'
+                 and x -> 'classes' = '["economy"]'::jsonb and x ->> 'route' = 'ZA1–ZA2' and x ->> 'from' = 'ZA1' and x ->> 'to' = 'ZA2'
+            from jsonb_array_elements(d -> 'actions') x where (x ->> 'n')::int = 1),
+    'the first action''s fields aren''t +, 5, 105, default price, ["economy"], ZA1–ZA2 from ZA1 to ZA2: ' || (d -> 'actions' -> 0)::text;
+  assert not exists (select 1 from jsonb_array_elements(d -> 'actions') x where x ? 'kind' or x ? 'base' or x ? 'cabin' or x ->> 'from' = 'anywhere' or x ->> 'to' = 'anywhere'),
+    'an action still has a base, a kind or a cabin: ' || (d -> 'actions')::text;
   insert into t_fl values ('l1_ladder', d);
-  raise notice 'L1: 6 up, 4 hold, 1 down; 7 rows to put on the fare plan; ZB6''s index (100 against 110) flagged; 6 game actions: ZA1''s two base actions (+5%%), then ZA1–ZB5 at +0%% and ZA2–ZC1 at +5%% as single routes (ZA1–ZA2, between the two bases, covered by ZA1''s)';
+  raise notice 'L1: 6 up, 4 hold, 1 down; 7 rows to put on the fare plan; ZB6''s index (100 against 110) flagged; 14 game actions, route by route: each of the 7 routes that move both ways (ZA1–ZA2, between the two bases, like any other), economy, none for the 4 that hold, no base action';
 end
 $test$;
 
@@ -280,7 +299,9 @@ begin
             || 'From ZR1 to ZS3: +5% of the default price, economy | From ZS3 to ZR1: +5% of the default price, economy | '
             || 'From ZR1 to ZS4: −5% of the default price, economy | From ZS4 to ZR1: −5% of the default price, economy',
     'L2''s game actions are ' || got;
-  raise notice 'L2: ZS1 85 up to 90, ZS2 capped at 105, ZS3 102 up to the 105 cap, ZS4 90 up to 95; economy only; 3 single routes (6 actions), since only 2 of 4 share a new level';
+  assert not exists (select 1 from jsonb_array_elements(d -> 'actions') x where x -> 'classes' <> '["economy"]'::jsonb or x ->> 'route' = 'ZR1–ZS2'),
+    'L2''s actions aren''t economy only, or capped ZS2 has one: ' || (d -> 'actions')::text;
+  raise notice 'L2: ZS1 85 up to 90, ZS2 capped at 105, ZS3 102 up to the 105 cap, ZS4 90 up to 95; economy only; 3 routes, 6 actions, none for capped ZS2';
 end
 $test$;
 
@@ -322,14 +343,36 @@ begin
   assert (e ->> 'to_plan')::boolean, 'ZE2''s hold after a step down has nothing to record: ' || e::text;
   select string_agg(x ->> 'dest' || ' ' || (x ->> 'cabin'), ', ' order by x ->> 'dest', x ->> 'cabin') into got
     from jsonb_array_elements(d -> 'routes') x where (x ->> 'to_plan')::boolean;
-  assert got = 'ZE1 business, ZE2 economy, ZE3 economy', 'Put on the fare plan would write ' || got;
+  assert got = 'ZE1 business, ZE2 economy, ZE3 economy, ZE9 business, ZE9 economy, ZEA business, ZEA economy', 'Put on the fare plan would write ' || got;
+  assert pg_temp.ladder_line(d, 'ZE9') = 'up 100>105 (sold out 14 of 14)' and pg_temp.ladder_line(d, 'ZE9', 'business') = 'up 100>105 (sold out 14 of 14)',
+    'ZE9, both cabins to 105: ' || pg_temp.ladder_line(d, 'ZE9') || ' / ' || pg_temp.ladder_line(d, 'ZE9', 'business');
+  assert pg_temp.ladder_line(d, 'ZEA') = 'up 105>110 (sold out 14 of 14)' and pg_temp.ladder_line(d, 'ZEA', 'business') = 'up 100>105 (sold out 14 of 14)',
+    'ZEA, economy to 110 and business to 105: ' || pg_temp.ladder_line(d, 'ZEA') || ' / ' || pg_temp.ladder_line(d, 'ZEA', 'business');
+  -- the game actions, route by route (21 Oct): one cabin moving gets its own two; both to the same level, one each way
+  -- with both classes (ZE9); to different levels, one each way per cabin, economy first (ZEA). ZE1's capped economy, held
+  -- ZE2, new ZE4, ZE5 with 4 departures and the holds get none
+  select string_agg(x ->> 'n' || '. ' || (x ->> 'text'), ' | ' order by (x ->> 'n')::int) into got from jsonb_array_elements(d -> 'actions') x;
+  assert got = '1. From ZD1 to ZE1: +5% of the default price, business | 2. From ZE1 to ZD1: +5% of the default price, business | '
+            || '3. From ZD1 to ZE3: +10% of the default price, economy | 4. From ZE3 to ZD1: +10% of the default price, economy | '
+            || '5. From ZD1 to ZE6: +5% of the default price, economy | 6. From ZE6 to ZD1: +5% of the default price, economy | '
+            || '7. From ZD1 to ZE9: +5% of the default price, economy and business | 8. From ZE9 to ZD1: +5% of the default price, economy and business | '
+            || '9. From ZD1 to ZEA: +10% of the default price, economy | 10. From ZEA to ZD1: +10% of the default price, economy | '
+            || '11. From ZD1 to ZEA: +5% of the default price, business | 12. From ZEA to ZD1: +5% of the default price, business',
+    'L4''s game actions are ' || got;
+  select string_agg(x ->> 'n' || ' ' || (x -> 'classes')::text, ', ' order by (x ->> 'n')::int) into got from jsonb_array_elements(d -> 'actions') x;
+  assert got = '1 ["business"], 2 ["business"], 3 ["economy"], 4 ["economy"], 5 ["economy"], 6 ["economy"], 7 ["economy", "business"], '
+            || '8 ["economy", "business"], 9 ["economy"], 10 ["economy"], 11 ["business"], 12 ["business"]',
+    'L4''s actions'' classes are ' || got;
+  assert (select x ->> 'route' = 'ZD1–ZE9' and x ->> 'from' = 'ZE9' and x ->> 'to' = 'ZD1' and x -> 'level' = '105'::jsonb and x ->> 'sign' = '+' and x -> 'pct' = '5'::jsonb
+            from jsonb_array_elements(d -> 'actions') x where (x ->> 'n')::int = 8),
+    'action 8 isn''t ZD1–ZE9 from ZE9 to ZD1 at 105 (+5): ' || (d -> 'actions' -> 7)::text;
   -- the fare index: 300 on 2 Jan, 315 now, launch 100 → 105, as recorded
   select x into e from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZE7' and x ->> 'cabin' = 'economy';
   assert (e ->> 'fare_index')::numeric = 105 and (e ->> 'index_matches')::boolean and e ->> 'first_on' = '2030-01-02' and (e ->> 'first_fare')::numeric = 300
      and (e ->> 'latest_fare')::numeric = 315, 'ZE7''s fare index isn''t 105 (300 on 2 Jan, 315 now), matching its level: ' || e::text;
-  assert d -> 'moves' = '{"up": 3, "hold": 15, "down": 0}'::jsonb, 'L4''s moves: ' || (d -> 'moves')::text;
+  assert d -> 'moves' = '{"up": 7, "hold": 15, "down": 0}'::jsonb, 'L4''s moves: ' || (d -> 'moves')::text;
   assert jsonb_array_length(d -> 'notes') = 2 and d ->> 'notes' like '%step 4%', 'the notes don''t say rivals'' pauses wait for step 4';
-  raise notice 'L4: economy capped at 120%% while business climbs; held 2 weeks after a step down (with a hold to record), then climbs; a new route and 4 departures hold; this Saturday''s move already on the fare plan; the fare index 105 from 300 to 315';
+  raise notice 'L4: economy capped at 120%% while business climbs; held 2 weeks after a step down (with a hold to record), then climbs; a new route and 4 departures hold; this Saturday''s move already on the fare plan; the fare index 105 from 300 to 315; 12 game actions: one cabin moving (2 each), both cabins to 105 (ZE9: 2, both classes), to 110 and 105 (ZEA: 4, one per cabin each way), none for the capped, held, new and few';
 end
 $test$;
 

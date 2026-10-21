@@ -1,8 +1,10 @@
 // Performance → the fare ladder (manual §5, since 21 Oct; spec docs/specs/2026-10-21-fare-ladder.md §3): for each airline,
-// this Saturday's moves in one line, the game actions to make (Ticket price adjustment, baseline default price), numbered
-// and in order, each copyable, Put on the fare plan (one planner_save() call: model.ts's ladderPlanChanges), and the
-// routes table (route, cabin, level with its steps above launch, the sold-out share, the move and its reason), sortable;
-// the actions and the routes each cut to 10 rows with "show all" as the growth lists are. Every level, move and action is fare_ladder()'s. Colour
+// this Saturday's moves in one line and how many changes to make in the game, the game actions (Ticket price adjustment,
+// baseline default price), numbered, each copyable, Put on the fare plan (one planner_save() call: model.ts's
+// ladderPlanChanges), and the routes table (route, cabin, level with its steps above launch, the sold-out share, the move
+// and its reason), sortable; the actions and the routes each cut to 10 rows with "show all" as the growth lists are. Since
+// 21 Oct (spec docs/specs/2026-10-21-fare-actions-by-route.md) the actions are route by route only, never a whole base:
+// each direction its own action, naming the classes it changes. Every level, move and action is fare_ladder()'s. Colour
 // only for action: a step down in amber, a step up plain. The moves never appear on Today or in Needs attention.
 import { useState } from "react";
 import { Link } from "react-router";
@@ -12,7 +14,8 @@ import { niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import {
-  LADDER_SORTS, ladderLine, ladderRows, levelWords, listCut, moveWords, planButton, plannedWords, soldWords, type LadderAction, type LadderAnswer, type LadderSort,
+  LADDER_SORTS, changesWords, ladderLine, ladderRows, levelWords, listCut, moveWords, planButton, plannedWords, soldWords, type LadderAction, type LadderAnswer,
+  type LadderSort,
 } from "./model";
 
 /** The board: one section per airline, in the airlines' order. */
@@ -42,7 +45,8 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
   const btn = planButton(ladder);
   return (
     <section className="flair" data-ladder={code}>
-      <h4 className="gh"><AirlineMark color={airline.color} />{airline.name} <span className="note" data-ladder-moves={code}>{ladderLine(ladder.moves)}</span></h4>
+      <h4 className="gh"><AirlineMark color={airline.color} />{airline.name} <span className="note" data-ladder-moves={code}>{ladderLine(ladder.moves)}</span>{" "}
+        <span className="note" data-ladder-changes={code}>· {changesWords(ladder.actions.length)}</span></h4>
       <div className="fltools">
         <button type="button" className="primary sm" data-ladder-plan={code} disabled={busy || !btn.enabled} onClick={onPlan}>{btn.text}</button>
         {btn.note ? <span className="dim">{btn.note}</span> : null}
@@ -84,8 +88,9 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
   );
 }
 
-/** The game actions, numbered and in order, each with its own copy button; the first 10 with "show all N", as the routes
- *  table (on the copy of 20 Oct an airline had 50 to 76, and the screen ran to 15,660 px with them all open). */
+/** The game actions, numbered, each with its own copy button; the first 10 with "show all N", as the routes table (on the
+ *  copy of 20 Oct an airline had 50 to 76, and the screen ran to 15,660 px with them all open). Route by route only, each
+ *  direction its own action, its text naming the classes to tick ("economy and business" when both move together). */
 function Actions({ code, actions }: { code: string; actions: readonly LadderAction[] }) {
   const [open, setOpen] = useState(false);
   if (!actions.length) return <div className="dim flnone">No changes to make in the game this Saturday.</div>;
@@ -102,11 +107,11 @@ function Actions({ code, actions }: { code: string; actions: readonly LadderActi
   };
   return (
     <div className="flacts" data-ladder-actions={code} data-list={`actions ${code}`} data-list-rows={actions.length} data-list-shown={cut.shown.length}>
-      <div className="dim">In the game, Ticket price adjustment with the calculation baseline default price, in this order ({actions.length}):</div>
+      <div className="dim">In the game, Ticket price adjustment with the calculation baseline default price, route by route: each direction on its own, with the classes named ticked.</div>
       <ol>
         {cut.shown.map((a) => (
-          <li key={a.n} value={a.n} data-action={a.n} data-kind={a.kind}>
-            <span className="fltext">{a.text}</span>{a.kind === "base" ? <span className="dim"> · the whole base</span> : null}{" "}
+          <li key={a.n} value={a.n} data-action={a.n} data-route={a.route} data-classes={a.classes.join(" ")}>
+            <span className="fltext">{a.text}</span>{" "}
             <button type="button" className="link sm" data-copy-action={a.n} onClick={() => copy(a)}>copy</button>
           </li>
         ))}

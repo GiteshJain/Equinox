@@ -2841,7 +2841,7 @@ declare
   v_new_days numeric;
   v_scan bigint; v_scan_at timestamptz;
   v_rows jsonb; v_actions jsonb := '[]'::jsonb; v_n int := 0;
-  v_cabin text; v_after jsonb; v_set jsonb; v_b record; v_r record; v_mode numeric; v_alone int; v_with int; v_lv numeric;
+  v_r record; v_sets jsonb; v_change jsonb; v_dir jsonb; v_lv numeric; v_words text;
 begin
   v_step := private.fig_num(w, p_airline_id, 'fare_ladder_step_pts');
   v_up := private.fig_num(w, p_airline_id, 'fare_ladder_up_share');
@@ -3015,57 +3015,35 @@ begin
            order by o.hub, o.dest, o.cabin desc), '[]'::jsonb)
     into v_rows from od o;
 
-  -- the game's Ticket price adjustments, cabin by cabin: each action sets a level with the baseline default price, so the
-  -- order matters. For each base, in the bases' order: when setting the whole base to its most common new level (From
-  -- base, To anywhere; From anywhere, To base) and then the single routes that differ takes fewer actions than single
-  -- routes alone, the two base actions go first. Then every route still not at its new level, two actions each (From A to
-  -- B, From B to A).
-  foreach v_cabin in array array['economy', 'business'] loop
-    v_after := '{}'::jsonb;
-    for v_b in select y.airport_code from (
-               select distinct on (x2.airport_code) x2.airport_code, x2.position, x2.id
-                 from public.airline_bases x2 where x2.airline_id = p_airline_id and x2.world_id = w
-                order by x2.airport_code, x2.position nulls last, x2.id) y
-              order by y.position nulls last, y.id loop
-      select count(*) filter (where (e ->> 'new_level')::numeric <> (e ->> 'level')::numeric)::int * 2 into v_alone
-        from jsonb_array_elements(v_rows) e
-       where e ->> 'cabin' = v_cabin and v_b.airport_code in (e ->> 'hub', e ->> 'dest');
-      select (e ->> 'new_level')::numeric into v_mode
-        from jsonb_array_elements(v_rows) e
-       where e ->> 'cabin' = v_cabin and v_b.airport_code in (e ->> 'hub', e ->> 'dest')
-       group by 1 order by count(*) desc, 1 limit 1;
-      if v_mode is null then continue; end if;
-      select 2 + 2 * (count(*) filter (where (e ->> 'new_level')::numeric <> v_mode))::int into v_with
-        from jsonb_array_elements(v_rows) e
-       where e ->> 'cabin' = v_cabin and v_b.airport_code in (e ->> 'hub', e ->> 'dest');
-      if v_with < v_alone then
-        foreach v_set in array array[jsonb_build_array(v_b.airport_code, 'anywhere'), jsonb_build_array('anywhere', v_b.airport_code)] loop
-          v_n := v_n + 1;
-          v_actions := v_actions || jsonb_build_object(
-            'n', v_n, 'kind', 'base', 'base', v_b.airport_code, 'cabin', v_cabin, 'from', v_set ->> 0, 'to', v_set ->> 1,
-            'level', trim_scale(v_mode), 'sign', case when v_mode >= 100 then '+' else '-' end, 'pct', trim_scale(abs(v_mode - 100)),
-            'baseline', 'default price',
-            'text', format('From %s to %s: %s%s%% of the default price, %s', v_set ->> 0, v_set ->> 1,
-                           case when v_mode >= 100 then '+' else '−' end, trim_scale(abs(v_mode - 100)), v_cabin));
-        end loop;
-        select v_after || coalesce(jsonb_object_agg(e ->> 'route_id', v_mode), '{}'::jsonb) into v_after
-          from jsonb_array_elements(v_rows) e
-         where e ->> 'cabin' = v_cabin and v_b.airport_code in (e ->> 'hub', e ->> 'dest');
-      end if;
-    end loop;
-    for v_r in select e ->> 'route_id' as route_id, e ->> 'hub' as hub, e ->> 'dest' as dest, (e ->> 'level')::numeric as level,
-                    (e ->> 'new_level')::numeric as new_level
-               from jsonb_array_elements(v_rows) e where e ->> 'cabin' = v_cabin order by e ->> 'hub', e ->> 'dest' loop
-      v_lv := coalesce((v_after ->> v_r.route_id)::numeric, v_r.level);
-      if v_lv = v_r.new_level then continue; end if;
-      foreach v_set in array array[jsonb_build_array(v_r.hub, v_r.dest), jsonb_build_array(v_r.dest, v_r.hub)] loop
+  -- the game's Ticket price adjustments, route by route only (manual §5, since 21 Oct: never a whole base, so a route
+  -- under 7 days old is never touched). Each sets the level with the baseline default price, and each direction is a
+  -- change of its own (From A to B, From B to A). For each route whose level changes in either cabin, in the routes'
+  -- order (hub, dest): when both cabins move to the same new level, one action each way with both classes ticked;
+  -- otherwise one each way for each cabin that changes, economy first. A route whose levels don't change gets none.
+  for v_r in select e ->> 'hub' as hub, e ->> 'dest' as dest,
+                    jsonb_agg(jsonb_build_object('cabin', e ->> 'cabin', 'level', (e ->> 'new_level')::numeric)
+                              order by e ->> 'cabin' = 'business') as moves
+               from jsonb_array_elements(v_rows) e
+              where (e ->> 'new_level')::numeric <> (e ->> 'level')::numeric
+              group by e ->> 'route_id', e ->> 'hub', e ->> 'dest'
+              order by e ->> 'hub', e ->> 'dest' loop
+    if jsonb_array_length(v_r.moves) = 2 and (v_r.moves #>> '{0,level}')::numeric = (v_r.moves #>> '{1,level}')::numeric then
+      v_sets := jsonb_build_array(jsonb_build_object('classes', jsonb_build_array('economy', 'business'), 'level', v_r.moves #> '{0,level}'));
+    else
+      select jsonb_agg(jsonb_build_object('classes', jsonb_build_array(m ->> 'cabin'), 'level', m -> 'level') order by i) into v_sets
+        from jsonb_array_elements(v_r.moves) with ordinality as t(m, i);
+    end if;
+    for v_change in select x from jsonb_array_elements(v_sets) x loop
+      v_lv := (v_change ->> 'level')::numeric;
+      select string_agg(c, ' and ' order by i) into v_words from jsonb_array_elements_text(v_change -> 'classes') with ordinality as t(c, i);
+      foreach v_dir in array array[jsonb_build_array(v_r.hub, v_r.dest), jsonb_build_array(v_r.dest, v_r.hub)] loop
         v_n := v_n + 1;
         v_actions := v_actions || jsonb_build_object(
-          'n', v_n, 'kind', 'route', 'route', v_r.hub || '–' || v_r.dest, 'cabin', v_cabin, 'from', v_set ->> 0, 'to', v_set ->> 1,
-          'level', trim_scale(v_r.new_level), 'sign', case when v_r.new_level >= 100 then '+' else '-' end, 'pct', trim_scale(abs(v_r.new_level - 100)),
+          'n', v_n, 'route', v_r.hub || '–' || v_r.dest, 'classes', v_change -> 'classes', 'from', v_dir ->> 0, 'to', v_dir ->> 1,
+          'level', trim_scale(v_lv), 'sign', case when v_lv >= 100 then '+' else '-' end, 'pct', trim_scale(abs(v_lv - 100)),
           'baseline', 'default price',
-          'text', format('From %s to %s: %s%s%% of the default price, %s', v_set ->> 0, v_set ->> 1,
-                         case when v_r.new_level >= 100 then '+' else '−' end, trim_scale(abs(v_r.new_level - 100)), v_cabin));
+          'text', format('From %s to %s: %s%s%% of the default price, %s', v_dir ->> 0, v_dir ->> 1,
+                         case when v_lv >= 100 then '+' else '−' end, trim_scale(abs(v_lv - 100)), v_words));
       end loop;
     end loop;
   end loop;
