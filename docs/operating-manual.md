@@ -55,7 +55,7 @@ Until each is built and merged, the rules below stand as they are.
 - **The fare ladder is built** (21 Oct, pull request #56): `fare_ladder()` works out each route's level and Saturday's
   moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause waits for
   competition analysis; until then the Saturday review checks the scan by hand.
-- **New frequencies and the fare ladder are built** (21 Oct, pull request #PRNUM; spec
+- **New frequencies and the fare ladder are built** (21 Oct, pull request #60; spec
   `docs/specs/2026-10-21-frequencies-and-fares.md`, §5): a route that gained a frequency in the last 7 days holds
   (`settings.fare_ladder_capacity_hold_days`); every plan card shows each route's fare level (Tails → Deliveries, the
   card check's `fares`, the airline briefing); and a route whose captured fares don't match its level gets a change
