@@ -1637,6 +1637,7 @@ AS $function$
                                           'public_name', al.public_name, 'game_name', al.game_name, 'game_id', al.game_id) from al),
     'as_of', private.fig_ts(p_as_of),
     -- the aircraft not yet filed: on order, or arrived and not yet flying (status delivered), each with its plan cards
+    -- (each with its cabin, config_id, since 21 Oct, for the card check's cabin)
     'deliveries', coalesce((
       select jsonb_agg(jsonb_build_object(
                'aircraft_id', a.id, 'registration', a.registration, 'status', a.status,
@@ -1647,7 +1648,7 @@ AS $function$
                'plan_cards', coalesce((
                  select jsonb_agg(jsonb_build_object(
                           'id', pc.id, 'airline_id', pc.airline_id, 'title', pc.title, 'base_code', pc.base_code, 'note', pc.note,
-                          'updated_at', private.fig_ts(pc.updated_at),
+                          'config_id', pc.config_id, 'updated_at', private.fig_ts(pc.updated_at),
                           'legs', coalesce((
                             select jsonb_agg(jsonb_build_object(
                                      'position', l.position, 'flight_no', l.flight_no, 'origin_code', l.origin_code, 'dest_code', l.dest_code,
@@ -5072,8 +5073,9 @@ begin
                             'min_turn_min', t.min_turn_min, 'gap_target_h', t.gap_target_h, 'maint_per_cycle', t.maint_per_cycle,
                             'maint_per_hour', t.maint_per_hour, 'ground_keep_min', t.ground_keep_min) order by t.id), '[]'::jsonb)
                            from public.aircraft_types t where t.world_id = w),
+      -- each layout with its name (cabin: Standard, Leisure, Leisure Plus or Comfort; since 21 Oct, for the plan card's cabin)
       'cabin_configs', (select coalesce(jsonb_agg(jsonb_build_object(
-                           'id', c.id, 'code', c.code, 'aircraft_type_id', c.aircraft_type_id, 'seats', c.seats) order by c.id), '[]'::jsonb)
+                           'id', c.id, 'code', c.code, 'aircraft_type_id', c.aircraft_type_id, 'seats', c.seats, 'cabin', c.cabin) order by c.id), '[]'::jsonb)
                           from public.cabin_configs c where c.world_id = w),
       -- each airport with its country's region (countries.region, #18 build pull request 12); none without a country
       'airports', (select coalesce(jsonb_agg(jsonb_build_object(
@@ -5085,9 +5087,11 @@ begin
                      left join public.airports a on a.code = k.code
                      left join public.countries co on co.code = a.country_code
                      left join public.world_airports wa on wa.world_id = w and wa.airport_code = k.code),
+      -- is_lcc since 21 Oct: a low-cost airline flies Standard layouts only (manual §5)
       'airlines', (select coalesce(jsonb_agg(jsonb_build_object(
                       'id', al.id, 'iata_code', al.iata_code, 'game_id', al.game_id, 'game_name', al.game_name, 'planner_name', al.planner_name,
                       'public_name', al.public_name, 'position', al.position, 'active', al.active, 'ours', coalesce(g.kind = 'ours', false),
+                      'is_lcc', coalesce(al.is_lcc, false),
                       -- the settings as they apply to this airline: its own override of a key in place of the world's value
                       'settings', (select coalesce(jsonb_object_agg(s.key, s.value order by s.key), '{}'::jsonb)
                                      from (select distinct on (st.key) st.key, st.value from public.settings st
@@ -5109,10 +5113,12 @@ begin
                       'id', a.id, 'registration', a.registration, 'airline_id', a.airline_id, 'aircraft_type_id', a.aircraft_type_id,
                       'cabin_config_id', a.cabin_config_id, 'base_code', a.base_code, 'status', a.status) order by a.id), '[]'::jsonb)
                      from public.aircraft a where a.world_id = w),
+      -- each route with its market (any override applied) and, since 21 Oct, the layout it calls for: its own cabin_choice
+      -- and its market's layout
       'routes', (select coalesce(jsonb_agg(jsonb_build_object(
                     'id', r.id, 'airline_id', r.airline_id, 'hub_code', r.hub_code, 'dest_code', r.dest_code,
                     'distance_km', coalesce(r.distance_override_km, r.distance_km),
-                    'market_id', m.id, 'market', m.name) order by r.id), '[]'::jsonb)
+                    'market_id', m.id, 'market', m.name, 'market_layout', m.layout, 'cabin_choice', r.cabin_choice) order by r.id), '[]'::jsonb)
                    from rts r
                    left join public.markets m on m.id = case when r.market_cleared then null else coalesce(r.market_override_id, r.market_id) end),
       'rotations', (select coalesce(jsonb_agg(jsonb_build_object(

@@ -20,8 +20,10 @@
 --      growth_ready_min_days, growth_ready_full_share, order_queue_grace_h, order_queue_warn_h), and Review's setting
 --      (fare_plan_raise_pct) and service profiles (service_profiles, #18 build pull request 10, every row of the
 --      world's), and build pull request 12's settings (suggested_size, interline_rules) and each airport's region (its
---      country's):
---      in the document, then taken out before comparing, when the copy didn't have them; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
+--      country's), and the cabins' new rule's (21 Oct, 20261021180000) setting (cabin_route_share_pct), each layout's
+--      name (cabin_configs' cabin), each airline's is_lcc and each route's market_layout and cabin_choice:
+--      in the document, then taken out before comparing, when the copy didn't have them; the two refit settings that
+--      rule removes (cabin_refit_cost, cabin_refit_share_pct) must be gone, and are taken out of the before; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
 --      same; any other value is refused. Prints both documents' sizes (the new planner's start).
 
@@ -79,7 +81,7 @@ begin
                              'order_queue_grace_h', 'order_queue_warn_h', 'fare_plan_raise_pct', 'suggested_size', 'interline_rules',
                              'capture_loads_min_share', 'capture_statement_min_share', 'growth_new_route_days',
                              'fare_ladder_step_pts', 'fare_ladder_up_share', 'fare_ladder_down_share', 'fare_ladder_min_departures',
-                             'fare_ladder_hold_weeks', 'fare_ladder_cap_pts'] loop
+                             'fare_ladder_hold_weeks', 'fare_ladder_cap_pts', 'cabin_route_share_pct'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
@@ -117,6 +119,36 @@ begin
         'all: an aircraft type from before is gone';
       d_cmp := d_cmp - 'aircraft_types' - 'cabin_configs';
       d_before := d_before - 'aircraft_types' - 'cabin_configs';
+      n_new := n_new + 1;
+    end if;
+    -- the cabins' new rule (20261021180000): the two refit settings go (from the world's settings and each airline's),
+    -- so they're checked gone and taken out of the before; each layout's name, each airline's is_lcc and each route's
+    -- market_layout and cabin_choice are new: checked against the tables in cabins_new_rule_test.sql, taken out here
+    foreach v in array array['cabin_refit_cost', 'cabin_refit_share_pct'] loop
+      continue when not (d_before -> 'settings' ? v);
+      assert not (d_all -> 'settings' ? v), 'all: the removed setting ' || v || ' is still in the document';
+      d_before := jsonb_set(d_before, '{settings}', (d_before -> 'settings') - v);
+      d_before := jsonb_set(d_before, '{airlines}', (select coalesce(jsonb_agg(case when a ? 'settings' then jsonb_set(a, '{settings}', (a -> 'settings') - v) else a end order by i), '[]'::jsonb)
+                                                       from jsonb_array_elements(d_before -> 'airlines') with ordinality as e(a, i)));
+      n_new := n_new + 1;
+    end loop;
+    if d_before ? 'cabin_configs' and not exists (select 1 from jsonb_array_elements(d_before -> 'cabin_configs') e where e ? 'cabin') then
+      assert not exists (select 1 from jsonb_array_elements(d_all -> 'cabin_configs') e where not e ? 'cabin'), 'all: a cabin layout has no name (cabin)';
+      d_cmp := jsonb_set(d_cmp, '{cabin_configs}', (select coalesce(jsonb_agg(e - 'cabin' order by i), '[]'::jsonb)
+                                                      from jsonb_array_elements(d_cmp -> 'cabin_configs') with ordinality as x(e, i)));
+      n_new := n_new + 1;
+    end if;
+    if not exists (select 1 from jsonb_array_elements(d_before -> 'airlines') e where e ? 'is_lcc') then
+      assert not exists (select 1 from jsonb_array_elements(d_all -> 'airlines') e where not e ? 'is_lcc'), 'all: an airline has no is_lcc';
+      d_cmp := jsonb_set(d_cmp, '{airlines}', (select coalesce(jsonb_agg(e - 'is_lcc' order by i), '[]'::jsonb)
+                                                 from jsonb_array_elements(d_cmp -> 'airlines') with ordinality as x(e, i)));
+      n_new := n_new + 1;
+    end if;
+    if not exists (select 1 from jsonb_array_elements(d_before -> 'routes') e where e ? 'market_layout') then
+      assert not exists (select 1 from jsonb_array_elements(d_all -> 'routes') e where not (e ? 'market_layout' and e ? 'cabin_choice')),
+        'all: a route has no market_layout or cabin_choice';
+      d_cmp := jsonb_set(d_cmp, '{routes}', (select coalesce(jsonb_agg(e - 'market_layout' - 'cabin_choice' order by i), '[]'::jsonb)
+                                               from jsonb_array_elements(d_cmp -> 'routes') with ordinality as x(e, i)));
       n_new := n_new + 1;
     end if;
   end if;
