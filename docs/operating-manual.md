@@ -392,8 +392,11 @@ less important than another, point to point rather than hubs).*
   - **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where
     beyond the A321XLR. For November's trunks this sets aside reach first (below) and Malaysia's feeder-first order
     (§2). *Since 20 Oct (Gitesh): "for this plan, everything which makes sense."*
+  - **Shortest to longest:** new trunks open in order of distance, shortest first, while keeping every delivery line
+    filled (an idle line takes the shortest trunk its family can fly). This puts the narrowbody trunks first and the
+    A350 trunks last. *Since 20 Oct (Gitesh).*
   - **Narrowbody trunks first:** each evening's orders fill the short and medium trunks first (more departures per
-    dollar); A350 trunks follow, biggest market first. The plan: `docs/briefs/2026-10-20-november-trunks.md`.
+    dollar); A350 trunks follow. The plan: `docs/briefs/2026-10-20-november-trunks.md`.
     *Since 20 Oct (Gitesh).*
   *Details agreed 20 Oct (Gitesh).*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
