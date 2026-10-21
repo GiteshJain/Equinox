@@ -49,4 +49,8 @@ more each week.
 - If rivals' growth slows down as the world matures, B can drop back to A.
 
 ## Outcome
-<Gitesh's decision and the date>
+Gitesh, 21 Oct: neither A, B nor C as written. **The world scan moves into Capture all airlines**: after our six
+airlines, the capture also scans the world when one is due. How often is a setting (`scan_every_days`), starting at
+**every evening (1)**, since it costs no extra work, only 3–5 minutes on the evening's capture; it can be raised to
+3 (about twice a week) if the evening gets long. Spec `docs/specs/2026-10-21-scan-in-capture.md`; competition
+analysis follows it. Manual "Decided, not yet built" updated the same day.

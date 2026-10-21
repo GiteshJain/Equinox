@@ -62,6 +62,10 @@ Until each is built and merged, the rules below stand as they are.
   that sets it back, first in Performance's fare ladder and made by the fares userscript (which also shows whether the
   game prices a new flight number at the default price, as Gitesh thinks). The fare index reads each flight of the
   latest captured day against its route's fare on 21 Oct 2026. A frequency taken away isn't tracked yet.
+- **Decided 21 Oct, for the Building chat:** the world scan moves into **Capture all airlines** (spec
+  `docs/specs/2026-10-21-scan-in-capture.md`): after our airlines, the capture scans the world when one is due, every
+  `scan_every_days` (1: every evening, Gitesh, 21 Oct; raised to 3 if the evening gets long), reading the same pages as
+  `gscan.py` and sending them with the capture key. Until it's built, the Saturday chat runs `gscan.py` as now.
 - **Next for the Building chat (Gitesh, 21 Oct):** the planner work's next big step is competition analysis with its
   ranked openings, before the route page.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
