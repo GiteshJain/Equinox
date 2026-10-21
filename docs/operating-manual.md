@@ -313,9 +313,10 @@ less important than another, point to point rather than hubs).*
   evening's capture, the Scheduling chat looks at each airline's order queues (three delivery lines each, Ryanair two)
   and its cash forecast, and proposes the aircraft that can be ordered and the routes for each, with variant and
   cabin. Where cash allows more than one option, the route we most want to fly decides (market share first, below).
-  Gitesh orders that evening. *Since 18 Oct (option C); the order queues first and the choice by route since 19 Oct ·
-  why (Gitesh): the group's cash supports about two aircraft a day; weekly batches left it waiting, and an empty
-  line is an aircraft lost.*
+  The proposal goes one airline at a time: each airline's order is decided, ordered and logged before the next is
+  shown. Gitesh orders that evening. *Since 18 Oct (option C); the order queues first and the choice by route since 19
+  Oct; one airline at a time since 21 Oct · why (Gitesh): the group's cash supports about two aircraft a day; weekly
+  batches left it waiting, and an empty line is an aircraft lost; one airline at a time keeps each decision in view.*
 - **When an airline can order: the cash forecast.** Planner → Today → Orders says who can order now or from when, and
   the safe types; the detail is Performance → the airline → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
@@ -648,6 +649,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 21 Oct | The evening proposal shows every airline that can order at once | One airline at a time, each decided, ordered and logged before the next (§3). Why: Gitesh |
 | 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |
 | 21 Oct | Refits: a refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service; Systems' Cabins board listed each aircraft whose cabin differed from what most of its flying wanted (a refit paying from 70%, `cabin_refit_share_pct`), with Refitted to, Keep as is and Show again; each market kept a default aircraft, default cabin and fares (Reference → market defaults), used only to tell which layout it called for | We don't refit: the cabin is chosen with each order, and the plan card suggests it by the 65% rule (`cabin_route_share_pct`), warning when the chosen one differs; each market keeps only its layout (`markets.layout`) (§5). Why: Gitesh, 21 Oct; the defaults didn't capture the new layouts |
 | 21 Oct | Fare changes are occasional tests through the fare plan, reviewed on Saturdays | The fare ladder: each Saturday, up 5 points on every route and cabin that sold out all week, hold at 90–99%, down under 90%; at most 20 points above launch for now (§5). Why: Gitesh, option A of the fare ladder brief; almost every flight sells out and no fare had been raised |
