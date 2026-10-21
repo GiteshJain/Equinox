@@ -70,7 +70,8 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
       {!noAirline && noRoute ? (
         <div className="empty">{airline?.name ?? code} has no route {routeKey}. {back}</div>
       ) : null}
-      {s && airline ? <RouteStoryView s={s} code={code} back={back} conns={conns} board={board} onCollapse={() => setFolded(new Set(ROUTE_BOARDS))} onExpand={() => setFolded(new Set())} /> : null}
+      {s && airline ? <RouteStoryView s={{ ...s, route: { ...s.route, airline: { ...s.route.airline, name: airline.name } } }} code={code} back={back} conns={conns} board={board}
+        onCollapse={() => setFolded(new Set(ROUTE_BOARDS))} onExpand={() => setFolded(new Set())} /> : null}
     </main>
   );
 }
@@ -145,7 +146,7 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
                 <tbody>
                   <tr><th>Rival</th><th className="num">A week</th><th className="num">Change</th></tr>
                   {rv.rows.map((r) => (
-                    <tr key={r.id} data-rival={r.name}><td>{r.name}</td><td className="num">{r.weekly}</td><td className="num">{r.change}{r.before != null && r.change ? <span className="dim"> from {r.before}</span> : null}</td></tr>
+                    <tr key={r.id} data-rival={r.name}><td>{r.name}</td><td className="num">{r.weekly}</td><td className="num">{r.change}{r.before != null && r.change && r.change !== "=" ? <span className="dim">{` from ${r.before}`}</span> : null}</td></tr>
                   ))}
                 </tbody>
               </table>

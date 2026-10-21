@@ -5,10 +5,11 @@
 --      route_story() signed in only, stable, as owner with an empty search path, described; its builder and the writer
 --      (private.history_flows()) internal, with an empty search path.
 --   2. On the copy (counts, codes and timings only; printed first, since the rehearsal prints a passing test's first six
---      notices): no first-class seats in game_flights (so route_days has no first-class columns); the migration's
---      backfill gives exactly what the writer gives, worked out again for every day game_flights holds; how many route
---      days have the new columns; route_story() for each airline's busiest route, timed (under the 8 s staff limit); and
---      one route's story in numbers: its launch, the last 7 days against the 7 before, and its events.
+--      notices): route_story() for each airline's busiest route, timed (under the 8 s staff limit); one route's story in
+--      numbers (its launch, how its days are matched, the last 7 days against the 7 before, its events) and every flown
+--      route's events by kind; then no first-class seats in game_flights (so route_days has no first-class columns), and
+--      the migration's backfill giving exactly what the writer gives, worked out again for every day of game_flights the
+--      daily history has written; how many route days have the new columns.
 --   3. A world of its own: airline RS (ours) flies QS1–QS2 from 1 Mar 2030, daily both ways, with business seats; its
 --      flights 2 to 21 Mar (each direction's own loads), and on 10 Mar a flight known only from the bank statement. The
 --      writer (history_flows) keeps each cabin's passengers and seats, the business fare and the block; the story counts
@@ -55,38 +56,12 @@ end
 $test$;
 
 -- ---------------------------------------------------------------- 2. the copy (counts, codes and timings only)
+-- 2a. route_story() for each airline's busiest route, timed, and the first one's story in numbers (before 2b works the
+-- daily history out again)
 do $test$
-declare w bigint := (select id from public.worlds where is_default); n int; n_rows int; n_diff int; n_only int; d0 date; d1 date; t0 timestamptz;
-  ms int; worst int := 0; al record; d jsonb; first_doc jsonb; times text[] := '{}'; wk0 jsonb; wk1 jsonb; kinds text; newest text;
+declare w bigint := (select id from public.worlds where is_default); t0 timestamptz; ms int; worst int := 0; al record; d jsonb; first_doc jsonb;
+  times text[] := '{}'; wk0 jsonb; wk1 jsonb; kinds text; newest text; m record;
 begin
-  -- no first-class seats: the route_days columns for first are left out (spec §1)
-  select count(*) into n from public.game_flights f where coalesce(f.fst_seats, 0) > 0 or coalesce(f.fst_pax, 0) > 0;
-  assert n = 0, format('game_flights has %s rows with first-class seats on the copy: route_days needs fst_pax, fst_seats and fst_fare_avg (spec §1)', n);
-  -- the backfill against the writer: every day game_flights holds, worked out again by history_flows()
-  select min(coalesce((f.dep_at at time zone 'UTC')::date, f.game_date)), max(coalesce((f.dep_at at time zone 'UTC')::date, f.game_date))
-    into d0, d1 from public.game_flights f where f.world_id = w;
-  if d0 is not null then
-    create temporary table t_rs_filled on commit drop as
-      select rd.airline_id, rd.origin_code, rd.dest_code, rd.day, rd.eco_pax, rd.eco_seats, rd.bus_pax, rd.bus_seats, rd.bus_fare_avg, rd.block_min
-        from public.route_days rd where rd.world_id = w and rd.day between d0 and d1;
-    get diagnostics n_rows = row_count;
-    perform private.history_flows(w, d0, d1);
-    select count(*) filter (where (a.eco_pax, a.eco_seats, a.bus_pax, a.bus_seats, a.bus_fare_avg, a.block_min)
-                                  is distinct from (b.eco_pax, b.eco_seats, b.bus_pax, b.bus_seats, b.bus_fare_avg, b.block_min)
-                              and a.day is not null and b.day is not null),
-           count(*) filter (where a.day is null or b.day is null)
-      into n_diff, n_only
-      from t_rs_filled a
-      full join public.route_days b on b.world_id = w and b.airline_id = a.airline_id and b.origin_code = a.origin_code
-                                    and b.dest_code = a.dest_code and b.day = a.day
-     where b.day is null or (b.world_id = w and b.day between d0 and d1);
-    assert n_diff = 0, format('%s route days of %s to %s have new columns the migration filled back differently from the writer', n_diff, d0, d1);
-  end if;
-  raise notice '%', format('on the copy: no first-class seats in game_flights; the backfill equals the writer on every one of the %s route days game_flights holds (%s to %s; %s only on one side, from captures since the day was written); route days with the cabins kept: %s of %s, block hours on %s',
-    coalesce(n_rows, 0), coalesce(d0::text, 'none'), coalesce(d1::text, 'none'), coalesce(n_only, 0),
-    (select count(*) from public.route_days x where x.world_id = w and x.eco_pax is not null), (select count(*) from public.route_days x where x.world_id = w),
-    (select count(*) from public.route_days x where x.world_id = w and x.block_min is not null));
-
   -- each airline's busiest route (the most flights in the daily history over its last 14 days), timed
   for al in select fa.airline_id, fa.iata_code,
                    (select x.route_id from public.route_days x where x.airline_id = fa.airline_id and x.route_id is not null
@@ -106,14 +81,25 @@ begin
   assert worst < 8000, format('route_story() took %s ms on the copy: over the 8 s staff limit', worst);
   raise notice '%', format('on the copy, route_story() for each airline''s busiest route: %s; the slowest %s ms (staff limit 8 s)',
     coalesce(nullif(array_to_string(times, '; '), ''), 'no route with flights'), worst);
-  -- one route's story in numbers: the first airline's busiest route
+  -- one route's story in numbers: the first airline's busiest route, and how its days in the daily history are matched
   if first_doc is not null then
     wk0 := first_doc #> '{weeks,0}'; wk1 := first_doc #> '{weeks,1}';
-    raise notice '%', format('on the copy, %s %s–%s: launched %s (%s, %s days ago), latest day %s; %s a week out, %s back on %s; the last 7 days (%s to %s) against the 7 before (%s to %s): flights %s / %s, load %s%% / %s%% (economy %s%% / %s%%, business %s%% / %s%%), profit %sM / %sM, %sM / %sM an aircraft hour, fares %s / %s economy and %s / %s business; rivals %s, our share %s%% (%s%% a week before)',
+    select count(distinct x.day) filter (where x.route_id = (first_doc ->> 'route_id')::bigint) as mine,
+           count(distinct x.day) filter (where x.route_id is null) as none,
+           count(distinct x.day) filter (where x.route_id <> (first_doc ->> 'route_id')::bigint) as other,
+           (select count(distinct y.day) from public.route_days y where y.airline_id = (first_doc #>> '{route,airline,id}')::bigint) as airline_days,
+           min(x.day) as d0
+      into m
+      from public.route_days x
+     where x.airline_id = (first_doc #>> '{route,airline,id}')::bigint and x.flights > 0
+       and ((x.origin_code = first_doc #>> '{route,hub}' and x.dest_code = first_doc #>> '{route,dest}')
+         or (x.origin_code = first_doc #>> '{route,dest}' and x.dest_code = first_doc #>> '{route,hub}'));
+    raise notice '%', format('on the copy, %s %s–%s: launched %s (%s, %s days ago), latest day %s; %s a week out, %s back on %s; %s days with flights (its airports in the daily history from %s: %s days matched to it, %s to no route, %s to another route; the airline has %s days); the last 7 days (%s to %s) against the 7 before (%s to %s): flights %s / %s, load %s%% / %s%% (economy %s%% / %s%%, business %s%% / %s%%), profit %sM / %sM, %sM / %sM an aircraft hour, fares %s / %s economy and %s / %s business; rivals %s, our share %s%% (%s%% a week before)',
       first_doc #>> '{route,airline,code}', first_doc #>> '{route,hub}', first_doc #>> '{route,dest}', first_doc #>> '{route,launched}',
       first_doc #>> '{route,launched_from}', first_doc #>> '{route,launched_days}', first_doc ->> 'latest_day',
       first_doc #>> '{now,departures,out}', first_doc #>> '{now,departures,back}',
       (select string_agg(t ->> 'type', ', ') from jsonb_array_elements(first_doc #> '{now,types}') t),
+      jsonb_array_length(first_doc -> 'days'), m.d0, m.mine, m.none, m.other, m.airline_days,
       wk0 ->> 'from', wk0 ->> 'to', wk1 ->> 'from', wk1 ->> 'to', wk0 ->> 'flights', wk1 ->> 'flights', wk0 ->> 'load_pct', wk1 ->> 'load_pct',
       wk0 ->> 'eco_load_pct', wk1 ->> 'eco_load_pct', wk0 ->> 'bus_load_pct', wk1 ->> 'bus_load_pct', wk0 ->> 'profit', wk1 ->> 'profit',
       wk0 ->> 'profit_per_hour', wk1 ->> 'profit_per_hour', wk0 ->> 'eco_fare', wk1 ->> 'eco_fare', wk0 ->> 'bus_fare', wk1 ->> 'bus_fare',
@@ -122,8 +108,53 @@ begin
       from (select e ->> 'kind' as k, count(*) as n from jsonb_array_elements(first_doc -> 'events') e group by 1) x;
     select string_agg(format('%s %s: %s', e ->> 'day', e ->> 'kind', e ->> 'words'), '; ' order by i) into newest
       from jsonb_array_elements(first_doc -> 'events') with ordinality x(e, i) where i <= 8;
-    raise notice '%', format('on the copy, its events (%s): %s; the newest: %s', jsonb_array_length(first_doc -> 'events'), coalesce(kinds, 'none'), coalesce(newest, 'none'));
+    t0 := clock_timestamp();
+    raise notice '%', format('on the copy, its events (%s): %s; the newest: %s; every flown route''s events by kind: %s (%s ms for all of them)',
+      jsonb_array_length(first_doc -> 'events'), coalesce(kinds, 'none'), coalesce(newest, 'none'),
+      coalesce((select string_agg(format('%s %s', z.n, z.k), ', ' order by z.n desc, z.k)
+                  from (select e ->> 'kind' as k, count(*) as n
+                          from public.routes r
+                          join private.fig_airlines(w) fa on fa.airline_id = r.airline_id
+                          cross join lateral jsonb_array_elements(private.fig_route_story(r.id, now()) -> 'events') e
+                         where not r.removed and exists (select 1 from public.rotations rt where rt.route_id = r.id)
+                         group by 1) z), 'none'),
+      round(extract(epoch from clock_timestamp() - t0) * 1000));
   end if;
+end
+$test$;
+
+-- 2b. no first-class seats, and the migration's backfill against the writer: every day of game_flights that the daily
+-- history has written, worked out again by history_flows() (rolled back with the test)
+do $test$
+declare w bigint := (select id from public.worlds where is_default); n int; n_rows int; n_diff int; n_only int; d0 date; d1 date;
+begin
+  -- no first-class seats: the route_days columns for first are left out (spec §1)
+  select count(*) into n from public.game_flights f where coalesce(f.fst_seats, 0) > 0 or coalesce(f.fst_pax, 0) > 0;
+  assert n = 0, format('game_flights has %s rows with first-class seats on the copy: route_days needs fst_pax, fst_seats and fst_fare_avg (spec §1)', n);
+  select min(coalesce((f.dep_at at time zone 'UTC')::date, f.game_date)),
+         least(max(coalesce((f.dep_at at time zone 'UTC')::date, f.game_date)), (select max(r.day) from public.route_days r where r.world_id = w))
+    into d0, d1 from public.game_flights f where f.world_id = w;
+  if d0 is not null and d1 >= d0 then
+    create temporary table t_rs_filled on commit drop as
+      select rd.airline_id, rd.origin_code, rd.dest_code, rd.day, rd.eco_pax, rd.eco_seats, rd.bus_pax, rd.bus_seats, rd.bus_fare_avg, rd.block_min
+        from public.route_days rd where rd.world_id = w and rd.day between d0 and d1;
+    get diagnostics n_rows = row_count;
+    perform private.history_flows(w, d0, d1);
+    select count(*) filter (where (a.eco_pax, a.eco_seats, a.bus_pax, a.bus_seats, a.bus_fare_avg, a.block_min)
+                                  is distinct from (b.eco_pax, b.eco_seats, b.bus_pax, b.bus_seats, b.bus_fare_avg, b.block_min)
+                              and a.day is not null and b.day is not null),
+           count(*) filter (where a.day is null or b.day is null)
+      into n_diff, n_only
+      from t_rs_filled a
+      full join public.route_days b on b.world_id = w and b.airline_id = a.airline_id and b.origin_code = a.origin_code
+                                    and b.dest_code = a.dest_code and b.day = a.day
+     where b.day is null or (b.world_id = w and b.day between d0 and d1);
+    assert n_diff = 0, format('%s route days of %s to %s have new columns the migration filled back differently from the writer', n_diff, d0, d1);
+  end if;
+  raise notice '%', format('on the copy: no first-class seats in game_flights; the backfill equals the writer on every one of the %s route days the daily history has from %s to %s (%s only on one side: a route day the captures changed since it was written); route days with the cabins kept: %s of %s, block hours on %s',
+    coalesce(n_rows, 0), coalesce(d0::text, 'none'), coalesce(d1::text, 'none'), coalesce(n_only, 0),
+    (select count(*) from public.route_days x where x.world_id = w and x.eco_pax is not null), (select count(*) from public.route_days x where x.world_id = w),
+    (select count(*) from public.route_days x where x.world_id = w and x.block_min is not null));
 end
 $test$;
 

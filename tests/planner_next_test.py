@@ -857,7 +857,7 @@ async def route_page_opens(pl):
         problems.append(f"the route's link is {link}, but the page is at {got['path']}")
     acode, key = got["airline"], got["route"]
     hub, dest = (key.split("-") + ["", ""])[:2]
-    rid = one(f"""select r.id from public.routes r join public.airlines a on a.id = r.airline_id
+    rid = one(f"""select to_json(r.id) from public.routes r join public.airlines a on a.id = r.airline_id
                    where a.world_id = {WORLD} and a.iata_code = '{acode}' and r.hub_code = '{hub}' and r.dest_code = '{dest}' order by r.removed, r.id limit 1""")
     doc = one(f"select public.route_story({int(rid)})") if rid else None
     if not doc:
