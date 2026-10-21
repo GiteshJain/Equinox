@@ -34,7 +34,7 @@ full stop). Website and planner: **equinox-alliance.com** (planner at `/planner/
 |---|---|---|---|---|---|
 | Pan Am | AW | Hubs JFK, Los Angeles, Dallas; focus ORD, SFO, SEA | 15 | 3 | 25 |
 | Kingfisher | KF | Hub Delhi; focus Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first). Mumbai set up, next | 12 | 3 | 19 |
-| Ryanair | FR | Five equal focus cities: Paris CDG, Amsterdam, Barcelona, Milan, Munich | 21 | 5 | 48 |
+| Ryanair | FR | Three equal focus cities: Paris CDG, Amsterdam, Barcelona (Milan and Munich next) | 21 | 5 | 48 |
 | Virgin Atlantic | VS | Hubs Gatwick, Manchester; focus Edinburgh | 18 | 2 | 38 |
 | China Eastern | MU | Hubs Shanghai PVG, Xi'an, Kunming; focus Beijing Daxing, Shenzhen | 18 | 3 | 39 |
 | Malaysia Airlines | MH | Hub Kuala Lumpur | 18 | 2 | 32 |
@@ -114,7 +114,7 @@ database → Building.
   and open with November's trunks. No interlines in Canada, Mexico, the Caribbean or Central America.
 - **Kingfisher (Delhi):** India is open, so aim to take all of it. Mumbai is next. The two Delhi–JFK A350s stay as they
   are (reviewed 28 Nov).
-- **Ryanair (CDG, Amsterdam, Barcelona; Milan and Munich next):** five equal focus cities, point to point, no hub.
+- **Ryanair (CDG, Amsterdam, Barcelona; Milan and Munich next):** three equal focus cities, point to point, no hub.
   Exempt from hubs first. Flies the A320 family and the E195, no A350. Stays inside the game's EU zone (EU-27, the UK, Norway,
   Switzerland, Iceland); Turkey, Morocco, the Balkans and long haul are out. Fares at 85%, economy only. No interlines
   in Europe. No eastern base for now.
@@ -128,13 +128,13 @@ database → Building.
   decision waits until then.
 
 ### Fleet
-- **Types, as the route needs:** any airline may fly any of our types: the A321neo by default, the A320neo where an
-  A321neo would fly part-empty, the A321XLR beyond an A321neo's reach, the E195-E2 for thin routes, the A350 only where
-  range demands it (Ryanair: no A350). Three families at most (A320 family, E195, A350; a fourth costs 15% more
+- **Types, as the route needs:** any airline may fly any of our types, sized by the city's stars and picked from the
+  default line (both below); the A350 only where range demands it (Ryanair: no A350). Three families at most (A320 family, E195, A350; a fourth costs 15% more
   maintenance). No 787, CRJ or A319. Each family is its own delivery line, one after another (Today → **Orders**, each
   airline's delivery lines); plan orders with the queues in mind.
 - **Size by city stars:** 1–2-star the E195; 3-star the E195 or A320neo; 4-star any of the E195, A320neo and A321neo;
-  5-star the A320neo, A321neo or XLR. The bigger type where a heavy rival flies the pair or the sector is long. Bookings
+  5-star the A320neo, A321neo or XLR. Within a band the smaller type wins, heavy routes included; a bigger variant only
+  where the route needs its reach. Bookings
   are divided among the flights on offer, so more, smaller flights take more of a market.
   **Both delivery lines:** A321neos on big sold-out routes; E195s on short, thin and new markets, ordered the evening cash
   covers an E195 but not yet an A321neo.
@@ -468,7 +468,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | **Block time** | Gate to gate: 25 minutes plus distance ÷ cruise speed |
 | **Turn** | The ground time between an arrival and the aircraft's next departure |
 | **Frequency / round trip** | A flight out and its return, on the days it flies |
-| **Plan card** | Claude's plan for an arrived aircraft: each flight's number, route, days, times, block and service code |
+| **Plan card** | Claude's plan for an aircraft, written when it's ordered: each flight's number, route, days, times, block and service code |
 | **Filing** | Putting an arrived aircraft into the planner once the game matches its card |
 | **Capture** | The evening button that sends the game's pages to the database; each page gets a verdict (all good, short, broken) |
 | **Cash forecast / cushion** | The 14-day cash outlook; an order must leave 0.5M at its lowest point |
@@ -476,7 +476,7 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 | **Hubs first** | Every new aircraft to the main hub until it reaches 750 departures a week |
 | **Service code** | The on-board service level by distance: S1, S2, S3, or R for Ryanair |
 | **Market layout** | The cabin layout a market calls for (Standard, Leisure, Leisure Plus or Comfort; Reference → Markets): a plan card takes it where one route of the market flies over 65% of the block time (its market default until 21 Oct) |
-| **Fare plan** | The list of fare tests to make in the game, reviewed on Saturdays |
+| **Fare plan** | The fare changes to make in the game this week, from the fare ladder (**Put on the fare plan**); the next capture ticks each off |
 | **Week-end closing** | The game's weekly salary payment |
 | **Interline** | An agreement to sell connections on another airline's flights |
 | **Systems board** | The top of Systems: one line per thing that must work, green, amber or red |

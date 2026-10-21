@@ -248,9 +248,10 @@ Details and open points: `docs/decisions.md`.
 less important than another, point to point rather than hubs).*
 
 ## 3. Fleet and orders
-- **Fleet types, as the route needs:** every airline may fly any of our types where a route calls for it: the A321neo
-  by default (the most seats, and our routes sell out), the A320neo where an A321neo would fly part-empty, the A321XLR
-  for cities beyond an A321neo's reach, the E195-E2 for thin routes, and the A350 only where range demands it. Ryanair
+- **Fleet types, as the route needs:** every airline may fly any of our types where a route calls for it, sized by the
+  city's stars and picked from the default line (both below), and the A350 only where range demands it. *(Wording
+  aligned 21 Oct: "the A321neo by default" had been left standing after size by stars, 18 Oct, and smaller wins, 20
+  Oct, replaced it.)* Ryanair
   flies the A320 family and the E195, no A350. The three families (A320 family, E195, A350) are the most any airline
   has; no 787, CRJ or A319. Each family is its own delivery line (the order queues, below). *Since 17 Oct · why
   (Gitesh): types are chosen per route, not fixed per airline; three maintenance families are free, a fourth costs 15%
@@ -413,7 +414,7 @@ less important than another, point to point rather than hubs).*
   - **Hubs first is suspended for trunks in November:** any base can take an aircraft for a trunk route. One airline per
     city pair (§2) still applies, and so does the cash forecast's cushion.
   - **Only trunks that make sense:** a pair is opened only where the market is there and the route makes business sense
-    (no Kolkata–US direct, say), within reach of the default line. Munich, Milan Malpensa, Los Angeles
+    (no Kolkata–US direct, say), within reach of the default line. Munich, Milan Malpensa, Mumbai, Los Angeles
     and Dallas count as bases; no base is on hold (Gitesh, 20 Oct).
   - **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where
     beyond the A321XLR. For November's trunks this sets aside reach first (below) and Malaysia's feeder-first order

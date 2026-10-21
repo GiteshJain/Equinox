@@ -1,5 +1,8 @@
 # Kingfisher: route list for the next two weeks — 18 Oct 2026
 
+> **Superseded 19 Oct:** orders and their routes now come from each evening's proposal (manual §3). This list is kept
+> for the record; where it differs from a later decision, the later one stands.
+
 **Decision:** the routes Kingfisher's next aircraft open, in order, from tonight's capture (18 Oct 20:43 UTC). Done early,
 before the Saturday review of 24 Oct; the only aircraft on order (VT-ABC, 19 Oct) has a card. Until 31 Oct every flight
 opens a new route (manual §4). Market share first, size by stars and the default line (§3); hubs first: Delhi only.
