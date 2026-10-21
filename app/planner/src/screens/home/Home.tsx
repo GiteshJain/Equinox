@@ -106,7 +106,7 @@ export function Home() {
         {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
 
         {aircraftQ.data && rules && planCardsQ.data
-          ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), airlines, now.getTime())} now={now.getTime()} />
+          ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Map(planCardsQ.data.map((p) => [p.aircraft_id, p.title] as const)), airlines, now.getTime())} now={now.getTime()} />
           : null}
 
         {cards ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} /> : null}

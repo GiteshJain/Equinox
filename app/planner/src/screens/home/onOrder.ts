@@ -17,7 +17,8 @@ export interface OnOrderRow {
   at: number;
   arrived: boolean;
   base: string;
-  /** The plan noted with the order, without its base in front ("LGW · LIS + IST" → "LIS + IST"). */
+  /** Its plan card's title (since 19 Oct the card is written with the order, which carries no note), else the plan noted
+   *  with the order, without its base in front ("LGW · LIS + IST" → "LIS + IST"). */
   plan: string;
   hasCard: boolean;
 }
@@ -31,7 +32,8 @@ export interface OnOrderGroup {
   families: [string, number][];
 }
 
-export function onOrder(aircraft: readonly AircraftRow[], rules: Rules, withCard: ReadonlySet<number>, airlines: readonly HomeAirline[], now: number):
+/** cards: each aircraft with a plan card, and the card's title (null when it has none). */
+export function onOrder(aircraft: readonly AircraftRow[], rules: Rules, cards: ReadonlyMap<number, string | null>, airlines: readonly HomeAirline[], now: number):
   { count: number; groups: OnOrderGroup[] } {
   const rows = aircraft
     .filter((a) => a.status === "on_order" || a.status === "delivered")
@@ -44,7 +46,7 @@ export function onOrder(aircraft: readonly AircraftRow[], rules: Rules, withCard
           id: a.id, registration: a.registration, type: shortType(typeName), family: familyOf(typeName),
           config: a.order_config_id == null ? "" : rules.configs.get(a.order_config_id)?.code ?? "",
           at, arrived: Number.isFinite(at) && at <= now, base: a.order_base_code ?? "",
-          plan: String(a.order_note ?? "").replace(/^[A-Z]{3} · /, ""), hasCard: withCard.has(a.id),
+          plan: cards.get(a.id)?.trim() || String(a.order_note ?? "").replace(/^[A-Z]{3} · /, ""), hasCard: cards.has(a.id),
         } satisfies OnOrderRow,
       };
     })
