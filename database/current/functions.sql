@@ -103,6 +103,25 @@ $function$
 
 ;
 
+-- capture_fare_actions(p_key text)
+CREATE OR REPLACE FUNCTION public.capture_fare_actions(p_key text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+ SET statement_timeout TO '30s'
+AS $function$
+declare v_world bigint;
+begin
+  v_world := private.capture_key_world(p_key);
+  if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  return jsonb_build_object('ok', true, 'world', (select w.name from public.worlds w where w.id = v_world))
+         || private.capture_fare_actions_doc(v_world, now());
+end
+$function$
+
+;
+
 -- capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)
 CREATE OR REPLACE FUNCTION public.capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)
  RETURNS jsonb
@@ -1874,6 +1893,54 @@ begin
     return jsonb_build_object('median_lines', round(v_med, 1), 'nights', v_nights);
   end if;
   return '{}'::jsonb;
+end
+$function$
+
+;
+
+-- private.capture_fare_actions_doc(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.capture_fare_actions_doc(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  v_al record; d jsonb; v_week text; v_keep jsonb;
+  v_airlines jsonb := '[]'::jsonb; v_actions jsonb := '[]'::jsonb;
+begin
+  -- our active airlines of the world, as capture_airlines() lists them, in display order
+  for v_al in select a.id, a.game_id, coalesce(a.public_name, a.planner_name, a.game_name) as name, a.game_name, a.iata_code
+                from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+               where a.world_id = p_world_id and a.active and g.kind = 'ours'
+               order by a.position nulls last, a.id loop
+    d := private.fig_fare_ladder(v_al.id, p_as_of);
+    v_week := coalesce(v_week, d ->> 'week_of');
+    -- an action is kept when every class it names is a route row (matched by its route, "HUB–DEST", and cabin) that is
+    -- on the fare plan this week (planned) and not yet seen in the captures (applied false)
+    with acts as (select t.x, t.i from jsonb_array_elements(d -> 'actions') with ordinality as t(x, i)),
+         cls as (select acts.i, c.k, m.rt
+                   from acts
+                   cross join lateral jsonb_array_elements_text(acts.x -> 'classes') with ordinality as c(cabin, k)
+                   left join lateral (select e as rt from jsonb_array_elements(d -> 'routes') e
+                                       where (e ->> 'hub') || '–' || (e ->> 'dest') = acts.x ->> 'route' and e ->> 'cabin' = c.cabin
+                                       limit 1) m on true),
+         ok as (select cls.i, jsonb_agg((cls.rt ->> 'plan_id')::bigint order by cls.k) as plan_ids
+                  from cls
+                 group by cls.i
+                having bool_and(coalesce((cls.rt ->> 'planned')::boolean, false) and not coalesce((cls.rt ->> 'applied')::boolean, true)))
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'game_id', v_al.game_id, 'airline', v_al.name, 'n', acts.x -> 'n', 'route', acts.x -> 'route',
+             'from', acts.x -> 'from', 'to', acts.x -> 'to', 'level', acts.x -> 'level', 'sign', acts.x -> 'sign',
+             'pct', acts.x -> 'pct', 'classes', acts.x -> 'classes', 'plan_ids', ok.plan_ids, 'text', acts.x -> 'text')
+             order by acts.i), '[]'::jsonb)
+      into v_keep
+      from acts join ok on ok.i = acts.i;
+    v_actions := v_actions || v_keep;
+    v_airlines := v_airlines || jsonb_build_object('game_id', v_al.game_id, 'name', v_al.name, 'game_name', v_al.game_name,
+                                                   'code', v_al.iata_code, 'count', jsonb_array_length(v_keep));
+  end loop;
+  return jsonb_build_object('as_of', private.fig_ts(p_as_of), 'week_of', v_week, 'airlines', v_airlines, 'actions', v_actions);
 end
 $function$
 

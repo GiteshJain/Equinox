@@ -25,6 +25,7 @@ new_planner() {
 }
 run "No keys or passwords" python3 tests/check_secrets.py
 run "Schedule check" node tests/schedule_test.mjs
+run "Fares userscript: the game's fares form and answer, on dated samples" node tests/fares_userscript_test.mjs
 run "Planner and planning library: types, lint, unit tests and cases, build" new_planner
 run "Planner: the screens' figures on the 12 Oct sample against saved answers" node tests/planner_figures.mjs
 run "Planning library: the optimiser against plan.py's saved answer" python3 tests/optimiser_saved_answer_test.py

@@ -16,7 +16,7 @@
 --      document exactly as rules_input() gave it before this rehearsal's changes (database/tests/before/
 --      rules_input_before.sql; a copy older than rules_input() has none, and section 2's counts are the check), but for
 --      the two settings Home adds (airport_cap_warning_pct, aircraft_check_after_days), the one Tails adds
---      (aircraft_block_target_h) and the seven Check adds (cabin_refit_cost, cabin_refit_share_pct, growth_big_min_stars,
+--      (aircraft_block_target_h) and the five Check adds that stay (growth_big_min_stars,
 --      growth_ready_min_days, growth_ready_full_share, order_queue_grace_h, order_queue_warn_h), and Review's setting
 --      (fare_plan_raise_pct) and service profiles (service_profiles, #18 build pull request 10, every row of the
 --      world's), and build pull request 12's settings (suggested_size, interline_rules) and each airport's region (its
@@ -76,8 +76,10 @@ begin
   select b.doc into d_before from rehearsal_before.rules_input b;
   d_cmp := d_all;
   if d_before is not null then
-    foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h', 'cabin_refit_cost',
-                             'cabin_refit_share_pct', 'growth_big_min_stars', 'growth_ready_min_days', 'growth_ready_full_share',
+    -- (Check's two refit settings, cabin_refit_cost and cabin_refit_share_pct, are no longer in this list: the cabins'
+    -- new rule removed them, so a copy without them is one where they're gone, not one from before they came; below)
+    foreach v in array array['airport_cap_warning_pct', 'aircraft_check_after_days', 'aircraft_block_target_h',
+                             'growth_big_min_stars', 'growth_ready_min_days', 'growth_ready_full_share',
                              'order_queue_grace_h', 'order_queue_warn_h', 'fare_plan_raise_pct', 'suggested_size', 'interline_rules',
                              'capture_loads_min_share', 'capture_statement_min_share', 'growth_new_route_days',
                              'fare_ladder_step_pts', 'fare_ladder_up_share', 'fare_ladder_down_share', 'fare_ladder_min_departures',
