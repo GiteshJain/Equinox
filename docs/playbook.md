@@ -207,9 +207,6 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 - Home's Needs attention also says when an airline can safely order.
 
 ### Step 2: What and where?
-- **The order rotation:** each airline's orders cycle **big market → more frequency → smaller feeders**, kept flexible.
-  Check → Growth → **Next move for each airline** names the next routes and the aircraft size, and **Log an order as**
-  (Big, Frequency, Feeder) moves the rotation on.
 - **Hubs first:** until the main hub has 750 departures a week, every new aircraft goes there. Any other base gets one
   only for a **contested** route: a rival with over 250 departures a week at that base, or over 2 flights a day on the
   route. A base contested for one route doesn't open its other routes. Check → Growth → **Main hubs towards 750** shows

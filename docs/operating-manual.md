@@ -311,8 +311,6 @@ less important than another, point to point rather than hubs).*
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
   - The forecast is worked out by `cash_forecast()` in the database (several orders tested together with `p_orders`);
     the planner's Review screen shows it (#19, build pull request 3).
-- **Order rotation:** each airline's orders rotate big market → more frequency → smaller feeders, kept flexible.
-  *Since 2 Oct.*
 - **The order queues:** each airline has one delivery line per family, and the aircraft on a line arrive one after
   another: an A320-family aircraft (A320neo, A321neo and XLR share the line) every 21 hours, an E195 every 15 hours, an
   A350 every 30 hours. Order planning keeps the queues in mind (Check → Growth → Order queues): what each airline still
@@ -599,6 +597,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 20 Oct | Order rotation: each airline's orders rotate big market → more frequency → smaller feeders (Check → Growth → Next move, Log an order as) | Route first, then the airline: each evening's proposal picks by the route we most want to fly (§3). Why: Gitesh, 20 Oct; the board goes with the Today, Performance and Systems build |
 | 20 Oct | Within a star band, the bigger type goes where a heavy rival flies the pair or the sector is long | The smaller type wins, heavy routes included: more flights on more aircraft; a bigger variant only for reach (§3). Why: Gitesh, bookings are divided among flights and more flights give more connections |
 | 20 Oct | Cabin follows the market default, whatever the aircraft | The cabin is chosen with each order: the layout of the route flying over 65% of block time, else the layout with the most seats (§5). Why: Gitesh, the defaults don't capture the new layouts |
 | 20 Oct | A newsroom post per airline on each day it takes delivery of aircraft (Scheduling chat) | No posts for new aircraft; the Saturday roundups of new routes stay (§8). Why: Gitesh, 20 Oct |
