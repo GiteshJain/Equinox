@@ -1,4 +1,6 @@
-// What Home reads (design §9, spec docs/specs/2026-10-13-home.md §2), each through TanStack Query:
+// What Home reads (design §9, spec docs/specs/2026-10-13-home.md §2), each through TanStack Query. Since 20 Oct Today
+// reads most of these too, for needs attention, Coming up and the to-do board, which moved there from Home (spec
+// docs/specs/2026-10-20-today-performance-systems.md):
 // - the planning library's input, the lighter start: rules_input(world, 'flown') (design §5; src/data/rules.ts);
 // - the planner tables it shows: aircraft (on order, and the one-week checks' dates), rotations' launch days, plan cards
 //   (and, for the map's Planned routes, their legs and those legs' airports), to-dos and their steps, dismissals;
@@ -20,6 +22,17 @@ const fail = (what: string, message: string): never => {
 
 /** The moment a captured figure is asked for: now, to the millisecond, as the database takes it. */
 const asOf = (offsetMs = 0) => new Date(Date.now() - offsetMs).toISOString();
+
+/** One of our airlines as Home names it: the old planner's name (Pan American), so its words and keys are the old ones
+ *  (Today's needs attention keys its items by it too). */
+export interface HomeAirline {
+  id: number;
+  name: string;
+  code: string | null;
+  color: string | null;
+  /** The city whose photo the airline's card shows (airlines.photo_city). */
+  photo?: string | null;
+}
 
 export interface AircraftRow {
   id: number;

@@ -1,5 +1,7 @@
-// Home's needs-attention items, in the order the old planner's renderHome pushes them, with its words, keys and links.
-// Every figure comes from its one home (decision #19, spec §2): one-week checks, maintenance, turns and positions, night
+// Needs attention (moved from Home to Today on 20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md): its items,
+// in the order the old planner's renderHome pushes them, with its words and keys; each links to where it's fixed now
+// (the capture, the backup, the jobs and the one-week checks to Systems, routes to fix and can order to Performance, a
+// to-do to Today's board). Every figure comes from its one home (decision #19, spec §2): one-week checks, maintenance, turns and positions, night
 // bans, flight numbers used twice and the airport caps (airport_cap_warning_pct) from the planning library; the capture
 // from capture_status() (when, and since #21 each airline's latest verdict: a short or broken page the same night); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
 // (or, with no profit captured, the routes its load patterns mark cut, as the old Home fell back); can order from
@@ -10,17 +12,10 @@ import { aircraftWeek, block, maintenance, schedule, type OneWeekCheck, type Rul
 import type { AttItem } from "../../ui/attention";
 import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
-import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, JobRun, JobsRead, TodoRow } from "./reads";
+import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAirline, JobRun, JobsRead, TodoRow } from "../home/reads";
 
-/** One of our airlines as Home names it: the old planner's name (Pan American), so its words and keys are the old ones. */
-export interface HomeAirline {
-  id: number;
-  name: string;
-  code: string | null;
-  color: string | null;
-  /** The city whose photo the airline's card shows (airlines.photo_city). */
-  photo?: string | null;
-}
+/** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
+export type { HomeAirline };
 
 export interface AttentionInput {
   now: Date;
@@ -64,7 +59,7 @@ const JOB_NAME: Record<string, string> = {
 export function verdictItemWords(airline: string, verdict: string | null | undefined, words: string | null | undefined): string | null {
   if (verdict !== "short" && verdict !== "broken") return null;
   const what = String(words ?? "").replace(/^(short|broken):\s*/, "") || "a page";
-  return `${airline}'s capture came in ${verdict}: ${what}. Capture that airline again in the game (Check has each page)`;
+  return `${airline}'s capture came in ${verdict}: ${what}. Capture that airline again in the game (Systems has each page)`;
 }
 
 /** A route as the old planner keys it: "Pan American|JFK|ORD". */
@@ -81,7 +76,7 @@ export function homeAttention(x: AttentionInput): AttItem[] {
   const items: AttItem[] = [];
 
   // one-week checks due
-  for (const c of x.checks) if (c.status === "due") items.push({ cls: "warn", text: `${c.registration} is due its one-week check`, screen: "check" });
+  for (const c of x.checks) if (c.status === "due") items.push({ cls: "warn", text: `${c.registration} is due its one-week check`, screen: "systems" });
 
   // each aircraft in service: its maintenance, then its short turns and wrong positions
   const legs = block.timedLegs(rules);
@@ -135,7 +130,7 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       || val(b.profit_week) - val(a.profit_week) || val(b.profit_per_flight) - val(a.profit_per_flight));
     for (const r of fix) {
       const key = `${name(r.airline_id)}|${r.hub}|${r.dest}`;
-      items.push({ key: "route|" + key, cls: r.mark === "losing" ? "bad" : "warn", screen: "review", route: key,
+      items.push({ key: "route|" + key, cls: r.mark === "losing" ? "bad" : "warn", screen: "performance", route: key,
         text: `${r.hub}–${r.dest}: ${MARK_WORDS[r.mark] ?? r.mark} — ${r.why}` });
     }
   } else if (x.growth) {
@@ -152,7 +147,7 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       .filter((c) => c.h == null || c.h > CAPTURE_LATE_H);
     if (late.length) {
       const worst = Math.max(...late.map((c) => c.h ?? 99));
-      items.push({ key: "capture|" + today, cls: worst > CAPTURE_BAD_H ? "bad" : "warn", screen: "check",
+      items.push({ key: "capture|" + today, cls: worst > CAPTURE_BAD_H ? "bad" : "warn", screen: "systems",
         text: late.length === x.capture.last.length
           ? `No capture for ${worst >= 99 ? "over 2 days" : Math.round(worst) + " hours"}: open the game and press Capture all airlines`
           : `Not captured for over a day: ${late.map((c) => c.name).join(", ")}. Press Capture all airlines in the game` });
@@ -162,7 +157,7 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     for (const v of x.capture.verdicts ?? []) {
       const words = verdictItemWords(name(v.airline_id), v.verdict, v.words);
       if (!words || (now - Date.parse(v.at)) / 36e5 > CAPTURE_LATE_H) continue;
-      items.push({ key: `capture|verdict|${name(v.airline_id)}|${v.at}`, cls: v.verdict === "broken" ? "bad" : "warn", screen: "check", text: words });
+      items.push({ key: `capture|verdict|${name(v.airline_id)}|${v.at}`, cls: v.verdict === "broken" ? "bad" : "warn", screen: "systems", text: words });
     }
   }
 
@@ -172,13 +167,13 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     const hrs = good ? (now - Date.parse(good.ran_at)) / 36e5 : null;
     const first = B[0];
     if (hrs == null || hrs > BACKUP_LATE_H) {
-      items.push({ key: "backup|" + today, screen: "check",
+      items.push({ key: "backup|" + today, screen: "systems",
         cls: hrs == null && !B.length ? "mute" : hrs == null || hrs > BACKUP_BAD_H ? "bad" : "warn",
         text: hrs != null ? `Backup: last good copy ${Math.round(hrs)} hours ago${first && !first.ok ? " (the last run failed)" : ""}`
           : B.length ? "Backup: no good copy yet (the last run failed)" : "Backup: no copy yet; the first runs tonight" });
     } else if (first && !first.ok) {
       const n = String(first.note || "no note");
-      items.push({ key: "backup|failed|" + first.ran_at, cls: "bad", screen: "check",
+      items.push({ key: "backup|failed|" + first.ran_at, cls: "bad", screen: "systems",
         text: `Backup: the last run failed (${niceDate(utcDay(first.ran_at), locale)} ${utcClock(first.ran_at)} UTC): ${n.length > 160 ? "…" + n.slice(-160) : n}` });
     }
   }
@@ -191,16 +186,16 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     const snap = J.find((j) => (j.job === "snapshot" || j.job === "snapshot_fallback") && (j.status === "ok" || j.status === "incomplete"));
     const fb = J.find((j) => j.job === "snapshot_fallback");
     if (snap && ago(snap.started_at) > SNAPSHOT_LATE_H) {
-      items.push({ key: "jobs|snapshot|" + today, cls: ago(snap.started_at) > SNAPSHOT_BAD_H ? "bad" : "warn", screen: "check",
+      items.push({ key: "jobs|snapshot|" + today, cls: ago(snap.started_at) > SNAPSHOT_BAD_H ? "bad" : "warn", screen: "systems",
         text: `Daily snapshot: the last was ${Math.round(ago(snap.started_at))} hours ago (the evening's capture takes it; the 10:00 UTC job when the capture didn't)` });
     }
     if (fb && ago(fb.started_at) > SCHEDULER_LATE_H) {
-      items.push({ key: "jobs|scheduler|" + today, cls: "warn", screen: "check",
+      items.push({ key: "jobs|scheduler|" + today, cls: "warn", screen: "systems",
         text: `Nightly jobs: the 10:00 UTC job last ran ${Math.round(ago(fb.started_at))} hours ago; the database's scheduler may have stopped (restart it from Supabase's settings)` });
     }
     const arch = x.jobs.archiveLast;
     if (x.now.getUTCDate() >= ARCHIVE_BY_DAY && arch && Date.parse(arch.started_at) < Date.parse(m0)) {
-      items.push({ key: "jobs|archive|" + m0.slice(0, 7), cls: "warn", screen: "check",
+      items.push({ key: "jobs|archive|" + m0.slice(0, 7), cls: "warn", screen: "systems",
         text: `Monthly archive: hasn't run this month (the nightly backup runs it from the 1st; last ran ${when(arch.started_at)})` });
     }
     const last = new Map<string, JobRun>();   // each job's last run; the archive's per table and month
@@ -211,7 +206,7 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     for (const j of last.values()) {
       if (j.status !== "failed") continue;
       const table = j.job === "archive" && j.details?.table ? ` (${j.details.table} ${String(j.for_month ?? "").slice(0, 7)})` : "";
-      items.push({ key: `jobs|failed|${j.job}|${j.started_at}`, cls: "bad", screen: "check",
+      items.push({ key: `jobs|failed|${j.job}|${j.started_at}`, cls: "bad", screen: "systems",
         text: `${JOB_NAME[j.job] ?? j.job}${table}: the last run failed (${when(j.started_at)}): ${String(j.note || "no note").slice(0, 200)}` });
     }
   }
@@ -219,13 +214,13 @@ export function homeAttention(x: AttentionInput): AttItem[] {
   // can order now (the cash forecast's, through airline_cards())
   for (const a of airlines) {
     const types = (x.cards?.find((c) => c.airline_id === a.id)?.can_order_now ?? []).map(shortType);
-    if (types.length) items.push({ key: `order|${a.name}|${today}`, cls: "ok", screen: "review", text: `${a.name} can safely order: ${types.join(", ")}` });
+    if (types.length) items.push({ key: `order|${a.name}|${today}`, cls: "ok", screen: "performance", text: `${a.name} can safely order: ${types.join(", ")}` });
   }
 
   // to-dos due today or overdue
   for (const t of x.todos) {
     if (t.done || !t.due_on || t.due_on > today) continue;
-    items.push({ key: "todo|" + (t.legacy_key ?? String(t.id)), cls: t.due_on < today ? "bad" : "warn", screen: "home",
+    items.push({ key: "todo|" + (t.legacy_key ?? String(t.id)), cls: t.due_on < today ? "bad" : "warn", screen: "today",
       text: `To-do${t.due_on < today ? " (overdue)" : ""}: ${t.title}` });
   }
   return items;

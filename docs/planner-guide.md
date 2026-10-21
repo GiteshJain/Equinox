@@ -12,14 +12,21 @@ as you make it. On a preview address the planner saves nothing and says **previe
   TypeScript, screen by screen, each checked against the old screen's figures on the same data before it was merged.
   **Game changes are made here** (manual §1). It's the only planner: the old one went with the clean-up the same day
   (build pull request 14), and its address, /planner/old/, now opens this one.
-- **Every screen has its own address** (/planner/routes, /planner/tails/N001AW, /planner/review/VS …), so a link or the
-  back button reopens it. Links from the build (/planner/next/…) still work: they move to the same address under
+- **Every screen has its own address** (/planner/today, /planner/tails/N001AW, /planner/performance/VS …), so a link or
+  the back button reopens it. Links from the build (/planner/next/…) still work: they move to the same address under
   /planner/.
+- **The screens are grouped by when they're used** (since 20 Oct, spec
+  docs/specs/2026-10-20-today-performance-systems.md): **Today** answers "what do I do now?", **Performance** "how are
+  we doing, and why?", and **Systems** holds the plumbing. Check, Review and Hubs went: their boards are on those three,
+  and their old addresses lead there (/planner/check to Today, a load report's day to Performance's Flights by day;
+  /planner/review/VS to /planner/performance/VS; /planner/hubs to Performance). Each screen answers its question at the
+  top; colour is only on what needs doing, red and amber; nothing that's fine gets a pill.
 
 ## Signing in and the header
 - **Signing in:** the same email and password as before. An account that isn't staff is signed out with **This account
   doesn't have access to the planner.**
-- **The header:** the nine screens in the old order, the **search** box, **Local** / **UTC** (it starts as the planner's
+- **The header:** the nine screens (Home, Today, Routes, Tails, Performance, Interline, Photos, Reference, Systems), the
+  **search** box, **Local** / **UTC** (it starts as the planner's
   setting and remembers your choice on this device), the save state, **Website** (the public site) and **Sign out**. On
   a phone the screens sit on their own row, which you swipe sideways. Under it, on every screen, the **game clocks**:
   one per time zone of our bases, west to east, with the time there, a dot for day or night and the bases' codes. (The
@@ -36,7 +43,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing.
 
 ## Home: Overview
-*The whole network at a glance.* It looks and works as the old Home.
+*The whole network at a glance.* It looks and works as the old Home, without the boards that moved to Today on 20 Oct
+(needs attention, coming up and the to-do board), so each thing lives in one place.
 - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N aircraft
   in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes** and the
   **average load, last 7 days**. It moves on each minute and turns slowly (not if your device asks for less motion);
@@ -54,14 +62,40 @@ as you make it. On a preview address the planner saves nothing and says **previe
   name it; a route opens its pop-up (its distance, demand, flights a day, loads, the load pattern's signal and each
   frequency, with **Open in Routes**), a planned route its aircraft in Aircraft on order.
 - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
-  plan. **File into planner** appears once one has arrived with a plan card, and files it on Tails (below).
-- **Needs attention:** things to act on, grouped by kind as on the old Home, each item linking to where it's fixed; an
-  item about one aircraft (its maintenance, turns or positions) opens its pop-up.
+  plan. One that has arrived with a plan card says **to file on Today**: its **File into planner** is on Today.
+- **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
+  route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
+  turns (or **clean**), with its home city's photo behind when the website has one (the city is the airline's own,
+  *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
+
+## Today
+*What do I do now?* The evening after a capture, or whenever one lands (since 20 Oct). Every board is open, the most
+important first; nothing folds.
+- **At the top, the answer:** **All clear** when nothing is waiting (no airline can order, nothing to file, nothing in
+  needs attention, no Game check differences), or how many things are waiting and what ("Pan Am can order · 2 aircraft
+  to file · 5 items in needs attention"). Game check counts only once you've pressed **Check against the game**.
+- **The capture in one line** (from *capture_status()*): "**All six airlines captured, all good, 17:08 UTC**", or what's
+  missing (an airline not captured for over a day; red after 48 hours), short (amber) or broken (red), with what came
+  in ("short: Kingfisher (loads 12 of 78 flights)"). **Systems ›** has each page.
+- **Orders:** a card per airline: **Can order now** (amber: something to do), or **Safe from** a day, **Needs a
+  capture** or **Not within 14 days**, from the cash forecast (*cash_forecast()*, through *airline_cards()*). Then each
+  delivery line the airline may have, read once: when its first type is safe to order (**safe now**, **safe from** a
+  day, or **not safe within 14 days**: the earliest safe day of the line's types, by the same family the order queues
+  use), how many are on order and when it runs dry (UTC), amber when that's within *order_queue_warn_h* (48 hours), or
+  **empty**. For example: "A320 family — safe from Wed, Oct 21 · 1 on order · runs dry 10-20 19:14 UTC (in 17 h)". A
+  line with no type in the forecast (no capture yet) says only what's on order. **all safe types**, folded under the
+  card, lists every safe type by when: **now** first, then each day from which more are safe, each short name once
+  ("Safe now: A321neo, E195 · from Thu, Oct 22: XLR, A320neo"). **Cash, next 14 days ›** opens the airline on
+  Performance. (Check → Growth's can order and order queues until 20 Oct.)
+- **Aircraft to file:** each aircraft that has arrived in the game with a plan card, with **File into planner**, which
+  files it on Tails (below). Home's Aircraft on order had the button until 20 Oct.
+- **Needs attention** (moved whole from Home on 20 Oct): things to act on, grouped by kind as on the old Home, each item
+  linking to where it's fixed; an item about one aircraft (its maintenance, turns or positions) opens its pop-up.
   - the capture (an airline not captured for 26 hours, red at 48) and the backup (no good copy for 30 hours, or the
-    last run failed);
+    last run failed), linking to Systems;
   - **a capture page that came in short or broken** (#21), the same night: "Kingfisher's capture came in short: loads
-    12 of 78 flights", in the Capture group, linking to Check. Capture that airline again; the line goes once its pages
-    are all good;
+    12 of 78 flights", in the Capture group, linking to Systems. Capture that airline again; the line goes once its
+    pages are all good;
   - **Nightly jobs** (#13): the daily snapshot more than 30 hours old, the 10:00 UTC job not run for 30 hours (the
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
     with its note;
@@ -71,19 +105,23 @@ as you make it. On a preview address the planner saves nothing and says **previe
   - airports from 80% of the game's departure cap (the setting *airport_cap_warning_pct*);
   - **Interline:** how many airline–country pairs on Interline have no agreement yet (not signed, declined or without
     a partner in the game), from the same rows and rules as Interline (the setting *interline_rules*);
-  - routes to fix, from the captured profit (with none captured, from the load patterns, as on the old Home);
-  - when an airline can safely order.
+  - routes to fix, from the captured profit (with none captured, from the load patterns, as on the old Home), linking
+    to the route on its airline's Performance page;
+  - when an airline can safely order, linking to its Performance page.
 
   **×** dismisses an item and **show again** brings every dismissed item back. Fare-plan items aren't listed here;
-  they're reviewed weekly.
-- **Coming up:** the next 14 days, meaning one-week checks and to-dos. While the checks are off there are none, and
-  no **One-week checks** button.
+  they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
+- **Game check** (Check's until 20 Oct): **Check against the game** reads each airline's live schedule from the game.
+  Each airline's line says how many flights are in each and the differences. **Review** lists them, with **Use the
+  game's times** where it's only a time or a day change, **Fix all from the game**, and the game's flights the planner
+  hasn't got, each with an aircraft and **Add to planner** (for a new aircraft, pick **new tail…** and type its
+  registration in the box). After a fix or an add the differences are worked out again from the planner as it is now.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
   tell Claude and it ticks it; add one with its steps, one a line; **×** deletes one after asking you in the page.
-- **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
-  route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
-  turns (or **clean**), with its home city's photo behind when the website has one (the city is the airline's own,
-  *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
+- **Coming up:** the next 14 days, meaning one-week checks and to-dos. While the checks are off there are none, and
+  no **One-week checks** button.
+- **An old address:** /planner/check opens Today; /planner/check?day=2026-10-12 (the old daily load report on a day)
+  opens Performance's Flights by day on that day.
 
 ## Routes
 *Every route in the network. Pick one to schedule its flights.*
@@ -105,8 +143,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
   the destination, the aircraft's position and the second-daily gap (the last two new: the old Routes didn't show
   them); then the connections at both ends, in all six airlines' flights. Type days (such as 135) and times in local
   time at each end; each box saves when you leave it. **Add frequency** takes the next free numbers; **Remove** asks in
-  the page first. The aircraft's registration beside its box (**N001AW ›**) opens its pop-up, as Home's does, with the
-  address (?aircraft=N001AW) so a link reopens it.
+  the page first. The aircraft's registration beside its box (**N001AW ›**) opens its pop-up, as Today's needs
+  attention does, with the address (?aircraft=N001AW) so a link reopens it.
 - **Changing an offset** keeps the local times, as the old planner did: the page first lists every flight whose UTC time
   moves and asks. Empty the box to go back to the game's offset.
 - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
@@ -137,81 +175,44 @@ as you make it. On a preview address the planner saves nothing and says **previe
   airline has no station yet (none of its flights or bases touch it) is highlighted on the card. The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
   it, and the card says **no cabin chosen** while neither the card nor the order names one. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
   points at it, goes; one that has flown or been paid for is retired; one in service just leaves the list.
-- **File into planner** (on an arrived aircraft's plan card, or from Home): the planner reads the airline's schedule
-  from the game and compares each flight on the card. When every one is the same, it files at once. Otherwise it shows
-  each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with **the
+- **File into planner** (on an arrived aircraft's plan card, or from Today's Aircraft to file): the planner reads the
+  airline's schedule from the game and compares each flight on the card. When every one is the same, it files at once.
+  Otherwise it shows each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with **the
   game's times** (the card takes them too) or **the plan card's times**. Filing puts the aircraft in service, fits its
   cabin and logs the first fit at that cabin's price: the plan card's cabin, else the order's. With neither, it sets no
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
   as a round trip, launched today, and then opens the aircraft.
-- **The aircraft pop-up** (from Home's needs attention, or a frequency's aircraft on Routes): its base, block hours a
-  day, legs a week, maintenance, the one-week check, every issue and its flights, with **Mark checked** and **Open in
-  Tails**. While the checks are off (*aircraft_check_after_days* 0), there's no check line and no **Mark checked**.
+- **The aircraft pop-up** (from Today's needs attention, Systems' cabins and checks, or a frequency's aircraft on
+  Routes): its base, block hours a day, legs a week, maintenance, the one-week check, every issue and its flights, with
+  **Mark checked** and **Open in Tails**. While the checks are off (*aircraft_check_after_days* 0), there's no check line and no **Mark checked**.
 - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
 - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
   distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
   Ryanair takes its own **R** on every route. The distance is the route's (the airline's own, either way round, with any
   override), as filing takes it, else the great circle.
 
-## Hubs
-*Each base's day: banks, arrivals and departures, and which flights connect.* It only shows; nothing on it saves. Times
-are local at the airport, whichever way the header's **Local** / **UTC** is set, as on the old Hubs.
-- **The address** names the airport and the day (/planner/hubs/DEL?day=2, Monday being 0), so a link reopens the same
-  board. /planner/hubs opens the first base on Monday.
-- **The toolbar:** every base and focus city, the seven days, and the count line: departures and arrivals that day,
-  departures a week (every airline's) against the game's cap per airport (**over cap** past it), and the base's next
-  free flight-number pair with the last one used.
-- **A focus city** says it has no banks of its own and is timed to its hub's.
-- **The day:** the strip with each bank's arrival window (green) and departure window (orange, **B1**, **B2** …), a tick
-  for every flight (red for a departure off wave), and the bars hour by hour.
-- **The week:** 15-minute slots in local time, departures over arrivals, shaded by the bank windows. On a phone it
-  scrolls inside its own box, as the day strip does.
-- **The flights** that day: time, direction, flight, to or from, aircraft and the bank pill (**bank N**; **off wave**
-  for a departure in no bank, **outside the banks** for an arrival that can't make one; none for an airline with no base
-  there or a focus city). An arrival is named with a bank only when it connects onto that bank's departures within the
-  connection rules (from the airport's minimum connection time to 8 hours); since the clean-up (14 Oct, design §16) the
-  329 arrivals a week the old Hubs named with a bank they could only reach after a longer wait say **outside the
-  banks**.
-- **Connections at [airport]:** by bank and outside the banks, the airports arriving and leaving, the city pairs (each
-  once, at its shortest connection, from the airport's minimum connection time to 8 hours, never back where it came
-  from) and the tightest eight as examples, across all our airlines. Beside each count of airports, the flights by
-  region (**North America 7 · South Asia 2**), as on the old Hubs; each country's region is in the database
-  (*countries.region*, 14 Oct), where the old Hubs kept the list in its own code.
-
-## Check
-*Last night's capture, aircraft checks, growth signals, Game check and the daily load report.* The Systems board at the
-top, then the same six boards as the old Check, each folded on arrival. Click a board's title to open or fold it, or use
-**Expand all** and **Collapse all**. Each button is saved on its own, as one change.
-- **Systems** (#23): one look says whether everything worked. It stays open, one line each with a green, amber or red
-  mark and when, and its title says "all good" or how many lines are amber or red:
-  - **Evening capture**, one line per airline: when its latest page came, and its pages' verdict (#21): "all good", or
-    what came in short or broken ("short: loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
-    after 48 hours or when a page was broken. Pages stored before 14 Oct's checks say "not checked".
-  - **Daily snapshot:** the latest day in the daily history, taken by the capture (green) or by the 10:00 UTC fallback
-    and so incomplete (amber); amber after 30 hours, red after 54 or when its last run failed; amber too when the 10:00
-    UTC job hasn't run for 30 hours (the database's scheduler may have stopped).
-  - **Nightly backup:** the last good copy (its restore check passed), its size and rows; amber after 30 hours, red after
-    54 or when the last run failed.
-  - **Monthly archive:** whether it ran this month; amber from the 3rd if it hasn't, red if a table and month failed.
-  - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
-  - **World scan:** its age (the Saturday review runs it first); amber over 8 days, red over 15.
-  - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
-    minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
-  - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),
-    amber from 70%, red at the trigger. Supabase's egress and the website's calls a day stay the monthly look by hand.
-
-  Home still lists the problems; this board is where "all good" shows. **Reload** on the Capture board reads it again.
-- **The address** keeps the daily load report's day (/planner/check?day=2026-10-12), so a link reopens that day.
-  /planner/check opens today (UTC). An aircraft's pop-up adds ?aircraft=REG.
-- **Capture:** what the capture collected for each airline, and when (UTC), with **Reload** and the backup's line. If
-  an airline is missing, press the capture again. Each page is checked as it arrives (#21): the capture's panel in the
-  game ends each airline with "all good" or what came in short or broken, and the Systems board above shows the same.
-- **Growth:** where each airline should grow next.
-  - **Main hubs towards 750 departures a week:** hubs first. Each main hub reaches 750 before another opens, unless the
-    new one is contested.
-  - **Next move for each airline:** each airline rotates its orders, big market → frequency → smaller feeder. It names
-    each route, its stars and the suggested aircraft size (the setting *suggested_size*, with Ryanair's own). **Log an
-    order as** (**Big**, **Frequency**, **Feeder**) records an order so the rotation moves on.
+## Performance
+*How are we doing, and why?* (since 20 Oct: Review's screen, with Check's growth boards and daily load report). Every
+money figure is the database's. Its boards are open on arrival, the most important first; **Collapse all** and
+**Expand all** fold them, and a board's title folds it.
+- **The address:** /planner/performance is the group; /planner/performance/VS one airline's page. A link from Today's
+  needs attention (/planner/performance/PA/JFK-ORD) opens the airline with the route profit table filtered to that
+  route. Old Review addresses (/planner/review/VS) lead here.
+- **The scorecards, one per airline:** Review's cards, with every figure: **profit a day** over the last 7 days, with
+  its sparkline; **per aircraft** (profit a day ÷ aircraft flying); **return on fleet** (a week's profit ÷ the value of
+  the aircraft flying); **an aircraft pays back in** (average aircraft price ÷ profit per aircraft a day); **funds a new
+  aircraft every** (average aircraft price ÷ the airline's profit a day); fleet, flights a day, average load; **next
+  order**, from the cash forecast (amber when it can order now). Beside the fleet, flights a day and average load, the
+  change against the same day last week from the daily history (*airline_days*), with an arrow: the latest day of the
+  history against that day a week before (fleet: aircraft flying; flights a day: the schedule's departures a week ÷ 7;
+  average load: the economy load averaged over the 7 days to each day). One change a line: with the arrows, the card's
+  own "+N this week" (counted from the schedule's flights that day, so it can differ) isn't shown. An airline with no
+  day a week ago says so, shows no arrow and keeps the card's "+N this week". The money figures have no such change: the
+  history keeps no profit a day, and their trend is the sparkline. Tap a scorecard to open the airline.
+- **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
+  the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
+  business (manual §5).
+- **Growth signals:** where each airline should grow next, and what to trim (Check → Growth until 20 Oct).
   - **Ready for another flight:** routes that sold out on most departures in the last 7 days and make at least as
     much an aircraft hour as the airline's middle route. An aircraft hour is the flight's block time plus the type's
     turnaround and the 10-minute turn margin: the time the aircraft can't fly anything else. **An aircraft hour** is
@@ -220,38 +221,23 @@ top, then the same six boards as the old Check, each folded on arrival. Click a 
   - **Fix or reduce:** losing money, economy under 75%, or a thin margin. A route isn't listed until it has been
     flying for 7 days (the setting `growth_new_route_days`); a new route that sells out is still listed above.
   - **Aircraft losing money after their lease.**
-  - **Order queues:** how long each delivery line has before it runs dry, for the families each airline may have (from
-    the database).
-  - **Hub readiness:** how many cities feed each bank, counted by region (*countries.region*).
-- **Aircraft checks:** one check a week after an aircraft is scheduled, with the aircraft's issues and its routes' load
-  pills; the ones coming up by day. You do these in the game, and only you mark them checked (**Mark checked**). The
-  board isn't shown while the checks are off: the setting *aircraft_check_after_days* at 0 (manual §1, none since
-  15 Oct). Any number above 0 brings it back.
-- **Cabins:** each aircraft's cabin against the usual cabin of the markets it flies. **Refitted to …** records a refit
-  done in the game: the aircraft takes the cabin and the refit's cost (0.2M, the setting *cabin_refit_cost*) counts as a
-  loss that day. **Keep as is** takes an aircraft off the list; **Show again**, under "kept as is", brings it back.
-- **Game check:** **Check against the game** reads each airline's live schedule from the game. Each airline's line says
-  how many flights are in each and the differences. **Review** lists them, with **Use the game's times** where it's only
-  a time or a day change, **Fix all from the game**, and the game's flights the planner hasn't got, each with an
-  aircraft and **Add to planner** (for a new aircraft, pick **new tail…** and type its registration in the box). After a
-  fix or an add the differences are worked out again from the planner as it is now.
-- **Daily load report:** **‹** and **›** move a day. Every departure by airline, with its loads by class from the
-  capture (the last 9 days), or the day's summary from loads typed by hand.
+  - With no profit captured yet: ready for another flight from the load reports, and the routes to reduce from the
+    load patterns.
 
-## Review
-*How each airline is doing: cash, the 14-day forecast, and profit by route and by aircraft.* Its boards fold as Check's
-do (all folded on arrival; click a title, or **Expand all**). Every money figure is the database's.
-- **The address** names the airline: /planner/review/VS. /planner/review opens the first airline, as the old Review
-  did. A link from Home's needs attention (/planner/review/AW/JFK-ORD) opens the airline with the route profit table
-  filtered to that route.
-- **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
-  the week-end closing a day (this week's scheduled payments), and net. The old board's six group totals are gone:
-  each airline is its own business (manual §5).
-- **One card per airline:** **profit a day** over the last 7 days; **per aircraft** (profit a day ÷ aircraft flying);
-  **return on fleet** (a week's profit ÷ the value of the aircraft flying); **an aircraft pays back in** (average
-  aircraft price ÷ profit per aircraft a day); **funds a new aircraft every** (average aircraft price ÷ the airline's
-  profit a day); fleet, flights a day, average load; **next order**, from the cash forecast. Tap one to open its page.
-- **The airline's page:**
+  Each list shows its first 10 rows, in its own order, with **show all N** under it to open the rest in place and
+  **show fewer** to close them again (21 Oct: the screen ran to almost 12,000 px with every row). The count stays in
+  each list's heading.
+
+  The order rotation's **Next move for each airline** and **Log an order as** went on 20 Oct (spec decision 2): each
+  evening's proposal picks by the route we most want to fly (manual §3). The moves logged stay in `growth_log`.
+- **Main hubs towards 750 departures a week:** hubs first, one bar per main hub (the plan cards not yet filed
+  lighter). Each main hub reaches 750 before another opens, unless the new one is contested. **Hub readiness** is
+  folded into each line: open it for how many cities feed each of the airline's banks, flying now and with the plan
+  cards, counted by region (*countries.region*).
+- **Flights by day** (Check's daily load report, renamed): **‹** and **›** move a day, and the day is in the address
+  (/planner/performance?day=2026-10-12). Every departure by airline, with its loads by class from the capture (the last
+  9 days), or the day's summary from loads typed by hand.
+- **The airline's page:** its scorecard, a button for each airline, then:
   - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus that
     day's order payments), with the 7-day average and the table of reported days. Cash moves on payment days, so read
     the average.
@@ -267,18 +253,13 @@ do (all folded on arrival; click a title, or **Expand all**). Every money figure
     with the load the day before and after.
   - **Fare plan:** the fare changes to make in the game, with **remove**. The next capture spots each one. It's
     reviewed together on Saturdays.
-  - **Manual entry:** only if a night's capture failed. Cash and fixed costs for today (**Save** keeps a figure only
-    where it differs from the capture's), the nightly log, and **Loads by hand**: type each airline's flights under
-    95%, or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads
-    typed or pasted change only the days and flights you enter; captured days stay as they are. A typed figure wins
-    over the capture's where it is newer.
 
 ## Interline
 *Which foreign countries each airline flies into, and whether it has an interline agreement there.*
 - **Interline agreements:** one row per airline (its logo on every row) and interline country it flies to or has planned (on a plan card not
   yet filed), with the airports, round trips a day (or **planned**), the status (still to sign, signed or declined),
   the partner in the game, since when and notes. Each saves as you change it (a box when you leave it). The **Airline**
-  and **Status** chips filter the rows and are in the address (/planner/interline?airline=KF&status=open). Home's
+  and **Status** chips filter the rows and are in the address (/planner/interline?airline=KF&status=open). Today's
   needs attention counts the rows still without an agreement.
 - **The interline countries:** the countries with a real domestic network or a regional gateway, why each one is, the
   partners that exist in Gander (each a link to its page in the game) and our airlines flying or planned there; then
@@ -314,9 +295,49 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 - **Removed routes:** **restore** (or **restore all**) any route removed from Routes.
 - **Night bans:** airports that close overnight (find, change, remove, **Add**). Flights inside a ban are flagged on
   their route.
-- **Game schedules:** each airline's public schedule page, used by Check → Game check, worked out from its game ID.
+- **Game schedules:** each airline's public schedule page, used by Today → Game check, worked out from its game ID.
 - **Time zones:** the game runs standard time all year. Override an airport only if the game disagrees; **Set** lists
   the flights whose UTC time moves and asks first, as Routes does.
 - **Storage:** whether saving works, with **Save now**; nothing is kept on the device.
 - **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**. Importing a backup and clearing
   everything are gone with the tables (design §14): the nightly backup and the change log are the safety net.
+
+## Systems
+*Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board, Capture, Cabins and aircraft
+checks, and Review's Manual entry). The Systems board stays open at the top; the boards under it are folded on
+arrival: click a board's title to open or fold it, or use **Expand all** and **Collapse all**. Each button is saved on
+its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
+- **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when,
+  and its title says "all good" or how many lines are amber or red:
+  - **Evening capture**, one line per airline: when its latest page came, and its pages' verdict (#21): "all good", or
+    what came in short or broken ("short: loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
+    after 48 hours or when a page was broken. Pages stored before 14 Oct's checks say "not checked".
+  - **Daily snapshot:** the latest day in the daily history, taken by the capture (green) or by the 10:00 UTC fallback
+    and so incomplete (amber); amber after 30 hours, red after 54 or when its last run failed; amber too when the 10:00
+    UTC job hasn't run for 30 hours (the database's scheduler may have stopped).
+  - **Nightly backup:** the last good copy (its restore check passed), its size and rows; amber after 30 hours, red after
+    54 or when the last run failed.
+  - **Monthly archive:** whether it ran this month; amber from the 3rd if it hasn't, red if a table and month failed.
+  - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
+  - **World scan:** its age (the Saturday review runs it first); amber over 8 days, red over 15.
+  - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
+    minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
+  - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),
+    amber from 70%, red at the trigger. Supabase's egress and the website's calls a day stay the monthly look by hand.
+
+  Today's capture line and needs attention list the problems; this board is where "all good" shows.
+- **Capture:** what the capture collected for each airline, and when (UTC), with **Reload** and the backup's line. If
+  an airline is missing, press the capture again. Each page is checked as it arrives (#21): the capture's panel in the
+  game ends each airline with "all good" or what came in short or broken, and the Systems board above shows the same.
+- **Manual entry:** only if a night's capture failed. Cash and fixed costs for today (**Save** keeps a figure only
+  where it differs from the capture's), the nightly log, and **Loads by hand**: type each airline's flights under 95%,
+  or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads typed or
+  pasted change only the days and flights you enter; captured days stay as they are. A typed figure wins over the
+  capture's where it is newer.
+- **Cabins:** each aircraft's cabin against the usual cabin of the markets it flies. **Refitted to …** records a refit
+  done in the game: the aircraft takes the cabin and the refit's cost (0.2M, the setting *cabin_refit_cost*) counts as a
+  loss that day. **Keep as is** takes an aircraft off the list; **Show again**, under "kept as is", brings it back.
+- **Aircraft checks:** one check a week after an aircraft is scheduled, with the aircraft's issues and its routes' load
+  pills; the ones coming up by day. You do these in the game, and only you mark them checked (**Mark checked**). The
+  board isn't shown while the checks are off: the setting *aircraft_check_after_days* at 0 (manual §1, none since
+  15 Oct). Any number above 0 brings it back.

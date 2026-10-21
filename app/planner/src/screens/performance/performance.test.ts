@@ -1,18 +1,43 @@
-// Review's logic (spec docs/specs/2026-10-14-review.md, "Checks"): the cards' wording when a figure is missing, the
-// profit chart's intervals (the last 14), the load paste reader (the old parseLoadPaste, with the old planner test's
-// case), the typed loads and the saves (each the payload or the rows the old planner writes), the fare plan's words and
-// its add and drop, the route profit's filters, and the plan card's service check as Tails shows it. Every money figure
-// itself is the database's (database/tests/review_test.sql); these run the screen's words and saves.
+// Performance's logic (spec docs/specs/2026-10-20-today-performance-systems.md; Review's tests until 20 Oct, spec
+// docs/specs/2026-10-14-review.md, and Check's growth and load report tests, spec docs/specs/2026-10-13-check.md): the
+// scorecards' wording when a figure is missing and their change against the same day last week (an airline with no day a
+// week ago included), the profit chart's intervals (the last 14), the fare plan's words and its add and drop, the route
+// profit's filters, the main hubs with their readiness folded in, Flights by day's day and summary (captured, typed by
+// hand, not captured), and the plan card's service check as Tails shows it. Every money figure itself is the
+// database's (database/tests/review_test.sql); these run the screen's words and saves. Manual entry's tests moved to
+// Systems with its board (screens/systems/model.test.ts).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildRules, type RulesInput } from "@rules";
+import { buildRules, loadReport, type DayFlight, type RulesInput } from "@rules";
 import { cardLegs, cardServiceIssues, withRoutes, type PlanLegRow } from "../tails/model";
 import type { RouteRow as TableRoute } from "../routes/model";
+import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
+import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
-  CHART_INTERVALS, barLayout, barTip, capturedLine, cardWords, cashChanges, chartIntervals, costParts, dayStatus, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat, kk,
-  loadsChanges, markCounts, mergeDay, nextOrderWords, nightlyLog, offersFarePlan, parseLoadPaste, pasteSaves, planWords, safeWords, sg, shownRoutes, sparkBars, typedLoads, typedSave,
-  underList, type Card, type CashToday, type PlanRow, type ProfitDay, type RouteRow,
+  CHART_INTERVALS, LIST_TOP, barLayout, barTip, capturedLine, cardWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, kk, listCut, markCounts, nextOrderWords,
+  offersFarePlan, planWords, safeWords, sg, shownRoutes, sparkBars, weekOnWeek, type Card, type DayRow, type PlanRow, type ProfitDay, type RouteRow,
 } from "./model";
+import type { CapturedLoad, HandLoads } from "./reads";
+
+// the planning library's small world (lib/rules/cases/_base.json), with the flights the load report lists
+const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
+const ALL = [1, 2, 3, 4, 5, 6, 7];
+const leg = (id: number, rot: number, n: 1 | 2, from: string, to: string, aircraft: number, days: number[], dep: number, blk: number | null, no: number | null) => ({
+  id, airline_id: 1, rotation_id: rot, leg_no: n, flight_no: no, origin_code: from, dest_code: to, aircraft_id: aircraft, days_utc: days, dep_utc_min: dep, block_min: blk,
+});
+// T-001 flies HUB–AAA daily (1001 at 06:00, 1002 back at 09:30) and HUB–DDD on Mon, Wed and Fri (1003 at 20:00, 1004 back
+// the next morning at 06:30); T-002 flies HUB–NBN daily (1007, back with no number of its own, so 1006)
+const input: RulesInput = {
+  ...base,
+  routes: base.routes.map((r) => (r.id === 1 ? { ...r, market_id: 1 } : r.id === 4 ? { ...r, market_id: 2 } : r)),
+  rotations: [{ id: 1, airline_id: 1, route_id: 1 }, { id: 2, airline_id: 1, route_id: 4 }, { id: 3, airline_id: 1, route_id: 6 }],
+  flight_legs: [
+    leg(1, 1, 1, "HUB", "AAA", 1, ALL, 360, 75, 1001), leg(2, 1, 2, "AAA", "HUB", 1, ALL, 510, 75, 1002),
+    leg(3, 2, 1, "HUB", "DDD", 1, [1, 3, 5], 1200, 150, 1003), leg(4, 2, 2, "DDD", "HUB", 1, [2, 4, 6], 60, 160, 1004),
+    leg(5, 3, 1, "HUB", "NBN", 2, ALL, 600, 60, 1007), leg(6, 3, 2, "NBN", "HUB", 2, ALL, 720, 60, null),
+  ],
+};
+const rules = buildRules(input);
 
 const card = (x: Partial<Card> = {}): Card => ({
   airline_id: 1, code: "TA", name: "Test Air", profit_day: 0.4567, span_days: 7, early: false, per_aircraft_day: 0.0456, return_on_fleet_pct_week: 2.345,
@@ -146,104 +171,130 @@ describe("the fare plan", () => {
   });
 });
 
-const today = (x: Partial<CashToday> = {}): CashToday => ({
-  day: "2026-10-14", shown_cash: 10, shown_fixed: 1.25, stored_cash: 10, stored_fixed: 1.25, captured_cash: 10, captured_fixed: 1.25, entry: null, ...x,
+describe("the scorecards: each figure against the same day last week, from the daily history", () => {
+  const row = (airline: number, day: string, fleet: number | null, weekly: number | null, eco: number | null): DayRow =>
+    ({ airline_id: airline, day, aircraft_total: fleet, weekly_departures: weekly, eco_load_pct: eco });
+  // Test Air: every day from 1 to 15 Oct, two more aircraft and 21 more departures a week by the 15th, its load falling
+  const history: DayRow[] = [
+    ...Array.from({ length: 15 }, (_, i) => row(1, `2026-10-${String(i + 1).padStart(2, "0")}`, i < 8 ? 10 : 12, i < 8 ? 280 : 301, 90 - i * 0.5)),
+    // Other Air: new, its first day the 12th, so nothing a week ago
+    row(2, "2026-10-12", 4, 56, 80), row(2, "2026-10-13", 4, 56, 81), row(2, "2026-10-14", 5, 70, 82),
+    // Third Air: the same fleet and schedule as a week ago, and a day after today left out
+    row(3, "2026-10-07", 6, 140, 95), row(3, "2026-10-14", 6, 140, 95), row(3, "2026-10-16", 9, 200, 50),
+  ];
+  it("the latest day against the same day a week earlier: fleet, flights a day (departures a week ÷ 7) and the 7 days' economy load", () => {
+    const x = weekOnWeek(history, 1, "2026-10-15");
+    expect([x.day, x.weekAgo, x.compared]).toEqual(["2026-10-15", "2026-10-08", true]);
+    expect(x.changes.fleet).toEqual({ now: 12, then: 10, delta: 2, arrow: "up", text: "▲ 2" });
+    expect(x.changes.flights).toEqual({ now: 43, then: 40, delta: 3, arrow: "up", text: "▲ 3" });
+    // the 7 days to the 15th (9th–15th) average 84.5%; to the 8th (2nd–8th) 88%
+    expect(x.changes.load).toMatchObject({ delta: -3.5, arrow: "down", text: "▼ 3.5 pts" });
+  });
+  it("an airline with no day a week ago: nothing to compare, each change a dash", () => {
+    const x = weekOnWeek(history, 2, "2026-10-15");
+    expect([x.day, x.weekAgo, x.compared]).toEqual(["2026-10-14", "2026-10-07", false]);
+    expect(Object.values(x.changes).map((c) => [c.text, c.arrow, c.delta])).toEqual([["—", null, null], ["—", null, null], ["—", null, null]]);
+  });
+  it("no change is the same; a day after today isn't read; an airline with no history at all", () => {
+    const x = weekOnWeek(history, 3, "2026-10-15");
+    expect([x.day, x.changes.fleet.text, x.changes.flights.arrow, x.changes.load.text]).toEqual(["2026-10-14", "= same", "same", "= same"]);
+    expect(weekOnWeek(history, 9, "2026-10-15")).toMatchObject({ day: null, weekAgo: null, compared: false });
+    expect(weekOnWeek([row(1, "2026-10-08", null, 280, null), row(1, "2026-10-15", 12, 301, null)], 1, "2026-10-15").changes)
+      .toMatchObject({ fleet: { text: "—" }, flights: { text: "▲ 3" }, load: { text: "—" } });
+    expect(historyFrom("2026-10-15")).toBe("2026-09-30");
+  });
+  it("one point of load is \"1 pt\", not \"1 pts\" (the rehearsal's screenshots)", () => {
+    const x = weekOnWeek([row(1, "2026-10-08", 10, 280, 90), row(1, "2026-10-15", 10, 280, 91)], 1, "2026-10-15");
+    expect(x.changes.load.text).toBe("▲ 1 pt");
+    expect(weekOnWeek([row(1, "2026-10-08", 10, 280, 90), row(1, "2026-10-15", 10, 280, 88)], 1, "2026-10-15").changes.load.text).toBe("▼ 2 pts");
+  });
 });
 
-describe("cash and fixed costs for today: the rows the old planner's adapter writes", () => {
-  const now = "2026-10-14T12:00:00.000Z";
-  it("nothing when the figures are the ones the tables hold", () => {
-    expect(cashChanges(1, [{ airline_id: 5, today: today(), cash: "10", fixed: "1.25" }], now)).toEqual([]);
-    expect(cashChanges(1, [{ airline_id: 5, today: today(), cash: "", fixed: "" }], now)).toEqual([]);
+describe("the growth lists cut to their first 10 rows (21 Oct: Performance ran to 11,890 px)", () => {
+  const rows = Array.from({ length: 94 }, (_, i) => ({ route: `R${i + 1}` }));
+  it("10 shown of 94, in the list's own order, with \"show all 94\"", () => {
+    const c = listCut(rows, false);
+    expect(c.shown.map((r) => r.route)).toEqual(["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]);
+    expect(c.button).toBe("show all 94");
+    expect(LIST_TOP).toBe(10);
   });
-  it("a typed figure that differs from the capture's gets a row, in AS$; the other stays empty while it agrees", () => {
-    expect(cashChanges(1, [{ airline_id: 5, today: today(), cash: "12.34", fixed: "1.25" }], now)).toEqual([
-      { table: "cash_entries", op: "insert", values: { world_id: 1, airline_id: 5, day: "2026-10-14", cash: 12340000, fixed_next7: null, entered_at: now } }]);
-    expect(cashChanges(1, [{ airline_id: 5, today: today({ captured_cash: null, captured_fixed: null, stored_cash: null, stored_fixed: null, shown_cash: null, shown_fixed: null }),
-      cash: "1,234.5", fixed: "2" }], now)).toEqual([
-      { table: "cash_entries", op: "insert", values: { world_id: 1, airline_id: 5, day: "2026-10-14", cash: 1234500000, fixed_next7: 2000000, entered_at: now } }]);
+  it("all 94 shown when opened, with \"show fewer\"", () => {
+    const c = listCut(rows, true);
+    expect(c.shown).toHaveLength(94);
+    expect(c.shown[93]).toEqual({ route: "R94" });
+    expect(c.button).toBe("show fewer");
   });
-  it("a typed row changed, or taken away once both agree with the capture again", () => {
-    const entry = { cash: 12340000, fixed_next7: null, updated_at: "2026-10-14T09:00:00.5+00:00" };
-    const t = today({ stored_cash: 12.34, entry });
-    expect(cashChanges(1, [{ airline_id: 5, today: t, cash: "12.5", fixed: "" }], now)).toEqual([
-      { table: "cash_entries", op: "update", key: { airline_id: 5, day: "2026-10-14" }, base: entry.updated_at, values: { cash: 12500000, fixed_next7: null, entered_at: now } }]);
-    expect(cashChanges(1, [{ airline_id: 5, today: t, cash: "10", fixed: "" }], now)).toEqual([
-      { table: "cash_entries", op: "delete", key: { airline_id: 5, day: "2026-10-14" }, base: entry.updated_at }]);
-  });
-  it("the nightly log: every reported day, newest first, a dash where an airline has none", () => {
-    const rows = nightlyLog({ today: "2026-10-14", airlines: [
-      { airline_id: 1, code: "A", name: "Pan American", days: [{ day: "2026-10-12", cash: 5, fixed: 0.7 }, { day: "2026-10-14", cash: 9.125, fixed: null }], today: today() },
-      { airline_id: 2, code: "B", name: "Kingfisher", days: [{ day: "2026-10-13", cash: 3, fixed: 1 }], today: today() }] });
-    expect(rows).toEqual([
-      { day: "2026-10-14", cells: [{ cash: "9.13", fixed: null }, null] },
-      { day: "2026-10-13", cells: [null, { cash: "3.00", fixed: "1.00" }] },
-      { day: "2026-10-12", cells: [{ cash: "5.00", fixed: "0.70" }, null] }]);
+  it("no button with 10 rows or fewer, open or not", () => {
+    expect(listCut(rows.slice(0, 10), false)).toEqual({ shown: rows.slice(0, 10), button: null });
+    expect(listCut(rows.slice(0, 10), true)).toEqual({ shown: rows.slice(0, 10), button: null });
+    expect(listCut(rows.slice(0, 3), false).shown).toHaveLength(3);
+    expect(listCut([], false)).toEqual({ shown: [], button: null });
+    expect(listCut(rows.slice(0, 11), false)).toEqual({ shown: rows.slice(0, 10), button: "show all 11" });
   });
 });
 
-describe("loads by hand", () => {
-  const codes = new Map([["KF", "Kingfisher"], ["AW", "Pan American"]]);
-  const dm = "14.10.";
-  // the old planner test's paste (tests/planner_test.py, manual_loads): one flight under 95% and one full
-  const paste = [`KF 1008\tVT-AAE\tAMS\t${dm} 02:45 LT\tDEL\t${dm} 10:00 LT\t500\t100 / 150\t900\t10 / 12\t--\t--\t--\t--`,
-    `KF 1009\tVT-AAE\tDEL\t${dm} 12:00 LT\tAMS\t${dm} 18:00 LT\t500\t150 / 150\t900\t12 / 12\t--\t--\t--\t--`].join("\n");
-  it("reads the game's load table: economy, business and first together, without cargo", () => {
-    const p = parseLoadPaste(paste, codes, "2026-10-14");
-    expect(p.map((x) => [x.key, x.date, x.dep, x.from, x.to, x.tail, x.pax, x.seats, x.pct])).toEqual([
-      ["Kingfisher|1008", "2026-10-14", "02:45", "AMS", "DEL", "VT-AAE", 110, 162, 68], ["Kingfisher|1009", "2026-10-14", "12:00", "DEL", "AMS", "VT-AAE", 162, 162, 100]]);
+describe("the growth signals and main hubs (Check → Growth until 20 Oct)", () => {
+  it("draws main hubs towards their target: exempt airlines and those without a main hub left out, the planned part lighter", () => {
+    const rows = hubRows([
+      { airline_id: 1, code: "TA", name: "Test Air", main_hub: "HUB", exempt: false, target: 750, departures: 600, planned: 210, percent: 80 },
+      { airline_id: 2, code: "OA", name: "Other Air", main_hub: "AAA", exempt: true, target: 750, departures: 20, planned: 0, percent: 2.7 },
+    ], () => "Test Air");
+    expect(rows).toEqual([{ airline_id: 1, name: "Test Air", hub: "HUB", departures: 600, planned: 210, target: 750, width: "80.0%", pend: "20.0%", pct: 80 }]);
   });
-  it("skips what isn't one of ours or isn't a flight; numbers with commas; a date far ahead is last year's; cargo left out", () => {
-    const text = [`ZZ 1\tX\tAAA\t${dm} 01:00\tBBB\t-\t1\t1 / 2`, "AW 0101\tN1\tJFK\tnot a date\tLHR\t-\t1\t1 / 2",
-      `AW 101\tN1\tJFK\t31.12. 23:50 LT\tLHR\t01.01. 06:00 LT\t900\t1,200 / 1,500\t--\t--\t--\t--\t70\t5 / 10`].join("\n");
-    const p = parseLoadPaste(text, codes, "2026-10-14");
-    expect(p.map((x) => [x.key, x.date, x.pax, x.seats, x.pct])).toEqual([["Pan American|101", "2025-12-31", 1200, 1500, 80]]);
-    expect(parseLoadPaste("nothing here", codes, "2026-10-14")).toEqual([]);
+  it("folds each airline's hub readiness into its line: its banks, the planned cities as more", () => {
+    const r = (airline: number, airport: string, bank: number, dep: number, flying: number, planned: number) =>
+      ({ base_id: airline * 10, airline_id: airline, airport, bank, dep, flying, with_planned: planned, regions: [{ region: "Europe", cities: flying }] });
+    const rows = [r(1, "HUB", 1, 360, 12, 15), r(1, "HUB", 2, 720, 1, 1), r(1, "FOC", 1, 480, 3, 3), r(2, "AAA", 1, 600, 5, 5)];
+    expect(readinessOf(rows, 1)).toEqual({ rows: rows.slice(0, 3), line: "HUB B1 06:00 12 cities (+3 planned) · B2 12:00 1 city · FOC B1 08:00 3 cities" });
+    expect(readinessOf(rows, 3)).toEqual({ rows: [], line: "" });
   });
-  it("the paste saved: each flight under 95% set, each full one cleared, the ticked days complete", () => {
-    const p = parseLoadPaste(paste, codes, "2026-10-14");
-    expect(pasteSaves(p, ["2026-10-14"], 123)).toEqual({ "2026-10-14": { set: { "Kingfisher|1008": 68 }, del: ["Kingfisher|1009"], done: true, savedAt: 123 } });
-    expect(pasteSaves(p, [], 123)).toEqual({ "2026-10-14": { set: { "Kingfisher|1008": 68 }, del: ["Kingfisher|1009"] } });
+  it("writes money as the old board did", () => {
+    expect([kWords(0.1234), kWords(-0.045), growthWeekWords(1.2), growthWeekWords(-0.456), pctWords(87.6), pctWords(null), perDayWords(2), perDayWords(1.4)])
+      .toEqual(["+123k", "−45k", "+1.20M", "−0.46M", "88%", "—", "2×", "1.4×"]);
   });
-  it("typed boxes: number then load, a prefix allowed, each load 0 to 94; a flight that doesn't fly that day is named", () => {
-    const valid = new Set(["Pan American|1001", "Pan American|1005"]);
-    const t = typedLoads([{ airline: "Pan American", text: "AW1001 93%, 1005 99, 1777 -4" }], valid);
-    expect(t).toEqual({ f: { "Pan American|1001": 93, "Pan American|1005": 94, "Pan American|1777": 4 }, unknown: ["Pan 1777"] });
-    expect(typedSave("2026-10-14", t.f, 99)).toEqual({ "2026-10-14": { f: t.f, done: true, savedAt: 99 } });
+});
+
+describe("Flights by day (Check's daily load report until 20 Oct)", () => {
+  it("reads the day from the address, today without one or with a bad one, and moves it a day at a time", () => {
+    expect(parseDay("?day=2026-10-09", "2026-10-13")).toBe("2026-10-09");
+    expect(parseDay("", "2026-10-13")).toBe("2026-10-13");
+    expect(parseDay("?day=13-10-2026", "2026-10-13")).toBe("2026-10-13");
+    expect(moveDay("2026-10-01", -1)).toBe("2026-09-30");
+    expect(moveDay("2026-12-31", 1)).toBe("2027-01-01");
   });
-  // the rows a save writes, as the old save_loads() wrote them (private.loads_mirror_days), since the clean-up through
-  // planner_save() (build pull request 14)
-  const ids = new Map([["Pan American", 1], ["Kingfisher", 2]]);
-  const AT = "2026-10-14T12:00:00.000Z";
-  const held = { done: true, source: "capture", savedAt: 50, f: { "Pan American|1001": 93, "Pan American|1009": 97 },
-    entries: [{ airline_id: 1, flight_no: 1001, eco_pct: 93, updated_at: "2026-10-14T01:00:00+00:00" }],
-    flags: { done: true, saved_at_ms: 50, updated_at: "2026-10-14T02:00:00+00:00" } };
-  it("a day merged as save_loads() merged it: f replaces the day's flights, or set and del change single ones", () => {
-    expect(mergeDay(held, { f: { "Pan American|1005": 61 }, done: true, savedAt: 99 })).toEqual({ f: { "Pan American|1005": 61 }, done: true, savedAt: 99 });
-    expect(mergeDay(held, { set: { "Pan American|1005": 61 }, del: ["Pan American|1009"] })).toEqual({ f: { "Pan American|1001": 93, "Pan American|1005": 61 }, done: true, savedAt: 50 });
-    expect(mergeDay(null, { set: { "Kingfisher|1": 70 } })).toEqual({ f: { "Kingfisher|1": 70 }, done: false });
+});
+
+describe("Flights by day: the departures and their loads", () => {
+  const day = "2026-10-12";
+  const flights: DayFlight[] = loadReport.flightsOn(rules, day, [{ id: 1, launched_on: "2026-10-01" }, { id: 2, launched_on: "2026-10-08" }]);
+  const row = (code: string, eco: number | null, x: Partial<CapturedLoad> = {}): CapturedLoad => ({ airline: "Test Air", flight_date: day, code, eco, bus: null, fst: null, cargo: null,
+    eco_pax: null, eco_seats: null, bus_pax: null, bus_seats: null, fst_pax: null, fst_seats: null, ...x });
+  it("lists the day's departures and finds each one's captured loads by its airline and number", () => {
+    expect(flights.map((f) => f.no)).toEqual([1001, 1002, 1007, 1006, 1003]);
+    const m = loadsByFlight([row("TA 1001", 100), row("TA 1002", 80, { flight_date: "2026-10-11" })], day);
+    expect([...m.keys()]).toEqual([loadKey("Test Air", 1001)]);
   });
-  it("typed: a row for each flight that differs (null where it's cleared), the day's row when its mark or saved time changes", () => {
-    const ch = loadsChanges(7, "2026-10-14", held, { f: { "Pan American|1001": 90, "Pan American|1005": 61 }, done: true, savedAt: 99 }, ids, AT);
-    expect(ch).toEqual([
-      { table: "load_entries", op: "update", key: { airline_id: 1, game_date: "2026-10-14", flight_no: 1001 }, base: "2026-10-14T01:00:00+00:00", values: { eco_pct: 90, entered_at: AT } },
-      { table: "load_entries", op: "insert", values: { world_id: 7, airline_id: 1, game_date: "2026-10-14", flight_no: 1005, eco_pct: 61, entered_at: AT } },
-      { table: "load_entries", op: "insert", values: { world_id: 7, airline_id: 1, game_date: "2026-10-14", flight_no: 1009, eco_pct: null, entered_at: AT } },
-      { table: "load_days", op: "update", key: { world_id: 7, game_date: "2026-10-14" }, base: "2026-10-14T02:00:00+00:00", values: { done: true, saved_at_ms: 99, entered_at: AT } },
-    ]);
+  it("sums up the day from the captured loads: averages by class (a missing figure counting as 0, as the old report's), sold out, under 85%", () => {
+    const m = loadsByFlight([row("TA 1001", 100, { bus: 80, cargo: 40 }), row("TA 1002", 82), row("TA 1007", 96, { bus: 90 })], day);
+    const of = (f: DayFlight) => m.get(loadKey("Test Air", f.no));
+    const s = daySummary(flights, of, { done: false, values: [] });
+    expect(s).toEqual({ kind: "captured", departures: 5, captured: 3, economy: (100 + 82 + 96) / 3, business: (80 + 0 + 90) / 3, cargo: 40 / 3, soldOut: 1, under85: 1 });
+    expect(summaryWords(s)).toBe("5 departures · 3 captured · economy 93% · business 57% · cargo 13% · 1 sold out · 1 under 85%");
+    expect(airlineDay(flights, of)).toEqual({ departures: 5, captured: 3, economy: (100 + 82 + 96) / 3, soldOut: 1, firstWeek: 1 });
   });
-  it("a day with nothing yet: its rows added; nothing written when nothing differs; a flight of an airline not ours left out", () => {
-    expect(loadsChanges(7, "2026-10-20", null, { f: { "Kingfisher|1008": 68, "Nobody|5": 50 }, done: true, savedAt: 5 }, ids, AT)).toEqual([
-      { table: "load_entries", op: "insert", values: { world_id: 7, airline_id: 2, game_date: "2026-10-20", flight_no: 1008, eco_pct: 68, entered_at: AT } },
-      { table: "load_days", op: "insert", values: { world_id: 7, game_date: "2026-10-20", done: true, saved_at_ms: 5, entered_at: AT } },
-    ]);
-    expect(loadsChanges(7, "2026-10-14", held, { set: { "Pan American|1001": 93 } }, ids, AT)).toEqual([]);
-    expect(loadsChanges(7, "2026-10-14", held, { del: ["Pan American|1009"] }, ids, AT).map((c) => [c.table, c.op, c.values?.eco_pct])).toEqual([["load_entries", "insert", null]]);
+  it("without captured loads: from the loads typed by hand once the day is complete, else not captured", () => {
+    const hand: HandLoads = { done: true, values: [{ airline_id: 1, flight_no: 1001, eco_pct: 92 }, { airline_id: 1, flight_no: 1003, eco_pct: 64 }, { airline_id: 1, flight_no: 1007, eco_pct: 99 }] };
+    const s = daySummary(flights, () => undefined, hand);
+    expect(s).toEqual({ kind: "hand", departures: 5, under95: 2, under85: 1, under70: 1 });
+    expect(summaryWords(s)).toBe("5 departures · entered by hand: under 95% 2 · under 85% 1 · under 70% 1");
+    expect(summaryWords(daySummary(flights, () => undefined, { done: false, values: hand.values }))).toBe("5 departures · not captured");
   });
-  it("a day's boxes and status from the day as the planner holds it", () => {
-    const d = { done: true, source: "capture", f: { "Pan American|1001": 93, "Pan American|1005": 61, "Pan American|1009": 97, "Kingfisher|1": 50 } };
-    expect(underList(d, "Pan American")).toBe("1005 61, 1001 93");
-    expect([dayStatus(d), dayStatus({ done: true, f: {} }), dayStatus(null)]).toEqual(["captured", "entered by hand", "nothing yet"]);
+  it("writes a flight's loads by class, marked low under 85% economy", () => {
+    expect(capLine(row("TA 1001", 97.6, { eco_pax: 176, eco_seats: 180, bus: 80, bus_pax: 16, bus_seats: 20, cargo: 40.4 })))
+      .toEqual({ text: "Y 98% (176/180) · C 80% (16/20) · cargo 40%", low: false });
+    expect(capLine(row("TA 1002", 70))).toEqual({ text: "Y 70%", low: true });
+    expect(capLine(row("TA 1003", null))).toBeNull();
+    expect(capLine(undefined)).toBeNull();
   });
 });
 

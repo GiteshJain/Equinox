@@ -6,7 +6,8 @@ and each airline's page, the newsroom and an article, investors, about, gander m
 link into the planner. Then the planner's addresses (#18 build pull requests 13 and 14): the planner at /planner/ (its
 sign-in form, its files from /app/, no errors) and at a screen's own address; the addresses used while it was built
 (/planner/next/...) moved to the same address under /planner/; the old planner's address (/planner/old/), gone with it in
-the clean-up, goes to /planner/.
+the clean-up, goes to /planner/; and since 20 Oct Check's address goes to /planner/today, Review's to the same address
+under /planner/performance/ and Hubs' to /planner/performance.
 Then the trip search (#19): on a small made-up week, transfers follow the planning library's connection rule
 (web/assets/rules.js, built by npm run build): one at exactly the airport's minimum connection time and one at exactly
 8 hours are offered, one a minute under the minimum and one of 9 hours (which the old 10-hour window offered) are not;
@@ -104,12 +105,24 @@ async def new_planner(b, port):
           f"loaded {files}, failed {bad}")
     check(not outside or set(outside) <= {"fonts.googleapis.com", "fonts.gstatic.com"},
           "the new planner: signed out, it asks nothing of the database (only the fonts were stopped)", f"stopped: {sorted(set(outside))}")
-    resp = await pg.goto(f"http://127.0.0.1:{port}/planner/review/VS")
+    resp = await pg.goto(f"http://127.0.0.1:{port}/planner/performance/VS")
     with contextlib.suppress(Exception):
         await pg.wait_for_selector("#g-email", timeout=15000)
-    check(resp.status == 200 and urlsplit(resp.url).path == "/planner/review/VS" and await pg.evaluate("!!document.querySelector('#g-email')"),
-          "the new planner: a screen's own address (/planner/review/VS) gives the same page")
-    for path, want in (("/planner/next", "/planner/"), ("/planner/next/routes", "/planner/routes"), ("/planner/next/review/VS", "/planner/review/VS")):
+    check(resp.status == 200 and urlsplit(resp.url).path == "/planner/performance/VS" and await pg.evaluate("!!document.querySelector('#g-email')"),
+          "the new planner: a screen's own address (/planner/performance/VS) gives the same page")
+    # Check, Review and Hubs went on 20 Oct (spec docs/specs/2026-10-20-today-performance-systems.md): their addresses go
+    # (301) to Today and Performance; an address used while the planner was built that named Review goes there in two
+    for path, want in (("/planner/check", "/planner/today"), ("/planner/review/VS", "/planner/performance/VS"), ("/planner/hubs", "/planner/performance"),
+                       ("/planner/hubs/DEL", "/planner/performance")):
+        resp = await pg.goto(f"http://127.0.0.1:{port}{path}")
+        first = await resp.request.redirected_from.response() if resp.request.redirected_from else None
+        with contextlib.suppress(Exception):
+            await pg.wait_for_selector("#g-email", timeout=15000)
+        check(first is not None and first.status == 301 and urlsplit(resp.url).path == want and resp.status == 200
+              and await pg.evaluate("!!document.querySelector('#g-email')"),
+              f"a screen that went on 20 Oct, {path}, goes (301) to {want}, the planner",
+              f"{first.status if first else 'no redirect'}, ended at {resp.url} ({resp.status})")
+    for path, want in (("/planner/next", "/planner/"), ("/planner/next/routes", "/planner/routes"), ("/planner/next/review/VS", "/planner/performance/VS")):
         resp = await pg.goto(f"http://127.0.0.1:{port}{path}")
         first = await resp.request.redirected_from.response() if resp.request.redirected_from else None
         with contextlib.suppress(Exception):

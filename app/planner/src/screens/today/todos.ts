@@ -4,7 +4,7 @@
 // Needs attention, dismiss and show again.
 import type { Change } from "../../data/save";
 import { addDays } from "../../ui/dates";
-import type { DismissalRow, TodoItemRow, TodoRow } from "./reads";
+import type { DismissalRow, TodoItemRow, TodoRow } from "../home/reads";
 
 export interface TodoView {
   row: TodoRow;

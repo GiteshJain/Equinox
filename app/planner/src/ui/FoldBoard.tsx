@@ -1,6 +1,6 @@
 // A board that folds open and shut by its title, as the old Check's (decorateBoards): folded, only the title shows.
-// Check has its own copy (screens/check/Check.tsx, build pull request 9); Review (build pull request 10) and later screens
-// use this one. The title's text is the board's key (data-rkey); clicks on a button, box or link in the title don't fold.
+// Performance (open on arrival) and Systems (folded on arrival) use it since 20 Oct, as Review and Check did. The title's
+// text is the board's key (data-rkey); clicks on a button, box or link in the title don't fold.
 import type { ReactNode } from "react";
 
 export function FoldBoard({ k, title, note, folded, onToggle, figure, children }: {

@@ -916,3 +916,38 @@ tr.focusrow input:disabled{opacity:.35}
 @media (max-width:860px){ .syslabel{min-width:0} .systext{flex-basis:100%;padding-left:20px} }
 /* an airport on a plan card where the airline has no station yet (18 Oct) */
 .newstn{background:var(--warn-soft);color:var(--warn);font-weight:600;border-radius:5px;padding:0 4px}
+
+/* ---------- Today, Performance and Systems (20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md) ----------
+   Today: the answer at the top (All clear or what's waiting) with the capture in one line, each airline's orders as a
+   card, the aircraft to file. Performance: the scorecards' third column, each figure against the same day last week, and
+   the main hubs' lines with their readiness folded in. Colour only on what needs doing; on a phone the cards stack. */
+.todayans .ansh{margin:0;font:500 24px/1.15 var(--font-d);letter-spacing:-.03em;color:var(--ink)}
+.todayans.clear .ansh{color:var(--ok)}
+.todayans .ansp{margin:6px 0 12px;color:var(--muted);font-size:13.5px;overflow-wrap:anywhere}
+.capline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding-top:12px;border-top:1px solid var(--line-2);font-size:13.5px;min-width:0}
+.capline .captext{flex:1 1 16em;min-width:0;overflow-wrap:anywhere}
+.ordgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:10px}
+.ordcard{background:var(--group);border-radius:var(--r-card);padding:12px 14px;min-width:0;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.ordh{display:flex;align-items:center;gap:6px;flex-wrap:wrap} .ordh b{margin-right:auto}
+.ordh .pill{margin-left:0}
+.ordtypes{overflow-wrap:anywhere}
+.ordlines{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.ordlines li{overflow-wrap:anywhere}
+.ordcard > .link{align-self:flex-start}
+.perfnav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 14px}
+.perfnav .mf{text-decoration:none}
+.fgrid.one{grid-template-columns:minmax(0,560px)}
+.fcard dl.wowl{grid-template-columns:auto 1fr auto}
+.fcard dd.wow{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:3.5em}
+.fwow{font-size:11.5px;margin-top:8px}
+.hpline{display:grid;gap:2px}
+.hpline > .hpn{font-size:13px}
+details.hpready > summary{padding:2px 0 4px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+/* 21 Oct: Today's order lines with when each is safe, all safe types folded under the card; Growth signals' lists cut to 10 */
+.ordall > summary{font-size:12.5px;color:var(--muted);cursor:pointer;padding:2px 0}
+.ordall .ordtypes{padding-top:4px}
+button.link.gmore{display:inline-block;margin:6px 0 2px}
+@media (max-width:560px){
+  .todayans .ansh{font-size:21px}
+  .fgrid.one{grid-template-columns:minmax(0,1fr)}
+}

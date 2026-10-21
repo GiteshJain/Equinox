@@ -29,9 +29,9 @@ Until each is built and merged, the rules below stand as they are.
   database; the planner, the website's trip search, the optimiser and the weekly report all use them (the report's
   money from the captured figures since 13 Oct, with no surplus figure and no group totals). *Built 14 Oct.*
 - **#21 and #23 are built** (14 Oct): each capture page is checked as it arrives, with its verdict in the capture panel,
-  on Home the same night and on Check; and the Systems board at the top of Check shows the capture, the jobs, the
-  backups, the planner's own build and the database's usage against their triggers, each green, amber or red. Both are
-  in §7. *Built 14 Oct.*
+  on Today the same night (Home until 20 Oct) and on Systems; and the Systems board at the top of Systems (of Check
+  until 20 Oct) shows the capture, the jobs, the backups, the planner's own build and the database's usage against their
+  triggers, each green, amber or red. Both are in §7. *Built 14 Oct.*
 - **#24 is built** (15 Oct): the airline briefing (`python3 scripts/briefing/brief.py <airline>`: one airline's
   figures, planning figures, rivals from the latest scan, deliveries, plan cards with their check, to-dos and fare plan,
   in one step), and the map's guide to which call answers which question (`docs/architecture.md`), every example
@@ -105,8 +105,8 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Hubs, Tails and
-  the schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
+  the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails, the
+  planning library's hub boards and the schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
   plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every website
   page, the planner's sign-in at `/planner/` and the planner's addresses). When the database, the planner or the
   library changes, the *Database rehearsal* also generates the planner's types again from the copy (they must match
@@ -159,8 +159,8 @@ Details and open points: `docs/decisions.md`.
   planner and the library read the tables). *Since 10 Oct (#13, pull request 9; design §11, choice 3); the old
   planner's copies in its code, and the cross-check that kept them in step, went with it on 14 Oct (the clean-up) ·
   why: the same number lived in the manual, the planner and the scripts, and drifted (the connection buffer, 9 Oct).*
-- **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board; Claude marks it resolved when
-  he reports back. *Since 30 Sep.*
+- **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board (on Today since 20 Oct);
+  Claude marks it resolved when he reports back. *Since 30 Sep.*
 - **No one-week aircraft checks.** A new schedule is checked once, when it's filed (the planner checks each card against
   the game, §4), and the capture's page checks show each night whether it flies (§7). *Since 15 Oct · why: Gitesh no longer wants them.*
 - **Every decision gets the full brief** (format in `docs/briefs/README.md`): decision and recommendation first; then
@@ -296,7 +296,8 @@ less important than another, point to point rather than hubs).*
   Gitesh orders that evening. *Since 18 Oct (option C); the order queues first and the choice by route since 19 Oct ·
   why (Gitesh): the group's cash supports about two aircraft a day; weekly batches left it waiting, and an empty
   line is an aircraft lost.*
-- **When an airline can order: the cash forecast.** Planner → Review → "Cash, next 14 days": captured cash, plus flight
+- **When an airline can order: the cash forecast.** Planner → Today → Orders says who can order now or from when, and
+  the safe types; the detail is Performance → the airline → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
   payment). An order is safe when **0.5M stays in hand at the lowest point** after it (`settings.order_cushion`).
   Prices include the cabin.
@@ -310,10 +311,10 @@ less important than another, point to point rather than hubs).*
   - Planned refits are not in the forecast; say so with each recommendation.
   - If an airline hasn't been captured, get the capture first. Never use the surplus figure.
   - The forecast is worked out by `cash_forecast()` in the database (several orders tested together with `p_orders`);
-    the planner's Review screen shows it (#19, build pull request 3).
+    the planner's Performance screen shows it, and Today's Orders the types safe now (#19, build pull request 3).
 - **The order queues:** each airline has one delivery line per family, and the aircraft on a line arrive one after
   another: an A320-family aircraft (A320neo, A321neo and XLR share the line) every 21 hours, an E195 every 15 hours, an
-  A350 every 30 hours. Order planning keeps the queues in mind (Check → Growth → Order queues): what each airline still
+  A350 every 30 hours. Order planning keeps the queues in mind (Today → Orders, each airline's delivery lines): what each airline still
   has to arrive on each line, when each line runs dry, and when a new order's aircraft would arrive. An empty line is a
   line standing idle. A new order joins the end of its line: on an idle line its first aircraft arrives one interval
   after the order (the 18 Oct orders: A321neos 21 hours later, E195s 15), on a busy line one interval after the last
@@ -336,7 +337,7 @@ less important than another, point to point rather than hubs).*
   block hour alone would over-reward short hops, whose turns tie the aircraft up for nearly as long as they fly. Brief:
   `docs/briefs/2026-10-17-add-or-raise.md`.*
 - **New routes aren't judged for a week:** a route launched fewer than **7 days** ago gets none of the problem marks
-  (losing, fix or reduce), so Home's routes to fix and Check's Fix or reduce skip it. Its launch day is its earliest
+  (losing, fix or reduce), so Today's routes to fix and Performance's Fix or reduce skip it. Its launch day is its earliest
   rotation's (a second daily added later doesn't make an old route new). Sold-out marks (add a flight, raise fares) apply
   at any age. The number is `settings.growth_new_route_days` (7). *Since 16 Oct · why (Gitesh): PVG–CCU and KUL–TRV were
   marked losing after one round trip, on the day they launched; the losing mark needed only 2 departures.*
@@ -460,7 +461,7 @@ less important than another, point to point rather than hubs).*
 ## 7. Recurring work
 - **Every evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments, and
   nothing else, straight into the tables (`game_flights` and the rest); a day's loads count as complete once every
-  active airline has been captured for it. Loads are typed in by hand (Review → Manual entry) only if a capture fails.
+  active airline has been captured for it. Loads are typed in by hand (Systems → Manual entry) only if a capture fails.
   *Since 7–8 Oct; salaries taken out 10 Oct; into the tables only since 10 Oct (#13, pull request 9).*
   - **Each page is checked as it arrives** (#21): ok, short or broken. Loads are short below 90% of the airline's
     flights scheduled in the page's window (the 24 hours before the capture, a new rotation counting from the day after
@@ -468,10 +469,10 @@ less important than another, point to point rather than hubs).*
     statement is short with no lines, or below half the median of the airline's recent nights
     (`capture_statement_min_share`); events or an income statement with no rows are short; a balance sheet without the
     cash account (2800), or a page that doesn't read, is broken. The capture's panel ends each airline with "all good"
-    or what came in short or broken ("loads 12 of 78 flights"); Home lists a short or broken page the same night, and
-    Check's Systems board shows each airline's verdict. **If a page comes in short or broken, capture that airline
-    again** while the game's last 24 hours still hold the loads. A saved evening of each page kind is tested on every
-    pull request. No alert outside the planner: a missed evening still shows on Home after 26 hours. *Since 14 Oct
+    or what came in short or broken ("loads 12 of 78 flights"); Today's capture line and needs attention show a short or
+    broken page the same night, and the Systems board shows each airline's verdict. **If a page comes in short or broken,
+    capture that airline again** while the game's last 24 hours still hold the loads. A saved evening of each page kind is
+    tested on every pull request. No alert outside the planner: a missed evening still shows on Today after 26 hours. *Since 14 Oct
     (#21) · why: 11 and 12 Oct were missed and nothing said so for two days; loads for about 780 flights were lost.*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
@@ -500,7 +501,7 @@ less important than another, point to point rather than hubs).*
   month's first is kept for good, in R2 and as a file on a GitHub release in the private repository `equinox-backups`,
   where the backup job lives. Copies no longer go into git. Each run's R2 key is recorded in `backup_runs`. The
   database rehearsal reads last night's copy from R2 with a read-only key. Live data never goes into the
-  code repository (small test samples aside, see §1). The planner warns on Home if there's no good copy from the last
+  code repository (small test samples aside, see §1). The planner warns on Today if there's no good copy from the last
   30 hours. To recover, see the README in `equinox-backups`. *Copies in R2 since 9 Oct (#16) · why: the single backup
   file would pass GitHub's 50 MB warning around late November and its 100 MB limit around December or January.*
   *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
@@ -518,25 +519,25 @@ less important than another, point to point rather than hubs).*
   guarded database function that refuses anything else. Only the first night on or after the 1st has work to do
   (October leaves on 1 December); a month that fails is tried again the next night. The daily history (`airline_days`,
   `route_days`) and the scan summaries stay for good.
-- **Every job writes a row to `job_runs`,** and the planner's Home warns when the last good backup is more than 30 hours
+- **Every job writes a row to `job_runs`,** and the planner's Today warns when the last good backup is more than 30 hours
   old, the latest snapshot is more than 30 hours old (or the 10:00 UTC job hasn't run for 30 hours: the scheduler may
   have stopped; restart it from Supabase's settings), the month's archive hasn't run by the 3rd, or any job's last run
   failed. *Since 11 Oct (#13 pull request 7, the jobs brief) · why: the daily record needs a fallback, the capture
   tables their clean-ups, #16 its archive before 1 Dec, and a job that fails must be seen.*
-- **The Systems board, at the top of Check** (#23), is where "all good" shows: one line each, green, amber or red, for
-  each airline's evening capture (when, and its verdict), the daily snapshot (taken by the capture, or by the fallback
-  and so incomplete), the nightly backup (last good copy, restore check, size), the monthly archive (this month's
-  state, due by the 3rd), the clean-ups, the world scan's age (amber over 8 days, red over 15), the planner's own build
+- **The Systems board, at the top of Systems** (#23; of Check until 20 Oct), is where "all good" shows: one line
+  each, green, amber or red, for each airline's evening capture (when, and its verdict), the daily snapshot (taken by
+  the capture, or by the fallback and so incomplete), the nightly backup (last good copy, restore check, size), the
+  monthly archive (this month's state, due by the 3rd), the clean-ups, the world scan's age (amber over 8 days, red over 15), the planner's own build
   (the time and change it was built from: after a merge, a time that hasn't moved means the deploy failed), and the
   usage the database can measure against its triggers (§1): database size (350 MB), the report PDFs in `site_reports`
-  (50 MB) and the size of `site_public()` (500 KB), amber from 70%, red at the trigger. The marks use Home's limits
-  above (capture 26 and 48 hours, backup and snapshot 30 hours). Home keeps listing the problems. *Since 14 Oct (#23)
-  · why: Home showed problems only, and deploys and usage nowhere.*
+  (50 MB) and the size of `site_public()` (500 KB), amber from 70%, red at the trigger. The marks use needs attention's
+  limits above (capture 26 and 48 hours, backup and snapshot 30 hours). Today's needs attention keeps listing the
+  problems. *Since 14 Oct (#23) · why: Home showed problems only, and deploys and usage nowhere.*
 - **First Saturday of the month:** gander monthly and the monthly strategy session, and the weekly report adds its
   page on the month (above). *Since 8 Oct; no separate monthly report since 15 Oct.* Also a look at Supabase's usage page for what the database can't see: egress
   against §1's 4 GB and the website's calls a day against #20's 1,000 (*Decided, not yet built*). The database's size,
-  the report PDFs and the size of `site_public()` are on Check's Systems board. *Since 14 Oct (#23) · why: the board
-  measures the rest every time Check opens.*
+  the report PDFs and the size of `site_public()` are on the Systems board. *Since 14 Oct (#23) · why: the board
+  measures the rest every time Systems opens.*
 
 ## 8. Writing, website and newsroom
 - **Writing for Gitesh:** he mostly reads on his phone. Lead with the answer, keep it short, and use tables for options

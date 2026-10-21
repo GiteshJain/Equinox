@@ -62,6 +62,20 @@ export function useRouteRow(routeId: number | null) {
   });
 }
 
+/** A route as every airline's list holds it, with its cabin choice (Systems' cabins). */
+export interface AllRouteRow extends RouteRow { cabin_choice: string | null }
+
+/** Every route that isn't removed, of every airline, in the routes' order (Performance's growth lists from the load
+ *  reports, Systems' cabins; Check's until 20 Oct). */
+export function useAllRoutes(worldId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("routes", "check", worldId),
+    enabled: worldId !== undefined,
+    queryFn: () => pages<AllRouteRow>("the routes", (from, to) => supabase.from("routes").select(ROUTE_COLUMNS + ", cabin_choice")
+      .eq("world_id", worldId ?? 0).eq("removed", false).order("id").range(from, to) as unknown as PromiseLike<{ data: AllRouteRow[] | null; error: { message: string } | null }>),
+  });
+}
+
 /** Every airline's markets in the world: name, default aircraft and cabin, and fares. */
 export function useMarkets(worldId: number | undefined) {
   return useQuery({

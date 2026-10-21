@@ -1,19 +1,20 @@
-// The shell (decision #18, build pull request 1): sign-in and the staff check, then the header and the nine screens.
-import type { ComponentType } from "react";
-import { Outlet, createBrowserRouter } from "react-router";
+// The shell (decision #18, build pull request 1): sign-in and the staff check, then the header and the nine screens
+// (grouped by when they're used since 20 Oct: spec docs/specs/2026-10-20-today-performance-systems.md).
+import { useEffect, type ComponentType } from "react";
+import { Outlet, createBrowserRouter, useLocation, useNavigate } from "react-router";
 import { BASENAME } from "./data/config";
 import { PREVIEW } from "./data/preview";
 import { useAccess } from "./data/session";
-import { Check } from "./screens/check/Check";
 import { Home } from "./screens/home/Home";
-import { Hubs } from "./screens/hubs/Hubs";
 import { Interline } from "./screens/interline/Interline";
+import { Performance } from "./screens/performance/Performance";
 import { Photos } from "./screens/photos/Photos";
 import { Reference } from "./screens/reference/Reference";
-import { Review } from "./screens/review/Review";
 import { Routes } from "./screens/routes/Routes";
-import { SCREENS, type ScreenId } from "./screens/screens";
+import { SCREENS, movedTo, type ScreenId } from "./screens/screens";
+import { Systems } from "./screens/systems/Systems";
 import { Tails } from "./screens/tails/Tails";
+import { Today } from "./screens/today/Today";
 import { Band, Clocks } from "./ui/Clocks";
 import { ErrorBox } from "./ui/ErrorBox";
 import { Header } from "./ui/Header";
@@ -21,8 +22,8 @@ import { Messages } from "./ui/Messages";
 import { SignIn } from "./ui/SignIn";
 
 const COMPONENTS: Record<ScreenId, ComponentType> = {
-  home: Home, routes: Routes, tails: Tails, hubs: Hubs, check: Check, review: Review, interline: Interline, photos: Photos,
-  reference: Reference,
+  home: Home, today: Today, routes: Routes, tails: Tails, performance: Performance, interline: Interline, photos: Photos, reference: Reference,
+  systems: Systems,
 };
 
 function PreviewNotice() {
@@ -77,6 +78,16 @@ function NotFound() {
   );
 }
 
+/** An address of a screen that went on 20 Oct (Check, Review, Hubs), reached inside the planner: on to its new one, as
+ *  web/_redirects sends the browser's (movedTo). */
+function Moved() {
+  const loc = useLocation();
+  const navigate = useNavigate();
+  const to = movedTo(loc.pathname, loc.search) ?? "/";
+  useEffect(() => { navigate(to + loc.hash, { replace: true }); }, [to, loc.hash, navigate]);
+  return <main className="view"><div className="loading">Opening…</div></main>;
+}
+
 function RouteError() {
   return <main className="view"><ErrorBox error="Something went wrong on this screen. Reload the page to try again." /></main>;
 }
@@ -95,6 +106,7 @@ export const createPlannerRouter = () => createBrowserRouter([
         const Component = COMPONENTS[s.id];
         return s.path === "" ? { index: true, element: <Component /> } : { path: `${s.path}/*`, element: <Component /> };
       }),
+      ...["check", "review", "hubs"].map((p) => ({ path: `${p}/*`, element: <Moved /> })),
       { path: "*", element: <NotFound /> },
     ],
   },

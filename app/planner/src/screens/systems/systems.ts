@@ -1,4 +1,4 @@
-// The Systems board at the top of Check (decision #23, spec docs/specs/2026-10-14-capture-checks-and-systems.md part 2):
+// The Systems board at the top of Systems (decision #23, at the top of Check until 20 Oct; spec docs/specs/2026-10-14-capture-checks-and-systems.md part 2):
 // one line each, with a green, amber or red mark and when: the evening capture (each airline, with #21's verdict), the
 // daily snapshot, the nightly backup, the monthly archive, the clean-ups, the world scan, the planner's own build, and the
 // usage the database can measure against its triggers. The figures come from system_status() (one staff call, read only)
@@ -7,7 +7,7 @@
 // a job whose last run failed; the world scan amber over 8 days and red over 15; usage amber from 70% and red at the
 // trigger. Home keeps flagging problems; the board is where "all good" shows.
 import type { BuildStamp } from "../../data/build";
-import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H } from "../home/attention";
+import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H } from "../today/attention";
 
 export type Mark = "ok" | "warn" | "bad";
 

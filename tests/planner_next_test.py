@@ -10,15 +10,20 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
 
 1. Sign-in through the new planner's own form, as staff; the account that isn't staff is refused and signed out, with
    the old planner's message; opening the planner writes nothing (no change_log row, no table's row count changes).
-2. Every screen has its boards: Home (key figures, the network, needs attention, coming up, the to-do board, our
-   airlines in their position order and colours on the network's buttons); Routes on its list, with our airlines on its
-   buttons in their order; Tails, its list and the deliveries board; Hubs on the first base's board with every base in
-   its list; Check, its six boards, folded, in the old order, with the copy's airlines on the Capture board, and five
-   (no Aircraft checks) with the one-week checks off; Review, the
-   cards for the copy's airlines in their order and the first one's page; Interline with its agreements and the
-   interline countries, Photos with a logo for each of our airlines, Reference with its sections folded. The header has
-   the search box and the Website button. (Each screen was compared with the old planner's by a side by side until the
-   clean-up, build pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
+2. Every screen has its boards (the screens grouped by when they're used since 20 Oct, spec
+   docs/specs/2026-10-20-today-performance-systems.md): Home (the hero, key figures, the network, the airline cards, our
+   airlines in their position order and colours on the network's buttons; needs attention, coming up and the to-do board
+   no longer there); Today, its answer at the top (All clear or what's waiting) with the capture in one line, then Orders
+   with a card for each of our airlines, Aircraft to file, Needs attention, Game check, the to-do board and Coming up, all
+   open, with no Collapse all; Routes on its list, with our airlines on its buttons in their order; Tails, its list and
+   the deliveries board; Performance, a scorecard for each of the copy's airlines in their order and the group's boards
+   open (the group today when shown, Growth signals, Main hubs, Flights by day), then a scorecard opens its airline's
+   page (Profit, Cash next 14 days, Route profit, Fare plan, open); Systems, the Systems board first, then its four
+   boards folded (Capture with the copy's airlines, Manual entry, Cabins, Aircraft checks), and three (no Aircraft checks)
+   with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
+   of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
+   Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
+   pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
 3. window.__eqPlanner.save() ticks the first open to-do: exactly that row changes (done, done_at), logged as actor
    planner with the tab's ID; the answer gives the row's new updated_at. A second save from that updated_at puts it
    back, so the next change needs no new read and the real saves that follow still find their open to-dos.
@@ -28,20 +33,24 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
 5. A preview address (127.0.0.1) reads, says "preview · not saved", sends no write, and its notice links to the live
    planner at /planner/.
 6. Every screen opens at the frozen moment (the copy's latest capture plus one hour), at 1280 and 380 px wide: ready,
-   no errors, no sideways scroll (Check and Review with every board open, Reference with every section open) and no
-   link into the old planner's address (/planner/old/) or one used while the planner was built (/planner/next/); a
+   no errors, no sideways scroll (Systems with every board open, Reference with every section open), no link into the
+   old planner's address (/planner/old/), one used while the planner was built (/planner/next/) or a screen that went
+   on 20 Oct (/planner/hubs, /planner/check, /planner/review); and one airline's Performance page the same way; a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
-6b. Check's Systems board (#23) at the frozen moment: the first board on Check, a line for each of our airlines' evening
+6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
-   an airline's latest loads page, stored just after the latest capture and judged short, is listed on Home's needs
-   attention in the Capture group linking to Check, and marks that airline amber on the board; then it is deleted.
-7. The addresses (the switch, build pull request 13, and the clean-up, 14), as tests/harness.py serves them from
+   an airline's latest loads page, stored just after the latest capture and judged short, is listed on Today's needs
+   attention in the Capture group linking to Systems, Today's capture line says it came in short, and the board marks
+   that airline amber; then it is deleted.
+7. The addresses (the switch, build pull request 13, the clean-up, 14, and 20 Oct), as tests/harness.py serves them from
    web/_redirects the way Cloudflare does: /planner and /planner/ open the planner, and so does a deep address
-   (/planner/review/VS, signed in there, shows Virgin's Review); every /planner/next/... address answers 301 with the same
-   address under /planner/ (/planner/next/routes opens Routes at /planner/routes); /planner/old and everything under it
-   answer 301 to /planner/ (the old planner is gone); the built planner (web/app/) has no link to /planner/old/ or
-   /planner/next/.
+   (/planner/performance/VS); /planner/check answers 301 to /planner/today (the query kept), /planner/review/... to the
+   same address under /planner/performance/, /planner/hubs/... to /planner/performance; signed in, /planner/review/VS
+   lands on Virgin's Performance page, /planner/check on Today, /planner/hubs on Performance and /planner/check?day=…
+   on Performance's Flights by day on that day; every /planner/next/... address answers 301 with the same address under
+   /planner/ (/planner/next/routes opens Routes at /planner/routes); /planner/old and everything under it answer 301 to
+   /planner/ (the old planner is gone); the built planner (web/app/) has no link to /planner/old/ or /planner/next/.
 8. Nothing went outside: no request reached the live Supabase host or any address but the local server and the copy.
 
 Prints one line per step (ok/FAIL), and nothing from the rows beyond ids, counts and the names of changed fields, since
@@ -60,12 +69,13 @@ from local_copy import (count_changes, counts, is_planner_user, jobs_since, loca
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
 PAGE = WEB / "app" / "index.html"
-SCREENS = [("home", "/planner/"), ("routes", "/planner/routes"), ("tails", "/planner/tails"),
-           ("hubs", "/planner/hubs"), ("check", "/planner/check"), ("review", "/planner/review"),
-           ("interline", "/planner/interline"), ("photos", "/planner/photos"), ("reference", "/planner/reference")]
+SCREENS = [("home", "/planner/"), ("today", "/planner/today"), ("routes", "/planner/routes"), ("tails", "/planner/tails"),
+           ("performance", "/planner/performance"), ("interline", "/planner/interline"), ("photos", "/planner/photos"),
+           ("reference", "/planner/reference"), ("systems", "/planner/systems")]
 SCREENS_DIR = os.environ.get("PLANNER_SCREENS_DIR")
-# A link into the old planner, or to an address used while the new one was built (the switch: none may be left)
-OLD_LINK = re.compile(r"^(https?://[^/]+)?/planner/(old|next)(/|$|\?|#)")
+# A link into the old planner, to an address used while the new one was built (the switch: none may be left), or to a
+# screen that went on 20 Oct (Hubs, Check, Review: every link moved to Today, Performance or Systems)
+OLD_LINK = re.compile(r"^(https?://[^/]+)?/planner/(old|next|hubs|check|review)(/|$|\?|#)")
 NOT_STAFF = "This account doesn't have access to the planner."
 AUTH_KEY = "equinox-planner-auth"
 WORLD = "(select w.id from public.worlds w order by w.is_default desc, w.id limit 1)"
@@ -276,10 +286,10 @@ async def refuse_other(p, port, env, facts, other, seen):
 
 # ---------- 2. Home ----------
 async def home_opens(pl):
-    """Home is rebuilt (build pull request 5): no placeholder, its boards there (the hero, the map, needs attention,
-    coming up, the to-do board, a card for each of our airlines) and the game clocks under the header, our airlines on
-    the map's buttons in their order, with their colours. Its figures are compared with the old Home's by
-    tests/home_side_by_side_test.py."""
+    """Home is rebuilt (build pull request 5): no placeholder, its boards there (the hero, the map, a card for each of our
+    airlines) and the game clocks under the header, our airlines on the map's buttons in their order, with their colours.
+    Needs attention, coming up and the to-do board moved to Today on 20 Oct, so they aren't on Home. Its figures were
+    compared with the old Home's by tests/home_side_by_side_test.py until the clean-up."""
     want = json.loads(psql(f"""select coalesce(json_agg(json_build_object(
             'name', coalesce(a.planner_name, a.public_name, a.game_name, 'Airline ' || a.game_id),
             'color', coalesce(a.livery_color, '#8B96A8')) order by a.position nulls last, a.id), '[]')
@@ -297,7 +307,8 @@ async def home_opens(pl):
         problems.append("Home still shows the placeholder's line to the old planner")
     if boards["figures"] != 5:
         problems.append(f"{boards['figures']} key figure(s), expected 5")
-    problems += [f"no {k} board" for k in ("network", "attention", "comingUp", "todo", "hero") if not boards[k]]
+    problems += [f"no {k} board" for k in ("network", "hero") if not boards[k]]
+    problems += [f"Home still has the {k} board, which moved to Today" for k in ("attention", "comingUp", "todo") if boards[k]]
     if not boards["clocks"]:
         problems.append("no game clocks under the header")
     if not want:
@@ -308,8 +319,62 @@ async def home_opens(pl):
         problems.append("an airline's colour isn't the copy's: " + ", ".join(g["name"] for g, w in zip(got, want) if g["color"].lower() != w["color"].lower()))
     if boards["cards"] != len(want):
         problems.append(f"{boards['cards']} airline card(s), the copy has {len(want)} of our airlines")
-    return (f"Home is rebuilt, not a placeholder: the hero, its key figures, the map, needs attention, coming up, the to-do board and "
-            f"the airline cards, with the copy's {len(want)} airlines in their order and colours, and the game clocks ({boards['clocks']} time zones)"), problems
+    return (f"Home is rebuilt, not a placeholder: the hero, its key figures, the map and the airline cards (needs attention, coming up "
+            f"and the to-do board on Today now), with the copy's {len(want)} airlines in their order and colours, and the game clocks "
+            f"({boards['clocks']} time zones)"), problems
+
+
+async def today_opens(pl):
+    """Today (20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md): its answer at the top (All clear or what's
+    waiting) with the capture in one line linking to Systems; then every board open, in order: Orders with a card for each
+    of our airlines in their order (each delivery line once, with when it's safe; all safe types folded under the card
+    since 21 Oct), Aircraft to file, Needs attention, Game check, the to-do board and Coming up; and no Collapse all."""
+    want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
+                                join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                where g.kind = 'ours' and a.world_id = {WORLD} and a.active
+                                order by a.position nulls last, a.id""").splitlines() if r]
+    await pl.pg.click("[data-screen-link=today]")
+    await pl.pg.wait_for_selector("main[data-screen=today][data-today-ready=yes]", timeout=90000)
+    await settle(pl.pg, 300)
+    got = await pl.pg.evaluate("""({
+        answer: (document.querySelector('[data-figure="today: answer"]') || {dataset: {}}).dataset.allClear || '',
+        title: (document.querySelector('[data-figure="today: answer"] .ansh') || {}).textContent || '',
+        capture: (document.querySelector('[data-figure="today: capture"]') || {dataset: {}}).dataset.captureState || '',
+        captureLink: (document.querySelector('[data-figure="today: capture"] a') || {getAttribute: () => ''}).getAttribute('href') || '',
+        boards: [...document.querySelectorAll('main[data-screen=today] .board > h3.rh')].map(h => h.textContent.trim().split('\\n')[0]),
+        figures: [...document.querySelectorAll('main[data-screen=today] [data-figure]')].map(b => b.dataset.figure),
+        orders: [...document.querySelectorAll('[data-figure="today: orders"] .ordcard .ordh b')].map(b => b.textContent),
+        lines: document.querySelectorAll('[data-figure="today: orders"] [data-order-line]').length,
+        allSafe: document.querySelectorAll('[data-figure="today: orders"] details.ordall').length,
+        allSafeOpen: document.querySelectorAll('[data-figure="today: orders"] details.ordall[open]').length,
+        todo: !!document.querySelector('main[data-screen=today] #todo'), comingUp: !!document.querySelector('main[data-screen=today] #coming-up'),
+        attention: !!document.querySelector('main[data-screen=today] #attention'), game: !!document.querySelector('main[data-screen=today] [data-board="Game check"] #gcheck'),
+        folded: document.querySelectorAll('main[data-screen=today] .board.rcol').length, collapse: !!document.querySelector('main[data-screen=today] #rev-colall') })""")
+    problems = []
+    if got["answer"] not in ("yes", "no"):
+        problems.append("Today has no answer at the top (All clear or what's waiting)")
+    if got["capture"] not in ("complete", "missing", "short", "broken"):
+        problems.append(f"Today's capture line says nothing it should ({got['capture']!r})")
+    if got["captureLink"] != "/planner/systems":
+        problems.append(f"the capture line links to {got['captureLink']!r}, not Systems")
+    order = ["today: answer", "today: orders", "today: aircraft to file", "today: needs attention", "today: game check"]
+    seen = [f for f in got["figures"] if f in order]
+    if seen[:len(order)] != order:
+        problems.append(f"Today's boards are {seen}, not {order} in that order")
+    if got["orders"] != want:
+        problems.append(f"Today's orders are for {got['orders']}, the copy's airlines are {want}")
+    if got["allSafeOpen"]:
+        problems.append(f"{got['allSafeOpen']} order cards show all safe types on arrival (they should be folded)")
+    problems += [f"Today has no {k}" for k in ("todo", "comingUp", "attention", "game") if not got[k]]
+    if got["folded"]:
+        problems.append(f"{got['folded']} of Today's boards are folded on arrival (all should be open)")
+    if got["collapse"]:
+        problems.append("Today has Collapse all")
+    await pl.pg.click("[data-screen-link=home]")
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return (f"Today opens with its answer ({got['title'] or '?'}), the capture line ({got['capture']}) linking to Systems, and every board open: "
+            f"orders for the copy's {len(got['orders'])} airlines ({got['lines']} delivery lines, all safe types folded on {got['allSafe']} cards), "
+            f"aircraft to file, needs attention, Game check, the to-do board and coming up"), problems
 
 
 async def routes_opens(pl):
@@ -363,113 +428,132 @@ async def tails_opens(pl):
     return f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}) and the deliveries, with the copy's {len(want)} airlines on its buttons", problems
 
 
-async def hubs_opens(pl):
-    """Hubs is rebuilt (build pull request 8): no placeholder; it opens on the first base's board (its count line, the day
-    strip, the week grid, the flight list and the connections), with every base and focus city in its list in the bases'
-    order. Its figures are compared with the old Hubs' by tests/hubs_side_by_side_test.py."""
-    want = list(dict.fromkeys(r for r in psql(f"""select b.airport_code from public.airline_bases b where b.world_id = {WORLD}
-                                                order by b.position nulls last, b.id""").splitlines() if r))
-    await pl.pg.click("[data-screen-link=hubs]")
-    await pl.pg.wait_for_selector("main[data-screen=hubs][data-hubs-ready=yes]", timeout=60000)
-    await settle(pl.pg, 300)
-    got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=hubs] [data-not-built]'),
-        bases: [...document.querySelectorAll('#h-hub option')].map(o => o.value), hub: document.querySelector('main[data-screen=hubs]').dataset.hub,
-        count: (document.querySelector('[data-figure="hubs: count"]') || {}).textContent || '',
-        boards: ['hubs: day strip', 'hubs: hours', 'hubs: week', 'hubs: flights', 'hubs: connections']
-          .filter(f => !document.querySelector('[data-figure="' + f + '"]')) })""")
-    problems = []
-    if got["notBuilt"]:
-        problems.append("Hubs still shows the placeholder's line to the old planner")
-    if got["bases"] != want:
-        problems.append(f"bases in Hubs' list {got['bases']}, the copy has {want}")
-    if want and got["hub"] != want[0]:
-        problems.append(f"Hubs opens on {got['hub']!r}, not the first base {want[0]}")
-    if not got["count"]:
-        problems.append("Hubs shows no count line")
-    if got["boards"]:
-        problems.append(f"Hubs is missing {', '.join(got['boards'])}")
-    await pl.pg.click("[data-screen-link=home]")
-    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return f"Hubs is rebuilt, not a placeholder: it opens on {got['hub']}'s board ({got['count']}), with the copy's {len(want)} bases in its list", problems
+async def no_hubs(pl):
+    """Hubs went on 20 Oct (spec docs/specs/2026-10-20-today-performance-systems.md), and Check and Review became Today,
+    Performance and Systems: the header names the nine screens in their new order, with no Hubs, Check or Review."""
+    links = await pl.pg.evaluate("[...document.querySelectorAll('header [data-screen-link]')].map(a => a.dataset.screenLink)")
+    want = [sid for sid, _ in SCREENS]
+    problems = [] if links == want else [f"the header's screens are {links}, not {want}"]
+    problems += [f"the header still links to {x}" for x in ("hubs", "check", "review") if x in links]
+    return f"the header names the nine screens in their new order ({', '.join(links)}), with no Hubs, Check or Review", problems
 
 
-async def check_opens(pl):
-    """Check is rebuilt (build pull request 9): no placeholder; it opens with its six boards in the old Check's order, every
-    one folded (the old Check folded them all on arrival), and the Capture board lists our airlines the capture covers, in
-    their order. Its figures are compared with the old Check's by tests/check_side_by_side_test.py. With the one-week
-    checks off (aircraft_check_after_days 0, set by the test), it has five: no Aircraft checks."""
+async def systems_opens(pl):
+    """Systems (20 Oct; Check's boards and Review's Manual entry until then): the Systems board first and open, then its
+    four boards folded on arrival, in order (Capture, Manual entry, Cabins, Aircraft checks), the Capture board listing our
+    airlines the capture covers, in their order. With the one-week checks off (aircraft_check_after_days 0, set by the
+    test), three: no Aircraft checks."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD}
                                 order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=check]")
-    await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
+    await pl.pg.click("[data-screen-link=systems]")
+    await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
-    got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=check] [data-not-built]'),
-        boards: [...document.querySelectorAll('main[data-screen=check] .board:not(.sysboard) > h3.rh')].map(h => h.dataset.rkey),
-        folded: [...document.querySelectorAll('main[data-screen=check] .board:not(.sysboard)')].every(b => b.classList.contains('rcol')),
-        capture: [...document.querySelectorAll('[data-figure="check: capture table"] tr')].slice(1).map(tr => (tr.querySelector('td b') || {}).textContent || '') })""")
+    boards_js = "[...document.querySelectorAll('main[data-screen=systems] .board:not(.sysboard) > h3.rh')].map(h => h.dataset.rkey)"
+    got = await pl.pg.evaluate("""({ first: (document.querySelector('main[data-screen=systems] .board') || {}).id || '',
+        boards: """ + boards_js + """,
+        folded: [...document.querySelectorAll('main[data-screen=systems] .board:not(.sysboard)')].every(b => b.classList.contains('rcol')),
+        capture: [...document.querySelectorAll('[data-figure="systems: capture table"] tr')].slice(1).map(tr => (tr.querySelector('td b') || {}).textContent || '') })""")
     problems = []
-    if got["notBuilt"]:
-        problems.append("Check still shows the placeholder's line to the old planner")
-    order = ["Capture", "Growth", "Aircraft checks", "Cabins", "Game check", "Daily load report"]
+    if got["first"] != "systems":
+        problems.append(f"the Systems board isn't the first board on Systems (the first is {got['first'] or 'none'})")
+    order = ["Capture", "Manual entry", "Cabins", "Aircraft checks"]
     if got["boards"] != order:
-        problems.append(f"Check's boards are {got['boards']}, not {order}")
+        problems.append(f"Systems' boards are {got['boards']}, not {order}")
     if not got["folded"]:
-        problems.append("Check's boards aren't all folded on arrival")
+        problems.append("Systems' boards aren't all folded on arrival")
     if not got["capture"] or any(n not in want for n in got["capture"]) or got["capture"] != sorted(got["capture"], key=want.index):
         problems.append(f"the Capture board lists {got['capture']}, the copy's airlines are {want}")
-    # the checks off (aircraft_check_after_days 0, spec docs/specs/2026-10-15-aircraft-checks-off.md): five boards, no
-    # Aircraft checks; then on again (7), as main() set them
+    # the checks off (aircraft_check_after_days 0, spec docs/specs/2026-10-15-aircraft-checks-off.md): no Aircraft checks;
+    # then on again (7), as main() set them
     set_check_days(0)
     try:
         await pl.pg.reload()
-        await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
+        await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
         await settle(pl.pg, 300)
-        off = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=check] .board:not(.sysboard) > h3.rh')].map(h => h.dataset.rkey)")
+        off = await pl.pg.evaluate(boards_js)
     finally:
         set_check_days(7)
     if off != [k for k in order if k != "Aircraft checks"]:
-        problems.append(f"with the checks off (0), Check's boards are {off}, not the five without Aircraft checks")
+        problems.append(f"with the checks off (0), Systems' boards are {off}, not the three without Aircraft checks")
     await pl.pg.reload()
-    await pl.pg.wait_for_selector("main[data-screen=check][data-check-ready=yes]", timeout=90000)
+    await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
     await pl.pg.click("[data-screen-link=home]")
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return (f"Check is rebuilt, not a placeholder: its {len(got['boards'])} boards in the old order, folded on arrival, the Capture board with "
+    return (f"Systems opens with the Systems board first, then its {len(got['boards'])} boards folded in order, the Capture board with "
             f"{len(got['capture'])} airlines; with the checks off, {len(off)} boards and no Aircraft checks"), problems
 
 
-async def review_opens(pl):
-    """Review is rebuilt (build pull request 10): no placeholder; it opens with a card for each of our airlines the captured
-    figures cover, in their order, and the first one's page (its boards folded on arrival, as Check's). Its figures are
-    compared with the old Review's by tests/review_side_by_side_test.py."""
+async def performance_opens(pl):
+    """Performance (20 Oct; Review's screen with Check's growth boards and load report until then): a scorecard for each of
+    our airlines the captured figures cover, in their order, each with its figures against the same day last week (or
+    saying there's no day a week ago), and the group's boards open (the group today when shown, Growth signals, Main hubs,
+    Flights by day); each growth list shows its first 10 rows with "show all N" (21 Oct), which opens the rest in place and
+    "show fewer" closes; tapping the first scorecard opens that airline's page, its own scorecard and its four boards open."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
                                 order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=review]")
-    await pl.pg.wait_for_selector("main[data-screen=review][data-review-ready=yes]", timeout=90000)
+    await pl.pg.click("[data-screen-link=performance]")
+    await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
-    got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=review] [data-not-built]'),
-        cards: [...document.querySelectorAll('main[data-screen=review] .fcard .fch b')].map(b => b.textContent),
-        on: (document.querySelector('main[data-screen=review] .fcard.on .fch b') || {}).textContent || '',
-        boards: [...document.querySelectorAll('main[data-screen=review] .board > h3.rh')].map(h => h.dataset.rkey),
-        folded: [...document.querySelectorAll('main[data-screen=review] .board')].every(b => b.classList.contains('rcol')) })""")
+    page = """({ cards: [...document.querySelectorAll('main[data-screen=performance] [data-figure="performance: scorecards"] .fcard .fch b')].map(b => b.textContent),
+        wow: [...document.querySelectorAll('main[data-screen=performance] .fcard .fwow')].map(x => x.textContent),
+        boards: [...document.querySelectorAll('main[data-screen=performance] .board > h3.rh')].map(h => h.dataset.rkey),
+        folded: document.querySelectorAll('main[data-screen=performance] .board.rcol').length,
+        airline: document.querySelector('main[data-screen=performance]').dataset.airline,
+        path: location.pathname })"""
+    got = await pl.pg.evaluate(page)
     problems = []
-    if got["notBuilt"]:
-        problems.append("Review still shows the placeholder's line to the old planner")
     if got["cards"] != want:
-        problems.append(f"Review's cards are {got['cards']}, the copy's airlines are {want}")
-    if want and got["on"] != want[0]:
-        problems.append(f"Review opens on {got['on']!r}, not the first airline {want[0]!r}")
-    page = [b for b in got["boards"] if b != "The group today"]
-    if page != ["Profit", "Cash, next 14 days", "Route profit", "Fare plan", "Manual entry"]:
-        problems.append(f"Review's boards are {got['boards']}")
-    if not got["folded"]:
-        problems.append("Review's boards aren't all folded on arrival")
+        problems.append(f"Performance's scorecards are {got['cards']}, the copy's airlines are {want}")
+    if len(got["wow"]) != len(got["cards"]) or not all(got["wow"]):
+        problems.append("a scorecard doesn't say what it's compared with")
+    group = [b for b in got["boards"] if b != "The group today"]
+    if group != ["Growth signals", "Main hubs", "Flights by day"]:
+        problems.append(f"Performance's group boards are {got['boards']}")
+    if got["folded"]:
+        problems.append(f"{got['folded']} of Performance's boards are folded on arrival (all should be open)")
+    # 21 Oct: each growth list shows its first 10 rows with "show all N", which opens the rest in place and closes again
+    lists_js = """[...document.querySelectorAll('main[data-screen=performance] [data-figure="performance: growth lists"] [data-list]')].map(d => ({
+        list: d.dataset.list, rows: +d.dataset.listRows, shown: d.querySelectorAll('table tr').length - 1,
+        button: (d.querySelector(':scope > [data-list-more]') || {}).textContent || '', visible: !!d.offsetParent }))"""
+    lists = await pl.pg.evaluate(lists_js)
+    for x in lists:
+        want_shown, want_button = (10, f"show all {x['rows']}") if x["rows"] > 10 else (x["rows"], "")
+        if x["shown"] != want_shown or x["button"] != want_button:
+            problems.append(f"growth list {x['list']!r} of {x['rows']} shows {x['shown']} rows with {x['button']!r}, not {want_shown} with {want_button!r}")
+    long = next((x for x in lists if x["rows"] > 10 and x["visible"]), None)
+    if long:
+        sel = f"main[data-screen=performance] [data-list={json.dumps(long['list'])}] > [data-list-more]"
+        await pl.pg.click(sel)
+        opened = next((x for x in await pl.pg.evaluate(lists_js) if x["list"] == long["list"]), {})
+        if opened.get("shown") != long["rows"] or opened.get("button") != "show fewer":
+            problems.append(f"\"show all {long['rows']}\" on {long['list']!r} shows {opened.get('shown')} rows with {opened.get('button')!r}")
+        await pl.pg.click(sel)
+        closed = next((x for x in await pl.pg.evaluate(lists_js) if x["list"] == long["list"]), {})
+        if closed.get("shown") != 10:
+            problems.append(f"\"show fewer\" on {long['list']!r} leaves {closed.get('shown')} rows")
+    sizes = ", ".join("%s %d" % (x["list"], x["rows"]) for x in lists)
+    cut_words = ("; growth lists cut to 10 (" + sizes + ")" + (", %r opened and closed" % long["list"] if long else "")) if lists else ""
+    await pl.pg.click("main[data-screen=performance] [data-figure='performance: scorecards'] .fcard")
+    await pl.pg.wait_for_function("() => !!(document.querySelector('main[data-screen=performance]') || {dataset: {}}).dataset.airline", timeout=30000)
+    await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
+    await settle(pl.pg, 300)
+    one = await pl.pg.evaluate(page)
+    if one["boards"] != ["Profit", "Cash, next 14 days", "Route profit", "Fare plan"]:
+        problems.append(f"the airline's page has the boards {one['boards']}")
+    if one["folded"]:
+        problems.append("the airline's page has boards folded on arrival")
+    if want and one["cards"] != want[:1]:
+        problems.append(f"the first scorecard opens {one['cards']}, not {want[0]!r}")
+    if not one["path"].startswith("/planner/performance/") or not one["airline"]:
+        problems.append(f"the airline's page is at {one['path']} ({one['airline']!r})")
     await pl.pg.click("[data-screen-link=home]")
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return f"Review is rebuilt, not a placeholder: a card for each of the copy's {len(got['cards'])} airlines in order, the first one's page with its {len(got['boards'])} boards, folded on arrival", problems
+    return (f"Performance opens with a scorecard for each of the copy's {len(got['cards'])} airlines in order ({'; '.join(got['wow'][:1])}) and the group's "
+            f"{len(got['boards'])} boards open{cut_words}; the first scorecard opens {one['path']} with its {len(one['boards'])} boards open"), problems
 
 
 async def last_screens_open(pl):
@@ -661,22 +745,32 @@ async def preview(p, port, env, facts, staff, seen):
 
 
 # ---------- 6. every screen at the frozen moment, at 1280 and 380 px ----------
-READY = {"home": "main[data-screen=home][data-home-ready=yes]", "routes": "main[data-screen=routes][data-routes-ready=yes]",
-         "tails": "main[data-screen=tails][data-tails-ready=yes]", "hubs": "main[data-screen=hubs][data-hubs-ready=yes]",
-         "check": "main[data-screen=check][data-check-ready=yes]", "review": "main[data-screen=review][data-review-ready=yes]",
+READY = {"home": "main[data-screen=home][data-home-ready=yes]", "today": "main[data-screen=today][data-today-ready=yes]",
+         "routes": "main[data-screen=routes][data-routes-ready=yes]", "tails": "main[data-screen=tails][data-tails-ready=yes]",
+         "performance": "main[data-screen=performance][data-performance-ready=yes]",
          "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
-         "reference": "main[data-screen=reference][data-reference-ready=yes]"}
+         "reference": "main[data-screen=reference][data-reference-ready=yes]", "systems": "main[data-screen=systems][data-systems-ready=yes]"}
+
+
+def first_airline():
+    """Our first active airline's code (the one whose Performance page the screens open), or VS without one."""
+    code = psql(f"""select coalesce((select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                     where g.kind = 'ours' and a.world_id = {WORLD} and a.active and a.iata_code is not null
+                     order by a.position nulls last, a.id limit 1), 'VS')""").strip()
+    return code or "VS"
 
 
 async def screens(p, port, env, facts, staff, seen, moment):
     """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
-    staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Check and Review with
-    every board open, Reference with every section open), and no link into the old planner or to /planner/next/. With
-    PLANNER_SCREENS_DIR set, a screenshot of each at each width goes there (the run's planner-screens artifact). What
-    replaced the side by sides' screen checks (build pull request 14)."""
+    staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Systems with every
+    board open, Reference with every section open), and no link into the old planner, to /planner/next/ or to a screen
+    that went on 20 Oct (Hubs, Check, Review); then one airline's Performance page the same way. With PLANNER_SCREENS_DIR
+    set, a screenshot of each at each width goes there (the run's planner-screens artifact): Today, Performance (the group
+    and one airline) and Systems among them. What replaced the side by sides' screen checks (build pull request 14)."""
     problems = []
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
     links = shots = 0
+    code = first_airline()
     if SCREENS_DIR:
         Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
     for width, height in ((1280, 900), (380, 800)):
@@ -688,6 +782,25 @@ async def screens(p, port, env, facts, staff, seen, moment):
             await ph.sign_in(*staff)
             if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
                 problems.append(f"{width} px: the planner's clock isn't frozen at the moment")
+
+            async def look(sid, name):
+                nonlocal links, shots
+                if sid == "systems":
+                    await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
+                    await settle(ph.pg, 300)
+                if sid == "reference":
+                    await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
+                    await settle(ph.pg, 400)
+                over = await ph.pg.evaluate(scroll)
+                if over > 0:
+                    problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")
+                hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
+                links += len(hrefs)
+                problems.extend(f"{name}: a link to {h}" for h in hrefs if OLD_LINK.match(h or ""))
+                if SCREENS_DIR:
+                    await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-{width}.png"), full_page=True, timeout=90000)
+                    shots += 1
+
             for sid, href in SCREENS:
                 e0 = len(ph.errors)
                 await ph.pg.click(f"[data-screen-link={sid}]")
@@ -700,53 +813,44 @@ async def screens(p, port, env, facts, staff, seen, moment):
                     await settle(ph.pg, 400)
                 except Exception:
                     problems.append(f"{sid}: it isn't ready at {width} px wide")
-                if sid in ("check", "review"):
-                    await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
-                    await settle(ph.pg, 300)
-                if sid == "reference":
-                    await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
-                    await settle(ph.pg, 400)
-                over = await ph.pg.evaluate(scroll)
-                if over > 0:
-                    problems.append(f"{sid}: the page scrolls sideways by {over} px at {width} px wide")
-                hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
-                links += len(hrefs)
-                problems += [f"{sid}: a link to {h}" for h in hrefs if OLD_LINK.match(h or "")]
+                await look(sid, sid)
                 problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
-                if SCREENS_DIR:
-                    await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{sid}-{width}.png"), full_page=True, timeout=90000)
-                    shots += 1
-            if width == 380:
-                await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/review/VS")
-                await ph.pg.wait_for_selector(READY["review"], timeout=90000)
-                await ph.pg.click("#rev-expall")
-                await settle(ph.pg, 300)
-                if await ph.pg.evaluate(scroll) > 0:
-                    problems.append("review/VS, opened directly, scrolls sideways at 380 px")
+            # one airline's Performance page, opened directly by its address
+            e0 = len(ph.errors)
+            await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/performance/{code}")
+            try:
+                await ph.pg.wait_for_selector(READY["performance"], timeout=90000)
+                await settle(ph.pg, 400)
+                if await ph.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline") != code:
+                    problems.append(f"/planner/performance/{code} doesn't open {code}'s page")
+            except Exception:
+                problems.append(f"performance/{code}: it isn't ready at {width} px wide")
+            await look("performance", "performance-airline")
+            problems += [f"performance/{code} at {width} px: {e}" for e in ph.errors[e0:]]
             problems += [e for e in ph.errors if not any(e in x for x in problems)]
         finally:
             await ph.close()
-    return (f"every screen ({len(SCREENS)}) opens on the copy at the moment ({moment}), at 1280 and 380 px wide: ready, no errors, no sideways "
-            f"scroll (Check and Review with every board open, Reference with every section open), and none of their {links} links goes into "
-            f"the old planner or to /planner/next/" + (f"; {shots} screenshots kept" if shots else "")), problems
+    return (f"every screen ({len(SCREENS)}) and {code}'s Performance page open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
+            f"ready, no errors, no sideways scroll (Systems with every board open, Reference with every section open), and none of their {links} "
+            f"links goes into the old planner, to /planner/next/ or to Hubs, Check or Review" + (f"; {shots} screenshots kept" if shots else "")), problems
 
 
-# ---------- 6b. Check's Systems board, and a short page on Home (decisions #21, #23) ----------
+# ---------- 6b. the Systems board, and a short page on Today (decisions #21, #23) ----------
 SYS_FIXED = ["snapshot", "backup", "archive", "cleanup", "scan", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
-SYS_LINES = """[...document.querySelectorAll('[data-figure="check: systems"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
+SYS_LINES = """[...document.querySelectorAll('[data-figure="systems: board"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
     label: (li.querySelector('.syslabel') || {}).textContent || '', when: (li.querySelector('.syswhen') || {}).textContent || '',
     text: (li.querySelector('.systext') || {}).textContent || '', dot: !!li.querySelector('.sysmark.' + li.dataset.mark) }))"""
 
 
-async def open_check(ph):
-    await ph.pg.click("[data-screen-link=check]")
-    await ph.pg.wait_for_selector(READY["check"], timeout=90000)
+async def open_systems(ph):
+    await ph.pg.click("[data-screen-link=systems]")
+    await ph.pg.wait_for_selector(READY["systems"], timeout=90000)
     await settle(ph.pg, 400)
     return await ph.pg.evaluate(SYS_LINES)
 
 
 async def systems_board(p, port, env, facts, staff, seen, moment):
-    """Check's Systems board (#23) on the copy at the frozen moment: at the top of Check, open, one line for each of our
+    """The Systems board (#23) on the copy at the frozen moment: at the top of Systems, open, one line for each of our
     airlines' evening capture and one each for the snapshot, the backup, the archive, the clean-ups, the world scan, the
     planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
     lines and their marks are printed (names, marks, dates and sizes only)."""
@@ -757,10 +861,10 @@ async def systems_board(p, port, env, facts, staff, seen, moment):
     try:
         await ph.open(moment=moment)
         await ph.sign_in(*staff)
-        lines = await open_check(ph)
-        first = await ph.pg.evaluate("(document.querySelector('main[data-screen=check] .board') || {}).id || ''")
+        lines = await open_systems(ph)
+        first = await ph.pg.evaluate("(document.querySelector('main[data-screen=systems] .board') || {}).id || ''")
         if first != "systems":
-            problems.append(f"the Systems board isn't Check's first board (the first is {first or 'none'})")
+            problems.append(f"the Systems board isn't the first board on Systems (the first is {first or 'none'})")
         want = [f"capture|{i}" for i in ids] + SYS_FIXED
         if [l["key"] for l in lines] != want:
             problems.append(f"the board's lines are {[l['key'] for l in lines]}, expected {want}")
@@ -773,17 +877,19 @@ async def systems_board(p, port, env, facts, staff, seen, moment):
         await ph.close()
     words = {"ok": "green", "warn": "amber", "bad": "red"}
     shown = "; ".join(f"{l['label']}: {words.get(l['mark'], l['mark'])}" + (f", {l['when']}" if l["when"] else "") + f" ({l['text'][:90]})" for l in lines)
-    return f"Check's Systems board on the copy at {moment}: {len(lines)} lines, each marked: {shown}", problems
+    return f"the Systems board on the copy at {moment}: {len(lines)} lines, each marked: {shown}", problems
 
 
 async def short_page(p, port, env, facts, staff, seen, moment):
     """A short page made on purpose (#21), then put back: half of an airline's latest loads page, stored just after the
-    copy's latest capture and judged by private.capture_check() against what the copy expects of it, is short; Home's
-    needs attention lists it in the Capture group linking to Check, and Check's board marks that airline amber. The page
-    is deleted afterwards, and the copy's raw pages are as they were."""
+    copy's latest capture and judged by private.capture_check() against what the copy expects of it, is short; Today's
+    needs attention lists it in the Capture group linking to Systems, Today's capture line says it came in short (or
+    worse), and the Systems board marks that airline amber. The page is deleted afterwards, and the copy's raw pages are
+    as they were."""
     problems = []
     before = psql("select count(*) from public.game_capture_raw").strip()
     rid = made = verdict = None
+    cap = {}
     ph = Planner(p, port, env, facts)
     seen.append(ph)
     try:
@@ -807,18 +913,26 @@ async def short_page(p, port, env, facts, staff, seen, moment):
             problems.append(f"half of {made['airline']}'s loads page isn't judged short: {verdict}")
         await ph.open(moment=moment)
         await ph.sign_in(*staff)
-        items = await ph.pg.evaluate("""[...document.querySelectorAll('[data-figure="home: needs attention"] [data-att-item]')]
+        await ph.pg.click("[data-screen-link=today]")
+        await ph.pg.wait_for_selector(READY["today"], timeout=90000)
+        await settle(ph.pg, 400)
+        await ph.pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")
+        items = await ph.pg.evaluate("""[...document.querySelectorAll('[data-figure="today: needs attention"] [data-att-item]')]
             .map(li => ({ kind: li.dataset.attKind, cls: li.dataset.cls, screen: li.dataset.screen, key: li.dataset.attKey,
                           text: li.textContent, href: (li.querySelector('a') || {}).getAttribute ? li.querySelector('a').getAttribute('href') : '' }))""")
         hit = [i for i in items if "capture came in short" in i["text"] and made["airline"] in i["text"]]
         if not hit:
-            problems.append(f"Home's needs attention doesn't list {made['airline']}'s short page (it lists {len(items)} items)")
-        elif hit[0]["kind"] != "capture" or hit[0]["screen"] != "check" or hit[0]["cls"] != "warn" or "/check" not in (hit[0]["href"] or ""):
-            problems.append(f"the short page's item isn't an amber Capture item linking to Check: {hit[0]}")
-        lines = await open_check(ph)
+            problems.append(f"Today's needs attention doesn't list {made['airline']}'s short page (it lists {len(items)} items)")
+        elif hit[0]["kind"] != "capture" or hit[0]["screen"] != "systems" or hit[0]["cls"] != "warn" or "/systems" not in (hit[0]["href"] or ""):
+            problems.append(f"the short page's item isn't an amber Capture item linking to Systems: {hit[0]}")
+        cap = await ph.pg.evaluate("""(() => { const c = document.querySelector('[data-figure="today: capture"]') || { dataset: {} };
+            return { state: c.dataset.captureState || '', mark: c.dataset.mark || '', text: c.textContent || '' }; })()""")
+        if cap["state"] not in ("short", "broken", "missing") or cap["mark"] == "ok" or "short" not in cap["text"]:
+            problems.append(f"Today's capture line doesn't say the capture came in short: {cap['state']!r}, {cap['mark']!r}")
+        lines = await open_systems(ph)
         line = next((l for l in lines if l["key"] == f"capture|{made['airline_id']}"), None)
         if not line or line["mark"] != "warn" or "short" not in line["text"]:
-            problems.append(f"Check's board doesn't mark {made['airline']} amber for the short page: {line}")
+            problems.append(f"the Systems board doesn't mark {made['airline']} amber for the short page: {line}")
         problems += ph.errors
     except Exception as e:
         problems.append(why(e))
@@ -829,11 +943,11 @@ async def short_page(p, port, env, facts, staff, seen, moment):
         if psql("select count(*) from public.game_capture_raw").strip() != before:
             problems.append("the copy's raw pages weren't put back as they were")
     return (f"a short page made on purpose: half of {made['airline'] if made else '?'}'s latest loads page ({made['read'] if made else '?'} flights) "
-            f"is judged short ({(verdict or {}).get('note', '?')}), Home lists it in the Capture group linking to Check, "
-            f"Check's board marks that airline amber; then put back"), problems
+            f"is judged short ({(verdict or {}).get('note', '?')}), Today lists it in the Capture group linking to Systems and its capture line "
+            f"says {cap.get('state', '?')}, the Systems board marks that airline amber; then put back"), problems
 
 
-# ---------- 7. the addresses (the switch) ----------
+# ---------- 7. the addresses (the switch, the clean-up and 20 Oct) ----------
 def answer(port, path):
     """What the local server (tests/harness.py, which follows web/_redirects as Cloudflare does) answers for an address,
     without following a redirect: (status, Location, body)."""
@@ -858,8 +972,12 @@ def built_links():
 
 # (address, status, what it gives: "new" the planner's page, else where it redirects to)
 ADDRESSES = [
-    ("/planner", 301, "/planner/"), ("/planner/", 200, "new"), ("/planner/review/VS", 200, "new"),
-    ("/planner/routes/PA/JFK-ORD", 200, "new"),
+    ("/planner", 301, "/planner/"), ("/planner/", 200, "new"), ("/planner/performance/VS", 200, "new"),
+    ("/planner/today", 200, "new"), ("/planner/systems", 200, "new"), ("/planner/routes/PA/JFK-ORD", 200, "new"),
+    ("/planner/check", 301, "/planner/today"), ("/planner/check?day=2026-10-12", 301, "/planner/today?day=2026-10-12"),
+    ("/planner/review", 301, "/planner/performance"), ("/planner/review/VS", 301, "/planner/performance/VS"),
+    ("/planner/review/PA/JFK-ORD", 301, "/planner/performance/PA/JFK-ORD"),
+    ("/planner/hubs", 301, "/planner/performance"), ("/planner/hubs/DEL", 301, "/planner/performance"),
     ("/planner/next", 301, "/planner/"), ("/planner/next/", 301, "/planner/"), ("/planner/next/routes", 301, "/planner/routes"),
     ("/planner/next/review/VS", 301, "/planner/review/VS"), ("/planner/next/tails?airline=PA", 301, "/planner/tails?airline=PA"),
     ("/planner/old", 301, "/planner/"), ("/planner/old/", 301, "/planner/"), ("/planner/old/index.html", 301, "/planner/"),
@@ -879,16 +997,29 @@ async def addresses(p, port, env, facts, staff, seen):
             problems.append(f"{path} isn't the planner's page (web/app/index.html)")
     problems += built_links()
 
-    # the new planner: signed in at a deep address, an address from the build, then Home at /planner/
+    # the planner: signed in at an old deep address (Review's), the old Check and Hubs, Check's load report on a day, an
+    # address from the build, then Home at /planner/
     pl = Planner(p, port, env, facts)
     seen.append(pl)
     try:
         await pl.open(path="/planner/review/VS")
         await pl.fill_sign_in(*staff)
-        await pl.pg.wait_for_selector("main[data-screen=review][data-review-ready=yes]", timeout=90000)
-        got = await pl.pg.evaluate("[location.pathname, document.querySelector('main[data-screen=review]').dataset.airline]")
-        if got != ["/planner/review/VS", "VS"]:
-            problems.append(f"/planner/review/VS, signed in there, shows {got[0]} on {got[1]!r}")
+        await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
+        got = await pl.pg.evaluate("[location.pathname, document.querySelector('main[data-screen=performance]').dataset.airline]")
+        if got != ["/planner/performance/VS", "VS"]:
+            problems.append(f"/planner/review/VS, signed in there, shows {got[0]} on {got[1]!r}, not Virgin's Performance page")
+        for old, sid, want in (("/planner/check", "today", "/planner/today"), ("/planner/hubs", "performance", "/planner/performance")):
+            await pl.pg.goto(f"http://{LIVE_HOST}:{port}{old}")
+            await pl.pg.wait_for_selector(READY[sid], timeout=90000)
+            path = await pl.pg.evaluate("location.pathname")
+            if path != want:
+                problems.append(f"{old} ended at {path}, not {want}")
+        day = psql("select (now() at time zone 'UTC')::date - 3").strip()
+        await pl.pg.goto(f"http://{LIVE_HOST}:{port}/planner/check?day={day}")
+        await pl.pg.wait_for_function(f"() => (document.querySelector('main[data-screen=performance]') || {{dataset: {{}}}}).dataset.day === {json.dumps(day)}", timeout=60000)
+        at = await pl.pg.evaluate("location.pathname + location.search")
+        if at != f"/planner/performance?day={day}":
+            problems.append(f"/planner/check?day={day} ended at {at}, not Performance's Flights by day on that day")
         resp = await pl.pg.goto(f"http://{LIVE_HOST}:{port}/planner/next/routes")
         hop = resp.request.redirected_from if resp else None
         first = await hop.response() if hop else None
@@ -907,9 +1038,10 @@ async def addresses(p, port, env, facts, staff, seen):
     finally:
         await pl.close()
 
-    return (f"the addresses: /planner/ and a deep address open the planner; {sum(1 for a in ADDRESSES if '/next' in a[0])} "
-            f"/planner/next/ addresses answer 301 with the same address under /planner/; {sum(1 for a in ADDRESSES if '/old' in a[0])} "
-            f"/planner/old addresses answer 301 to /planner/; the built planner has no link to either"), problems
+    return (f"the addresses: /planner/ and a deep address open the planner; /planner/check goes to Today (and with a day, on to "
+            f"Performance's Flights by day), /planner/review/VS to Virgin's Performance page, /planner/hubs to Performance; "
+            f"{sum(1 for a in ADDRESSES if '/next' in a[0])} /planner/next/ addresses answer 301 with the same address under /planner/; "
+            f"{sum(1 for a in ADDRESSES if '/old' in a[0])} /planner/old addresses answer 301 to /planner/; the built planner has no link to either"), problems
 
 
 async def main():
@@ -955,7 +1087,7 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, routes_opens, tails_opens, hubs_opens, check_opens, review_opens, last_screens_open, tick_todo):
+                for check in (home_opens, today_opens, routes_opens, tails_opens, no_hubs, performance_opens, systems_opens, last_screens_open, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

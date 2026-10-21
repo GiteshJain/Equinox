@@ -1,4 +1,4 @@
-// Review's Manual entry (the old cashEntryHtml, the nightly log, manualLoadsHtml, parseLoadPaste and lfPastePreview, and
+// Systems → Manual entry (Review's until 20 Oct; the old cashEntryHtml, the nightly log, manualLoadsHtml, parseLoadPaste and lfPastePreview, and
 // their reviewClick handlers): only needed when a night's capture failed.
 //   - Cash and fixed costs for today, one pair of boxes per airline, saved as one planner_save() action that writes the
 //     cash_entries rows the old planner's adapter writes (model.ts's cashChanges);
@@ -19,7 +19,7 @@ import {
   type DayPatch, type PastedLoad,
 } from "./model";
 import { readLoadsDays, useLoadsDay } from "./reads";
-import type { ReviewAirline } from "./Review";
+import type { OurAirline } from "../../data/airlines";
 
 /** Saves loads by hand as one planner_save() action: each day's rows (loadsChanges) from the days as they stand now, read
  *  again from loads_by_day(). True when it was saved (or there was nothing to change). */
@@ -47,7 +47,7 @@ export function ManualEntry({ worldId, rules, log, airlines, busy, now, onSave }
   worldId: number | undefined;
   rules: Rules;
   log: CashLog;
-  airlines: readonly ReviewAirline[];
+  airlines: readonly OurAirline[];
   busy: boolean;
   now: Date;
   onSave: (changes: Change[]) => Promise<SaveResult | undefined>;
@@ -61,7 +61,7 @@ export function ManualEntry({ worldId, rules, log, airlines, busy, now, onSave }
         <summary className="dim">Nightly log (cash / fixed costs, 7 days)</summary>
         {rows.length ? (
           <div className="tscroll">
-            <table className="tbl flog" data-figure="review: nightly log">
+            <table className="tbl flog" data-figure="systems: nightly log">
               <tbody>
                 <tr><th>Date</th>{log.airlines.map((a) => <th key={a.airline_id}><AirlineMark color={colorOf(a.airline_id)} />{firstWord(a.name)}</th>)}</tr>
                 {rows.map((r) => (
@@ -119,7 +119,7 @@ function CashBoxes({ worldId, log, colorOf, busy, onSave }: {
 
 /** Loads by hand for one day: each airline's flights under 95% typed, or the game's load table pasted and read. */
 function LoadsByHand({ worldId, rules, airlines, now, onSave }: {
-  worldId: number | undefined; rules: Rules; airlines: readonly ReviewAirline[]; now: Date; onSave: (changes: Change[]) => Promise<SaveResult | undefined>;
+  worldId: number | undefined; rules: Rules; airlines: readonly OurAirline[]; now: Date; onSave: (changes: Change[]) => Promise<SaveResult | undefined>;
 }) {
   const utcToday = now.toISOString().slice(0, 10);
   const [open, setOpen] = useState(false);
@@ -207,7 +207,7 @@ function LoadsByHand({ worldId, rules, airlines, now, onSave }: {
               {!parsed.length ? <div className="dim">Nothing recognised. Paste the whole table, including the flight codes (e.g. KF 1008).</div> : (
                 <>
                   <div className="tscroll">
-                    <table className="tbl" data-figure="review: paste preview">
+                    <table className="tbl" data-figure="systems: paste preview">
                       <tbody>
                         <tr><th>Flight</th><th>Route</th><th>Departs (local)</th><th>Load</th><th></th></tr>
                         {parsed.map((x, i) => (

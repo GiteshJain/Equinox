@@ -2,7 +2,7 @@
 // them (by day; checks before to-dos on the same day).
 import { checks as checkRules, type OneWeekCheck, type Rules } from "@rules";
 import { dayDiff } from "../../ui/dates";
-import type { TodoRow } from "./reads";
+import type { TodoRow } from "../home/reads";
 
 export const COMING_UP_DAYS = 14;
 
