@@ -451,6 +451,8 @@ less important than another, point to point rather than hubs).*
   stay. *Since 26 and 28 Sep.*
 
 ## 5. Cabins and fares
+  New Virgin Heathrow routes (Manchester and Edinburgh to Heathrow, as feeders for the group's long-haul there) are a
+  late-game step, once the other hubs are built out. *Since 21 Oct (Gitesh).*
 - **The cabin is chosen with each order,** among the layouts set up for its variant: if one route takes more than
   **65% of the aircraft's block time**, the layout that route's market calls for (Standard, Leisure, Leisure Plus or
   Comfort); otherwise the layout with the most seats. Ryanair flies Standard only. The markets' stored default
