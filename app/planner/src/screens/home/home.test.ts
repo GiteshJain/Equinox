@@ -57,7 +57,7 @@ describe("aircraft on order and the key figures", () => {
     const got = onOrder([
       ac(1, { delivery_at: "2026-10-15T05:53:30+00:00" }), ac(2, { delivery_at: "2026-10-12T02:00:00+00:00", status: "delivered" }),
       ac(3, { status: "active" }), ac(4, { airline_id: 2, aircraft_type_id: 2, delivery_at: "2026-10-20T00:00:00+00:00", order_note: null }),
-    ], rules, new Set([2]), airlines, now);
+    ], rules, new Map([[2, null]]), airlines, now);
     expect(got.count).toBe(3);
     expect(got.groups.map((g) => [g.airline.name, g.rows.map((r) => r.registration), g.arrived, g.families.map(familyWords)])).toEqual([
       ["Test Air", ["R-2", "R-1"], 1, ["2 A320-family"]], ["Other Air", ["R-4"], 0, ["1 E195"]],
@@ -66,6 +66,15 @@ describe("aircraft on order and the key figures", () => {
     expect(got.groups[0]?.rows[0]).toMatchObject({ arrived: true, hasCard: true });
     expect(shortType("A350-900ULR")).toBe("A350");
     expect(familyOf("A321XLR")).toBe("A320 family");
+  });
+  it("names each one's plan by its card's title, else the old order note (21 Oct: a card with no order note showed blank)", () => {
+    const now = Date.parse("2026-10-21T23:00:00Z");
+    const got = onOrder([
+      ac(5, { delivery_at: "2026-10-22T07:08:00+00:00", order_note: null }), ac(6, { delivery_at: "2026-10-22T07:10:00+00:00" }),
+      ac(7, { delivery_at: "2026-10-22T08:00:00+00:00", order_note: "HUB · old words" }), ac(8, { delivery_at: "2026-10-22T09:00:00+00:00" }),
+    ], rules, new Map<number, string | null>([[5, "MCI + STL + IND"], [7, "AAA + DDD"], [8, " "]]), airlines, now);
+    expect(got.groups[0]?.rows.map((r) => [r.registration, r.plan, r.hasCard])).toEqual([
+      ["R-5", "MCI + STL + IND", true], ["R-6", "AAA + BBB", false], ["R-7", "AAA + DDD", true], ["R-8", "AAA + BBB", true]]);
   });
   const cards = (load: number | null, from: CardsRead["load_7_days_from"]): CardsRead => ({ airlines: [], load_7_days: load, load_7_days_flights: load == null ? 0 : 412, load_7_days_from: from });
   it("the key figures: the library's, and the group's average load as airline_cards() works it out", () => {

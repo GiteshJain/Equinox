@@ -80,15 +80,15 @@ export function useRotations(worldId: number | undefined) {
   });
 }
 
-export interface PlanCardRow { id: number; aircraft_id: number; updated_at: string }
+export interface PlanCardRow { id: number; aircraft_id: number; title: string | null; updated_at: string }
 
-/** Which aircraft have a plan card (Aircraft on order: "File into planner"). */
+/** Which aircraft have a plan card, with its title (Aircraft on order: "File into planner", and its Plan column). */
 export function usePlanCards(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("plan_cards", "home", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
-      const { data, error } = await supabase.from("plan_cards").select("id, aircraft_id, updated_at").eq("world_id", worldId ?? 0);
+      const { data, error } = await supabase.from("plan_cards").select("id, aircraft_id, title, updated_at").eq("world_id", worldId ?? 0);
       if (error) return fail("the plan cards", error.message);
       return data as PlanCardRow[];
     },

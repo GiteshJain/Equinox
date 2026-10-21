@@ -35,7 +35,7 @@ function useSearchTables(worldId: number | undefined, enabled: boolean) {
         every<{ code: string; city: string | null }>("the airports", (a, b) => supabase.from("airports").select("code, city").order("code").range(a, b)),
         every<{ id: number; registration: string; airline_id: number; aircraft_type_id: number | null; status: string | null; delivery_at: string | null; order_note: string | null }>(
           "the aircraft", (a, b) => supabase.from("aircraft").select("id, registration, airline_id, aircraft_type_id, status, delivery_at, order_note").eq("world_id", w).order("id").range(a, b)),
-        every<{ id: number; aircraft_id: number }>("the plan cards", (a, b) => supabase.from("plan_cards").select("id, aircraft_id").eq("world_id", w).order("id").range(a, b)),
+        every<{ id: number; aircraft_id: number; title: string | null }>("the plan cards", (a, b) => supabase.from("plan_cards").select("id, aircraft_id, title").eq("world_id", w).order("id").range(a, b)),
         every<{ plan_card_id: number; position: number; flight_no: number | null; origin_code: string | null; dest_code: string | null }>("the plan cards' flights",
           (a, b) => supabase.from("plan_card_legs").select("plan_card_id, position, flight_no, origin_code, dest_code").eq("world_id", w).order("plan_card_id").order("position").range(a, b)),
       ]);
@@ -97,7 +97,8 @@ export function Search() {
         const c = cardOf.get(a.id);
         const legs = !c ? null : t.legs.filter((l) => l.plan_card_id === c.id).map((l) => ({ no: l.flight_no, from: l.origin_code ?? "", to: l.dest_code ?? "" }));
         const delivery_at = a.delivery_at ? new Date(a.delivery_at).toISOString().slice(0, 16) + "Z" : null;
-        return { registration: a.registration, airline_id: a.airline_id, plan: a.order_note ?? "", delivery_at, legs };
+        // its plan card's title, else the old order note (since 19 Oct the card is written with the order, with no note)
+        return { registration: a.registration, airline_id: a.airline_id, plan: c?.title?.trim() || (a.order_note ?? ""), delivery_at, legs };
       });
     return {
       airlines, freqs, tails, deliveries, routes: t.routes.map((r) => ({ airline_id: r.airline_id, hub: r.hub_code, dest: r.dest_code })),

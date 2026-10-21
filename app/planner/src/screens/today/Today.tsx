@@ -143,7 +143,7 @@ export function Today() {
 
   // ---------- aircraft to file: arrived with a plan card
   const filing = useMemo(() => (rules && aircraftQ.data && planCardsQ.data
-    ? toFile(onOrder(aircraftQ.data, rules, new Set(planCardsQ.data.map((p) => p.aircraft_id)), homeAirlines, now.getTime()).groups) : null),
+    ? toFile(onOrder(aircraftQ.data, rules, new Map(planCardsQ.data.map((p) => [p.aircraft_id, p.title] as const)), homeAirlines, now.getTime()).groups) : null),
   [rules, aircraftQ.data, planCardsQ.data, homeAirlines, now]);
 
   // ---------- Game check (Check's until 20 Oct)
