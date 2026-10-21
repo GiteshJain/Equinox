@@ -15,7 +15,8 @@ everything; builds follow a spec from the Building chat in the Equinox project.
   merge while one is red. Every bug fixed gets a test. If a change is meant to move a number, update the saved answers
   and say in the pull request which moved and why.
 - **Database changes** are a new file in `database/migrations/`, with a description on every new table, view and
-  function, and a test in `database/tests/` when they change how something behaves. The *Database rehearsal* check
+  function, its own grants for what needs to reach it (new tables in `public` get no access by default), and a test
+  in `database/tests/` when they change how something behaves. The *Database rehearsal* check
   tries them on last night's backup and runs the tests there. Never change the live database: the Building chat
   applies a change only after "merge".
 - **For database work, read `.claude/skills/supabase-postgres-best-practices/SKILL.md`** and the rule files it points

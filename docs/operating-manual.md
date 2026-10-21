@@ -131,6 +131,12 @@ Details and open points: `docs/decisions.md`.
   Every new table, view or function gets a description in its migration. The database rehearsal fails without one, and
   regenerates and checks the table guide, `docs/data.md`. A new chat or session starts from the map.
   *Since 8 Oct (#10) · why: nothing explained how the parts connect, so every new chat rediscovered it.*
+- **A new table grants its own access.** Tables created in `public` get no access for the website (`anon`) or staff
+  (`authenticated`) by default, on live and on the rehearsal's copy, so each new table's migration grants exactly what
+  the planner or website needs (`airline_order_cabins`: staff read and write), and nothing for a table only the
+  database's own functions use (`capture_keys`). The rehearsal's checks fail on a table the planner can't reach.
+  *Since 20 Oct · why (Gitesh, agreed): Supabase stops granting new tables to the Data API by default on 30 Oct; we
+  already worked that way, but the rule wasn't written down.*
 - **Big builds go to a fresh helper.** Decisions and reviews stay in the Building chat. Each sizeable build gets a
   written spec (what, why, which files, what the checks should show) and goes to a helper that starts with a fresh
   memory: it reads `CLAUDE.md`, the map and the manual, writes the code, runs the checks and opens the pull request.
