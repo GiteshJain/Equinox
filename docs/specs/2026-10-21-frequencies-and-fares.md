@@ -45,6 +45,13 @@ feeds it.
     level), marked `fix: true`, with the reason "captured fare at 100%, level 110%".
   - It is not a ladder move: `move` stays as it is.
   - These go first in `actions`, ahead of the week's moves.
+- **Known on 21 Oct (Gitesh):** every route was then at its launch level, legacy airlines 100% of the default price
+  and Ryanair 85%, including Ryanair's four early cuts. So each route's baseline fare is its captured fare on 21 Oct
+  (the latest captured day on or before it), at the launch level. A route launched later starts at launch level too,
+  so its baseline is its first captured fare. A new flight on an existing route launches at the route's level (manual
+  §5).
+- **Compare each flight, not the day's average:** a route is off its level when any flight of its latest captured day
+  sold at a fare more than 1 point off its level (one cheap flight among three would barely move an average).
 - **The fare index has to be right first.** Today it's "latest fare ÷ first fare × launch level", which is wrong for
   Ryanair's four early cuts (BRI–CDG, CDG–SOF, CDG–SPU, CDG–VLC: index about 72, level 85).
   - Fix: take the first fare at the launch level only from days after any cut, i.e. the first fare is the earliest day
