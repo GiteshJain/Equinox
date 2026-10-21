@@ -76,8 +76,6 @@ Until each is built and merged, the rules below stand as they are.
   stops part-way is marked stopped and Systems says so; a 1-star opening on the E195-E2 also names the E190-E2 "if
   thin" (the evening proposal decides, §3); and Systems → **Cabin charges** checks each first cabin fit logged since
   18 Oct against the game's charge, with one Today item when any doesn't match (§4).
-- **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
-  competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
@@ -596,8 +594,11 @@ less important than another, point to point rather than hubs).*
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
     results, each airline's net cash a day (flight profit less leases and salaries) against the price of one aircraft, the
     pace towards an aircraft a day per airline (*since 20 Oct, Gitesh*), and each of our airlines against its three biggest competitors: the three outside airlines with the most
-    weekly departures on its own city pairs in the latest scan, each with its size and growth since the previous scan
-    beside our airline's (*since 18 Oct · why (Gitesh): to see whether each airline is gaining on its rivals*). It is
+    weekly departures on its own city pairs in the latest scan, each with its size and growth against the week-before
+    scan beside our airline's, read from `competition()` (its `competitors` and `self`, in the figures the report pulls;
+    the scans run every evening, so growth is against the week-before scan, not the previous one) (*since 18 Oct; built
+    22 Oct, spec `docs/specs/2026-10-21-report-three-competitors.md` · why (Gitesh): to see whether each airline is
+    gaining on its rivals*). It is
     the only investor report: on the first Saturday of the month it adds a page on the month just
     ended (month-on-month figures and the month's decisions). *The separate monthly report was dropped 15 Oct ·
     why: Gitesh, it repeated what four weekly reports already say;*

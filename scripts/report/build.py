@@ -20,7 +20,8 @@ from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import registerFontFamily
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import BaseDocTemplate, Frame, Image, NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import (BaseDocTemplate, Frame, Image, KeepTogether, NextPageTemplate, PageBreak, PageTemplate, Paragraph, Spacer, Table,
+                                TableStyle)
 
 rl_config.invariant = 1   # the same input always gives the same file (no build time in it)
 ap = argparse.ArgumentParser()
@@ -293,6 +294,73 @@ if R.get("ourpairs"):
     story.append(P(f"{R['contested']} of our {R['ourpairs']} airport pairs ({R['contested'] / R['ourpairs'] * 100:.0f}%) have a competitor on them. The rest we fly alone.", "small"))
 if note("hubs", "notes"):
     story += bullets(N["hubs"]["notes"])
+story.append(PageBreak())
+
+
+# ---------------- competition: each airline against its three biggest competitors (manual §7; competition() in the figures)
+def growth(x):
+    """The change against the week-before scan, as a table cell: +120 (+4.5%)."""
+    if x.get("change") is None:
+        return "—"
+    c, p = x["change"], x.get("change_pct")
+    colour = "#1A7F37" if c > 0 else "#C4141C" if c < 0 else "#5B616B"
+    return f'<font color="{colour}">{c:+,}' + (f" ({p:+.1f}%)" if p is not None else "") + "</font>"
+
+
+def grew(x):
+    """The change in words: grew 18%, shrank 4%, held steady; None when there is nothing to compare."""
+    c, p = x.get("change"), x.get("change_pct")
+    if c is None:
+        return None
+    if c == 0:
+        return "held steady"
+    if p is None:
+        return f"went from none to {x.get('weekly') or 0:,} departures a week"
+    size = f"{abs(p):.1f}" if abs(p) < 1 else f"{abs(p):.0f}"
+    return ("grew " if c > 0 else "shrank ") + size + "%"
+
+
+def against_words(a, cp):
+    """One line: "Pan Am grew 18% this week; American, its biggest rival on its pairs, grew 42%." """
+    me, top = cp["self"], (cp["top"] or [None])[0]
+    latest, before = moment(cp.get("latest")), moment(cp.get("week_before"))
+    # "this week" when the scans are about a week apart (the week-before scan is at least 6 days older); else its date
+    when = "this week" if latest and before and 6 <= (latest - before).days <= 8 else (f"since {day(cp['week_before'])}" if before else None)
+    mine = grew(me) if when else None
+    head = (f"{esc(a['name'])} {mine} {when}" if mine else f"{esc(a['name'])}: not in the scan of {day(cp['week_before'])} to compare" if before
+            else f"{esc(a['name'])}: no earlier scan to compare its growth")
+    if not top:
+        return head + "; no outside airline flies its city pairs."
+    rival = grew(top) if when else None
+    if rival:
+        return f"{head}; {esc(top['name'])}, its biggest rival on its pairs, {rival}."
+    if before:
+        return f"{head}; {esc(top['name'])}, its biggest rival on its pairs, wasn't in the scan of {day(cp['week_before'])}."
+    return f"{head}; {esc(top['name'])} is its biggest rival on its pairs."
+
+
+section("COMPETITION — AGAINST OUR RIVALS", "competitors", "Each airline against its three biggest competitors.")
+CP = next((a["competitors"] for a in AL if a.get("competitors")), None)
+story.append(P("For each airline, the three outside airlines with the most departures a week on its own city pairs in the "
+               + (f"world scan of {day(CP['latest'])}" if CP else "latest world scan") + ", our airline first. Departures a week count "
+               "each flight's days both ways, passenger flights only; freighters and our own airlines are no one's rivals here. Growth is "
+               + (f"against the scan of {day(CP['week_before'])}" if CP and CP.get("week_before") else "against the scan a week before")
+               + ". From competition() in the database's figures.", "small"))
+for a in AL:
+    cp = a.get("competitors")
+    part = [P(f"{esc(a['name'])}: against its three biggest competitors", "h2")]
+    if not cp:
+        part.append(P("No world scan to compare yet.", "body"))
+    else:
+        me = cp["self"]
+        rows = [["Airline", "Departures a week on its city pairs", "Of its city pairs", "Departures a week, all", "Airports", "Growth over the week"],
+                [f"<b>{esc(a['name'])}</b>", f"<b>{num(me.get('on_pairs'))}</b>",
+                 f"{num(me.get('pairs'))} of {num(me.get('pairs_flown'))}", num(me.get("weekly")), num(me.get("airports")), growth(me)]]
+        for x in cp["top"]:
+            rows.append([esc(x.get("name")), num(x.get("on_pairs")), num(x.get("pairs")), num(x.get("weekly")), num(x.get("airports")),
+                         growth(x) if x.get("weekly_before") is not None or not cp.get("week_before") else "not in that scan"])
+        part += [table(rows, [1.9 * inch, 1.05 * inch, 0.8 * inch, 1.05 * inch, 0.65 * inch, 1.55 * inch]), Spacer(1, 2), P(against_words(a, cp), "body")]
+    story.append(KeepTogether(part))
 story.append(PageBreak())
 
 # ---------------- competition: rivals' moves (notes) and where each airline ranks (the scan)

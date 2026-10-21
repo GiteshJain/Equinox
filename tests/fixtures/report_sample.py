@@ -8,7 +8,8 @@ What is kept, each in the shape export_for_report() gives it, so the report's sc
 real files:
 - figures: every airline's cash forecast (without each payment and type, but with its points, lowest point and next
   order), its profit for the last 14 days between captures, and its route profit over 7 days (the best 6 and worst 4
-  routes); Review's cards; hubs first; the growth lists (the first 8 of each). Not the 1- and 3-day route profit, the
+  routes), and since 22 Oct its three biggest competitors with itself and the scans (competition()'s competitors, self
+  and scans); Review's cards; hubs first; the growth lists (the first 8 of each). Not the 1- and 3-day route profit, the
   aircraft, the fare changes, the load patterns, the capture board or the group today, which the report doesn't use.
 - rules: settings, world rules, aircraft types and cabins as they are; our airlines (and any the legs name), their bases
   and aircraft, every flight leg, and only the rotations, routes and airports those use (not the route research).
@@ -43,6 +44,8 @@ for a in F.get("airlines") or []:
         "cash_forecast": {k: v for k, v in (a.get("cash_forecast") or {}).items() if k in KEEP_FORECAST},
         "airline_profit": (a.get("airline_profit") or [])[-14:],
         "route_profit": {"7": routes_cut((a.get("route_profit") or {}).get("7"))},
+        # the weekly report's three biggest competitors (manual §7), when the figures have them (since 22 Oct)
+        **{k: a[k] for k in ("competitors", "self", "scans") if k in a},
     })
 G = F.get("growth_signals") or {}
 figures = {

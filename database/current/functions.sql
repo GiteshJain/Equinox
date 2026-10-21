@@ -3402,12 +3402,55 @@ begin
              order by pf.pairs desc, pf.weekly_on_pairs desc, pf.name), '[]'::jsonb) as d
       from pf
       left join pfs n on n.scan_id = v_latest and n.airline_id = pf.airline_id
-      left join pfs o on o.scan_id = v_before and o.airline_id = pf.airline_id)
+      left join pfs o on o.scan_id = v_before and o.airline_id = pf.airline_id),
+
+  -- ---------- the weekly report's three biggest competitors (manual §7; spec docs/specs/2026-10-21-report-three-competitors.md
+  -- §1): the three rivals with the most departures a week on the city pairs the airline flies (both ways) in the latest
+  -- scan, ties by name; then each one's whole passenger network, and the airline's own, in the latest and week-before scans
+  cr as (select s.airline_id, s.name, sum(s.weekly)::int as on_pairs, count(*)::int as pairs,
+                row_number() over (order by sum(s.weekly) desc, s.name, s.airline_id) as rank
+           from shared s group by 1, 2
+          order by sum(s.weekly) desc, s.name, s.airline_id limit 3),
+  -- the airline itself on its pairs, from the same scan's schedule
+  me_now as (select count(*)::int as pairs, coalesce(sum(x.weekly), 0)::int as on_pairs
+               from (select ex.a, ex.b, sum(ex.weekly) as weekly from ex join mine m on m.a = ex.a and m.b = ex.b
+                      where ex.scan_id = v_latest and ex.airline_id = p_airline_id group by 1, 2) x),
+  -- each one's passenger flights in both scans (freighters count 0, as the weekly report counts); an airline whose schedule
+  -- the scan holds keeps a row even with no flights, so one the week-before scan doesn't hold has no weekly_before
+  crx as materialized (
+    select sc.scan_id, sc.airline_id, f ->> 2 as origin, f ->> 3 as dest,
+           case when jsonb_typeof(f) = 'array' and private.scan_passenger(f ->> 7)
+                then length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')) else 0 end as n
+      from public.game_scan_schedules sc
+      left join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f on true
+     where sc.scan_id = any (v_ids) and (sc.airline_id = p_airline_id or sc.airline_id in (select cr.airline_id from cr))),
+  crs as (select x.scan_id, x.airline_id, sum(x.n)::int as weekly,
+                 (select count(*) from (select y.origin from crx y where y.scan_id = x.scan_id and y.airline_id = x.airline_id and y.n > 0
+                                        union select y.dest from crx y where y.scan_id = x.scan_id and y.airline_id = x.airline_id and y.n > 0) z)::int as airports
+            from crx x group by 1, 2),
+  competitors as (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'rank', cr.rank, 'airline_id', cr.airline_id, 'name', cr.name, 'on_pairs', cr.on_pairs, 'pairs', cr.pairs,
+             'weekly', n.weekly, 'airports', n.airports, 'weekly_before', o.weekly, 'change', n.weekly - o.weekly,
+             'change_pct', round(100.0 * (n.weekly - o.weekly) / nullif(o.weekly, 0), 1))
+             order by cr.rank), '[]'::jsonb) as d
+      from cr
+      left join crs n on n.scan_id = v_latest and n.airline_id = cr.airline_id
+      left join crs o on o.scan_id = v_before and o.airline_id = cr.airline_id),
+  self as (
+    select jsonb_build_object(
+             'airline_id', p_airline_id, 'code', v_code, 'name', v_name, 'on_pairs', me_now.on_pairs, 'pairs', me_now.pairs,
+             'pairs_flown', (select count(*) from mine)::int, 'weekly', n.weekly, 'airports', n.airports, 'weekly_before', o.weekly,
+             'change', n.weekly - o.weekly, 'change_pct', round(100.0 * (n.weekly - o.weekly) / nullif(o.weekly, 0), 1)) as d
+      from me_now
+      left join crs n on n.scan_id = v_latest and n.airline_id = p_airline_id
+      left join crs o on o.scan_id = v_before and o.airline_id = p_airline_id)
   select jsonb_build_object(
            'markets', (select d from markets), 'openings', (select d from openings),
            'openings_count', (select n from openings), 'openings_allowed', (select n_allowed from openings),
            'openings_left_out', (select n from left_out), 'openings_trunks', (select n_trunks from openings), 'profiles', (select d from profiles),
-           'pairs_flown', (select count(*) from mine), 'pairs_listed', (select count(distinct (ro.a, ro.b)) from ro))
+           'pairs_flown', (select count(*) from mine), 'pairs_listed', (select count(distinct (ro.a, ro.b)) from ro),
+           'competitors', (select d from competitors), 'self', (select d from self))
     into v_body;
 
   return jsonb_build_object(
@@ -3428,10 +3471,14 @@ begin
     'openings_left_out', v_body -> 'openings_left_out', 'openings_trunks', v_body -> 'openings_trunks',
     'profiles', v_body -> 'profiles',
     'pairs_flown', v_body -> 'pairs_flown', 'pairs_listed', v_body -> 'pairs_listed',
+    -- the weekly report's three biggest competitors and the airline beside them (none without a scan)
+    'competitors', case when v_latest is null then '[]'::jsonb else v_body -> 'competitors' end,
+    'self', case when v_latest is null then null else v_body -> 'self' end,
     'notes', jsonb_build_array(
       'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them, passenger flights only (freighters left out, as the weekly report counts). Our own now are the airline''s live legs; before, its flights in the week-before scan.',
       'From trunk_month_from to trunk_month_to (November, manual §4) the trunks, pairs between two of our bases (any of our airlines''), come first, shortest first: hubs first isn''t applied to them and no distance leaves one out. Whether a trunk makes sense stays the Scheduling chat''s judgment.',
-      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats. A 1-star opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest seats (variant_alt, the E190-E2, "or the E190-E2 if thin" in variant_note): the default line gives it to the thinnest 1-star city, and nothing in our data says how thin a city is, so the evening proposal decides.'));
+      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats. A 1-star opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest seats (variant_alt, the E190-E2, "or the E190-E2 if thin" in variant_note): the default line gives it to the thinnest 1-star city, and nothing in our data says how thin a city is, so the evening proposal decides.',
+      'competitors (the weekly report''s, manual §7): the three rivals with the most departures a week on the city pairs the airline flies (its live legs, both ways) in the latest scan, ties by name; weekly and airports are each one''s whole passenger network in the latest scan, weekly_before in the week-before scan (none when that scan holds no schedule for it), the change against it as a number and a percent. self is the airline on the same terms, from the same scans'' schedules.'));
 end
 $function$
 
@@ -3530,12 +3577,15 @@ begin
         'route_profit', jsonb_build_object('1', r1.d - 'aircraft' - 'fare_changes', '3', r3.d - 'aircraft' - 'fare_changes',
                                            '7', r7.d - 'aircraft' - 'fare_changes'),
         'aircraft_profit', jsonb_build_object('1', r1.d -> 'aircraft', '3', r3.d -> 'aircraft', '7', r7.d -> 'aircraft'),
-        'fare_changes', r7.d -> 'fare_changes') order by al.ord), '[]'::jsonb)
+        'fare_changes', r7.d -> 'fare_changes',
+        -- the weekly report's three biggest competitors (manual §7; since 22 Oct): competition()'s, with its scans
+        'competitors', cp.d -> 'competitors', 'self', cp.d -> 'self', 'scans', cp.d -> 'scans') order by al.ord), '[]'::jsonb)
         from private.fig_airlines(p_world_id) al
         -- offset 0 keeps each document worked out once (folded into the outer query, each use would work it out again)
         cross join lateral (select private.fig_route_profit(al.airline_id, 1, p_as_of) as d offset 0) r1
         cross join lateral (select private.fig_route_profit(al.airline_id, 3, p_as_of) as d offset 0) r3
-        cross join lateral (select private.fig_route_profit(al.airline_id, 7, p_as_of) as d offset 0) r7));
+        cross join lateral (select private.fig_route_profit(al.airline_id, 7, p_as_of) as d offset 0) r7
+        cross join lateral (select private.fig_competition(al.airline_id, p_as_of, 0) as d offset 0) cp));
 end
 $function$
 

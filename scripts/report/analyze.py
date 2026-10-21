@@ -7,7 +7,8 @@ Reads, from the current folder, what pull.py downloaded:
   aircraft rules.json), the same figures as the planner's Tails screen;
 - figures.json (the captured figures, #19): all the money. Cash, profit a day, flight profit a day, the lowest point in
   the next 14 days and when, the next order, route profit, the growth signals and hubs first, each airline on its own:
-  no surplus figure and no group totals (manual §1, §3);
+  no surplus figure and no group totals (manual §1, §3); and since 22 Oct each airline against its three biggest
+  competitors (competition()'s competitors, self and scans; manual §7);
 - airlines.json, airports.json, scan.json (the world scan) and airports_oa.csv (OurAirports' public airport list): the
   competition, markets and hubs, as before;
 - site_airlines.json (the website's airlines), if there: each airline's colour for the charts.
@@ -233,6 +234,21 @@ def routes_of(airline_id):
     return {"days": rp.get("days"), "since": rp.get("since"), "flights": rp.get("flights"), "best": best, "weak": [{k: x.get(k) for k in keep} for x in weak]}
 
 
+def competitors_of(airline_id):
+    """The airline against its three biggest competitors (manual §7), as competition() gives them in figures.json (since
+    22 Oct): the three rivals with the most departures a week on its city pairs in the latest scan, and the airline itself,
+    each with its network and the change against the week-before scan. None when the figures have no world scan to
+    compare (or predate them): the report says so."""
+    f = FA.get(airline_id) or {}
+    scans = f.get("scans") or {}
+    if "competitors" not in f or not scans.get("latest"):
+        return None
+    keep = ("rank", "airline_id", "name", "on_pairs", "pairs", "weekly", "airports", "weekly_before", "change", "change_pct")
+    return {"latest": scans["latest"].get("taken_at"), "week_before": (scans.get("week_before") or {}).get("taken_at"),
+            "self": {k: (f.get("self") or {}).get(k) for k in keep[3:] + ("pairs_flown",)},
+            "top": [{k: c.get(k) for k in keep} for c in (f.get("competitors") or [])[:3]]}
+
+
 G = FIG.get("growth_signals") or {}
 growth = {k: [dict({kk: x.get(kk) for kk in ("hub", "dest", "flights", "profit_week", "profit_per_flight", "economy", "mark", "why", "registration", "type", "net_day")},
                    airline=NAME.get(x.get("airline_id"), str(x.get("airline_id")))) for x in (G.get(k) or [])[:6]]
@@ -245,7 +261,7 @@ for i, a in enumerate(OURS_ROWS):
     airlines.append({"id": a["id"], "game_id": a.get("game_id"), "code": a.get("iata_code"), "name": NAME[a["id"]], "color": colour(a, i),
                      "bases": [b["airport_code"] for b in BASES if b["airline_id"] == a["id"]],
                      "main_hub": next((b["airport_code"] for b in BASES if b["airline_id"] == a["id"] and b.get("is_main")), None),
-                     "ops": ops_of(a["id"]), "finance": finance_of(a["id"]), "routes": routes_of(a["id"]),
+                     "ops": ops_of(a["id"]), "finance": finance_of(a["id"]), "routes": routes_of(a["id"]), "competitors": competitors_of(a["id"]),
                      "hubs_first": {k: hp.get(k) for k in ("main_hub", "departures", "planned", "target", "percent", "exempt")} | {
                          "bases": [{"code": b.get("code"), "role": b.get("role"), "contested": b.get("contested"),
                                     "top_rival": b.get("top_rival"), "contested_routes": len(b.get("contested_routes") or [])} for b in hp.get("bases") or []]}})
