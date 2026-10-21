@@ -35,7 +35,7 @@ import { isOpen, statusOf } from "../interline/model";
 import { useAgreements } from "../interline/reads";
 import { useInterlineRows } from "../interline/useRows";
 import { useForecasts, useReviewCards } from "../performance/reads";
-import { readAirports, useMarkets } from "../routes/reads";
+import { readAirports } from "../routes/reads";
 import { itemRoute, movedTo } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import { gameLink, typeName, type TailAircraft } from "../tails/model";
@@ -78,7 +78,6 @@ export function Today() {
   const buyQ = useBuyTypes(w);
   const tailsQ = useTailsAircraft(w);
   const hostQ = useGameHost(w);
-  const marketsQ = useMarkets(w);
   const airlines: OurAirline[] = useMemo(() => ourAirlines(airlinesQ.data), [airlinesQ.data]);
   // the orders are for the airlines the captured figures cover (airline_cards(): our active airlines), in our order
   const ordering = useMemo(() => airlines.filter((a) => (cardsQ.data?.airlines ?? []).some((c) => c.airline_id === a.id)), [airlines, cardsQ.data]);
@@ -142,7 +141,6 @@ export function Today() {
   // ---------- Game check (Check's until 20 Oct)
   const all = useMemo(() => tailsQ.data ?? [], [tailsQ.data]);
   const tailList = useMemo(() => all.filter((a) => a.status === "active").sort((a, b) => a.id - b.id), [all]);
-  const marketTypes = useMemo(() => new Map((marketsQ.data ?? []).map((m) => [m.id, m.default_type_id])), [marketsQ.data]);
   const linkOf = (a: OurAirline) => gameLink(hostQ.data, a.game_id);
   const gameLines: GameLine[] = useMemo(() => {
     if (!rules) return [];
@@ -152,10 +150,10 @@ export function Today() {
       const x = gc.res.get(a.id);
       if (!x) continue;
       if ("error" in x) { out.push({ airline: a, error: x.error }); continue; }
-      out.push({ airline: a, cmp: game.compare(rules, a.id, x.flights, marketTypes), cands: game.importCandidates(rules, a.id, x.flights) });
+      out.push({ airline: a, cmp: game.compare(rules, a.id, x.flights), cands: game.importCandidates(rules, a.id, x.flights) });
     }
     return out;
-  }, [rules, airlines, hostQ.data, gc.res, marketTypes]);
+  }, [rules, airlines, hostQ.data, gc.res]);
   const differences = gameLines.reduce((n, l) => n + (l.cmp?.issues.length ?? 0), 0);
 
   async function save(changes: Change[], rulesToo = false) {
@@ -182,9 +180,9 @@ export function Today() {
   }
   async function fix(airlineId: number, issues: Parameters<typeof fixRotations>[2]) {
     if (!rules) return;
-    const rots = fixRotations(rules, airlineId, issues, marketTypes);
+    const rots = fixRotations(rules, airlineId, issues);
     const legs = await readLegs(rots);
-    await save(fixChanges(rules, airlineId, issues, legs, marketTypes), true);
+    await save(fixChanges(rules, airlineId, issues, legs), true);
   }
   async function add(airlineId: number, line: GameLine, index: number, choice: TailChoice) {
     const cand = line.cands?.[index];
@@ -228,9 +226,9 @@ export function Today() {
   }
 
   const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
-    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess && marketsQ.data);
+    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess);
   const loadError = first(world, airlinesQ, rulesQ, aircraftQ, rotationsQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
-    buyQ, tailsQ, hostQ, marketsQ, ...forecastsQ);
+    buyQ, tailsQ, hostQ, ...forecastsQ);
   const cap = captureQ.data && airlinesQ.data ? captureLine(airlines, captureQ.data, now) : null;
   const waiting = ready && orders && filing && attShown ? waitingWords({
     canOrder: orders.filter((o) => o.status.kind === "now").map((o) => o.airline.name), toFile: filing.length, attention: attShown.shown.length, game: differences,

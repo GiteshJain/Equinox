@@ -6,20 +6,20 @@
 //   - Capture: what the capture collected for each airline and when (capture_status()), with Reload, and the backup's
 //     line (Check's);
 //   - Manual entry (ManualEntry.tsx): cash and fixed costs, the nightly log, loads by hand (Review's);
-//   - Cabins (Cabins.tsx): each aircraft's cabin against its markets (cabins.fit), Refitted to, Keep as is, Show again
-//     (Check's);
 //   - Aircraft checks: the one-week checks due (the library's checks.oneWeek), with each aircraft's issues and its routes'
 //     load patterns, the ones coming up by date and how many are done; Mark checked. Shown only while the checks are on
 //     (aircraft_check_after_days above 0; manual §1 has none since 15 Oct) (Check's).
+// The Cabins board (each aircraft's cabin against its markets, with Refitted to, Keep as is and Show again; Check's) went
+// on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1): the cabin is chosen with each order, and the plan card
+// suggests it (Tails).
 // Address: /planner/systems, and the aircraft pop-up (?aircraft=REG, Tails' AircraftPopup). Every action is one
 // planner_save() call.
 import { useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
-import { cabins, checks, game, tails, type CabinFit } from "@rules";
+import { checks, game, tails } from "@rules";
 import { ourAirlines, type OurAirline } from "../../data/airlines";
 import { buildStamp } from "../../data/build";
 import { useNow } from "../../data/clock";
-import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
@@ -29,28 +29,24 @@ import { dayDiff, niceDate, todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { refreshFigures, useGrowthSignals } from "../performance/reads";
-import { useAllRoutes, useMarkets } from "../routes/reads";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import { figuresOf, issueWords, markCheckedChange, rulesLegs, typeName, type TailAircraft } from "../tails/model";
-import { useConfigs, useLaunches, useTailsAircraft } from "../tails/reads";
-import { CabinsList } from "./Cabins";
+import { useLaunches, useTailsAircraft } from "../tails/reads";
 import { ManualEntry } from "./ManualEntry";
 import {
-  BOARDS, CAPTURE_KINDS, backupWords, captureCell, captureStatus, costWords, keepChange, patternPill, patternRanks, refitChanges, refitCost, shownBoards, undoKeepChange,
-  upcomingByDay, type BoardKey,
+  BOARDS, CAPTURE_KINDS, backupWords, captureCell, captureStatus, patternPill, patternRanks, shownBoards, upcomingByDay, type BoardKey,
 } from "./model";
-import { useBackupLine, useCabinKeeps, useCapture, useCashLog, useSystemStatus } from "./reads";
+import { useBackupLine, useCapture, useCashLog, useSystemStatus } from "./reads";
 import { SystemsBoard } from "./SystemsBoard";
 import { systemLines } from "./systems";
 
 const NOTES: Record<BoardKey, string> = {
   "Capture": "what the one-click capture collected from the game, per airline · times in UTC · cash and fixed costs go straight into Performance",
   "Manual entry": "only needed if a night's capture failed · cash, fixed costs and loads normally come from the capture",
-  "Cabins": "",
   "Aircraft checks": "one check, a week after an aircraft is scheduled · once marked checked it only comes back when that aircraft's schedule changes",
 };
 const FIGURE: Record<BoardKey, string> = {
-  "Capture": "systems: capture", "Manual entry": "systems: manual entry", "Cabins": "systems: cabins", "Aircraft checks": "systems: aircraft checks",
+  "Capture": "systems: capture", "Manual entry": "systems: manual entry", "Aircraft checks": "systems: aircraft checks",
 };
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
@@ -68,11 +64,7 @@ export function Systems() {
   const backupsQ = useBackupLine();
   const logQ = useCashLog(w);
   const aircraftQ = useTailsAircraft(w);
-  const configsQ = useConfigs(w);
   const launchesQ = useLaunches(w);
-  const marketsQ = useMarkets(w);
-  const routesQ = useAllRoutes(w);
-  const keepsQ = useCabinKeeps(w);
   const signalsQ = useGrowthSignals(w);
   const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS));
   const [busy, setBusy] = useState(false);
@@ -89,20 +81,14 @@ export function Systems() {
   const airline = (id: number) => airlines.find((a) => a.id === id);
   const all = useMemo(() => aircraftQ.data ?? [], [aircraftQ.data]);
   const byId = useMemo(() => new Map(all.map((a) => [a.id, a])), [all]);
-  // every airline's tails (status active), in the order they were added (id), as Check listed them
-  const tailList = useMemo(() => all.filter((a) => a.status === "active").sort((a, b) => a.id - b.id), [all]);
 
-  // ---------- saving: one action each; the start's rules are read again after one that changes a cabin, and the figures
-  // that build on cash after manual entry
-  async function save(changes: Change[], rulesToo = false) {
+  // ---------- saving: one action each; the figures that build on cash are read again after it
+  async function save(changes: Change[]) {
     if (!changes.length) return;
     setBusy(true);
     try {
       const res = await saver.save(changes);
-      if (res.status === "saved") {
-        if (rulesToo) void queryClient.invalidateQueries({ queryKey: ["rules"] });
-        refreshFigures();
-      }
+      if (res.status === "saved") refreshFigures();
       return res;
     } finally {
       setBusy(false);
@@ -118,34 +104,25 @@ export function Systems() {
   }, [rules, today]);
   const freqs = useMemo(() => (rules ? game.frequencies(rules, null) : []), [rules]);
 
-  // ---------- Cabins
-  const cabinList = useMemo(() => (rules && configsQ.data && routesQ.data && marketsQ.data && keepsQ.data
-    ? cabins.fit(rules, {
-      aircraft: tailList.map((a) => ({ id: a.id, cabin_config_id: a.cabin_config_id })), configs: configsQ.data,
-      routes: routesQ.data.map((r) => ({ id: r.id, cabin_choice: r.cabin_choice })), markets: marketsQ.data, keeps: keepsQ.data,
-    }, rulesLegs(rules)) : null), [rules, configsQ.data, routesQ.data, marketsQ.data, keepsQ.data, tailList]);
-
   const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now) : null), [systemQ.data, now]);
-  const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && aircraftQ.data && configsQ.data && launchesQ.data
-    && marketsQ.data && routesQ.data && keepsQ.data && signalsQ.data && cabinList && checkList);
-  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, aircraftQ, configsQ, launchesQ, marketsQ, routesQ, keepsQ, signalsQ);
+  const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && aircraftQ.data && launchesQ.data
+    && signalsQ.data && checkList);
+  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, aircraftQ, launchesQ, signalsQ);
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   // Aircraft checks only while the checks are on (aircraft_check_after_days above 0)
   const shown = rules ? shownBoards(rules, airlines.map((a) => a.id)) : BOARDS;
   const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k]) => (shown.includes(k)
     ? <FoldBoard key={k} k={k} note={note} folded={folded.has(k)} onToggle={() => toggle(k)} figure={FIGURE[k]}>{children}</FoldBoard> : null);
-  const sharePct = rules ? Number(rules.input.settings.cabin_refit_share_pct) : 0;
-  const worldCost = rules ? Number(rules.input.settings.cabin_refit_cost) : 0;
   const backup = backupWords(backupsQ.data, (d) => niceDate(d));
 
   return (
     <main className="view review systems" data-screen="systems" data-systems-ready={ready ? "yes" : "no"} data-systems-view="/systems">
-      <div className="vh"><h1>Systems</h1><p>Did everything work? The capture, the jobs, the backups and the planner's build, then the capture's details, manual entry, cabins{shown.includes("Aircraft checks") ? " and aircraft checks" : ""}.</p></div>
+      <div className="vh"><h1>Systems</h1><p>Did everything work? The capture, the jobs, the backups and the planner's build, then the capture's details{shown.includes("Aircraft checks") ? ", manual entry and aircraft checks" : " and manual entry"}.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {sysLines ? <SystemsBoard lines={sysLines} checkedAt={systemQ.dataUpdatedAt ? new Date(systemQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : null} /> : null}
       <FoldTools onCollapse={() => setFolded(new Set(BOARDS))} onExpand={() => setFolded(new Set())} />
-      {ready && rules && checkList && cabinList && logQ.data ? (
+      {ready && rules && checkList && logQ.data ? (
         <>
           {board("Capture", <>
             <div className="toolbar">
@@ -178,11 +155,6 @@ export function Systems() {
           </>)}
           {board("Manual entry", <ManualEntry worldId={w} rules={rules} log={{ ...logQ.data, airlines: logQ.data.airlines.map((a) => ({ ...a, name: airline(a.airline_id)?.name ?? a.name })) }}
             airlines={airlines} busy={busy} now={now} onSave={save} />)}
-          {board("Cabins", <CabinsList list={cabinList} airlines={airlines} cost={worldCost} sharePct={sharePct} busy={busy} onAircraft={setTailPopup}
-            onRefit={(x: CabinFit) => { const a = byId.get(x.aircraft_id); if (a && x.target && w !== undefined) void save(refitChanges(w, a, x.target, refitCost(rules, a.airline_id), today), true); }}
-            onKeep={(x) => { if (w !== undefined) void save([keepChange(w, x.aircraft_id, x.want, today)]); }}
-            onUndo={(x) => { const k = keepsQ.data?.find((r) => r.aircraft_id === x.aircraft_id && r.cabin === x.want); if (k) void save([undoKeepChange(k)]); }} />,
-          `each aircraft's cabin against the default cabin of the markets it flies most · a refit costs about ${costWords(worldCost)} with no time out of service · only worth it where most of the flying is in the other cabin's markets`)}
           {board("Aircraft checks", <ChecksBody list={checkList} today={today} rules={rules} byId={byId} airline={airline} freqs={freqs} ranks={ranks}
             patterns={signalsQ.data?.load_patterns ?? []} busy={busy} onAircraft={setTailPopup}
             onCheck={(a) => void save([markCheckedChange(a, today)])} />)}

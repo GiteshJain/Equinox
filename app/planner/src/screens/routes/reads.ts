@@ -2,7 +2,8 @@
 // - one airline's routes at a time from the tables (routes, with their overrides), not the whole research at start; the
 //   flown routes of every airline are in the start already (rules_input(world, 'flown'), src/data/rules.ts);
 // - that airline's rotations and flight legs, with each row's updated_at (the base for changing it);
-// - the markets, the service profiles and our aircraft (their types, and the order of the old planner's tails);
+// - the markets (name and layout), the service profiles and our aircraft (their types, and the order of the old planner's
+//   tails);
 // - the two airports of the route open (offsets and the world's correction, for the header and an offset change);
 // - each route's and each flight's loads over 7 days (route_loads()) and the load patterns (growth_signals()), at the
 //   screen's moment.
@@ -12,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import {
-  LEG_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS,
+  LEG_COLUMNS, MARKET_ROW_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS,
   type AircraftRow, type AirportInfo, type LegRow, type Load, type MarketRow, type PlanLegRow, type RotationRow, type RouteRow,
 } from "./model";
 
@@ -62,27 +63,28 @@ export function useRouteRow(routeId: number | null) {
   });
 }
 
-/** A route as every airline's list holds it, with its cabin choice (Systems' cabins). */
+/** A route as every airline's list holds it, with its cabin choice (ROUTE_COLUMNS carries it since 21 Oct). */
 export interface AllRouteRow extends RouteRow { cabin_choice: string | null }
 
 /** Every route that isn't removed, of every airline, in the routes' order (Performance's growth lists from the load
- *  reports, Systems' cabins; Check's until 20 Oct). */
+ *  reports; Check's until 20 Oct, and Systems' cabins until 21 Oct). */
 export function useAllRoutes(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("routes", "check", worldId),
     enabled: worldId !== undefined,
-    queryFn: () => pages<AllRouteRow>("the routes", (from, to) => supabase.from("routes").select(ROUTE_COLUMNS + ", cabin_choice")
+    queryFn: () => pages<AllRouteRow>("the routes", (from, to) => supabase.from("routes").select(ROUTE_COLUMNS)
       .eq("world_id", worldId ?? 0).eq("removed", false).order("id").range(from, to) as unknown as PromiseLike<{ data: AllRouteRow[] | null; error: { message: string } | null }>),
   });
 }
 
-/** Every airline's markets in the world: name, default aircraft and cabin, and fares. */
+/** Every airline's markets in the world: name and, since 21 Oct, only its layout (its default aircraft, cabin and fares
+ *  went; spec docs/specs/2026-10-21-cabins-new-rule.md §2). */
 export function useMarkets(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("markets", "routes", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
-      const { data, error } = await supabase.from("markets").select("id, airline_id, name, default_type_id, default_config_id, fare_y_pct, fare_j_pct")
+      const { data, error } = await supabase.from("markets").select(MARKET_ROW_COLUMNS)
         .eq("world_id", worldId ?? 0).order("id");
       if (error) return fail("the markets", error.message);
       return data as MarketRow[];

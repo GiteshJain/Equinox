@@ -38,7 +38,7 @@ const files: { label: string; url: URL }[] = [
 describe("hand-made cases (lib/rules/cases)", () => {
   it("has cases for every part", () => {
     const parts = new Set(files.map((f) => (JSON.parse(readFileSync(f.url, "utf8")) as CaseFile).part));
-    for (const p of ["time", "block", "turns", "connections", "banks", "maintenance", "aircraftWeek", "schedule", "positions", "summary", "checks", "optimiser", "frequency", "service", "tails", "game", "cabins", "loadReport", "growth"]) {
+    for (const p of ["time", "block", "turns", "connections", "banks", "maintenance", "aircraftWeek", "schedule", "positions", "summary", "checks", "optimiser", "frequency", "service", "tails", "game", "cabinFor", "loadReport", "growth"]) {
       expect(parts, `no case file for ${p}`).toContain(p);
     }
   });

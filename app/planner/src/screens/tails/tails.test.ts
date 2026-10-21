@@ -1,7 +1,8 @@
 // Tails' logic (spec docs/specs/2026-10-13-tails.md, "Checks"): the list's filters, the deliveries' status, the plan card
 // checked against the game (same, different, missing, the game not read), filing's one action (each outbound paired with
 // its return as the old filePlan pairs them, local times stored in UTC, the aircraft in service, its first cabin fit, the
-// card taking the game's times), and adding, editing and removing an aircraft. The planning rules themselves are the
+// card taking the game's times), the cabin the card's routes call for (21 Oct), and adding, editing and removing an
+// aircraft. The planning rules themselves are the
 // library's, with their own cases (lib/rules/cases/tails.json, aircraftWeek.json, frequency.json); these run the screen's
 // joins on the cases' small world.
 import { readFileSync } from "node:fs";
@@ -10,8 +11,9 @@ import { buildRules, type RulesInput, type TailIssue } from "@rules";
 import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
-  addTailChanges, cardCabinChange, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin, filingChanges, stationsOf, filtersQuery,
-  gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries, tailRows, tailsOf, typesFor, weekStrip,
+  addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardLegs, checkSummary, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
+  filingChanges, stationsOf, filtersQuery, gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
+  suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
 
@@ -181,9 +183,11 @@ describe("filing", () => {
     { id: 1, airline_id: 1, hub_code: "HUB", dest_code: "AAA", city: "Paris", country_label: "France", distance_km: 700, market_id: null, stars: 3, source: "research", removed: false,
       removed_note: null, city_override: null, distance_override_km: null, market_override_id: null, market_cleared: false, stars_override: null, updated_at: T0 },
   ];
-  const markets = new Map<number, MarketRow>([[1, { id: 1, airline_id: 1, name: "Asia", default_type_id: 1, default_config_id: 11, fare_y_pct: 105, fare_j_pct: null }]]);
+  const markets = new Map<number, MarketRow>([[1, { id: 1, airline_id: 1, name: "Asia", layout: "Leisure Plus" }]]);
+  // the launch fare (fare_launch_pct) is a new frequency's fare since 21 Oct, whatever its market (the market's fare until then)
+  const launch = buildRules({ ...input, settings: { ...input.settings, fare_launch_pct: 100 } });
   const x: FilingInput = {
-    worldId: 1, today: TODAY, nowMs: NOW, rand: () => 0.5, rules, aircraft: fleet[4] as TailAircraft, card, legs, game: null, cabin: { id: 11, code: "321-LEI", cost: 450000 },
+    worldId: 1, today: TODAY, nowMs: NOW, rand: () => 0.5, rules: launch, aircraft: fleet[4] as TailAircraft, card, legs, game: null, cabin: { id: 11, code: "321-LEI", cost: 450000 },
     cabinLogged: false, bases: ["HUB", "FOC"], routes, markets,
     profiles: [{ id: 1, code: "S1", airline_id: null, up_to_km: 1000 }, { id: 2, code: "S2", airline_id: null, up_to_km: 99999 }], airports: new Map(),
   };
@@ -197,14 +201,14 @@ describe("filing", () => {
     expect(ch[1]).toEqual({ table: "spending_log", op: "insert", values: { world_id: 1, airline_id: 1, spent_on: TODAY, amount: 450000, kind: "cabin", aircraft_id: 5,
       note: "T-005 first cabin fit (321-LEI)" } });
     expect(strip(ch.slice(2))).toEqual([
-      { table: "rotations", op: "insert", as: "rotation 1", values: { world_id: 1, airline_id: 1, legacy_key: "k", launched_on: TODAY, route_id: 4, service_code: "S2", fare_pct: 105 } },
+      { table: "rotations", op: "insert", as: "rotation 1", values: { world_id: 1, airline_id: 1, legacy_key: "k", launched_on: TODAY, route_id: 4, service_code: "S2", fare_pct: 100 } },
       // HUB 21:00 every day to DDD (+5:30), landing 08:00 the next day there; back at 07:40, which is before the landing, so
       // the day after (the old planner's day; every day, so the same UTC days)
       { table: "flight_legs", op: "insert", from: { rotation_id: "rotation 1" }, values: { world_id: 1, airline_id: 1, leg_no: 1, flight_no: 1201, origin_code: "HUB",
         dest_code: "DDD", aircraft_id: 5, days_utc: ALL, dep_utc_min: 1260, block_min: 330 } },
       { table: "flight_legs", op: "insert", from: { rotation_id: "rotation 1" }, values: { world_id: 1, airline_id: 1, leg_no: 2, flight_no: 1202, origin_code: "DDD",
         dest_code: "HUB", aircraft_id: 5, days_utc: ALL, dep_utc_min: 130, block_min: 360 } },
-      { table: "rotations", op: "insert", as: "rotation 2", values: { world_id: 1, airline_id: 1, legacy_key: "k", launched_on: TODAY, route_id: 1, service_code: "S1", fare_pct: null } },
+      { table: "rotations", op: "insert", as: "rotation 2", values: { world_id: 1, airline_id: 1, legacy_key: "k", launched_on: TODAY, route_id: 1, service_code: "S1", fare_pct: 100 } },
       { table: "flight_legs", op: "insert", from: { rotation_id: "rotation 2" }, values: { world_id: 1, airline_id: 1, leg_no: 1, flight_no: 1203, origin_code: "HUB",
         dest_code: "AAA", aircraft_id: 5, days_utc: ALL, dep_utc_min: 900, block_min: 80 } },
       { table: "flight_legs", op: "insert", from: { rotation_id: "rotation 2" }, values: { world_id: 1, airline_id: 1, leg_no: 2, flight_no: 1204, origin_code: "AAA",
@@ -256,6 +260,32 @@ describe("filing", () => {
     expect(cardCabinChange(card, 14)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: 14 } }]);
     expect(cardCabinChange({ ...card, config_id: 14 }, null)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: null } }]);
     expect(cardCabinChange({ ...card, config_id: 14 }, 14)).toEqual([]);
+  });
+  // 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §3): the card suggests its cabin by the rule (manual §5)
+  it("suggests the cabin the card's routes call for, with the airline's routes laid in with their markets' layouts", () => {
+    // the start without the card's two routes (as rules_input('flown') when they aren't flown yet), the layouts with their names
+    const start = buildRules({ ...input, routes: input.routes.filter((r) => r.id !== 4 && r.id !== 1), cabin_configs: [
+      { id: 11, code: "321-LEI", aircraft_type_id: 1, seats: 195, cabin: "Leisure" }, { id: 13, code: "321-STD", aircraft_type_id: 1, seats: 216, cabin: "Standard" },
+      { id: 12, code: "E195-LEI", aircraft_type_id: 2, seats: 112, cabin: "Leisure" }, { id: 14, code: "321-CMF", aircraft_type_id: 1, seats: 141, cabin: "Comfort" },
+      { id: 15, code: "321-LP", aircraft_type_id: 1, seats: 166, cabin: "Leisure Plus" }] });
+    const laid = withRoutes(start, routes, [...markets.values()]);
+    expect(laid.routes.get(4)).toMatchObject({ market_id: 1, market: "Asia", market_layout: "Leisure Plus", cabin_choice: null });
+    // HUB–DDD is 690 of the card's 855 block minutes a day: 81%, over 65%, so its market's Leisure Plus
+    const s = cardCabin(laid, card, planLegs);
+    expect(s).toMatchObject({ code: "321-LP", config_id: 15, reason: "HUB–DDD is 81% of block time: Leisure Plus", missing: true, differs: true });
+    expect(suggestionWords(s)).toEqual({ text: "suggested: 321-LP", reason: "HUB–DDD is 81% of block time: Leisure Plus" });
+    // a card's cabin that differs shows in amber; the suggestion itself doesn't, nor no cabin (that has its own pill)
+    expect([cabinDiffers(s, "321-LEI"), cabinDiffers(s, "321-LP"), cabinDiffers(s, ""), cabinDiffers(null, "321-LEI")]).toEqual([true, false, false, false]);
+    expect(cardCabin(laid, { ...card, config_id: 15 }, planLegs)).toMatchObject({ missing: false, differs: false });
+    // Use the suggestion is the card-cabin save there already is
+    expect(cardCabinChange(card, s?.config_id ?? null)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: 15 } }]);
+    // the route's own choice wins over its market's layout
+    const own = withRoutes(start, routes.map((r) => (r.id === 4 ? { ...r, cabin_choice: "Comfort" } : r)), [...markets.values()]);
+    expect(cardCabin(own, card, planLegs)?.code).toBe("321-CMF");
+    // without its market's layout (the markets not read yet): the most seats a full-service airline may choose
+    expect(cardCabin(withRoutes(start, routes), card, planLegs)).toMatchObject({ code: "321-LEI", reason: "HUB–DDD is 81% of block time, but it has no market layout: the most seats" });
+    // an aircraft the start doesn't hold: nothing to suggest
+    expect(cardCabin(laid, { ...card, aircraft_id: 99 }, planLegs)).toBeNull();
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");

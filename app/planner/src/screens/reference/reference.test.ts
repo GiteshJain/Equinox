@@ -2,7 +2,7 @@
 // planner_apply_tidy), and its addresses.
 import { describe, expect, it } from "vitest";
 import {
-  addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
+  LAYOUTS, addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
   layoutsOf, marketChange, mctChange, mctHours, numOf, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, restoreChange, scheduleLink, sectionOf, serviceChange,
   typeChange, worldRowChange, type BaseRow, type RemovedRoute, type WorldAirportRow,
 } from "./model";
@@ -89,9 +89,13 @@ describe("constants, types, layouts, markets and service profiles", () => {
     const c = { id: 4, code: "E195-STD", aircraft_type_id: 3, cabin: "Standard", seats: 124, updated_at: "c" };
     expect(configChange(c, "type", "", [t])?.values).toEqual({ aircraft_type_id: null });
     expect(configChange(c, "seats", "120", [t])?.values).toEqual({ seats: 120 });
-    const m = { id: 5, airline_id: 1, name: "Europe", default_type_id: 3, default_config_id: 4, fare_y_pct: 100, fare_j_pct: 100, updated_at: "m" };
-    expect(marketChange(m, "priceY", "", [t], [c])?.values).toEqual({ fare_y_pct: null });
-    expect(marketChange(m, "config", "E195-STD", [t], [c])).toBeNull();
+    // a market keeps only its layout since 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §2): one change on the
+    // market, nothing when it's the same, and nothing for a layout that isn't one of the four
+    const m = { id: 5, airline_id: 1, name: "Europe", layout: "Leisure", updated_at: "m" };
+    expect(marketChange(m, "Leisure Plus")).toEqual({ table: "markets", op: "update", key: { id: 5 }, base: "m", values: { layout: "Leisure Plus" } });
+    expect(marketChange(m, "Leisure")).toBeNull();
+    expect(marketChange(m, "Economy")).toBeNull();
+    expect(LAYOUTS).toEqual(["Standard", "Leisure", "Leisure Plus", "Comfort"]);
     const s = { id: 6, code: "R", airline_id: 3, up_to_km: 99999, note: "Ryanair", updated_at: "p" };
     expect(serviceChange(s, "airline", "Legacy", () => 3)?.values).toEqual({ airline_id: null });
     expect(serviceChange(s, "upTo", "5000", () => 3)?.values).toEqual({ up_to_km: 5000 });

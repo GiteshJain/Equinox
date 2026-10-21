@@ -9,7 +9,8 @@
 //   block <origin> <dest> <type>                 the block-time estimate for a leg not yet timed
 //   connections <airport>                        every connection there, with days and gaps, the city pairs and banks
 //   aircraft [registration]                      one aircraft's week and maintenance; every aircraft's figures without one
-//   check-card <card.json>                       a plan card's legs checked against every rule, at both ends
+//   check-card <card.json>                       a plan card's legs checked against every rule, at both ends, and its
+//                                                cabin (config_id) against the one its routes call for (cabin, 21 Oct)
 //   optimise <base> <dest,dest,...> --type <type> [--start 05:00-11:00] [--step 5] [--hubs X,Y] [--airline <id>]
 //                                                the best day's schedule for one aircraft
 // The optimiser's start window and step default to plan.py's (05:00 to 11:00 local at the base, every 5 minutes):

@@ -28,16 +28,16 @@ the saves' names follow their screens, and Log an order as went with the order r
   Tails: add a tail; change its maintenance gap; change its base; remove it; remove a delivery (one made for the test);
     file an arrived aircraft (made for the test) from its plan card with the game matching, then again with it
     differing (File with the game's times).
-  Systems: Mark checked; Keep as is; Show again; Refitted to; cash and fixed costs; loads typed; loads pasted with the
-    day marked complete.
+  Systems: Mark checked; cash and fixed costs; loads typed; loads pasted with the day marked complete. (Keep as is, Show
+    again and Refitted to went with the Cabins board on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and
+    their recorded rows with them.)
   Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct: one row per route and cabin it marks,
     how many depending on the night).
   Interline: a status; a note.
   Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
   Photos: a destination photo uploaded.
-What the test makes for a save (an aircraft to file, a delivery to remove, a check made due, a layout to refit, a to-do to
-tick) is made with psql as the test, never through the planner, so it isn't part of the answer. Mark checked runs with the
+What the test makes for a save (an aircraft to file, a delivery to remove, a check made due, a to-do to tick) is made with psql as the test, never through the planner, so it isn't part of the answer. Mark checked runs with the
 one-week checks on (aircraft_check_after_days 7, set by the test outside the change log and put back after), whatever
 last night's backup holds.
 
@@ -653,16 +653,18 @@ async def filing(s, pl, al, tag, now, t):
 
 # ---------- Check
 def planner_flights(airline_id):
+    # a rotation with no aircraft estimates on the airline's most-flown type (the library's; the markets' default types,
+    # which went on 21 Oct, until then)
     rules = psql("select private.rules_input_doc(null, 'all')::text").strip()
-    markets = psql(f"select coalesce(json_agg(json_build_object('id', m.id, 'default_type_id', m.default_type_id)), '[]')::text from public.markets m where m.world_id = {WORLD}").strip()
-    r = subprocess.run(["node", str(ROOT / "tests" / "planner_flights.mjs")], input=f'{{"rules": {rules}, "markets": {markets}, "airline": {int(airline_id)}}}',
+    r = subprocess.run(["node", str(ROOT / "tests" / "planner_flights.mjs")], input=f'{{"rules": {rules}, "airline": {int(airline_id)}}}',
                        capture_output=True, text=True, timeout=120)
     if r.returncode:
         raise RuntimeError("planner_flights.mjs: " + (r.stderr.strip().splitlines() or ["failed"])[-1][:200])
     return json.loads(r.stdout)
 
 
-# ---------- Check's saves until 20 Oct: the game check on Today; Mark checked and the cabins on Systems
+# ---------- Check's saves until 20 Oct: the game check on Today; Mark checked on Systems (the cabins' saves went with the
+# Cabins board on 21 Oct)
 async def check(s, pl, al, today):
     pg = pl.pg
 
@@ -773,42 +775,6 @@ async def check(s, pl, al, today):
             await s.act("systems: Mark checked (an aircraft made due for the test)", lambda: pg.click(f"[data-checked={json.dumps(pick['reg'])}]"))
         finally:
             put_back_check_days(checks_were)
-
-    # Cabins: an aircraft flying legs that want its cabin, given another layout of its type with a different cabin for the
-    # test, so the board offers its own back: Keep as is, Show again, then Refitted to
-    made = None
-    await reload(pl)
-    await to_systems()
-    listed = set(await pg.evaluate("[...document.querySelectorAll('[data-cabkeep]')].map(b => b.dataset.cabkeep.split('|')[0])"
-                                   ".concat([...document.querySelectorAll('[data-cabundo]')].map(b => b.dataset.cabundo.split('|')[0]))"))
-    for x in json.loads(psql(f"""select coalesce(json_agg(x order by x.id), '[]') from (
-            select distinct on (a.id) a.id, a.registration as reg, a.cabin_config_id as cfg, c2.id as other
-              from public.aircraft a join public.cabin_configs c on c.id = a.cabin_config_id
-              join public.cabin_configs c2 on c2.world_id = a.world_id and c2.aircraft_type_id = a.aircraft_type_id and c2.cabin is distinct from c.cabin
-             where a.world_id = {WORLD} and a.status = 'active' and exists (select 1 from public.flight_legs l where l.aircraft_id = a.id)
-               and not exists (select 1 from public.aircraft_cabin_keeps k where k.aircraft_id = a.id)
-             order by a.id, c2.id) x""").strip())[:6]:
-        if x["reg"] in listed:
-            continue
-        as_test(f"update public.aircraft set cabin_config_id = {int(x['other'])} where id = {int(x['id'])}")
-        await reload(pl)
-        await to_systems()
-        if await pg.evaluate("r => !!document.querySelector(`[data-refit^='${r}|']`) && !!document.querySelector(`[data-cabkeep^='${r}|']`)", x["reg"]):
-            made = x
-            break
-        as_test(f"update public.aircraft set cabin_config_id = {int(x['cfg'])} where id = {int(x['id'])}")
-    if not made:
-        s.not_tried("no aircraft could be given a layout to refit from", "systems: Keep as is", "systems: Show again", "systems: Refitted to")
-    else:
-        k = await pg.evaluate("r => document.querySelector(`[data-cabkeep^='${r}|']`).dataset.cabkeep", made["reg"])
-        await s.act("systems: Keep as is", lambda: pg.click(f"[data-cabkeep={json.dumps(k)}]"))
-
-        async def undo():
-            await pg.evaluate("document.querySelector('[data-board=Cabins] details.gsub').open = true")
-            await pg.click(f"[data-cabundo={json.dumps(k)}]")
-        await s.act("systems: Show again", undo)
-        refit = await pg.evaluate("r => (document.querySelector(`[data-refit^='${r}|']`) || {dataset: {}}).dataset.refit || ''", made["reg"])
-        await s.act("systems: Refitted to", lambda: pg.click(f"[data-refit={json.dumps(refit)}]"), rows=2)
 
 
 # ---------- Review's saves until 20 Oct: Manual entry on Systems; + fare plan and remove on Performance

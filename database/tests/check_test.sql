@@ -1,10 +1,11 @@
 -- The Check screen's database parts (decision #18, build pull request 9; migration 20261013235900_check.sql). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says where (keys and counts only). Nothing on the copy changes:
---   1. The seven settings the old Check kept in its code, in every world with the old planner's numbers, each with its
---      unit, its description, since 13 Oct and its reason: cabin_refit_cost 200000 AS$, cabin_refit_share_pct 70,
---      growth_big_min_stars 4, growth_ready_min_days 5, growth_ready_full_share 0.95, order_queue_grace_h 6 and
---      order_queue_warn_h 48.
+--   1. The settings the old Check kept in its code, in every world with the old planner's numbers, each with its unit, its
+--      description, since 13 Oct and its reason: growth_big_min_stars 4, growth_ready_min_days 5, growth_ready_full_share
+--      0.95, order_queue_grace_h 6 and order_queue_warn_h 48. (The other two, cabin_refit_cost and cabin_refit_share_pct,
+--      went with the Cabins board on 21 Oct, migration 20261021180000; database/tests/cabins_new_rule_test.sql checks
+--      they're gone.)
 --   2. rules_input() carries each, as the planning library reads them.
 
 -- ---------------------------------------------------------------- 1. the settings
@@ -12,8 +13,6 @@ do $test$
 declare n_worlds int := (select count(*) from public.worlds); r record; doc jsonb;
 begin
   for r in select * from (values
-      ('cabin_refit_cost', '200000'::jsonb, 'AS$', 'REFIT_M'),
-      ('cabin_refit_share_pct', '70'::jsonb, 'percent of block time', 'cabinsBoard'),
       ('growth_big_min_stars', '4'::jsonb, 'stars', 'moveCandidates'),
       ('growth_ready_min_days', '5'::jsonb, 'reported days', 'moveCandidates'),
       ('growth_ready_full_share', '0.95'::jsonb, 'share of departures', 'moveCandidates'),
@@ -25,6 +24,6 @@ begin
     doc := private.rules_input_doc(null, 'flown');
     assert doc -> 'settings' -> r.key = r.value, format('rules_input() doesn''t carry %s', r.key);
   end loop;
-  raise notice 'the seven settings the old Check kept in its code: in each of the % world(s) with its number, unit, description, since 13 Oct and reason; rules_input() carries them', n_worlds;
+  raise notice 'the five settings the old Check kept in its code that stay: in each of the % world(s) with its number, unit, description, since 13 Oct and reason; rules_input() carries them', n_worlds;
 end
 $test$;

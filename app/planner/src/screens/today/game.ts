@@ -38,11 +38,11 @@ function legUpdate(leg: LegNow | undefined, want: { days_utc: number[]; dep_utc_
 
 /** Use the game's times (one difference) or Fix all from the game (every one that's only a time or a day change), as
  *  one action (the old applyGameFix, one after another): each frequency they change, its two legs stored again in UTC
- *  from its local times. legs: those frequencies' legs as they are now. */
-export function fixChanges(rules: Rules, airlineId: number, issues: readonly GameIssue[], legs: readonly LegNow[],
-  marketTypes?: ReadonlyMap<number, number | null>): Change[] {
+ *  from its local times. legs: those frequencies' legs as they are now. A rotation with no aircraft estimates its block on
+ *  the airline's most-flown type (the library's; its market's aircraft until 21 Oct). */
+export function fixChanges(rules: Rules, airlineId: number, issues: readonly GameIssue[], legs: readonly LegNow[]): Change[] {
   const out: Change[] = [];
-  for (const [rotationId, x] of game.fixTimes(rules, airlineId, issues, marketTypes)) {
+  for (const [rotationId, x] of game.fixTimes(rules, airlineId, issues)) {
     const { leg1, leg2 } = frequency.toLegs(rules, x.freq.ends, x.local);
     out.push(...legUpdate(legs.find((l) => l.rotation_id === rotationId && l.leg_no === 1), leg1),
       ...legUpdate(legs.find((l) => l.rotation_id === rotationId && l.leg_no === 2), leg2));
@@ -50,8 +50,8 @@ export function fixChanges(rules: Rules, airlineId: number, issues: readonly Gam
   return out;
 }
 /** The rotations a set of fixes changes (whose legs to read fresh). */
-export const fixRotations = (rules: Rules, airlineId: number, issues: readonly GameIssue[], marketTypes?: ReadonlyMap<number, number | null>): number[] =>
-  [...game.fixTimes(rules, airlineId, issues, marketTypes).keys()];
+export const fixRotations = (rules: Rules, airlineId: number, issues: readonly GameIssue[]): number[] =>
+  [...game.fixTimes(rules, airlineId, issues).keys()];
 
 const NO_ROW = { id: 0, plan_card_id: 0, position: 0, flight_no: null, origin_code: "", dest_code: "", days_utc: [], dep_utc_min: null, block_min: null, service_code: null, updated_at: "" };
 const NO_CARD: PlanCardRow = { id: 0, airline_id: 0, aircraft_id: 0, base_code: null, title: null, note: null, updated_at: "" };

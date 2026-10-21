@@ -353,17 +353,6 @@
     "flight_legs update days_utc,dep_utc_min": 1
    }
   },
-  "systems: Keep as is": {
-   "logged": [
-    "planner tab"
-   ],
-   "sent": {
-    "planner_save aircraft_cabin_keeps insert aircraft_id,cabin,decided_on,world_id": 1
-   },
-   "written": {
-    "aircraft_cabin_keeps insert": 1
-   }
-  },
   "systems: Mark checked (an aircraft made due for the test)": {
    "logged": [
     "planner tab"
@@ -373,30 +362,6 @@
    },
    "written": {
     "aircraft update checked_on": 1
-   }
-  },
-  "systems: Refitted to": {
-   "logged": [
-    "planner tab"
-   ],
-   "sent": {
-    "planner_save aircraft update cabin_config_id": 1,
-    "planner_save spending_log insert aircraft_id,airline_id,amount,kind,note,spent_on,world_id": 1
-   },
-   "written": {
-    "aircraft update cabin_config_id": 1,
-    "spending_log insert": 1
-   }
-  },
-  "systems: Show again": {
-   "logged": [
-    "planner tab"
-   ],
-   "sent": {
-    "planner_save aircraft_cabin_keeps delete": 1
-   },
-   "written": {
-    "aircraft_cabin_keeps delete": 1
    }
   },
   "systems: cash and fixed costs for today": {

@@ -3,8 +3,9 @@
 //   - the list, one airline at a time: filters for base, type and Flying / No flights / Needs a look; each aircraft's legs
 //     a week, block hours a day, maintenance (with the hours on hover) and routes; Add a tail; remove;
 //   - an aircraft (AircraftPage.tsx): its header, the fields that change it, its week and every issue;
-//   - the deliveries board (Deliveries.tsx): aircraft on order, arrived or flying, each with its plan card, and filing an
-//     arrived one into the planner after checking it against the game (Filing.tsx).
+//   - the deliveries board (Deliveries.tsx): aircraft on order, arrived or flying, each with its plan card (since 21 Oct
+//     with the cabin its routes call for and Use the suggestion), and filing an arrived one into the planner after checking
+//     it against the game (Filing.tsx).
 // Addresses: /planner/tails (filters in the address: ?airline=PA&base=JFK&type=...&status=warn&del=on+order&card=REG)
 // and /planner/tails/<registration>. Home's "File into planner" opens ?file=<registration>, which starts filing at
 // once, as the old Home's button did. Each action is one planner_save() call; the start's rules are read again after it.
@@ -22,12 +23,12 @@ import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
-import { useAirlineRoutes, useAirports } from "../routes/reads";
+import { useAirlineRoutes, useAirports, useMarkets } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardCabinChange, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
+  addTailChanges, basesOf, cardCabin, cardCabinChange, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
@@ -84,16 +85,22 @@ export function Tails() {
   const deliveries = useMemo(() => (rules && cardsQ.data ? deliveryRows(all, airlines, rules, configs, cardsQ.data, now.getTime(), today) : []),
     [all, airlines, rules, configs, cardsQ.data, now, today]);
   const shown = useMemo(() => shownDeliveries(deliveries, airline?.id, filters), [deliveries, airline, filters]);
-  // the plan card's service check: the airline's routes laid in, as filing takes a leg's distance from them
+  // the plan card's service check and its cabin (21 Oct): the airline's routes laid in, as filing takes a leg's distance
+  // from them, with their markets' layouts and their own cabin choices
   const routesQ = useAirlineRoutes(w, airline?.id);
-  const serviceRules = useMemo(() => (rules && routesQ.data ? withRoutes(rules, routesQ.data) : rules), [rules, routesQ.data]);
+  const marketsQ = useMarkets(w);
+  const serviceRules = useMemo(() => (rules && routesQ.data ? withRoutes(rules, routesQ.data, marketsQ.data ?? []) : rules), [rules, routesQ.data, marketsQ.data]);
   const serviceOf = useMemo(() => (card: PlanCardRow, legs: readonly CardLeg[]) => (serviceRules ? cardServiceIssues(serviceRules, card.airline_id, legs) : new Map<number, string>()),
     [serviceRules]);
-  const legsOf = useMemo(() => {
+  const legsByCard = useMemo(() => {
     const by = new Map<number, PlanLegRow[]>();
     for (const l of planLegsQ.data ?? []) by.set(l.plan_card_id, [...(by.get(l.plan_card_id) ?? []), l]);
-    return (card: PlanCardRow) => (rules ? cardLegs(rules, by.get(card.id) ?? []) : []);
-  }, [planLegsQ.data, rules]);
+    return by;
+  }, [planLegsQ.data]);
+  const legsOf = useMemo(() => (card: PlanCardRow) => (rules ? cardLegs(rules, legsByCard.get(card.id) ?? []) : []), [legsByCard, rules]);
+  // the cabin the card's routes call for (manual §5; the library's card.cabinFor)
+  const suggestionOf = useMemo(() => (r: DeliveryRow) => (serviceRules && r.card ? cardCabin(serviceRules, r.card, legsByCard.get(r.card.id) ?? []) : null),
+    [serviceRules, legsByCard]);
 
   const fig = useMemo(() => (rules && open ? tailRows([open], { base: "", type: "", status: "" }, rules, configs)[0]?.fig : undefined), [rules, open, configs]);
   const issues: TailIssue[] = useMemo(() => (rules && open && fig?.week ? tailRules.issues(rules, open.id, rulesLegs(rules), fig.week, fig.maint) : []), [rules, open, fig]);
@@ -285,7 +292,7 @@ export function Tails() {
         onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery}
         onRemove={(r) => void onRemoveDelivery(r)}
         cabinsFor={(r) => cfgList(r.type)} cabinCode={(c) => (c.config_id == null ? "" : configs.get(c.config_id)?.code ?? "")}
-        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} />
+        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} suggestionOf={suggestionOf} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
     </main>
   );

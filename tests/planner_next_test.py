@@ -16,14 +16,16 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    no longer there); Today, its answer at the top (All clear or what's waiting) with the capture in one line, then Orders
    with a card for each of our airlines, Aircraft to file, Needs attention, Game check, the to-do board and Coming up, all
    open, with no Collapse all; Routes on its list, with our airlines on its buttons in their order; Tails, its list and
-   the deliveries board; Performance, a scorecard for each of the copy's airlines in their order and the group's boards
+   the deliveries board, and (21 Oct) the plan cards' cabins: every plan card not yet filed with the cabin its routes call
+   for (the library's card.cabinFor), printed, and one opened on Tails suggesting the same, with Use the suggestion and
+   its amber as its cabin calls for; Performance, a scorecard for each of the copy's airlines in their order and the group's boards
    open (the fare ladder since 21 Oct, the group today when shown, Growth signals, Main hubs, Flights by day; the fare
    ladder with a section for each airline, its moves in one line, its game actions and its routes table each cut to 10
    rows with "show all N"),
    then a scorecard opens its airline's page (Profit, Cash next 14 days, Route profit with its fare index and 14-day
-   load sparkline, Fare plan, open); Systems, the Systems board first, then its four
-   boards folded (Capture with the copy's airlines, Manual entry, Cabins, Aircraft checks), and three (no Aircraft checks)
-   with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
+   load sparkline, Fare plan, open); Systems, the Systems board first, then its three
+   boards folded (Capture with the copy's airlines, Manual entry, Aircraft checks; Cabins went on 21 Oct), and two (no
+   Aircraft checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
    pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
@@ -63,7 +65,7 @@ the log is posted on the pull request. Never prints the local keys or the test p
 Environment, set by database/rehearse.sh: LOCAL_SUPABASE_ENV (a file holding `supabase status -o env`), LOCAL_DB_URL,
 SECRET_TABLES and PLANNER_SCREENS_DIR. Usage: python3 tests/planner_next_test.py
 """
-import asyncio, datetime, http.client, json, os, re, secrets, sys
+import asyncio, datetime, http.client, json, os, re, secrets, subprocess, sys
 from pathlib import Path
 from urllib.parse import urlsplit
 from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, serve, settle
@@ -432,6 +434,73 @@ async def tails_opens(pl):
     return f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}) and the deliveries, with the copy's {len(want)} airlines on its buttons", problems
 
 
+async def plan_card_cabins(pl):
+    """The plan card's cabin (21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §3): for every plan card not yet filed
+    (its aircraft on order or arrived, status on_order or delivered), the cabin its routes call for, worked out by the
+    planning library (tests/plan_card_cabins.mjs: card.cabinFor on rules_input(world, 'all')), printed one line each
+    (registration, the card's cabin, the suggestion and its reason, and whether it differs: codes only), the cards that
+    differ counted. Then the first such card with legs, opened on Tails, says "suggested: <the library's code>" beside its
+    Cabin box, with Use the suggestion when the card's own cabin isn't it, and a card cabin that differs in amber."""
+    cards = json.loads(psql(f"""select coalesce(json_agg(json_build_object('registration', a.registration, 'aircraft_id', a.id, 'airline', al.iata_code,
+                  'config_id', pc.config_id, 'card_code', cc.code, 'order_code', oc.code, 'on_board', a.delivery_at is not null,
+                  'one_card', (select count(*) from public.plan_cards o where o.aircraft_id = a.id) = 1,
+                  'legs', (select coalesce(json_agg(json_build_object('flight_no', l.flight_no, 'origin_code', l.origin_code, 'dest_code', l.dest_code,
+                             'days_utc', l.days_utc, 'dep_utc_min', l.dep_utc_min, 'block_min', l.block_min) order by l.position, l.id), '[]')
+                             from public.plan_card_legs l where l.plan_card_id = pc.id))
+                  order by al.position nulls last, a.delivery_at nulls last, a.id, pc.id), '[]')
+              from public.plan_cards pc join public.aircraft a on a.id = pc.aircraft_id join public.airlines al on al.id = a.airline_id
+              left join public.cabin_configs cc on cc.id = pc.config_id left join public.cabin_configs oc on oc.id = a.order_config_id
+             where a.world_id = {WORLD} and a.status in ('on_order', 'delivered')""").strip())
+    rules = psql("select private.rules_input_doc(null, 'all')::text").strip()
+    r = subprocess.run(["node", str(ROOT / "tests" / "plan_card_cabins.mjs")], input=json.dumps({"rules": json.loads(rules), "cards": cards}),
+                       capture_output=True, text=True, timeout=120)
+    if r.returncode:
+        return "the plan cards' cabins", ["plan_card_cabins.mjs: " + (r.stderr.strip().splitlines() or ["failed"])[-1][:200]]
+    got = json.loads(r.stdout)
+    problems = [f"{x['registration']}: {x['error']}" for x in got if x["error"]]
+    print(f"      the plan cards not yet filed ({len(got)}), each with the cabin its routes call for:", flush=True)
+    for c, x in zip(cards, got):
+        mark = "no cabin chosen" if x["missing"] else "DIFFERS" if x["differs"] else "same"
+        print(f"      {x['registration']} ({c['airline']}, {len(c['legs'])} legs): card {x['card'] or '—'}"
+              f"{' (order ' + c['order_code'] + ')' if not x['card'] and c['order_code'] else ''} · suggested {x['suggested'] or '—'} · {mark}"
+              f" · {x['reason'] or ''}", flush=True)
+    # one card on Tails: the same suggestion, beside its Cabin box
+    # (an aircraft on the deliveries board, with a delivery, and only the one card, so the board opens that card)
+    pick = next(((c, x) for c, x in zip(cards, got) if c["legs"] and x["suggested"] and c["on_board"] and c["one_card"]), None)
+    shown = None
+    if pick:
+        c, x = pick
+        await pl.pg.goto(f"http://{LIVE_HOST}:{pl.port}{NEW_PLANNER}tails?airline={c['airline']}&del=&card={c['registration']}")
+        await pl.pg.wait_for_selector("main[data-screen=tails][data-tails-ready=yes]", timeout=60000)
+        card = f"[data-plan-card={json.dumps(c['registration'])}]"
+        try:
+            # the suggestion settles once the airline's routes and the markets are read
+            await pl.pg.wait_for_function("([sel, code]) => { const s = document.querySelector(sel + ' [data-card-suggest]'); return !!s && s.dataset.cardSuggest === code; }",
+                                          arg=[card, x["suggested"]], timeout=30000)
+        except Exception:
+            problems.append(f"{c['registration']}'s plan card on Tails doesn't show the suggested cabin {x['suggested']} within 30 s")
+        shown = await pl.pg.evaluate("""sel => { const c = document.querySelector(sel); if (!c) return null;
+            const s = c.querySelector('[data-card-suggest]'), cab = c.querySelector('[data-card-cabin]');
+            return { code: s ? s.dataset.cardSuggest : null, text: s ? s.textContent : '', use: !!c.querySelector('[data-card-suggest-use]'),
+                     cabin: cab ? cab.dataset.cardCabin : null, amber: !!c.querySelector('[data-card-cabin-differs]') }; }""", card)
+        if shown is None:
+            problems.append(f"{c['registration']}'s plan card didn't open on Tails")
+        elif shown["code"] is not None:
+            if shown["code"] != x["suggested"] or f"suggested: {x['suggested']}" not in shown["text"]:
+                problems.append(f"{c['registration']}'s card suggests {shown['code']} on Tails, the library {x['suggested']}")
+            if shown["use"] != (x["card"] != x["suggested"]):
+                problems.append(f"{c['registration']}'s card {'offers' if shown['use'] else 'has no'} Use the suggestion, its cabin {x['card'] or 'none'}")
+            differs = bool(shown["cabin"]) and shown["cabin"] != x["suggested"]
+            if shown["amber"] != differs:
+                problems.append(f"{c['registration']}'s cabin {shown['cabin'] or 'none'} {'is' if shown['amber'] else 'is not'} amber against {x['suggested']}")
+        await pl.pg.goto(f"http://{LIVE_HOST}:{pl.port}{NEW_PLANNER}")
+        await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    differ = [x["registration"] for x in got if x["differs"] and not x["missing"]]
+    missing = [x["registration"] for x in got if x["missing"]]
+    return (f"the plan cards' cabins: {len(got)} card(s) not yet filed, {len(differ)} with a cabin that differs from the rule's, "
+            f"{len(missing)} with none chosen" + (f"; {pick[0]['registration']} on Tails suggests {shown['code'] if shown else '—'}" if pick else "")), problems
+
+
 async def no_hubs(pl):
     """Hubs went on 20 Oct (spec docs/specs/2026-10-20-today-performance-systems.md), and Check and Review became Today,
     Performance and Systems: the header names the nine screens in their new order, with no Hubs, Check or Review."""
@@ -444,9 +513,9 @@ async def no_hubs(pl):
 
 async def systems_opens(pl):
     """Systems (20 Oct; Check's boards and Review's Manual entry until then): the Systems board first and open, then its
-    four boards folded on arrival, in order (Capture, Manual entry, Cabins, Aircraft checks), the Capture board listing our
-    airlines the capture covers, in their order. With the one-week checks off (aircraft_check_after_days 0, set by the
-    test), three: no Aircraft checks."""
+    three boards folded on arrival, in order (Capture, Manual entry, Aircraft checks; the Cabins board went on 21 Oct, spec
+    docs/specs/2026-10-21-cabins-new-rule.md §1), the Capture board listing our airlines the capture covers, in their
+    order. With the one-week checks off (aircraft_check_after_days 0, set by the test), two: no Aircraft checks."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD}
@@ -462,7 +531,7 @@ async def systems_opens(pl):
     problems = []
     if got["first"] != "systems":
         problems.append(f"the Systems board isn't the first board on Systems (the first is {got['first'] or 'none'})")
-    order = ["Capture", "Manual entry", "Cabins", "Aircraft checks"]
+    order = ["Capture", "Manual entry", "Aircraft checks"]
     if got["boards"] != order:
         problems.append(f"Systems' boards are {got['boards']}, not {order}")
     if not got["folded"]:
@@ -480,7 +549,7 @@ async def systems_opens(pl):
     finally:
         set_check_days(7)
     if off != [k for k in order if k != "Aircraft checks"]:
-        problems.append(f"with the checks off (0), Systems' boards are {off}, not the three without Aircraft checks")
+        problems.append(f"with the checks off (0), Systems' boards are {off}, not the two without Aircraft checks")
     await pl.pg.reload()
     await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
     await pl.pg.click("[data-screen-link=home]")
@@ -1148,7 +1217,8 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, today_opens, routes_opens, tails_opens, no_hubs, performance_opens, systems_opens, last_screens_open, tick_todo):
+                for check in (home_opens, today_opens, routes_opens, tails_opens, plan_card_cabins, no_hubs, performance_opens, systems_opens, last_screens_open,
+                              tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

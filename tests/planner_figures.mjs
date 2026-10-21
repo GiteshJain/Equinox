@@ -15,7 +15,8 @@
 // (database/tests/captured_figures_test.sql and the other figure tests); the library's rules by its cases
 // (lib/rules/cases). Each answer here was recorded from the planner as the side by sides left it. The Hubs screen's boards
 // and connections tables went with the library's hubs part (the Hubs clean-up, 21 Oct; spec
-// docs/specs/2026-10-21-fare-ladder.md §4).
+// docs/specs/2026-10-21-fare-ladder.md §4). The Cabins board's figures were never among these (its rules had their own
+// cases); the board and the library's cabins part went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1).
 //
 // A difference prints where (the screen, airport, day or registration, and the figure), never more than 40 lines, and
 // fails. After an intended change: UPDATE_FIGURES=1 node tests/planner_figures.mjs writes the answers again; say in the
