@@ -76,7 +76,7 @@ from local_copy import (count_changes, counts, is_planner_user, jobs_since, loca
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
 PAGE = WEB / "app" / "index.html"
 SCREENS = [("home", "/planner/"), ("today", "/planner/today"), ("routes", "/planner/routes"), ("tails", "/planner/tails"),
-           ("performance", "/planner/performance"), ("interline", "/planner/interline"), ("photos", "/planner/photos"),
+           ("performance", "/planner/performance"), ("competition", "/planner/competition"), ("interline", "/planner/interline"), ("photos", "/planner/photos"),
            ("reference", "/planner/reference"), ("systems", "/planner/systems")]
 SCREENS_DIR = os.environ.get("PLANNER_SCREENS_DIR")
 # A link into the old planner, to an address used while the new one was built (the switch: none may be left), or to a
@@ -355,8 +355,18 @@ async def today_opens(pl):
         allSafeOpen: document.querySelectorAll('[data-figure="today: orders"] details.ordall[open]').length,
         todo: !!document.querySelector('main[data-screen=today] #todo'), comingUp: !!document.querySelector('main[data-screen=today] #coming-up'),
         attention: !!document.querySelector('main[data-screen=today] #attention'), game: !!document.querySelector('main[data-screen=today] [data-board="Game check"] #gcheck'),
-        folded: document.querySelectorAll('main[data-screen=today] .board.rcol').length, collapse: !!document.querySelector('main[data-screen=today] #rev-colall') })""")
+        folded: document.querySelectorAll('main[data-screen=today] .board.rcol').length, collapse: !!document.querySelector('main[data-screen=today] #rev-colall'),
+        threats: [...document.querySelectorAll('main[data-screen=today] [data-att-item][data-att-kind=threat]')].map(li => li.querySelector('a').getAttribute('href')) })""")
     problems = []
+    # the rivals' moves the latest scan showed (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): as many as
+    # competition() gives with latest true, none dismissed on the copy, each linking to its airline's Competition page
+    latest = int(psql(f"""select coalesce(sum((select count(*) from jsonb_array_elements(public.competition(al.airline_id) -> 'threats') t
+                                                   where (t ->> 'latest')::boolean)), 0)
+                          from private.fig_airlines({WORLD}) al""").strip() or 0)
+    dismissed = int(psql("select count(*) from public.dismissals where alert_key like 'threat|%'").strip() or 0)
+    if not dismissed and len(got["threats"]) != latest:
+        problems.append(f"Today lists {len(got['threats'])} rival moves, competition() gives {latest} from the latest scan")
+    problems += [f"a rival move links to {h}" for h in got["threats"] if not h.startswith("/planner/competition/")]
     if got["answer"] not in ("yes", "no"):
         problems.append("Today has no answer at the top (All clear or what's waiting)")
     if got["capture"] not in ("complete", "missing", "short", "broken"):
@@ -380,7 +390,70 @@ async def today_opens(pl):
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Today opens with its answer ({got['title'] or '?'}), the capture line ({got['capture']}) linking to Systems, and every board open: "
             f"orders for the copy's {len(got['orders'])} airlines ({got['lines']} delivery lines, all safe types folded on {got['allSafe']} cards), "
-            f"aircraft to file, needs attention, Game check, the to-do board and coming up"), problems
+            f"aircraft to file, needs attention ({len(got['threats'])} rival moves from the latest scan), Game check, the to-do board and coming up"), problems
+
+
+async def competition_opens(pl):
+    """Competition (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): the group page with the scans' dates and
+    the group line on top, a card for each of our airlines in their order and the threats; one airline's page (the first
+    card's) with its boards in order (Market share, Threats, Openings, Rival profiles), a market card for each market and
+    the openings cut to 10 with "show all" (opened and cut again), as competition() gives them on the copy."""
+    want = [r for r in psql(f"""select a.iata_code from public.airlines a
+                                join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                where g.kind = 'ours' and a.world_id = {WORLD} and a.active
+                                order by a.position nulls last, a.id""").splitlines() if r]
+    await pl.pg.click("[data-screen-link=competition]")
+    await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
+    await settle(pl.pg, 300)
+    group = await pl.pg.evaluate("""({
+        scans: (document.querySelector('[data-scans]') || {}).textContent || '',
+        line: (document.querySelector('[data-figure="competition: group line"]') || {}).textContent || '',
+        cards: [...document.querySelectorAll('[data-competition-card]')].map(c => c.dataset.competitionCard),
+        threats: !!document.querySelector('[data-figure="competition: threats"]') })""")
+    problems = []
+    if not group["scans"].startswith(("latest scan ", "no world scan")):
+        problems.append(f"Competition's scans line says {group['scans']!r}")
+    if group["cards"] != want:
+        problems.append(f"Competition's cards are {group['cards']}, the copy's airlines are {want}")
+    if not group["threats"]:
+        problems.append("Competition has no threats board")
+    code = (group["cards"] or ["?"])[0]
+    await pl.pg.click(f"[data-competition-card='{code}']")
+    await pl.pg.wait_for_selector(f"main[data-screen=competition][data-airline='{code}'][data-competition-ready=yes]", timeout=90000)
+    await settle(pl.pg, 300)
+    got = await pl.pg.evaluate("""({
+        boards: [...document.querySelectorAll('main[data-screen=competition] .board')].map(b => b.dataset.board),
+        markets: document.querySelectorAll('[data-market]').length, threats: document.querySelectorAll('main[data-screen=competition] [data-threat]').length,
+        rows: document.querySelectorAll('[data-opening]').length, list: (document.querySelector('[data-list^="openings "]') || {dataset: {}}).dataset,
+        more: !!document.querySelector('[data-list-more^="openings "]'), profiles: document.querySelectorAll('[data-profile]').length,
+        first: [...document.querySelectorAll('[data-opening]')].slice(0, 5).map(r => r.dataset.opening) })""")
+    if got["boards"] != ["Market share", "Threats", "Openings", "Rival profiles"]:
+        problems.append(f"{code}'s Competition boards are {got['boards']}")
+    aid = psql(f"select id from public.airlines where world_id = {WORLD} and iata_code = :'code'", code=code).strip()
+    db = json.loads(psql(f"""select json_build_object('markets', jsonb_array_length(d -> 'markets'), 'threats', jsonb_array_length(d -> 'threats'),
+                                 'openings', jsonb_array_length(d -> 'openings'), 'count', d -> 'openings_count', 'profiles', jsonb_array_length(d -> 'profiles'),
+                                 'first', (select json_agg(o ->> 'route' order by (o ->> 'rank')::int) from jsonb_array_elements(d -> 'openings') o
+                                           where (o ->> 'rank')::int <= 5))
+                            from (select public.competition({int(aid)}) as d) x""").strip())
+    if got["markets"] != db["markets"] or got["threats"] != db["threats"] or got["profiles"] != db["profiles"]:
+        problems.append(f"{code}: {got['markets']} markets, {got['threats']} threats and {got['profiles']} profiles shown; competition() gives "
+                        f"{db['markets']}, {db['threats']} and {db['profiles']}")
+    if got["rows"] != min(10, db["openings"]) or got["more"] != (db["openings"] > 10) or got["first"] != (db["first"] or [])[:len(got["first"])]:
+        problems.append(f"{code}: the openings show {got['rows']} rows (show all: {got['more']}), first {got['first']}; competition() gives "
+                        f"{db['openings']} of {db['count']}, first {db['first']}")
+    if got["more"]:
+        await pl.pg.click("[data-list-more^='openings ']")
+        await settle(pl.pg, 200)
+        n = await pl.pg.evaluate("document.querySelectorAll('[data-opening]').length")
+        if n != db["openings"]:
+            problems.append(f"{code}: show all opens {n} openings, not {db['openings']}")
+        await pl.pg.click("[data-list-more^='openings ']")
+        await settle(pl.pg, 200)
+    await pl.pg.click("[data-screen-link=home]")
+    await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return (f"Competition opens with {group['scans'] or 'no scans line'!r} and a card for each of the copy's {len(group['cards'])} airlines; {code}'s page has "
+            f"{got['markets']} markets, {got['threats']} threats, {db['count']} openings ({got['rows']} shown, top: {', '.join(got['first'])}) and "
+            f"{got['profiles']} rival profiles, as competition() gives them"), problems
 
 
 async def routes_opens(pl):
@@ -904,6 +977,7 @@ async def preview(p, port, env, facts, staff, seen):
 READY = {"home": "main[data-screen=home][data-home-ready=yes]", "today": "main[data-screen=today][data-today-ready=yes]",
          "routes": "main[data-screen=routes][data-routes-ready=yes]", "tails": "main[data-screen=tails][data-tails-ready=yes]",
          "performance": "main[data-screen=performance][data-performance-ready=yes]",
+         "competition": "main[data-screen=competition][data-competition-ready=yes]",
          "interline": "main[data-screen=interline][data-interline-ready=yes]", "photos": "main[data-screen=photos][data-photos-ready=yes]",
          "reference": "main[data-screen=reference][data-reference-ready=yes]", "systems": "main[data-screen=systems][data-systems-ready=yes]"}
 
@@ -950,6 +1024,14 @@ async def screens(p, port, env, facts, staff, seen, moment):
                 over = await ph.pg.evaluate(scroll)
                 if over > 0:
                     problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")
+                if name == "competition-airline":
+                    # the openings (21 Oct): opened in full, the widest the page gets, then cut again
+                    more = "main[data-screen=competition] [data-list-more]"
+                    if await ph.pg.evaluate(f"(() => {{ const b = document.querySelector({json.dumps(more)}); if (b) b.click(); return !!b; }})()"):
+                        await settle(ph.pg, 300)
+                        over = await ph.pg.evaluate(scroll)
+                        if over > 0:
+                            problems.append(f"competition: with every opening shown, the page scrolls sideways by {over} px at {width} px wide")
                 if name == "performance":
                     # the fare ladder (21 Oct): there, and its lists (game actions, routes) opened in full, then cut again
                     more = "main[data-screen=performance] [data-figure='performance: fare ladder'] [data-list] > [data-list-more]"
@@ -996,10 +1078,20 @@ async def screens(p, port, env, facts, staff, seen, moment):
                 problems.append(f"performance/{code}: it isn't ready at {width} px wide")
             await look("performance", "performance-airline")
             problems += [f"performance/{code} at {width} px: {e}" for e in ph.errors[e0:]]
+            # one airline's Competition page (21 Oct), opened directly by its address, its openings shown in full
+            e0 = len(ph.errors)
+            await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/competition/{code}")
+            try:
+                await ph.pg.wait_for_selector(f"main[data-screen=competition][data-airline='{code}'][data-competition-ready=yes]", timeout=90000)
+                await settle(ph.pg, 400)
+            except Exception:
+                problems.append(f"competition/{code}: it isn't ready at {width} px wide")
+            await look("competition", "competition-airline")
+            problems += [f"competition/{code} at {width} px: {e}" for e in ph.errors[e0:]]
             problems += [e for e in ph.errors if not any(e in x for x in problems)]
         finally:
             await ph.close()
-    return (f"every screen ({len(SCREENS)}) and {code}'s Performance page open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
+    return (f"every screen ({len(SCREENS)}) and {code}'s Performance and Competition pages open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
             f"ready, no errors, no sideways scroll (Systems with every board open, Reference with every section open), and none of their {links} "
             f"links goes into the old planner, to /planner/next/ or to Hubs, Check or Review" + (f"; {shots} screenshots kept" if shots else "")), problems
 
@@ -1256,8 +1348,8 @@ async def main():
             label, problems = await refuse_other(p, port, env, facts, other, seen)
             step(not problems, label, problems)
             if signed_in:
-                for check in (home_opens, today_opens, routes_opens, tails_opens, plan_card_cabins, no_hubs, performance_opens, systems_opens, last_screens_open,
-                              tick_todo):
+                for check in (home_opens, today_opens, routes_opens, tails_opens, plan_card_cabins, no_hubs, performance_opens, competition_opens, systems_opens,
+                              last_screens_open, tick_todo):
                     e0 = len(pl.errors)
                     try:
                         label, problems = await check(pl)

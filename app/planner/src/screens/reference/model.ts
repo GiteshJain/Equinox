@@ -146,6 +146,8 @@ export const CONSTANTS: readonly [string, string, string][] = [
   ["maintMinGround", "Shortest maintenance window the game uses, beyond turnaround (min)", "maint_min_ground_min"],
   ["leeway", "New-route leeway (days)", "load_leeway_days"], ["lfWindow", "Load pattern window (days)", "load_window_days"],
   ["depCap", "Departures cap per airport per week", "departures_per_airport_week"],
+  // since 21 Oct (spec docs/specs/2026-10-21-competition-analysis.md §3): how often the evening capture scans the world
+  ["scanEvery", "World scan every (capture days; 1 = every evening)", "scan_every_days"],
 ];
 export interface SettingRow { id: number; key: string; value: Json; updated_at: string }
 export interface WorldRuleRow { id: number; key: string; value: Json; updated_at: string }

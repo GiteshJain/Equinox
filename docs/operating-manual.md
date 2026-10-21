@@ -53,8 +53,8 @@ Until each is built and merged, the rules below stand as they are.
   family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a
   route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card).
 - **The fare ladder is built** (21 Oct, pull request #56): `fare_ladder()` works out each route's level and Saturday's
-  moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause waits for
-  competition analysis; until then the Saturday review checks the scan by hand.
+  moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause is built
+  with competition analysis (below).
 - **New frequencies and the fare ladder are built** (21 Oct, pull request #60; spec
   `docs/specs/2026-10-21-frequencies-and-fares.md`, §5): a route that gained a frequency in the last 7 days holds
   (`settings.fare_ladder_capacity_hold_days`); every plan card shows each route's fare level (Tails → Deliveries, the
@@ -62,8 +62,12 @@ Until each is built and merged, the rules below stand as they are.
   that sets it back, first in Performance's fare ladder and made by the fares userscript (which also shows whether the
   game prices a new flight number at the default price, as Gitesh thinks). The fare index reads each flight of the
   latest captured day against its route's fare on 21 Oct 2026. A frequency taken away isn't tracked yet.
-- **Next for the Building chat (Gitesh, 21 Oct):** the planner work's next big step is competition analysis with its
-  ranked openings, before the route page.
+- **Competition analysis is built** (21 Oct, pull request #62; spec `docs/specs/2026-10-21-competition-analysis.md`,
+  brief `docs/briefs/2026-10-21-competition-analysis.md`): `competition()` gives each airline's market share by market,
+  the rivals' threats, its openings ranked (§3) and the rival profiles from the world scans; the planner's
+  **Competition** screen shows them, Today lists the latest scan's threats, the fare ladder's rival pause works (§5),
+  and the airline briefing carries the top 20 openings for the evening proposal. Next for the Building chat: the route
+  page (step 4).
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
@@ -350,6 +354,17 @@ less important than another, point to point rather than hubs).*
   and its cushion, the fare floor, the fix and losing-money marks, hubs first and one airline per city pair don't
   change. *Since 18 Oct · why (Gitesh): market share first; if we capture the demand and block more slots, new
   competition can't move in.*
+- **The openings, ranked: `competition()`.** The routes we most want to fly next are each airline's openings: the pairs on
+  its route list that no airline of ours flies (either way), ranked by the city's stars, then the rivals' departures a
+  week on the pair (the latest world scan), then the shorter distance, then the pair's code. Each comes with the variant
+  from the default line (below: the smallest size its stars allow, bigger only for reach, the cheapest per seat whose
+  range covers it, among the types the airline may buy; an opening no type reaches is left out) and whether hubs first
+  allows it (below), with the reason when it doesn't; those it doesn't are listed after the rest. The evening proposal
+  (§4) takes its routes from the top of this list: the airline briefing carries the top 20, the planner's Competition
+  screen shows them with the market share and the rivals' moves, and `select public.competition(<airline id>);` gives
+  them all (`p_limit`). One airline per city pair (§2) and the November trunks (§4) still decide between airlines.
+  *Since 21 Oct (spec `docs/specs/2026-10-21-competition-analysis.md`) · why (Gitesh): route first, then the airline:
+  each evening's proposal needs a ranked list.*
 - **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
   profit per aircraft hour is at or above its airline's middle route, and **raise fares** when it's below. An aircraft
   hour is the flight's block time plus the type's turnaround (`aircraft_types.min_turn_min`) and the turn margin
@@ -493,7 +508,12 @@ less important than another, point to point rather than hubs).*
   The level never goes under launch, nor under the 60% floor where
   another player flies the route. **For now it goes at most 20 points above launch** (120%, Ryanair 105%): the game's
   passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads
-  and image show it's safe. A rival starting on the pair (from the scan) pauses that route for a week. The planner
+  and image show it's safe. **A rival starting on the pair pauses that route for a week:** when a world scan of the last
+  7 days shows a rival that started on the pair (none in the scan before it) or added at least
+  `settings.competition_threat_min_weekly` (7) departures a week, the route holds until 7 days after that scan ("rival
+  Air China started here on 22 Oct: paused until 29 Oct"), checked after a new route, too few departures, the hold after
+  a step down and a new frequency, and before the sold-out share; the threats are `competition()`'s, and Today lists the
+  latest scan's (built 21 Oct with competition analysis). The planner
   works out each route's level and Saturday's moves, and lists the fewest changes to make in the game: **Ticket price
   adjustment** with the calculation baseline **default price**, so each change sets the level itself, **route by route
   only** (From A to B, and From B to A): never a whole base, so routes under 7 days old are never touched (Gitesh,

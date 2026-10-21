@@ -40,6 +40,7 @@ import { itemRoute, movedTo } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import { gameLink, typeName, type TailAircraft } from "../tails/model";
 import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useBuyTypes, useGameHost, useTailsAircraft } from "../tails/reads";
+import { useLatestThreats } from "../competition/reads";
 import { homeAttention, type HomeAirline } from "./attention";
 import { ComingUp } from "./ComingUp";
 import { comingUp, upFilters } from "./comingUp";
@@ -82,6 +83,9 @@ export function Today() {
   // the orders are for the airlines the captured figures cover (airline_cards(): our active airlines), in our order
   const ordering = useMemo(() => airlines.filter((a) => (cardsQ.data?.airlines ?? []).some((c) => c.airline_id === a.id)), [airlines, cardsQ.data]);
   const forecastsQ = useForecasts(ordering.map((a) => a.id));
+  // the rivals' moves the latest world scan showed (competition(), since 21 Oct), for needs attention
+  const competition = useLatestThreats(ordering.map((a) => a.id));
+  const threats = competition.threats;
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -112,8 +116,8 @@ export function Today() {
   }, [interline.rows, agreementsQ.data]);
   const attention = useMemo(() => (rules && checks && todosQ.data ? homeAttention({
     now, today, airlines: homeAirlines, rules, checks, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
-    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen,
-  }) : null), [now, today, homeAirlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen]);
+    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen, threats,
+  }) : null), [now, today, homeAirlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
   const attShown = useMemo(() => (attention ? withoutDismissed(attention, dismissed) : null), [attention, dismissed]);
 
@@ -211,6 +215,8 @@ export function Today() {
     }
     // can order: the airline's page on Performance, with its cash for the next 14 days
     if (a.screen === "performance" && a.key?.startsWith("order|")) return itemRoute("performance", { airline: airlines.find((x) => x.name === a.key?.split("|")[1])?.code });
+    // a rival's move: the airline's Competition page (its key: threat|<code>|<pair>|<rival>|<day>)
+    if (a.screen === "competition" && a.key?.startsWith("threat|")) return itemRoute("competition", { airline: a.key.split("|")[1] });
     return itemRoute(a.screen);
   };
   async function dismiss(a: AttItem) {
@@ -226,9 +232,9 @@ export function Today() {
   }
 
   const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
-    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess);
+    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess && threats);
   const loadError = first(world, airlinesQ, rulesQ, aircraftQ, rotationsQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
-    buyQ, tailsQ, hostQ, ...forecastsQ);
+    buyQ, tailsQ, hostQ, ...forecastsQ, competition);
   const cap = captureQ.data && airlinesQ.data ? captureLine(airlines, captureQ.data, now) : null;
   const waiting = ready && orders && filing && attShown ? waitingWords({
     canOrder: orders.filter((o) => o.status.kind === "now").map((o) => o.airline.name), toFile: filing.length, attention: attShown.shown.length, game: differences,

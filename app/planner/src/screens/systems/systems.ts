@@ -197,12 +197,22 @@ export function cleanupLine(c: SysJob | null, now: Date): SysLine {
   return { key: "cleanup", label: "Clean-ups (10:20 UTC)", mark, when: whenWords(c?.at), text };
 }
 
-/** The world scan's age (#22's Saturday step): amber over 8 days, red over 15. */
-export function scanLine(s: SystemStatus["scan"], now: Date): SysLine {
+/** How often the evening capture scans the world, from settings.scan_every_days: "every evening", "every 3 capture days". */
+export function scanEveryWords(everyDays: number | null | undefined): string {
+  const n = everyDays == null || !Number.isFinite(Number(everyDays)) ? null : Number(everyDays);
+  if (n == null) return "when one is due (scan_every_days)";
+  return n <= 1 ? "every evening (scan_every_days 1)" : `every ${n} capture days (scan_every_days ${n})`;
+}
+
+/** The world scan's age: amber over 8 days, red over 15. Since 21 Oct it runs with the evening capture when one is due
+ *  (settings.scan_every_days; spec docs/specs/2026-10-21-competition-analysis.md §3), not at the Saturday review. */
+export function scanLine(s: SystemStatus["scan"], now: Date, everyDays?: number | null): SysLine {
   const h = hoursSince(s?.taken_at, now);
   const d = h == null ? null : h / 24;
   const mark: Mark = d == null || d > SCAN_BAD_D ? "bad" : d > SCAN_LATE_D ? "warn" : "ok";
-  const text = !s ? "no world scan yet" : `${agoWords(h)}${s.week ? ` (week ${s.week})` : ""} · run it first at the Saturday review`;
+  const runs = `runs with the evening capture ${scanEveryWords(everyDays)}`;
+  const text = !s ? `no world scan yet · ${runs}` : `${agoWords(h)}${s.week ? ` (week ${s.week})` : ""} · ${runs}`
+    + (mark === "ok" ? "" : "; capture again while it's due, or gscan.py by hand");
   return { key: "scan", label: "World scan", mark, when: whenWords(s?.taken_at), text };
 }
 
@@ -222,15 +232,15 @@ export function usageLine(u: SystemStatus["usage"][number]): SysLine {
     text: `${sizeWords(bytes)} of ${sizeWords(trigger)} (${pct}%)${bytes >= trigger ? " · the trigger is reached: a brief at the next weekly review" : ""}` };
 }
 
-/** Every line of the board, in its order. */
-export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date): SysLine[] {
+/** Every line of the board, in its order (the scan's with how often the capture takes one, scan_every_days). */
+export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date, scanEveryDays?: number | null): SysLine[] {
   return [
     ...s.capture.map((c) => captureLine(c, now)),
     snapshotLine(s.snapshot ?? {}, now),
     backupLine(s.backup ?? { last: null, last_good: null }, now),
     archiveLine(s.archive, now),
     cleanupLine(s.cleanup, now),
-    scanLine(s.scan, now),
+    scanLine(s.scan, now, scanEveryDays),
     buildLine(build),
     ...(s.usage ?? []).map(usageLine),
   ];

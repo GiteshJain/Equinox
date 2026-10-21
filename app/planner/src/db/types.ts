@@ -1722,6 +1722,9 @@ isOneToOne: false
 "cash_log":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            },
+"competition":
+{ Args: { "p_airline_id": number,"p_as_of"?: string,"p_limit"?: number }; Returns: Json
+                           },
 "export_capture":
 { Args: { "p_days"?: number,"p_secret": string }; Returns: Json
                            },

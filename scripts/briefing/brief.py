@@ -15,7 +15,8 @@ It only gathers. Each figure comes from its one home (#19), downloaded through e
   fare level of each route it flies: --fares with the briefing's fare_ladder);
 - kind briefing: the airline's deliveries (aircraft on order or arrived, not yet filed) with their plan cards and legs,
   its open to-dos and the group's, its fare plan (fare_plan_status()), each route's fare level (fare_ladder()'s, since
-  21 Oct) and its loads by route over 7 days (route_loads());
+  21 Oct), competition analysis (competition()'s scans, group line, threats and top 20 openings, since 21 Oct: the
+  evening proposal's ranked list, manual §3) and its loads by route over 7 days (route_loads());
 - kinds snapshots and airlines: the latest finished world scan by the moment, for the rivals on the routes it flies and
   at the airports it serves, counted as the weekly report counts them (scripts/report/analyze.py's passenger-flight rule).
 
@@ -28,7 +29,7 @@ import argparse, collections, datetime, json, os, pathlib, re, subprocess, sys, 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 LIVE = "https://ulecwsyedvwcxgdzmhoq.supabase.co"
-SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "capture")
+SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "competition", "capture")
 GROWTH_LISTS = ("ready_for_another_flight", "raise_fares", "fix_or_reduce")
 
 
@@ -263,6 +264,13 @@ def gather(inp, ident, workdir):
     out["todos"] = B.get("todos") or []
     out["fare_plan"] = B.get("fare_plan") or {}
 
+    # ---- competition analysis (the briefing kind's competition: competition()'s scans, group line, threats and top 20
+    # openings, since 21 Oct; none in inputs made before it)
+    C = B.get("competition")
+    out["competition"] = C if isinstance(C, dict) else {"note": "not in these inputs (a briefing made before 21 Oct)", "scans": None, "group": None,
+                                                        "threats": [], "openings": [], "openings_count": None, "openings_allowed": None,
+                                                        "openings_left_out": None}
+
     # ---- the rivals on its routes and at its airports (the latest world scan)
     out["rivals"] = rivals(inp.get("scan"), a, R, F.get("as_of"))
     out["sources"]["scan"] = {k: out["rivals"].get(k) for k in ("scan_id", "taken_at", "age_days")}
@@ -357,6 +365,19 @@ def level_pct(level):
         return "?"
     d = round(float(level) - 100, 1)
     return ("−" if d < 0 else "+") + f"{abs(d):g}%"
+
+
+def competition_line(C):
+    """Competition's heading line: the scans, the threats and the openings ("Competition (scan 17 Oct against 6 Oct): 2
+    threat(s), 419 opening(s), 120 allowed under hubs first, top 3 (20 in the JSON):")."""
+    if C.get("note"):
+        return "Competition: " + C["note"]
+    sc = C.get("scans") or {}
+    latest, before = (sc.get("latest") or {}).get("taken_at"), (sc.get("week_before") or {}).get("taken_at")
+    scans = "no world scan" if not latest else f"scan {when(latest, False)}" + (f" against {when(before, False)}" if before else ", the only one")
+    n, ok = C.get("openings_count") or 0, C.get("openings_allowed") or 0
+    return (f"Competition ({scans}): {len(C.get('threats') or [])} threat(s), {n} opening(s), {ok} allowed under hubs first"
+            + (f", top {min(3, len(C.get('openings') or []))} (20 in the JSON):" if C.get("openings") else ""))
 
 
 def render(b):
@@ -455,6 +476,19 @@ def render(b):
         ch = p.get("change_pct")
         put(f"  {p.get('hub')}–{p.get('dest')} {p.get('cabin_class')} " + ("—" if ch is None else f"{float(ch):+g}%") + ": "
             + (f"seen {when(p.get('seen_on'), False)}" if p.get("applied") else "not seen yet"))
+
+    # competition: the heading with the counts, the threats in one line, the top 3 openings in one (the top 20 in the JSON)
+    C = b.get("competition") or {}
+    put("")
+    put(competition_line(C))
+    T = C.get("threats") or []
+    if T:
+        put("  threats: " + "; ".join(f"{t.get('words')} ({when(t.get('on'), False)})" for t in T[:2])
+            + (f"; +{len(T) - 2} more in the JSON" if len(T) > 2 else "") + f" · fares paused until {when(T[0].get('until'), False)}")
+    if C.get("openings"):
+        put("  top: " + "; ".join(f"{o.get('rank')}. {o.get('route')} {o.get('stars') or '?'}★ {o.get('distance_km') or '?'} km, rivals "
+                                  f"{o.get('rivals_weekly')} a week, {(o.get('variant') or {}).get('type') or '—'}"
+                                  + ("" if o.get("allowed") else " (not yet: hubs first)") for o in C["openings"][:3]))
 
     V = b["rivals"]
     put("")

@@ -929,3 +929,39 @@ button.link.gmore{display:inline-block;margin:6px 0 2px}
 .flnotes{margin-top:8px}
 .lspark{width:56px;height:16px;display:block} .lspark .zero{stroke:#E1E6EE}
 .lspark rect,.lspark rect.bpos{fill:#8C94AD} .lspark rect.blow{fill:#C9CFDD}
+
+/* ---------- Competition (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): the scans and the group line on
+   top, one card per market with our share, its arrow and the top rivals as a bar, the threats, the openings table (its own
+   scroll box on a phone) and the rival profiles. Colour only for action: the threats' line amber; our share in the bar ink,
+   the rivals in greys. */
+.cptop{margin:0 0 16px;display:grid;gap:4px;min-width:0}
+.cpscans{color:var(--muted);font-size:13px}
+.cpgroup{font-size:14.5px;overflow-wrap:anywhere}
+.cpch{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);font-size:12.5px}
+.cpch.up,.cpch.down{color:var(--ink);font-weight:600}
+.cpcard .cpline{font-size:12.5px;margin-top:6px;overflow-wrap:anywhere}
+.cpline.warn{color:var(--warn);font-weight:600}
+.cptop3{margin:6px 0 0;padding-left:20px;font-size:12.5px}
+.cptop3 li{margin:2px 0;overflow-wrap:anywhere}
+.cpmk{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;min-width:0}
+.cpm{border:1px solid var(--line-2);border-radius:16px;padding:12px 14px;min-width:0;display:grid;gap:6px;align-content:start}
+.cpmh{overflow-wrap:anywhere}
+.cpmv{overflow-wrap:anywhere;font-size:13px}
+.cpbig{font-size:20px}
+.cpbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--mute-soft)}
+.cpbar i{display:block;height:100%;min-width:2px}
+.cpbar i.ours{background:var(--ink)}
+.cpbar i.r1{background:#8C94AD} .cpbar i.r2{background:#A9B0C4} .cpbar i.r3{background:#C2C8D7} .cpbar i.r4{background:#D3D8E3}
+.cpbar i.r5{background:#E0E4EC} .cpbar i.r6{background:#ECEFF4}
+.cprv{margin:0;padding-left:20px;font-size:12.5px;display:grid;gap:2px}
+.cprv li{overflow-wrap:anywhere}
+.cprv .num{font-variant-numeric:tabular-nums}
+.cpnone{font-size:12.5px}
+.cpthreats{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px}
+.cpthreats li{overflow-wrap:anywhere}
+.cpopen td,.cpopen th{white-space:nowrap}
+.cpopen td:nth-child(5),.cpopen td:last-child{white-space:normal;min-width:10em}
+.cpopen tr.cpno td{color:var(--muted)}
+.cpcity,.cpwhy{font-size:11.5px;white-space:normal}
+.cpmore{font-size:12.5px;margin-top:4px}
+@media (max-width:560px){ .cpmk{grid-template-columns:minmax(0,1fr)} }

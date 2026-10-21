@@ -23,8 +23,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIX = ROOT / "tests" / "fixtures"
 BRIEF = ROOT / "scripts" / "briefing" / "brief.py"
 CLI = ROOT / "lib" / "rules" / "dist" / "cli.js"
-HEADINGS = ("Money", "Fleet (", "Routes (", "Hubs", "Deliveries (", "To-dos (", "Fare plan:", "Rivals")
-SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "capture")
+HEADINGS = ("Money", "Fleet (", "Routes (", "Hubs", "Deliveries (", "To-dos (", "Fare plan:", "Competition", "Rivals")
+SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "competition", "capture")
 failures = []
 
 
@@ -61,6 +61,15 @@ class Runner:
 def ours(rules):
     return sorted((a for a in rules["airlines"] if a.get("ours") and a.get("active") is not False),
                   key=lambda a: (a.get("position") is None, a.get("position") or 0, a["id"]))
+
+
+def block_lines(lines, heading):
+    """How many lines a briefing's block takes, from its heading to the blank line after it."""
+    i = next((k for k, x in enumerate(lines) if x.startswith(heading)), None)
+    if i is None:
+        return 0
+    j = next((k for k in range(i, len(lines)) if not lines[k].strip()), len(lines))
+    return j - i
 
 
 def by_airline(rows, aid):
@@ -217,6 +226,31 @@ def main():
             ck = (b or {"deliveries": [{"plan_cards": [{}]}]})["deliveries"][0]["plan_cards"][0].get("check") or {}
             check(r.returncode == 0 and ck.get("ok") is False and any("S9" in p for p in ck.get("problems") or []),
                   "a card with a wrong service code (S9) fails its check, naming the code", (ck.get("problems") or r.stderr)[:3])
+
+        # competition analysis (since 21 Oct; spec docs/specs/2026-10-21-competition-analysis.md §4): the briefing kind's
+        # competition, its threats and top openings printed under its heading; a sample made before it says so
+        a = airlines[0]
+        T = copy.deepcopy(S)
+        had = "competition" in T["briefings"][str(a["id"])]
+        T["briefings"][str(a["id"])].pop("competition", None)
+        r, b = run(T, a["iata_code"])
+        check(r.returncode == 0 and b["competition"].get("note") and "Competition: not in these inputs" in r.stdout,
+              f"competition ({a['iata_code']}): a briefing made before 21 Oct has none, and says so" + (" (the sample has it)" if had else ""), r.stderr[-600:])
+        opening = lambda k, route, stars, rivals, allowed: {"rank": k, "route": route, "stars": stars, "distance_km": 1000 + k, "rivals_weekly": rivals,  # noqa: E731
+                                                            "variant": {"type": "E195-E2"}, "allowed": allowed}
+        T["briefings"][str(a["id"])]["competition"] = {
+            "scans": {"latest": {"id": 2, "taken_at": "2026-10-17T19:00:00.000Z"}, "week_before": {"id": 1, "taken_at": "2026-10-06T21:00:00.000Z"}},
+            "group": {"ours": 4016, "world": 97960, "share": 4.1},
+            "threats": [{"words": "Air China started on PVG–CAN, 14 a week", "on": "2026-10-17T19:00:00.000Z", "until": "2026-10-24T19:00:00.000Z"}],
+            "openings": [opening(k, f"AAA–B{k:02d}", 5, 30 - k, k < 6) for k in range(1, 8)], "openings_count": 7, "openings_allowed": 5, "openings_left_out": 0}
+        r, b = run(T, a["iata_code"])
+        lines = r.stdout.splitlines()
+        check(r.returncode == 0 and b["competition"]["openings_count"] == 7 and len(b["competition"]["openings"]) == 7 and len(lines) <= 62
+              and "Competition (scan 17 Oct against 6 Oct): 1 threat(s), 7 opening(s), 5 allowed under hubs first, top 3 (20 in the JSON):" in r.stdout
+              and "  threats: Air China started on PVG–CAN, 14 a week (17 Oct) · fares paused until 24 Oct" in r.stdout
+              and "  top: 1. AAA–B01 5★ 1001 km, rivals 29 a week, E195-E2; 2. AAA–B02" in r.stdout and "AAA–B04" not in r.stdout
+              and block_lines(lines, "Competition") == 3,
+              f"competition ({a['iata_code']}): the scans, the threats in a line and the top 3 openings under its heading, the rest in the JSON", r.stdout[-900:])
 
         # an airline that isn't ours
         r, b = run(S, "ZZ")

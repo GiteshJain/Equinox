@@ -1,11 +1,12 @@
-// The nine screens, grouped by when they're used (spec docs/specs/2026-10-20-today-performance-systems.md): Home, Today
-// ("what do I do now?"), Routes, Tails, Performance ("how are we doing, and why?"), Interline, Photos, Reference and
-// Systems (the plumbing). Their addresses are under /planner/ (design §3, since the switch on 14 Oct): /planner/ for Home,
+// The ten screens, grouped by when they're used (spec docs/specs/2026-10-20-today-performance-systems.md): Home, Today
+// ("what do I do now?"), Routes, Tails, Performance ("how are we doing, and why?"), Competition (since 21 Oct, spec
+// docs/specs/2026-10-21-competition-analysis.md: "who are we up against, and where do we open next?"), Interline,
+// Photos, Reference and Systems (the plumbing). Their addresses are under /planner/ (design §3, since the switch on 14 Oct): /planner/ for Home,
 // /planner/today, /planner/performance/VS and so on. Check, Review and Hubs went on 20 Oct: their old addresses move to
 // the new ones (movedTo here inside the planner, web/_redirects for the browser's).
 import { BASENAME } from "../data/config";
 
-export type ScreenId = "home" | "today" | "routes" | "tails" | "performance" | "interline" | "photos" | "reference" | "systems";
+export type ScreenId = "home" | "today" | "routes" | "tails" | "performance" | "competition" | "interline" | "photos" | "reference" | "systems";
 export type Screen = { id: ScreenId; name: string; path: string };
 
 export const SCREENS: readonly Screen[] = [
@@ -14,6 +15,7 @@ export const SCREENS: readonly Screen[] = [
   { id: "routes", name: "Routes", path: "routes" },
   { id: "tails", name: "Tails", path: "tails" },
   { id: "performance", name: "Performance", path: "performance" },
+  { id: "competition", name: "Competition", path: "competition" },
   { id: "interline", name: "Interline", path: "interline" },
   { id: "photos", name: "Photos", path: "photos" },
   { id: "reference", name: "Reference", path: "reference" },

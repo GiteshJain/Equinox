@@ -28,7 +28,7 @@ BRIEF = ROOT / "scripts" / "briefing" / "brief.py"
 CLI = ROOT / "lib" / "rules" / "dist" / "cli.js"
 MAP = ROOT / "docs" / "architecture.md"
 HEADINGS = ("Money", "Fleet (", "Routes (", "Hubs", "Deliveries (", "To-dos (", "Fare plan:", "Rivals")
-SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "capture")
+SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "competition", "capture")
 failures = []
 
 
@@ -122,6 +122,18 @@ def briefings(home, api, work):
         rv = b["rivals"]
         shared = sum(1 for x in rv.get("routes") or [] if x["rivals_weekly"])
         check(rv.get("scan_id") == latest_scan, f"{code}: rivals from the latest finished scan ({latest_scan})", rv.get("scan_id"), quiet=True)
+        # competition analysis (since 21 Oct): competition()'s top 20 openings and the threats, as the database gives them
+        C = b.get("competition") or {}
+        cp = one(f"select json_build_object('n', d -> 'openings_count', 'scan', d #> '{{scans,latest,id}}', 'threats', jsonb_array_length(d -> 'threats')) "
+                 f"from (select private.fig_competition({aid}, now(), 20) as d) x")
+        check(not C.get("note") and C.get("openings_count") == cp["n"] and len(C.get("openings") or []) == min(20, cp["n"] or 0)
+              and ((C.get("scans") or {}).get("latest") or {}).get("id") == cp["scan"] and len(C.get("threats") or []) == cp["threats"]
+              and any(l.startswith("Competition") for l in lines),
+              f"{code}: competition, {cp['n']} openings (the top 20 shown) and {cp['threats']} threats, as competition() gives them",
+              {k: C.get(k) for k in ("note", "openings_count")}, quiet=True)
+        print(f"      {code}: top openings: " + ("; ".join(f"{o['rank']}. {o['route']} {o.get('stars')}* {o.get('rivals_weekly')} a week "
+                                                           f"{(o.get('variant') or {}).get('type')}{'' if o.get('allowed') else ' (not yet)'}"
+                                                           for o in (C.get("openings") or [])[:5]) or "none"), flush=True)
         if len(failures) == before:
             print(f"ok    {code}: briefing in {secs:.1f} s, {len(lines)} lines; fleet {len(regs)}, routes {len(ids)}, deliveries {n_del} "
                   f"({len(cards)} plan cards, {sum(1 for c in cards if (c.get('check') or {}).get('ok'))} checked ok), to-dos {n_todo}, "

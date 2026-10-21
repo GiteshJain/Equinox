@@ -1,0 +1,420 @@
+-- Competition analysis (manual §3, market share first; migration 20261021235000_competition.sql; spec
+-- docs/specs/2026-10-21-competition-analysis.md §1). Run by database/rehearse.sh on the copy of last night's backup, after
+-- the new migrations, inside a transaction that is rolled back. A failed check stops with an error that says which (codes,
+-- counts and words of the hand-made world only). Everything is made in a world of its own, so nothing on the copy is
+-- touched or counted; the copy's own numbers are printed at the end (counts only).
+--   The world: two of our airlines and three rivals. C1 (main hub YA1, hub YA2, focus YA3) flies YA1–YB2 and YA1–YB3,
+--   each daily both ways (14 a week each, 14 from its main hub); C2 (main hub YB1, focus YB4) flies YB4–YA1. Three finished
+--   scans: s1 1 Feb, s2 8 Feb, s3 12 Feb (08:00 UTC), and one still running on 13 Feb. The moment T is 13 Feb 12:00, so
+--   latest s3, week before s1 (s2 is only 4 days before s3), previous s2.
+--     Rival One: YA1–YC1 7 and YA1–YC2 14 in every scan, and starts on YA1–YB2 in s3 (7): a threat from 12 Feb.
+--     Rival Two: YA1–YB3 7 in s1, 14 from s2 (added 7: a threat from 8 Feb), YC2–YA1 7, and YA2→YC9 21 a week (over 2 a
+--       day from C1's hub YA2 to YC9: that route is contested).
+--     Rival Three: YB3–YA1 3 in s1 and s2, 6 in s3 (3 added, under the 7: no threat); 300 departures a week at YA3 in s3
+--       (C1's focus city YA3 is contested).
+--   The test's own types, as the default line (manual §3): E195 146 seats 3,542 km, E190 114 4,065, A320 SHARP 189 3,355,
+--   A320 Heavy 189 4,708, A321 LIGHT 240 4,192, A321XLR 240 6,939, A350-900 440, A350-1000 480; C1 may buy all, C2 every
+--   narrowbody (as Ryanair: no A350).
+--   C1's list (markets M1 and M2, and one route with none): YA1–YC1 5★ 1,000 km, YA1–YC2 5★ 2,000, YA1–YC3 4★ 3,000,
+--   YA1–YC4 4★ 3,800, YA1–YC5 2★ 5,000, YA1–YC6 3★ 12,000, YA1–YC7 3★ 16,000, YA2–YC8 5★ 1,500, YA2–YC9 3★ 1,500, YA3–YCA
+--   3★ 1,500 (no market), YA1–YB4 (C2 flies it: no opening), YA1–YCZ (removed: not on the list). C2's: YB1–YD1 3★ 1,000
+--   and YB1–YD9 3★ 8,000 (beyond every type C2 may buy: left out).
+--   1. The setting competition_threat_min_weekly 7 in every world, described; who may call competition() (signed in only,
+--      stable, as owner with an empty search path, described) and its builders (internal).
+--   2. The scans used, with their dates; the group line from the scans' totals.
+--   3. Market share by market, with its change against the week-before scan: ours from the live legs now and from the
+--      week-before scan then, the rivals' on the same pairs, our share, the top rivals; our other airline isn't a rival.
+--   4. Threats: one appearing with s3 (started), one from s2 (added 7), none for 3 added; each leaves 7 days after its scan.
+--   5. Openings ranked (stars, rivals' departures, distance, code; not allowed after, marked with the reason), the hubs-first
+--      marks (main hub, contested route, contested base, not contested), the variant by stars and by reach (E190 past the
+--      E195's reach; the XLR for reach on a 2-star city; the A350-900, then the -1000 past 15,000 km), p_limit, and one left
+--      out beyond every type's reach (C2). Hubs first open once the main hub is at its target.
+--   6. Rival profiles: by pairs shared, then their departures on them; each one's size, change, airports and biggest airports.
+--   7. One scan, and none: no comparison, no threats, nothing contested; signed out and an account that isn't staff are
+--      refused; staff get what postgres gets. On the copy: the counts and how long it takes for each of our airlines.
+
+create temporary table t_cp (k text primary key, v jsonb) on commit drop;
+grant select, insert, update on t_cp to authenticated, anon;
+insert into public.planner_users (email) values ('competition-staff@example.com') on conflict do nothing;
+
+-- ---------------------------------------------------------------- 1. the setting, and who may call competition()
+do $test$
+declare n_worlds int := (select count(*) from public.worlds); f text := 'public.competition(bigint, timestamptz, integer)'; g text;
+begin
+  assert (select count(*) from public.settings s where s.key = 'competition_threat_min_weekly' and s.airline_id is null and s.value = '7'::jsonb
+            and s.unit = 'departures a week' and length(coalesce(s.description, '')) > 80 and s.since = date '2026-10-21' and s.reason is not null) = n_worlds,
+    'competition_threat_min_weekly isn''t 7 in every world, described, since 21 Oct, with its reason';
+  assert (select p.prosecdef and p.provolatile = 's' and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = f::regprocedure),
+    f || ' isn''t stable, run as owner with an empty search path';
+  assert not has_function_privilege('anon', f, 'execute'), 'signed out, ' || f || ' can be called';
+  assert has_function_privilege('authenticated', f, 'execute'), 'signed in, ' || f || ' can''t be called';
+  assert length(coalesce(obj_description(f::regprocedure, 'pg_proc'), '')) > 400, f || ' has no description';
+  foreach g in array array['private.fig_competition(bigint, timestamptz, integer)', 'private.competition_threats(bigint, timestamptz)',
+                           'private.scan_pair_flights(bigint[], text[])'] loop
+    assert not has_function_privilege('authenticated', g, 'execute') and not has_function_privilege('anon', g, 'execute'), g || ' can be called from outside';
+    assert (select not p.prosecdef and p.provolatile = 's' and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = g::regprocedure),
+      g || ' runs as owner, isn''t stable or has no empty search path';
+    assert length(coalesce(obj_description(g::regprocedure, 'pg_proc'), '')) > 60, g || ' has no description';
+  end loop;
+  raise notice 'competition_threat_min_weekly 7 in each of the % world(s), described; competition(): signed in only, stable, as owner with an empty search path, described; its three builders internal', n_worlds;
+end
+$test$;
+
+-- ---------------------------------------------------------------- the hand-made world
+-- a route on an airline's list; flown, it gets a rotation launched 1 Jan, an aircraft and its two legs, daily both ways
+create function pg_temp.cp_route(w bigint, al bigint, hub text, dest text, stars int, dist int, market bigint, flown boolean, ty bigint, k int)
+returns bigint language plpgsql as $f$
+declare r bigint; rot bigint; ac bigint;
+begin
+  insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, stars, market_id, source)
+  values (w, al, hub, dest, dist, stars, market, 'research') returning id into r;
+  if flown then
+    insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, al, r, date '2030-01-01') returning id into rot;
+    insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code)
+    values (w, al, 'YC-' || k, ty, 'active', hub) returning id into ac;
+    insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min) values
+      (w, al, rot, 1, 7000 + k * 2, hub, dest, ac, '{1,2,3,4,5,6,7}', 600, 90),
+      (w, al, rot, 2, 7001 + k * 2, dest, hub, ac, '{1,2,3,4,5,6,7}', 800, 90);
+  end if;
+  return r;
+end
+$f$;
+
+-- a flight in a scan's schedule: [code, number, from, to, weekdays, departure, arrival, type, operator]
+create function pg_temp.cp_fl(code text, no int, o text, d text, days text) returns jsonb language sql immutable as $f$
+  select jsonb_build_array(code, no, o, d, days, '08:00', '10:00', 'A320', '')
+$f$;
+
+do $setup$
+declare
+  dw bigint := (select id from public.worlds where is_default);
+  w bigint; g bigint; gr bigint; c1 bigint; c2 bigint; r1 bigint; r2 bigint; r3 bigint; m1 bigint; m2 bigint; t_e195 bigint; ty record; s bigint;
+  x record; sc jsonb := '{}'::jsonb;
+begin
+  perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'competition test', true);
+  insert into public.airports (code, utc_offset)
+  select c, 0 from unnest(array['YA1', 'YA2', 'YA3', 'YB1', 'YB2', 'YB3', 'YB4', 'YC1', 'YC2', 'YC3', 'YC4', 'YC5', 'YC6', 'YC7', 'YC8', 'YC9',
+                                'YCA', 'YCZ', 'YD1', 'YD9', 'YZZ']) c
+  on conflict (code) do update set utc_offset = excluded.utc_offset;
+  insert into public.worlds (name, game_host, kind) values ('competition test', 'competition.test', 'exclusive') returning id into w;
+  insert into public.settings (world_id, airline_id, key, value, unit, description)
+  select w, null, s2.key, s2.value, s2.unit, s2.description from public.settings s2 where s2.world_id = dw and s2.airline_id is null;
+  -- the house rules' thresholds as the manual has them (manual §3), whatever the copy holds
+  update public.settings set value = v.v from (values ('hub_first_departures', '750'::jsonb), ('contested_rival_weekly', '250'::jsonb),
+                                                      ('contested_rival_daily', '2'::jsonb), ('hub_first_exempt', 'false'::jsonb),
+                                                      ('competition_threat_min_weekly', '7'::jsonb)) v(k, v)
+   where world_id = w and airline_id is null and key = v.k;
+  insert into public.groups (world_id, name, kind) values (w, 'ours', 'ours') returning id into g;
+  insert into public.groups (world_id, name, kind) values (w, 'rivals', 'rival') returning id into gr;
+  insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position)
+  values (w, g, 990601, 'Comp One', 'Comp One', 'C1', 'YA1', true, 1) returning id into c1;
+  insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position)
+  values (w, g, 990602, 'Comp Two', 'Comp Two', 'C2', 'YB1', true, 2) returning id into c2;
+  -- rivals: one in a rival group, one placed in no group yet (as the scan leaves a new airline), one in the rival group
+  insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, gr, 990691, 'Rival One', true) returning id into r1;
+  insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, null, 990692, 'Rival Two', true) returning id into r2;
+  insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, gr, 990693, 'Rival Three', true) returning id into r3;
+  insert into public.airline_bases (world_id, airline_id, airport_code, role, is_main, position) values
+    (w, c1, 'YA1', 'hub', true, 1), (w, c1, 'YA2', 'hub', false, 2), (w, c1, 'YA3', 'focus', false, 3),
+    (w, c2, 'YB1', 'hub', true, 1), (w, c2, 'YB4', 'focus', false, 2);
+  for ty in select * from (values ('CT E195', 146, 3542, 1771000), ('CT E190', 114, 4065, 1683000), ('CT A320 SHARP', 189, 3355, 2058000),
+                                  ('CT A320 Heavy', 189, 4708, 2241000), ('CT A321 LIGHT', 240, 4192, 2401000), ('CT A321XLR', 240, 6939, 2862000),
+                                  ('CT A350-900', 440, 11102, 7005000), ('CT A350-1000', 480, 11102, 7854000)) v(name, seats, range_km, price) loop
+    insert into public.aircraft_types (world_id, name, seats_max, range_km, price, cruise_kmh, min_turn_min)
+    values (w, ty.name, ty.seats, ty.range_km, ty.price, 840, 60) returning id into s;
+    insert into public.airline_aircraft_types (world_id, airline_id, aircraft_type_id) values (w, c1, s);
+    if ty.seats < 300 then insert into public.airline_aircraft_types (world_id, airline_id, aircraft_type_id) values (w, c2, s); end if;
+    if ty.name = 'CT E195' then t_e195 := s; end if;
+  end loop;
+  insert into public.markets (world_id, airline_id, name, layout) values (w, c1, 'M1 short', 'Leisure') returning id into m1;
+  insert into public.markets (world_id, airline_id, name, layout) values (w, c1, 'M2 long', 'Comfort') returning id into m2;
+
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YB2', 4, 800, m1, true, t_e195, 1);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YB3', 4, 900, m1, true, t_e195, 2);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC1', 5, 1000, m1, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC2', 5, 2000, m1, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC3', 4, 3000, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC4', 4, 3800, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC5', 2, 5000, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC6', 3, 12000, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YC7', 3, 16000, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA2', 'YC8', 5, 1500, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA2', 'YC9', 3, 1500, m2, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA3', 'YCA', 3, 1500, null, false, null, 0);
+  perform pg_temp.cp_route(w, c1, 'YA1', 'YB4', 3, 1200, m2, false, null, 0);
+  s := pg_temp.cp_route(w, c1, 'YA1', 'YCZ', 5, 900, m1, false, null, 0);
+  update public.routes set removed = true where id = s;
+  perform pg_temp.cp_route(w, c2, 'YB4', 'YA1', 3, 1200, null, true, t_e195, 3);
+  perform pg_temp.cp_route(w, c2, 'YB1', 'YD1', 3, 1000, null, false, null, 0);
+  perform pg_temp.cp_route(w, c2, 'YB1', 'YD9', 3, 8000, null, false, null, 0);
+
+  -- the scans: each airline's schedule, its totals (the group line) and, in s3, the airport summaries
+  for x in select * from (values
+      ('s1', timestamptz '2030-02-01 08:00:00+00', 'done', 7, 3, 90, 180, 290),
+      ('s2', timestamptz '2030-02-08 08:00:00+00', 'done', 14, 3, 95, 190, 295),
+      ('s3', timestamptz '2030-02-12 08:00:00+00', 'done', 14, 6, 100, 200, 300),
+      ('s4', timestamptz '2030-02-13 08:00:00+00', 'running', 14, 6, 100, 200, 300)) v(k, at, status, r2_yb3, r3_yb3, r1_n, r2_n, r3_n) loop
+    insert into public.game_scans (world_id, taken_at, status) values (w, x.at, x.status) returning id into s;
+    sc := sc || jsonb_build_object(x.k, s);
+    insert into public.game_scan_schedules (scan_id, world_id, airline_id, flights) values
+      (s, w, c1, jsonb_build_array(pg_temp.cp_fl('CA', 1, 'YA1', 'YB2', '1234567'), pg_temp.cp_fl('CA', 2, 'YB2', 'YA1', '1234567'),
+                                   pg_temp.cp_fl('CA', 3, 'YA1', 'YB3', '1234567'))),
+      (s, w, c2, jsonb_build_array(pg_temp.cp_fl('CB', 1, 'YB4', 'YA1', '1234567'))),
+      (s, w, r1, jsonb_build_array(pg_temp.cp_fl('R1', 1, 'YA1', 'YC1', '1234567'), pg_temp.cp_fl('R1', 2, 'YA1', 'YC2', '1234567'),
+                                   pg_temp.cp_fl('R1', 3, 'YC2', 'YA1', '1234567'))
+                 || case when x.k in ('s3', 's4') then jsonb_build_array(pg_temp.cp_fl('R1', 4, 'YA1', 'YB2', '1234567'),
+                                                                         -- a running scan's start is never read
+                                                                         pg_temp.cp_fl('R1', 5, 'YB3', 'YA1', case when x.k = 's4' then '1234567' else '' end))
+                         else '[]'::jsonb end),
+      (s, w, r2, jsonb_build_array(pg_temp.cp_fl('R2', 1, 'YA1', 'YB3', '1234567'), pg_temp.cp_fl('R2', 3, 'YC2', 'YA1', '1234567'),
+                                   pg_temp.cp_fl('R2', 4, 'YA2', 'YC9', '1234567'), pg_temp.cp_fl('R2', 5, 'YA2', 'YC9', '1234567'),
+                                   pg_temp.cp_fl('R2', 6, 'YA2', 'YC9', '1234567'))
+                 || case when x.r2_yb3 = 14 then jsonb_build_array(pg_temp.cp_fl('R2', 2, 'YA1', 'YB3', '1234567')) else '[]'::jsonb end),
+      (s, w, r3, jsonb_build_array(pg_temp.cp_fl('R3', 1, 'YB3', 'YA1', '135'))
+                 || case when x.r3_yb3 = 6 then jsonb_build_array(pg_temp.cp_fl('R3', 2, 'YB3', 'YA1', '246')) else '[]'::jsonb end
+                 || jsonb_build_array(pg_temp.cp_fl('R3', 3, 'YA3', 'YZZ', '1234567')));
+    insert into public.game_scan_airlines (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position) values
+      (s, w, 990601, c1, 'Comp One', 3, 21, 3, 1), (s, w, 990602, c2, 'Comp Two', 1, 7, 2, 2),
+      (s, w, 990691, r1, 'Rival One', 5, x.r1_n, 12, 3), (s, w, 990692, r2, 'Rival Two', 6, x.r2_n, 25, 4),
+      (s, w, 990693, r3, 'Rival Three', 3, x.r3_n, 31, 5);
+    if x.k = 's3' then
+      insert into public.scan_airline_airports (scan_id, world_id, airline_id, airport_code, weekly_departures, destinations) values
+        (s, w, r3, 'YA3', 300, 12), (s, w, r2, 'YZZ', 100, 9), (s, w, r2, 'YA2', 50, 4), (s, w, r2, 'YB3', 30, 2), (s, w, r2, 'YC2', 7, 1),
+        (s, w, c1, 'YA1', 14, 2);
+    end if;
+  end loop;
+
+  perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
+  insert into t_cp values ('w', to_jsonb(w)), ('c1', to_jsonb(c1)), ('c2', to_jsonb(c2)), ('scans', sc),
+                          ('t', to_jsonb(timestamptz '2030-02-13 12:00:00+00'));
+end
+$setup$;
+
+-- ---------------------------------------------------------------- 2. the scans used, and the group line
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); t timestamptz := (select (v #>> '{}')::timestamptz from t_cp where k = 't');
+  sc jsonb := (select v from t_cp where k = 'scans'); d jsonb;
+begin
+  d := private.fig_competition(c1, t);
+  insert into t_cp values ('c1_doc', d);
+  assert d #>> '{scans,latest,id}' = sc ->> 's3' and d #>> '{scans,latest,taken_at}' = '2030-02-12T08:00:00.000Z'
+     and d #>> '{scans,week_before,id}' = sc ->> 's1' and d #>> '{scans,week_before,taken_at}' = '2030-02-01T08:00:00.000Z'
+     and d #>> '{scans,previous,id}' = sc ->> 's2' and d #>> '{scans,previous,taken_at}' = '2030-02-08T08:00:00.000Z',
+    'the scans aren''t latest s3 (12 Feb), week before s1 (1 Feb: s2 is only 4 days before s3), previous s2: ' || (d -> 'scans')::text;
+  assert d -> 'group' = '{"ours": 28, "world": 628, "share": 4.5, "ours_before": 28, "world_before": 588, "share_before": 4.8, "ours_change": 0, "world_change": 40, "share_change": -0.3}'::jsonb,
+    'the group line isn''t ours 28 of 628 (4.5%) against 28 of 588 (4.8%): ' || (d -> 'group')::text;
+  raise notice 'the scans: latest 12 Feb, week before 1 Feb (not 8 Feb, under 6 days before), previous 8 Feb, a running scan of 13 Feb left out; the group line 28 of 628 a week (4.5%%) against 28 of 588 (4.8%%)';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 3. market share, by market
+do $test$
+declare d jsonb := (select v from t_cp where k = 'c1_doc'); m jsonb; got text;
+begin
+  assert (select string_agg(x ->> 'name', ', ' order by i) from jsonb_array_elements(d -> 'markets') with ordinality e(x, i)) = 'M1 short, M2 long, No market',
+    'the markets aren''t M1, M2 and No market, biggest first: ' || (d -> 'markets')::text;
+  m := d -> 'markets' -> 0;
+  assert m ->> 'pairs' = '4' and m ->> 'flown' = '2' and m ->> 'ours' = '28' and m ->> 'ours_before' = '21' and m ->> 'ours_change' = '7'
+     and m ->> 'rivals' = '55' and m ->> 'rivals_before' = '38' and m ->> 'total' = '83'
+     and (m ->> 'share')::numeric = 33.7 and (m ->> 'share_before')::numeric = 35.6 and (m ->> 'share_change')::numeric = -1.9,
+    'M1 isn''t 4 pairs (2 flown, the removed one left out), ours 28 (21 a week before), rivals 55 (38), share 33.7% (35.6%, −1.9): ' || m::text;
+  select string_agg(x ->> 'name' || ' ' || (x ->> 'weekly') || ' (' || (x ->> 'weekly_before') || ', ' || (x ->> 'change') || ') ' || (x ->> 'share') || '%', '; ' order by i)
+    into got from jsonb_array_elements(m -> 'top') with ordinality e(x, i);
+  assert got = 'Rival One 28 (21, 7) 33.7%; Rival Two 21 (14, 7) 25.3%; Rival Three 6 (3, 3) 7.2%', 'M1''s top rivals are ' || got;
+  -- our other airline flies YA1–YB4 (M2): never a rival; M2's rivals are Rival Two's 21 from YA2 to YC9
+  m := d -> 'markets' -> 1;
+  assert m ->> 'ours' = '0' and m ->> 'rivals' = '21' and m ->> 'rivals_before' = '21' and (m ->> 'share')::numeric = 0 and m ->> 'pairs' = '8'
+     and (select string_agg(x ->> 'name', ',') from jsonb_array_elements(m -> 'top') x) = 'Rival Two',
+    'M2 isn''t 8 pairs with only Rival Two''s 21 (our other airline counted as a rival?): ' || m::text;
+  m := d -> 'markets' -> 2;
+  assert m ->> 'market_id' is null and m ->> 'pairs' = '1' and m ->> 'total' = '0' and m ->> 'share' is null,
+    'the route with no market isn''t under No market with nothing flown: ' || m::text;
+  raise notice 'market share: M1 ours 28 (21 in the week-before scan, +7) against rivals'' 55 (38): 33.7%% (35.6%%, −1.9), top Rival One 28, Rival Two 21, Rival Three 6; M2 0%% (our other airline not a rival); a route with no market under No market';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 4. threats: appearing, and leaving after 7 days
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); t timestamptz := (select (v #>> '{}')::timestamptz from t_cp where k = 't');
+  sc jsonb := (select v from t_cp where k = 'scans'); d jsonb := (select v from t_cp where k = 'c1_doc'); got text;
+begin
+  select string_agg(x ->> 'rival' || ' ' || (x ->> 'route') || ' ' || (x ->> 'kind') || ' ' || (x ->> 'then') || '>' || (x ->> 'now') || ' ours ' || (x ->> 'ours')
+                    || ' on ' || left(x ->> 'on', 10) || ' until ' || left(x ->> 'until', 10) || case when (x ->> 'latest')::boolean then ' latest' else '' end, '; ' order by i)
+    into got from jsonb_array_elements(d -> 'threats') with ordinality e(x, i);
+  assert got = 'Rival One YA1–YB2 started 0>7 ours 14 on 2030-02-12 until 2030-02-19 latest; Rival Two YA1–YB3 added 7>14 ours 14 on 2030-02-08 until 2030-02-15',
+    'the threats at 13 Feb are ' || coalesce(got, 'none');
+  assert (select x ->> 'words' from jsonb_array_elements(d -> 'threats') x where x ->> 'rival' = 'Rival One') = 'Rival One started on YA1–YB2, 7 a week'
+     and (select x ->> 'words' from jsonb_array_elements(d -> 'threats') x where x ->> 'rival' = 'Rival Two') = 'Rival Two added on YA1–YB3, 7 → 14 a week',
+    'the threats'' words aren''t "Rival One started on YA1–YB2, 7 a week" and "Rival Two added on YA1–YB3, 7 → 14 a week": ' || (d -> 'threats')::text;
+  -- before s3 (12 Feb 07:00): only Rival Two's, from s2
+  d := private.fig_competition(c1, timestamptz '2030-02-12 07:00:00+00');
+  assert (select string_agg(x ->> 'rival' || ' ' || (x ->> 'kind'), ', ') from jsonb_array_elements(d -> 'threats') x) = 'Rival Two added'
+     and d #>> '{scans,latest,id}' = sc ->> 's2',
+    'before 12 Feb the threats aren''t Rival Two''s alone, with s2 the latest: ' || (d -> 'threats')::text;
+  -- 15 Feb 09:00, 7 days and an hour after s2: Rival Two's has left, Rival One's stays
+  d := private.fig_competition(c1, timestamptz '2030-02-15 09:00:00+00');
+  assert (select string_agg(x ->> 'rival' || ' ' || (x ->> 'kind'), ', ') from jsonb_array_elements(d -> 'threats') x) = 'Rival One started',
+    'on 15 Feb the threats aren''t Rival One''s alone: ' || (d -> 'threats')::text;
+  -- 19 Feb 09:00: none
+  d := private.fig_competition(c1, timestamptz '2030-02-19 09:00:00+00');
+  assert jsonb_array_length(d -> 'threats') = 0, 'on 19 Feb a threat is still listed: ' || (d -> 'threats')::text;
+  raise notice 'threats: Rival One started on YA1–YB2 with the 12 Feb scan (7 a week), Rival Two added 7 on YA1–YB3 with the 8 Feb scan (7 → 14), Rival Three''s 3 more none; on 12 Feb at 07:00 only Rival Two''s; on 15 Feb Rival Two''s has left (7 days); on 19 Feb none';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 5. openings ranked, hubs first, the variant, the limit
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); c2 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c2');
+  t timestamptz := (select (v #>> '{}')::timestamptz from t_cp where k = 't'); w bigint := (select (v #>> '{}')::bigint from t_cp where k = 'w');
+  d jsonb := (select v from t_cp where k = 'c1_doc'); got text; want text; o jsonb;
+begin
+  select string_agg((x ->> 'rank') || '. ' || (x ->> 'route') || ' ' || (x ->> 'stars') || '* ' || (x ->> 'rivals_weekly') || ' ' || (x ->> 'distance_km') || 'km '
+                    || (x #>> '{variant,type}') || case when (x #>> '{variant,for_reach}')::boolean then ' (reach)' else '' end || ' '
+                    || coalesce(x ->> 'allowed_by', 'NOT'), '; ' order by (x ->> 'rank')::int) into got
+    from jsonb_array_elements(d -> 'openings') x;
+  want := '1. YA1–YC2 5* 21 2000km CT A320 SHARP main hub; 2. YA1–YC1 5* 7 1000km CT A320 SHARP main hub; 3. YA1–YC3 4* 0 3000km CT E195 main hub; '
+       || '4. YA1–YC4 4* 0 3800km CT E190 main hub; 5. YA2–YC9 3* 21 1500km CT E195 contested route; 6. YA3–YCA 3* 0 1500km CT E195 contested base; '
+       || '7. YA1–YC6 3* 0 12000km CT A350-900 (reach) main hub; 8. YA1–YC7 3* 0 16000km CT A350-1000 (reach) main hub; 9. YA1–YC5 2* 0 5000km CT A321XLR (reach) main hub; '
+       || '10. YA2–YC8 5* 0 1500km CT A320 SHARP NOT';
+  assert got = want, 'C1''s openings are ' || coalesce(got, 'none');
+  assert (d ->> 'openings_count')::int = 10 and (d ->> 'openings_allowed')::int = 9 and (d ->> 'openings_left_out')::int = 0
+     and (d ->> 'pairs_flown')::int = 2 and (d ->> 'pairs_listed')::int = 13,
+    'C1''s counts aren''t 10 openings, 9 allowed, none left out, 2 pairs flown of 13 listed: ' || jsonb_build_object('n', d -> 'openings_count', 'allowed', d -> 'openings_allowed', 'out', d -> 'openings_left_out', 'flown', d -> 'pairs_flown', 'listed', d -> 'pairs_listed')::text;
+  select x into o from jsonb_array_elements(d -> 'openings') x where x ->> 'route' = 'YA2–YC8';
+  assert not (o ->> 'allowed')::boolean
+     and o ->> 'reason' = 'hubs first: YA1 at 14 of 750 departures a week, and YA2 isn''t contested (busiest rival there 50 a week, over 250 needed; none over 2 a day on YA2–YC8)',
+    'YA2–YC8 isn''t marked not allowed with the reason: ' || o::text;
+  select x into o from jsonb_array_elements(d -> 'openings') x where x ->> 'route' = 'YA1–YC2';
+  assert (select string_agg(r ->> 'name' || ' ' || (r ->> 'weekly'), ', ' order by i) from jsonb_array_elements(o -> 'rivals') with ordinality e(r, i)) = 'Rival One 14, Rival Two 7'
+     and o #>> '{variant,size}' = 'mid' and o #>> '{variant,seats}' = '189' and o ->> 'reason' is null and o ->> 'city' is null,
+    'YA1–YC2''s rivals aren''t Rival One 14 and Rival Two 7, with a mid variant of 189 seats: ' || o::text;
+  assert not exists (select 1 from jsonb_array_elements(d -> 'openings') x where x ->> 'route' in ('YA1–YB4', 'YA1–YCZ', 'YA1–YB2', 'YA1–YB3')),
+    'a pair one of ours flies, or a removed route, is listed as an opening';
+  -- p_limit: the top 3, the counts still all
+  d := private.fig_competition(c1, t, 3);
+  assert jsonb_array_length(d -> 'openings') = 3 and (d ->> 'openings_count')::int = 10 and d #>> '{openings,2,route}' = 'YA1–YC3',
+    'p_limit 3 doesn''t give the top 3 with the counts of all: ' || (d -> 'openings')::text;
+  -- once the main hub is at its target (C1's own target 10, under its 14), every base may open
+  insert into public.settings (world_id, airline_id, key, value, unit, description) values (w, c1, 'hub_first_departures', '10'::jsonb, 'departures', 'test');
+  d := private.fig_competition(c1, t);
+  assert (select x ->> 'allowed_by' from jsonb_array_elements(d -> 'openings') x where x ->> 'route' = 'YA2–YC8') = 'main hub at its target'
+     and d #>> '{openings,0,route}' = 'YA1–YC2' and (d ->> 'openings_allowed')::int = 10,
+    'with the main hub at its target YA2–YC8 isn''t allowed: ' || (d -> 'openings')::text;
+  delete from public.settings where world_id = w and airline_id = c1 and key = 'hub_first_departures';
+  -- C2 may buy no A350: YB1–YD9 (8,000 km) is beyond every type it may buy, and left out
+  d := private.fig_competition(c2, t);
+  assert (select string_agg(x ->> 'route' || ' ' || (x #>> '{variant,type}'), ', ') from jsonb_array_elements(d -> 'openings') x) = 'YB1–YD1 CT E195'
+     and (d ->> 'openings_left_out')::int = 1 and (d ->> 'openings_count')::int = 1,
+    'C2''s 8,000 km route isn''t left out (no A350 for it): ' || (d -> 'openings')::text || ' left out ' || (d ->> 'openings_left_out');
+  raise notice 'openings: 10 ranked by stars, rivals'' departures (YA1–YC2''s 21 before YA1–YC1''s 7), distance and code; YA2–YC8 (5 stars) last, not allowed under hubs first with its reason; YA2–YC9 a contested route, YA3–YCA a contested base; the E195 for a 4-star city, the E190 past the E195''s reach, the SHARP for 5 stars, the XLR for reach on a 2-star city, the A350-900 at 12,000 km and the -1000 at 16,000; p_limit 3; all open once the main hub is at its target; C2''s 8,000 km route left out (no A350)';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 6. rival profiles
+do $test$
+declare d jsonb := (select v from t_cp where k = 'c1_doc'); got text; p jsonb;
+begin
+  select string_agg(x ->> 'name' || ' ' || (x ->> 'pairs_shared') || '/' || (x ->> 'weekly_on_pairs'), ', ' order by i) into got
+    from jsonb_array_elements(d -> 'profiles') with ordinality e(x, i);
+  assert got = 'Rival Two 1/14, Rival One 1/7, Rival Three 1/6', 'the profiles are ' || coalesce(got, 'none');
+  p := d -> 'profiles' -> 0;
+  assert p ->> 'weekly' = '200' and p ->> 'weekly_before' = '180' and p ->> 'change' = '20' and p ->> 'airports' = '25'
+     and p -> 'biggest_airports' = '[{"code": "YZZ", "weekly": 100}, {"code": "YA2", "weekly": 50}, {"code": "YB3", "weekly": 30}]'::jsonb
+     and p -> 'pairs' = '[{"ours": 14, "pair": "YA1-YB3", "route": "YA1–YB3", "weekly": 14}]'::jsonb,
+    'Rival Two''s profile isn''t 200 a week (180, +20), 25 airports, YZZ, YA2 and YB3 its biggest, YA1–YB3 shared: ' || p::text;
+  raise notice 'profiles: Rival Two, Rival One and Rival Three, each on one of C1''s pairs, by their departures on them; Rival Two 200 a week (180 a week before), 25 airports, its biggest YZZ, YA2 and YB3';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 7. one scan, none; who is refused; the copy
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); sc jsonb := (select v from t_cp where k = 'scans'); d jsonb;
+begin
+  -- one finished scan (1 Feb): no week before, no previous, no threats; the share without a change
+  d := private.fig_competition(c1, timestamptz '2030-02-01 12:00:00+00');
+  assert d #>> '{scans,latest,id}' = sc ->> 's1' and d #> '{scans,week_before}' = 'null'::jsonb and d #> '{scans,previous}' = 'null'::jsonb
+     and jsonb_array_length(d -> 'threats') = 0 and d #>> '{group,share_change}' is null and d #>> '{markets,0,share_change}' is null
+     and (d #>> '{markets,0,share}')::numeric = 42.4 and jsonb_array_length(d -> 'openings') = 10,
+    'with one scan: ' || jsonb_build_object('scans', d -> 'scans', 'threats', d -> 'threats', 'group', d -> 'group', 'm1', d -> 'markets' -> 0)::text;
+  -- none (31 Jan): the openings by stars and distance, only the main hub's allowed; no group, no profiles, no threats
+  d := private.fig_competition(c1, timestamptz '2030-01-31 12:00:00+00');
+  assert d #> '{scans,latest}' = 'null'::jsonb and d -> 'group' = 'null'::jsonb and jsonb_array_length(d -> 'threats') = 0
+     and jsonb_array_length(d -> 'profiles') = 0 and (d #>> '{markets,0,ours}')::int = 28 and d #>> '{markets,0,share}' is null
+     and (d ->> 'openings_allowed')::int = 7 and d #>> '{openings,0,route}' = 'YA1–YC1'
+     and (select x ->> 'reason' from jsonb_array_elements(d -> 'openings') x where x ->> 'route' = 'YA3–YCA')
+         = 'hubs first: YA1 at 14 of 750 departures a week, and no world scan to show YA3 contested',
+    'with no scan: ' || jsonb_build_object('scans', d -> 'scans', 'group', d -> 'group', 'openings', d -> 'openings')::text;
+  raise notice 'one scan: no week before, previous or threats, the share without a change; none: no group, threats or profiles, the openings by stars and distance with only the main hub''s allowed';
+end
+$test$;
+
+set local role anon;
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); n int := 0;
+begin
+  begin perform public.competition(c1); exception when insufficient_privilege then n := n + 1; end;
+  assert n = 1, 'signed out, competition() wasn''t refused';
+end
+$test$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub": "00000000-0000-4000-8000-0000000000c1", "email": "competition-other@example.com", "role": "authenticated"}', true); end $$;
+set local role authenticated;
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); n int := 0;
+begin
+  begin perform public.competition(c1); exception when insufficient_privilege then n := n + 1; end;
+  assert n = 1, 'an account that isn''t staff wasn''t refused competition()';
+end
+$test$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims',
+  '{"sub": "00000000-0000-4000-8000-0000000000c2", "email": "competition-staff@example.com", "role": "authenticated"}', true); end $$;
+set local role authenticated;
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); t timestamptz := (select (v #>> '{}')::timestamptz from t_cp where k = 't');
+begin
+  assert public.competition(c1, t) = (select v from t_cp where k = 'c1_doc'), 'staff don''t get what postgres gets from competition()';
+end
+$test$;
+reset role;
+
+-- the copy: each of our airlines' answer now, in counts, and how long it took (as staff signed in: the 8 s limit); then
+-- the pull request's numbers (spec §Checks): the group's share, each airline's top 5 openings, and the threats the latest
+-- scan showed against the one before it (read an hour after the latest scan, so they're in their 7 days whenever this runs)
+do $test$
+declare r record; d jsonb; t0 timestamptz; ms int; worst int := 0; w bigint := (select id from public.worlds where is_default);
+  v_scan timestamptz := (select max(s.taken_at) from public.game_scans s where s.world_id = (select id from public.worlds where is_default) and s.status = 'done');
+  first_doc jsonb; th jsonb;
+begin
+  for r in select al.airline_id, al.iata_code from private.fig_airlines(w) al order by al.ord loop
+    t0 := clock_timestamp();
+    d := private.fig_competition(r.airline_id, now());
+    ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
+    worst := greatest(worst, ms);
+    first_doc := coalesce(first_doc, d);
+    raise notice 'on the copy, %: % markets, % threats, % openings (% allowed, % left out), % profiles, latest scan %, in % ms', r.iata_code,
+      jsonb_array_length(d -> 'markets'), jsonb_array_length(d -> 'threats'), d ->> 'openings_count', d ->> 'openings_allowed',
+      d ->> 'openings_left_out', jsonb_array_length(d -> 'profiles'), coalesce(left(d #>> '{scans,latest,taken_at}', 10), 'none'), ms;
+    raise notice '  % top openings: %', r.iata_code, coalesce((select string_agg(format('%s. %s %s* %s km, rivals %s a week, %s%s', o ->> 'rank', o ->> 'route', o ->> 'stars',
+        o ->> 'distance_km', o ->> 'rivals_weekly', o #>> '{variant,type}', case when (o ->> 'allowed')::boolean then '' else ' (not yet: hubs first)' end), '; ' order by (o ->> 'rank')::int)
+      from jsonb_array_elements(d -> 'openings') o where (o ->> 'rank')::int <= 5), 'none');
+    if v_scan is not null then
+      th := private.fig_competition(r.airline_id, v_scan + interval '1 hour', 0) -> 'threats';
+      raise notice '  % threats with the latest scan (%): % — %', r.iata_code, left(v_scan::text, 10), jsonb_array_length(th),
+        coalesce((select string_agg(t ->> 'words', '; ' order by i) from jsonb_array_elements(th) with ordinality e(t, i) where i <= 12), 'none')
+        || case when jsonb_array_length(th) > 12 then format(' (+%s more)', jsonb_array_length(th) - 12) else '' end;
+    end if;
+  end loop;
+  if first_doc is not null then
+    raise notice '%', format('on the copy, the group with the scan of %s (week before %s): our airlines %s of %s departures a week, %s%% (then %s of %s, %s%%)',
+      left(first_doc #>> '{scans,latest,taken_at}', 10), coalesce(left(first_doc #>> '{scans,week_before,taken_at}', 10), 'none'),
+      first_doc #>> '{group,ours}', first_doc #>> '{group,world}', first_doc #>> '{group,share}',
+      first_doc #>> '{group,ours_before}', first_doc #>> '{group,world_before}', first_doc #>> '{group,share_before}');
+  end if;
+  assert worst < 8000, format('competition() took %s ms for one airline on the copy: over the 8 s staff limit', worst);
+  raise notice 'signed out and an account that isn''t staff are refused competition(); staff get what postgres gets; the slowest airline on the copy took % ms (staff limit 8 s)', worst;
+end
+$test$;

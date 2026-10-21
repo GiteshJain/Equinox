@@ -104,7 +104,9 @@ export function Systems() {
   }, [rules, today]);
   const freqs = useMemo(() => (rules ? game.frequencies(rules, null) : []), [rules]);
 
-  const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now) : null), [systemQ.data, now]);
+  const scanEvery = rules ? Number(rules.input.settings.scan_every_days ?? NaN) : NaN;
+  const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now, Number.isFinite(scanEvery) ? scanEvery : null) : null),
+    [systemQ.data, now, scanEvery]);
   const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && aircraftQ.data && launchesQ.data
     && signalsQ.data && checkList);
   const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, aircraftQ, launchesQ, signalsQ);

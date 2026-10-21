@@ -244,6 +244,21 @@ $function$
 
 ;
 
+-- competition(p_airline_id bigint, p_as_of timestamp with time zone, p_limit integer)
+CREATE OR REPLACE FUNCTION public.competition(p_airline_id bigint, p_as_of timestamp with time zone DEFAULT now(), p_limit integer DEFAULT 50)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_competition(p_airline_id, coalesce(p_as_of, now()), coalesce(p_limit, 50));
+end
+$function$
+
+;
+
 -- export_capture(p_secret text, p_days integer)
 CREATE OR REPLACE FUNCTION public.export_capture(p_secret text, p_days integer DEFAULT 8)
  RETURNS jsonb
@@ -1647,7 +1662,10 @@ AS $function$
   -- loads by route and flight number over the 7 days to the moment, as route_loads() gives them, this airline's only
   rl as (select private.fig_route_loads(al.world_id, p_as_of) as d from al),
   -- the fare ladder (fare_ladder()'s document), for each route's fare level (since 21 Oct)
-  fl as (select private.fig_fare_ladder(al.id, p_as_of) as d from al)
+  fl as (select private.fig_fare_ladder(al.id, p_as_of) as d from al),
+  -- competition analysis (competition()'s document, since 21 Oct): the scans, the group line, the threats and the top 20
+  -- openings, for the evening proposal (manual §3)
+  cp as (select private.fig_competition(al.id, p_as_of, 20) as d from al)
   select jsonb_build_object(
     'airline', (select jsonb_build_object('id', al.id, 'world_id', al.world_id, 'code', al.iata_code, 'planner_name', al.planner_name,
                                           'public_name', al.public_name, 'game_name', al.game_name, 'game_id', al.game_id) from al),
@@ -1700,6 +1718,11 @@ AS $function$
                                                                'level', e -> 'level', 'new_level', e -> 'new_level', 'planned', e -> 'planned') order by x.o)
                               from jsonb_array_elements(fl.d -> 'routes') with ordinality x(e, o)), '[]'::jsonb))
       from fl),
+    'competition', (select jsonb_build_object(
+        'scans', cp.d -> 'scans', 'group', cp.d -> 'group', 'hubs_first', cp.d -> 'hubs_first', 'threats', cp.d -> 'threats',
+        'openings', cp.d -> 'openings', 'openings_count', cp.d -> 'openings_count', 'openings_allowed', cp.d -> 'openings_allowed',
+        'openings_left_out', cp.d -> 'openings_left_out')
+      from cp),
     'route_loads', (select jsonb_build_object(
         'from', rl.d -> 'from', 'to', rl.d -> 'to',
         'routes', coalesce((select jsonb_agg(x.v order by x.o) from jsonb_array_elements(rl.d -> 'routes') with ordinality x(v, o)
@@ -2432,6 +2455,74 @@ $function$
 
 ;
 
+-- private.competition_threats(p_airline_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.competition_threats(p_airline_id bigint, p_as_of timestamp with time zone)
+ RETURNS TABLE(a text, b text, rival_id bigint, rival text, kind text, then_weekly integer, added_weekly integer, now_weekly integer, ours_weekly integer, scan_id bigint, scan_at timestamp with time zone, previous_id bigint, previous_at timestamp with time zone, until timestamp with time zone)
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint := private.fig_airline_world(p_airline_id);
+  v_min numeric; v_latest bigint; v_pairs text[]; v_ids bigint[];
+begin
+  v_min := private.fig_num(w, p_airline_id, 'competition_threat_min_weekly');
+  -- the city pairs the airline flies (its live legs)
+  select array_agg(distinct least(f.hub_code, f.dest_code) || '-' || greatest(f.hub_code, f.dest_code)) into v_pairs
+    from private.fig_freqs(w, p_airline_id) f where f.live;
+  if v_pairs is null then return; end if;
+  -- the finished scans by then that still have their schedules, each with the one before it. The window is the 7 days
+  -- before the moment: a threat stays listed for 7 days from the scan that first showed it. Read: the latest scan, each
+  -- scan in the window that has one before it, and that one
+  with sc as (select s.id, s.taken_at, row_number() over (order by s.taken_at desc, s.id desc) as rn,
+                     lag(s.id) over (order by s.taken_at, s.id) as prev_id
+                from public.game_scans s
+               where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
+                 and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id))
+  select (select sc.id from sc where sc.rn = 1),
+         array(select sc.id from sc where sc.rn = 1 or (sc.taken_at > p_as_of - interval '7 days' and sc.prev_id is not null)
+               union
+               select sc.prev_id from sc where sc.taken_at > p_as_of - interval '7 days' and sc.prev_id is not null)
+    into v_latest, v_ids;
+  if v_latest is null then return; end if;
+  return query
+  with sc as (select s.id, s.taken_at, lag(s.id) over (order by s.taken_at, s.id) as prev_id,
+                     lag(s.taken_at) over (order by s.taken_at, s.id) as prev_at
+                from public.game_scans s
+               where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
+                 and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)),
+  win as (select * from sc where sc.taken_at > p_as_of - interval '7 days' and sc.prev_id is not null),
+  mine as (select least(f.hub_code, f.dest_code) as a, greatest(f.hub_code, f.dest_code) as b, sum(f.flights_week)::int as weekly
+             from private.fig_freqs(w, p_airline_id) f where f.live group by 1, 2),
+  -- the rivals' departures a week on those pairs in each scan read, both ways (every airline that isn't one of ours)
+  ex as materialized (
+    select x.scan_id, x.airline_id, least(x.origin, x.dest) as a, greatest(x.origin, x.dest) as b, sum(x.weekly)::int as weekly
+      from private.scan_pair_flights(v_ids, v_pairs) x
+      join public.airlines ra on ra.id = x.airline_id
+      left join public.groups g on g.id = ra.group_id
+     where coalesce(g.kind, 'rival') <> 'ours'
+     group by 1, 2, 3, 4),
+  -- a rival started (none in the scan before) or added at least competition_threat_min_weekly departures a week
+  ev as (select s.id as sid, s.taken_at, s.prev_id, s.prev_at, n.a, n.b, n.airline_id, n.weekly as now_w, coalesce(p.weekly, 0) as then_w
+           from win s
+           join ex n on n.scan_id = s.id
+           left join ex p on p.scan_id = s.prev_id and p.airline_id = n.airline_id and p.a = n.a and p.b = n.b
+          where n.weekly > 0 and (coalesce(p.weekly, 0) = 0 or n.weekly - p.weekly >= v_min)),
+  -- each rival on each pair once: the scan that first showed it
+  fst as (select distinct on (ev.a, ev.b, ev.airline_id) ev.* from ev order by ev.a, ev.b, ev.airline_id, ev.taken_at, ev.sid)
+  select f.a, f.b, f.airline_id, coalesce(ra.public_name, ra.game_name, ra.planner_name, 'airline ' || f.airline_id),
+         case when f.then_w = 0 then 'started' else 'added' end, f.then_w, f.now_w - f.then_w, coalesce(l.weekly, 0), m.weekly,
+         f.sid, f.taken_at, f.prev_id, f.prev_at, f.taken_at + interval '7 days'
+    from fst f
+    join mine m on m.a = f.a and m.b = f.b
+    join public.airlines ra on ra.id = f.airline_id
+    left join ex l on l.scan_id = v_latest and l.airline_id = f.airline_id and l.a = f.a and l.b = f.b
+   order by f.taken_at desc, coalesce(l.weekly, 0) desc, 4, f.a, f.b;
+end
+$function$
+
+;
+
 -- private.fig_airline_cards(p_world_id bigint, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.fig_airline_cards(p_world_id bigint, p_as_of timestamp with time zone)
  RETURNS jsonb
@@ -2856,6 +2947,286 @@ $function$
 
 ;
 
+-- private.fig_competition(p_airline_id bigint, p_as_of timestamp with time zone, p_limit integer)
+CREATE OR REPLACE FUNCTION private.fig_competition(p_airline_id bigint, p_as_of timestamp with time zone, p_limit integer DEFAULT 50)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint := private.fig_airline_world(p_airline_id);
+  v_limit int := greatest(coalesce(p_limit, 50), 0);
+  -- the wide-body line (manual §3): its listed range is with a full load and not a limit; the A350-900, cheapest per
+  -- seat, flies to about 15,000 km with its full cabin, and beyond that the type with the most seats
+  v_wide_km constant int := 15000;
+  v_latest bigint; v_latest_at timestamptz; v_before bigint; v_before_at timestamptz; v_prev bigint; v_prev_at timestamptz;
+  v_main text; v_exempt boolean; v_target numeric; v_rival_weekly numeric; v_rival_daily numeric; v_min numeric; v_dep int;
+  v_code text; v_name text; v_pairs text[]; v_ids bigint[];
+  v_threats jsonb; v_body jsonb; v_group jsonb;
+begin
+  select a.iata_code, coalesce(a.public_name, a.planner_name, a.game_name) into v_code, v_name from public.airlines a where a.id = p_airline_id;
+  v_min := private.fig_num(w, p_airline_id, 'competition_threat_min_weekly');
+  v_exempt := private.fig_flag(w, p_airline_id, 'hub_first_exempt');
+  v_target := private.fig_num(w, p_airline_id, 'hub_first_departures');
+  v_rival_weekly := private.fig_num(w, p_airline_id, 'contested_rival_weekly');
+  v_rival_daily := private.fig_num(w, p_airline_id, 'contested_rival_daily');
+  select b.airport_code into v_main from public.airline_bases b where b.airline_id = p_airline_id and b.is_main order by b.id limit 1;
+  -- the main hub's departures a week, as hub_progress() counts them: outbound legs from it, and returns to it
+  select coalesce(sum(f.days_n) filter (where f.hub_code = v_main), 0) + coalesce(sum(f.days_n) filter (where f.dest_code = v_main and f.has_back), 0)
+    into v_dep from private.fig_freqs(w, p_airline_id) f where f.live;
+
+  -- the scans: latest, the latest finished by the moment (with its schedules); week before, the latest at least 6 days
+  -- older, else the oldest there is; previous, the latest before latest
+  select s.id, s.taken_at into v_latest, v_latest_at from public.game_scans s
+   where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
+     and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+   order by s.taken_at desc, s.id desc limit 1;
+  if v_latest is not null then
+    select s.id, s.taken_at into v_before, v_before_at from public.game_scans s
+     where s.world_id = w and s.status = 'done' and s.taken_at <= v_latest_at - interval '6 days'
+       and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+     order by s.taken_at desc, s.id desc limit 1;
+    if v_before is null then
+      select s.id, s.taken_at into v_before, v_before_at from public.game_scans s
+       where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of and s.id <> v_latest
+         and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+       order by s.taken_at, s.id limit 1;
+    end if;
+    select s.id, s.taken_at into v_prev, v_prev_at from public.game_scans s
+     where s.world_id = w and s.status = 'done' and (s.taken_at < v_latest_at or (s.taken_at = v_latest_at and s.id < v_latest))
+       and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+     order by s.taken_at desc, s.id desc limit 1;
+  end if;
+
+  -- the city pairs on the airline's list (its routes not removed, flown or not, either direction)
+  select array_agg(distinct least(r.hub_code, r.dest_code) || '-' || greatest(r.hub_code, r.dest_code)) into v_pairs
+    from public.routes r where r.airline_id = p_airline_id and r.world_id = w and not r.removed;
+  v_ids := array_remove(array[v_latest, v_before], null);
+
+  -- the group line: our airlines' departures a week against the world's, from the scans' totals
+  if v_latest is not null then
+    select jsonb_build_object(
+             'ours', n.ours, 'world', n.world, 'share', round(100.0 * n.ours / nullif(n.world, 0), 1),
+             'ours_before', o.ours, 'world_before', o.world, 'share_before', round(100.0 * o.ours / nullif(o.world, 0), 1),
+             'ours_change', n.ours - o.ours, 'world_change', n.world - o.world,
+             'share_change', round(100.0 * n.ours / nullif(n.world, 0), 1) - round(100.0 * o.ours / nullif(o.world, 0), 1))
+      into v_group
+      from (select coalesce(sum(x.n_weekly) filter (where g.kind = 'ours'), 0)::int as ours, coalesce(sum(x.n_weekly), 0)::int as world
+              from public.game_scan_airlines x left join public.airlines ra on ra.id = x.airline_id left join public.groups g on g.id = ra.group_id
+             where x.scan_id = v_latest) n
+      left join lateral (select coalesce(sum(x.n_weekly) filter (where g.kind = 'ours'), 0)::int as ours, coalesce(sum(x.n_weekly), 0)::int as world
+                           from public.game_scan_airlines x left join public.airlines ra on ra.id = x.airline_id left join public.groups g on g.id = ra.group_id
+                          where x.scan_id = v_before) o on v_before is not null;
+  end if;
+
+  -- the threats (1b): the shared function the fare ladder's rival pause reads too
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'rival_id', t.rival_id, 'rival', t.rival, 'pair', t.a || '-' || t.b,
+           'route', coalesce(rc.hub, t.a) || '–' || coalesce(rc.dest, t.b), 'hub', coalesce(rc.hub, t.a), 'dest', coalesce(rc.dest, t.b),
+           'kind', t.kind, 'then', t.then_weekly, 'added', t.added_weekly, 'now', t.now_weekly, 'ours', t.ours_weekly,
+           'scan_id', t.scan_id, 'on', private.fig_ts(t.scan_at), 'previous_id', t.previous_id, 'previous_on', private.fig_ts(t.previous_at),
+           'until', private.fig_ts(t.until), 'latest', t.scan_id = v_latest,
+           'words', format('%s %s on %s, %s a week', t.rival, t.kind, coalesce(rc.hub, t.a) || '–' || coalesce(rc.dest, t.b),
+                           case when t.kind = 'started' then t.added_weekly::text else t.then_weekly || ' → ' || (t.then_weekly + t.added_weekly) end))
+           order by t.scan_at desc, t.now_weekly desc, t.rival, t.a, t.b), '[]'::jsonb)
+    into v_threats
+    from private.competition_threats(p_airline_id, p_as_of) t
+    -- the route the airline flies the pair as (from the main hub first)
+    left join (select distinct on (least(f.hub_code, f.dest_code), greatest(f.hub_code, f.dest_code))
+                      least(f.hub_code, f.dest_code) as a, greatest(f.hub_code, f.dest_code) as b, f.hub_code as hub, f.dest_code as dest
+                 from private.fig_freqs(w, p_airline_id) f where f.live
+                order by least(f.hub_code, f.dest_code), greatest(f.hub_code, f.dest_code), (f.hub_code = v_main) desc, f.route_id) rc
+      on rc.a = t.a and rc.b = t.b;
+
+  with
+  ro as (select r.id, r.hub_code as hub, r.dest_code as dest, least(r.hub_code, r.dest_code) as a, greatest(r.hub_code, r.dest_code) as b,
+                coalesce(r.city_override, r.city) as city, coalesce(r.stars_override, r.stars)::int as stars,
+                coalesce(r.distance_override_km, r.distance_km) as dist,
+                case when r.market_cleared then null else coalesce(r.market_override_id, r.market_id) end as market_id
+           from public.routes r where r.airline_id = p_airline_id and r.world_id = w and not r.removed),
+  fq as materialized (select * from private.fig_freqs(w) f where f.live),
+  -- this airline's departures a week on each pair (its live legs), and the pairs any airline of ours flies
+  mine as (select least(f.hub_code, f.dest_code) as a, greatest(f.hub_code, f.dest_code) as b, sum(f.flights_week)::int as weekly
+             from fq f where f.airline_id = p_airline_id group by 1, 2),
+  ourall as (select distinct least(f.hub_code, f.dest_code) as a, greatest(f.hub_code, f.dest_code) as b from fq f),
+  -- the latest and week-before scans' flights on the airline's pairs, by direction
+  ex as materialized (
+    select x.scan_id, x.airline_id, x.origin, x.dest, least(x.origin, x.dest) as a, greatest(x.origin, x.dest) as b, x.weekly,
+           coalesce(g.kind, 'rival') <> 'ours' as rival, coalesce(ra.public_name, ra.game_name, ra.planner_name, 'airline ' || x.airline_id) as name
+      from private.scan_pair_flights(v_ids, coalesce(v_pairs, '{}'::text[])) x
+      join public.airlines ra on ra.id = x.airline_id
+      left join public.groups g on g.id = ra.group_id),
+  -- each rival's departures a week on each pair, both ways
+  rv as (select ex.scan_id, ex.airline_id, ex.name, ex.a, ex.b, sum(ex.weekly)::int as weekly from ex where ex.rival group by 1, 2, 3, 4, 5),
+  me_then as (select ex.a, ex.b, sum(ex.weekly)::int as weekly from ex where ex.scan_id = v_before and ex.airline_id = p_airline_id group by 1, 2),
+
+  -- ---------- 1a. market share, by the airline's markets
+  mp as (select distinct ro.market_id, ro.a, ro.b from ro),
+  mk as (select mp.market_id, count(*)::int as pairs, (count(*) filter (where m.a is not null))::int as flown,
+                coalesce(sum(m.weekly), 0)::int as ours, case when v_before is not null then coalesce(sum(t.weekly), 0)::int end as ours_before
+           from mp left join mine m on m.a = mp.a and m.b = mp.b left join me_then t on t.a = mp.a and t.b = mp.b
+          group by mp.market_id),
+  mr as (select mp.market_id, rv.airline_id, rv.name,
+                coalesce(sum(rv.weekly) filter (where rv.scan_id = v_latest), 0)::int as weekly,
+                case when v_before is not null then coalesce(sum(rv.weekly) filter (where rv.scan_id = v_before), 0)::int end as weekly_before
+           from mp join rv on rv.a = mp.a and rv.b = mp.b group by 1, 2, 3),
+  mt as (select mr.market_id, sum(mr.weekly)::int as rivals, sum(mr.weekly_before)::int as rivals_before from mr group by 1),
+  ms as (select mk.*, coalesce(mt.rivals, 0) as rivals, case when v_before is not null then coalesce(mt.rivals_before, 0) end as rivals_before,
+                mkt.name as market
+           from mk left join mt on mt.market_id is not distinct from mk.market_id
+           left join public.markets mkt on mkt.id = mk.market_id),
+  markets as (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'market_id', ms.market_id, 'name', coalesce(ms.market, 'No market'), 'pairs', ms.pairs, 'flown', ms.flown,
+             'ours', ms.ours, 'ours_before', ms.ours_before, 'ours_change', ms.ours - ms.ours_before,
+             'rivals', ms.rivals, 'rivals_before', ms.rivals_before, 'rivals_change', ms.rivals - ms.rivals_before,
+             'total', ms.ours + ms.rivals,
+             'share', case when v_latest is not null then round(100.0 * ms.ours / nullif(ms.ours + ms.rivals, 0), 1) end,
+             'share_before', round(100.0 * ms.ours_before / nullif(ms.ours_before + ms.rivals_before, 0), 1),
+             'share_change', case when v_latest is not null then round(100.0 * ms.ours / nullif(ms.ours + ms.rivals, 0), 1) end
+                             - round(100.0 * ms.ours_before / nullif(ms.ours_before + ms.rivals_before, 0), 1),
+             'top', (select coalesce(jsonb_agg(jsonb_build_object(
+                              'airline_id', t.airline_id, 'name', t.name, 'weekly', t.weekly, 'weekly_before', t.weekly_before,
+                              'change', t.weekly - t.weekly_before, 'share', round(100.0 * t.weekly / nullif(ms.ours + ms.rivals, 0), 1))
+                              order by t.weekly desc, t.name), '[]'::jsonb)
+                       from (select mr.* from mr where mr.market_id is not distinct from ms.market_id and mr.weekly > 0
+                              order by mr.weekly desc, mr.name limit 5) t))
+             order by ms.ours + ms.rivals desc, ms.market nulls last, ms.market_id), '[]'::jsonb) as d
+      from ms),
+
+  -- ---------- 1c. openings: pairs on the list no airline of ours flies, one route each (from the main hub first)
+  op0 as (select distinct on (ro.a, ro.b) ro.*,
+                 exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) as at_base
+            from ro
+           where not exists (select 1 from ourall o where o.a = ro.a and o.b = ro.b)
+           order by ro.a, ro.b, (ro.hub = v_main) desc,
+                    exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) desc, ro.id),
+  orv as (select rv.a, rv.b, sum(rv.weekly)::int as weekly,
+                 jsonb_agg(jsonb_build_object('airline_id', rv.airline_id, 'name', rv.name, 'weekly', rv.weekly) order by rv.weekly desc, rv.name) as rivals
+            from rv where rv.scan_id = v_latest group by 1, 2),
+  -- the types the airline may buy, by size from their seats (manual §3's table): small (the E-jets, up to 150 seats),
+  -- mid (the A320neo, up to 200), large (the A321s, up to 300), wide (the A350s)
+  ty as (select t.id, t.name, t.seats_max, t.range_km, t.price,
+                case when t.seats_max <= 150 then 1 when t.seats_max <= 200 then 2 when t.seats_max <= 300 then 3 else 4 end as size
+           from public.aircraft_types t
+           join public.airline_aircraft_types x on x.aircraft_type_id = t.id and x.airline_id = p_airline_id
+          where t.world_id = w and t.seats_max > 0 and t.price > 0),
+  op1 as (select op0.*, coalesce(orv.weekly, 0) as rivals_weekly, coalesce(orv.rivals, '[]'::jsonb) as rivals,
+                 -- the stars' size band (manual §3): 1–2 stars small; 3 small or mid; 4 small, mid or large; 5 mid or large
+                 case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end as band_lo,
+                 case when coalesce(op0.stars, 0) <= 2 then 1 when op0.stars = 3 then 2 else 3 end as band_hi,
+                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size
+            from op0
+            left join orv on orv.a = op0.a and orv.b = op0.b
+            -- the variant (the default line): the smallest size in the band, else bigger for reach, whose range covers the
+            -- distance, the cheapest per seat; beyond every narrowbody, the wide-body line
+            left join lateral (
+              select t.* from ty t
+               where (t.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3 and t.range_km >= coalesce(op0.dist, 0))
+                  or (t.size = 4 and not exists (select 1 from ty n where n.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3
+                                                                       and n.range_km >= coalesce(op0.dist, 0)))
+               order by t.size, case when t.size = 4 and coalesce(op0.dist, 0) > v_wide_km then -t.seats_max else 0 end,
+                        t.price / t.seats_max, t.name
+               limit 1) v on true),
+  -- hubs first (manual §3), from the latest scan: the busiest rival at a base, and each rival's departures a week from
+  -- the base to the destination
+  bt as (select x.airport_code, max(x.weekly_departures)::int as weekly from public.scan_airline_airports x
+            join public.airlines ra on ra.id = x.airline_id left join public.groups g on g.id = ra.group_id
+           where x.scan_id = v_latest and coalesce(g.kind, 'rival') <> 'ours'
+             and x.airport_code in (select b.airport_code from public.airline_bases b where b.airline_id = p_airline_id)
+           group by 1),
+  rt as (select ex.origin, ex.dest, max(ex.weekly)::int as weekly from ex where ex.scan_id = v_latest and ex.rival group by 1, 2),
+  op2 as (select op1.*, bt.weekly as base_top, rt.weekly as route_top
+            from op1 left join bt on bt.airport_code = op1.hub left join rt on rt.origin = op1.hub and rt.dest = op1.dest
+           where op1.type_id is not null),
+  op3 as (select op2.*,
+                 case when v_exempt then 'exempt' when v_main is null then 'no main hub' when op2.hub = v_main then 'main hub'
+                      when v_dep >= v_target then 'main hub at its target'
+                      when not op2.at_base then null
+                      when coalesce(op2.base_top, 0) > v_rival_weekly then 'contested base'
+                      when coalesce(op2.route_top, 0) > 7 * v_rival_daily then 'contested route' end as allowed_by
+            from op2),
+  op4 as (select op3.*, op3.allowed_by is not null as allowed,
+                 case when op3.allowed_by is not null then null
+                      when not op3.at_base then format('hubs first: %s isn''t one of its bases', op3.hub)
+                      when v_latest is null then format('hubs first: %s at %s of %s departures a week, and no world scan to show %s contested',
+                                                        v_main, v_dep, trim_scale(v_target), op3.hub)
+                      else format('hubs first: %s at %s of %s departures a week, and %s isn''t contested (busiest rival there %s a week, over %s needed; none over %s a day on %s–%s)',
+                                  v_main, v_dep, trim_scale(v_target), op3.hub, coalesce(op3.base_top, 0), trim_scale(v_rival_weekly),
+                                  trim_scale(v_rival_daily), op3.hub, op3.dest) end as reason,
+                 row_number() over (order by op3.allowed_by is not null desc, op3.stars desc nulls last, op3.rivals_weekly desc,
+                                             op3.dist nulls last, op3.hub || '–' || op3.dest) as rank
+            from op3),
+  openings as (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'rank', o.rank, 'route_id', o.id, 'route', o.hub || '–' || o.dest, 'hub', o.hub, 'dest', o.dest, 'pair', o.a || '-' || o.b,
+             'city', o.city, 'stars', o.stars, 'distance_km', o.dist, 'market_id', o.market_id,
+             'rivals_weekly', o.rivals_weekly, 'rivals', o.rivals,
+             'variant', jsonb_build_object('type_id', o.type_id, 'type', o.type, 'seats', o.seats, 'range_km', o.range_km,
+                                           'size', (array['small', 'mid', 'large', 'wide'])[o.size], 'for_reach', o.size > o.band_hi),
+             'allowed', o.allowed, 'allowed_by', o.allowed_by, 'reason', o.reason)
+             order by o.rank) filter (where o.rank <= v_limit), '[]'::jsonb) as d,
+           count(*)::int as n, (count(*) filter (where o.allowed))::int as n_allowed
+      from op4 o),
+  left_out as (select count(*)::int as n from op1 where op1.type_id is null),
+
+  -- ---------- 1d. rival profiles: the rivals who fly most of the airline's city pairs (latest scan)
+  shared as (select rv.airline_id, rv.name, rv.a, rv.b, rv.weekly, m.weekly as ours from rv join mine m on m.a = rv.a and m.b = rv.b
+              where rv.scan_id = v_latest),
+  pf as (select s.airline_id, s.name, count(*)::int as pairs, sum(s.weekly)::int as weekly_on_pairs from shared s
+          group by 1, 2 order by count(*) desc, sum(s.weekly) desc, s.name limit 10),
+  profiles as (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'airline_id', pf.airline_id, 'name', pf.name, 'pairs_shared', pf.pairs, 'weekly_on_pairs', pf.weekly_on_pairs,
+             'weekly', n.n_weekly, 'weekly_before', o.n_weekly, 'change', n.n_weekly - o.n_weekly, 'airports', n.n_airports,
+             'pairs', (select jsonb_agg(jsonb_build_object('pair', s.a || '-' || s.b,
+                                                           'route', coalesce(rc.hub, s.a) || '–' || coalesce(rc.dest, s.b),
+                                                           'weekly', s.weekly, 'ours', s.ours) order by s.weekly desc, s.a, s.b)
+                         from shared s
+                         left join lateral (select ro.hub, ro.dest from ro where ro.a = s.a and ro.b = s.b
+                                             order by (ro.hub = v_main) desc, ro.id limit 1) rc on true
+                        where s.airline_id = pf.airline_id),
+             'biggest_airports', (select coalesce(jsonb_agg(jsonb_build_object('code', x.airport_code, 'weekly', x.weekly_departures)
+                                                            order by x.weekly_departures desc, x.airport_code), '[]'::jsonb)
+                                    from (select * from public.scan_airline_airports x where x.scan_id = v_latest and x.airline_id = pf.airline_id
+                                           order by x.weekly_departures desc, x.airport_code limit 3) x))
+             order by pf.pairs desc, pf.weekly_on_pairs desc, pf.name), '[]'::jsonb) as d
+      from pf
+      left join public.game_scan_airlines n on n.scan_id = v_latest and n.airline_id = pf.airline_id
+      left join public.game_scan_airlines o on o.scan_id = v_before and o.airline_id = pf.airline_id)
+  select jsonb_build_object(
+           'markets', (select d from markets), 'openings', (select d from openings),
+           'openings_count', (select n from openings), 'openings_allowed', (select n_allowed from openings),
+           'openings_left_out', (select n from left_out), 'profiles', (select d from profiles),
+           'pairs_flown', (select count(*) from mine), 'pairs_listed', (select count(distinct (ro.a, ro.b)) from ro))
+    into v_body;
+
+  return jsonb_build_object(
+    'airline_id', p_airline_id, 'code', v_code, 'name', v_name, 'as_of', private.fig_ts(p_as_of), 'limit', v_limit,
+    'scans', jsonb_build_object(
+      'latest', case when v_latest is null then null else jsonb_build_object('id', v_latest, 'taken_at', private.fig_ts(v_latest_at)) end,
+      'week_before', case when v_before is null then null else jsonb_build_object('id', v_before, 'taken_at', private.fig_ts(v_before_at)) end,
+      'previous', case when v_prev is null then null else jsonb_build_object('id', v_prev, 'taken_at', private.fig_ts(v_prev_at)) end),
+    'settings', jsonb_build_object('threat_min_weekly', v_min, 'hub_first_departures', v_target, 'contested_rival_weekly', v_rival_weekly,
+                                   'contested_rival_daily', v_rival_daily, 'hub_first_exempt', v_exempt, 'wide_full_cabin_km', v_wide_km),
+    'hubs_first', jsonb_build_object('main_hub', v_main, 'departures', v_dep, 'target', v_target, 'exempt', v_exempt,
+                                     'open', v_exempt or v_main is null or v_dep >= v_target),
+    'group', v_group,
+    'markets', v_body -> 'markets',
+    'threats', v_threats,
+    'openings', v_body -> 'openings', 'openings_count', v_body -> 'openings_count', 'openings_allowed', v_body -> 'openings_allowed',
+    'openings_left_out', v_body -> 'openings_left_out',
+    'profiles', v_body -> 'profiles',
+    'pairs_flown', v_body -> 'pairs_flown', 'pairs_listed', v_body -> 'pairs_listed',
+    'notes', jsonb_build_array(
+      'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them. Our own now are the airline''s live legs; before, its flights in the week-before scan.',
+      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats.'));
+end
+$function$
+
+;
+
 -- private.fig_day_captured(p_world_id bigint, p_day date, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.fig_day_captured(p_world_id bigint, p_day date, p_as_of timestamp with time zone)
  RETURNS boolean
@@ -3089,6 +3460,11 @@ begin
             select least(l.origin_code, l.dest_code), greatest(l.origin_code, l.dest_code)
               from public.flight_legs l where l.world_id = w and l.airline_id <> p_airline_id),
   contested as (select p.a, p.b from pairs p where exists (select 1 from other o where o.a = p.a and o.b = p.b)),
+  -- a rival that started on the pair, or added competition_threat_min_weekly departures a week, in a scan of the last 7
+  -- days pauses the route (manual §5, since 21 Oct): the threats as competition() lists them (1b), the one paused longest
+  thr as (select distinct on (t.a, t.b) t.a, t.b, t.rival, t.kind, t.added_weekly, t.scan_at, t.until
+            from private.competition_threats(p_airline_id, p_as_of) t
+           order by t.a, t.b, t.until desc, t.now_weekly desc, t.rival),
   -- the routes and cabins on the ladder: each flying route in economy, and in business where its aircraft have business
   -- seats; any with flights captured in the 7 days or a move recorded this week
   rc as (select distinct x.route_id, x.cabin
@@ -3103,8 +3479,10 @@ begin
                 coalesce(pv.level_pct, v_launch) as level, pv.id is not null as recorded,
                 wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
                 coalesce(se.applied, false) as applied, se.seen_on, dn.down_on, ag.first_day, ad.last_day,
-                exists (select 1 from contested c where c.a = least(ro.hub_code, ro.dest_code) and c.b = greatest(ro.hub_code, ro.dest_code)) as contested
+                exists (select 1 from contested c where c.a = least(ro.hub_code, ro.dest_code) and c.b = greatest(ro.hub_code, ro.dest_code)) as contested,
+                th.rival as rv_name, th.kind as rv_kind, th.added_weekly as rv_added, th.scan_at as rv_on, th.until as rv_until
            from rc join ro on ro.id = rc.route_id
+           left join thr th on th.a = least(ro.hub_code, ro.dest_code) and th.b = greatest(ro.hub_code, ro.dest_code)
            left join st on st.route_id = rc.route_id and st.cabin = rc.cabin
            left join latest lt on lt.route_id = rc.route_id and lt.cabin = rc.cabin
            left join bs on bs.route_id = rc.route_id and bs.cabin = rc.cabin
@@ -3131,6 +3509,7 @@ begin
                      when mv.n < v_min then 'few'
                      when mv.held then 'held'
                      when mv.added then 'added'
+                     when mv.rv_name is not null then 'rival'
                      when mv.share >= v_up then case when mv.level >= mv.cap_pct then 'capped' else 'up' end
                      when mv.share >= v_down then 'hold'
                      when mv.level <= mv.floor_pct then 'floor'
@@ -3154,6 +3533,9 @@ begin
                    when 'held' then format('held after a step down on %s', to_char(fin.down_on, 'FMDD Mon'))
                    when 'added' then format('a flight added on %s: judged at its new size from %s', to_char(fin.last_day, 'FMDD Mon'),
                                             to_char(fin.last_day + v_added_days::int, 'FMDD Mon'))
+                   when 'rival' then format('rival %s %s here on %s: paused until %s', fin.rv_name,
+                                            case when fin.rv_kind = 'started' then 'started' else format('added %s a week', fin.rv_added) end,
+                                            to_char(fin.rv_on at time zone 'UTC', 'FMDD Mon'), to_char(fin.rv_until at time zone 'UTC', 'FMDD Mon'))
                    when 'up' then format('sold out %s of %s', fin.sold, fin.n)
                                   || case when fin.level + v_step >= fin.cap_pct then format(', up to the %s%% cap', trim_scale(fin.cap_pct)) else '' end
                    when 'capped' then format('sold out %s of %s, capped at %s%%', fin.sold, fin.n, trim_scale(fin.cap_pct))
@@ -3252,7 +3634,6 @@ begin
     'off_level', (select count(distinct e ->> 'route_id') from jsonb_array_elements(v_rows) e where (e ->> 'fix')::boolean),
     'routes', v_rows, 'actions', v_actions,
     'notes', jsonb_build_array(
-      'A rival starting on a pair pauses that route for a week (manual §5): that needs this week''s scan set against last week''s (step 4), so for now the figure pauses nothing and the Saturday review checks the scan by hand.',
       'The fare index compares each flight of the latest captured day with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level. A route more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, new, or not captured since its newest flight launched.'));
 end
 $function$
@@ -5422,6 +5803,27 @@ AS $function$
      and s.taken_at > p_as_of - interval '1 hour' and s.taken_at <= p_as_of
    order by s.taken_at desc, s.id desc
    limit 1
+$function$
+
+;
+
+-- private.scan_pair_flights(p_scan_ids bigint[], p_pairs text[])
+CREATE OR REPLACE FUNCTION private.scan_pair_flights(p_scan_ids bigint[], p_pairs text[])
+ RETURNS TABLE(scan_id bigint, airline_id bigint, origin text, dest text, weekly integer)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  -- each airline's departures a week from origin to dest in each scan, on the city pairs asked for (either direction,
+  -- 'AAA-BBB' with the codes in order); each flight's days counted as gscan.py counts n_weekly
+  select sc.scan_id, sc.airline_id, f ->> 2, f ->> 3,
+         sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')))::int
+    from public.game_scan_schedules sc
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
+   where sc.scan_id = any (p_scan_ids) and jsonb_typeof(f) = 'array'
+     and least(f ->> 2, f ->> 3) || '-' || greatest(f ->> 2, f ->> 3) in (select unnest(p_pairs))
+   group by sc.scan_id, sc.airline_id, f ->> 2, f ->> 3
+  having sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g'))) > 0
 $function$
 
 ;

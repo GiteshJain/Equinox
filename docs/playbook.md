@@ -160,6 +160,7 @@ button.
 | **Routes** | Every route by airline: stars, market, distance, load, round trips. Open a route to see or edit its frequencies, with every check (night bans, banks, turns, position, second-daily gap, connections at both ends) | When planning or retiming |
 | **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards, the service check and the cabin the rule calls for (**Use the suggestion**). Filing happens here | When an aircraft arrives; when something needs a look |
 | **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, raise fares, fix or reduce, losing after lease), **Main hubs towards 750**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, the fare plan | Before every order; on Saturdays |
+| **Competition** | Who we're up against and where to open next (since 21 Oct). The scans' dates and the group line on top; for each airline its **Market share** by market (our share, its arrow, the top rivals as a bar), **Threats** (rivals who started on or grew on our pairs), **Openings** ranked (stars, rivals, distance; variant and hubs first) and **Rival profiles** | Each evening before an order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and the rules | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
 | **Reference** | The rule numbers (settings), aircraft types and cabins, order cabins, markets and their layouts, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together |
@@ -248,6 +249,10 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   family, E-jet and A350; Ryanair the first two) and its cash forecast, and proposes the aircraft that can be ordered
   and the routes for each: route first, then the airline, the variant that seats the market and reaches the city, and
   its cabin. Where cash allows more than one option, the route we most want to fly decides.
+- **The routes come from the top of the openings** (since 21 Oct): each airline's pairs that no airline of ours flies,
+  ranked by stars, then the rivals' departures a week, then the shorter distance, each with its variant from the default
+  line and whether hubs first allows it (manual §3). The airline briefing carries the top 20 and the latest threats;
+  `select public.competition(<airline id>);` gives the rest, and the planner's **Competition** screen shows them.
 - **You order in the game** and tell the Scheduling chat. Claude logs it and writes the **plan card** with those routes
   and that cabin (Tails → Deliveries → **card**), following the rules in step 4.
 - The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC), and on
@@ -346,8 +351,12 @@ first.
      asks once, then makes every planned change and every set-back for every airline (**Ticket price adjustment**,
      baseline **default price**, route by route, each direction on its own), one every 2 seconds. It stops at the first problem and says which change and why; what's done stays done, and pressing
      it again makes only what the captures haven't seen yet (a change made twice does no harm). The next capture ticks
-     the changes off on the fare plan. A rival starting on a pair isn't paused by the planner yet (step 4): check the
-     scan by hand. Fare moves are only ever reviewed here, never as Needs attention.
+     the changes off on the fare plan. A route a rival started on, or added a daily flight or more to, in the last 7
+     days holds on its own ("rival Air China started here on 22 Oct: paused until 29 Oct"). Fare moves are only ever
+     reviewed here, never as Needs attention.
+   - **Competition** (since 21 Oct): each airline's market share against last week's scan, the threats of the week
+     (Today listed each evening's), and the top openings the evening proposals are working down (Competition → the
+     airline). The weekly report's competition by market reads the same scans.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
      under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
