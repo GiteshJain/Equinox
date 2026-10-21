@@ -72,14 +72,15 @@ export const n0 = (v: number | null | undefined): string => (v == null ? "—" :
 export const pctWords = (v: number | null | undefined): string => (v == null ? "—" : `${Number(v).toFixed(1)}%`);
 
 export type Arrow = "up" | "down" | "flat";
-/** A change with its arrow: points for a share ("▲ 0.2 pts"), a count otherwise ("▲ 14"); none without a comparison. */
+/** A change with its arrow: points for a share ("▲ 0.2 pts", "= no change"), a count otherwise ("▲ 14", "="); none
+ *  without a comparison. */
 export function changeWords(change: number | null | undefined, points = false): { arrow: Arrow; text: string } | null {
   if (change == null) return null;
   const v = Number(change);
   const arrow: Arrow = v > 0 ? "up" : v < 0 ? "down" : "flat";
   const mark = arrow === "up" ? "▲" : arrow === "down" ? "▼" : "=";
   const size = points ? `${Math.abs(v).toFixed(1)} pts` : n0(Math.abs(v));
-  return { arrow, text: arrow === "flat" ? (points ? "= no change" : "= no change") : `${mark} ${size}` };
+  return { arrow, text: arrow === "flat" ? (points ? "= no change" : "=") : `${mark} ${size}` };
 }
 
 /** The group line: "Our airlines: 4,016 of 97,960 departures a week, 4.1% of the world". */
@@ -114,9 +115,9 @@ export function overallShare(markets: readonly Market[]): { ours: number; total:
   return { ours, total, share, before, change: share != null && before != null ? Math.round((share - before) * 10) / 10 : null };
 }
 
-/** A threat's numbers: "0 → 14 a week · ours 14". */
+/** A threat's own numbers beside its words (which say the rival's then and now): "ours 14 a week". */
 export function threatNumbers(t: Threat): string {
-  return `${t.then} → ${t.now} a week · ours ${t.ours}`;
+  return `ours ${t.ours} a week`;
 }
 
 /** A threat's day and how long it pauses the route on the fare ladder: "17 Oct · fares paused until 24 Oct". */

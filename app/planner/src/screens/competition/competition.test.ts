@@ -52,7 +52,8 @@ describe("the scans and the group line", () => {
     expect(changeWords(0.2, true)).toEqual({ arrow: "up", text: "▲ 0.2 pts" });
     expect(changeWords(-1.94, true)).toEqual({ arrow: "down", text: "▼ 1.9 pts" });
     expect(changeWords(1540)).toEqual({ arrow: "up", text: "▲ 1,540" });
-    expect(changeWords(0)?.arrow).toBe("flat");
+    expect(changeWords(0)).toEqual({ arrow: "flat", text: "=" });
+    expect(changeWords(0, true)).toEqual({ arrow: "flat", text: "= no change" });
     expect(changeWords(null)).toBeNull();
   });
 });
@@ -76,7 +77,7 @@ describe("market share", () => {
 
 describe("threats, openings and profiles", () => {
   it("a threat's numbers and day, and the fare pause until", () => {
-    expect(threatNumbers(threat())).toBe("0 → 14 a week · ours 21");
+    expect(threatNumbers(threat())).toBe("ours 21 a week");
     expect(threatWhen(threat())).toBe("17 Oct · fares paused until 24 Oct");
     expect(threatsLine(0)).toBe("no threats in the last 7 days");
     expect(threatsLine(2)).toBe("2 threats in the last 7 days");

@@ -31,7 +31,9 @@
 --      out beyond every type's reach (C2). Hubs first open once the main hub is at its target.
 --   6. Rival profiles: by pairs shared, then their departures on them; each one's size, change, airports and biggest airports.
 --   7. One scan, and none: no comparison, no threats, nothing contested; signed out and an account that isn't staff are
---      refused; staff get what postgres gets. On the copy: the counts and how long it takes for each of our airlines.
+--      refused; staff get what postgres gets.
+--   On the copy (section 2, before the hand-made world so the rehearsal prints it): each airline's counts and how long it
+--   takes (under the 8 s staff limit), the group's share, the top 5 openings and the latest scan's threats.
 
 create temporary table t_cp (k text primary key, v jsonb) on commit drop;
 grant select, insert, update on t_cp to authenticated, anon;
@@ -57,6 +59,46 @@ begin
     assert length(coalesce(obj_description(g::regprocedure, 'pg_proc'), '')) > 60, g || ' has no description';
   end loop;
   raise notice 'competition_threat_min_weekly 7 in each of the % world(s), described; competition(): signed in only, stable, as owner with an empty search path, described; its three builders internal', n_worlds;
+end
+$test$;
+
+-- ---------------------------------------------------------------- 2. the copy (counts and codes only)
+-- Each of our airlines' answer now, and how long it took (signed in, staff have 8 s); the pull request's numbers (spec
+-- §Checks): the group's share, each airline's top 5 openings, and the threats the latest scan showed against the one before
+-- it (read an hour after the latest scan, so they're in their 7 days whenever this runs). Three notices, first after the
+-- setting's, since the rehearsal prints a passing test's first six.
+do $test$
+declare r record; d jsonb; t0 timestamptz; ms int; worst int := 0; w bigint := (select id from public.worlds where is_default);
+  v_scan timestamptz := (select max(s.taken_at) from public.game_scans s where s.world_id = (select id from public.worlds where is_default) and s.status = 'done');
+  first_doc jsonb; th jsonb; counts text[] := '{}'; tops text[] := '{}'; threats text[] := '{}';
+begin
+  for r in select al.airline_id, al.iata_code from private.fig_airlines(w) al order by al.ord loop
+    t0 := clock_timestamp();
+    d := private.fig_competition(r.airline_id, now());
+    ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
+    worst := greatest(worst, ms);
+    first_doc := coalesce(first_doc, d);
+    counts := counts || format('%s %s markets, %s threats, %s openings (%s allowed, %s left out), %s profiles, %s ms', r.iata_code,
+      jsonb_array_length(d -> 'markets'), jsonb_array_length(d -> 'threats'), d ->> 'openings_count', d ->> 'openings_allowed',
+      d ->> 'openings_left_out', jsonb_array_length(d -> 'profiles'), ms);
+    tops := tops || format('%s: %s', r.iata_code, coalesce((select string_agg(format('%s. %s %s* %s km %s/wk %s%s', o ->> 'rank', o ->> 'route', o ->> 'stars',
+        o ->> 'distance_km', o ->> 'rivals_weekly', o #>> '{variant,type}', case when (o ->> 'allowed')::boolean then '' else ' (not yet)' end), ', ' order by (o ->> 'rank')::int)
+      from jsonb_array_elements(d -> 'openings') o where (o ->> 'rank')::int <= 5), 'none'));
+    if v_scan is not null then
+      th := private.fig_competition(r.airline_id, v_scan + interval '1 hour', 0) -> 'threats';
+      threats := threats || format('%s %s%s', r.iata_code, jsonb_array_length(th),
+        coalesce(' (' || (select string_agg(t ->> 'words', '; ' order by i) from jsonb_array_elements(th) with ordinality e(t, i) where i <= 8)
+                 || case when jsonb_array_length(th) > 8 then format('; +%s more', jsonb_array_length(th) - 8) else '' end || ')', ''));
+    end if;
+  end loop;
+  assert worst < 8000, format('competition() took %s ms for one airline on the copy: over the 8 s staff limit', worst);
+  raise notice '%', format('on the copy: the scans %s against %s; our airlines %s of %s departures a week, %s%% (then %s of %s, %s%%); %s; the slowest %s ms (staff limit 8 s)',
+    coalesce(left(first_doc #>> '{scans,latest,taken_at}', 10), 'none'), coalesce(left(first_doc #>> '{scans,week_before,taken_at}', 10), 'none'),
+    first_doc #>> '{group,ours}', first_doc #>> '{group,world}', first_doc #>> '{group,share}',
+    first_doc #>> '{group,ours_before}', first_doc #>> '{group,world_before}', first_doc #>> '{group,share_before}', array_to_string(counts, '; '), worst);
+  raise notice '%', 'on the copy, the top 5 openings: ' || array_to_string(tops, ' | ');
+  raise notice '%', format('on the copy, the threats with the latest scan (%s, against the one before): %s', coalesce(left(v_scan::text, 10), 'none'),
+    coalesce(nullif(array_to_string(threats, ' | '), ''), 'none'));
 end
 $test$;
 
@@ -380,41 +422,3 @@ begin
 end
 $test$;
 reset role;
-
--- the copy: each of our airlines' answer now, in counts, and how long it took (as staff signed in: the 8 s limit); then
--- the pull request's numbers (spec §Checks): the group's share, each airline's top 5 openings, and the threats the latest
--- scan showed against the one before it (read an hour after the latest scan, so they're in their 7 days whenever this runs)
-do $test$
-declare r record; d jsonb; t0 timestamptz; ms int; worst int := 0; w bigint := (select id from public.worlds where is_default);
-  v_scan timestamptz := (select max(s.taken_at) from public.game_scans s where s.world_id = (select id from public.worlds where is_default) and s.status = 'done');
-  first_doc jsonb; th jsonb;
-begin
-  for r in select al.airline_id, al.iata_code from private.fig_airlines(w) al order by al.ord loop
-    t0 := clock_timestamp();
-    d := private.fig_competition(r.airline_id, now());
-    ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
-    worst := greatest(worst, ms);
-    first_doc := coalesce(first_doc, d);
-    raise notice 'on the copy, %: % markets, % threats, % openings (% allowed, % left out), % profiles, latest scan %, in % ms', r.iata_code,
-      jsonb_array_length(d -> 'markets'), jsonb_array_length(d -> 'threats'), d ->> 'openings_count', d ->> 'openings_allowed',
-      d ->> 'openings_left_out', jsonb_array_length(d -> 'profiles'), coalesce(left(d #>> '{scans,latest,taken_at}', 10), 'none'), ms;
-    raise notice '  % top openings: %', r.iata_code, coalesce((select string_agg(format('%s. %s %s* %s km, rivals %s a week, %s%s', o ->> 'rank', o ->> 'route', o ->> 'stars',
-        o ->> 'distance_km', o ->> 'rivals_weekly', o #>> '{variant,type}', case when (o ->> 'allowed')::boolean then '' else ' (not yet: hubs first)' end), '; ' order by (o ->> 'rank')::int)
-      from jsonb_array_elements(d -> 'openings') o where (o ->> 'rank')::int <= 5), 'none');
-    if v_scan is not null then
-      th := private.fig_competition(r.airline_id, v_scan + interval '1 hour', 0) -> 'threats';
-      raise notice '  % threats with the latest scan (%): % — %', r.iata_code, left(v_scan::text, 10), jsonb_array_length(th),
-        coalesce((select string_agg(t ->> 'words', '; ' order by i) from jsonb_array_elements(th) with ordinality e(t, i) where i <= 12), 'none')
-        || case when jsonb_array_length(th) > 12 then format(' (+%s more)', jsonb_array_length(th) - 12) else '' end;
-    end if;
-  end loop;
-  if first_doc is not null then
-    raise notice '%', format('on the copy, the group with the scan of %s (week before %s): our airlines %s of %s departures a week, %s%% (then %s of %s, %s%%)',
-      left(first_doc #>> '{scans,latest,taken_at}', 10), coalesce(left(first_doc #>> '{scans,week_before,taken_at}', 10), 'none'),
-      first_doc #>> '{group,ours}', first_doc #>> '{group,world}', first_doc #>> '{group,share}',
-      first_doc #>> '{group,ours_before}', first_doc #>> '{group,world_before}', first_doc #>> '{group,share_before}');
-  end if;
-  assert worst < 8000, format('competition() took %s ms for one airline on the copy: over the 8 s staff limit', worst);
-  raise notice 'signed out and an account that isn''t staff are refused competition(); staff get what postgres gets; the slowest airline on the copy took % ms (staff limit 8 s)', worst;
-end
-$test$;
