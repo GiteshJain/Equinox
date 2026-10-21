@@ -25,13 +25,27 @@ goes from order to flying, the Saturday and monthly work, every check and what t
 
 ---
 
-## 1. What you're taking over (15 Oct 2026)
+## 1. What you're taking over
 
 **The group:** six airlines in AirlineSim's Gander world, run as one group called **equinox.** (lowercase, with the
 full stop). Website and planner: **equinox-alliance.com** (planner at `/planner/`, staff sign-in).
 
-| Airline | Code | Bases (main hub first) | Flying | On order | Routes |
-|---|---|---|---|---|---|
+| Airline | Code | Database id |
+|---|---|---|
+| Pan Am | AW | 1 |
+| Kingfisher | KF | 2 |
+| Ryanair | FR | 3 |
+| Virgin Atlantic | VS | 4 |
+| China Eastern | MU | 5 |
+| Malaysia Airlines | MH | 6 |
+
+**Where to find the current state** (this guide holds no figures, so it can't go out of date):
+- **Bases, hubs and focus cities:** manual §2.
+- **Fleet, routes and aircraft on order:** the planner's Home (the airline cards, **Aircraft on order**) and Tails.
+- **Arrivals waiting to be filed, orders possible tonight, open to-dos:** the planner's Today.
+- **Money and route performance:** Performance; rivals and openings: Competition.
+
+---|---|---|---|---|---|
 | Pan Am | AW | Hubs JFK, Los Angeles, Dallas; focus ORD, SFO, SEA | 15 | 3 | 25 |
 | Kingfisher | KF | Hub Delhi; focus Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first). Mumbai set up, next | 12 | 3 | 19 |
 | Ryanair | FR | Three equal focus cities: Paris CDG, Amsterdam, Barcelona (Milan and Munich next) | 21 | 5 | 48 |
