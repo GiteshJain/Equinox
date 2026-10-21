@@ -212,3 +212,5 @@ All 325 pairs, with Gitesh's decision on each: `docs/briefs/2026-10-21-trunk-dec
   Francisco and Los Angeles):** on the route list, marked "Later", not in November; added once similar routes are proved.
 - **Go (62): not on the route list.**
 - **Opening order:** shortest to longest, keeping every delivery line filled (manual §4).
+- **Long-haul aircraft (21 Oct):** wherever the lists above say A350-900ULR, read A350-900 (to about 15,000 km) or
+  A350-1000 (beyond, or where the -900 sells out); the ULR is off the default line (manual §3).
