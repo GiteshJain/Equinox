@@ -473,8 +473,8 @@ function change(now: number | null, then: number | null, unit = ""): WeekChange 
   if (now == null || then == null) return { now, then, delta: null, arrow: null, text: "—" };
   const delta = round1(now - then);
   if (delta === 0) return { now, then, delta: 0, arrow: "same", text: "= same" };
-  const size = Math.abs(delta);
-  return { now, then, delta, arrow: delta > 0 ? "up" : "down", text: `${delta > 0 ? "▲" : "▼"} ${size % 1 ? size.toFixed(1) : String(size)}${unit}` };
+  const size = Math.abs(delta), u = unit === " pts" && size === 1 ? " pt" : unit;
+  return { now, then, delta, arrow: delta > 0 ? "up" : "down", text: `${delta > 0 ? "▲" : "▼"} ${size % 1 ? size.toFixed(1) : String(size)}${u}` };
 }
 
 /** The 7 days' average of a figure ending on a day (the days with a figure), or null with none. */

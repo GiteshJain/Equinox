@@ -267,7 +267,8 @@ export function Performance() {
 }
 
 /** A scorecard: Review's card, with the fleet, flights a day and average load against the same day last week from the
- *  daily history (airline_days), each with an arrow. Tap it to open the airline. */
+ *  daily history (airline_days), each with an arrow. One change a line: with the arrows, the card's own "+N this week"
+ *  (counted from the schedule, so it can differ) is left out; without a day a week ago it stays. Tap it to open the airline. */
 function Scorecard({ c, on, color, days, wow, onPick }: { c: Card; on: boolean; color: string | null; days: ProfitAnswer["days"]; wow: WeekOnWeek | undefined; onPick: () => void }) {
   const x = cardWords(c);
   const vs = (k: WeekKey) => {
@@ -285,8 +286,8 @@ function Scorecard({ c, on, color, days, wow, onPick }: { c: Card; on: boolean; 
         <dt>Return on fleet</dt><dd>{x.returnOnFleet}</dd>{none}
         <dt>An aircraft pays back in</dt><dd>{x.payback}</dd>{none}
         <dt>Funds a new aircraft every</dt><dd>{x.fundsEvery}</dd>{none}
-        <dt>Fleet</dt><dd>{x.fleet}{x.fleetAdded ? <> <span className="pos">{x.fleetAdded}</span></> : null}{x.onOrder}</dd>{vs("fleet")}
-        <dt>Flights a day</dt><dd>{x.flights}{x.flightsAdded ? <> <span className="pos">{x.flightsAdded}</span></> : null}</dd>{vs("flights")}
+        <dt>Fleet</dt><dd>{x.fleet}{x.fleetAdded && !wow?.compared ? <> <span className="pos">{x.fleetAdded}</span></> : null}{x.onOrder}</dd>{vs("fleet")}
+        <dt>Flights a day</dt><dd>{x.flights}{x.flightsAdded && !wow?.compared ? <> <span className="pos">{x.flightsAdded}</span></> : null}</dd>{vs("flights")}
         <dt>Average load, 7 days</dt><dd>{x.load}</dd>{vs("load")}
         <dt>Next order</dt><dd data-figure="performance: next order per airline">
           {x.next.kind === "pill" ? <span className="pill warn sm">{x.next.text}</span> : x.next.kind === "dim" ? <span className="dim">{x.next.text}</span> : x.next.text}
@@ -489,7 +490,7 @@ function FarePlanBody({ airline, plan, busy, onDrop }: { airline: string; plan: 
             return (
               <tr key={p.id} data-fareplan={p.id}>
                 <td><b>{x.route}</b></td><td>{x.cls}</td><td className="num">{x.change}</td><td className="num">{x.fares}</td><td className="num">{x.now}</td>
-                <td><span className={`pill ${x.status.kind} sm`}>{x.status.text}</span></td><td className="num">{x.loads}</td><td className="dim">{x.why}</td>
+                <td><span className={x.status.kind === "ok" ? "dim" : `pill ${x.status.kind} sm`}>{x.status.text}</span></td><td className="num">{x.loads}</td><td className="dim">{x.why}</td>
                 <td><button type="button" className="link" data-faredel={p.id} disabled={busy} title="Remove from the plan" onClick={() => onDrop(p)}>remove</button></td>
               </tr>
             );

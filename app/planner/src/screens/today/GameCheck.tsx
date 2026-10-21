@@ -38,7 +38,7 @@ export function GameLines({ lines, busy, onFixAll, onOpen }: {
           <div className="gc" key={x.airline.id} data-gc={x.airline.code ?? ""}>
             <div className="gch">
               <AirlineMark color={x.airline.color} /><b>{x.airline.name}</b><span className="dim">{s.counts}</span>
-              <span className={"pill " + s.pill.cls}>{s.pill.text}</span>
+              <span className={s.pill.cls === "ok" ? "dim" : "pill " + s.pill.cls}>{s.pill.text}</span>
               {s.fixAll ? <button type="button" className="secondary sm" data-gcfixall={x.airline.code ?? ""} disabled={busy} onClick={() => onFixAll(x.airline.id)}
                 title="Set the planner to the game's times for every difference that is only a time or day change">{s.fixAll}</button> : null}
             </div>

@@ -99,8 +99,8 @@ export interface OrderRow {
   airline: OurAirline;
   /** Can order now (an action: amber), safe from a day, needs a capture, or not within 14 days. */
   status: { kind: "now" | "later" | "needs" | "none"; text: string };
-  /** The types safe to order, each with when (now, or from a day), cash_forecast()'s, in its order; none when it can't say. */
-  types: { type: string; now: boolean; text: string }[];
+  /** The types safe to order (cash_forecast()'s), by when: now, then each day from which some are safe; none when it can't say. */
+  types: { when: string; now: boolean; names: string[] }[];
   /** Each delivery line the airline may have: how many on order and when it runs dry, or empty. */
   lines: { family: string; text: string; warn: boolean; soon: string | null }[];
 }
@@ -119,14 +119,20 @@ export function orderStatus(next: NextOrder | null | undefined, canNow: readonly
   return { kind: "none", text: "Not within 14 days" };
 }
 
-/** The types that are safe, from cash_forecast()'s types: now, or from their first safe day; a type that isn't safe
- *  within 14 days is left out. */
+/** The types that are safe, from cash_forecast()'s types, grouped by when: now first, then each first safe day. Each
+ *  short name shows once in its group (the forecast lists a type's variants apart, and several share a short name). A
+ *  type that isn't safe within 14 days is left out. */
 export function safeTypes(types: readonly ForecastType[] | undefined): OrderRow["types"] {
-  return (types ?? []).flatMap((t): OrderRow["types"] => {
-    if (t.safe_day === 0) return [{ type: shortType(t.type), now: true, text: `${shortType(t.type)} now` }];
-    if (t.safe_day != null && t.safe_from) return [{ type: shortType(t.type), now: false, text: `${shortType(t.type)} from ${fcDay(t.safe_from)}` }];
-    return [];
-  });
+  const groups = new Map<string, { when: string; now: boolean; day: number; names: string[] }>();
+  for (const t of types ?? []) {
+    if (t.safe_day == null || (t.safe_day !== 0 && !t.safe_from)) continue;
+    const now = t.safe_day === 0, when = now ? "now" : `from ${fcDay(t.safe_from as string)}`;
+    let g = groups.get(when);
+    if (!g) groups.set(when, (g = { when, now, day: t.safe_day, names: [] }));
+    const name = shortType(t.type);
+    if (!g.names.includes(name)) g.names.push(name);
+  }
+  return [...groups.values()].sort((a, b) => a.day - b.day).map(({ when, now, names }) => ({ when, now, names }));
 }
 
 /** Each delivery line the airline may have (the families not in its fleet left out): how many on order and when the

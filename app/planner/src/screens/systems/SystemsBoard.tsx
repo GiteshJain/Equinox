@@ -9,7 +9,7 @@ export function SystemsBoard({ lines, checkedAt }: { lines: readonly SysLine[]; 
   const sum = boardSummary(lines);
   return (
     <Board title="Systems" className="sysboard" figure="systems: board" id="systems"
-      note={<><span className={"pill sm " + sum.mark} data-sys-summary={sum.mark}>{sum.text}</span>{checkedAt ? ` · checked at ${checkedAt}` : ""} · the capture, the jobs, the backups, the planner's build and the usage the database can measure</>}>
+      note={<><span className={sum.mark === "ok" ? "dim" : "pill sm " + sum.mark} data-sys-summary={sum.mark}>{sum.text}</span>{checkedAt ? ` · checked at ${checkedAt}` : ""} · the capture, the jobs, the backups, the planner's build and the usage the database can measure</>}>
       <ul className="syslist">
         {lines.map((l) => (
           <li key={l.key} className="sysline" data-sys={l.key} data-mark={l.mark}>

@@ -79,7 +79,8 @@ important first; nothing folds.
   in ("short: Kingfisher (loads 12 of 78 flights)"). **Systems ›** has each page.
 - **Orders:** a card per airline: **Can order now** (amber: something to do), or **Safe from** a day, **Needs a
   capture** or **Not within 14 days**, from the cash forecast (*cash_forecast()*, through *airline_cards()*); the types
-  that are safe, each **now** or from its first safe day; and each delivery line the airline may have, with how many
+  that are safe, by when: **now** first, then each day from which more are safe, each short name once ("Safe now:
+  A321neo, E195 · from Thu, Oct 22: XLR, A320neo"); and each delivery line the airline may have, with how many
   are on order and when it runs dry (UTC), amber when that's within *order_queue_warn_h* (48 hours), or **empty**.
   **Cash, next 14 days ›** opens the airline on Performance. (Check → Growth's can order and order queues until 20 Oct.)
 - **Aircraft to file:** each aircraft that has arrived in the game with a plan card, with **File into planner**, which
@@ -200,9 +201,10 @@ money figure is the database's. Its boards are open on arrival, the most importa
   order**, from the cash forecast (amber when it can order now). Beside the fleet, flights a day and average load, the
   change against the same day last week from the daily history (*airline_days*), with an arrow: the latest day of the
   history against that day a week before (fleet: aircraft flying; flights a day: the schedule's departures a week ÷ 7;
-  average load: the economy load averaged over the 7 days to each day). An airline with no day a week ago says so and
-  shows no change. The money figures have no such change: the history keeps no profit a day, and their trend is the
-  sparkline. Tap a scorecard to open the airline.
+  average load: the economy load averaged over the 7 days to each day). One change a line: with the arrows, the card's
+  own "+N this week" (counted from the schedule's flights that day, so it can differ) isn't shown. An airline with no
+  day a week ago says so, shows no arrow and keeps the card's "+N this week". The money figures have no such change: the
+  history keeps no profit a day, and their trend is the sparkline. Tap a scorecard to open the airline.
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
   business (manual §5).

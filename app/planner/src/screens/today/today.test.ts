@@ -87,8 +87,21 @@ describe("orders: can order now or from when, the types that are safe, and each 
     const t = (type: string, safe_day: number | null, safe_from: string | null) =>
       ({ aircraft_type_id: 1, type, price_with_cabin: 60, lease_week: 0.8, lease_seen: true, safe_day, safe_from, count_today: 1 });
     expect(safeTypes([t("A321 NEO LIGHT", 0, "2026-10-20T05:00:00Z"), t("A350-900ULR", 3, "2026-10-23T05:00:00Z"), t("E195-E2", null, null)]))
-      .toEqual([{ type: "A321neo", now: true, text: "A321neo now" }, { type: "A350", now: false, text: "A350 from Fri, Oct 23" }]);
+      .toEqual([{ when: "now", now: true, names: ["A321neo"] }, { when: "from Fri, Oct 23", now: false, names: ["A350"] }]);
     expect(safeTypes(undefined)).toEqual([]);
+  });
+  it("the safe types grouped by when, now first, each short name once in its group (the screenshots showed the A320neo's variants over and over)", () => {
+    const t = (type: string, safe_day: number | null, safe_from: string | null) =>
+      ({ aircraft_type_id: 1, type, price_with_cabin: 60, lease_week: 0.8, lease_seen: true, safe_day, safe_from, count_today: 1 });
+    expect(safeTypes([
+      t("A350-900ULR", 2, "2026-10-22T05:00:00Z"), t("A321 NEO LIGHT", 0, "2026-10-20T05:00:00Z"), t("E195-E2", 0, "2026-10-20T05:00:00Z"),
+      t("A321 NEO LIGHT", 0, "2026-10-20T05:00:00Z"), t("A320NEO LIGHT", 2, "2026-10-22T05:00:00Z"), t("A320NEO LIGHT", 2, "2026-10-22T05:00:00Z"),
+      t("E190-E2", 2, "2026-10-22T05:00:00Z"), t("A321XLR", 5, "2026-10-25T05:00:00Z"), t("A350-900ULR", null, null),
+    ])).toEqual([
+      { when: "now", now: true, names: ["A321neo", "E195"] },
+      { when: "from Thu, Oct 22", now: false, names: ["A350", "A320neo", "E190-E2"] },
+      { when: "from Sun, Oct 25", now: false, names: ["XLR"] },
+    ]);
   });
   it("each delivery line it may have: on order and when it runs dry (warned when soon), or empty; families not in its fleet left out", () => {
     const cell = (family: string, x: Partial<QueueCell>): QueueCell => ({ family, in_fleet: true, count: 0, last_ms: null, hours: null, warn: false, ...x });

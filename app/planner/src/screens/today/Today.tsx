@@ -266,7 +266,9 @@ export function Today() {
                   {o.status.kind === "now" ? <span className="pill warn" data-can-order>{o.status.text}</span> : <span className="dim">{o.status.text}</span>}
                 </div>
                 {o.types.length ? (
-                  <div className="ordtypes"><span className="dim">Safe:</span> {o.types.map((t, i) => <span key={t.text}>{i ? ", " : ""}{t.now ? <b>{t.text}</b> : <span className="dim">{t.text}</span>}</span>)}</div>
+                  <div className="ordtypes"><span className="dim">Safe</span> {o.types.map((g, i) => (
+                    <span key={g.when}>{i ? <span className="dim"> · </span> : null}{g.now ? <b>{g.when}: {g.names.join(", ")}</b> : <span className="dim">{g.when}: {g.names.join(", ")}</span>}</span>
+                  ))}</div>
                 ) : null}
                 {o.lines.length ? (
                   <ul className="ordlines">

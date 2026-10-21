@@ -203,6 +203,11 @@ describe("the scorecards: each figure against the same day last week, from the d
       .toMatchObject({ fleet: { text: "—" }, flights: { text: "▲ 3" }, load: { text: "—" } });
     expect(historyFrom("2026-10-15")).toBe("2026-09-30");
   });
+  it("one point of load is \"1 pt\", not \"1 pts\" (the rehearsal's screenshots)", () => {
+    const x = weekOnWeek([row(1, "2026-10-08", 10, 280, 90), row(1, "2026-10-15", 10, 280, 91)], 1, "2026-10-15");
+    expect(x.changes.load.text).toBe("▲ 1 pt");
+    expect(weekOnWeek([row(1, "2026-10-08", 10, 280, 90), row(1, "2026-10-15", 10, 280, 88)], 1, "2026-10-15").changes.load.text).toBe("▼ 2 pts");
+  });
 });
 
 describe("the growth signals and main hubs (Check → Growth until 20 Oct)", () => {
