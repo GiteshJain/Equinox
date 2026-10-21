@@ -307,7 +307,7 @@ first.
 2. **The weekly report:** a PDF written like a briefing for a CEO, with no fixed template. It covers:
    - competition by market, for the group and for each airline;
    - risks and opportunities;
-   - our plan and progress (the growth rotation, what's coming);
+   - our plan and progress (what's coming);
    - route profit, growth signals and fare-plan results.
 
    Claude pulls the figures from the database, you agree the week's words, and Claude publishes the PDF to the investor
@@ -320,9 +320,11 @@ first.
    posts go out on the day, from the Scheduling chat: one per airline per day of deliveries.)
 5. **The weekly review together:**
    - **The fare ladder:** each route and cabin goes up 5 points if it sold out all week, holds at 90–99%, and goes down
-     under 90%, at most 20 points above launch for now (manual §5). Make the moves in the game with **Ticket price
-     adjustment**, baseline **default price**. Until the planner lists them (step 2), Claude lists them here. Fare
-     moves are only ever reviewed here, never as Needs attention.
+     under 90%, at most 20 points above launch for now (manual §5). Performance → **The fare ladder** lists each
+     airline's moves and the game actions that make them, in order (in this chat, `select public.fare_ladder(<airline
+     id>);` gives the same). Make them in the game with **Ticket price adjustment**, baseline **default price**, then
+     press **Put on the fare plan**; the next capture ticks each off. A rival starting on a pair isn't paused by the
+     planner yet (step 4): check the scan by hand. Fare moves are only ever reviewed here, never as Needs attention.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
      under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
