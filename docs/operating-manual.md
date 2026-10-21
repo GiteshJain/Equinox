@@ -469,8 +469,11 @@ less important than another, point to point rather than hubs).*
   (spec `docs/specs/2026-10-21-cabins-new-rule.md`): the Cabins board and its refit settings went, and each market keeps
   only its layout.*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
-  (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low
-  then raising across 50 routes is too much work.*
+  (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. **A new
+  flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare.
+  *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low then raising across 50 routes is too
+  much work. The new flight's rule since 21 Oct (Gitesh).* As of 21 Oct every route is at its launch level: legacy
+  airlines 100% of the default price, Ryanair 85% (Gitesh); the fare ladder's first moves start from there.
 - **The fare ladder, every Saturday.** Each cabin of each route has a **level**: its fare as a % of the game's default
   price (launch: 100%, Ryanair 85%). At the Saturday review, from the week's captured flights in that cabin:
   - **up 5 points** when every flight sold out (at least 5 departures in the 7 days);
