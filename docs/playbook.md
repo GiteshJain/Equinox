@@ -63,6 +63,7 @@ and the capture should show Kingfisher's VT-AAE flying 1049/1050 from 16 Oct, no
 | **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries | gander.airlinesim.aero, one account with all six airlines |
 | **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database | `capture/capture_all.user.js`, installed in a userscript manager (such as Tampermonkey) in your browser, with your capture key in place of `__CAPTURE_KEY__` |
 | **Salaries userscript** | One button sets every position of the airline you're on to 10% above the country average | `capture/salary_adjust.user.js`, installed the same way |
+| **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one every 2 seconds, while you watch (section 7) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
 | **Claude (Equinox project)** | Three chats: **Scheduling** (new aircraft, routes, plan cards), **Saturday review** (scan, weekly report, audit, newsroom, review, and on the month's first Saturday the weekly report's month page, gander monthly and strategy), **Building** (code, database, specs, merges). The manual, decisions, map and this guide are in its files | claude.ai |
@@ -331,9 +332,13 @@ first.
    - **The fare ladder:** each route and cabin goes up 5 points if it sold out all week, holds at 90–99%, and goes down
      under 90%, at most 20 points above launch for now (manual §5). Performance → **The fare ladder** lists each
      airline's moves and the game actions that make them, in order (in this chat, `select public.fare_ladder(<airline
-     id>);` gives the same). Make them in the game with **Ticket price adjustment**, baseline **default price**, then
-     press **Put on the fare plan**; the next capture ticks each off. A rival starting on a pair isn't paused by the
-     planner yet (step 4): check the scan by hand. Fare moves are only ever reviewed here, never as Needs attention.
+     id>);` gives the same). Press **Put on the fare plan**, then in the game press **Apply fare plan** (the fares
+     userscript) and watch it: it shows each airline's count and asks once, then makes every planned change for every
+     airline (**Ticket price adjustment**, baseline **default price**, route by route, each direction on its own), one
+     every 2 seconds. It stops at the first problem and says which change and why; what's done stays done, and pressing
+     it again makes only what the captures haven't seen yet (a change made twice does no harm). The next capture ticks
+     the changes off on the fare plan. A rival starting on a pair isn't paused by the planner yet (step 4): check the
+     scan by hand. Fare moves are only ever reviewed here, never as Needs attention.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
      under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **Flying hours:** aircraft under 12 block hours a day, and whether one more short rotation fits.
@@ -413,7 +418,8 @@ Run in the **Saturday review chat**, after the usual Saturday work. The next one
 
 ## 12. How changes are made
 - **Game changes** (orders, schedules, fares, cabins, interlines) are made in the game by you, and mirrored in the
-  planner. The planner shows a route or aircraft only once it's in the game; plans live on plan cards.
+  planner. The planner shows a route or aircraft only once it's in the game; plans live on plan cards. The fare ladder's
+  changes are made by the fares userscript while you watch (section 7).
 - **Data-only changes** (plan cards, to-dos, notes, logs) go straight in, by you in the planner or by Claude, and every
   change is logged with who made it.
 - **Code changes** are pull requests on GitHub. A helper builds from a written spec, every check must be green, Claude

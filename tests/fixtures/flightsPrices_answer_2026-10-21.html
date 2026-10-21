@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- AirlineSim Gander, /action/enterprise/flightsPrices?adjust=true&..., the answer to one Ticket price adjustment, 21 Oct 2026 (v6.13.17).
+     Made by hand from Gitesh's screenshot of the answer page (spec docs/specs/2026-10-21-fares-userscript.md): the "Changed Airport
+     Pairs" table for From LHR to JFK, economy and business, with the prices as the screenshot shows them. The markup around the
+     table is a guess (the screenshot shows the table, not its HTML); no account data. -->
+<html><head><meta charset="utf-8"><title>AirlineSim</title></head><body>
+<div class="as-panel">
+    <h3>Changed Airport Pairs</h3>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>From</th>
+                <th>To</th>
+                <th>Service Class</th>
+                <th class="text-right">Old Price</th>
+                <th class="text-right">New Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>LHR</td>
+                <td>JFK</td>
+                <td>C</td>
+                <td class="text-right">1,010</td>
+                <td class="text-right">1,010</td>
+            </tr>
+            <tr>
+                <td>LHR</td>
+                <td>JFK</td>
+                <td>Y</td>
+                <td class="text-right">407</td>
+                <td class="text-right">407</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</body></html>

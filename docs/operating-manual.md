@@ -61,11 +61,6 @@ Until each is built and merged, the rules below stand as they are.
   level gets a change that sets it back (which also shows whether the game prices a new flight number at the default
   price, as Gitesh thinks). Until it's built, the Scheduling chat writes the route's level in the card's note and the
   Saturday review holds such routes by hand.
-- **Decided 21 Oct, for the Building chat:** a **fares userscript** that makes the fare plan's changes in the game
-  for Gitesh (Ticket price adjustment, route by route, both directions, economy and business together where they move
-  alike), one change at a time with a pause, while he watches; it reads the planned changes with the capture key.
-  Gitesh's decision, knowing the game's terms (simulogics §4 II) don't allow scripts. Spec
-  `docs/specs/2026-10-21-fares-userscript.md`. Until it's built, he makes the changes by hand from Performance's list.
 - **Next for the Building chat (Gitesh, 21 Oct):** the planner work's next big step is competition analysis with its
   ranked openings, before the route page.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
@@ -121,6 +116,7 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
+  the fares userscript on the saved fares form and answer (since 21 Oct);
   the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails, the
   planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
   plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every website
@@ -487,8 +483,15 @@ less important than another, point to point rather than hubs).*
   works out each route's level and Saturday's moves, and lists the fewest changes to make in the game: **Ticket price
   adjustment** with the calculation baseline **default price**, so each change sets the level itself, **route by route
   only** (From A to B, and From B to A): never a whole base, so routes under 7 days old are never touched (Gitesh,
-  21 Oct: loads are high because the world is young). The fare plan records them and the next capture ticks each off. Fare moves never appear in
-  Needs attention. The numbers are settings (step, up, down, hold weeks, cap). *Since 21 Oct · why (Gitesh, option A
+  21 Oct: loads are high because the world is young). The fare plan records them and the next capture ticks each off.
+  **The fares userscript makes them** (`capture/fares_apply.user.js`): after **Put on the fare plan** in Performance,
+  Gitesh presses **Apply fare plan** in the game and watches. It reads this week's planned changes the captures haven't
+  seen yet (`capture_fare_actions()`, with the capture key), shows each airline's count and asks once, then makes them
+  for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
+  change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. *Since
+  21 Oct · why (Gitesh): the route-by-route changes are a few hundred on a Saturday; his decision, knowing the game's
+  terms (simulogics §4 II) don't allow scripts (spec `docs/specs/2026-10-21-fares-userscript.md`).* Fare moves never
+  appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap). *Since 21 Oct · why (Gitesh, option A
   of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at
   launch fares, no fare had ever been raised, and each 5% step that holds is worth about 5M a week.*
 
