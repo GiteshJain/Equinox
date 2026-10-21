@@ -386,6 +386,8 @@ less important than another, point to point rather than hubs).*
     the default line, §3) are chosen together, by profit per aircraft hour where flown and by market size where not.
   - **Hubs first is suspended for trunks in November:** any base can take an aircraft for a trunk route. One airline per
     city pair (§2) still applies, and so does the cash forecast's cushion.
+  - **Only trunks that make sense:** a pair is opened only where the market is there and the route makes business sense
+    (no Kolkata–US direct, say), within reach of the default line. Munich and Milan Malpensa count as bases.
   *Details agreed 20 Oct (Gitesh).*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
