@@ -109,7 +109,7 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
       <section className="rpweek" data-figure="performance route: last 7 days" data-compared={wk.compared ? "yes" : "no"}>
         <div className="rpweekh dim">
           {wk.from && wk.to ? `The last 7 days (${niceDate(wk.from)} to ${niceDate(wk.to)}) against the 7 before` : "No flights in the last 7 days"}
-          {wk.from && !wk.compared ? ": no week before to compare" : ""}
+          {wk.from && !wk.compared ? ": no week before to compare" : ""}{wk.days ? ` (${wk.days})` : ""}
         </div>
         <div className="rpwgrid">
           {wk.rows.map((r) => (

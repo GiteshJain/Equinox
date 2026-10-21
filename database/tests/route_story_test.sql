@@ -6,8 +6,8 @@
 --      (private.history_flows()) internal, with an empty search path.
 --   2. On the copy (counts, codes and timings only; printed first, since the rehearsal prints a passing test's first six
 --      notices): route_story() for each airline's busiest route, timed (under the 8 s staff limit); one route's story in
---      numbers (its launch, how its days are matched, the last 7 days against the 7 before, its events) and every flown
---      route's events by kind; then no first-class seats in game_flights (so route_days has no first-class columns), and
+--      numbers (its launch, how its days are matched, the last 7 days against the 7 before, its events) and the six
+--      routes' events by kind; then no first-class seats in game_flights (so route_days has no first-class columns), and
 --      the migration's backfill giving exactly what the writer gives, worked out again for every day of game_flights the
 --      daily history has written; how many route days have the new columns.
 --   3. A world of its own: airline RS (ours) flies QS1–QS2 from 1 Mar 2030, daily both ways, with business seats; its
@@ -60,7 +60,7 @@ $test$;
 -- daily history out again)
 do $test$
 declare w bigint := (select id from public.worlds where is_default); t0 timestamptz; ms int; worst int := 0; al record; d jsonb; first_doc jsonb;
-  times text[] := '{}'; wk0 jsonb; wk1 jsonb; kinds text; newest text; m record;
+  times text[] := '{}'; wk0 jsonb; wk1 jsonb; kinds text; newest text; m record; docs jsonb[] := '{}';
 begin
   -- each airline's busiest route (the most flights in the daily history over its last 14 days), timed
   for al in select fa.airline_id, fa.iata_code,
@@ -74,6 +74,7 @@ begin
     ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
     worst := greatest(worst, ms);
     first_doc := coalesce(first_doc, d);
+    docs := docs || d;
     times := times || format('%s %s–%s %s ms (%s days, %s weeks, %s events, %s rivals, %s scans since launch)', al.iata_code,
       d #>> '{route,hub}', d #>> '{route,dest}', ms, jsonb_array_length(d -> 'days'), jsonb_array_length(d -> 'weeks'),
       jsonb_array_length(d -> 'events'), jsonb_array_length(d #> '{rivals,airlines}'), jsonb_array_length(d #> '{scans,since_launch}'));
@@ -108,17 +109,10 @@ begin
       from (select e ->> 'kind' as k, count(*) as n from jsonb_array_elements(first_doc -> 'events') e group by 1) x;
     select string_agg(format('%s %s: %s', e ->> 'day', e ->> 'kind', e ->> 'words'), '; ' order by i) into newest
       from jsonb_array_elements(first_doc -> 'events') with ordinality x(e, i) where i <= 8;
-    t0 := clock_timestamp();
-    raise notice '%', format('on the copy, its events (%s): %s; the newest: %s; every flown route''s events by kind: %s (%s ms for all of them)',
+    raise notice '%', format('on the copy, its events (%s): %s; the newest: %s; the six routes'' events by kind: %s',
       jsonb_array_length(first_doc -> 'events'), coalesce(kinds, 'none'), coalesce(newest, 'none'),
       coalesce((select string_agg(format('%s %s', z.n, z.k), ', ' order by z.n desc, z.k)
-                  from (select e ->> 'kind' as k, count(*) as n
-                          from public.routes r
-                          join private.fig_airlines(w) fa on fa.airline_id = r.airline_id
-                          cross join lateral jsonb_array_elements(private.fig_route_story(r.id, now()) -> 'events') e
-                         where not r.removed and exists (select 1 from public.rotations rt where rt.route_id = r.id)
-                         group by 1) z), 'none'),
-      round(extract(epoch from clock_timestamp() - t0) * 1000));
+                  from (select e ->> 'kind' as k, count(*) as n from unnest(docs) x(dd) cross join lateral jsonb_array_elements(x.dd -> 'events') e group by 1) z), 'none'));
   end if;
 end
 $test$;

@@ -45,7 +45,7 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    ladder with every list cut and then opened in full), no link into the
    old planner's address (/planner/old/), one used while the planner was built (/planner/next/) or a screen that went
    on 20 Oct (/planner/hubs, /planner/check, /planner/review); and one airline's Performance page the same way, and
-   (22 Oct) the route pages of a busy legacy route and of Ryanair's busiest (every event shown, then cut again); a
+   (22 Oct) the route pages of a busy legacy route and a busy Ryanair route (every event shown, then cut again); a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
@@ -791,17 +791,22 @@ async def performance_opens(pl):
 
 
 def busiest_route(code=None, not_code=None):
-    """The busiest route (the most flights in the daily history over its last 14 days) of our airline with that code, or of
-    the first of our airlines (by position) that isn't not_code: {code, id, hub, dest}, or None."""
+    """A busy route of our airline with that code, or of any of our airlines but not_code: the one with the most days
+    with flights in the daily history (its airports either way, matched to it or to no route, as route_story() reads
+    them), so its route page draws its since-launch chart where any can, then the most flights over the last 14 days:
+    {code, id, hub, dest}, or None."""
     cond = f"a.iata_code = '{code}'" if code else f"a.iata_code is distinct from '{not_code}'"
     out = psql(f"""select a.iata_code || ' ' || r.id || ' ' || r.hub_code || ' ' || r.dest_code
                      from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
-                     join lateral (select d.route_id from public.route_days d where d.airline_id = a.id and d.route_id is not null
-                                     and d.day > (select max(x.day) from public.route_days x where x.airline_id = a.id) - 14
-                                   group by d.route_id order by sum(d.flights) desc, d.route_id limit 1) b on true
-                     join public.routes r on r.id = b.route_id
+                     join public.routes r on r.airline_id = a.id and not r.removed
+                     join lateral (select count(distinct d.day) as days,
+                                          coalesce(sum(d.flights) filter (where d.day > (select max(x.day) from public.route_days x where x.airline_id = a.id) - 14), 0) as flights
+                                     from public.route_days d
+                                    where d.airline_id = a.id and d.flights > 0 and (d.route_id = r.id or d.route_id is null)
+                                      and ((d.origin_code = r.hub_code and d.dest_code = r.dest_code) or (d.origin_code = r.dest_code and d.dest_code = r.hub_code))) b on b.days > 0
                     where g.kind = 'ours' and a.world_id = {WORLD} and a.active and a.iata_code is not null and {cond}
-                    order by a.position nulls last, a.id limit 1""").strip()
+                      and exists (select 1 from public.rotations rt where rt.route_id = r.id)
+                    order by b.days desc, b.flights desc, a.position nulls last, a.id, r.id limit 1""").strip()
     if not out:
         return None
     c, rid, hub, dest = out.split()
@@ -1130,7 +1135,8 @@ async def screens(p, port, env, facts, staff, seen, moment):
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
     links = shots = 0
     code = first_airline()
-    # the route page (22 Oct): a busy legacy route (the first of our airlines that isn't Ryanair) and Ryanair's busiest
+    # the route page (22 Oct): a busy legacy route (any of our airlines but Ryanair) and a busy Ryanair route, each the one
+    # with the most days with flights, so the since-launch chart is drawn where any route has 14
     route_pages = [r for r in (busiest_route(not_code="FR"), busiest_route(code="FR")) if r]
     if SCREENS_DIR:
         Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)

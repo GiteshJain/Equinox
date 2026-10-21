@@ -90,7 +90,10 @@ describe("the route page's header", () => {
 describe("the last 7 days against the 7 before", () => {
   it("compares the week ending on the latest captured day with the one before, each with its arrow", () => {
     const w = storyWeekOnWeek(story());
-    expect(w).toMatchObject({ from: "2026-10-15", to: "2026-10-21", compared: true });
+    expect(w).toMatchObject({ from: "2026-10-15", to: "2026-10-21", compared: true, days: "" });
+    // a week with a day missing (a capture missed) isn't like for like: the heading says so
+    const s = story();
+    expect(storyWeekOnWeek({ ...s, weeks: [s.weeks[0] as StoryWeek, { ...(s.weeks[1] as StoryWeek), days: 5 }] }).days).toBe("7 days with flights against 5");
     expect(w.rows.map((r) => [r.key, r.now, r.then, r.text])).toEqual([
       ["load", "91.2%", "88.9%", "▲ 2.3 pts"],
       ["passengers", "2,300", "2,240", "▲ 60"],

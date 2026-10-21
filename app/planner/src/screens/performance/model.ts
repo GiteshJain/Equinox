@@ -847,7 +847,7 @@ export interface StoryChange { key: string; label: string; now: string; then: st
 /** The last 7 days (the week ending on the latest captured day) against the 7 before: load %, passengers, profit, profit
  *  an aircraft hour, and the economy and business fares (business only where either week has one). Without either week
  *  each change is "—". */
-export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: string | null; compared: boolean; rows: StoryChange[] } {
+export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: string | null; compared: boolean; rows: StoryChange[]; days: string } {
   const last = s.latest_day ? s.weeks.find((w) => w.to === s.latest_day) : undefined;
   const prevTo = s.latest_day ? dayMinus(s.latest_day, 7) : null;
   const prev = prevTo ? s.weeks.find((w) => w.to === prevTo) : undefined;
@@ -867,7 +867,9 @@ export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: strin
     one("eco_fare", "Economy fare", (w) => w.eco_fare, fare, (d) => fare(d)),
   ];
   if ((last?.bus_fare ?? prev?.bus_fare) != null) rows.push(one("bus_fare", "Business fare", (w) => w.bus_fare, fare, (d) => fare(d)));
-  return { from: last?.from ?? null, to: last?.to ?? null, compared: !!(last && prev), rows };
+  // the totals of two weeks with different days of flights (a capture missed) aren't like for like: say so
+  const days = last && prev && last.days !== prev.days ? `${last.days} days with flights against ${prev.days}` : "";
+  return { from: last?.from ?? null, to: last?.to ?? null, compared: !!(last && prev), rows, days };
 }
 
 // the since-launch chart: daily economy and business loads, the fare level as a step line on its own scale, and each event
