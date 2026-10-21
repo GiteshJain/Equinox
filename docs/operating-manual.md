@@ -52,9 +52,9 @@ Until each is built and merged, the rules below stand as they are.
   and their cabin layouts are in `cabin_configs`. The game shows no turnaround, so a new variant takes its family's (A320
   family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a
   route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card).
-- **Decided 21 Oct, for the Building chat:** the fare ladder in the planner (§5; spec
-  `docs/specs/2026-10-21-fare-ladder.md`): `fare_ladder()` works out each route's level and Saturday's moves, and
-  Performance lists the fewest game actions. Until it's merged, the Saturday review lists the moves by hand.
+- **The fare ladder is built** (21 Oct, pull request #56): `fare_ladder()` works out each route's level and Saturday's
+  moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause waits for
+  competition analysis; until then the Saturday review checks the scan by hand.
 - **Decided 21 Oct, for the Building chat:** cabins follow the new rule (§5; spec
   `docs/specs/2026-10-21-cabins-new-rule.md`), after the fare ladder: the Cabins board and its refit settings go; each
   market keeps only its layout (no default type, fare % or old cabin); the plan card suggests its cabin by the 65% rule
@@ -114,7 +114,7 @@ Details and open points: `docs/decisions.md`.
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
   the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails, the
-  planning library's hub boards and the schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
+  planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
   plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every website
   page, the planner's sign-in at `/planner/` and the planner's addresses). When the database, the planner or the
   library changes, the *Database rehearsal* also generates the planner's types again from the copy (they must match
