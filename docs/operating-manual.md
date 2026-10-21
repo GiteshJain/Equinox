@@ -264,11 +264,15 @@ less important than another, point to point rather than hubs).*
   | Large | A321neo | 240 | 4,742 km | 50.6M | 4,192–4,742 km |
   | Large | A321LR | 240 | 5,809 km | 54.2M | 4,742–5,809 km |
   | Large | A321XLR | 240 | 6,939 km | 57.2M | 5,809–6,939 km |
-  | Wide | A350-900 | 440 | 11,102 km | 140.1M | long-haul, when it comes |
-  | Wide | A350-900ULR | 440 | 11,690 km | 143.9M | 11,102–11,690 km |
-  | Wide | A350-1000 | 480 | 11,102 km | 157.1M | only where 440 seats sell out |
+  | Wide | A350-900 | 440 | flies to about 15,000 km with its full cabin | 140.1M | every long-haul route up to about 15,000 km |
+  | Wide | A350-1000 | 480 | keeps the most seats beyond 15,000 km | 157.1M | beyond about 15,000 km, and trunks where the -900 sells out |
 
-  Left out because another variant beats them: the A319neo (more per seat than the A320neo SHARP at every reach), the
+  The listed range is with a full load and is not a limit: the game flies longer routes with fewer seats. Tested 21 Oct
+  (same cabin, the game's route evaluation): up to about 14,200 km every A350 keeps its full cabin and the -900 is the
+  cheapest per seat (LA–Gatwick 334 against the ULR's 337 and the -1000's 342; Mumbai–LA 527, 535, 543); beyond about
+  15,000 km the -900 loses seats fastest and the -1000 is the cheapest (Dallas–KL 566 against 618 and 680; Sydney–JFK 623,
+  671, 744). The ULR is never the cheapest, so it is off the line. *Since 21 Oct (Gitesh).*
+  Left out because another variant beats them: the A350-900ULR (above), the A319neo (more per seat than the A320neo SHARP at every reach), the
   A321neo Medium, the A321XLR LIGHT and Heavy. Still three families: the A320 family, the E-jet E2 and the A350.
   *Since 18 Oct · why (Gitesh, agreed): the LIGHT variants reach only 4,192 km (A321) and 3,690 km (A320); the LR
   reaches 5,809 km for 3M less than the XLR, and the SHARP is the cheapest 189-seater.*
