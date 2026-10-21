@@ -55,6 +55,12 @@ Until each is built and merged, the rules below stand as they are.
 - **The fare ladder is built** (21 Oct, pull request #56): `fare_ladder()` works out each route's level and Saturday's
   moves, and Performance lists the fewest game actions with **Put on the fare plan** (§5). A rival's pause waits for
   competition analysis; until then the Saturday review checks the scan by hand.
+- **Decided 21 Oct, for the Building chat:** new frequencies and the fare ladder (§5; spec
+  `docs/specs/2026-10-21-frequencies-and-fares.md`), after the fares userscript: a route that gained a frequency in the
+  last 7 days holds; the plan card shows each route's fare level; and a route whose captured fare doesn't match its
+  level gets a change that sets it back (which also shows whether the game prices a new flight number at the default
+  price, as Gitesh thinks). Until it's built, the Scheduling chat writes the route's level in the card's note and the
+  Saturday review holds such routes by hand.
 - **Decided 21 Oct, for the Building chat:** a **fares userscript** that makes the fare plan's changes in the game
   for Gitesh (Ticket price adjustment, route by route, both directions, economy and business together where they move
   alike), one change at a time with a pause, while he watches; it reads the planned changes with the capture key.
@@ -471,7 +477,10 @@ less important than another, point to point rather than hubs).*
   - **hold** when 90–99% sold out;
   - **down 5 points** when under 90% sold out, then hold for 2 weeks before climbing again.
 
-  New routes start after their first 7 days (§3). The level never goes under launch, nor under the 60% floor where
+  New routes start after their first 7 days (§3), and **a route that gained a frequency in the last 7 days holds**
+  for that week, so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct). Every
+  plan card shows the fare level of each route it flies, so a new flight is priced like the rest of its route.
+  The level never goes under launch, nor under the 60% floor where
   another player flies the route. **For now it goes at most 20 points above launch** (120%, Ryanair 105%): the game's
   passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads
   and image show it's safe. A rival starting on the pair (from the scan) pauses that route for a week. The planner
