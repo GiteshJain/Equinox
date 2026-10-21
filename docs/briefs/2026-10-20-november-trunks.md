@@ -190,7 +190,7 @@ India–continental Europe and India–US pairs are listed but carry that risk.
 
 **Cash:** 42 long-haul trunks need roughly 42 to 50 aircraft, most of them A350s at about 7M each: more than all six airlines earn in November. Order of the month: **narrowbody trunks first, then the A350 trunks, biggest market first** (Gitesh, 20 Oct); we decide route by route as we reach them.
 
-
+## Types (default line, §3)
 Every base is a 5-star city, so the A320neo SHARP by default (within 3,355 km), the A321neo LIGHT where a heavy rival
 flies the pair or the trunk already sells out a 240-seater, the A321LR to 5,809 km and the A321XLR to 6,939 km. Cabins
 follow the market default.
