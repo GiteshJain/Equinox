@@ -1,8 +1,7 @@
 # November: fortifying the trunk routes — 20 Oct 2026
 
 **Decision:** which trunk routes November's orders go to (manual §4, "From 1 to 30 November"). A trunk is any route
-between two of our bases (hubs and focus cities, Munich and Malpensa included; Pan Am's LAX and Dallas are on hold and
-left out). Fortified = no longer sells out. Flown and unflown trunks weigh equally; hubs first is suspended for trunks;
+between two of our bases (hubs and focus cities, Munich, Malpensa, Los Angeles and Dallas included; nothing is on hold). Fortified = no longer sells out. Flown and unflown trunks weigh equally; hubs first is suspended for trunks;
 one airline per city pair and the 0.5M cushion stand; only trunks that make business sense.
 **Recommendation and outcome:** the lists below, proposed 20 Oct. Each evening the Scheduling chat takes the airline's
 next line its cash and order queues allow, writes the card with the order (manual §3), and drops a flown trunk from the
@@ -11,7 +10,7 @@ list once its last week's loads fall under 95%.
 ## The trunk map (from the planner and the 17 Oct scan, 20 Oct)
 - 24 base airports, 276 pairs. 50 are flown: all but four run at 92–100% and sell out on nearly every departure.
 - Of the 226 unflown, most are out of narrowbody reach or don't make sense (secondary India–China, India–US, Europe–India
-  while Kingfisher's long-haul is weak). 34 pass, below.
+  while Kingfisher's long-haul is weak). 41 pass, below.
 - **Not fortified (weak):** PVG–Kolkata (MU, 28%, fix), Delhi–JFK (KF, 56% economy, fix, review 28 Nov), Delhi–Amsterdam
   (KF, fix), KUL–Hyderabad (MH, sold out on 56% of departures), KUL–Kunming (MH, 46%), Delhi–Paris (KF, 31%),
   Amsterdam–Munich (FR, 3k a flight: raise fares instead), Paris–Amsterdam (FR, 87%: watch).
@@ -49,6 +48,18 @@ Profit per aircraft hour (k) over the 7 days to 20 Oct where flown; rival depart
 | 9 | Chicago–Seattle 2,762 km | new | United 28 |
 | 10 | JFK–Barcelona | flown | 6.2k, 56k a flight |
 | 11 | JFK–Chicago | flown | 5.5k; United 56 a week |
+| 12 | JFK–Dallas | flown | 6.9k, sold out |
+| 13 | JFK–Los Angeles | flown | 6.2k, 40k a flight, sold out |
+| 14 | Los Angeles–San Francisco 543 km | new | American 112 a week |
+| 15 | Dallas–Chicago 1,291 km | new | United 56 |
+| 16 | Dallas–Los Angeles 1,983 km | new | Republic 56 |
+| 17 | Los Angeles–Chicago 2,802 km | new | United 56 |
+| 18 | Dallas–San Francisco 2,352 km | new | American 56 |
+| 19 | Los Angeles–Seattle 1,537 km | new | Alaska 28 |
+| 20 | Dallas–Seattle 2,668 km | new | no rival |
+
+*Added 20 Oct (Gitesh: LAX and Dallas count; nothing on hold). Transatlantic and Asia from LAX and Dallas are beyond
+the A321XLR's 6,939 km, so they wait for long-haul.*
 
 **Malaysia** — KUL to the Indian and Chinese bases
 | # | Trunk | Kind | Note |

@@ -213,7 +213,7 @@ Details and open points: `docs/decisions.md`.
 
 | Airline | Hubs | Focus cities | Next |
 |---|---|---|---|
-| Pan Am | JFK | ORD, SFO, SEA | Dallas, then LAX (both on hold under hubs-first) |
+| Pan Am | JFK, Los Angeles, Dallas | ORD, SFO, SEA | — (LAX and Dallas off hold 20 Oct; they open with November's trunks) |
 | Kingfisher | Delhi | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | Mumbai |
 | Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order) | Milan and Munich; no eastern base for now |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
@@ -387,7 +387,8 @@ less important than another, point to point rather than hubs).*
   - **Hubs first is suspended for trunks in November:** any base can take an aircraft for a trunk route. One airline per
     city pair (§2) still applies, and so does the cash forecast's cushion.
   - **Only trunks that make sense:** a pair is opened only where the market is there and the route makes business sense
-    (no Kolkata–US direct, say), within reach of the default line. Munich and Milan Malpensa count as bases.
+    (no Kolkata–US direct, say), within reach of the default line. Munich, Milan Malpensa, Los Angeles
+    and Dallas count as bases; no base is on hold (Gitesh, 20 Oct).
   *Details agreed 20 Oct (Gitesh).*
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
