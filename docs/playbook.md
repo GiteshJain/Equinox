@@ -32,7 +32,7 @@ full stop). Website and planner: **equinox-alliance.com** (planner at `/planner/
 
 | Airline | Code | Bases (main hub first) | Flying | On order | Routes |
 |---|---|---|---|---|---|
-| Pan Am | AW | Hub JFK; focus ORD, SFO, SEA. Dallas and LAX set up, on hold | 15 | 3 | 25 |
+| Pan Am | AW | Hubs JFK, Los Angeles, Dallas; focus ORD, SFO, SEA | 15 | 3 | 25 |
 | Kingfisher | KF | Hub Delhi; focus Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first). Mumbai set up, next | 12 | 3 | 19 |
 | Ryanair | FR | Five equal focus cities: Paris CDG, Amsterdam, Barcelona, Milan, Munich | 21 | 5 | 48 |
 | Virgin Atlantic | VS | Hubs Gatwick, Manchester; focus Edinburgh | 18 | 2 | 38 |
@@ -109,8 +109,8 @@ database → Building.
   others can't.
 
 ### Each airline's plan
-- **Pan Am (JFK):** grow JFK to 750 weekly departures first. Dallas, then LAX, wait for that, unless a route there is
-  contested. No interlines in Canada, Mexico, the Caribbean or Central America.
+- **Pan Am (JFK, Los Angeles, Dallas):** grow JFK to 750 weekly departures first. LAX and Dallas are off hold (20 Oct)
+  and open with November's trunks. No interlines in Canada, Mexico, the Caribbean or Central America.
 - **Kingfisher (Delhi):** India is open, so aim to take all of it. Mumbai is next. The two Delhi–JFK A350s stay as they
   are (reviewed 28 Nov).
 - **Ryanair (CDG, Amsterdam, Barcelona; Milan and Munich next):** five equal focus cities, point to point, no hub.
@@ -137,6 +137,12 @@ database → Building.
   are divided among the flights on offer, so more, smaller flights take more of a market.
   **Both delivery lines:** A321neos on big sold-out routes; E195s on short, thin and new markets, ordered the evening cash
   covers an E195 but not yet an A321neo.
+- **The default line:** the cheapest variant that seats the market and reaches the city (manual §3's table): E195-E2,
+  A320neo SHARP/LIGHT/standard/Heavy, A321neo LIGHT/standard, A321LR, A321XLR, then the A350-900 to about 15,000 km and
+  the A350-1000 beyond (or where the -900 sells out). No ULR. Range is not a hard limit: the game cuts seats instead.
+- **November: the trunks.** Every order from 1 to 30 November fortifies the routes between our bases, shortest first,
+  keeping the delivery lines filled: `docs/briefs/2026-10-20-november-trunks.md` and Gitesh's decisions on all 325 pairs.
+- **Every aircraft is named by its tail number and base**, e.g. "N019AW (JFK)", in every chat.
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network. Long haul comes later.
 - **New airlines launch short haul:** one daily rotation per route, as many routes as possible.
 
@@ -307,8 +313,10 @@ first.
 2. **The weekly report:** a PDF written like a briefing for a CEO, with no fixed template. It covers:
    - competition by market, for the group and for each airline;
    - risks and opportunities;
-   - our plan and progress (the growth rotation, what's coming);
-   - route profit, growth signals and fare-plan results.
+   - our plan and progress (what's coming);
+   - route profit, growth signals and fare-plan results;
+   - each airline's net cash a day against the price of one aircraft (the pace towards an aircraft a day);
+   - each airline against its three biggest competitors.
 
    Claude pulls the figures from the database, you agree the week's words, and Claude publishes the PDF to the investor
    library on the website. It's the only investor report; on the first Saturday of the month it adds a page on the
