@@ -14,10 +14,10 @@ import type { RouteRow as TableRoute } from "../routes/model";
 import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
 import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
-  CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay, fcWhat,
-  historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords, offersFarePlan,
-  planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, stepWords, weekOnWeek, type Card, type DayRow, type LadderRoute,
-  type PlanRow, type ProfitDay, type RouteDayRow, type RouteRow,
+  CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, changesWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay,
+  fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords,
+  offersFarePlan, planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, stepWords, weekOnWeek, type Card, type DayRow,
+  type LadderAction, type LadderRoute, type PlanRow, type ProfitDay, type RouteDayRow, type RouteRow,
 } from "./model";
 import type { CapturedLoad, HandLoads } from "./reads";
 
@@ -246,6 +246,15 @@ describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and
   it("this Saturday's moves in one line", () => {
     expect(ladderLine({ up: 12, hold: 30, down: 2 })).toBe("12 up, 30 hold, 2 down");
     expect(ladderLine({ up: 0, hold: 0, down: 0 })).toBe("0 up, 0 hold, 0 down");
+  });
+  it("the count of changes in the game for the airline's heading (21 Oct: route by route, each direction its own change)", () => {
+    expect([changesWords(24), changesWords(1), changesWords(0)]).toEqual(["24 changes in the game", "1 change in the game", "no changes in the game"]);
+    // a route's two cabins moving to the same level: one action each way, both classes ticked (the type has no base, kind
+    // or cabin any more, so an action with one fails the type check)
+    const out: LadderAction = { n: 7, route: "ZD1–ZE9", classes: ["economy", "business"], from: "ZD1", to: "ZE9", level: 105, sign: "+", pct: 5,
+      baseline: "default price", text: "From ZD1 to ZE9: +5% of the default price, economy and business" };
+    const back: LadderAction = { ...out, n: 8, from: "ZE9", to: "ZD1", text: "From ZE9 to ZD1: +5% of the default price, economy and business" };
+    expect(changesWords([out, back].length)).toBe("2 changes in the game");
   });
   it("a level with its steps above launch", () => {
     expect([levelWords(100, 0), levelWords(105, 1), levelWords(120, 4), levelWords(102, 0.4), levelWords(95, -1)])

@@ -20,8 +20,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    for (the library's card.cabinFor), printed, and one opened on Tails suggesting the same, with Use the suggestion and
    its amber as its cabin calls for; Performance, a scorecard for each of the copy's airlines in their order and the group's boards
    open (the fare ladder since 21 Oct, the group today when shown, Growth signals, Main hubs, Flights by day; the fare
-   ladder with a section for each airline, its moves in one line, its game actions and its routes table each cut to 10
-   rows with "show all N"),
+   ladder with a section for each airline, its moves in one line, its count of changes in the game matching its game
+   actions (route by route since 21 Oct), its game actions and its routes table each cut to 10 rows with "show all N"),
    then a scorecard opens its airline's page (Profit, Cash next 14 days, Route profit with its fare index and 14-day
    load sparkline, Fare plan, open); Systems, the Systems board first, then its three
    boards folded (Capture with the copy's airlines, Manual entry, Aircraft checks; Cabins went on 21 Oct), and two (no
@@ -564,7 +564,8 @@ async def performance_opens(pl):
     saying there's no day a week ago), and the group's boards open (the fare ladder since 21 Oct, the group today when
     shown, Growth signals, Main hubs, Flights by day); each growth list shows its first 10 rows with "show all N" (21 Oct),
     which opens the rest in place and "show fewer" closes; the fare ladder has a section for each airline with its moves
-    in one line ("12 up, 30 hold, 2 down"), Put on the fare plan, and its game actions and routes table each cut to 10
+    in one line ("12 up, 30 hold, 2 down"), the count of changes in the game in its heading ("24 changes in the game", as
+    many as its game actions), Put on the fare plan, and its game actions and routes table each cut to 10
     rows the same way (one of each opened and closed again); tapping the first scorecard opens that airline's page, its
     own scorecard and its four boards open, the route profit table with its fare index and 14-day load sparkline. Each
     airline's moves and how many game actions it has are printed (counts only)."""
@@ -593,6 +594,7 @@ async def performance_opens(pl):
     # 21 Oct: the fare ladder, a section for each airline with its moves, its game actions and its routes table cut to 10
     ladder_js = """[...document.querySelectorAll('main[data-screen=performance] [data-figure="performance: fare ladder"] [data-ladder]')].map(x => ({
         code: x.dataset.ladder, moves: (x.querySelector('[data-ladder-moves]') || {}).textContent || '',
+        changes: (x.querySelector('[data-ladder-changes]') || {}).textContent || '',
         plan: !!x.querySelector('[data-ladder-plan]'),
         lists: [...x.querySelectorAll('[data-list]')].map(d => ({ list: d.dataset.list, rows: +d.dataset.listRows,
           shown: d.dataset.list.startsWith('actions ') ? d.querySelectorAll('ol > li').length : d.querySelectorAll('table tr').length - 1,
@@ -605,6 +607,11 @@ async def performance_opens(pl):
             problems.append(f"the fare ladder's line for {x['code']} is {x['moves']!r}, not \"N up, N hold, N down\"")
         if not x["plan"]:
             problems.append(f"the fare ladder has no Put on the fare plan for {x['code']}")
+        # 21 Oct (route by route): the heading counts the changes to make in the game, as many as the actions listed
+        m = re.fullmatch(r"· (\d+|no) changes? in the game", x["changes"])
+        n_actions = next((lst["rows"] for lst in x["lists"] if lst["list"].startswith("actions ")), 0)
+        if not m or (0 if m.group(1) == "no" else int(m.group(1))) != n_actions:
+            problems.append(f"the fare ladder's heading for {x['code']} says {x['changes']!r}, not its {n_actions} game actions")
         for lst in x["lists"]:
             want_shown, want_button = (10, f"show all {lst['rows']}") if lst["rows"] > 10 else (lst["rows"], "")
             if lst["shown"] != want_shown or lst["button"] != want_button:
