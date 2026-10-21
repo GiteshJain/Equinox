@@ -42,6 +42,14 @@
 --   9. The E190-E2 for thin 1-star cities (migration 20261022010000; spec docs/specs/2026-10-21-tidy-ups.md §2): a 1-star
 --      opening on the E195 names the E190 (variant_alt, "or the CT E190 if thin"); a 2-star one, a 1-star one already on
 --      the E190 and one on the A350 don't, nor any once the airline may not buy the E190.
+--  10. The weekly report's three biggest competitors (migration 20261022040000; spec
+--      docs/specs/2026-10-21-report-three-competitors.md §1): on C1's two pairs in s3, Rival Two (14), Rival One (7) and
+--      Rival Three (6), each with its pairs, whole passenger network now and in s1, and the change; Cargo Four and C2 never;
+--      self, C1 from the same scans. C2: no rival on its pair. Then Rival Five, new in s3 (no schedule in s1), 14 on both of
+--      C1's pairs: the tie with Rival Two goes by name, Rival Three drops out as the fourth, and Rival Five has no
+--      weekly_before or change. With one scan no week-before figures; with none, no competitors and no self. The export
+--      (private.fig_export(), export_for_report('figures')) carries each airline's competitors, self and scans as
+--      competition() gives them.
 --   On the copy (section 2, before the hand-made world so the rehearsal prints it): each airline's counts and how long it
 --   takes (under the 8 s staff limit), how many of its 1-star openings carry the E190 note (across every opening, and in
 --   the top 50 the screen shows), the group's share, the top 5 openings and the latest scan's threats.
@@ -593,5 +601,83 @@ begin
   assert not exists (select 1 from jsonb_array_elements(d -> 'openings') x where x ? 'variant_alt'), 'an airline that may not buy the E190 got the note';
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
   raise notice 'the E190 for thin 1-star cities: YA1–YCB (1 star, CT E195) names CT E190 "or the CT E190 if thin"; a 2-star opening on CT E195, a 1-star one already on CT E190 and one on the A350 don''t; nor does any once the airline may not buy the E190';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 10. the weekly report's three biggest competitors (spec docs/specs/2026-10-21-report-three-competitors.md)
+-- At 13 Feb (latest s3, week before s1) C1 flies YA1–YB2 and YA1–YB3. On them in s3: Rival Two 14 (YA1→YB3 twice daily),
+-- Rival One 7 (YA1→YB2, started in s3), Rival Three 6 (YB3→YA1 on six days); Cargo Four's freighters and C2 (ours) never.
+-- Their whole passenger networks: Rival Two 42 (35 in s1), 5 airports; Rival One 28 (21; its s3 flight with no days not
+-- counted), 4; Rival Three 13 (10), 4. C1 itself: 21 a week on its 2 pairs in both scans, 3 airports.
+do $test$
+declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); c2 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c2');
+  w bigint := (select (v #>> '{}')::bigint from t_cp where k = 'w'); t timestamptz := (select (v #>> '{}')::timestamptz from t_cp where k = 't');
+  sc jsonb := (select v from t_cp where k = 'scans'); d jsonb := (select v from t_cp where k = 'c1_doc'); got text; r5 bigint; e jsonb;
+begin
+  -- the three, biggest on C1's pairs first, each with its network now and in the week-before scan
+  select string_agg(format('%s. %s %s on %s pair(s), %s a week at %s airports, %s before, %s (%s%%)', x ->> 'rank', x ->> 'name', x ->> 'on_pairs',
+                           x ->> 'pairs', x ->> 'weekly', x ->> 'airports', x ->> 'weekly_before', x ->> 'change', x ->> 'change_pct'), '; ' order by i)
+    into got from jsonb_array_elements(d -> 'competitors') with ordinality e(x, i);
+  assert got = '1. Rival Two 14 on 1 pair(s), 42 a week at 5 airports, 35 before, 7 (20.0%); 2. Rival One 7 on 1 pair(s), 28 a week at 4 airports, 21 before, 7 (33.3%); '
+            || '3. Rival Three 6 on 1 pair(s), 13 a week at 4 airports, 10 before, 3 (30.0%)',
+    'C1''s three biggest competitors are ' || coalesce(got, 'none');
+  assert not exists (select 1 from jsonb_array_elements(d -> 'competitors') x where x ->> 'name' in ('Cargo Four', 'Comp Two')),
+    'a freighter or our other airline is among C1''s competitors: ' || (d -> 'competitors')::text;
+  -- self: C1 from the same scans' schedules
+  assert d -> 'self' = jsonb_build_object('airline_id', c1, 'code', 'C1', 'name', 'Comp One', 'on_pairs', 21, 'pairs', 2, 'pairs_flown', 2,
+                                         'weekly', 21, 'airports', 3, 'weekly_before', 21, 'change', 0, 'change_pct', 0.0),
+    'C1''s self isn''t 21 a week on its 2 pairs, 21 in all at 3 airports, 21 before: ' || (d -> 'self')::text;
+  -- C2 flies YB4→YA1, which no rival flies
+  e := private.fig_competition(c2, t);
+  assert e -> 'competitors' = '[]'::jsonb and e #>> '{self,on_pairs}' = '7' and e #>> '{self,pairs}' = '1' and e #>> '{self,weekly}' = '7',
+    'C2 (no rival on its pair) isn''t no competitors and itself 7 on 1 pair: ' || jsonb_build_object('c', e -> 'competitors', 's', e -> 'self')::text;
+
+  -- Rival Five, new in s3 (no schedule in s1 or s2): YA1→YB2 and YB3→YA1 daily (14 on C1's pairs, as Rival Two) and
+  -- YB2→YC5 daily
+  d := private.fig_competition(c1, t);
+  perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'competition test', true);
+  insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, null, 990695, 'Rival Five', true) returning id into r5;
+  insert into public.game_scan_schedules (scan_id, world_id, airline_id, flights)
+  values ((sc ->> 's3')::bigint, w, r5, jsonb_build_array(pg_temp.cp_fl('R5', 1, 'YA1', 'YB2', '1234567'), pg_temp.cp_fl('R5', 2, 'YB3', 'YA1', '1234567'),
+                                                          pg_temp.cp_fl('R5', 3, 'YB2', 'YC5', '1234567')));
+  insert into public.game_scan_airlines (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position)
+  values ((sc ->> 's3')::bigint, w, 990695, r5, 'Rival Five', 3, 21, 4, 7);
+  perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
+  e := private.fig_competition(c1, t);
+  select string_agg(format('%s. %s %s on %s, %s a week at %s, before %s, %s (%s)', x ->> 'rank', x ->> 'name', x ->> 'on_pairs', x ->> 'pairs',
+                           x ->> 'weekly', x ->> 'airports', coalesce(x ->> 'weekly_before', 'none'), coalesce(x ->> 'change', 'none'),
+                           coalesce(x ->> 'change_pct', 'none')), '; ' order by i)
+    into got from jsonb_array_elements(e -> 'competitors') with ordinality e(x, i);
+  assert got = '1. Rival Five 14 on 2, 21 a week at 4, before none, none (none); 2. Rival Two 14 on 1, 42 a week at 5, before 35, 7 (20.0); '
+            || '3. Rival One 7 on 1, 28 a week at 4, before 21, 7 (33.3)',
+    'with Rival Five, C1''s three are ' || coalesce(got, 'none');
+  assert e #> '{competitors,0,weekly_before}' = 'null'::jsonb and e #> '{competitors,0,change}' = 'null'::jsonb
+     and e #> '{competitors,0,change_pct}' = 'null'::jsonb and e -> 'self' = d -> 'self',
+    'Rival Five (no row in the week-before scan) has a week-before figure, or C1''s self moved: ' || (e -> 'competitors' -> 0)::text;
+  -- the rest of the document moves only where a new rival on C1's pairs should show (market share, threats, profiles and
+  -- the group line)
+  assert (e - 'competitors' - 'markets' - 'threats' - 'profiles' - 'group') = (d - 'competitors' - 'markets' - 'threats' - 'profiles' - 'group'),
+    'adding a rival moved more than the rivals'' figures';
+
+  -- one scan (1 Feb): no week-before figures; none (31 Jan): no competitors and no self
+  e := private.fig_competition(c1, timestamptz '2030-02-01 12:00:00+00');
+  assert (select string_agg(x ->> 'name' || ' ' || (x ->> 'on_pairs') || ' ' || (x ->> 'weekly') || ' ' || coalesce(x ->> 'weekly_before', 'none')
+                            || ' ' || coalesce(x ->> 'change_pct', 'none'), ', ' order by (x ->> 'rank')::int) from jsonb_array_elements(e -> 'competitors') x)
+         = 'Rival Two 7 35 none none, Rival Three 3 10 none none'
+     and e #>> '{self,weekly}' = '21' and e #> '{self,weekly_before}' = 'null'::jsonb and e #> '{self,change}' = 'null'::jsonb,
+    'with one scan: ' || jsonb_build_object('c', e -> 'competitors', 's', e -> 'self')::text;
+  e := private.fig_competition(c1, timestamptz '2030-01-31 12:00:00+00');
+  assert e -> 'competitors' = '[]'::jsonb and e -> 'self' = 'null'::jsonb,
+    'with no scan: ' || jsonb_build_object('c', e -> 'competitors', 's', e -> 'self')::text;
+
+  -- the export carries each airline's competitors, self and scans, as competition() gives them
+  e := private.fig_export(w, t);
+  assert (select string_agg(a ->> 'code', ',' order by i) from jsonb_array_elements(e -> 'airlines') with ordinality x(a, i)) = 'C1,C2'
+     and (select bool_and(a -> 'competitors' = c -> 'competitors' and a -> 'self' = c -> 'self' and a -> 'scans' = c -> 'scans')
+            from jsonb_array_elements(e -> 'airlines') a
+            cross join lateral (select private.fig_competition((a ->> 'airline_id')::bigint, t, 0) as c) y)
+     and jsonb_array_length(e #> '{airlines,0,competitors}') = 3 and e #>> '{airlines,0,scans,latest,taken_at}' = '2030-02-12T08:00:00.000Z',
+    'the export''s competitors, self and scans aren''t competition()''s: ' || coalesce((e #> '{airlines,0}')::text, 'no airlines');
+  raise notice 'the three biggest competitors: C1''s on its two pairs, Rival Two 14 (42 a week, 35 before, +20.0%%), Rival One 7 and Rival Three 6, freighters and our other airline never; self C1 21 on 2 pairs; C2 none on its pair; Rival Five, new, ties Rival Two at 14 and goes first by name, Rival Three out as the fourth, with no week-before figures; one scan, none before; no scan, none; the export carries them as competition() gives them';
 end
 $test$;
