@@ -3,7 +3,7 @@
 // library sees it, the figures the screen words, and every action as one planner_save() call. No screen code, so the
 // unit tests run it. Every rule is the library's (lib/rules: frequency, banks, schedule, service); this file only joins
 // the tables' rows to it and words what it answers.
-import { banks, block, buildRules, frequency, schedule, service, time, type FrequencyEnds, type FrequencyView, type LocalTimes, type Rules,
+import { banks, block, buildRules, frequency, game, schedule, service, setting, time, type FrequencyEnds, type FrequencyView, type LocalTimes, type Rules,
   type ServiceProfile, type StoredLeg, type Wave } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
@@ -27,20 +27,22 @@ export interface RouteRow {
   market_override_id: number | null;
   market_cleared: boolean;
   stars_override: number | null;
+  /** The route's own cabin choice, which wins over its market's layout (manual §5; read since 21 Oct). */
+  cabin_choice?: string | null;
   updated_at: string;
 }
 export const ROUTE_COLUMNS = "id, airline_id, hub_code, dest_code, city, country_label, distance_km, market_id, stars, source, removed, removed_note, "
-  + "city_override, distance_override_km, market_override_id, market_cleared, stars_override, updated_at";
+  + "city_override, distance_override_km, market_override_id, market_cleared, stars_override, cabin_choice, updated_at";
 
+/** A market: since 21 Oct only its layout (Standard, Leisure, Leisure Plus or Comfort; spec
+ *  docs/specs/2026-10-21-cabins-new-rule.md §2); its default aircraft, cabin and fares went. */
 export interface MarketRow {
   id: number;
   airline_id: number;
   name: string;
-  default_type_id: number | null;
-  default_config_id: number | null;
-  fare_y_pct: number | null;
-  fare_j_pct: number | null;
+  layout: string;
 }
+export const MARKET_ROW_COLUMNS = "id, airline_id, name, layout";
 
 export interface RotationRow {
   id: number;
@@ -116,15 +118,18 @@ export interface Route {
   market_id: number | null;
   /** The market's name, "" without one. */
   market: string;
+  /** The market's layout (manual §5), "" without a market. */
+  layout: string;
   stars: number;
 }
 
 export function routeOf(row: RouteRow, markets: ReadonlyMap<number, MarketRow>): Route {
   const marketId = row.market_cleared ? null : row.market_override_id ?? row.market_id;
+  const m = marketId == null ? undefined : markets.get(marketId);
   return {
     row, id: row.id, airline_id: row.airline_id, hub: row.hub_code, dest: row.dest_code,
     city: row.city_override ?? row.city ?? "", dist: row.distance_override_km ?? row.distance_km,
-    market_id: marketId, market: marketId == null ? "" : markets.get(marketId)?.name ?? "",
+    market_id: marketId, market: m?.name ?? "", layout: m?.layout ?? "",
     // a research route without stars counts as 3, as the old planner's model
     stars: row.stars_override ?? (row.stars || 3),
   };
@@ -150,6 +155,7 @@ export function liveRules(rules: Rules, airlineId: number, routes: readonly Rout
     airports: [...input.airports, ...extra],
     routes: [...input.routes.filter((r) => r.airline_id !== airlineId), ...routes.map((r) => ({
       id: r.id, airline_id: r.airline_id, hub_code: r.hub, dest_code: r.dest, distance_km: r.dist, market_id: r.market_id, market: r.market || null,
+      market_layout: r.layout || null, cabin_choice: r.row.cabin_choice ?? null,
     }))],
     rotations: [...input.rotations.filter((r) => r.airline_id !== airlineId), ...rotations.map((r) => ({ id: r.id, airline_id: r.airline_id, route_id: r.route_id, legacy_key: r.legacy_key }))]
       .sort((a, b) => a.id - b.id),
@@ -175,19 +181,18 @@ export interface Freq {
 
 const stored = (l: LegRow | undefined): StoredLeg => ({ days_utc: l?.days_utc ?? [], dep_utc_min: l?.dep_utc_min ?? null, block_min: l?.block_min ?? null });
 
-/** What a rotation's times depend on: its route's airports and distance, and the type its estimate uses (its aircraft's,
- *  else its market's aircraft, as the old planner's estBlock). */
-export function endsOf(route: Route, aircraft: AircraftRow | undefined, markets: ReadonlyMap<number, MarketRow>): FrequencyEnds {
-  const market = route.market_id == null ? undefined : markets.get(route.market_id);
-  return { airline_id: route.airline_id, hub: route.hub, dest: route.dest, distance_km: route.dist, type_id: aircraft?.aircraft_type_id ?? market?.default_type_id ?? null };
+/** What a rotation's times depend on: its route's airports and distance, and the type its estimate uses: its aircraft's,
+ *  else the airline's most-flown type (the library's game.mostFlownType; its market's aircraft until 21 Oct, as the old
+ *  planner's estBlock). */
+export function endsOf(rules: Rules, route: Route, aircraft: AircraftRow | undefined): FrequencyEnds {
+  return { airline_id: route.airline_id, hub: route.hub, dest: route.dest, distance_km: route.dist, type_id: aircraft?.aircraft_type_id ?? game.mostFlownType(rules, route.airline_id) };
 }
 
-export function freqOf(rules: Rules, route: Route, rot: RotationRow, legs: readonly LegRow[], aircraft: ReadonlyMap<number, AircraftRow>,
-  markets: ReadonlyMap<number, MarketRow>): Freq {
+export function freqOf(rules: Rules, route: Route, rot: RotationRow, legs: readonly LegRow[], aircraft: ReadonlyMap<number, AircraftRow>): Freq {
   const leg1 = legs.find((l) => l.rotation_id === rot.id && l.leg_no === 1), leg2 = legs.find((l) => l.rotation_id === rot.id && l.leg_no === 2);
   const acId = leg1?.aircraft_id ?? leg2?.aircraft_id ?? null;
   const ac = acId == null ? undefined : aircraft.get(acId);
-  const ends = endsOf(route, ac, markets);
+  const ends = endsOf(rules, route, ac);
   const local = frequency.localTimes(rules, ends, stored(leg1), stored(leg2));
   const view = frequency.view(rules, ends, local);
   const noOut = leg1?.flight_no ?? null;
@@ -367,8 +372,21 @@ export const daysWords = (k: { days: number; of: number }): string => (k.days ==
 export function serviceFor(profiles: readonly ServiceProfile[], route: Route): string {
   return service.profileFor(profiles, route.airline_id, route.dist)?.code ?? "";
 }
-export const priceFor = (route: Route, markets: ReadonlyMap<number, MarketRow>): number | null =>
-  (route.market_id == null ? null : markets.get(route.market_id)?.fare_y_pct ?? null);
+/** The layout a route calls for, as its header words it (manual §5, since 21 Oct): its own cabin choice wins over its
+ *  market's layout. */
+export function layoutWords(route: Pick<Route, "layout" | "market"> & { row: Pick<RouteRow, "cabin_choice"> }): string {
+  const own = route.row.cabin_choice || "";
+  if (own) return `layout ${own} (the route's own${route.layout && route.layout !== own ? `; its market: ${route.layout}` : ""})`;
+  return route.layout ? `layout ${route.layout}` : route.market ? "no layout" : "no market, no layout";
+}
+/** A new frequency's fare: the airline's launch fare (settings.fare_launch_pct, Ryanair's own 85%; manual §5). Until 21 Oct
+ *  it was the market's economy fare, which went with the markets' fares (spec docs/specs/2026-10-21-cabins-new-rule.md
+ *  §2; every market had the launch fare). Null when the setting is missing. */
+export function priceFor(rules: Rules, route: Pick<Route, "airline_id">): number | null {
+  const v = setting(rules, "fare_launch_pct", route.airline_id);
+  const n = typeof v === "string" && v.trim() !== "" ? Number(v) : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
 
 /** The next free flight-number pair at the route's hub (the library's nextFlightNumbers), or null without a base there. */
 export function nextPair(rules: Rules, route: Route) {
@@ -441,8 +459,7 @@ export type ChangeAnswer = { changes: Change[] } | { error: string };
 /** One field of a frequency's form changed (the old planner's change on .freq [data-k]): the rows it changes, as one
  *  action. Times are typed local, or UTC in UTC mode; empty clears. Nothing when nothing changes. */
 export function changeFrequency(rules: Rules, f: Freq, field: FreqField, typed: string, ctx: {
-  mode: Mode; today: string; aircraft: ReadonlyMap<number, AircraftRow>; byRegistration: ReadonlyMap<string, AircraftRow>;
-  markets: ReadonlyMap<number, MarketRow>; route: Route;
+  mode: Mode; today: string; aircraft: ReadonlyMap<number, AircraftRow>; byRegistration: ReadonlyMap<string, AircraftRow>; route: Route;
 }): ChangeAnswer {
   const v = typed.trim();
   const out: Change[] = [];
@@ -463,7 +480,7 @@ export function changeFrequency(rules: Rules, f: Freq, field: FreqField, typed: 
     if (v && !ac) return { error: `No aircraft ${v}` };
     const id = ac?.id ?? null;
     scheduleChanged = (f.aircraft?.id ?? null) !== id;
-    const ends = endsOf(ctx.route, ac, ctx.markets);
+    const ends = endsOf(rules, ctx.route, ac);
     const { leg1, leg2 } = frequency.toLegs(rules, ends, f.local);
     out.push(...legUpdate(f.leg1, { ...leg1, aircraft_id: id }), ...legUpdate(f.leg2, { ...leg2, aircraft_id: id }));
     if (scheduleChanged) out.push(...stamp(f.aircraft, ctx.today), ...(ac && ac.id !== f.aircraft?.id ? stamp(ac, ctx.today) : []));

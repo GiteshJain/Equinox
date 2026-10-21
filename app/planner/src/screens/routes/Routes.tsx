@@ -10,7 +10,7 @@
 // the tables to it and words what it answers.
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { block, frequency, type FrequencyChecks } from "@rules";
+import { block, frequency, game, type FrequencyChecks } from "@rules";
 import { useNow } from "../../data/clock";
 import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
@@ -101,10 +101,10 @@ export function Routes() {
     for (const rot of rotationsQ.data) {
       const r = byId.get(rot.route_id);
       if (!r) continue;
-      out.set(r.id, [...(out.get(r.id) ?? []), freqOf(live, r, rot, legsQ.data, aircraft, markets)]);
+      out.set(r.id, [...(out.get(r.id) ?? []), freqOf(live, r, rot, legsQ.data, aircraft)]);
     }
     return out;
-  }, [live, rotationsQ.data, legsQ.data, routes, aircraft, markets]);
+  }, [live, rotationsQ.data, legsQ.data, routes, aircraft]);
   const summaries = useMemo(() => new Map([...freqsByRoute.entries()].map(([id, fs]) => [id, summaryOf(fs)])), [freqsByRoute]);
   const routeLoads = useMemo(() => new Map<number, Load>((loadsQ.data?.routes ?? []).map((l) => [l.route_id, l])), [loadsQ.data]);
   const flightLoads = useMemo(() => new Map<string, Load>((loadsQ.data?.flights ?? []).map((l) => [`${l.airline_id}|${l.flight_no}`, l])), [loadsQ.data]);
@@ -155,14 +155,14 @@ export function Routes() {
   }
   const onFrequency = (f: Freq, field: FreqField, value: string) => {
     if (!live || !route) return;
-    const res = changeFrequency(live, f, field, value, { mode, today, aircraft, byRegistration, markets, route });
+    const res = changeFrequency(live, f, field, value, { mode, today, aircraft, byRegistration, route });
     if ("error" in res) { showMessage(res.error); return; }
     void save(res.changes);
   };
   const onAddFrequency = () => {
     if (!live || !route || w === undefined) return;
     const nx = nextPair(live, route);
-    void save(addFrequencyChanges(w, route, nx, serviceFor(profilesQ.data ?? [], route), priceFor(route, markets), today, newLegacyKey()));
+    void save(addFrequencyChanges(w, route, nx, serviceFor(profilesQ.data ?? [], route), priceFor(live, route), today, newLegacyKey()));
   };
   const onEdit = (field: RouteField, value: string) => {
     if (!route) return;
@@ -192,11 +192,12 @@ export function Routes() {
       const rot = live.rotations.get(id), rr = rot ? live.routes.get(rot.route_id) : undefined;
       const ac = l1?.aircraft_id ?? l2?.aircraft_id;
       const type = ac == null ? undefined : live.aircraft.get(ac)?.aircraft_type_id ?? undefined;
-      const mk = rr?.market_id == null ? undefined : markets.get(rr.market_id);
+      const airlineId = (l1 ?? l2)?.airline_id ?? 0;
+      // with no aircraft, the airline's most-flown type (its market's aircraft until 21 Oct)
       return {
         rotation_id: id, leg1: l1, leg2: l2,
-        ends: { airline_id: (l1 ?? l2)?.airline_id ?? 0, hub: l1?.origin_code ?? l2?.dest_code ?? "", dest: l1?.dest_code ?? l2?.origin_code ?? "",
-          distance_km: rr?.distance_km ?? null, type_id: type ?? mk?.default_type_id ?? null },
+        ends: { airline_id: airlineId, hub: l1?.origin_code ?? l2?.dest_code ?? "", dest: l1?.dest_code ?? l2?.origin_code ?? "",
+          distance_km: rr?.distance_km ?? null, type_id: type ?? game.mostFlownType(live, airlineId) },
       };
     });
     const plan = offsetChanges(live, w, a, v, { rotations: rots, planLegs });
@@ -355,7 +356,7 @@ export function Routes() {
           {route && airline && live ? (
             <RouteDetail route={route} airline={airline} airlines={airlines} freqs={routeFreqs} checks={checks} rules={live} mode={mode}
               routeLoad={routeLoads.get(route.id)} flightLoad={(no) => (no == null ? undefined : flightLoads.get(`${route.airline_id}|${no}`))}
-              markets={markets} airlineMarkets={airlineMarkets} profiles={profilesQ.data ?? []} tails={tails as AircraftRow[]} airports={airports} busy={busy}
+              airlineMarkets={airlineMarkets} profiles={profilesQ.data ?? []} tails={tails as AircraftRow[]} airports={airports} busy={busy}
               onBack={() => toList({ ...filters, bases: filters.bases ?? picked })} onFrequency={onFrequency}
               onDeleteFrequency={(f) => void save(deleteFrequencyChanges(f, today))} onAddFrequency={onAddFrequency} onEdit={onEdit}
               onRemove={() => void onRemove()} onOffset={onOffset} onOpenTail={(reg) => setTailPopup(reg)} />

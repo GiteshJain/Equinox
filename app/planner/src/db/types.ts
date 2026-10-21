@@ -983,14 +983,14 @@ isOneToOne: false
                   ]
                 },"markets": {
                   Row: {
-                    "airline_id": number,"created_at": string,"default_config_id": number | null,"default_type_id": number | null,"fare_j_pct": number | null,"fare_y_pct": number | null,"id": number,"name": string,"updated_at": string,"world_id": number
+                    "airline_id": number,"created_at": string,"id": number,"layout": string,"name": string,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "airline_id": number,"created_at"?: string,"default_config_id"?: number | null,"default_type_id"?: number | null,"fare_j_pct"?: number | null,"fare_y_pct"?: number | null,"id"?: never,"name": string,"updated_at"?: string,"world_id": number
+                    "airline_id": number,"created_at"?: string,"id"?: never,"layout": string,"name": string,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "airline_id"?: number,"created_at"?: string,"default_config_id"?: number | null,"default_type_id"?: number | null,"fare_j_pct"?: number | null,"fare_y_pct"?: number | null,"id"?: never,"name"?: string,"updated_at"?: string,"world_id"?: number
+                    "airline_id"?: number,"created_at"?: string,"id"?: never,"layout"?: string,"name"?: string,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -998,18 +998,6 @@ isOneToOne: false
       columns: ["airline_id","world_id"]
 isOneToOne: false
       referencedRelation: "airlines"
-      referencedColumns: ["id","world_id"]
-    },{
-      foreignKeyName: "markets_config_fkey"
-      columns: ["default_config_id","world_id"]
-isOneToOne: false
-      referencedRelation: "cabin_configs"
-      referencedColumns: ["id","world_id"]
-    },{
-      foreignKeyName: "markets_type_fkey"
-      columns: ["default_type_id","world_id"]
-isOneToOne: false
-      referencedRelation: "aircraft_types"
       referencedColumns: ["id","world_id"]
     },{
       foreignKeyName: "markets_world_id_fkey"

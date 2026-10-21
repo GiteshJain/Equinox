@@ -1,19 +1,19 @@
 // Systems' logic (spec docs/specs/2026-10-20-today-performance-systems.md): the plumbing, rarely opened. Moved here on
-// 20 Oct with their boards: Check's Capture board and the backup's line, its aircraft checks and its cabins (decision #18,
-// build pull request 9, spec docs/specs/2026-10-13-check.md), and Review's Manual entry (build pull request 10, spec
+// 20 Oct with their boards: Check's Capture board and the backup's line and its aircraft checks (decision #18, build pull
+// request 9, spec docs/specs/2026-10-13-check.md), and Review's Manual entry (build pull request 10, spec
 // docs/specs/2026-10-14-review.md). How each board words what the database's figures and the planning library answer,
-// as the old planner's renderReview, cabinsBoard, cashEntryHtml, manualLoadsHtml and parseLoadPaste word them, and every
-// action as the rows of one planner_save() call: mark checked (Tails' markCheckedChange), log a refit, keep a cabin as
-// is and show it again, cash and fixed costs, loads typed or pasted. The Systems board's own marks are systems.ts's. No
-// screen code, so the unit tests run it.
-import { cabins, checks, loadReport, type CabinFit, type Rules } from "@rules";
+// as the old planner's renderReview, cashEntryHtml, manualLoadsHtml and parseLoadPaste word them, and every action as
+// the rows of one planner_save() call: mark checked (Tails' markCheckedChange), cash and fixed costs, loads typed or
+// pasted. The Cabins board (its refit, keep as is and show again) went on 21 Oct (spec
+// docs/specs/2026-10-21-cabins-new-rule.md §1). The Systems board's own marks are systems.ts's. No screen code, so the
+// unit tests run it.
+import { checks, loadReport, type Rules } from "@rules";
 import type { Change, Values } from "../../data/save";
 import { dayDiff } from "../../ui/dates";
-import type { TailAircraft } from "../tails/model";
 import type { BackupRun, CaptureAirline, CapturePages } from "./reads";
 
 // ---------- the boards that fold under the Systems board, in their order
-export const BOARDS = ["Capture", "Manual entry", "Cabins", "Aircraft checks"] as const;
+export const BOARDS = ["Capture", "Manual entry", "Aircraft checks"] as const;
 export type BoardKey = (typeof BOARDS)[number];
 /** The boards shown: Aircraft checks only while the checks are on for one of our airlines (aircraft_check_after_days
  *  above 0, the library's checks.on; spec docs/specs/2026-10-15-aircraft-checks-off.md). */
@@ -73,34 +73,6 @@ export function patternPill(p: { hub: string; dest: string; departures: number; 
     text: `${p.hub}–${p.dest}: ${p.departures ? Math.round(p.full / p.departures * 100) : 0}% of departures 95%+`,
   };
 }
-
-// ---------- Cabins
-/** The cabin it has, as the board shows it: its layout's cabin, else its layout's code, else a dash. */
-export const haveWords = (x: Pick<CabinFit, "have" | "have_code">): string => x.have || x.have_code || "—";
-export const mixWords = (x: Pick<CabinFit, "mix">): string => x.mix.map((m) => `${m.cabin} ${m.pct}%`).join(" · ");
-/** A refit's cost in millions, as the old note writes it ("0.2M"). */
-export const costWords = (cost: number): string => `${Number((cost / 1_000_000).toFixed(4))}M`;
-/** The kept-as-is key the old planner used: "registration|cabin". */
-export const keepKey = (x: Pick<CabinFit, "registration" | "want">): string => `${x.registration}|${x.want}`;
-/** Each refit's cost for the airline (cabin_refit_cost). */
-export const refitCost = (rules: Rules, airlineId: number): number => cabins.refitCost(rules, airlineId);
-
-/** Log a refit done in the game (the old data-refit): the aircraft takes the layout, and the refit's cost is a loss that
- *  day (spending_log, as the old planner's capex entry "cabin refit REG → CODE" is stored: no aircraft named). */
-export function refitChanges(worldId: number, a: Pick<TailAircraft, "id" | "airline_id" | "registration" | "updated_at">, target: { id: number; code: string },
-  cost: number, today: string): Change[] {
-  return [
-    { table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values: { cabin_config_id: target.id } },
-    { table: "spending_log", op: "insert", values: {
-      world_id: worldId, airline_id: a.airline_id, spent_on: today, amount: cost, kind: "loss", aircraft_id: null, note: `cabin refit ${a.registration} → ${target.code}` } },
-  ];
-}
-/** Keep as is (the old data-cabkeep): the cabin its routes call for, kept from today. */
-export const keepChange = (worldId: number, aircraftId: number, cabin: string, today: string): Change =>
-  ({ table: "aircraft_cabin_keeps", op: "insert", values: { world_id: worldId, aircraft_id: aircraftId, cabin, decided_on: today } });
-/** Show again (the old data-cabundo): the decision goes. */
-export const undoKeepChange = (k: { aircraft_id: number; cabin: string; updated_at: string }): Change =>
-  ({ table: "aircraft_cabin_keeps", op: "delete", key: { aircraft_id: k.aircraft_id, cabin: k.cabin }, base: k.updated_at });
 
 // ---------- Manual entry (Review's until 20 Oct): cash and fixed costs, the nightly log (cash_log()), loads by hand
 export interface CashToday {

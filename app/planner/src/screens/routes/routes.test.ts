@@ -7,16 +7,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import {
-  addFrequencyChanges, addRouteChanges, alt, changeFrequency, deleteFrequencyChanges, disp, editRouteChange, filtersQuery, freqOf, fromInput, listRows,
-  liveRules, marketChips, moveWords, newLegacyKey, offsetChanges, parseFilters, parseOffset, removeRoutesChanges, routeOf, summaryOf, tailsWords,
+  addFrequencyChanges, addRouteChanges, alt, changeFrequency, deleteFrequencyChanges, disp, editRouteChange, endsOf, filtersQuery, freqOf, fromInput, layoutWords, listRows,
+  liveRules, marketChips, moveWords, newLegacyKey, offsetChanges, parseFilters, parseOffset, priceFor, removeRoutesChanges, routeOf, summaryOf, tailsWords,
   type AircraftRow, type AirportInfo, type Filters, type LegRow, type MarketRow, type RotationRow, type Route, type RouteRow, type RouteSummary,
 } from "./model";
 
 const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
 const T0 = "2026-10-12T10:00:00.000001+00:00";
 const markets = new Map<number, MarketRow>([
-  [1, { id: 1, airline_id: 1, name: "Europe", default_type_id: 1, default_config_id: null, fare_y_pct: 100, fare_j_pct: null }],
-  [2, { id: 2, airline_id: 1, name: "Long haul", default_type_id: 1, default_config_id: null, fare_y_pct: 110, fare_j_pct: 120 }],
+  [1, { id: 1, airline_id: 1, name: "Europe", layout: "Leisure" }],
+  [2, { id: 2, airline_id: 1, name: "Long haul", layout: "Comfort" }],
 ]);
 const routeRow = (id: number, hub: string, dest: string, km: number, x: Partial<RouteRow> = {}): RouteRow => ({
   id, airline_id: 1, hub_code: hub, dest_code: dest, city: dest.toLowerCase(), country_label: null, distance_km: km, market_id: 1, stars: 3, source: "research",
@@ -38,8 +38,8 @@ const routes: Route[] = [routeRow(3, "HUB", "CCC", 6720, { market_id: 2 }), rout
 const legs: LegRow[] = [leg(1, 1, 1, "HUB", "CCC", [1, 3, 5], 1320, 480), leg(2, 1, 2, "CCC", "HUB", [2, 4, 6], 450, 540)];
 const rules = liveRules(buildRules(base), 1, routes, [rot(1, 3)], legs);
 const ccc = routes[0] as Route;
-const f = freqOf(rules, ccc, rot(1, 3), legs, aircraft, markets);
-const ctx = { mode: "local" as const, today: "2026-10-13", aircraft, byRegistration: byReg, markets, route: ccc };
+const f = freqOf(rules, ccc, rot(1, 3), legs, aircraft);
+const ctx = { mode: "local" as const, today: "2026-10-13", aircraft, byRegistration: byReg, route: ccc };
 
 describe("local and UTC times, both ways", () => {
   it("shows stored UTC legs in local time, across midnight, with the return's next day", () => {
@@ -107,8 +107,27 @@ describe("the list: the old planner's routeRows", () => {
   it("a route without stars counts 3, its overrides win, a cleared market is none", () => {
     expect(routes.find((r) => r.id === 10)?.stars).toBe(3);
     const r = routeOf(routeRow(4, "HUB", "DDD", 1400, { stars_override: 5, city_override: "Bombay", distance_override_km: 1500, market_cleared: true }), markets);
-    expect(r).toMatchObject({ stars: 5, city: "Bombay", dist: 1500, market: "", market_id: null });
+    expect(r).toMatchObject({ stars: 5, city: "Bombay", dist: 1500, market: "", market_id: null, layout: "" });
     expect(marketChips(routes)).toEqual(["", "Europe", "Long haul"]);
+  });
+  // 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §2): a market keeps only its layout
+  it("shows the layout a route calls for: its own cabin choice over its market's layout", () => {
+    expect(ccc.layout).toBe("Comfort");
+    expect(layoutWords(ccc)).toBe("layout Comfort");
+    expect(layoutWords(routeOf(routeRow(3, "HUB", "CCC", 6720, { market_id: 2, cabin_choice: "Leisure Plus" }), markets)))
+      .toBe("layout Leisure Plus (the route's own; its market: Comfort)");
+    expect(layoutWords(routeOf(routeRow(10, "HUB", "BBB", 5600, { market_id: null }), markets))).toBe("no market, no layout");
+  });
+  it("a new frequency's fare is the airline's launch fare (fare_launch_pct, its own where it has one), not the market's", () => {
+    const at = (settings: RulesInput["settings"], airlines = base.airlines) => buildRules({ ...base, settings: { ...base.settings, ...settings }, airlines });
+    expect(priceFor(at({ fare_launch_pct: 100 }), ccc)).toBe(100);
+    expect(priceFor(at({ fare_launch_pct: 100 }, [{ id: 1, settings: { fare_launch_pct: 85 } }, { id: 2 }]), ccc)).toBe(85);
+    expect(priceFor(buildRules(base), ccc)).toBeNull();
+  });
+  it("a rotation with no aircraft estimates on the airline's most-flown type (its market's aircraft until 21 Oct)", () => {
+    expect(endsOf(rules, ccc, undefined).type_id).toBe(1);
+    expect(endsOf(rules, ccc, { ...ac, aircraft_type_id: 2 }).type_id).toBe(2);
+    expect(endsOf(liveRules(buildRules(base), 1, routes, [], []), ccc, undefined).type_id).toBeNull();
   });
   it("keeps the filters in the address, and reads them back", () => {
     const f1 = F({ airline: "TA", bases: ["HUB", "FOC"], stars: [5, 4], markets: ["Long haul", "Europe & more"], kmFrom: "500", kmTo: "", active: true, sort: "load", q: "chi" });
@@ -142,7 +161,7 @@ describe("an offset change keeps the local times", () => {
     // read back with the new offset, the local times are the same
     const after = liveRules(buildRules({ ...base, airports: base.airports.map((a) => (a.code === "CCC" ? { ...a, utc_offset: 6 } : a)) }), 1, routes, [rot(1, 3)],
       [{ ...legs[0], block_min: 450 } as LegRow, { ...legs[1], dep_utc_min: 420, block_min: 570 } as LegRow]);
-    expect(freqOf(after, ccc, rot(1, 3), after.legs.map((l) => ({ ...l, updated_at: T0 })) as LegRow[], aircraft, markets).local).toEqual(f.local);
+    expect(freqOf(after, ccc, rot(1, 3), after.legs.map((l) => ({ ...l, updated_at: T0 })) as LegRow[], aircraft).local).toEqual(f.local);
     expect(moveWords(plan.moves[1] as never, "TA")).toBe("TA 1002 CCC–HUB: leaves 07:00 UTC instead of 07:30, block 9:30 instead of 9:00");
   });
   it("updates the world's row when it has one; an empty box clears the correction", () => {

@@ -6,9 +6,9 @@
 // planning figure is the library's (aircraftWeek, maintenance, tails, frequency, time); this file joins the tables'
 // rows to it and words what it answers, as the old planner words it.
 import {
-  aircraftWeek, banks, block, buildRules, frequency, game, maintenance, service, tails, time, type AircraftWeek, type AirportRow, type CardCheck as LibCardCheck,
-  type CheckRow as LibCheckRow, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance, type NoMaintenance, type Rules, type ServiceProfile,
-  type TailIssue, type TimedLeg, type WeekLeg,
+  RulesError, aircraftWeek, banks, block, buildRules, card as cardRules, frequency, game, maintenance, service, tails, time, type AircraftWeek, type AirportRow,
+  type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
+  type NoMaintenance, type Rules, type ServiceProfile, type TailIssue, type TimedLeg, type WeekLeg,
 } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
@@ -424,14 +424,46 @@ export function cardLegs(rules: Rules, legs: readonly PlanLegRow[]): CardLeg[] {
 // ---------- the plan card's service check (#18 build pull request 10, spec docs/specs/2026-10-14-review.md part 2): each
 // leg's service code against the one its route's distance calls for (the library's service.checkLegs). The start carries
 // only the flown routes, so the airline's own routes are laid in first, as filing takes a leg's distance from them.
-/** The rules with an airline's routes the start doesn't carry (a plan card's new route), with any distance override. */
-export function withRoutes(rules: Rules, routes: readonly RouteRow[]): Rules {
+/** The rules with an airline's routes the start doesn't carry (a plan card's new route), with any distance override, and
+ *  since 21 Oct each one's market (any override applied), its market's layout and its own cabin choice, for the plan
+ *  card's cabin (markets: name and layout; none given, no market). */
+export function withRoutes(rules: Rules, routes: readonly RouteRow[], markets: readonly MarketRow[] = []): Rules {
   const have = new Set(rules.input.routes.map((r) => r.id));
-  const extra = routes.filter((r) => !have.has(r.id) && !r.removed).map((r) => ({
-    id: r.id, airline_id: r.airline_id, hub_code: r.hub_code, dest_code: r.dest_code, distance_km: r.distance_override_km ?? r.distance_km,
-  }));
+  const byId = new Map(markets.map((m) => [m.id, m]));
+  const extra = routes.filter((r) => !have.has(r.id) && !r.removed).map((r) => {
+    const marketId = r.market_cleared ? null : r.market_override_id ?? r.market_id;
+    const m = marketId == null ? undefined : byId.get(marketId);
+    return {
+      id: r.id, airline_id: r.airline_id, hub_code: r.hub_code, dest_code: r.dest_code, distance_km: r.distance_override_km ?? r.distance_km,
+      market_id: m ? m.id : null, market: m?.name ?? null, market_layout: m?.layout ?? null, cabin_choice: r.cabin_choice ?? null,
+    };
+  });
   return extra.length ? buildRules({ ...rules.input, routes: [...rules.input.routes, ...extra] }) : rules;
 }
+
+// ---------- the plan card's cabin (manual §5; spec docs/specs/2026-10-21-cabins-new-rule.md §3): the library's
+// card.cabinFor on the card's legs, with the airline's routes laid in (withRoutes)
+/** The cabin the card's routes call for, or null when it can't be worked out (an aircraft without a type, a missing
+ *  setting): the suggestion, its reason, and whether the card's own cabin is missing or differs. */
+export function cardCabin(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | "config_id">, legs: readonly PlanLegRow[]): CabinSuggestion | null {
+  try {
+    return cardRules.cabinFor(rules, {
+      aircraft: card.aircraft_id, config_id: card.config_id ?? null,
+      legs: [...legs].sort((a, b) => a.position - b.position).map((l) => ({
+        flight_no: l.flight_no, origin_code: l.origin_code, dest_code: l.dest_code, days_utc: l.days_utc, dep_utc_min: l.dep_utc_min, block_min: l.block_min,
+      })),
+    });
+  } catch (e) {
+    if (e instanceof RulesError) return null;
+    throw e;
+  }
+}
+/** The suggestion beside the card's Cabin box: "suggested: 321-LP", with its reason; null when there's none. */
+export function suggestionWords(s: CabinSuggestion | null): { text: string; reason: string } | null {
+  return s?.code ? { text: `suggested: ${s.code}`, reason: s.reason } : null;
+}
+/** Whether a cabin shown on the card (its own, else its order's: a code, "" for none) differs from the suggestion. */
+export const cabinDiffers = (s: CabinSuggestion | null, shown: string): boolean => !!s?.code && !!shown && shown !== s.code;
 /** Each card leg's service issue (the code given against the code wanted), by the leg's row id; empty when all are right. */
 export function cardServiceIssues(rules: Rules, airlineId: number, legs: readonly CardLeg[]): Map<number, string> {
   const check = service.checkLegs(rules, airlineId, legs.map((L) => ({ flight_no: L.row.flight_no, origin_code: L.from, dest_code: L.to, service_code: L.row.service_code })));
@@ -584,7 +616,7 @@ export function filingChanges(x: FilingInput): Change[] {
       const r = routeOf(route, x.markets);
       values.route_id = route.id;
       values.service_code = service.profileFor(x.profiles, a.airline_id, r.dist)?.code || null;
-      values.fare_pct = priceFor(r, x.markets);
+      values.fare_pct = priceFor(x.rules, r);
       distance = r.dist;
     } else {
       // a route the airline doesn't have: added as the old importFlight adds it (city and country from the airport list,

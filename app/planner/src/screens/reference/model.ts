@@ -8,7 +8,7 @@ import type { Json } from "../../db/types";
 // ---------- the sections, in the old order; each folds, and the open one is in the address (/reference/<slug>)
 export const SECTIONS = [
   ["hubs", "Hubs, focus cities and banks"], ["constants", "Constants"], ["aircraft", "Aircraft"], ["configs", "Configs"],
-  ["markets", "Market defaults"], ["services", "Service profiles"], ["removed", "Removed routes"], ["night-bans", "Night bans"],
+  ["markets", "Markets"], ["services", "Service profiles"], ["removed", "Removed routes"], ["night-bans", "Night bans"],
   ["schedules", "Game schedules"], ["time-zones", "Time zones"], ["storage", "Storage"], ["data", "Data"],
 ] as const;
 export type SectionSlug = (typeof SECTIONS)[number][0];
@@ -256,19 +256,16 @@ export interface InUse { types: ReadonlySet<number>; configs: ReadonlySet<number
 export const removeRow = (table: "aircraft_types" | "cabin_configs" | "service_profiles" | "markets", row: { id: number; updated_at: string }): Change =>
   ({ table, op: "delete", key: { id: row.id }, base: row.updated_at });
 
-// ---------- market defaults
-export interface MarketRow {
-  id: number; airline_id: number; name: string; default_type_id: number | null; default_config_id: number | null; fare_y_pct: number | null;
-  fare_j_pct: number | null; updated_at: string;
-}
-export const MARKET_COLUMNS = "id, airline_id, name, default_type_id, default_config_id, fare_y_pct, fare_j_pct, updated_at";
-export type MarketField = "aircraft" | "config" | "priceY" | "priceJ";
-export function marketChange(m: MarketRow, field: MarketField, typed: string, types: readonly TypeRow[], configs: readonly ConfigRow[]): Change | null {
-  const [col, v]: [keyof MarketRow, Json] = field === "aircraft" ? ["default_type_id", [...types].sort((a, b) => a.id - b.id).find((t) => t.name === typed)?.id ?? null]
-    : field === "config" ? ["default_config_id", [...configs].sort((a, b) => a.id - b.id).find((c) => c.code === typed)?.id ?? null]
-    : [field === "priceY" ? "fare_y_pct" : "fare_j_pct", typed === "" ? null : numOf(typed, 10000)];
-  if (JSON.stringify(m[col] ?? null) === JSON.stringify(v)) return null;
-  return { table: "markets", op: "update", key: { id: m.id }, base: m.updated_at, values: { [col]: v } };
+// ---------- markets (Market defaults until 21 Oct: each market keeps only its layout since; spec
+// docs/specs/2026-10-21-cabins-new-rule.md §2)
+export interface MarketRow { id: number; airline_id: number; name: string; layout: string; updated_at: string }
+export const MARKET_COLUMNS = "id, airline_id, name, layout, updated_at";
+/** The layouts a market may call for (markets.layout's check; manual §5). */
+export const LAYOUTS = ["Standard", "Leisure", "Leisure Plus", "Comfort"] as const;
+/** A market's layout chosen: one change on the market; nothing when it's the same or not one of the four. */
+export function marketChange(m: MarketRow, typed: string): Change | null {
+  if (!(LAYOUTS as readonly string[]).includes(typed) || typed === m.layout) return null;
+  return { table: "markets", op: "update", key: { id: m.id }, base: m.updated_at, values: { layout: typed } };
 }
 /** The old document's market order: its keys ("Airline|Market") as JSON keys come back as the database keeps a jsonb
  *  object's keys, shortest first in bytes (UTF-8: a dash "–" is three), then byte by byte. The rehearsal found "Ryanair|Europe

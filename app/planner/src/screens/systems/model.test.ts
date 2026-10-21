@@ -1,22 +1,20 @@
 // Systems' logic (spec docs/specs/2026-10-20-today-performance-systems.md; Check's and Review's tests for these boards
 // until 20 Oct, specs docs/specs/2026-10-13-check.md and docs/specs/2026-10-14-review.md): the capture board's cells and
 // the backup's line; the one-week check's status (due, coming up, done, and due again when a schedule changes) as the
-// board lists it, and the board shown only while the checks are on; the cabin fit and the keep rule with their saves;
-// and Manual entry: cash and fixed costs (the rows the old planner's adapter writes), the nightly log, the load paste
-// reader (the old parseLoadPaste, with the old planner test's case) and the typed loads with their rows. The planning
-// rules themselves are the library's, with their own cases (lib/rules/cases/checks.json, cabins.json); these run the
+// board lists it, and the board shown only while the checks are on (the Cabins board's fit, keep and refit went with it
+// on 21 Oct); and Manual entry: cash and fixed costs (the rows the old planner's adapter writes), the nightly log, the
+// load paste reader (the old parseLoadPaste, with the old planner test's case) and the typed loads with their rows. The
+// planning rules themselves are the library's, with their own cases (lib/rules/cases/checks.json); these run the
 // screen's words and saves on the cases' small world. The Systems board's own marks are systems.test.ts's.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildRules, cabins, checks, type RulesInput } from "@rules";
-import type { TailAircraft } from "../tails/model";
+import { buildRules, checks, type RulesInput } from "@rules";
 import {
-  BOARDS, backupWords, captureCell, captureStatus, cashChanges, dayStatus, keepChange, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, patternPill,
-  refitChanges, shownBoards, typedLoads, typedSave, underList, undoKeepChange, upcomingByDay, type CashToday,
+  BOARDS, backupWords, captureCell, captureStatus, cashChanges, dayStatus, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, patternPill,
+  shownBoards, typedLoads, typedSave, underList, upcomingByDay, type CashToday,
 } from "./model";
 
 const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
-const T0 = "2026-10-12T10:00:00.000001+00:00";
 const ALL = [1, 2, 3, 4, 5, 6, 7];
 const leg = (id: number, rot: number, n: 1 | 2, from: string, to: string, aircraft: number, days: number[], dep: number, blk: number | null, no: number | null) => ({
   id, airline_id: 1, rotation_id: rot, leg_no: n, flight_no: no, origin_code: from, dest_code: to, aircraft_id: aircraft, days_utc: days, dep_utc_min: dep, block_min: blk,
@@ -34,11 +32,6 @@ const input: RulesInput = {
   ],
 };
 const rules = buildRules(input);
-const ac = (id: number, reg: string, x: Partial<TailAircraft> = {}): TailAircraft => ({
-  id, registration: reg, airline_id: 1, aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB", status: "active", ordered_on: null, delivery_at: null,
-  order_base_code: null, order_config_id: null, order_note: null, checked_on: null, schedule_changed_on: null, maintenance_note: null, retired_on: null,
-  extra: {}, updated_at: T0, ...x,
-});
 
 describe("Capture", () => {
   it("shows today's time, else yesterday's, else a dash; complete, missing some pages or not captured", () => {
@@ -84,41 +77,12 @@ describe("the aircraft checks", () => {
     expect(shownBoards(at(without), [1, 2])).toEqual(noChecks);
     expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }, [{ id: 1 }, { id: 2, settings: { aircraft_check_after_days: 7 } }]), [1, 2])).toEqual(BOARDS);
     expect(checks.oneWeek(at({ ...input.settings, aircraft_check_after_days: 0 }), facts(null, null), "2026-10-12")).toEqual([]);
-    expect(BOARDS).toEqual(["Capture", "Manual entry", "Cabins", "Aircraft checks"]);
+    // the Cabins board went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1)
+    expect(BOARDS).toEqual(["Capture", "Manual entry", "Aircraft checks"]);
   });
   it("words a route's load pattern on a check: its share of departures at 95%+ and its mark", () => {
     expect(patternPill({ hub: "HUB", dest: "AAA", departures: 14, full: 13, mark: "add" })).toEqual({ cls: "ok", text: "HUB–AAA: 93% of departures 95%+" });
     expect(patternPill({ hub: "HUB", dest: "DDD", departures: 0, full: 0, mark: "hold" })).toEqual({ cls: "mute", text: "HUB–DDD: 0% of departures 95%+" });
-  });
-});
-
-describe("the cabins", () => {
-  const configs = [
-    { id: 1, code: "321-LEI", aircraft_type_id: 1, cabin: "Leisure" }, { id: 2, code: "321-STD", aircraft_type_id: 1, cabin: "Standard" },
-    { id: 3, code: "321-CMF", aircraft_type_id: 1, cabin: "Comfort" },
-  ];
-  const facts = (keeps: { aircraft_id: number; cabin: string; decided_on: string | null }[]) => ({
-    aircraft: [{ id: 1, cabin_config_id: 1 }, { id: 2, cabin_config_id: 2 }], configs, routes: [{ id: 6, cabin_choice: "Comfort" }],
-    markets: [{ id: 1, default_config_id: 2 }, { id: 2, default_config_id: 3 }], keeps,
-  });
-  it("lists each aircraft whose cabin isn't what most of its flying wants, by share, with the layout to refit to", () => {
-    const list = cabins.fit(rules, facts([]));
-    expect(list.map((x) => [x.registration, x.have, x.want, x.share, x.target?.code, x.strong])).toEqual([["T-002", "Standard", "Comfort", 100, "321-CMF", true],
-      ["T-001", "Leisure", "Standard", 53, "321-STD", false]]);
-  });
-  it("keeps one as is until its routes call for a different cabin", () => {
-    expect(cabins.fit(rules, facts([{ aircraft_id: 1, cabin: "Standard", decided_on: "2026-10-10" }])).find((x) => x.registration === "T-001"))
-      .toMatchObject({ kept: true, kept_on: "2026-10-10" });
-    expect(cabins.fit(rules, facts([{ aircraft_id: 1, cabin: "Comfort", decided_on: "2026-10-10" }])).find((x) => x.registration === "T-001"))
-      .toMatchObject({ kept: false, kept_on: null });
-  });
-  it("saves a refit (the aircraft's cabin and the loss), a keep and its undo as one action each", () => {
-    expect(refitChanges(1, ac(1, "T-001"), { id: 2, code: "321-STD" }, 200000, "2026-10-13")).toEqual([
-      { table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { cabin_config_id: 2 } },
-      { table: "spending_log", op: "insert", values: { world_id: 1, airline_id: 1, spent_on: "2026-10-13", amount: 200000, kind: "loss", aircraft_id: null, note: "cabin refit T-001 → 321-STD" } },
-    ]);
-    expect(keepChange(1, 1, "Standard", "2026-10-13")).toEqual({ table: "aircraft_cabin_keeps", op: "insert", values: { world_id: 1, aircraft_id: 1, cabin: "Standard", decided_on: "2026-10-13" } });
-    expect(undoKeepChange({ aircraft_id: 1, cabin: "Standard", updated_at: T0 })).toEqual({ table: "aircraft_cabin_keeps", op: "delete", key: { aircraft_id: 1, cabin: "Standard" }, base: T0 });
   });
 });
 

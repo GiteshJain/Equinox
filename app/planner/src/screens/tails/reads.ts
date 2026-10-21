@@ -13,7 +13,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
-import { ROUTE_COLUMNS, type MarketRow, type RouteRow } from "../routes/model";
+import { MARKET_ROW_COLUMNS, ROUTE_COLUMNS, type MarketRow, type RouteRow } from "../routes/model";
 import type { ServiceRow } from "../routes/reads";
 import {
   AIRCRAFT_COLUMNS, PLAN_CARD_COLUMNS, PLAN_LEG_COLUMNS, type BuyTypeRow, type ConfigRow, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft,
@@ -137,8 +137,9 @@ export async function readAirlineRoutes(airlineId: number): Promise<RouteRow[]> 
     if (page.length < 1000) return out;
   }
 }
+/** The markets: name and layout (all a market keeps since 21 Oct). */
 export async function readMarkets(worldId: number): Promise<MarketRow[]> {
-  return rows<MarketRow>("the markets", supabase.from("markets").select("id, airline_id, name, default_type_id, default_config_id, fare_y_pct, fare_j_pct")
+  return rows<MarketRow>("the markets", supabase.from("markets").select(MARKET_ROW_COLUMNS)
     .eq("world_id", worldId).order("id") as unknown as Answer<MarketRow[]>);
 }
 export async function readProfiles(worldId: number): Promise<ServiceRow[]> {

@@ -2,8 +2,10 @@
 // of the old planner's Reference (renderRef and renderRefRaw), folding as the old one does (all folded until opened; the
 // open one in the address, /planner/reference/<section>), with the same words and look:
 //   hubs, focus cities and banks; constants; aircraft (with each type's order cabin and, since 15 Oct, an airline's own
-//   where it differs: spec docs/specs/2026-10-15-last-leftovers.md §1); configs; market defaults; service profiles;
-//   removed routes with restore and restore all; night bans; game schedules; time zones; storage; data.
+//   where it differs: spec docs/specs/2026-10-15-last-leftovers.md §1); configs; markets (market defaults until 21 Oct:
+//   since then each market keeps only its layout, which is edited here; spec docs/specs/2026-10-21-cabins-new-rule.md
+//   §2); service profiles; removed routes with restore and restore all; night bans; game schedules; time zones; storage;
+//   data.
 // Every edit is one planner_save() call writing exactly the rows the old planner's adapter wrote for it (model.ts says
 // which); a constant is its setting's row (or the departures cap's world rule), and the section says the manual changes
 // with it (manual §1). A time zone moves every flight touching the airport in UTC so its local times stay, as Routes'
@@ -11,7 +13,7 @@
 // the exports stay. The bank windows and next free numbers are the planning library's, on the start's rules input.
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { banks, schedule, type Rules } from "@rules";
+import { banks, game, schedule, type Rules } from "@rules";
 import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
@@ -26,10 +28,10 @@ import { moveWords, offsetChanges, parseOffset, type OffsetMove } from "../route
 import { useGameHost } from "../tails/reads";
 import { download, flightsCsv, tablesJson } from "./csv";
 import {
-  CONSTANTS, SECTIONS, addConfig, addOwnOrder, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange,
+  CONSTANTS, LAYOUTS, SECTIONS, addConfig, addOwnOrder, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange,
   constantChange, constantValue, keyOrder, layoutsOf, marketChange, mctChange, mctHours, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, removeRow,
   removedWords, restoreChange, scheduleLink, sectionOf, serviceChange, typeChange, worldRowChange, type BaseField, type BaseRow, type ConfigField,
-  type ConfigRow, type MarketField, type SectionSlug, type ServiceField, type TypeField,
+  type ConfigRow, type SectionSlug, type ServiceField, type TypeField,
 } from "./model";
 import {
   stillUsed, useBases, useCities, useConfigs, useCounts, useMarkets, useOwnOrders, useRemoved, useServices, useSettings, useSiteMct, useTypes,
@@ -145,16 +147,16 @@ export function Reference() {
     const hours = v ?? a.utc_offset ?? 0;
     if (v === a.correction && hours === before) return;
     const { legs, planLegs } = await legsAt(w, code);
-    const markets = new Map((marketsQ.data ?? []).map((m) => [m.id, m]));
     const rots = [...new Set(legs.map((l) => l.rotation_id))].map((id) => {
       const l1 = legs.find((l) => l.rotation_id === id && l.leg_no === 1), l2 = legs.find((l) => l.rotation_id === id && l.leg_no === 2);
       const rot = rules.rotations.get(id), rr = rot ? rules.routes.get(rot.route_id) : undefined;
       const ac = l1?.aircraft_id ?? l2?.aircraft_id;
       const type = ac == null ? undefined : rules.aircraft.get(ac)?.aircraft_type_id ?? undefined;
-      const mk = rr?.market_id == null ? undefined : markets.get(rr.market_id);
+      const airlineId = (l1 ?? l2)?.airline_id ?? 0;
+      // with no aircraft, the airline's most-flown type (its market's aircraft until 21 Oct)
       return { rotation_id: id, leg1: l1, leg2: l2,
-        ends: { airline_id: (l1 ?? l2)?.airline_id ?? 0, hub: l1?.origin_code ?? l2?.dest_code ?? "", dest: l1?.dest_code ?? l2?.origin_code ?? "",
-          distance_km: rr?.distance_km ?? null, type_id: type ?? mk?.default_type_id ?? null } };
+        ends: { airline_id: airlineId, hub: l1?.origin_code ?? l2?.dest_code ?? "", dest: l1?.dest_code ?? l2?.origin_code ?? "",
+          distance_km: rr?.distance_km ?? null, type_id: type ?? game.mostFlownType(rules, airlineId) } };
     });
     const plan = offsetChanges(rules, w, a, v, { rotations: rots, planLegs });
     const n = plan.moves.length;
@@ -293,7 +295,7 @@ export function Reference() {
               </div>
               <button type="button" className="secondary" data-addrow="configs" disabled={busy || w === undefined} onClick={() => w !== undefined && void save([addConfig(w)])}>Add config</button>
             </>)}
-          {section("markets", "Market defaults", "what a new frequency starts with",
+          {section("markets", "Markets", "the layout each market calls for: a plan card takes it where one route of the market flies more than 65% of the aircraft's block time, unless the route has its own choice (manual §5)",
             <>
               <div className="chips" data-chips="markets">
                 <span className="chiplbl">Airline</span>
@@ -303,21 +305,14 @@ export function Reference() {
               <div className="tblwrap">
                 <table className="tbl edit" data-figure="reference: markets">
                   <tbody>
-                    <tr><th>Airline</th><th>Market</th><th>Aircraft</th><th>Config</th><th>Price Y</th><th>Price J</th><th></th></tr>
-                    {markets.filter((x) => !mkAl || nameOf(x.m.airline_id) === mkAl).map(({ m, key }) => {
-                      const tn = types.find((t) => t.id === m.default_type_id)?.name ?? "", cc = configs.find((c) => c.id === m.default_config_id)?.code ?? "";
-                      const field = (f: MarketField, v: string) => saveOne(marketChange(m, f, v, types, configs));
-                      return (
-                        <tr key={m.id}>
-                          <td>{nameOf(m.airline_id)}</td><td>{m.name}</td>
-                          <td><select data-mk={key + ".aircraft"} value={tn} disabled={busy} onChange={(e) => field("aircraft", e.currentTarget.value)}><Opt list={types.map((t) => t.name)} value={tn} empty="—" /></select></td>
-                          <td><select data-mk={key + ".config"} value={cc} disabled={busy} onChange={(e) => field("config", e.currentTarget.value)}><Opt list={configs.map((c) => c.code)} value={cc} empty="—" /></select></td>
-                          <td><Box data-mk={key + ".priceY"} value={m.fare_y_pct == null ? "" : String(m.fare_y_pct)} disabled={busy} onSave={(v) => field("priceY", v)} /></td>
-                          <td><Box data-mk={key + ".priceJ"} value={m.fare_j_pct == null ? "" : String(m.fare_j_pct)} disabled={busy} onSave={(v) => field("priceJ", v)} /></td>
-                          <td><button type="button" className="link" data-rmmk={key} disabled={busy} onClick={() => void remove("markets", m, `${nameOf(m.airline_id)}'s ${m.name}`)}>remove</button></td>
-                        </tr>
-                      );
-                    })}
+                    <tr><th>Airline</th><th>Market</th><th>Layout</th><th></th></tr>
+                    {markets.filter((x) => !mkAl || nameOf(x.m.airline_id) === mkAl).map(({ m, key }) => (
+                      <tr key={m.id}>
+                        <td>{nameOf(m.airline_id)}</td><td>{m.name}</td>
+                        <td><select data-mk={key + ".layout"} value={m.layout} disabled={busy} onChange={(e) => saveOne(marketChange(m, e.currentTarget.value))}><Opt list={LAYOUTS} value={m.layout} /></select></td>
+                        <td><button type="button" className="link" data-rmmk={key} disabled={busy} onClick={() => void remove("markets", m, `${nameOf(m.airline_id)}'s ${m.name}`)}>remove</button></td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

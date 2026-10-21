@@ -1,9 +1,9 @@
 // What Systems reads (spec docs/specs/2026-10-20-today-performance-systems.md; Check's and Review's reads for these boards
-// until 20 Oct), each through TanStack Query. Its other reads are the earlier screens' own (Tails' aircraft, cabin layouts
-// and launch days, Routes' markets and every route, Performance's growth signals for the load patterns on a check):
+// until 20 Oct), each through TanStack Query. Its other reads are the earlier screens' own (Tails' aircraft and launch
+// days, Performance's growth signals for the load patterns on a check); the Cabins board's (the layouts, markets, every
+// route and the "keep as is" decisions) went with it on 21 Oct:
 // - the Systems board's figures (#23): system_status(), at the screen's moment;
 // - the capture board: capture_status() at the screen's moment, and the nightly backup's latest runs (its line);
-// - the "keep as is" decisions (aircraft_cabin_keeps);
 // - Manual entry: the nightly log and today's cash entry figures (cash_log()), and a loads day as the planner holds it
 //   (loads_by_day(): the captured and typed loads, the latest winning, and the typed rows behind them, which Loads by
 //   hand saves through planner_save() since the clean-up, build pull request 14).
@@ -85,22 +85,6 @@ export function useBackupLine() {
       const { data, error } = await supabase.from("backup_runs").select("ran_at, kind, ok, tables, rows, files, note").order("ran_at", { ascending: false }).limit(10);
       if (error) return fail("the backups", error.message);
       return (data as unknown as BackupRun[]).map((b) => ({ ...b, rows: num(b.rows as Json) }));
-    },
-  });
-}
-
-// ---------- Cabins
-export interface KeepRow { world_id: number; aircraft_id: number; cabin: string; decided_on: string | null; updated_at: string }
-
-/** The "keep as is" decisions. */
-export function useCabinKeeps(worldId: number | undefined) {
-  return useQuery({
-    queryKey: tableKey("aircraft_cabin_keeps", "check", worldId),
-    enabled: worldId !== undefined,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("aircraft_cabin_keeps").select("world_id, aircraft_id, cabin, decided_on, updated_at").eq("world_id", worldId ?? 0);
-      if (error) return fail("the cabins kept as they are", error.message);
-      return data as KeepRow[];
     },
   });
 }

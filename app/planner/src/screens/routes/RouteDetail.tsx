@@ -1,14 +1,16 @@
 // A route, as the old planner's renderRouteDetail draws it: its header (stars, airline, market, distance, the two UTC
-// offsets; the estimated block on the market's aircraft, the market's plan, cabin and price, its service profile, the
-// hub's banks), edit route and remove route; the next free numbers when it isn't flown, its loads when it is; each
-// frequency; and Add frequency. Every action is one planner_save() call; the questions are asked in the page.
+// offsets; the estimated block, its layout, its service profile, the hub's banks), edit route and remove route; the next
+// free numbers when it isn't flown, its loads when it is; each frequency; and Add frequency. Every action is one
+// planner_save() call; the questions are asked in the page. Since 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md
+// §2) the header shows the layout the route calls for (its own cabin choice, else its market's) where it showed the
+// market's aircraft, cabin and fares, and the block is estimated on the airline's most-flown type.
 import { useState, type FocusEvent, type KeyboardEvent } from "react";
-import { block, findType, type FrequencyChecks, type Rules } from "@rules";
+import { block, findType, game, type FrequencyChecks, type Rules } from "@rules";
 import { ConfirmPanel } from "../../ui/Confirm";
 import { showMessage } from "../../ui/messages";
 import { Frequency } from "./Frequency";
 import {
-  disp, hhmm, moveWords, nextPair, parseOffset, priceFor, serviceFor,
+  disp, hhmm, layoutWords, moveWords, nextPair, parseOffset, priceFor, serviceFor,
   type AircraftRow, type Airline, type AirportInfo, type Freq, type FreqField, type Load, type MarketRow, type Mode, type OffsetMove, type Route, type RouteField,
 } from "./model";
 import { LoadSummary, Stars } from "./parts";
@@ -24,7 +26,6 @@ export interface DetailProps {
   mode: Mode;
   routeLoad: Load | undefined;
   flightLoad: (no: number | null) => Load | undefined;
-  markets: ReadonlyMap<number, MarketRow>;
   airlineMarkets: readonly MarketRow[];
   profiles: readonly ServiceRow[];
   tails: readonly AircraftRow[];
@@ -54,10 +55,9 @@ export function RouteDetail(p: DetailProps) {
   const [editing, setEditing] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [offset, setOffset] = useState<{ code: string; question: string; moves: OffsetMove[]; apply: () => Promise<void> } | null>(null);
-  const mk = r.market_id == null ? undefined : p.markets.get(r.market_id);
-  const type = mk?.default_type_id == null ? undefined : findType(rules, mk.default_type_id);
+  // the estimate on the airline's most-flown type (the market's aircraft until 21 Oct)
+  const type = findType(rules, game.mostFlownType(rules, r.airline_id));
   const est = type && type.cruise_kmh && r.dist != null ? block.estimateBlock(rules, r.dist, type, r.airline_id) : null;
-  const config = mk?.default_config_id == null ? "" : rules.configs.get(mk.default_config_id)?.code ?? "";
   const base = rules.bases.find((b) => b.airport_code === r.hub && b.airline_id === r.airline_id);
   const offH = (code: string) => {
     const a = p.airports.get(code);
@@ -98,7 +98,7 @@ export function RouteDetail(p: DetailProps) {
           <OffsetInput code={r.dest} value={String(offH(r.dest))} className="tiny" onOffset={(c, t) => void askOffset(c, t)} /> {r.dest}
         </div>
         <div className="dsub" data-dsub="2">
-          Est. block {est ? hhmm(est) : "—"} on {mk ? type?.name ?? "" : "?"} · {mk ? `Plan: ${config} · price ${String(mk.fare_y_pct)}${mk.fare_j_pct ? " / " + mk.fare_j_pct : ""}` : ""} · service {svc}
+          Est. block {est ? hhmm(est) : "—"} on {type?.name ?? "?"} · <span data-route-layout>{layoutWords(r)}</span> · service {svc}
           {base ? ` · banks ${(base.bank_times ?? []).filter((b): b is string => !!b).map((b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)).join(" ")}${z}` : " · no bank at this hub"}{" "}
           <button type="button" className="link" id="edit-route" onClick={() => setEditing((x) => !x)}>{editing ? "done" : "edit route"}</button>{" "}
           <button type="button" className="link" id="rm-route" disabled={p.busy}
@@ -139,7 +139,7 @@ export function RouteDetail(p: DetailProps) {
       ) : <LoadSummary a={p.routeLoad} />}
       {p.freqs.map((f) => (
         <Frequency key={f.rot.id} f={f} route={r} checks={p.checks.get(f.rot.id) ?? null} mode={p.mode} flightLoad={p.flightLoad} airlines={p.airlines}
-          tails={tails} services={p.profiles.map((s) => s.code)} serviceDefault={svc} priceDefault={priceFor(r, p.markets)} connectionNote={connectionNote}
+          tails={tails} services={p.profiles.map((s) => s.code)} serviceDefault={svc} priceDefault={priceFor(rules, r)} connectionNote={connectionNote}
           isBase={isBase} turnMargin={margin} busy={p.busy} onChange={(field, value) => p.onFrequency(f, field, value)} onDelete={() => p.onDeleteFrequency(f)}
           onOpenTail={p.onOpenTail} />
       ))}
