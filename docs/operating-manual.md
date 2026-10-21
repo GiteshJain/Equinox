@@ -371,6 +371,10 @@ Details and open points: `docs/decisions.md`.
   from the other flight on the route, Gander's house rule (`world_rules.same_route_gap_min`, §9), and further apart
   only when there's a business case. `settings.second_daily_gap_h` is 0, so the optimiser and Routes check only the
   house rule. *(since 15 Oct; history: rule-history.md)*
+- **Service codes by distance:** every leg carries the service profile its route's distance calls for: S1 under 800 km,
+  S2 from 800 to 1,500 km, S3 over 1,500 km; Ryanair R on every route (`service_profiles`, Reference → service
+  profiles). The plan card's service check marks a wrong code in red, and it's fixed before the card is filed.
+  *(since 10 Oct; written into the manual 21 Oct)*
 - **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A321neo and XLR 840 km/h, E195 831,
   A320neo 839, A350 911 (`aircraft_types.cruise_kmh`).
 - **Three banks per hub;** bank times are in `airline_bases.bank_times` (the planner's Reference → hubs), the bank

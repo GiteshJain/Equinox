@@ -18,6 +18,9 @@ Wording aligned in the split, no rule changed:
 - §3: the A350 where range demands it, or on trunks where the A350-900 sells out, as the default line says.
 - The E190-E2 note, the cabin charge check and the weekly report's three competitors were built 21 Oct (written as 22 Oct).
 - §4: the Saturday 12-hour list and Tails' 10-hour mark are flags, not floors.
+- §4: service codes by distance written in (Gitesh, 21 Oct, option A); they had been in the planner's `service_profiles`
+  and the playbook since 10 Oct, with no line in the manual.
+- The playbook gives steps only and points here for every rule (Gitesh, 21 Oct, item 7, option A).
 
 ## Why each rule is as it is
 
