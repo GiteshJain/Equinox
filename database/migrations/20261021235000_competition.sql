@@ -5,11 +5,16 @@
 -- most want to fly and needs a ranked list; market share first: we need to see our share and the rivals' moves. The world
 -- scan runs with the evening capture since 21 Oct, so the scans can be set against each other.
 --
--- Adds one setting and four functions, and replaces two with the same arguments; drops and renames nothing, so it can be
--- applied from the chat:
---   - competition_threat_min_weekly 7, in every world, described.
---   - private.scan_pair_flights(p_scan_ids, p_pairs): each airline's departures a week by direction in the scans asked
---     for, on the city pairs asked for (each flight's days, as gscan.py counts n_weekly).
+-- Adds three settings and five functions, and replaces two with the same arguments; drops and renames nothing, so it can
+-- be applied from the chat:
+--   - competition_threat_min_weekly 7, and trunk_month_from '2026-11-01' and trunk_month_to '2026-11-30' (November's
+--     trunks, manual §4), in every world, described.
+--   - private.scan_passenger(p_type): whether a scanned flight is a passenger flight, by the weekly report's rule
+--     (scripts/report/analyze.py's seats(): no type, a type ending in F, or ATF, ABX, 74Y, 77X or 76X is a freighter).
+--     Freighters are no one's rivals for passengers: market share, the group line, threats (so the fare ladder's rival
+--     pause), the openings' rivals and the rival profiles leave them out.
+--   - private.scan_pair_flights(p_scan_ids, p_pairs): each airline's passenger departures a week by direction in the
+--     scans asked for, on the city pairs asked for (each flight's days, as gscan.py counts n_weekly).
 --   - private.competition_threats(p_airline_id, p_as_of): the threats (spec 1b), one home for competition() and the fare
 --     ladder's rival pause: on each city pair the airline flies, a rival who started (none in the scan before) or added at
 --     least competition_threat_min_weekly departures a week, in a finished scan of the 7 days before the moment against
@@ -17,7 +22,9 @@
 --   - public.competition(p_airline_id, p_as_of, p_limit) and its builder private.fig_competition(): the scans used
 --     (latest, week before, previous), market share by the airline's markets with the group line, the threats, the
 --     openings ranked (stars, rivals' departures a week, the shorter distance, the pair's code; those hubs first doesn't
---     allow after, marked), each with the default line's variant, and the rival profiles. Staff only, read with GET.
+--     allow after, marked), each with the default line's variant, and the rival profiles. From trunk_month_from to
+--     trunk_month_to (November 2026, manual §4) the trunks (pairs between two of our bases, any airline's) come first,
+--     shortest first, hubs first not applied to them and never left out for reach. Staff only, read with GET.
 --   - replaced, same arguments: private.fig_fare_ladder() (so fare_ladder() and capture_fare_actions()): a route and cabin
 --     whose pair has a threat holds, "rival Air China started here on 22 Oct: paused until 29 Oct", checked after planned,
 --     new, few, held and added, before the sold-out share; the note that said it waited for step 4 is gone.
@@ -35,23 +42,51 @@ select w.id, null, 'competition_threat_min_weekly', '7'::jsonb, 'departures a we
        date '2026-10-21', 'Gitesh, 21 Oct: competition analysis (spec docs/specs/2026-10-21-competition-analysis.md §1b): a daily flight more is a move worth seeing'
   from public.worlds w
 on conflict on constraint settings_world_airline_key_key do nothing;
+insert into public.settings (world_id, airline_id, key, value, unit, description, since, reason)
+select w.id, null, x.key, x.value, 'date', x.description, date '2026-10-20', x.reason
+  from public.worlds w
+ cross join (values
+   ('trunk_month_from', '"2026-11-01"'::jsonb,
+    'The first day (UTC) of the month every new order fortifies the trunk routes (manual §4: from 1 to 30 November): while the moment is from it to trunk_month_to, competition()''s openings put the trunks (pairs between two of our bases, any of our airlines'') first, shortest first, with hubs first not applied to them and any distance allowed',
+    'Gitesh, 20 Oct: November''s orders fortify the trunk routes; shortest to longest; hubs first suspended for trunks (brief docs/briefs/2026-10-20-november-trunks.md)'),
+   ('trunk_month_to', '"2026-11-30"'::jsonb,
+    'The last day (UTC) of the month every new order fortifies the trunk routes (manual §4): see trunk_month_from',
+    'Gitesh, 20 Oct: from 1 to 30 November (brief docs/briefs/2026-10-20-november-trunks.md)')
+ ) as x(key, value, description, reason)
+on conflict on constraint settings_world_airline_key_key do nothing;
 
 -- ============================================================ 2–3. the new internal functions
--- ============================================================ 2. the scans' flights on a set of city pairs
+-- ============================================================ 2. the passenger rule, and the scans' flights on a set of city pairs
+-- PL/pgSQL with the empty search path every private function has: a SQL function with a setting can't be inlined, and
+-- run once a flight it costs more than PL/pgSQL's cached plan (about twice the time against about one and a half).
+CREATE OR REPLACE FUNCTION private.scan_passenger(p_type text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+begin
+  -- scripts/report/analyze.py's seats(): `if not t or t.endswith('F') or t in ('ATF','ABX','74Y','77X','76X'): return 0`
+  return not (coalesce(p_type, '') = '' or p_type like '%F' or p_type in ('ATF', 'ABX', '74Y', '77X', '76X'));
+end
+$function$;
+
 CREATE OR REPLACE FUNCTION private.scan_pair_flights(p_scan_ids bigint[], p_pairs text[])
  RETURNS TABLE(scan_id bigint, airline_id bigint, origin text, dest text, weekly integer)
  LANGUAGE sql
  STABLE
  SET search_path TO ''
 AS $function$
-  -- each airline's departures a week from origin to dest in each scan, on the city pairs asked for (either direction,
-  -- 'AAA-BBB' with the codes in order); each flight's days counted as gscan.py counts n_weekly
+  -- each airline's passenger departures a week from origin to dest in each scan, on the city pairs asked for (either
+  -- direction, 'AAA-BBB' with the codes in order); each flight's days counted as gscan.py counts n_weekly; freighters left
+  -- out, as the weekly report counts (private.scan_passenger())
   select sc.scan_id, sc.airline_id, f ->> 2, f ->> 3,
          sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')))::int
     from public.game_scan_schedules sc
     cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
    where sc.scan_id = any (p_scan_ids) and jsonb_typeof(f) = 'array'
      and least(f ->> 2, f ->> 3) || '-' || greatest(f ->> 2, f ->> 3) in (select unnest(p_pairs))
+     and private.scan_passenger(f ->> 7)
    group by sc.scan_id, sc.airline_id, f ->> 2, f ->> 3
   having sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g'))) > 0
 $function$;
@@ -141,6 +176,7 @@ declare
   v_main text; v_exempt boolean; v_target numeric; v_rival_weekly numeric; v_rival_daily numeric; v_min numeric; v_dep int;
   v_code text; v_name text; v_pairs text[]; v_ids bigint[];
   v_threats jsonb; v_body jsonb; v_group jsonb;
+  v_trunk_from date; v_trunk_to date; v_trunks boolean;
 begin
   select a.iata_code, coalesce(a.public_name, a.planner_name, a.game_name) into v_code, v_name from public.airlines a where a.id = p_airline_id;
   v_min := private.fig_num(w, p_airline_id, 'competition_threat_min_weekly');
@@ -149,6 +185,12 @@ begin
   v_rival_weekly := private.fig_num(w, p_airline_id, 'contested_rival_weekly');
   v_rival_daily := private.fig_num(w, p_airline_id, 'contested_rival_daily');
   select b.airport_code into v_main from public.airline_bases b where b.airline_id = p_airline_id and b.is_main order by b.id limit 1;
+  -- November's trunks (manual §4): the month's first and last day (UTC), from settings (an airline's own first)
+  select (s.value #>> '{}')::date into v_trunk_from from public.settings s
+   where s.world_id = w and s.key = 'trunk_month_from' and (s.airline_id is null or s.airline_id = p_airline_id) order by s.airline_id nulls last limit 1;
+  select (s.value #>> '{}')::date into v_trunk_to from public.settings s
+   where s.world_id = w and s.key = 'trunk_month_to' and (s.airline_id is null or s.airline_id = p_airline_id) order by s.airline_id nulls last limit 1;
+  v_trunks := coalesce((p_as_of at time zone 'UTC')::date between v_trunk_from and v_trunk_to, false);
   -- the main hub's departures a week, as hub_progress() counts them: outbound legs from it, and returns to it
   select coalesce(sum(f.days_n) filter (where f.hub_code = v_main), 0) + coalesce(sum(f.days_n) filter (where f.dest_code = v_main and f.has_back), 0)
     into v_dep from private.fig_freqs(w, p_airline_id) f where f.live;
@@ -181,20 +223,27 @@ begin
     from public.routes r where r.airline_id = p_airline_id and r.world_id = w and not r.removed;
   v_ids := array_remove(array[v_latest, v_before], null);
 
-  -- the group line: our airlines' departures a week against the world's, from the scans' totals
+  -- the group line: our airlines' passenger departures a week against the world's, in the latest and week-before scans
+  -- (each airline's schedule, freighters left out as the weekly report counts: private.scan_passenger())
   if v_latest is not null then
+    with x as (select sc.scan_id, coalesce(g.kind, 'rival') = 'ours' as ours,
+                      length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')) as n
+                 from public.game_scan_schedules sc
+                 join public.airlines ra on ra.id = sc.airline_id
+                 left join public.groups g on g.id = ra.group_id
+                 cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
+                where sc.scan_id = any (v_ids) and jsonb_typeof(f) = 'array' and private.scan_passenger(f ->> 7)),
+    t as (select coalesce(sum(x.n) filter (where x.scan_id = v_latest and x.ours), 0)::int as ours,
+                 coalesce(sum(x.n) filter (where x.scan_id = v_latest), 0)::int as world,
+                 case when v_before is not null then coalesce(sum(x.n) filter (where x.scan_id = v_before and x.ours), 0)::int end as ours_b,
+                 case when v_before is not null then coalesce(sum(x.n) filter (where x.scan_id = v_before), 0)::int end as world_b
+            from x)
     select jsonb_build_object(
-             'ours', n.ours, 'world', n.world, 'share', round(100.0 * n.ours / nullif(n.world, 0), 1),
-             'ours_before', o.ours, 'world_before', o.world, 'share_before', round(100.0 * o.ours / nullif(o.world, 0), 1),
-             'ours_change', n.ours - o.ours, 'world_change', n.world - o.world,
-             'share_change', round(100.0 * n.ours / nullif(n.world, 0), 1) - round(100.0 * o.ours / nullif(o.world, 0), 1))
-      into v_group
-      from (select coalesce(sum(x.n_weekly) filter (where g.kind = 'ours'), 0)::int as ours, coalesce(sum(x.n_weekly), 0)::int as world
-              from public.game_scan_airlines x left join public.airlines ra on ra.id = x.airline_id left join public.groups g on g.id = ra.group_id
-             where x.scan_id = v_latest) n
-      left join lateral (select coalesce(sum(x.n_weekly) filter (where g.kind = 'ours'), 0)::int as ours, coalesce(sum(x.n_weekly), 0)::int as world
-                           from public.game_scan_airlines x left join public.airlines ra on ra.id = x.airline_id left join public.groups g on g.id = ra.group_id
-                          where x.scan_id = v_before) o on v_before is not null;
+             'ours', t.ours, 'world', t.world, 'share', round(100.0 * t.ours / nullif(t.world, 0), 1),
+             'ours_before', t.ours_b, 'world_before', t.world_b, 'share_before', round(100.0 * t.ours_b / nullif(t.world_b, 0), 1),
+             'ours_change', t.ours - t.ours_b, 'world_change', t.world - t.world_b,
+             'share_change', round(100.0 * t.ours / nullif(t.world, 0), 1) - round(100.0 * t.ours_b / nullif(t.world_b, 0), 1))
+      into v_group from t;
   end if;
 
   -- the threats (1b): the shared function the fare ladder's rival pause reads too
@@ -273,8 +322,19 @@ begin
       from ms),
 
   -- ---------- 1c. openings: pairs on the list no airline of ours flies, one route each (from the main hub first)
+  -- our bases, every airline's (hubs and focus cities): a pair between two of them is a trunk (manual §4)
+  ob as (select distinct b.airport_code from public.airline_bases b
+           join public.airlines a on a.id = b.airline_id join public.groups g on g.id = a.group_id
+          where b.world_id = w and g.kind = 'ours'),
+  -- the other airlines of ours that have the pair on their own list (one airline per city pair, manual §2, decides)
+  ol as (select least(r.hub_code, r.dest_code) as a, greatest(r.hub_code, r.dest_code) as b, array_agg(distinct al.iata_code order by al.iata_code) as codes
+           from public.routes r join public.airlines al on al.id = r.airline_id join public.groups g on g.id = al.group_id
+          where r.world_id = w and r.airline_id <> p_airline_id and not r.removed and g.kind = 'ours' and al.iata_code is not null
+          group by 1, 2),
   op0 as (select distinct on (ro.a, ro.b) ro.*,
-                 exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) as at_base
+                 exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) as at_base,
+                 -- in the trunk month only (trunk_month_from to trunk_month_to)
+                 v_trunks and ro.hub in (select ob.airport_code from ob) and ro.dest in (select ob.airport_code from ob) as trunk
             from ro
            where not exists (select 1 from ourall o where o.a = ro.a and o.b = ro.b)
            order by ro.a, ro.b, (ro.hub = v_main) desc,
@@ -282,28 +342,32 @@ begin
   orv as (select rv.a, rv.b, sum(rv.weekly)::int as weekly,
                  jsonb_agg(jsonb_build_object('airline_id', rv.airline_id, 'name', rv.name, 'weekly', rv.weekly) order by rv.weekly desc, rv.name) as rivals
             from rv where rv.scan_id = v_latest group by 1, 2),
-  -- the types the airline may buy, by size from their seats (manual §3's table): small (the E-jets, up to 150 seats),
-  -- mid (the A320neo, up to 200), large (the A321s, up to 300), wide (the A350s)
+  -- the types of the world by size from their seats (manual §3's table): small (the E-jets, up to 150 seats), mid (the
+  -- A320neo, up to 200), large (the A321s, up to 300), wide (the A350s); own: the airline may buy it
   ty as (select t.id, t.name, t.seats_max, t.range_km, t.price,
-                case when t.seats_max <= 150 then 1 when t.seats_max <= 200 then 2 when t.seats_max <= 300 then 3 else 4 end as size
+                case when t.seats_max <= 150 then 1 when t.seats_max <= 200 then 2 when t.seats_max <= 300 then 3 else 4 end as size,
+                exists (select 1 from public.airline_aircraft_types x where x.aircraft_type_id = t.id and x.airline_id = p_airline_id) as own
            from public.aircraft_types t
-           join public.airline_aircraft_types x on x.aircraft_type_id = t.id and x.airline_id = p_airline_id
           where t.world_id = w and t.seats_max > 0 and t.price > 0),
   op1 as (select op0.*, coalesce(orv.weekly, 0) as rivals_weekly, coalesce(orv.rivals, '[]'::jsonb) as rivals,
                  -- the stars' size band (manual §3): 1–2 stars small; 3 small or mid; 4 small, mid or large; 5 mid or large
                  case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end as band_lo,
                  case when coalesce(op0.stars, 0) <= 2 then 1 when op0.stars = 3 then 2 else 3 end as band_hi,
-                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size
+                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size, v.own
             from op0
             left join orv on orv.a = op0.a and orv.b = op0.b
             -- the variant (the default line): the smallest size in the band, else bigger for reach, whose range covers the
-            -- distance, the cheapest per seat; beyond every narrowbody, the wide-body line
+            -- distance, the cheapest per seat; beyond every narrowbody, the wide-body line; among the types the airline may
+            -- buy, and for a November trunk none of them reaches, the world's (manual §4: any distance, the A350s beyond
+            -- the A321XLR), so a trunk is never left out for reach
             left join lateral (
               select t.* from ty t
-               where (t.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3 and t.range_km >= coalesce(op0.dist, 0))
-                  or (t.size = 4 and not exists (select 1 from ty n where n.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3
-                                                                       and n.range_km >= coalesce(op0.dist, 0)))
-               order by t.size, case when t.size = 4 and coalesce(op0.dist, 0) > v_wide_km then -t.seats_max else 0 end,
+               where (t.own or (op0.trunk and not exists (select 1 from ty o where o.own and (o.size = 4 or (o.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3
+                                                                                                          and o.range_km >= coalesce(op0.dist, 0))))))
+                 and ((t.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3 and t.range_km >= coalesce(op0.dist, 0))
+                      or (t.size = 4 and not exists (select 1 from ty n where (n.own or not t.own) and n.size between (case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end) and 3
+                                                                           and n.range_km >= coalesce(op0.dist, 0))))
+               order by t.own desc, t.size, case when t.size = 4 and coalesce(op0.dist, 0) > v_wide_km then -t.seats_max else 0 end,
                         t.price / t.seats_max, t.name
                limit 1) v on true),
   -- hubs first (manual §3), from the latest scan: the busiest rival at a base, and each rival's departures a week from
@@ -318,7 +382,9 @@ begin
             from op1 left join bt on bt.airport_code = op1.hub left join rt on rt.origin = op1.hub and rt.dest = op1.dest
            where op1.type_id is not null),
   op3 as (select op2.*,
-                 case when v_exempt then 'exempt' when v_main is null then 'no main hub' when op2.hub = v_main then 'main hub'
+                 -- hubs first is suspended for trunks in the trunk month (manual §4)
+                 case when op2.trunk then 'November trunk'
+                      when v_exempt then 'exempt' when v_main is null then 'no main hub' when op2.hub = v_main then 'main hub'
                       when v_dep >= v_target then 'main hub at its target'
                       when not op2.at_base then null
                       when coalesce(op2.base_top, 0) > v_rival_weekly then 'contested base'
@@ -332,7 +398,9 @@ begin
                       else format('hubs first: %s at %s of %s departures a week, and %s isn''t contested (busiest rival there %s a week, over %s needed; none over %s a day on %s–%s)',
                                   v_main, v_dep, trim_scale(v_target), op3.hub, coalesce(op3.base_top, 0), trim_scale(v_rival_weekly),
                                   trim_scale(v_rival_daily), op3.hub, op3.dest) end as reason,
-                 row_number() over (order by op3.allowed_by is not null desc, op3.stars desc nulls last, op3.rivals_weekly desc,
+                 -- in the trunk month the trunks first, shortest first (manual §4: shortest to longest); then as always
+                 row_number() over (order by op3.trunk desc, case when op3.trunk then op3.dist end nulls last,
+                                             op3.allowed_by is not null desc, op3.stars desc nulls last, op3.rivals_weekly desc,
                                              op3.dist nulls last, op3.hub || '–' || op3.dest) as rank
             from op3),
   openings as (
@@ -341,11 +409,12 @@ begin
              'city', o.city, 'stars', o.stars, 'distance_km', o.dist, 'market_id', o.market_id,
              'rivals_weekly', o.rivals_weekly, 'rivals', o.rivals,
              'variant', jsonb_build_object('type_id', o.type_id, 'type', o.type, 'seats', o.seats, 'range_km', o.range_km,
-                                           'size', (array['small', 'mid', 'large', 'wide'])[o.size], 'for_reach', o.size > o.band_hi),
-             'allowed', o.allowed, 'allowed_by', o.allowed_by, 'reason', o.reason)
+                                           'size', (array['small', 'mid', 'large', 'wide'])[o.size], 'for_reach', o.size > o.band_hi, 'own', o.own),
+             'allowed', o.allowed, 'allowed_by', o.allowed_by, 'reason', o.reason,
+             'trunk', o.trunk, 'other_lists', coalesce(to_jsonb(l.codes), '[]'::jsonb))
              order by o.rank) filter (where o.rank <= v_limit), '[]'::jsonb) as d,
-           count(*)::int as n, (count(*) filter (where o.allowed))::int as n_allowed
-      from op4 o),
+           count(*)::int as n, (count(*) filter (where o.allowed))::int as n_allowed, (count(*) filter (where o.trunk))::int as n_trunks
+      from op4 o left join ol l on l.a = o.a and l.b = o.b),
   left_out as (select count(*)::int as n from op1 where op1.type_id is null),
 
   -- ---------- 1d. rival profiles: the rivals who fly most of the airline's city pairs (latest scan)
@@ -353,10 +422,22 @@ begin
               where rv.scan_id = v_latest),
   pf as (select s.airline_id, s.name, count(*)::int as pairs, sum(s.weekly)::int as weekly_on_pairs from shared s
           group by 1, 2 order by count(*) desc, sum(s.weekly) desc, s.name limit 10),
+  -- each profiled rival's passenger flights in the latest and week-before scans (freighters left out, as the weekly
+  -- report counts): its size, airports and biggest airports
+  pfx as materialized (
+    select sc.scan_id, sc.airline_id, f ->> 2 as origin, f ->> 3 as dest, length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')) as n
+      from public.game_scan_schedules sc
+      cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
+     where sc.scan_id = any (v_ids) and sc.airline_id in (select pf.airline_id from pf) and jsonb_typeof(f) = 'array'
+       and private.scan_passenger(f ->> 7)),
+  pfs as (select x.scan_id, x.airline_id, sum(x.n)::int as weekly,
+                 (select count(*) from (select y.origin from pfx y where y.scan_id = x.scan_id and y.airline_id = x.airline_id and y.n > 0
+                                        union select y.dest from pfx y where y.scan_id = x.scan_id and y.airline_id = x.airline_id and y.n > 0) z)::int as airports
+            from pfx x group by 1, 2),
   profiles as (
     select coalesce(jsonb_agg(jsonb_build_object(
              'airline_id', pf.airline_id, 'name', pf.name, 'pairs_shared', pf.pairs, 'weekly_on_pairs', pf.weekly_on_pairs,
-             'weekly', n.n_weekly, 'weekly_before', o.n_weekly, 'change', n.n_weekly - o.n_weekly, 'airports', n.n_airports,
+             'weekly', n.weekly, 'weekly_before', o.weekly, 'change', n.weekly - o.weekly, 'airports', n.airports,
              'pairs', (select jsonb_agg(jsonb_build_object('pair', s.a || '-' || s.b,
                                                            'route', coalesce(rc.hub, s.a) || '–' || coalesce(rc.dest, s.b),
                                                            'weekly', s.weekly, 'ours', s.ours) order by s.weekly desc, s.a, s.b)
@@ -364,18 +445,17 @@ begin
                          left join lateral (select ro.hub, ro.dest from ro where ro.a = s.a and ro.b = s.b
                                              order by (ro.hub = v_main) desc, ro.id limit 1) rc on true
                         where s.airline_id = pf.airline_id),
-             'biggest_airports', (select coalesce(jsonb_agg(jsonb_build_object('code', x.airport_code, 'weekly', x.weekly_departures)
-                                                            order by x.weekly_departures desc, x.airport_code), '[]'::jsonb)
-                                    from (select * from public.scan_airline_airports x where x.scan_id = v_latest and x.airline_id = pf.airline_id
-                                           order by x.weekly_departures desc, x.airport_code limit 3) x))
+             'biggest_airports', (select coalesce(jsonb_agg(jsonb_build_object('code', x.origin, 'weekly', x.weekly) order by x.weekly desc, x.origin), '[]'::jsonb)
+                                    from (select y.origin, sum(y.n)::int as weekly from pfx y where y.scan_id = v_latest and y.airline_id = pf.airline_id
+                                           group by 1 having sum(y.n) > 0 order by 2 desc, 1 limit 3) x))
              order by pf.pairs desc, pf.weekly_on_pairs desc, pf.name), '[]'::jsonb) as d
       from pf
-      left join public.game_scan_airlines n on n.scan_id = v_latest and n.airline_id = pf.airline_id
-      left join public.game_scan_airlines o on o.scan_id = v_before and o.airline_id = pf.airline_id)
+      left join pfs n on n.scan_id = v_latest and n.airline_id = pf.airline_id
+      left join pfs o on o.scan_id = v_before and o.airline_id = pf.airline_id)
   select jsonb_build_object(
            'markets', (select d from markets), 'openings', (select d from openings),
            'openings_count', (select n from openings), 'openings_allowed', (select n_allowed from openings),
-           'openings_left_out', (select n from left_out), 'profiles', (select d from profiles),
+           'openings_left_out', (select n from left_out), 'openings_trunks', (select n_trunks from openings), 'profiles', (select d from profiles),
            'pairs_flown', (select count(*) from mine), 'pairs_listed', (select count(distinct (ro.a, ro.b)) from ro))
     into v_body;
 
@@ -389,15 +469,17 @@ begin
                                    'contested_rival_daily', v_rival_daily, 'hub_first_exempt', v_exempt, 'wide_full_cabin_km', v_wide_km),
     'hubs_first', jsonb_build_object('main_hub', v_main, 'departures', v_dep, 'target', v_target, 'exempt', v_exempt,
                                      'open', v_exempt or v_main is null or v_dep >= v_target),
+    'trunk_month', jsonb_build_object('on', v_trunks, 'from', v_trunk_from, 'to', v_trunk_to),
     'group', v_group,
     'markets', v_body -> 'markets',
     'threats', v_threats,
     'openings', v_body -> 'openings', 'openings_count', v_body -> 'openings_count', 'openings_allowed', v_body -> 'openings_allowed',
-    'openings_left_out', v_body -> 'openings_left_out',
+    'openings_left_out', v_body -> 'openings_left_out', 'openings_trunks', v_body -> 'openings_trunks',
     'profiles', v_body -> 'profiles',
     'pairs_flown', v_body -> 'pairs_flown', 'pairs_listed', v_body -> 'pairs_listed',
     'notes', jsonb_build_array(
-      'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them. Our own now are the airline''s live legs; before, its flights in the week-before scan.',
+      'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them, passenger flights only (freighters left out, as the weekly report counts). Our own now are the airline''s live legs; before, its flights in the week-before scan.',
+      'From trunk_month_from to trunk_month_to (November, manual §4) the trunks, pairs between two of our bases (any of our airlines''), come first, shortest first: hubs first isn''t applied to them and no distance leaves one out. Whether a trunk makes sense stays the Scheduling chat''s judgment.',
       'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats.'));
 end
 $function$;
@@ -805,6 +887,7 @@ AS $function$
 $function$;
 
 -- ============================================================ 7. grants and descriptions
+revoke all on function private.scan_passenger(text) from public, anon, authenticated, service_role;
 revoke all on function private.scan_pair_flights(bigint[], text[]) from public, anon, authenticated, service_role;
 revoke all on function private.competition_threats(bigint, timestamptz) from public, anon, authenticated, service_role;
 revoke all on function private.fig_competition(bigint, timestamptz, integer) from public, anon, authenticated, service_role;
@@ -813,10 +896,11 @@ revoke all on function private.briefing_doc(bigint, timestamptz) from public, an
 revoke all on function public.competition(bigint, timestamptz, integer) from public, anon, authenticated, service_role;
 grant execute on function public.competition(bigint, timestamptz, integer) to authenticated;
 
-comment on function private.scan_pair_flights(bigint[], text[]) is 'Competition analysis (spec docs/specs/2026-10-21-competition-analysis.md): each airline''s departures a week from origin to dest in each world scan asked for (game_scan_schedules), on the city pairs asked for, either direction (each pair as ''AAA-BBB'', its codes in order); each flight''s days counted as scripts/scanner/gscan.py counts n_weekly, a direction with none left out. Every airline, ours included: the callers tell rivals apart. Read by private.competition_threats() and private.fig_competition(), with no check of its own.';
-comment on function private.competition_threats(bigint, timestamptz) is 'The threats (spec docs/specs/2026-10-21-competition-analysis.md §1b): on each city pair the airline flies (its live legs, private.fig_freqs()), each rival (every airline that isn''t one of ours, groups kind ours) who started (no departures in the scan before) or added at least settings.competition_threat_min_weekly departures a week, in a finished world scan with its schedules taken in the 7 days before p_as_of, against the finished scan before it; each rival and pair once, from the scan that first showed it (scan_id, scan_at; previous_id, previous_at), listed until 7 days after it (until). a and b are the pair''s codes in order; kind started or added; then_weekly (the scan before), added_weekly (what that scan added), now_weekly (the latest finished scan by p_as_of) and ours_weekly (the airline''s live legs, both ways). No rows with no scan or one scan. One home for competition() and the fare ladder''s rival pause (private.fig_fare_ladder()), with no check of its own.';
+comment on function private.scan_passenger(text) is 'Competition analysis (spec docs/specs/2026-10-21-competition-analysis.md): whether a world scan''s flight is a passenger flight, from its aircraft type (the schedule''s 8th field), by the weekly report''s rule, scripts/report/analyze.py''s seats(): no type, a type ending in F, or ATF, ABX, 74Y, 77X or 76X is a freighter (false). Freighters are no one''s rivals for passengers: private.scan_pair_flights() and private.fig_competition() leave them out. Immutable, internal, with an empty search path.';
+comment on function private.scan_pair_flights(bigint[], text[]) is 'Competition analysis (spec docs/specs/2026-10-21-competition-analysis.md): each airline''s passenger departures a week from origin to dest in each world scan asked for (game_scan_schedules), on the city pairs asked for, either direction (each pair as ''AAA-BBB'', its codes in order); each flight''s days counted as scripts/scanner/gscan.py counts n_weekly, freighters left out (private.scan_passenger(), the weekly report''s rule), a direction with none left out. Every airline, ours included: the callers tell rivals apart. Read by private.competition_threats() and private.fig_competition(), with no check of its own.';
+comment on function private.competition_threats(bigint, timestamptz) is 'The threats (spec docs/specs/2026-10-21-competition-analysis.md §1b): on each city pair the airline flies (its live legs, private.fig_freqs()), each rival (every airline that isn''t one of ours, groups kind ours; passenger flights only, private.scan_pair_flights()) who started (no departures in the scan before) or added at least settings.competition_threat_min_weekly departures a week, in a finished world scan with its schedules taken in the 7 days before p_as_of, against the finished scan before it; each rival and pair once, from the scan that first showed it (scan_id, scan_at; previous_id, previous_at), listed until 7 days after it (until). a and b are the pair''s codes in order; kind started or added; then_weekly (the scan before), added_weekly (what that scan added), now_weekly (the latest finished scan by p_as_of) and ours_weekly (the airline''s live legs, both ways). No rows with no scan or one scan. One home for competition() and the fare ladder''s rival pause (private.fig_fare_ladder()), with no check of its own.';
 comment on function private.fig_competition(bigint, timestamptz, integer) is 'The captured figures (#19): builds competition()''s document with no check of its own. See competition().';
-comment on function public.competition(bigint, timestamptz, integer) is 'Competition analysis for one airline (manual §3, market share first; spec docs/specs/2026-10-21-competition-analysis.md §1), as of p_as_of, from the world scans. scans: latest (the latest finished scan by then that still has its schedules), week_before (the latest at least 6 days older, else the oldest there is; null with one scan) and previous (the latest before latest), each with id and taken_at (UTC). group: our airlines'' departures a week against the world''s (the scans'' totals, game_scan_airlines.n_weekly) and our share, now, in the week-before scan and the change. markets: each of the airline''s markets (its routes not removed, flown or not, by market; No market for routes with none) with its city pairs (either direction) and how many it flies, ours (the airline''s live legs, both ways), ours_before (its flights in the week-before scan), every rival''s (every airline in the scan that isn''t one of ours) departures a week on the same pairs from the latest scan (rivals, rivals_before), our share (ours over ours and the rivals'', percent) and its change, and the top 5 rivals with their departures, change and share; biggest first. threats: private.competition_threats(), each with the rival, the route as the airline flies it, kind (started or added), then, added, now and ours, the scan''s day (on), until (7 days on), latest (shown by the latest scan) and words ("Air China started on PVG–CAN, 14 a week"). openings: each pair on the airline''s list (routes not removed; one route each, from the main hub first) that no airline of ours flies either way, with its stars, distance, the rivals flying it and their departures a week in the latest scan (both ways), the variant from the default line (manual §3: the smallest size the stars allow (1–2 small, 3 small or mid, 4 small to large, 5 mid or large; small up to 150 seats, mid 200, large 300, wide above), bigger only for reach (for_reach), the cheapest per seat whose range_km covers the distance, among the types the airline may buy (airline_aircraft_types); beyond every narrowbody the A350 cheapest per seat, beyond 15,000 km the one with the most seats; an opening no type reaches is left out and counted in openings_left_out), and hubs first (allowed, allowed_by and the reason when it isn''t: from the main hub always; from another base while the main hub is under hub_first_departures only if a rival has over contested_rival_weekly departures a week there (scan_airline_airports) or over contested_rival_daily a day from it to the destination; hub_first_exempt allows all). Ranked by stars, then rivals'' departures a week on the pair, then the shorter distance, then the route''s code, those hubs first doesn''t allow after the allowed ones; the top p_limit (50 by default; openings_count and openings_allowed count them all). profiles: the 10 rivals who fly most of the airline''s city pairs (latest scan), each with its departures a week (latest and week before, n_weekly), its airports, the pairs shared with their departures and ours, and its 3 biggest airports. hubs_first, settings and notes say what was used. Staff only; runs as owner and checks the caller itself. Read with GET.';
+comment on function public.competition(bigint, timestamptz, integer) is 'Competition analysis for one airline (manual §3, market share first; spec docs/specs/2026-10-21-competition-analysis.md §1), as of p_as_of, from the world scans. scans: latest (the latest finished scan by then that still has its schedules), week_before (the latest at least 6 days older, else the oldest there is; null with one scan) and previous (the latest before latest), each with id and taken_at (UTC). group: our airlines'' passenger departures a week against the world''s (every airline''s schedule in the scan, freighters left out by private.scan_passenger(), the weekly report''s rule) and our share, now, in the week-before scan and the change. Freighters are no one''s rivals anywhere here: market share, threats, the openings'' rivals and the profiles count passenger flights only. markets: each of the airline''s markets (its routes not removed, flown or not, by market; No market for routes with none) with its city pairs (either direction) and how many it flies, ours (the airline''s live legs, both ways), ours_before (its flights in the week-before scan), every rival''s (every airline in the scan that isn''t one of ours) departures a week on the same pairs from the latest scan (rivals, rivals_before), our share (ours over ours and the rivals'', percent) and its change, and the top 5 rivals with their departures, change and share; biggest first. threats: private.competition_threats(), each with the rival, the route as the airline flies it, kind (started or added), then, added, now and ours, the scan''s day (on), until (7 days on), latest (shown by the latest scan) and words ("Air China started on PVG–CAN, 14 a week"). openings: each pair on the airline''s list (routes not removed; one route each, from the main hub first) that no airline of ours flies either way, with its stars, distance, the rivals flying it and their departures a week in the latest scan (both ways), the variant from the default line (manual §3: the smallest size the stars allow (1–2 small, 3 small or mid, 4 small to large, 5 mid or large; small up to 150 seats, mid 200, large 300, wide above), bigger only for reach (for_reach), the cheapest per seat whose range_km covers the distance, among the types the airline may buy (airline_aircraft_types); beyond every narrowbody the A350 cheapest per seat, beyond 15,000 km the one with the most seats; an opening no type reaches is left out and counted in openings_left_out), and hubs first (allowed, allowed_by and the reason when it isn''t: from the main hub always; from another base while the main hub is under hub_first_departures only if a rival has over contested_rival_weekly departures a week there (scan_airline_airports) or over contested_rival_daily a day from it to the destination; hub_first_exempt allows all). Ranked by stars, then rivals'' departures a week on the pair, then the shorter distance, then the route''s code, those hubs first doesn''t allow after the allowed ones; the top p_limit (50 by default; openings_count and openings_allowed count them all). From settings.trunk_month_from to trunk_month_to (1 to 30 November 2026, manual §4; trunk_month gives on, from and to): each trunk (a pair between two of our bases, any of our airlines'' hubs and focus cities in airline_bases) is marked trunk, allowed with allowed_by ''November trunk'' (hubs first suspended for trunks), never left out for reach (the world''s types when none the airline may buy reaches, variant.own false), and the trunks come first, shortest first, then the other openings as always (openings_trunks counts them); outside those days trunk is false and nothing changes. other_lists: our other airlines that have the pair on their own list (one airline per city pair, manual §2, decides). profiles: the 10 rivals who fly most of the airline''s city pairs (latest scan), each with its passenger departures a week (latest and week before), its airports and its 3 biggest by passenger departures, from its schedule, and the pairs shared with their departures and ours. hubs_first, settings and notes say what was used. Staff only; runs as owner and checks the caller itself. Read with GET.';
 comment on function private.fig_fare_ladder(bigint, timestamptz) is 'The captured figures (#19): builds fare_ladder()''s document with no check of its own. See fare_ladder().';
 comment on function public.fare_ladder(bigint, timestamptz) is 'The fare ladder for one airline (manual §5, since 21 Oct; specs docs/specs/2026-10-21-fare-ladder.md, docs/specs/2026-10-21-fare-actions-by-route.md, docs/specs/2026-10-21-frequencies-and-fares.md and docs/specs/2026-10-21-competition-analysis.md §2): this Saturday''s move for each route and cabin, the changes that set a route back to its level, and the game actions that make them. routes: each route not removed that flies (in economy, and in business where its aircraft have business seats) or has flights captured in the 7 days before the moment, with its departures, departures sold out (that cabin''s load at 100%), the sold-out share and the average fare over those 7 days (game_flights, matched to the route either way round); its level as a % of the game''s default price (the latest the fare plan recorded before this Saturday, else settings.fare_launch_pct) and steps above launch; the fare index: each flight of the latest captured day (latest_on, its average latest_fare) against its direction''s baseline, times the launch level, the baseline being the direction''s fare on the latest captured day on or before 21 Oct 2026, when every route was at its launch level (Gitesh), or for a route launched later its first captured fare if captured in its first growth_new_route_days days (a day''s fare: its flights'' lowest, else route_days'' average economy fare; baseline_fare and baseline_on, the directions'' average and latest day); fare_index the flights'' average, index_matches false when any flight is more than 1 point off the level the game should show (this week''s new level once the captures see it); the move (up when every departure sold out, hold at fare_ladder_down_share to 99%, down under it; hold under fare_ladder_min_departures, under growth_new_route_days old, for fare_ladder_hold_weeks after a recorded step down, while the newest rotation is under fare_ladder_capacity_hold_days old on a route older than that (a flight added: "judged at its new size from ..."; a frequency taken away isn''t tracked, its rotation is deleted), and, since 21 Oct, while a rival threatens the pair (private.competition_threats(), as competition() lists them: a rival who started there or added competition_threat_min_weekly departures a week in a scan of the 7 days before the moment; "rival Air China started here on 22 Oct: paused until 29 Oct", the one paused longest), checked after planned, new, few, held and added and before the sold-out share; never above launch + fare_ladder_cap_pts, nor under launch or, where another player flies the pair, world_rules.fare_floor_pct), the new level and the reason in words; planned, applied and seen_on for a move recorded since this Saturday; to_plan, what Put on the fare plan writes; fix, a change that sets it back to its level (index_matches false, not on the fare plan this week, not a new route, and captured since its newest rotation launched), with fix_reason ("captured fare at 100%, level 110%"). moves counts the moves, off_level the routes set back. actions: the Ticket price adjustments (baseline default price), route by route only, never a whole base (so a route under 7 days old is never touched; since 21 Oct): first the set-back changes (fix true, with the reason), then the week''s moves, each in the routes'' order (hub, dest), one action each way (From hub to dest, then From dest to hub) with classes ["economy","business"] when both cabins go to the same level, otherwise one each way for each cabin, economy first; a route whose levels don''t change gets no move. Each action has n, route, classes, from, to, level, sign, pct, baseline, fix, reason (a set-back''s) and text, the text in the game''s words naming the classes. settings: the numbers used, with capacity_hold_days and baseline_day. notes: how the index reads. Staff only; runs as owner and checks the caller itself.';
 comment on function private.briefing_doc(bigint, timestamptz) is 'The airline briefing (#24): one airline''s document for export_for_report(''briefing''), read only, with no check of its own: the airline (id, world, code, names, game ID); deliveries, its aircraft not yet filed (status on_order or delivered) with type, cabin as ordered and now, bases, order date and note, delivery time and whether it has arrived by p_as_of, and each one''s plan cards (with the card''s cabin, config_id, since 21 Oct) with their legs in order (UTC weekdays and minute, block, service code); todos, the open to-dos (not done) of the airline and of the group (no airline), with their steps; fare_plan, fare_plan_status()''s document (private.fig_fare_plan()); fare_ladder, each route and cabin''s fare level from fare_ladder() (route_id, hub, dest, cabin, level, new_level and planned: the new level is the one to show once this week''s move is on the fare plan) with week_of and settings.launch_pct (the level of a route not flown yet), for the plan card check''s fare line (since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2); competition (since 21 Oct; spec docs/specs/2026-10-21-competition-analysis.md §4), competition()''s scans, group line, hubs first, threats and top 20 openings with their counts (private.fig_competition(), p_limit 20); route_loads, route_loads()''s routes and flights for this airline only (private.fig_route_loads()). Deliveries, plan cards and to-dos are the tables as they are now; the fare plan, the fare levels, competition and the loads are as of p_as_of.';

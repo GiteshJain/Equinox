@@ -488,6 +488,7 @@ def render(b):
     if C.get("openings"):
         put("  top: " + "; ".join(f"{o.get('rank')}. {o.get('route')} {o.get('stars') or '?'}★ {o.get('distance_km') or '?'} km, rivals "
                                   f"{o.get('rivals_weekly')} a week, {(o.get('variant') or {}).get('type') or '—'}"
+                                  + (" (November trunk)" if o.get("trunk") else "")
                                   + ("" if o.get("allowed") else " (not yet: hubs first)") for o in C["openings"][:3]))
 
     V = b["rivals"]

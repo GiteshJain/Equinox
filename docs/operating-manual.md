@@ -362,7 +362,12 @@ less important than another, point to point rather than hubs).*
   allows it (below), with the reason when it doesn't; those it doesn't are listed after the rest. The evening proposal
   (§4) takes its routes from the top of this list: the airline briefing carries the top 20, the planner's Competition
   screen shows them with the market share and the rivals' moves, and `select public.competition(<airline id>);` gives
-  them all (`p_limit`). One airline per city pair (§2) and the November trunks (§4) still decide between airlines.
+  them all (`p_limit`). One airline per city pair (§2) still decides between airlines (an opening says which other airlines
+  of ours have the pair on their list). **In November** (`settings.trunk_month_from` to `trunk_month_to`, 1 to 30 Nov,
+  §4) the trunks come first, shortest first, marked, with hubs first not applied to them and no distance leaving one
+  out (the A350s beyond the A321XLR); the other openings follow as always. The list marks trunks; whether each makes
+  sense stays the Scheduling chat's judgment. Freighters are no one's rivals: market share, threats and the openings'
+  rivals count passenger flights only, by the weekly report's rule.
   *Since 21 Oct (spec `docs/specs/2026-10-21-competition-analysis.md`) · why (Gitesh): route first, then the airline:
   each evening's proposal needs a ranked list.*
 - **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
@@ -437,7 +442,8 @@ less important than another, point to point rather than hubs).*
     (§2). *Since 20 Oct (Gitesh): "for this plan, everything which makes sense."*
   - **Shortest to longest:** new trunks open in order of distance, shortest first, while keeping every delivery line
     filled (an idle line takes the shortest trunk its family can fly). This puts the narrowbody trunks first and the
-    A350 trunks last. *Since 20 Oct (Gitesh).*
+    A350 trunks last. `competition()` lists them so from 1 to 30 Nov (`settings.trunk_month_from`, `trunk_month_to`).
+    *Since 20 Oct (Gitesh).*
   - **Narrowbody trunks first:** each evening's orders fill the short and medium trunks first (more departures per
     dollar); A350 trunks follow. The plan: `docs/briefs/2026-10-20-november-trunks.md`.
     *Since 20 Oct (Gitesh).*
@@ -512,8 +518,8 @@ less important than another, point to point rather than hubs).*
   7 days shows a rival that started on the pair (none in the scan before it) or added at least
   `settings.competition_threat_min_weekly` (7) departures a week, the route holds until 7 days after that scan ("rival
   Air China started here on 22 Oct: paused until 29 Oct"), checked after a new route, too few departures, the hold after
-  a step down and a new frequency, and before the sold-out share; the threats are `competition()`'s, and Today lists the
-  latest scan's (built 21 Oct with competition analysis). The planner
+  a step down and a new frequency, and before the sold-out share; the threats are `competition()`'s (passenger flights
+  only: a freighter never pauses a route), and Today lists the latest scan's (built 21 Oct with competition analysis). The planner
   works out each route's level and Saturday's moves, and lists the fewest changes to make in the game: **Ticket price
   adjustment** with the calculation baseline **default price**, so each change sets the level itself, **route by route
   only** (From A to B, and From B to A): never a whole base, so routes under 7 days old are never touched (Gitesh,

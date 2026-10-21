@@ -251,6 +251,12 @@ def main():
               and "  top: 1. AAA–B01 5★ 1001 km, rivals 29 a week, E195-E2; 2. AAA–B02" in r.stdout and "AAA–B04" not in r.stdout
               and block_lines(lines, "Competition") == 3,
               f"competition ({a['iata_code']}): the scans, the threats in a line and the top 3 openings under its heading, the rest in the JSON", r.stdout[-900:])
+        # in November (manual §4) a trunk is marked in the top line
+        T["briefings"][str(a["id"])]["competition"]["openings"][0]["trunk"] = True
+        r, b = run(T, a["iata_code"])
+        check(r.returncode == 0 and "  top: 1. AAA–B01 5★ 1001 km, rivals 29 a week, E195-E2 (November trunk); 2. AAA–B02" in r.stdout
+              and "E195-E2 (November trunk); 3." not in r.stdout,
+              f"competition ({a['iata_code']}): a November trunk is marked in the top line, the others not", r.stdout[-900:])
 
         # an airline that isn't ours
         r, b = run(S, "ZZ")

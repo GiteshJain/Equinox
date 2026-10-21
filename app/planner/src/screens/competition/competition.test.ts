@@ -9,8 +9,9 @@ import { readFileSync } from "node:fs";
 import { homeAttention, type AttentionInput } from "../today/attention";
 import { ATT_KIND, attKind, groupAttention } from "../../ui/attention";
 import {
-  allowedWords, changeWords, dayWords, groupWords, kmWords, latestThreats, n0, openingsLine, overallShare, pctWords, profileWords, rivalsWords, scansWords,
-  shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, variantWords, type CompetitionAnswer, type Market, type Opening, type Threat,
+  allowedWords, changeWords, dayWords, groupWords, kmWords, latestThreats, n0, openingsLine, otherListsWords, overallShare, pctWords, profileWords, rivalsWords,
+  scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening,
+  type Threat,
 } from "./model";
 
 const scan = (id: number, at: string) => ({ id, taken_at: at });
@@ -93,6 +94,16 @@ describe("threats, openings and profiles", () => {
       .toEqual({ ok: false, text: "not yet", why: "hubs first: PVG at 420 of 750 departures a week, and KMG isn't contested" });
     expect(openingsLine({ openings_count: 419, openings_allowed: 120, openings_left_out: 2 })).toBe("419 openings, 120 allowed under hubs first · 2 beyond every type's reach");
     expect(openingsLine({ openings_count: 1, openings_allowed: 1, openings_left_out: 0 })).toBe("1 opening, 1 allowed under hubs first");
+  });
+  it("November's trunks (manual §4): the month's line, a trunk on another airline's type, another airline's list", () => {
+    expect(trunkMonthWords({ trunk_month: { on: true, from: "2026-11-01", to: "2026-11-30" }, openings_trunks: 4 }))
+      .toBe("November's trunks first (1 Nov–30 Nov): 4 trunks, shortest first, hubs first suspended for them (manual §4). Whether each makes sense stays the Scheduling chat's call.");
+    expect(trunkMonthWords({ trunk_month: { on: false, from: "2026-11-01", to: "2026-11-30" }, openings_trunks: 0 })).toBeNull();
+    expect(trunkMonthWords({})).toBeNull();
+    expect(variantWords({ ...opening().variant, type: "A350-900", for_reach: true, own: false })).toBe("A350-900 (for reach) (not on its list)");
+    expect(otherListsWords(opening({ other_lists: ["VS"] }))).toBe("also on VS's list");
+    expect(otherListsWords(opening())).toBeNull();
+    expect(allowedWords(opening({ trunk: true, allowed_by: "November trunk" }))).toEqual({ ok: true, text: "yes", why: "November trunk" });
   });
   it("a profile's line: its size, growth since the week-before scan and airports", () => {
     const p = { airline_id: 9, name: "Air China", pairs_shared: 12, weekly_on_pairs: 140, weekly: 6552, weekly_before: 5012, change: 1540, airports: 120, pairs: [], biggest_airports: [] };

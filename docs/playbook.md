@@ -251,7 +251,9 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   its cabin. Where cash allows more than one option, the route we most want to fly decides.
 - **The routes come from the top of the openings** (since 21 Oct): each airline's pairs that no airline of ours flies,
   ranked by stars, then the rivals' departures a week, then the shorter distance, each with its variant from the default
-  line and whether hubs first allows it (manual §3). The airline briefing carries the top 20 and the latest threats;
+  line and whether hubs first allows it (manual §3); in November the trunks come first, shortest first, hubs first
+  suspended for them (section 3's Fleet, manual §4); the list marks trunks, and whether each makes sense stays the
+  Scheduling chat's call. The airline briefing carries the top 20 and the latest threats;
   `select public.competition(<airline id>);` gives the rest, and the planner's **Competition** screen shows them.
 - **You order in the game** and tell the Scheduling chat. Claude logs it and writes the **plan card** with those routes
   and that cabin (Tails → Deliveries → **card**), following the rules in step 4.

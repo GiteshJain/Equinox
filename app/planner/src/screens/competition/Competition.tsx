@@ -18,8 +18,8 @@ import { ErrorBox } from "../../ui/ErrorBox";
 import { listCut } from "../performance/model";
 import { itemRoute } from "../screens";
 import {
-  allowedWords, changeWords, dayWords, groupWords, kmWords, n0, openingsLine, overallShare, pctWords, profileWords, rivalsWords, scansWords, shareBar,
-  starsWords, threatNumbers, threatWhen, threatsLine, variantWords, type CompetitionAnswer, type Market, type Opening, type Profile, type Threat,
+  allowedWords, changeWords, dayWords, groupWords, kmWords, n0, openingsLine, otherListsWords, overallShare, pctWords, profileWords, rivalsWords, scansWords, shareBar,
+  starsWords, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening, type Profile, type Threat,
 } from "./model";
 import { useCompetition, useCompetitions } from "./reads";
 
@@ -146,6 +146,7 @@ function AirlinePage({ airline, a }: { airline: OurAirline; a: CompetitionAnswer
       </Board>
       <Board title="Openings" figure={`competition ${airline.name}: openings`} board="Openings"
         note={`the pairs on its list no airline of ours flies, ranked: stars, then rivals' departures a week, then the shorter distance (manual §3) · ${openingsLine(a)}`}>
+        {trunkMonthWords(a) ? <div className="cptrunks" data-trunk-month>{trunkMonthWords(a)}</div> : null}
         <Openings code={airline.code ?? String(airline.id)} openings={a.openings} total={a.openings_count} />
       </Board>
       <Board title="Rival profiles" figure={`competition ${airline.name}: rival profiles`} board="Rival profiles"
@@ -213,9 +214,11 @@ function Openings({ code, openings, total }: { code: string; openings: readonly 
             {cut.shown.map((o) => {
               const al = allowedWords(o);
               return (
-                <tr key={o.route_id} data-opening={o.route} data-rank={o.rank} data-allowed={o.allowed ? "yes" : "no"} className={o.allowed ? undefined : "cpno"}>
+                <tr key={o.route_id} data-opening={o.route} data-rank={o.rank} data-allowed={o.allowed ? "yes" : "no"} data-trunk={o.trunk ? "yes" : "no"}
+                  className={o.allowed ? undefined : "cpno"}>
                   <td className="num">{o.rank}</td>
-                  <td><b>{o.route}</b>{o.city ? <div className="dim cpcity">{o.city}</div> : null}</td>
+                  <td><b>{o.route}</b>{o.trunk ? <> <span className="pill mute sm">trunk</span></> : null}{o.city ? <div className="dim cpcity">{o.city}</div> : null}
+                    {otherListsWords(o) ? <div className="dim cpcity">{otherListsWords(o)}</div> : null}</td>
                   <td>{starsWords(o.stars)}</td>
                   <td className="num">{kmWords(o.distance_km)}</td>
                   <td><span className="num">{n0(o.rivals_weekly)}</span> <span className="dim">{rivalsWords(o)}</span></td>

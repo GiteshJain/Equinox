@@ -316,7 +316,8 @@ money figure is the database's. Its boards are open on arrival, the most importa
 *Who are we up against, and where do we open next?* (Since 21 Oct, spec docs/specs/2026-10-21-competition-analysis.md;
 manual §3, market share first.) Every figure is *competition()*'s, from the world scans the evening capture takes
 (`scan_every_days`). Rivals are every airline in the scan that isn't one of ours; departures a week count each
-flight's days, as *gscan.py* counts them. Read only: nothing here saves.
+flight's days, as *gscan.py* counts them, passenger flights only: freighters (a type ending in F, or ATF, ABX, 74Y,
+77X, 76X, or none, the weekly report's rule) are no one's rivals, anywhere here. Read only: nothing here saves.
 - **At the top:** the scans' dates ("latest scan 17 Oct, compared with 6 Oct": the latest finished scan, against the
   latest one at least 6 days older, else the oldest there is) and the group line: our airlines' departures a week
   against the world's, our share and its arrow.
@@ -336,7 +337,13 @@ flight's days, as *gscan.py* counts them. Read only: nothing here saves.
     reach", the cheapest per seat whose range covers it, among the types the airline may buy) and **Hubs first**:
     **yes** with why (main hub, contested base or route, main hub at its target, exempt), or **not yet** with the
     reason, listed after the allowed ones. The first 10, with **show all** (the top 50; a chat reads more with
-    *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted.
+    *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted. A pair
+    another airline of ours has on its list says so ("also on VS's list"): one airline per city pair decides.
+  - **In November** (*trunk_month_from* to *trunk_month_to*, 1 to 30 Nov; manual §4) a line over the openings says the
+    trunks come first: each pair between two of our bases is marked **trunk**, listed first, shortest first, allowed
+    with hubs first suspended ("November trunk"), and never left out for reach (a type the airline can't buy says "not
+    on its list"). The list marks trunks; whether each makes sense stays the Scheduling chat's call. Outside those days
+    nothing changes.
   - **Rival profiles:** the 10 rivals who fly most of its city pairs: their size and growth since the week-before
     scan, airports, the pairs shared (theirs and ours a week) and their biggest airports.
 - **No scan, or one:** with none, the openings rank by stars and distance and only the main hub's are allowed; with

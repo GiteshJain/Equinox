@@ -24,12 +24,20 @@ export interface Threat {
   then: number; added: number; now: number; ours: number; scan_id: number; on: string; previous_id: number | null; previous_on: string | null;
   until: string; latest: boolean; words: string;
 }
-export interface Variant { type_id: number | null; type: string | null; seats: number | null; range_km: number | null; size: string | null; for_reach: boolean }
+export interface Variant {
+  type_id: number | null; type: string | null; seats: number | null; range_km: number | null; size: string | null; for_reach: boolean;
+  /** False when the airline may not buy it: a November trunk no type of its own reaches takes the world's (manual §4). */
+  own?: boolean | null;
+}
 export interface Opening {
   rank: number; route_id: number; route: string; hub: string; dest: string; pair: string; city: string | null;
   stars: number | null; distance_km: number | null; market_id: number | null;
   rivals_weekly: number; rivals: { airline_id: number; name: string; weekly: number }[];
   variant: Variant; allowed: boolean; allowed_by: string | null; reason: string | null;
+  /** A pair between two of our bases, in the trunk month (manual §4: 1 to 30 November): first, shortest first. */
+  trunk?: boolean;
+  /** Our other airlines with the pair on their own list (one airline per city pair, manual §2, decides). */
+  other_lists?: string[];
 }
 export interface Profile {
   airline_id: number; name: string; pairs_shared: number; weekly_on_pairs: number;
@@ -45,7 +53,9 @@ export interface CompetitionAnswer {
   markets: Market[];
   threats: Threat[];
   openings: Opening[];
-  openings_count: number; openings_allowed: number; openings_left_out: number;
+  openings_count: number; openings_allowed: number; openings_left_out: number; openings_trunks?: number;
+  /** November's trunks (manual §4): whether the moment is in the trunk month, and its first and last day. */
+  trunk_month?: { on: boolean; from: string | null; to: string | null };
   profiles: Profile[];
   pairs_flown: number; pairs_listed: number;
   notes: string[];
@@ -137,10 +147,25 @@ export function rivalsWords(o: Pick<Opening, "rivals">, top = 2): string {
   return o.rivals.length > top ? `${head} +${o.rivals.length - top} more` : head;
 }
 
-/** The variant: "A320neo SHARP", with "for reach" when it's bigger than the city's stars call for. */
+/** The variant: "A320neo SHARP", with "for reach" when it's bigger than the city's stars call for, and "not on its
+ *  list" for a November trunk that only another airline's type reaches. */
 export function variantWords(v: Variant): string {
-  return v.type ? `${v.type}${v.for_reach ? " (for reach)" : ""}` : "—";
+  return v.type ? `${v.type}${v.for_reach ? " (for reach)" : ""}${v.own === false ? " (not on its list)" : ""}` : "—";
 }
+
+/** The trunk month's line over the openings, or nothing outside it: "November's trunks first (1–30 Nov): 4 trunks, shortest
+ *  first, hubs first suspended for them (manual §4). Whether each makes sense stays the Scheduling chat's call." */
+export function trunkMonthWords(a: Pick<CompetitionAnswer, "trunk_month" | "openings_trunks">): string | null {
+  const m = a.trunk_month;
+  if (!m?.on) return null;
+  const n = a.openings_trunks ?? 0;
+  return `November's trunks first (${dayWords(m.from)}–${dayWords(m.to)}): ${n} trunk${n === 1 ? "" : "s"}, shortest first, hubs first suspended for them (manual §4). `
+    + "Whether each makes sense stays the Scheduling chat's call.";
+}
+
+/** Our other airlines with the pair on their list: "also on VS's list". */
+export const otherListsWords = (o: Pick<Opening, "other_lists">): string | null =>
+  (o.other_lists?.length ? `also on ${o.other_lists.join(" and ")}'s list` : null);
 
 /** Hubs first in a word or two: "yes", or "no" with why (the database's reason). */
 export function allowedWords(o: Pick<Opening, "allowed" | "allowed_by" | "reason">): { ok: boolean; text: string; why: string } {

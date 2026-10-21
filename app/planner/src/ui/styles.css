@@ -964,4 +964,5 @@ button.link.gmore{display:inline-block;margin:6px 0 2px}
 .cpopen tr.cpno td{color:var(--muted)}
 .cpcity,.cpwhy{font-size:11.5px;white-space:normal}
 .cpmore{font-size:12.5px;margin-top:4px}
+.cptrunks{font-size:13px;margin:0 0 8px;overflow-wrap:anywhere}
 @media (max-width:560px){ .cpmk{grid-template-columns:minmax(0,1fr)} }
