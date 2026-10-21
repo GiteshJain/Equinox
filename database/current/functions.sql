@@ -97,7 +97,9 @@ begin
                                                                'game_name', a.game_name, 'code', a.iata_code)
                                            order by a.position nulls last, a.id), '[]'::jsonb)
                    from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
-                  where a.world_id = v_world and a.active and g.kind = 'ours'));
+                  where a.world_id = v_world and a.active and g.kind = 'ours'))
+    -- the world scan (spec docs/specs/2026-10-21-scan-in-capture.md): whether one is due, the open one and the airports
+    || private.capture_scan_plan(v_world, now());
 end
 $function$
 
@@ -143,6 +145,54 @@ begin
   if p_kind = 'loads' and v_res ? 'airline_verdict' then
     v_res := v_res || jsonb_build_object('count', coalesce(v_res -> 'rows', '0'::jsonb), 'rows', private.capture_panel_words(v_res));
   end if;
+  return v_res;
+end
+$function$
+
+;
+
+-- capture_scan(p_key text, p_kind text, p_payload jsonb)
+CREATE OR REPLACE FUNCTION public.capture_scan(p_key text, p_kind text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_world bigint; v_scan bigint; v_res jsonb;
+  v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);
+begin
+  v_world := private.capture_key_world(p_key);
+  if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish') then
+    return jsonb_build_object('ok', false, 'error', 'bad kind');
+  end if;
+  perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), 'capture'), true),
+          set_config('equinox.actor_detail', coalesce(nullif(v_detail, ''), 'capture_scan'), true);
+  begin
+    if p_kind = 'start' then
+      -- one scan at a time: a capture run twice within the hour carries on with the scan it started
+      perform pg_advisory_xact_lock(hashtext('equinox.capture_scan'), v_world::int);
+      v_scan := private.scan_open(v_world, now());
+      if v_scan is not null then
+        v_res := jsonb_build_object('ok', true, 'snapshot_id', v_scan, 'carried_on', true);
+      else
+        v_res := private.scan_ingest(v_world, 'start', p_payload) || jsonb_build_object('ok', true, 'carried_on', false);
+      end if;
+    else
+      -- only a scan of the key's world
+      select s.id into v_scan from public.game_scans s
+       where s.id = (p_payload ->> 'snapshot_id')::bigint and s.world_id = v_world;
+      if v_scan is null then
+        v_res := jsonb_build_object('ok', false, 'error', 'no such scan in this capture key''s world: ' || coalesce(p_payload ->> 'snapshot_id', '(none)'));
+      else
+        v_res := private.scan_ingest(v_world, p_kind, p_payload) || jsonb_build_object('snapshot_id', v_scan);
+      end if;
+    end if;
+  exception when others then
+    -- a payload that doesn't read is refused, writing nothing, and the scan carries on with the next page
+    v_res := jsonb_build_object('ok', false, 'error', sqlerrm);
+  end;
+  perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
   return v_res;
 end
 $function$
@@ -384,70 +434,15 @@ CREATE OR REPLACE FUNCTION public.ingest_snapshot(p_secret text, p_kind text, p_
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-declare v_world bigint; v_scan bigint; v_al bigint; v_res jsonb; n int := 0;
+declare v_res jsonb;
   v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);
 begin
   if not exists (select 1 from public.ingest_secret s where s.secret = p_secret) then raise exception 'not allowed'; end if;
   if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets') then raise exception 'unknown kind'; end if;
   perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), 'script'), true),
           set_config('equinox.actor_detail', coalesce(nullif(v_detail, ''), 'ingest_snapshot'), true);
-  if p_kind = 'start' then
-    select x.id into v_world from public.worlds x where x.is_default;
-    insert into public.game_scans (world_id, week, note) values (v_world, p_payload ->> 'week', p_payload ->> 'note')
-    returning id into v_scan;
-    v_res := jsonb_build_object('snapshot_id', v_scan);
-  else
-    select s.id, s.world_id into v_scan, v_world from public.game_scans s where s.id = (p_payload ->> 'snapshot_id')::bigint;
-    if v_scan is null and p_kind <> 'finish' then
-      raise exception 'no such scan: %', coalesce(p_payload ->> 'snapshot_id', '(none)');
-    end if;
-    if p_kind = 'airline' then
-      v_al := private.scan_airline(v_world, (p_payload ->> 'enterprise_id')::int, p_payload ->> 'name');
-      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position)
-      values (v_scan, v_world, (p_payload ->> 'enterprise_id')::int, v_al, p_payload ->> 'name',
-              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int,
-              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airlines y where y.scan_id = v_scan))
-      on conflict (scan_id, enterprise_id) do update set airline_id = excluded.airline_id, name = excluded.name,
-        n_flights = excluded.n_flights, n_weekly = excluded.n_weekly, n_airports = excluded.n_airports;
-      insert into public.game_scan_schedules as x (scan_id, world_id, airline_id, flights)
-      values (v_scan, v_world, v_al, coalesce(p_payload -> 'flights', '[]'::jsonb))
-      on conflict (scan_id, airline_id) do update set flights = excluded.flights;
-      v_res := jsonb_build_object('ok', true);
-    elsif p_kind = 'airport' then
-      -- the airlines stationed there are airlines the scan saw too
-      perform private.scan_airline(v_world, (st ->> 'enterprise_id')::int, st ->> 'name')
-         from jsonb_array_elements(case when jsonb_typeof(p_payload -> 'stations') = 'array' then p_payload -> 'stations' else '[]'::jsonb end) st
-        where (st ->> 'enterprise_id') ~ '^\d{1,9}$';
-      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news, position)
-      values (v_scan, v_world, p_payload ->> 'code', (p_payload ->> 'airport_id')::int, p_payload -> 'info',
-              p_payload -> 'stations', p_payload -> 'news',
-              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airports y where y.scan_id = v_scan))
-      on conflict (scan_id, airport_code) do update set game_airport_id = excluded.game_airport_id, info = excluded.info,
-        stations = excluded.stations, news = excluded.news;
-      v_res := jsonb_build_object('ok', true);
-    elsif p_kind = 'finish' then
-      if v_scan is not null then
-        update public.game_scans set status = 'done', note = coalesce(p_payload ->> 'note', note) where id = v_scan;
-        perform private.scan_summarise(v_scan);
-      end if;
-      v_res := jsonb_build_object('ok', true);
-    elsif p_kind = 'markets' then
-      if jsonb_typeof(p_payload -> 'markets') is distinct from 'array' then
-        raise exception 'markets: the payload needs a list, markets: [{enterprise_id, market, weekly_departures, city_pairs}]';
-      end if;
-      perform private.scan_airline(v_world, x.game_id, null)
-         from (select distinct (m ->> 'enterprise_id')::int as game_id from jsonb_array_elements(p_payload -> 'markets') m
-                where (m ->> 'enterprise_id') ~ '^\d{1,9}$') x;
-      delete from public.scan_airline_markets where scan_id = v_scan;
-      insert into public.scan_airline_markets (scan_id, world_id, airline_id, market, weekly_departures, city_pairs)
-      select v_scan, v_world, al.id, m ->> 'market', (m ->> 'weekly_departures')::int, (m ->> 'city_pairs')::int
-        from jsonb_array_elements(p_payload -> 'markets') m
-        join public.airlines al on al.world_id = v_world and al.game_id = (m ->> 'enterprise_id')::int
-       where (m ->> 'enterprise_id') ~ '^\d{1,9}$' and coalesce(m ->> 'market', '') <> '';
-      get diagnostics n = row_count;
-      v_res := jsonb_build_object('ok', true, 'rows', n);
-    end if;
-  end if;
+  -- the work is shared with the capture's scan (capture_scan()); a start scans the default world
+  v_res := private.scan_ingest(null, p_kind, p_payload);
   perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
   return v_res;
 end
@@ -2250,6 +2245,62 @@ begin
     v_matched := v_matched + private.match_flights(a.id);
   end loop;
   return jsonb_build_object('times', v_times, 'due_at', v_due, 'matched', v_matched);
+end
+$function$
+
+;
+
+-- private.capture_scan_plan(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.capture_scan_plan(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  -- the big rival hubs, with our hubs among them, as scripts/scanner/gscan.py lists them (its AP)
+  c_hubs constant text[] := array['JFK', 'ORD', 'DFW', 'LAX', 'SFO', 'SEA', 'DEL', 'BOM', 'HYD', 'BLR', 'CCU', 'MAA', 'CDG',
+    'AMS', 'BCN', 'MXP', 'MUC', 'LGW', 'MAN', 'EDI', 'PVG', 'PKX', 'SZX', 'KMG', 'XIY', 'KUL', 'LHR', 'SIN', 'DXB', 'DOH',
+    'AUH', 'IST', 'HKG', 'ICN', 'BKK', 'PEK', 'CAN', 'CTU', 'HND', 'NRT', 'FRA', 'MAD', 'FCO', 'ATL', 'EWR', 'IAD', 'MIA',
+    'YYZ', 'MEX', 'SYD', 'CGK', 'MNL', 'SGN', 'DUB', 'ZRH', 'VIE', 'CPH'];
+  v_every int; v_latest bigint; v_latest_at timestamptz; v_due boolean; v_airports jsonb;
+begin
+  select (s.value #>> '{}')::numeric::int into v_every from public.settings s
+   where s.world_id = p_world_id and s.airline_id is null and s.key = 'scan_every_days';
+  -- the latest finished scan by the moment
+  select s.id, s.taken_at into v_latest, v_latest_at from public.game_scans s
+   where s.world_id = p_world_id and s.status = 'done' and s.taken_at <= p_as_of
+   order by s.taken_at desc, s.id desc limit 1;
+  -- due by capture day (the 10:00-to-10:00 UTC day the capture uses), so one evening is one day whichever side of
+  -- midnight UTC it is captured; without the setting, never
+  v_due := v_every is not null
+           and (v_latest is null or private.capture_day(p_world_id, p_as_of) - private.capture_day(p_world_id, v_latest_at) >= v_every);
+  -- the airports to read: our bases (our airlines in display order, each main hub first), the big rival hubs, then the
+  -- latest finished scan's 20 busiest airports by departures a week; each once, where it first comes
+  with ours as (
+    select a.id, a.position from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours'),
+  bases as (
+    select b.airport_code as code, 1 as part,
+           row_number() over (order by o.position nulls last, o.id, b.is_main desc, b.position nulls last, b.id) as k
+      from public.airline_bases b join ours o on o.id = b.airline_id),
+  hubs as (select h.code, 2 as part, h.k from unnest(c_hubs) with ordinality as h(code, k)),
+  busiest as (
+    select t.airport_code as code, 3 as part, row_number() over (order by t.weekly desc, t.airport_code) as k
+      from (select x.airport_code, sum(x.weekly_departures) as weekly from public.scan_airline_airports x
+             where x.scan_id = v_latest group by x.airport_code order by 2 desc, 1 limit 20) t),
+  firsts as (
+    select distinct on (e.code) e.code, e.part, e.k
+      from (select * from bases union all select * from hubs union all select * from busiest) e
+     where e.code ~ '^[A-Z0-9]{3}$'
+     order by e.code, e.part, e.k)
+  select coalesce(jsonb_agg(f.code order by f.part, f.k), '[]'::jsonb) into v_airports from firsts f;
+  return jsonb_build_object(
+    'scan_every_days', v_every,
+    'scan_due', v_due,
+    'scan_open', private.scan_open(p_world_id, p_as_of),
+    'scan_latest', case when v_latest is not null then jsonb_build_object('id', v_latest, 'taken_at', private.fig_ts(v_latest_at)) end,
+    'scan_airports', v_airports);
 end
 $function$
 
@@ -5279,6 +5330,98 @@ begin
   end if;
   return v_id;
 end
+$function$
+
+;
+
+-- private.scan_ingest(p_world_id bigint, p_kind text, p_payload jsonb)
+CREATE OR REPLACE FUNCTION private.scan_ingest(p_world_id bigint, p_kind text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_world bigint; v_scan bigint; v_al bigint; v_res jsonb; n int := 0;
+begin
+  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets') then raise exception 'unknown kind'; end if;
+  if p_kind = 'start' then
+    if p_world_id is null then
+      select x.id into v_world from public.worlds x where x.is_default;
+    else
+      v_world := p_world_id;
+    end if;
+    insert into public.game_scans (world_id, week, note) values (v_world, p_payload ->> 'week', p_payload ->> 'note')
+    returning id into v_scan;
+    v_res := jsonb_build_object('snapshot_id', v_scan);
+  else
+    select s.id, s.world_id into v_scan, v_world from public.game_scans s where s.id = (p_payload ->> 'snapshot_id')::bigint;
+    if v_scan is null and p_kind <> 'finish' then
+      raise exception 'no such scan: %', coalesce(p_payload ->> 'snapshot_id', '(none)');
+    end if;
+    if p_kind = 'airline' then
+      v_al := private.scan_airline(v_world, (p_payload ->> 'enterprise_id')::int, p_payload ->> 'name');
+      insert into public.game_scan_airlines as x (scan_id, world_id, enterprise_id, airline_id, name, n_flights, n_weekly, n_airports, position)
+      values (v_scan, v_world, (p_payload ->> 'enterprise_id')::int, v_al, p_payload ->> 'name',
+              (p_payload ->> 'n_flights')::int, (p_payload ->> 'n_weekly')::int, (p_payload ->> 'n_airports')::int,
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airlines y where y.scan_id = v_scan))
+      on conflict (scan_id, enterprise_id) do update set airline_id = excluded.airline_id, name = excluded.name,
+        n_flights = excluded.n_flights, n_weekly = excluded.n_weekly, n_airports = excluded.n_airports;
+      insert into public.game_scan_schedules as x (scan_id, world_id, airline_id, flights)
+      values (v_scan, v_world, v_al, coalesce(p_payload -> 'flights', '[]'::jsonb))
+      on conflict (scan_id, airline_id) do update set flights = excluded.flights;
+      v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'airport' then
+      -- the airlines stationed there are airlines the scan saw too
+      perform private.scan_airline(v_world, (st ->> 'enterprise_id')::int, st ->> 'name')
+         from jsonb_array_elements(case when jsonb_typeof(p_payload -> 'stations') = 'array' then p_payload -> 'stations' else '[]'::jsonb end) st
+        where (st ->> 'enterprise_id') ~ '^\d{1,9}$';
+      insert into public.game_scan_airports as x (scan_id, world_id, airport_code, game_airport_id, info, stations, news, position)
+      values (v_scan, v_world, p_payload ->> 'code', (p_payload ->> 'airport_id')::int, p_payload -> 'info',
+              p_payload -> 'stations', p_payload -> 'news',
+              (select coalesce(max(y.position), 0) + 1 from public.game_scan_airports y where y.scan_id = v_scan))
+      on conflict (scan_id, airport_code) do update set game_airport_id = excluded.game_airport_id, info = excluded.info,
+        stations = excluded.stations, news = excluded.news;
+      v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'finish' then
+      if v_scan is not null then
+        update public.game_scans set status = 'done', note = coalesce(p_payload ->> 'note', note) where id = v_scan;
+        perform private.scan_summarise(v_scan);
+      end if;
+      v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'markets' then
+      if jsonb_typeof(p_payload -> 'markets') is distinct from 'array' then
+        raise exception 'markets: the payload needs a list, markets: [{enterprise_id, market, weekly_departures, city_pairs}]';
+      end if;
+      perform private.scan_airline(v_world, x.game_id, null)
+         from (select distinct (m ->> 'enterprise_id')::int as game_id from jsonb_array_elements(p_payload -> 'markets') m
+                where (m ->> 'enterprise_id') ~ '^\d{1,9}$') x;
+      delete from public.scan_airline_markets where scan_id = v_scan;
+      insert into public.scan_airline_markets (scan_id, world_id, airline_id, market, weekly_departures, city_pairs)
+      select v_scan, v_world, al.id, m ->> 'market', (m ->> 'weekly_departures')::int, (m ->> 'city_pairs')::int
+        from jsonb_array_elements(p_payload -> 'markets') m
+        join public.airlines al on al.world_id = v_world and al.game_id = (m ->> 'enterprise_id')::int
+       where (m ->> 'enterprise_id') ~ '^\d{1,9}$' and coalesce(m ->> 'market', '') <> '';
+      get diagnostics n = row_count;
+      v_res := jsonb_build_object('ok', true, 'rows', n);
+    end if;
+  end if;
+  return v_res;
+end
+$function$
+
+;
+
+-- private.scan_open(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.scan_open(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select s.id from public.game_scans s
+   where s.world_id = p_world_id and s.status <> 'done'
+     and s.taken_at > p_as_of - interval '1 hour' and s.taken_at <= p_as_of
+   order by s.taken_at desc, s.id desc
+   limit 1
 $function$
 
 ;

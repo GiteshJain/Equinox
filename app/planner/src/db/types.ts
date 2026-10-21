@@ -1710,6 +1710,9 @@ isOneToOne: false
 "capture_ingest":
 { Args: { "p_airline": string,"p_key": string,"p_kind": string,"p_page": string,"p_rows": Json }; Returns: Json
                            },
+"capture_scan":
+{ Args: { "p_key": string,"p_kind": string,"p_payload": Json }; Returns: Json
+                           },
 "capture_status":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            },

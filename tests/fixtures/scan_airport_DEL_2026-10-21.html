@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!-- Hand-made on 21 Oct 2026 for tests/capture_scan_test.mjs from scripts/scanner/gscan.py's patterns, not saved from
+     the game: an airport page (/app/info/airports/1143, Delhi, the id the saved schedule page
+     game_schedule_113.html.gz gives DEL), cut down. Public game data only, no account data; the figures are made up in
+     the shape the 6 Oct scan stored. Its cases: the details in the order gscan.py reads them, with a style and a script
+     that mustn't count; stations with an alliance, an interline mark (an icon, an image) or none, a thousands comma, an
+     ampersand in a name, and a row whose tr tag has attributes (which gscan.py doesn't read); and two news items before
+     the footer. To replace it with a real page, save it from the game (Share, Web Archive) and cut it down. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Delhi Indira Gandhi International (DEL) - AirlineSim</title>
+<style>.note:before { content: "Country Nowhere Continent"; }</style>
+<script>var hint = "Airport size Tiny Slots";</script>
+</head>
+<body>
+<div class="container">
+  <h1>Delhi Indira Gandhi International <small>(DEL)</small></h1>
+  <table class="table table-bordered">
+    <tr><th>Country</th><td>India</td></tr>
+    <tr><th>Continent</th><td>Asia</td></tr>
+    <tr><th>Runway</th><td>4,430 m</td></tr>
+    <tr><th>Airport size</th><td>Mega airport</td></tr>
+    <tr><th>Slots (per 5 minutes)</th><td>22</td></tr>
+    <tr><th>Slot Availability</th><td>91%</td></tr>
+    <tr><th>Min. transfer time</th><td>01:15 h</td></tr>
+    <tr><th>Nighttime ban</th><td>no nighttime ban</td></tr>
+    <tr><th>Noise restrictions</th><td>none</td></tr>
+  </table>
+
+  <h2>Stations</h2>
+  <table class="table table-striped">
+    <tr><th>Airline</th><th>Alliance</th><th>Departures</th><th>Interline</th></tr>
+    <tr><td><a href="../enterprises/113">Kingfisher Airlines</a></td><td><a href="../alliances/204">equinox.</a></td><td>1,204 Departures</td><td><span class="fa fa-check" title="interline"></span></td></tr>
+    <tr><td><a href="../enterprises/76">Air India</a></td><td></td><td>356 Departures</td><td></td></tr>
+    <tr><td><a href="../enterprises/57">United Airlines</a></td><td><a href="../alliances/93">Star</a></td><td>14
+        Departures</td><td><img src="/img/interline.png" alt=""></td></tr>
+    <tr class="inactive"><td><a href="../enterprises/31">Delta Air Lines</a></td><td></td><td>21 Departures</td><td></td></tr>
+    <tr><td><a href="../enterprises/2042">Kiwi &amp; Co Air</a></td><td></td><td>7 Departures</td><td><i class="fa fa-link"></i></td></tr>
+  </table>
+
+  <h2>News</h2>
+  <ul class="news">
+    <li><span class="date">2026-10-20 21:14 UTC</span> <a href="../enterprises/113">Kingfisher Airlines</a> has opened a new station at <a href="../airports/1180">Kolkata</a>.</li>
+    <li><span class="date">2026-10-19 08:02 UTC</span> Air India has opened a new station at Delhi .</li>
+  </ul>
+</div>
+<footer class="footer">Found a mistake? Tell us on the forum.</footer>
+</body>
+</html>

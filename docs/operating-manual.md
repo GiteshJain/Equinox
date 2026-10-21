@@ -62,10 +62,6 @@ Until each is built and merged, the rules below stand as they are.
   that sets it back, first in Performance's fare ladder and made by the fares userscript (which also shows whether the
   game prices a new flight number at the default price, as Gitesh thinks). The fare index reads each flight of the
   latest captured day against its route's fare on 21 Oct 2026. A frequency taken away isn't tracked yet.
-- **Decided 21 Oct, for the Building chat:** the world scan moves into **Capture all airlines** (spec
-  `docs/specs/2026-10-21-scan-in-capture.md`): after our airlines, the capture scans the world when one is due, every
-  `scan_every_days` (1: every evening, Gitesh, 21 Oct; raised to 3 if the evening gets long), reading the same pages as
-  `gscan.py` and sending them with the capture key. Until it's built, the Saturday chat runs `gscan.py` as now.
 - **Next for the Building chat (Gitesh, 21 Oct):** the planner work's next big step is competition analysis with its
   ranked openings, before the route page.
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
@@ -121,7 +117,8 @@ Details and open points: `docs/decisions.md`.
   *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database
   changes were tried first on live.*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  the fares userscript on the saved fares form and answer (since 21 Oct);
+  the fares userscript on the saved fares form and answer (since 21 Oct); the capture's world scan against `gscan.py` on
+  the same saved pages (since 21 Oct);
   the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails, the
   planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its optimiser against
   plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures; every website
@@ -208,7 +205,7 @@ Details and open points: `docs/decisions.md`.
   | Chat | Covers |
   |---|---|
   | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
-  | Saturday review | Every Saturday: the world scan, weekly report, connection audit, the airlines' newsroom roundups, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
+  | Saturday review | Every Saturday: the world scan's age (the scan runs with the evening capture; `gscan.py` by hand if it's old), weekly report, connection audit, the airlines' newsroom roundups, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *Since early Oct.*
@@ -529,6 +526,17 @@ less important than another, point to point rather than hubs).*
   nothing else, straight into the tables (`game_flights` and the rest); a day's loads count as complete once every
   active airline has been captured for it. Loads are typed in by hand (Systems → Manual entry) only if a capture fails.
   *Since 7–8 Oct; salaries taken out 10 Oct; into the tables only since 10 Oct (#13, pull request 9).*
+  - **Then the world scan, when one is due:** after the last airline, the capture scans the world if the latest finished
+    scan is at least `settings.scan_every_days` capture days old (1: every evening). It reads the same pages as
+    `gscan.py`, at its pace (every airline in Gander with its schedule, then the airport pages for our bases, the big
+    rival hubs and the latest scan's 20 busiest airports), and sends them with the capture key (`capture_scan()`). It
+    takes a few minutes more (about 5); keep the tab open. The panel shows "World scan: 120 of 163 airlines…", then
+    "World scan done", with a Stop button throughout; a page reload carries on where it was. No scan if a capture page
+    failed that evening; a failed scan page is logged and skipped, and with more than 10% of the airlines failed the
+    scan isn't finished, so the Systems board keeps the last finished one. *Since 21 Oct (spec
+    `docs/specs/2026-10-21-scan-in-capture.md`) · why (Gitesh): competition analysis and the evening order proposal need
+    fresh rivals, and the scan in the capture costs no extra work; raise `scan_every_days` to 3 (about twice a week) if
+    the evening gets long.*
   - **Each page is checked as it arrives** (#21): ok, short or broken. Loads are short below 90% of the airline's
     flights scheduled in the page's window (the 24 hours before the capture, a new rotation counting from the day after
     it launched, and a new aircraft only once a capture has shown it flying; setting `capture_loads_min_share`); a bank
@@ -544,9 +552,11 @@ less important than another, point to point rather than hubs).*
   the airline he's on, setting each position to 10% above the country average. *Since 10 Oct · why: Gitesh suspects the
   nightly adjustment of all six airlines was inflating salaries.*
 - **Every Saturday:**
-  - first, the world scan (`scripts/scanner/gscan.py`, run from the Saturday chat; about 5 to 10 minutes), so the report
-    and gander monthly read this week's rivals. *Since 14 Oct (#22) · why (Gitesh): only one scan had been taken
-    (6 Oct), because no step called for it.*
+  - the world scan runs with the evening capture (`scan_every_days`, above), so the report and gander monthly read
+    this week's rivals; if the Systems board shows it old (amber over 8 days), run `scripts/scanner/gscan.py` by hand
+    first (the Saturday chat; about 5 to 10 minutes). *Since 21 Oct (spec `docs/specs/2026-10-21-scan-in-capture.md`);
+    a Saturday step since 14 Oct (#22) · why (Gitesh): only one scan had been taken by 14 Oct, because no step called
+    for it; since 21 Oct the capture takes it.*
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
     results, each airline's net cash a day (flight profit less leases and salaries) against the price of one aircraft, the
@@ -593,7 +603,7 @@ less important than another, point to point rather than hubs).*
 - **The Systems board, at the top of Systems** (#23; of Check until 20 Oct), is where "all good" shows: one line
   each, green, amber or red, for each airline's evening capture (when, and its verdict), the daily snapshot (taken by
   the capture, or by the fallback and so incomplete), the nightly backup (last good copy, restore check, size), the
-  monthly archive (this month's state, due by the 3rd), the clean-ups, the world scan's age (amber over 8 days, red over 15), the planner's own build
+  monthly archive (this month's state, due by the 3rd), the clean-ups, the world scan's age (amber over 8 days, red over 15; it runs with the evening capture since 21 Oct), the planner's own build
   (the time and change it was built from: after a merge, a time that hasn't moved means the deploy failed), and the
   usage the database can measure against its triggers (§1): database size (350 MB), the report PDFs in `site_reports`
   (50 MB) and the size of `site_public()` (500 KB), amber from 70%, red at the trigger. The marks use needs attention's
@@ -664,6 +674,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 21 Oct | Every Saturday, first the world scan: `gscan.py`, run from the Saturday chat (since 14 Oct, #22) | The world scan runs with the evening capture when one is due (`scan_every_days`, 1: every evening); `gscan.py` by hand only when the Systems board shows it old (§7). Why: Gitesh, competition analysis and the evening order proposal need fresh rivals (brief `docs/briefs/2026-10-21-competition-analysis.md`) |
 | 21 Oct | The evening proposal shows every airline that can order at once | One airline at a time, each decided, ordered and logged before the next (§3). Why: Gitesh |
 | 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |
 | 21 Oct | Refits: a refit costs about 0.2M (`settings.cabin_refit_cost`) with no time out of service; Systems' Cabins board listed each aircraft whose cabin differed from what most of its flying wanted (a refit paying from 70%, `cabin_refit_share_pct`), with Refitted to, Keep as is and Show again; each market kept a default aircraft, default cabin and fares (Reference → market defaults), used only to tell which layout it called for | We don't refit: the cabin is chosen with each order, and the plan card suggests it by the 65% rule (`cabin_route_share_pct`), warning when the chosen one differs; each market keeps only its layout (`markets.layout`) (§5). Why: Gitesh, 21 Oct; the defaults didn't capture the new layouts |

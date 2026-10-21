@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!-- Hand-made on 21 Oct 2026 for tests/capture_scan_test.mjs from scripts/scanner/gscan.py's patterns, not saved from
+     the game: the airline list's letter K (/app/info/enterprises?letter=K), cut down. Public game data only, no account
+     data. Its cases: a plain link; a name on its own lines; an ampersand and an apostrophe escaped in names; a name in
+     UTF-8; a link with more attributes after the address; one airline listed twice (the later name wins); and links that
+     aren't an airline's (the letters, a tab address, the list itself). To replace it with a real page, save it from the
+     game (Share, Web Archive) and cut it down. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Airlines - AirlineSim</title>
+</head>
+<body>
+<div class="container">
+  <h1>Airlines</h1>
+  <ul class="pagination">
+    <li><a href="?letter=J">J</a></li>
+    <li class="active"><a href="?letter=K">K</a></li>
+    <li><a href="?letter=L">L</a></li>
+  </ul>
+  <table class="table table-bordered table-striped table-hover">
+    <thead>
+      <tr><th>Airline</th><th>Country</th><th>Founded</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><a href="./enterprises/113">Kingfisher Airlines</a></td>
+        <td>India</td>
+        <td>2026-09-24</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/171">
+              KLM Royal Dutch Airlines
+            </a></td>
+        <td>Netherlands</td>
+        <td>2026-09-22</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/2042" title="Kiwi &amp; Co">Kiwi &amp; Co Air</a></td>
+        <td>New Zealand</td>
+        <td>2026-10-02</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/1404">King&#039;s Wings</a></td>
+        <td>United Kingdom</td>
+        <td>2026-10-11</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/88" class="text-nowrap">Kölner Luftverkehr</a></td>
+        <td>Germany</td>
+        <td>2026-09-21</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/52">Korean Air Lines</a> (<a href="./enterprises/52?tab=3">schedule</a>)</td>
+        <td>South Korea</td>
+        <td>2026-09-21</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/1999">Kenya Airways</a></td>
+        <td>Kenya</td>
+        <td>2026-10-15</td>
+      </tr>
+      <tr>
+        <td><a href="./enterprises/1999">Kenya Airways Ltd</a></td>
+        <td>Kenya</td>
+        <td>2026-10-15</td>
+      </tr>
+    </tbody>
+  </table>
+  <p><a href="../enterprises">All airlines</a></p>
+</div>
+</body>
+</html>
