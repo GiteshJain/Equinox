@@ -24,6 +24,9 @@ export interface CabinConfigRow {
   code: string;
   aircraft_type_id: number | null;
   seats: number | null;
+  /** The layout's name (cabin_configs.cabin): Standard, Leisure, Leisure Plus or Comfort; since 21 Oct, for the plan
+   *  card's cabin (card.cabinFor). */
+  cabin?: string | null;
 }
 
 /** An airport as the world sees it. utc_offset already has the world's correction applied (hours, standard time all
@@ -54,6 +57,8 @@ export interface AirlineRow {
   position?: number | null;
   active?: boolean | null;
   ours?: boolean | null;
+  /** A low-cost airline (airlines.is_lcc, since 21 Oct): it flies Standard layouts only (manual §5, card.cabinFor). */
+  is_lcc?: boolean | null;
   /** The settings as they apply to this airline: the world's, with the airline's own overrides in their place. */
   settings?: Record<string, Json>;
 }
@@ -92,6 +97,10 @@ export interface RouteRow {
   distance_km: number | null;
   market_id?: number | null;
   market?: string | null;
+  /** The layout its market calls for (markets.layout: Standard, Leisure, Leisure Plus or Comfort; since 21 Oct). */
+  market_layout?: string | null;
+  /** The route's own cabin choice (routes.cabin_choice), which wins over its market's layout (since 21 Oct). */
+  cabin_choice?: string | null;
 }
 
 /** One of rules_input()'s service_profiles rows (since build pull request 10): on-board service by distance (S1, S2, …),

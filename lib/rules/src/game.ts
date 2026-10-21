@@ -62,10 +62,33 @@ export interface Frequency {
   local: LocalTimes;
 }
 
+/** Each airline's most-flown type, by airline: the type of its aircraft with the most departures a week (each of its legs
+ *  flown by an aircraft with a type, times the days it flies; the lower type id on a tie). */
+export function mostFlownTypes(rules: Rules): Map<number, number> {
+  const count = new Map<number, Map<number, number>>();
+  for (const l of rules.legs) {
+    const t = typeOfAircraft(rules, l.aircraft_id);
+    if (!t) continue;
+    const m = count.get(l.airline_id) ?? new Map<number, number>();
+    m.set(t.id, (m.get(t.id) ?? 0) + l.days_utc.length);
+    count.set(l.airline_id, m);
+  }
+  const out = new Map<number, number>();
+  for (const [al, m] of count) {
+    const best = [...m].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    if (best) out.set(al, best[0]);
+  }
+  return out;
+}
+/** The airline's most-flown type (mostFlownTypes), or null when none of its legs has an aircraft with a type. Since 21 Oct
+ *  (spec docs/specs/2026-10-21-cabins-new-rule.md §2) an estimate uses it for a rotation with no aircraft, in place of its
+ *  market's default type, which went with the markets' old columns. */
+export const mostFlownType = (rules: Rules, airlineId: number): number | null => mostFlownTypes(rules).get(airlineId) ?? null;
+
 /** Each rotation of the airline's (every airline's with null), in id order, with its local times. An empty arrival's
- *  estimate uses the rotation's aircraft's type, else its market's aircraft (marketTypes: markets.default_type_id), as the
- *  old planner's estBlock. */
-export function frequencies(rules: Rules, airlineId: number | null, marketTypes?: ReadonlyMap<number, number | null>): Frequency[] {
+ *  estimate uses the rotation's aircraft's type, else the airline's most-flown type (mostFlownType; its market's default
+ *  type until 21 Oct, as the old planner's estBlock). */
+export function frequencies(rules: Rules, airlineId: number | null): Frequency[] {
   const byRotation = new Map<number, { leg1?: LegRow; leg2?: LegRow }>();
   for (const l of rules.legs) {
     if (l.rotation_id == null) continue;
@@ -76,6 +99,7 @@ export function frequencies(rules: Rules, airlineId: number | null, marketTypes?
   }
   const out: Frequency[] = [];
   const ids = [...rules.rotations.keys()].sort((a, b) => a - b);
+  let mostFlown: Map<number, number> | undefined;
   for (const id of ids) {
     const rot = rules.rotations.get(id);
     const route = rot ? rules.routes.get(rot.route_id) : undefined;
@@ -83,7 +107,7 @@ export function frequencies(rules: Rules, airlineId: number | null, marketTypes?
     if (airlineId != null && route.airline_id !== airlineId) continue;
     const { leg1, leg2 } = byRotation.get(id) ?? {};
     const acId = leg1?.aircraft_id ?? leg2?.aircraft_id ?? null;
-    const typeId = typeOfAircraft(rules, acId)?.id ?? (route.market_id != null ? marketTypes?.get(route.market_id) ?? null : null);
+    const typeId = typeOfAircraft(rules, acId)?.id ?? (mostFlown ??= mostFlownTypes(rules)).get(route.airline_id) ?? null;
     const ends: FrequencyEnds = { airline_id: route.airline_id, hub: route.hub_code, dest: route.dest_code, distance_km: route.distance_km, type_id: typeId };
     const stored = (l: LegRow | undefined) => ({ days_utc: l?.days_utc ?? [], dep_utc_min: l?.dep_utc_min ?? null, block_min: l?.block_min ?? null });
     out.push({ rotation_id: id, route_id: route.id, hub: route.hub_code, dest: route.dest_code, leg1, leg2, ends, local: localTimes(rules, ends, stored(leg1), stored(leg2)) });
@@ -100,7 +124,7 @@ export interface PlannerEntry { from: string; to: string; dep: string; arr: stri
 
 /** The airline's flights by number, as the planner has them (the old plannerFlights): the outbound on its local weekdays,
  *  the return on those moved to the day it leaves; a leg with no number of its own is left out. */
-export function plannerFlights(rules: Rules, airlineId: number, marketTypes?: ReadonlyMap<number, number | null>): Map<string, PlannerEntry[]> {
+export function plannerFlights(rules: Rules, airlineId: number): Map<string, PlannerEntry[]> {
   const map = new Map<string, { from: string; to: string; dep: string; arr: string; days: Set<string> }[]>();
   const add = (no: string, from: string, to: string, dep: string, arr: string, days: string) => {
     if (!no) return;
@@ -110,7 +134,7 @@ export function plannerFlights(rules: Rules, airlineId: number, marketTypes?: Re
     for (const ch of days) m.days.add(ch);
     map.set(no, e);
   };
-  for (const f of frequencies(rules, airlineId, marketTypes)) {
+  for (const f of frequencies(rules, airlineId)) {
     const v = view(rules, f.ends, f.local);
     const days = daysOf(f.local.days);
     add(f.leg1?.flight_no == null ? "" : String(f.leg1.flight_no), f.hub, f.dest, hhmm(f.local.dep_hub), hhmm(f.local.arr_dest), days);
@@ -152,8 +176,8 @@ function gameEntries(game: readonly GameFlight[]): Map<string, GameEntry[]> {
 }
 
 /** Every flight number of the planner's and the game's for an airline, compared (the old compareFlights), in number order. */
-export function compare(rules: Rules, airlineId: number, game: readonly GameFlight[], marketTypes?: ReadonlyMap<number, number | null>): GameComparison {
-  const P = plannerFlights(rules, airlineId, marketTypes), G = gameEntries(game);
+export function compare(rules: Rules, airlineId: number, game: readonly GameFlight[]): GameComparison {
+  const P = plannerFlights(rules, airlineId), G = gameEntries(game);
   const issues: GameIssue[] = [];
   let ok = 0;
   const nums = [...new Set([...P.keys(), ...G.keys()])].sort((a, b) => Number(a) - Number(b));
@@ -217,9 +241,8 @@ export function importCandidates(rules: Rules, airlineId: number, game: readonly
  *  one fix after another): a matching outbound takes the game's departure, its arrival when the game gives one and its
  *  days when they differ; a matching return takes its departure and arrival, and the days only when it leaves on the
  *  outbound's day. */
-export function fixTimes(rules: Rules, airlineId: number, fixes: readonly { no: string; fix: GameFix | null }[],
-  marketTypes?: ReadonlyMap<number, number | null>): Map<number, { freq: Frequency; local: LocalTimes }> {
-  const freqs = frequencies(rules, airlineId, marketTypes);
+export function fixTimes(rules: Rules, airlineId: number, fixes: readonly { no: string; fix: GameFix | null }[]): Map<number, { freq: Frequency; local: LocalTimes }> {
+  const freqs = frequencies(rules, airlineId);
   const out = new Map<number, { freq: Frequency; local: LocalTimes }>();
   for (const i of fixes) {
     const x = i.fix;

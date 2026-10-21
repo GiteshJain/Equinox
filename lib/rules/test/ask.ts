@@ -1,9 +1,9 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, airport, banks, block, buildRules, cabins, card, checks, connections, frequency, game, growth, loadReport, maintenance, optimiser, positions, schedule,
+  aircraftWeek, airport, banks, block, buildRules, card, checks, connections, frequency, game, growth, loadReport, maintenance, optimiser, positions, schedule,
   service, summary, tails, time, turns, findType,
-  type CabinFacts, type Card, type CheckFacts, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
+  type Card, type CheckFacts, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
   type MoveFacts, type Move, type PlannedCardLeg, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
@@ -143,6 +143,14 @@ export function ask(input: RulesInput, q: Ask): unknown {
     }
     case "check_card":
       return card.checkCard(rules, q.card as unknown as Card);
+    // the plan card's cabin (spec docs/specs/2026-10-21-cabins-new-rule.md §3): the suggestion, and the card check's
+    // problems that name the cabin
+    case "cabin_for": {
+      const c = card.cabinFor(rules, q.card as unknown as Card);
+      const ask = q.card as unknown as Card;
+      const problems = ask.legs.length ? card.checkCard(rules, ask).problems.filter((p) => p.startsWith("cabin")) : null;
+      return { ...c, routes: c.routes.map((r) => ({ ...r, pct: Math.round(r.pct * 10) / 10 })), problems };
+    }
     // the Routes screen's frequency (#18 build pull request 6): times as "HH:MM" (or null) in the ask, minutes in the answer
     case "frequency_to_legs":
       return frequency.toLegs(rules, q.ends as unknown as FrequencyEnds, localArg(q.local));
@@ -187,7 +195,7 @@ export function ask(input: RulesInput, q: Ask): unknown {
         off_wave: ac ? tails.offWave(rules, ac.id) : null,
       };
     }
-    // the Check screen (#18 build pull request 9): the game check, the cabins, the day's departures and the growth board's
+    // the Check screen (#18 build pull request 9): the game check, the day's departures and the growth board's
     // planning parts; times in the answers as "HH:MM" where the screen shows them
     case "game_planner_flights":
       return Object.fromEntries(game.plannerFlights(rules, num(q.airline_id, "airline_id")));
@@ -207,10 +215,6 @@ export function ask(input: RulesInput, q: Ask): unknown {
       const r = game.compareCard(q.legs as unknown as LegToCheck[], (q.flights ?? null) as unknown as GameFlight[] | null, (q.err as string | undefined) ?? "");
       return { ...r, rows: r.rows.map((x) => ({ no: x.L.no, game: x.g ? x.g.dep : null, same: x.same })) };
     }
-    case "cabin_fit":
-      return cabins.fit(rules, q.facts as unknown as CabinFacts);
-    case "refit_cost":
-      return { cost: cabins.refitCost(rules, (q.airline_id as number | undefined) ?? null) };
     case "flights_on":
       return loadReport.flightsOn(rules, str(q.day, "day"), (q.launches ?? []) as unknown as { id: number; launched_on: string | null }[]);
     case "growth_next_move": {

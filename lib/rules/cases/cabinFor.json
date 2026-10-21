@@ -1,0 +1,172 @@
+{
+  "part": "cabinFor",
+  "note": "The cabin a plan card's routes call for (manual §5, since 20 Oct; spec docs/specs/2026-10-21-cabins-new-rule.md §3): if one route takes more than cabin_route_share_pct (65) of the card's block time, the layout that route calls for (its own cabin_choice, else its market's layout), otherwise the layout with the most seats; a low-cost airline flies Standard only. The cabin is the card's variant's layout of that name, among those the airline may choose (a low-cost airline's Standard ones, the others' every other layout). Each answer's problems are the card check's cabin problems (none for a card with no legs, which the check refuses). The world: Test Air (1) and Ryanair (3, low cost); the A321 NEO LIGHT has 321-LEI (195 seats), 321-LEI OLD (172), 321-LP (166), 321-CMF (141) and 321-STD (216); the E195-E2 has E195-LEI (112), E195-CMF (84) and E195-STD (124), and no Leisure Plus. Test Air's routes: HUB–AAA (market Leisure), HUB–CCC (market Comfort, its own choice Leisure Plus), HUB–DDD (market Leisure Plus), HUB–NBN (no market); Ryanair's AAA–DDD (market Standard). HUB–FOC is no route of Test Air's.",
+  "input": {
+    "airlines": [
+      { "id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true, "is_lcc": false },
+      { "id": 2, "iata_code": "OA", "planner_name": "Other Air", "position": 2, "active": true, "ours": true, "is_lcc": false },
+      { "id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "is_lcc": true }
+    ],
+    "aircraft": [
+      { "id": 1, "registration": "T-001", "airline_id": 1, "aircraft_type_id": 1, "base_code": "HUB", "status": "active" },
+      { "id": 3, "registration": "T-003", "airline_id": 1, "aircraft_type_id": 2, "base_code": "HUB", "status": "active" },
+      { "id": 5, "registration": "L-001", "airline_id": 3, "aircraft_type_id": 1, "base_code": "AAA", "status": "on_order" }
+    ],
+    "cabin_configs": [
+      { "id": 1, "code": "321-LEI", "aircraft_type_id": 1, "seats": 195, "cabin": "Leisure" },
+      { "id": 2, "code": "321-LEI OLD", "aircraft_type_id": 1, "seats": 172, "cabin": "Leisure" },
+      { "id": 3, "code": "321-LP", "aircraft_type_id": 1, "seats": 166, "cabin": "Leisure Plus" },
+      { "id": 4, "code": "321-CMF", "aircraft_type_id": 1, "seats": 141, "cabin": "Comfort" },
+      { "id": 5, "code": "321-STD", "aircraft_type_id": 1, "seats": 216, "cabin": "Standard" },
+      { "id": 11, "code": "E195-LEI", "aircraft_type_id": 2, "seats": 112, "cabin": "Leisure" },
+      { "id": 12, "code": "E195-CMF", "aircraft_type_id": 2, "seats": 84, "cabin": "Comfort" },
+      { "id": 13, "code": "E195-STD", "aircraft_type_id": 2, "seats": 124, "cabin": "Standard" }
+    ],
+    "routes": [
+      { "id": 1, "airline_id": 1, "hub_code": "HUB", "dest_code": "AAA", "distance_km": 700, "market_id": 1, "market": "Europe", "market_layout": "Leisure", "cabin_choice": null },
+      { "id": 3, "airline_id": 1, "hub_code": "HUB", "dest_code": "CCC", "distance_km": 6720, "market_id": 2, "market": "Long haul", "market_layout": "Comfort", "cabin_choice": "Leisure Plus" },
+      { "id": 4, "airline_id": 1, "hub_code": "HUB", "dest_code": "DDD", "distance_km": 1400, "market_id": 3, "market": "Asia", "market_layout": "Leisure Plus", "cabin_choice": null },
+      { "id": 6, "airline_id": 1, "hub_code": "HUB", "dest_code": "NBN", "distance_km": 420, "market_id": null, "market": null, "market_layout": null, "cabin_choice": null },
+      { "id": 9, "airline_id": 3, "hub_code": "AAA", "dest_code": "DDD", "distance_km": 900, "market_id": 4, "market": "Europe – low", "market_layout": "Standard", "cabin_choice": null }
+    ]
+  },
+  "cases": [
+    {
+      "name": "a route over 65% of the block time: its market's layout; the card's other cabin is a problem",
+      "rule": "HUB–DDD flies 2 × 160 min daily (2,240 min), HUB–AAA 2 × 75 min three days (450): 83% is over 65%, so its market's Leisure Plus, the A321's 321-LP; the card's 321-LEI differs",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "config_id": 1, "legs": [
+        { "origin_code": "HUB", "dest_code": "DDD", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 160 },
+        { "origin_code": "DDD", "dest_code": "HUB", "dep_utc_min": 600, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 160 },
+        { "origin_code": "HUB", "dest_code": "AAA", "dep_utc_min": 900, "days_utc": [1, 3, 5], "block_min": 75 },
+        { "origin_code": "AAA", "dest_code": "HUB", "dep_utc_min": 1050, "days_utc": [1, 3, 5], "block_min": 75 }] } },
+      "answer": {
+        "layout": "Leisure Plus", "config_id": 3, "code": "321-LP", "reason": "HUB–DDD is 83% of block time: Leisure Plus", "threshold_pct": 65,
+        "routes": [
+          { "route_id": 4, "route": "HUB–DDD", "block_min": 2240, "pct": 83.3, "layout": "Leisure Plus", "from": "market" },
+          { "route_id": 1, "route": "HUB–AAA", "block_min": 450, "pct": 16.7, "layout": "Leisure", "from": "market" }],
+        "card_config_id": 1, "card_code": "321-LEI", "missing": false, "differs": true,
+        "problems": ["cabin 321-LEI: the rule calls for 321-LP (HUB–DDD is 83% of block time: Leisure Plus)"]
+      }
+    },
+    {
+      "name": "exactly 65% isn't over: the layout with the most seats",
+      "rule": "HUB–DDD 2 × 130 min five days (1,300 min) of 2,000: exactly 65%, not over, so the most seats: 321-LEI (195), not the older 321-LEI OLD; the card names it by its code, so nothing differs",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "config_id": "321-LEI", "legs": [
+        { "origin_code": "HUB", "dest_code": "DDD", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5], "block_min": 130 },
+        { "origin_code": "DDD", "dest_code": "HUB", "dep_utc_min": 600, "days_utc": [1, 2, 3, 4, 5], "block_min": 130 },
+        { "origin_code": "HUB", "dest_code": "AAA", "dep_utc_min": 900, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 50 },
+        { "origin_code": "AAA", "dest_code": "HUB", "dep_utc_min": 1050, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 50 }] } },
+      "answer": {
+        "layout": "Leisure", "config_id": 1, "code": "321-LEI", "reason": "no route over 65%: the most seats",
+        "routes": [{ "route": "HUB–DDD", "block_min": 1300, "pct": 65 }, { "route": "HUB–AAA", "block_min": 700, "pct": 35 }],
+        "card_config_id": 1, "missing": false, "differs": false, "problems": []
+      }
+    },
+    {
+      "name": "no route over 65%: the most seats among the airline's layouts (Standard isn't one of a full-service airline's); no cabin on the card is a problem",
+      "rule": "the E195 on HUB–AAA daily and HUB–DDD three days, its block times estimated (76 and 126 min): 58% and 42%, no route over 65%, so the most seats of E195-LEI (112) and E195-CMF; E195-STD's 124 seats are Ryanair's kind",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-003", "legs": [
+        { "origin_code": "HUB", "dest_code": "AAA", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7] },
+        { "origin_code": "AAA", "dest_code": "HUB", "dep_utc_min": 540, "days_utc": [1, 2, 3, 4, 5, 6, 7] },
+        { "origin_code": "HUB", "dest_code": "DDD", "dep_utc_min": 720, "days_utc": [1, 2, 3] },
+        { "origin_code": "DDD", "dest_code": "HUB", "dep_utc_min": 1000, "days_utc": [1, 2, 3] }] } },
+      "answer": {
+        "layout": "Leisure", "config_id": 11, "code": "E195-LEI", "reason": "no route over 65%: the most seats",
+        "routes": [{ "route": "HUB–AAA", "block_min": 1064, "pct": 58.5 }, { "route": "HUB–DDD", "block_min": 756, "pct": 41.5 }],
+        "card_config_id": null, "card_code": null, "missing": true, "differs": true,
+        "problems": ["cabin: none chosen; the rule calls for E195-LEI (no route over 65%: the most seats)"]
+      }
+    },
+    {
+      "name": "a route's own cabin choice wins over its market's layout",
+      "rule": "HUB–CCC is 98% of the block time; its market calls for Comfort, its own choice is Leisure Plus: 321-LP",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "config_id": 3, "legs": [
+        { "origin_code": "HUB", "dest_code": "CCC", "dep_utc_min": 60, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 480 },
+        { "origin_code": "CCC", "dest_code": "HUB", "dep_utc_min": 660, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 480 },
+        { "origin_code": "HUB", "dest_code": "AAA", "dep_utc_min": 1260, "days_utc": [1], "block_min": 75 },
+        { "origin_code": "AAA", "dest_code": "HUB", "dep_utc_min": 1380, "days_utc": [1], "block_min": 75 }] } },
+      "answer": {
+        "layout": "Leisure Plus", "config_id": 3, "code": "321-LP", "reason": "HUB–CCC is 98% of block time: Leisure Plus (the route's own choice)",
+        "routes": [{ "route_id": 3, "pct": 97.8, "layout": "Leisure Plus", "from": "route" }, { "route_id": 1, "pct": 2.2 }],
+        "missing": false, "differs": false, "problems": []
+      }
+    },
+    {
+      "name": "a variant without the layout called for: its layout with the most seats, and why",
+      "rule": "the E195 flies only HUB–DDD, whose market calls for Leisure Plus; the E195-E2 has none, so E195-LEI, the most seats",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-003", "config_id": 12, "legs": [
+        { "origin_code": "HUB", "dest_code": "DDD", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 125 },
+        { "origin_code": "DDD", "dest_code": "HUB", "dep_utc_min": 600, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 125 }] } },
+      "answer": {
+        "layout": "Leisure", "config_id": 11, "code": "E195-LEI",
+        "reason": "HUB–DDD is 100% of block time: Leisure Plus, but the E195-E2 has no Leisure Plus layout: the most seats",
+        "card_code": "E195-CMF", "missing": false, "differs": true,
+        "problems": ["cabin E195-CMF: the rule calls for E195-LEI (HUB–DDD is 100% of block time: Leisure Plus, but the E195-E2 has no Leisure Plus layout: the most seats)"]
+      }
+    },
+    {
+      "name": "Ryanair flies Standard only, whatever its routes",
+      "rule": "a low-cost airline (airlines.is_lcc): Standard, the A321's 321-STD",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "L-001", "legs": [
+        { "origin_code": "AAA", "dest_code": "DDD", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7] },
+        { "origin_code": "DDD", "dest_code": "AAA", "dep_utc_min": 600, "days_utc": [1, 2, 3, 4, 5, 6, 7] }] } },
+      "answer": {
+        "layout": "Standard", "config_id": 5, "code": "321-STD", "reason": "Ryanair flies Standard only",
+        "routes": [{ "route_id": 9, "route": "AAA–DDD", "pct": 100, "layout": "Standard" }], "missing": true,
+        "problems": ["cabin: none chosen; the rule calls for 321-STD (Ryanair flies Standard only)"]
+      }
+    },
+    {
+      "name": "a card with no legs yet: the most seats",
+      "rule": "no block time to share out; the card check needs legs, so it isn't asked",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "legs": [] } },
+      "answer": { "layout": "Leisure", "config_id": 1, "code": "321-LEI", "reason": "no legs yet: the most seats", "routes": [], "missing": true, "problems": null }
+    },
+    {
+      "name": "a leg between airports the airline has no route for: no layout to take, so the most seats",
+      "rule": "HUB–FOC isn't one of Test Air's routes (its block from the great circle): 100% of the block time, but no market layout",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "legs": [
+        { "origin_code": "HUB", "dest_code": "FOC", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7] },
+        { "origin_code": "FOC", "dest_code": "HUB", "dep_utc_min": 520, "days_utc": [1, 2, 3, 4, 5, 6, 7] }] } },
+      "answer": {
+        "code": "321-LEI", "reason": "HUB–FOC is 100% of block time, but it has no market layout: the most seats",
+        "routes": [{ "route_id": null, "route": "HUB–FOC", "layout": null, "from": null, "pct": 100 }]
+      }
+    },
+    {
+      "name": "the threshold is a setting, with the airline's own where it has one",
+      "rule": "Test Air's own cabin_route_share_pct of 90: HUB–DDD's 83% isn't over it",
+      "input": { "airlines": [
+        { "id": 1, "iata_code": "TA", "planner_name": "Test Air", "position": 1, "active": true, "ours": true, "is_lcc": false, "settings": { "cabin_route_share_pct": 90 } },
+        { "id": 3, "iata_code": "FR", "planner_name": "Ryanair", "position": 3, "active": true, "ours": true, "is_lcc": true }] },
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "config_id": 1, "legs": [
+        { "origin_code": "HUB", "dest_code": "DDD", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 160 },
+        { "origin_code": "DDD", "dest_code": "HUB", "dep_utc_min": 600, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 160 },
+        { "origin_code": "HUB", "dest_code": "AAA", "dep_utc_min": 900, "days_utc": [1, 3, 5], "block_min": 75 },
+        { "origin_code": "AAA", "dest_code": "HUB", "dep_utc_min": 1050, "days_utc": [1, 3, 5], "block_min": 75 }] } },
+      "answer": { "code": "321-LEI", "reason": "no route over 90%: the most seats", "threshold_pct": 90, "differs": false, "problems": [] }
+    },
+    {
+      "name": "the threshold is a setting, never a number in code",
+      "input": { "settings": { "cabin_route_share_pct": null } },
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "legs": [] } },
+      "answer": { "error": "settings.cabin_route_share_pct is not a number" }
+    },
+    {
+      "name": "an input without the variant's layouts suggests nothing and checks nothing",
+      "rule": "as the service check skips an input without service profiles",
+      "input": { "cabin_configs": [] },
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "legs": [
+        { "origin_code": "HUB", "dest_code": "DDD", "dep_utc_min": 360, "days_utc": [1, 2, 3, 4, 5, 6, 7], "block_min": 160 }] } },
+      "answer": {
+        "layout": null, "config_id": null, "code": null, "missing": false, "differs": false, "problems": [],
+        "reason": "HUB–DDD is 100% of block time: Leisure Plus (the A321 NEO LIGHT has no layouts in the input)"
+      }
+    },
+    {
+      "name": "a card's cabin that isn't a layout in the input is refused",
+      "ask": { "what": "cabin_for", "card": { "aircraft": "T-001", "config_id": "999-XX", "legs": [] } },
+      "answer": { "error": "no cabin layout 999-XX in the input" }
+    }
+  ]
+}

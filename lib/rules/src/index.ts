@@ -1,8 +1,9 @@
 // The planning library (decision #19, design §7): the planning rules in one home, for the new planner, the website's
 // trip search, the optimiser and Claude. Plain data in, plain data out; no screen code, no clock, no network.
 // Each part is exported under its name (time, block, turns, connections, banks, maintenance, aircraftWeek, schedule,
-// positions, summary, checks, optimiser, tails, and for the Check screen game, cabins, loadReport and growth), plus card (a plan card
-// checked against all of them) and airport (connection times, night bans). What each does, with an example: lib/rules/README.md.
+// positions, summary, checks, optimiser, tails, and for the Check screen game, loadReport and growth), plus card (a plan card
+// checked against all of them, and the cabin its routes call for: cabinFor) and airport (connection times, night bans). The
+// Cabins board's part, cabins, went on 21 Oct with the board. What each does, with an example: lib/rules/README.md.
 //   import { buildRules, connections } from "@rules";
 //   const rules = buildRules(await rulesInput());      // rules_input()'s answer
 //   connections.connectionsAt(rules, "JFK").city_pairs;
@@ -26,7 +27,6 @@ export * as frequency from "./frequency.js";
 export * as service from "./service.js";
 export * as tails from "./tails.js";
 export * as game from "./game.js";
-export * as cabins from "./cabins.js";
 export * as loadReport from "./loadReport.js";
 export * as growth from "./growth.js";
 export type { BlockAnswer, Distance } from "./block.js";
@@ -41,12 +41,11 @@ export type { AirlineCard, CardBase, KeyFigures, NowFigures, SummaryFigures } fr
 export type { CheckFacts, OneWeekCheck } from "./checks.js";
 export type { ZoneClock } from "./time.js";
 export type { OptimiseAnswer, OptimiseOptions, OptimisedPlan, PlannedLeg } from "./optimiser.js";
-export type { Card, CardLeg } from "./card.js";
+export type { CabinRouteShare, CabinSuggestion, Card, CardLeg } from "./card.js";
 export type { Wave } from "./banks.js";
 export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, LocalTimes, OtherLeg, StoredLeg, Way } from "./frequency.js";
 export type { ServiceCheck, ServiceIssue, ServiceLeg, ServiceLegAnswer, ServiceProfile } from "./service.js";
 export type { TailIssue } from "./tails.js";
 export type { CardCheck, CheckRow, Frequency, GameComparison, GameFix, GameFlight, GameIssue, ImportCandidate, LegToCheck, PlannerEntry } from "./game.js";
-export type { CabinFacts, CabinFit } from "./cabins.js";
 export type { DayFlight } from "./loadReport.js";
 export type { GrowthRoute, LoggedMove, Move, MoveCandidates, MoveFacts, PlannedCardLeg, QueueCell, ReadinessRow, RouteLoad, SizeRule } from "./growth.js";
