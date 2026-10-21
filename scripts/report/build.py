@@ -324,7 +324,8 @@ def against_words(a, cp):
     """One line: "Pan Am grew 18% this week; American, its biggest rival on its pairs, grew 42%." """
     me, top = cp["self"], (cp["top"] or [None])[0]
     latest, before = moment(cp.get("latest")), moment(cp.get("week_before"))
-    when = "this week" if latest and before and (latest - before).days >= 6 else (f"since {day(cp['week_before'])}" if before else None)
+    # "this week" when the scans are about a week apart (the week-before scan is at least 6 days older); else its date
+    when = "this week" if latest and before and 6 <= (latest - before).days <= 8 else (f"since {day(cp['week_before'])}" if before else None)
     mine = grew(me) if when else None
     head = (f"{esc(a['name'])} {mine} {when}" if mine else f"{esc(a['name'])}: not in the scan of {day(cp['week_before'])} to compare" if before
             else f"{esc(a['name'])}: no earlier scan to compare its growth")
