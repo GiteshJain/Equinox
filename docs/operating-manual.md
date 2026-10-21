@@ -52,6 +52,14 @@ Until each is built and merged, the rules below stand as they are.
   and their cabin layouts are in `cabin_configs`. The game shows no turnaround, so a new variant takes its family's (A320
   family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a
   route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card).
+- **Decided 21 Oct, for the Building chat:** the fare ladder in the planner (§5; spec
+  `docs/specs/2026-10-21-fare-ladder.md`): `fare_ladder()` works out each route's level and Saturday's moves, and
+  Performance lists the fewest game actions. Until it's merged, the Saturday review lists the moves by hand.
+- **Decided 21 Oct, for the Building chat:** cabins follow the new rule (§5; spec
+  `docs/specs/2026-10-21-cabins-new-rule.md`), after the fare ladder: the Cabins board and its refit settings go; each
+  market keeps only its layout (no default type, fare % or old cabin); the plan card suggests its cabin by the 65% rule
+  and warns when the chosen one differs. Until then the Scheduling chat applies the rule by hand. The planner work's
+  next big step after that is competition analysis with its ranked openings (Gitesh, 21 Oct: before the route page).
 - **Decided 18 Oct, for the Building chat:** the weekly report sets each of our airlines against its three biggest
   competitors (§7). Until it's built, the report shows the rivals on our routes as it does now.
 Details and open points: `docs/decisions.md`.
@@ -203,6 +211,10 @@ Details and open points: `docs/decisions.md`.
   first-listed hub (DEL–BOM under DEL). Across airlines, by country pair: US/UK–India → Kingfisher; US–UK, Europe or
   China → Pan Am; UK–Europe, China or Malaysia → Virgin; Europe or India–China → China Eastern; Malaysia → Malaysia.
   Virgin doesn't fly JFK or Delhi. When merging Gitesh's route lists, add missing lanes only; never change ownership.
+  **The country rule applies where the rightful airline can fly the pair from one of its own bases.** Where it can't
+  (Gatwick–Atlanta: Pan Am has no base at either end), the airline that has the pair on its list keeps it, so no market
+  drops off the map. *Since 21 Oct · why (Gitesh): applying the country rule literally removed 53 pairs no other airline
+  could fly; they were restored the same night.*
   *Since 23 and 26 Sep · why: our airlines shouldn't compete with each other.*
 - **Destination shape:** in time, fly every route a real airline flies from each hub and focus city. Plan as if money
   isn't the limit, and grow at the group's own pace. *Since 23 and 29 Sep.*
@@ -264,11 +276,15 @@ less important than another, point to point rather than hubs).*
   | Large | A321neo | 240 | 4,742 km | 50.6M | 4,192–4,742 km |
   | Large | A321LR | 240 | 5,809 km | 54.2M | 4,742–5,809 km |
   | Large | A321XLR | 240 | 6,939 km | 57.2M | 5,809–6,939 km |
-  | Wide | A350-900 | 440 | 11,102 km | 140.1M | long-haul, when it comes |
-  | Wide | A350-900ULR | 440 | 11,690 km | 143.9M | 11,102–11,690 km |
-  | Wide | A350-1000 | 480 | 11,102 km | 157.1M | only where 440 seats sell out |
+  | Wide | A350-900 | 440 | flies to about 15,000 km with its full cabin | 140.1M | every long-haul route up to about 15,000 km |
+  | Wide | A350-1000 | 480 | keeps the most seats beyond 15,000 km | 157.1M | beyond about 15,000 km, and trunks where the -900 sells out |
 
-  Left out because another variant beats them: the A319neo (more per seat than the A320neo SHARP at every reach), the
+  The listed range is with a full load and is not a limit: the game flies longer routes with fewer seats. Tested 21 Oct
+  (same cabin, the game's route evaluation): up to about 14,200 km every A350 keeps its full cabin and the -900 is the
+  cheapest per seat (LA–Gatwick 334 against the ULR's 337 and the -1000's 342; Mumbai–LA 527, 535, 543); beyond about
+  15,000 km the -900 loses seats fastest and the -1000 is the cheapest (Dallas–KL 566 against 618 and 680; Sydney–JFK 623,
+  671, 744). The ULR is never the cheapest, so it is off the line. *Since 21 Oct (Gitesh).*
+  Left out because another variant beats them: the A350-900ULR (above), the A319neo (more per seat than the A320neo SHARP at every reach), the
   A321neo Medium, the A321XLR LIGHT and Heavy. Still three families: the A320 family, the E-jet E2 and the A350.
   *Since 18 Oct · why (Gitesh, agreed): the LIGHT variants reach only 4,192 km (A321) and 3,690 km (A320); the LR
   reaches 5,809 km for 3M less than the XLR, and the SHARP is the cheapest 189-seater.*

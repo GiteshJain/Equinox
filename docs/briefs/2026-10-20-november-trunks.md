@@ -199,3 +199,18 @@ follow the market default.
 - A flown trunk whose week falls under 95%: dropped.
 - A new trunk that doesn't fill once its first 7 days are up: no second daily.
 - Rivals moving onto a pair: it moves up.
+
+## Decided 21 Oct (Gitesh): every pair of our bases, one by one
+All 325 pairs, with Gitesh's decision on each: `docs/briefs/2026-10-21-trunk-decisions.xlsx`. How they were applied:
+- **On the route list: kept,** whatever the file says (183 pairs), except Kolkata–San Francisco, taken off.
+- **Not on the route list and marked Stay: added to it** (64 pairs, 20 Oct). This includes the ultra-long pairs beyond
+  the A350s' listed range: the game flies them with fewer seats (Dallas–Kuala Lumpur, 15,588 km, takes 410 seats on an
+  A350-1000, 341 on the ULR, 305 on the -900; 21 Oct), so range is not a hard limit.
+- **One airline per city pair, by §2:** Delhi–Daxing and Mumbai–Daxing moved from Kingfisher to China Eastern;
+  KUL–Gatwick and KUL–Manchester from Malaysia to Virgin.
+- **"Add later" (16 Kingfisher pairs: secondary Indian cities to Europe, Mumbai–Seattle, Bengaluru to Chicago, San
+  Francisco and Los Angeles):** on the route list, marked "Later", not in November; added once similar routes are proved.
+- **Go (62): not on the route list.**
+- **Opening order:** shortest to longest, keeping every delivery line filled (manual §4).
+- **Long-haul aircraft (21 Oct):** wherever the lists above say A350-900ULR, read A350-900 (to about 15,000 km) or
+  A350-1000 (beyond, or where the -900 sells out); the ULR is off the default line (manual §3).
