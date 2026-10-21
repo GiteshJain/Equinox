@@ -11,7 +11,7 @@ It only gathers. Each figure comes from its one home (#19), downloaded through e
   patterns (growth_signals()), hubs first (hub_progress()) and the capture's state with #21's verdict (capture_status());
 - kind rules: the planning library's input, which the library's command reads (node lib/rules/dist/cli.js): each
   aircraft's legs a week, block hours a day, maintenance and issues (aircraft), and each plan card's check (check-card,
-  service codes included);
+  service codes included, and since 21 Oct its cabin against the one its routes call for: the card's config_id);
 - kind briefing: the airline's deliveries (aircraft on order or arrived, not yet filed) with their plan cards and legs,
   its open to-dos and the group's, its fare plan (fare_plan_status()) and its loads by route over 7 days (route_loads());
 - kinds snapshots and airlines: the latest finished world scan by the moment, for the rivals on the routes it flies and
@@ -241,7 +241,8 @@ def gather(inp, ident, workdir):
             check = None
             if c.get("legs"):
                 card_path = pathlib.Path(workdir) / f"card_{c['id']}.json"
-                card_path.write_text(json.dumps({"aircraft": d["aircraft_id"], "legs": c["legs"]}))
+                # the card's cabin (config_id, since 21 Oct) is checked against the one its routes call for
+                card_path.write_text(json.dumps({"aircraft": d["aircraft_id"], "config_id": c.get("config_id"), "legs": c["legs"]}))
                 try:
                     check = library("check-card", rules_path, card_path)
                 except RuntimeError as e:
