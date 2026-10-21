@@ -442,7 +442,8 @@ async def plan_card_cabins(pl):
     differ counted. Then the first such card with legs, opened on Tails, says "suggested: <the library's code>" beside its
     Cabin box, with Use the suggestion when the card's own cabin isn't it, and a card cabin that differs in amber."""
     cards = json.loads(psql(f"""select coalesce(json_agg(json_build_object('registration', a.registration, 'aircraft_id', a.id, 'airline', al.iata_code,
-                  'config_id', pc.config_id, 'card_code', cc.code, 'order_code', oc.code,
+                  'config_id', pc.config_id, 'card_code', cc.code, 'order_code', oc.code, 'on_board', a.delivery_at is not null,
+                  'one_card', (select count(*) from public.plan_cards o where o.aircraft_id = a.id) = 1,
                   'legs', (select coalesce(json_agg(json_build_object('flight_no', l.flight_no, 'origin_code', l.origin_code, 'dest_code', l.dest_code,
                              'days_utc', l.days_utc, 'dep_utc_min', l.dep_utc_min, 'block_min', l.block_min) order by l.position, l.id), '[]')
                              from public.plan_card_legs l where l.plan_card_id = pc.id))
@@ -464,7 +465,8 @@ async def plan_card_cabins(pl):
               f"{' (order ' + c['order_code'] + ')' if not x['card'] and c['order_code'] else ''} · suggested {x['suggested'] or '—'} · {mark}"
               f" · {x['reason'] or ''}", flush=True)
     # one card on Tails: the same suggestion, beside its Cabin box
-    pick = next(((c, x) for c, x in zip(cards, got) if c["legs"] and x["suggested"]), None)
+    # (an aircraft on the deliveries board, with a delivery, and only the one card, so the board opens that card)
+    pick = next(((c, x) for c, x in zip(cards, got) if c["legs"] and x["suggested"] and c["on_board"] and c["one_card"]), None)
     shown = None
     if pick:
         c, x = pick
