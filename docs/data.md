@@ -1204,7 +1204,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `city_override` | text | Typed in the planner; null = the research value |
 | `distance_override_km` | integer | Typed in the planner; null = the research value |
 | `market_override_id` | bigint | Chosen in the planner; null = the research value, or no market when market_cleared |
-| `stars_override` | smallint | Typed in the planner; null = the research value |
+| `stars_override` | smallint | The game's passenger demand as stars (manual §3, since 22 Oct), or typed in the planner; null = the research value |
 | `cabin_choice` | text | The cabin chosen for the route (the planner's routeCabin) |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
