@@ -4,8 +4,8 @@
 // and the planner's build stamp.
 import { describe, expect, it } from "vitest";
 import {
-  ageMark, archiveLine, backupLine, boardSummary, buildLine, captureLine, cleanupLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
-  usageLine, usageMark, type ScanStopped, type SysCapture, type SystemStatus,
+  ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
+  usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
 } from "./systems";
 
 const now = new Date("2026-10-15T12:00:00Z");
@@ -153,5 +153,27 @@ describe("the planner's build and the usage", () => {
     ]);
     expect(boardSummary(lines)).toEqual({ mark: "warn", text: "1 amber" });
     expect(boardSummary(lines.filter((l) => l.mark === "ok"))).toEqual({ mark: "ok", text: "all good" });
+  });
+});
+
+describe("the board laid out (22 Oct)", () => {
+  const line = (key: string, mark: "ok" | "warn" | "bad") => ({ key, label: key, mark, when: null, text: "" });
+  it("worst-first: red, then amber, then green, each in the board's order", () => {
+    const lines = [line("a", "ok"), line("b", "warn"), line("c", "bad"), line("d", "ok"), line("e", "bad"), line("f", "warn")];
+    expect(worstFirst(lines).map((l) => l.key)).toEqual(["c", "e", "b", "f", "a", "d"]);
+  });
+  it("the title: all good, or how many need a look", () => {
+    expect(boardTitle([line("a", "ok"), line("b", "ok")])).toBe("All systems good");
+    expect(boardTitle([line("a", "ok"), line("b", "warn")])).toBe("1 needs a look");
+    expect(boardTitle([line("a", "bad"), line("b", "warn"), line("c", "ok")])).toBe("2 need a look");
+  });
+  it("an airline's capture row: the verdict in a word and what came in short or broken", () => {
+    expect(captureVerdict(cap(), now)).toEqual({ word: "all good", cls: "ok", detail: "" });
+    expect(captureVerdict(cap({ verdict: "short", verdict_words: "loads 12 of 78 flights" }), now))
+      .toEqual({ word: "short", cls: "warn", detail: "loads 12 of 78 flights" });
+    expect(captureVerdict(cap({ verdict: "broken", verdict_words: "balance: no cash account" }), now).cls).toBe("bad");
+    expect(captureVerdict(cap({ verdict: null, verdict_words: null }), now).word).toBe("not checked");
+    expect(captureVerdict(cap({ last_at: null }), now)).toEqual({ word: "none", cls: "bad", detail: "no capture in the database's 14 days" });
+    expect(captureVerdict(cap({ last_at: ago(30) }), now).detail).toBe("30 hours ago: press Capture all airlines in the game");
   });
 });

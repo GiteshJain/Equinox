@@ -1308,7 +1308,8 @@ async def systems_board(p, port, env, facts, staff, seen, moment):
     """The Systems board (#23) on the copy at the frozen moment: at the top of Systems, open, one line for each of our
     airlines' evening capture and one each for the snapshot, the backup, the archive, the clean-ups, the world scan, the
     planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
-    lines and their marks are printed (names, marks, dates and sizes only)."""
+    lines and their marks are printed (names, marks, dates and sizes only). Since 22 Oct the fixed lines are tiles, worst
+    first, and the captures a table under them."""
     problems = []
     ids = [int(r) for r in psql(f"""select al.airline_id from private.fig_airlines({WORLD}) al where al.home_code is not null order by al.ord""").split() if r]
     ph = Planner(p, port, env, facts)
@@ -1320,9 +1321,14 @@ async def systems_board(p, port, env, facts, staff, seen, moment):
         first = await ph.pg.evaluate("(document.querySelector('main[data-screen=systems] .board') || {}).id || ''")
         if first != "systems":
             problems.append(f"the Systems board isn't the first board on Systems (the first is {first or 'none'})")
-        want = [f"capture|{i}" for i in ids] + SYS_FIXED
-        if [l["key"] for l in lines] != want:
-            problems.append(f"the board's lines are {[l['key'] for l in lines]}, expected {want}")
+        # since 22 Oct (spec docs/specs/2026-10-22-planner-look-systems.md) the fixed lines are tiles, worst first (red, then
+        # amber, then green, each in the board's order), and each airline's capture a row of the table under them
+        rank = {"bad": 0, "warn": 1, "ok": 2}
+        tiles = [l for l in lines if not l["key"].startswith("capture|")]
+        caps = [l["key"] for l in lines if l["key"].startswith("capture|")]
+        want_tiles = sorted(SYS_FIXED, key=lambda k: (rank.get(next((l["mark"] for l in tiles if l["key"] == k), ""), 3), SYS_FIXED.index(k)))
+        if caps != [f"capture|{i}" for i in ids] or [l["key"] for l in tiles] != want_tiles:
+            problems.append(f"the board's lines are {[l['key'] for l in lines]}, expected the tiles {want_tiles} and the capture rows {[f'capture|{i}' for i in ids]}")
         problems += [f"{l['label'] or l['key']}: no mark ({l['mark']!r})" for l in lines if l["mark"] not in ("ok", "warn", "bad") or not l["dot"]]
         build = next((l for l in lines if l["key"] == "build"), None)
         if build and build["mark"] != "ok":

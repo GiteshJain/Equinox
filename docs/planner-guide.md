@@ -483,13 +483,23 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 ## Systems
 *Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board, Capture and aircraft checks,
 and Review's Manual entry; Check's Cabins board went on 21 Oct: we don't refit, and the plan card suggests the cabin on
-Tails; Cabin charges came on 22 Oct). The Systems board stays open at the top; the boards under it are folded on
-arrival: click a board's title to open or fold it, or use **Expand all** and **Collapse all**. Each button is saved on
-its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
-- **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when,
-  and its title says "all good" or how many lines are amber or red:
-  - **Evening capture**, one line per airline: when its latest page came, and its pages' verdict (#21): "all good", or
-    what came in short or broken ("short: loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
+Tails; Cabin charges came on 22 Oct). Laid out since 22 Oct short and answer-first, as Today (spec
+docs/specs/2026-10-22-planner-look-systems.md):
+- **The answer is the title:** **All systems good** when every line of the board is green, else how many need a look
+  ("2 need a look"), with how many are red and amber under it. **checked at 04:25 UTC** sits beside it as a small pill.
+- **The board's lines as tiles** (three a row, two in a narrow window, one on a phone), red first, then amber, then
+  green: each with its mark as a dot and a word (**good**, **check**, **problem**), its name, its words and when.
+- **The evening capture as one table:** a row per airline with its mark, when its latest page came, and its verdict
+  (**all good**, **short**, **broken**, **not checked**) with what came in short or broken.
+- **The details** under them, as large rows: Capture, Cabin charges, Manual entry and Aircraft checks, each with a
+  one-line note and its count or state ("all 6 complete", "27 fits, no problems", "2 to look at", "none due"). Tap a
+  row to open its board right below it; all start closed, except Cabin charges when Today's item sent you
+  (#cabin-charges). **Expand all** and **Collapse all** open or close every one.
+
+Each button is saved on its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
+- **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when:
+  - **Evening capture**, one row per airline: when its latest page came, and its pages' verdict (#21): "all good", or
+    what came in short or broken ("short loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
     after 48 hours or when a page was broken. Pages stored before 14 Oct's checks say "not checked".
   - **Daily snapshot:** the latest day in the daily history, taken by the capture (green) or by the 10:00 UTC fallback
     and so incomplete (amber); amber after 30 hours, red after 54 or when its last run failed; amber too when the 10:00
