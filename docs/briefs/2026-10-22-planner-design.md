@@ -47,4 +47,4 @@ website (22 Oct) and `app/planner/src/ui/styles.css`.
 - If one screen bothers you far more than the rest, start B with that screen alone.
 
 ## Outcome
-<to be decided>
+22 Oct 2026, Gitesh: **C**. Mockups of Home, Today and Routes first; the build (A or B) follows the direction he picks.
