@@ -7,8 +7,11 @@ import type { QueueCell } from "@rules";
 import type { OurAirline } from "../../data/airlines";
 import { shortType } from "../../ui/aircraftNames";
 import { fcDay, type ForecastType, type NextOrder } from "../performance/model";
-import type { CaptureRead } from "../home/reads";
+import type { CaptureRead, TodoRow } from "../home/reads";
 import type { OnOrderGroup } from "../home/onOrder";
+import { itemRoute } from "../screens";
+import { attKind, groupAttention, type AttClass, type AttItem } from "../../ui/attention";
+import { niceDate } from "../../ui/dates";
 import { CAPTURE_BAD_H, CAPTURE_LATE_H } from "./attention";
 
 export type Mark = "ok" | "warn" | "bad";
@@ -173,4 +176,131 @@ export function toFile(groups: readonly OnOrderGroup[]): FileRow[] {
     airline: g.airline, registration: r.registration, type: r.type, config: r.config, at: r.at, base: r.base, plan: r.plan,
     href: "/tails?" + new URLSearchParams({ ...(g.airline.code ? { airline: g.airline.code } : {}), file: r.registration }).toString(),
   })));
+}
+
+// ---------- the new look, step 2 (22 Oct, spec docs/specs/2026-10-22-planner-look-today.md): the things waiting as
+// cards, the delivery lines as one table, needs attention as count tiles. Only words and order: every figure is the one
+// the boards above already show.
+
+/** A delivery line as the orders table's cell says it, in short: when its first type is safe ("Safe now", "Safe from
+ *  Wed, Oct 21", "Not safe within 14 days"; none when the forecast can't say), what's on order ("1 on order", "Nothing
+ *  on order") and when it runs dry ("10-20 19:14", UTC, with "in 17 h" when that's within order_queue_warn_h). */
+export interface LineCell { safe: LineSafe | null; onOrder: string; dry: string | null; soon: string | null; warn: boolean }
+
+const cap1 = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function lineCell(l: OrderRow["lines"][number]): LineCell {
+  const [count = "", dry = ""] = l.text.split(" · ");
+  const empty = l.text.startsWith("empty");
+  return {
+    safe: l.safe ? { now: l.safe.now, text: cap1(l.safe.text) } : null,
+    onOrder: empty ? "Nothing on order" : count,
+    dry: empty || !dry ? null : dry.replace(/^runs dry /, "").replace(/ UTC$/, ""),
+    soon: l.soon,
+    warn: l.warn,
+  };
+}
+
+/** The table's columns: every delivery line any airline has, narrow-body first, then the E-jets, then the A350 (others
+ *  after, by name). */
+export function lineColumns(rows: readonly Pick<OrderRow, "lines">[]): string[] {
+  const rank = (f: string) => { const i = ["A320 family", "E195", "A350"].indexOf(f); return i < 0 ? 9 : i; };
+  return [...new Set(rows.flatMap((r) => r.lines.map((l) => l.family)))].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/** One thing waiting, as its card says it: the small coloured kind line, the heading in the item's own words, a short
+ *  line of detail, and its action (a link, the needs attention tile to open, or the game check). */
+export interface WaitCard {
+  key: string;
+  kind: "order" | "due" | "file" | "attention" | "game";
+  label: string;
+  heading: string;
+  detail: string | null;
+  /** The single most urgent card: the first airline that can order now. */
+  urgent: boolean;
+  action: { text: string; href?: string; tile?: string; scroll?: string; item?: AttItem };
+}
+
+export interface CardsInput {
+  orders: readonly OrderRow[];
+  toFile: readonly FileRow[];
+  /** Needs attention's items, those dismissed left out. */
+  attention: readonly AttItem[];
+  todos: readonly TodoRow[];
+  /** Game check's differences, once it has run. */
+  game: number;
+  today: string;
+  /** Where an attention item is fixed (Today's hrefOf) and its screen's name. */
+  hrefOf: (a: AttItem) => string;
+  screenName: (a: AttItem) => string;
+  locale?: string;
+}
+
+/** The cards, one per thing the answer counts, the most urgent first: each airline that can order now, each to-do due
+ *  today or overdue, each aircraft to file, then the rest of needs attention a card per kind (one item: its words; more:
+ *  the first item's words and how many more, opening its tile), and Game check's differences. An order or to-do item of
+ *  needs attention has its own card already, so it isn't counted again. */
+export function waitingCards(x: CardsInput): WaitCard[] {
+  const out: WaitCard[] = [];
+  for (const o of x.orders) {
+    if (o.status.kind !== "now") continue;
+    const now = o.types.find((t) => t.now)?.names ?? [];
+    const later = o.types.find((t) => !t.now);
+    out.push({
+      key: "order|" + o.airline.id, kind: "order", label: "Order now", urgent: false,
+      heading: now.length ? `${o.airline.name} can safely order: ${now.join(", ")}` : `${o.airline.name} can order now`,
+      detail: later ? `Also safe ${later.when}: ${later.names.join(", ")}` : null,
+      action: { text: "Cash, next 14 days", href: o.airline.code ? itemRoute("performance", { airline: o.airline.code }) : undefined },
+    });
+  }
+  const first = out[0];
+  if (first) first.urgent = true;
+  for (const a of x.attention) {
+    if (attKind(a) !== "todo") continue;
+    const t = x.todos.find((r) => "todo|" + (r.legacy_key ?? String(r.id)) === a.key);
+    if (!t?.due_on) continue;
+    out.push({
+      key: "due|" + t.id, kind: "due", label: (t.due_on < x.today ? "Overdue · due " : "Due ") + (t.due_on === x.today ? "today" : niceDate(t.due_on, x.locale)),
+      heading: t.title, detail: null, urgent: false, action: { text: "Open the to-do", href: itemRoute("today", { hash: "todo" }) },
+    });
+  }
+  for (const r of x.toFile) {
+    out.push({
+      key: "file|" + r.registration, kind: "file", label: "To file", urgent: false,
+      heading: `${r.registration} has arrived for ${r.airline.name}`,
+      detail: [r.type + (r.config ? " " + r.config : ""), r.base, r.plan].filter(Boolean).join(" · ") || null,
+      action: { text: "File into planner", href: r.href },
+    });
+  }
+  for (const g of groupAttention(x.attention.filter((a) => attKind(a) !== "order" && attKind(a) !== "todo"))) {
+    const [one] = g.items;
+    if (!one) continue;
+    out.push(g.items.length === 1
+      ? { key: "att|" + g.kind, kind: "attention", label: "Needs attention", heading: one.text, detail: g.label, urgent: false,
+          action: { text: "Open " + x.screenName(one), href: x.hrefOf(one), item: one } }
+      : { key: "att|" + g.kind, kind: "attention", label: "Needs attention", heading: one.text,
+          detail: `and ${g.items.length - 1} more in ${g.label}`, urgent: false, action: { text: `See all ${g.items.length}`, tile: g.kind } });
+  }
+  if (x.game) {
+    out.push({ key: "game", kind: "game", label: "Needs attention", heading: plural(x.game, "Game check difference"), detail: "between the planner and the game's schedules",
+      urgent: false, action: { text: "Go to Game check", scroll: "game-check" } });
+  }
+  return out;
+}
+
+/** A count tile: the number, the group's name and one muted line. */
+export interface CountTile { key: string; count: number; name: string; line: string; cls: AttClass | "file" }
+
+const SERIOUS: Record<AttClass, string> = { bad: "urgent", warn: "to look at", ok: "to act on", mute: "for information" };
+
+/** The tiles, in order: Aircraft to file, then every group of needs attention (groupAttention's order: the most serious
+ *  first). Each tile's line says how serious its items are ("2 urgent · 1 to look at"). */
+export function countTiles(toFile: number, attention: readonly AttItem[]): CountTile[] {
+  const tiles: CountTile[] = [{ key: "to-file", count: toFile, name: "Aircraft to file", cls: "file",
+    line: toFile ? "arrived with a plan card" : "nothing has arrived" }];
+  for (const g of groupAttention(attention)) {
+    const by = (["bad", "warn", "ok", "mute"] as const).map((c) => [c, g.items.filter((a) => a.cls === c).length] as const).filter(([, n]) => n);
+    tiles.push({ key: g.kind, count: g.items.length, name: g.label, cls: g.cls, line: by.map(([c, n]) => `${n} ${SERIOUS[c]}`).join(" · ") });
+  }
+  return tiles;
 }
