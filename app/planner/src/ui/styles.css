@@ -1149,7 +1149,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .ordc > .pill{display:inline-flex;margin:0 0 2px}
 .pill.now{background:var(--amber);color:var(--night);font-weight:700}
 .ordsafe{font-weight:700}
-.ordfam{display:none}
+.ordc > .ordfam{display:none}
 .orddry{font-size:var(--t-small)}
 .orddry .pill{margin-left:0}
 .ordx .link{display:inline-block;white-space:nowrap}
@@ -1167,6 +1167,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .tile.on,.tile.on:hover{background:var(--night);box-shadow:none;color:#fff}
 .tile.on .tn{color:#fff} .tile.on .tline{color:#C9D1EA}
 .todaycounts .hiddenline{margin:14px 0 0}
+.today .hgrid > .board{margin-top:0}
 .tilepanel{margin-top:20px;padding-top:20px;border-top:1px solid var(--line);min-width:0}
 .tph{margin:0 0 6px;font:800 var(--t-h3)/1.3 var(--font);color:var(--ink)}
 .tph .note{margin-left:8px;font-weight:500}
@@ -1191,8 +1192,9 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .ordtbl tr.ordcard:last-child{border-bottom:0}
   .ordtbl tr.now td{background:none}
   .ordtbl tr.now{background:var(--amber-soft);border-bottom-color:transparent}
-  .ordtap{min-height:56px;padding:8px 0;cursor:pointer}
-  .ordtap b{margin-right:auto}
+  .ordtap{flex-wrap:nowrap;min-height:56px;padding:8px 0;cursor:pointer}
+  .ordtap b{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+  .ordtap .pill,.ordtap .ordst{flex:0 1 auto;min-width:0;text-align:right;white-space:normal}
   .ordtap .chev{display:inline-block;width:8px;height:8px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg);margin:0 2px 3px 0}
   .ordcard.open .ordtap .chev{transform:rotate(-135deg);margin-bottom:-3px}
   .ordtbl tr:not(.open) > td:not(.ordh){display:none}
