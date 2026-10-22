@@ -31,7 +31,8 @@ Until each is built and merged, the rules below stand as they are.
   Lucknow–Patna): no banks, and flight numbers in 3 digits from one pool per airline, 100 to 999 (Gander's flights use
   up to 4 digits; the 21 Oct scan shows none with 5). Stations are never treated as hubs or focus cities (trunks, the
   website, reports). Malaysia's include Subang (its own market, 30 km from KUL) and Kota Kinabalu's pairs away from
-  KUL. Brief `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
+  KUL. Pan Am's include US and Canada to China away from its bases (§2). Brief
+  `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
   *(decided 22 Oct; every airline since the same day; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
@@ -171,7 +172,10 @@ Details and open points: `docs/decisions.md`.
   Virgin doesn't fly JFK or Delhi. When merging Gitesh's route lists, add missing lanes only; never change ownership.
   **The country rule applies where the rightful airline can fly the pair from one of its own bases.** Where it can't
   (Gatwick–Atlanta: Pan Am has no base at either end), the airline that has the pair on its list keeps it, so no market
-  drops off the map. *(since 23 and 26 Sep; the base exception since 21 Oct; history: rule-history.md)*
+  drops off the map. One exception to the exception: **US and Canada to China where Pan Am has no base at either end**
+  (Shanghai–Boston, Daxing–Vancouver) is on no list. China Eastern doesn't fly North America; Pan Am flies these later
+  as stations (point-to-point, in "Decided, not yet built" above). *(since 23 and 26 Sep; the base exception since 21 Oct;
+  US and Canada to China since 22 Oct; history: rule-history.md)*
 - **Destination shape:** in time, fly every route a real airline flies from each hub and focus city. Plan as if money
   isn't the limit, and grow at the group's own pace. *(since 23 and 29 Sep)*
 - **Scale models** (each airline's counterpart in the Airbus world): Virgin → British Airways, Pan Am → Pan Am,
