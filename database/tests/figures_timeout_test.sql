@@ -36,7 +36,7 @@ begin
   assert v ? 'airlines', 'the figures came back without their airlines';
   assert clock_timestamp() - t0 < interval '30 seconds', 'the figures took 30 seconds or more on the copy';
 
-  raise notice 'figures timeout: export_for_report has its own 30 s limit (search_path kept), the planner's twelve figure functions have it too, no other function has one but capture_fare_actions, and the figures came back in % ms on the copy',
+  raise notice 'figures timeout: export_for_report has its own 30 s limit (search_path kept), the twelve figure functions have it too, no other function has one but capture_fare_actions, and the figures came back in % ms on the copy',
     round(extract(epoch from clock_timestamp() - t0) * 1000);
 end
 $test$;
