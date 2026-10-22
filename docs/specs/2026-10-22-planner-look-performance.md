@@ -8,10 +8,9 @@ route profit (its table, chart, fare plan adds, the 14-day sparkline), aircraft,
 route pages. No figure, save or query changes.
 
 ## The group page (/planner/performance)
-1. **The answer is the title.** The page head's title becomes a short sum of the group's day from the cards already
-   read: "+6.6M a day across six airlines" (the six profits added only for the headline; the manual's "no group totals"
-   is about decisions and reports, so if a group total in the title reads as one, use instead "Six airlines, all in
-   profit" or how many aren't). The context line stays ("Results"). Say in the pull request which you used and why.
+1. **The answer is the title.** The page head's title becomes a short answer from the cards already read, with no
+   group total (manual §1: each airline is its own business): "Six airlines, all in profit", or how many aren't ("5 of 6
+   airlines in profit"). The context line stays ("Results").
 2. **Scorecards:** keep the three-up grid with this afternoon's fix (top-aligned, readable labels); make the big profit
    figure and name line the card's head, the rows below in two tidy columns (label left, value and its ▲▼ change right,
    in one cell), and the "Next order" line as the card's footer with its pill.
