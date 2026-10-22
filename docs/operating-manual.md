@@ -210,6 +210,10 @@ Details and open points: `docs/decisions.md`.
   the A320 family and the E195, no A350. The three families (A320 family, E195, A350) are the most any airline has; no
   787, CRJ or A319. Each family is its own delivery line (the order queues, below). *(since 17 Oct; history:
   rule-history.md)*
+  - **Stars are the game's passenger demand** for the airport (the bar on its page in the game, 0 to 10): 9–10 is 5
+    stars, 7–8 is 4, 5–6 is 3, 3–4 is 2, 0–2 is 1. Demand doesn't change, so it's read once: written as each route's
+    stars override, with the research's rating kept underneath, and read for every new airport when it joins a list.
+    *(since 22 Oct; history: rule-history.md)*
   - **Size by city stars:** 1- and 2-star cities get the E195; 3-star the E195 or the A320neo; 4-star any of the
     E195, A320neo and A321neo; 5-star the A320neo, A321neo or XLR (the XLR beyond an A321neo's reach). Within a band,
     the smaller type wins, heavy routes included: a busy pair gets more flights on more aircraft, not a bigger

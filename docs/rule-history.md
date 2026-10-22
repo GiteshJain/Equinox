@@ -170,6 +170,16 @@ Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feede
 
 ### 3. Fleet and orders
 
+#### Stars from the game's passenger demand
+*Since 22 Oct (Gitesh, review chat).* Every airport on our lists was read from its page in Gander (1,346 of 1,364; 18
+codes had no match: AYN, BFU, BIH, BKB, BSL, DAX, IXK, IXV, IXX, JLG, NMB, PAB, PBI, PNH, REW, RUP, SDW, SSE, mostly
+closed airports or codes the game spells differently). Gitesh chose the scale (9–10 five stars, 7–8 four, 5–6 three,
+3–4 two, 0–2 one) and overrides rather than a new column, since demand doesn't change. 2,405 of the 5,307 routes on
+the lists changed: 1,578 up, 827 down · why: the research's ratings were often far off the game's demand (Shanghai
+Hongqiao 2 stars at demand 10, Seoul Gimpo 1 at 9, Madurai 3 at 4); the airport-size label was set aside because it
+doesn't follow demand (Kyiv "small" at demand 8). Before, the manual had no source for stars; `routes.stars` was the
+research's rating.
+
 #### Fleet types, as the route needs
 *(Wording aligned 21 Oct: "the A321neo by default" had been left standing after size by stars, 18 Oct, and smaller wins, 20 Oct, replaced it.)*
 
