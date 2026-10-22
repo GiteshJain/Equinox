@@ -1116,6 +1116,8 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .fcard dl{gap:4px 8px}
   .fcard dd{overflow-wrap:anywhere;min-width:0}
   .fcard .pill{white-space:normal}
+  /* a long status pill wraps inside its card rather than push the page wider */
+  .pill{white-space:normal;max-width:100%}
   .fcard dd.wow{min-width:0}
   .brand .eqwm{font-size:18px}
 }
