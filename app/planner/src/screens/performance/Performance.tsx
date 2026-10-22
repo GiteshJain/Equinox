@@ -52,7 +52,7 @@ import { FlightsByDay } from "./FlightsByDay";
 import { GrowthSignals, MainHubs, type ReadyRow } from "./Growth";
 import { RoutePage } from "./RoutePage";
 import {
-  BOARDS, BOARDS_FOLDED, GROUP_BOARDS, MARKS, MARK_ORDER, PERIODS, SORTS, aircraftRowWords, barTip, capturedLine, cardWords, cashRowWords, changesRowWords, chartIntervals,
+  BOARDS, GROUP_BOARDS, foldsFor, foldsOnArrival, type FoldState, MARKS, MARK_ORDER, PERIODS, SORTS, aircraftRowWords, barTip, capturedLine, cardWords, cashRowWords, changesRowWords, chartIntervals,
   farePlanAdd, farePlanDrop, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
   offersFarePlan, pc, planRowWords, planWords, profitAnswer, profitRowWords, routeRowWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
   type BoardKey, type Card, type CardWords, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
@@ -163,11 +163,14 @@ function PerformanceScreen() {
   const handQ = useHandLoads(group, day);
 
   const allFolds: readonly (BoardKey | GroupBoardKey)[] = [...GROUP_BOARDS, ...BOARDS];
-  // every row closed on arrival but the airline's Route profit, and Flights by day when the address names a day
-  const [folded, setFolded] = useState<ReadonlySet<BoardKey | GroupBoardKey>>(() => new Set<BoardKey | GroupBoardKey>([...BOARDS_FOLDED,
-    ...GROUP_BOARDS.filter((k) => !(k === "Flights by day" && new URLSearchParams(loc.search).has("day")))]));
+  // every row closed on arrival but the airline's Route profit, and Flights by day when the address names a day; each page
+  // (the group, each airline) arrives that way whatever the page before had open (foldsFor)
+  const foldView = "/performance" + (code ? "/" + code : "");
+  const [foldState, setFoldState] = useState<FoldState>(() => foldsOnArrival(foldView, loc.search));
+  const folded = foldsFor(foldState, foldView, loc.search);
+  const setFolded = (next: ReadonlySet<BoardKey | GroupBoardKey>) => setFoldState({ view: foldView, folded: next });
   const [busy, setBusy] = useState(false);
-  const toggle = (k: BoardKey | GroupBoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const toggle = (k: BoardKey | GroupBoardKey) => { const n = new Set(folded); if (n.has(k)) n.delete(k); else n.add(k); setFolded(n); };
 
   async function save(changes: Change[]) {
     if (!changes.length) return;

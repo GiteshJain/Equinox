@@ -14,7 +14,7 @@ import type { RouteRow as TableRoute } from "../routes/model";
 import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
 import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
-  BOARDS, BOARDS_FOLDED, GROUP_BOARDS, SCATTER_CHAR_W, aircraftRowWords, cashRowWords, changesRowWords, groupTodayWords, growthWords, hubsWords, loadAxisFrom,
+  BOARDS, BOARDS_FOLDED, GROUP_BOARDS, foldsFor, foldsOnArrival, SCATTER_CHAR_W, aircraftRowWords, cashRowWords, changesRowWords, groupTodayWords, growthWords, hubsWords, loadAxisFrom,
   planRowWords, profitAnswer, profitRowWords, routeRowWords, scatterLayout,
   CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, changesWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay,
   fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords,
@@ -459,6 +459,22 @@ describe("Performance's new look", () => {
     expect(BOARDS).toEqual(["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]);
     expect(BOARDS_FOLDED).toEqual(["Profit", "Cash, next 14 days", "Aircraft", "Fare changes", "Fare plan"]);
     expect(GROUP_BOARDS).toEqual(["The group today", "Growth signals", "Main hubs", "Flights by day"]);
+  });
+  it("each page arrives with its own rows: Expand all on the group page doesn't carry to an airline's, nor one airline's to another's", () => {
+    const sorted = (x: ReadonlySet<string>) => [...x].sort();
+    const airlineArrival = sorted(foldsOnArrival("/performance/AW", "").folded);
+    expect(GROUP_BOARDS.every((k) => airlineArrival.includes(k))).toBe(true);
+    expect(BOARDS.filter((k) => !airlineArrival.includes(k))).toEqual(["Route profit"]);
+    expect(GROUP_BOARDS.filter((k) => !foldsOnArrival("/performance", "?day=2026-10-19").folded.has(k))).toEqual(["Flights by day"]);
+    expect(GROUP_BOARDS.filter((k) => !foldsOnArrival("/performance", "").folded.has(k))).toEqual([]);
+    // Expand all on the group page, then the first scorecard opens AW's page
+    const expanded = { view: "/performance", folded: new Set<never>() };
+    expect(foldsFor(expanded, "/performance", "").size).toBe(0);
+    expect(sorted(foldsFor(expanded, "/performance/AW", ""))).toEqual(airlineArrival);
+    // and from AW's page, all open, the switch to PA
+    expect(sorted(foldsFor({ view: "/performance/AW", folded: new Set<never>() }, "/performance/PA", ""))).toEqual(sorted(foldsOnArrival("/performance/PA", "").folded));
+    // back on the group page with a day in the address: the group's arrival, Flights by day open
+    expect([...GROUP_BOARDS].filter((k) => !foldsFor(expanded, "/performance/AW", "?day=x").has(k))).toEqual([]);
   });
   it("each row's count or state", () => {
     expect(groupTodayWords([{ net_day: 0.2 }, { net_day: -0.1 }, { net_day: null }])).toBe("1 of 2 airlines ahead after leases");

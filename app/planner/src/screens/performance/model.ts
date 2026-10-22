@@ -777,6 +777,21 @@ export type BoardKey = (typeof BOARDS)[number];
 export const BOARDS_FOLDED: readonly BoardKey[] = BOARDS.filter((k) => k !== "Route profit");
 export const GROUP_BOARDS = ["The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
 export type GroupBoardKey = (typeof GROUP_BOARDS)[number];
+export type FoldKey = BoardKey | GroupBoardKey;
+/** Which rows are closed, and on which page ("/performance" or "/performance/<code>"): the group page and each airline's
+ *  page keep their own, so what Expand all opened on one never carries to the next (22 Oct). */
+export interface FoldState { view: string; folded: ReadonlySet<FoldKey> }
+/** A page's rows on arrival: every row closed but the airline's Route profit, and the group's Flights by day when the
+ *  address names a day (?day=). */
+export function foldsOnArrival(view: string, search: string): FoldState {
+  const airline = view !== "/performance";
+  const day = new URLSearchParams(search).has("day");
+  return { view, folded: new Set<FoldKey>([...BOARDS_FOLDED, ...GROUP_BOARDS.filter((k) => airline || !(k === "Flights by day" && day))]) };
+}
+/** The rows closed on the page shown: as last left on that same page, else as on arrival. */
+export function foldsFor(state: FoldState, view: string, search: string): ReadonlySet<FoldKey> {
+  return state.view === view ? state.folded : foldsOnArrival(view, search).folded;
+}
 
 // ---------- the answers the page heads and rows give (22 Oct)
 const NUMBER_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
