@@ -1121,13 +1121,15 @@ AS $function$
                    join public.airlines a on a.world_id = w.id
                    join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                   where g.kind = 'ours' and a.active and a.planner_name is not null),
-    -- hubs and focus cities an airline of theirs flies from: code, airline and role only (no banks, no connection times)
+    -- hubs and focus cities an airline of theirs flies from: code, airline and role only (no banks, no connection times);
+    -- never a station (since 22 Oct, manual §2: an airport flown point-to-point from is no hub, so the trip search never
+    -- connects through one and a station leg shows as a direct flight only)
     'hubs', (select coalesce(jsonb_agg(jsonb_build_object('code', b.airport_code, 'airline', al.planner_name, 'role', b.role)
                                        order by b.position, b.id), '[]'::jsonb)
                from w
                join public.airline_bases b on b.world_id = w.id
                join public.airlines al on al.id = b.airline_id
-              where exists (select 1 from freqs f where f.airline_id = b.airline_id and f.hub_code = b.airport_code)),
+              where b.role <> 'station' and exists (select 1 from freqs f where f.airline_id = b.airline_id and f.hub_code = b.airport_code)),
     'tails', (select coalesce(jsonb_agg(jsonb_build_object('id', t.j ->> 'id', 'airline', t.j ->> 'airline', 'type', t.j ->> 'type')
                                         order by t.id), '[]'::jsonb) from tails t),
     'freqs', (select coalesce(jsonb_agg(jsonb_build_object('r', f.j ->> 'routeKey', 't', f.j ->> 'tail', 'a', f.j ->> 'depHub',
@@ -3277,22 +3279,26 @@ begin
       from ms),
 
   -- ---------- 1c. openings: pairs on the list no airline of ours flies, one route each (from the main hub first)
-  -- our bases, every airline's (hubs and focus cities): a pair between two of them is a trunk (manual §4)
+  -- our bases, every airline's (hubs and focus cities): a pair between two of them is a trunk (manual §4); a station
+  -- (since 22 Oct, manual §2) is no base, so a pair with a station end is never a trunk
   ob as (select distinct b.airport_code from public.airline_bases b
            join public.airlines a on a.id = b.airline_id join public.groups g on g.id = a.group_id
-          where b.world_id = w and g.kind = 'ours'),
+          where b.world_id = w and g.kind = 'ours' and b.role <> 'station'),
   -- the other airlines of ours that have the pair on their own list (one airline per city pair, manual §2, decides)
   ol as (select least(r.hub_code, r.dest_code) as a, greatest(r.hub_code, r.dest_code) as b, array_agg(distinct al.iata_code order by al.iata_code) as codes
            from public.routes r join public.airlines al on al.id = r.airline_id join public.groups g on g.id = al.group_id
           where r.world_id = w and r.airline_id <> p_airline_id and not r.removed and g.kind = 'ours' and al.iata_code is not null
           group by 1, 2),
+  -- at_base: from one of the airline's hubs or focus cities; at_station: from one of its stations (manual §2, since 22 Oct)
   op0 as (select distinct on (ro.a, ro.b) ro.*,
-                 exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) as at_base,
+                 exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub and b.role <> 'station') as at_base,
+                 exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub and b.role = 'station') as at_station,
                  -- in the trunk month only (trunk_month_from to trunk_month_to)
                  v_trunks and ro.hub in (select ob.airport_code from ob) and ro.dest in (select ob.airport_code from ob) as trunk
             from ro
            where not exists (select 1 from ourall o where o.a = ro.a and o.b = ro.b)
            order by ro.a, ro.b, (ro.hub = v_main) desc,
+                    exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub and b.role <> 'station') desc,
                     exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) desc, ro.id),
   orv as (select rv.a, rv.b, sum(rv.weekly)::int as weekly,
                  jsonb_agg(jsonb_build_object('airline_id', rv.airline_id, 'name', rv.name, 'weekly', rv.weekly) order by rv.weekly desc, rv.name) as rivals
@@ -3334,19 +3340,20 @@ begin
                where a.own and a.size = 1 and a.range_km >= coalesce(op0.dist, 0) and a.seats_max < v.seats_max
                order by a.seats_max, a.price / a.seats_max, a.name
                limit 1) alt on coalesce(op0.stars, 0) = 1 and v.size = 1),
-  -- hubs first (manual §3), from the latest scan: the busiest rival at a base, and each rival's departures a week from
-  -- the base to the destination
+  -- hubs first (manual §3), from the latest scan: the busiest rival at a base (a hub or focus city: a station is never
+  -- contested), and each rival's departures a week from the base to the destination
   bt as (select x.airport_code, max(x.weekly_departures)::int as weekly from public.scan_airline_airports x
             join public.airlines ra on ra.id = x.airline_id left join public.groups g on g.id = ra.group_id
            where x.scan_id = v_latest and coalesce(g.kind, 'rival') <> 'ours'
-             and x.airport_code in (select b.airport_code from public.airline_bases b where b.airline_id = p_airline_id)
+             and x.airport_code in (select b.airport_code from public.airline_bases b where b.airline_id = p_airline_id and b.role <> 'station')
            group by 1),
   rt as (select ex.origin, ex.dest, max(ex.weekly)::int as weekly from ex where ex.scan_id = v_latest and ex.rival group by 1, 2),
   op2 as (select op1.*, bt.weekly as base_top, rt.weekly as route_top
             from op1 left join bt on bt.airport_code = op1.hub left join rt on rt.origin = op1.hub and rt.dest = op1.dest
            where op1.type_id is not null),
   op3 as (select op2.*,
-                 -- hubs first is suspended for trunks in the trunk month (manual §4)
+                 -- hubs first is suspended for trunks in the trunk month (manual §4); a station opens nothing until the main
+                 -- hub reaches its target, contested or not (manual §3, since 22 Oct): not at_base, so null below
                  case when op2.trunk then 'November trunk'
                       when v_exempt then 'exempt' when v_main is null then 'no main hub' when op2.hub = v_main then 'main hub'
                       when v_dep >= v_target then 'main hub at its target'
@@ -3356,6 +3363,7 @@ begin
             from op2),
   op4 as (select op3.*, op3.allowed_by is not null as allowed,
                  case when op3.allowed_by is not null then null
+                      when op3.at_station then format('hubs first: stations wait for %s''s %s', v_main, trim_scale(v_target))
                       when not op3.at_base then format('hubs first: %s isn''t one of its bases', op3.hub)
                       when v_latest is null then format('hubs first: %s at %s of %s departures a week, and no world scan to show %s contested',
                                                         v_main, v_dep, trim_scale(v_target), op3.hub)
@@ -4277,7 +4285,7 @@ begin
         cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
        where v_has_schedules and sc.scan_id = v_scan and sc.airline_id in (select id from rivals)
          and jsonb_typeof(f) = 'array' and coalesce(f ->> 3, '') <> ''
-         and f ->> 2 in (select b.airport_code from public.airline_bases b where b.world_id = p_world_id and not b.is_main)
+         and f ->> 2 in (select b.airport_code from public.airline_bases b where b.world_id = p_world_id and not b.is_main and b.role <> 'station')
        group by f ->> 2, f ->> 3, sc.airline_id, ra.public_name, ra.game_name, ra.planner_name),
     hubs as (
       select al.airline_id, al.ord, al.iata_code, al.name, al.main_code,
@@ -4308,7 +4316,8 @@ begin
                  from sched z
                 where z.origin = b.airport_code and z.weekly > 7 * private.fig_num(p_world_id, b.airline_id, 'contested_rival_daily')) end as routes
         from public.airline_bases b
-       where b.world_id = p_world_id and not b.is_main)
+       -- the airline's other hubs and focus cities; never a station (since 22 Oct, manual §2: no base, never contested)
+       where b.world_id = p_world_id and not b.is_main and b.role <> 'station')
     select jsonb_build_object(
       'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of),
       'scan', case when v_scan is null then null else jsonb_build_object('id', v_scan, 'taken_at', private.fig_ts(v_scan_at), 'schedules', v_has_schedules) end,

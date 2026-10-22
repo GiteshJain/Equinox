@@ -1,6 +1,7 @@
 // "The network right now" on Home: the old planner's 2D map (networkMap), ported. Every flying route as a great-circle
 // line in its airline's colour (wider the more round trips a day), our bases (hubs larger, focus cities smaller, grey
-// until a route flies from them) and the airports the routes reach, with night shaded as it is at this minute. The
+// until a route flies from them; a station, since 22 Oct, is an ordinary airport dot) and the airports the routes reach,
+// with night shaded as it is at this minute. The
 // airline buttons show one airline (centring on its busiest base) with its routes coloured by economy load over 7 days
 // (route_loads(): 95%+ green, 85 amber, 70 orange, under that red, grey without loads). + and − zoom, ⟲ shows the whole
 // world, the wheel zooms where it points, and a zoomed map drags. Planned adds, dashed, the routes on the plan cards of
@@ -8,7 +9,7 @@
 // old map's routeModal, since build pull request 6); a planned route opens its aircraft in "Aircraft on order" (the old
 // map's plan-card pop-up belongs to the plan cards, not rebuilt yet).
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent, type ReactElement } from "react";
-import { summary, type Rules } from "@rules";
+import { banks, summary, type Rules } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { loadWorld } from "../../ui/siteFiles";
 import type { HomeAirline } from "./reads";
@@ -77,7 +78,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
       deps.set(r.hub, (deps.get(r.hub) ?? 0) + Math.round(r.perDay * 7));
       for (const c of [r.hub, r.dest]) { const p = places.get(c); if (p) pts.push(p.at); }
     }
-    const hub = [...deps.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? rules.bases.find((b) => b.airline_id === id)?.airport_code;
+    const hub = [...deps.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? rules.bases.find((b) => b.airline_id === id && !banks.isStation(b))?.airport_code;
     setView(focusView(hub ? places.get(hub)?.at : undefined, pts));
   };
 
@@ -177,9 +178,11 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
       for (const c of [l.origin_code, l.dest_code]) if (!aps.has(c)) aps.set(c, 0);
     }
   }
-  const baseCodes = new Set((rules?.bases ?? []).map((b) => b.airport_code));
+  // our hubs and focus cities; a station (since 22 Oct) is drawn as an ordinary airport dot, never a hub ring
+  const hubBases = (rules?.bases ?? []).filter((b) => !banks.isStation(b));
+  const baseCodes = new Set(hubBases.map((b) => b.airport_code));
   const dots: ReactElement[] = [];
-  for (const h of rules?.bases ?? []) {
+  for (const h of hubBases) {
     const c = places.get(h.airport_code);
     if (!c) continue;
     const live = aps.has(h.airport_code);

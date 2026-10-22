@@ -9,7 +9,7 @@
 // §5; spec docs/specs/2026-10-21-frequencies-and-fares.md §2) the check gives each route's fare level when it is handed
 // fare_ladder()'s answer for the card's airline (cardFares): a new flight is priced like the rest of its route.
 import { forAircraft as aircraftWeek } from "./aircraftWeek.js";
-import { bankOfArrival, bankOfDeparture, baseAt, isFocus } from "./banks.js";
+import { bankOfArrival, bankOfDeparture, baseAt, hasBanks } from "./banks.js";
 import { blockFor, timedLegs } from "./block.js";
 import { connectionsAtBothEnds } from "./connections.js";
 import { RulesError, findAircraft, findType, pairKey, setting, settingNumber } from "./input.js";
@@ -330,8 +330,8 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
     return {
       leg: i + 1, flight_no: l.flight_no, from: l.origin, to: l.dest, days_utc: l.days_utc, dep_utc: clock(l.dep_utc_min),
       dep_local: clock(depLocal), arr_local: clock(arrLocal), block_min: l.block_min, block_source: l.block_source,
-      bank_out: bo && !isFocus(bo) ? bankOfDeparture(rules, bo, depLocal)?.n ?? 0 : null,
-      bank_in: bd && !isFocus(bd) ? bankOfArrival(rules, bd, arrLocal) : null,
+      bank_out: hasBanks(bo) && bo ? bankOfDeparture(rules, bo, depLocal)?.n ?? 0 : null,
+      bank_in: hasBanks(bd) && bd ? bankOfArrival(rules, bd, arrLocal) : null,
       service_given: svc.legs[i]?.given ?? null, service_wanted: svc.legs[i]?.wanted ?? null,
       feeders: ends.feeders.length, onward: ends.onward.length,
       feeders_list: ends.feeders.map((x) => ({ leg_id: x.leg.id, from: x.leg.origin, flight_no: x.leg.flight_no, days: x.days, gap_min: x.gap_min })),

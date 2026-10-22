@@ -58,7 +58,9 @@ build` in the clone, below). **The report's money is the database's:** cash, pro
 lowest point in the next 14 days and when, the next order, route profit, the growth signals and hubs first come from the
 captured figures (decision #19), each airline on its own. There is no surplus figure and no group total (manual §1, §3).
 Our airlines, their game IDs, names and bases come from the database too (`rules.json`); nothing about them is typed into
-the scripts, and nothing assumes six airlines (#14).
+the scripts, and nothing assumes six airlines (#14). A station (since 22 Oct, manual §2: an airport flown point-to-point
+from, `airline_bases.role` station) is no base: the briefing's and the report's bases lists and charts leave it out, and
+its routes count under their airline like any other.
 
 | Step | Script | What it does | Needs | Makes |
 |---|---|---|---|---|
@@ -90,7 +92,7 @@ on a small dated sample on every pull request and keep the PDF (`tests/report_te
 `docs/specs/2026-10-21-scan-in-capture.md`): after our airlines, when the latest finished scan is at least
 `settings.scan_every_days` capture days old (1: every evening), it reads the same pages as `gscan.py`, at the same pace,
 and sends them with the capture key through `capture_scan()`, which stores them exactly as `ingest_snapshot()` does (both
-through `private.scan_ingest()`). The airports it reads come from `capture_airlines()`: our bases, `gscan.py`'s big rival
+through `private.scan_ingest()`). The airports it reads come from `capture_airlines()`: our bases (stations too), `gscan.py`'s big rival
 hubs (its `AP` list, copied into `private.capture_scan_plan()`; `tests/capture_scan_test.mjs` checks they're the same) and
 the latest finished scan's 20 busiest airports (what `top_airports.json` was for). **`gscan.py` stays as the fallback,
 run by hand** from a chat when the Systems board shows the scan old (amber over 8 days) or a scan is wanted between

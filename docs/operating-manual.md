@@ -26,12 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **Point-to-point routes away from our bases (Kingfisher first):** stations, a third role in the airline's bases
-  beside hubs and focus cities, for airports we fly to and from without making them a base (for example Lucknow for
-  Lucknow–Patna): no banks, and flight numbers in 3 digits from one pool per airline, 100 to 999 (Gander's flights use
-  up to 4 digits; the 21 Oct scan shows none with 5). Stations are never treated as hubs or focus cities (trunks, the
-  website, reports). Brief `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
-  *(decided 22 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -196,6 +190,12 @@ Details and open points: `docs/decisions.md`.
 | Malaysia | KUL | — | — |
 
 *(base roles since 29 Sep; history: rule-history.md)*
+
+- **Stations** are airports an airline flies point-to-point routes from without making them a base (Lucknow for
+  Lucknow–Patna): `airline_bases` rows with role station, no banks, flight numbers in 3 digits from one pool per airline
+  (`settings.station_flight_no_from` 100 to `station_flight_no_to` 999), and never treated as hubs or focus cities
+  (trunks, hubs first, the website, the briefing and the report). *(decided 22 Oct, built 22 Oct; history:
+  rule-history.md)*
 
 ## 3. Fleet and orders
 - **Fleet types, as the route needs:** every airline may fly any of our types where a route calls for it, sized by the

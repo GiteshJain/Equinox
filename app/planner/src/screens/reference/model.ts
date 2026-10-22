@@ -41,7 +41,7 @@ export function clockOf(typed: string): string | null {
 /** A stored time ("06:45:00") as the old planner shows it ("06:45"). */
 export const hhmm = (t: string | null | undefined): string => (t ? String(t).slice(0, 5) : "");
 
-// ---------- hubs, focus cities and banks (airline_bases, and world_airports' connection time)
+// ---------- hubs, focus cities, stations and banks (airline_bases, and world_airports' connection time)
 export interface BaseRow {
   id: number; airline_id: number; airport_code: string; role: string; is_main: boolean | null; parent_base_id: number | null;
   bank_times: (string | null)[] | null; flight_no_from: number | null; last_flight_no: number | null; hold_note: string | null;
@@ -54,12 +54,21 @@ export const basesInOrder = (rows: readonly BaseRow[]) => [...rows].sort((a, b) 
 export const bankBoxes = (b: Pick<BaseRow, "bank_times">): string[] => [0, 1, 2, 3].map((k) => hhmm(b.bank_times?.[k] ?? null));
 
 export type BaseField = "role" | "parent" | "block" | "lastUsed" | "banks.0" | "banks.1" | "banks.2" | "banks.3";
+/** The role a role picker's choice saves: hub, focus or station (since 22 Oct; anything else is a hub). */
+export const roleOf = (typed: string): "hub" | "focus" | "station" => (typed === "focus" ? "focus" : typed === "station" ? "station" : "hub");
+
 /** A base's box changed (the old data-ref hubs.<i>.<field>): its airline_bases row. The parent is the airline's own base at
- *  the airport chosen, else any base there (none for "—"). */
+ *  the airport chosen, else any base there (none for "—"). A base made a station (since 22 Oct, manual §2) also loses its
+ *  bank times, its parent and its block, as the table's check asks (a station has none); the main hub can't be one. */
 export function baseChange(b: BaseRow, field: BaseField, typed: string, all: readonly BaseRow[]): Change | null {
   let values: Record<string, Json>;
-  if (field === "role") values = { role: typed === "focus" ? "focus" : "hub" };
-  else if (field === "parent") {
+  if (field === "role") {
+    const role = roleOf(typed);
+    if (role === b.role) return null;
+    if (role === "station" && b.is_main) return null;
+    values = role === "station" ? { role, bank_times: null, parent_base_id: null, flight_no_from: null } : { role };
+    return { table: "airline_bases", op: "update", key: { id: b.id }, base: b.updated_at, values };
+  } else if (field === "parent") {
     const there = all.filter((x) => x.airport_code === typed && x.id !== b.id).sort((x, y) => Number(y.airline_id === b.airline_id) - Number(x.airline_id === b.airline_id) || x.id - y.id);
     values = { parent_base_id: typed ? there[0]?.id ?? null : null };
   } else if (field === "block") values = { flight_no_from: intOf(typed) };

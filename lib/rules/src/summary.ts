@@ -133,7 +133,8 @@ export function airlineCards(rules: Rules, legs: readonly TimedLeg[] = timedLegs
       if (m.ratio != null && (lowest == null || m.ratio < lowest.ratio)) lowest = m;
     }
     const from = new Set(flyingRoutes.filter((r) => r.airline_id === k.airline_id).map((r) => r.hub_code));
-    const bases = rules.bases.filter((b) => b.airline_id === k.airline_id)
+    // its hubs, then its focus cities; never its stations (since 22 Oct: a station is no base, manual §2)
+    const bases = rules.bases.filter((b) => b.airline_id === k.airline_id && b.role !== "station")
       .map((b, i) => ({ b, i })).sort((x, y) => Number(x.b.role === "focus") - Number(y.b.role === "focus") || x.i - y.i)
       .map(({ b }) => ({ code: b.airport_code, role: b.role, parent_code: b.parent_code ?? null, live: from.has(b.airport_code) }));
     const flying = flights > 0;

@@ -341,6 +341,31 @@ describe("filing", () => {
   });
 });
 
+describe("filing a station route (spec docs/specs/2026-10-22-station-role.md)", () => {
+  // Test Air gets a station at CCC (point-to-point, no banks) and the route CCC–DDD; the card flies it with station
+  // numbers, the return listed first
+  const stInput: RulesInput = { ...input, settings: { ...input.settings, fare_launch_pct: 100, station_flight_no_from: 100, station_flight_no_to: 999 },
+    airline_bases: [...input.airline_bases, { id: 9, airline_id: 1, airport_code: "CCC", role: "station", is_main: false, bank_times: null, flight_no_from: null, last_flight_no: null, position: 9 }] };
+  const stRules = buildRules(stInput);
+  const stRoute: RouteRow = { id: 30, airline_id: 1, hub_code: "CCC", dest_code: "DDD", city: "Mumbai", country_label: "India", distance_km: 1100, market_id: null, stars: 4,
+    source: "research", removed: false, removed_note: null, city_override: null, distance_override_km: null, market_override_id: null, market_cleared: false, stars_override: null, updated_at: T0 };
+  const stLegs = cardLegs(stRules, [
+    { id: 81, plan_card_id: 8, position: 1, flight_no: 102, origin_code: "DDD", dest_code: "CCC", days_utc: ALL, dep_utc_min: 600, block_min: 110, service_code: "S2", updated_at: T0 },
+    { id: 82, plan_card_id: 8, position: 2, flight_no: 101, origin_code: "CCC", dest_code: "DDD", days_utc: ALL, dep_utc_min: 420, block_min: 110, service_code: "S2", updated_at: T0 },
+  ]);
+  it("files it as a base route: one rotation on the station's route, its outbound from the station first", () => {
+    const ch = filingChanges({
+      worldId: 1, today: TODAY, nowMs: NOW, rand: () => 0.5, rules: stRules, aircraft: fleet[4] as TailAircraft,
+      card: { id: 8, airline_id: 1, aircraft_id: 5, base_code: "CCC", title: "DDD", note: null, updated_at: T0 }, legs: stLegs, game: null, cabin: null, cabinLogged: false,
+      bases: ["HUB", "FOC", "CCC"], routes: [stRoute], markets: new Map(), profiles: [{ id: 2, code: "S2", airline_id: null, up_to_km: 99999 }], airports: new Map(),
+    });
+    expect(ch.filter((c) => c.table === "routes")).toEqual([]);
+    expect(ch.filter((c) => c.table === "rotations").map((c) => [c.values?.route_id, c.values?.service_code, c.values?.fare_pct])).toEqual([[30, "S2", 100]]);
+    expect(ch.filter((c) => c.table === "flight_legs").map((c) => [c.values?.leg_no, c.values?.origin_code, c.values?.dest_code, c.values?.flight_no]))
+      .toEqual([[1, "CCC", "DDD", 101], [2, "DDD", "CCC", 102]]);
+  });
+});
+
 describe("adding, changing and removing an aircraft", () => {
   it("adds a tail in service, and refuses a registration in use", () => {
     expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet)).toEqual({ changes: [

@@ -86,6 +86,12 @@ export function ask(input: RulesInput, q: Ask): unknown {
     }
     case "connections":
       return connections.connectionsAt(rules, str(q.airport, "airport"));
+    // the base an airport's checks use (banks.baseAt): the airline's own (a station included), else a hub or focus city
+    // there, never another airline's station (since 22 Oct)
+    case "base_at": {
+      const b = banks.baseAt(rules, str(q.airport, "airport"), (q.airline_id as number | undefined) ?? null);
+      return b ? { id: b.id, airline_id: b.airline_id, airport_code: b.airport_code, role: b.role } : null;
+    }
     case "banks": {
       const b = banks.baseAt(rules, str(q.airport, "airport"));
       if (!b) throw new Error("no base there");

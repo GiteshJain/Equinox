@@ -44,7 +44,9 @@ def colour(a, i):
     return PALETTE[i % len(PALETTE)]
 
 
-BASES = sorted((b for b in RUL.get("airline_bases") or [] if b["airline_id"] in NAME),
+# our hubs and focus cities; never a station (since 22 Oct, manual §2: an airport flown point-to-point from is no base, so
+# it is in no bases list or chart; its routes count under its airline like any other)
+BASES = sorted((b for b in RUL.get("airline_bases") or [] if b["airline_id"] in NAME and b.get("role") != "station"),
                key=lambda b: (b.get("position") is None, b.get("position") or 0, b["id"]))
 
 # ---------- airports -> country/region
