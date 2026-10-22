@@ -26,9 +26,9 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    load sparkline, Fare plan, open), and (22 Oct) its first route's name opens the route page: its header, the last 7
    days against the 7 before, its five boards open with as many events and rivals as route_story() gives, its links to
    Routes (which links back, "The route's story ›") and to the airline's page, and Competition's threats each linking to
-   their route's page; Systems, the Systems board first, then its four boards folded (Capture with the copy's
-   airlines, Cabin charges since 22 Oct, Manual entry, Aircraft checks; Cabins went on 21 Oct), and three (no Aircraft
-   checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
+   their route's page; Systems, the Systems board first, then its three boards folded (Capture with the copy's
+   airlines, Cabin charges since 22 Oct, Manual entry; Cabins went on 21 Oct, Aircraft checks with the one-week checks
+   on 22 Oct); Interline with its agreements and the interline countries, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
    pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
@@ -75,7 +75,7 @@ from urllib.parse import urlsplit
 from harness import ROOT, WEB, LIVE_HOST, NEW_PLANNER, serve, settle
 from playwright.async_api import async_playwright
 from local_copy import (count_changes, counts, is_planner_user, jobs_since, local_env, log_since, make_user, marks, moment, ms, one, psql,
-                        put_back_check_days, set_check_days, token_for, why)
+                        token_for, why)
 
 CONFIG = ROOT / "app" / "planner" / "src" / "data" / "config.ts"
 PAGE = WEB / "app" / "index.html"
@@ -628,10 +628,10 @@ async def no_hubs(pl):
 
 async def systems_opens(pl):
     """Systems (20 Oct; Check's boards and Review's Manual entry until then): the Systems board first and open, then its
-    four boards folded on arrival, in order (Capture, Cabin charges since 22 Oct, Manual entry, Aircraft checks; the Cabins
-    board went on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1), the Capture board listing our airlines the
-    capture covers, in their order. With the one-week checks off (aircraft_check_after_days 0, set by the test), three:
-    no Aircraft checks."""
+    three boards folded on arrival, in order (Capture, Cabin charges since 22 Oct, Manual entry; the Cabins board went on
+    21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and Aircraft checks on 22 Oct, spec
+    docs/specs/2026-10-22-remove-aircraft-checks.md), the Capture board listing our airlines the capture covers, in their
+    order."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD}
@@ -647,31 +647,17 @@ async def systems_opens(pl):
     problems = []
     if got["first"] != "systems":
         problems.append(f"the Systems board isn't the first board on Systems (the first is {got['first'] or 'none'})")
-    order = ["Capture", "Cabin charges", "Manual entry", "Aircraft checks"]
+    order = ["Capture", "Cabin charges", "Manual entry"]
     if got["boards"] != order:
         problems.append(f"Systems' boards are {got['boards']}, not {order}")
     if not got["folded"]:
         problems.append("Systems' boards aren't all folded on arrival")
     if not got["capture"] or any(n not in want for n in got["capture"]) or got["capture"] != sorted(got["capture"], key=want.index):
         problems.append(f"the Capture board lists {got['capture']}, the copy's airlines are {want}")
-    # the checks off (aircraft_check_after_days 0, spec docs/specs/2026-10-15-aircraft-checks-off.md): no Aircraft checks;
-    # then on again (7), as main() set them
-    set_check_days(0)
-    try:
-        await pl.pg.reload()
-        await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
-        await settle(pl.pg, 300)
-        off = await pl.pg.evaluate(boards_js)
-    finally:
-        set_check_days(7)
-    if off != [k for k in order if k != "Aircraft checks"]:
-        problems.append(f"with the checks off (0), Systems' boards are {off}, not the three without Aircraft checks")
-    await pl.pg.reload()
-    await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Systems opens with the Systems board first, then its {len(got['boards'])} boards folded in order, the Capture board with "
-            f"{len(got['capture'])} airlines; with the checks off, {len(off)} boards and no Aircraft checks"), problems
+            f"{len(got['capture'])} airlines"), problems
 
 
 async def performance_opens(pl):
@@ -1526,11 +1512,9 @@ async def main():
         make_user(env, *other)
         psql("insert into public.planner_users (email) values (:'email')", email=staff[0])
         problems = [] if is_planner_user(env, token_for(env, *staff)) else ["public.is_planner_user() isn't true for the staff user"]
-        # the one-week checks on (7) whatever last night's backup holds; put back at the end
-        checks_were = set_check_days(7)
     except Exception as e:
         problems = [why(e)]
-    step(not problems, "test users: one staff, one not, made through the copy's sign-in; the one-week checks on (7, set by the test)", problems)
+    step(not problems, "test users: one staff, one not, made through the copy's sign-in", problems)
     if problems:
         sys.exit(1)
 
@@ -1563,7 +1547,6 @@ async def main():
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)
-    put_back_check_days(checks_were)
 
     outside = sorted({h for x in seen for h in x.outside})
     stopped = ", ".join(sorted({h for x in seen for h in x.stopped})) or "nothing"

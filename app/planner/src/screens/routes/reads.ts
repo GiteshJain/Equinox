@@ -107,15 +107,14 @@ export function useServiceProfiles(worldId: number | undefined) {
   });
 }
 
-/** Our aircraft: registration, type, status and the last schedule change (the one-week check), in the order they were
- *  added. */
+/** Our aircraft: registration, type and status, in the order they were added. */
 export function useRoutesAircraft(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("aircraft", "routes", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
       const { data, error } = await supabase.from("aircraft")
-        .select("id, registration, airline_id, aircraft_type_id, status, schedule_changed_on, updated_at")
+        .select("id, registration, airline_id, aircraft_type_id, status, updated_at")
         .eq("world_id", worldId ?? 0).order("id");
       if (error) return fail("the aircraft", error.message);
       return data as AircraftRow[];

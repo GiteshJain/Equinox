@@ -28,9 +28,10 @@ the saves' names follow their screens, and Log an order as went with the order r
   Tails: add a tail; change its maintenance gap; change its base; remove it; remove a delivery (one made for the test);
     file an arrived aircraft (made for the test) from its plan card with the game matching, then again with it
     differing (File with the game's times).
-  Systems: Mark checked; cash and fixed costs; loads typed; loads pasted with the day marked complete. (Keep as is, Show
-    again and Refitted to went with the Cabins board on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and
-    their recorded rows with them.) Since 22 Oct, Cabin charges' Use the game's amount, on a first fit made to differ
+  Systems: cash and fixed costs; loads typed; loads pasted with the day marked complete. (Keep as is, Show again and
+    Refitted to went with the Cabins board on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and Mark checked
+    with the one-week checks on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md, and their recorded rows
+    with them.) Since 22 Oct, Cabin charges' Use the game's amount, on a first fit made to differ
     for the test (spec docs/specs/2026-10-21-tidy-ups.md §3).
   Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct: one row per route and cabin it marks,
     how many depending on the night).
@@ -38,9 +39,7 @@ the saves' names follow their screens, and Log an order as went with the order r
   Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
   Photos: a destination photo uploaded.
-What the test makes for a save (an aircraft to file, a delivery to remove, a check made due, a to-do to tick) is made with psql as the test, never through the planner, so it isn't part of the answer. Mark checked runs with the
-one-week checks on (aircraft_check_after_days 7, set by the test outside the change log and put back after), whatever
-last night's backup holds.
+What the test makes for a save (an aircraft to file, a delivery to remove, a to-do to tick) is made with psql as the test, never through the planner, so it isn't part of the answer.
 
 Each save's answer, compared with the recorded one:
   - sent: what the planner sent, one line per change of its planner_save() call ("planner_save todos update done,done_at":
@@ -68,8 +67,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from harness import FIX, ROOT, serve, settle
 from playwright.async_api import async_playwright
-from local_copy import (WORLD, local_env, log_since, marks, moment as copy_moment, ms, one, psql, put_back_check_days, set_check_days, staff_user,
-                        wait_for, why)
+from local_copy import (WORLD, local_env, log_since, marks, moment as copy_moment, ms, one, psql, staff_user, wait_for, why)
 import planner_next_test as pn
 
 EXPECTED = FIX / "planner_saves.expected.json"
@@ -668,19 +666,14 @@ def planner_flights(airline_id):
     return json.loads(r.stdout)
 
 
-# ---------- Check's saves until 20 Oct: the game check on Today; Mark checked on Systems (the cabins' saves went with the
-# Cabins board on 21 Oct)
-async def check(s, pl, al, today):
+# ---------- Check's saves until 20 Oct: the game check on Today (the cabins' saves went with the Cabins board on 21 Oct,
+# Mark checked on Systems with the one-week checks on 22 Oct)
+async def check(s, pl, al):
     pg = pl.pg
 
     async def to_today():
         await to_screen(pl, "today", "/today")
         await settle(pg, 300)
-
-    async def to_systems():
-        await to_screen(pl, "systems", "/systems")
-        await pg.click("#rev-expall")
-        await settle(pg, 200)
 
     # the game check: the airline's own flights, with one flight's times moved 10 minutes, another's days, and a round trip
     # it hasn't got on one of its routes; every other airline's game answers 502
@@ -762,24 +755,6 @@ async def check(s, pl, al, today):
             finally:
                 put_back()
         pl.game = {}
-
-    # Mark checked: an aircraft made due for the test (its check and schedule change cleared), with the one-week checks on
-    # (aircraft_check_after_days 7, set by the test whatever last night's backup holds, then put back)
-    pick = one(f"""select json_build_object('id', a.id, 'reg', a.registration) from public.aircraft a where a.world_id = {WORLD} and a.status = 'active'
-                   and exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on is not null)
-                   and not exists (select 1 from public.flight_legs l join public.rotations r on r.id = l.rotation_id where l.aircraft_id = a.id and r.launched_on > :'t'::date - 8)
-                 order by a.id limit 1""", t=today)
-    if not pick:
-        s.not_tried("no aircraft with every rotation launched more than a week ago", "systems: Mark checked")
-    else:
-        checks_were = set_check_days(7)
-        try:
-            as_test(f"update public.aircraft set checked_on = null, schedule_changed_on = null where id = {int(pick['id'])}")
-            await reload(pl)
-            await to_systems()
-            await s.act("systems: Mark checked (an aircraft made due for the test)", lambda: pg.click(f"[data-checked={json.dumps(pick['reg'])}]"))
-        finally:
-            put_back_check_days(checks_were)
 
 
 # ---------- Review's saves until 20 Oct: Manual entry on Systems; + fare plan and remove on Performance
@@ -1146,7 +1121,7 @@ async def main():
                 await pl.pg.emulate_media(reduced_motion="reduce")
                 await pl.sign_in(*staff)
                 for name, part in (("Today", lambda: today_board(s, pl, tag)), ("Routes", lambda: routes(s, pl, al)), ("Tails", lambda: tails(s, pl, al, tag, now)),
-                                   ("Check's saves (Today, Systems)", lambda: check(s, pl, al, now[:10])), ("Review's saves (Systems, Performance)", lambda: review(s, pl, al, now)),
+                                   ("Check's saves (Today, Systems)", lambda: check(s, pl, al)), ("Review's saves (Systems, Performance)", lambda: review(s, pl, al, now)),
                                    ("Performance's fare ladder", lambda: fare_ladder(s, pl)), ("Interline", lambda: interline(s, pl)),
                                    ("Systems' cabin charges (22 Oct)", lambda: cabin_charges(s, pl, now)),
                                    ("Reference", lambda: reference(s, pl)), ("Photos", lambda: photos(s, pl))):

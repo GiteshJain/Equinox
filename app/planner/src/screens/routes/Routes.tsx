@@ -164,7 +164,7 @@ export function Routes() {
   }
   const onFrequency = (f: Freq, field: FreqField, value: string) => {
     if (!live || !route) return;
-    const res = changeFrequency(live, f, field, value, { mode, today, aircraft, byRegistration, route });
+    const res = changeFrequency(live, f, field, value, { mode, aircraft, byRegistration, route });
     if ("error" in res) { showMessage(res.error); return; }
     void save(res.changes);
   };
@@ -419,7 +419,7 @@ export function Routes() {
               routeLoad={routeLoads.get(route.id)} flightLoad={(no) => (no == null ? undefined : flightLoads.get(`${route.airline_id}|${no}`))}
               airlineMarkets={airlineMarkets} profiles={profilesQ.data ?? []} tails={tails as AircraftRow[]} airports={airports} busy={busy}
               onBack={() => toList({ ...filters, bases: filters.bases ?? picked })} onFrequency={onFrequency}
-              onDeleteFrequency={(f) => void save(deleteFrequencyChanges(f, today))} onAddFrequency={onAddFrequency} onEdit={onEdit}
+              onDeleteFrequency={(f) => void save(deleteFrequencyChanges(f))} onAddFrequency={onAddFrequency} onEdit={onEdit}
               onRemove={() => void onRemove()} onOffset={onOffset} onOpenTail={(reg) => setTailPopup(reg)} />
           ) : codePart && ready ? (
             <div className="empty" data-no-route>No route {hubCode}–{destCode} for {airline?.name ?? codePart}: it may have been removed (Reference restores it).</div>

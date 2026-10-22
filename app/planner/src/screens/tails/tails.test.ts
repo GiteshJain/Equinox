@@ -12,7 +12,7 @@ import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
-  filingChanges, stationsOf, filtersQuery, gameLink, issueWords, markCheckedChange, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
+  filingChanges, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
   suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
@@ -377,7 +377,6 @@ describe("adding, changing and removing an aircraft", () => {
       { table: "aircraft", op: "update", key: { id: 2 }, base: T0, values: { status: "retired", retired_on: TODAY } }] });
     expect(deleteTailChanges(fleet[0] as TailAircraft, [{ id: 1, updated_at: T0, legs: [{ id: 1, updated_at: T0 }, { id: 2, updated_at: T0 }] }], TODAY).map((c) => [c.table, c.op, c.key]))
       .toEqual([["flight_legs", "delete", { id: 1 }], ["flight_legs", "delete", { id: 2 }], ["rotations", "delete", { id: 1 }], ["aircraft", "update", { id: 1 }]]);
-    expect(markCheckedChange(fleet[0] as TailAircraft, TODAY)).toEqual({ table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { checked_on: TODAY } });
   });
 });
 

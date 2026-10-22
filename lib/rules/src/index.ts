@@ -1,10 +1,11 @@
 // The planning library (decision #19, design §7): the planning rules in one home, for the new planner, the website's
 // trip search, the optimiser and Claude. Plain data in, plain data out; no screen code, no clock, no network.
 // Each part is exported under its name (time, block, turns, connections, banks, maintenance, aircraftWeek, schedule,
-// positions, summary, checks, optimiser, tails, and for the Check screen game, loadReport and growth), plus card (a plan card
+// positions, summary, optimiser, tails, and for the Check screen game, loadReport and growth), plus card (a plan card
 // checked against all of them, the cabin its routes call for: cabinFor, and since 21 Oct each route's fare level from
 // fare_ladder(): cardFares) and airport (connection times, night bans). The
-// Cabins board's part, cabins, went on 21 Oct with the board. What each does, with an example: lib/rules/README.md.
+// Cabins board's part, cabins, went on 21 Oct with the board, and checks (the one-week aircraft checks) on 22 Oct (spec
+// docs/specs/2026-10-22-remove-aircraft-checks.md). What each does, with an example: lib/rules/README.md.
 //   import { buildRules, connections } from "@rules";
 //   const rules = buildRules(await rulesInput());      // rules_input()'s answer
 //   connections.connectionsAt(rules, "JFK").city_pairs;
@@ -21,7 +22,6 @@ export * as aircraftWeek from "./aircraftWeek.js";
 export * as schedule from "./schedule.js";
 export * as positions from "./positions.js";
 export * as summary from "./summary.js";
-export * as checks from "./checks.js";
 export * as optimiser from "./optimiser.js";
 export * as card from "./card.js";
 export * as frequency from "./frequency.js";
@@ -39,7 +39,6 @@ export type { Maintenance, NoMaintenance } from "./maintenance.js";
 export type { AirportDepartures, CapWarning, FlightNumberClash, NextPair, NightBanHit, RouteGapHit } from "./schedule.js";
 export type { Position } from "./positions.js";
 export type { AirlineCard, CardBase, KeyFigures, NowFigures, SummaryFigures } from "./summary.js";
-export type { CheckFacts, OneWeekCheck } from "./checks.js";
 export type { ZoneClock } from "./time.js";
 export type { OptimiseAnswer, OptimiseOptions, OptimisedPlan, PlannedLeg } from "./optimiser.js";
 export type { CabinFare, CabinRouteShare, CabinSuggestion, Card, CardLeg, FareLadder, FareLadderRow, RouteFare } from "./card.js";

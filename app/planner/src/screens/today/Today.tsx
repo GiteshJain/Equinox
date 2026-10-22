@@ -16,9 +16,11 @@
 // page's title with the capture as a pill beside it; the things waiting as big cards (model.ts, waitingCards); Orders as
 // one table, a column per delivery line (one compact row per airline on a phone); then Aircraft to file and each group
 // of needs attention as count tiles (countTiles), each opening its list below them; Game check and the to-dos as before.
+// The one-week checks (needs attention's group and Coming up's) went on 22 Oct (spec
+// docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { checks as checkRules, game, growth } from "@rules";
+import { game, growth } from "@rules";
 import { ourAirlines, type OurAirline } from "../../data/airlines";
 import { useNow } from "../../data/clock";
 import { queryClient } from "../../data/query";
@@ -34,7 +36,7 @@ import { Board } from "../../ui/Board";
 import { niceDate, toMinute, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { onOrder } from "../home/onOrder";
-import { useBackups, useCaptureStatus, useDismissals, useGrowth, useHomeAircraft, useJobs, usePlanCards, useRotations, useTodoItems, useTodos } from "../home/reads";
+import { useBackups, useCaptureStatus, useDismissals, useGrowth, useHomeAircraft, useJobs, usePlanCards, useTodoItems, useTodos } from "../home/reads";
 import { isOpen, statusOf } from "../interline/model";
 import { useAgreements } from "../interline/reads";
 import { useInterlineRows } from "../interline/useRows";
@@ -48,7 +50,7 @@ import { useLatestThreats } from "../competition/reads";
 import { useCabinCharges } from "../systems/reads";
 import { homeAttention, type HomeAirline } from "./attention";
 import { ComingUp } from "./ComingUp";
-import { comingUp, upFilters } from "./comingUp";
+import { comingUp } from "./comingUp";
 import { checkedAtWords, fixChanges, fixRotations, importChanges, noLinkWords, type GameResult } from "./game";
 import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameCheck";
 import { captureLine, countTiles, deliveryLines, lineCell, lineColumns, orderStatus, safeTypes, toFile, waitingCards, waitingWords, type OrderRow } from "./model";
@@ -69,7 +71,6 @@ export function Today() {
   const airlinesQ = useOurAirlines(w);
   const rulesQ = useRules(w);
   const aircraftQ = useHomeAircraft(w);
-  const rotationsQ = useRotations(w);
   const planCardsQ = usePlanCards(w);
   const todosQ = useTodos(w);
   const itemsQ = useTodoItems(w);
@@ -117,18 +118,16 @@ export function Today() {
   const rules = rulesQ.data?.rules;
   // needs attention words airlines as Home did (HomeAirline: the old planner's names)
   const homeAirlines: HomeAirline[] = useMemo(() => airlines.map((a) => ({ id: a.id, name: a.name, code: a.code, color: a.color })), [airlines]);
-  const checks = useMemo(() => (rules && aircraftQ.data && rotationsQ.data
-    ? checkRules.oneWeek(rules, { aircraft: aircraftQ.data, rotations: rotationsQ.data }, today) : null), [rules, aircraftQ.data, rotationsQ.data, today]);
   const todos = useMemo(() => (todosQ.data && itemsQ.data ? todoViews(todosQ.data, itemsQ.data) : null), [todosQ.data, itemsQ.data]);
   const interlineOpen = useMemo(() => {
     if (!interline.rows || !agreementsQ.data) return null;
     const records = new Map(agreementsQ.data.map((a) => [a.airline_id + "|" + a.country_code, a]));
     return interline.rows.filter((r) => isOpen(statusOf(records.get(r.airline_id + "|" + r.cc)))).length;
   }, [interline.rows, agreementsQ.data]);
-  const attention = useMemo(() => (rules && checks && todosQ.data ? homeAttention({
-    now, today, airlines: homeAirlines, rules, checks, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
+  const attention = useMemo(() => (rules && todosQ.data ? homeAttention({
+    now, today, airlines: homeAirlines, rules, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
     jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen, threats, cabins: cabinsQ.data ?? null,
-  }) : null), [now, today, homeAirlines, rules, checks, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats,
+  }) : null), [now, today, homeAirlines, rules, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats,
     cabinsQ.data]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
   const attShown = useMemo(() => (attention ? withoutDismissed(attention, dismissed) : null), [attention, dismissed]);
@@ -245,10 +244,10 @@ export function Today() {
     if (dismissalsQ.data?.length) await saver.save(showAgainChanges(dismissalsQ.data));
   }
 
-  const ready = !!(rules && checks && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
+  const ready = !!(rules && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
     && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess && threats
     && cabinsQ.data);
-  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, rotationsQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
+  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
     buyQ, tailsQ, hostQ, ...forecastsQ, competition, cabinsQ);
   const cap = captureQ.data && airlinesQ.data ? captureLine(airlines, captureQ.data, now) : null;
   const waiting = ready && orders && filing && attShown ? waitingWords({
@@ -420,7 +419,7 @@ export function Today() {
                   <AttentionItems items={g.items} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)} onOpen={openAircraft} />
                 </div>
               ))}
-              {!attShown.shown.length ? <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div> : null}
+              {!attShown.shown.length ? <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules.</div> : null}
             </div>
           </>
         )}
@@ -437,7 +436,7 @@ export function Today() {
 
       <div className="hgrid">
         <TodoBoard worldId={w} todos={todos} today={today} now={now} />
-        <ComingUp events={checks && todosQ.data ? comingUp(checks, todosQ.data, today) : null} today={today} filters={upFilters(rules, airlines.map((a) => a.id))} />
+        <ComingUp events={todosQ.data ? comingUp(todosQ.data, today) : null} today={today} />
       </div>
 
       {openLine?.cmp && rules ? (

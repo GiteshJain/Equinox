@@ -353,17 +353,6 @@
     "flight_legs update days_utc,dep_utc_min": 1
    }
   },
-  "systems: Mark checked (an aircraft made due for the test)": {
-   "logged": [
-    "planner tab"
-   ],
-   "sent": {
-    "planner_save aircraft update checked_on": 1
-   },
-   "written": {
-    "aircraft update checked_on": 1
-   }
-  },
   "systems: Use the game's amount (a cabin fit made to differ for the test)": {
    "logged": [
     "planner tab"

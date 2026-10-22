@@ -23,7 +23,7 @@ const routeRow = (id: number, hub: string, dest: string, km: number, x: Partial<
   removed: false, removed_note: null, city_override: null, distance_override_km: null, market_override_id: null, market_cleared: false, stars_override: null,
   updated_at: T0, ...x,
 });
-const ac: AircraftRow = { id: 1, registration: "T-001", airline_id: 1, aircraft_type_id: 1, status: "active", schedule_changed_on: "2026-10-01", updated_at: T0 };
+const ac: AircraftRow = { id: 1, registration: "T-001", airline_id: 1, aircraft_type_id: 1, status: "active", updated_at: T0 };
 const ac2: AircraftRow = { ...ac, id: 2, registration: "T-002" };
 const aircraft = new Map([[1, ac], [2, ac2]]);
 const byReg = new Map([["T-001", ac], ["T-002", ac2]]);
@@ -39,7 +39,7 @@ const legs: LegRow[] = [leg(1, 1, 1, "HUB", "CCC", [1, 3, 5], 1320, 480), leg(2,
 const rules = liveRules(buildRules(base), 1, routes, [rot(1, 3)], legs);
 const ccc = routes[0] as Route;
 const f = freqOf(rules, ccc, rot(1, 3), legs, aircraft);
-const ctx = { mode: "local" as const, today: "2026-10-13", aircraft, byRegistration: byReg, route: ccc };
+const ctx = { mode: "local" as const, aircraft, byRegistration: byReg, route: ccc };
 
 describe("local and UTC times, both ways", () => {
   it("shows stored UTC legs in local time, across midnight, with the return's next day", () => {
@@ -65,7 +65,6 @@ describe("local and UTC times, both ways", () => {
     const res = changeFrequency(rules, f, "depHub", "21:00", { ...ctx, mode: "utc" });
     expect(res).toEqual({ changes: [
       { table: "flight_legs", op: "update", key: { id: 1 }, base: T0, values: { dep_utc_min: 1260, block_min: 540 } },
-      { table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { schedule_changed_on: "2026-10-13" } },
     ] });
   });
   it("the return's day: a return typed earlier than the outbound lands leaves the next day", () => {
@@ -201,37 +200,33 @@ describe("each action's save, one planner_save() call", () => {
         aircraft_id: null, days_utc: [1, 2, 3, 4, 5, 6, 7], dep_utc_min: null, block_min: null } },
     ]);
   });
-  it("changes its days on both legs (the return a day later), and stamps the aircraft's schedule change", () => {
+  it("changes its days on both legs (the return a day later)", () => {
     expect(changeFrequency(rules, f, "days", "15", ctx)).toEqual({ changes: [
       { table: "flight_legs", op: "update", key: { id: 1 }, base: T0, values: { days_utc: [1, 5] } },
       { table: "flight_legs", op: "update", key: { id: 2 }, base: T0, values: { days_utc: [2, 6] } },
-      { table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { schedule_changed_on: "2026-10-13" } },
     ] });
     expect(changeFrequency(rules, f, "days", "531", ctx)).toEqual({ changes: [] });
   });
-  it("moves it to another aircraft: both legs, and both aircraft's schedule change", () => {
+  it("moves it to another aircraft: both legs", () => {
     expect(changeFrequency(rules, f, "tail", "T-002", ctx)).toEqual({ changes: [
       { table: "flight_legs", op: "update", key: { id: 1 }, base: T0, values: { aircraft_id: 2 } },
       { table: "flight_legs", op: "update", key: { id: 2 }, base: T0, values: { aircraft_id: 2 } },
-      { table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { schedule_changed_on: "2026-10-13" } },
-      { table: "aircraft", op: "update", key: { id: 2 }, base: T0, values: { schedule_changed_on: "2026-10-13" } },
     ] });
     expect(changeFrequency(rules, f, "tail", "X-999", ctx)).toEqual({ error: "No aircraft X-999" });
   });
   it("clears an arrival: no block stored, the estimate shown; a number, the service, the notes and the load typed", () => {
-    expect(changeFrequency(rules, f, "arrDest", "", ctx)).toMatchObject({ changes: [{ table: "flight_legs", key: { id: 1 }, values: { block_min: null } }, { table: "aircraft" }] });
-    expect(changeFrequency(rules, f, "noBack", "1010", ctx)).toMatchObject({ changes: [{ table: "flight_legs", key: { id: 2 }, values: { flight_no: 1010 } }, { table: "aircraft" }] });
+    expect(changeFrequency(rules, f, "arrDest", "", ctx)).toMatchObject({ changes: [{ table: "flight_legs", key: { id: 1 }, values: { block_min: null } }] });
+    expect(changeFrequency(rules, f, "noBack", "1010", ctx)).toMatchObject({ changes: [{ table: "flight_legs", key: { id: 2 }, values: { flight_no: 1010 } }] });
     expect(changeFrequency(rules, f, "service", "S3", ctx)).toEqual({ changes: [{ table: "rotations", op: "update", key: { id: 1 }, base: T0, values: { service_code: "S3" } }] });
     expect(changeFrequency(rules, f, "notes", "first one", ctx)).toEqual({ changes: [{ table: "rotations", op: "update", key: { id: 1 }, base: T0, values: { note: "first one" } }] });
     expect(changeFrequency(rules, f, "slfOut", "84", ctx)).toEqual({ changes: [{ table: "rotations", op: "update", key: { id: 1 }, base: T0, values: { extra: { slfOut: "84" } } }] });
     expect(changeFrequency(rules, f, "depHub", "7pm", ctx)).toEqual({ error: "Time as hh:mm" });
   });
-  it("removes it: its legs, then its rotation, as one action, and stamps the aircraft", () => {
-    expect(deleteFrequencyChanges(f, "2026-10-13")).toEqual([
+  it("removes it: its legs, then its rotation, as one action", () => {
+    expect(deleteFrequencyChanges(f)).toEqual([
       { table: "flight_legs", op: "delete", key: { id: 1 }, base: T0 },
       { table: "flight_legs", op: "delete", key: { id: 2 }, base: T0 },
       { table: "rotations", op: "delete", key: { id: 1 }, base: T0 },
-      { table: "aircraft", op: "update", key: { id: 1 }, base: T0, values: { schedule_changed_on: "2026-10-13" } },
     ]);
   });
   it("adds a route as added, brings a removed one back with its edits cleared, and adds an airport the list lacks", () => {

@@ -2,7 +2,8 @@
 // - every aircraft of the world (any status: the list is the active ones, the deliveries those with a delivery), with
 //   each row's updated_at, the base for changing it;
 // - the cabin layouts (code, cabin, cost), the types each airline may have, and the plan cards with their legs;
-// - the rotations' launch days (the one-week check in the aircraft pop-up);
+// - the rotations' launch days (useLaunches: Performance's Flights by day; Tails and its aircraft pop-up read them for
+//   the one-week check until it went on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md);
 // - and, when filing, fresh from the tables: the aircraft, its card's legs, the airline's routes, markets and service
 //   profiles, whether its first cabin fit is logged, how many aircraft are in the old planner's list of tails, the
 //   airports the card uses, the order's cabin (order_cabin(), the database's one home for it) and the game's schedule

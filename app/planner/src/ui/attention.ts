@@ -17,9 +17,10 @@ export interface AttItem {
   route?: string;
 }
 
-/** The kinds, in the old planner's order, with their names on screen. */
+/** The kinds, in the old planner's order, with their names on screen (One-week checks due went on 22 Oct, spec
+ *  docs/specs/2026-10-22-remove-aircraft-checks.md). */
 export const ATT_KIND = {
-  capture: "Capture", backup: "Backup", jobs: "Nightly jobs", todo: "To-dos", check: "One-week checks due", maint: "Maintenance",
+  capture: "Capture", backup: "Backup", jobs: "Nightly jobs", todo: "To-dos", maint: "Maintenance",
   turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix",
   order: "Can order", monthly: "Monthly checks", interline: "Interline", threat: "Rival moves", cabin: "Cabin charges",
 } as const;
@@ -30,7 +31,7 @@ export function attKind(a: Pick<AttItem, "key" | "text">): AttKind {
   const k = (a.key ?? "").split("|")[0] ?? "";
   if (k in ATT_KIND) return k as AttKind;
   const t = a.text;
-  return /one-week check/.test(t) ? "check" : /check due/.test(t) ? "monthly" : /short turn|wrong position/.test(t) ? "turn"
+  return /check due/.test(t) ? "monthly" : /short turn|wrong position/.test(t) ? "turn"
     : /night ban/.test(t) ? "ban" : /used twice/.test(t) ? "clash" : /the cap is/.test(t) ? "cap" : /nterline/.test(t) ? "interline" : "other";
 }
 

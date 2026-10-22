@@ -80,7 +80,6 @@ export interface AircraftRow {
   airline_id: number;
   aircraft_type_id: number | null;
   status: string;
-  schedule_changed_on: string | null;
   updated_at: string;
 }
 
@@ -447,10 +446,10 @@ export function addFrequencyChanges(worldId: number, route: Route, next: { out: 
   ];
 }
 
-/** The fields of a frequency's form, in the old planner's order. The first eight change its schedule (and stamp its
- *  aircraft's schedule_changed_on, for the one-week check). */
+/** The fields of a frequency's form, in the old planner's order. (The first eight, its schedule, stamped its aircraft's
+ *  schedule_changed_on for the one-week check until the check went on 22 Oct, spec
+ *  docs/specs/2026-10-22-remove-aircraft-checks.md.) */
 export type FreqField = "days" | "tail" | "noOut" | "noBack" | "depHub" | "arrDest" | "depDest" | "arrHub" | "service" | "price" | "slfOut" | "slfBack" | "launched" | "notes";
-const SCHED: readonly FreqField[] = ["days", "tail", "noOut", "noBack", "depHub", "arrDest", "depDest", "arrHub"];
 const TIME: Partial<Record<FreqField, keyof LocalTimes>> = { depHub: "dep_hub", arrDest: "arr_dest", depDest: "dep_dest", arrHub: "arr_hub" };
 
 function legUpdate(leg: LegRow | undefined, want: Partial<StoredLeg> & { aircraft_id?: number | null; flight_no?: number | null }): Change[] {
@@ -464,12 +463,6 @@ function legUpdate(leg: LegRow | undefined, want: Partial<StoredLeg> & { aircraf
   return Object.keys(values).length ? [{ table: "flight_legs", op: "update", key: { id: leg.id }, base: leg.updated_at, values }] : [];
 }
 
-/** The one-week check counts from an aircraft's last schedule change (the old planner stamps it on every change). */
-function stamp(ac: AircraftRow | undefined, today: string): Change[] {
-  return ac && ac.schedule_changed_on !== today
-    ? [{ table: "aircraft", op: "update", key: { id: ac.id }, base: ac.updated_at, values: { schedule_changed_on: today } }] : [];
-}
-
 /** A frequency's legs as its local times say, with its aircraft (for the estimate and the return's day). */
 function legsFor(rules: Rules, f: Freq, local: LocalTimes, ends: FrequencyEnds = f.ends): Change[] {
   const { leg1, leg2 } = frequency.toLegs(rules, ends, local);
@@ -481,37 +474,31 @@ export type ChangeAnswer = { changes: Change[] } | { error: string };
 /** One field of a frequency's form changed (the old planner's change on .freq [data-k]): the rows it changes, as one
  *  action. Times are typed local, or UTC in UTC mode; empty clears. Nothing when nothing changes. */
 export function changeFrequency(rules: Rules, f: Freq, field: FreqField, typed: string, ctx: {
-  mode: Mode; today: string; aircraft: ReadonlyMap<number, AircraftRow>; byRegistration: ReadonlyMap<string, AircraftRow>; route: Route;
+  mode: Mode; aircraft: ReadonlyMap<number, AircraftRow>; byRegistration: ReadonlyMap<string, AircraftRow>; route: Route;
 }): ChangeAnswer {
   const v = typed.trim();
   const out: Change[] = [];
   const tf = TIME[field];
-  let scheduleChanged: boolean;
   if (tf) {
     const off = tf === "dep_hub" || tf === "arr_hub" ? f.view.offset_hub_min : f.view.offset_dest_min;
     const m = fromInput(v, off, ctx.mode);
     if (m === "bad") return { error: "Time as hh:mm" };
-    scheduleChanged = m !== f.local[tf];
     out.push(...legsFor(rules, f, { ...f.local, [tf]: m }));
   } else if (field === "days") {
     const days = frequency.weekdays(v.replace(/[^1-7]/g, ""));
-    scheduleChanged = days.join("") !== f.local.days.join("");
     out.push(...legsFor(rules, f, { ...f.local, days }));
   } else if (field === "tail") {
     const ac = v ? ctx.byRegistration.get(v) : undefined;
     if (v && !ac) return { error: `No aircraft ${v}` };
     const id = ac?.id ?? null;
-    scheduleChanged = (f.aircraft?.id ?? null) !== id;
     const ends = endsOf(rules, ctx.route, ac);
     const { leg1, leg2 } = frequency.toLegs(rules, ends, f.local);
     out.push(...legUpdate(f.leg1, { ...leg1, aircraft_id: id }), ...legUpdate(f.leg2, { ...leg2, aircraft_id: id }));
-    if (scheduleChanged) out.push(...stamp(f.aircraft, ctx.today), ...(ac && ac.id !== f.aircraft?.id ? stamp(ac, ctx.today) : []));
     return { changes: out };
   } else if (field === "noOut" || field === "noBack") {
     const n = v === "" ? null : Number(v);
     if (n != null && !(Number.isInteger(n) && n >= 0)) return { error: "A flight number is a whole number" };
     const leg = field === "noOut" ? f.leg1 : f.leg2;
-    scheduleChanged = (leg?.flight_no ?? null) !== n;
     out.push(...legUpdate(leg, { flight_no: n }));
   } else {
     const r = f.rot;
@@ -533,16 +520,14 @@ export function changeFrequency(rules: Rules, f: Freq, field: FreqField, typed: 
     }
     return { changes: Object.keys(values).length ? [{ table: "rotations", op: "update", key: { id: r.id }, base: r.updated_at, values }] : [] };
   }
-  if (scheduleChanged && SCHED.includes(field)) out.push(...stamp(f.aircraft, ctx.today));
   return { changes: out };
 }
 
-/** Remove a frequency (the old data-del): its legs, then its rotation, as one action; its aircraft's schedule changed. */
-export function deleteFrequencyChanges(f: Freq, today: string): Change[] {
+/** Remove a frequency (the old data-del): its legs, then its rotation, as one action. */
+export function deleteFrequencyChanges(f: Freq): Change[] {
   return [
     ...[f.leg1, f.leg2].filter((l): l is LegRow => !!l).map((l): Change => ({ table: "flight_legs", op: "delete", key: { id: l.id }, base: l.updated_at })),
     { table: "rotations", op: "delete", key: { id: f.rot.id }, base: f.rot.updated_at },
-    ...stamp(f.aircraft, today),
   ];
 }
 

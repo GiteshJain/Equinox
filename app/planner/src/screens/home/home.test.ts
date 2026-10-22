@@ -50,7 +50,7 @@ describe("aircraft on order and the key figures", () => {
   const rules = buildRules({ ...base, cabin_configs: [{ id: 7, code: "321-LEI", aircraft_type_id: 1, seats: 200 }] });
   const ac = (id: number, x: Partial<AircraftRow>): AircraftRow => ({
     id, registration: `R-${id}`, airline_id: 1, aircraft_type_id: 1, order_config_id: 7, status: "on_order", delivery_at: null,
-    order_base_code: "HUB", order_note: "HUB · AAA + BBB", checked_on: null, schedule_changed_on: null, updated_at: T0, ...x,
+    order_base_code: "HUB", order_note: "HUB · AAA + BBB", updated_at: T0, ...x,
   });
   it("lists what isn't in service yet, by airline, soonest first, with what arrived", () => {
     const now = Date.parse("2026-10-13T12:00:00Z");
