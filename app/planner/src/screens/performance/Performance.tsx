@@ -18,6 +18,11 @@
 //     filters it to a route (what /performance/PA/JFK-ORD did until 22 Oct).
 //   - A route (/planner/performance/<code>/<route>, since 22 Oct, spec docs/specs/2026-10-21-route-page.md): the route
 //     page, its story since launch (RoutePage.tsx, route_story()).
+// Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) in the style of the new Today, Routes and Systems:
+// the group page's title is the answer (how many airlines are in profit, never a group total), the scorecards tidy,
+// the fare ladder one card per airline, and the other boards rows that open, all closed on arrival; an airline's page
+// has its name as the title with four big numbers and the airline switch under it, its boards rows that open with
+// Route profit open on arrival (Aircraft and Fare changes rows of their own).
 // Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
 // planner_save() call each.
 import { useMemo, useState, type ReactNode } from "react";
@@ -47,9 +52,10 @@ import { FlightsByDay } from "./FlightsByDay";
 import { GrowthSignals, MainHubs, type ReadyRow } from "./Growth";
 import { RoutePage } from "./RoutePage";
 import {
-  BOARDS, GROUP_BOARDS, MARKS, MARK_ORDER, PERIODS, SORTS, barTip, capturedLine, cardWords, chartIntervals, farePlanAdd, farePlanDrop, fcDay, fcWhat, historyFrom, indexWords, kk,
-  ladderLine, ladderPlanChanges, loads14, markCounts, ms, offersFarePlan, pc, planWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
-  type BoardKey, type Card, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
+  BOARDS, BOARDS_FOLDED, GROUP_BOARDS, MARKS, MARK_ORDER, PERIODS, SORTS, aircraftRowWords, barTip, capturedLine, cardWords, cashRowWords, changesRowWords, chartIntervals,
+  farePlanAdd, farePlanDrop, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
+  offersFarePlan, pc, planRowWords, planWords, profitAnswer, profitRowWords, routeRowWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
+  type BoardKey, type Card, type CardWords, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
   type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
 } from "./model";
 import {
@@ -57,8 +63,22 @@ import {
   useHubProgress, useProfits, useReviewCards, useRouteDays, useRouteProfit,
 } from "./reads";
 
+/** The fare ladder's line under its heading. */
+const LADDER_NOTE = "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90% (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off";
+/** Each row's one-line note; the board's full words (NOTES) lead it once open. */
+const SHORT: Record<BoardKey | GroupBoardKey, string> = {
+  "The group today": "Each airline's flight profit against its leases, a day",
+  "Growth signals": "Where each airline should grow next, and what to trim",
+  "Main hubs": "Each main hub towards its weekly target",
+  "Flights by day": "Every flight of a day, with its loads",
+  "Profit": "Profit for each day between reports",
+  "Cash, next 14 days": "Cash in hand day by day, and what's safe to order",
+  "Route profit": "Each route's profit, loads and fares",
+  "Aircraft": "Each aircraft's profit a day, less its lease",
+  "Fare changes": "Fares changed in the game, with the load before and after",
+  "Fare plan": "Fare changes to make in the game",
+};
 const NOTES: Record<BoardKey | GroupBoardKey, string> = {
-  "Fare ladder": "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90% (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off",
   "The group today": "from last night's capture · flight profit is before leases; leases and the week-end closing are this week's scheduled payments, per day",
   "Growth signals": "where each airline should grow next, and what to trim · from the nightly capture",
   "Main hubs": "",
@@ -66,6 +86,8 @@ const NOTES: Record<BoardKey | GroupBoardKey, string> = {
   "Profit": "profit for each day between reports = change in cash + order payments that day · cash moves on payment days, so read the average",
   "Cash, next 14 days": "",
   "Route profit": "each captured flight's income minus its flight costs (fuel, handling, on-board, landing and air-traffic fees, maintenance), from the bank statement, matched to its loads and fares · before leases and the week-end closing",
+  "Aircraft": "flight profit a day (its average flight × its scheduled flights) less its lease",
+  "Fare changes": "spotted in the captured economy fares, with the load the day before and after",
   "Fare plan": "fare changes to make in the game · each is spotted in the next capture, with the economy load before and after",
 };
 
@@ -141,7 +163,9 @@ function PerformanceScreen() {
   const handQ = useHandLoads(group, day);
 
   const allFolds: readonly (BoardKey | GroupBoardKey)[] = [...GROUP_BOARDS, ...BOARDS];
-  const [folded, setFolded] = useState<ReadonlySet<BoardKey | GroupBoardKey>>(() => new Set());
+  // every row closed on arrival but the airline's Route profit, and Flights by day when the address names a day
+  const [folded, setFolded] = useState<ReadonlySet<BoardKey | GroupBoardKey>>(() => new Set<BoardKey | GroupBoardKey>([...BOARDS_FOLDED,
+    ...GROUP_BOARDS.filter((k) => !(k === "Flights by day" && new URLSearchParams(loc.search).has("day")))]));
   const [busy, setBusy] = useState(false);
   const toggle = (k: BoardKey | GroupBoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
@@ -214,51 +238,78 @@ function PerformanceScreen() {
   const loadError = firstError(world, airlinesQ, rulesQ, cardsQ, daysQ, ...profitsQ,
     ...(isAirline ? [forecastQ, routeQ, aircraftQ, changesQ, planQ, ladderQ, routeDaysQ]
       : [...laddersQ, signalsQ, progressQ, routesQ, loadsQ, marketsQ, tailsQ, planCardsQ, planLegsQ, launchesQ, airportsQ, dayLoadsQ, handQ]));
-  const board = (k: BoardKey | GroupBoardKey, children: ReactNode, opts: { title?: ReactNode; note?: ReactNode; figure?: string } = {}) => (
-    <FoldBoard key={k} k={k} title={opts.title} note={opts.note ?? NOTES[k]} folded={folded.has(k)} onToggle={() => toggle(k)} figure={opts.figure}>{children}</FoldBoard>
+  const board = (k: BoardKey | GroupBoardKey, children: ReactNode, opts: { title?: ReactNode; lead?: ReactNode; figure?: string; aside?: ReactNode } = {}) => (
+    <FoldBoard key={k} k={k} title={<span className="fbname">{opts.title ?? k}</span>} note={SHORT[k]} aside={opts.aside} folded={folded.has(k)} onToggle={() => toggle(k)}
+      figure={opts.figure}>{(opts.lead ?? NOTES[k]) ? <div className="note fblead">{opts.lead ?? NOTES[k]}</div> : null}{children}</FoldBoard>
+  );
+  const rows = (children: ReactNode) => (
+    <section className="sysrows perfrows" aria-labelledby="perfrows-h">
+      <div className="sysrowsh">
+        <h2 className="tph" id="perfrows-h">The details</h2>
+        <FoldTools onCollapse={() => setFolded(new Set(allFolds))} onExpand={() => setFolded(new Set())} hint="" />
+      </div>
+      {children}
+    </section>
   );
   const cushion = (fc: Forecast | undefined) => (fc?.cushion != null ? fc.cushion : rules && selId != null ? Number(setting(rules, "order_cushion", selId) ?? 0) / 1_000_000 : 0);
   const view = "/performance" + (code ? "/" + code : "");
   const target = (progressQ.data ?? []).find((x) => !x.exempt && x.main_hub)?.target ?? progressQ.data?.[0]?.target ?? 750;
   const exempt = (progressQ.data ?? []).filter((x) => x.exempt).map((x) => named.get(x.airline_id)).filter(Boolean);
-  const card = (c: Card, on: boolean) => (
-    <Scorecard key={c.airline_id} c={c} on={on} color={colorOf(c.airline_id)} days={profitOf.get(c.airline_id)?.days ?? []} wow={wowOf.get(c.airline_id)}
+  const card = (c: Card) => (
+    <Scorecard key={c.airline_id} c={c} color={colorOf(c.airline_id)} days={profitOf.get(c.airline_id)?.days ?? []} wow={wowOf.get(c.airline_id)}
       onPick={() => navigate(itemRoute("performance", { airline: c.code ?? String(c.airline_id) }))} />
   );
+  // each row's count or state
+  const signals = signalsQ.data;
+  const growthAside = signals ? growthWords({ profit_captured: signals.profit_captured, ready: signals.profit_captured ? signals.ready_for_another_flight.length : growthParts?.ready.length ?? 0,
+    raise: signals.raise_fares.length, fix: signals.fix_or_reduce.length, aircraft: signals.aircraft_losing_after_lease.length }) : null;
+  const daysAside = !dayReady ? "Loading…" : `${niceDate(day)} · ${summary.departures} departure${summary.departures === 1 ? "" : "s"}`
+    + (summary.kind === "captured" ? ` · ${summary.soldOut} sold out` : summary.kind === "hand" ? " · by hand" : "");
+  const cashAside = forecastQ.data ? cashRowWords(forecastQ.data, cushion(forecastQ.data)) : null;
+  const tailsAside = aircraftQ.data ? aircraftRowWords(aircraftQ.data) : null;
 
   return (
     <main className="view finance performance" data-screen="performance" data-performance-ready={ready ? "yes" : "no"} data-performance-view={view}
       data-airline={sel?.code ?? ""} data-day={isAirline ? "" : day}>
-      <div className="vh">
-        <p className="vk">{sel ? "Performance" : "Results"}</p>
-        <h1>{sel ? <>{sel.name}</> : "Performance"}</h1>
-        <p>{sel ? "How it's doing, and why: profit, cash for the next 14 days, route profit, aircraft, fare changes and the fare plan."
-          : "How each airline is doing, and why: the scorecards against last week, this Saturday's fare ladder, the growth signals, the main hubs and the flights by day."}</p>
-      </div>
+      {sel ? (
+        <div className="vh perfvh perfal">
+          <p className="vk">Performance</p>
+          <div className="perfttl">
+            <h1 data-perf-name={sel.code ?? ""}><AirlineMark color={colorOf(sel.airline_id)} size={18} />{sel.name}</h1>
+            <Link className="link perfback" to="/performance" data-back>‹ All airlines</Link>
+          </div>
+          <div className="seg rseg perfseg" role="group" aria-label="Airline" data-airlines>
+            {cards.map((c) => (
+              <button type="button" key={c.airline_id} className={c.airline_id === selId ? "on" : ""} aria-pressed={c.airline_id === selId} data-al={c.code ?? ""}
+                onClick={() => navigate(itemRoute("performance", { airline: c.code ?? String(c.airline_id) }))}>
+                <AirlineMark color={colorOf(c.airline_id)} />{c.code ?? c.name}
+              </button>
+            ))}
+          </div>
+          <HeadFigures c={sel} wow={wowOf.get(sel.airline_id)} />
+        </div>
+      ) : (
+        <div className="vh todayvh perfvh">
+          <p className="vk">{isAirline ? "Performance" : "Results"}</p>
+          <div className="todayttl">
+            <h1 className="ansh" data-perf-answer>{!isAirline && cardsQ.data ? profitAnswer(cards) : "Performance"}</h1>
+          </div>
+          <p className="ansp">How each airline is doing, and why: the scorecards against last week, this Saturday's fare ladder, the growth signals, the main hubs and the flights by day.</p>
+        </div>
+      )}
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {isAirline && cardsQ.data && !sel ? <div className="empty">There's no airline {code} in the planner. <Link className="link" to="/performance">All airlines</Link></div> : null}
-      {cardsQ.data && rules ? (sel ? (
+      {cardsQ.data && rules ? (sel ? rows(
         <>
-          <div className="perfnav" data-airlines>
-            <Link className="link" to="/performance" data-back>‹ All airlines</Link>
-            <span className="mleg">
-              {cards.map((c) => (
-                <Link key={c.airline_id} className={"mf" + (c.airline_id === selId ? " on" : "")} to={itemRoute("performance", { airline: c.code ?? String(c.airline_id) })} data-al={c.code ?? ""}>
-                  <AirlineMark color={colorOf(c.airline_id)} />{c.code ?? c.name}
-                </Link>
-              ))}
-            </span>
-          </div>
-          <div className="fgrid one" data-figure="performance: scorecards">{card(sel, true)}</div>
-          <FoldTools onCollapse={() => setFolded(new Set(allFolds))} onExpand={() => setFolded(new Set())} />
           {selProfit ? board("Profit", <ProfitBody p={selProfit} />, {
-            title: <><AirlineMark color={colorOf(sel.airline_id)} />{sel.name}: profit</>, figure: `performance ${sel.name}: profit` }) : null}
+            title: <>{sel.name}: profit</>, figure: `performance ${sel.name}: profit`, aside: profitRowWords(selProfit) }) : null}
           {forecastQ.data ? board("Cash, next 14 days", <ForecastBody fc={forecastQ.data} cushion={cushion(forecastQ.data)} airline={sel.name} />, {
-            note: `captured cash + flight profit from the last day's bank statement − every scheduled lease payment and week-end closing (repeated weekly beyond what the game lists) · an order is "safe" when ${cushion(forecastQ.data).toFixed(1)}M stays in hand at the lowest point afterwards, counting its own weekly lease from 7 days after it arrives (taken as the day it's ordered)`,
-            figure: `performance ${sel.name}: Cash, next 14 days` }) : null}
-          {routeQ.data && aircraftQ.data && changesQ.data && planQ.data ? board("Route profit", (
-            <RouteProfitBody key={sel.airline_id} airline={sel} r={routeQ.data} aircraft={aircraftQ.data} changes={changesQ.data} plan={planQ.data}
+            lead: `captured cash + flight profit from the last day's bank statement − every scheduled lease payment and week-end closing (repeated weekly beyond what the game lists) · an order is "safe" when ${cushion(forecastQ.data).toFixed(1)}M stays in hand at the lowest point afterwards, counting its own weekly lease from 7 days after it arrives (taken as the day it's ordered)`,
+            figure: `performance ${sel.name}: Cash, next 14 days`,
+            aside: cashAside ? (cashAside.low ? <span className="pill warn sm">{cashAside.text}</span> : cashAside.text) : null }) : null}
+          {routeQ.data && changesQ.data && planQ.data ? board("Route profit", (
+            <RouteProfitBody key={sel.airline_id} airline={sel} r={routeQ.data} plan={planQ.data}
               ladder={ladderQ.data} routeDays={routeDaysQ.data ?? []} today={utcDay}
               days={days} onDays={setDays} busy={busy}
               city={(c) => rules.airports.get(c)?.city ?? ""} soldOutMin={String(setting(rules, "growth_sold_out_min_departures", sel.airline_id) ?? "")}
@@ -270,28 +321,37 @@ function PerformanceScreen() {
                 if (!ch) { showMessage("No captured fare for this route yet."); return; }
                 void save([ch]).then((res) => { if (res?.status === "saved") showMessage(`${row.hub}–${row.dest}: +${pct}% economy added to the fare plan.`); });
               }} />
-          ), { figure: `performance ${sel.name}: Route profit` }) : null}
+          ), { figure: `performance ${sel.name}: Route profit`, aside: routeRowWords(routeQ.data) }) : null}
+          {aircraftQ.data ? board("Aircraft", <AircraftBody aircraft={aircraftQ.data} />, {
+            figure: `performance ${sel.name}: Aircraft`,
+            aside: tailsAside ? <>{tailsAside.text}{tailsAside.losing ? <span className="pill warn sm">{tailsAside.losing} losing after its lease</span> : null}</> : null }) : null}
+          {changesQ.data ? board("Fare changes", <FareChangesBody changes={changesQ.data} />, { figure: `performance ${sel.name}: Fare changes`, aside: changesRowWords(changesQ.data.length) }) : null}
           {planQ.data ? board("Fare plan", <FarePlanBody airline={sel.name} plan={planQ.data} busy={busy} onDrop={(p) => void save([farePlanDrop(p)])} />,
-            { figure: `performance ${sel.name}: Fare plan` }) : null}
+            { figure: `performance ${sel.name}: Fare plan`, aside: planRowWords(planQ.data.plan.length) }) : null}
         </>
       ) : !isAirline ? (
         <>
-          <div className="fgrid" data-figure="performance: scorecards">{cards.map((c) => card(c, false))}</div>
-          <FoldTools onCollapse={() => setFolded(new Set(allFolds))} onExpand={() => setFolded(new Set())} />
-          {board("Fare ladder", <FareLadderBoard airlines={airlines} ladders={ladders} busy={busy} onPlan={(a, ladder) => {
-            const ch = w !== undefined ? ladderPlanChanges({ worldId: w, airlineId: a.id, routes: ladder.routes, utcDay, nowMs: Date.now() }) : [];
-            if (!ch.length) { showMessage(`Nothing of ${a.name}'s to put on the fare plan.`); return; }
-            void save(ch).then((res) => { if (res?.status === "saved") showMessage(`${a.name}: ${ch.length} on the fare plan (${ladderLine(ladder.moves)}). Make them in the game; the next capture ticks each off.`); });
-          }} />, { title: "The fare ladder", figure: "performance: fare ladder board" })}
-          {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={groupRows} />, { figure: "performance: the group today" }) : null}
-          {signalsQ.data && growthParts ? board("Growth signals", <GrowthSignals rules={rules} signals={signalsQ.data} ready={growthParts.ready} airlines={airlines} />,
-            { figure: "performance: growth signals" }) : null}
-          {progressQ.data && growthParts ? board("Main hubs", <MainHubs progress={progressQ.data} readiness={growthParts.readiness} airlines={airlines} />, {
-            title: `Main hubs towards ${target}`, figure: "performance: main hubs board",
-            note: `hubs first: each main hub reaches ${target} departures a week before another opens, unless the new one is contested${exempt.length ? ` (${exempt.join(", ")} exempt)` : ""} · lighter bar = plan cards not yet filed · open a line for its hub readiness: how many cities feed each bank`,
-          }) : null}
-          {board("Flights by day", <FlightsByDay day={day} flights={flights} summary={summary} airlines={airlines} loadOf={loadOfFlight} onDay={goDay} loading={!dayReady} />,
-            { figure: "performance: flights by day" })}
+          <div className="fgrid" data-figure="performance: scorecards">{cards.map((c) => card(c))}</div>
+          <section className="perfsec" data-board="Fare ladder" data-figure="performance: fare ladder board" aria-labelledby="perf-ladder-h">
+            <h2 className="perfh" id="perf-ladder-h">The fare ladder</h2>
+            <p className="note perflead">{LADDER_NOTE}</p>
+            <FareLadderBoard airlines={airlines} ladders={ladders} busy={busy} onPlan={(a, ladder) => {
+              const ch = w !== undefined ? ladderPlanChanges({ worldId: w, airlineId: a.id, routes: ladder.routes, utcDay, nowMs: Date.now() }) : [];
+              if (!ch.length) { showMessage(`Nothing of ${a.name}'s to put on the fare plan.`); return; }
+              void save(ch).then((res) => { if (res?.status === "saved") showMessage(`${a.name}: ${ch.length} on the fare plan (${ladderLine(ladder.moves)}). Make them in the game; the next capture ticks each off.`); });
+            }} />
+          </section>
+          {rows(<>
+            {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={groupRows} />, { figure: "performance: the group today", aside: groupTodayWords(groupRows) }) : null}
+            {signalsQ.data && growthParts ? board("Growth signals", <GrowthSignals rules={rules} signals={signalsQ.data} ready={growthParts.ready} airlines={airlines} />,
+              { figure: "performance: growth signals", aside: growthAside }) : null}
+            {progressQ.data && growthParts ? board("Main hubs", <MainHubs progress={progressQ.data} readiness={growthParts.readiness} airlines={airlines} />, {
+              title: `Main hubs towards ${target}`, figure: "performance: main hubs board", aside: hubsWords(progressQ.data),
+              lead: `hubs first: each main hub reaches ${target} departures a week before another opens, unless the new one is contested${exempt.length ? ` (${exempt.join(", ")} exempt)` : ""} · lighter bar = plan cards not yet filed · open a line for its hub readiness: how many cities feed each bank`,
+            }) : null}
+            {board("Flights by day", <FlightsByDay day={day} flights={flights} summary={summary} airlines={airlines} loadOf={loadOfFlight} onDay={goDay} loading={!dayReady} />,
+              { figure: "performance: flights by day", aside: daysAside })}
+          </>)}
         </>
       ) : null) : null}
     </main>
@@ -300,35 +360,70 @@ function PerformanceScreen() {
 
 /** A scorecard: Review's card, with the fleet, flights a day and average load against the same day last week from the
  *  daily history (airline_days), each with an arrow. One change a line: with the arrows, the card's own "+N this week"
- *  (counted from the schedule, so it can differ) is left out; without a day a week ago it stays. Tap it to open the airline. */
-function Scorecard({ c, on, color, days, wow, onPick }: { c: Card; on: boolean; color: string | null; days: ProfitAnswer["days"]; wow: WeekOnWeek | undefined; onPick: () => void }) {
+ *  (counted from the schedule, so it can differ) is left out; without a day a week ago it stays. Tap it to open the
+ *  airline. Since 22 Oct its head is the big profit figure and the name line, the rows two tidy columns (the label, then
+ *  the value with its change in one cell) and "Next order" its footer with its pill. */
+function Scorecard({ c, color, days, wow, onPick }: { c: Card; color: string | null; days: ProfitAnswer["days"]; wow: WeekOnWeek | undefined; onPick: () => void }) {
   const x = cardWords(c);
   const vs = (k: WeekKey) => {
     const ch = wow?.changes[k];
-    return <dd className={"wow" + (ch?.arrow ? " " + ch.arrow : "")} data-wow={k} title={wow?.weekAgo ? `against ${niceDate(wow.weekAgo)}` : undefined}>{wow?.compared && ch ? ch.text : ""}</dd>;
+    return <span className={"wow" + (ch?.arrow ? " " + ch.arrow : "")} data-wow={k} title={wow?.weekAgo ? `against ${niceDate(wow.weekAgo)}` : undefined}>{wow?.compared && ch ? ch.text : ""}</span>;
   };
-  const none = <dd className="wow" />;
   return (
-    <button type="button" className={"fcard" + (on ? " on" : "")} data-final={c.code ?? ""} data-figure={`performance ${c.name}: card`} onClick={onPick}>
-      <div className="fch"><AirlineMark color={color} /><b>{c.name}</b><Spark days={days} /></div>
-      <div className={"fbig" + (x.bigNeg ? " neg" : "")}>{x.big}{c.profit_day != null ? <span className="fu"> a day</span> : null}</div>
-      <div className="fsub">{x.sub}</div>
+    <button type="button" className="fcard" data-final={c.code ?? ""} data-figure={`performance ${c.name}: card`} onClick={onPick}>
+      <div className="fchead">
+        <div className="fch"><AirlineMark color={color} /><b>{c.name}</b><Spark days={days} /></div>
+        <div className={"fbig" + (x.bigNeg ? " neg" : "")}>{x.big}{c.profit_day != null ? <span className="fu"> a day</span> : null}</div>
+        <div className="fsub">{x.sub}</div>
+      </div>
       <dl className="wowl">
-        <dt>Per aircraft</dt><dd>{x.perAircraft}</dd>{none}
-        <dt>Return on fleet</dt><dd>{x.returnOnFleet}</dd>{none}
-        <dt>An aircraft pays back in</dt><dd>{x.payback}</dd>{none}
-        <dt>Funds a new aircraft every</dt><dd>{x.fundsEvery}</dd>{none}
-        <dt>Fleet</dt><dd>{x.fleet}{x.fleetAdded && !wow?.compared ? <> <span className="pos">{x.fleetAdded}</span></> : null}{x.onOrder}</dd>{vs("fleet")}
-        <dt>Flights a day</dt><dd>{x.flights}{x.flightsAdded && !wow?.compared ? <> <span className="pos">{x.flightsAdded}</span></> : null}</dd>{vs("flights")}
-        <dt>Average load, 7 days</dt><dd>{x.load}</dd>{vs("load")}
-        <dt>Next order</dt><dd data-figure="performance: next order per airline">
-          {x.next.kind === "pill" ? <span className="pill warn sm">{x.next.text}</span> : x.next.kind === "dim" ? <span className="dim">{x.next.text}</span> : x.next.text}
-        </dd>{none}
+        <dt>Per aircraft</dt><dd>{x.perAircraft}</dd>
+        <dt>Return on fleet</dt><dd>{x.returnOnFleet}</dd>
+        <dt>An aircraft pays back in</dt><dd>{x.payback}</dd>
+        <dt>Funds a new aircraft every</dt><dd>{x.fundsEvery}</dd>
+        <dt>Fleet</dt><dd><span>{x.fleet}{x.fleetAdded && !wow?.compared ? <> <span className="pos">{x.fleetAdded}</span></> : null}{x.onOrder}</span>{vs("fleet")}</dd>
+        <dt>Flights a day</dt><dd><span>{x.flights}{x.flightsAdded && !wow?.compared ? <> <span className="pos">{x.flightsAdded}</span></> : null}</span>{vs("flights")}</dd>
+        <dt>Average load, 7 days</dt><dd><span>{x.load}</span>{vs("load")}</dd>
       </dl>
       <div className="fwow dim" data-wow-day={wow?.weekAgo ?? ""}>
         {!wow || !wow.day ? "no daily history yet" : wow.compared ? `▲▼ against ${niceDate(wow.weekAgo)}, from the daily history` : `no day a week ago (${niceDate(wow.weekAgo)}) to compare`}
       </div>
+      <div className="ffoot"><span className="ffl">Next order</span><NextOrder x={x} /></div>
     </button>
+  );
+}
+
+function NextOrder({ x }: { x: CardWords }) {
+  return (
+    <span className="ffn" data-figure="performance: next order per airline">
+      {x.next.kind === "pill" ? <span className="pill warn sm">{x.next.text}</span> : x.next.kind === "dim" ? <span className="dim">{x.next.text}</span> : x.next.text}
+    </span>
+  );
+}
+
+/** An airline page's head (22 Oct): its scorecard's figures as four big numbers (profit a day, per aircraft, return on
+ *  fleet, next order), each with its line, and the card's other figures in one line under them, with their changes. */
+function HeadFigures({ c, wow }: { c: Card; wow: WeekOnWeek | undefined }) {
+  const x = cardWords(c);
+  const vs = (k: WeekKey) => {
+    const ch = wow?.changes[k];
+    return wow?.compared && ch?.text ? <> <span className={"wow" + (ch.arrow ? " " + ch.arrow : "")} data-wow={k}>{ch.text}</span></> : null;
+  };
+  return (
+    <div className="perfhead" data-figure="performance: scorecards">
+      <div className="rfigs pfigs" data-final={c.code ?? ""} data-figure={`performance ${c.name}: card`}>
+        <div className="rfig"><span className="rfl">Profit a day</span><b className={x.bigNeg ? "neg" : ""}>{x.big}</b><span className="rfs">{x.sub}</span></div>
+        <div className="rfig"><span className="rfl">Per aircraft</span><b>{c.per_aircraft_day == null ? "—" : kk(c.per_aircraft_day)}</b><span className="rfs">a day · pays back in {x.payback}</span></div>
+        <div className="rfig"><span className="rfl">Return on fleet</span><b>{x.returnOnFleet.replace(" a week", "")}</b><span className="rfs">a week · funds a new aircraft every {x.fundsEvery}</span></div>
+        <div className="rfig pnext"><span className="rfl">Next order</span><b className="pnb"><NextOrder x={x} /></b></div>
+      </div>
+      <p className="perfline">
+        <span>Fleet {x.fleet}{x.fleetAdded && !wow?.compared ? <> <span className="pos">{x.fleetAdded}</span></> : null}{x.onOrder}{vs("fleet")}</span>
+        <span>{x.flights} flights a day{x.flightsAdded && !wow?.compared ? <> <span className="pos">{x.flightsAdded}</span></> : null}{vs("flights")}</span>
+        <span>average load {x.load}, 7 days{vs("load")}</span>
+        <span className="dim" data-wow-day={wow?.weekAgo ?? ""}>{!wow || !wow.day ? "no daily history yet" : wow.compared ? `▲▼ against ${niceDate(wow.weekAgo)}` : `no day a week ago (${niceDate(wow.weekAgo)}) to compare`}</span>
+      </p>
+    </div>
   );
 }
 
@@ -386,14 +481,12 @@ function ForecastBody({ fc, cushion, airline }: { fc: Forecast; cushion: number;
   );
 }
 
-/** Route profit, its aircraft and the fare changes, for the period picked; each route with its fare index (the fare
+/** Route profit for the period picked (its aircraft and fare changes are rows of their own since 22 Oct); each route with its fare index (the fare
  *  ladder's economy row) and its 14-day load sparkline (route_days) since 21 Oct; each route's name opens its route page
  *  since 22 Oct (the search box filters the table to a route). */
-function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDays, today, days, onDays, busy, city, soldOutMin, raisePct, onAdd }: {
+function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onDays, busy, city, soldOutMin, raisePct, onAdd }: {
   airline: Card;
   r: RouteProfitAnswer;
-  aircraft: AircraftRow[];
-  changes: FareChange[];
   plan: FarePlanAnswer;
   ladder: LadderAnswer | undefined;
   routeDays: readonly RouteDayRow[];
@@ -409,7 +502,6 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDay
   const [mark, setMark] = useState<Mark | "">("");
   const [sort, setSort] = useState<RouteSort>("pwk");
   const [q, setQ] = useState("");
-  const [tailsOpen, setTailsOpen] = useState(false);
   if (!r.flights) return <div className="dim">Fills in once {airline.name}'s bank statement has been captured.</div>;
   const cnt = markCounts(r.routes);
   const shown = shownRoutes(r.routes, mark, sort);
@@ -435,8 +527,8 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDay
       </div>
       <div className="note" style={{ margin: "4px 0 10px" }}>{capturedLine(r, soldOutMin)}</div>
       <div className="rpcharts">
-        <div className="rpc"><div className="rpct">Load against profit <span className="dim">· bubble size = flights a week · colour = signal</span></div><Scatter routes={r.routes} /></div>
-        <div className="rpc"><div className="rpct">An average flight <span className="dim">· income and where it goes</span></div><CostChart avg={r.average_flight} /></div>
+        <div className="rpc rpscatter"><div className="rpct">Load against profit <span className="dim">· bubble size = flights a week · colour = signal</span></div><Scatter routes={r.routes} /></div>
+        <div className="rpc rpcost"><div className="rpct">An average flight <span className="dim">· income and where it goes</span></div><CostChart avg={r.average_flight} /></div>
       </div>
       <div className="tscroll">
         <table className="tbl rptbl" id="rp-table" data-figure="performance: route profit table">
@@ -470,48 +562,58 @@ function RouteProfitBody({ airline, r, aircraft, changes, plan, ladder, routeDay
         </table>
       </div>
       {shown.length ? null : <div className="dim">No routes with that signal.</div>}
-      {aircraft.length ? (
-        <>
-          <h4 className="gh">Aircraft <span className="note">flight profit a day (its average flight × its scheduled flights) less its lease</span></h4>
-          <TailChart rows={aircraft} />
-          <details className="gsub" open={tailsOpen} onToggle={(e) => setTailsOpen((e.target as HTMLDetailsElement).open)}>
-            <summary className="dim" data-det="rptails">Aircraft table</summary>
-            <div className="tscroll">
-              <table className="tbl rptbl" data-figure="performance: aircraft table">
-                <tbody>
-                  <tr><th>Aircraft</th><th>Type</th><th className="num">Flights</th><th className="num">Flight profit a day</th><th className="num">Lease a day</th><th className="num">After lease</th><th>Routes</th></tr>
-                  {aircraft.map((t) => (
-                    <tr key={t.registration}>
-                      <td><b>{t.registration}</b></td>
-                      <td className="dim">{t.type}</td>
-                      <td className="num">{t.flights}</td>
-                      <td className="num">{k(t.flight_profit_day)}</td>
-                      <td className="num">{t.lease_day == null ? "—" : k(-t.lease_day)}</td>
-                      <td className={"num" + (t.net_day != null && t.net_day < 0 ? " neg" : "")}><b>{t.net_day == null ? "—" : k(t.net_day)}</b></td>
-                      <td className="dim">{t.routes.join(", ")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        </>
-      ) : null}
-      <h4 className="gh">Fare changes <span className="note">spotted in the captured economy fares, with the load the day before and after</span></h4>
-      {changes.length ? (
-        <div className="tscroll">
-          <table className="tbl rptbl" data-figure="performance: fare changes">
-            <tbody>
-              <tr><th>Route</th><th>From</th><th className="num">Economy fare</th><th className="num">Load before → after</th></tr>
-              {changes.slice(0, 12).map((c, i) => (
-                <tr key={i}><td><b>{c.origin}–{c.dest}</b></td><td>{niceDate(c.date)}</td><td className="num">{Math.round(c.fare_before)} → {Math.round(c.fare_after)}</td>
-                  <td className="num">{pc(c.economy_before)} → {pc(c.economy_after)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : <div className="dim">None yet. Change a fare in the game and it appears here after the next capture, with the load before and after.</div>}
     </>
+  );
+}
+
+/** Each aircraft's profit a day after its lease (a row of its own since 22 Oct, for the period Route profit picks). */
+function AircraftBody({ aircraft }: { aircraft: AircraftRow[] }) {
+  const [tailsOpen, setTailsOpen] = useState(false);
+  const k = (v: number) => (v >= 0 ? "+" : "−") + Math.round(Math.abs(v) * 1000) + "k";
+  if (!aircraft.length) return <div className="dim">No aircraft with captured flights in the period.</div>;
+  return (
+    <>
+      <TailChart rows={aircraft} />
+      <details className="gsub" open={tailsOpen} onToggle={(e) => setTailsOpen((e.target as HTMLDetailsElement).open)}>
+        <summary className="dim" data-det="rptails">Aircraft table</summary>
+          <div className="tscroll">
+            <table className="tbl rptbl" data-figure="performance: aircraft table">
+              <tbody>
+                <tr><th>Aircraft</th><th>Type</th><th className="num">Flights</th><th className="num">Flight profit a day</th><th className="num">Lease a day</th><th className="num">After lease</th><th>Routes</th></tr>
+                {aircraft.map((t) => (
+                  <tr key={t.registration}>
+                    <td><b>{t.registration}</b></td>
+                    <td className="dim">{t.type}</td>
+                    <td className="num">{t.flights}</td>
+                    <td className="num">{k(t.flight_profit_day)}</td>
+                    <td className="num">{t.lease_day == null ? "—" : k(-t.lease_day)}</td>
+                    <td className={"num" + (t.net_day != null && t.net_day < 0 ? " neg" : "")}><b>{t.net_day == null ? "—" : k(t.net_day)}</b></td>
+                    <td className="dim">{t.routes.join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          </details>
+    </>
+  );
+}
+
+/** The fare changes spotted in the captured economy fares, the latest 12 (a row of its own since 22 Oct). */
+function FareChangesBody({ changes }: { changes: FareChange[] }) {
+  if (!changes.length) return <div className="dim">None yet. Change a fare in the game and it appears here after the next capture, with the load before and after.</div>;
+  return (
+    <div className="tscroll">
+      <table className="tbl rptbl" data-figure="performance: fare changes">
+        <tbody>
+          <tr><th>Route</th><th>From</th><th className="num">Economy fare</th><th className="num">Load before → after</th></tr>
+          {changes.slice(0, 12).map((c, i) => (
+            <tr key={i}><td><b>{c.origin}–{c.dest}</b></td><td>{niceDate(c.date)}</td><td className="num">{Math.round(c.fare_before)} → {Math.round(c.fare_after)}</td>
+              <td className="num">{pc(c.economy_before)} → {pc(c.economy_after)}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

@@ -8,7 +8,9 @@
 // docs/specs/2026-10-21-frequencies-and-fares.md §3) the changes that set a route back to its level (its captured fares
 // don't match it) come first, in their own short list ("3 routes off their level"), each with why; the heading counts
 // them with the moves. Every level, move and action is fare_ladder()'s. Colour only for action: a step down in amber, a
-// step up plain. The moves never appear on Today or in Needs attention.
+// step up plain. The moves never appear on Today or in Needs attention. Since 22 Oct (spec
+// docs/specs/2026-10-22-planner-look-performance.md §3) one card per airline: its moves as three counts, the changes to
+// make, Put on the fare plan and See the changes, which opens the lists below the card.
 import { useState } from "react";
 import { Link } from "react-router";
 import type { OurAirline } from "../../data/airlines";
@@ -17,11 +19,14 @@ import { niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import {
-  LADDER_SORTS, changesWords, ladderLine, ladderRows, levelWords, listCut, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
+  LADDER_SORTS, changesWords, ladderRows, levelWords, listCut, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
   type LadderAction, type LadderAnswer, type LadderSort,
 } from "./model";
 
-/** The board: one section per airline, in the airlines' order. */
+/** The board: one card per airline, in the airlines' order, in a two-column grid (one on a phone). Since 22 Oct (spec
+ *  docs/specs/2026-10-22-planner-look-performance.md §3) each card shows only its moves as three counts, how many
+ *  changes to make in the game and its two actions; **See the changes** opens the long lists (the set-back changes,
+ *  the game actions, the routes table with its sorts) right below the card's row. */
 export function FareLadderBoard({ airlines, ladders, busy, onPlan }: {
   airlines: readonly OurAirline[];
   ladders: ReadonlyMap<number, LadderAnswer>;
@@ -33,63 +38,84 @@ export function FareLadderBoard({ airlines, ladders, busy, onPlan }: {
   const notes = ladders.get(shown[0]?.id ?? -1)?.notes ?? [];
   return (
     <div data-figure="performance: fare ladder">
-      {shown.map((a) => <Airline key={a.id} airline={a} ladder={ladders.get(a.id) as LadderAnswer} busy={busy} onPlan={() => onPlan(a, ladders.get(a.id) as LadderAnswer)} />)}
+      <div className="flgrid">
+        {shown.map((a) => <Airline key={a.id} airline={a} ladder={ladders.get(a.id) as LadderAnswer} busy={busy} onPlan={() => onPlan(a, ladders.get(a.id) as LadderAnswer)} />)}
+      </div>
       {notes.length ? <div className="note flnotes">{notes.join(" ")}</div> : null}
     </div>
   );
 }
 
+/** One airline's card and, once opened, its changes beneath (both inside one section with no box of its own, so each
+ *  is a cell of the grid: the opened part takes the whole row under the card's). */
 function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladder: LadderAnswer; busy: boolean; onPlan: () => void }) {
   const [sort, setSort] = useState<LadderSort>("move");
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(false);
   const code = airline.code ?? String(airline.id);
   const rows = ladderRows(ladder.routes, sort);
   const cut = listCut(rows, open);
   const btn = planButton(ladder);
   const { fixes, moves } = splitActions(ladder.actions);
+  const m = ladder.moves;
+  const panel = `ladder-${code}`;
   return (
     <section className="flair" data-ladder={code}>
-      <h4 className="gh"><AirlineMark color={airline.color} />{airline.name} <span className="note" data-ladder-moves={code}>{ladderLine(ladder.moves)}</span>{" "}
-        <span className="note" data-ladder-changes={code}>· {changesWords(ladder.actions.length)}</span></h4>
-      <div className="fltools">
-        <button type="button" className="primary sm" data-ladder-plan={code} disabled={busy || !btn.enabled} onClick={onPlan}>{btn.text}</button>
-        {btn.note ? <span className="dim">{btn.note}</span> : null}
+      <div className={"flcard" + (seen ? " on" : "")}>
+        <h3 className="flh"><AirlineMark color={airline.color} />{airline.name}</h3>
+        <div className="flmoves" data-ladder-moves={code}>
+          <span className="flc"><b>{m.up}</b> up</span><span className="sr">, </span>
+          <span className="flc"><b>{m.hold}</b> hold</span><span className="sr">, </span>
+          <span className={"flc" + (m.down ? " down" : "")}><b>{m.down}</b> down</span>
+        </div>
+        <div className="flchg" data-ladder-changes={code}><span className="sr">· </span>{changesWords(ladder.actions.length)}</div>
+        <div className="fltools">
+          <button type="button" className="primary sm" data-ladder-plan={code} disabled={busy || !btn.enabled} onClick={onPlan}>{btn.text}</button>
+          <button type="button" className="secondary sm" data-ladder-open={code} aria-expanded={seen} aria-controls={panel} onClick={() => setSeen(!seen)}>
+            {seen ? "Hide the changes" : "See the changes"}</button>
+        </div>
+        {btn.note ? <div className="dim flnote">{btn.note}</div> : null}
       </div>
-      <Fixes code={code} fixes={fixes} />
-      <Actions code={code} actions={moves} fixesFirst={fixes.length > 0} />
-      {ladder.routes.length ? (
-        <>
-          <div className="rpf flsort">
-            <span className="rpl">Sort</span>
-            {LADDER_SORTS.map(([k, l]) => <button type="button" key={k} className={"mf" + (sort === k ? " on" : "")} data-ladder-sort={k} onClick={() => setSort(k)}>{l}</button>)}
-          </div>
-          <div data-list={`ladder ${code}`} data-list-rows={rows.length} data-list-shown={cut.shown.length}>
-            <div className="tscroll">
-              <table className="tbl gtbl fltbl" data-figure={`performance ${airline.name}: fare ladder routes`}>
-                <tbody>
-                  <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th>Move</th><th>Why</th></tr>
-                  {cut.shown.map((r) => {
-                    const m = moveWords(r), p = plannedWords(r, (d) => niceDate(d));
-                    return (
-                      <tr key={`${r.route_id}|${r.cabin}`} data-ladder-row={`${r.hub}-${r.dest} ${r.cabin}`} data-move={r.move}>
-                        <td><Link className="link" to={itemRoute("routes", { airline: airline.code, hub: r.hub, dest: r.dest })}><b>{r.hub}–{r.dest}</b></Link></td>
-                        <td>{r.cabin}</td>
-                        <td>{levelWords(r.level, r.steps)}{r.index_matches === false && r.fare_index != null
-                          ? <> <span className="dim" data-ladder-index={`${r.hub}-${r.dest} ${r.cabin}`}
-                              title="each flight of the latest captured day against the route's fare on 21 Oct (or its first, launched later), times the launch level: a flight more than a point off the level">· index {Math.round(r.fare_index)}{r.fix ? " · set back" : ""}</span></> : null}</td>
-                        <td className="num">{soldWords(r)}</td>
-                        <td><span className={m.kind === "down" ? "pill warn sm" : m.kind === "up" ? "flup" : "dim"}>{m.text}</span>{p ? <> <span className="dim">· {p}</span></> : null}</td>
-                        <td className="dim">{r.reason}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {cut.button ? <button type="button" className="link gmore" data-list-more={`ladder ${code}`} aria-expanded={open} onClick={() => setOpen(!open)}>{cut.button}</button> : null}
-          </div>
-        </>
-      ) : <div className="dim">No routes on the ladder yet: they join once they fly.</div>}
+      {seen ? (
+        <div className="flpanel" id={panel} data-ladder-panel={code}>
+          <h4 className="tph"><AirlineMark color={airline.color} />{airline.name}: the changes</h4>
+          <Fixes code={code} fixes={fixes} />
+          <Actions code={code} actions={moves} fixesFirst={fixes.length > 0} />
+          {ladder.routes.length ? (
+            <>
+              <div className="rpf flsort">
+                <span className="rpl">Sort</span>
+                {LADDER_SORTS.map(([k, l]) => <button type="button" key={k} className={"mf" + (sort === k ? " on" : "")} data-ladder-sort={k} onClick={() => setSort(k)}>{l}</button>)}
+              </div>
+              <div data-list={`ladder ${code}`} data-list-rows={rows.length} data-list-shown={cut.shown.length}>
+                <div className="tscroll">
+                  <table className="tbl gtbl fltbl" data-figure={`performance ${airline.name}: fare ladder routes`}>
+                    <tbody>
+                      <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th>Move</th><th>Why</th></tr>
+                      {cut.shown.map((r) => {
+                        const mv = moveWords(r), p = plannedWords(r, (d) => niceDate(d));
+                        return (
+                          <tr key={`${r.route_id}|${r.cabin}`} data-ladder-row={`${r.hub}-${r.dest} ${r.cabin}`} data-move={r.move}>
+                            <td><Link className="link" to={itemRoute("routes", { airline: airline.code, hub: r.hub, dest: r.dest })}><b>{r.hub}–{r.dest}</b></Link></td>
+                            <td>{r.cabin}</td>
+                            <td>{levelWords(r.level, r.steps)}{r.index_matches === false && r.fare_index != null
+                              ? <> <span className="dim" data-ladder-index={`${r.hub}-${r.dest} ${r.cabin}`}
+                                  title="each flight of the latest captured day against the route's fare on 21 Oct (or its first, launched later), times the launch level: a flight more than a point off the level">· index {Math.round(r.fare_index)}{r.fix ? " · set back" : ""}</span></> : null}</td>
+                            <td className="num">{soldWords(r)}</td>
+                            <td><span className={mv.kind === "down" ? "pill warn sm" : mv.kind === "up" ? "flup" : "dim"}>{mv.text}</span>{p ? <> <span className="dim">· {p}</span></> : null}</td>
+                            <td className="dim">{r.reason}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {cut.button ? <button type="button" className="link gmore" data-list-more={`ladder ${code}`} aria-expanded={open} onClick={() => setOpen(!open)}>{cut.button}</button> : null}
+              </div>
+            </>
+          ) : <div className="dim">No routes on the ladder yet: they join once they fly.</div>}
+        </div>
+      ) : null}
     </section>
   );
 }

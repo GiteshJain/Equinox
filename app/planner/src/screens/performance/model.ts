@@ -353,33 +353,77 @@ export function capturedLine(a: RouteProfitAnswer, soldOutMin: number | string):
 /** A route's "a week" figure. */
 export const weekWords = (r: RouteRow): string => (r.flights_week ? (r.profit_week >= 0 ? "+" : "−") + Math.abs(r.profit_week).toFixed(2) + "M" : "—");
 
+export interface ScatterLabel { x: number; y: number; text: string; anchor: "start" | "end" }
 export interface ScatterLayout {
-  W: number; H: number; pl: number; pr: number; pb: number;
+  W: number; H: number; pl: number; pr: number; pb: number; pt: number;
+  /** The load axis: from the lowest load among the routes shown, rounded down to the next 5% (never below 40%), to 100%. */
+  x0: number; x1: number;
   yTicks: { y: number; label: string }[]; xTicks: { x: number; label: string }[]; zeroY: number | null;
+  /** The load axis's title, inside the chart (right-aligned at its right edge, under the ticks). */
+  xTitle: { x: number; y: number; text: string };
   dots: { x: number; y: number; r: number; color: string; title: string }[];
-  labels: { x: number; y: number; text: string }[];
+  labels: ScatterLabel[];
 }
-/** The old rpScatter: economy load against profit a flight, bubble size flights a week, colour the mark. Null without loads. */
+/** How far a 10px label runs, a character at a time (Manrope's average), for keeping labels apart. */
+export const SCATTER_CHAR_W = 6;
+/** The marks off the pattern, labelled whatever their profit (spec docs/specs/2026-10-22-planner-look-performance.md). */
+const OFF_PATTERN: readonly Mark[] = ["fix", "raise", "add"];
+/** The load axis's start: the lowest load rounded down to the next 5%, never below 40%, and at least 5% short of 100%. */
+export function loadAxisFrom(loads: readonly number[]): number {
+  if (!loads.length) return 40;
+  return Math.min(95, Math.max(40, Math.floor(Math.min(...loads) / 5) * 5));
+}
+/** Economy load against profit a flight, bubble size flights a week, colour the mark; null without loads. Since 22 Oct
+ *  (spec docs/specs/2026-10-22-planner-look-performance.md) the load axis is zoomed to the routes shown (loadAxisFrom; a
+ *  load under 40% sits on the axis's left edge), and only the five routes with the most profit a week and the ones off
+ *  the pattern (fix, raise fares, add a flight) are labelled, each placed beside its dot where it overlaps no label
+ *  already placed and stays inside the plot, else dropped. */
 export function scatterLayout(routes: readonly RouteRow[]): ScatterLayout | null {
   const pts = routes.filter((r) => r.economy != null);
   if (!pts.length) return null;
-  const W = 460, H = 240, pl = 48, pr = 14, pt = 12, pb = 32, ys = pts.map((r) => r.profit_per_flight * 1000);
-  const x0 = Math.min(40, Math.floor(Math.min(...pts.map((r) => r.economy as number)) / 10) * 10), x1 = 100;
+  const W = 460, H = 250, pl = 48, pr = 14, pt = 12, pb = 44, ys = pts.map((r) => r.profit_per_flight * 1000);
+  const x0 = loadAxisFrom(pts.map((r) => r.economy as number)), x1 = 100;
   const y0 = Math.min(0, Math.min(...ys)), y1 = Math.max(1, Math.max(...ys) * 1.12);
-  const X = (v: number) => pl + (v - x0) / (x1 - x0) * (W - pl - pr), Y = (v: number) => H - pb - (v - y0) / (y1 - y0) * (H - pt - pb);
+  const X = (v: number) => pl + (Math.max(x0, Math.min(x1, v)) - x0) / (x1 - x0) * (W - pl - pr), Y = (v: number) => H - pb - (v - y0) / (y1 - y0) * (H - pt - pb);
   const maxW = Math.max(1, ...pts.map((r) => r.flights_week || 1));
+  const step = x1 - x0 <= 30 ? 5 : 10;
   const tx: number[] = [];
-  for (let v = x0; v <= 100; v += 10) tx.push(v);
+  for (let v = x0; v <= x1; v += step) tx.push(v);
   const key = (r: RouteRow) => `${r.hub}–${r.dest}`;
-  const lab = new Set([...pts].sort((a, b) => b.profit_week - a.profit_week).slice(0, 4).concat(pts.filter((r) => r.mark === "losing")).map(key));
+  const top = [...pts].sort((a, b) => b.profit_week - a.profit_week).slice(0, 5);
+  const off = pts.filter((r) => OFF_PATTERN.includes(r.mark) && !top.includes(r)).sort((a, b) => b.profit_week - a.profit_week);
+  const dots = pts.map((r) => ({ r, x: X(r.economy as number), y: Y(r.profit_per_flight * 1000), rad: 4 + 10 * Math.sqrt((r.flights_week || 1) / maxW) }));
+  // each label's box (x0, y0, x1, y1); the first place that fits beside its dot wins, in the plot and clear of the others
+  const placed: [number, number, number, number][] = [];
+  const labels: ScatterLabel[] = [];
+  const hit = (a: [number, number, number, number], b: [number, number, number, number]) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  for (const r of [...top, ...off]) {
+    const d = dots.find((x) => x.r === r);
+    if (!d) continue;
+    const text = key(r), w = text.length * SCATTER_CHAR_W, h = 11, gap = d.rad * 0.7 + 3;
+    const tries: { x: number; y: number; anchor: "start" | "end" }[] = [
+      { x: d.x - gap, y: d.y - gap, anchor: "end" }, { x: d.x + gap, y: d.y - gap, anchor: "start" },
+      { x: d.x - gap, y: d.y + gap + h - 2, anchor: "end" }, { x: d.x + gap, y: d.y + gap + h - 2, anchor: "start" },
+    ];
+    for (const t of tries) {
+      const left = t.anchor === "end" ? t.x - w : t.x;
+      const box: [number, number, number, number] = [left - 1, t.y - h + 2, left + w + 1, t.y + 3];
+      if (box[0] < pl || box[2] > W - pr || box[1] < 0 || box[3] > H - pb) continue;
+      if (placed.some((b) => hit(b, box))) continue;
+      placed.push(box);
+      labels.push({ x: t.x, y: t.y, text, anchor: t.anchor });
+      break;
+    }
+  }
   return {
-    W, H, pl, pr, pb,
+    W, H, pl, pr, pb, pt, x0, x1,
     yTicks: [0, 1, 2, 3, 4].map((i) => y0 + (y1 - y0) * i / 4).map((v) => ({ y: Y(v), label: `${Math.round(v)}k` })),
     xTicks: tx.map((v) => ({ x: X(v), label: `${v}%` })),
     zeroY: y0 < 0 ? Y(0) : null,
-    dots: pts.map((r) => ({ x: X(r.economy as number), y: Y(r.profit_per_flight * 1000), r: 4 + 10 * Math.sqrt((r.flights_week || 1) / maxW), color: MARKS[r.mark].color,
+    xTitle: { x: W - pr, y: H - 6, text: "economy load →" },
+    dots: dots.map(({ r, x, y, rad }) => ({ x, y, r: rad, color: MARKS[r.mark].color,
       title: `${key(r)} · economy ${Math.round(r.economy as number)}% · ${Math.round(r.profit_per_flight * 1000)}k a flight · ${r.flights_week} flights a week · ${MARKS[r.mark].label}` })),
-    labels: pts.filter((r) => lab.has(key(r))).map((r) => ({ x: X(r.economy as number) - 6, y: Y(r.profit_per_flight * 1000) - 9, text: key(r) })),
+    labels,
   };
 }
 
@@ -724,10 +768,63 @@ export function sparkWords(values: readonly (number | null)[]): string {
 }
 
 // ---------- the boards: the airline's page, and the group's
-export const BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Fare plan"] as const;
+// Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) each is a row that opens: the airline's page
+// with Route profit open on arrival (Aircraft and Fare changes, under it until then, are rows of their own); the
+// group's all closed (Flights by day open when the address names a day), the fare ladder's cards above them.
+export const BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"] as const;
 export type BoardKey = (typeof BOARDS)[number];
-export const GROUP_BOARDS = ["Fare ladder", "The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
+/** The airline's page opens with these folded. */
+export const BOARDS_FOLDED: readonly BoardKey[] = BOARDS.filter((k) => k !== "Route profit");
+export const GROUP_BOARDS = ["The group today", "Growth signals", "Main hubs", "Flights by day"] as const;
 export type GroupBoardKey = (typeof GROUP_BOARDS)[number];
+
+// ---------- the answers the page heads and rows give (22 Oct)
+const NUMBER_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+/** The group page's title: how many airlines are in profit (profit a day above zero), never a group total (manual §1):
+ *  "Six airlines, all in profit", else "5 of 6 airlines in profit". An airline with no profit read yet isn't in profit. */
+export function profitAnswer(cards: readonly Pick<Card, "profit_day">[]): string {
+  const n = cards.length;
+  if (!n) return "Performance";
+  const up = cards.filter((c) => c.profit_day != null && c.profit_day > 0).length;
+  if (up === n) return n === 1 ? "One airline, in profit" : `${NUMBER_WORDS[n] ?? n} airlines, all in profit`;
+  return `${up} of ${n} airline${n === 1 ? "" : "s"} in profit`;
+}
+const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+/** The group today's row: how many airlines are ahead after leases and the week-end closing. */
+export function groupTodayWords(rows: readonly Pick<GroupRow, "net_day">[]): string {
+  const read = rows.filter((r) => r.net_day != null);
+  if (!read.length) return "nothing captured yet";
+  return `${read.filter((r) => (r.net_day as number) > 0).length} of ${plural(read.length, "airline")} ahead after leases`;
+}
+/** Growth signals' row: each list's count. */
+export function growthWords(x: { profit_captured: boolean; ready: number; raise: number; fix: number; aircraft: number }): string {
+  if (!x.profit_captured) return `${x.ready} ready for another flight, from the load reports`;
+  return `${x.ready} ready for a flight · ${x.raise} raise fares · ${x.fix} fix or reduce · ${plural(x.aircraft, "aircraft", "aircraft")} losing`;
+}
+/** Main hubs' row: how many main hubs have reached their weekly target. */
+export function hubsWords(progress: readonly { main_hub: string | null; exempt: boolean; departures: number | null; target: number }[]): string {
+  const hubs = progress.filter((p) => p.main_hub && !p.exempt);
+  if (!hubs.length) return "no main hub yet";
+  return `${hubs.filter((p) => (p.departures ?? 0) >= p.target).length} of ${plural(hubs.length, "main hub")} at the target`;
+}
+/** The airline page's rows: their counts or states. */
+export function profitRowWords(p: Pick<ProfitAnswer, "profit_day"> | undefined): string {
+  return p?.profit_day == null ? "needs two nights of cash" : `${sg(p.profit_day)} a day, 7-day average`;
+}
+export function cashRowWords(fc: Pick<Forecast, "status" | "lowest"> | undefined, cushion: number): { text: string; low: boolean } {
+  if (!fc || fc.status !== "ok") return { text: "needs a capture", low: false };
+  if (!fc.lowest) return { text: "no payments due", low: false };
+  return { text: `lowest ${fc.lowest.balance.toFixed(2)}M on ${fcDay(fc.lowest.at)}`, low: fc.lowest.balance < cushion };
+}
+export function routeRowWords(r: Pick<RouteProfitAnswer, "flights" | "routes" | "days"> | undefined): string {
+  if (!r || !r.flights) return "needs a bank statement";
+  return `${plural(r.routes.length, "route")} · ${plural(r.flights, "flight")}, ${r.days === 1 ? "last day" : `last ${r.days} days`}`;
+}
+export function aircraftRowWords(rows: readonly Pick<AircraftRow, "net_day">[]): { text: string; losing: number } {
+  return { text: plural(rows.length, "aircraft", "aircraft"), losing: rows.filter((t) => t.net_day != null && t.net_day < 0).length };
+}
+export const changesRowWords = (n: number): string => (n ? `${plural(n, "change")} spotted` : "none yet");
+export const planRowWords = (n: number): string => (n ? `${n} planned` : "nothing planned");
 
 // ---------- the route page (spec docs/specs/2026-10-21-route-page.md §3): a route's story since launch, from
 // route_story() (the database's, private.fig_route_story()); here only worded, compared and laid out. Its connections are

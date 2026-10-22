@@ -266,8 +266,12 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
 
 ## Performance
 *How are we doing, and why?* (since 20 Oct: Review's screen, with Check's growth boards and daily load report). Every
-money figure is the database's. Its boards are open on arrival, the most important first; **Collapse all** and
-**Expand all** fold them, and a board's title folds it.
+money figure is the database's. Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) it's laid out
+as the new Today, Routes and Systems: the group page's title is the answer, how many airlines are in profit ("Six
+airlines, all in profit", or "5 of 6 airlines in profit"; never a group total, manual §1); then the scorecards, the
+fare ladder's cards, and **The details**: the other boards as rows that open, each with a one-line note and its count or
+state, all closed on arrival (Flights by day open when the address names a day). **Collapse all** and **Expand all**
+fold them, and a row's title opens or closes it.
 - **The address:** /planner/performance is the group; /planner/performance/VS one airline's page;
   /planner/performance/PA/JFK-ORD a route's page (since 22 Oct, below; until then that address opened the airline with
   the route profit table filtered to the route, which its search box still does). Old Review addresses
@@ -282,7 +286,9 @@ money figure is the database's. Its boards are open on arrival, the most importa
   average load: the economy load averaged over the 7 days to each day). One change a line: with the arrows, the card's
   own "+N this week" (counted from the schedule's flights that day, so it can differ) isn't shown. An airline with no
   day a week ago says so, shows no arrow and keeps the card's "+N this week". The money figures have no such change: the
-  history keeps no profit a day, and their trend is the sparkline. Tap a scorecard to open the airline.
+  history keeps no profit a day, and their trend is the sparkline. Tap a scorecard to open the airline. The card's head
+  is the name with the sparkline and the big profit figure; its rows are two columns (the label, then the value with
+  its change); **Next order** is its footer, with its pill.
 - **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves, one section per airline. Each cabin of
   each route has a **level**, its fare as a % of the game's default price (the latest the fare plan recorded, else the
   launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin it goes **up** 5 points when every
@@ -290,9 +296,10 @@ money figure is the database's. Its boards are open on arrival, the most importa
   weeks. It holds while a route is under 7 days old, and (since 21 Oct) for 7 days after a route gains a flight ("a
   flight added on 2 Nov: judged at its new size from 9 Nov"; the setting *fare_ladder_capacity_hold_days*), never goes
   more than 20 points above launch for now, and never under launch (nor under the 60% floor where another player flies
-  the pair). Each airline's section has:
-  - its moves in one line, "12 up, 30 hold, 2 down", and in its heading how many changes to make in the game, "24
-    changes in the game" (the set-back changes and the moves);
+  the pair). Each airline has a card (two a row, one on a phone): its moves as three counts (up, hold, down; the down
+  count amber when there is one), how many changes to make in the game ("24 changes in the game": the set-back changes
+  and the moves), **Put on the fare plan (n)** and **See the changes**, which opens the long lists in the row under the
+  card (**Hide the changes** closes them):
   - since 21 Oct, first, **the routes off their level** ("3 routes off their level"), when there are any: a route
     whose captured fares don't match its level (any flight of its latest captured day more than a point off, against
     the route's fare on 21 Oct, when every route was at its launch level) gets a change each way that sets it back to
@@ -346,7 +353,10 @@ money figure is the database's. Its boards are open on arrival, the most importa
 - **Flights by day** (Check's daily load report, renamed): **‹** and **›** move a day, and the day is in the address
   (/planner/performance?day=2026-10-12). Every departure by airline, with its loads by class from the capture (the last
   9 days), or the day's summary from loads typed by hand.
-- **The airline's page:** its scorecard, a button for each airline, then:
+- **The airline's page:** its name as the title with **‹ All airlines**, the airline switch (one segmented control, as
+  on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
+  return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load
+  with their changes in a line under them. Then its boards as rows that open, Route profit open on arrival:
   - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus that
     day's order payments), with the 7-day average and the table of reported days. Cash moves on payment days, so read
     the average.
@@ -356,15 +366,19 @@ money figure is the database's. Its boards are open on arrival, the most importa
     §3). The types safe to order are listed by type.
   - **Route profit:** each captured flight's income minus its flight costs (fuel, handling, on-board, landing and
     air-traffic fees, maintenance), from the bank statement, for the last day, 3 days or 7 days, with the filters,
-    both charts and the table; each route is marked **add a flight**, **raise fares** or **hold**. **+ fare plan** plans
+    both charts and the table. **Load against profit** zooms its load axis to the routes shown (from the lowest load,
+    rounded down to 5%, never below 40%, to 100%) and labels only the five routes with the most profit a week and the
+    ones marked fix, raise fares or add a flight, each beside its dot where it overlaps no other label (else none).
+    **An average flight** (its profit and margin, income and costs as two bars, each part's amount) sits beside it at
+    the same height, or under it on a narrower screen. Each route is marked **add a flight**, **raise fares** or **hold**. **+ fare plan** plans
     a 5% economy rise (the setting *fare_plan_raise_pct*) from the route's latest captured fare. Since 21 Oct each route
     also has its **fare index** (each flight of the latest captured day against the route's fare on 21 Oct, when every
     route was at its launch level, or its first fare for a route launched later, times the launch level: a route still
     at launch reads 100, Ryanair's 85; a level on the fare ladder the fares don't match is named beside it) and a
     **14-day** sparkline of its loads, a bar a day from the daily history (*route_days*: passengers ÷ seats, both
-    directions; lighter under 85%). Each route's name opens its route page (since 22 Oct; Routes until then). Under it,
-    the **aircraft** (each one's flight profit a day, less its lease) and the **fare changes** spotted in the captures,
-    with the load the day before and after.
+    directions; lighter under 85%). Each route's name opens its route page (since 22 Oct; Routes until then).
+  - **Aircraft:** each one's flight profit a day, less its lease, for the period Route profit picks, with its table.
+  - **Fare changes:** the fare changes spotted in the captures, with the load the day before and after.
   - **Fare plan:** the fare changes to make in the game, with **remove**: fare tests, and since 21 Oct the fare ladder's
     moves, each with its move and level ("+5% · up to 105%"). The next capture spots each one: a fare test once half
     its change shows, a ladder's move once its fare moves by the change, within 1%, in its own cabin. It's reviewed
