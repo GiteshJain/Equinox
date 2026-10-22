@@ -15,7 +15,7 @@
 // The old code it follows: the old planner's growthBoard, lastMove, nextMove and moveCandidates (its 4 stars, 5 days and
 // 95%, and its 6 and 48 hours, are settings here), and its suggestSize, bigSize and feedSize (the setting suggested_size).
 import { regionOf } from "./airport.js";
-import { bankOfArrival, bankWindows, isFocus } from "./banks.js";
+import { bankOfArrival, bankWindows, hasBanks, isStation } from "./banks.js";
 import { timedLegs } from "./block.js";
 import { RulesError, pairKey, setting, settingNumber } from "./input.js";
 import { DAY, mod, toLocal } from "./time.js";
@@ -71,7 +71,9 @@ export function moveCandidates(rules: Rules, airlineId: number, facts: MoveFacts
   }
   for (const L of facts.planned) flown.add(pairKey(L.from, L.to));
   for (const b of facts.orderBases) if (b) liveCodes.add(b);
-  const bases = rules.bases.filter((b) => b.airline_id === airlineId && liveCodes.has(b.airport_code));
+  // the airline's hubs and focus cities flown from or ordered for; a station (since 22 Oct) never feeds a big market or
+  // counts as a banked hub
+  const bases = rules.bases.filter((b) => b.airline_id === airlineId && liveCodes.has(b.airport_code) && !isStation(b));
   const live = new Set(bases.map((b) => b.airport_code));
   const banked = new Set(bases.filter((b) => (b.role || "hub") === "hub").map((b) => b.airport_code));
   const minStars = settingNumber(rules, "growth_big_min_stars", airlineId);
@@ -178,7 +180,7 @@ export function hubReadiness(rules: Rules, planned: readonly PlannedCardLeg[], r
   });
   const out: ReadinessRow[] = [];
   for (const base of rules.bases) {
-    if (isFocus(base)) continue;
+    if (!hasBanks(base)) continue;
     const wins = bankWindows(rules, base);
     if (!wins.length) continue;
     const code = base.airport_code;

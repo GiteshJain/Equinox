@@ -16,7 +16,7 @@ import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import { Frequency } from "./Frequency";
 import {
-  disp, hhmm, layoutWords, loadAverage, loadClass, moveWords, nextPair, parseOffset, perDay, priceFor, routeName, serviceFor, summaryOf,
+  bankWords, disp, hhmm, layoutWords, loadAverage, loadClass, moveWords, nextPair, nextPairWords, parseOffset, perDay, priceFor, routeName, serviceFor, summaryOf,
   type AircraftRow, type Airline, type AirportInfo, type Freq, type FreqField, type Load, type MarketRow, type Mode, type OffsetMove, type Route, type RouteField,
 } from "./model";
 import { LoadSummary, Stars } from "./parts";
@@ -114,7 +114,7 @@ export function RouteDetail(p: DetailProps) {
         </div>
         <div className="dsub" data-dsub="2">
           <span data-route-layout>{layoutWords(r)}</span> · service {svc}
-          {base ? ` · banks ${(base.bank_times ?? []).filter((b): b is string => !!b).map((b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)).join(" ")}${z}` : " · no bank at this hub"}
+          {" · " + bankWords(base, (b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)) + (base && base.role !== "station" ? z : "")}
         </div>
         <div className="dsub" data-dsub="3">
           UTC offsets{" "}
@@ -156,7 +156,7 @@ export function RouteDetail(p: DetailProps) {
       ) : null}
       {!p.freqs.length ? (
         <div className="empty" data-figure="routes: next numbers">
-          Not flown yet. Next free numbers at {r.hub}: {nx ? `${nx.out} out / ${nx.back} back` : "—"}{nx && nx.highest ? ` (highest used ${nx.highest})` : ""}.
+          Not flown yet. Next free numbers at {r.hub}: {nextPairWords(nx)}.
         </div>
       ) : <h3 className="rsh">Frequencies</h3>}
       {p.freqs.map((f) => (

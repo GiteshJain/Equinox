@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import {
-  addFrequencyChanges, addRouteChanges, alt, changeFrequency, deleteFrequencyChanges, disp, editRouteChange, endsOf, filtersQuery, freqOf, fromInput, layoutWords, listRows,
+  addFrequencyChanges, addRouteChanges, alt, bankWords, baseLabel, changeFrequency, isTrunk, listBases, nextPair, nextPairWords, pairForNew, pickerBases, deleteFrequencyChanges, disp, editRouteChange, endsOf, filtersQuery, freqOf, fromInput, layoutWords, listRows,
   liveRules, marketChips, moveWords, countWords, filtersOn, baseWords, rowCode, routeName, tailName, newLegacyKey, offsetChanges, parseFilters, parseOffset, priceFor, removeRoutesChanges, routeOf, summaryOf, tailsWords,
   type AircraftRow, type AirportInfo, type Filters, type LegRow, type MarketRow, type RotationRow, type Route, type RouteRow, type RouteSummary,
 } from "./model";
@@ -250,5 +250,58 @@ describe("each action's save, one planner_save() call", () => {
     expect(editRouteChange(ccc, "stars", "9", [...markets.values()])).toEqual({ error: "Stars are 1 to 5" });
     expect(removeRoutesChanges([ccc], "removed in Routes on 2026-10-13")).toEqual([
       { table: "routes", op: "update", key: { id: 3 }, base: T0, values: { removed: true, removed_note: "removed in Routes on 2026-10-13" } }]);
+  });
+});
+
+// Stations (spec docs/specs/2026-10-22-station-role.md): airports flown point-to-point from without making them a base.
+// Test Air gets a station at DDD and one at BBB; its pool runs 100 to 999 (settings station_flight_no_from and _to).
+describe("stations: the base picker, trunks, the numbers and the banks' words", () => {
+  const stationInput: RulesInput = {
+    ...base,
+    settings: { ...base.settings, station_flight_no_from: 100, station_flight_no_to: 999 },
+    airline_bases: [...base.airline_bases,
+      { id: 7, airline_id: 1, airport_code: "DDD", role: "station", is_main: false, bank_times: null, flight_no_from: null, last_flight_no: null, position: 0 },
+      { id: 8, airline_id: 1, airport_code: "BBB", role: "station", is_main: false, bank_times: null, flight_no_from: null, last_flight_no: null, position: 9 }],
+  };
+  const ddd = routeOf(routeRow(20, "DDD", "BBB", 13000), markets), dddLegs = [leg(30, 20, 1, "DDD", "BBB", [1], 300, 600, { flight_no: 103 })];
+  const st = liveRules(buildRules(stationInput), 1, [...routes, ddd], [rot(1, 3), rot(20, 20)], [...legs, ...dddLegs]);
+  const own = st.bases.filter((b) => b.airline_id === 1);
+
+  it("lists stations after the hubs and focus cities, marked station", () => {
+    expect(pickerBases(own).map((b) => b.airport_code)).toEqual(["HUB", "FOC", "DDD", "BBB"]);
+    expect(pickerBases(own).map(baseLabel)).toEqual(["From HUB", "From FOC (focus)", "From DDD (station)", "From BBB (station)"]);
+  });
+  it("never counts a station as a hub or a focus city, so a station pair is never a trunk", () => {
+    const ctx = listBases(own);
+    expect(ctx).toEqual({ focus: ["FOC"], hubs: ["HUB"] });
+    expect(isTrunk(ddd, ctx)).toBe(false);
+    expect(isTrunk(routeOf(routeRow(21, "FOC", "DDD", 1000), markets), ctx)).toBe(false);
+    expect(isTrunk(routes[3] as Route, ctx)).toBe(true);
+  });
+  it("numbers a station's new frequency from the airline's station pool, after the numbers its stations use", () => {
+    const nx = nextPair(st, routeOf(routeRow(22, "BBB", "AAA", 5800), markets));
+    expect(nx).toMatchObject({ base: "BBB", out: 105, back: 106, highest: 103, pool: { from: 100, to: 999 }, full: false });
+    expect(nextPairWords(nx)).toBe("105 out / 106 back (highest used 103)");
+    expect(pairForNew(nx)).toMatchObject({ out: 105, back: 106 });
+    expect(addFrequencyChanges(1, ddd, pairForNew(nx), "S1", 100, "2026-10-22", "abc").slice(1).map((c) => c.values?.flight_no)).toEqual([105, 106]);
+  });
+  it("says when the pool is full, and a new frequency then takes no numbers", () => {
+    const full = liveRules(buildRules({ ...stationInput, settings: { ...stationInput.settings, station_flight_no_to: 104 } }), 1, [...routes, ddd], [rot(1, 3), rot(20, 20)], [...legs, ...dddLegs]);
+    const nx = nextPair(full, ddd);
+    expect(nx?.full).toBe(true);
+    expect(nextPairWords(nx)).toBe("station numbers 100–104 all used");
+    expect(pairForNew(nx)).toBeNull();
+    expect(nextPairWords(null)).toBe("—");
+  });
+  it("words a station's banks as none, and a hub's as before", () => {
+    const show = (t: string) => t;
+    expect(bankWords(st.bases.find((b) => b.airport_code === "DDD"), show)).toBe("station · no banks");
+    expect(bankWords(st.bases.find((b) => b.airport_code === "HUB"), show)).toBe("banks 06:00 14:00 22:00");
+    expect(bankWords(undefined, show)).toBe("no bank at this hub");
+  });
+  it("gives a station route's frequency the station's pill, never off wave", () => {
+    const f = freqOf(st, ddd, rot(20, 20), dddLegs, aircraft);
+    expect(f.wave).toMatchObject({ level: "mute", text: "station · no banks" });
+    expect(f.waveDest).toMatchObject({ level: "mute", text: "station · no banks" });
   });
 });

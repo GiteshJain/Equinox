@@ -5,7 +5,8 @@
 //   - a flight number used twice: one airline's number on two legs leaving on the same local weekday at their origin;
 //   - departures a week per airport, against world_rules.departures_per_airport_week (per player: all the legs given);
 //     Home warns from airport_cap_warning_pct of that cap, and calls it bad at the cap (airportCapWarnings);
-//   - the next free flight-number pair at a base: the next odd number above the highest in use in its block.
+//   - the next free flight-number pair at a base: the next odd number above the highest in use in its block; at a station
+//     (since 22 Oct, manual §2) in the airline's one station pool, station_flight_no_from to station_flight_no_to.
 // The old code it follows: the old planner's attention checks (banAt, flightClashes, the airport caps) and nextPair.
 import { inNightBan, nightBanAt } from "./airport.js";
 import { departuresOf } from "./connections.js";
@@ -144,11 +145,38 @@ export interface NextPair {
   highest: number | null;
   from_schedule: number | null;
   last_used: number | null;
+  /** At a station only: the airline's station pool (station_flight_no_from to station_flight_no_to), and whether it's
+   *  full (no pair left in it: out and back are then past its end and mustn't be used). */
+  pool?: { from: number; to: number };
+  full?: boolean;
+}
+
+/** The next free flight-number pair at a station (manual §2, since 22 Oct): the next odd number above the highest the
+ *  airline uses anywhere in its one station pool (station_flight_no_from to station_flight_no_to, an airline's override
+ *  first), counting every leg of the airline numbered in the pool and every station's last_flight_no, so no two of its
+ *  stations clash. A pool with no pair left says so (full). */
+function nextStationNumbers(rules: Rules, base: BaseRow): NextPair {
+  const al = base.airline_id;
+  const from = settingNumber(rules, "station_flight_no_from", al), to = settingNumber(rules, "station_flight_no_to", al);
+  const inPool = (n: number | null | undefined): n is number => n != null && n >= from && n <= to;
+  let inSchedule = 0;
+  for (const l of rules.legs) if (l.airline_id === al && inPool(l.flight_no)) inSchedule = Math.max(inSchedule, l.flight_no);
+  const manualAll = rules.bases.filter((b) => b.airline_id === al && b.role === "station" && inPool(b.last_flight_no)).map((b) => b.last_flight_no as number);
+  const manual = manualAll.length ? Math.max(...manualAll) : null;
+  const hi = Math.max(inSchedule, manual ?? 0);
+  const start = hi || from;
+  const out = start % 2 === 0 ? start + 1 : start + 2;
+  return {
+    base: base.airport_code, airline_id: al, out, back: out + 1, highest: hi || null, from_schedule: inSchedule || null, last_used: manual,
+    pool: { from, to }, full: out + 1 > to,
+  };
 }
 
 /** The next free flight-number pair at a base: the next odd number above the highest in use in the base's block (the
- *  base's flight_no_from up to the airline's next block), counting the schedule and the base's last_flight_no. */
+ *  base's flight_no_from up to the airline's next block), counting the schedule and the base's last_flight_no. A station
+ *  has no block: its pair comes from the airline's station pool (nextStationNumbers). */
 export function nextFlightNumbers(rules: Rules, base: BaseRow): NextPair {
+  if (base.role === "station") return nextStationNumbers(rules, base);
   const from = base.flight_no_from;
   if (from == null) throw new RulesError(`base ${base.airport_code} has no flight_no_from`);
   const nextFrom = Math.min(...rules.bases.filter((b) => b.airline_id === base.airline_id && b.flight_no_from != null && b.flight_no_from > from).map((b) => b.flight_no_from as number), Infinity);

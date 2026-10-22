@@ -160,7 +160,8 @@ def gather(inp, ident, workdir):
     rules_path = pathlib.Path(workdir) / "rules.json"
     rules_path.write_text(json.dumps(R))
 
-    bases = sorted((b for b in R.get("airline_bases") or [] if b["airline_id"] == aid),
+    # its hubs and focus cities; never a station (since 22 Oct, manual §2: no base; its routes count like any other)
+    bases = sorted((b for b in R.get("airline_bases") or [] if b["airline_id"] == aid and b.get("role") != "station"),
                    key=lambda b: (b.get("position") is None, b.get("position") or 0, b["id"]))
     FA = next((x for x in F.get("airlines") or [] if x.get("airline_id") == aid), {})
     out = {"airline": {"id": aid, "code": a.get("iata_code"), "name": name_of(a), "planner_name": a.get("planner_name"),

@@ -28,7 +28,7 @@ import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
 import {
   SORTS, addFrequencyChanges, baseWords, countWords, filtersOn, rowCode, addRouteChanges, changeFrequency, deleteFrequencyChanges, editRouteChange, filtersQuery, freqOf, isTrunk, listRows,
-  liveRules, marketChips, newLegacyKey, nextPair, offsetChanges, parseFilters, parseOffset, perDay, priceFor, removeRoutesChanges, routeOf, serviceFor,
+  baseLabel, listBases, liveRules, marketChips, newLegacyKey, nextPair, offsetChanges, pairForNew, parseFilters, pickerBases, parseOffset, perDay, priceFor, removeRoutesChanges, routeOf, serviceFor,
   summaryOf, type AircraftRow, type Airline, type Filters, type Freq, type FreqField, type Load, type Route, type RouteField,
 } from "./model";
 import { LoadChip } from "./parts";
@@ -117,11 +117,9 @@ export function Routes() {
   const summaries = useMemo(() => new Map([...freqsByRoute.entries()].map(([id, fs]) => [id, summaryOf(fs)])), [freqsByRoute]);
   const routeLoads = useMemo(() => new Map<number, Load>((loadsQ.data?.routes ?? []).map((l) => [l.route_id, l])), [loadsQ.data]);
   const flightLoads = useMemo(() => new Map<string, Load>((loadsQ.data?.flights ?? []).map((l) => [`${l.airline_id}|${l.flight_no}`, l])), [loadsQ.data]);
-  const bases = useMemo(() => (live && airline ? live.bases.filter((b) => b.airline_id === airline.id) : []), [live, airline]);
-  const ctx = useMemo(() => ({
-    focus: bases.filter((b) => b.role === "focus").map((b) => b.airport_code), hubs: bases.filter((b) => b.role !== "focus").map((b) => b.airport_code),
-    summaries, loads: routeLoads,
-  }), [bases, summaries, routeLoads]);
+  // the airline's hubs and focus cities, then its stations (since 22 Oct); a station is never a hub or a trunk end
+  const bases = useMemo(() => (live && airline ? pickerBases(live.bases.filter((b) => b.airline_id === airline.id)) : []), [live, airline]);
+  const ctx = useMemo(() => ({ ...listBases(bases), summaries, loads: routeLoads }), [bases, summaries, routeLoads]);
   // the bases picked: the address's, else the open route's hub, else the airline's first base (the old planner's ui.hubs)
   const pickedKey = (filters.bases ?? [route?.hub ?? bases[0]?.airport_code].filter((x): x is string => !!x)).join(",");
   const picked = useMemo(() => (pickedKey ? pickedKey.split(",") : []), [pickedKey]);
@@ -171,7 +169,8 @@ export function Routes() {
   const onAddFrequency = () => {
     if (!live || !route || w === undefined) return;
     const nx = nextPair(live, route);
-    void save(addFrequencyChanges(w, route, nx, serviceFor(profilesQ.data ?? [], route), priceFor(live, route), today, newLegacyKey()));
+    if (nx?.full) showMessage(`${route.hub}: ${nx.pool ? `station numbers ${nx.pool.from}–${nx.pool.to}` : "the station pool"} all used, so the new frequency has no numbers yet`);
+    void save(addFrequencyChanges(w, route, pairForNew(nx), serviceFor(profilesQ.data ?? [], route), priceFor(live, route), today, newLegacyKey()));
   };
   const onEdit = (field: RouteField, value: string) => {
     if (!route) return;
@@ -313,7 +312,7 @@ export function Routes() {
               {picked.length > 1 ? <option value={baseValue}>{baseWords(picked)}</option> : null}
               {bases.map((b) => (
                 <option key={b.id} value={b.airport_code} data-hubchip={b.airport_code}>
-                  From {b.airport_code}{b.role === "focus" ? " (focus)" : ""}
+                  {baseLabel(b)}
                 </option>
               ))}
             </select>
@@ -380,7 +379,7 @@ export function Routes() {
               <div className="addform" data-add-route>
                 <b>New route for {airline.name}</b>
                 <select id="r-hub" aria-label="Hub" value={form.hub || picked[0] || ""} onChange={(e) => setForm({ ...form, hub: e.currentTarget.value })}>
-                  <option value="">Hub</option>{bases.map((b) => <option key={b.id} value={b.airport_code}>{b.airport_code}</option>)}
+                  <option value="">Hub</option>{bases.map((b) => <option key={b.id} value={b.airport_code}>{b.airport_code}{b.role === "station" ? " (station)" : ""}</option>)}
                 </select>
                 <input id="r-dest" placeholder="Dest code" aria-label="Destination code" maxLength={3} value={form.dest} onChange={(e) => setForm({ ...form, dest: e.currentTarget.value })} />
                 <input id="r-city" placeholder="City (auto if known)" aria-label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.currentTarget.value })} />

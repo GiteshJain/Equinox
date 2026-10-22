@@ -68,6 +68,17 @@ at launch ("launch (+0% of the default price)", Ryanair −15%); handed the same
 as `fares` (`cases/cardFares.json`). Nothing is stored on the card. `airport` gives an airport's minimum connection time
 and night ban.
 
+**Stations** (since 22 Oct, manual §2; spec `docs/specs/2026-10-22-station-role.md`): an `airline_bases` row with role
+`station` is an airport the airline flies point-to-point routes from without making it a base. `banks.isStation` and
+`banks.hasBanks` say which; a station has no bank windows, `wave` words it "station · no banks" (never off wave), and a
+card's legs there collect no bank. `banks.baseAt` takes the airline's own row at an airport (a station included) and
+never falls back to another airline's station; with no airline given, a hub or focus city there comes first, else a
+station, so the optimiser finds the airline from a station as from a base. `schedule.nextFlightNumbers` gives a station
+the next free pair in the airline's one station pool (`station_flight_no_from` to `station_flight_no_to`), above the
+highest number the airline uses anywhere in the pool and any station's `last_flight_no`, with `pool` and `full` (no pair
+left). Stations never feed big growth candidates or count as banked hubs, and Home's airline cards leave them out of
+the bases. Cases: `cases/stations.json`.
+
 ## The command
 For Claude and the scripts (how to get the input: `scripts/README.md`). `npm run build` writes it to `dist/`.
 

@@ -1,7 +1,7 @@
 // Reference (decision #18, build pull request 12; spec docs/specs/2026-10-14-interline-photos-reference.md): every section
 // of the old planner's Reference (renderRef and renderRefRaw), folding as the old one does (all folded until opened; the
 // open one in the address, /planner/reference/<section>), with the same words and look:
-//   hubs, focus cities and banks; constants; aircraft (with each type's order cabin and, since 15 Oct, an airline's own
+//   hubs, focus cities, stations (since 22 Oct) and banks; constants; aircraft (with each type's order cabin and, since 15 Oct, an airline's own
 //   where it differs: spec docs/specs/2026-10-15-last-leftovers.md §1); configs; markets (market defaults until 21 Oct:
 //   since then each market keeps only its layout, which is edited here; spec docs/specs/2026-10-21-cabins-new-rule.md
 //   §2); service profiles; removed routes with restore and restore all; night bans; game schedules; time zones; storage;
@@ -197,7 +197,7 @@ export function Reference() {
       ) : null}
       {ready && rules ? (
         <div className="ref">
-          {section("hubs", SECTIONS[0][1], "a hub runs banks and connections · a focus city is an aircraft base that serves its own market point-to-point and feeds a hub with trunk flights, so it has no banks of its own · departure times, hub local · MCT in hours · \"last no. used\" = highest flight number already taken in the game, including anything not entered here",
+          {section("hubs", SECTIONS[0][1], "a hub runs banks and connections · a focus city is an aircraft base that serves its own market point-to-point and feeds a hub with trunk flights, so it has no banks of its own · a station is an airport flown point-to-point from without making it a base: no banks, and its numbers come from the airline's station pool (settings station_flight_no_from to station_flight_no_to) · departure times, hub local · MCT in hours · \"last no. used\" = highest flight number already taken in the game, including anything not entered here",
             <HubsTable rules={rules} bases={bases} nameOf={nameOf} wa={wa} busy={busy}
               onField={(b, f, v) => saveOne(baseChange(b, f, v, bases))}
               onMct={(b, v) => w !== undefined && saveOne(mctChange(w, b, v, bases, wa.get(b.airport_code), site))} />)}
@@ -439,26 +439,32 @@ function HubsTable({ rules, bases, nameOf, wa, busy, onField, onMct }: {
           {bases.map((hb, i) => {
             const rb = rules.bases.find((x) => x.id === hb.id);
             const fc = hb.role === "focus";
-            const parents = bases.filter((x) => x.airline_id === hb.airline_id && x.airport_code !== hb.airport_code && x.role !== "focus").map((x) => x.airport_code);
+            // a station (since 22 Oct): no banks, no feeds, no block; its next pair comes from the airline's station pool
+            const st = hb.role === "station";
+            const parents = bases.filter((x) => x.airline_id === hb.airline_id && x.airport_code !== hb.airport_code && x.role !== "focus" && x.role !== "station").map((x) => x.airport_code);
             const parent = bases.find((x) => x.id === hb.parent_base_id)?.airport_code ?? "";
-            const nx = rb && rb.flight_no_from != null ? schedule.nextFlightNumbers(rules, rb) : null;
+            const nx = rb && (rb.flight_no_from != null || st) ? schedule.nextFlightNumbers(rules, rb) : null;
             const wins = rb ? banks.bankWindows(rules, rb) : [];
             const boxes = bankBoxes(hb);
             return (
-              <tr key={hb.id} className={fc ? "focusrow" : ""}>
+              <tr key={hb.id} className={fc ? "focusrow" : st ? "focusrow stationrow" : ""}>
                 <td><b>{hb.airport_code}</b></td>
                 <td>{nameOf(hb.airline_id)}</td>
-                <td><select data-ref={`hubs.${i}.role`} value={fc ? "focus" : "hub"} disabled={busy} onChange={(e) => onField(hb, "role", e.currentTarget.value)}><option value="hub">Hub</option><option value="focus">Focus city</option></select></td>
+                <td><select data-ref={`hubs.${i}.role`} value={fc ? "focus" : st ? "station" : "hub"} disabled={busy} onChange={(e) => onField(hb, "role", e.currentTarget.value)}>
+                  <option value="hub">Hub</option><option value="focus">Focus city</option>
+                  <option value="station" disabled={!!hb.is_main} title={hb.is_main ? "the main hub can't be a station" : "point-to-point routes only: no banks, numbers from the airline's station pool"}>Station</option>
+                </select></td>
                 <td>{fc ? <select data-ref={`hubs.${i}.parent`} value={parent} disabled={busy} onChange={(e) => onField(hb, "parent", e.currentTarget.value)}><Opt list={parents} value={parent} empty="—" /></select> : <span className="dim">—</span>}</td>
-                <td><Box data-ref={`hubs.${i}.block`} value={hb.flight_no_from == null ? "" : String(hb.flight_no_from)} disabled={busy} onSave={(v) => onField(hb, "block", v)} /></td>
+                <td>{st ? <span className="dim" title="a station has no block: its numbers come from the airline's station pool">—</span>
+                  : <Box data-ref={`hubs.${i}.block`} value={hb.flight_no_from == null ? "" : String(hb.flight_no_from)} disabled={busy} onSave={(v) => onField(hb, "block", v)} />}</td>
                 <td><Box data-ref={`hubs.${i}.lastUsed`} value={hb.last_flight_no == null ? "" : String(hb.last_flight_no)} placeholder={nx?.from_schedule ? String(nx.from_schedule) : ""} disabled={busy} onSave={(v) => onField(hb, "lastUsed", v)} /></td>
-                <td className="dim">{nx ? `${nx.out} / ${nx.back}` : ""}</td>
+                <td className="dim">{nx ? (nx.full ? `pool ${nx.pool?.from ?? ""}–${nx.pool?.to ?? ""} full` : `${nx.out} / ${nx.back}`) : ""}</td>
                 <td><Box data-ref={`hubs.${i}.mct`} value={mctHours(wa.get(hb.airport_code))} disabled={busy} onSave={(v) => onMct(hb, v)} /></td>
-                {boxes.map((b, k) => (
+                {boxes.map((b, k) => (st ? <td key={k} className="dim">—</td> : (
                   <td key={k}><Box data-ref={`hubs.${i}.banks.${k}`} value={b} placeholder="hh:mm" disabled={busy || fc} title={fc ? "not used: a focus city times its flights to the banks of the hub it feeds" : undefined}
                     onSave={(v) => onField(hb, `banks.${k}` as BaseField, v)} /></td>
-                ))}
-                <td className="dim">{fc ? "focus city · times to " + (parent || "its hub") + " banks" : wins.map((x) => `B${x.n} ${H(x.arr_start)}–${H(x.arr_end)}`).join(" · ")}</td>
+                )))}
+                <td className="dim">{st ? "station · no banks" : fc ? "focus city · times to " + (parent || "its hub") + " banks" : wins.map((x) => `B${x.n} ${H(x.arr_start)}–${H(x.arr_end)}`).join(" · ")}</td>
               </tr>
             );
           })}
