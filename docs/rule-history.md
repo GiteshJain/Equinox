@@ -261,6 +261,8 @@ Route by route only (From A to B, and From B to A): never a whole base, so route
 
 *Since 21 Oct · why (Gitesh): the route-by-route changes are a few hundred on a Saturday; his decision. The simulogics terms (§4 II) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9): the capture, the salary script and the scanner are allowed there; the fares script is to be recorded the same way once Gitesh confirms it with the owner (spec `docs/specs/2026-10-21-fares-userscript.md`).*
 
+*Changed 21 Oct (Gitesh: "no need to speak to owner"): the manual used to say the fares script "is to be recorded the same way once Gitesh confirms it with the owner". It is now allowed in Gander like the capture, the salary script and the scanner, with no confirmation step.*
+
 The numbers are settings (step, up, down, hold weeks, cap, and since 21 Oct the hold after a new flight, `fare_ladder_capacity_hold_days`).
 
 *Since 21 Oct · why (Gitesh, option A of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at launch fares, no fare had ever been raised, and each 5% step that holds is worth about 5M a week.*

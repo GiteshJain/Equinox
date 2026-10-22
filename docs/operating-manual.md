@@ -434,8 +434,7 @@ Details and open points: `docs/decisions.md`.
   for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. The
   simulogics terms (§4 II) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
-  the capture, the salary script and the scanner are allowed there; the fares script is to be recorded the same way
-  once Gitesh confirms it with the owner.
+  the capture, the salary script, the fares script and the scanner are allowed there; no need to ask the owner.
   Fare moves never appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and the hold
   after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; history: rule-history.md)*
 
