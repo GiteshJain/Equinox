@@ -234,6 +234,10 @@ Ryanair's and Virgin's first (11.0 and 11.2 hours a day on 17 Oct, against Malay
 #### Until 31 October, only new routes
 *From 18 Oct to 31 Oct · why: Gitesh, 18 Oct.*
 
+*Pan Am exempt since 22 Oct (Gitesh, review chat, brief `docs/briefs/2026-10-22-pan-am-speed.md`, option C) · why: Pan
+Am needs to move quickly; 19 of its routes sell out and are marked add a flight while United and American add hundreds
+of flights a week on its pairs. Earlier wording: "Until 31 October, only new routes:" with no exemption.*
+
 #### From 1 to 30 November, every new order fortifies the trunk routes
 *From 1 Nov to 30 Nov · why (Gitesh, 20 Oct): fortify the routes that connect our bases completely.*
 
@@ -280,6 +284,12 @@ A route that gained a frequency in the last 7 days holds for that week, so the l
 A route whose captured fares don't match its level is set back to it: not for a route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).
 
 **For now it goes at most 20 points above launch** (120%, Ryanair 105%): the game's passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads and image show it's safe.
+
+*Pan Am's step 7 points and cap 28 points (128%) since 22 Oct (Gitesh, review chat, brief
+`docs/briefs/2026-10-22-pan-am-speed.md`, option B with 7 points and a 28-point cap instead of the brief's 10 and 40) ·
+why: cash is Pan Am's limit (about 1.27M a day to order with on 22 Oct) and every route sells out at the default fare;
+fares are the one lever that adds cash. Earlier wording: "up 5 points", "down 5 points", "at most 20 points above
+launch (120%, Ryanair 105%)", for every airline.*
 
 A rival starting on the pair pauses that route for a week: Today lists the latest scan's (built 21 Oct with competition analysis).
 

@@ -41,3 +41,7 @@ Cash is Pan Am's limit, and fares are the only lever that adds cash.
 - Loads falling below 95% on the main trunks in the first week of B: slow back to 5 points.
 - The fares userscript not yet confirmed with the world's owner (manual §5): the higher fares can still be set by hand.
 - A cash shortfall from a large order (an A350): E's cushion would matter then.
+
+**22 Oct: B and C, agreed** (Gitesh), with a 7-point step and a 28-point cap (128%) instead of 10 and 140%. Pan Am's
+`settings` rows `fare_ladder_step_pts` 7 and `fare_ladder_cap_pts` 28 added the same day; Pan Am exempt from "until
+31 October, only new routes" (manual §4). Hubs first and the order cushion unchanged.

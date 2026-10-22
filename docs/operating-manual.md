@@ -343,8 +343,8 @@ Details and open points: `docs/decisions.md`.
   *(since 19 Oct; history: rule-history.md)*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *(since Sep)*
-- **Until 31 October, only new routes:** every flight planned from 18 to 31 Oct opens a route the airline doesn't fly
-  yet: no second dailies or extra frequency on existing routes, whatever the growth signals say; until 31 Oct this wins over §1 and §3's frequency rules. Plan cards made before
+- **Until 31 October, only new routes (Pan Am exempt since 22 Oct):** every flight planned from 18 to 31 Oct opens a
+  route the airline doesn't fly yet: no second dailies or extra frequency on existing routes, whatever the growth signals say; until 31 Oct this wins over §1 and §3's frequency rules. Plan cards made before
   18 Oct stay as they are, filed or not (EI-ABS and EI-ABT keep their second dailies). *(from 18 Oct to 31 Oct;
   history: rule-history.md)*
 - **From 1 to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
@@ -416,9 +416,9 @@ Details and open points: `docs/decisions.md`.
   *(since 20–21 Sep; the new flight's rule since 21 Oct; history: rule-history.md)*
 - **The fare ladder, every Saturday.** Each cabin of each route has a **level**: its fare as a % of the game's default
   price (launch: 100%, Ryanair 85%). At the Saturday review, from the week's captured flights in that cabin:
-  - **up 5 points** when every flight sold out (at least 5 departures in the 7 days);
+  - **up 5 points** (Pan Am 7) when every flight sold out (at least 5 departures in the 7 days);
   - **hold** when 90–99% sold out;
-  - **down 5 points** when under 90% sold out, then hold for 2 weeks before climbing again.
+  - **down 5 points** (Pan Am 7) when under 90% sold out, then hold for 2 weeks before climbing again.
 
   New routes start after their first 7 days (§3), and **a route that gained a frequency in the last 7 days holds**
   for that week (`settings.fare_ladder_capacity_hold_days`, 7: its newest rotation under 7 days old, its first older),
@@ -429,7 +429,8 @@ Details and open points: `docs/decisions.md`.
   first, and the fares userscript makes it with the week's changes; not for a route on the fare plan this week, a new
   route, or one not captured since its newest flight launched.
   The level never goes under launch, nor under the 60% floor where another player flies the route. **For now it goes
-  at most 20 points above launch** (120%, Ryanair 105%); the cap is lifted only once loads and image show it's safe.
+  at most 20 points above launch** (120%, Ryanair 105%; **Pan Am 28 points, 128%**, since 22 Oct); the cap is lifted
+  only once loads and image show it's safe. Pan Am's step and cap are its own `settings` rows.
   **A rival starting on the pair pauses that route for a week:** when a world scan of the last 7 days shows a rival
   that started on the pair (none in the scan before it) or added at least `settings.competition_threat_min_weekly` (7)
   departures a week, the route holds until 7 days after that scan ("rival Air China started here on 22 Oct: paused
