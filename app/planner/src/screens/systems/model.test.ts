@@ -4,12 +4,14 @@
 // Aircraft checks board with the one-week checks on 22 Oct); Cabin charges (22 Oct): the board's line, each row's words,
 // Use the game's amount and Today's one item; and Manual entry: cash and fixed costs (the rows the old planner's adapter
 // writes), the nightly log, the load paste reader (the old parseLoadPaste, with the old planner test's case) and the
-// typed loads with their rows. The Systems board's own marks are systems.test.ts's.
+// typed loads with their rows; and Fleet (22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): the board's words,
+// Today's Fleet items and the game's figures for the Tails pop-up. The Systems board's own marks are systems.test.ts's.
 import { describe, expect, it } from "vitest";
 import {
   BOARDS, CABIN_STATE_WORDS, asd, backupWords, cabinAttention, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus, cashChanges,
-  dayStatus, gameAmountChange, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, signedAsd, typedLoads, typedSave,
-  underList, type CabinCharges, type CabinProblem, type CashToday,
+  dayStatus, fleetAttention, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, gameFleetWords, loadsChanges, mergeDay, nightlyLog,
+  parseLoadPaste, pasteSaves, pctWords, seatWords, signedAsd, typedLoads, typedSave, underList, type CabinCharges, type CabinProblem, type CashToday,
+  type FleetAircraft, type FleetChecks,
 } from "./model";
 
 describe("Capture", () => {
@@ -37,7 +39,7 @@ describe("the boards", () => {
     // the Cabins board went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1); Cabin charges came on 22 Oct
     // (spec docs/specs/2026-10-21-tidy-ups.md §3), after Capture; Aircraft checks went on 22 Oct (spec
     // docs/specs/2026-10-22-remove-aircraft-checks.md)
-    expect(BOARDS).toEqual(["Capture", "Cabin charges", "Manual entry"]);
+    expect(BOARDS).toEqual(["Capture", "Fleet", "Cabin charges", "Manual entry"]);
   });
 });
 
@@ -179,5 +181,62 @@ describe("loads by hand", () => {
     const d = { done: true, source: "capture", f: { "Pan American|1001": 93, "Pan American|1005": 61, "Pan American|1009": 97, "Kingfisher|1": 50 } };
     expect(underList(d, "Pan American")).toBe("1005 61, 1001 93");
     expect([dayStatus(d), dayStatus({ done: true, f: {} }), dayStatus(null)]).toEqual(["captured", "entered by hand", "nothing yet"]);
+  });
+});
+
+describe("Fleet (22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3)", () => {
+  const ac = (registration: string, x: Partial<FleetAircraft> = {}): FleetAircraft => ({
+    registration, aircraft_id: null, base: "JFK", fleet: "JFK", type: "Airbus A321NEO Light", nickname: null, from: "JFK", to: null, flight: null,
+    age_years: 0.1, condition_pct: 97, maintenance_pct: 120, y: 180, c: 15, f: 0, pilots: true, owned: false, contract: "active",
+    captured_at: "2026-10-22T23:10:00.000Z", problems: [], ...x,
+  });
+  const checks = (x: Partial<FleetChecks> = {}): FleetChecks => ({
+    night: "2026-10-22",
+    counts: { maintenance: 1, crew: 1, cabin: 1, not_in_planner: 1, not_in_game: 1, problems: 5 },
+    problems: [
+      { kind: "maintenance", airline_id: 1, code: "PA", registration: "N003AW", base: "JFK", aircraft_id: 13, words: "N003AW (JFK): maintenance 0.0%, condition 83%" },
+      { kind: "crew", airline_id: 1, code: "PA", registration: "N004AW", base: "JFK", aircraft_id: 14, words: "N004AW (JFK): no pilots" },
+      { kind: "cabin", airline_id: 1, code: "PA", registration: "N001AW", base: "JFK", aircraft_id: 11, words: "N001AW (JFK): seats 180/15/0 in the game, 172/15/0 in the planner (321-LEI)" },
+      { kind: "not_in_planner", airline_id: 1, code: "PA", registration: "N099AW", base: "JFK", aircraft_id: null, words: "N099AW: in the game (JFK fleet), not in the planner" },
+      { kind: "not_in_game", airline_id: 1, code: "PA", registration: "N013AW", base: "ORD", aircraft_id: 23, words: "N013AW (ORD): in the planner, not on the game's fleet pages" },
+    ],
+    airlines: [{ airline_id: 1, code: "PA", name: "Pan Am", maintenance_min_pct: 100, pages: { read: 3, ok: 3, expected: 3, all_ok: true }, at: "2026-10-22T23:10:00.000Z",
+      aircraft: [ac("N003AW", { aircraft_id: 13, maintenance_pct: 0, condition_pct: 83, problems: ["maintenance"] }), ac("N002AW", { aircraft_id: 12, maintenance_pct: 114.7, condition_pct: 95 })] }],
+    ...x,
+  });
+  it("the board's line: the night and each kind's count, or nothing to look at, or nothing captured yet", () => {
+    expect(fleetCountsWords(checks())).toBe("the night of 22 Oct: 1 maintenance · 1 no pilots · 1 cabin · 1 not in the planner · 1 not in the game");
+    expect(fleetCountsWords(checks({ counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, problems: 0 }, problems: [] })))
+      .toBe("the night of 22 Oct: nothing to look at");
+    expect(fleetCountsWords(checks({ night: null }))).toBe("no fleet pages captured yet (Capture all airlines 1.6 reads them each evening)");
+  });
+  it("each aircraft's cells: where it is, the percentages as the game shows them, the seats, the pages", () => {
+    expect(fleetWhere(ac("N001AW", { from: "ORD", to: "JFK", flight: "AW 1003" }))).toBe("ORD → JFK · AW 1003");
+    expect(fleetWhere(ac("N004AW", { from: "FRA" }))).toBe("at FRA");
+    expect(fleetWhere(ac("N005AW", { from: null }))).toBe("—");
+    expect([pctWords(103.8, 1), pctWords(0, 1), pctWords(83, 0), pctWords(null, 1)]).toEqual(["103.8%", "0.0%", "83%", "—"]);
+    expect(seatWords(ac("N001AW"))).toBe("180/15/0");
+    expect(seatWords(ac("N001AW", { c: null }))).toBe("180/?/0");
+    expect(fleetPagesWords({ pages: { read: 2, ok: 1, expected: 2, all_ok: false } })).toBe("1 of 2 fleet pages ok");
+    expect(fleetPagesWords({ pages: { read: 1, ok: 1, expected: 1, all_ok: true } })).toBe("1 of 1 fleet page ok");
+    expect(fleetPagesWords({ pages: null })).toBe("no fleet pages that night");
+  });
+  it("Today's items: one per problem in fleet_checks()'s order, maintenance and crew urgent, keyed by kind, aircraft and night", () => {
+    expect(fleetAttention(checks()).map((a) => [a.key, a.cls, a.screen, a.tail ?? null, a.text])).toEqual([
+      ["fleet|maintenance|N003AW|2026-10-22", "bad", "tails", "N003AW", "N003AW (JFK): maintenance 0.0%, condition 83%"],
+      ["fleet|crew|N004AW|2026-10-22", "bad", "tails", "N004AW", "N004AW (JFK): no pilots"],
+      ["fleet|cabin|N001AW|2026-10-22", "warn", "tails", "N001AW", "N001AW (JFK): seats 180/15/0 in the game, 172/15/0 in the planner (321-LEI)"],
+      ["fleet|not_in_planner|N099AW|2026-10-22", "warn", "systems", null, "N099AW: in the game (JFK fleet), not in the planner"],
+      ["fleet|not_in_game|N013AW|2026-10-22", "warn", "tails", "N013AW", "N013AW (ORD): in the planner, not on the game's fleet pages"],
+    ]);
+    expect(fleetAttention(null)).toEqual([]);
+    expect(fleetAttention(checks({ night: null }))).toEqual([]);
+  });
+  it("the Tails pop-up: the game's maintenance and condition on the latest night, marked under the airline's limit", () => {
+    expect(gameFleetWords(checks(), 13, "N003AW")).toEqual({ text: "0.0% maintenance · 83% condition · 22 Oct", bad: true });
+    expect(gameFleetWords(checks(), 12, "N002AW")).toEqual({ text: "114.7% maintenance · 95% condition · 22 Oct", bad: false });
+    expect(gameFleetWords(checks(), 99, "n002aw")?.text).toBe("114.7% maintenance · 95% condition · 22 Oct");
+    expect(gameFleetWords(checks(), 98, "N777AW")).toBeNull();
+    expect(gameFleetWords(null, 13, "N003AW")).toBeNull();
   });
 });

@@ -3,11 +3,15 @@
 // base, block hours a day, legs a week and maintenance; every issue, or "schedule clean"; its flights, one line per
 // number; Open in Tails. The one-week check's line and Mark checked went on 22 Oct (spec
 // docs/specs/2026-10-22-remove-aircraft-checks.md; manual §1 has none since 15 Oct). Every figure is the planning
-// library's on the start's rules.
+// library's on the start's rules, but one: since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3) the game's own
+// maintenance and condition from the latest night's fleet pages (fleet_checks()) beside the planner's maintenance, so the
+// two can be compared.
 import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { tails, type Rules } from "@rules";
 import { useOurAirlines, useWorld } from "../../data/reads";
+import { gameFleetWords } from "../systems/model";
+import { useFleetChecks } from "../systems/reads";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { itemRoute } from "../screens";
 import { Issues, MaintPill } from "./AircraftPage";
@@ -20,6 +24,7 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
   const airlinesQ = useOurAirlines(w);
   const aircraftQ = useTailsAircraft(w);
   const configsQ = useConfigs(w);
+  const fleetQ = useFleetChecks(w);
   const close = useRef(onClose);
   useEffect(() => { close.current = onClose; });
   useEffect(() => {
@@ -39,6 +44,7 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
   const name = airline ? airline.planner_name ?? airline.public_name ?? airline.game_name ?? "" : "";
   const type = typeName(rules, a.aircraft_type_id), config = configCode(configs, a.cabin_config_id);
   const flights = popupFlights(rules, fig.week);
+  const game = gameFleetWords(fleetQ.data, a.id, a.registration);
   const open = () => { onClose(); navigate(itemRoute("tails", { tail: a.registration })); };
 
   return (
@@ -55,6 +61,8 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
             <div><span className="dim">Block a day</span><b>{fig.blockDay.toFixed(1)} h</b></div>
             <div><span className="dim">Legs a week</span><b>{fig.legsWk}</b></div>
             <div><span className="dim">Maintenance</span><b><MaintPill fig={fig} /></b></div>
+            <div data-figure="tails: pop-up game"><span className="dim">In the game</span><b>{game ? (game.bad ? <span className="pill bad sm">{game.text}</span> : game.text)
+              : <span className="dim">{fleetQ.data ? "not on the latest fleet pages" : fleetQ.error ? "couldn't read" : "…"}</span>}</b></div>
           </div>
           <Issues issues={issues} />
           {flights.length ? (

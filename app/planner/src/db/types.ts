@@ -585,6 +585,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"game_fleet": {
+                  Row: {
+                    "aircraft_id": number | null,"age_years": number | null,"airline_id": number,"capture_day": string,"captured_at": string,"condition_pct": number | null,"contract_status": string | null,"fleet_game_id": number | null,"fleet_name": string | null,"flight": string | null,"id": number,"location_from": string | null,"location_to": string | null,"maintenance_pct": number | null,"nickname": string | null,"owned": boolean | null,"pilots": boolean | null,"registration": string,"seats_c": number | null,"seats_f": number | null,"seats_y": number | null,"type_name": string | null,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "aircraft_id"?: number | null,"age_years"?: number | null,"airline_id": number,"capture_day": string,"captured_at": string,"condition_pct"?: number | null,"contract_status"?: string | null,"fleet_game_id"?: number | null,"fleet_name"?: string | null,"flight"?: string | null,"id"?: never,"location_from"?: string | null,"location_to"?: string | null,"maintenance_pct"?: number | null,"nickname"?: string | null,"owned"?: boolean | null,"pilots"?: boolean | null,"registration": string,"seats_c"?: number | null,"seats_f"?: number | null,"seats_y"?: number | null,"type_name"?: string | null,"world_id": number
+                  }
+                  Update: {
+                    "aircraft_id"?: number | null,"age_years"?: number | null,"airline_id"?: number,"capture_day"?: string,"captured_at"?: string,"condition_pct"?: number | null,"contract_status"?: string | null,"fleet_game_id"?: number | null,"fleet_name"?: string | null,"flight"?: string | null,"id"?: never,"location_from"?: string | null,"location_to"?: string | null,"maintenance_pct"?: number | null,"nickname"?: string | null,"owned"?: boolean | null,"pilots"?: boolean | null,"registration"?: string,"seats_c"?: number | null,"seats_f"?: number | null,"seats_y"?: number | null,"type_name"?: string | null,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "game_fleet_aircraft_fkey"
+      columns: ["aircraft_id","world_id"]
+isOneToOne: false
+      referencedRelation: "aircraft"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "game_fleet_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "game_fleet_world_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"game_flights": {
                   Row: {
                     "aircraft_id": number | null,"airline_id": number,"arr_at": string | null,"arr_local": string | null,"atc": number | null,"bus_fare": number | null,"bus_pax": number | null,"bus_pct": number | null,"bus_seats": number | null,"cargo_cap": number | null,"cargo_income": number | null,"cargo_pct": number | null,"cargo_rate": number | null,"cargo_units": number | null,"cost_total": number | null,"created_at": string,"dep_at": string | null,"dep_local": string | null,"dest_code": string | null,"eco_fare": number | null,"eco_pax": number | null,"eco_pct": number | null,"eco_seats": number | null,"flight_no": number | null,"fst_fare": number | null,"fst_pax": number | null,"fst_pct": number | null,"fst_seats": number | null,"fuel": number | null,"game_date": string | null,"handling": number | null,"id": number,"income_total": number | null,"landing": number | null,"loads_captured_at": string | null,"maint_registration": string | null,"maintenance": number | null,"money_captured_at": string | null,"onboard": number | null,"origin_code": string | null,"pax_income": number | null,"posted_at": string | null,"profit": number | null,"registration": string | null,"route_id": number | null,"statement_blk": number | null,"statement_pax": number | null,"statement_routes": number | null,"status": string | null,"updated_at": string,"world_id": number
@@ -1745,6 +1777,9 @@ isOneToOne: false
                            },
 "fare_plan_status":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
+                           },
+"fleet_checks":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            },
 "growth_signals":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json

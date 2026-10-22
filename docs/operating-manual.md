@@ -79,7 +79,7 @@ Details and open points: `docs/decisions.md`.
   link to run in the SQL editor the same way.** *(since 12 Oct; history: rule-history.md)*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
   the fares userscript on the saved fares form and answer; the capture's world scan against `gscan.py` on the same
-  saved pages; the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails,
+  saved pages; the capture's fleet pages on a saved fleet page; the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails,
   the planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its
   optimiser against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures;
   every website page, the planner's sign-in at `/planner/` and the planner's addresses). When the database, the planner
@@ -492,6 +492,12 @@ Details and open points: `docs/decisions.md`.
     broken, capture that airline again** while the game's last 24 hours still hold the loads. A saved evening of each
     page kind is tested on every pull request. No alert outside the planner: a missed evening still shows on Today after
     26 hours. *(since 14 Oct; history: rule-history.md)*
+  - **The fleet pages:** after each airline's other pages, the capture reads every fleet of the airline (the fleet list
+    and each fleet with aircraft) and checks each page as it arrives: short with no aircraft rows, broken when it
+    doesn't read; Today's Fleet group then lists the game's maintenance under `settings.maintenance_min_pct`, no
+    pilots, seats that don't match the planner's cabin, and an aircraft in the game but not the planner or in service
+    in the planner but missing from that night's fleet pages (only when every fleet page of its airline came in ok).
+    *(since 22 Oct)*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *(since 10 Oct; history:
   rule-history.md)*

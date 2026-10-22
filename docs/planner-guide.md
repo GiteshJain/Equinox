@@ -92,6 +92,9 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   the item's own words, a line of detail and its button:
   - **Order now:** each airline that can order now ("Virgin can safely order: A321neo, E195"), with **Cash, next 14
     days**. The first is the one dark card with the amber button: the thing to do first;
+  - **Fleet · maintenance** (since 22 Oct): when the game's fleet pages show an aircraft's maintenance under the limit
+    (100%, *maintenance_min_pct*), the Fleet group's card comes next, the most urgent kind after order now ("N003AW
+    (JFK): maintenance 0.0%, condition 83%"); the dark card when nothing can order;
   - **Due** a day (or **Overdue**): each to-do due today or before, with **Open the to-do**;
   - **To file:** each aircraft that has arrived with a plan card, with **File into planner**;
   - **Needs attention:** the rest, a card per kind: one item says its words and opens where it's fixed; more say the
@@ -142,6 +145,12 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   - **Cabin charges** (since 22 Oct): one amber item when a cabin charge on the game's bank statement doesn't match the
     first fit filing logged ("2 cabin charges don't match what we logged"), linking to Systems' Cabin charges board,
     which opens on arrival. Dismissed, it comes back when a new one appears.
+  - **Fleet** (since 22 Oct): what the evening capture's fleet pages showed on the latest night (*fleet_checks()*),
+    one item per aircraft, worst first: the game's maintenance under the limit, with its condition, and no pilots (red),
+    then seats that don't match the aircraft's cabin in the planner or no cabin in the planner, an aircraft in the game
+    the planner doesn't have, and an aircraft in service in the planner missing from the game's fleet pages (listed only
+    when every fleet page of that airline came in ok that night; amber). An aircraft the planner has opens its pop-up;
+    one it doesn't opens Systems' Fleet board. Dismissed, a problem comes back the next night while it lasts.
 
   **×** dismisses an item and **show again** (under the tiles) brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
@@ -238,7 +247,9 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
   as a round trip, launched today, and then opens the aircraft.
 - **The aircraft pop-up** (from Today's needs attention or a frequency's aircraft on Routes): its base, block hours a
-  day, legs a week, maintenance, every issue and its flights, with **Open in Tails**.
+  day, legs a week, maintenance, every issue and its flights, with **Open in Tails**. Since 22 Oct **In the game**
+  beside the maintenance: the game's own maintenance and condition from the latest night's fleet pages ("103.8%
+  maintenance · 83% condition · 22 Oct", red under the limit), so the planner's figure can be compared with the game's.
 - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
 - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
   distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
@@ -480,18 +491,19 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
 ## Systems
 *Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board and Capture, and Review's
 Manual entry; Check's Cabins board went on 21 Oct: we don't refit, and the plan card suggests the cabin on Tails;
-Cabin charges came on 22 Oct, and the Aircraft checks board went that day: manual §1 has no one-week checks). Laid
+Cabin charges and Fleet came on 22 Oct, and the Aircraft checks board went that day: manual §1 has no one-week checks). Laid
 out since 22 Oct short and answer-first, as Today (spec docs/specs/2026-10-22-planner-look-systems.md):
 - **The answer is the title:** **All systems good** when every line of the board is green, else how many need a look
   ("2 need a look"), with how many are red and amber under it. **checked at 04:25 UTC** sits beside it as a small pill.
 - **The board's lines as tiles** (three a row, two in a narrow window, one on a phone), red first, then amber, then
   green: each with its mark as a dot and a word (**good**, **check**, **problem**), its name, its words and when.
 - **The evening capture as one table:** a row per airline with its mark, when its latest page came, and its verdict
-  (**all good**, **short**, **broken**, **not checked**) with what came in short or broken.
-- **The details** under them, as large rows: Capture, Cabin charges and Manual entry, each with a one-line note and
+  (**all good**, **short**, **broken**, **not checked**) with what came in short or broken; since 22 Oct its fleet pages
+  too ("fleet 3 pages, 21 aircraft", or the fleet page that came in short or broken).
+- **The details** under them, as large rows: Capture, Fleet, Cabin charges and Manual entry, each with a one-line note and
   its count or state ("all 6 complete", "27 fits, no problems", "2 to look at"). Tap a
-  row to open its board right below it; all start closed, except Cabin charges when Today's item sent you
-  (#cabin-charges). **Expand all** and **Collapse all** open or close every one.
+  row to open its board right below it; all start closed, except Cabin charges or Fleet when Today's item sent you
+  (#cabin-charges, #fleet). **Expand all** and **Collapse all** open or close every one.
 
 Each button is saved on its own, as one change.
 - **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when:
@@ -520,6 +532,13 @@ Each button is saved on its own, as one change.
 - **Capture:** what the capture collected for each airline, and when (UTC), with **Reload** and the backup's line. If
   an airline is missing, press the capture again. Each page is checked as it arrives (#21): the capture's panel in the
   game ends each airline with "all good" or what came in short or broken, and the Systems board above shows the same.
+- **Fleet** (since 22 Oct; spec docs/specs/2026-10-22-fleet-capture.md): the latest night's fleet of each airline as the
+  game's fleet pages showed it (*fleet_checks()*, from *game_fleet*). Its title says the night and what needs a look
+  ("the night of 22 Oct: 1 maintenance · 1 cabin"). Per airline a table: each aircraft's registration and base, type,
+  where it was ("ORD → JFK · AW 1003", or "at FRA" between flights), condition, maintenance, seats Y/C/F and pilots,
+  with the maintenance under the limit, the seats that don't match the planner's cabin and no pilots marked, and an
+  aircraft the planner doesn't have marked **not in the planner**; under it, an aircraft in service the pages didn't
+  have (only when every fleet page of the airline came in ok), and how many of its fleet pages came in ok.
 - **Cabin charges** (since 22 Oct; manual §4): each first cabin fit filing logged since *cabin_charge_check_from* (18
   Oct, the first day the plan card chose the cabin; earlier fits include refits), against the game's "Installation of
   cabin interior (<reg>)" line on the bank statement (pilot training, which comes with an order, is left out). Its title

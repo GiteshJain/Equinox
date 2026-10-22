@@ -18,11 +18,13 @@ export interface AttItem {
 }
 
 /** The kinds, in the old planner's order, with their names on screen (One-week checks due went on 22 Oct, spec
- *  docs/specs/2026-10-22-remove-aircraft-checks.md). */
+ *  docs/specs/2026-10-22-remove-aircraft-checks.md; Fleet, the game's own figures from the evening capture's fleet pages,
+ *  came the same day, spec docs/specs/2026-10-22-fleet-capture.md). */
 export const ATT_KIND = {
   capture: "Capture", backup: "Backup", jobs: "Nightly jobs", todo: "To-dos", maint: "Maintenance",
   turn: "Turns and positions", ban: "Night bans", clash: "Flight numbers used twice", cap: "Airport departure caps", route: "Routes to fix",
   order: "Can order", monthly: "Monthly checks", interline: "Interline", threat: "Rival moves", cabin: "Cabin charges",
+  fleet: "Fleet",
 } as const;
 export type AttKind = keyof typeof ATT_KIND | "other";
 

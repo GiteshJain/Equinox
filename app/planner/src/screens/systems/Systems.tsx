@@ -8,7 +8,10 @@
 //   - Manual entry (ManualEntry.tsx): cash and fixed costs, the nightly log, loads by hand (Review's);
 //   - Cabin charges (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): each first cabin fit logged against the
 //     game's charge (cabin_charges()), the problems listed with Use the game's amount on a differing one; open on arrival
-//     when Today's item sent you (#cabin-charges).
+//     when Today's item sent you (#cabin-charges);
+//   - Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): the latest night's fleet as the game showed it
+//     (fleet_checks()), a table per airline (registration and base, type, location, condition, maintenance, seats,
+//     pilots), each problem marked; open on arrival when Today's item sent you (#fleet).
 // The Cabins board (each aircraft's cabin against its markets, with Refitted to, Keep as is and Show again; Check's) went
 // on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1): the cabin is chosen with each order, and the plan card
 // suggests it (Tails). The Aircraft checks board (the one-week checks, with Mark checked and the aircraft pop-up it
@@ -35,29 +38,33 @@ import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { refreshFigures } from "../performance/reads";
 import { ManualEntry } from "./ManualEntry";
 import {
-  BOARDS, CABIN_STATE_WORDS, CAPTURE_KINDS, backupWords, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus,
-  gameAmountChange, signedAsd, type BoardKey, type CabinCharges, type CabinProblem,
+  BOARDS, CABIN_STATE_WORDS, CAPTURE_KINDS, FLEET_KIND_WORDS, backupWords, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell,
+  captureStatus, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, nightWords, pctWords, seatWords, signedAsd, type BoardKey,
+  type CabinCharges, type CabinProblem, type FleetChecks,
 } from "./model";
-import { useBackupLine, useCabinCharges, useCapture, useCashLog, useSystemStatus } from "./reads";
+import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useSystemStatus } from "./reads";
 import { SystemsBoard } from "./SystemsBoard";
 import { boardSummary, boardTitle, systemLines } from "./systems";
 
 /** Each row's one-line note; the board's full words (NOTES) open with it. */
 const SHORT: Record<BoardKey, string> = {
   "Capture": "What the capture collected from the game, per airline",
+  "Fleet": "Each aircraft as the game showed it last night",
   "Cabin charges": "Each first cabin fit logged, against the game's charge",
   "Manual entry": "Only needed if a night's capture failed",
 };
 const NOTES: Record<BoardKey, string> = {
   "Capture": "what the one-click capture collected from the game, per airline · times in UTC · cash and fixed costs go straight into Performance",
+  "Fleet": "the evening capture's fleet pages: each aircraft's condition, maintenance, seats and pilots as the game showed them, against the planner",
   "Cabin charges": "each first cabin fit filing logged, against the game's \"Installation of cabin interior\" line on the bank statement",
   "Manual entry": "only needed if a night's capture failed · cash, fixed costs and loads normally come from the capture",
 };
 const FIGURE: Record<BoardKey, string> = {
-  "Capture": "systems: capture", "Cabin charges": "systems: cabin charges", "Manual entry": "systems: manual entry",
+  "Capture": "systems: capture", "Fleet": "systems: fleet", "Cabin charges": "systems: cabin charges", "Manual entry": "systems: manual entry",
 };
-/** The board Today's cabin charges item opens (/planner/systems#cabin-charges). */
+/** The boards Today's items open (/planner/systems#cabin-charges, /planner/systems#fleet). */
 const CABIN_HASH = "#cabin-charges";
+const FLEET_HASH = "#fleet";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -73,8 +80,10 @@ export function Systems() {
   const backupsQ = useBackupLine();
   const logQ = useCashLog(w);
   const cabinsQ = useCabinCharges(w !== undefined);
-  // every board folded on arrival, but Cabin charges open when Today's item sent you here
-  const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS.filter((k) => !(k === "Cabin charges" && loc.hash === CABIN_HASH))));
+  const fleetQ = useFleetChecks(w);
+  // every board folded on arrival, but Cabin charges or Fleet open when Today's item sent you here
+  const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS.filter((k) => !(k === "Cabin charges" && loc.hash === CABIN_HASH)
+    && !(k === "Fleet" && loc.hash === FLEET_HASH))));
   const [busy, setBusy] = useState(false);
 
   const rules = rulesQ.data?.rules;
@@ -100,8 +109,8 @@ export function Systems() {
   const scanEvery = rules ? Number(rules.input.settings.scan_every_days ?? NaN) : NaN;
   const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now, Number.isFinite(scanEvery) ? scanEvery : null) : null),
     [systemQ.data, now, scanEvery]);
-  const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && cabinsQ.data);
-  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, cabinsQ);
+  const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && cabinsQ.data && fleetQ.data);
+  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, cabinsQ, fleetQ);
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const board = (k: BoardKey, children: ReactNode, aside?: ReactNode, id?: string, lead: ReactNode = NOTES[k]) => (
     <FoldBoard key={k} k={k} id={id} title={<span className="fbname">{k}</span>} note={SHORT[k]} aside={aside} folded={folded.has(k)}
@@ -120,6 +129,10 @@ export function Systems() {
   const cabinAside = !cabins ? null : cabins.counts.problems
     ? <span className="pill warn sm" data-cabin-problems={cabins.counts.problems}>{cabins.counts.problems} to look at</span>
     : <span>{cabins.check_from ? `${cabins.counts.checked} fit${cabins.counts.checked === 1 ? "" : "s"}, no problems` : "nothing checked"}</span>;
+  const fleet = fleetQ.data;
+  const fleetAside = !fleet ? null : fleet.counts.problems
+    ? <span className={"pill sm " + (fleet.counts.maintenance || fleet.counts.crew ? "bad" : "warn")} data-fleet-problems={fleet.counts.problems}>{fleet.counts.problems} to look at</span>
+    : <span>{fleet.night ? `${nightWords(fleet.night)}, no problems` : "nothing captured yet"}</span>;
 
   return (
     <main className="view review systems" data-screen="systems" data-systems-ready={ready ? "yes" : "no"} data-systems-view="/systems">
@@ -170,6 +183,7 @@ export function Systems() {
             <div className="note">Flights are counted by their departure date (local time), as the game lists them.</div>
             {backup ? <div className="note">{backup.ok === false ? <><span className="pill bad sm">Backup failed</span> {backup.text}</> : backup.text}</div> : null}
           </>, capAside)}
+          {fleet ? board("Fleet", <FleetBody f={fleet} airline={airline} />, fleetAside, "fleet", <>{fleetCountsWords(fleet)} · {NOTES.Fleet}</>) : null}
           {cabinsQ.data ? board("Cabin charges", <CabinChargesBody c={cabinsQ.data} airline={airline} busy={busy}
             onUse={(p) => void save(gameAmountChange(p))} />, cabinAside, "cabin-charges", <>{cabinCountsWords(cabinsQ.data)} · {NOTES["Cabin charges"]}</>) : null}
           {board("Manual entry", <ManualEntry worldId={w} rules={rules} log={{ ...logQ.data, airlines: logQ.data.airlines.map((a) => ({ ...a, name: airline(a.airline_id)?.name ?? a.name })) }}
@@ -178,6 +192,49 @@ export function Systems() {
       ) : null}
       </section>
     </main>
+  );
+}
+
+/** Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): the latest night's fleet of each airline as the
+ *  game showed it, a table each (registration and base, type, location, condition, maintenance, seats, pilots), each
+ *  problem marked on its row, and the problems no row shows (an aircraft in the planner the pages didn't have) under it. */
+function FleetBody({ f, airline }: { f: FleetChecks; airline: (id: number) => OurAirline | undefined }) {
+  if (!f.night) return <div className="dim">No fleet pages captured yet. Capture all airlines 1.6 reads every fleet of every airline each evening.</div>;
+  return (
+    <>
+      {f.airlines.map((al) => {
+        const a = airline(al.airline_id);
+        const missing = f.problems.filter((p) => p.airline_id === al.airline_id && p.kind === "not_in_game");
+        return (
+          <div className="fleetal" key={al.airline_id} data-fleet-airline={al.code ?? ""}>
+            <h4 className="tph"><AirlineMark color={a?.color} />{a?.name ?? al.name ?? al.code} <span className="note">{al.aircraft.length} aircraft · {fleetPagesWords(al)} · maintenance from {al.maintenance_min_pct}%</span></h4>
+            {al.aircraft.length ? (
+              <div className="tblwrap">
+                <table className="tbl" data-figure="systems: fleet table">
+                  <tbody>
+                    <tr><th>Aircraft</th><th>Type</th><th>Where</th><th className="num">Condition</th><th className="num">Maintenance</th><th>Seats Y/C/F</th><th>Pilots</th><th></th></tr>
+                    {al.aircraft.map((x) => (
+                      <tr key={x.registration} data-fleet={x.registration} data-fleet-problems={x.problems.join(" ")}>
+                        <td><b>{x.registration}</b> <span className="dim">{x.base ?? ""}</span></td>
+                        <td>{x.type ?? "—"}</td>
+                        <td>{fleetWhere(x)}</td>
+                        <td className="num">{pctWords(x.condition_pct, 0)}</td>
+                        <td className="num">{x.problems.includes("maintenance") ? <span className="pill bad sm">{pctWords(x.maintenance_pct, 1)}</span> : pctWords(x.maintenance_pct, 1)}</td>
+                        <td>{x.problems.includes("cabin") ? <span className="pill warn sm">{seatWords(x)}</span> : seatWords(x)}</td>
+                        <td>{x.pilots === false ? <span className="pill bad sm">no</span> : x.pilots ? "yes" : "—"}</td>
+                        <td>{x.problems.filter((k) => k === "not_in_planner").map((k) => <span key={k} className="pill warn sm">{FLEET_KIND_WORDS[k]}</span>)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="dim">No aircraft on its fleet pages that night.</div>}
+            {missing.length ? <div className="note">{missing.map((p) => <div key={p.registration}><span className="pill warn sm">{FLEET_KIND_WORDS[p.kind]}</span> {p.words}</div>)}</div> : null}
+          </div>
+        );
+      })}
+      <div className="note">The game's figures from the evening capture. Maintenance under the airline's limit (the manual's 100%) lets the condition fall; a cabin is marked when the seats don't match the planner's; an aircraft in the planner is listed missing only when every fleet page of its airline came in ok.</div>
+    </>
   );
 }
 

@@ -55,7 +55,7 @@ full stop; manual §8, brand). Website and planner: **equinox-alliance.com** (pl
 | Tool | What it's for | Where |
 |---|---|---|
 | **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries | gander.airlinesim.aero, one account with all six airlines |
-| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then, when a world scan is due, scans the world (every airline's schedule and the airport pages; since 21 Oct, version 1.5) | `capture/capture_all.user.js`, installed in a userscript manager (such as Tampermonkey) in your browser, with your capture key in place of `__CAPTURE_KEY__` |
+| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct, version 1.6); then, when a world scan is due, scans the world (every airline's schedule and the airport pages; since 21 Oct) | `capture/capture_all.user.js`, installed in a userscript manager (such as Tampermonkey) in your browser, with your capture key in place of `__CAPTURE_KEY__` |
 | **Salaries userscript** | One button sets every position of the airline you're on to the level the rule sets (rule: manual §7, salaries) | `capture/salary_adjust.user.js`, installed the same way |
 | **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one at a time, while you watch (section 7; rule: manual §5, the fare ladder) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
@@ -146,7 +146,8 @@ inside the database).
 **Steps:**
 1. Sign in to the game.
 2. Press **Capture all airlines** (the userscript's panel). It works through every airline in the world's list. Leave
-   the tab open until it finishes. **When a world scan is due it then scans the world** (how often: manual §7, the
+   the tab open until it finishes. Since 22 Oct each airline ends with its fleet pages, one more page kind ("Pan Am:
+   fleet 2 of 3"), about a minute more in all (what they're checked for: manual §7). **When a world scan is due it then scans the world** (how often: manual §7, the
    world scan; Reference → Constants, `scan_every_days`). It takes a few minutes longer, so **keep the page open**. The
    panel shows "World scan: 120 of 163 airlines…", then "World scan done"; **Stop** ends it early (the scan isn't
    finished, and the next evening's capture scans again). If the page reloads, it carries on where it was. No scan
@@ -159,7 +160,9 @@ inside the database).
    the game's load table).
 5. **Open the planner on Today.** The top says **All clear**, or what's waiting. The capture line should read "All six
    airlines captured, all good" with the time; if not, it says what's missing, short or broken, and **Systems ›** has
-   each page.
+   each page. Since 22 Oct needs attention's **Fleet** group lists what the game's fleet pages showed that needs a look
+   (what counts: manual §4 and §7); the game's maintenance under the limit has its own card. Fix it in the game or the
+   planner that evening.
 6. **Work down Today:** **Orders** (an airline that can order: the Scheduling chat proposes the aircraft and routes,
    section 6), **Aircraft to file** (**File into planner**), **Needs attention** (each item links to where it's fixed),
    **Game check** when something looks off, and the **To-do** board. When nothing is left, Today says **All clear**.

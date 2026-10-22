@@ -15,6 +15,7 @@ import type { OnOrderGroup } from "../home/onOrder";
 import type { HomeAirline, TodoItemRow, TodoRow } from "../home/reads";
 import type { RouteRow } from "../routes/model";
 import type { TailAircraft } from "../tails/model";
+import type { FleetChecks } from "../systems/model";
 import { homeAttention, type AttentionInput } from "./attention";
 import { comingUp, UP_FILTERS } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
@@ -277,6 +278,21 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     // all match, or not read yet: nothing
     expect(homeAttention(input({ cabins: cabins([]) }))).toEqual([]);
     expect(homeAttention(input({ cabins: null }))).toEqual([]);
+  });
+  it("the fleet (22 Oct): one item per problem fleet_checks() finds, in its order, in the Fleet group; none before it's read", () => {
+    const fleet: FleetChecks = { night: "2026-10-22", counts: { maintenance: 1, crew: 0, cabin: 0, not_in_planner: 1, not_in_game: 0, problems: 2 }, airlines: [],
+      problems: [
+        { kind: "maintenance", airline_id: 1, code: "TA", registration: "N003AW", base: "JFK", aircraft_id: 13, words: "N003AW (JFK): maintenance 0.0%, condition 83%" },
+        { kind: "not_in_planner", airline_id: 1, code: "TA", registration: "N099AW", base: "JFK", aircraft_id: null, words: "N099AW: in the game (JFK fleet), not in the planner" },
+      ] };
+    const got = homeAttention(input({ fleet }));
+    expect(got).toEqual([
+      { key: "fleet|maintenance|N003AW|2026-10-22", cls: "bad", screen: "tails", tail: "N003AW", text: "N003AW (JFK): maintenance 0.0%, condition 83%" },
+      { key: "fleet|not_in_planner|N099AW|2026-10-22", cls: "warn", screen: "systems", text: "N099AW: in the game (JFK fleet), not in the planner" },
+    ]);
+    expect(got.map(attKind)).toEqual(["fleet", "fleet"]);
+    expect(groupAttention(got).map((g) => [g.label, g.cls, g.items.length])).toEqual([["Fleet", "bad", 2]]);
+    expect(homeAttention(input({ fleet: null }))).toEqual([]);
   });
   it("the backup: late, failed, none yet; a test run doesn't count", () => {
     const run = (h: number, ok: boolean, kind = "nightly", note: string | null = null) => ({ ran_at: new Date(now.getTime() - h * 3_600_000).toISOString(), kind, ok, note });
@@ -542,6 +558,24 @@ describe("the new look (spec docs/specs/2026-10-22-planner-look-today.md): cards
       ["attention", "Needs attention", "Interline: 3 airline–country pairs without an agreement", "Interline", false, "Open interline", "/interline"],
       ["game", "Needs attention", "2 Game check differences", "between the planner and the game's schedules", false, "Go to Game check", "game-check"],
     ]);
+  });
+  it("the game's maintenance under the limit (22 Oct): the Fleet card next after order now, urgent when nothing can order", () => {
+    const maint = item({ key: "fleet|maintenance|N003AW|2026-10-22", cls: "bad", screen: "tails", tail: "N003AW", text: "N003AW (JFK): maintenance 0.0%, condition 83%" });
+    const crew = item({ key: "fleet|crew|N004AW|2026-10-22", cls: "bad", screen: "tails", tail: "N004AW", text: "N004AW (JFK): no pilots" });
+    const route = item({ key: "route|Pan Am|JFK|ORD", cls: "bad", screen: "performance", text: "JFK–ORD: losing money — x" });
+    const cards = waitingCards({ ...base0, orders: [order(al(2, "Virgin", "VS"), "now")], toFile: [file], attention: [route, maint, crew],
+      todos: [todo(7, { title: "Ring the bank", due_on: "2026-10-20" })] });
+    expect(cards.map((c) => [c.kind, c.label, c.heading, c.detail, c.urgent, c.action.text, c.action.href ?? c.action.tile])).toEqual([
+      ["order", "Order now", "Virgin can order now", null, true, "Cash, next 14 days", "/performance/VS"],
+      ["maint", "Fleet · maintenance", "N003AW (JFK): maintenance 0.0%, condition 83%", "and 1 more in Fleet", false, "See all 2", "fleet"],
+      ["file", "To file", "N023AW has arrived for Test Air", "A321neo Y180 · JFK · JFK–ORD", false, "File into planner", "/tails?airline=TA&file=N023AW"],
+      ["attention", "Needs attention", "JFK–ORD: losing money — x", "Routes to fix", false, "Open performance", "/performance"],
+    ]);
+    const alone = waitingCards({ ...base0, attention: [maint] });
+    expect(alone.map((c) => [c.kind, c.urgent, c.detail, c.action.text, c.action.href])).toEqual([["maint", true, "Fleet", "Open tails", "/tails"]]);
+    // a Fleet group without a maintenance problem is an ordinary needs attention card, in its place
+    expect(waitingCards({ ...base0, attention: [route, crew] }).map((c) => [c.kind, c.label, c.urgent])).toEqual([
+      ["attention", "Needs attention", false], ["attention", "Needs attention", false]]);
   });
   it("a to-do due today says so; nothing waiting, no cards", () => {
     const cards = waitingCards({ ...base0, attention: [item({ key: "todo|t-8", cls: "warn", screen: "today", text: "To-do: File the plan" })],

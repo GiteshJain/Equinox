@@ -1,4 +1,4 @@
-// The world scan in the capture (capture/capture_all.user.js 1.5; spec docs/specs/2026-10-21-scan-in-capture.md §2, §3)
+// The world scan in the capture (capture/capture_all.user.js 1.5, now 1.6; spec docs/specs/2026-10-21-scan-in-capture.md §2, §3)
 // on the game's pages, with no browser and no game: the script's own file runs in Node, where (with no page) it only
 // hands over its logic (eqScan). On three saved samples:
 //   - one letter page of the airline list, hand-made from gscan.py's patterns (tests/fixtures/scan_letter_K_2026-10-21.html);
@@ -8,7 +8,7 @@
 // The same rows must come out as from gscan.py's own rules: tests/gscan_reference.py runs scripts/scanner/gscan.py,
 // unchanged, on the same pages (no network, no files) and the test compares what each would send: the airline list, the
 // airport ids, the airline's payload, the airport's payload and the finish. Then: the airports to read in the migration
-// are gscan.py's list; the scan's words, pace and 10% rule; and the file: a userscript with version 1.5, the capture key a
+// are gscan.py's list; the scan's words, pace and 10% rule; and the file: a userscript with version 1.6 (since the fleet capture, 22 Oct), the capture key a
 // placeholder, capture_scan() with it, no browser dialogs and only the game addresses it needs.
 // Usage: node tests/capture_scan_test.mjs
 import { readFileSync } from "node:fs";
@@ -122,8 +122,8 @@ await check("finish: gscan.py's note, with what the capture's scan adds", () => 
   const mine = plain(S.finishPayload(SCAN, Object.keys(ref.ents).length, hubs.length, 6, 50));
   assert.equal(mine.snapshot_id, theirs[0].snapshot_id);
   assert.ok(mine.note.startsWith(theirs[0].note + " "), `the note "${mine.note}" doesn't start with gscan.py's "${theirs[0].note}"`);
-  assert.match(mine.note, /\(Capture all airlines 1\.5; 6 airline pages failed, 50 airports without an id\)$/);
-  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.5; 1 airline page failed, 1 airport without an id\)$/);
+  assert.match(mine.note, /\(Capture all airlines 1\.6; 6 airline pages failed, 50 airports without an id\)$/);
+  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.6; 1 airline page failed, 1 airport without an id\)$/);
 });
 function gscanHubs() { const m = gscan.match(/^AP="([A-Z0-9 ]+)"\.split\(\)/m); assert.ok(m, "gscan.py's airport list (AP) not found"); return m[1].split(" "); }
 await check("the airports to read: the migration's big rival hubs are gscan.py's list, in its order", () => {
@@ -177,10 +177,11 @@ await check("html.unescape() as Python does it: numeric references, the usual na
 });
 
 // ---------------------------------------------------------------- the file itself
-await check("the file: a userscript for the game, version 1.5, the key a placeholder, the public key only, capture_scan() with the key", () => {
+await check("the file: a userscript for the game, version 1.6, the key a placeholder, the public key only, capture_scan() with the key", () => {
   assert.match(source, /^\/\/ ==UserScript==/);
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/\*$/m);
-  assert.match(source, /^\/\/ @version\s+1\.5$/m);
+  assert.match(source, /^\/\/ @version\s+1\.6$/m);
+  assert.equal(S.VERSION, "1.6", "the scan's notes name another version than @version");
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
   assert.match(source, /RPC \+ "capture_scan"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /rpc\("capture_airlines", \{ p_key: KEY \}\)/);
@@ -190,7 +191,7 @@ await check("the file: no browser dialogs, no POST to the game, and only the gam
   assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(source.replace(/^\s*\/\/.*$/gm, "")), "alert, confirm or prompt used");
   const paths = [...source.matchAll(/["'`](\/(?:app|action)\/[^"'`?$]*)/g)].map(m => m[1]);
   assert.deepEqual([...new Set(paths)].sort(), ["/action/enterprise/schedule", "/app/com/loads", "/app/enterprise/dashboard", "/app/finance/accounting/0",
-    "/app/finance/accounting/1", "/app/finance/accounting/2", "/app/info/airports/", "/app/info/enterprises", "/app/info/enterprises/"]);
+    "/app/finance/accounting/1", "/app/finance/accounting/2", "/app/fleets", "/app/fleets/", "/app/info/airports/", "/app/info/enterprises", "/app/info/enterprises/"]);
   assert.ok(!/method:\s*["']POST["'][^}]*airlinesim/i.test(source), "a POST to the game");
 });
 

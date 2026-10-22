@@ -32,6 +32,9 @@ export interface SysCapture {
   verdict_words: string | null;
   verdict_at: string | null;
   missing: string[];
+  /** That capture day's fleet pages (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md), only when it has some:
+   *  their verdict, words ("fleet 3 pages, 21 aircraft", or what came in short or broken), pages, ok pages and aircraft. */
+  fleet?: { verdict: Verdict | null; note: string | null; at: string | null; pages: number; ok: number; aircraft: number } | null;
 }
 export interface SysJob { at: string | null; status: string | null; note: string | null }
 export interface SystemStatus {
@@ -297,14 +300,16 @@ export function boardTitle(lines: readonly SysLine[]): string {
 }
 
 /** An airline's capture as its row of the table: the verdict in a word ("all good", "short", "broken", "not checked",
- *  "none") and what came in short or broken, with the late words captureLine adds. */
+ *  "none") and what came in short or broken, with the late words captureLine adds; since 22 Oct its fleet pages when they
+ *  came in ok ("fleet 3 pages, 21 aircraft": a short or broken one is in the verdict's words already). */
 export function captureVerdict(c: SysCapture, now: Date): { word: string; cls: Mark | "mute"; detail: string } {
   const h = hoursSince(c.last_at, now);
   const late = h != null && h > CAPTURE_LATE_H ? `${agoWords(h)}: press Capture all airlines in the game` : "";
   const join = (...xs: string[]) => xs.filter(Boolean).join(" · ");
   if (c.last_at == null) return { word: "none", cls: "bad", detail: "no capture in the database's 14 days" };
+  const fleet = c.fleet && c.fleet.verdict === "ok" ? c.fleet.note ?? "" : "";
   if (c.verdict == null) return { word: "not checked", cls: "mute", detail: join("captured before the page checks", late) };
-  if (c.verdict === "ok") return { word: "all good", cls: "ok", detail: late };
+  if (c.verdict === "ok") return { word: "all good", cls: "ok", detail: join(fleet, late) };
   const words = c.verdict_words && c.verdict_words !== c.verdict ? c.verdict_words : "";
-  return { word: c.verdict, cls: c.verdict === "broken" ? "bad" : "warn", detail: join(words, late) };
+  return { word: c.verdict, cls: c.verdict === "broken" ? "bad" : "warn", detail: join(words, fleet, late) };
 }

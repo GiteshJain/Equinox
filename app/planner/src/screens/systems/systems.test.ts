@@ -176,4 +176,13 @@ describe("the board laid out (22 Oct)", () => {
     expect(captureVerdict(cap({ last_at: null }), now)).toEqual({ word: "none", cls: "bad", detail: "no capture in the database's 14 days" });
     expect(captureVerdict(cap({ last_at: ago(30) }), now).detail).toBe("30 hours ago: press Capture all airlines in the game");
   });
+  it("an airline's capture row with its fleet pages (22 Oct): their words when they came in ok; a broken one is in the verdict's words", () => {
+    const fleet = { verdict: "ok" as const, note: "fleet 3 pages, 21 aircraft", at: ago(1), pages: 3, ok: 3, aircraft: 21 };
+    expect(captureVerdict(cap({ fleet }), now)).toEqual({ word: "all good", cls: "ok", detail: "fleet 3 pages, 21 aircraft" });
+    expect(captureVerdict(cap({ verdict: "short", verdict_words: "loads 12 of 78 flights", fleet }), now).detail).toBe("loads 12 of 78 flights · fleet 3 pages, 21 aircraft");
+    expect(captureVerdict(cap({ verdict: "broken", verdict_words: "fleet ORD didn't read (parse: HTTP 502)",
+      fleet: { ...fleet, verdict: "broken", note: "fleet ORD didn't read (parse: HTTP 502)", ok: 2 } }), now))
+      .toEqual({ word: "broken", cls: "bad", detail: "fleet ORD didn't read (parse: HTTP 502)" });
+    expect(captureVerdict(cap({ fleet: null }), now).detail).toBe("");
+  });
 });
