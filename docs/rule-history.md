@@ -63,7 +63,7 @@ The old planner, its way back at `/planner/old/` (which now goes to `/planner/`)
 #### Code changes are pull requests
 *Since 8 Oct (decision #2) · why: the code's only copy was the live site, and a workspace reset wiped the working copy.*
 
-*The new look's exception since 22 Oct (Gitesh: "keep merging if all is good") · why: the redesign runs in four steps over several days, and waiting for a "merge" between each added days for no review he needed beyond the checks and the screenshots. It ends with step 4.*
+*The new look's exception since 22 Oct (Gitesh: "keep merging if all is good") · why: the redesign runs in four steps over several days, and waiting for a "merge" between each added days for no review he needed beyond the checks and the screenshots. It ended with step 4: the four steps were merged on 22 Oct (#71 to #74), and the exception was taken out of the manual the same day.*
 
 #### Hosting
 *Since 8 Oct (#7) · why: free, with unlimited deploys and previews; our own address survives any future change of host.*
