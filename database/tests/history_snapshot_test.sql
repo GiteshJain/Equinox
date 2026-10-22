@@ -175,7 +175,13 @@ begin
    where x.source <> 'capture' or x.taken_at <> v_second_at
       or (exists (select 1 from t_pages t where t.airline_id = o and t.kind = 'balance')
           and (x.cash is distinct from 7000000 + o or x.cash_at <= v_first_at));
-  assert bad is null, 'the second complete capture didn''t replace the point-in-time figures for: ' || bad;
+  assert bad is null, 'the second complete capture didn''t replace the point-in-time figures for: ' || bad
+    || format(' (evening %s, %s to %s; %s page(s) from %s to %s; first capture''s snapshot at %s; second capture %s, its snapshot at %s; the rows: %s)',
+              d, v_from, v_until, v_pages, (select min(captured_at) from t_pages), v_last_page, v_first_at,
+              coalesce('shifted ' || v_shift::text, 'a second apart'), v_second_at,
+              (select string_agg(format('%s %s taken %s cash at %s %s', x.airline_id, x.source, x.taken_at, x.cash_at,
+                                        case when x.cash is distinct from 7000000 + x.airline_id then 'other cash' else 'test cash' end), '; ')
+                 from public.airline_days x where x.world_id = w and x.day = d and x.airline_id = any (v_ours)));
   -- a backfill or fallback afterwards replaces nothing taken from a complete capture
   perform private.take_snapshot(w, d, now(), 'backfill', false);
   perform private.take_snapshot(w, d, now(), 'fallback', false);
