@@ -55,6 +55,11 @@ manual's scale model), about 214 of whose pairs touch none of our bases; every r
 (`routes.hub_code`), so those pairs can't be listed. Gitesh: build it now, fly it after Delhi reaches 750 (hubs first
 unchanged). Bases at secondary cities (Lucknow, Ahmedabad, Pune and others) stay a question for a full brief.*
 
+*Every airline since the same day (Gitesh, review chat), not Kingfisher alone · why: the Airbus world's AirAsia flies 52
+routes from Kota Kinabalu that don't touch Kuala Lumpur, and Subang is its own market (Tigerair Singapore–Subang 78 a
+week, AirAsia Kota Kinabalu–Subang 56) that only pairs away from KUL can serve. The station role is per airline, so the
+build already covers it. Earlier wording: "Point-to-point routes away from our bases (Kingfisher first)".*
+
 ### 1. How we work
 
 #### Game changes are made in the planner at /planner/
@@ -229,6 +234,13 @@ Ryanair's and Virgin's first (11.0 and 11.2 hours a day on 17 Oct, against Malay
 #### Until 31 October, only new routes
 *From 18 Oct to 31 Oct · why: Gitesh, 18 Oct.*
 
+*Pan Am exempt since 22 Oct (Gitesh, review chat, brief `docs/briefs/2026-10-22-pan-am-speed.md`, option C) · why: Pan
+Am needs to move quickly; 19 of its routes sell out and are marked add a flight while United and American add hundreds
+of flights a week on its pairs. Earlier wording: "Until 31 October, only new routes:" with no exemption.*
+
+*China Eastern exempt too, the same day (Gitesh: "apply same exemptions as Pan Am") · why: JAL and ANA started
+Shanghai–Haneda (70 a week against our 14) and Air China is moving onto its domestic pairs.*
+
 #### From 1 to 30 November, every new order fortifies the trunk routes
 *From 1 Nov to 30 Nov · why (Gitesh, 20 Oct): fortify the routes that connect our bases completely.*
 
@@ -275,6 +287,16 @@ A route that gained a frequency in the last 7 days holds for that week, so the l
 A route whose captured fares don't match its level is set back to it: not for a route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).
 
 **For now it goes at most 20 points above launch** (120%, Ryanair 105%): the game's passengers are price-sensitive and higher fares may hurt the airline's image, so the cap is lifted only once loads and image show it's safe.
+
+*Pan Am's step 7 points and cap 28 points (128%) since 22 Oct (Gitesh, review chat, brief
+`docs/briefs/2026-10-22-pan-am-speed.md`, option B with 7 points and a 28-point cap instead of the brief's 10 and 40) ·
+why: cash is Pan Am's limit (about 1.27M a day to order with on 22 Oct) and every route sells out at the default fare;
+fares are the one lever that adds cash. Earlier wording: "up 5 points", "down 5 points", "at most 20 points above
+launch (120%, Ryanair 105%)", for every airline.*
+
+*China Eastern given the same step (7) and cap (28 points, 128%) the same day (Gitesh, review chat: "apply same
+exemptions as Pan Am") · why: the group's best cash earner (about 1.75M a day to order with) and nearly every route sells
+out. Earlier wording: "(Pan Am 7)", "Pan Am 28 points, 128%".*
 
 A rival starting on the pair pauses that route for a week: Today lists the latest scan's (built 21 Oct with competition analysis).
 
@@ -397,12 +419,13 @@ Moved from the manual's *Decided, not yet built* on 21 Oct, word for word.
   18 Oct against the game's charge, with one Today item when any doesn't match (§4).
 - **Stations are built** (22 Oct; spec `docs/specs/2026-10-22-station-role.md`, brief
   `docs/briefs/2026-10-22-point-to-point-routes.md`, option A). The manual's *Decided, not yet built* entry, word for
-  word, before it moved into §2 as built: "**Point-to-point routes away from our bases (Kingfisher first):** stations, a
-  third role in the airline's bases beside hubs and focus cities, for airports we fly to and from without making them a
-  base (for example Lucknow for Lucknow–Patna): no banks, and flight numbers in 3 digits from one pool per airline, 100
-  to 999 (Gander's flights use up to 4 digits; the 21 Oct scan shows none with 5). Stations are never treated as hubs or
-  focus cities (trunks, the website, reports). Brief `docs/briefs/2026-10-22-point-to-point-routes.md`, option A.
-  Building now. *(decided 22 Oct; history: rule-history.md)*"
+  word, before it moved into §2 as built: "**Point-to-point routes away from our bases, for every airline (Kingfisher
+  and Malaysia first):** stations, a third role in the airline's bases beside hubs and focus cities, for airports we fly
+  to and from without making them a base (for example Lucknow for Lucknow–Patna): no banks, and flight numbers in 3
+  digits from one pool per airline, 100 to 999 (Gander's flights use up to 4 digits; the 21 Oct scan shows none with 5).
+  Stations are never treated as hubs or focus cities (trunks, the website, reports). Malaysia's include Subang (its own
+  market, 30 km from KUL) and Kota Kinabalu's pairs away from KUL. Brief `docs/briefs/2026-10-22-point-to-point-routes.md`,
+  option A. Building now. *(decided 22 Oct; every airline since the same day; history: rule-history.md)*"
 
 ---
 
