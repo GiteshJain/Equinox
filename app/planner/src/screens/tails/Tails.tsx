@@ -35,7 +35,7 @@ import {
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
 import {
-  readRotationsWithLegs, removalFacts, useBuyTypes, useConfigs, useGameHost, useLaunches, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
+  readRotationsWithLegs, removalFacts, useBuyTypes, useConfigs, useGameHost, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
 } from "./reads";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
@@ -59,7 +59,6 @@ export function Tails() {
   const buyQ = useBuyTypes(w);
   const cardsQ = usePlanCards(w);
   const planLegsQ = usePlanLegs(w);
-  const launchesQ = useLaunches(w);
   const hostQ = useGameHost(w);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<TailAircraft | null>(null);
@@ -119,9 +118,9 @@ export function Tails() {
     return [...ids];
   }, [rules, open]);
 
-  const ready = !!(rules && aircraftQ.data && configsQ.data && buyQ.data && cardsQ.data && planLegsQ.data && launchesQ.data && airlinesQ.data && lowCostQ.data
+  const ready = !!(rules && aircraftQ.data && configsQ.data && buyQ.data && cardsQ.data && planLegsQ.data && airlinesQ.data && lowCostQ.data
     && (!cardCodes.length || airportsQ.data));
-  const loadError = firstError(world, airlinesQ, lowCostQ, rulesQ, aircraftQ, configsQ, buyQ, cardsQ, planLegsQ, launchesQ, airportsQ);
+  const loadError = firstError(world, airlinesQ, lowCostQ, rulesQ, aircraftQ, configsQ, buyQ, cardsQ, planLegsQ, airportsQ);
 
   // ---------- addresses
   const here = (f: Filters, path = reg ? `/tails/${encodeURIComponent(reg)}` : "/tails") => path + filtersQuery(f);

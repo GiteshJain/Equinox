@@ -133,7 +133,7 @@ describe("Today: the rivals' moves from the latest scan in needs attention", () 
     const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
     const input: AttentionInput = {
       now: new Date("2026-10-21T12:00:00Z"), today: "2026-10-21", airlines: [{ id: 5, name: "China Eastern", code: "MU", color: null }], rules: buildRules(base),
-      checks: [], todos: [], capture: null, backups: null, jobs: null, cards: null, growth: null, interlineOpen: null,
+      todos: [], capture: null, backups: null, jobs: null, cards: null, growth: null, interlineOpen: null,
       threats: latestThreats([answer({ threats: [threat(), threat({ rival_id: 8, rival: "ANA", now: 7, words: "ANA started on PVG–CAN, 7 a week" })] })]),
     };
     const items = homeAttention(input);

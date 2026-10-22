@@ -1,39 +1,16 @@
 // Systems' logic (spec docs/specs/2026-10-20-today-performance-systems.md; Check's and Review's tests for these boards
 // until 20 Oct, specs docs/specs/2026-10-13-check.md and docs/specs/2026-10-14-review.md): the capture board's cells and
-// the backup's line; the one-week check's status (due, coming up, done, and due again when a schedule changes) as the
-// board lists it, and the board shown only while the checks are on (the Cabins board's fit, keep and refit went with it
-// on 21 Oct); Cabin charges (22 Oct): the board's line, each row's words, Use the game's amount and Today's one item;
-// and Manual entry: cash and fixed costs (the rows the old planner's adapter writes), the nightly log, the
-// load paste reader (the old parseLoadPaste, with the old planner test's case) and the typed loads with their rows. The
-// planning rules themselves are the library's, with their own cases (lib/rules/cases/checks.json); these run the
-// screen's words and saves on the cases' small world. The Systems board's own marks are systems.test.ts's.
-import { readFileSync } from "node:fs";
+// the backup's line; the boards in their order (the Cabins board's fit, keep and refit went with it on 21 Oct, the
+// Aircraft checks board with the one-week checks on 22 Oct); Cabin charges (22 Oct): the board's line, each row's words,
+// Use the game's amount and Today's one item; and Manual entry: cash and fixed costs (the rows the old planner's adapter
+// writes), the nightly log, the load paste reader (the old parseLoadPaste, with the old planner test's case) and the
+// typed loads with their rows. The Systems board's own marks are systems.test.ts's.
 import { describe, expect, it } from "vitest";
-import { buildRules, checks, type RulesInput } from "@rules";
 import {
   BOARDS, CABIN_STATE_WORDS, asd, backupWords, cabinAttention, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus, cashChanges,
-  dayStatus, gameAmountChange, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, patternPill, shownBoards, signedAsd, typedLoads, typedSave,
-  underList, upcomingByDay, type CabinCharges, type CabinProblem, type CashToday,
+  dayStatus, gameAmountChange, loadsChanges, mergeDay, nightlyLog, parseLoadPaste, pasteSaves, signedAsd, typedLoads, typedSave,
+  underList, type CabinCharges, type CabinProblem, type CashToday,
 } from "./model";
-
-const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
-const ALL = [1, 2, 3, 4, 5, 6, 7];
-const leg = (id: number, rot: number, n: 1 | 2, from: string, to: string, aircraft: number, days: number[], dep: number, blk: number | null, no: number | null) => ({
-  id, airline_id: 1, rotation_id: rot, leg_no: n, flight_no: no, origin_code: from, dest_code: to, aircraft_id: aircraft, days_utc: days, dep_utc_min: dep, block_min: blk,
-});
-// T-001 flies HUB–AAA daily (1001 at 06:00, 1002 back at 09:30) and HUB–DDD on Mon, Wed and Fri (1003 at 20:00, 1004 back
-// the next morning at 06:30); T-002 flies HUB–NBN daily (1007, back with no number of its own, so 1006)
-const input: RulesInput = {
-  ...base,
-  routes: base.routes.map((r) => (r.id === 1 ? { ...r, market_id: 1 } : r.id === 4 ? { ...r, market_id: 2 } : r)),
-  rotations: [{ id: 1, airline_id: 1, route_id: 1 }, { id: 2, airline_id: 1, route_id: 4 }, { id: 3, airline_id: 1, route_id: 6 }],
-  flight_legs: [
-    leg(1, 1, 1, "HUB", "AAA", 1, ALL, 360, 75, 1001), leg(2, 1, 2, "AAA", "HUB", 1, ALL, 510, 75, 1002),
-    leg(3, 2, 1, "HUB", "DDD", 1, [1, 3, 5], 1200, 150, 1003), leg(4, 2, 2, "DDD", "HUB", 1, [2, 4, 6], 60, 160, 1004),
-    leg(5, 3, 1, "HUB", "NBN", 2, ALL, 600, 60, 1007), leg(6, 3, 2, "NBN", "HUB", 2, ALL, 720, 60, null),
-  ],
-};
-const rules = buildRules(input);
 
 describe("Capture", () => {
   it("shows today's time, else yesterday's, else a dash; complete, missing some pages or not captured", () => {
@@ -55,37 +32,12 @@ describe("Capture", () => {
   });
 });
 
-describe("the aircraft checks", () => {
-  const facts = (checked: string | null, changed: string | null) => ({
-    aircraft: [{ id: 1, checked_on: checked, schedule_changed_on: changed }, { id: 2, checked_on: null, schedule_changed_on: null }],
-    rotations: [{ id: 1, launched_on: "2026-10-01" }, { id: 2, launched_on: "2026-10-01" }, { id: 3, launched_on: "2026-10-09" }],
-  });
-  it("lists one due, one coming up and one done, and the one coming up by its day", () => {
-    const list = checks.oneWeek(rules, facts("2026-10-08", null), "2026-10-12");
-    expect(list.map((c) => [c.registration, c.status, c.due])).toEqual([["T-002", "upcoming", "2026-10-16"], ["T-001", "done", "2026-10-08"]]);
-    expect(upcomingByDay(list.filter((c) => c.status === "upcoming"))).toEqual([["2026-10-16", ["T-002"]]]);
-  });
-  it("brings a checked aircraft back when its schedule changes: coming up a week after the change, then due", () => {
-    expect(checks.oneWeek(rules, facts("2026-10-08", "2026-10-10"), "2026-10-12").find((c) => c.registration === "T-001")).toMatchObject({ status: "upcoming", due: "2026-10-17" });
-    expect(checks.oneWeek(rules, facts("2026-10-08", "2026-10-10"), "2026-10-17").find((c) => c.registration === "T-001")).toMatchObject({ status: "due", days: 0 });
-    expect(checks.oneWeek(rules, facts("2026-10-17", "2026-10-10"), "2026-10-17").find((c) => c.registration === "T-001")).toMatchObject({ status: "done" });
-  });
-  it("the board shows only while the checks are on: gone at 0 or missing, kept by an airline's own number above 0", () => {
-    const at = (settings: RulesInput["settings"], airlines = input.airlines) => buildRules({ ...input, settings, airlines });
-    const without = Object.fromEntries(Object.entries(input.settings).filter(([k]) => k !== "aircraft_check_after_days"));
-    const noChecks = BOARDS.filter((k) => k !== "Aircraft checks");
-    expect(shownBoards(rules, [1, 2])).toEqual(BOARDS);
-    expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }), [1, 2])).toEqual(noChecks);
-    expect(shownBoards(at(without), [1, 2])).toEqual(noChecks);
-    expect(shownBoards(at({ ...input.settings, aircraft_check_after_days: 0 }, [{ id: 1 }, { id: 2, settings: { aircraft_check_after_days: 7 } }]), [1, 2])).toEqual(BOARDS);
-    expect(checks.oneWeek(at({ ...input.settings, aircraft_check_after_days: 0 }), facts(null, null), "2026-10-12")).toEqual([]);
+describe("the boards", () => {
+  it("are Capture, Cabin charges and Manual entry, in that order", () => {
     // the Cabins board went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1); Cabin charges came on 22 Oct
-    // (spec docs/specs/2026-10-21-tidy-ups.md §3), after Capture
-    expect(BOARDS).toEqual(["Capture", "Cabin charges", "Manual entry", "Aircraft checks"]);
-  });
-  it("words a route's load pattern on a check: its share of departures at 95%+ and its mark", () => {
-    expect(patternPill({ hub: "HUB", dest: "AAA", departures: 14, full: 13, mark: "add" })).toEqual({ cls: "ok", text: "HUB–AAA: 93% of departures 95%+" });
-    expect(patternPill({ hub: "HUB", dest: "DDD", departures: 0, full: 0, mark: "hold" })).toEqual({ cls: "mute", text: "HUB–DDD: 0% of departures 95%+" });
+    // (spec docs/specs/2026-10-21-tidy-ups.md §3), after Capture; Aircraft checks went on 22 Oct (spec
+    // docs/specs/2026-10-22-remove-aircraft-checks.md)
+    expect(BOARDS).toEqual(["Capture", "Cabin charges", "Manual entry"]);
   });
 });
 

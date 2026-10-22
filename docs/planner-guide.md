@@ -127,8 +127,7 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   - **Nightly jobs** (#13): the daily snapshot more than 30 hours old, the 10:00 UTC job not run for 30 hours (the
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
     with its note;
-  - to-dos and one-week checks due (a week after an aircraft's latest launch or schedule change, the setting
-    *aircraft_check_after_days*; at 0 the checks are off and none are listed, manual §1 since 15 Oct);
+  - to-dos due or overdue (the one-week aircraft checks went on 22 Oct: manual §1 has none since 15 Oct);
   - maintenance, turns and positions, night bans, flight numbers used twice;
   - airports from 80% of the game's departure cap (the setting *airport_cap_warning_pct*);
   - **Interline:** how many airline–country pairs on Interline have no agreement yet (not signed, declined or without
@@ -153,8 +152,7 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   registration in the box). After a fix or an add the differences are worked out again from the planner as it is now.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
   tell Claude and it ticks it; add one with its steps, one a line; **×** deletes one after asking you in the page.
-- **Coming up:** the next 14 days, meaning one-week checks and to-dos. While the checks are off there are none, and
-  no **One-week checks** button.
+- **Coming up:** the to-dos due in the next 14 days, with **All** and **To-dos** buttons.
 - **An old address:** /planner/check opens Today; /planner/check?day=2026-10-12 (the old daily load report on a day)
   opens Performance's Flights by day on that day.
 
@@ -239,9 +237,8 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   cabin and logs the first fit at that cabin's price: the plan card's cabin, else the order's. With neither, it sets no
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
   as a round trip, launched today, and then opens the aircraft.
-- **The aircraft pop-up** (from Today's needs attention, Systems' checks, or a frequency's aircraft on
-  Routes): its base, block hours a day, legs a week, maintenance, the one-week check, every issue and its flights, with
-  **Mark checked** and **Open in Tails**. While the checks are off (*aircraft_check_after_days* 0), there's no check line and no **Mark checked**.
+- **The aircraft pop-up** (from Today's needs attention or a frequency's aircraft on Routes): its base, block hours a
+  day, legs a week, maintenance, every issue and its flights, with **Open in Tails**.
 - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
 - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
   distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
@@ -481,22 +478,22 @@ address (/planner/reference/night-bans), so a link reopens it. Each box saves wh
   everything are gone with the tables (design §14): the nightly backup and the change log are the safety net.
 
 ## Systems
-*Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board, Capture and aircraft checks,
-and Review's Manual entry; Check's Cabins board went on 21 Oct: we don't refit, and the plan card suggests the cabin on
-Tails; Cabin charges came on 22 Oct). Laid out since 22 Oct short and answer-first, as Today (spec
-docs/specs/2026-10-22-planner-look-systems.md):
+*Did everything work?* The plumbing, rarely opened (since 20 Oct: Check's Systems board and Capture, and Review's
+Manual entry; Check's Cabins board went on 21 Oct: we don't refit, and the plan card suggests the cabin on Tails;
+Cabin charges came on 22 Oct, and the Aircraft checks board went that day: manual §1 has no one-week checks). Laid
+out since 22 Oct short and answer-first, as Today (spec docs/specs/2026-10-22-planner-look-systems.md):
 - **The answer is the title:** **All systems good** when every line of the board is green, else how many need a look
   ("2 need a look"), with how many are red and amber under it. **checked at 04:25 UTC** sits beside it as a small pill.
 - **The board's lines as tiles** (three a row, two in a narrow window, one on a phone), red first, then amber, then
   green: each with its mark as a dot and a word (**good**, **check**, **problem**), its name, its words and when.
 - **The evening capture as one table:** a row per airline with its mark, when its latest page came, and its verdict
   (**all good**, **short**, **broken**, **not checked**) with what came in short or broken.
-- **The details** under them, as large rows: Capture, Cabin charges, Manual entry and Aircraft checks, each with a
-  one-line note and its count or state ("all 6 complete", "27 fits, no problems", "2 to look at", "none due"). Tap a
+- **The details** under them, as large rows: Capture, Cabin charges and Manual entry, each with a one-line note and
+  its count or state ("all 6 complete", "27 fits, no problems", "2 to look at"). Tap a
   row to open its board right below it; all start closed, except Cabin charges when Today's item sent you
   (#cabin-charges). **Expand all** and **Collapse all** open or close every one.
 
-Each button is saved on its own, as one change. An aircraft's pop-up adds ?aircraft=REG to the address.
+Each button is saved on its own, as one change.
 - **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when:
   - **Evening capture**, one row per airline: when its latest page came, and its pages' verdict (#21): "all good", or
     what came in short or broken ("short loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
@@ -538,7 +535,3 @@ Each button is saved on its own, as one change. An aircraft's pop-up adds ?aircr
   or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads typed or
   pasted change only the days and flights you enter; captured days stay as they are. A typed figure wins over the
   capture's where it is newer.
-- **Aircraft checks:** one check a week after an aircraft is scheduled, with the aircraft's issues and its routes' load
-  pills; the ones coming up by day. You do these in the game, and only you mark them checked (**Mark checked**). The
-  board isn't shown while the checks are off: the setting *aircraft_check_after_days* at 0 (manual §1, none since
-  15 Oct). Any number above 0 brings it back.

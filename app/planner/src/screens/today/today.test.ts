@@ -3,10 +3,11 @@
 // moved here with their boards on 20 Oct, needs attention (its grouping, order, items, keys and dismissals; Home's tests
 // until then, spec docs/specs/2026-10-13-home.md §3), the to-do board and Coming up, and the game check (the comparison,
 // the fix and the add as one action each; Check's tests until then, spec docs/specs/2026-10-13-check.md). The planning
-// rules themselves are the library's, with their own cases (lib/rules/cases/checks.json, game.json, growth.json).
+// rules themselves are the library's, with their own cases (lib/rules/cases/game.json, growth.json). The one-week checks
+// (needs attention's group and Coming up's) went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildRules, checks as checkRules, game, type GameFlight, type OneWeekCheck, type QueueCell, type RulesInput } from "@rules";
+import { buildRules, game, type GameFlight, type QueueCell, type RulesInput } from "@rules";
 import type { Change } from "../../data/save";
 import { familyOf } from "../../ui/aircraftNames";
 import { attKind, dismissKey, groupAttention, withoutDismissed, type AttItem } from "../../ui/attention";
@@ -15,7 +16,7 @@ import type { HomeAirline, TodoItemRow, TodoRow } from "../home/reads";
 import type { RouteRow } from "../routes/model";
 import type { TailAircraft } from "../tails/model";
 import { homeAttention, type AttentionInput } from "./attention";
-import { comingUp, upFilters } from "./comingUp";
+import { comingUp, UP_FILTERS } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
 import { captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, orderStatus, runsDryWords, safeTypes, soonWords, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
 import type { LegNow } from "./reads";
@@ -161,7 +162,6 @@ describe("aircraft to file: arrived with a plan card", () => {
 describe("needs attention: grouping and order (the old ATT_KIND and attGrouped)", () => {
   it("knows an item's kind by its key, else by its words", () => {
     expect(attKind({ key: "maint|N001AW", text: "x" })).toBe("maint");
-    expect(attKind({ text: "G-AADU is due its one-week check" })).toBe("check");
     expect(attKind({ text: "N001AW: 2 legs with a short turn or wrong position" })).toBe("turn");
     expect(attKind({ text: "JFK–ORD (1002) lands or leaves inside a night ban" })).toBe("ban");
     expect(attKind({ text: "Pan 1002 is used twice (JFK–ORD and JFK–BOS) on the same days" })).toBe("clash");
@@ -171,23 +171,23 @@ describe("needs attention: grouping and order (the old ATT_KIND and attGrouped)"
   });
   it("groups by kind in the order kinds first come, the most serious kind first, items in their order", () => {
     const items = [
-      item({ text: "A is due its one-week check", cls: "warn" }),
+      item({ text: "A: 2 legs with a short turn or wrong position", cls: "warn" }),
       item({ key: "maint|A", text: "A maintenance ≈103% — little headroom", cls: "warn" }),
       item({ key: "order|Test Air|2026-10-13", text: "Test Air can safely order: A321neo", cls: "ok" }),
-      item({ text: "B is due its one-week check", cls: "warn" }),
+      item({ text: "B: 1 leg with a short turn or wrong position", cls: "warn" }),
       item({ key: "maint|B", text: "B maintenance ≈95% — condition will fall", cls: "bad" }),
       item({ key: "todo|t-1", text: "To-do: x", cls: "warn" }),
     ];
     const g = groupAttention(items);
-    expect(g.map((x) => [x.kind, x.cls, x.items.length])).toEqual([["maint", "bad", 2], ["check", "warn", 2], ["todo", "warn", 1], ["order", "ok", 1]]);
+    expect(g.map((x) => [x.kind, x.cls, x.items.length])).toEqual([["maint", "bad", 2], ["turn", "warn", 2], ["todo", "warn", 1], ["order", "ok", 1]]);
     expect(g[0]?.label).toBe("Maintenance");
-    expect(g[1]?.items.map((a) => a.text)).toEqual(["A is due its one-week check", "B is due its one-week check"]);
+    expect(g[1]?.items.map((a) => a.text)).toEqual(["A: 2 legs with a short turn or wrong position", "B: 1 leg with a short turn or wrong position"]);
   });
   it("dismisses under the item's key, or its words when it has none; hidden ones are counted", () => {
-    const a = item({ key: "maint|A", text: "A maintenance", cls: "bad" }), b = item({ text: "B is due its one-week check", cls: "warn" });
+    const a = item({ key: "maint|A", text: "A maintenance", cls: "bad" }), b = item({ text: "B: 1 leg with a short turn or wrong position", cls: "warn" });
     expect(dismissKey(a)).toBe("maint|A");
-    expect(dismissKey(b)).toBe("B is due its one-week check");
-    expect(withoutDismissed([a, b], new Set(["B is due its one-week check"]))).toEqual({ shown: [a], hidden: 1 });
+    expect(dismissKey(b)).toBe("B: 1 leg with a short turn or wrong position");
+    expect(withoutDismissed([a, b], new Set(["B: 1 leg with a short turn or wrong position"]))).toEqual({ shown: [a], hidden: 1 });
   });
   it("a dismissal is one row keyed by the world and the old planner's key; show again removes every one", () => {
     expect(dismissChanges(1, "maint|A", "2026-10-13")).toEqual([{ table: "dismissals", op: "insert", key: { world_id: 1, alert_key: "maint|A" }, values: { dismissed_on: "2026-10-13" } }]);
@@ -199,7 +199,7 @@ describe("needs attention: grouping and order (the old ATT_KIND and attGrouped)"
 describe("needs attention: the items and their keys (the old renderHome)", () => {
   const now = new Date("2026-10-13T12:00:00Z");
   const input = (x: Partial<AttentionInput> = {}): AttentionInput => ({
-    now, today: "2026-10-13", airlines, rules: buildRules(base), checks: [], todos: [], capture: null, backups: null, jobs: null, cards: null,
+    now, today: "2026-10-13", airlines, rules: buildRules(base), todos: [], capture: null, backups: null, jobs: null, cards: null,
     growth: null, interlineOpen: null, locale: L, ...x,
   });
   it("interline: the old Home's line, after the airport caps and before the routes to fix, with no key; none when every pair has an answer", () => {
@@ -216,42 +216,16 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(attKind({ text: "Interline: 1 airline–country pair without an agreement" })).toBe("interline");
     expect(homeAttention(input({ interlineOpen: 0 }))).toEqual([]);
   });
-  it("one-week checks due, to-dos due or overdue, can order: the old words and keys", () => {
-    const flown = buildRules({ ...base, rotations: [{ id: 1, airline_id: 1, route_id: 1 }], flight_legs: [
-      { id: 1, airline_id: 1, rotation_id: 1, leg_no: 1, flight_no: 1001, origin_code: "HUB", dest_code: "AAA", aircraft_id: 1, days_utc: [1], dep_utc_min: 360, block_min: 75 }] });
-    const checks = checkRules.oneWeek(flown, { aircraft: [{ id: 1, checked_on: null, schedule_changed_on: null }], rotations: [{ id: 1, launched_on: "2026-10-05" }] }, "2026-10-13");
+  it("to-dos due or overdue, can order: the old words and keys", () => {
     const got = homeAttention(input({
-      checks,
       todos: [todo(1, { due_on: "2026-10-13", title: "Today" }), todo(2, { due_on: "2026-10-10", title: "Late" }), todo(3, { due_on: "2026-10-14" }), todo(4, { due_on: "2026-10-01", done: true })],
       cards: [{ airline_id: 1, load_7_days: 90, can_order_now: ["A321 NEO LIGHT", "E195-E2"] }, { airline_id: 2, load_7_days: null, can_order_now: [] }],
     }));
     expect(got).toEqual([
-      { cls: "warn", text: "T-001 is due its one-week check", screen: "systems" },
       { key: "order|Test Air|2026-10-13", cls: "ok", screen: "performance", text: "Test Air can safely order: A321neo, E195" },
       { key: "todo|t-1", cls: "warn", screen: "today", text: "To-do: Today" },
       { key: "todo|t-2", cls: "bad", screen: "today", text: "To-do (overdue): Late" },
     ]);
-  });
-  it("the checks off (aircraft_check_after_days 0): none in needs attention or Coming up, and no One-week checks filter; at 7 as before", () => {
-    // T-001 launched 5 Oct (due 12 Oct), T-002 launched 10 Oct (coming up 17 Oct); today is 13 Oct
-    const leg = (id: number, rotation: number, aircraft: number) =>
-      ({ id, airline_id: 1, rotation_id: rotation, leg_no: 1, flight_no: 1000 + id, origin_code: "HUB", dest_code: "AAA", aircraft_id: aircraft, days_utc: [1], dep_utc_min: 360, block_min: 75 });
-    const flown = (days: number) => buildRules({ ...base, settings: { ...base.settings, aircraft_check_after_days: days },
-      rotations: [{ id: 1, airline_id: 1, route_id: 1 }, { id: 2, airline_id: 1, route_id: 1 }], flight_legs: [leg(1, 1, 1), leg(2, 2, 2)] });
-    const facts = { aircraft: [{ id: 1, checked_on: null, schedule_changed_on: null }, { id: 2, checked_on: null, schedule_changed_on: null }],
-      rotations: [{ id: 1, launched_on: "2026-10-05" }, { id: 2, launched_on: "2026-10-10" }] };
-    const on = checkRules.oneWeek(flown(7), facts, "2026-10-13");
-    expect(homeAttention(input({ checks: on }))).toEqual([{ cls: "warn", text: "T-001 is due its one-week check", screen: "systems" }]);
-    expect(comingUp(on, [], "2026-10-13")).toEqual([{ date: "2026-10-17", type: "check", text: "T-002" }]);
-    const off = checkRules.oneWeek(flown(0), facts, "2026-10-13");
-    expect(off).toEqual([]);
-    expect(homeAttention(input({ checks: off }))).toEqual([]);
-    expect(comingUp(off, [], "2026-10-13")).toEqual([]);
-    // Coming up's filter buttons: One-week checks only while the checks are on (all of them before the rules are read)
-    const labels = (r?: ReturnType<typeof buildRules>) => upFilters(r, [1, 2]).map(([, l]) => l);
-    expect(labels(flown(7))).toEqual(["All", "One-week checks", "To-dos"]);
-    expect(labels(flown(0))).toEqual(["All", "To-dos"]);
-    expect(labels()).toEqual(["All", "One-week checks", "To-dos"]);
   });
   it("the capture: one airline late, all late, none captured since two days back", () => {
     const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
@@ -417,15 +391,13 @@ describe("the to-do board (the old todoBoard)", () => {
 });
 
 describe("coming up", () => {
-  const check = (aircraft_id: number, registration: string, status: OneWeekCheck["status"], due: string): OneWeekCheck =>
-    ({ aircraft_id, registration, airline_id: 1, last: "2026-10-01", due, status, days: 0 });
-  const checks = [check(1, "A", "due", "2026-10-10"), check(4, "D", "upcoming", "2026-10-16"), check(2, "B", "upcoming", "2026-10-17"),
-    check(5, "E", "upcoming", "2026-10-17"), check(3, "C", "done", "2026-10-12")];
-  it("coming up: the next 14 days, checks by day (aircraft together) before to-dos on the same day", () => {
-    const todos = [todo(1, { due_on: "2026-10-17", title: "Late one" }), todo(2, { due_on: "2026-10-28" }), todo(3, { due_on: "2026-10-13" })];
-    expect(comingUp(checks, todos, "2026-10-13")).toEqual([
-      { date: "2026-10-16", type: "check", text: "D" }, { date: "2026-10-17", type: "check", text: "B, E" }, { date: "2026-10-17", type: "todo", text: "Late one" },
+  it("coming up: the next 14 days of to-dos, by day; the filters All and To-dos", () => {
+    const todos = [todo(1, { due_on: "2026-10-17", title: "Late one" }), todo(2, { due_on: "2026-10-28" }), todo(3, { due_on: "2026-10-13" }),
+      todo(4, { due_on: "2026-10-15", title: "Done one", done: true }), todo(5, { due_on: "2026-10-14", title: "Next" })];
+    expect(comingUp(todos, "2026-10-13")).toEqual([
+      { date: "2026-10-14", type: "todo", text: "Next" }, { date: "2026-10-17", type: "todo", text: "Late one" },
     ]);
+    expect(UP_FILTERS.map(([, l]) => l)).toEqual(["All", "To-dos"]);
   });
 });
 

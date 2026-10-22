@@ -36,7 +36,7 @@ export async function flightsCsv(rules: Rules, worldId: number, names: ReadonlyM
   const [rotations, legs, aircraft, markets, configs, profiles] = await Promise.all([
     all<RotationRow>("the frequencies", "rotations", ROTATION_COLUMNS, worldId),
     all<LegRow>("the flights", "flight_legs", LEG_COLUMNS, worldId),
-    all<AircraftRow & { cabin_config_id: number | null }>("the aircraft", "aircraft", "id, registration, airline_id, aircraft_type_id, cabin_config_id, status, schedule_changed_on, updated_at", worldId),
+    all<AircraftRow & { cabin_config_id: number | null }>("the aircraft", "aircraft", "id, registration, airline_id, aircraft_type_id, cabin_config_id, status, updated_at", worldId),
     all<MarketRow>("the markets", "markets", MARKET_ROW_COLUMNS, worldId),
     all<{ id: number; code: string; seats: number | null }>("the cabin layouts", "cabin_configs", "id, code, seats", worldId),
     all<{ id: number; code: string; airline_id: number | null; up_to_km: number | null }>("the service profiles", "service_profiles", "id, code, airline_id, up_to_km", worldId),

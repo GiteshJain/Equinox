@@ -2,7 +2,7 @@
 // reads most of these too, for needs attention, Coming up and the to-do board, which moved there from Home (spec
 // docs/specs/2026-10-20-today-performance-systems.md):
 // - the planning library's input, the lighter start: rules_input(world, 'flown') (design §5; src/data/rules.ts);
-// - the planner tables it shows: aircraft (on order, and the one-week checks' dates), rotations' launch days, plan cards
+// - the planner tables it shows: aircraft (on order and in service), plan cards
 //   (and, for the map's Planned routes, their legs and those legs' airports), to-dos and their steps, dismissals;
 // - the jobs' records: job_runs and backup_runs;
 // - the captured figures, at the screen's moment: capture_status(), airline_cards() (with the group's average load),
@@ -44,8 +44,6 @@ export interface AircraftRow {
   delivery_at: string | null;
   order_base_code: string | null;
   order_note: string | null;
-  checked_on: string | null;
-  schedule_changed_on: string | null;
   updated_at: string;
 }
 
@@ -56,26 +54,10 @@ export function useHomeAircraft(worldId: number | undefined) {
     enabled: worldId !== undefined,
     queryFn: async () => {
       const { data, error } = await supabase.from("aircraft")
-        .select("id, registration, airline_id, aircraft_type_id, order_config_id, status, delivery_at, order_base_code, order_note, checked_on, schedule_changed_on, updated_at")
+        .select("id, registration, airline_id, aircraft_type_id, order_config_id, status, delivery_at, order_base_code, order_note, updated_at")
         .eq("world_id", worldId ?? 0).in("status", ["on_order", "delivered", "active"]).order("id");
       if (error) return fail("the aircraft", error.message);
       return data as AircraftRow[];
-    },
-  });
-}
-
-export interface RotationRow { id: number; airline_id: number; route_id: number; launched_on: string | null; updated_at: string }
-
-/** Every rotation's launch day (the one-week checks). */
-export function useRotations(worldId: number | undefined) {
-  return useQuery({
-    queryKey: tableKey("rotations", "home", worldId),
-    enabled: worldId !== undefined,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("rotations").select("id, airline_id, route_id, launched_on, updated_at")
-        .eq("world_id", worldId ?? 0).order("id");
-      if (error) return fail("the rotations", error.message);
-      return data as RotationRow[];
     },
   });
 }

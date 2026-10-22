@@ -1,26 +1,20 @@
 // Systems' logic (spec docs/specs/2026-10-20-today-performance-systems.md): the plumbing, rarely opened. Moved here on
-// 20 Oct with their boards: Check's Capture board and the backup's line and its aircraft checks (decision #18, build pull
+// 20 Oct with their boards: Check's Capture board and the backup's line (decision #18, build pull
 // request 9, spec docs/specs/2026-10-13-check.md), and Review's Manual entry (build pull request 10, spec
 // docs/specs/2026-10-14-review.md). How each board words what the database's figures and the planning library answer,
 // as the old planner's renderReview, cashEntryHtml, manualLoadsHtml and parseLoadPaste word them, and every action as
-// the rows of one planner_save() call: mark checked (Tails' markCheckedChange), cash and fixed costs, loads typed or
-// pasted. The Cabins board (its refit, keep as is and show again) went on 21 Oct (spec
+// the rows of one planner_save() call: cash and fixed costs, loads typed or pasted. The Cabins board (its refit, keep as is and show again) went on 21 Oct (spec
 // docs/specs/2026-10-21-cabins-new-rule.md §1). Since 22 Oct the Cabin charges board (spec docs/specs/2026-10-21-tidy-ups.md
 // §3): cabin_charges()'s counts and problems, Use the game's amount and Today's one item. The Systems board's own marks
-// are systems.ts's. No screen code, so the unit tests run it.
-import { checks, loadReport, type Rules } from "@rules";
+// are systems.ts's. The aircraft checks (the one-week checks and Mark checked) went on 22 Oct (spec
+// docs/specs/2026-10-22-remove-aircraft-checks.md). No screen code, so the unit tests run it.
 import type { Change, Values } from "../../data/save";
 import { dayDiff } from "../../ui/dates";
 import type { BackupRun, CaptureAirline, CapturePages } from "./reads";
 
 // ---------- the boards that fold under the Systems board, in their order (Cabin charges since 22 Oct)
-export const BOARDS = ["Capture", "Cabin charges", "Manual entry", "Aircraft checks"] as const;
+export const BOARDS = ["Capture", "Cabin charges", "Manual entry"] as const;
 export type BoardKey = (typeof BOARDS)[number];
-/** The boards shown: Aircraft checks only while the checks are on for one of our airlines (aircraft_check_after_days
- *  above 0, the library's checks.on; spec docs/specs/2026-10-15-aircraft-checks-off.md). */
-export function shownBoards(rules: Rules, airlineIds: readonly number[]): readonly BoardKey[] {
-  return airlineIds.some((id) => checks.on(rules, id)) ? BOARDS : BOARDS.filter((k) => k !== "Aircraft checks");
-}
 
 // ---------- Capture
 /** The capture's five pages, in the old board's order, with its names for them. */
@@ -124,32 +118,6 @@ export function cabinAttention(c: CabinCharges | null | undefined): { key: strin
   if (!c || !n) return null;
   const keys = c.problems.map((p) => `${p.state}:${p.logged?.id ?? "p" + (p.lines[0]?.id ?? p.registration ?? "")}`).sort();
   return { key: "cabin|" + keys.join(","), text: n === 1 ? "1 cabin charge doesn't match what we logged" : `${n} cabin charges don't match what we logged` };
-}
-
-// ---------- Aircraft checks
-/** A day n days after (or before) another. */
-const moveDay = (day: string, n: number): string => new Date(Date.parse(day + "T00:00:00Z") + n * 86_400_000).toISOString().slice(0, 10);
-/** Aircraft by the day their check comes up, in the checks' order. */
-export function upcomingByDay(list: readonly { due: string; registration: string }[]): [string, string[]][] {
-  const by = new Map<string, string[]>();
-  for (const c of list) by.set(c.due, [...(by.get(c.due) ?? []), c.registration]);
-  return [...by].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-}
-/** The order the old checks listed an aircraft's load-pattern pills in: the routes as the load window's days first show
- *  them, from two days ahead backwards, each day's departures by time (the old patterns() met them in that order). */
-export function patternRanks(rules: Rules, today: string, windowDays: number): Map<number, number> {
-  const rank = new Map<number, number>();
-  for (let i = 1; i <= windowDays; i++) {
-    for (const f of loadReport.flightsOn(rules, moveDay(today, 2 - i + 1))) if (!rank.has(f.route_id)) rank.set(f.route_id, rank.size);
-  }
-  return rank;
-}
-/** A load pattern's pill on a check: its route, and its share of departures at 95%+. */
-export function patternPill(p: { hub: string; dest: string; departures: number; full: number; mark: string }): { cls: string; text: string } {
-  return {
-    cls: p.mark === "cut" ? "bad" : p.mark === "watch" ? "warn" : p.mark === "add" ? "ok" : "mute",
-    text: `${p.hub}–${p.dest}: ${p.departures ? Math.round(p.full / p.departures * 100) : 0}% of departures 95%+`,
-  };
 }
 
 // ---------- Manual entry (Review's until 20 Oct): cash and fixed costs, the nightly log (cash_log()), loads by hand

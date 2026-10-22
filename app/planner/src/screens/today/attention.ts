@@ -1,7 +1,7 @@
 // Needs attention (moved from Home to Today on 20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md): its items,
 // in the order the old planner's renderHome pushes them, with its words and keys; each links to where it's fixed now
-// (the capture, the backup, the jobs and the one-week checks to Systems, routes to fix and can order to Performance, a
-// to-do to Today's board). Every figure comes from its one home (decision #19, spec §2): one-week checks, maintenance, turns and positions, night
+// (the capture, the backup and the jobs to Systems, routes to fix and can order to Performance, a
+// to-do to Today's board). Every figure comes from its one home (decision #19, spec §2): maintenance, turns and positions, night
 // bans, flight numbers used twice and the airport caps (airport_cap_warning_pct) from the planning library; the capture
 // from capture_status() (when, and since #21 each airline's latest verdict: a short or broken page the same night); the backups and the jobs from backup_runs and job_runs; routes to fix from growth_signals()
 // (or, with no profit captured, the routes its load patterns mark cut, as the old Home fell back); can order from
@@ -11,8 +11,8 @@
 // true), linking to Competition: they aren't fare moves, so the fare ladder's rule doesn't keep them off; and since 22 Oct
 // (spec docs/specs/2026-10-21-tidy-ups.md §3) one item when a cabin charge doesn't match the first fit we logged, from
 // cabin_charges(), linking to Systems' Cabin charges. This file only words them. Monthly checks have none since 8 Oct, as
-// in the old planner.
-import { aircraftWeek, block, maintenance, schedule, type OneWeekCheck, type Rules } from "@rules";
+// in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
+import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
 import type { AttItem } from "../../ui/attention";
 import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
@@ -28,7 +28,6 @@ export interface AttentionInput {
   today: string;
   airlines: readonly HomeAirline[];
   rules: Rules;
-  checks: readonly OneWeekCheck[];
   todos: readonly TodoRow[];
   /** Each null until read, as the old planner shows nothing of a part it hasn't read. */
   capture: CaptureRead | null;
@@ -84,9 +83,6 @@ export function homeAttention(x: AttentionInput): AttItem[] {
   const now = x.now.getTime();
   const name = (id: number) => airlines.find((a) => a.id === id)?.name ?? "";
   const items: AttItem[] = [];
-
-  // one-week checks due
-  for (const c of x.checks) if (c.status === "due") items.push({ cls: "warn", text: `${c.registration} is due its one-week check`, screen: "systems" });
 
   // each aircraft in service: its maintenance, then its short turns and wrong positions
   const legs = block.timedLegs(rules);

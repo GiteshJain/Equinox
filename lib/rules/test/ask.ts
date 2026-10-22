@@ -1,9 +1,9 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, airport, banks, block, buildRules, card, checks, connections, frequency, game, growth, loadReport, maintenance, optimiser, positions, schedule,
+  aircraftWeek, airport, banks, block, buildRules, card, connections, frequency, game, growth, loadReport, maintenance, optimiser, positions, schedule,
   service, summary, tails, time, turns, findType,
-  type Card, type CheckFacts, type FareLadder, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
+  type Card, type FareLadder, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
   type MoveFacts, type Move, type PlannedCardLeg, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
@@ -131,8 +131,6 @@ export function ask(input: RulesInput, q: Ask): unknown {
       return time.clocks(rules, q.codes as string[], str(q.at, "at"));
     case "cap_warnings":
       return schedule.airportCapWarnings(rules);
-    case "one_week_checks":
-      return checks.oneWeek(rules, q.facts as unknown as CheckFacts, str(q.today, "today"));
     case "optimise": {
       const [from, to] = str(q.start, "start").split("-");
       return optimiser.optimise(rules, {

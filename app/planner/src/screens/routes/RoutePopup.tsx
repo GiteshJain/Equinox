@@ -44,7 +44,7 @@ export function RoutePopup({ routeId, rules, airlines, onClose }: { routeId: num
       id: l.id, airline_id: l.airline_id, rotation_id: l.rotation_id as number, leg_no: l.leg_no ?? 1, flight_no: l.flight_no, origin_code: l.origin_code,
       dest_code: l.dest_code, aircraft_id: l.aircraft_id, days_utc: l.days_utc, dep_utc_min: l.dep_utc_min, block_min: l.block_min, updated_at: "" }));
     const aircraft = new Map<number, AircraftRow>([...rules.aircraft.values()].map((a) => [a.id, {
-      id: a.id, registration: a.registration, airline_id: a.airline_id, aircraft_type_id: a.aircraft_type_id, status: a.status ?? "", schedule_changed_on: null, updated_at: "" }]));
+      id: a.id, registration: a.registration, airline_id: a.airline_id, aircraft_type_id: a.aircraft_type_id, status: a.status ?? "", updated_at: "" }]));
     return rots.map((x) => freqOf(rules, route, x, legs, aircraft));
   }, [route, rules]);
   if (!route) return null;

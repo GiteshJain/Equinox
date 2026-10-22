@@ -1,11 +1,11 @@
-// Today → Coming up (Home's until 20 Oct): the next 14 days, one-week checks (the aircraft due that day) and to-dos, with
-// the old filter buttons (One-week checks only while the checks are on).
+// Today → Coming up (Home's until 20 Oct): the next 14 days of to-dos, with the old filter buttons (the one-week checks
+// went on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { useState } from "react";
 import { Board } from "../../ui/Board";
 import { inDays, niceDate } from "../../ui/dates";
-import { UP_LABEL, upFilters, type UpEvent } from "./comingUp";
+import { UP_FILTERS, UP_LABEL, type UpEvent } from "./comingUp";
 
-export function ComingUp({ events, today, filters }: { events: UpEvent[] | null; today: string; filters: ReturnType<typeof upFilters> }) {
+export function ComingUp({ events, today }: { events: UpEvent[] | null; today: string }) {
   const [kinds, setKinds] = useState<ReadonlySet<UpEvent["type"]>>(new Set());
   const toggle = (k: UpEvent["type"] | "") => setKinds((s) => {
     if (!k) return new Set();
@@ -18,7 +18,7 @@ export function ComingUp({ events, today, filters }: { events: UpEvent[] | null;
   return (
     <Board title="Coming up" note="next 14 days" id="coming-up">
       <div className="mleg upf">
-        {filters.map(([k, l]) => (
+        {UP_FILTERS.map(([k, l]) => (
           <button type="button" key={l} className={"mf" + ((k ? kinds.has(k) : !kinds.size) ? " on" : "")} onClick={() => toggle(k)}>{l}</button>
         ))}
       </div>

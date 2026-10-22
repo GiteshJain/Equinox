@@ -2,9 +2,9 @@
 // filters as the old renderTailsCore, an aircraft's page as renderTailDetail (its week strip, its legs by flight number,
 // its issues), the deliveries board as deliveryRows and renderDeliveries, a plan card as planCard, the check against the
 // game before filing (checkBeforeFile), and every action as one planner_save() call: add, edit and remove an aircraft,
-// mark its one-week check, and filing (filePlan and importFlight). No screen code, so the unit tests run it. Every
-// planning figure is the library's (aircraftWeek, maintenance, tails, frequency, time); this file joins the tables'
-// rows to it and words what it answers, as the old planner words it.
+// and filing (filePlan and importFlight); Mark checked went with the one-week checks on 22 Oct. No screen code, so the
+// unit tests run it. Every planning figure is the library's (aircraftWeek, maintenance, tails, frequency, time); this
+// file joins the tables' rows to it and words what it answers, as the old planner words it.
 import {
   RulesError, aircraftWeek, banks, block, buildRules, card as cardRules, frequency, game, maintenance, service, tails, time, type AircraftWeek, type AirportRow,
   type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type FareLadder, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
@@ -821,6 +821,3 @@ export function removeDeliveryChanges(a: TailAircraft, facts: RemovalFacts, toda
   return [{ table: "aircraft", op: "update", key, base: a.updated_at, values: order }];
 }
 
-/** Mark checked (the old tmcheck): the one-week check done today. */
-export const markCheckedChange = (a: TailAircraft, today: string): Change =>
-  ({ table: "aircraft", op: "update", key: { id: a.id }, base: a.updated_at, values: { checked_on: today } });
