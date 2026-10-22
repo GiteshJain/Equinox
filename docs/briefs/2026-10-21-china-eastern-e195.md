@@ -24,8 +24,8 @@ connections. A fourth route passes only with Yiwu (124%, 144 connections, 9.8 bl
 Enshi all fail maintenance. Until 31 Oct only new routes are allowed (manual §4), so a second daily was not an option.
 
 ## Scenarios and the risk of waiting
-Waiting a day for an A320neo on a 5-star route would leave the E195 line idle, and the same cash would not cover both the
-E195 tonight and the A320neo tomorrow. Ordering the E195 tonight keeps the line filled (manual §3, cash decides).
+Waiting a day for an A320neo on a 5-star route would leave the E195 line idle. Ordering the E195 tonight keeps the line
+filled (manual §3, cash decides).
 
 ## What would change the recommendation
 A route's loads: if Yiwu's short hops add departures without passengers, Yiwu is the first to drop. The cabin rule's 65% test
@@ -35,5 +35,6 @@ A route's loads: if Yiwu's short hops add departures without passengers, Yiwu is
 **21 Oct: C plus Yiwu (Gitesh).** B-0367 (PVG), E195-E2, ordered 21 Oct, delivery 22 Oct 18:43 UTC. Routes: Yantai, Jinjiang,
 Shashi and Yiwu; cabin E195-LEI recorded on the plan card and fitted when the aircraft arrives. Card, daily (local times):
 MU1121 PVG 06:00 → YNT 07:18, MU1122 08:35 → PVG 09:53, MU1123 PVG 11:10 → JJN 12:31, MU1124 13:48 → PVG 15:09, MU1125 PVG
-16:26 → SHS 17:57, MU1126 19:14 → PVG 20:45, MU1127 PVG 22:02 → YIW 22:46, MU1128 00:03 → PVG 00:47. Logged as a feeder move.
+16:26 → SHS 17:57, MU1126 19:14 → PVG 20:45, MU1127 PVG 22:02 → YIW 22:46, MU1128 00:03 → PVG 00:47. Logged as a feeder move. The planner's card check on the saved card (22 Oct): no problems; maintenance 124%, turns,
+night bans, route gaps, flight numbers, service codes and cabin (E195-LEI) all ok, 9.8 block hours a day.
 Rule change made with it: the cabin rule's wording (manual §5, rule-history.md), 22 Oct.
