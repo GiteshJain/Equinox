@@ -186,7 +186,7 @@ export function Reference() {
 
   return (
     <main className="view ref-view" data-screen="reference" data-reference-ready={ready ? "yes" : "no"} data-reference-view={loc.pathname} data-open={[...open].join(" ")}>
-      <div className="vh"><h1>Reference</h1><p>Banks, aircraft, configs, markets and time zones.</p></div>
+      <div className="vh"><p className="vk">Settings and records</p><h1>Reference</h1><p>Banks, aircraft, configs, markets and time zones.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {offset ? (

@@ -101,6 +101,7 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
         <Link className="link" to={itemRoute("routes", { airline: code, hub: s.route.hub, dest: s.route.dest })} data-schedule>Schedule in Routes</Link>
       </div>
       <div className="vh rphead" data-figure="performance route: header">
+        <p className="vk">Performance · a route</p>
         <h1>{h.title} <span className="city">{h.city}</span></h1>
         <p className="rpline">{s.route.stars != null ? <><Stars n={s.route.stars} />{" "}</> : null}{h.line}</p>
         <p className="rpline">{h.launched} · {h.departures}{h.types ? ` · ${h.types}` : ""}{s.route.removed ? " · removed from the list" : ""}</p>

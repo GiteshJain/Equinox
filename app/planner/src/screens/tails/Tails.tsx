@@ -215,7 +215,7 @@ export function Tails() {
   return (
     <main className={"view tails" + (open || reg ? " has-detail" : "")} data-screen="tails" data-tails-ready={ready ? "yes" : "no"}
       data-tails-airline={airline?.code ?? ""} data-tail-open={open?.registration ?? ""} data-tails-view={loc.pathname + loc.search}>
-      <div className="vh"><h1>Tails</h1><p>Every aircraft — what it flies each week and how hard it works.</p></div>
+      <div className="vh"><p className="vk">The network</p><h1>Tails</h1><p>Every aircraft — what it flies each week and how hard it works.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {airlinesQ.data && !airline ? <ErrorBox error={`There's no airline ${filters.airline} among ours.`} /> : null}
       <div className="toolbar">

@@ -1,23 +1,11 @@
-// Under the header on every screen, as in the old planner (its #terminator and #clocks, renderClocks):
-//   - the equinox band: 24 hours of UTC from midnight to midnight, a marker at now, moved each minute. The old planner
-//     still draws it but its last style layer hides it (#terminator{display:none}); it's kept the same way here, hidden,
-//     so the two look alike (the pull request says so);
-//   - the game clocks: one chip per time zone of our bases, west to east, with the local time there, a dot for day or
-//     night and the bases' codes. The zones and times are the planning library's (time.clocks), from rules_input().
+// The game clocks, in the panel the top bar's clock button opens (since 22 Oct, spec
+// docs/specs/2026-10-22-planner-look-foundation.md; before, a row under the header on every screen): one chip per time
+// zone of our bases, west to east, with the local time there, a dot for day or night and the bases' codes. The zones and
+// times are the planning library's (time.clocks), from rules_input(). The hidden equinox band went with the move.
 import { time } from "@rules";
 import { useNow } from "../data/clock";
 import { useWorld } from "../data/reads";
 import { useRules } from "../data/rules";
-
-export function Band() {
-  const now = useNow();
-  const m = now.getUTCHours() * 60 + now.getUTCMinutes();
-  return (
-    <div id="terminator" title="Now, in UTC — the band runs from midnight to midnight" data-band>
-      <i style={{ left: (m / 1440) * 100 + "%" }} />
-    </div>
-  );
-}
 
 export function Clocks() {
   const now = useNow();

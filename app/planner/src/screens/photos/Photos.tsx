@@ -114,7 +114,7 @@ export function Photos() {
   const list = media ? (missingOnly ? all.filter((d) => !photoOf(media, d.code) || recent.has(d.code)) : all) : [];
   return (
     <main className="view photos" data-screen="photos" data-photos-ready={ready ? "yes" : "no"} data-photos-busy={busy ?? ""}>
-      <div className="vh"><h1>Website photos</h1><p>Airline logos and destination photos for the public website. Uploads go live straight away; the planner resizes them for the web first.</p></div>
+      <div className="vh"><p className="vk">The website</p><h1>Website photos</h1><p>Airline logos and destination photos for the public website. Uploads go live straight away; the planner resizes them for the web first.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       <div className="board">
         <div id="ph-root">

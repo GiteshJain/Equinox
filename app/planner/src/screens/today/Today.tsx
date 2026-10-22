@@ -249,7 +249,7 @@ export function Today() {
 
   return (
     <main className="view review today" data-screen="today" data-today-ready={ready ? "yes" : "no"} data-today-view={loc.pathname + loc.search}>
-      <div className="vh"><h1>Today</h1><p>What to do now: the capture, orders, aircraft to file, what needs attention, the game check and the to-dos.</p></div>
+      <div className="vh"><p className="vk">Every day</p><h1>Today</h1><p>What to do now: the capture, orders, aircraft to file, what needs attention, the game check and the to-dos.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
 
       <section className={"board todayans" + (waiting?.clear ? " clear" : "")} data-figure="today: answer" data-all-clear={waiting ? (waiting.clear ? "yes" : "no") : ""}>

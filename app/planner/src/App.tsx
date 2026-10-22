@@ -17,7 +17,6 @@ import { SCREENS, movedTo, type ScreenId } from "./screens/screens";
 import { Systems } from "./screens/systems/Systems";
 import { Tails } from "./screens/tails/Tails";
 import { Today } from "./screens/today/Today";
-import { Band, Clocks } from "./ui/Clocks";
 import { ErrorBox } from "./ui/ErrorBox";
 import { Header } from "./ui/Header";
 import { Messages } from "./ui/Messages";
@@ -52,8 +51,6 @@ function Shell() {
   return (
     <div data-shell>
       <Header />
-      <Band />
-      <Clocks />
       <Outlet />
     </div>
   );
@@ -73,6 +70,7 @@ function NotFound() {
   return (
     <main className="view">
       <div className="vh">
+        <p className="vk">Planner</p>
         <h1>Not found</h1>
         <p>There's no such screen in the planner. <a href={BASENAME + "/"}>Home</a></p>
       </div>
