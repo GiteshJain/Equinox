@@ -390,14 +390,15 @@ Details and open points: `docs/decisions.md`.
   late-game step, once the other hubs are built out. *(since 21 Oct; history: rule-history.md)*
 
 ## 5. Cabins and fares
-- **The cabin is chosen with each order,** among the layouts set up for its variant: if one route takes more than
+- **The cabin is chosen with each order, recorded on its plan card and fitted in the game when the aircraft
+  arrives,** among the layouts set up for its variant: if one route takes more than
   **65% of the aircraft's block time** (`settings.cabin_route_share_pct`), the layout that route's market calls for
   (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins
   over it); otherwise the layout with the most seats. Ryanair flies Standard only; Standard (economy only, no business)
   is Ryanair's, so the other airlines choose among the two-cabin layouts (Leisure, Leisure Plus, Comfort), and "the most
   seats" for them is Leisure. We don't refit. The plan card suggests its cabin by this rule (Tails → Deliveries, with
-  **Use the suggestion**) and the card check flags a card whose cabin is missing or differs. *(since 20 Oct; history:
-  rule-history.md)*
+  **Use the suggestion**) and the card check flags a card whose cabin is missing or differs. *(since 20 Oct; wording
+  clarified 22 Oct; history: rule-history.md)*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. **A new
   flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare.

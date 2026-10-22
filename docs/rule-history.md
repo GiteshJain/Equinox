@@ -243,6 +243,8 @@ Narrowbody trunks first: *Since 20 Oct (Gitesh).*
 #### The cabin is chosen with each order
 "The most seats" for them is Leisure (clarified 21 Oct, Gitesh).
 
+Wording clarified 22 Oct (Gitesh): the old sentence read "The cabin is chosen with each order", which a chat took to mean the cabin is set on the game's order screen. It isn't: the game takes only the aircraft; the cabin is recorded on the plan card and fitted when the aircraft arrives and is filed. The rule itself did not change.
+
 *Since 20 Oct · why (Gitesh): the new layouts aren't captured by the defaults. Built 21 Oct (spec `docs/specs/2026-10-21-cabins-new-rule.md`): the Cabins board and its refit settings went, and each market keeps only its layout.*
 
 #### Fares
