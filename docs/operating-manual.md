@@ -26,12 +26,13 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **Point-to-point routes away from our bases (Kingfisher first):** stations, a third role in the airline's bases
+- **Point-to-point routes away from our bases, for every airline (Kingfisher and Malaysia first):** stations, a third role in the airline's bases
   beside hubs and focus cities, for airports we fly to and from without making them a base (for example Lucknow for
   Lucknow–Patna): no banks, and flight numbers in 3 digits from one pool per airline, 100 to 999 (Gander's flights use
   up to 4 digits; the 21 Oct scan shows none with 5). Stations are never treated as hubs or focus cities (trunks, the
-  website, reports). Brief `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
-  *(decided 22 Oct; history: rule-history.md)*
+  website, reports). Malaysia's include Subang (its own market, 30 km from KUL) and Kota Kinabalu's pairs away from
+  KUL. Brief `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
+  *(decided 22 Oct; every airline since the same day; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 

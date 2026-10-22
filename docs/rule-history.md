@@ -55,6 +55,11 @@ manual's scale model), about 214 of whose pairs touch none of our bases; every r
 (`routes.hub_code`), so those pairs can't be listed. Gitesh: build it now, fly it after Delhi reaches 750 (hubs first
 unchanged). Bases at secondary cities (Lucknow, Ahmedabad, Pune and others) stay a question for a full brief.*
 
+*Every airline since the same day (Gitesh, review chat), not Kingfisher alone · why: the Airbus world's AirAsia flies 52
+routes from Kota Kinabalu that don't touch Kuala Lumpur, and Subang is its own market (Tigerair Singapore–Subang 78 a
+week, AirAsia Kota Kinabalu–Subang 56) that only pairs away from KUL can serve. The station role is per airline, so the
+build already covers it. Earlier wording: "Point-to-point routes away from our bases (Kingfisher first)".*
+
 ### 1. How we work
 
 #### Game changes are made in the planner at /planner/
