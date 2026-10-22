@@ -129,6 +129,15 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 #### Malaysia
 *Since 29 Sep · why: long-haul would have no loads without the feed.*
 
+*The long-haul trigger since 21 Oct (Gitesh, review chat): long-haul starts once every 4- and 5-star opening within the
+A320neo's reach is flown. Asked whether that meant the A320neo alone (about 4,700 km) or the whole A320 family with the
+A321XLR (about 6,900 km), he chose the A320neo. Before, the manual said only "build the Asian feeder network before
+any long-haul", with no point at which feeder-first ended · why: base-case growth gives Malaysia about 58 more aircraft
+by 31 Dec, more than its short and medium openings can take, so the end of feeder-first needed a test. On 21 Oct, 27
+such openings were unflown (Bali and Taipei on a plan card). Openings beyond 4,708 km (Tokyo Narita, Melbourne, the
+Gulf, Brisbane, Adelaide) count as long-haul for this rule. November's trunks keep their exception (§4).*
+Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul.
+
 #### No new airlines before January 2027
 *Since 15 Oct (Gitesh).*
 

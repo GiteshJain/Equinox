@@ -170,8 +170,10 @@ Details and open points: `docs/decisions.md`.
 - **Scale models** (each airline's counterpart in the Airbus world): Virgin → British Airways, Pan Am → Pan Am,
   China Eastern → China Eastern, Malaysia → Singapore Airlines; Kingfisher → Inter Connect (Ellinikon world). Ryanair
   covers the Europe the others can't. *(since 29 Sep)*
-- **Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul. *(since 29 Sep;
-  history: rule-history.md)*
+- **Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul. **Long-haul starts
+  once every 4- and 5-star opening on Malaysia's route list within the A320neo's reach (the A320neo Heavy, 4,708 km,
+  §3) is flown.** November's trunks (§4) are the one exception. *(since 29 Sep; the trigger since 21 Oct; history:
+  rule-history.md)*
 - **Kingfisher:** India is open; aim to capture all of it. *(since 2 Oct)*
 - **No new airlines before January 2027:** the two low-demand holdings the house rules allow (§9) wait until then.
   *(since 15 Oct; history: rule-history.md)*
