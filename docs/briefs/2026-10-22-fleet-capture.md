@@ -51,4 +51,4 @@ and the database (22 Oct).
 - If the game shows a turnaround per layout on another page, C could use that directly instead of fitting it.
 
 ## Outcome
-<to be decided>
+22 Oct 2026, Gitesh: **B and C**, "as maintenance and turns can change as the world grows". B is built now. C follows once about two weeks of fleet nights are in, and refits on its own every week from the latest nights rather than once, so the planner's figure follows the game as it changes.
