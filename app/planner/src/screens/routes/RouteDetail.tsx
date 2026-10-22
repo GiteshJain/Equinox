@@ -4,7 +4,10 @@
 // planner_save() call; the questions are asked in the page. Since 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md
 // §2) the header shows the layout the route calls for (its own cabin choice, else its market's) where it showed the
 // market's aircraft, cabin and fares, and the block is estimated on the airline's most-flown type. Since 22 Oct (spec
-// docs/specs/2026-10-21-route-page.md §3) a flown route's header links to its route page on Performance, "How it's doing ›".
+// docs/specs/2026-10-21-route-page.md §3) a flown route links to its route page on Performance. Since the new look (22 Oct,
+// spec docs/specs/2026-10-22-planner-look-routes.md §5): the route's name ("New York → Atlanta") with its codes, a muted
+// line (airline, distance, stars, market), the figures as big numbers, then the frequencies, the loads and "The route's
+// story ›".
 import { useState, type FocusEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router";
 import { block, findType, game, type FrequencyChecks, type Rules } from "@rules";
@@ -13,7 +16,7 @@ import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import { Frequency } from "./Frequency";
 import {
-  disp, hhmm, layoutWords, moveWords, nextPair, parseOffset, priceFor, serviceFor,
+  disp, hhmm, layoutWords, loadAverage, loadClass, moveWords, nextPair, parseOffset, perDay, priceFor, routeName, serviceFor, summaryOf,
   type AircraftRow, type Airline, type AirportInfo, type Freq, type FreqField, type Load, type MarketRow, type Mode, type OffsetMove, type Route, type RouteField,
 } from "./model";
 import { LoadSummary, Stars } from "./parts";
@@ -71,6 +74,7 @@ export function RouteDetail(p: DetailProps) {
   const z = p.mode === "utc" ? "Z" : "";
   const nx = nextPair(rules, r);
   const svc = serviceFor(p.profiles, r);
+  const sm = summaryOf(p.freqs);
   const codeOf = (id: number | null) => p.airlines.find((a) => a.id === id)?.code ?? null;
   const askOffset = async (code: string, typed: string) => {
     const v = parseOffset(typed);
@@ -93,20 +97,30 @@ export function RouteDetail(p: DetailProps) {
   return (
     <div data-route-detail={`${r.hub}-${r.dest}`}>
       <div className="dhead" data-figure="routes: header">
-        <button type="button" className="back" id="back-route" onClick={p.onBack}>‹ Routes</button>
-        <h2>{r.hub}–{r.dest} <span className="city">{r.city}</span>
-          {p.freqs.length && p.airline.code ? <>{" "}<Link className="link rpgo" to={itemRoute("performance", { airline: p.airline.code, hub: r.hub, dest: r.dest })}
-            data-route-page-link title="its story since launch, on Performance">How it's doing ›</Link></> : null}
-        </h2>
+        <button type="button" className="back" id="back-route" onClick={p.onBack}>← Routes</button>
+        <h2 className="rdh">{routeName(p.airports.get(r.hub)?.city, r.hub, r.city || p.airports.get(r.dest)?.city, r.dest)} <span className="rcodes">{r.hub}–{r.dest}</span></h2>
         <div className="dsub" data-dsub="1">
-          <Stars n={r.stars} /> {p.airline.name} · {r.market} · {(r.dist ?? 0).toLocaleString()} km · UTC offsets{" "}
+          {p.airline.name} · {(r.dist ?? 0).toLocaleString()} km · <Stars n={r.stars} title={`demand ${r.stars}/5`} />{r.market ? ` · ${r.market}` : ""}
+        </div>
+        <div className="rfigs" data-figure="routes: figures">
+          <div className="rfig" data-fig="block"><span className="rfl">Est. block</span><b>{est ? hhmm(est) : "—"}</b><span className="rfs">on {type?.name ?? "?"}</span></div>
+          <div className="rfig" data-fig="a day"><span className="rfl">A day</span><b>{sm.count ? perDay(sm.rtDay) : "—"}</b>
+            <span className="rfs">{sm.count ? `round trip${sm.rtDay === 1 ? "" : "s"} · ${sm.count} frequenc${sm.count === 1 ? "y" : "ies"}` : "not flown yet"}</span></div>
+          <div className="rfig" data-fig="load"><span className="rfl">Load, 7 days</span>
+            {p.routeLoad ? <><b className={"lf " + loadClass(loadAverage(p.routeLoad))}>≈{Math.round(loadAverage(p.routeLoad))}%</b>
+              <span className="rfs">{p.routeLoad.departures} departure{p.routeLoad.departures === 1 ? "" : "s"}</span></>
+              : <><b>—</b><span className="rfs">no reports yet</span></>}
+          </div>
+        </div>
+        <div className="dsub" data-dsub="2">
+          <span data-route-layout>{layoutWords(r)}</span> · service {svc}
+          {base ? ` · banks ${(base.bank_times ?? []).filter((b): b is string => !!b).map((b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)).join(" ")}${z}` : " · no bank at this hub"}
+          {" "}· UTC offsets{" "}
           <OffsetInput code={r.hub} value={String(offH(r.hub))} className="tiny" onOffset={(c, t) => void askOffset(c, t)} /> {r.hub}{" "}
           <OffsetInput code={r.dest} value={String(offH(r.dest))} className="tiny" onOffset={(c, t) => void askOffset(c, t)} /> {r.dest}
         </div>
-        <div className="dsub" data-dsub="2">
-          Est. block {est ? hhmm(est) : "—"} on {type?.name ?? "?"} · <span data-route-layout>{layoutWords(r)}</span> · service {svc}
-          {base ? ` · banks ${(base.bank_times ?? []).filter((b): b is string => !!b).map((b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)).join(" ")}${z}` : " · no bank at this hub"}{" "}
-          <button type="button" className="link" id="edit-route" onClick={() => setEditing((x) => !x)}>{editing ? "done" : "edit route"}</button>{" "}
+        <div className="racts">
+          <button type="button" className="link" id="edit-route" aria-expanded={editing} onClick={() => setEditing((x) => !x)}>{editing ? "done" : "edit route"}</button>
           <button type="button" className="link" id="rm-route" disabled={p.busy}
             onClick={() => { if (p.freqs.length) showMessage("Remove its frequencies first."); else setRemoving(true); }}>remove route</button>
         </div>
@@ -142,7 +156,7 @@ export function RouteDetail(p: DetailProps) {
         <div className="empty" data-figure="routes: next numbers">
           Not flown yet. Next free numbers at {r.hub}: {nx ? `${nx.out} out / ${nx.back} back` : "—"}{nx && nx.highest ? ` (highest used ${nx.highest})` : ""}.
         </div>
-      ) : <LoadSummary a={p.routeLoad} />}
+      ) : <h3 className="rsh">Frequencies</h3>}
       {p.freqs.map((f) => (
         <Frequency key={f.rot.id} f={f} route={r} checks={p.checks.get(f.rot.id) ?? null} mode={p.mode} flightLoad={p.flightLoad} airlines={p.airlines}
           tails={tails} services={p.profiles.map((s) => s.code)} serviceDefault={svc} priceDefault={priceFor(rules, r)} connectionNote={connectionNote}
@@ -150,6 +164,11 @@ export function RouteDetail(p: DetailProps) {
           onOpenTail={p.onOpenTail} />
       ))}
       <button type="button" className="primary" id="add-freq" onClick={p.onAddFrequency} disabled={p.busy}>Add frequency</button>
+      {p.freqs.length ? <LoadSummary a={p.routeLoad} /> : null}
+      {p.freqs.length && p.airline.code ? (
+        <Link className="rstory" to={itemRoute("performance", { airline: p.airline.code, hub: r.hub, dest: r.dest })} data-route-page-link
+          title="its story since launch, on Performance">The route's story ›</Link>
+      ) : null}
     </div>
   );
 }

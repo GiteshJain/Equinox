@@ -25,7 +25,7 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    then a scorecard opens its airline's page (Profit, Cash next 14 days, Route profit with its fare index and 14-day
    load sparkline, Fare plan, open), and (22 Oct) its first route's name opens the route page: its header, the last 7
    days against the 7 before, its five boards open with as many events and rivals as route_story() gives, its links to
-   Routes (which links back, "How it's doing ›") and to the airline's page, and Competition's threats each linking to
+   Routes (which links back, "The route's story ›") and to the airline's page, and Competition's threats each linking to
    their route's page; Systems, the Systems board first, then its four boards folded (Capture with the copy's
    airlines, Cabin charges since 22 Oct, Manual entry, Aircraft checks; Cabins went on 21 Oct), and three (no Aircraft
    checks) with the one-week checks off; Interline with its agreements and the interline countries, Photos with a logo for each
@@ -480,15 +480,17 @@ async def competition_opens(pl):
 async def routes_opens(pl):
     """Routes is rebuilt (build pull request 6): no placeholder; it opens on its list (the first airline's routes with
     its first base picked) with our airlines on its buttons in their order. Its figures are compared with the old
-    Routes' by tests/routes_side_by_side_test.py."""
+    Routes' by tests/routes_side_by_side_test.py. Since 22 Oct (spec docs/specs/2026-10-22-planner-look-routes.md) the
+    airline switch sits in the page head and the count under the list's tools, so they're found there."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                  where g.kind = 'ours' and a.world_id = {WORLD} order by a.position nulls last, a.id""").splitlines() if r]
     await open_screen(pl.pg, 'routes')
     await pl.pg.wait_for_selector("main[data-screen=routes][data-routes-ready=yes]", timeout=60000)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=routes] [data-not-built]'),
-        airlines: [...document.querySelectorAll('.toolbar .seg [data-al]')].map(b => b.dataset.al),
-        rows: document.querySelectorAll('#routelist .row').length, count: (document.querySelector('.toolbar .count') || {}).textContent || '' })""")
+        airlines: [...document.querySelectorAll('main[data-screen=routes] .rseg [data-al]')].map(b => b.dataset.al),
+        rows: document.querySelectorAll('#routelist .row').length,
+        count: (document.querySelector('main[data-screen=routes] [data-figure="routes: count"]') || {}).textContent || '' })""")
     problems = []
     if got["notBuilt"]:
         problems.append("Routes still shows the placeholder's line to the old planner")
@@ -852,7 +854,7 @@ async def route_page_opens(pl):
     open (Since launch, Profit an aircraft hour, Events, Rivals on the pair, Connections), the chart there from 14 days
     with flights and a line saying so before, as many events and rivals as route_story() gives on the copy, 10 events
     shown at most, the connections at both ends. Its links: "Schedule in Routes" opens the route on Routes, whose header
-    links back with "How it's doing ›" (a flown route), and "‹ <airline>" opens the airline's page. Competition's threats
+    links back with "The route's story ›" (a flown route), and "‹ <airline>" opens the airline's page. Competition's threats
     each link to their route's page. Counts and codes only."""
     problems = []
     await open_screen(pl.pg, 'performance')
@@ -902,7 +904,7 @@ async def route_page_opens(pl):
         problems.append(f"the connections are at {got['ends']}, not {hub} and {dest}")
     if got["back"] != f"/planner/performance/{acode}" or got["schedule"] != f"/planner/routes/{acode}/{key}":
         problems.append(f"the route page links to {got['back']!r} and {got['schedule']!r}")
-    # Schedule in Routes, and back with How it's doing ›
+    # Schedule in Routes, and back with The route's story ›
     await pl.pg.click("main[data-route-page] [data-schedule]")
     await pl.pg.wait_for_selector("main[data-screen=routes][data-routes-ready=yes]", timeout=60000)
     await pl.pg.wait_for_selector("[data-route-detail]", timeout=30000)
@@ -932,7 +934,7 @@ async def route_page_opens(pl):
             f"({'compared' if got['compared'] == 'yes' else 'nothing to compare'}), its five boards open, "
             f"{'the since-launch chart (' + str(got['markers']) + ' event markers)' if got['chart'] else 'the chart waiting for 14 days'}, "
             f"{got['events']} events ({got['shown']} shown), {got['rivals']} rivals and {got['conns']} city pairs shown at its two ends, as route_story() "
-            f"gives them; Schedule in Routes and back ({'How it' + chr(39) + 's doing ›' if back else 'not flown: no link back'}), ‹ airline to its page; "
+            f"gives them; Schedule in Routes and back ({'The route' + chr(39) + 's story ›' if back else 'not flown: no link back'}), ‹ airline to its page; "
             f"Competition's {threats['n']} threats each link to their route's page"), problems
 
 
@@ -1252,6 +1254,19 @@ async def screens(p, port, env, facts, staff, seen, moment):
                 problems.append(f"competition/{code}: it isn't ready at {width} px wide")
             await look("competition", "competition-airline")
             problems += [f"competition/{code} at {width} px: {e}" for e in ph.errors[e0:]]
+            # a route open on Routes (22 Oct, spec docs/specs/2026-10-22-planner-look-routes.md): the busy legacy route, opened
+            # by its address, its detail beside the list (on a phone, full screen)
+            for r in route_pages[:1]:
+                e0 = len(ph.errors)
+                addr = f"/planner/routes/{r['code']}/{r['hub']}-{r['dest']}"
+                await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                try:
+                    await ph.pg.wait_for_selector(f"{READY['routes']} [data-route-detail='{r['hub']}-{r['dest']}']", timeout=90000)
+                    await settle(ph.pg, 400)
+                except Exception:
+                    problems.append(f"{addr}: its route isn't open at {width} px wide")
+                await look("routes", "routes-detail")
+                problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
             # the route page (22 Oct), opened directly by its address: a busy legacy route and a Ryanair route
             for r in route_pages:
                 e0 = len(ph.errors)
