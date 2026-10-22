@@ -26,6 +26,10 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **Point-to-point routes away from our bases (Kingfisher first):** a way to list, rank and plan pairs that touch no
+  base of the airline (for example Lucknow–Patna), with their own flight-number block and no banks; to be built in the
+  Building chat. Kingfisher flies them only once Delhi passes 750 weekly departures: hubs first (§3) is unchanged.
+  *(decided 22 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 

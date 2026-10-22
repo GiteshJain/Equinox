@@ -49,6 +49,12 @@ Every rule in force for the equinox. group, with the date it started and why. De
 #### A frequency taken away isn't tracked yet
 From the built item "New frequencies and the fare ladder are built" (below, *Built from the decision list*).
 
+### Decided, not yet built: point-to-point routes away from our bases
+*Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
+manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base
+(`routes.hub_code`), so those pairs can't be listed. Gitesh: build it now, fly it after Delhi reaches 750 (hubs first
+unchanged). Bases at secondary cities (Lucknow, Ahmedabad, Pune and others) stay a question for a full brief.*
+
 ### 1. How we work
 
 #### Game changes are made in the planner at /planner/
