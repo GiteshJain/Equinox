@@ -51,4 +51,4 @@ Sources: the review chat (22 Oct), the manual §3 ("Size by city stars"), `captu
 - If no new airports are planned for a while, A is enough for now.
 
 ## Outcome
-<to be decided>
+22 Oct 2026, Gitesh: **A**. "Every time we open a new airport, check the demand at that time; demand is constant, so no need for regular checks." The chat that adds an airport reads its page and writes the stars from the scale (manual §3, already so). Known limit: nothing flags an airport that was missed, since stars were written as overrides only where they changed; B's demand column is the fix if a miss ever matters.
