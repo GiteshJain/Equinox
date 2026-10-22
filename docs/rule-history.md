@@ -108,6 +108,8 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 #### Big builds go to a fresh helper
 *Since 8 Oct (#26) · why: the old Building chat lost detail as it filled; a clean memory per build fixes that with no extra steps.*
 
+*No polling since 22 Oct (Gitesh: "stop the polling") · why: helpers checked the pull request's checks every minute or so while the database rehearsal ran (20–40 minutes a round), which used most of a build's Claude usage and time. Earlier wording: the helper "runs the checks and opens the pull request", and watched them until green. The checks themselves are unchanged.*
+
 #### Data-only changes go straight in, to the tables
 *Since 8 Oct (#2); to the tables since 10 Oct (#13, pull request 9); through `planner_save()` or plain SQL since 14 Oct (the clean-up removed `planner_item_put()` and `planner_item_delete()` with the adapter) · why: the planner reads and saves the tables directly.*
 

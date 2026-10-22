@@ -111,10 +111,12 @@ Details and open points: `docs/decisions.md`.
   *(since 20 Oct; history: rule-history.md)*
 - **Big builds go to a fresh helper.** Decisions and reviews stay in the Building chat. Each sizeable build gets a
   written spec (what, why, which files, what the checks should show) and goes to a helper that starts with a fresh
-  memory: it reads `CLAUDE.md`, the map and the manual, writes the code, runs the checks and opens the pull request.
-  Claude reviews it against the spec and the checks before asking for "merge". Small fixes can be made directly in the
+  memory: it reads `CLAUDE.md`, the map and the manual, writes the code, runs the checks locally, opens the pull
+  request and stops. **Nobody polls the automatic checks:** the Building chat waits on them with one background wait
+  that wakes it once they finish (no Claude usage while waiting); a red check goes to a helper to fix. Claude reviews
+  the pull request against the spec and the checks before asking for "merge". Small fixes can be made directly in the
   chat. A new Building chat starts at each step of the decision list, once anything worth carrying is in the
-  repository or the project files. *(since 8 Oct; history: rule-history.md)*
+  repository or the project files. *(since 8 Oct; no polling since 22 Oct; history: rule-history.md)*
 - **Data-only changes go straight in, to the tables:** plan cards, to-dos, notes, logs. Either through
   `planner_save(changes, client)`, the planner's own way of saving (one call of row changes, each from the
   `updated_at` it was read at; logged as actor planner with the client named, e.g. `claude <chat>`), or plain SQL on
