@@ -26,9 +26,11 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **Point-to-point routes away from our bases (Kingfisher first):** a way to list, rank and plan pairs that touch no
-  base of the airline (for example Lucknow–Patna), with their own flight-number block and no banks; to be built in the
-  Building chat. Kingfisher flies them only once Delhi passes 750 weekly departures: hubs first (§3) is unchanged.
+- **Point-to-point routes away from our bases (Kingfisher first):** stations, a third role in the airline's bases
+  beside hubs and focus cities, for airports we fly to and from without making them a base (for example Lucknow for
+  Lucknow–Patna): no banks, and flight numbers in 3 digits from one pool per airline, 100 to 999 (Gander's flights use
+  up to 4 digits; the 21 Oct scan shows none with 5). Stations are never treated as hubs or focus cities (trunks, the
+  website, reports). Brief `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
   *(decided 22 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
@@ -311,11 +313,13 @@ Details and open points: `docs/decisions.md`.
 - **Hubs first:** until an airline's main hub reaches **750 weekly departures**, every new aircraft goes to the main hub.
   Any other base, whether new or already open (second hubs and focus cities alike), gets an aircraft only to fly
   contested routes: a rival with over 250 departures a week at that base, or over 2 a day on the route itself. A base
-  that is contested for one route (Manchester for Amsterdam, say) doesn't open its other routes. Ryanair is exempt.
+  that is contested for one route (Manchester for Amsterdam, say) doesn't open its other routes. **Stations open
+  nothing** until the main hub reaches the 750, contested or not (since 22 Oct). Ryanair is exempt.
   Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
   Atlanta or Phoenix, SFO and SEA. The numbers are `settings.hub_first_departures` (750),
   `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'
-  thresholds are the `growth_*` and `pattern_*` settings. *(since 5 Oct; history: rule-history.md)*
+  thresholds are the `growth_*` and `pattern_*` settings. *(since 5 Oct; stations since 22 Oct; history:
+  rule-history.md)*
 
 ## 4. Scheduling
 - **How it runs: every evening, from the order queues; a card with each order.** After the capture the Scheduling

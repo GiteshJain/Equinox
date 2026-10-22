@@ -211,6 +211,8 @@ Each comes with the variant from the default line (below: the smallest size its 
 #### Hubs first
 *Since 5 Oct, confirmed 8 Oct as the only test for opening a new base; extended to bases already open 11 Oct · why: Gitesh: grow the main hub before any other base. G-AADU was nearly planned at Manchester on uncontested routes, which the old wording allowed.*
 
+*Stations open nothing until the main hub reaches the 750, contested or not: since 22 Oct (Gitesh, with the station role, brief `docs/briefs/2026-10-22-point-to-point-routes.md`) · why: under the contested test a station would count as "any other base", so a rival at a station airport would open point-to-point flying before the 7 Nov strategy session decides on it. None of Kingfisher's likely stations is contested in Gander today (21 Oct scan: Ahmedabad 28 rival departures a week, the others none).*
+
 ### 4. Scheduling
 
 #### How it runs: every evening, from the order queues
