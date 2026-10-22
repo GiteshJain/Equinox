@@ -7,8 +7,11 @@
 // Addresses: /planner/routes (the list, its filters in the address so a link reopens them) and
 // /planner/routes/<airline code>/<hub>-<destination> (a route). Each action is one planner_save() call; the start's
 // rules are read again after each, since the schedule changed. Every rule is the library's (lib/rules); model.ts joins
-// the tables to it and words what it answers.
-import { useMemo, useState, type KeyboardEvent } from "react";
+// the tables to it and words what it answers. Since 22 Oct (the new look, spec docs/specs/2026-10-22-planner-look-routes.md)
+// the layout is the approved mockup's: the airline switch beside the title, the list beside its detail (each scrolling in
+// its own panel), one row of tools (search, the base picker, Filters with the rest), slim rows; on a phone the list, then
+// the route full screen. What it shows, saves and reads is as before.
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { block, frequency, game, type FrequencyChecks } from "@rules";
 import { useNow } from "../../data/clock";
@@ -23,13 +26,12 @@ import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
-import { Pill } from "../../ui/Pill";
 import {
-  SORTS, addFrequencyChanges, addRouteChanges, changeFrequency, deleteFrequencyChanges, editRouteChange, filtersQuery, freqOf, isTrunk, listRows,
+  SORTS, addFrequencyChanges, baseWords, countWords, filtersOn, rowCode, addRouteChanges, changeFrequency, deleteFrequencyChanges, editRouteChange, filtersQuery, freqOf, isTrunk, listRows,
   liveRules, marketChips, newLegacyKey, nextPair, offsetChanges, parseFilters, parseOffset, perDay, priceFor, removeRoutesChanges, routeOf, serviceFor,
-  summaryOf, tailsWords, type AircraftRow, type Airline, type Filters, type Freq, type FreqField, type Load, type Route, type RouteField,
+  summaryOf, type AircraftRow, type Airline, type Filters, type Freq, type FreqField, type Load, type Route, type RouteField,
 } from "./model";
-import { LoadChip, Stars } from "./parts";
+import { LoadChip } from "./parts";
 import {
   legsAt, readAirports, routeByAirports, useAirlineLegs, useAirlineRotations, useAirlineRoutes, useAirports, useLoads, useMarkets, useRoutesAircraft,
   useServiceProfiles,
@@ -38,6 +40,8 @@ import { RouteDetail } from "./RouteDetail";
 import { AircraftPopup } from "../tails/AircraftPopup";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
+/** A phone (under 760 px, spec docs/specs/2026-10-22-planner-look-routes.md §6): the list, then a route full screen. */
+const narrow = () => typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 759px)").matches;
 
 export function Routes() {
   const params = useParams();
@@ -77,6 +81,11 @@ export function Routes() {
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [removingShown, setRemovingShown] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // the list and the detail each scroll inside their own panel; on a phone the page scrolls, and the list's place is kept
+  const listBox = useRef<HTMLDivElement>(null);
+  const detailBox = useRef<HTMLElement>(null);
+  const listY = useRef<number | null>(null);
 
   const markets = useMemo(() => new Map((marketsQ.data ?? []).map((m) => [m.id, m])), [marketsQ.data]);
   const routes = useMemo(() => (routesQ.data ?? []).map((r) => routeOf(r, markets)), [routesQ.data, markets]);
@@ -245,114 +254,166 @@ export function Routes() {
   const airlineMarkets = (marketsQ.data ?? []).filter((m) => m.airline_id === airline?.id);
   const focusPicked = picked.some((c) => ctx.focus.includes(c));
 
+  // a route opened: its detail from the top (on a phone, the page, since the detail is full screen there); closed on a
+  // phone: the list back where it was
+  const openKey = codePart ? `${codePart}/${pairPart}` : "";
+  useEffect(() => {
+    if (detailBox.current) detailBox.current.scrollTop = 0;
+    if (!narrow()) return;
+    if (openKey) window.scrollTo(0, 0);
+    else if (listY.current != null) { window.scrollTo(0, listY.current); listY.current = null; }
+  }, [openKey]);
+  // the selected route in view in its list, when the list scrolls inside its panel (a route opened by its address)
+  const selId = route?.id;
+  useEffect(() => {
+    const box = listBox.current;
+    if (!ready || selId === undefined || !box || narrow()) return;
+    const row = box.querySelector<HTMLElement>(".row.sel");
+    if (!row) return;
+    const b = box.getBoundingClientRect(), r = row.getBoundingClientRect();
+    if (r.top < b.top || r.bottom > b.bottom) box.scrollTop += r.top - b.top - b.height / 3;
+  }, [ready, selId]);
+
+  const nOn = filtersOn(filters);
+  const pickBase = (v: string) => toList({ ...filters, bases: v ? v.split(",") : [] });
+  // the base picker's choices: All, each base, and the bases the address picks together when it picks more than one
+  const baseValue = picked.join(",");
+  const openRoute = (r: Route) => {
+    if (narrow()) listY.current = window.scrollY;
+    navigate(routeHref(r));
+  };
+
   return (
     <main className={"view routes" + (route || codePart ? " has-detail" : "")} data-screen="routes" data-routes-ready={ready ? "yes" : "no"}
       data-routes-airline={airline?.code ?? ""} data-route-open={route ? `${route.hub}-${route.dest}` : ""} data-routes-view={loc.pathname + loc.search}>
-      <div className="vh"><p className="vk">The network</p><h1>Routes</h1><p>Every route in the network. Pick one to schedule its flights.</p></div>
+      <div className="vh rvh">
+        <p className="vk">The network</p>
+        <div className="rttl">
+          <h1>Routes</h1>
+          <div className="seg rseg" role="group" aria-label="Airline">
+            {airlines.map((a) => (
+              <button type="button" key={a.id} data-al={a.code ?? ""} className={a.id === airline?.id ? "on" : ""} aria-pressed={a.id === airline?.id}
+                onClick={() => navigate(listHref({ ...filters, airline: a === airlines[0] ? null : a.code, bases: null, markets: [] }))}>
+                <AirlineMark color={a.color} />{a.name}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="secondary radd" id="add-route-btn" aria-expanded={adding} onClick={() => setAdding((x) => !x)}>Add route</button>
+        </div>
+      </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {airlinesQ.data && !airline ? <ErrorBox error={`There's no airline ${codePart || filters.airline} among ours.`} /> : null}
-      <div className="toolbar">
-        <div className="seg">
-          {airlines.map((a) => (
-            <button type="button" key={a.id} data-al={a.code ?? ""} className={a.id === airline?.id ? "on" : ""}
-              onClick={() => navigate(listHref({ ...filters, airline: a === airlines[0] ? null : a.code, bases: null, markets: [] }))}>
-              <AirlineMark color={a.color} />{a.name}
+      <div className="rwrap">
+        <section className="rlist" aria-label="Routes">
+          <div className="rtools">
+            <input id="f-q" type="search" placeholder="Find a destination" aria-label="Find a destination" value={filters.q}
+              onChange={(e) => keep({ ...filters, q: e.currentTarget.value }, true)} />
+            <select id="f-base" aria-label="Base" value={baseValue} onChange={(e) => pickBase(e.currentTarget.value)}>
+              <option value="">All bases</option>
+              {picked.length > 1 ? <option value={baseValue}>{baseWords(picked)}</option> : null}
+              {bases.map((b) => (
+                <option key={b.id} value={b.airport_code} data-hubchip={b.airport_code}>
+                  From {b.airport_code}{b.role === "focus" ? " (focus)" : ""}
+                </option>
+              ))}
+            </select>
+            <button type="button" id="f-open" className={"secondary rfbtn" + (nOn ? " on" : "")} aria-expanded={filtersOpen} aria-controls="f-panel"
+              onClick={() => setFiltersOpen((x) => !x)}>
+              Filters{nOn ? <span className="rfn">{nOn}</span> : null}
             </button>
-          ))}
-        </div>
-        <input id="f-q" placeholder="Search destination" value={filters.q} onChange={(e) => keep({ ...filters, q: e.currentTarget.value }, true)} />
-        <label className="check"><input type="checkbox" id="f-active" checked={filters.active} onChange={(e) => keep({ ...filters, active: e.currentTarget.checked })} /> Active only</label>
-        <select id="f-sort" value={filters.sort} onChange={(e) => keep({ ...filters, sort: e.currentTarget.value as Filters["sort"] })}>
-          {SORTS.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
-        </select>
-        <input id="f-dmin" type="number" placeholder="km from" style={{ width: 86 }} {...km("kmFrom")} />
-        <input id="f-dmax" type="number" placeholder="km to" style={{ width: 86 }} {...km("kmTo")} />
-        <button type="button" className="secondary" id="add-route-btn" onClick={() => setAdding((x) => !x)}>Add route</button>
-        {removable.length && !filters.active ? (
-          <button type="button" className="danger" id="rm-filtered" disabled={busy} onClick={() => setRemovingShown(true)}>
-            Remove {removable.length} unflown route{removable.length > 1 ? "s" : ""} shown
-          </button>
-        ) : null}
-        <span className="count" data-figure="routes: count">{rows.length} routes · {activeCount} active</span>
-      </div>
-      {removingShown ? (
-        <ConfirmPanel question={`Remove ${removable.length} unflown routes from the list? You can restore them from Reference.`} yes="Remove" busy={busy}
-          onNo={() => setRemovingShown(false)}
-          onYes={() => { setRemovingShown(false); void save(removeRoutesChanges(removable.map((x) => x.route), `removed with the unflown routes shown on ${today}`)).then((res) => { if (res.status === "saved" && route && removable.some((x) => x.route.id === route.id)) toList(filters); }); }} />
-      ) : null}
-      <div className="chips" data-chips="bases">
-        <span className="chiplbl">Bases</span>
-        <button type="button" className={"chip" + (!picked.length ? " on" : "")} data-hubchip="" onClick={() => toList({ ...filters, bases: [] })}>All</button>
-        {bases.map((b) => {
-          const fc = b.role === "focus";
-          return (
-            <button type="button" key={b.id} className={"chip" + (picked.includes(b.airport_code) ? " on" : "") + (fc ? " fcchip" : "")} data-hubchip={b.airport_code}
-              title={fc ? "focus city" + (b.parent_code ? ", feeds " + b.parent_code : "") : "hub"}
-              onClick={() => toList({ ...filters, bases: toggle(picked, b.airport_code) })}>
-              {b.airport_code}{fc ? <span className="fctag">focus</span> : null}
-            </button>
-          );
-        })}
-        {focusPicked && ctx.hubs.length ? <>
-          <button type="button" className={"chip" + (filters.trunks ? "" : " on")} data-trunkonly="0" onClick={() => toList({ ...filters, bases: picked, trunks: false })}>All routes</button>
-          <button type="button" className={"chip" + (filters.trunks ? " on" : "")} data-trunkonly="1" title="only routes between the focus city and this airline's hubs"
-            onClick={() => toList({ ...filters, bases: picked, trunks: true })}>Trunks only</button>
-        </> : null}
-      </div>
-      <div className="chips" data-chips="stars">
-        <span className="chiplbl">Demand</span>
-        <button type="button" className={"chip" + (!filters.stars.length ? " on" : "")} data-starchip="" onClick={() => toList({ ...filters, bases: picked, stars: [] })}>All</button>
-        {[5, 4, 3, 2, 1].map((n) => (
-          <button type="button" key={n} className={"chip" + (filters.stars.includes(n) ? " on" : "")} data-starchip={n}
-            onClick={() => toList({ ...filters, bases: picked, stars: toggle(filters.stars, n) })}>{"★".repeat(n)}</button>
-        ))}
-      </div>
-      <div className="chips" data-chips="markets">
-        <span className="chiplbl">Markets</span>
-        <button type="button" className={"chip" + (!filters.markets.length ? " on" : "")} data-mkchip="" onClick={() => toList({ ...filters, bases: picked, markets: [] })}>All</button>
-        {marketChips(routes).map((m) => (
-          <button type="button" key={m} className={"chip" + (filters.markets.includes(m) ? " on" : "")} data-mkchip={m}
-            onClick={() => toList({ ...filters, bases: picked, markets: toggle(filters.markets, m) })}>{m}</button>
-        ))}
-      </div>
-      {adding && airline ? (
-        <div className="addform" data-add-route>
-          <b>New route for {airline.name}</b>
-          <select id="r-hub" value={form.hub || picked[0] || ""} onChange={(e) => setForm({ ...form, hub: e.currentTarget.value })}>
-            <option value="">Hub</option>{bases.map((b) => <option key={b.id} value={b.airport_code}>{b.airport_code}</option>)}
-          </select>
-          <input id="r-dest" placeholder="Dest code" maxLength={3} style={{ width: 90 }} value={form.dest} onChange={(e) => setForm({ ...form, dest: e.currentTarget.value })} />
-          <input id="r-city" placeholder="City (auto if known)" style={{ width: 150 }} value={form.city} onChange={(e) => setForm({ ...form, city: e.currentTarget.value })} />
-          <input id="r-dist" placeholder="km (auto if known)" style={{ width: 120 }} value={form.km} onChange={(e) => setForm({ ...form, km: e.currentTarget.value })} />
-          <select id="r-market" value={form.market} onChange={(e) => setForm({ ...form, market: e.currentTarget.value })}>
-            <option value="">Market</option>{airlineMarkets.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
-          </select>
-          <button type="button" className="primary" id="r-add" disabled={busy} onClick={() => void addRoute()}>Add</button>
-          <button type="button" className="link" id="r-cancel" onClick={() => setAdding(false)}>cancel</button>
-        </div>
-      ) : null}
-      <div className="split">
-        <div className="list" id="routelist" data-figure="routes: list">
-          {!rows.length ? <div className="empty">{ready ? "No routes match. Clear a filter." : "Loading…"}</div> : null}
-          {rows.map(({ route: r, summary: s }) => (
-            <div key={r.id} className={"row" + (route?.id === r.id ? " sel" : "")} data-route-row={`${r.hub}-${r.dest}`} role="link" tabIndex={0}
-              onClick={() => navigate(routeHref(r))} onKeyDown={(e) => { if (e.key === "Enter") navigate(routeHref(r)); }}>
-              <div className="rk"><b>{r.hub}–{r.dest}</b> <span className="city">{r.city}</span></div>
-              <div className="rm">
-                {isTrunk(r, ctx) ? <><span className="pill trunk" title="trunk route between a focus city and a hub">trunk</span>{" "}</> : null}
-                <Stars n={r.stars} title={`demand ${r.stars}/5`} /> {r.market} · {(r.dist ?? 0).toLocaleString()} km
+          </div>
+          <p className="rcount" data-figure="routes: count">{countWords(rows.length, activeCount)}</p>
+          <div className="rscroll" ref={listBox}>
+            {filtersOpen ? (
+              <div className="rfilters" id="f-panel">
+                <div className="chips" data-chips="stars">
+                  <span className="chiplbl">Demand</span>
+                  <button type="button" className={"chip" + (!filters.stars.length ? " on" : "")} data-starchip="" onClick={() => toList({ ...filters, bases: picked, stars: [] })}>All</button>
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <button type="button" key={n} className={"chip" + (filters.stars.includes(n) ? " on" : "")} data-starchip={n} aria-label={`${n} stars`}
+                      onClick={() => toList({ ...filters, bases: picked, stars: toggle(filters.stars, n) })}>{"★".repeat(n)}</button>
+                  ))}
+                </div>
+                <div className="chips" data-chips="markets">
+                  <span className="chiplbl">Markets</span>
+                  <button type="button" className={"chip" + (!filters.markets.length ? " on" : "")} data-mkchip="" onClick={() => toList({ ...filters, bases: picked, markets: [] })}>All</button>
+                  {marketChips(routes).map((m) => (
+                    <button type="button" key={m} className={"chip" + (filters.markets.includes(m) ? " on" : "")} data-mkchip={m}
+                      onClick={() => toList({ ...filters, bases: picked, markets: toggle(filters.markets, m) })}>{m || "No market"}</button>
+                  ))}
+                </div>
+                {focusPicked && ctx.hubs.length ? (
+                  <div className="chips" data-chips="trunks">
+                    <span className="chiplbl">Focus city</span>
+                    <button type="button" className={"chip" + (filters.trunks ? "" : " on")} data-trunkonly="0" onClick={() => toList({ ...filters, bases: picked, trunks: false })}>All routes</button>
+                    <button type="button" className={"chip" + (filters.trunks ? " on" : "")} data-trunkonly="1" title="only routes between the focus city and this airline's hubs"
+                      onClick={() => toList({ ...filters, bases: picked, trunks: true })}>Trunks only</button>
+                  </div>
+                ) : null}
+                <div className="rfrow">
+                  <span className="chiplbl">Distance</span>
+                  <input id="f-dmin" type="number" placeholder="km from" aria-label="km from" {...km("kmFrom")} />
+                  <input id="f-dmax" type="number" placeholder="km to" aria-label="km to" {...km("kmTo")} />
+                </div>
+                <div className="rfrow">
+                  <span className="chiplbl">Show</span>
+                  <label className="check"><input type="checkbox" id="f-active" checked={filters.active} onChange={(e) => keep({ ...filters, active: e.currentTarget.checked })} /> Active only</label>
+                  <select id="f-sort" aria-label="Sort" value={filters.sort} onChange={(e) => keep({ ...filters, sort: e.currentTarget.value as Filters["sort"] })}>
+                    {SORTS.map(([s, l]) => <option key={s} value={s}>{l}</option>)}
+                  </select>
+                </div>
+                {removable.length && !filters.active ? (
+                  <div className="rfrow">
+                    <button type="button" className="danger" id="rm-filtered" disabled={busy} onClick={() => setRemovingShown(true)}>
+                      Remove {removable.length} unflown route{removable.length > 1 ? "s" : ""} shown
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <div className="rs">
-                {s.count ? <>
-                  <LoadChip a={routeLoads.get(r.id)} small />
-                  <Pill kind={s.allOk === false ? "bad" : "ok"}>{perDay(s.rtDay)}×/day</Pill>
-                  <span className="meta">{tailsWords(s.tails)} · {s.numbers}</span>
-                </> : <span className="meta dim">not flown</span>}
+            ) : null}
+            {removingShown ? (
+              <ConfirmPanel question={`Remove ${removable.length} unflown routes from the list? You can restore them from Reference.`} yes="Remove" busy={busy}
+                onNo={() => setRemovingShown(false)}
+                onYes={() => { setRemovingShown(false); void save(removeRoutesChanges(removable.map((x) => x.route), `removed with the unflown routes shown on ${today}`)).then((res) => { if (res.status === "saved" && route && removable.some((x) => x.route.id === route.id)) toList(filters); }); }} />
+            ) : null}
+            {adding && airline ? (
+              <div className="addform" data-add-route>
+                <b>New route for {airline.name}</b>
+                <select id="r-hub" aria-label="Hub" value={form.hub || picked[0] || ""} onChange={(e) => setForm({ ...form, hub: e.currentTarget.value })}>
+                  <option value="">Hub</option>{bases.map((b) => <option key={b.id} value={b.airport_code}>{b.airport_code}</option>)}
+                </select>
+                <input id="r-dest" placeholder="Dest code" aria-label="Destination code" maxLength={3} value={form.dest} onChange={(e) => setForm({ ...form, dest: e.currentTarget.value })} />
+                <input id="r-city" placeholder="City (auto if known)" aria-label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.currentTarget.value })} />
+                <input id="r-dist" placeholder="km (auto if known)" aria-label="Distance in km" value={form.km} onChange={(e) => setForm({ ...form, km: e.currentTarget.value })} />
+                <select id="r-market" aria-label="Market" value={form.market} onChange={(e) => setForm({ ...form, market: e.currentTarget.value })}>
+                  <option value="">Market</option>{airlineMarkets.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+                </select>
+                <div className="addacts">
+                  <button type="button" className="primary" id="r-add" disabled={busy} onClick={() => void addRoute()}>Add</button>
+                  <button type="button" className="link" id="r-cancel" onClick={() => setAdding(false)}>cancel</button>
+                </div>
               </div>
+            ) : null}
+            <div className="rrows" id="routelist" data-figure="routes: list">
+              {!rows.length ? <div className="empty">{ready ? "No routes match. Clear a filter." : "Loading…"}</div> : null}
+              {rows.map(({ route: r, summary: s }) => (
+                <div key={r.id} className={"row" + (route?.id === r.id ? " sel" : "")} data-route-row={`${r.hub}-${r.dest}`} role="link" tabIndex={0}
+                  aria-current={route?.id === r.id ? "page" : undefined}
+                  onClick={() => openRoute(r)} onKeyDown={(e) => { if (e.key === "Enter") openRoute(r); }}>
+                  <div className="rk"><b>{r.city || r.dest}</b> <span className="rcode">{rowCode(r, picked)}</span></div>
+                  <div className="rm">
+                    {(r.dist ?? 0).toLocaleString()} km ·{" "}
+                    {s.count ? <span className={s.allOk === false ? "offbank" : undefined} title={s.allOk === false ? "a frequency is off the banks" : undefined}>{perDay(s.rtDay)} a day</span>
+                      : <span className="dim">not flown</span>}
+                    {isTrunk(r, ctx) ? <>{" "}<span className="pill trunk" title="trunk route between a focus city and a hub">trunk</span></> : null}
+                  </div>
+                  <div className="rs">{s.count ? <LoadChip a={routeLoads.get(r.id)} small /> : null}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="detail" id="detail">
+          </div>
+        </section>
+        <section className="rdetail" id="detail" ref={detailBox} aria-label="Route">
           {route && airline && live ? (
             <RouteDetail route={route} airline={airline} airlines={airlines} freqs={routeFreqs} checks={checks} rules={live} mode={mode}
               routeLoad={routeLoads.get(route.id)} flightLoad={(no) => (no == null ? undefined : flightLoads.get(`${route.airline_id}|${no}`))}
@@ -362,8 +423,10 @@ export function Routes() {
               onRemove={() => void onRemove()} onOffset={onOffset} onOpenTail={(reg) => setTailPopup(reg)} />
           ) : codePart && ready ? (
             <div className="empty" data-no-route>No route {hubCode}–{destCode} for {airline?.name ?? codePart}: it may have been removed (Reference restores it).</div>
-          ) : codePart ? <div className="empty">Loading…</div> : <div className="empty">Pick a route to add frequencies.</div>}
-        </div>
+          ) : codePart ? <div className="empty">Loading…</div> : (
+            <div className="empty rpick"><b>Pick a route</b>Its frequencies, checks and loads open here.</div>
+          )}
+        </section>
       </div>
       {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
     </main>

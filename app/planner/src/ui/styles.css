@@ -1204,3 +1204,124 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .ordtbl td.ordc .ordfam{display:block;flex:1 0 100%;font-weight:800}
   .ordtbl td.ordx{padding:8px 0 12px;border-top:1px solid var(--line)}
 }
+
+/* ---------- Routes' layout (22 Oct, spec docs/specs/2026-10-22-planner-look-routes.md): the title with the airline switch
+   beside it; the list (about 440px) beside its detail, each scrolling inside its own panel, so the page is the window's
+   height; one row of tools over the list with the rest in a Filters panel; slim rows; the detail with big figures. On a
+   phone (under 760px) the list alone, then a route full screen with "← Routes". Tails keeps the shared .split/.list. ---------- */
+.view.routes{display:flex;flex-direction:column;height:calc(100vh - 66px - env(safe-area-inset-top,0px));
+  height:calc(100dvh - 66px - env(safe-area-inset-top,0px));min-height:600px;padding-top:32px;padding-bottom:24px}
+.view.routes > *{flex:none}
+.view.routes > .vh{margin-bottom:24px}
+.rttl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px 20px;min-width:0}
+.rttl h1{grid-column:1;grid-row:1}
+.rseg{grid-column:2;grid-row:1;justify-self:start;max-width:100%;min-width:0;overflow-x:auto;scrollbar-width:none}
+.rseg::-webkit-scrollbar{display:none}
+.view.routes .rseg button{flex:none;padding:0 12px}
+.rttl .radd{grid-column:3;grid-row:1}
+.view.routes button.radd{padding:0 16px}
+.view.routes > .rwrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:var(--gap-card)}
+.rlist,.rdetail{min-height:0;min-width:0;background:var(--paper);border:1px solid rgba(14,22,48,.06);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.rlist{display:flex;flex-direction:column;overflow:hidden}
+.rlist > *{flex:none}
+.rtools{display:flex;gap:8px;padding:20px 20px 0;min-width:0}
+.rtools #f-q{flex:1 1 auto;min-width:0;min-height:44px;padding:0 14px}
+.rtools #f-base{flex:0 0 132px;width:132px;min-width:0;min-height:44px;padding:0 10px;font-weight:700}
+.view.routes button.rfbtn{flex:none;padding:0 16px}
+.view.routes button.rfbtn.on{box-shadow:inset 0 0 0 1.5px var(--night)}
+.rfn{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--night);color:#fff;font:700 13px/1 var(--font)}
+.rcount{margin:10px 20px 12px;color:var(--muted);font:600 13px/1.3 var(--font)}
+.rlist > .rscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--line)}
+.rfilters{display:grid;gap:12px;padding:16px 20px 18px;background:var(--group);border-bottom:1px solid var(--line)}
+.rfilters .chips{margin:0;gap:6px}
+.rfilters .chiplbl,.rfrow .chiplbl{flex:0 0 100%;min-width:0;margin:0;font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rfilters .chip{min-height:40px;padding:0 14px}
+.rfrow{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.rfrow input[type=number]{width:120px;min-height:44px;padding:0 12px}
+.rfrow select{min-height:44px;padding:0 10px}
+.rfrow .danger{margin:0}
+.view.routes .addform{display:flex;flex-wrap:wrap;gap:8px;padding:16px 20px;border-top:0;border-bottom:1px solid var(--line);background:var(--group)}
+.view.routes .addform > b{flex:1 0 100%}
+.view.routes .addform input,.view.routes .addform select{flex:1 1 120px;min-width:0;min-height:44px;padding:0 12px}
+.addacts{flex:1 0 100%;display:flex;gap:16px;align-items:center}
+.view.routes .addacts .primary{margin:0}
+.view.routes .rscroll .qpanel{margin:12px 20px}
+.view.routes .row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;row-gap:2px;align-items:center;
+  padding:12px 20px;border-bottom:1px solid var(--line-2);background:none;box-shadow:none;cursor:pointer}
+.view.routes .row:last-child{border-bottom:0}
+.view.routes .row .rk{grid-column:1;grid-row:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.view.routes .row .rk b{font:800 var(--t-body)/1.35 var(--font);letter-spacing:-.01em}
+.rcode{margin-left:4px;color:var(--faint);font:600 13px/1.3 var(--font)}
+.view.routes .row .rm{grid-column:1;grid-row:2;color:var(--muted);font-size:13px;line-height:1.4}
+.view.routes .row .rs{grid-column:2;grid-row:1 / span 2;margin:0;text-align:right}
+.view.routes .row .rs .pill{margin:0}
+.view.routes .row .pill.trunk{margin-left:4px;padding:0 8px}
+.view.routes .row:hover{background:var(--porcelain)}
+.view.routes .row.sel{background:var(--porcelain);box-shadow:inset 4px 0 0 var(--violet)}
+.offbank{color:var(--bad);font-weight:700}
+.rdetail{overflow-y:auto;overscroll-behavior:contain;padding:32px}
+.rdetail .back{display:none}
+.rdetail .dhead h2.rdh{margin:0}
+.rdh .rcodes{margin-left:10px;color:var(--faint);font:600 var(--t-body)/1.3 var(--font);letter-spacing:0;white-space:nowrap}
+.rdetail .dsub[data-dsub="1"]{margin:10px 0 0;font-size:var(--t-body)}
+.rdetail .dsub[data-dsub="2"],.rdetail .dsub[data-dsub="3"]{margin:0;line-height:2}
+.rfigs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0 16px}
+.rfig{display:flex;flex-direction:column;gap:4px;min-width:0;padding:16px 18px;border-radius:var(--r-md);background:var(--porcelain)}
+.rfl{font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rfig b{font:500 32px/1.1 var(--font-d);letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rfig b.lf.ok{color:#156B47} .rfig b.lf.warn{color:var(--warn)} .rfig b.lf.orange{color:#A84A00} .rfig b.lf.bad{color:var(--bad)}
+.rfs{font:500 13px/1.35 var(--font);color:var(--muted);overflow-wrap:anywhere}
+.racts{display:flex;flex-wrap:wrap;gap:4px 20px;margin:6px 0 0}
+.racts .link{min-height:32px}
+.rdetail .edit-route{margin-top:12px}
+.rsh{margin:28px 0 4px;font:800 var(--t-h3)/1.3 var(--font);color:var(--ink)}
+.rdetail .empty[data-figure]{margin-top:20px;padding:20px;border-radius:var(--r-md);background:var(--group);text-align:left}
+.fhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:0 0 8px;padding:0 0 10px;border-bottom:1px solid var(--line)}
+.ftail{font:800 var(--t-body)/1.3 var(--font)}
+.fnos{font-weight:700;font-variant-numeric:tabular-nums}
+.fdays{font-size:13px}
+.rdetail .lfs{margin-top:24px}
+.rstory{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin-top:20px;padding:0 22px;border-radius:var(--r-md);
+  background:var(--night);color:#fff;font:700 var(--t-body)/1.2 var(--font);text-decoration:none}
+.rstory:hover{background:var(--night-3)}
+.rpick{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:100%;text-align:center}
+.rpick b{font:500 22px/1.2 var(--font-d);letter-spacing:-.02em;color:var(--ink)}
+@media (max-width:1100px){
+  .rttl{grid-template-columns:minmax(0,1fr) auto}
+  .rttl .radd{grid-column:2}
+  .rseg{grid-column:1 / -1;grid-row:2}
+}
+@media (max-width:1000px){
+  .view.routes > .rwrap{grid-template-columns:minmax(300px,360px) minmax(0,1fr)}
+  .rdetail{padding:24px}
+  .rfig b{font-size:26px}
+}
+/* phones: the list alone, full width, the page scrolling; a route opens full screen with "← Routes" */
+@media (max-width:759px){
+  .view.routes{display:block;height:auto;min-height:0;padding-top:28px;padding-bottom:72px}
+  .view.routes > .rwrap{display:block}
+  .rlist,.rlist > .rscroll{overflow:visible}
+  .rtools{flex-wrap:wrap;padding:16px 16px 0}
+  .rtools #f-q{flex:1 0 100%}
+  .rtools #f-base{flex:1 1 0;width:auto}
+  .rcount{margin:10px 16px 12px}
+  .rfilters,.view.routes .addform{padding:16px}
+  .view.routes .rscroll .qpanel{margin:12px 16px}
+  .view.routes .row{padding:12px 16px}
+  .view.routes.has-detail{padding:0 0 72px}
+  .view.routes.has-detail > .vh,.view.routes.has-detail .rlist{display:none}
+  .view.routes:not(.has-detail) .rdetail{display:none}
+  .rdetail{overflow:visible;padding:16px 16px 28px;border:0;border-radius:0;box-shadow:none;min-height:calc(100dvh - 66px)}
+  .rdetail .back{display:inline-flex;align-items:center;min-height:44px;margin:0 0 16px;padding:0 18px 0 14px;border-radius:999px;
+    background:var(--porcelain);color:var(--ink);font:700 14px/1 var(--font);box-shadow:inset 0 0 0 1px var(--line)}
+  .rdh .rcodes{display:block;margin:6px 0 0}
+  .rfigs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:20px 0 14px}
+  .rfig[data-fig="load"]{grid-column:1 / -1}
+  .view.routes .fg label{flex:1 1 130px;min-width:0}
+  .view.routes .fg input,.view.routes .fg select{width:100%}
+  .view.routes .freq .fg .tailpop{flex:1 0 100%;align-self:start;padding:0;text-align:left}
+  .rfig{padding:12px}
+  .rfig b{font-size:22px}
+  .rfl{font-size:13px;letter-spacing:.02em}
+  .rdetail .freq{padding:14px}
+}

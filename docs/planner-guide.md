@@ -160,22 +160,32 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
 
 ## Routes
 *Every route in the network. Pick one to schedule its flights.*
-- **The list:** one airline at a time (its buttons at the top); search by destination; **Active only**; sort by stars,
-  distance up or down, destination or load; **km from** and **km to**; and the chips for **Bases** (with a focus city,
-  **All routes** or **Trunks only**, its routes to the airline's hubs), **Demand** (★ to ★★★★★, from the route
-  research) and **Markets** (for example Transatlantic – dense). The filters are in the address, so a link (or the
-  back button) brings them back. Each row has its stars, market, distance, its load over 7 days, round trips a day
-  (green when every frequency fits the banks), aircraft and numbers. **Add route** adds one by its destination code
-  (city and distance from the airport list, or typed); **Remove N unflown routes shown** removes those after asking in
-  the page. Removed routes can be restored from Reference.
-- **A route** (its own address, such as /planner/routes/PA/JFK-ORD): stars, airline, market, distance and the two UTC
-  offsets; the estimated block on the airline's most-flown type, the **layout** the route calls for (its market's, or
-  its own cabin choice, which wins: manual §5; since 21 Oct, in place of the market's aircraft, plan and prices), the
-  service profile and the hub's banks;
-  **edit route** (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies,
-  after asking in the page). Not flown yet, it shows the next free flight numbers; flown, its loads over 7 days and,
-  since 22 Oct, **How it's doing ›** beside its name, which opens its route page on Performance.
-- **Each frequency:** the outbound and the return with their times (local, or UTC as the account menu's Local / UTC says, the other shown
+- **The layout** (since 22 Oct, spec `docs/specs/2026-10-22-planner-look-routes.md`): the title with the airline switch
+  beside it (each airline's colour dot and name; under 1100 px wide it sits under the title) and **Add route**; then the
+  list (about 440 px) beside the open route, each scrolling inside its own panel, so the page itself stays the height
+  of the window. The open route is marked in the list with a violet bar. On a phone (under 760 px) the list fills the
+  screen; tapping a route opens it full screen, with **← Routes** at the top (the browser's back button does the same).
+- **The list:** one airline at a time. One row of tools on top: **Find a destination** (search), the base picker
+  (**From JFK**, each of the airline's bases, or **All bases**) and **Filters**, which opens a panel with everything else:
+  **Demand** (★ to ★★★★★, from the route research), **Markets** (for example Transatlantic – dense), with a focus city
+  picked **All routes** or **Trunks only** (its routes to the airline's hubs), **km from** and **km to**, **Active only**,
+  the sort (stars, distance up or down, destination or load) and **Remove N unflown routes shown** (it asks in the page
+  first). The button shows how many of these are set. Under the tools, the count: "32 flying · 243 to open". The
+  filters are in the address, so a link (or the back button) brings them back. Each row has the destination city and
+  its code (the pair, such as ORD–MIA, when the row leaves another base), its distance and round trips a day (red when a
+  frequency is off the banks) or "not flown", the **trunk** tag where it is one, and on the right its load over 7 days.
+  **Add route** adds one by its destination code (city and distance from the airport list, or typed). Removed routes can
+  be restored from Reference.
+- **A route** (its own address, such as /planner/routes/PA/JFK-ORD): its name, such as "New York → Atlanta", with its
+  codes; a muted line with the airline, distance, stars and market; then its figures as big numbers: the estimated block
+  on the airline's most-flown type, round trips a day (and how many frequencies) and the load over 7 days; then the
+  **layout** the route calls for (its market's, or its own cabin choice, which wins: manual §5; since 21 Oct, in place of
+  the market's aircraft, plan and prices), the service profile, the hub's banks and the two UTC offsets; **edit route**
+  (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies, after asking in
+  the page). Not flown yet, it shows the next free flight numbers. Flown, its frequencies, **Add frequency**, its loads
+  over 7 days and **The route's story ›**, which opens its route page on Performance (since 22 Oct).
+- **Each frequency:** its aircraft, named by tail and the base it flies from ("N003AW (JFK)"), its flight numbers and
+  days; the outbound and the return with their times (local, or UTC as the account menu's Local / UTC says, the other shown
   small), the block time (typed, or **est** from the planning library's estimate), **+1** where a time falls on a later
   day, and each flight's load. Then every check: night bans, a number used twice, the bank fit at both ends, the turn at
   the destination, the aircraft's position and the second-daily gap (the last two new: the old Routes didn't show
@@ -370,7 +380,7 @@ money figure is the database's. Its boards are open on arrival, the most importa
   - **Connections:** at each end, how many city pairs its flights connect to and the top 10 with how many times a week,
     onward (from the far end through this one) and feeding (into the far end), from the minimum connection time up to
     8 hours across all our airlines (the plan card's rule).
-  - **Links to it:** each route's name in the route profit table, **How it's doing ›** on a flown route on Routes,
+  - **Links to it:** each route's name in the route profit table, **The route's story ›** on a flown route on Routes,
     Today's routes to fix, and Competition's threats. In a chat, `select public.route_story(<route id>);` gives the
     same.
 

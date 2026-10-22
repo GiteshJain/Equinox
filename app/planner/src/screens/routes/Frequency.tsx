@@ -2,13 +2,14 @@
 // the header says, the other small; block, typed or est; the day markers), each with its flight's loads over 7 days;
 // then every check from the library (night bans, a number used twice, bank fit at both ends, the turn at the
 // destination; and, as the spec asks, the aircraft's position and the second-daily gap, which the old screen didn't
-// show); the connections at both ends; and the form, each field saving on its own as one action.
+// show); the connections at both ends; and the form, each field saving on its own as one action. Since the new look
+// (spec docs/specs/2026-10-22-planner-look-routes.md §5) it opens with its aircraft, named "N003AW (JFK)", and its numbers.
 import { useState, type KeyboardEvent, type FocusEvent } from "react";
 import type { FrequencyChecks, ConnectingFlight } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { Confirm } from "../../ui/Confirm";
 import { Pill } from "../../ui/Pill";
-import { alt, daysWords, disp, fmt, hhmm, type Airline, type Freq, type FreqField, type Load, type Mode, type Route } from "./model";
+import { alt, daysWords, disp, fmt, hhmm, tailName, type Airline, type Freq, type FreqField, type Load, type Mode, type Route } from "./model";
 import { LoadChip, WavePill } from "./parts";
 
 export interface FreqProps {
@@ -125,6 +126,11 @@ export function Frequency(p: FreqProps) {
 
   return (
     <div className="freq" data-f={f.rot.legacy_key ?? String(f.rot.id)} data-rotation={f.rot.id} data-figure="routes: frequency">
+      <div className="fhead">
+        {reg ? <b className="ftail">{tailName(reg, r.hub)}</b> : <b className="ftail dim">No aircraft yet</b>}
+        <span className="fnos">{f.noOut || "—"} / {f.noBack || "—"}</span>
+        <span className="fdays dim">{f.local.days.length === 7 ? "daily" : f.local.days.length ? f.local.days.join("") : "no days yet"}</span>
+      </div>
       <div className="fl" data-line="out">
         <span className="no">{f.noOut || "—"}</span>{" "}
         {v.out ? <>

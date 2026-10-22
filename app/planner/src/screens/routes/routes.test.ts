@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import {
   addFrequencyChanges, addRouteChanges, alt, changeFrequency, deleteFrequencyChanges, disp, editRouteChange, endsOf, filtersQuery, freqOf, fromInput, layoutWords, listRows,
-  liveRules, marketChips, moveWords, newLegacyKey, offsetChanges, parseFilters, parseOffset, priceFor, removeRoutesChanges, routeOf, summaryOf, tailsWords,
+  liveRules, marketChips, moveWords, countWords, filtersOn, baseWords, rowCode, routeName, tailName, newLegacyKey, offsetChanges, parseFilters, parseOffset, priceFor, removeRoutesChanges, routeOf, summaryOf, tailsWords,
   type AircraftRow, type AirportInfo, type Filters, type LegRow, type MarketRow, type RotationRow, type Route, type RouteRow, type RouteSummary,
 } from "./model";
 
@@ -141,6 +141,23 @@ describe("the list: the old planner's routeRows", () => {
   it("words a row's tails and its summary", () => {
     expect(tailsWords(["A", "B", "C", "D", "E"])).toBe("A, B, C +2");
     expect(summaryOf([f])).toMatchObject({ count: 1, rtWk: 3, tails: ["T-001"], numbers: "1001–1002", allOk: true });
+  });
+  it("words the new look's list and detail (spec docs/specs/2026-10-22-planner-look-routes.md)", () => {
+    expect(countWords(275, 32)).toBe("32 flying · 243 to open");
+    expect(countWords(0, 0)).toBe("0 flying · 0 to open");
+    expect(filtersOn(F())).toBe(0);
+    expect(filtersOn({ ...F(), stars: [5, 4], markets: ["Europe"], kmTo: "2000", active: true, sort: "load", trunks: true })).toBe(6);
+    expect(filtersOn({ ...F(), q: "chi", bases: ["JFK"], airline: "PA" })).toBe(0);
+    expect(baseWords(["JFK"])).toBe("From JFK");
+    expect(baseWords(["JFK", "ORD"])).toBe("From JFK + ORD");
+    expect(baseWords([])).toBe("All bases");
+    expect(rowCode({ hub: "JFK", dest: "ATL" }, ["JFK"])).toBe("ATL");
+    expect(rowCode({ hub: "ORD", dest: "MIA" }, ["MIA"])).toBe("ORD–MIA");
+    expect(rowCode({ hub: "JFK", dest: "ATL" }, [])).toBe("JFK–ATL");
+    expect(routeName("New York", "JFK", "Atlanta", "ATL")).toBe("New York → Atlanta");
+    expect(routeName(null, "JFK", " ", "ATL")).toBe("JFK → ATL");
+    expect(tailName("N003AW", "JFK")).toBe("N003AW (JFK)");
+    expect(tailName(null, "JFK")).toBe("");
   });
 });
 

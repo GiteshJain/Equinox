@@ -361,6 +361,28 @@ export const starsText = (n: number) => ({ on: "★".repeat(Math.max(0, Math.min
 export const perDay = (x: number): string => (x % 1 ? x.toFixed(1) : String(x));
 /** The tails on a route's row: the first three and "+N". */
 export const tailsWords = (t: readonly string[]): string => (t.length > 3 ? t.slice(0, 3).join(", ") + " +" + (t.length - 3) : t.join(", "));
+
+// ---------- the list's words since the new look (spec docs/specs/2026-10-22-planner-look-routes.md §3–§5)
+/** The list's count in words: "32 flying · 243 to open" (the routes shown, flown and not). */
+export const countWords = (shown: number, flying: number): string => `${flying.toLocaleString()} flying · ${(shown - flying).toLocaleString()} to open`;
+
+/** How many of the Filters panel's settings differ from the defaults (demand, markets, km, active only, sort, trunks). */
+export const filtersOn = (f: Filters): number =>
+  (f.stars.length ? 1 : 0) + (f.markets.length ? 1 : 0) + (f.kmFrom || f.kmTo ? 1 : 0) + (f.active ? 1 : 0) + (f.sort !== "stars" ? 1 : 0) + (f.trunks ? 1 : 0);
+
+/** The base picker's words: "From JFK", "From JFK + ORD", "All bases". */
+export const baseWords = (picked: readonly string[]): string => (picked.length ? "From " + picked.join(" + ") : "All bases");
+
+/** A list row's code: the destination's alone when the row leaves the one base picked, else the pair ("JFK–ATL"). */
+export const rowCode = (r: Pick<Route, "hub" | "dest">, picked: readonly string[]): string =>
+  (picked.length === 1 && picked[0] === r.hub ? r.dest : `${r.hub}–${r.dest}`);
+
+/** A route's name in the detail: "New York → Atlanta" from the airports' cities (the codes where a city isn't known). */
+export const routeName = (hubCity: string | null | undefined, hub: string, destCity: string | null | undefined, dest: string): string =>
+  `${(hubCity ?? "").trim() || hub} → ${(destCity ?? "").trim() || dest}`;
+
+/** A frequency's aircraft named by its tail and the base it flies from (manual §4): "N003AW (JFK)". */
+export const tailName = (registration: string | null | undefined, hub: string): string => (registration ? `${registration} (${hub})` : "");
 /** A load's pill class: ok from 95%, warn from 85, orange from 70, else bad (the old lfCls). */
 export const loadClass = (avg: number): string => (avg >= 95 ? "ok" : avg >= 85 ? "warn" : avg >= 70 ? "orange" : "bad");
 export const loadTip = (a: Load): string =>
