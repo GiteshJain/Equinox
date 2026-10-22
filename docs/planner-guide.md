@@ -69,10 +69,11 @@ as you make it. On a preview address the planner saves nothing and says **previe
   **Planned** adds, dashed, the routes on the plan cards of aircraft not yet in service. Hover over a line or a dot to
   name it; a route opens its pop-up (its distance, demand, flights a day, loads, the load pattern's signal and each
   frequency, with **Open in Routes**), a planned route its aircraft in Aircraft on order.
+  A station (since 22 Oct) is drawn as an ordinary airport dot, never a hub ring.
 - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
   plan. One that has arrived with a plan card says **to file on Today**: its **File into planner** is on Today.
 - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
-  route flies from them), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
+  route flies from them; never its stations), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
   turns (or **clean**), with its home city's photo behind when the website has one (the city is the airline's own,
   *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
 
@@ -173,21 +174,28 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   of the window. The open route is marked in the list with a violet bar. On a phone (under 760 px) the list fills the
   screen; tapping a route opens it full screen, with **← Routes** at the top (the browser's back button does the same).
 - **The list:** one airline at a time. One row of tools on top: **Find a destination** (search), the base picker
-  (**From JFK**, each of the airline's bases, or **All bases**) and **Filters**, which opens a panel with everything else:
+  (**From JFK**, each of the airline's bases, then its stations marked **(station)**, such as **From LKO (station)**, or
+  **All bases**) and **Filters**, which opens a panel with everything else:
   **Demand** (★ to ★★★★★, from the route research), **Markets** (for example Transatlantic – dense), with a focus city
   picked **All routes** or **Trunks only** (its routes to the airline's hubs), **km from** and **km to**, **Active only**,
   the sort (stars, distance up or down, destination or load) and **Remove N unflown routes shown** (it asks in the page
   first). The button shows how many of these are set. Under the tools, the count: "32 flying · 243 to open". The
   filters are in the address, so a link (or the back button) brings them back. Each row has the destination city and
   its code (the pair, such as ORD–MIA, when the row leaves another base), its distance and round trips a day (red when a
-  frequency is off the banks) or "not flown", the **trunk** tag where it is one, and on the right its load over 7 days.
-  **Add route** adds one by its destination code (city and distance from the airport list, or typed). Removed routes can
-  be restored from Reference.
+  frequency is off the banks) or "not flown", the **trunk** tag where it is one (never on a pair with a station end), and on the right its load over 7 days.
+  **Add route** adds one by its destination code (city and distance from the airport list, or typed), from any of the
+  airline's bases or stations. Removed routes can be restored from Reference.
+- **Stations** (since 22 Oct, manual §2): airports the airline flies point-to-point routes from without making them a
+  base (Lucknow for Lucknow–Patna). A station route shows "station · no banks" where a hub's route shows its banks, its
+  frequencies are never off wave, and its flight numbers come from the airline's one station pool, 3 digits from
+  *station_flight_no_from* (100) to *station_flight_no_to* (999), above the highest any of its stations uses; when the
+  pool is full the route says "station numbers 100–999 all used" and a new frequency gets no numbers.
 - **A route** (its own address, such as /planner/routes/PA/JFK-ORD): its name, such as "New York → Atlanta", with its
   codes; a muted line with the airline, distance, stars and market; then its figures as big numbers: the estimated block
   on the airline's most-flown type, round trips a day (and how many frequencies) and the load over 7 days; then the
   **layout** the route calls for (its market's, or its own cabin choice, which wins: manual §5; since 21 Oct, in place of
-  the market's aircraft, plan and prices), the service profile, the hub's banks and the two UTC offsets; **edit route**
+  the market's aircraft, plan and prices), the service profile, the hub's banks ("station · no banks" from a station) and
+  the two UTC offsets; **edit route**
   (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies, after asking in
   the page). Not flown yet, it shows the next free flight numbers. Flown, its frequencies, **Add frequency**, its loads
   over 7 days and **The route's story ›**, which opens its route page on Performance (since 22 Oct).
@@ -460,7 +468,10 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
 *Banks, aircraft, configs, markets and time zones.* Each section is folded on arrival; opening one puts it in the
 address (/planner/reference/night-bans), so a link reopens it. Each box saves when you leave it, as one change.
 - **Hubs, focus cities and banks:** a hub runs banks and connections. A focus city is a base that serves its own market
-  and feeds a hub.
+  and feeds a hub. A **station** (since 22 Oct, manual §2) is an airport flown point-to-point from without making it a
+  base: the role picker has **Hub**, **Focus city** and **Station** (not for the main hub), and making a base a station
+  clears its bank times, the hub it feeds and its block. A station row has no bank or block boxes; its next pair comes
+  from the airline's station pool, or says the pool is full.
 - **Constants** are rule numbers (the settings, the departures cap in the world's rules): only numbers are taken, and a
   change to one goes in the operating manual too. Since 21 Oct **World scan every** (*scan_every_days*: 1 is every
   evening, 3 about twice a week) is one of them.

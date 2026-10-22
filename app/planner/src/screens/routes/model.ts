@@ -296,6 +296,22 @@ export interface ListRow { route: Route; summary: RouteSummary }
 
 const NO_SUMMARY: RouteSummary = { count: 0, rtWk: 0, rtDay: 0, tails: [], numbers: "", allOk: null };
 
+/** The airline's bases as the base picker and the add-route form list them: its hubs and focus cities in their order,
+ *  then its stations (since 22 Oct, manual §2: airports it flies point-to-point routes from, never hubs). */
+export function pickerBases<B extends { role: string }>(bases: readonly B[]): B[] {
+  return [...bases.filter((b) => b.role !== "station"), ...bases.filter((b) => b.role === "station")];
+}
+
+/** A base's words in the base picker: "From DEL", "From HYD (focus)", "From LKO (station)". */
+export const baseLabel = (b: { airport_code: string; role: string }): string =>
+  `From ${b.airport_code}${b.role === "focus" ? " (focus)" : b.role === "station" ? " (station)" : ""}`;
+
+/** The list's focus cities and hubs from the airline's bases: a station is neither, so a station pair is never a trunk. */
+export const listBases = (bases: readonly { airport_code: string; role: string }[]): Pick<ListContext, "focus" | "hubs"> => ({
+  focus: bases.filter((b) => b.role === "focus").map((b) => b.airport_code),
+  hubs: bases.filter((b) => b.role !== "focus" && b.role !== "station").map((b) => b.airport_code),
+});
+
 /** A trunk: a route between one of the airline's focus cities and one of its hubs. */
 export const isTrunk = (r: Route, ctx: Pick<ListContext, "focus" | "hubs">): boolean =>
   (ctx.focus.includes(r.hub) && ctx.hubs.includes(r.dest)) || (ctx.focus.includes(r.dest) && ctx.hubs.includes(r.hub));
@@ -409,11 +425,30 @@ export function priceFor(rules: Rules, route: Pick<Route, "airline_id">): number
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
-/** The next free flight-number pair at the route's hub (the library's nextFlightNumbers), or null without a base there. */
+/** The next free flight-number pair at the route's hub (the library's nextFlightNumbers), or null without a base there.
+ *  At a station the pair comes from the airline's station pool (since 22 Oct); a full pool gives the pair marked full. */
 export function nextPair(rules: Rules, route: Route) {
   const b = banks.airlineBaseAt(rules, route.hub, route.airline_id);
-  if (!b || b.flight_no_from == null) return null;
+  if (!b || (b.flight_no_from == null && !banks.isStation(b))) return null;
   return schedule.nextFlightNumbers(rules, b);
+}
+
+/** The pair a new frequency takes: the next free pair, or none when there's no base or the station pool is full. */
+export const pairForNew = (nx: ReturnType<typeof nextPair>): { out: number; back: number } | null => (nx && !nx.full ? nx : null);
+
+/** The route detail's words for the next free numbers: "101 out / 102 back (highest used 99)", "station numbers 100–999
+ *  all used", or "—". */
+export function nextPairWords(nx: ReturnType<typeof nextPair>): string {
+  if (!nx) return "—";
+  if (nx.full) return `station numbers ${nx.pool?.from ?? "?"}–${nx.pool?.to ?? "?"} all used`;
+  return `${nx.out} out / ${nx.back} back${nx.highest ? ` (highest used ${nx.highest})` : ""}`;
+}
+
+/** The route detail's words on its hub's banks: the bank times, "station · no banks", or "no bank at this hub". */
+export function bankWords(base: { role: string; bank_times?: readonly (string | null)[] | null } | undefined, shown: (t: string) => string): string {
+  if (!base) return "no bank at this hub";
+  if (base.role === "station") return "station · no banks";
+  return "banks " + (base.bank_times ?? []).filter((b): b is string => !!b).map(shown).join(" ");
 }
 
 // ---------- the actions, one planner_save() call each

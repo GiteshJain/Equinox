@@ -1,5 +1,6 @@
 // banks: each hub's bank windows (manual §4: three banks per hub, bank times in airline_bases.bank_times, local clock
-// time), and which bank a departure collects and an arrival feeds. A focus city has no banks of its own.
+// time), and which bank a departure collects and an arrival feeds. A focus city has no banks of its own, and a station
+// (an airport the airline flies point-to-point routes from without making it a base, since 22 Oct) has none at all.
 // A bank departing at T: its departures leave from T to T + bank_departure_window_min; its arrivals must land by
 // T − the airport's minimum connection time − bank_buffer_min, in a window of bank_arrival_window_min before that.
 // An arrival feeds the first bank it can make (at least the minimum connection time plus the buffer before the bank
@@ -22,19 +23,29 @@ export interface BankWindow {
 
 export const isFocus = (base: BaseRow | undefined | null): boolean => !!base && base.role === "focus";
 
-/** The base at an airport: the airline's own if one is given and it has one there, else the first in the bases' order
- *  (as the old planner's hub(code) finds it). */
+/** A station (airline_bases.role 'station', manual §2, since 22 Oct): an airport the airline flies point-to-point routes
+ *  from without making it a base. No banks, no block of its own (its numbers come from the airline's station pool), and
+ *  never a hub or a focus city. */
+export const isStation = (base: BaseRow | undefined | null): boolean => !!base && base.role === "station";
+
+/** A base that runs banks: a hub (neither a focus city nor a station). */
+export const hasBanks = (base: BaseRow | undefined | null): boolean => !!base && !isFocus(base) && !isStation(base);
+
+/** The base at an airport: the airline's own if one is given and it has one there (a station included), else the first
+ *  hub or focus city there in the bases' order (as the old planner's hub(code) finds it). Never another airline's
+ *  station; with no airline given and only stations there, the first of them, so the airline can be found from it. */
 export function baseAt(rules: Rules, code: string, airlineId?: number | null): BaseRow | undefined {
   const here = rules.bases.filter((b) => b.airport_code === code);
-  return (airlineId == null ? undefined : here.find((b) => b.airline_id === airlineId)) ?? here[0];
+  const own = airlineId == null ? undefined : here.find((b) => b.airline_id === airlineId);
+  return own ?? here.find((b) => !isStation(b)) ?? (airlineId == null ? here[0] : undefined);
 }
 
 /** Whether a local minute t falls in the window s..e (both included, wrapping past midnight). */
 export const inWindow = (t: number, s: number, e: number): boolean => mod(t - s, DAY) <= mod(e - s, DAY);
 
-/** A hub's bank windows; none for a focus city. */
+/** A hub's bank windows; none for a focus city or a station. */
 export function bankWindows(rules: Rules, base: BaseRow): BankWindow[] {
-  if (isFocus(base)) return [];
+  if (!hasBanks(base)) return [];
   const al = base.airline_id;
   const mct = mctAt(rules, base.airport_code).minutes;
   const buf = settingNumber(rules, "bank_buffer_min", al);
@@ -99,7 +110,7 @@ export const duration = (min: number): string => `${Math.floor(min / 60)}:${Stri
 export interface Wave {
   level: "ok" | "warn" | "bad" | "mute";
   /** The words on its pill: "B1 out · B2 in", "dep floats · B2 in, 1:05 early", "arr off wave", "dep + arr off wave",
-   *  "focus city · times to HUB banks", "no banks set", or "hub?" without a base. */
+   *  "focus city · times to HUB banks", "station · no banks", "no banks set", or "hub?" without a base. */
   text: string;
   /** The departure: the bank it leaves in (n), or ok false when it floats. Null when no departure was given. */
   dep: { ok: boolean; n: number } | null;
@@ -110,9 +121,10 @@ export interface Wave {
 /** How a departure and an arrival (local minutes at the base, either may be null) fit its banks: a departure inside a
  *  bank's departure window collects that bank, else it floats; an arrival feeds a bank in its window, early, or late
  *  (nothing within connection_max_wait_h). Bad when the arrival is late; a warning when the departure floats or the
- *  arrival is early. A focus city has no banks of its own. */
+ *  arrival is early. A focus city has no banks of its own; a station has none at all (never "off wave"). */
 export function wave(rules: Rules, base: BaseRow | undefined, depLocal: number | null, arrLocal: number | null): Wave {
   if (!base) return { level: "mute", text: "hub?", dep: null, arr: null };
+  if (isStation(base)) return { level: "mute", text: "station · no banks", dep: null, arr: null };
   if (isFocus(base)) return { level: "mute", text: "focus city" + (base.parent_code ? ` · times to ${base.parent_code} banks` : ""), dep: null, arr: null };
   if (!bankWindows(rules, base).length) return { level: "mute", text: "no banks set", dep: null, arr: null };
   const hit = depLocal == null ? null : bankOfDeparture(rules, base, depLocal);

@@ -11,7 +11,9 @@
 --      job_runs row.
 --   3. The same evening captured again (the same pages a minute after the last, with other cash): one more snapshot, at
 --      its last page, which replaces the point-in-time figures (cash, its time, taken_at). A backfill or fallback
---      afterwards replaces nothing.
+--      afterwards replaces nothing. (Since 22 Oct the replay first takes out the balance and income rows of the
+--      evening's UTC dates written after its capture day ended: they are kept one row per UTC date, so a later capture
+--      day's page, section 1's included, would otherwise win over the replay's pages after midnight UTC.)
 --   4. How long a snapshot takes on the copy (best of 3).
 
 create temporary table t_s (k text primary key, v text) on commit drop;
@@ -103,6 +105,14 @@ begin
   delete from public.game_capture_raw r where r.world_id = w and r.captured_at >= v_from and r.captured_at < v_until;
   delete from public.airline_days where world_id = w and day = d;
   select count(*) into v_pages from t_pages;
+  -- the balance sheet and income statement are kept one row per UTC date (captured_on), and a later page replaces an
+  -- earlier one. An evening captured after midnight UTC shares its date with the next capture day, so a page from that
+  -- day (section 1's, taken now, or a later real capture on the copy) would win over the replay's, which is earlier.
+  -- The replay is the evening as if nothing came after it: those later rows go (the transaction is rolled back).
+  delete from public.game_balance b where b.world_id = w and b.captured_at >= v_until
+     and b.captured_on in (select distinct (t.captured_at at time zone 'UTC')::date from t_pages t);
+  delete from public.game_pnl p where p.world_id = w and p.captured_at >= v_until
+     and p.captured_on in (select distinct (t.captured_at at time zone 'UTC')::date from t_pages t);
 
   -- where each complete capture ends, worked out here: the page at which every active airline of ours has all five
   -- pages since the last such page
@@ -175,7 +185,13 @@ begin
    where x.source <> 'capture' or x.taken_at <> v_second_at
       or (exists (select 1 from t_pages t where t.airline_id = o and t.kind = 'balance')
           and (x.cash is distinct from 7000000 + o or x.cash_at <= v_first_at));
-  assert bad is null, 'the second complete capture didn''t replace the point-in-time figures for: ' || bad;
+  assert bad is null, 'the second complete capture didn''t replace the point-in-time figures for: ' || bad
+    || format(' (evening %s, %s to %s; %s page(s) from %s to %s; first capture''s snapshot at %s; second capture %s, its snapshot at %s; the rows: %s)',
+              d, v_from, v_until, v_pages, (select min(captured_at) from t_pages), v_last_page, v_first_at,
+              coalesce('shifted ' || v_shift::text, 'a second apart'), v_second_at,
+              (select string_agg(format('%s %s taken %s cash at %s %s', x.airline_id, x.source, x.taken_at, x.cash_at,
+                                        case when x.cash is distinct from 7000000 + x.airline_id then 'other cash' else 'test cash' end), '; ')
+                 from public.airline_days x where x.world_id = w and x.day = d and x.airline_id = any (v_ours)));
   -- a backfill or fallback afterwards replaces nothing taken from a complete capture
   perform private.take_snapshot(w, d, now(), 'backfill', false);
   perform private.take_snapshot(w, d, now(), 'fallback', false);

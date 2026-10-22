@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CONSTANTS, LAYOUTS, addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
-  layoutsOf, marketChange, mctChange, mctHours, numOf, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, restoreChange, scheduleLink, sectionOf, serviceChange,
+  layoutsOf, marketChange, mctChange, mctHours, numOf, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, restoreChange, roleOf, scheduleLink, sectionOf, serviceChange,
   typeChange, worldRowChange, type BaseRow, type RemovedRoute, type WorldAirportRow,
 } from "./model";
 
@@ -41,6 +41,18 @@ describe("hubs, focus cities and banks", () => {
     expect(baseChange(base({ id: 4, airport_code: "ORD", role: "focus" }), "parent", "LGW", all)?.values).toEqual({ parent_base_id: 3 });
     expect(baseChange(base({}), "lastUsed", "1234", all)?.values).toEqual({ last_flight_no: 1234 });
     expect(baseChange(base({}), "block", "x", all)?.values).toEqual({ flight_no_from: null });
+  });
+  it("the role picker keeps Station (since 22 Oct): a station loses its banks, parent and block; the main hub can't be one", () => {
+    expect([roleOf("hub"), roleOf("focus"), roleOf("station"), roleOf("x")]).toEqual(["hub", "focus", "station", "hub"]);
+    const ord = base({ id: 4, airport_code: "ORD", role: "focus", is_main: false, parent_base_id: 1, flight_no_from: 2000 });
+    expect(baseChange(ord, "role", "station", [])).toEqual({ table: "airline_bases", op: "update", key: { id: 4 }, base: "t",
+      values: { role: "station", bank_times: null, parent_base_id: null, flight_no_from: null } });
+    expect(baseChange(base({}), "role", "station", [])).toBeNull();
+    const lko = base({ id: 5, airport_code: "LKO", role: "station", is_main: false, bank_times: null, flight_no_from: null });
+    expect(baseChange(lko, "role", "station", [])).toBeNull();
+    expect(baseChange(lko, "role", "hub", [])?.values).toEqual({ role: "hub" });
+    expect(baseChange(lko, "role", "focus", [])?.values).toEqual({ role: "focus" });
+    expect(baseChange(base({}), "role", "hub", [])).toBeNull();
   });
   it("MCT in hours: the airport's world row in minutes, the website's figure when emptied; only the first base at an airport counts", () => {
     const jfk = wa({ airport_code: "JFK", mct_min: 90, night_ban_from: null, night_ban_to: null });

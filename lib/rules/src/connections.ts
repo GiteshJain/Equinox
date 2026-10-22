@@ -5,7 +5,7 @@
 // uses 90 minutes (spec §5). Our airlines interline with each other (manual §6), so connections are across all of them.
 // The old code it follows: the old planner's link, onward, feeders and hubConnections; plan.py's conns.
 import { DEFAULT_MCT_MIN, mctAt } from "./airport.js";
-import { bankOfArrival, bankOfDeparture, bankWindows, baseAt, isFocus } from "./banks.js";
+import { bankOfArrival, bankOfDeparture, bankWindows, baseAt, hasBanks } from "./banks.js";
 import { timedLegs } from "./block.js";
 import { settingNumber } from "./input.js";
 import { DAY, WEEK, mod, toLocal, weekMinute } from "./time.js";
@@ -144,7 +144,7 @@ export function connectionsAt(rules: Rules, code: string, legs: readonly TimedLe
   const arrs = legs.filter((L) => L.dest === code);
   const deps = legs.filter((L) => L.origin === code);
   const H = baseAt(rules, code);
-  const banked = !!H && !isFocus(H);
+  const banked = hasBanks(H);
   const bankDep = (L: TimedLeg) => (banked && H ? bankOfDeparture(rules, H, localDep(rules, L))?.n ?? 0 : 0);
   const bankArr = (L: TimedLeg) => (banked && H ? bankOfArrival(rules, H, localArr(rules, L)).n : 0);
   const connections: ConnectionsAnswer["connections"] = [];

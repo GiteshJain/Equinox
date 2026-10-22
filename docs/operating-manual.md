@@ -26,14 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **Point-to-point routes away from our bases, for every airline (Kingfisher and Malaysia first):** stations, a third role in the airline's bases
-  beside hubs and focus cities, for airports we fly to and from without making them a base (for example Lucknow for
-  Lucknow–Patna): no banks, and flight numbers in 3 digits from one pool per airline, 100 to 999 (Gander's flights use
-  up to 4 digits; the 21 Oct scan shows none with 5). Stations are never treated as hubs or focus cities (trunks, the
-  website, reports). Malaysia's include Subang (its own market, 30 km from KUL) and Kota Kinabalu's pairs away from
-  KUL. Pan Am's include US and Canada to China away from its bases (§2). Brief
-  `docs/briefs/2026-10-22-point-to-point-routes.md`, option A. Building now.
-  *(decided 22 Oct; every airline since the same day; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -176,7 +168,7 @@ Details and open points: `docs/decisions.md`.
   (Gatwick–Atlanta: Pan Am has no base at either end), the airline that has the pair on its list keeps it, so no market
   drops off the map. One exception to the exception: **US and Canada to China where Pan Am has no base at either end**
   (Shanghai–Boston, Daxing–Vancouver) is on no list. China Eastern doesn't fly North America; Pan Am flies these later
-  as stations (point-to-point, in "Decided, not yet built" above). *(since 23 and 26 Sep; the base exception since 21 Oct;
+  as stations (point-to-point, §2 Stations). *(since 23 and 26 Sep; the base exception since 21 Oct;
   US and Canada to China since 22 Oct; history: rule-history.md)*
 - **Destination shape:** in time, fly every route a real airline flies from each hub and focus city. Plan as if money
   isn't the limit, and grow at the group's own pace. *(since 23 and 29 Sep)*
@@ -204,6 +196,13 @@ Details and open points: `docs/decisions.md`.
 | Malaysia | KUL | — | — |
 
 *(base roles since 29 Sep; history: rule-history.md)*
+
+- **Stations**, for every airline, are airports it flies point-to-point routes from without making them a base (Lucknow
+  for Lucknow–Patna; Malaysia's include Subang, its own market 30 km from KUL, and Kota Kinabalu's pairs away from KUL; Pan Am's include US and Canada to China away from its bases):
+  `airline_bases` rows with role station, no banks, flight numbers in 3 digits from one pool per airline
+  (`settings.station_flight_no_from` 100 to `station_flight_no_to` 999), and never treated as hubs or focus cities
+  (trunks, hubs first, the website, the briefing and the report). *(decided 22 Oct, every airline since the same day,
+  built 22 Oct; history: rule-history.md)*
 
 ## 3. Fleet and orders
 - **Fleet types, as the route needs:** every airline may fly any of our types where a route calls for it, sized by the

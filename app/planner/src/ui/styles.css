@@ -1392,3 +1392,12 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .sysrows > .board > h3.rch > .note{white-space:normal}
   .sysrows > .board > h3.rch .fbaside{justify-content:flex-start;text-align:left}
 }
+
+/* Performance's scorecards (22 Oct): a card is a button, so its contents were centred in a tall row and the cards
+   started at different heights; and a long value (the "can order A320neo or A320neo SHARP" pill) squeezed the label
+   column to a word a line and pushed the page 37 px sideways at 1280. Contents start at the top, the label column keeps
+   a readable width, and a long value wraps. */
+.fcard{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;min-width:0}
+.fcard dl.wowl{grid-template-columns:minmax(8.5em,max-content) minmax(0,1fr) auto}
+.fcard dd{min-width:0;overflow-wrap:anywhere}
+.fcard dd .pill{white-space:normal;text-align:center;display:inline-block;max-width:100%}

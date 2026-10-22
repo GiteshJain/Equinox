@@ -428,6 +428,15 @@ Moved from the manual's *Decided, not yet built* on 21 Oct, word for word.
   stops part-way is marked stopped and Systems says so; a 1-star opening on the E195-E2 also names the E190-E2 "if
   thin" (the evening proposal decides, §3); and Systems → **Cabin charges** checks each first cabin fit logged since
   18 Oct against the game's charge, with one Today item when any doesn't match (§4).
+- **Stations are built** (22 Oct; spec `docs/specs/2026-10-22-station-role.md`, brief
+  `docs/briefs/2026-10-22-point-to-point-routes.md`, option A). The manual's *Decided, not yet built* entry, word for
+  word, before it moved into §2 as built: "**Point-to-point routes away from our bases, for every airline (Kingfisher
+  and Malaysia first):** stations, a third role in the airline's bases beside hubs and focus cities, for airports we fly
+  to and from without making them a base (for example Lucknow for Lucknow–Patna): no banks, and flight numbers in 3
+  digits from one pool per airline, 100 to 999 (Gander's flights use up to 4 digits; the 21 Oct scan shows none with 5).
+  Stations are never treated as hubs or focus cities (trunks, the website, reports). Malaysia's include Subang (its own
+  market, 30 km from KUL) and Kota Kinabalu's pairs away from KUL. Brief `docs/briefs/2026-10-22-point-to-point-routes.md`,
+  option A. Building now. *(decided 22 Oct; every airline since the same day; history: rule-history.md)*"
 
 ---
 

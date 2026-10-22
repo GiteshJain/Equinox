@@ -1,0 +1,813 @@
+{
+  "part": "stations",
+  "note": "Stations (manual §2; spec docs/specs/2026-10-22-station-role.md): airports an airline flies point-to-point routes from without making them a base. Here Test Air (airline 1) has stations at BBB and CCC, and one at AAA, where Other Air has its hub. Its station pool runs 100 to 999 (settings station_flight_no_from and station_flight_no_to). HUB's block starts at 1000, FOC's at 2000, AAA's (Other Air) at 3000.",
+  "input": {
+    "settings": {
+      "station_flight_no_from": 100,
+      "station_flight_no_to": 999
+    },
+    "airline_bases": [
+      {
+        "id": 1,
+        "airline_id": 1,
+        "airport_code": "HUB",
+        "role": "hub",
+        "is_main": true,
+        "bank_times": [
+          "06:00",
+          "14:00",
+          "22:00",
+          null
+        ],
+        "flight_no_from": 1000,
+        "last_flight_no": null,
+        "position": 1
+      },
+      {
+        "id": 2,
+        "airline_id": 1,
+        "airport_code": "FOC",
+        "role": "focus",
+        "is_main": false,
+        "parent_base_id": 1,
+        "parent_code": "HUB",
+        "bank_times": null,
+        "flight_no_from": 2000,
+        "last_flight_no": null,
+        "position": 2
+      },
+      {
+        "id": 3,
+        "airline_id": 2,
+        "airport_code": "AAA",
+        "role": "hub",
+        "is_main": true,
+        "bank_times": [
+          "08:00",
+          null,
+          null,
+          null
+        ],
+        "flight_no_from": 3000,
+        "last_flight_no": null,
+        "position": 3
+      },
+      {
+        "id": 4,
+        "airline_id": 1,
+        "airport_code": "BBB",
+        "role": "station",
+        "is_main": false,
+        "bank_times": null,
+        "flight_no_from": null,
+        "last_flight_no": null,
+        "position": 4
+      },
+      {
+        "id": 5,
+        "airline_id": 1,
+        "airport_code": "CCC",
+        "role": "station",
+        "is_main": false,
+        "bank_times": null,
+        "flight_no_from": null,
+        "last_flight_no": null,
+        "position": 5
+      },
+      {
+        "id": 6,
+        "airline_id": 1,
+        "airport_code": "AAA",
+        "role": "station",
+        "is_main": false,
+        "bank_times": null,
+        "flight_no_from": null,
+        "last_flight_no": null,
+        "position": 6
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "a station's first pair is the first odd number of the airline's station pool",
+      "rule": "manual §2 (stations): flight numbers in 3 digits from one pool per airline, settings.station_flight_no_from to station_flight_no_to",
+      "input": {
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 360,
+            "block_min": 75
+          }
+        ]
+      },
+      "ask": {
+        "what": "next_flight_numbers",
+        "airport": "BBB",
+        "airline_id": 1
+      },
+      "answer": {
+        "base": "BBB",
+        "airline_id": 1,
+        "out": 101,
+        "back": 102,
+        "highest": null,
+        "from_schedule": null,
+        "last_used": null,
+        "pool": {
+          "from": 100,
+          "to": 999
+        },
+        "full": false
+      }
+    },
+    {
+      "name": "every station of the airline shares the one pool, so CCC's next pair comes after BBB's numbers; hubs' and other airlines' numbers don't count",
+      "rule": "manual §2 (stations): one pool per airline, handed out in order, so no two stations clash",
+      "input": {
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "flight_no": 101,
+            "origin_code": "BBB",
+            "dest_code": "DDD",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 360,
+            "block_min": 75
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "flight_no": 102,
+            "origin_code": "DDD",
+            "dest_code": "BBB",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 600,
+            "block_min": 75
+          },
+          {
+            "id": 3,
+            "airline_id": 1,
+            "flight_no": 105,
+            "origin_code": "CCC",
+            "dest_code": "DDD",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 400,
+            "block_min": 60
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "flight_no": 106,
+            "origin_code": "DDD",
+            "dest_code": "CCC",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 600,
+            "block_min": 60
+          },
+          {
+            "id": 5,
+            "airline_id": 2,
+            "flight_no": 311,
+            "origin_code": "AAA",
+            "dest_code": "BBB",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 600,
+            "block_min": 420
+          },
+          {
+            "id": 6,
+            "airline_id": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 360,
+            "block_min": 75
+          }
+        ]
+      },
+      "ask": {
+        "what": "next_flight_numbers",
+        "airport": "BBB",
+        "airline_id": 1
+      },
+      "answer": {
+        "out": 107,
+        "back": 108,
+        "highest": 106,
+        "from_schedule": 106,
+        "full": false
+      }
+    },
+    {
+      "name": "a hub's block is untouched by the station pool: HUB's next pair is still above 1001",
+      "rule": "the old planner's nextPair: the next odd number above the highest in use in the base's block",
+      "input": {
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "flight_no": 105,
+            "origin_code": "CCC",
+            "dest_code": "DDD",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 400,
+            "block_min": 60
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "AAA",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 360,
+            "block_min": 75
+          }
+        ]
+      },
+      "ask": {
+        "what": "next_flight_numbers",
+        "airport": "HUB",
+        "airline_id": 1
+      },
+      "answer": {
+        "out": 1003,
+        "back": 1004,
+        "highest": 1001
+      }
+    },
+    {
+      "name": "the number last used in the game at any of the airline's stations counts when it is higher",
+      "rule": "manual §2 (stations); airline_bases.last_flight_no",
+      "input": {
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "flight_no": 105,
+            "origin_code": "CCC",
+            "dest_code": "DDD",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 400,
+            "block_min": 60
+          }
+        ],
+        "airline_bases": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "airport_code": "HUB",
+            "role": "hub",
+            "is_main": true,
+            "bank_times": [
+              "06:00"
+            ],
+            "flight_no_from": 1000,
+            "position": 1
+          },
+          {
+            "id": 4,
+            "airline_id": 1,
+            "airport_code": "BBB",
+            "role": "station",
+            "last_flight_no": 120,
+            "position": 4
+          },
+          {
+            "id": 5,
+            "airline_id": 1,
+            "airport_code": "CCC",
+            "role": "station",
+            "position": 5
+          }
+        ]
+      },
+      "ask": {
+        "what": "next_flight_numbers",
+        "airport": "CCC",
+        "airline_id": 1
+      },
+      "answer": {
+        "out": 121,
+        "back": 122,
+        "highest": 120,
+        "from_schedule": 105,
+        "last_used": 120,
+        "full": false
+      }
+    },
+    {
+      "name": "a full pool says so: with the pool 100 to 110 and 110 used, no pair is left",
+      "rule": "spec docs/specs/2026-10-22-station-role.md: a pool that's full says so",
+      "input": {
+        "settings": {
+          "station_flight_no_to": 110
+        },
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "flight_no": 109,
+            "origin_code": "CCC",
+            "dest_code": "DDD",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 400,
+            "block_min": 60
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "flight_no": 110,
+            "origin_code": "DDD",
+            "dest_code": "CCC",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 600,
+            "block_min": 60
+          }
+        ]
+      },
+      "ask": {
+        "what": "next_flight_numbers",
+        "airport": "BBB",
+        "airline_id": 1
+      },
+      "answer": {
+        "highest": 110,
+        "pool": {
+          "from": 100,
+          "to": 110
+        },
+        "full": true
+      }
+    },
+    {
+      "name": "without the pool's settings a station's numbers say which setting is missing",
+      "rule": "manual §1: rule numbers have one source, the settings table",
+      "input": {
+        "settings": {
+          "station_flight_no_from": null
+        }
+      },
+      "ask": {
+        "what": "next_flight_numbers",
+        "airport": "BBB",
+        "airline_id": 1
+      },
+      "answer": {
+        "error": "settings.station_flight_no_from is not a number"
+      }
+    },
+    {
+      "name": "a station has no banks: never off wave, whatever the times",
+      "rule": "manual §2 (stations): no banks",
+      "ask": {
+        "what": "wave",
+        "airport": "CCC",
+        "airline_id": 1,
+        "dep": "03:10",
+        "arr": "23:50"
+      },
+      "answer": {
+        "level": "mute",
+        "text": "station · no banks",
+        "dep": null,
+        "arr": null
+      }
+    },
+    {
+      "name": "at AAA Test Air's own station counts, not Other Air's hub and its banks",
+      "rule": "spec docs/specs/2026-10-22-station-role.md: baseAt never falls back to another airline's base where this airline has a station",
+      "ask": {
+        "what": "base_at",
+        "airport": "AAA",
+        "airline_id": 1
+      },
+      "answer": {
+        "id": 6,
+        "airline_id": 1,
+        "role": "station"
+      }
+    },
+    {
+      "name": "... and its frequencies there get the station's pill, not AAA's bank fit",
+      "ask": {
+        "what": "wave",
+        "airport": "AAA",
+        "airline_id": 1,
+        "dep": "07:00",
+        "arr": "09:00"
+      },
+      "answer": {
+        "level": "mute",
+        "text": "station · no banks"
+      }
+    },
+    {
+      "name": "another airline never takes Test Air's station at AAA: Other Air gets its own hub",
+      "ask": {
+        "what": "base_at",
+        "airport": "AAA",
+        "airline_id": 2
+      },
+      "answer": {
+        "id": 3,
+        "airline_id": 2,
+        "role": "hub"
+      }
+    },
+    {
+      "name": "an airline with nothing at a station's airport gets nothing there, not the other airline's station",
+      "ask": {
+        "what": "base_at",
+        "airport": "CCC",
+        "airline_id": 2
+      },
+      "answer": null
+    },
+    {
+      "name": "with no airline given, a hub at the airport comes before a station there",
+      "ask": {
+        "what": "base_at",
+        "airport": "AAA"
+      },
+      "answer": {
+        "id": 3,
+        "role": "hub"
+      }
+    },
+    {
+      "name": "... and an airport with only a station gives that station, so its airline can be found from it",
+      "ask": {
+        "what": "base_at",
+        "airport": "CCC"
+      },
+      "answer": {
+        "id": 5,
+        "airline_id": 1,
+        "role": "station"
+      }
+    },
+    {
+      "name": "a station's bank windows: none",
+      "rule": "manual §2 (stations): no banks",
+      "ask": {
+        "what": "banks",
+        "airport": "CCC"
+      },
+      "answer": []
+    },
+    {
+      "name": "a departure from a station collects no bank",
+      "ask": {
+        "what": "bank_of_departure",
+        "airport": "CCC",
+        "local": "06:00"
+      },
+      "answer": {
+        "n": 0
+      }
+    },
+    {
+      "name": "connections at a station: no banks, one row with every connection",
+      "rule": "manual §2 (stations): no banks; the old planner's hubConnections",
+      "input": {
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "origin_code": "DDD",
+            "dest_code": "CCC",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 300,
+            "block_min": 60
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "origin_code": "CCC",
+            "dest_code": "NBN",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 500,
+            "block_min": 400
+          }
+        ]
+      },
+      "ask": {
+        "what": "connections",
+        "airport": "CCC"
+      },
+      "answer": {
+        "airport": "CCC",
+        "base": {
+          "id": 5,
+          "role": "station"
+        },
+        "banks": [],
+        "city_pairs": [
+          {
+            "from": "DDD",
+            "to": "NBN",
+            "bank": 0
+          }
+        ],
+        "by_bank": [
+          {
+            "n": 0,
+            "dep_local_min": null,
+            "arriving_from": [
+              "DDD"
+            ],
+            "leaving_to": [
+              "NBN"
+            ],
+            "city_pairs": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "a station never feeds a big market or counts as a banked hub, even flown from or ordered for",
+      "rule": "spec docs/specs/2026-10-22-station-role.md: stations never feed big growth candidates or count as banked hubs",
+      "ask": {
+        "what": "growth_moves",
+        "airline_id": 1,
+        "next": "big",
+        "facts": {
+          "routes": [
+            {
+              "id": 3,
+              "hub": "HUB",
+              "dest": "CCC",
+              "stars": 5,
+              "dist": 6720
+            },
+            {
+              "id": 12,
+              "hub": "HUB",
+              "dest": "GGG",
+              "stars": 2,
+              "dist": 400
+            },
+            {
+              "id": 20,
+              "hub": "CCC",
+              "dest": "DDD",
+              "stars": 5,
+              "dist": 1100
+            },
+            {
+              "id": 21,
+              "hub": "BBB",
+              "dest": "EEE",
+              "stars": 2,
+              "dist": 300
+            }
+          ],
+          "planned": [],
+          "orderBases": [
+            "HUB",
+            "CCC",
+            "BBB"
+          ],
+          "loads": []
+        }
+      },
+      "answer": {
+        "big": [
+          3
+        ],
+        "freq": [],
+        "feeder": [
+          12
+        ],
+        "shown": "big"
+      }
+    },
+    {
+      "name": "Home's airline cards leave stations out of the airline's bases: hubs, then focus cities",
+      "rule": "spec docs/specs/2026-10-22-station-role.md: airline cards don't count stations as hubs",
+      "ask": {
+        "what": "airline_cards"
+      },
+      "answer": [
+        {
+          "airline_id": 1,
+          "bases": [
+            {
+              "code": "HUB",
+              "role": "hub"
+            },
+            {
+              "code": "FOC",
+              "role": "focus",
+              "parent_code": "HUB"
+            }
+          ]
+        },
+        {
+          "airline_id": 2,
+          "bases": [
+            {
+              "code": "AAA",
+              "role": "hub"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the optimiser finds the airline from a station as from a base",
+      "rule": "spec docs/specs/2026-10-22-station-role.md: the optimiser finds the airline from a station like from a base",
+      "ask": {
+        "what": "optimise",
+        "base": "CCC",
+        "destinations": [
+          "DDD"
+        ],
+        "type": "A321 NEO LIGHT",
+        "start": "06:00-06:10",
+        "step": 5
+      },
+      "answer": {
+        "base": "CCC",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT"
+      }
+    },
+    {
+      "name": "a plan card for a station route checks as for a base route, with no bank at either station",
+      "rule": "spec docs/specs/2026-10-22-station-role.md: plan cards and filing work for a station route as for a base route",
+      "input": {
+        "routes": [
+          {
+            "id": 30,
+            "airline_id": 1,
+            "hub_code": "CCC",
+            "dest_code": "DDD",
+            "distance_km": 1100
+          }
+        ]
+      },
+      "ask": {
+        "what": "check_card",
+        "card": {
+          "aircraft": "T-001",
+          "legs": [
+            {
+              "flight_no": 101,
+              "origin_code": "CCC",
+              "dest_code": "DDD",
+              "dep_local": "06:00"
+            },
+            {
+              "flight_no": 102,
+              "origin_code": "DDD",
+              "dest_code": "CCC",
+              "dep_local": "12:00"
+            }
+          ]
+        }
+      },
+      "answer": {
+        "legs": [
+          {
+            "leg": 1,
+            "flight_no": 101,
+            "from": "CCC",
+            "to": "DDD",
+            "bank_out": null,
+            "bank_in": null
+          },
+          {
+            "leg": 2,
+            "flight_no": 102,
+            "from": "DDD",
+            "to": "CCC",
+            "bank_out": null,
+            "bank_in": null
+          }
+        ],
+        "flight_number_clashes": []
+      }
+    }
+  ]
+}

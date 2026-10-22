@@ -67,7 +67,8 @@ export interface BaseRow {
   id: number;
   airline_id: number;
   airport_code: string;
-  role: "hub" | "focus" | string;
+  /** hub, focus or station (a station since 22 Oct: point-to-point routes only, no banks, no block of its own). */
+  role: "hub" | "focus" | "station" | string;
   is_main?: boolean | null;
   parent_base_id?: number | null;
   parent_code?: string | null;
