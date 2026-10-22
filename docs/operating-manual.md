@@ -103,10 +103,12 @@ Details and open points: `docs/decisions.md`.
   *(since 20 Oct; history: rule-history.md)*
 - **Big builds go to a fresh helper.** Decisions and reviews stay in the Building chat. Each sizeable build gets a
   written spec (what, why, which files, what the checks should show) and goes to a helper that starts with a fresh
-  memory: it reads `CLAUDE.md`, the map and the manual, writes the code, runs the checks and opens the pull request.
-  Claude reviews it against the spec and the checks before asking for "merge". Small fixes can be made directly in the
+  memory: it reads `CLAUDE.md`, the map and the manual, writes the code, runs the checks locally, opens the pull
+  request and stops. **Nobody polls the automatic checks:** the Building chat waits on them with one background wait
+  that wakes it once they finish (no Claude usage while waiting); a red check goes to a helper to fix. Claude reviews
+  the pull request against the spec and the checks before asking for "merge". Small fixes can be made directly in the
   chat. A new Building chat starts at each step of the decision list, once anything worth carrying is in the
-  repository or the project files. *(since 8 Oct; history: rule-history.md)*
+  repository or the project files. *(since 8 Oct; no polling since 22 Oct; history: rule-history.md)*
 - **Data-only changes go straight in, to the tables:** plan cards, to-dos, notes, logs. Either through
   `planner_save(changes, client)`, the planner's own way of saving (one call of row changes, each from the
   `updated_at` it was read at; logged as actor planner with the client named, e.g. `claude <chat>`), or plain SQL on
@@ -164,7 +166,10 @@ Details and open points: `docs/decisions.md`.
   Virgin doesn't fly JFK or Delhi. When merging Gitesh's route lists, add missing lanes only; never change ownership.
   **The country rule applies where the rightful airline can fly the pair from one of its own bases.** Where it can't
   (Gatwick–Atlanta: Pan Am has no base at either end), the airline that has the pair on its list keeps it, so no market
-  drops off the map. *(since 23 and 26 Sep; the base exception since 21 Oct; history: rule-history.md)*
+  drops off the map. One exception to the exception: **US and Canada to China where Pan Am has no base at either end**
+  (Shanghai–Boston, Daxing–Vancouver) is on no list. China Eastern doesn't fly North America; Pan Am flies these later
+  as stations (point-to-point, §2 Stations). *(since 23 and 26 Sep; the base exception since 21 Oct;
+  US and Canada to China since 22 Oct; history: rule-history.md)*
 - **Destination shape:** in time, fly every route a real airline flies from each hub and focus city. Plan as if money
   isn't the limit, and grow at the group's own pace. *(since 23 and 29 Sep)*
 - **Scale models** (each airline's counterpart in the Airbus world): Virgin → British Airways, Pan Am → Pan Am,
@@ -193,7 +198,7 @@ Details and open points: `docs/decisions.md`.
 *(base roles since 29 Sep; history: rule-history.md)*
 
 - **Stations**, for every airline, are airports it flies point-to-point routes from without making them a base (Lucknow
-  for Lucknow–Patna; Malaysia's include Subang, its own market 30 km from KUL, and Kota Kinabalu's pairs away from KUL):
+  for Lucknow–Patna; Malaysia's include Subang, its own market 30 km from KUL, and Kota Kinabalu's pairs away from KUL; Pan Am's include US and Canada to China away from its bases):
   `airline_bases` rows with role station, no banks, flight numbers in 3 digits from one pool per airline
   (`settings.station_flight_no_from` 100 to `station_flight_no_to` 999), and never treated as hubs or focus cities
   (trunks, hubs first, the website, the briefing and the report). *(decided 22 Oct, every airline since the same day,

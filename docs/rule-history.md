@@ -108,6 +108,8 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 #### Big builds go to a fresh helper
 *Since 8 Oct (#26) · why: the old Building chat lost detail as it filled; a clean memory per build fixes that with no extra steps.*
 
+*No polling since 22 Oct (Gitesh: "stop the polling") · why: helpers checked the pull request's checks every minute or so while the database rehearsal ran (20–40 minutes a round), which used most of a build's Claude usage and time. Earlier wording: the helper "runs the checks and opens the pull request", and watched them until green. The checks themselves are unchanged.*
+
 #### Data-only changes go straight in, to the tables
 *Since 8 Oct (#2); to the tables since 10 Oct (#13, pull request 9); through `planner_save()` or plain SQL since 14 Oct (the clean-up removed `planner_item_put()` and `planner_item_delete()` with the adapter) · why: the planner reads and saves the tables directly.*
 
@@ -138,6 +140,15 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 *Since 21 Oct · why (Gitesh): applying the country rule literally removed 53 pairs no other airline could fly; they were restored the same night.* (On the base exception.)
 
 *Since 23 and 26 Sep · why: our airlines shouldn't compete with each other.*
+
+*US and Canada to China since 22 Oct (Gitesh, review chat, option C of three).* Where Pan Am has no base at either
+end, the base exception would have given these pairs to China Eastern. The only record against that was the earlier
+removal of Shanghai–Toronto, Vancouver and Detroit from China Eastern's list. The options were: A, keep them off for
+good; B, give the 10 pairs the Chinese model airlines fly (Shanghai to Boston, Portland, Toronto, Vancouver, Atlanta,
+Houston, Las Vegas and Detroit; Daxing to Portland and Vancouver) to China Eastern; C, Pan Am flies them as stations
+once those are built · why C: US–China is Pan Am's flow, and China Eastern needs no widebodies before Shanghai's short
+haul is full. Before, the manual said nothing about these pairs; the base exception sentence ended at "so no market
+drops off the map."
 
 #### Malaysia
 *Since 29 Sep · why: long-haul would have no loads without the feed.*
