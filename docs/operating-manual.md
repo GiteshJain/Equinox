@@ -40,7 +40,10 @@ Details and open points: `docs/decisions.md`.
 - **One item at a time.** Discuss a development or decision, Gitesh decides, then finish it (decided and set up)
   before raising the next. No building on Claude's initiative. *(since 7 Oct; history: rule-history.md)*
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh
-  approves by saying "merge"; merging is what makes it live. *(since 8 Oct; history: rule-history.md)*
+  approves by saying "merge"; merging is what makes it live. One exception: the planner's new look (steps 1 to 4 of
+  `docs/briefs/2026-10-22-planner-design.md`) is merged by Claude once every check is green and the review against its
+  spec passes, and the next step starts after it; Gitesh sees each step's screenshots once it's live. *(since 8 Oct;
+  the new look's exception since 22 Oct; history: rule-history.md)*
 - **Hosting:** the website and planner are on Cloudflare Pages (free plan) at `equinox-alliance.com`, our own domain,
   registered at Cloudflare at cost and renewing automatically each October. `equinox-alliance.pages.dev` also works.
   Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
