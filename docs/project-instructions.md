@@ -23,3 +23,7 @@ Systems:
 ## Starting a chat
 Read the operating manual and `docs/decisions.md`, and check the planner's current state (aircraft waiting, open
 to-dos) before advising.
+
+## Chat style
+The project's conversational style is set in the claude.ai project instructions and is not copied here. It applies to
+chat replies only; code, documents, data and drafts are written in a neutral, professional style.
