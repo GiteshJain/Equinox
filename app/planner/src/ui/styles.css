@@ -218,8 +218,6 @@ button.danger{background:#C4141C;color:#fff;border:0;cursor:pointer;font:600 13p
 .att li.bad::before{background:#E5486F} .att li.warn::before{background:var(--amber)} .att li.ok::before{background:#3DBE84}
 .att li .link{flex:1;min-width:0;text-align:left;color:var(--ink);font-size:13.5px;overflow-wrap:anywhere}
 .att li .link:hover{color:var(--violet)}
-.att li.attg details summary{cursor:pointer;list-style:none} .att li.attg details summary::-webkit-details-marker{display:none}
-ul.att.sub{margin:6px 0 2px 10px}
 .dismiss{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--faint);font-size:16px;line-height:1;
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
 .dismiss:hover{background:var(--fill);color:var(--ink)}
@@ -869,22 +867,8 @@ tr.focusrow input:disabled{opacity:.35}
 .newstn{background:var(--warn-soft);color:var(--warn);font-weight:600;border-radius:5px;padding:0 4px}
 
 /* ---------- Today, Performance and Systems (20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md) ----------
-   Today: the answer at the top (All clear or what's waiting) with the capture in one line, each airline's orders as a
-   card, the aircraft to file. Performance: the scorecards' third column, each figure against the same day last week, and
+   Today's own rules are at the end of this sheet since 22 Oct (its new layout). Performance: the scorecards' third column, each figure against the same day last week, and
    the main hubs' lines with their readiness folded in. Colour only on what needs doing; on a phone the cards stack. */
-.todayans .ansh{margin:0;font:500 24px/1.15 var(--font-d);letter-spacing:-.03em;color:var(--ink)}
-.todayans.clear .ansh{color:var(--ok)}
-.todayans .ansp{margin:6px 0 12px;color:var(--muted);font-size:13.5px;overflow-wrap:anywhere}
-.capline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding-top:12px;border-top:1px solid var(--line-2);font-size:13.5px;min-width:0}
-.capline .captext{flex:1 1 16em;min-width:0;overflow-wrap:anywhere}
-.ordgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:10px}
-.ordcard{background:var(--group);border-radius:var(--r-card);padding:12px 14px;min-width:0;font-size:13px;display:flex;flex-direction:column;gap:6px}
-.ordh{display:flex;align-items:center;gap:6px;flex-wrap:wrap} .ordh b{margin-right:auto}
-.ordh .pill{margin-left:0}
-.ordtypes{overflow-wrap:anywhere}
-.ordlines{list-style:none;margin:0;padding:0;display:grid;gap:3px}
-.ordlines li{overflow-wrap:anywhere}
-.ordcard > .link{align-self:flex-start}
 .perfnav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 14px}
 .perfnav .mf{text-decoration:none}
 .fgrid.one{grid-template-columns:minmax(0,560px)}
@@ -899,7 +883,6 @@ details.hpready > summary{padding:2px 0 4px;white-space:normal;overflow-wrap:any
 .ordall .ordtypes{padding-top:4px}
 button.link.gmore{display:inline-block;margin:6px 0 2px}
 @media (max-width:560px){
-  .todayans .ansh{font-size:21px}
   .fgrid.one{grid-template-columns:minmax(0,1fr)}
 }
 
@@ -1025,13 +1008,13 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .acard{padding:24px}
 .detail{padding:var(--pad-card);top:calc(82px + env(safe-area-inset-top,0px))}
 .fgrid,.agrid,.hgrid{gap:var(--gap-card)}
-.freq,details.cx,.lfs,.ck,.gc,.qcard,.imp,.cashrow,.ordcard,.cpm,.rpw,.pcard,.rpc,details.gsec,.zc{border-radius:var(--r-md)}
+.freq,details.cx,.lfs,.ck,.gc,.qcard,.imp,.cashrow,.cpm,.rpw,.pcard,.rpc,details.gsec,.zc{border-radius:var(--r-md)}
 .board + .board,.view > section + section{margin-top:var(--gap-card)}
 /* card heads: Manrope 800; section heads: Unbounded */
 .rh,.rst{font:800 var(--t-h3)/1.3 var(--font);letter-spacing:-.01em;color:var(--ink)}
 .rh .note,.rst + .note{font:500 var(--t-small)/1.45 var(--font)}
 .gh{font:800 15px/1.35 var(--font)}
-.view h2,.todayans .ansh,.dhead h2{font:500 var(--t-h2)/1.12 var(--font-d);letter-spacing:-.03em;color:var(--ink);overflow-wrap:anywhere}
+.view h2,.dhead h2{font:500 var(--t-h2)/1.12 var(--font-d);letter-spacing:-.03em;color:var(--ink);overflow-wrap:anywhere}
 .mhead b{font:500 20px/1.2 var(--font-d);letter-spacing:-.03em}
 .note,.dim,.dsub,.rm,.rs,.blk,.fsub,.acb,.acs,.kl,.empty{font-size:max(13px,1em)}
 .note{font-size:var(--t-small)}
@@ -1120,4 +1103,104 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .pill{white-space:normal;max-width:100%}
   .fcard dd.wow{min-width:0}
   .brand .eqwm{font-size:18px}
+}
+
+/* ---------- Today's layout (22 Oct, spec docs/specs/2026-10-22-planner-look-today.md): the answer as the title with the
+   capture as a pill beside it, the things waiting as big cards, the delivery lines as one table (one compact row per
+   airline on a phone), and needs attention as count tiles that open their lists below them ---------- */
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.todayttl{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 28px}
+.todayttl .ansh{flex:1 1 auto;min-width:0}
+.todayvh .capline{display:inline-flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0;max-width:100%;min-height:44px;padding:10px 20px;
+  border-radius:999px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);font:600 14px/1.4 var(--font);color:var(--ink)}
+.todayvh .capline .captext{min-width:0;overflow-wrap:anywhere}
+.todayvh .capline .link{white-space:nowrap}
+.todayvh .ansp{overflow-wrap:anywhere}
+
+.waitgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gap-card);margin:0 0 var(--gap-sec)}
+.wcard{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;padding:var(--pad-card);border-radius:var(--r-lg);
+  background:var(--paper);border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow)}
+.wkind{font:700 13px/1.3 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.wcard.order .wkind{color:var(--warn)} .wcard.due .wkind{color:var(--bad)} .wcard.file .wkind{color:var(--violet)}
+.wcard.attention .wkind,.wcard.game .wkind{color:#A23A6B} .wcard.clear .wkind{color:var(--ok)}
+.view .wcard .wh{margin:0;font:500 22px/1.25 var(--font-d);letter-spacing:-.02em;color:var(--ink);overflow-wrap:anywhere}
+.wd{margin:0;color:var(--muted);font:500 var(--t-body)/1.5 var(--font);overflow-wrap:anywhere}
+.wact{margin-top:auto;padding-top:8px}
+.wact .primary{margin:0}
+.wcard.urgent{background:var(--night);border-color:var(--night);color:#fff}
+.wcard.urgent .wkind{color:var(--amber)} .view .wcard.urgent .wh{color:#fff} .wcard.urgent .wd{color:#C9D1EA}
+
+.ordboard > h3.rh,.todaycounts > h3.rh{display:flex;flex-direction:column;gap:4px}
+.ordboard > h3.rh .note,.todaycounts > h3.rh .note{margin:0}
+.ordtbl{width:100%;border-collapse:collapse}
+.ordtbl th,.ordtbl td{vertical-align:top;text-align:left}
+.ordtbl td{line-height:1.45}
+.ordtbl th.ordx,.ordtbl td.ordx{width:200px}
+.ordtbl tr.now td{background:var(--amber-soft)}
+.ordtbl tr.now td:first-child{border-radius:var(--r-md) 0 0 var(--r-md)} .ordtbl tr.now td:last-child{border-radius:0 var(--r-md) var(--r-md) 0}
+.ordtbl tbody tr:last-child td{border-bottom:0}
+.ordtap{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:default}
+.ordtap b{font-weight:800}
+.ordtap .pill{margin-left:0}
+.ordtap .ordst{font-size:var(--t-small)}
+.ordtap .chev{display:none}
+.ordc > span{display:block}
+.ordc > .pill{display:inline-flex;margin:0 0 2px}
+.pill.now{background:var(--amber);color:var(--night);font-weight:700}
+.ordsafe{font-weight:700}
+.ordc > .ordfam{display:none}
+.orddry{font-size:var(--t-small)}
+.orddry .pill{margin-left:0}
+.ordx .link{display:inline-block;white-space:nowrap}
+.ordx .ordall{margin-top:4px}
+.ordall .ordtypes{font-size:var(--t-small);overflow-wrap:anywhere}
+
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;min-height:44px;padding:20px 22px;border:0;border-radius:var(--r-md);
+  background:var(--porcelain);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);text-align:left;cursor:pointer}
+.tile:hover{background:#E1E6EF}
+.tile .tn{font:500 40px/1.05 var(--font-d);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.tile.bad .tn{color:var(--bad)} .tile.warn .tn{color:var(--warn)} .tile.ok .tn{color:var(--ok)}
+.tile .tname{font:800 15px/1.3 var(--font);overflow-wrap:anywhere}
+.tile .tline{font:500 13px/1.4 var(--font);color:var(--muted);overflow-wrap:anywhere}
+.tile.on,.tile.on:hover{background:var(--night);box-shadow:none;color:#fff}
+.tile.on .tn{color:#fff} .tile.on .tline{color:#C9D1EA}
+.todaycounts .hiddenline{margin:14px 0 0}
+.today .hgrid > .board{margin-top:0}
+.tilepanel{margin-top:20px;padding-top:20px;border-top:1px solid var(--line);min-width:0}
+.tph{margin:0 0 6px;font:800 var(--t-h3)/1.3 var(--font);color:var(--ink)}
+.tph .note{margin-left:8px;font-weight:500}
+
+@media (max-width:860px){
+  .waitgrid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .todayttl{flex-direction:column;align-items:stretch;gap:14px}
+  .todayvh .capline{border-radius:var(--r-md);padding:10px 16px}
+  .view .wcard .wh{font-size:19px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .tile{padding:16px}
+  .tile .tn{font-size:32px}
+  .tph .note{display:block;margin:2px 0 0}
+  /* the orders table as one compact row per airline, its soonest safe line on the right; a tap opens its lines */
+  .ordtbl,.ordtbl tbody,.ordtbl tr,.ordtbl td{display:block;width:auto}
+  .ordtbl thead{display:none}
+  .ordtbl th.ordx,.ordtbl td.ordx{width:auto}
+  .ordtbl td{padding:0;border:0}
+  .ordtbl tr.ordcard{border-bottom:1px solid var(--line);padding:0 12px;border-radius:var(--r-md)}
+  .ordtbl tr.ordcard:last-child{border-bottom:0}
+  .ordtbl tr.now td{background:none}
+  .ordtbl tr.now{background:var(--amber-soft);border-bottom-color:transparent}
+  .ordtap{flex-wrap:nowrap;min-height:56px;padding:8px 0;cursor:pointer}
+  .ordtap b{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+  .ordtap .pill,.ordtap .ordst{flex:0 1 auto;min-width:0;text-align:right;white-space:normal}
+  .ordtap .chev{display:inline-block;width:8px;height:8px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg);margin:0 2px 3px 0}
+  .ordcard.open .ordtap .chev{transform:rotate(-135deg);margin-bottom:-3px}
+  .ordtbl tr:not(.open) > td:not(.ordh){display:none}
+  .ordtbl td.ordc{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:8px 0;border-top:1px solid var(--line)}
+  .ordtbl td.ordc > span{display:inline}
+  .ordtbl td.ordc > .pill{display:inline-flex;margin:0}
+  .ordtbl td.ordc .ordfam{display:block;flex:1 0 100%;font-weight:800}
+  .ordtbl td.ordx{padding:8px 0 12px;border-top:1px solid var(--line)}
 }

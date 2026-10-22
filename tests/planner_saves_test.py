@@ -395,10 +395,14 @@ async def today_board(s, pl, tag):
         await pg.click(f"{sel2} [data-confirm-yes]")
     await s.act("today: delete a to-do (the page asks itself)", delete, rows=3)
 
-    await pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")
     if not await pg.evaluate("!!document.querySelector('#attention [data-att-item] button.dismiss')"):
         s.not_tried("needs attention lists nothing", "today: dismiss an item", "today: show again")
         return
+    # since 22 Oct (spec docs/specs/2026-10-22-planner-look-today.md §4) needs attention shows count tiles first: tap the
+    # tile of the first item's group, so its list, and its ×, show
+    await pg.evaluate("""(() => { const g = document.querySelector('#attention [data-att-item]').closest('[data-att-group]');
+        const t = document.querySelector(`#attention [data-att-tile="${g.dataset.attGroup}"]`);
+        if (t.getAttribute('aria-expanded') !== 'true') t.click(); })()""")
     await s.act("today: dismiss an item of needs attention", lambda: pg.locator("#attention [data-att-item]").first.locator("button.dismiss").click())
     await s.act("today: show again", lambda: pg.click("#attention [data-show-again]"), variable=("planner_save dismissals delete", "dismissals delete"))
 

@@ -12,6 +12,10 @@
 // Address: /planner/today, the aircraft pop-up (?aircraft=REG, Tails' AircraftPopup, as Home's needs attention opened it).
 // An old load-report address (/planner/check?day=…, which web/_redirects sends here) goes on to Performance's Flights by
 // day with its day. Every action is one planner_save() call.
+// Since 22 Oct (spec docs/specs/2026-10-22-planner-look-today.md) laid out as the approved mockup: the answer is the
+// page's title with the capture as a pill beside it; the things waiting as big cards (model.ts, waitingCards); Orders as
+// one table, a column per delivery line (one compact row per airline on a phone); then Aircraft to file and each group
+// of needs attention as count tiles (countTiles), each opening its list below them; Game check and the to-dos as before.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { checks as checkRules, game, growth } from "@rules";
@@ -23,9 +27,9 @@ import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
 import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
-import { AttentionList } from "../../ui/AttentionList";
+import { AttentionItems } from "../../ui/AttentionList";
 import { familyOf } from "../../ui/aircraftNames";
-import { dismissKey, withoutDismissed, type AttItem } from "../../ui/attention";
+import { dismissKey, groupAttention, withoutDismissed, type AttItem } from "../../ui/attention";
 import { Board } from "../../ui/Board";
 import { niceDate, toMinute, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
@@ -36,7 +40,7 @@ import { useAgreements } from "../interline/reads";
 import { useInterlineRows } from "../interline/useRows";
 import { useForecasts, useReviewCards } from "../performance/reads";
 import { readAirports } from "../routes/reads";
-import { itemRoute, movedTo } from "../screens";
+import { itemRoute, movedTo, screen } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import { gameLink, typeName, type TailAircraft } from "../tails/model";
 import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useBuyTypes, useGameHost, useTailsAircraft } from "../tails/reads";
@@ -47,7 +51,7 @@ import { ComingUp } from "./ComingUp";
 import { comingUp, upFilters } from "./comingUp";
 import { checkedAtWords, fixChanges, fixRotations, importChanges, noLinkWords, type GameResult } from "./game";
 import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameCheck";
-import { captureLine, deliveryLines, orderStatus, safeTypes, toFile, waitingWords, type OrderRow } from "./model";
+import { captureLine, countTiles, deliveryLines, lineCell, lineColumns, orderStatus, safeTypes, toFile, waitingCards, waitingWords, type OrderRow } from "./model";
 import { readLegs } from "./reads";
 import { TodoBoard } from "./TodoBoard";
 import { dismissChanges, showAgainChanges, todoViews } from "./todos";
@@ -94,6 +98,10 @@ export function Today() {
   const [busy, setBusy] = useState(false);
   const [gc, setGc] = useState<{ running: boolean; at: Date | null; res: ReadonlyMap<number, GameResult> }>({ running: false, at: null, res: new Map() });
   const [gcOpen, setGcOpen] = useState<number | null>(null);
+  // the count tile whose list is open below the tiles (one at a time; Home's "to file on Today" opens Aircraft to file)
+  const [tile, setTile] = useState<string | null>(() => (loc.hash === "#to-file" ? "to-file" : null));
+  // the airlines whose delivery lines are open on a phone (the table's compact rows)
+  const [openRows, setOpenRows] = useState<ReadonlySet<number>>(new Set());
   const tailPopup = search.get("aircraft");
   const setTailPopup = (reg: string | null) => setSearch((s) => {
     const n = new URLSearchParams(s);
@@ -247,106 +255,178 @@ export function Today() {
     canOrder: orders.filter((o) => o.status.kind === "now").map((o) => o.airline.name), toFile: filing.length, attention: attShown.shown.length, game: differences,
   }) : null;
 
+  const tiles = attShown && filing ? countTiles(filing.length, attShown.shown) : null;
+  const groups = attShown ? groupAttention(attShown.shown) : [];
+  const cards = waiting && !waiting.clear && orders && filing && attShown && todosQ.data ? waitingCards({
+    orders, toFile: filing, attention: attShown.shown, todos: todosQ.data, game: differences, today, hrefOf, screenName: (a) => screen(a.screen).name,
+  }) : [];
+  const columns = orders ? lineColumns(orders) : [];
+  const openAircraft = (a: AttItem) => { if (!a.tail || a.route || a.screen !== "tails") return false; setTailPopup(a.tail); return true; };
+  const goTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const openTile = (k: string) => { setTile(k); requestAnimationFrame(() => goTo("attention")); };
+
   return (
     <main className="view review today" data-screen="today" data-today-ready={ready ? "yes" : "no"} data-today-view={loc.pathname + loc.search}>
-      <div className="vh"><p className="vk">Every day</p><h1>Today</h1><p>What to do now: the capture, orders, aircraft to file, what needs attention, the game check and the to-dos.</p></div>
+      <div className={"vh todayvh" + (waiting?.clear ? " clear" : "")} data-figure="today: answer" data-all-clear={waiting ? (waiting.clear ? "yes" : "no") : ""}>
+        <p className="vk">Every day</p>
+        <div className="todayttl">
+          <h1 className="ansh">{waiting ? waiting.title : "Today"}</h1>
+          {cap ? (
+            <div className="capline" data-figure="today: capture" data-capture-state={cap.state} data-mark={cap.mark}>
+              <span className={"sysmark " + cap.mark} role="img" aria-label={cap.mark === "ok" ? "green" : cap.mark === "warn" ? "amber" : "red"} />
+              <span className="captext">{cap.text}</span> <Link className="link" to={itemRoute("systems")}>Systems ›</Link>
+            </div>
+          ) : null}
+        </div>
+        <p className="ansp">{waiting ? (waiting.clear ? "What to do now: the capture, orders, aircraft to file, what needs attention, the game check and the to-dos."
+          : waiting.parts.join(" · ")) : "Loading…"}</p>
+      </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
 
-      <section className={"board todayans" + (waiting?.clear ? " clear" : "")} data-figure="today: answer" data-all-clear={waiting ? (waiting.clear ? "yes" : "no") : ""}>
-        {waiting ? (
-          <>
-            <h2 className="ansh">{waiting.title}</h2>
-            <p className="ansp">{waiting.parts.join(" · ")}</p>
-          </>
-        ) : <div className="loading">Loading…</div>}
-        {cap ? (
-          <div className="capline" data-figure="today: capture" data-capture-state={cap.state} data-mark={cap.mark}>
-            <span className={"sysmark " + cap.mark} role="img" aria-label={cap.mark === "ok" ? "green" : cap.mark === "warn" ? "amber" : "red"} />
-            <span className="captext">{cap.text}</span> <Link className="link" to={itemRoute("systems")}>Systems ›</Link>
+      {waiting?.clear ? (
+        <section className="waitgrid" aria-label="All clear">
+          <div className="wcard clear" data-wait-card="clear">
+            <span className="wkind">All clear</span>
+            <h2 className="wh">{waiting.parts[0]}</h2>
           </div>
-        ) : null}
-      </section>
-
-      <Board title="Orders" figure="today: orders" id="orders"
-        note="from the cash forecast: an order is safe when the cushion stays in hand at its lowest point · each delivery line: when its first type is safe, what's on order and when it runs dry (UTC)">
-        {!orders ? <div className="loading">Loading…</div> : (
-          <div className="ordgrid">
-            {orders.map((o) => (
-              <div className="ordcard" key={o.airline.id} data-orders={o.airline.code ?? ""}>
-                <div className="ordh">
-                  <AirlineMark color={o.airline.color} /><b>{o.airline.name}</b>
-                  {o.status.kind === "now" ? <span className="pill warn" data-can-order>{o.status.text}</span> : <span className="dim">{o.status.text}</span>}
-                </div>
-                {o.lines.length ? (
-                  <ul className="ordlines">
-                    {o.lines.map((l) => (
-                      <li key={l.family} data-order-line={l.family}>
-                        <b>{l.family}</b> —{" "}
-                        {l.safe ? <>{l.safe.now ? <b>{l.safe.text}</b> : <span>{l.safe.text}</span>} <span className="dim">·</span> </> : null}
-                        <span className={l.text.startsWith("empty") ? "dim" : undefined}>{l.text}</span>{l.soon ? <> <span className="pill warn sm">{l.soon}</span></> : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {o.types.length ? (
-                  <details className="ordall" data-all-safe={o.airline.code ?? ""}>
-                    <summary>all safe types</summary>
-                    <div className="ordtypes"><span className="dim">Safe</span> {o.types.map((g, i) => (
-                      <span key={g.when}>{i ? <span className="dim"> · </span> : null}{g.now ? <b>{g.when}: {g.names.join(", ")}</b> : <span className="dim">{g.when}: {g.names.join(", ")}</span>}</span>
-                    ))}</div>
-                  </details>
-                ) : null}
-                {o.airline.code ? <Link className="link" to={itemRoute("performance", { airline: o.airline.code })}>Cash, next 14 days ›</Link> : null}
+        </section>
+      ) : cards.length ? (
+        <section className="waitgrid" aria-label="Waiting">
+          {cards.map((c) => (
+            <div className={"wcard " + c.kind + (c.urgent ? " urgent" : "")} key={c.key} data-wait-card={c.kind}>
+              <span className="wkind">{c.label}</span>
+              <h2 className="wh">{c.heading}</h2>
+              {c.detail ? <p className="wd">{c.detail}</p> : null}
+              <div className="wact">
+                {c.action.href ? (
+                  <Link className={"primary" + (c.urgent ? " now" : "")} to={c.action.href}
+                    onClick={(e) => { if (c.action.item && openAircraft(c.action.item)) e.preventDefault(); }}>{c.action.text}</Link>
+                ) : (
+                  <button type="button" className={"primary" + (c.urgent ? " now" : "")}
+                    onClick={() => { if (c.action.tile) openTile(c.action.tile); else if (c.action.scroll) goTo(c.action.scroll); }}>{c.action.text}</button>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </Board>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
-      <Board title="Aircraft to file" figure="today: aircraft to file" id="to-file"
-        note="arrived in the game with a plan card · File into planner checks the card against the game's schedule, on Tails">
-        {!filing ? <div className="loading">Loading…</div> : filing.length ? (
-          <div className="tblwrap">
-            <table className="tbl gtbl">
-              <thead><tr><th>Aircraft</th><th>Airline</th><th>Type</th><th>Arrived (UTC)</th><th>Base</th><th>Plan</th><th></th></tr></thead>
+      <Board title="Orders" figure="today: orders" id="orders" className="ordboard"
+        note="Safe means the cushion stays in hand at the cash forecast's lowest point. Each line: when its first type is safe, what's on order and when it runs dry (UTC).">
+        {!orders ? <div className="loading">Loading…</div> : (
+          <div className="ordwrap">
+            <table className="tbl ordtbl">
+              <thead><tr><th>Airline</th>{columns.map((f) => <th key={f}>{f}</th>)}<th className="ordx"><span className="sr">Cash and safe types</span></th></tr></thead>
               <tbody>
-                {filing.map((r) => {
-                  const at = Number.isFinite(r.at) ? new Date(r.at).toISOString() : "";
+                {orders.map((o) => {
+                  const open = openRows.has(o.airline.id);
                   return (
-                    <tr key={r.registration} data-to-file={r.registration}>
-                      <td><b>{r.registration}</b></td>
-                      <td><AirlineMark color={r.airline.color} />{r.airline.name}</td>
-                      <td>{r.type}{r.config ? <> <span className="dim">{r.config}</span></> : null}</td>
-                      <td>{niceDate(at.slice(0, 10))} {at.slice(11, 16)} <span className="dim">{untilText(r.at, now.getTime())}</span></td>
-                      <td>{r.base}</td>
-                      <td className="dim">{r.plan}</td>
-                      <td className="n"><Link className="primary sm" to={r.href} data-file-into-planner>File into planner</Link></td>
+                    <tr className={"ordcard" + (o.status.kind === "now" ? " now" : "") + (open ? " open" : "")} key={o.airline.id} data-orders={o.airline.code ?? ""}>
+                      <td className="ordh">
+                        <button type="button" className="ordtap" aria-expanded={open}
+                          onClick={() => setOpenRows((s) => { const n = new Set(s); if (n.has(o.airline.id)) n.delete(o.airline.id); else n.add(o.airline.id); return n; })}>
+                          <AirlineMark color={o.airline.color} size={10} /><b>{o.airline.name}</b>
+                          {o.status.kind === "now" ? <span className="pill warn" data-can-order>{o.status.text}</span> : <span className="dim ordst">{o.status.text}</span>}
+                          <span className="chev" aria-hidden="true" />
+                        </button>
+                      </td>
+                      {columns.map((f) => {
+                        const l = o.lines.find((x) => x.family === f);
+                        if (!l) return <td key={f} className="ordc none"><span className="ordfam">{f}</span><span className="dim">—</span></td>;
+                        const c = lineCell(l);
+                        return (
+                          <td key={f} className={"ordc" + (c.warn ? " warn" : "")} data-order-line={l.family}>
+                            <span className="ordfam">{f}</span>
+                            {c.safe ? (c.safe.now ? <span className="pill now">{c.safe.text}</span> : <span className="ordsafe">{c.safe.text}</span>) : null}
+                            <span className={c.dry ? "ordq" : "ordq dim"}>{c.onOrder}</span>
+                            {c.dry ? <span className="orddry dim">runs dry {c.dry}{c.soon ? <> · <span className="pill warn sm">{c.soon}</span></> : null}</span> : null}
+                          </td>
+                        );
+                      })}
+                      <td className="ordx">
+                        {o.airline.code ? <Link className="link" to={itemRoute("performance", { airline: o.airline.code })}>Cash, next 14 days ›</Link> : null}
+                        {o.types.length ? (
+                          <details className="ordall" data-all-safe={o.airline.code ?? ""}>
+                            <summary>all safe types</summary>
+                            <div className="ordtypes"><span className="dim">Safe</span> {o.types.map((g, i) => (
+                              <span key={g.when}>{i ? <span className="dim"> · </span> : null}{g.now ? <b>{g.when}: {g.names.join(", ")}</b> : <span className="dim">{g.when}: {g.names.join(", ")}</span>}</span>
+                            ))}</div>
+                          </details>
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        ) : <div className="dim">Nothing to file.</div>}
+        )}
       </Board>
 
-      <Board title="Needs attention" figure="today: needs attention" id="attention"
-        note={attShown ? (attShown.shown.length ? `${attShown.shown.length} item${attShown.shown.length === 1 ? "" : "s"}` : "nothing right now") : ""}>
-        {!attShown || !ready ? <div className="loading">Loading…</div> : (
+      <section className="board todaycounts" id="attention" aria-labelledby="att-h">
+        <h3 className="rh" id="att-h">
+          <span className="rht">Needs attention</span>
+          <span className="note">{attShown ? (attShown.shown.length ? `${attShown.shown.length} item${attShown.shown.length === 1 ? "" : "s"}, and the aircraft to file · tap a tile to see its list` : "nothing right now") : ""}</span>
+        </h3>
+        {!tiles || !attShown || !ready ? <div className="loading">Loading…</div> : (
           <>
+            <div className="tiles" role="group" aria-label="Aircraft to file and needs attention">
+              {tiles.map((t) => (
+                <button type="button" key={t.key} className={"tile " + t.cls + (tile === t.key ? " on" : "")} aria-expanded={tile === t.key}
+                  aria-controls={"tile-" + t.key} data-att-tile={t.key} onClick={() => setTile((k) => (k === t.key ? null : t.key))}>
+                  <b className="tn">{t.count}</b>
+                  <span className="tname">{t.name}</span>
+                  <span className="tline">{t.line}</span>
+                </button>
+              ))}
+            </div>
             {attShown.hidden ? (
               <div className="dim hiddenline" data-dismissed={attShown.hidden}>
                 {attShown.hidden} dismissed · <button type="button" className="link" onClick={() => void showAgain()} data-show-again>show again</button>
               </div>
             ) : null}
-            {attShown.shown.length ? <AttentionList items={attShown.shown} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)}
-              onOpen={(a) => { if (!a.tail || a.route || a.screen !== "tails") return false; setTailPopup(a.tail); return true; }} />
-              : <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div>}
+
+            <div className="tilepanel" id="to-file" data-figure="today: aircraft to file" hidden={tile !== "to-file"}>
+              <h4 className="tph">Aircraft to file <span className="note">arrived in the game with a plan card · File into planner checks the card against the game's schedule, on Tails</span></h4>
+              {filing && filing.length ? (
+                <div className="tblwrap">
+                  <table className="tbl gtbl">
+                    <thead><tr><th>Aircraft</th><th>Airline</th><th>Type</th><th>Arrived (UTC)</th><th>Base</th><th>Plan</th><th></th></tr></thead>
+                    <tbody>
+                      {filing.map((r) => {
+                        const at = Number.isFinite(r.at) ? new Date(r.at).toISOString() : "";
+                        return (
+                          <tr key={r.registration} data-to-file={r.registration}>
+                            <td><b>{r.registration}</b></td>
+                            <td><AirlineMark color={r.airline.color} />{r.airline.name}</td>
+                            <td>{r.type}{r.config ? <> <span className="dim">{r.config}</span></> : null}</td>
+                            <td>{niceDate(at.slice(0, 10))} {at.slice(11, 16)} <span className="dim">{untilText(r.at, now.getTime())}</span></td>
+                            <td>{r.base}</td>
+                            <td className="dim">{r.plan}</td>
+                            <td className="n"><Link className="primary sm" to={r.href} data-file-into-planner>File into planner</Link></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : <div className="dim">Nothing to file.</div>}
+            </div>
+
+            <div className="tilepanels" data-figure="today: needs attention">
+              {groups.map((g) => (
+                <div className="tilepanel" key={g.kind} id={"tile-" + g.kind} data-att-group={g.kind} hidden={tile !== g.kind}>
+                  <h4 className="tph">{g.label} <span className="note">{g.items.length} item{g.items.length === 1 ? "" : "s"}</span></h4>
+                  <AttentionItems items={g.items} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)} onOpen={openAircraft} />
+                </div>
+              ))}
+              {!attShown.shown.length ? <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules, and no checks are due.</div> : null}
+            </div>
           </>
         )}
-      </Board>
+      </section>
 
-      <Board title="Game check" figure="today: game check" board="Game check" note="compares the planner with each airline's live schedule in the game">
+      <Board title="Game check" figure="today: game check" board="Game check" id="game-check" note="compares the planner with each airline's live schedule in the game">
         <div className="toolbar">
           <button type="button" className="primary sm" id="gcheck" disabled={gc.running || !rules} onClick={() => void runCheck()}>{gc.running ? "Checking…" : "Check against the game"}</button>
           <span className="count">{gc.at ? checkedAtWords(gc.at) : ""}{noLinkWords(missingLinks)}</span>

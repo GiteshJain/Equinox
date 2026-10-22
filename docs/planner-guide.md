@@ -77,28 +77,48 @@ as you make it. On a preview address the planner saves nothing and says **previe
   *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
 
 ## Today
-*What do I do now?* The evening after a capture, or whenever one lands (since 20 Oct). Every board is open, the most
-important first; nothing folds.
-- **At the top, the answer:** **All clear** when nothing is waiting (no airline can order, nothing to file, nothing in
-  needs attention, no Game check differences), or how many things are waiting and what ("Pan Am can order · 2 aircraft
-  to file · 5 items in needs attention"). Game check counts only once you've pressed **Check against the game**.
-- **The capture in one line** (from *capture_status()*): "**All six airlines captured, all good, 17:08 UTC**", or what's
-  missing (an airline not captured for over a day; red after 48 hours), short (amber) or broken (red), with what came
-  in ("short: Kingfisher (loads 12 of 78 flights)"). **Systems ›** has each page.
-- **Orders:** a card per airline: **Can order now** (amber: something to do), or **Safe from** a day, **Needs a
-  capture** or **Not within 14 days**, from the cash forecast (*cash_forecast()*, through *airline_cards()*). Then each
-  delivery line the airline may have, read once: when its first type is safe to order (**safe now**, **safe from** a
-  day, or **not safe within 14 days**: the earliest safe day of the line's types, by the same family the order queues
-  use), how many are on order and when it runs dry (UTC), amber when that's within *order_queue_warn_h* (48 hours), or
-  **empty**. For example: "A320 family — safe from Wed, Oct 21 · 1 on order · runs dry 10-20 19:14 UTC (in 17 h)". A
-  line with no type in the forecast (no capture yet) says only what's on order. **all safe types**, folded under the
-  card, lists every safe type by when: **now** first, then each day from which more are safe, each short name once
-  ("Safe now: A321neo, E195 · from Thu, Oct 22: XLR, A320neo"). **Cash, next 14 days ›** opens the airline on
-  Performance. (Check → Growth's can order and order queues until 20 Oct.)
-- **Aircraft to file:** each aircraft that has arrived in the game with a plan card, with **File into planner**, which
-  files it on Tails (below). Home's Aircraft on order had the button until 20 Oct.
-- **Needs attention** (moved whole from Home on 20 Oct): things to act on, grouped by kind as on the old Home, each item
-  linking to where it's fixed; an item about one aircraft (its maintenance, turns or positions) opens its pop-up.
+*What do I do now?* The evening after a capture, or whenever one lands (since 20 Oct). Laid out since 22 Oct as the
+approved mockup (spec docs/specs/2026-10-22-planner-look-today.md): the answer, the things waiting as cards, the orders
+as one table, then counts you tap for detail. Nothing folds on arrival.
+- **The answer is the title:** **All clear** when nothing is waiting (no airline can order, nothing to file, nothing in
+  needs attention, no Game check differences), or how many things are waiting ("2 things waiting"), with what under it
+  ("Pan Am can order · 2 aircraft to file · 5 items in needs attention"). Game check counts only once you've pressed
+  **Check against the game**.
+- **The capture, as a pill beside the title** (below it on a phone; from *capture_status()*): "**All six airlines
+  captured, all good, 17:08 UTC**", or what's missing (an airline not captured for over a day; red after 48 hours),
+  short (amber) or broken (red), with what came in ("short: Kingfisher (loads 12 of 78 flights)"). **Systems ›** has
+  each page.
+- **The things waiting, as big cards** (two a row; one on a phone), each with a small coloured kind line, a heading in
+  the item's own words, a line of detail and its button:
+  - **Order now:** each airline that can order now ("Virgin can safely order: A321neo, E195"), with **Cash, next 14
+    days**. The first is the one dark card with the amber button: the thing to do first;
+  - **Due** a day (or **Overdue**): each to-do due today or before, with **Open the to-do**;
+  - **To file:** each aircraft that has arrived with a plan card, with **File into planner**;
+  - **Needs attention:** the rest, a card per kind: one item says its words and opens where it's fixed; more say the
+    first item and how many more, and **See all** opens that kind's tile below. Game check's differences, once it has
+    run, have a card that goes to Game check.
+
+  With nothing waiting, one card says all clear.
+- **Orders, as one table:** a row per airline (its colour and name, **Can order now** in amber or **Safe from** a day,
+  **Needs a capture** or **Not within 14 days**, from the cash forecast: *cash_forecast()*, through *airline_cards()*),
+  a column per delivery line (A320 family, E195, A350; "—" where the airline has no such line). Each cell: when the
+  line's first type is safe to order (**Safe now** as an amber pill, **Safe from** a day, or **Not safe within 14
+  days**: the earliest safe day of the line's types, by the same family the order queues use), how many are on order
+  and when it runs dry (UTC), with how soon in amber when that's within *order_queue_warn_h* (48 hours), or **Nothing
+  on order**. A line with no type in the forecast (no capture yet) says only what's on order. The row of an airline
+  that can order now is tinted. Each row ends with **Cash, next 14 days ›** (the airline on Performance) and **all
+  safe types**, folded, listing every safe type by when: **now** first, then each day from which more are safe, each
+  short name once ("Safe now: A321neo, E195 · from Thu, Oct 22: XLR, A320neo"). On a phone each airline is one compact
+  row with its order status on the right; tap it to see its lines. (Check → Growth's can order and order queues until
+  20 Oct.)
+- **Counts, then detail:** a tile for **Aircraft to file** and one for each kind in needs attention (routes to fix,
+  rival moves and the rest, the most serious first), three a row (two on a phone): the number, the kind and how serious
+  its items are ("1 urgent · 2 to look at"). Tap a tile to open its list right below the tiles; tap it again to close
+  it. Home's **to file on Today** opens Aircraft to file.
+- **Aircraft to file** (its tile's list): each aircraft that has arrived in the game with a plan card, with **File into
+  planner**, which files it on Tails (below). Home's Aircraft on order had the button until 20 Oct.
+- **Needs attention** (moved whole from Home on 20 Oct; its tiles' lists): things to act on, by kind as on the old
+  Home, each item linking to where it's fixed; an item about one aircraft (its maintenance, turns or positions) opens its pop-up.
   - the capture (an airline not captured for 26 hours, red at 48) and the backup (no good copy for 30 hours, or the
     last run failed), linking to Systems;
   - **a capture page that came in short or broken** (#21), the same night: "Kingfisher's capture came in short: loads
@@ -124,7 +144,7 @@ important first; nothing folds.
     first fit filing logged ("2 cabin charges don't match what we logged"), linking to Systems' Cabin charges board,
     which opens on arrival. Dismissed, it comes back when a new one appears.
 
-  **×** dismisses an item and **show again** brings every dismissed item back. Fare-plan items aren't listed here;
+  **×** dismisses an item and **show again** (under the tiles) brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
 - **Game check** (Check's until 20 Oct): **Check against the game** reads each airline's live schedule from the game.
   Each airline's line says how many flights are in each and the differences. **Review** lists them, with **Use the

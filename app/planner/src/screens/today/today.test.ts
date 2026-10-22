@@ -17,7 +17,7 @@ import type { TailAircraft } from "../tails/model";
 import { homeAttention, type AttentionInput } from "./attention";
 import { comingUp, upFilters } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
-import { captureLine, clockWords, deliveryLines, lineSafe, orderStatus, runsDryWords, safeTypes, soonWords, toFile, waitingWords } from "./model";
+import { captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, orderStatus, runsDryWords, safeTypes, soonWords, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
 import type { LegNow } from "./reads";
 import { addChanges, deleteChanges, dismissChanges, showAgainChanges, sortTodos, tickChanges, todoBoard, todoViews } from "./todos";
 
@@ -521,5 +521,73 @@ describe("Game check (Check's until 20 Oct)", () => {
       // 10:00 at HUB (UTC) is 600; 13:00 at ZZZ (UTC−4) is 17:00 UTC, 7 hours; back at 14:30 there (18:30 UTC), landing 20:30 UTC: 2 hours
       expect(ch.filter((c) => c.table === "flight_legs").map((c) => [c.values?.dep_utc_min, c.values?.block_min])).toEqual([[600, 420], [1110, 120]]);
     });
+  });
+});
+
+describe("the new look (spec docs/specs/2026-10-22-planner-look-today.md): cards, the orders table and the count tiles", () => {
+  const al = (id: number, name: string, code: string | null = name.slice(0, 2).toUpperCase()) => ({ id, code, name, color: null, game_id: null });
+  const line = (family: string, x: Partial<OrderRow["lines"][number]> = {}): OrderRow["lines"][number] =>
+    ({ family, safe: null, text: "empty: nothing on order", warn: false, soon: null, ...x });
+  it("a delivery line in short, as the table's cell says it", () => {
+    expect(lineCell(line("A320 family", { safe: { now: false, text: "safe from Wed, Oct 21" }, text: "1 on order · runs dry 10-20 19:14 UTC", warn: true, soon: "in 17 h" })))
+      .toEqual({ safe: { now: false, text: "Safe from Wed, Oct 21" }, onOrder: "1 on order", dry: "10-20 19:14", soon: "in 17 h", warn: true });
+    expect(lineCell(line("E195", { safe: { now: true, text: "safe now" } })))
+      .toEqual({ safe: { now: true, text: "Safe now" }, onOrder: "Nothing on order", dry: null, soon: null, warn: false });
+    expect(lineCell(line("A350", { text: "2 on order · runs dry 10-24 05:53 UTC" }))).toEqual({ safe: null, onOrder: "2 on order", dry: "10-24 05:53", soon: null, warn: false });
+  });
+  it("the table's columns: every line any airline has, A320 family, then E195, then A350", () => {
+    expect(lineColumns([{ lines: [line("A350"), line("A320 family")] }, { lines: [line("E195"), line("A320 family")] }])).toEqual(["A320 family", "E195", "A350"]);
+    expect(lineColumns([{ lines: [line("B737"), line("A350")] }])).toEqual(["A350", "B737"]);
+    expect(lineColumns([])).toEqual([]);
+  });
+  const order = (a: ReturnType<typeof al>, kind: OrderRow["status"]["kind"], types: OrderRow["types"] = []): OrderRow =>
+    ({ airline: a, status: { kind, text: kind === "now" ? "Can order now" : "Safe from Thu, Oct 22" }, types, lines: [] });
+  const file: FileRow = { airline: airlines[0] as HomeAirline, registration: "N023AW", type: "A321neo", config: "Y180", at: 0, base: "JFK", plan: "JFK–ORD", href: "/tails?airline=TA&file=N023AW" };
+  const href = (a: AttItem) => "/" + a.screen;
+  const base0 = { orders: [], toFile: [], attention: [], todos: [], game: 0, today: "2026-10-22", hrefOf: href, screenName: (a: AttItem) => a.screen, locale: L };
+  it("a card for each thing waiting, the first airline that can order the one urgent card", () => {
+    const cards = waitingCards({
+      ...base0,
+      orders: [order(al(1, "Pan Am"), "later"), order(al(2, "Virgin", "VS"), "now", [{ when: "now", now: true, names: ["A321neo", "E195"] }, { when: "from Thu, Oct 22", now: false, names: ["XLR"] }]),
+        order(al(3, "Kingfisher", "IT"), "now")],
+      toFile: [file],
+      attention: [
+        item({ key: "order|Virgin|2026-10-22", cls: "ok", screen: "performance", text: "Virgin can safely order: A321neo, E195" }),
+        item({ key: "todo|t-7", cls: "bad", screen: "today", text: "To-do (overdue): Ring the bank" }),
+        item({ key: "route|Pan Am|JFK|ORD", cls: "bad", screen: "performance", text: "JFK–ORD: losing money — x" }),
+        item({ key: "route|Pan Am|JFK|BOS", cls: "warn", screen: "performance", text: "JFK–BOS: fix or reduce — y" }),
+        item({ cls: "mute", screen: "interline", text: "Interline: 3 airline–country pairs without an agreement" }),
+      ],
+      todos: [todo(7, { title: "Ring the bank", due_on: "2026-10-20" })],
+      game: 2,
+    });
+    expect(cards.map((c) => [c.kind, c.label, c.heading, c.detail, c.urgent, c.action.text, c.action.href ?? c.action.tile ?? c.action.scroll])).toEqual([
+      ["order", "Order now", "Virgin can safely order: A321neo, E195", "Also safe from Thu, Oct 22: XLR", true, "Cash, next 14 days", "/performance/VS"],
+      ["order", "Order now", "Kingfisher can order now", null, false, "Cash, next 14 days", "/performance/IT"],
+      ["due", "Overdue · due " + "Tue, Oct 20", "Ring the bank", null, false, "Open the to-do", "/today#todo"],
+      ["file", "To file", "N023AW has arrived for Test Air", "A321neo Y180 · JFK · JFK–ORD", false, "File into planner", "/tails?airline=TA&file=N023AW"],
+      ["attention", "Needs attention", "JFK–ORD: losing money — x", "and 1 more in Routes to fix", false, "See all 2", "route"],
+      ["attention", "Needs attention", "Interline: 3 airline–country pairs without an agreement", "Interline", false, "Open interline", "/interline"],
+      ["game", "Needs attention", "2 Game check differences", "between the planner and the game's schedules", false, "Go to Game check", "game-check"],
+    ]);
+  });
+  it("a to-do due today says so; nothing waiting, no cards", () => {
+    const cards = waitingCards({ ...base0, attention: [item({ key: "todo|t-8", cls: "warn", screen: "today", text: "To-do: File the plan" })],
+      todos: [todo(8, { title: "File the plan", due_on: "2026-10-22" })] });
+    expect(cards.map((c) => c.label)).toEqual(["Due today"]);
+    expect(waitingCards(base0)).toEqual([]);
+  });
+  it("the count tiles: Aircraft to file first, then each group of needs attention, the most serious first", () => {
+    expect(countTiles(0, [
+      item({ cls: "mute", screen: "interline", text: "Interline: 3 airline–country pairs without an agreement" }),
+      item({ key: "route|a", cls: "warn", text: "A–B: fix or reduce — y" }),
+      item({ key: "route|b", cls: "bad", text: "A–C: losing money — x" }),
+      item({ key: "route|c", cls: "warn", text: "A–D: fix or reduce — z" }),
+    ])).toEqual([
+      { key: "to-file", count: 0, name: "Aircraft to file", cls: "file", line: "nothing has arrived" },
+      { key: "route", count: 3, name: "Routes to fix", cls: "bad", line: "1 urgent · 2 to look at" },
+      { key: "interline", count: 1, name: "Interline", cls: "mute", line: "1 for information" },
+    ]);
+    expect(countTiles(2, [])).toEqual([{ key: "to-file", count: 2, name: "Aircraft to file", cls: "file", line: "arrived with a plan card" }]);
   });
 });
