@@ -12,9 +12,11 @@
 //   against the same day last week; staff read it);
 // - for Flights by day, one day's captured loads (game_loads, the old planner's CAP.loads, which held the last 9 days)
 //   and the loads typed by hand that day (load_entries, load_days).
-// The functions that only read are called with GET, so a preview (decision #8) reads them too. The fare plan is keyed
+// The figures are asked for through a queue (data/limit.ts: at most four at a time), so opening the screen doesn't run
+// twenty at once. The functions that only read are called with GET, so a preview (decision #8) reads them too. The fare plan is keyed
 // under its table (["table", "fare_plan", ...]), so a save to it reads it again.
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { limited } from "../../data/limit";
 import { queryClient, tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
@@ -39,7 +41,7 @@ async function pages<T>(what: string, page: (from: number, to: number) => Answer
 }
 
 async function rpc<T>(what: string, fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.rpc(fn as never, args as never, { get: true });
+  const { data, error } = await limited(() => supabase.rpc(fn as never, args as never, { get: true }));
   if (error) return fail(what, error.message);
   return data as unknown as T;
 }
@@ -255,7 +257,7 @@ export function useGrowthSignals(worldId: number | undefined) {
     queryKey: ["figures", "growth_signals", "check", worldId],
     enabled: worldId !== undefined,
     queryFn: async (): Promise<GrowthRead> => {
-      const { data, error } = await supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
       if (error) return fail("the growth signals", error.message);
       const d = data as unknown as Partial<GrowthRead>;
       return {
@@ -287,7 +289,7 @@ export function useHubProgress(worldId: number | undefined) {
     queryKey: ["figures", "hub_progress", "check", worldId],
     enabled: worldId !== undefined,
     queryFn: async (): Promise<HubProgressAirline[]> => {
-      const { data, error } = await supabase.rpc("hub_progress", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("hub_progress", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
       if (error) return fail("the main hubs' progress", error.message);
       return ((data as unknown as { airlines?: HubProgressAirline[] }).airlines ?? []).map((a) => ({
         ...a, target: Number(a.target), departures: num(a.departures as Json), planned: num(a.planned as Json), percent: num(a.percent as Json), exempt: !!a.exempt,

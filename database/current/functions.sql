@@ -4,6 +4,7 @@ CREATE OR REPLACE FUNCTION public.aircraft_profit(p_airline_id bigint, p_days in
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 declare d jsonb;
 begin
@@ -21,6 +22,7 @@ CREATE OR REPLACE FUNCTION public.airline_cards(p_world_id bigint DEFAULT NULL::
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -36,6 +38,7 @@ CREATE OR REPLACE FUNCTION public.airline_profit(p_airline_id bigint, p_as_of ti
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 declare d jsonb;
 begin
@@ -235,6 +238,7 @@ CREATE OR REPLACE FUNCTION public.cash_forecast(p_airline_id bigint, p_orders js
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -386,6 +390,7 @@ CREATE OR REPLACE FUNCTION public.fare_changes(p_airline_id bigint, p_as_of time
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 declare d jsonb;
 begin
@@ -403,6 +408,7 @@ CREATE OR REPLACE FUNCTION public.fare_ladder(p_airline_id bigint, p_as_of times
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -418,6 +424,7 @@ CREATE OR REPLACE FUNCTION public.fare_plan_status(p_airline_id bigint, p_as_of 
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -433,6 +440,7 @@ CREATE OR REPLACE FUNCTION public.growth_signals(p_world_id bigint DEFAULT NULL:
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -448,6 +456,7 @@ CREATE OR REPLACE FUNCTION public.hub_progress(p_world_id bigint DEFAULT NULL::b
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -852,6 +861,7 @@ CREATE OR REPLACE FUNCTION public.route_loads(p_world_id bigint DEFAULT NULL::bi
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -867,6 +877,7 @@ CREATE OR REPLACE FUNCTION public.route_profit(p_airline_id bigint, p_days integ
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 declare d jsonb; a jsonb; v_in numeric; v_out numeric;
 begin
@@ -892,6 +903,7 @@ CREATE OR REPLACE FUNCTION public.route_story(p_route_id bigint, p_as_of timesta
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
