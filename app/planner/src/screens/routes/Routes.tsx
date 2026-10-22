@@ -248,7 +248,7 @@ export function Routes() {
   return (
     <main className={"view routes" + (route || codePart ? " has-detail" : "")} data-screen="routes" data-routes-ready={ready ? "yes" : "no"}
       data-routes-airline={airline?.code ?? ""} data-route-open={route ? `${route.hub}-${route.dest}` : ""} data-routes-view={loc.pathname + loc.search}>
-      <div className="vh"><h1>Routes</h1><p>Every route in the network. Pick one to schedule its flights.</p></div>
+      <div className="vh"><p className="vk">The network</p><h1>Routes</h1><p>Every route in the network. Pick one to schedule its flights.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {airlinesQ.data && !airline ? <ErrorBox error={`There's no airline ${codePart || filters.airline} among ours.`} /> : null}
       <div className="toolbar">

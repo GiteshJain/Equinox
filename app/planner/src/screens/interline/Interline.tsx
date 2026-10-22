@@ -71,7 +71,7 @@ export function Interline() {
   const host = hostQ.data;
   return (
     <main className="view interline" data-screen="interline" data-interline-ready={ready ? "yes" : "no"} data-interline-view={loc.search}>
-      <div className="vh"><h1>Interline</h1><p>Which foreign countries each airline flies into, and whether it has an interline agreement there.</p></div>
+      <div className="vh"><p className="vk">Agreements</p><h1>Interline</h1><p>Which foreign countries each airline flies into, and whether it has an interline agreement there.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {rules && !ilRules ? <ErrorBox error="The interline rules (settings.interline_rules) aren't in the database yet." /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}

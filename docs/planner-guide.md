@@ -26,14 +26,20 @@ as you make it. On a preview address the planner saves nothing and says **previe
 ## Signing in and the header
 - **Signing in:** the same email and password as before. An account that isn't staff is signed out with **This account
   doesn't have access to the planner.**
-- **The header:** the ten screens (Home, Today, Routes, Tails, Performance, Competition, Interline, Photos, Reference,
-  Systems), the
-  **search** box, **Local** / **UTC** (it starts as the planner's
-  setting and remembers your choice on this device), the save state, **Website** (the public site) and **Sign out**. On
-  a phone the screens sit on their own row, which you swipe sideways. Under it, on every screen, the **game clocks**:
-  one per time zone of our bases, west to east, with the time there, a dot for day or night and the bases' codes. (The
-  old planner also has a band of the UTC day under its header, but keeps it hidden; this one does the same.)
-- **The save state:** **saved**, **saving**, **not saved · retry** (tap it to send again; nothing is kept on the device,
+- **The top bar** (since 22 Oct, the website's look): one slim bar on night with **equinox. planner**, the screens
+  **Home**, **Today**, **Routes**, **Tails**, **Performance** and **Competition**, and **More** (a menu with
+  **Interline**, **Photos**, **Reference** and **Systems**); the **search** box; the **clock button**, showing UTC now;
+  and the round **account button**. Under the bar, the website's twilight line. On a narrow window or a phone the
+  screens go into the menu button at the left, all ten in one list; nothing scrolls sideways.
+  - **The clock button** opens the **game clocks**: one per time zone of our bases, west to east, with the time there,
+    a dot for day or night and the bases' codes. They're no longer under the bar on every screen, and the hidden band of
+    the UTC day went with them.
+  - **The account button** opens the save state, **Times in Local** / **Times in UTC** (it starts as the planner's
+    setting and remembers your choice on this device), **Website** (the public site) and **Sign out**. Its dot shows the
+    save state: green saved, amber saving or preview, red not saved.
+- **Each screen's head:** a small uppercase line saying where you are, the screen's title in large type on the light
+  ground, and its one-line description. (Each screen opened with a dark banner until 22 Oct.) Home keeps its globe.
+- **The save state:** **saved**, **saving**, **not saved · retry** (in the account menu: tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
 - **The search** (press **/** to jump to it): type a flight number, with or without the airline's code (**1008**,
   **KF 1008**), part of a registration, two airports (**DEL-BOM**), an airport or the start of a city. It finds what the
@@ -149,7 +155,7 @@ important first; nothing folds.
   **edit route** (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies,
   after asking in the page). Not flown yet, it shows the next free flight numbers; flown, its loads over 7 days and,
   since 22 Oct, **How it's doing ›** beside its name, which opens its route page on Performance.
-- **Each frequency:** the outbound and the return with their times (local, or UTC as the header says, the other shown
+- **Each frequency:** the outbound and the return with their times (local, or UTC as the account menu's Local / UTC says, the other shown
   small), the block time (typed, or **est** from the planning library's estimate), **+1** where a time falls on a later
   day, and each flight's load. Then every check: night bans, a number used twice, the bank fit at both ends, the turn at
   the destination, the aircraft's position and the second-daily gap (the last two new: the old Routes didn't show

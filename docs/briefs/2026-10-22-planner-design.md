@@ -48,3 +48,4 @@ website (22 Oct) and `app/planner/src/ui/styles.css`.
 
 ## Outcome
 22 Oct 2026, Gitesh: **C**. Mockups of Home, Today and Routes first; the build (A or B) follows the direction he picks.
+22 Oct 2026, after the mockups ("right direction"), Gitesh: **B, in steps**. First the foundation on every screen (option A), then Today, Routes and Systems rebuilt one at a time, each its own pull request. Mockups: the "equinox. planner redesign" canvas.

@@ -294,10 +294,22 @@ async def refuse_other(p, port, env, facts, other, seen):
     return f"the account that isn't staff is refused and signed out (\"{NOT_STAFF}\"), and writes nothing", problems
 
 
+async def open_screen(pg, sid):
+    """Opens a screen from the top bar, as a person does (since 22 Oct, spec docs/specs/2026-10-22-planner-look-foundation.md):
+    its link is in the bar, under More (Interline, Photos, Reference, Systems) or, on a phone, in the menu button's list."""
+    link = f"header [data-screen-link={sid}]"
+    for menu in ("header [data-menu=nav]", "header [data-menu=more]"):
+        if await pg.is_visible(link):
+            break
+        if await pg.is_visible(menu):
+            await pg.click(menu)
+    await pg.click(link)
+
+
 # ---------- 2. Home ----------
 async def home_opens(pl):
     """Home is rebuilt (build pull request 5): no placeholder, its boards there (the hero, the map, a card for each of our
-    airlines) and the game clocks under the header, our airlines on the map's buttons in their order, with their colours.
+    airlines) and the game clocks in the top bar's clock panel (since 22 Oct; under the header before), our airlines on the map's buttons in their order, with their colours.
     Needs attention, coming up and the to-do board moved to Today on 20 Oct, so they aren't on Home. Its figures were
     compared with the old Home's by tests/home_side_by_side_test.py until the clean-up."""
     want = json.loads(psql(f"""select coalesce(json_agg(json_build_object(
@@ -311,8 +323,13 @@ async def home_opens(pl):
         figures: document.querySelectorAll('[data-figure="home: key figures"]').length,
         network: !!document.querySelector('[data-board=network]'), attention: !!document.querySelector('[data-figure="home: needs attention"]'),
         comingUp: !!document.querySelector('#coming-up'), todo: !!document.querySelector('#todo'), hero: !!document.querySelector('#eqhero'),
-        cards: document.querySelectorAll('.agrid .acard').length, clocks: document.querySelectorAll('#clocks .zc').length })""")
+        cards: document.querySelectorAll('.agrid .acard').length, clocks: document.querySelectorAll('header #clocks .zc').length })""")
     problems = []
+    # the clock button shows UTC now and opens the clocks; Escape shuts them
+    await pl.pg.click("header [data-menu=clocks]")
+    if not await pl.pg.is_visible("header #clocks .zc"):
+        problems.append("the top bar's clock button doesn't open the game clocks")
+    await pl.pg.keyboard.press("Escape")
     if boards["notBuilt"]:
         problems.append("Home still shows the placeholder's line to the old planner")
     if boards["figures"] != 5:
@@ -320,7 +337,7 @@ async def home_opens(pl):
     problems += [f"no {k} board" for k in ("network", "hero") if not boards[k]]
     problems += [f"Home still has the {k} board, which moved to Today" for k in ("attention", "comingUp", "todo") if boards[k]]
     if not boards["clocks"]:
-        problems.append("no game clocks under the header")
+        problems.append("no game clocks in the top bar's clock panel")
     if not want:
         problems.append("the copy has none of our airlines")
     if [a["name"] for a in got] != [a["name"] for a in want]:
@@ -343,7 +360,7 @@ async def today_opens(pl):
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
                                 order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=today]")
+    await open_screen(pl.pg, 'today')
     await pl.pg.wait_for_selector("main[data-screen=today][data-today-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({
@@ -390,7 +407,7 @@ async def today_opens(pl):
         problems.append(f"{got['folded']} of Today's boards are folded on arrival (all should be open)")
     if got["collapse"]:
         problems.append("Today has Collapse all")
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Today opens with its answer ({got['title'] or '?'}), the capture line ({got['capture']}) linking to Systems, and every board open: "
             f"orders for the copy's {len(got['orders'])} airlines ({got['lines']} delivery lines, all safe types folded on {got['allSafe']} cards), "
@@ -406,7 +423,7 @@ async def competition_opens(pl):
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
                                 order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=competition]")
+    await open_screen(pl.pg, 'competition')
     await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
     group = await pl.pg.evaluate("""({
@@ -453,7 +470,7 @@ async def competition_opens(pl):
             problems.append(f"{code}: show all opens {n} openings, not {db['openings']}")
         await pl.pg.click("[data-list-more^='openings ']")
         await settle(pl.pg, 200)
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Competition opens with {group['scans'] or 'no scans line'!r} and a card for each of the copy's {len(group['cards'])} airlines; {code}'s page has "
             f"{got['markets']} markets, {got['threats']} threats, {db['count']} openings ({got['rows']} shown, top: {', '.join(got['first'])}) and "
@@ -466,7 +483,7 @@ async def routes_opens(pl):
     Routes' by tests/routes_side_by_side_test.py."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                  where g.kind = 'ours' and a.world_id = {WORLD} order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=routes]")
+    await open_screen(pl.pg, 'routes')
     await pl.pg.wait_for_selector("main[data-screen=routes][data-routes-ready=yes]", timeout=60000)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=routes] [data-not-built]'),
@@ -479,7 +496,7 @@ async def routes_opens(pl):
         problems.append(f"airlines on Routes' buttons {got['airlines']}, the copy has {want}")
     if not got["rows"]:
         problems.append("Routes lists no route")
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return f"Routes is rebuilt, not a placeholder: it opens on its list ({got['count']}) with the copy's {len(want)} airlines on its buttons in their order", problems
 
@@ -490,7 +507,7 @@ async def tails_opens(pl):
     old Tails' by tests/tails_side_by_side_test.py."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                  where g.kind = 'ours' and a.world_id = {WORLD} order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=tails]")
+    await open_screen(pl.pg, 'tails')
     await pl.pg.wait_for_selector("main[data-screen=tails][data-tails-ready=yes]", timeout=60000)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=tails] [data-not-built]'),
@@ -506,7 +523,7 @@ async def tails_opens(pl):
         problems.append("Tails lists no aircraft")
     if not got["board"]:
         problems.append("Tails shows no deliveries board")
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}) and the deliveries, with the copy's {len(want)} airlines on its buttons", problems
 
@@ -617,7 +634,7 @@ async def systems_opens(pl):
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD}
                                 order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=systems]")
+    await open_screen(pl.pg, 'systems')
     await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
     boards_js = "[...document.querySelectorAll('main[data-screen=systems] .board:not(.sysboard) > h3.rh')].map(h => h.dataset.rkey)"
@@ -649,7 +666,7 @@ async def systems_opens(pl):
         problems.append(f"with the checks off (0), Systems' boards are {off}, not the three without Aircraft checks")
     await pl.pg.reload()
     await pl.pg.wait_for_selector("main[data-screen=systems][data-systems-ready=yes]", timeout=90000)
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Systems opens with the Systems board first, then its {len(got['boards'])} boards folded in order, the Capture board with "
             f"{len(got['capture'])} airlines; with the checks off, {len(off)} boards and no Aircraft checks"), problems
@@ -671,7 +688,7 @@ async def performance_opens(pl):
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
                                 order by a.position nulls last, a.id""").splitlines() if r]
-    await pl.pg.click("[data-screen-link=performance]")
+    await open_screen(pl.pg, 'performance')
     await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
     page = """({ cards: [...document.querySelectorAll('main[data-screen=performance] [data-figure="performance: scorecards"] .fcard .fch b')].map(b => b.textContent),
@@ -783,7 +800,7 @@ async def performance_opens(pl):
         problems.append(f"the first scorecard opens {one['cards']}, not {want[0]!r}")
     if not one["path"].startswith("/planner/performance/") or not one["airline"]:
         problems.append(f"the airline's page is at {one['path']} ({one['airline']!r})")
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Performance opens with a scorecard for each of the copy's {len(got['cards'])} airlines in order ({'; '.join(got['wow'][:1])}) and the group's "
             f"{len(got['boards'])} boards open{cut_words}{ladder_words}; the first scorecard opens {one['path']} with its {len(one['boards'])} boards open"
@@ -838,7 +855,7 @@ async def route_page_opens(pl):
     links back with "How it's doing ›" (a flown route), and "‹ <airline>" opens the airline's page. Competition's threats
     each link to their route's page. Counts and codes only."""
     problems = []
-    await pl.pg.click("[data-screen-link=performance]")
+    await open_screen(pl.pg, 'performance')
     await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
     await pl.pg.click("main[data-screen=performance] [data-figure='performance: scorecards'] .fcard")
     await pl.pg.wait_for_function("() => !!(document.querySelector('main[data-screen=performance]') || {dataset: {}}).dataset.airline", timeout=30000)
@@ -903,13 +920,13 @@ async def route_page_opens(pl):
     await pl.pg.wait_for_function(f"() => location.pathname === '/planner/performance/{acode}'", timeout=30000)
     await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]:not([data-route-page])", timeout=90000)
     # Competition's threats: each links to its route's page
-    await pl.pg.click("[data-screen-link=competition]")
+    await open_screen(pl.pg, 'competition')
     await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
     threats = await pl.pg.evaluate("""({ n: document.querySelectorAll('[data-threat]').length,
         links: [...document.querySelectorAll('[data-threat] a[data-route-page-link]')].map(a => a.getAttribute('href')) })""")
     if len(threats["links"]) != threats["n"] or any(not re.fullmatch(r"/planner/performance/[A-Z0-9]+/[A-Z0-9]{3,4}-[A-Z0-9]{3,4}", h or "") for h in threats["links"]):
         problems.append(f"{threats['n']} threats on Competition, {len(threats['links'])} linking to a route page")
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"the route page: {acode} {key} opens from the route profit table with its header, {got['tiles']} tiles for the last 7 days "
             f"({'compared' if got['compared'] == 'yes' else 'nothing to compare'}), its five boards open, "
@@ -932,25 +949,25 @@ async def last_screens_open(pl):
     if not await pl.pg.evaluate("!!document.querySelector('header #gsearch') && !!document.querySelector('header a.eqsite[href=\"/\"]')"):
         problems.append("the header has no search box or Website button")
     for sid, ready in (("interline", "data-interline-ready"), ("photos", "data-photos-ready"), ("reference", "data-reference-ready")):
-        await pl.pg.click(f"[data-screen-link={sid}]")
+        await open_screen(pl.pg, sid)
         await pl.pg.wait_for_selector(f"main[data-screen={sid}][{ready}=yes]", timeout=90000)
         await settle(pl.pg, 300)
         if await pl.pg.evaluate(f"!!document.querySelector('main[data-screen={sid}] [data-not-built]')"):
             problems.append(f"{sid} still shows the placeholder's line to the old planner")
-    await pl.pg.click("[data-screen-link=interline]")
+    await open_screen(pl.pg, 'interline')
     await pl.pg.wait_for_selector("main[data-screen=interline][data-interline-ready=yes]", timeout=60000)
     il = await pl.pg.evaluate("""({ boards: !!document.querySelector('[data-figure="interline: agreements"]') && !!document.querySelector('[data-figure="interline: countries"]'),
         countries: document.querySelectorAll('[data-figure="interline: countries"] tr').length - 1 })""")
     if not il["boards"] or il["countries"] < 1:
         problems.append(f"Interline has no agreements board or interline countries ({il})")
     seen.append(f"Interline with {il['countries']} interline countries")
-    await pl.pg.click("[data-screen-link=photos]")
+    await open_screen(pl.pg, 'photos')
     await pl.pg.wait_for_selector("main[data-screen=photos][data-photos-ready=yes]", timeout=60000)
     logos = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=photos] [data-lg]')].map(c => c.dataset.lg)")
     if logos != want:
         problems.append(f"Photos' logos are for {logos}, the copy's airlines are {want}")
     seen.append(f"Photos with {len(logos)} logos")
-    await pl.pg.click("[data-screen-link=reference]")
+    await open_screen(pl.pg, 'reference')
     await pl.pg.wait_for_selector("main[data-screen=reference][data-reference-ready=yes]", timeout=60000)
     ref = await pl.pg.evaluate("""({ sections: [...document.querySelectorAll('main[data-screen=reference] details.rsec')].map(d => d.dataset.section),
         open: [...document.querySelectorAll('main[data-screen=reference] details.rsec')].filter(d => d.open).length })""")
@@ -959,7 +976,7 @@ async def last_screens_open(pl):
     await pl.pg.evaluate("t => window.__eqPlanner.go(t)", "/reference/constants")
     await pl.pg.wait_for_function("() => (document.querySelector('details.rsec[data-section=constants]') || {}).open === true", timeout=30000)
     seen.append(f"Reference with {len(ref['sections'])} sections, folded, /reference/constants opening Constants")
-    await pl.pg.click("[data-screen-link=home]")
+    await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return "no screen is a placeholder any more: " + ", ".join(seen) + "; the header has the search box and the Website button", problems
 
@@ -1201,7 +1218,7 @@ async def screens(p, port, env, facts, staff, seen, moment):
 
             for sid, href in SCREENS:
                 e0 = len(ph.errors)
-                await ph.pg.click(f"[data-screen-link={sid}]")
+                await open_screen(ph.pg, sid)
                 await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
                 path = await ph.pg.evaluate("location.pathname")
                 if path != href:
@@ -1266,7 +1283,7 @@ SYS_LINES = """[...document.querySelectorAll('[data-figure="systems: board"] .sy
 
 
 async def open_systems(ph):
-    await ph.pg.click("[data-screen-link=systems]")
+    await open_screen(ph.pg, 'systems')
     await ph.pg.wait_for_selector(READY["systems"], timeout=90000)
     await settle(ph.pg, 400)
     return await ph.pg.evaluate(SYS_LINES)
@@ -1336,7 +1353,7 @@ async def short_page(p, port, env, facts, staff, seen, moment):
             problems.append(f"half of {made['airline']}'s loads page isn't judged short: {verdict}")
         await ph.open(moment=moment)
         await ph.sign_in(*staff)
-        await ph.pg.click("[data-screen-link=today]")
+        await open_screen(ph.pg, 'today')
         await ph.pg.wait_for_selector(READY["today"], timeout=90000)
         await settle(ph.pg, 400)
         await ph.pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")

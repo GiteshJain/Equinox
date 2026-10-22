@@ -230,6 +230,7 @@ function PerformanceScreen() {
     <main className="view finance performance" data-screen="performance" data-performance-ready={ready ? "yes" : "no"} data-performance-view={view}
       data-airline={sel?.code ?? ""} data-day={isAirline ? "" : day}>
       <div className="vh">
+        <p className="vk">{sel ? "Performance" : "Results"}</p>
         <h1>{sel ? <>{sel.name}</> : "Performance"}</h1>
         <p>{sel ? "How it's doing, and why: profit, cash for the next 14 days, route profit, aircraft, fare changes and the fare plan."
           : "How each airline is doing, and why: the scorecards against last week, this Saturday's fare ladder, the growth signals, the main hubs and the flights by day."}</p>

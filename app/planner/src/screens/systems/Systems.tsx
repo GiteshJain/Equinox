@@ -133,7 +133,7 @@ export function Systems() {
 
   return (
     <main className="view review systems" data-screen="systems" data-systems-ready={ready ? "yes" : "no"} data-systems-view="/systems">
-      <div className="vh"><h1>Systems</h1><p>Did everything work? The capture, the jobs, the backups and the planner's build, then the capture's details{shown.includes("Aircraft checks") ? ", manual entry and aircraft checks" : " and manual entry"}.</p></div>
+      <div className="vh"><p className="vk">The plumbing</p><h1>Systems</h1><p>Did everything work? The capture, the jobs, the backups and the planner's build, then the capture's details{shown.includes("Aircraft checks") ? ", manual entry and aircraft checks" : " and manual entry"}.</p></div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {sysLines ? <SystemsBoard lines={sysLines} checkedAt={systemQ.dataUpdatedAt ? new Date(systemQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : null} /> : null}

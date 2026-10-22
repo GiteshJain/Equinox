@@ -56,6 +56,7 @@ export function Competition() {
   return (
     <main className="view competition" data-screen="competition" data-competition-ready={ready ? "yes" : "no"} data-airline={sel?.code ?? ""}>
       <div className="vh">
+        <p className="vk">{sel ? "Competition" : "Results"}</p>
         <h1>{sel ? <>{sel.name}: competition</> : "Competition"}</h1>
         <p>{sel ? "Its market share against the rivals, their moves on its routes, the routes to open next and the rivals it meets most, from the world scans."
           : "Who we're up against and where to open next: market share, the rivals' moves, the ranked openings and the rivals' profiles, from the world scans."}</p>
