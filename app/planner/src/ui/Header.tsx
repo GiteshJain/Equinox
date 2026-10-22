@@ -28,7 +28,7 @@ export function Header() {
   const root = useRef<HTMLElement>(null);
   const loc = useLocation();
 
-  // A menu shuts when a screen opens, on Escape, and on a click anywhere outside the bar.
+  // A menu shuts when a screen opens (or its link is clicked again), on Escape, and on a click anywhere outside the bar.
   const [at, setAt] = useState(loc.pathname);
   if (at !== loc.pathname) { setAt(loc.pathname); setOpen(null); }
   useEffect(() => {
@@ -56,14 +56,14 @@ export function Header() {
         </NavLink>
         <nav className={"eq-nav" + (open === "nav" ? " open" : "")} id="eq-nav" aria-label="Sections">
           {bar.map((s) => (
-            <NavLink key={s.id} to={screenRoute(s)} end={s.id === "home"} data-screen-link={s.id}>{s.name}</NavLink>
+            <NavLink key={s.id} to={screenRoute(s)} end={s.id === "home"} data-screen-link={s.id} onClick={() => setOpen(null)}>{s.name}</NavLink>
           ))}
           <div className={"eq-more" + (open === "more" ? " open" : "")}>
             <button type="button" className={"eq-morebtn" + (moreOn ? " active" : "")} data-menu="more" aria-expanded={open === "more"}
               onClick={() => flip("more")}>More</button>
             <div className="eq-menu eq-moremenu" role="menu">
               {more.map((s) => (
-                <NavLink key={s.id} to={screenRoute(s)} data-screen-link={s.id} role="menuitem">{s.name}</NavLink>
+                <NavLink key={s.id} to={screenRoute(s)} data-screen-link={s.id} role="menuitem" onClick={() => setOpen(null)}>{s.name}</NavLink>
               ))}
             </div>
           </div>
@@ -73,7 +73,7 @@ export function Header() {
           <div className={"eq-pop" + (open === "clocks" ? " open" : "")}>
             <button type="button" className="eq-clockbtn" data-menu="clocks" aria-expanded={open === "clocks"}
               title="Game time at the hubs" onClick={() => flip("clocks")} data-utc-now>
-              <span className="ck" aria-hidden="true" />{utc}<span className="cku">UTC</span>
+              <span className="ckic" aria-hidden="true" />{utc}<span className="cku">UTC</span>
             </button>
             <div className="eq-menu eq-clockpanel" aria-label="Game clocks">
               <div className="eq-menuh">Game time at the hubs</div>
