@@ -153,7 +153,7 @@ declare v_world bigint; v_res jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
-  if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'html') then
+  if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet', 'html') then
     return jsonb_build_object('ok', false, 'error', 'bad kind');
   end if;
   perform set_config('equinox.actor', 'capture', true);
@@ -429,6 +429,22 @@ AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
   return private.fig_fare_plan(p_airline_id, coalesce(p_as_of, now()));
+end
+$function$
+
+;
+
+-- fleet_checks(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.fleet_checks(p_world_id bigint DEFAULT NULL::bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+ SET statement_timeout TO '30s'
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_fleet_checks(private.fig_world(p_world_id), coalesce(p_as_of, now()));
 end
 $function$
 
@@ -1822,23 +1838,49 @@ AS $function$
        and r.captured_at >= span.from_at and r.captured_at <= p_at
      order by r.kind, r.captured_at desc, r.id desc),
   j as (select k.kind, k.label, k.o, l.verdict, l.verdict_note as note, l.captured_at from k left join latest l on l.kind = k.kind),
-  v as (select case when bool_or(j.verdict = 'broken') then 'broken'
-                    when bool_or(j.verdict = 'short') or bool_or(j.captured_at is null) then 'short'
-                    when bool_or(j.verdict = 'ok') then 'ok' end as verdict
-          from j)
+  v0 as (select case when bool_or(j.verdict = 'broken') then 'broken'
+                     when bool_or(j.verdict = 'short') or bool_or(j.captured_at is null) then 'short'
+                     when bool_or(j.verdict = 'ok') then 'ok' end as verdict
+           from j),
+  ja as (select max(j.captured_at) as at,
+                string_agg(case when j.captured_at is null then j.label || ' not captured'
+                                when j.verdict in ('short', 'broken') then j.note end, '; ' order by j.o) as notes,
+                coalesce(jsonb_agg(j.kind order by j.o) filter (where j.captured_at is null), '[]'::jsonb) as missing,
+                jsonb_object_agg(j.kind, case when j.captured_at is not null
+                                              then jsonb_build_object('verdict', j.verdict, 'note', j.note, 'at', private.fig_ts(j.captured_at)) end) as pages
+           from j),
+  -- the fleet pages (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md): the latest page of each fleet that day;
+  -- an airline with no fleet pages is judged on its other pages alone, as before
+  fl as (
+    select distinct on (coalesce(r.rows #>> '{fleet,id}', r.rows #>> '{fleet,name}', 'list'))
+           r.verdict, r.verdict_note, r.captured_at, private.json_int(r.verdict_facts -> 'read') as n
+      from public.game_capture_raw r, span
+     where r.airline_id = p_airline_id and r.kind = 'fleet' and r.captured_at >= span.from_at and r.captured_at <= p_at
+     order by coalesce(r.rows #>> '{fleet,id}', r.rows #>> '{fleet,name}', 'list'), r.captured_at desc, r.id desc),
+  fv as (select count(*)::int as pages, (count(*) filter (where fl.verdict = 'ok'))::int as ok,
+                case when bool_or(fl.verdict = 'broken') then 'broken' when bool_or(fl.verdict = 'short') then 'short'
+                     when bool_or(fl.verdict = 'ok') then 'ok' end as verdict,
+                string_agg(fl.verdict_note, '; ' order by fl.captured_at) filter (where fl.verdict in ('short', 'broken')) as notes,
+                coalesce(sum(fl.n), 0)::int as aircraft, max(fl.captured_at) as at
+           from fl),
+  v as (select case when v0.verdict = 'broken' or fv.verdict = 'broken' then 'broken'
+                    when v0.verdict = 'short' or fv.verdict = 'short' then 'short'
+                    else v0.verdict end as verdict
+          from v0, fv)
   select jsonb_build_object(
     'capture_day', (select a.day from a),
-    'at', private.fig_ts(max(j.captured_at)),
+    'at', private.fig_ts(greatest(ja.at, fv.at)),
     'verdict', v.verdict,
     'words', case when v.verdict = 'ok' then 'all good'
                   when v.verdict is null then 'not checked (captured before the page checks)'
-                  else v.verdict || ': ' || string_agg(case when j.captured_at is null then j.label || ' not captured'
-                                                            when j.verdict in ('short', 'broken') then j.note end, '; ' order by j.o) end,
-    'missing', coalesce(jsonb_agg(j.kind order by j.o) filter (where j.captured_at is null), '[]'::jsonb),
-    'pages', jsonb_object_agg(j.kind, case when j.captured_at is not null
-                                           then jsonb_build_object('verdict', j.verdict, 'note', j.note, 'at', private.fig_ts(j.captured_at)) end))
-    from j, v
-   group by v.verdict
+                  else v.verdict || ': ' || concat_ws('; ', ja.notes, fv.notes) end,
+    'missing', ja.missing,
+    'pages', ja.pages || case when fv.pages > 0 then jsonb_build_object('fleet', jsonb_build_object(
+               'verdict', fv.verdict,
+               'note', case when fv.verdict in ('short', 'broken') then fv.notes
+                            else format('fleet %s page%s, %s aircraft', fv.pages, case when fv.pages = 1 then '' else 's' end, fv.aircraft) end,
+               'at', private.fig_ts(fv.at), 'pages', fv.pages, 'ok', fv.ok, 'aircraft', fv.aircraft)) else '{}'::jsonb end)
+    from ja, v, fv
 $function$
 
 ;
@@ -1852,7 +1894,7 @@ AS $function$
 declare r record; v_err text; v_read int; v_cash boolean; v_exp jsonb; v_j jsonb; v_lmin numeric; v_smin numeric;
 begin
   select x.id, x.world_id, x.airline_id, x.kind, x.rows, x.captured_at into r from public.game_capture_raw x where x.id = p_raw_id;
-  if not found or r.kind not in ('statement', 'events', 'loads', 'pnl', 'balance') then return null; end if;
+  if not found or r.kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet') then return null; end if;
   v_err := case when coalesce((p_parse ->> 'ok')::boolean, false) then null else coalesce(p_parse ->> 'error', 'no answer from the reader') end;
   v_read := case when jsonb_typeof(p_parse -> 'rows') = 'number' then (p_parse ->> 'rows')::int end;
   v_exp := coalesce(p_expect, private.capture_expect(p_raw_id));
@@ -1935,7 +1977,7 @@ CREATE OR REPLACE FUNCTION private.capture_expect(p_raw_id bigint)
  STABLE
  SET search_path TO ''
 AS $function$
-declare r record; v_from timestamptz; n int; v_med numeric; v_nights int; v_day date;
+declare r record; v_from timestamptz; n int; v_med numeric; v_nights int; v_day date; d jsonb;
 begin
   select x.id, x.world_id, x.airline_id, x.kind, x.captured_at into r from public.game_capture_raw x where x.id = p_raw_id;
   if not found then return '{}'::jsonb; end if;
@@ -1975,6 +2017,18 @@ begin
     recent as (select n.lines from nights n order by n.day desc limit 7)
     select percentile_cont(0.5) within group (order by x.lines)::numeric, count(*)::int into v_med, v_nights from recent x;
     return jsonb_build_object('median_lines', round(v_med, 1), 'nights', v_nights);
+  elsif r.kind = 'fleet' then
+    -- the fleet the page shows (null for the fleet list when it didn't read), which page of how many the capture read
+    -- that run, and how many aircraft the airline's fleet list said it holds
+    select x.rows into d from public.game_capture_raw x where x.id = p_raw_id;
+    if jsonb_typeof(d) <> 'object' then return '{}'::jsonb; end if;
+    return jsonb_build_object(
+      'fleet', nullif(btrim(d #>> '{fleet,name}'), ''), 'fleet_id', private.json_int(d #> '{fleet,id}'),
+      'page', private.json_int(d -> 'page'), 'of', private.json_int(d -> 'of'),
+      'listed', (select private.json_int(e -> 'aircraft')
+                   from jsonb_array_elements(case when jsonb_typeof(d -> 'fleets') = 'array' then d -> 'fleets' else '[]'::jsonb end) e
+                  where jsonb_typeof(d -> 'fleet') = 'object' and e -> 'id' is not distinct from d #> '{fleet,id}'
+                  limit 1));
   end if;
   return '{}'::jsonb;
 end
@@ -2061,6 +2115,56 @@ $function$
 
 ;
 
+-- private.capture_fleet(p_raw_id bigint)
+CREATE OR REPLACE FUNCTION private.capture_fleet(p_raw_id bigint)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare r record; d jsonb; e jsonb; n int := 0; v_day date; v_fleet_id int; v_fleet text; v_reg text; v_ac bigint;
+begin
+  select x.id, x.world_id, x.airline_id, x.rows, x.captured_at into r from public.game_capture_raw x where x.id = p_raw_id and x.kind = 'fleet';
+  if not found then raise exception 'no fleet page %', p_raw_id; end if;
+  d := r.rows;
+  if jsonb_typeof(d) is distinct from 'object' then raise exception 'not a fleet page as the capture reads it'; end if;
+  if d ? 'error' then raise exception '%', left(coalesce(d ->> 'error', 'no reason given'), 200); end if;
+  if jsonb_typeof(d -> 'aircraft') is distinct from 'array' then raise exception 'no aircraft list'; end if;
+  v_day := private.capture_day(r.world_id, r.captured_at);
+  v_fleet_id := private.json_int(d #> '{fleet,id}');
+  v_fleet := left(nullif(btrim(d #>> '{fleet,name}'), ''), 80);
+  for e in select x from jsonb_array_elements(d -> 'aircraft') x loop
+    v_reg := upper(nullif(btrim(e ->> 'registration'), ''));
+    if v_reg is null then raise exception 'an aircraft row without its registration'; end if;
+    -- the planner's aircraft: by registration within the airline (null when the planner doesn't know it)
+    select a.id into v_ac from public.aircraft a
+     where a.airline_id = r.airline_id and upper(a.registration) = v_reg
+     order by a.status = 'retired', a.id desc limit 1;
+    insert into public.game_fleet as g (world_id, airline_id, capture_day, aircraft_id, registration, type_name, nickname,
+           location_from, location_to, flight, age_years, condition_pct, maintenance_pct, seats_y, seats_c, seats_f, pilots,
+           owned, contract_status, fleet_game_id, fleet_name, captured_at)
+    values (r.world_id, r.airline_id, v_day, v_ac, v_reg, left(nullif(btrim(e ->> 'type'), ''), 120), left(nullif(btrim(e ->> 'nickname'), ''), 120),
+            upper(nullif(btrim(e ->> 'from'), '')), upper(nullif(btrim(e ->> 'to'), '')), left(nullif(btrim(e ->> 'flight'), ''), 20),
+            private.json_num(e -> 'age_years'), private.json_num(e -> 'condition_pct'), private.json_num(e -> 'maintenance_pct'),
+            private.json_int(e -> 'y'), private.json_int(e -> 'c'), private.json_int(e -> 'f'),
+            case when jsonb_typeof(e -> 'pilots') = 'boolean' then (e ->> 'pilots')::boolean end,
+            case when jsonb_typeof(e -> 'owned') = 'boolean' then (e ->> 'owned')::boolean end,
+            left(nullif(btrim(e ->> 'contract'), ''), 40), v_fleet_id, v_fleet, r.captured_at)
+    on conflict on constraint game_fleet_day_key do update set
+      aircraft_id = excluded.aircraft_id, type_name = excluded.type_name, nickname = excluded.nickname,
+      location_from = excluded.location_from, location_to = excluded.location_to, flight = excluded.flight,
+      age_years = excluded.age_years, condition_pct = excluded.condition_pct, maintenance_pct = excluded.maintenance_pct,
+      seats_y = excluded.seats_y, seats_c = excluded.seats_c, seats_f = excluded.seats_f, pilots = excluded.pilots,
+      owned = excluded.owned, contract_status = excluded.contract_status, fleet_game_id = excluded.fleet_game_id,
+      fleet_name = excluded.fleet_name, captured_at = excluded.captured_at
+    where excluded.captured_at >= g.captured_at;
+    n := n + 1;
+  end loop;
+  return n;
+end
+$function$
+
+;
+
 -- private.capture_judge(p_kind text, p_read integer, p_error text, p_cash boolean, p_expect jsonb, p_loads_min numeric, p_statement_min numeric)
 CREATE OR REPLACE FUNCTION private.capture_judge(p_kind text, p_read integer, p_error text, p_cash boolean, p_expect jsonb, p_loads_min numeric, p_statement_min numeric)
  RETURNS jsonb
@@ -2070,8 +2174,9 @@ CREATE OR REPLACE FUNCTION private.capture_judge(p_kind text, p_read integer, p_
 AS $function$
 declare v text := 'ok'; v_note text; v_exp numeric; v_label text; v_facts jsonb;
 begin
-  if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance') then return null; end if;
-  v_label := case p_kind when 'pnl' then 'income statement' when 'balance' then 'balance sheet' else p_kind end;
+  if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet') then return null; end if;
+  v_label := case p_kind when 'pnl' then 'income statement' when 'balance' then 'balance sheet'
+                         when 'fleet' then 'fleet ' || coalesce(nullif(btrim(p_expect ->> 'fleet'), ''), 'list') else p_kind end;
   v_facts := coalesce(p_expect, '{}'::jsonb) || jsonb_build_object('read', p_read);
   if p_error is not null then
     return jsonb_build_object('verdict', 'broken', 'note', v_label || ' didn''t read (' || left(p_error, 160) || ')',
@@ -2094,6 +2199,13 @@ begin
       v := 'short'; v_note := format('statement %s line%s, usually about %s', p_read, case when p_read = 1 then '' else 's' end, round(v_exp));
     else
       v_note := format('statement %s line%s', p_read, case when p_read = 1 then '' else 's' end) || case when v_exp > 0 then format(' (usually about %s)', round(v_exp)) else '' end;
+    end if;
+  elsif p_kind = 'fleet' then
+    -- a fleet page (since 22 Oct): short with no aircraft rows
+    if coalesce(p_read, 0) = 0 then
+      v := 'short'; v_note := v_label || ': no aircraft rows';
+    else
+      v_note := format('%s %s aircraft', v_label, p_read);
     end if;
   elsif p_kind = 'balance' then
     v_facts := v_facts || jsonb_build_object('cash', coalesce(p_cash, false));
@@ -2275,6 +2387,10 @@ begin
         n := n + 1;
       end if;
     end loop;
+
+  elsif r.kind = 'fleet' then
+    -- a fleet page (since 22 Oct): each aircraft into game_fleet, the latest capture of the day winning
+    n := private.capture_fleet(p_raw_id);
   end if;
   return jsonb_build_object('ok', true, 'kind', r.kind, 'rows', n);
 end
@@ -2829,9 +2945,9 @@ AS $function$
              where not exists (select 1 from runs t where t.airline_id = al.airline_id and t.kind = k.kind and t.day = d.d0)) as missing,
            (select n from fl where fl.airline_id = al.airline_id and fl.game_date = d.d0) as flights_today,
            (select n from fl where fl.airline_id = al.airline_id and fl.game_date = d.d0 - 1) as flights_yesterday,
-           -- the airline's latest page of any kind by the moment, whenever it was (#21, #23)
+           -- the airline's latest page of any kind by the moment, whenever it was (#21, #23; its fleet pages since 22 Oct)
            (select max(r.captured_at) from public.game_capture_raw r
-             where r.airline_id = al.airline_id and r.kind in ('statement', 'events', 'loads', 'pnl', 'balance') and r.captured_at <= p_as_of) as last_at
+             where r.airline_id = al.airline_id and r.kind in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet') and r.captured_at <= p_as_of) as last_at
       from al, d),
   judged as (select r.*, case when r.last_at is not null then private.capture_airline_verdict(r.airline_id, r.last_at) end as v from rows_ r)
   select jsonb_build_object(
@@ -2843,6 +2959,8 @@ AS $function$
         'last_at', private.fig_ts(r.last_at),
         'verdict', r.v -> 'verdict', 'verdict_words', r.v -> 'words', 'verdict_at', r.v -> 'at',
         'verdict_day', r.v -> 'capture_day', 'verdicts', r.v -> 'pages')
+        -- that capture day's fleet pages (since 22 Oct), only when it has some
+        || case when r.v #> '{pages,fleet}' is not null then jsonb_build_object('fleet', r.v #> '{pages,fleet}') else '{}'::jsonb end
         order by r.ord), '[]'::jsonb))
     from judged r
 $function$
@@ -4102,6 +4220,121 @@ AS $function$
   select coalesce((select (s.value #>> '{}')::boolean from public.settings s
                     where s.world_id = p_world_id and s.key = p_key and (s.airline_id is null or s.airline_id = p_airline_id)
                     order by s.airline_id nulls last limit 1), false)
+$function$
+
+;
+
+-- private.fig_fleet_checks(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_fleet_checks(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare v_night date; v_doc jsonb;
+begin
+  -- the latest night any of our airlines' fleet pages came in, by the moment
+  select max(f.capture_day) into v_night
+    from public.game_fleet f join private.fig_airlines(p_world_id) al on al.airline_id = f.airline_id
+   where f.world_id = p_world_id and f.captured_at <= p_as_of;
+
+  with al as (
+    select x.airline_id, x.ord, x.iata_code, x.name, private.fig_num(p_world_id, x.airline_id, 'maintenance_min_pct') as min_pct
+      from private.fig_airlines(p_world_id) x),
+  span as (select private.capture_day_start(p_world_id, v_night) as from_at),
+  -- each airline's latest run of fleet pages that night (a run: the pages one press of the capture read, from one read
+  -- of the fleet list), and whether every page of it came in ok
+  pg as (
+    select r.airline_id, r.rows ->> 'run' as run, private.json_int(r.rows -> 'page') as page, private.json_int(r.rows -> 'of') as of_,
+           r.verdict, r.captured_at, r.id
+      from public.game_capture_raw r, span
+     where r.world_id = p_world_id and r.kind = 'fleet' and v_night is not null
+       and r.captured_at >= span.from_at and r.captured_at < span.from_at + interval '1 day' and r.captured_at <= p_as_of),
+  lastrun as (select distinct on (pg.airline_id) pg.airline_id, pg.run from pg order by pg.airline_id, pg.captured_at desc, pg.id desc),
+  runpages as (
+    select distinct on (pg.airline_id, pg.page) pg.airline_id, pg.page, pg.of_, pg.verdict
+      from pg join lastrun l on l.airline_id = pg.airline_id and l.run is not distinct from pg.run
+     order by pg.airline_id, pg.page, pg.captured_at desc, pg.id desc),
+  runs as (
+    select rp.airline_id, max(rp.of_) as expected, (count(*) filter (where rp.verdict = 'ok'))::int as ok_pages, count(*)::int as pages,
+           coalesce(max(rp.of_), 0) > 0 and (count(*) filter (where rp.verdict = 'ok')) >= max(rp.of_)
+             and not bool_or(rp.verdict is distinct from 'ok') as all_ok
+      from runpages rp group by rp.airline_id),
+  ac as (
+    select a.id, a.airline_id, a.registration, a.base_code, a.status, a.cabin_config_id, c.code as cabin_code,
+           c.economy_seats, c.business_seats,
+           case when c.seats is not null and c.business_seats is not null and c.economy_seats is not null
+                then greatest(c.seats - c.business_seats - c.economy_seats, 0) else 0 end as first_seats
+      from public.aircraft a left join public.cabin_configs c on c.id = a.cabin_config_id
+     where a.world_id = p_world_id and a.airline_id in (select al.airline_id from al)),
+  fl as (
+    select f.*, al.ord, al.iata_code, al.min_pct, m.id as planner_id, m.base_code, m.cabin_config_id, m.cabin_code,
+           m.economy_seats, m.business_seats, m.first_seats,
+           f.registration || ' (' || coalesce(m.base_code, f.fleet_name, '?') || ')' as who,
+           format('%s/%s/%s', coalesce(f.seats_y::text, '?'), coalesce(f.seats_c::text, '?'), coalesce(f.seats_f::text, '?')) as seats
+      from public.game_fleet f
+      join al on al.airline_id = f.airline_id
+      left join lateral (select x.* from ac x where x.airline_id = f.airline_id and upper(x.registration) = f.registration
+                          order by x.status = 'retired', x.id desc limit 1) m on true
+     where f.world_id = p_world_id and f.capture_day = v_night and f.captured_at <= p_as_of),
+  probs as (
+    select 1 as rank, 'maintenance' as kind, fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name) as base,
+           fl.planner_id as aircraft_id,
+           format('%s: maintenance %s%%, condition %s%%', fl.who, fl.maintenance_pct, coalesce(trim_scale(fl.condition_pct)::text, '?')) as words
+      from fl where fl.maintenance_pct < fl.min_pct
+    union all
+    select 2, 'crew', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
+           format('%s: no pilots', fl.who)
+      from fl where fl.pilots = false
+    union all
+    select 3, 'cabin', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
+           case when fl.cabin_config_id is null then format('%s: no cabin in the planner (%s in the game)', fl.who, fl.seats)
+                else format('%s: seats %s in the game, %s/%s/%s in the planner (%s)', fl.who, fl.seats, coalesce(fl.economy_seats::text, '?'),
+                            coalesce(fl.business_seats::text, '?'), fl.first_seats, coalesce(nullif(fl.cabin_code, ''), 'its cabin')) end
+      from fl
+     where fl.planner_id is not null
+       and (fl.cabin_config_id is null
+            or (fl.economy_seats is not null and fl.seats_y is distinct from fl.economy_seats)
+            or (fl.business_seats is not null and fl.seats_c is distinct from fl.business_seats)
+            or coalesce(fl.seats_f, 0) <> fl.first_seats)
+    union all
+    select 4, 'not_in_planner', fl.airline_id, fl.ord, fl.iata_code, fl.registration, fl.fleet_name, null::bigint,
+           format('%s: in the game (%s fleet), not in the planner', fl.registration, coalesce(fl.fleet_name, 'its'))
+      from fl where fl.planner_id is null
+    union all
+    select 5, 'not_in_game', a.airline_id, al.ord, al.iata_code, a.registration, a.base_code, a.id,
+           format('%s (%s): in the planner, not on the game''s fleet pages', a.registration, coalesce(a.base_code, '?'))
+      from ac a join al on al.airline_id = a.airline_id join runs ru on ru.airline_id = a.airline_id and ru.all_ok
+     where a.status = 'active'
+       and not exists (select 1 from fl where fl.airline_id = a.airline_id and fl.registration = upper(a.registration))),
+  kinds as (select * from unnest(array['maintenance', 'crew', 'cabin', 'not_in_planner', 'not_in_game']) with ordinality k(kind, o))
+  select jsonb_build_object(
+    'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'night', v_night,
+    'counts', (select jsonb_object_agg(k.kind, (select count(*) from probs p where p.kind = k.kind) order by k.o)
+                      || jsonb_build_object('problems', (select count(*) from probs))
+                 from kinds k),
+    'problems', coalesce((select jsonb_agg(jsonb_build_object('kind', p.kind, 'airline_id', p.airline_id, 'code', p.iata_code,
+                                                              'registration', p.registration, 'base', p.base, 'aircraft_id', p.aircraft_id,
+                                                              'words', p.words)
+                                           order by p.rank, p.ord, p.registration) from probs p), '[]'::jsonb),
+    'airlines', coalesce((select jsonb_agg(jsonb_build_object(
+        'airline_id', al.airline_id, 'code', al.iata_code, 'name', al.name, 'maintenance_min_pct', al.min_pct,
+        'pages', (select jsonb_build_object('read', ru.pages, 'ok', ru.ok_pages, 'expected', ru.expected, 'all_ok', ru.all_ok)
+                    from runs ru where ru.airline_id = al.airline_id),
+        'at', (select private.fig_ts(max(fl.captured_at)) from fl where fl.airline_id = al.airline_id),
+        'aircraft', coalesce((select jsonb_agg(jsonb_build_object(
+            'registration', fl.registration, 'aircraft_id', fl.planner_id, 'base', coalesce(fl.base_code, fl.fleet_name),
+            'fleet', fl.fleet_name, 'type', fl.type_name, 'nickname', fl.nickname, 'from', fl.location_from, 'to', fl.location_to,
+            'flight', fl.flight, 'age_years', fl.age_years, 'condition_pct', fl.condition_pct, 'maintenance_pct', fl.maintenance_pct,
+            'y', fl.seats_y, 'c', fl.seats_c, 'f', fl.seats_f, 'pilots', fl.pilots, 'owned', fl.owned, 'contract', fl.contract_status,
+            'captured_at', private.fig_ts(fl.captured_at),
+            'problems', coalesce((select jsonb_agg(p.kind order by p.rank) from probs p
+                                   where p.airline_id = fl.airline_id and p.registration = fl.registration and p.kind <> 'not_in_game'), '[]'::jsonb))
+            order by fl.registration) from fl where fl.airline_id = al.airline_id), '[]'::jsonb))
+        order by al.ord) from al), '[]'::jsonb))
+    into v_doc;
+  return v_doc;
+end
 $function$
 
 ;

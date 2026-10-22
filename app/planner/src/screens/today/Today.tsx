@@ -17,7 +17,9 @@
 // one table, a column per delivery line (one compact row per airline on a phone); then Aircraft to file and each group
 // of needs attention as count tiles (countTiles), each opening its list below them; Game check and the to-dos as before.
 // The one-week checks (needs attention's group and Coming up's) went on 22 Oct (spec
-// docs/specs/2026-10-22-remove-aircraft-checks.md).
+// docs/specs/2026-10-22-remove-aircraft-checks.md). Since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3) needs
+// attention has a Fleet group from fleet_checks() (the game's figures on the latest night's fleet pages), and the game's
+// maintenance under the limit is its own card, the most urgent after order now.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { game, growth } from "@rules";
@@ -47,7 +49,7 @@ import { AircraftPopup } from "../tails/AircraftPopup";
 import { gameLink, typeName, type TailAircraft } from "../tails/model";
 import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useBuyTypes, useGameHost, useTailsAircraft } from "../tails/reads";
 import { useLatestThreats } from "../competition/reads";
-import { useCabinCharges } from "../systems/reads";
+import { useCabinCharges, useFleetChecks } from "../systems/reads";
 import { homeAttention, type HomeAirline } from "./attention";
 import { ComingUp } from "./ComingUp";
 import { comingUp } from "./comingUp";
@@ -94,6 +96,8 @@ export function Today() {
   const threats = competition.threats;
   // the cabin charge check (cabin_charges(), since 22 Oct), for needs attention
   const cabinsQ = useCabinCharges(w !== undefined);
+  // the fleet checks (fleet_checks(), since 22 Oct), for needs attention's Fleet group
+  const fleetQ = useFleetChecks(w);
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -127,8 +131,9 @@ export function Today() {
   const attention = useMemo(() => (rules && todosQ.data ? homeAttention({
     now, today, airlines: homeAirlines, rules, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
     jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen, threats, cabins: cabinsQ.data ?? null,
+    fleet: fleetQ.data ?? null,
   }) : null), [now, today, homeAirlines, rules, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats,
-    cabinsQ.data]);
+    cabinsQ.data, fleetQ.data]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
   const attShown = useMemo(() => (attention ? withoutDismissed(attention, dismissed) : null), [attention, dismissed]);
 
@@ -230,6 +235,8 @@ export function Today() {
     if (a.screen === "competition" && a.key?.startsWith("threat|")) return itemRoute("competition", { airline: a.key.split("|")[1] });
     // a cabin charge that doesn't match: Systems' Cabin charges board, open on arrival
     if (a.screen === "systems" && a.key?.startsWith("cabin|")) return itemRoute("systems", { hash: "cabin-charges" });
+    // an aircraft in the game the planner doesn't have: Systems' Fleet board, open on arrival
+    if (a.screen === "systems" && a.key?.startsWith("fleet|")) return itemRoute("systems", { hash: "fleet" });
     return itemRoute(a.screen);
   };
   async function dismiss(a: AttItem) {
@@ -246,9 +253,9 @@ export function Today() {
 
   const ready = !!(rules && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
     && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess && threats
-    && cabinsQ.data);
+    && cabinsQ.data && fleetQ.data);
   const loadError = first(world, airlinesQ, rulesQ, aircraftQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
-    buyQ, tailsQ, hostQ, ...forecastsQ, competition, cabinsQ);
+    buyQ, tailsQ, hostQ, ...forecastsQ, competition, cabinsQ, fleetQ);
   const cap = captureQ.data && airlinesQ.data ? captureLine(airlines, captureQ.data, now) : null;
   const waiting = ready && orders && filing && attShown ? waitingWords({
     canOrder: orders.filter((o) => o.status.kind === "now").map((o) => o.airline.name), toFile: filing.length, attention: attShown.shown.length, game: differences,

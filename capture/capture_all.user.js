@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.5
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner. Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and the airport pages, sent with the capture key. Keep the tab open; a scan evening takes about 5 minutes longer. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
+// @version      1.6
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and the airport pages, sent with the capture key. Keep the tab open; a scan evening takes about 5 minutes longer. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
@@ -10,13 +10,17 @@
 // docs/specs/2026-10-21-scan-in-capture.md) it also scans the world after our airlines when capture_airlines() says a
 // scan is due, unless a capture page failed: the airline list (26 letter pages), each airline's schedule and the airport
 // pages capture_airlines() lists, read exactly as gscan.py reads them and sent through capture_scan() with the capture
-// key, at gscan.py's pace. The reading of the pages is plain functions over the pages' HTML, without the page, so
-// tests/capture_scan_test.mjs runs this same file in Node, where (with no page) it only hands those functions over (as
-// eqScan), and compares what they read with what gscan.py reads from the same saved pages.
+// key, at gscan.py's pace. Since 1.6 (spec docs/specs/2026-10-22-fleet-capture.md §1) each airline's pages end with its
+// fleets: the fleet list and every fleet with aircraft, each sent to capture_ingest() as page kind fleet, half a second
+// apart. The reading of the pages is plain functions over the pages' HTML, without the page, so
+// tests/capture_scan_test.mjs and tests/capture_fleet_test.mjs run this same file in Node, where (with no page) it only
+// hands those functions over (as eqScan): the first compares what they read with what gscan.py reads from the same saved
+// pages, the second reads a saved fleet page.
 (function (root) {
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
+  const VERSION = "1.6";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, airport: 250 };   // ms between pages, gscan.py's own
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -109,7 +113,7 @@
   const airportPayload = (scanId, code, airportId, page) => ({ snapshot_id: scanId, code, airport_id: airportId, info: page.info, stations: page.stations, news: page.news });
   // finish, with gscan.py's note and what the capture's scan adds
   const finishPayload = (scanId, nAirlines, nAirports, failedAirlines, noId) => ({ snapshot_id: scanId,
-    note: `full scan: ${nAirlines} enterprises, ${nAirports} airports (Capture all airlines 1.5; ${plural(failedAirlines, "airline page", "airline pages")} failed, ${plural(noId, "airport", "airports")} without an id)` });
+    note: `full scan: ${nAirlines} enterprises, ${nAirports} airports (Capture all airlines ${VERSION}; ${plural(failedAirlines, "airline page", "airline pages")} failed, ${plural(noId, "airport", "airports")} without an id)` });
 
   // more than 10% of the airlines failed (or none were read): the scan isn't finished
   const tooManyFailed = (failed, total) => !total || failed > MAX_FAILED_SHARE * total;
@@ -139,12 +143,86 @@
   }
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
+  // ---------------------------------------------------------------- the fleet pages' logic, without the page (1.6)
+  // Spec docs/specs/2026-10-22-fleet-capture.md §1: after each airline's other pages, the fleet list (/app/fleets, which
+  // is also the Default fleet's page) and every fleet with aircraft in it (/app/fleets/<id>, Gitesh keeps one per hub),
+  // each sent to capture_ingest() as page kind fleet. tests/capture_fleet_test.mjs reads a saved page with these.
+  const FLEET_PACE = 500;                                      // ms between fleet pages, the scan's pace for an airline's page
+  const fleetListUrl = "/app/fleets";
+  const fleetUrl = id => (id == null ? fleetListUrl : "/app/fleets/" + id);
+  const num = s => { const m = String(s == null ? "" : s).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+  const cellsOf = row => [...String(row).matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(c => c[1]);
+  // a cell's own line and its second line (the game's "subrow" under it)
+  const split = cell => { const i = cell.search(/<div class="subrow/); return i < 0 ? [cell, ""] : [cell.slice(0, i), cell.slice(i)]; };
+  // one fleet page: the airline's fleets (the list on the left: each fleet's game id, null for Default, its name and how
+  // many aircraft it holds), the fleet shown (its heading) and its aircraft, each as the table shows it; or an error when
+  // the page has no fleet table (not signed in, or the page changed)
+  function readFleetPage(html) {
+    html = String(html).replace(/<script[\s\S]*?<\/script>/g, "");
+    const fleets = [];
+    const lm = html.match(/<h3>\s*Fleets\s*<\/h3>[\s\S]*?<table[\s\S]*?<\/table>/);
+    for (const row of (lm ? lm[0] : "").match(/<tr[\s\S]*?<\/tr>/g) || []) {
+      const m = row.match(/<a href="([^"]*)"[^>]*>([\s\S]*?)<\/a>\s*\(\s*(?:<span>)?\s*([\d,]+)\s*(?:<\/span>)?\s*\)/);
+      if (!m) continue;
+      const id = m[1].match(/fleets\/(\d+)\/?(?:[?#][^"]*)?$/) || m[1].match(/^\.?\/?(\d+)(?:[?#][^"]*)?$/);
+      fleets.push({ id: id ? Number(id[1]) : null, name: text(m[2]), aircraft: num(m[3]) });
+    }
+    const hm = html.match(/<div class="col-md-9">\s*<h2>([\s\S]*?)<\/h2>/);
+    const tm = html.match(/<table[^>]*>\s*<thead[\s\S]*?Reg\.#[\s\S]*?<\/thead>\s*<tbody[^>]*>([\s\S]*?)<\/tbody>/);
+    if (!tm) return { name: hm ? text(hm[1]) : null, fleets, aircraft: [], error: "no fleet table on the page" };
+    const aircraft = [];
+    for (const row of tm[1].match(/<tr[\s\S]*?<\/tr>/g) || []) {
+      const c = cellsOf(row);
+      if (c.length < 7) continue;
+      const [regMain, regSub] = split(c[1]), [locMain, locSub] = split(c[3]), [ageMain, ageSub] = split(c[4]), [seatMain, seatSub] = split(c[5]);
+      const registration = text(regMain);
+      if (!registration) continue;
+      const nick = text(regSub), codes = [...locMain.matchAll(/>\s*([A-Z0-9]{3})\s*<\/a>/g)].map(m => m[1]);
+      const pct = [...text(ageSub).matchAll(/(-?\d+(?:\.\d+)?)\s*%/g)].map(m => Number(m[1]));
+      const seats = text(seatMain).split("/").map(num), pilots = text(seatSub).toLowerCase();
+      const owned = text(c[6]).match(/Owned:\s*(yes|no)\b/i), contract = c[6].match(/Contract status:\s*<span[^>]*>([\s\S]*?)<\/span>/);
+      const type = c[2].match(/aircraftsType\?id=(\d+)/), game = c[6].match(/[/"]aircraft\/(\d+)\/0"/);
+      aircraft.push({ registration, nickname: nick && nick !== "..." ? nick : null, type: text(c[2]) || null, type_id: type ? Number(type[1]) : null,
+                      from: codes[0] || null, to: codes[1] || null, flight: text(locSub) || null, age_years: num(text(ageMain)),
+                      condition_pct: pct.length > 0 ? pct[0] : null, maintenance_pct: pct.length > 1 ? pct[1] : null,
+                      y: seats.length === 3 ? seats[0] : null, c: seats.length === 3 ? seats[1] : null, f: seats.length === 3 ? seats[2] : null,
+                      pilots: pilots === "yes" ? true : pilots === "no" ? false : null,
+                      owned: owned ? owned[1].toLowerCase() === "yes" : null, contract: contract ? text(contract[1]) || null : null,
+                      game_id: game ? Number(game[1]) : null });
+    }
+    return { name: hm ? text(hm[1]) : null, fleets, aircraft };
+  }
+  // the fleets to read: every fleet with aircraft in it (one whose count didn't read is read too), the list's order
+  const fleetsToRead = fleets => (fleets || []).filter(f => f.aircraft == null || f.aircraft > 0);
+  // what capture_ingest() takes as a fleet page's rows: the run (when the airline's fleet list was read), which page of
+  // how many, the fleet, the airline's fleets and the aircraft; with error instead of aircraft when the page didn't read
+  function fleetPayload(run, page, of, fleet, fleets, read, error) {
+    const base = { run, page, of, fleet: fleet ? { id: fleet.id, name: fleet.name } : null, fleets: fleets || [] };
+    const err = error || (read && read.error) || (!read ? "nothing read" : null);
+    return err ? { ...base, error: String(err) } : { ...base, aircraft: read.aircraft };
+  }
+  // the panel's words while a fleet page is read, for a fleet page the database answered (logged when it isn't ok), and
+  // the airline's fleet pages in one line once they're all sent, so the panel keeps each airline's lines short
+  const fleetProgress = (name, i, n) => `${name}: fleet ${i} of ${n}…`;
+  const fleetOk = r => !!(r && r.ok === true && (!r.verdict || r.verdict.verdict === "ok"));
+  function fleetSummary(name, replies) {
+    const n = replies.length, ok = replies.filter(fleetOk).length, aircraft = replies.reduce((t, r) => t + (r && r.ok === true ? Number(r.rows) || 0 : 0), 0);
+    return `${name} · fleets ${ok === n ? plural(n, "page", "pages") : `${ok} of ${n} pages`} ok, ${plural(aircraft, "aircraft", "aircraft")}`;
+  }
+  function fleetWords(name, i, n, r) {
+    const head = `${name}: fleet ${i} of ${n}`;
+    if (!r || r.ok !== true) return `${head} · didn't read (${(r && (r.error || r.message)) || "no answer"})`;
+    const v = r.verdict && r.verdict.note;
+    return `${head} · ${v || plural(Number(r.rows) || 0, "aircraft", "aircraft")}`;
+  }
+
   const lib = { LETTERS, PACE, MAX_FAILED_SHARE, letterUrl, airlineUrl, airportUrl, unescape, text, readLetterPage, addAirlines, airlineList,
                 readSchedulePage, airlinePayload, readAirportPage, airportPayload, finishPayload, tooManyFailed, isoWeek, planOf, noScanWords,
-                progressWords };
+                progressWords, VERSION, FLEET_PACE, fleetListUrl, fleetUrl, readFleetPage, fleetsToRead, fleetPayload, fleetProgress, fleetWords,
+                fleetOk, fleetSummary };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
 
-  // ---------------------------------------------------------------- in the game: the capture, as in 1.4
+  // ---------------------------------------------------------------- in the game: the capture, as in 1.4, and the fleets (1.6)
   const KEY = "__CAPTURE_KEY__", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZWN3c3llZHZ3Y3hnZHptaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTg5MzcsImV4cCI6MjEwNTc5NDkzN30.tC56dOgmPeYB3m58aDy4ADnnaZ3613P6MFp2pVXUj_Y", RPC = "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/";
   // the airlines to capture come from the database (capture_airlines, with the key), as [game ID, name, the game's name]
   const airlinesOf = s => (s && s.airlines) || [];
@@ -175,6 +253,34 @@
     r = await send(id, "pnl", rowsOf(await fetchDoc("/app/finance/accounting/0")), "/app/finance/accounting/0"); log(name + " · income statement " + (r.rows ?? r.error));
     r = await send(id, "balance", rowsOf(await fetchDoc("/app/finance/accounting/1")), "/app/finance/accounting/1"); log(name + " · balance sheet " + (r.rows ?? r.error));
     r = await send(id, "loads", rowsOf(document), location.pathname); log(name + " · loads " + (r.rows ?? r.error) + " flights");
+    await captureFleets(id, name);   // 1.6: then its fleets
+  }
+  // 1.6 (spec docs/specs/2026-10-22-fleet-capture.md §1): the airline's fleet list, then each fleet with aircraft, one
+  // page at a time at FLEET_PACE, each sent as page kind fleet. A page that doesn't read is still sent, with its error, so
+  // the database judges it broken (#21). The fleet pages don't hold back the world scan: the evening's other pages decide
+  // that, as in 1.5.
+  const sendFleet = async (gameId, rows, url) => { try { return await rpc("capture_ingest", { p_key: KEY, p_airline: String(gameId), p_kind: "fleet", p_page: url, p_rows: rows }); } catch (e) { return { ok: false, error: e.message }; } };
+  const progress = t => { const s = get(); if (s) { s.progress = t; set(s); show(lines(s)); } };
+  async function captureFleets(id, name) {
+    const run = new Date().toISOString();
+    let listHtml = null, list = null, why = null;
+    try { listHtml = await page(fleetListUrl); list = readFleetPage(listHtml); if (list.error && !list.fleets.length) why = list.error; }
+    catch (e) { why = e.message; }
+    if (why) { const r = await sendFleet(id, fleetPayload(run, 1, 1, null, [], null, "the fleet list didn't read: " + why), fleetListUrl); log(fleetWords(name, 1, 1, r)); return; }
+    const todo = fleetsToRead(list.fleets);
+    if (!todo.length) { log(name + " · fleets: no aircraft in any fleet"); return; }
+    const replies = [];
+    for (let i = 0; i < todo.length; i++) {
+      const f = todo[i], url = fleetUrl(f.id);
+      progress(fleetProgress(name, i + 1, todo.length));
+      let read = null, err = null;
+      if (f.id != null) await sleep(FLEET_PACE);   // the scan's pace between the game's pages
+      try { read = f.id == null ? list : readFleetPage(await page(url)); } catch (e) { err = e.message; }
+      const r = await sendFleet(id, fleetPayload(run, i + 1, todo.length, f, list.fleets, read, err), url);
+      replies.push(r);
+      if (!fleetOk(r)) log(fleetWords(name, i + 1, todo.length, r));
+    }
+    progress(null); log(fleetSummary(name, replies));
   }
   const onLoads = () => location.pathname.includes("/app/com/loads");
   function setFilter() {   // -24h until now only, load factor on, "less than or equal", 100%
@@ -241,7 +347,7 @@
     if (sc.step === "start") {
       if (t.scan.open) { sc.id = t.scan.open; log(`World scan: carrying on with scan ${sc.id}, started within the hour.`); }
       else {
-        const r = await scanSend("start", { week: isoWeek(new Date()), note: "Capture all airlines 1.5" });
+        const r = await scanSend("start", { week: isoWeek(new Date()), note: "Capture all airlines " + VERSION });
         if (!r || r.ok !== true) return end("World scan: couldn't start (" + errorOf(r) + "). Check the capture key; gscan.py by hand if the scan gets old.");
         sc.id = Number(r.snapshot_id); if (r.carried_on) log(`World scan: carrying on with scan ${sc.id}, started within the hour.`);
       }

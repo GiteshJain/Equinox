@@ -7,14 +7,16 @@
 // - Manual entry: the nightly log and today's cash entry figures (cash_log()), and a loads day as the planner holds it
 //   (loads_by_day(): the captured and typed loads, the latest winning, and the typed rows behind them, which Loads by
 //   hand saves through planner_save() since the clean-up, build pull request 14);
-// - Cabin charges (since 22 Oct): cabin_charges(), each first cabin fit logged against the game's charge.
+// - Cabin charges (since 22 Oct): cabin_charges(), each first cabin fit logged against the game's charge;
+// - Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): fleet_checks(), the latest night's fleet as the
+//   game showed it and its problems, which Today's needs attention and the Tails pop-up read too.
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview (decision #8) reads them too.
 import { useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import type { CabinCharges, CashLog, LoadsDay } from "./model";
+import type { CabinCharges, CashLog, FleetChecks, LoadsDay } from "./model";
 import type { SystemStatus } from "./systems";
 
 const fail = (what: string, message: string): never => {
@@ -83,6 +85,16 @@ export function useCabinCharges(enabled = true) {
     queryKey: ["figures", "cabin_charges"],
     enabled,
     queryFn: () => rpc<CabinCharges>("the cabin charges", "cabin_charges", { p_as_of: asOf() }),
+  });
+}
+
+/** The fleet checks (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): fleet_checks(), one staff call that
+ *  only reads, at the moment; Systems' Fleet, Today's needs attention and the Tails pop-up read it. */
+export function useFleetChecks(worldId: number | undefined) {
+  return useQuery({
+    queryKey: ["figures", "fleet_checks", worldId],
+    enabled: worldId !== undefined,
+    queryFn: () => rpc<FleetChecks>("the fleet checks", "fleet_checks", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
   });
 }
 

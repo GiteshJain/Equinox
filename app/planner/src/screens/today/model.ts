@@ -212,11 +212,12 @@ export function lineColumns(rows: readonly Pick<OrderRow, "lines">[]): string[] 
  *  line of detail, and its action (a link, the needs attention tile to open, or the game check). */
 export interface WaitCard {
   key: string;
-  kind: "order" | "due" | "file" | "attention" | "game";
+  kind: "order" | "maint" | "due" | "file" | "attention" | "game";
   label: string;
   heading: string;
   detail: string | null;
-  /** The single most urgent card: the first airline that can order now. */
+  /** The single most urgent card: the first airline that can order now, else (since 22 Oct) the Fleet card with the
+   *  game's maintenance under the limit. */
   urgent: boolean;
   action: { text: string; href?: string; tile?: string; scroll?: string; item?: AttItem };
 }
@@ -236,10 +237,12 @@ export interface CardsInput {
   locale?: string;
 }
 
-/** The cards, one per thing the answer counts, the most urgent first: each airline that can order now, each to-do due
- *  today or overdue, each aircraft to file, then the rest of needs attention a card per kind (one item: its words; more:
- *  the first item's words and how many more, opening its tile), and Game check's differences. An order or to-do item of
- *  needs attention has its own card already, so it isn't counted again. */
+/** The cards, one per thing the answer counts, the most urgent first: each airline that can order now; since 22 Oct (spec
+ *  docs/specs/2026-10-22-fleet-capture.md §3) the Fleet card when the game shows an aircraft's maintenance under the
+ *  limit, the most urgent kind after order now; each to-do due today or overdue, each aircraft to file, then the rest of
+ *  needs attention a card per kind (one item: its words; more: the first item's words and how many more, opening its
+ *  tile), and Game check's differences. An order or to-do item of needs attention has its own card already, so it isn't
+ *  counted again. */
 export function waitingCards(x: CardsInput): WaitCard[] {
   const out: WaitCard[] = [];
   for (const o of x.orders) {
@@ -253,6 +256,12 @@ export function waitingCards(x: CardsInput): WaitCard[] {
       action: { text: "Cash, next 14 days", href: o.airline.code ? itemRoute("performance", { airline: o.airline.code }) : undefined },
     });
   }
+  // the Fleet group, when the game shows maintenance under the limit: its card next, urgent when nothing can order
+  const groups = groupAttention(x.attention.filter((a) => attKind(a) !== "order" && attKind(a) !== "todo"));
+  const fleet = groups.find((g) => g.kind === "fleet");
+  const maint = !!fleet?.items.some((a) => a.key?.startsWith("fleet|maintenance|"));
+  const maintCard = fleet && maint ? attentionCard(fleet, x, "maint", "Fleet · maintenance") : null;
+  if (maintCard) out.push(maintCard);
   const first = out[0];
   if (first) first.urgent = true;
   for (const a of x.attention) {
@@ -272,20 +281,28 @@ export function waitingCards(x: CardsInput): WaitCard[] {
       action: { text: "File into planner", href: r.href },
     });
   }
-  for (const g of groupAttention(x.attention.filter((a) => attKind(a) !== "order" && attKind(a) !== "todo"))) {
-    const [one] = g.items;
-    if (!one) continue;
-    out.push(g.items.length === 1
-      ? { key: "att|" + g.kind, kind: "attention", label: "Needs attention", heading: one.text, detail: g.label, urgent: false,
-          action: { text: "Open " + x.screenName(one), href: x.hrefOf(one), item: one } }
-      : { key: "att|" + g.kind, kind: "attention", label: "Needs attention", heading: one.text,
-          detail: `and ${g.items.length - 1} more in ${g.label}`, urgent: false, action: { text: `See all ${g.items.length}`, tile: g.kind } });
+  for (const g of groups) {
+    if (g === fleet && maint) continue;
+    const card = attentionCard(g, x, "attention", "Needs attention");
+    if (card) out.push(card);
   }
   if (x.game) {
     out.push({ key: "game", kind: "game", label: "Needs attention", heading: plural(x.game, "Game check difference"), detail: "between the planner and the game's schedules",
       urgent: false, action: { text: "Go to Game check", scroll: "game-check" } });
   }
   return out;
+}
+
+/** A group of needs attention as its card: one item, its words (opening where it's fixed); more, the first item's words
+ *  and how many more, opening its tile. */
+function attentionCard(g: ReturnType<typeof groupAttention>[number], x: CardsInput, kind: "attention" | "maint", label: string): WaitCard | null {
+  const [one] = g.items;
+  if (!one) return null;
+  return g.items.length === 1
+    ? { key: "att|" + g.kind, kind, label, heading: one.text, detail: g.label, urgent: false,
+        action: { text: "Open " + x.screenName(one), href: x.hrefOf(one), item: one } }
+    : { key: "att|" + g.kind, kind, label, heading: one.text,
+        detail: `and ${g.items.length - 1} more in ${g.label}`, urgent: false, action: { text: `See all ${g.items.length}`, tile: g.kind } };
 }
 
 /** A count tile: the number, the group's name and one muted line. */

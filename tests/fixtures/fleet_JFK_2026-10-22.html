@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<!-- Pan Am's JFK fleet page in the game (Gander), saved by Gitesh on 22 Oct 2026 16:11 UTC. Scrubbed for the tests:
+     only the fleet management block is kept (the fleets list and the aircraft table, the rows as saved); the head,
+     the navigation (the user's name), the footer and every script are removed, and the session's page versions in
+     links (?16) are written ?0. -->
+<html><head><meta charset="UTF-8"><title>JFK | Gander | AirlineSim</title></head>
+<body>
+<div class="bootstrap container-fluid">
+<div class="as-page-fleet-management">
+
+        <h1>Pan American World Airways Fleet Management</h1>
+
+        <ul class="as-action-bar as-panel">
+            <li>
+                <form class="form-inline" id="id92a" method="post" action="https://gander.airlinesim.aero/app/fleets/231?0-2.-create~fleet"><div id="id92a_hf_0" hidden="" class="hidden-fields"></div>
+                    <div class="form-group">
+                        <label class="sr-only required" for="id92b">Name</label>
+                        <input class="form-control" type="text" maxlength="55" value="" name="p::name" id="id92b" placeholder="Fleet Name">
+                    </div>
+                    <button type="submit" class="btn btn-default">
+                        <span class="fa fa-plus"></span>
+                        Create new fleet
+                    </button>
+                </form>
+            </li>
+        </ul>
+
+        <div class="row">
+            <div class="col-md-3">
+                <h3>
+                    Fleets
+                </h3>
+
+                <div class="as-panel">
+                    <div class="as-table-well">
+                        <table class="table table-hover table-striped">
+                            <tbody>
+                            <tr>
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets">
+                                        Default
+                                    </a>
+                                    (<span>1</span>)
+                                </td>
+                                <td>&nbsp;</td>
+                            </tr>
+                            <tr class="even">
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets/233"><span>DFW</span></a>
+                                    (<span>0</span>)
+                                </td>
+                                <td class="text-right">
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231?0-2.-fleet~selectors-0-delete">
+                                        <span class="fa fa-trash" alt="delete" title="delete"></span>
+                                    </a>
+                                </td>
+                            </tr><tr class="odd">
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231"><span>JFK</span></a>
+                                    (<span>19</span>)
+                                </td>
+                                <td class="text-right">
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231?0-2.-fleet~selectors-1-delete">
+                                        <span class="fa fa-trash" alt="delete" title="delete"></span>
+                                    </a>
+                                </td>
+                            </tr><tr class="even">
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets/232"><span>LAX</span></a>
+                                    (<span>0</span>)
+                                </td>
+                                <td class="text-right">
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231?0-2.-fleet~selectors-2-delete">
+                                        <span class="fa fa-trash" alt="delete" title="delete"></span>
+                                    </a>
+                                </td>
+                            </tr><tr class="odd">
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets/235"><span>ORD</span></a>
+                                    (<span>2</span>)
+                                </td>
+                                <td class="text-right">
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231?0-2.-fleet~selectors-3-delete">
+                                        <span class="fa fa-trash" alt="delete" title="delete"></span>
+                                    </a>
+                                </td>
+                            </tr><tr class="even">
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets/236"><span>SEA</span></a>
+                                    (<span>0</span>)
+                                </td>
+                                <td class="text-right">
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231?0-2.-fleet~selectors-4-delete">
+                                        <span class="fa fa-trash" alt="delete" title="delete"></span>
+                                    </a>
+                                </td>
+                            </tr><tr class="odd">
+                                <td>
+                                    <a href="https://gander.airlinesim.aero/app/fleets/234"><span>SFO</span></a>
+                                    (<span>0</span>)
+                                </td>
+                                <td class="text-right">
+                                    <a href="https://gander.airlinesim.aero/app/fleets/231?0-2.-fleet~selectors-5-delete">
+                                        <span class="fa fa-trash" alt="delete" title="delete"></span>
+                                    </a>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h2>JFK</h2>
+
+                <div class="as-panel">
+                    <form>
+                        <div class="as-table-well">
+                            <table class="table table-bordered table-striped table-hover">
+                                <thead id="id92c">
+                                <tr>
+                                    <th rowspan="2">&nbsp;</th>
+                                    <th>
+                                        <a id="id91e" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~reg" class="wicket_orderUp">
+                                            Reg.#
+                                        </a>
+                                    </th>
+                                    <th rowspan="2"><a id="id920" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~type" class="wicket_orderNone">
+                                        Aircraft model
+                                    </a></th>
+                                    <th>
+                                        <a id="id921" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~airport" class="wicket_orderNone">
+                                            Location
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a id="id922" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~age" class="wicket_orderNone">
+                                            Age
+                                        </a>
+                                    </th>
+                                    <th>
+                                        Y/C/F
+                                    </th>
+                                    <th rowspan="2">&nbsp;</th>
+                                    <th rowspan="2"><a id="id925" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~remark" class="wicket_orderNone">
+                                        Notes
+                                    </a></th>
+                                </tr>
+                                <tr>
+                                    <th>
+                                        <a id="id91f" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~name" class="wicket_orderNone">
+                                            Nickname
+                                        </a>
+                                    </th>
+                                    <th>
+                                        Mission
+                                    </th>
+                                    <th>
+                                        <a id="id923" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~condition" title="Condition" class="wicket_orderNone">
+                                            cond
+                                        </a> /
+                                        <a id="id924" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-header-sort~maintenance" title="Maintenance" class="wicket_orderNone">
+                                            maint
+                                        </a>
+                                    </th>
+                                    <th>
+                                        Pilots
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody id="id91d">
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9a1" name="aircraftsContainer" value="check19">
+                                        </td>
+                                        <td>
+                                            <span>N001AW</span>
+
+                                            <div class="subrow"><span id="id9a2"><span id="id97b">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3360">ORD</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1003</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">91%</span> /
+                                                <span id="id9a3" class="good">105.3%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>180</span>/<span>15</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-20-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2106" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/1873/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/1873/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9a4"><span id="id97c">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9a5" name="aircraftsContainer" value="check20">
+                                        </td>
+                                        <td>
+                                            <span>N002AW</span>
+
+                                            <div class="subrow"><span id="id9a6"><span id="id97d">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3408">SFO</a>
+
+                                                <div class="subrow">AW 1007</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">95%</span> /
+                                                <span id="id9a7" class="good">114.7%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-21-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2206" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/1957/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/1957/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9a8"><span id="id97e">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9a9" name="aircraftsContainer" value="check21">
+                                        </td>
+                                        <td>
+                                            <span>N003AW</span>
+
+                                            <div class="subrow"><span id="id9aa"><span id="id97f">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3330">ATL</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1022</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="warning">83%</span> /
+                                                <span id="id9ab" class="good">103.8%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>180</span>/<span>15</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-22-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2239" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/1977/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/1977/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9ac"><span id="id980">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9ad" name="aircraftsContainer" value="check22">
+                                        </td>
+                                        <td>
+                                            <span>N004AW</span>
+
+                                            <div class="subrow"><span id="id9ae"><span id="id981">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/712">FRA</a>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">94%</span> /
+                                                <span id="id9af" class="good">311.1%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>125</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-23-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2242" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/1978/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/1978/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9b0"><span id="id982">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9b1" name="aircraftsContainer" value="check23">
+                                        </td>
+                                        <td>
+                                            <span>N005AW</span>
+
+                                            <div class="subrow"><span id="id9b2"><span id="id983">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/878">CDG</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1030</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9b3" class="good">458.7%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>125</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-24-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2243" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/1979/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/1979/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9b4"><span id="id984">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9b5" name="aircraftsContainer" value="check24">
+                                        </td>
+                                        <td>
+                                            <span>N006AW</span>
+
+                                            <div class="subrow"><span id="id9b6"><span id="id985">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/2245">AMS</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1032</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9b7" class="good">364.9%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>125</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-25-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2244" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/1980/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/1980/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9b8"><span id="id986">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9b9" name="aircraftsContainer" value="check25">
+                                        </td>
+                                        <td>
+                                            <span>N007AW</span>
+
+                                            <div class="subrow"><span id="id9ba"><span id="id987">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3923">Airbus A350-900ULR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/1054">LHR</a>
+
+                                                <div class="subrow">AW 1027</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">92%</span> /
+                                                <span id="id9bb" class="good">358.1%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>264</span>/<span>24</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-26-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2369" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2080/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2080/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9bc"><span id="id988">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9bd" name="aircraftsContainer" value="check26">
+                                        </td>
+                                        <td>
+                                            <span>N008AW</span>
+
+                                            <div class="subrow"><span id="id9be"><span id="id989">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3395">LAX</a>
+
+                                                <div class="subrow">AW 1037</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">90%</span> /
+                                                <span id="id9bf" class="good">116.5%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-27-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2370" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2081/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2081/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9c0"><span id="id98a">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9c1" name="aircraftsContainer" value="check27">
+                                        </td>
+                                        <td>
+                                            <span>N009AW</span>
+
+                                            <div class="subrow"><span id="id9c2"><span id="id98b">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3723">SEA</a>
+
+                                                <div class="subrow">AW 1041</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">95%</span> /
+                                                <span id="id9c3" class="good">236.3%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-28-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2371" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2082/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2082/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9c4"><span id="id98c">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9c5" name="aircraftsContainer" value="check28">
+                                        </td>
+                                        <td>
+                                            <span>N010AW</span>
+
+                                            <div class="subrow"><span id="id9c6"><span id="id98d">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/2098">MEX</a>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">90%</span> /
+                                                <span id="id9c7" class="good">155.0%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-29-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2372" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2083/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2083/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9c8"><span id="id98e">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9c9" name="aircraftsContainer" value="check29">
+                                        </td>
+                                        <td>
+                                            <span>N011AW</span>
+
+                                            <div class="subrow"><span id="id9ca"><span id="id98f">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3319">MCO</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1050</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">93%</span> /
+                                                <span id="id9cb" class="good">250.4%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-30-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2373" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2084/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2084/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9cc"><span id="id990">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9cd" name="aircraftsContainer" value="check30">
+                                        </td>
+                                        <td>
+                                            <span>N012AW</span>
+
+                                            <div class="subrow"><span id="id9ce"><span id="id991">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/1317">DUB</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1054</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.1 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9cf" class="good">521.8%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>125</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-31-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/2374" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2085/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2085/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9d0"><span id="id992">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9d1" name="aircraftsContainer" value="check31">
+                                        </td>
+                                        <td>
+                                            <span>N015AW</span>
+
+                                            <div class="subrow"><span id="id9d2"><span id="id993">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/1053">LGW</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+
+                                                <div class="subrow">AW 1056</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9d3" class="good">521.0%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>125</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-32-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3069" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/2685/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/2685/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9d4"><span id="id994">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9d5" name="aircraftsContainer" value="check32">
+                                        </td>
+                                        <td>
+                                            <span>N016AW</span>
+
+                                            <div class="subrow"><span id="id9d6"><span id="id995">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3665">DFW</a>
+
+                                                <div class="subrow">AW 1061</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="warning">89%</span> /
+                                                <span id="id9d7" class="good">114.3%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>180</span>/<span>15</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-33-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3496" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/3091/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/3091/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9d8"><span id="id996">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9d9" name="aircraftsContainer" value="check33">
+                                        </td>
+                                        <td>
+                                            <span>N017AW</span>
+
+                                            <div class="subrow"><span id="id9da"><span id="id997">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3408">SFO</a>
+
+                                                <div class="subrow">AW 1063</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9db" class="good">195.1%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-34-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3497" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/3092/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/3092/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9dc"><span id="id998">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9dd" name="aircraftsContainer" value="check34">
+                                        </td>
+                                        <td>
+                                            <span>N018AW</span>
+
+                                            <div class="subrow"><span id="id9de"><span id="id999">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3171">Airbus A321XLR</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/2797">BCN</a>
+
+                                                <div class="subrow">AW 1067</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9df" class="good">399.3%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>125</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-35-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3498" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/3093/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/3093/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9e0"><span id="id99a">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9e1" name="aircraftsContainer" value="check35">
+                                        </td>
+                                        <td>
+                                            <span>N019AW</span>
+
+                                            <div class="subrow"><span id="id9e2"><span id="id99b">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3525">LAS</a>
+
+                                                <div class="subrow">AW 1069</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9e3" class="good">140.9%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>150</span>/<span>16</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-36-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3634" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/3207/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/3207/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9e4"><span id="id99c">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9e5" name="aircraftsContainer" value="check36">
+                                        </td>
+                                        <td>
+                                            <span>N020AW</span>
+
+                                            <div class="subrow"><span id="id9e6"><span id="id99d">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=20260">Embraer 195 E2</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">97%</span> /
+                                                <span id="id9e7" class="good">107.7%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>100</span>/<span>12</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-37-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3635" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/3208/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/3208/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9e8"><span id="id99e">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" id="id9e9" name="aircraftsContainer" value="check37">
+                                        </td>
+                                        <td>
+                                            <span>N021AW</span>
+
+                                            <div class="subrow"><span id="id9ea"><span id="id99f">...</span></span></div>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/action/enterprise/aircraftsType?id=3155">Airbus A321NEO Light</a>
+                                        </td>
+                                        <td>
+                                            <a href="https://gander.airlinesim.aero/app/info/airports/3551">JFK</a>
+                                            
+                                                → <a href="https://gander.airlinesim.aero/app/info/airports/3479">MSP</a>
+
+                                                <div class="subrow">AW 1081</div>
+                                            
+                                        </td>
+                                        <td class="number">
+                                            <span>0.0 yrs</span>
+                                            
+                                            <div class="subrow number">
+                                                <span class="good">98%</span> /
+                                                <span id="id9eb" class="good">133.2%</span>
+                                            </div>
+                                        </td>
+                                        <td class="number">
+                                            <span>180</span>/<span>15</span>/<span>0</span>
+
+                                            <div class="subrow number good">yes</div>
+                                        </td>
+                                        <td class="actions">
+                                            <div class="btn-toolbar">
+                                                <div class="dropdown btn-group btn-group-contract">
+
+<a class="dropdown-toggle btn btn-info" data-toggle="dropdown" href="https://gander.airlinesim.aero/app/fleets/231?0#" title="Contract Details">
+	<i class="fa fa-book"></i>
+	<span class="caret"></span>
+</a>
+<ul class="dropdown-menu" role="menu">
+	<li>
+		<div>
+			Owned:
+			<span>no</span>
+		</div>
+	</li>
+	
+	<li class="divider"></li>
+	<li>
+		<div>
+			Contract status:
+			<span class="good">active</span>
+		</div>
+	</li>
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-aircraftsContainer-aircrafts-38-contract-contract-cancel">cancel</a>
+	</li>
+	
+	
+	<li class="text-right">
+		<a class="contract-action" href="https://gander.airlinesim.aero/app/enterprise/contracts/3692" title="Click the contract number to view detailed information on this contract.">view contract</a>
+	</li>
+	
+	
+</ul>
+
+</div>
+                                                <div class="btn-group">
+                                                    <a class="btn btn-success" href="https://gander.airlinesim.aero/app/fleets/aircraft/3261/0" title="Flight Planning">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </a>
+                                                    <a class="btn btn-default" href="https://gander.airlinesim.aero/app/fleets/aircraft/3261/1" title="Flights">
+                                                        <i class="fa fa-list"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="remarks">
+                                            <span id="id9ec"><span id="id9a0">...</span></span>
+                                        </td>
+                                    </tr>
+                                
+                                
+                                </tbody>
+                                <tfoot>
+                                <tr>
+                                    <td colspan="8">
+                                        selection:
+                                        <a id="id927" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-select~all">
+                                            all
+                                        </a> /
+                                        <a id="id926" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-select~none">
+                                            none
+                                        </a> /
+                                        <a id="id928" href="https://gander.airlinesim.aero/app/fleets/231?0-2.-select~inverse">
+                                            invert
+                                        </a>
+                                    </td>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </form>
+                </div>
+
+                <h3>
+                    Actions
+                </h3>
+                <div class="fleet-actions" id="id979">
+
+<div class="as-panel text-center">
+    Select aircraft in the list above to see a list of available actions.
+</div>
+
+
+
+</div>
+            </div>
+        </div>
+
+        
+    <div id="id97a" class="dialog-theme-default">
+	
+</div>
+
+
+    </div>
+
+
+
+    </div>
+</body></html>

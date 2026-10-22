@@ -26,8 +26,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    load sparkline, Fare plan, open), and (22 Oct) its first route's name opens the route page: its header, the last 7
    days against the 7 before, its five boards open with as many events and rivals as route_story() gives, its links to
    Routes (which links back, "The route's story ›") and to the airline's page, and Competition's threats each linking to
-   their route's page; Systems, the Systems board first, then its three boards folded (Capture with the copy's
-   airlines, Cabin charges since 22 Oct, Manual entry; Cabins went on 21 Oct, Aircraft checks with the one-week checks
+   their route's page; Systems, the Systems board first, then its four boards folded (Capture with the copy's
+   airlines, Fleet and Cabin charges since 22 Oct, Manual entry; Cabins went on 21 Oct, Aircraft checks with the one-week checks
    on 22 Oct); Interline with its agreements and the interline countries, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
@@ -628,7 +628,7 @@ async def no_hubs(pl):
 
 async def systems_opens(pl):
     """Systems (20 Oct; Check's boards and Review's Manual entry until then): the Systems board first and open, then its
-    three boards folded on arrival, in order (Capture, Cabin charges since 22 Oct, Manual entry; the Cabins board went on
+    four boards folded on arrival, in order (Capture, Fleet and Cabin charges since 22 Oct, Manual entry; the Cabins board went on
     21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and Aircraft checks on 22 Oct, spec
     docs/specs/2026-10-22-remove-aircraft-checks.md), the Capture board listing our airlines the capture covers, in their
     order."""
@@ -647,7 +647,7 @@ async def systems_opens(pl):
     problems = []
     if got["first"] != "systems":
         problems.append(f"the Systems board isn't the first board on Systems (the first is {got['first'] or 'none'})")
-    order = ["Capture", "Cabin charges", "Manual entry"]
+    order = ["Capture", "Fleet", "Cabin charges", "Manual entry"]
     if got["boards"] != order:
         problems.append(f"Systems' boards are {got['boards']}, not {order}")
     if not got["folded"]:

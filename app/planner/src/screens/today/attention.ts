@@ -10,7 +10,10 @@
 // the rivals' moves the latest world scan showed on our routes, from competition() (each airline's threats with latest
 // true), linking to Competition: they aren't fare moves, so the fare ladder's rule doesn't keep them off; and since 22 Oct
 // (spec docs/specs/2026-10-21-tidy-ups.md §3) one item when a cabin charge doesn't match the first fit we logged, from
-// cabin_charges(), linking to Systems' Cabin charges. This file only words them. Monthly checks have none since 8 Oct, as
+// cabin_charges(), linking to Systems' Cabin charges; and since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3)
+// the Fleet group, one item per problem fleet_checks() finds on the latest night's fleet pages (the game's maintenance under
+// maintenance_min_pct, no pilots, seats against the planner's cabin, an aircraft in one and not the other), worst first.
+// This file only words them. Monthly checks have none since 8 Oct, as
 // in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
 import type { AttItem } from "../../ui/attention";
@@ -18,7 +21,7 @@ import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
 import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAirline, JobRun, JobsRead, TodoRow } from "../home/reads";
 import { threatItemWords, threatKey, type ThreatItem } from "../competition/model";
-import { cabinAttention, type CabinCharges } from "../systems/model";
+import { cabinAttention, fleetAttention, type CabinCharges, type FleetChecks } from "../systems/model";
 
 /** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
 export type { HomeAirline };
@@ -42,6 +45,8 @@ export interface AttentionInput {
   threats?: readonly ThreatItem[] | null;
   /** The cabin charge check (cabin_charges(), since 22 Oct), or null until read. */
   cabins?: CabinCharges | null;
+  /** The fleet checks (fleet_checks(), since 22 Oct), or null until read. */
+  fleet?: FleetChecks | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -97,6 +102,10 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     const bad = week ? week.legs.filter((l) => l.turn?.short || !l.position_ok).length : 0;
     if (bad) items.push({ cls: "bad", screen: "tails", tail: a.registration, text: `${a.registration}: ${bad} leg${bad > 1 ? "s" : ""} with a short turn or wrong position` });
   }
+
+  // the fleet as the game showed it on the latest night (since 22 Oct): the game's maintenance and crew first, then the
+  // cabins and the aircraft in one of the game and the planner only
+  items.push(...fleetAttention(x.fleet));
 
   // night bans: each rotation with a departure or arrival inside one
   const legOf = new Map(legs.map((l) => [l.id, l]));

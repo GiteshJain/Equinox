@@ -7,13 +7,17 @@
 // docs/specs/2026-10-21-cabins-new-rule.md §1). Since 22 Oct the Cabin charges board (spec docs/specs/2026-10-21-tidy-ups.md
 // §3): cabin_charges()'s counts and problems, Use the game's amount and Today's one item. The Systems board's own marks
 // are systems.ts's. The aircraft checks (the one-week checks and Mark checked) went on 22 Oct (spec
-// docs/specs/2026-10-22-remove-aircraft-checks.md). No screen code, so the unit tests run it.
+// docs/specs/2026-10-22-remove-aircraft-checks.md). Since 22 Oct also the Fleet board (spec
+// docs/specs/2026-10-22-fleet-capture.md §3): fleet_checks()'s latest night, each airline's fleet as the game showed it with
+// its problems marked, Today's Fleet items and the game's figures the Tails pop-up shows. No screen code, so the unit
+// tests run it.
+import type { AttItem } from "../../ui/attention";
 import type { Change, Values } from "../../data/save";
 import { dayDiff } from "../../ui/dates";
 import type { BackupRun, CaptureAirline, CapturePages } from "./reads";
 
-// ---------- the boards that fold under the Systems board, in their order (Cabin charges since 22 Oct)
-export const BOARDS = ["Capture", "Cabin charges", "Manual entry"] as const;
+// ---------- the boards that fold under the Systems board, in their order (Fleet and Cabin charges since 22 Oct)
+export const BOARDS = ["Capture", "Fleet", "Cabin charges", "Manual entry"] as const;
 export type BoardKey = (typeof BOARDS)[number];
 
 // ---------- Capture
@@ -313,3 +317,113 @@ export function pasteSaves(parsed: readonly PastedLoad[], marked: readonly strin
   return send;
 }
 
+
+// ---------- Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md): the evening capture's fleet pages, each
+// aircraft as the game showed it on the latest night, and what needs a look, from fleet_checks()
+export type FleetKind = "maintenance" | "crew" | "cabin" | "not_in_planner" | "not_in_game";
+export interface FleetProblem {
+  kind: FleetKind;
+  airline_id: number;
+  code: string | null;
+  registration: string;
+  base: string | null;
+  /** The planner's aircraft, or null for one the planner doesn't have. */
+  aircraft_id: number | null;
+  words: string;
+}
+export interface FleetAircraft {
+  registration: string;
+  aircraft_id: number | null;
+  base: string | null;
+  fleet: string | null;
+  type: string | null;
+  nickname: string | null;
+  from: string | null;
+  to: string | null;
+  flight: string | null;
+  age_years: number | null;
+  condition_pct: number | null;
+  maintenance_pct: number | null;
+  y: number | null;
+  c: number | null;
+  f: number | null;
+  pilots: boolean | null;
+  owned: boolean | null;
+  contract: string | null;
+  captured_at: string;
+  problems: FleetKind[];
+}
+export interface FleetAirline {
+  airline_id: number;
+  code: string | null;
+  name: string | null;
+  maintenance_min_pct: number;
+  /** The latest run of fleet pages that night: how many read, ok and expected, and whether every one came in ok. */
+  pages: { read: number; ok: number; expected: number | null; all_ok: boolean } | null;
+  at: string | null;
+  aircraft: FleetAircraft[];
+}
+export interface FleetChecks {
+  night: string | null;
+  counts: Record<FleetKind | "problems", number>;
+  problems: FleetProblem[];
+  airlines: FleetAirline[];
+}
+
+/** Each kind as the board and Today name it, worst first. */
+export const FLEET_KINDS: readonly FleetKind[] = ["maintenance", "crew", "cabin", "not_in_planner", "not_in_game"];
+export const FLEET_KIND_WORDS: Record<FleetKind, string> = {
+  maintenance: "maintenance", crew: "no pilots", cabin: "cabin", not_in_planner: "not in the planner", not_in_game: "not in the game",
+};
+
+/** A night as the board writes it: "22 Oct". */
+export const nightWords = (night: string | null | undefined): string => shortDay(night);
+
+/** The board's line: the night it read and how many problems of each kind, "22 Oct: 2 maintenance · 1 no pilots", "22
+ *  Oct: nothing to look at", or that no fleet page has come in yet. */
+export function fleetCountsWords(f: FleetChecks): string {
+  if (!f.night) return "no fleet pages captured yet (Capture all airlines 1.6 reads them each evening)";
+  const parts = FLEET_KINDS.filter((k) => f.counts[k]).map((k) => `${f.counts[k]} ${FLEET_KIND_WORDS[k]}`);
+  return `the night of ${nightWords(f.night)}: ${parts.length ? parts.join(" · ") : "nothing to look at"}`;
+}
+/** Where an aircraft is: "ORD → JFK · AW 1003" in the air, "at FRA" on the ground, "—" when the page said nothing. */
+export function fleetWhere(a: Pick<FleetAircraft, "from" | "to" | "flight">): string {
+  if (a.from && a.to) return `${a.from} → ${a.to}${a.flight ? " · " + a.flight : ""}`;
+  return a.from ? `at ${a.from}` : "—";
+}
+/** A percentage as the game shows it: maintenance with one decimal ("103.8%", "0.0%"), condition whole ("83%"). */
+export const pctWords = (v: number | null | undefined, decimals: 0 | 1): string =>
+  (v == null || !Number.isFinite(Number(v)) ? "—" : `${Number(v).toFixed(decimals)}%`);
+/** The seats as fitted, Y/C/F: "180/15/0". */
+export const seatWords = (a: Pick<FleetAircraft, "y" | "c" | "f">): string => [a.y, a.c, a.f].map((x) => (x == null ? "?" : String(x))).join("/");
+/** An airline's pages that night in words: "3 of 3 fleet pages ok", "1 of 2 fleet pages ok", or none. */
+export function fleetPagesWords(a: Pick<FleetAirline, "pages">): string {
+  const p = a.pages;
+  if (!p) return "no fleet pages that night";
+  return `${p.ok} of ${p.expected ?? p.read} fleet page${(p.expected ?? p.read) === 1 ? "" : "s"} ok`;
+}
+
+/** Today's needs attention: one item per problem, worst first as fleet_checks() gives them (maintenance, crew, then the
+ *  rest), keyed by its kind, registration and night, so a dismissed problem shows again the next night while it lasts.
+ *  An aircraft the planner has opens its pop-up (Tails); one it doesn't opens Systems' Fleet. */
+export function fleetAttention(f: FleetChecks | null | undefined): AttItem[] {
+  if (!f?.night) return [];
+  return f.problems.map((p) => ({
+    key: `fleet|${p.kind}|${p.registration}|${f.night}`,
+    cls: p.kind === "maintenance" || p.kind === "crew" ? "bad" : "warn",
+    text: p.words,
+    ...(p.aircraft_id != null ? { screen: "tails" as const, tail: p.registration } : { screen: "systems" as const }),
+  }));
+}
+
+/** The game's figures for one aircraft on the latest night, for the Tails pop-up beside the planner's own maintenance:
+ *  "103.8% maintenance · 83% condition · 22 Oct", or null when the night's fleet pages don't have it. */
+export function gameFleetWords(f: FleetChecks | null | undefined, aircraftId: number, registration: string): { text: string; bad: boolean } | null {
+  for (const al of f?.airlines ?? []) {
+    const a = al.aircraft.find((x) => x.aircraft_id === aircraftId) ?? al.aircraft.find((x) => x.registration === registration.toUpperCase());
+    if (!a) continue;
+    const bad = a.maintenance_pct != null && Number(a.maintenance_pct) < Number(al.maintenance_min_pct);
+    return { text: `${pctWords(a.maintenance_pct, 1)} maintenance · ${pctWords(a.condition_pct, 0)} condition · ${nightWords(f?.night)}`, bad };
+  }
+  return null;
+}
