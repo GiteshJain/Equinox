@@ -115,7 +115,9 @@ export function RouteDetail(p: DetailProps) {
         <div className="dsub" data-dsub="2">
           <span data-route-layout>{layoutWords(r)}</span> · service {svc}
           {base ? ` · banks ${(base.bank_times ?? []).filter((b): b is string => !!b).map((b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)).join(" ")}${z}` : " · no bank at this hub"}
-          {" "}· UTC offsets{" "}
+        </div>
+        <div className="dsub" data-dsub="3">
+          UTC offsets{" "}
           <OffsetInput code={r.hub} value={String(offH(r.hub))} className="tiny" onOffset={(c, t) => void askOffset(c, t)} /> {r.hub}{" "}
           <OffsetInput code={r.dest} value={String(offH(r.dest))} className="tiny" onOffset={(c, t) => void askOffset(c, t)} /> {r.dest}
         </div>

@@ -1213,19 +1213,20 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   height:calc(100dvh - 66px - env(safe-area-inset-top,0px));min-height:600px;padding-top:32px;padding-bottom:24px}
 .view.routes > *{flex:none}
 .view.routes > .vh{margin-bottom:24px}
-.rttl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px 28px;min-width:0}
+.rttl{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px 20px;min-width:0}
 .rttl h1{grid-column:1;grid-row:1}
 .rseg{grid-column:2;grid-row:1;justify-self:start;max-width:100%;min-width:0;overflow-x:auto;scrollbar-width:none}
 .rseg::-webkit-scrollbar{display:none}
-.rseg button{flex:none}
+.view.routes .rseg button{flex:none;padding:0 12px}
 .rttl .radd{grid-column:3;grid-row:1}
+.view.routes button.radd{padding:0 16px}
 .view.routes > .rwrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:var(--gap-card)}
 .rlist,.rdetail{min-height:0;min-width:0;background:var(--paper);border:1px solid rgba(14,22,48,.06);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 .rlist{display:flex;flex-direction:column;overflow:hidden}
 .rlist > *{flex:none}
 .rtools{display:flex;gap:8px;padding:20px 20px 0;min-width:0}
 .rtools #f-q{flex:1 1 auto;min-width:0;min-height:44px;padding:0 14px}
-.rtools #f-base{flex:0 1 auto;min-width:0;max-width:170px;min-height:44px;padding:0 10px;font-weight:700}
+.rtools #f-base{flex:0 0 132px;width:132px;min-width:0;min-height:44px;padding:0 10px;font-weight:700}
 .view.routes button.rfbtn{flex:none;padding:0 16px}
 .view.routes button.rfbtn.on{box-shadow:inset 0 0 0 1.5px var(--night)}
 .rfn{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--night);color:#fff;font:700 13px/1 var(--font)}
@@ -1263,7 +1264,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .rdetail .dhead h2.rdh{margin:0}
 .rdh .rcodes{margin-left:10px;color:var(--faint);font:600 var(--t-body)/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .rdetail .dsub[data-dsub="1"]{margin:10px 0 0;font-size:var(--t-body)}
-.rdetail .dsub[data-dsub="2"]{margin:0;line-height:2}
+.rdetail .dsub[data-dsub="2"],.rdetail .dsub[data-dsub="3"]{margin:0;line-height:2}
 .rfigs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0 16px}
 .rfig{display:flex;flex-direction:column;gap:4px;min-width:0;padding:16px 18px;border-radius:var(--r-md);background:var(--porcelain)}
 .rfl{font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -1302,7 +1303,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .rlist,.rlist > .rscroll{overflow:visible}
   .rtools{flex-wrap:wrap;padding:16px 16px 0}
   .rtools #f-q{flex:1 0 100%}
-  .rtools #f-base{flex:1 1 auto;max-width:none}
+  .rtools #f-base{flex:1 1 0;width:auto}
   .rcount{margin:10px 16px 12px}
   .rfilters,.view.routes .addform{padding:16px}
   .view.routes .rscroll .qpanel{margin:12px 16px}
@@ -1314,7 +1315,11 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .rdetail .back{display:inline-flex;align-items:center;min-height:44px;margin:0 0 16px;padding:0 18px 0 14px;border-radius:999px;
     background:var(--porcelain);color:var(--ink);font:700 14px/1 var(--font);box-shadow:inset 0 0 0 1px var(--line)}
   .rdh .rcodes{display:block;margin:6px 0 0}
-  .rfigs{gap:8px;margin:20px 0 14px}
+  .rfigs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:20px 0 14px}
+  .rfig[data-fig="load"]{grid-column:1 / -1}
+  .view.routes .fg label{flex:1 1 130px;min-width:0}
+  .view.routes .fg input,.view.routes .fg select{width:100%}
+  .view.routes .freq .fg .tailpop{flex:1 0 100%;align-self:start;padding:0;text-align:left}
   .rfig{padding:12px}
   .rfig b{font-size:22px}
   .rfl{font-size:13px;letter-spacing:.02em}

@@ -313,7 +313,7 @@ export function Routes() {
               {picked.length > 1 ? <option value={baseValue}>{baseWords(picked)}</option> : null}
               {bases.map((b) => (
                 <option key={b.id} value={b.airport_code} data-hubchip={b.airport_code}>
-                  From {b.airport_code}{b.role === "focus" ? ` (focus${b.parent_code ? ", feeds " + b.parent_code : ""})` : ""}
+                  From {b.airport_code}{b.role === "focus" ? " (focus)" : ""}
                 </option>
               ))}
             </select>
