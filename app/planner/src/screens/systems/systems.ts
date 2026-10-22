@@ -278,3 +278,33 @@ export function boardSummary(lines: readonly SysLine[]): { mark: Mark; text: str
   const mark = lines.reduce<Mark>((m, l) => worse(m, l.mark), "ok");
   return { mark, text: mark === "ok" ? "all good" : [n("bad") ? `${n("bad")} red` : "", n("warn") ? `${n("warn")} amber` : ""].filter(Boolean).join(", ") };
 }
+
+// ---------- the board laid out (since 22 Oct, spec docs/specs/2026-10-22-planner-look-systems.md): the answer as the
+// screen's title, the lines as tiles worst-first, each airline's capture as a row of one table
+
+/** Each mark as a tile says it. */
+export const MARK_TILE_WORDS: Record<Mark, string> = { ok: "good", warn: "check", bad: "problem" };
+
+/** The lines worst-first: red, then amber, then green, each in the board's order. */
+export function worstFirst(lines: readonly SysLine[]): SysLine[] {
+  return lines.map((l, i) => ({ l, i })).sort((a, b) => RANK[b.l.mark] - RANK[a.l.mark] || a.i - b.i).map((x) => x.l);
+}
+
+/** The screen's title: "All systems good" when every line is green, else how many need a look ("2 need a look"). */
+export function boardTitle(lines: readonly SysLine[]): string {
+  const n = lines.filter((l) => l.mark !== "ok").length;
+  return n === 0 ? "All systems good" : `${n} need${n === 1 ? "s" : ""} a look`;
+}
+
+/** An airline's capture as its row of the table: the verdict in a word ("all good", "short", "broken", "not checked",
+ *  "none") and what came in short or broken, with the late words captureLine adds. */
+export function captureVerdict(c: SysCapture, now: Date): { word: string; cls: Mark | "mute"; detail: string } {
+  const h = hoursSince(c.last_at, now);
+  const late = h != null && h > CAPTURE_LATE_H ? `${agoWords(h)}: press Capture all airlines in the game` : "";
+  const join = (...xs: string[]) => xs.filter(Boolean).join(" · ");
+  if (c.last_at == null) return { word: "none", cls: "bad", detail: "no capture in the database's 14 days" };
+  if (c.verdict == null) return { word: "not checked", cls: "mute", detail: join("captured before the page checks", late) };
+  if (c.verdict === "ok") return { word: "all good", cls: "ok", detail: late };
+  const words = c.verdict_words && c.verdict_words !== c.verdict ? c.verdict_words : "";
+  return { word: c.verdict, cls: c.verdict === "broken" ? "bad" : "warn", detail: join(words, late) };
+}

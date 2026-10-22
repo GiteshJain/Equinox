@@ -15,6 +15,10 @@
 // The Cabins board (each aircraft's cabin against its markets, with Refitted to, Keep as is and Show again; Check's) went
 // on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1): the cabin is chosen with each order, and the plan card
 // suggests it (Tails).
+// Since 22 Oct (spec docs/specs/2026-10-22-planner-look-systems.md) short and answer-first, as the new Today: the board's
+// answer is the title ("All systems good", or how many need a look) with "checked at" as a small pill beside it; the
+// board's lines as tiles, worst first, and each airline's capture as one row of a table (SystemsBoard.tsx); the four
+// boards that fold as a short list of large rows, each with a one-line note and its count or state, opening right below.
 // Address: /planner/systems, and the aircraft pop-up (?aircraft=REG, Tails' AircraftPopup). Every action is one
 // planner_save() call.
 import { useMemo, useState, type ReactNode } from "react";
@@ -43,8 +47,15 @@ import {
 } from "./model";
 import { useBackupLine, useCabinCharges, useCapture, useCashLog, useSystemStatus } from "./reads";
 import { SystemsBoard } from "./SystemsBoard";
-import { systemLines } from "./systems";
+import { boardSummary, boardTitle, systemLines } from "./systems";
 
+/** Each row's one-line note; the board's full words (NOTES) open with it. */
+const SHORT: Record<BoardKey, string> = {
+  "Capture": "What the capture collected from the game, per airline",
+  "Cabin charges": "Each first cabin fit logged, against the game's charge",
+  "Manual entry": "Only needed if a night's capture failed",
+  "Aircraft checks": "One check, a week after an aircraft is scheduled",
+};
 const NOTES: Record<BoardKey, string> = {
   "Capture": "what the one-click capture collected from the game, per airline · times in UTC · cash and fixed costs go straight into Performance",
   "Cabin charges": "each first cabin fit filing logged, against the game's \"Installation of cabin interior\" line on the bank statement",
@@ -127,17 +138,44 @@ export function Systems() {
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   // Aircraft checks only while the checks are on (aircraft_check_after_days above 0)
   const shown = rules ? shownBoards(rules, airlines.map((a) => a.id)) : BOARDS;
-  const board = (k: BoardKey, children: ReactNode, note: ReactNode = NOTES[k], id?: string) => (shown.includes(k)
-    ? <FoldBoard key={k} k={k} id={id} note={note} folded={folded.has(k)} onToggle={() => toggle(k)} figure={FIGURE[k]}>{children}</FoldBoard> : null);
+  const board = (k: BoardKey, children: ReactNode, aside?: ReactNode, id?: string, lead: ReactNode = NOTES[k]) => (shown.includes(k)
+    ? <FoldBoard key={k} k={k} id={id} title={<span className="fbname">{k}</span>} note={SHORT[k]} aside={aside} folded={folded.has(k)}
+      onToggle={() => toggle(k)} figure={FIGURE[k]}><div className="note fblead">{lead}</div>{children}</FoldBoard> : null);
   const backup = backupWords(backupsQ.data, (d) => niceDate(d));
+  const summary = sysLines ? boardSummary(sysLines) : null;
+  const checkedAt = systemQ.dataUpdatedAt ? new Date(systemQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : null;
+  // each row's count or state
+  const capAirlines = captureQ.data?.airlines ?? [];
+  const capShort = capAirlines.filter((x) => captureStatus(x).cls !== "ok").length;
+  const capAside = !captureQ.data ? null : <>
+    {backup?.ok === false ? <span className="pill bad sm">backup failed</span> : null}
+    {capShort ? <span className="pill warn sm">{capShort} of {capAirlines.length} incomplete</span> : <span>all {capAirlines.length} complete</span>}
+  </>;
+  const cabins = cabinsQ.data;
+  const cabinAside = !cabins ? null : cabins.counts.problems
+    ? <span className="pill warn sm" data-cabin-problems={cabins.counts.problems}>{cabins.counts.problems} to look at</span>
+    : <span>{cabins.check_from ? `${cabins.counts.checked} fit${cabins.counts.checked === 1 ? "" : "s"}, no problems` : "nothing checked"}</span>;
+  const dueN = checkList ? checkList.filter((c) => c.status === "due").length : 0;
+  const checksAside = !checkList ? null : dueN ? <span className="pill warn sm">{dueN} due</span> : <span>none due</span>;
 
   return (
     <main className="view review systems" data-screen="systems" data-systems-ready={ready ? "yes" : "no"} data-systems-view="/systems">
-      <div className="vh"><p className="vk">The plumbing</p><h1>Systems</h1><p>Did everything work? The capture, the jobs, the backups and the planner's build, then the capture's details{shown.includes("Aircraft checks") ? ", manual entry and aircraft checks" : " and manual entry"}.</p></div>
+      <div className="vh todayvh sysvh">
+        <p className="vk">The plumbing</p>
+        <div className="todayttl">
+          <h1 className="ansh" data-sys-summary={summary?.mark ?? ""}>{sysLines ? boardTitle(sysLines) : "Systems"}</h1>
+          {checkedAt ? <span className="pill mute syschk">checked at {checkedAt}</span> : null}
+        </div>
+        <p className="ansp">{summary ? (summary.mark === "ok" ? "Every line is green" : summary.text) + " · " : ""}the capture, the jobs, the backups, the planner's build and the usage the database can measure.</p>
+      </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
-      {sysLines ? <SystemsBoard lines={sysLines} checkedAt={systemQ.dataUpdatedAt ? new Date(systemQ.dataUpdatedAt).toISOString().slice(11, 16) + " UTC" : null} /> : null}
-      <FoldTools onCollapse={() => setFolded(new Set(BOARDS))} onExpand={() => setFolded(new Set())} />
+      {sysLines && systemQ.data ? <SystemsBoard lines={sysLines} captures={systemQ.data.capture} now={now} /> : null}
+      <section className="sysrows" aria-labelledby="sysrows-h">
+        <div className="sysrowsh">
+          <h2 className="tph" id="sysrows-h">The details</h2>
+          <FoldTools onCollapse={() => setFolded(new Set(BOARDS))} onExpand={() => setFolded(new Set())} hint="" />
+        </div>
       {ready && rules && checkList && logQ.data ? (
         <>
           {board("Capture", <>
@@ -168,18 +206,17 @@ export function Systems() {
             </div>
             <div className="note">Flights are counted by their departure date (local time), as the game lists them.</div>
             {backup ? <div className="note">{backup.ok === false ? <><span className="pill bad sm">Backup failed</span> {backup.text}</> : backup.text}</div> : null}
-          </>)}
+          </>, capAside)}
           {cabinsQ.data ? board("Cabin charges", <CabinChargesBody c={cabinsQ.data} airline={airline} busy={busy}
-            onUse={(p) => void save(gameAmountChange(p))} />,
-          <>{cabinsQ.data.counts.problems ? <span className="pill warn sm" data-cabin-problems={cabinsQ.data.counts.problems}>{cabinsQ.data.counts.problems} to look at</span> : null}
-            {" "}{cabinCountsWords(cabinsQ.data)}</>, "cabin-charges") : null}
+            onUse={(p) => void save(gameAmountChange(p))} />, cabinAside, "cabin-charges", <>{cabinCountsWords(cabinsQ.data)} · {NOTES["Cabin charges"]}</>) : null}
           {board("Manual entry", <ManualEntry worldId={w} rules={rules} log={{ ...logQ.data, airlines: logQ.data.airlines.map((a) => ({ ...a, name: airline(a.airline_id)?.name ?? a.name })) }}
             airlines={airlines} busy={busy} now={now} onSave={save} />)}
           {board("Aircraft checks", <ChecksBody list={checkList} today={today} rules={rules} byId={byId} airline={airline} freqs={freqs} ranks={ranks}
             patterns={signalsQ.data?.load_patterns ?? []} busy={busy} onAircraft={setTailPopup}
-            onCheck={(a) => void save([markCheckedChange(a, today)])} />)}
+            onCheck={(a) => void save([markCheckedChange(a, today)])} />, checksAside)}
         </>
       ) : null}
+      </section>
       {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
     </main>
   );
