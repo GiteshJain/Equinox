@@ -54,4 +54,4 @@ strategy session in the review chat; this build doesn't change any rule.
   per-airport blocks start to matter more.
 
 ## Outcome
-<to be decided>
+22 Oct 2026, Gitesh: **A, a station role**, with stations numbered in 3 digits rather than 4 ("maybe we switch to 3 or 5 digit code for them"). Checked in the 21 Oct world scan: no airline in Gander uses a 5-digit number (the highest is 9989) while 6,133 flights use 3-digit ones, so stations take 3 digits: one pool per airline, 100 to 999, handed out in order.
