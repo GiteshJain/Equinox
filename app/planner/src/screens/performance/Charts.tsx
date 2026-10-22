@@ -113,60 +113,55 @@ export function ForecastChart({ fc, cushion, airline }: { fc: Forecast; cushion:
   );
 }
 
-/** Load against profit: economy load against profit a flight, bubble size flights a week, colour the mark. */
+/** Load against profit: economy load against profit a flight, bubble size flights a week, colour the mark. Since 22 Oct
+ *  the load axis is zoomed to the routes shown, the labels never overlap and the axis title sits inside (scatterLayout). */
 export function Scatter({ routes }: { routes: readonly RouteRow[] }) {
   const g = scatterLayout(routes);
   if (!g) return <div className="dim">No loads matched yet.</div>;
   return (
-    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Economy load against profit a flight">
+    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={`Economy load (${g.x0}% to ${g.x1}%) against profit a flight`}
+      data-load-from={g.x0} data-labels={g.labels.length}>
       {g.yTicks.map((t, i) => (
         <g key={i}>
           <line x1={g.pl} x2={g.W - g.pr} y1={t.y} y2={t.y} stroke="#EEF1F7" />
-          <text x={g.pl - 6} y={t.y + 4} fontSize="10" textAnchor="end" fill="#8B96A8">{t.label}</text>
+          <text x={g.pl - 6} y={t.y + 4} fontSize="10" textAnchor="end" fill="#5D6785">{t.label}</text>
         </g>
       ))}
-      {g.xTicks.map((t, i) => <text key={"x" + i} x={t.x} y={g.H - 12} fontSize="10" textAnchor="middle" fill="#8B96A8">{t.label}</text>)}
+      {g.xTicks.map((t, i) => <text key={"x" + i} x={t.x} y={g.H - g.pb + 16} fontSize="10" textAnchor={i === g.xTicks.length - 1 ? "end" : "middle"} fill="#5D6785">{t.label}</text>)}
       {g.zeroY != null ? <line x1={g.pl} x2={g.W - g.pr} y1={g.zeroY} y2={g.zeroY} stroke="#B4234B" strokeDasharray="3 3" /> : null}
-      <text x={g.W - g.pr} y={g.H - 1} fontSize="10" textAnchor="end" fill="#8B96A8">economy load →</text>
+      <text x={g.xTitle.x} y={g.xTitle.y} fontSize="10" textAnchor="end" fill="#5D6785">{g.xTitle.text}</text>
       {g.dots.map((d, i) => (
         <circle key={"d" + i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r={d.r.toFixed(1)} fill={d.color} fillOpacity=".55" stroke={d.color}><title>{d.title}</title></circle>
       ))}
-      {g.labels.map((l, i) => <text key={"l" + i} x={l.x.toFixed(1)} y={l.y.toFixed(1)} fontSize="10" textAnchor="end" fill="#0A1230">{l.text}</text>)}
+      {g.labels.map((l, i) => <text key={"l" + i} x={l.x.toFixed(1)} y={l.y.toFixed(1)} fontSize="10" fontWeight="600" textAnchor={l.anchor} fill="#0A1230" className="rplab">{l.text}</text>)}
     </svg>
   );
 }
 
-/** An average flight: income and where it goes, in thousands. */
+/** An average flight: its profit and margin as a big number, income and where it goes as two bars, and each part with
+ *  its amount, in thousands. Since 22 Oct in the page's own type (not a drawing), so it fills the panel beside the
+ *  chart at the chart's height, or the width under it on a narrower screen. */
 export function CostChart({ avg }: { avg: AverageFlight | null }) {
   const c = costParts(avg);
   if (!c) return <div className="dim">No flights yet.</div>;
   const R = c.income.reduce((a, x) => a + x.k, 0);
-  const W = 460, x0 = 70, bw = W - x0 - 10;
-  const bar = (label: string, parts: typeof c.income, y: number) => {
-    let x = x0;
-    return (
-      <g>
-        <text x="0" y={y + 15} fontSize="11.5" fill="#0A1230">{label}</text>
-        {parts.map((p) => {
-          const w = Math.max(0, p.k / R * bw), at = x;
-          x += w;
-          return <rect key={p.name} x={at.toFixed(1)} y={y} width={w.toFixed(1)} height="22" fill={p.color}><title>{p.name}: {p.k.toFixed(1)}k</title></rect>;
-        })}
-      </g>
-    );
-  };
+  const bar = (label: string, parts: typeof c.income) => (
+    <div className="cfrow">
+      <span className="cfl">{label}</span>
+      <span className="cfbar" role="img" aria-label={`${label}: ${parts.map((p) => `${p.name} ${p.k.toFixed(1)}k`).join(", ")}`}>
+        {parts.map((p) => <i key={p.name} style={{ width: `${Math.max(0, p.k / R * 100).toFixed(2)}%`, background: p.color }} title={`${p.name}: ${p.k.toFixed(1)}k`} />)}
+      </span>
+    </div>
+  );
   return (
-    <svg className="rpsvg" viewBox={`0 0 ${W} 140`} role="img" aria-label="Income and costs of an average flight" data-figure="performance: an average flight">
-      {bar("Income", c.income, 8)}
-      {bar("Costs", c.costs, 38)}
-      <text x={x0} y="80" fontSize="12" fill="#0A1230" fontWeight="700">Profit {c.profitK.toFixed(1)}k a flight · {c.marginPct}% margin</text>
-      {[...c.income, ...c.costs].map((p, i) => (
-        <g key={p.name} transform={`translate(${(i % 4) * 115},${96 + Math.floor(i / 4) * 18})`}>
-          <rect width="10" height="10" fill={p.color} />
-          <text x="14" y="9" fontSize="10.5" fill="#3B4566">{p.name} {p.k.toFixed(1)}k</text>
-        </g>
-      ))}
-    </svg>
+    <div className="cflight" data-figure="performance: an average flight">
+      <div className="cfbig"><b className={c.profitK < 0 ? "neg" : ""}>{c.profitK >= 0 ? "" : "−"}{Math.abs(c.profitK).toFixed(1)}k</b>
+        <span>profit a flight · {c.marginPct}% margin</span></div>
+      <div className="cfbars">{bar("Income", c.income)}{bar("Costs", c.costs)}</div>
+      <ul className="cfkey">
+        {[...c.income, ...c.costs].map((p) => <li key={p.name}><i style={{ background: p.color }} />{p.name}<b>{p.k.toFixed(1)}k</b></li>)}
+      </ul>
+    </div>
   );
 }
 

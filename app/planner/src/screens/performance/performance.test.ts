@@ -14,6 +14,8 @@ import type { RouteRow as TableRoute } from "../routes/model";
 import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
 import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
+  BOARDS, BOARDS_FOLDED, GROUP_BOARDS, foldsFor, foldsOnArrival, SCATTER_CHAR_W, aircraftRowWords, cashRowWords, changesRowWords, groupTodayWords, growthWords, hubsWords, loadAxisFrom,
+  planRowWords, profitAnswer, profitRowWords, routeRowWords, scatterLayout,
   CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, changesWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay,
   fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords,
   offLevelWords, offersFarePlan, planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, splitActions, stepWords, weekOnWeek,
@@ -440,5 +442,100 @@ describe("the plan card's service check on Tails", () => {
   it("Ryanair (its own R) wants R everywhere", () => {
     const legs = cardLegs(rules, [leg(1, 1, "HUB", "AAA", "R"), leg(2, 2, "AAA", "HUB", "S1")]);
     expect([...cardServiceIssues(rules, 2, legs)]).toEqual([[2, "S1, wants R"]]);
+  });
+});
+
+// 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md): the page heads' answers, the rows' counts, the charts
+describe("Performance's new look", () => {
+  it("the group page's title says how many airlines are in profit, never a group total", () => {
+    expect(profitAnswer([0.4, 0.1, 0.2, 0.3, 0.5, 0.9].map((p) => ({ profit_day: p })))).toBe("Six airlines, all in profit");
+    expect(profitAnswer([0.4, -0.1, 0.2, 0.3, 0.5, 0.9].map((p) => ({ profit_day: p })))).toBe("5 of 6 airlines in profit");
+    expect(profitAnswer([{ profit_day: 0.2 }, { profit_day: null }])).toBe("1 of 2 airlines in profit");
+    expect(profitAnswer([{ profit_day: 0 }])).toBe("0 of 1 airline in profit");
+    expect(profitAnswer([{ profit_day: 0.1 }])).toBe("One airline, in profit");
+    expect(profitAnswer([])).toBe("Performance");
+  });
+  it("the rows: Route profit alone open on the airline's page, the fare ladder no longer a row", () => {
+    expect(BOARDS).toEqual(["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]);
+    expect(BOARDS_FOLDED).toEqual(["Profit", "Cash, next 14 days", "Aircraft", "Fare changes", "Fare plan"]);
+    expect(GROUP_BOARDS).toEqual(["The group today", "Growth signals", "Main hubs", "Flights by day"]);
+  });
+  it("each page arrives with its own rows: Expand all on the group page doesn't carry to an airline's, nor one airline's to another's", () => {
+    const sorted = (x: ReadonlySet<string>) => [...x].sort();
+    const airlineArrival = sorted(foldsOnArrival("/performance/AW", "").folded);
+    expect(GROUP_BOARDS.every((k) => airlineArrival.includes(k))).toBe(true);
+    expect(BOARDS.filter((k) => !airlineArrival.includes(k))).toEqual(["Route profit"]);
+    expect(GROUP_BOARDS.filter((k) => !foldsOnArrival("/performance", "?day=2026-10-19").folded.has(k))).toEqual(["Flights by day"]);
+    expect(GROUP_BOARDS.filter((k) => !foldsOnArrival("/performance", "").folded.has(k))).toEqual([]);
+    // Expand all on the group page, then the first scorecard opens AW's page
+    const expanded = { view: "/performance", folded: new Set<never>() };
+    expect(foldsFor(expanded, "/performance", "").size).toBe(0);
+    expect(sorted(foldsFor(expanded, "/performance/AW", ""))).toEqual(airlineArrival);
+    // and from AW's page, all open, the switch to PA
+    expect(sorted(foldsFor({ view: "/performance/AW", folded: new Set<never>() }, "/performance/PA", ""))).toEqual(sorted(foldsOnArrival("/performance/PA", "").folded));
+    // back on the group page with a day in the address: the group's arrival, Flights by day open
+    expect([...GROUP_BOARDS].filter((k) => !foldsFor(expanded, "/performance/AW", "?day=x").has(k))).toEqual([]);
+  });
+  it("each row's count or state", () => {
+    expect(groupTodayWords([{ net_day: 0.2 }, { net_day: -0.1 }, { net_day: null }])).toBe("1 of 2 airlines ahead after leases");
+    expect(groupTodayWords([])).toBe("nothing captured yet");
+    expect(growthWords({ profit_captured: true, ready: 3, raise: 2, fix: 1, aircraft: 1 })).toBe("3 ready for a flight · 2 raise fares · 1 fix or reduce · 1 aircraft losing");
+    expect(growthWords({ profit_captured: false, ready: 4, raise: 0, fix: 0, aircraft: 0 })).toBe("4 ready for another flight, from the load reports");
+    expect(hubsWords([{ main_hub: "JFK", exempt: false, departures: 760, target: 750 }, { main_hub: "LHR", exempt: false, departures: 500, target: 750 },
+      { main_hub: "PVG", exempt: true, departures: 100, target: 750 }])).toBe("1 of 2 main hubs at the target");
+    expect(hubsWords([])).toBe("no main hub yet");
+    expect(profitRowWords({ profit_day: 0.25 })).toBe("+0.25M a day, 7-day average");
+    expect(profitRowWords({ profit_day: null })).toBe("needs two nights of cash");
+    expect(cashRowWords({ status: "ok", lowest: { at: "2026-10-24T00:00:00Z", balance: 0.4, payment: null } }, 0.5)).toEqual({ text: "lowest 0.40M on Sat, Oct 24", low: true });
+    expect(cashRowWords({ status: "missing" }, 0.5)).toEqual({ text: "needs a capture", low: false });
+    expect(routeRowWords({ flights: 120, days: 7, routes: [route("A", "B"), route("A", "C")] })).toBe("2 routes · 120 flights, last 7 days");
+    expect(routeRowWords({ flights: 1, days: 1, routes: [route("A", "B")] })).toBe("1 route · 1 flight, last day");
+    expect(routeRowWords({ flights: 0, days: 7, routes: [] })).toBe("needs a bank statement");
+    expect(aircraftRowWords([{ net_day: -0.01 }, { net_day: 0.02 }, { net_day: null }])).toEqual({ text: "3 aircraft", losing: 1 });
+    expect(changesRowWords(0)).toBe("none yet");
+    expect(changesRowWords(1)).toBe("1 change spotted");
+    expect(planRowWords(3)).toBe("3 planned");
+  });
+  it("the load axis starts at the lowest load rounded down to 5%, never below 40% or above 95%", () => {
+    expect(loadAxisFrom([88, 97, 100])).toBe(85);
+    expect(loadAxisFrom([90, 99])).toBe(90);
+    expect(loadAxisFrom([22, 90])).toBe(40);
+    expect(loadAxisFrom([100, 100])).toBe(95);
+  });
+  it("load against profit: the axis zoomed to the routes, every dot inside it, five top routes and the off-pattern ones labelled, none overlapping", () => {
+    const rs = Array.from({ length: 24 }, (_, i) => route("JFK", `D${String(i).padStart(2, "0")}`, {
+      economy: 86 + (i % 8) * 2, profit_per_flight: 0.01 + (i % 5) * 0.002, profit_week: 1 - i * 0.02, flights_week: 7 + i,
+      mark: i === 20 ? "fix" : i === 21 ? "raise" : i === 22 ? "add" : i === 23 ? "losing" : "hold",
+    }));
+    const g = scatterLayout(rs);
+    if (!g) throw new Error("no layout");
+    expect([g.x0, g.x1]).toEqual([85, 100]);
+    expect(g.xTicks.map((t) => t.label)).toEqual(["85%", "90%", "95%", "100%"]);
+    for (const d of g.dots) expect(d.x).toBeGreaterThanOrEqual(g.pl);
+    for (const d of g.dots) expect(d.x).toBeLessThanOrEqual(g.W - g.pr);
+    // only the top five and fix, raise, add are candidates; the losing route isn't labelled for its mark alone
+    const allowed = new Set(["JFK–D00", "JFK–D01", "JFK–D02", "JFK–D03", "JFK–D04", "JFK–D20", "JFK–D21", "JFK–D22"]);
+    expect(g.labels.length).toBeGreaterThan(0);
+    for (const l of g.labels) expect(allowed.has(l.text)).toBe(true);
+    const box = (l: (typeof g.labels)[number]): [number, number, number, number] => {
+      const w = l.text.length * SCATTER_CHAR_W, left = l.anchor === "end" ? l.x - w : l.x;
+      return [left, l.y - 9, left + w, l.y + 3];
+    };
+    const bs = g.labels.map(box);
+    bs.forEach((a, i) => bs.forEach((b, j) => {
+      if (i < j) expect(a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]).toBe(false);
+    }));
+    // inside the plot, and the axis title inside the chart
+    for (const b of bs) { expect(b[0]).toBeGreaterThanOrEqual(g.pl); expect(b[2]).toBeLessThanOrEqual(g.W - g.pr); expect(b[3]).toBeLessThanOrEqual(g.H - g.pb); }
+    expect(g.xTitle.x).toBeLessThanOrEqual(g.W);
+    expect(g.xTitle.y).toBeLessThan(g.H);
+    expect(g.xTitle.y).toBeGreaterThan(g.H - g.pb + 16);
+  });
+  it("a label that can't be placed clear of another is dropped, not overlapped", () => {
+    // five routes on one spot: at most four places beside it, so at least one label goes
+    const rs = Array.from({ length: 5 }, (_, i) => route("JFK", `X${i}`, { economy: 95, profit_per_flight: 0.02, profit_week: 1 - i * 0.1, flights_week: 14 }));
+    const g = scatterLayout(rs);
+    expect(g?.labels.length).toBeLessThan(5);
+    expect(new Set(g?.labels.map((l) => `${l.x}|${l.y}|${l.anchor}`)).size).toBe(g?.labels.length);
   });
 });
