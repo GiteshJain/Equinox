@@ -238,6 +238,9 @@ Ryanair's and Virgin's first (11.0 and 11.2 hours a day on 17 Oct, against Malay
 Am needs to move quickly; 19 of its routes sell out and are marked add a flight while United and American add hundreds
 of flights a week on its pairs. Earlier wording: "Until 31 October, only new routes:" with no exemption.*
 
+*China Eastern exempt too, the same day (Gitesh: "apply same exemptions as Pan Am") · why: JAL and ANA started
+Shanghai–Haneda (70 a week against our 14) and Air China is moving onto its domestic pairs.*
+
 #### From 1 to 30 November, every new order fortifies the trunk routes
 *From 1 Nov to 30 Nov · why (Gitesh, 20 Oct): fortify the routes that connect our bases completely.*
 
@@ -290,6 +293,10 @@ A route whose captured fares don't match its level is set back to it: not for a 
 why: cash is Pan Am's limit (about 1.27M a day to order with on 22 Oct) and every route sells out at the default fare;
 fares are the one lever that adds cash. Earlier wording: "up 5 points", "down 5 points", "at most 20 points above
 launch (120%, Ryanair 105%)", for every airline.*
+
+*China Eastern given the same step (7) and cap (28 points, 128%) the same day (Gitesh, review chat: "apply same
+exemptions as Pan Am") · why: the group's best cash earner (about 1.75M a day to order with) and nearly every route sells
+out. Earlier wording: "(Pan Am 7)", "Pan Am 28 points, 128%".*
 
 A rival starting on the pair pauses that route for a week: Today lists the latest scan's (built 21 Oct with competition analysis).
 
