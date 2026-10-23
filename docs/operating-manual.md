@@ -26,14 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **To build: the fare ladder under launch** (brief `docs/briefs/2026-10-23-fare-ladder-under-launch.md`, Gitesh
-  23 Oct, its steps changed the same day). A cabin under 80% full over 2 weeks at launch goes to **80%** of the default
-  price (Ryanair, launching at 85%, to **75%**) and holds 2 weeks. If its revenue a flight didn't fall, the normal ladder carries on from there; if it fell,
-  the cabin goes to **60%** and holds 2 weeks the same way. A cabin at 60% still under 60% full, or whose revenue a
-  flight fell, goes back to the last level that paid and to Gitesh as a cut-or-keep decision. Each 2-week judgement
-  needs at least 10 flights, else it waits a week. Under launch the ladder only climbs or holds (no 5-point cuts). The
-  numbers become `settings` rows (`fare_under_launch_*`, Ryanair's levels its own row). Until it's built, §5's "never under launch" stands. *(decided 23 Oct, these steps
-  the same day, Ryanair's 75% the same day; history: rule-history.md)*
 - **To build: rivals' fleets in the world scan** (brief `docs/briefs/2026-10-23-rival-fleets.md`, option A, Gitesh
   23 Oct). Each evening's scan also reads every enterprise's overview page (its Fleet table, about 171 pages, about 3
   minutes more) and keeps each rival's fleet and aircraft on order by type with the scan. Competition and the weekly
@@ -476,7 +468,15 @@ Details and open points: `docs/decisions.md`.
   route's fare on 21 Oct, when every route was at its launch level), the planner lists a change each way at its level,
   first, and the fares userscript makes it with the week's changes; not for a route on the fare plan this week, a new
   route, or one not captured since its newest flight launched.
-  The level never goes under launch, nor under the 60% floor where another player flies the route. **For now it goes
+  **Under launch, two jumps** (since 23 Oct): a cabin at launch that the ladder would hold there (under 90% sold out),
+  averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the default price
+  (Ryanair, launching at 85%, to **75%**) and holds 2 weeks from the day the captures see it. Then it is judged on revenue
+  a flight against the 14 days before its first jump: not lower, it stays and the ladder goes on from there; lower, it
+  **jumps to 60%** and is judged the same way. At 60%, lower, it goes back to launch; at 60% and still under 60% full, it
+  holds. Either way it is marked **cut or keep?** for Gitesh at the Saturday review, and it never jumps again. Under
+  launch the ladder only climbs or holds (no 5-point cuts). The numbers are the `fare_under_launch_*` settings (Ryanair's
+  levels its own row). Otherwise the level never goes under launch, nor under the 60% floor where another player flies
+  the route. **For now it goes
   at most 20 points above launch** (120%, Ryanair 105%; **Pan Am and China Eastern 28 points, 128%**, since 22 Oct); the cap is lifted
   only once loads and image show it's safe. Their step and cap are their own `settings` rows.
   **A rival starting on the pair pauses that route for a week:** when a world scan of the last 7 days shows a rival

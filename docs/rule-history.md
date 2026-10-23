@@ -386,6 +386,10 @@ judgement needs 10 flights so thin routes aren't judged on a handful.
 *Ryanair's first jump to 75%, 23 Oct (Gitesh, Building chat).* The entry had said 80% for every airline. Why: Ryanair
 launches at 85%, so a jump to 80% would be only 5 points, too small for two weeks to show; 75% then 60%.
 
+*Built 23 Oct (`Equinox` #92, spec `docs/specs/2026-10-23-fare-ladder-under-launch.md`) and moved into §5.* The §5
+sentence it replaced: "The level never goes under launch, nor under the 60% floor where another player flies the
+route." (now the rule's "otherwise"). The *Decided, not yet built* entry, retired with the build: "- **To build: the fare ladder under launch** (brief `docs/briefs/2026-10-23-fare-ladder-under-launch.md`, Gitesh 23 Oct, its steps changed the same day). A cabin under 80% full over 2 weeks at launch goes to **80%** of the default price (Ryanair, launching at 85%, to **75%**) and holds 2 weeks. If its revenue a flight didn't fall, the normal ladder carries on from there; if it fell, the cabin goes to **60%** and holds 2 weeks the same way. A cabin at 60% still under 60% full, or whose revenue a flight fell, goes back to the last level that paid and to Gitesh as a cut-or-keep decision. Each 2-week judgement needs at least 10 flights, else it waits a week. Under launch the ladder only climbs or holds (no 5-point cuts). The numbers become `settings` rows (`fare_under_launch_*`, Ryanair's levels its own row). Until it's built, §5's 'never under launch' stands. *(decided 23 Oct, these steps the same day, Ryanair's 75% the same day; history: rule-history.md)*"
+
 A route that gained a frequency in the last 7 days holds for that week, so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct).
 
 A route whose captured fares don't match its level is set back to it: not for a route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).
