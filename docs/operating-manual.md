@@ -26,6 +26,11 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **To build: the fare ladder under launch** (brief `docs/briefs/2026-10-23-fare-ladder-under-launch.md`, option C,
+  Gitesh 23 Oct). A cabin averaging under 80% full may go under launch, **2 points a step**, judged each Saturday, down
+  to a 60% floor. A step that lowers the cabin's revenue a flight is undone. A cabin at the floor and still under 60%
+  full goes to Gitesh as a cut-or-keep decision. The numbers become `settings` rows. Until it's built, §5's "never
+  under launch" stands. *(decided 23 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 

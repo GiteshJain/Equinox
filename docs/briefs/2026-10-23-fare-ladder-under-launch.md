@@ -85,4 +85,8 @@ change the floor.
 - **Image is found to fall with low fares:** a higher floor (say 80%).
 
 ## Outcome
-*Waiting for Gitesh.*
+**C with the revenue check, 23 Oct (Gitesh), with steps of 2 points instead of 10.** The floor (60%), the load limit
+(80%) and the weekly judgment stay as in C. Written into the manual's *Decided, not yet built*; the Building chat
+builds it from this brief. Note: a 2-point step moves revenue a flight by about 2%, less than a week's normal swing in
+loads, so the revenue check may need two or three weeks of a step to tell a real fall from noise. The build should say
+how it handles that.

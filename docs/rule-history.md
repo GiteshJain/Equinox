@@ -340,6 +340,13 @@ Wording clarified 22 Oct (Gitesh): the old sentence read "The cabin is chosen wi
 *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low then raising across 50 routes is too much work. The new flight's rule since 21 Oct (Gitesh).* As of 21 Oct every route is at its launch level: legacy airlines 100% of the default price, Ryanair 85% (Gitesh); the fare ladder's first moves start from there.
 
 #### The fare ladder, every Saturday
+*Under launch, decided 23 Oct, not yet built (Gitesh, review chat, brief
+`docs/briefs/2026-10-23-fare-ladder-under-launch.md`, option C with the revenue check and 2-point steps instead of the
+brief's 10).* Why: a cabin that doesn't sell out held at launch for ever, so a weak route's only path was a cut; a
+lower fare is tried first. The 80% load limit keeps cuts off nearly full cabins, where they lose revenue; the 60%
+floor is the house rule's (§9). The rule in force until it's built: "The level never goes under launch, nor under the
+60% floor where another player flies the route."
+
 A route that gained a frequency in the last 7 days holds for that week, so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct).
 
 A route whose captured fares don't match its level is set back to it: not for a route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).
