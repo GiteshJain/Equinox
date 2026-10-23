@@ -9,7 +9,8 @@ Reads, from the current folder, what pull.py downloaded:
   the next 14 days and when, the next order, route profit, the growth signals and hubs first, each airline on its own:
   no surplus figure and no group totals (manual §1, §3); and since 22 Oct each airline against its three biggest
   competitors (competition()'s competitors, self and scans; manual §7), since 23 Oct each with its fleet, aircraft on
-  order and the week's change, and the world's flagged order books (order_flags; spec docs/specs/2026-10-23-rival-fleets.md);
+  order and the week's change, and the world's flagged order books (order_flags; spec docs/specs/2026-10-23-rival-fleets.md),
+  and each one's connecting departures on the airline's pairs beside direct (spec docs/specs/2026-10-23-rival-connections.md);
 - airlines.json, airports.json, scan.json (the world scan) and airports_oa.csv (OurAirports' public airport list): the
   competition, markets and hubs, as before;
 - site_airlines.json (the website's airlines), if there: each airline's colour for the charts.
@@ -252,8 +253,12 @@ def competitors_of(airline_id):
             "self": {k: (f.get("self") or {}).get(k) for k in keep[3:] + ("pairs_flown",)},
             # each one's fleet since 23 Oct: None when the scan didn't read its overview page, absent in older figures
             "top": [{k: c.get(k) for k in keep} | ({"fleet": {k: (c["fleet"] or {}).get(k) for k in fleet} if c.get("fleet") else None} if "fleet" in c else {})
+                    # its connecting departures on the airline's pairs since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md
+                    # §4): beside on_pairs, never added; absent when the scan has none worked out
+                    | ({k: c.get(k) for k in ("connecting_weekly", "connecting_pairs", "connecting_via")} if "connecting_weekly" in c else {})
                     for c in (f.get("competitors") or [])[:3]],
-            "fleets": any("fleet" in c for c in (f.get("competitors") or []))}
+            "fleets": any("fleet" in c for c in (f.get("competitors") or [])),
+            "connecting": any("connecting_weekly" in c for c in (f.get("competitors") or []))}
 
 
 def order_flags():

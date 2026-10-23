@@ -32,7 +32,7 @@ const NOTES: Record<RouteBoardKey, string> = {
   "Since launch": "economy and business loads by UTC day, both directions together, from the daily history · the fare level (right) from the fare plan's ladder rows · a dot under a day is an event: point at a day for its figures and events",
   "Profit an aircraft hour": "each week's profit ÷ the block hours flown, the 7 days to the latest captured day and the 12 weeks before · the airline's average isn't drawn: route profit covers only the last few days",
   "Events": "newest first: the schedule's saves (frequencies, aircraft, times), the fare plan, the cabin, and rivals starting or growing on the pair between world scans",
-  "Rivals on the pair": "every other airline flying it either way in the latest world scan, passenger flights only, against the week-before scan · our share at each scan since launch",
+  "Rivals on the pair": "every other airline flying it either way in the latest world scan, passenger flights only, against the week-before scan, with its one-stop connecting departures beside (never added) · our share at each scan since launch",
   "Connections": "the city pairs its flights connect to at each end, from the minimum connection time up to the longest wait, across all our airlines' schedules (the plan card's rule)",
 };
 
@@ -141,18 +141,21 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
       {board("Rivals on the pair", (
         <div className="rprivals">
           <div className="dim">{rv.scans}</div>
-          {rv.none ? <div className="rpnone">No rival flies this pair.</div> : (
+          {rv.none ? <div className="rpnone">{rv.connecting ? "No rival flies this pair or connects on it." : "No rival flies this pair."}</div> : (
             <div className="tscroll">
               <table className="tbl rptbl" data-figure="performance route: rivals">
                 <tbody>
-                  <tr><th>Rival</th><th className="num">A week</th><th className="num">Change</th></tr>
+                  <tr><th>Rival</th><th className="num">Direct a week</th><th className="num">Change</th>{rv.connecting ? <th className="num">Connecting</th> : null}</tr>
                   {rv.rows.map((r) => (
-                    <tr key={r.id} data-rival={r.name}><td>{r.name}</td><td className="num">{r.weekly}</td><td className="num">{r.change}{r.before != null && r.change && r.change !== "=" ? <span className="dim">{` from ${r.before}`}</span> : null}</td></tr>
+                    <tr key={r.id} data-rival={r.only ? undefined : r.name} data-connecting-rival={r.only ? r.name : undefined}><td>{r.name}</td><td className="num">{r.weekly}</td>
+                      <td className="num">{r.change}{r.before != null && r.change && r.change !== "=" ? <span className="dim">{` from ${r.before}`}</span> : null}</td>
+                      {rv.connecting ? <td className="num" data-connecting={r.connecting}>{r.connecting}{r.via ? <span className="dim">{` ${r.via}`}</span> : null}</td> : null}</tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+          {rv.connectingLine ? <div className="dim" data-connecting-line>{rv.connectingLine}</div> : null}
           <div className="rpours">{rv.ours}</div>
           {share ? <div className="rpshare"><span className="dim">our share at each scan since launch</span><ShareLine s={share} /></div>
             : <div className="dim">{s.rivals.shares.length === 1 ? `one scan since launch: ${s.rivals.shares[0]?.share ?? "—"}%` : "no scan since launch yet"}</div>}

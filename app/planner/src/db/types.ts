@@ -1407,6 +1407,58 @@ isOneToOne: false
       referencedColumns: ["id","world_id"]
     }
                   ]
+                },"scan_rival_connections": {
+                  Row: {
+                    "airline_id": number,"best_gap_min": number,"dest": string,"origin": string,"scan_id": number,"via": string,"weekly_departures": number,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"best_gap_min": number,"dest": string,"origin": string,"scan_id": number,"via": string,"weekly_departures": number,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"best_gap_min"?: number,"dest"?: string,"origin"?: string,"scan_id"?: number,"via"?: string,"weekly_departures"?: number,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "scan_rival_connections_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "scan_rival_connections_scan_world_fkey"
+      columns: ["scan_id","world_id"]
+isOneToOne: false
+      referencedRelation: "game_scans"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
+                },"scan_rival_connections_week": {
+                  Row: {
+                    "airline_id": number,"airport_a": string,"airport_b": string,"scan_id": number,"vias": NonNullable<Json>,"weekly_a_to_b": number,"weekly_b_to_a": number,"weekly_departures": number,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"airport_a": string,"airport_b": string,"scan_id": number,"vias"?: NonNullable<Json>,"weekly_a_to_b"?: number,"weekly_b_to_a"?: number,"weekly_departures": number,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"airport_a"?: string,"airport_b"?: string,"scan_id"?: number,"vias"?: NonNullable<Json>,"weekly_a_to_b"?: number,"weekly_b_to_a"?: number,"weekly_departures"?: number,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "scan_rival_connections_week_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "scan_rival_connections_week_scan_world_fkey"
+      columns: ["scan_id","world_id"]
+isOneToOne: false
+      referencedRelation: "game_scans"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
                 },"service_profiles": {
                   Row: {
                     "airline_id": number | null,"code": string,"created_at": string,"id": number,"note": string | null,"up_to_km": number | null,"updated_at": string,"world_id": number

@@ -928,7 +928,13 @@ export interface StoryEvent {
   now?: number;
 }
 export type StoryFare = Omit<LadderRoute, "route_id" | "hub" | "dest">;
-export interface StoryRival { airline_id: number; name: string; weekly: number; weekly_before: number | null; change: number | null }
+/** A connecting airport and the departures a week through it (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md). */
+export interface StoryVia { via: string; weekly: number }
+export interface StoryRival {
+  airline_id: number; name: string; weekly: number; weekly_before: number | null; change: number | null;
+  /** Since 23 Oct: its one-stop departures a week on the pair in the latest scan, beside weekly and never added to it. */
+  connecting_weekly?: number; connecting_via?: StoryVia[];
+}
 export interface StoryShare { scan_id: number; taken_at: string; ours: number; rivals: number; share: number | null }
 export interface ScanRef { id: number; taken_at: string }
 export interface RouteStory {
@@ -958,6 +964,11 @@ export interface RouteStory {
     ours: number; rivals_weekly: number; share: number | null;
     ours_before: number | null; rivals_before: number | null; share_before: number | null;
     airlines: StoryRival[]; shares: StoryShare[];
+    /** Since 23 Oct, when the latest scan has them worked out: every rival's connecting departures on the pair, the rivals
+     *  that only connect, and each rival's at each scan read. */
+    connecting_weekly?: number;
+    connecting_only?: StoryRival[];
+    connecting_scans?: { scan_id: number; taken_at: string; weekly: number; airlines: { airline_id: number; name: string; weekly: number; via: StoryVia[] }[] }[];
   };
   scans: { latest: ScanRef | null; week_before: ScanRef | null; since_launch: ScanRef[] };
   notes: string[];
@@ -1141,13 +1152,23 @@ export function weekBars(s: RouteStory, nice: (day: string) => string): { x: str
 }
 
 /** The rivals on the pair in words: each rival with its departures a week and its change against the week-before scan,
- *  ours and our share, and which scans. */
+ *  ours and our share, and which scans. Since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md §4) each with its
+ *  connecting departures and airports in a column of its own (never added to direct), the rivals that only connect after
+ *  those that fly it, and a line with the connecting total; none of it when the scan has no connections worked out. */
 export function rivalLines(s: RouteStory, day: (iso: string) => string) {
   const r = s.rivals;
   const change = (v: number | null): string => (v == null ? "" : v > 0 ? `▲ ${v}` : v < 0 ? `▼ ${-v}` : "=");
+  const conn = r.connecting_weekly != null;
+  const via = (v: readonly StoryVia[] | undefined): string => (v?.length ? `via ${v.map((x) => x.via).join(", ")}` : "");
+  const row = (a: StoryRival, only: boolean) => ({
+    id: a.airline_id, name: a.name, weekly: only ? "—" : String(a.weekly), change: only ? "" : change(a.change), before: only ? null : a.weekly_before,
+    connecting: conn ? String(a.connecting_weekly ?? 0) : null, via: conn ? via(a.connecting_via) : "", only,
+  });
   return {
-    none: !r.airlines.length,
-    rows: r.airlines.map((a) => ({ id: a.airline_id, name: a.name, weekly: a.weekly, change: change(a.change), before: a.weekly_before })),
+    none: !r.airlines.length && !(r.connecting_only ?? []).length,
+    connecting: conn,
+    rows: [...r.airlines.map((a) => row(a, false)), ...(conn ? (r.connecting_only ?? []).map((a) => row(a, true)) : [])],
+    connectingLine: conn ? `rivals ${r.rivals_weekly} direct · ${r.connecting_weekly} connecting a week, shown apart and never added together` : null,
     ours: `ours ${r.ours} a week${r.share != null ? `, ${pct1(r.share)} of the pair` : ""}${r.share_before != null ? ` (${pct1(r.share_before)} in the week-before scan)` : ""}`,
     scans: r.scan ? `latest scan ${day(r.scan.taken_at)}${r.week_before ? `, against ${day(r.week_before.taken_at)}` : ", the only one"}` : "no world scan yet",
   };

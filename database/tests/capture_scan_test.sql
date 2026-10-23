@@ -241,11 +241,17 @@ declare a bigint := (select (v #>> '{}')::bigint from t_cs where k = 'a'); b big
   w bigint := (select (v #>> '{}')::bigint from t_cs where k = 'w'); dw bigint := (select id from public.worlds where is_default);
   ours bigint := (select (v #>> '{}')::bigint from t_cs where k = 'ours_id'); x jsonb; y jsonb; got text;
 begin
-  -- the scans: each in its world, finished, with the same week and note
-  assert (select jsonb_agg(jsonb_build_array(s.world_id = case when s.id = a then dw else w end, s.status, s.week, s.note) order by s.id)
+  -- the scans: each in its world, finished, with the same week and note (since 23 Oct the finish adds the rivals'
+  -- connections on our pairs to the note, spec docs/specs/2026-10-23-rival-connections.md §2: none here in the key's
+  -- world, which has no routes; the default world's depend on the copy's routes, so only their form is checked)
+  assert (select jsonb_agg(jsonb_build_array(s.world_id = case when s.id = a then dw else w end, s.status, s.week,
+                                             case when s.id = a then regexp_replace(s.note, ' · connections: \d+ rivals on \d+ of our pairs$', '') else s.note end) order by s.id)
             from public.game_scans s where s.id in (a, b))
-         = '[[true, "done", "43", "full scan: 3 enterprises, 1 airports"], [true, "done", "43", "full scan: 3 enterprises, 1 airports"]]'::jsonb,
-    'the two scans aren''t each in its world, finished, with the week and note sent';
+         = '[[true, "done", "43", "full scan: 3 enterprises, 1 airports"], [true, "done", "43", "full scan: 3 enterprises, 1 airports · connections: 0 rivals on 0 of our pairs"]]'::jsonb,
+    'the two scans aren''t each in its world, finished, with the week and note sent (and the connections'' count): '
+      || (select jsonb_agg(s.note order by s.id) from public.game_scans s where s.id in (a, b))::text;
+  assert (select s.note ~ '^full scan: 3 enterprises, 1 airports · connections: \d+ rivals on \d+ of our pairs$' from public.game_scans s where s.id = a),
+    'the default world''s scan note doesn''t end with its connections'' count';
   -- the airlines' totals, by game ID, exactly as ingest_snapshot() made them (the airlines row aside: its world differs)
   select jsonb_agg(jsonb_build_array(t.enterprise_id, t.name, t.n_flights, t.n_weekly, t.n_airports, t.position, al.game_id, al.world_id = t.world_id) order by t.enterprise_id)
     into x from public.game_scan_airlines t join public.airlines al on al.id = t.airline_id where t.scan_id = a;

@@ -143,6 +143,21 @@ begin
                                                      else x - 'order_flags' end order by i)
                                               from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
   end if;
+  -- rivals' connections (20261023140000) add each competitor's connecting_weekly, connecting_pairs and connecting_via to
+  -- the figures on purpose (rival_connections_test.sql checks them): while it is pending (no competitor in the figures
+  -- before has connecting_weekly), exactly those are left out here, so the rest must still be exactly as before. Once it
+  -- is live, the figures before carry them too and nothing is left out.
+  if not exists (select 1 from jsonb_array_elements(b -> 'airlines') x
+                  cross join lateral jsonb_array_elements(case when jsonb_typeof(x -> 'competitors') = 'array' then x -> 'competitors' else '[]'::jsonb end) c
+                  where c ? 'connecting_weekly') then
+    a := jsonb_set(a, '{airlines}', coalesce((select jsonb_agg(
+                                                case when x ? 'competitors' and jsonb_typeof(x -> 'competitors') = 'array'
+                                                     then jsonb_set(x, '{competitors}',
+                                                                    coalesce((select jsonb_agg(c - array['connecting_weekly', 'connecting_pairs', 'connecting_via'] order by j)
+                                                                                from jsonb_array_elements(x -> 'competitors') with ordinality f(c, j)), '[]'::jsonb))
+                                                     else x end order by i)
+                                              from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
+  end if;
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;

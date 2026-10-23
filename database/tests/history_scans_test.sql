@@ -166,7 +166,9 @@ begin
   assert (select count(*) from public.change_log l where l.id > (select v::bigint from t_scan where k = 'log_from')
             and l.table_name = 'airlines' and l.op = 'insert' and l.actor = 'script' and l.actor_detail = 'ingest_snapshot') = 3,
     'the added airlines weren''t logged as the script';
-  assert exists (select 1 from public.game_scans where id = v_id and world_id = w and status = 'done' and week = 'W99' and note = 'history test, finished'),
+  -- since 23 Oct the finish adds the rivals' connections on our pairs to the note (spec docs/specs/2026-10-23-rival-connections.md §2)
+  assert exists (select 1 from public.game_scans where id = v_id and world_id = w and status = 'done' and week = 'W99'
+                   and note ~ '^history test, finished · connections: \d+ rivals on \d+ of our pairs$'),
     'the scan isn''t in game_scans, finished, with its world';
   assert (select count(*) from public.game_scan_airlines where scan_id = v_id) = 2
      and exists (select 1 from public.game_scan_airlines where scan_id = v_id and airline_id = v_rival and enterprise_id = 999555 and n_weekly = 15)

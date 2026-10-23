@@ -77,8 +77,9 @@ begin
   -- cabin charge check, cabin_charge_check_from) adds, the two 20261022060000 (stations) adds and the three
   -- 20261022090000 (the aircraft age check: replace_new_years, replace_used_years, replace_warn_days) adds, the five
   -- 20261023100000 (the fare ladder under launch: fare_under_launch_load_pct, _levels, _days, _min_flights and
-  -- _decide_load_pct, with Ryanair's own _levels) adds and the two 20261023120000 (rivals' fleets: rival_orders_flag_pct,
-  -- rival_orders_flag_min) adds, which are new in it: they're checked, then taken out (from the
+  -- _decide_load_pct, with Ryanair's own _levels) adds, the two 20261023120000 (rivals' fleets: rival_orders_flag_pct,
+  -- rival_orders_flag_min) adds and the one 20261023140000 (rivals' connections: rival_connection_detour_max) adds, which
+  -- are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
   d_cmp := d_all;
@@ -96,7 +97,7 @@ begin
                              'replace_new_years', 'replace_used_years', 'replace_warn_days',
                              'fare_under_launch_load_pct', 'fare_under_launch_levels', 'fare_under_launch_days',
                              'fare_under_launch_min_flights', 'fare_under_launch_decide_load_pct',
-                             'rival_orders_flag_pct', 'rival_orders_flag_min'] loop
+                             'rival_orders_flag_pct', 'rival_orders_flag_min', 'rival_connection_detour_max'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

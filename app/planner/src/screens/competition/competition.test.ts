@@ -4,7 +4,8 @@
 // variant, hubs first), a profile's line, and Today's threat items (the latest scan's only, each with its key and words,
 // linking to Competition). Since 23 Oct (spec docs/specs/2026-10-23-planner-look-competition.md) the page's answers (the
 // titles), a tile's top opening, a threat's move in short, the threats newest first and the rows' counts. Since 23 Oct (spec
-// docs/specs/2026-10-23-rival-fleets.md §5) a rival's fleet line and top types, and the group's order books. Every figure itself is competition()'s (database/tests/competition_test.sql).
+// docs/specs/2026-10-23-rival-fleets.md §5) a rival's fleet line and top types, and the group's order books; and (spec
+// docs/specs/2026-10-23-rival-connections.md §4) the rivals' connecting departures beside direct. Every figure itself is competition()'s (database/tests/competition_test.sql).
 import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { readFileSync } from "node:fs";
@@ -16,6 +17,7 @@ import {
   scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer,
   type Market, type Opening,
   type Threat, fleetWords, fleetTypesWords, orderBooks, orderBookWords, meetsWords, orderBooksRowWords, type Fleet, type OrderFlag,
+  connectingLine, connectingRivalsWords, directConnectingWords, viaWords,
 } from "./model";
 
 const scan = (id: number, at: string) => ({ id, taken_at: at });
@@ -223,5 +225,28 @@ describe("rivals' fleets and the order books (23 Oct, spec docs/specs/2026-10-23
     expect(meetsWords(["PA", "KF"])).toBe("meets PA, KF");
     expect(meetsWords([])).toBe("meets none of our airlines");
     expect([orderBooksRowWords(0), orderBooksRowWords(1), orderBooksRowWords(3)]).toEqual(["none", "1 rival", "3 rivals"]);
+  });
+});
+
+describe("rivals' connecting departures (23 Oct, spec docs/specs/2026-10-23-rival-connections.md §4)", () => {
+  it("direct beside connecting, never one total, and the direct alone when none were worked out", () => {
+    expect(directConnectingWords(3, { connecting_weekly: 14 })).toBe("3 direct · 14 connecting");
+    expect(directConnectingWords(0, { connecting_weekly: 0 })).toBe("0 direct · 0 connecting");
+    expect(directConnectingWords(1540, {})).toBe("1,540 direct");
+    expect(directConnectingWords(null, undefined)).toBe("0 direct");
+  });
+  it("the connecting airports and a card's connecting line", () => {
+    expect(viaWords([{ via: "KEF", weekly: 14 }, { via: "LHR", weekly: 3 }])).toBe("via KEF 14, LHR 3");
+    expect(viaWords([])).toBe("");
+    expect(connectingLine({ connecting_weekly: 17, connecting_via: [{ via: "KEF", weekly: 14 }, { via: "LHR", weekly: 3 }] })).toBe("17 connecting a week via KEF 14, LHR 3");
+    expect(connectingLine({ connecting_weekly: 0, connecting_via: [] })).toBeNull();
+    expect(connectingLine(market())).toBeNull();
+  });
+  it("an opening's connecting rivals: the top two with their main airport, then how many more", () => {
+    const c = [{ airline_id: 1, name: "Icelandair", weekly: 14, via: [{ via: "KEF", weekly: 14 }] }, { airline_id: 2, name: "Aer Lingus", weekly: 5, via: [{ via: "DUB", weekly: 5 }] },
+               { airline_id: 3, name: "Play", weekly: 2, via: [] }];
+    expect(connectingRivalsWords(opening({ connecting: c }))).toBe("Icelandair 14 via KEF, Aer Lingus 5 via DUB +1 more");
+    expect(connectingRivalsWords(opening({ connecting: c.slice(2) }))).toBe("Play 2");
+    expect(connectingRivalsWords(opening())).toBe("");
   });
 });

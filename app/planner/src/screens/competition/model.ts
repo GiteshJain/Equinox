@@ -1,10 +1,15 @@
 // Competition's logic (spec docs/specs/2026-10-21-competition-analysis.md §3): the words for the scans, the group line,
 // each market's share with its arrow and its top rivals as a bar, the threats, the openings table and the rival profiles,
 // and Today's threat items; since 23 Oct (spec docs/specs/2026-10-23-rival-fleets.md §5) each rival's fleet and the
-// order books. Every figure is competition()'s (the database's, private.fig_competition()): this file only
-// words and orders them.
+// order books, and (spec docs/specs/2026-10-23-rival-connections.md §4) the rivals' connecting departures beside direct.
+// Every figure is competition()'s (the database's, private.fig_competition()): this file only words and orders them.
 
 // ---------- competition()'s answer
+/** A connecting airport and the departures a week through it (since 23 Oct). */
+export interface Via { via: string; weekly: number }
+/** Rivals' one-stop connecting departures a week, beside direct and never added to it (since 23 Oct, spec
+ *  docs/specs/2026-10-23-rival-connections.md §3): absent when the latest scan has none worked out. */
+export interface Connecting { connecting_weekly?: number; connecting_via?: Via[] }
 export interface ScanRef { id: number; taken_at: string }
 export interface Scans { latest: ScanRef | null; week_before: ScanRef | null; previous: ScanRef | null }
 export interface GroupLine {
@@ -19,6 +24,7 @@ export interface Market {
   rivals: number; rivals_before: number | null; rivals_change: number | null; total: number;
   share: number | null; share_before: number | null; share_change: number | null;
   top: MarketRival[];
+  connecting_weekly?: number; connecting_via?: Via[];
 }
 export interface Threat {
   rival_id: number; rival: string; pair: string; route: string; hub: string; dest: string; kind: "started" | "added";
@@ -43,6 +49,9 @@ export interface Opening {
    *  22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §2): the type and the words, "or the E190-E2 if thin". */
   variant_alt?: string | null;
   variant_note?: string | null;
+  /** Since 23 Oct: the rivals' connecting departures on the pair, and each rival's own with its airports. */
+  connecting_weekly?: number; connecting_via?: Via[];
+  connecting?: { airline_id: number; name: string; weekly: number; via: Via[] }[];
 }
 /** A rival's fleet from its overview page in the latest scan (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §4):
  *  its size, aircraft on order, average age, its 5 biggest types, and the change against the week-before scan (null when
@@ -66,6 +75,8 @@ export interface Profile {
   biggest_airports: { code: string; weekly: number }[];
   /** Since 23 Oct; absent in an answer from before. */
   fleet?: Fleet | null;
+  /** Since 23 Oct: its connecting departures on the airline's pairs, beside weekly_on_pairs. */
+  connecting_weekly?: number; connecting_pairs?: number; connecting_via?: Via[];
 }
 export interface CompetitionAnswer {
   airline_id: number; code: string | null; name: string | null; as_of: string; limit: number;
@@ -231,6 +242,32 @@ export function fleetTypesWords(f: Fleet | null | undefined): string | null {
   const more = f.types_count > f.types.length ? ` +${f.types_count - f.types.length} more` : "";
   return f.types.map((t) => `${t.type} ${n0(t.overall)}${t.on_order ? ` (${n0(t.on_order)} on order)` : ""}`).join(" · ") + more;
 }
+// ---------- connecting departures (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md §4)
+/** The connecting airports in short: "via KEF 14, LHR 3". */
+export function viaWords(v: readonly Via[] | null | undefined): string {
+  return v?.length ? `via ${v.map((x) => `${x.via} ${n0(x.weekly)}`).join(", ")}` : "";
+}
+/** Direct beside connecting, never one total: "3 direct · 14 connecting", or the direct alone when the scan has no
+ *  connections worked out. */
+export function directConnectingWords(direct: number | null | undefined, c: Connecting | null | undefined): string {
+  const d = `${n0(direct ?? 0)} direct`;
+  return c?.connecting_weekly == null ? d : `${d} · ${n0(c.connecting_weekly)} connecting`;
+}
+/** A connecting line for a market card, profile or competitor: "14 connecting a week via KEF 14", or none when there are
+ *  none (or none worked out). */
+export function connectingLine(c: Connecting | null | undefined): string | null {
+  if (!c?.connecting_weekly) return null;
+  const via = viaWords(c.connecting_via);
+  return `${n0(c.connecting_weekly)} connecting a week${via ? ` ${via}` : ""}`;
+}
+/** An opening's connecting rivals in short: "Icelandair 14 via KEF", the top two, "+1 more". */
+export function connectingRivalsWords(o: Pick<Opening, "connecting">, top = 2): string {
+  const c = o.connecting ?? [];
+  if (!c.length) return "";
+  const head = c.slice(0, top).map((r) => `${r.name} ${n0(r.weekly)}${r.via[0] ? ` via ${r.via[0].via}` : ""}`).join(", ");
+  return c.length > top ? `${head} +${c.length - top} more` : head;
+}
+
 /** The group's order books: the world's flags (the same in every airline's answer), biggest share first (starting, with no
  *  fleet yet, first), each with the codes of our airlines it meets. */
 export function orderBooks(answers: readonly (CompetitionAnswer | undefined)[]): (OrderFlag & { meets_codes: string[] })[] {

@@ -352,6 +352,15 @@ def fleet_cell(x):
     return out
 
 
+def connecting_cell(x):
+    """A competitor's one-stop departures a week on the airline's pairs (since 23 Oct): 14 via KEF, LHR; never added to direct."""
+    n = x.get("connecting_weekly")
+    if n is None:
+        return "—"
+    via = ", ".join(esc(v.get("via")) for v in (x.get("connecting_via") or []) if v.get("via"))
+    return f"{n:,}" + (f'<br/><font size="7">via {via}</font>' if n and via else "")
+
+
 section("COMPETITION — AGAINST OUR RIVALS", "competitors", "Each airline against its three biggest competitors.")
 CP = next((a["competitors"] for a in AL if a.get("competitors")), None)
 story.append(P("For each airline, the three outside airlines with the most departures a week on its own city pairs in the "
@@ -359,7 +368,11 @@ story.append(P("For each airline, the three outside airlines with the most depar
                "each flight's days both ways, passenger flights only; freighters and our own airlines are no one's rivals here. Growth is "
                + (f"against the scan of {day(CP['week_before'])}" if CP and CP.get("week_before") else "against the scan a week before")
                + ". Fleet: each rival's aircraft and aircraft on order from its overview page in the same scan, with the change in "
-               "aircraft on order over the week. From competition() in the database's figures.", "small"))
+               "aircraft on order over the week."
+               + (" Connecting: each rival's one-stop departures a week on the same pairs (same airline, a sensible routing, the "
+                  "second flight within 8 hours), with its connecting airports, shown beside direct and never added to it."
+                  if CP and CP.get("connecting") else "")
+               + " From competition() in the database's figures.", "small"))
 for a in AL:
     cp = a.get("competitors")
     part = [P(f"{esc(a['name'])}: against its three biggest competitors", "h2")]
@@ -368,15 +381,21 @@ for a in AL:
     else:
         me = cp["self"]
         fl = cp.get("fleets")   # each rival's fleet, since 23 Oct (none in older figures)
-        rows = [["Airline", "Departures a week on its city pairs", "Of its city pairs", "Departures a week, all", "Airports", "Growth over the week"]
-                + (["Fleet"] if fl else []),
-                [f"<b>{esc(a['name'])}</b>", f"<b>{num(me.get('on_pairs'))}</b>",
-                 f"{num(me.get('pairs'))} of {num(me.get('pairs_flown'))}", num(me.get("weekly")), num(me.get("airports")), growth(me)] + (["—"] if fl else [])]
+        cn = cp.get("connecting")   # each rival's connecting departures beside direct, since 23 Oct (none in older figures)
+        rows = [["Airline", "Departures a week on its city pairs"] + (["Connecting a week (not added)"] if cn else [])
+                + ["Of its city pairs", "Departures a week, all", "Airports", "Growth over the week"] + (["Fleet"] if fl else []),
+                [f"<b>{esc(a['name'])}</b>", f"<b>{num(me.get('on_pairs'))}</b>"] + (["—"] if cn else [])
+                + [f"{num(me.get('pairs'))} of {num(me.get('pairs_flown'))}", num(me.get("weekly")), num(me.get("airports")), growth(me)] + (["—"] if fl else [])]
         for x in cp["top"]:
-            rows.append([esc(x.get("name")), num(x.get("on_pairs")), num(x.get("pairs")), num(x.get("weekly")), num(x.get("airports")),
-                         growth(x) if x.get("weekly_before") is not None or not cp.get("week_before") else "not in that scan"] + ([fleet_cell(x)] if fl else []))
-        widths = ([1.55 * inch, 0.95 * inch, 0.7 * inch, 0.95 * inch, 0.6 * inch, 1.1 * inch, 1.1 * inch] if fl
-                  else [1.9 * inch, 1.05 * inch, 0.8 * inch, 1.05 * inch, 0.65 * inch, 1.55 * inch])
+            rows.append([esc(x.get("name")), num(x.get("on_pairs"))] + ([connecting_cell(x)] if cn else [])
+                        + [num(x.get("pairs")), num(x.get("weekly")), num(x.get("airports")),
+                           growth(x) if x.get("weekly_before") is not None or not cp.get("week_before") else "not in that scan"] + ([fleet_cell(x)] if fl else []))
+        if cn:   # the connecting column beside direct: 7 inches across, as without it
+            widths = ([1.3 * inch, 0.85 * inch, 0.85 * inch, 0.65 * inch, 0.85 * inch, 0.55 * inch, 0.95 * inch, 1.0 * inch] if fl
+                      else [1.6 * inch, 0.95 * inch, 0.95 * inch, 0.7 * inch, 0.95 * inch, 0.6 * inch, 1.25 * inch])
+        else:
+            widths = ([1.55 * inch, 0.95 * inch, 0.7 * inch, 0.95 * inch, 0.6 * inch, 1.1 * inch, 1.1 * inch] if fl
+                      else [1.9 * inch, 1.05 * inch, 0.8 * inch, 1.05 * inch, 0.65 * inch, 1.55 * inch])
         part += [table(rows, widths), Spacer(1, 2), P(against_words(a, cp), "body")]
     story.append(KeepTogether(part))
 story.append(PageBreak())
