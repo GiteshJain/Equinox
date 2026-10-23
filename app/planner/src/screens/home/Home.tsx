@@ -1,9 +1,13 @@
 // Home (decision #18, build pull request 5; spec docs/specs/2026-10-13-home.md, and the Building chat's review): the
 // network at a glance, as the old planner's Home shows it, from the same data, with the same figures and look. Above the
 // page, the operations hero (the globe, aircraft in the air and four tiles), which on the old Home stands in for the page
-// heading and the key-figure row (that row stays in the page, hidden, as there); then the network map, aircraft on order
-// and the airline cards. Needs attention, Coming up and the to-do board moved to Today on 20 Oct (spec
+// heading and the key-figure row (that row stays in the page, hidden, as there); then needs attention's summary cards,
+// the network map and the airline cards. Needs attention, Coming up and the to-do board moved to Today on 20 Oct (spec
 // docs/specs/2026-10-20-today-performance-systems.md), and File into planner with them, so each thing lives in one place.
+// Since 23 Oct (spec docs/specs/2026-10-23-attention-on-home.md) needs attention's summary cards are here, not on Today:
+// one per thing waiting, exactly as Today showed them (today/model.ts's waitingCards, on the reads and figures Today
+// uses, today/useAttention.ts), each See all opening its group's section on Today (/planner/today#att-<kind>); with
+// nothing waiting, one line says so. Aircraft on order went the same day: Today's Orders and delivery lines show it.
 // Every figure comes from its one home (decision #19): the planning library on rules_input(world, 'flown') for the key
 // figures, the hero, positions and the airline cards; the database's captured figures for the group's average load and
 // the loads per route; the tables for the rest. Home only words and arranges them. It moves on with the clock each
@@ -14,13 +18,11 @@ import { positions, summary } from "@rules";
 import { useNow } from "../../data/clock";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
-import { AirlineMark } from "../../ui/AirlineMark";
-import { Board } from "../../ui/Board";
-import { niceDate, untilText } from "../../ui/dates";
+import type { AttItem } from "../../ui/attention";
+import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
-import { Pill } from "../../ui/Pill";
 import { RoutePopup } from "../routes/RoutePopup";
-import { itemRoute } from "../screens";
+import { screen } from "../screens";
 import { gameMaintenance } from "../systems/model";
 import { useFleetChecks } from "../systems/reads";
 import { AircraftPopup } from "../tails/AircraftPopup";
@@ -30,8 +32,9 @@ import { greeting, heroFigures, keyFigureTiles } from "./figures";
 import { Hero } from "./Hero";
 import type { HeroPlane, HeroRoute, LatLon } from "./heroScene";
 import { NetworkMap } from "./NetworkMap";
-import { familyWords, onOrder } from "./onOrder";
-import { useAirlineCards, useHomeAircraft, usePlanCards, useSitePhotos } from "./reads";
+import { useAirlineCards, useHomeAircraft, useSitePhotos } from "./reads";
+import { waitingCards, type WaitCard } from "../today/model";
+import { opensAircraft, useAttention } from "../today/useAttention";
 
 const first = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -42,7 +45,6 @@ export function Home() {
   const airlinesQ = useOurAirlines(w);
   const rulesQ = useRules(w);
   const aircraftQ = useHomeAircraft(w);
-  const planCardsQ = usePlanCards(w);
   const cardsQ = useAirlineCards(w);
   const photosQ = useSitePhotos();
   // the game's maintenance from the latest night's fleet pages (fleet_checks(), the read Tails and its pop-up share): the
@@ -70,7 +72,15 @@ export function Home() {
   const figures = useMemo(() => (rules ? summary.keyFigures(rules) : null), [rules]);
   const cards = useMemo(() => (rules ? summary.airlineCards(rules) : null), [rules]);
   const nowFigures = useMemo(() => (rules ? summary.now(rules, now.toISOString()) : null), [rules, now]);
-  const ready = !!(rules && cardsQ.data && aircraftQ.data && planCardsQ.data && airlinesQ.data);
+  // needs attention's summary cards (Today's until 23 Oct): the same reads and figures as Today's sections
+  const today = todayAt(now);
+  const att = useAttention(now, today);
+  const waiting: WaitCard[] | null = att.ready && att.orders && att.filing && att.attShown && att.todosQ.data ? waitingCards({
+    orders: att.orders, toFile: att.filing, attention: att.attShown.shown, todos: att.todosQ.data, game: 0, today, hrefOf: att.hrefOf,
+    screenName: (a) => screen(a.screen).name,
+  }) : null;
+  const openAircraft = (a: AttItem) => { if (!opensAircraft(a) || !a.tail) return false; setTailPopup(a.tail); return true; };
+  const ready = !!(rules && cardsQ.data && aircraftQ.data && airlinesQ.data && waiting);
 
   // the hero's globe: every flying route, and each aircraft in the air at this minute (the library's positions)
   const coords = useMemo(() => {
@@ -92,7 +102,7 @@ export function Home() {
       return a && b && p.share != null ? [{ a, b, share: p.share }] : [];
     }), [rules, now, coords]);
 
-  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, planCardsQ, cardsQ);
+  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, cardsQ) ?? att.loadError;
   return (
     <>
       <Hero figures={nowFigures ? heroFigures(nowFigures, cardsQ.data) : null} hello={greeting(now)} routes={heroRoutes} planes={planes} now={now} />
@@ -107,13 +117,11 @@ export function Home() {
           )) : null}
         </div>
 
+        <AttentionCards cards={waiting} onOpen={openAircraft} />
+
         <NetworkMap rules={rules} airlines={airlines} now={now} worldId={w} aircraft={aircraftQ.data} onOpenRoute={setPopup} />
         {popup != null && rules ? <RoutePopup routeId={popup} rules={rules} airlines={airlines} onClose={() => setPopup(null)} /> : null}
         {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
-
-        {aircraftQ.data && rules && planCardsQ.data
-          ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Map(planCardsQ.data.map((p) => [p.aircraft_id, p.title] as const)), airlines, now.getTime())} now={now.getTime()} />
-          : null}
 
         {cards && rules ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} rules={rules} game={gameMaint} /> : null}
       </main>
@@ -121,50 +129,37 @@ export function Home() {
   );
 }
 
-/** Aircraft on order, by airline: an arrived one with a plan card is filed from Today (its File into planner moved there
- *  on 20 Oct). */
-function OnOrderBoard({ data, now }: { data: ReturnType<typeof onOrder>; now: number }) {
-  if (!data.count) return null;
+/** Needs attention's summary cards (Today's until 23 Oct, spec docs/specs/2026-10-23-attention-on-home.md): one per
+ *  thing waiting, the most urgent first, each with its button (where it's fixed, or See all, which opens its group's
+ *  section on Today); with nothing waiting, one line says so, as Today's did. Home doesn't run the game check, so its
+ *  differences are Today's alone. */
+function AttentionCards({ cards, onOpen }: { cards: readonly WaitCard[] | null; onOpen: (a: AttItem) => boolean }) {
+  if (!cards) return <section className="waitgrid homeatt" aria-label="Needs attention" data-figure="home: needs attention cards"><div className="loading">Loading…</div></section>;
+  if (!cards.length) {
+    return (
+      <section className="waitgrid homeatt" aria-label="All clear" data-figure="home: needs attention cards">
+        <div className="wcard clear" data-wait-card="clear">
+          <span className="wkind">All clear</span>
+          <h2 className="wh">Nothing to order or file, and nothing needs attention.</h2>
+        </div>
+      </section>
+    );
+  }
   return (
-    <Board title="Aircraft on order" className="oob" figure="home: aircraft on order"
-      note={`${data.count} aircraft · one that has arrived with a plan card is filed from Today`}>
-      <div className="gsum">
-        {data.groups.map((g) => <span className="gchip" key={g.airline.id} data-oo-count={g.airline.name}><AirlineMark color={g.airline.color} />{g.airline.name} <b>{g.rows.length}</b></span>)}
-      </div>
-      {data.groups.map((g) => {
-        const next = g.rows[0], last = g.rows[g.rows.length - 1];
-        const day = (ms: number) => (Number.isFinite(ms) ? new Date(ms).toISOString() : "");
-        return (
-          <details className="gsec" key={g.airline.id} data-oo-airline={g.airline.name}>
-            <summary>
-              <AirlineMark color={g.airline.color} /><b>{g.airline.name}</b>{" "}
-              <span className="dim" data-oo-summary>
-                {g.rows.length} on order ({g.families.map(familyWords).join(", ")}) · next {next?.registration} {next ? untilText(next.at, now) : ""} · last {last ? niceDate(day(last.at).slice(0, 10)) : ""}
-              </span>
-              {g.arrived ? <> <Pill kind="warn" small>{g.arrived} to file</Pill></> : null}
-            </summary>
-            <div className="tblwrap">
-              <table className="tbl gtbl">
-                <thead><tr><th>Aircraft</th><th>Type</th><th>Delivers (UTC)</th><th></th><th>Base</th><th>Plan</th><th></th></tr></thead>
-                <tbody>
-                  {g.rows.map((r) => (
-                    <tr key={r.id} data-oo-row={r.registration}>
-                      <td><b>{r.registration}</b></td>
-                      <td>{r.type}{r.config ? <> <span className="dim">{r.config}</span></> : null}</td>
-                      <td>{niceDate(day(r.at).slice(0, 10))} {day(r.at).slice(11, 16)}</td>
-                      <td>{r.arrived ? <Pill kind="warn" small>arrived</Pill> : <span className="dim">{untilText(r.at, now)}</span>}</td>
-                      <td>{r.base}</td>
-                      <td className="dim">{r.plan}</td>
-                      <td className="n ooact">{r.hasCard ? (r.arrived ? <Link className="link" to={itemRoute("today", { hash: "to-file" })}>to file on Today</Link> : null)
-                        : <span className="dim">no plan card</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        );
-      })}
-    </Board>
+    <section className="waitgrid homeatt" aria-label="Needs attention" data-figure="home: needs attention cards">
+      {cards.map((c) => (
+        <div className={"wcard " + c.kind + (c.urgent ? " urgent" : "")} key={c.key} data-wait-card={c.kind}>
+          <span className="wkind">{c.label}</span>
+          <h2 className="wh">{c.heading}</h2>
+          {c.detail ? <p className="wd">{c.detail}</p> : null}
+          <div className="wact">
+            {c.action.href ? (
+              <Link className={"primary" + (c.urgent ? " now" : "")} to={c.action.href} data-wait-href={c.action.href}
+                onClick={(e) => { if (c.action.item && onOpen(c.action.item)) e.preventDefault(); }}>{c.action.text}</Link>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }

@@ -6,9 +6,11 @@
 // (route_loads(): 95%+ green, 85 amber, 70 orange, under that red, grey without loads). + and − zoom, ⟲ shows the whole
 // world, the wheel zooms where it points, and a zoomed map drags. Planned adds, dashed, the routes on the plan cards of
 // aircraft not yet in service. Hovering a line or a dot names it. A route opens its pop-up (Routes' RoutePopup, as the
-// old map's routeModal, since build pull request 6); a planned route opens its aircraft in "Aircraft on order" (the old
-// map's plan-card pop-up belongs to the plan cards, not rebuilt yet).
+// old map's routeModal, since build pull request 6); a planned route opens its aircraft's plan card on Tails
+// (/tails?airline=PA&card=N023AW, as the search opens it; Home's "Aircraft on order", which it opened until 23 Oct, went
+// then, spec docs/specs/2026-10-23-attention-on-home.md).
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent, type ReactElement } from "react";
+import { useNavigate } from "react-router";
 import { banks, summary, type Rules } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { loadWorld } from "../../ui/siteFiles";
@@ -25,6 +27,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
   /** A route's line clicked: its pop-up opens. */
   onOpenRoute: (routeId: number) => void;
 }) {
+  const navigate = useNavigate();
   const [only, setOnly] = useState<number | null>(null);
   const [view, setView] = useState<MapView | null>(null);
   const [planned, setPlanned] = useState(false);
@@ -132,10 +135,8 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
     if (!el) return;
     const reg = el.getAttribute("data-reg");
     if (reg) {
-      const row = document.querySelector(`[data-oo-row="${CSS.escape(reg)}"]`);
-      const det = row?.closest("details");
-      if (det) det.open = true;
-      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const code = airlines.find((a) => a.id === aircraft?.find((x) => x.registration === reg)?.airline_id)?.code;
+      navigate("/tails?" + new URLSearchParams({ ...(code ? { airline: code } : {}), card: reg }).toString());
       return;
     }
     const r = flying.find((x) => String(x.id) === el.getAttribute("data-route-id"));
@@ -174,7 +175,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
       const d = gcPath(a.at, b.at);
       parcs.push(<path key={key} d={d} stroke={colorOf(ac.airline_id)} vectorEffect="non-scaling-stroke" />);
       hits.push(<path key={"p" + key} className="hit" d={d} data-reg={ac.registration}
-        data-tip={`${l.origin_code}–${l.dest_code} · ${nameOf(ac.airline_id)} · planned for ${ac.registration} · see it in Aircraft on order`} />);
+        data-tip={`${l.origin_code}–${l.dest_code} · ${nameOf(ac.airline_id)} · planned for ${ac.registration} · click for its plan card`} />);
       for (const c of [l.origin_code, l.dest_code]) if (!aps.has(c)) aps.set(c, 0);
     }
   }

@@ -11,9 +11,10 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
 1. Sign-in through the new planner's own form, as staff; the account that isn't staff is refused and signed out, with
    the old planner's message; opening the planner writes nothing (no change_log row, no table's row count changes).
 2. Every screen has its boards (the screens grouped by when they're used since 20 Oct, spec
-   docs/specs/2026-10-20-today-performance-systems.md): Home (the hero, key figures, the network, the airline cards, our
-   airlines in their position order and colours on the network's buttons; needs attention, coming up and the to-do board
-   no longer there); Today, its answer at the top (All clear or what's waiting) with the capture in one line, then Orders
+   docs/specs/2026-10-20-today-performance-systems.md): Home (the hero, needs attention's summary cards before the map
+   since 23 Oct, each See all opening its section on Today with its list showing, key figures, the network, the airline
+   cards, our airlines in their position order and colours on the network's buttons; needs attention's lists, coming up,
+   the to-do board and, since 23 Oct, aircraft on order no longer there); Today, its answer at the top (All clear or what's waiting) with the capture in one line, then Orders
    with a card for each of our airlines, Aircraft to file, Needs attention, Game check, the to-do board and Coming up, all
    open, with no Collapse all; Routes on its list, with our airlines on its buttons in their order; Tails, its list and
    the deliveries board, and (21 Oct) the plan cards' cabins: every plan card not yet filed with the cabin its routes call
@@ -323,6 +324,12 @@ async def home_opens(pl):
         figures: document.querySelectorAll('[data-figure="home: key figures"]').length,
         network: !!document.querySelector('[data-board=network]'), attention: !!document.querySelector('[data-figure="home: needs attention"]'),
         comingUp: !!document.querySelector('#coming-up'), todo: !!document.querySelector('#todo'), hero: !!document.querySelector('#eqhero'),
+        onOrder: !!document.querySelector('[data-figure="home: aircraft on order"]'),
+        attCards: [...document.querySelectorAll('[data-figure="home: needs attention cards"] [data-wait-card]')].map(c => c.dataset.waitCard),
+        seeAll: [...document.querySelectorAll('[data-figure="home: needs attention cards"] a[data-wait-href]')].map(a => a.getAttribute('href'))
+          .filter(h => h.includes('#att-')),
+        attBeforeMap: (() => { const c = document.querySelector('[data-figure="home: needs attention cards"]'), m = document.querySelector('[data-board=network]');
+          return !!(c && m && (c.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING)); })(),
         cards: document.querySelectorAll('.agrid .acard').length, clocks: document.querySelectorAll('header #clocks .zc').length })""")
     problems = []
     # the clock button shows UTC now and opens the clocks; Escape shuts them
@@ -336,6 +343,15 @@ async def home_opens(pl):
         problems.append(f"{boards['figures']} key figure(s), expected 5")
     problems += [f"no {k} board" for k in ("network", "hero") if not boards[k]]
     problems += [f"Home still has the {k} board, which moved to Today" for k in ("attention", "comingUp", "todo") if boards[k]]
+    # 23 Oct (spec docs/specs/2026-10-23-attention-on-home.md): needs attention's summary cards after the hero, before
+    # the map, each See all opening its group's section on Today; no aircraft on order board
+    if boards["onOrder"]:
+        problems.append("Home still has the aircraft on order board")
+    if not boards["attCards"]:
+        problems.append("Home has no needs attention cards (nor the all-clear line)")
+    elif not boards["attBeforeMap"]:
+        problems.append("Home's needs attention cards aren't before the network map")
+    problems += [f"a See all links to {h}, not a section on Today" for h in boards["seeAll"] if not h.startswith("/planner/today#att-")]
     if not boards["clocks"]:
         problems.append("no game clocks in the top bar's clock panel")
     if not want:
@@ -346,8 +362,20 @@ async def home_opens(pl):
         problems.append("an airline's colour isn't the copy's: " + ", ".join(g["name"] for g, w in zip(got, want) if g["color"].lower() != w["color"].lower()))
     if boards["cards"] != len(want):
         problems.append(f"{boards['cards']} airline card(s), the copy has {len(want)} of our airlines")
-    return (f"Home is rebuilt, not a placeholder: the hero, its key figures, the map and the airline cards (needs attention, coming up "
-            f"and the to-do board on Today now), with the copy's {len(want)} airlines in their order and colours, and the game clocks "
+    # each See all opens Today at its section, with the list open
+    for h in boards["seeAll"][:1]:
+        await pl.pg.click(f'[data-figure="home: needs attention cards"] a[data-wait-href="{h.removeprefix("/planner")}"]')
+        await pl.pg.wait_for_selector("main[data-screen=today][data-today-ready=yes]", timeout=90000)
+        await settle(pl.pg, 300)
+        sec = h.split("#", 1)[1]
+        shown = await pl.pg.evaluate(f"(() => {{ const s = document.getElementById({json.dumps(sec)}); return !!s && !s.hidden && !!s.querySelector('[data-att-item]'); }})()")
+        if not shown:
+            problems.append(f"See all ({h}) doesn't open Today with that section's list showing")
+        await open_screen(pl.pg, 'home')
+        await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
+    return (f"Home is rebuilt, not a placeholder: the hero, needs attention's cards ({len(boards['attCards'])}, before the map; "
+            f"{len(boards['seeAll'])} See all opening Today's sections), its key figures, the map and the airline cards (needs attention's lists, coming up "
+            f"and the to-do board on Today; no aircraft on order), with the copy's {len(want)} airlines in their order and colours, and the game clocks "
             f"({boards['clocks']} time zones)"), problems
 
 

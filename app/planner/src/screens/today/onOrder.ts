@@ -1,10 +1,11 @@
 // Aircraft on order: every aircraft not yet in service (on order, or arrived and not yet filed into the planner), by
-// airline in their order, soonest first, as the old planner's onOrderBoard shows them.
+// airline in their order, soonest first, as the old planner's onOrderBoard shows them. Today's Aircraft to file is made
+// from it (toFile in model.ts). Home's Aircraft on order board, which showed it whole, went on 23 Oct (spec
+// docs/specs/2026-10-23-attention-on-home.md), and the file moved here from screens/home/ with it.
 import type { Rules } from "@rules";
 import { familyOf, shortType } from "../../ui/aircraftNames";
 import { toMinute } from "../../ui/dates";
-import type { HomeAirline } from "./reads";
-import type { AircraftRow } from "./reads";
+import type { AircraftRow, HomeAirline } from "../home/reads";
 
 export interface OnOrderRow {
   id: number;
@@ -61,6 +62,3 @@ export function onOrder(aircraft: readonly AircraftRow[], rules: Rules, cards: R
   }
   return { count: groups.reduce((n, g) => n + g.rows.length, 0), groups };
 }
-
-/** A family as the summary words it ("5 A320-family"). */
-export const familyWords = ([f, n]: [string, number]) => `${n} ${f === "A320 family" ? "A320-family" : f}`;

@@ -8,7 +8,7 @@ import type { OurAirline } from "../../data/airlines";
 import { shortType } from "../../ui/aircraftNames";
 import { fcDay, type ForecastType, type NextOrder } from "../performance/model";
 import type { CaptureRead, TodoRow } from "../home/reads";
-import type { OnOrderGroup } from "../home/onOrder";
+import type { OnOrderGroup } from "./onOrder";
 import { itemRoute } from "../screens";
 import { attKind, groupAttention, type AttClass, type AttItem } from "../../ui/attention";
 import { niceDate } from "../../ui/dates";
@@ -22,8 +22,9 @@ export interface Waiting {
   canOrder: readonly string[];
   /** Aircraft that have arrived with a plan card, waiting to be filed. */
   toFile: number;
-  /** Needs attention's items, those dismissed left out. */
-  attention: number;
+  /** Needs attention's groups as Today lists them, a section each (those dismissed left out; Can order is counted with
+   *  the orders, so it isn't here). Since 23 Oct, spec docs/specs/2026-10-23-attention-on-home.md. */
+  attention: readonly { label: string; count: number }[];
   /** Differences Game check found, once it has been run (0 before). */
   game: number;
 }
@@ -31,16 +32,19 @@ export interface Waiting {
 const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
 /** The answer at the top of Today: All clear when nothing is waiting (no order possible, nothing to file, no attention
- *  items, no Game check differences), else how many things and what. */
+ *  items, no Game check differences), else how many things and what. Since 23 Oct each group of needs attention counts
+ *  as its own thing, as Today shows each as its own section, so the count matches the sections (until then needs
+ *  attention counted once while the cards split it by kind: the 22 Oct handover's title/count mismatch). */
 export function waitingWords(w: Waiting): { clear: boolean; title: string; parts: string[] } {
+  const groups = w.attention.filter((g) => g.count > 0);
   const parts = [
     ...(w.canOrder.length ? [`${w.canOrder.join(", ")} can order`] : []),
     ...(w.toFile ? [`${plural(w.toFile, "aircraft", "aircraft")} to file`] : []),
-    ...(w.attention ? [`${plural(w.attention, "item")} in needs attention`] : []),
+    ...groups.map((g) => `${g.count} in ${g.label}`),
     ...(w.game ? [`${plural(w.game, "Game check difference")}`] : []),
   ];
   if (!parts.length) return { clear: true, title: "All clear", parts: ["Nothing to order, file or fix from the game, and nothing needs attention."] };
-  const n = (w.canOrder.length ? 1 : 0) + (w.toFile ? 1 : 0) + (w.attention ? 1 : 0) + (w.game ? 1 : 0);
+  const n = parts.length;
   return { clear: false, title: n === 1 ? "One thing waiting" : `${n} things waiting`, parts };
 }
 
@@ -209,7 +213,8 @@ export function lineColumns(rows: readonly Pick<OrderRow, "lines">[]): string[] 
 }
 
 /** One thing waiting, as its card says it: the small coloured kind line, the heading in the item's own words, a short
- *  line of detail, and its action (a link, the needs attention tile to open, or the game check). */
+ *  line of detail, and its action: a link, where it's fixed or (since 23 Oct, the cards being Home's) the section on
+ *  Today that lists its group. */
 export interface WaitCard {
   key: string;
   kind: "order" | "maint" | "due" | "file" | "attention" | "game";
@@ -219,7 +224,7 @@ export interface WaitCard {
   /** The single most urgent card: the first airline that can order now, else (since 22 Oct) the Fleet card with the
    *  game's maintenance under the limit. */
   urgent: boolean;
-  action: { text: string; href?: string; tile?: string; scroll?: string; item?: AttItem };
+  action: { text: string; href?: string; item?: AttItem };
 }
 
 export interface CardsInput {
@@ -237,7 +242,8 @@ export interface CardsInput {
   locale?: string;
 }
 
-/** The cards, one per thing the answer counts, the most urgent first: each airline that can order now; since 22 Oct (spec
+/** The cards, one per thing waiting, the most urgent first (Today's until 23 Oct; Home's since, spec
+ *  docs/specs/2026-10-23-attention-on-home.md, placed after the hero): each airline that can order now; since 22 Oct (spec
  *  docs/specs/2026-10-22-fleet-capture.md §3) the Fleet card when the game shows an aircraft's maintenance under the
  *  limit, the most urgent kind after order now; each to-do due today or overdue, each aircraft to file, then the rest of
  *  needs attention a card per kind (one item: its words; more: the first item's words and how many more, opening its
@@ -288,13 +294,13 @@ export function waitingCards(x: CardsInput): WaitCard[] {
   }
   if (x.game) {
     out.push({ key: "game", kind: "game", label: "Needs attention", heading: plural(x.game, "Game check difference"), detail: "between the planner and the game's schedules",
-      urgent: false, action: { text: "Go to Game check", scroll: "game-check" } });
+      urgent: false, action: { text: "Go to Game check", href: itemRoute("today", { hash: "game-check" }) } });
   }
   return out;
 }
 
 /** A group of needs attention as its card: one item, its words (opening where it's fixed); more, the first item's words
- *  and how many more, opening its tile. */
+ *  and how many more, opening its section on Today (/today#att-<kind>, since 23 Oct). */
 function attentionCard(g: ReturnType<typeof groupAttention>[number], x: CardsInput, kind: "attention" | "maint", label: string): WaitCard | null {
   const [one] = g.items;
   if (!one) return null;
@@ -302,7 +308,8 @@ function attentionCard(g: ReturnType<typeof groupAttention>[number], x: CardsInp
     ? { key: "att|" + g.kind, kind, label, heading: one.text, detail: g.label, urgent: false,
         action: { text: "Open " + x.screenName(one), href: x.hrefOf(one), item: one } }
     : { key: "att|" + g.kind, kind, label, heading: one.text,
-        detail: `and ${g.items.length - 1} more in ${g.label}`, urgent: false, action: { text: `See all ${g.items.length}`, tile: g.kind } };
+        detail: `and ${g.items.length - 1} more in ${g.label}`, urgent: false,
+        action: { text: `See all ${g.items.length}`, href: itemRoute("today", { hash: attentionAnchor(g.kind) }) } };
 }
 
 /** A count tile: the number, the group's name and one muted line. */
@@ -321,3 +328,41 @@ export function countTiles(toFile: number, attention: readonly AttItem[]): Count
   }
   return tiles;
 }
+
+// ---------- each section's anchor (since 23 Oct, spec docs/specs/2026-10-23-attention-on-home.md): Home's cards open a
+// group's section on Today by it. Aircraft to file keeps its own (#to-file, Home's "to file on Today" until 23 Oct); a
+// group of needs attention's is att-<kind> (#att-route, #att-fleet), never the bare kind, which for to-dos would be the
+// To-do board's #todo.
+
+/** A section's anchor on Today: "to-file", else "att-" and the group's kind. */
+export const attentionAnchor = (key: string): string => (key === "to-file" ? "to-file" : "att-" + key);
+
+/** The section an address's anchor opens on Today (the tile's key), or null when it names none. */
+export function tileForHash(hash: string): string | null {
+  const id = hash.replace(/^#/, "");
+  if (id === "to-file") return "to-file";
+  return id.startsWith("att-") && id.length > 4 ? id.slice(4) : null;
+}
+
+// ---------- where an attention item is fixed (Today's hrefOf until 23 Oct; shared with Home's cards since)
+/** Where an attention item is fixed, inside the planner's router (Today's since 20 Oct). */
+export function attentionHref(a: AttItem, airlines: readonly Pick<OurAirline, "name" | "code">[]): string {
+  if (a.screen === "today") return itemRoute("today", { hash: "todo" });
+  if (a.tail) return itemRoute(a.screen, { tail: a.tail });
+  if (a.route) {
+    const [al = "", hub = "", dest = ""] = a.route.split("|");
+    return itemRoute(a.screen, { airline: airlines.find((x) => x.name === al)?.code, hub, dest });
+  }
+  // can order: the airline's page on Performance, with its cash for the next 14 days
+  if (a.screen === "performance" && a.key?.startsWith("order|")) return itemRoute("performance", { airline: airlines.find((x) => x.name === a.key?.split("|")[1])?.code });
+  // a rival's move: the airline's Competition page (its key: threat|<code>|<pair>|<rival>|<day>)
+  if (a.screen === "competition" && a.key?.startsWith("threat|")) return itemRoute("competition", { airline: a.key.split("|")[1] });
+  // a cabin charge that doesn't match: Systems' Cabin charges board, open on arrival
+  if (a.screen === "systems" && a.key?.startsWith("cabin|")) return itemRoute("systems", { hash: "cabin-charges" });
+  // an aircraft in the game the planner doesn't have: Systems' Fleet board, open on arrival
+  if (a.screen === "systems" && a.key?.startsWith("fleet|")) return itemRoute("systems", { hash: "fleet" });
+  return itemRoute(a.screen);
+}
+
+/** An item about one aircraft (its maintenance, turns or positions) opens its pop-up rather than going to Tails. */
+export const opensAircraft = (a: AttItem): boolean => !!a.tail && !a.route && a.screen === "tails";
