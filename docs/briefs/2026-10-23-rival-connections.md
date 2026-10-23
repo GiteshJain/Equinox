@@ -69,4 +69,5 @@ rival and pair kept for good.
 - **The database time at the scan's finish grows past a few seconds:** work it out in the nightly backup job instead.
 
 ## Outcome
-*Pending Gitesh's decision.*
+**A with a 1.5 detour limit, 23 Oct (Gitesh, Building chat):** worked out nightly at the scan's finish, departures
+that connect, display only; `settings.rival_connection_detour_max` 1.5 instead of the recommended 1.25.

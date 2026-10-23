@@ -55,6 +55,15 @@ the Building chat).* Why: the scan read schedules only, so Icelandair's 99 aircr
 Every evening rather than weekly (the brief recommended weekly): the earliest warning, for about 3 minutes more an
 evening. The 25% flag: a quarter more aircraft on the way; at least 5 keeps a small start-up's single order off it.
 
+### Decided, not yet built: rivals' connecting options
+*Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-connections.md` chosen in
+the Building chat with a 1.5 detour limit).* Why: `competition()` counted a rival only where it flies our pair direct,
+so connections through a rival's hub (Icelandair via Keflavik) were invisible. In the 23 Oct scan rivals flew 123 of
+our 302 flown pairs direct, while one-stop options within 1.5 times the direct distance reached 190. Each connecting
+flight counts once so the figure sits on the same scale as direct departures; the detour limit keeps routings far off
+the way out (with none, 270 pairs "had" one). Display only until Gitesh decides whether connections count in the
+openings, the contested test or the fare pause.
+
 ### Decided, not yet built: point-to-point routes away from our bases
 *Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
 manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base

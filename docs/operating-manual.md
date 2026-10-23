@@ -41,6 +41,14 @@ Until each is built and merged, the rules below stand as they are.
   order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`), and one with
   aircraft on order and no flights yet. Until it's built, §7's scan reads schedules and airports only. *(decided
   23 Oct; history: rule-history.md)*
+- **To build: rivals' connecting options** (brief `docs/briefs/2026-10-23-rival-connections.md`, option A, Gitesh
+  23 Oct). When the evening's scan finishes, the database works out each rival's one-stop connections on our pairs
+  (flown and on our route lists) from that scan's schedules: same airline, the second flight leaving from the airport's
+  minimum connection time to 8 hours after the first lands, both legs together at most 1.5 times the direct distance
+  (`rival_connection_detour_max`). Each rival flight that connects counts once, as departures a week, shown beside
+  direct departures and never added to them, on Competition, a route's page and the weekly report. Display only: the
+  openings, the contested test, hubs first, the three biggest competitors and the fare pause don't read it.
+  *(decided 23 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
