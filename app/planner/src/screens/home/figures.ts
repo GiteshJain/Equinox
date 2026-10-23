@@ -3,7 +3,8 @@
 // worked out in the database as the old Home did), and the operations hero above them (the old eqHeroUpdate: aircraft in
 // the air, flights today, departing in the next hour, aircraft and routes, from summary.now; the load tile repeats the
 // key figure). On the old Home the hero carries the figures and the key-figure row stays in the page, hidden.
-import type { KeyFigures, NowFigures } from "@rules";
+import { aircraftWeek, block, maintenance, type KeyFigures, type NowFigures, type Rules, type TimedLeg } from "@rules";
+import { shownMaint, type GameMaintFigure, type ShownMaint } from "../tails/model";
 import type { CardsRead } from "./reads";
 
 export interface Tile {
@@ -54,3 +55,27 @@ export function heroFigures(n: NowFigures, cards: CardsRead | null | undefined):
     ],
   };
 }
+
+/** An airline card's "lowest maintenance" (since 23 Oct, spec docs/specs/2026-10-23-game-maintenance-on-tails.md): among
+ *  the airline's aircraft in service with flights (the library's summary.airlineCards counts the same ones), each one's
+ *  game figure from the latest night's fleet pages where it has one, else the planner's estimate; the lowest, or null
+ *  when none has a figure. */
+export function lowestMaintenance(rules: Rules, airlineId: number, game: ReadonlyMap<number, GameMaintFigure> | undefined,
+  legs: readonly TimedLeg[] = block.timedLegs(rules)): ShownMaint | null {
+  let low: { m: ShownMaint; v: number } | null = null;
+  for (const a of rules.aircraft.values()) {
+    if (a.airline_id !== airlineId || a.status !== "active") continue;
+    const week = aircraftWeek.forAircraft(rules, a, legs);
+    if (!week || !week.legs.length) continue;
+    const est = maintenance.forAircraft(rules, a, legs, week);
+    const g = game?.get(a.id);
+    const m = shownMaint(rules, a.airline_id, est, g);
+    if (!m) continue;
+    // compared unrounded: the game's percent, the estimate's ratio as a percent
+    const v = m.from === "game" && g ? g.pct : est && est.ratio != null ? est.ratio * 100 : m.pct;
+    if (!low || v < low.v) low = { m, v };
+  }
+  return low?.m ?? null;
+}
+/** The card's pill words: "lowest maintenance 98%" from the game, "lowest maintenance ≈98%" from the estimate. */
+export const lowestWords = (m: Pick<ShownMaint, "from" | "pct">): string => `lowest maintenance ${m.from === "game" ? "" : "≈"}${m.pct}%`;

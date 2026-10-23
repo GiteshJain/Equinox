@@ -2,18 +2,23 @@
 // its colour, with its in-game logo (the website's logos.js) and whether it's flying, its bases (hubs, then focus cities
 // dashed; filled once a route flies from them), its aircraft, routes, flights and block hours a day, the lowest
 // maintenance among its aircraft, short and tight turns or "clean", and "Open fleet ›". Every figure is the planning
-// library's (summary.airlineCards). Where the website has a photo of the airline's city (airlines.photo_city, since build
+// library's (summary.airlineCards), but the lowest maintenance: since 23 Oct (spec
+// docs/specs/2026-10-23-game-maintenance-on-tails.md) the game's figure from the latest night's fleet pages for each
+// aircraft that has one, the estimate for the rest (figures.ts' lowestMaintenance). Where the website has a photo of the airline's city (airlines.photo_city, since build
 // pull request 12; the old planner kept the list in its code, EQ_HUBPHOTO), the card shows it behind (from site_public()).
 // "Open fleet ›" opens the airline on Tails (build pull request 7).
 import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
-import type { AirlineCard } from "@rules";
+import type { AirlineCard, Rules } from "@rules";
+import type { GameMaintFigure } from "../tails/model";
 import { Pill } from "../../ui/Pill";
 import { loadLogos } from "../../ui/siteFiles";
+import { lowestMaintenance, lowestWords } from "./figures";
 import type { HomeAirline } from "./reads";
 
-export function AirlineCards({ cards, airlines, photos }: {
+export function AirlineCards({ cards, airlines, photos, rules, game }: {
   cards: readonly AirlineCard[]; airlines: readonly HomeAirline[]; photos: Record<string, { url: string }> | undefined;
+  rules: Rules; game: ReadonlyMap<number, GameMaintFigure> | undefined;
 }) {
   const [logos, setLogos] = useState<Record<string, string> | null>(null);
   useEffect(() => {
@@ -28,7 +33,7 @@ export function AirlineCards({ cards, airlines, photos }: {
         if (!c) return null;
         const photo = a.photo ? photos?.[a.photo]?.url : undefined;
         const style = { "--lv": a.color || "#8B96A8", ...(photo ? { "--ph": `url("${photo}")` } : {}) } as CSSProperties;
-        const m = c.lowest_maintenance;
+        const m = lowestMaintenance(rules, a.id, game);
         return (
           <div key={a.id} className={"acard" + (photo ? " eqphoto" : "")} style={style} data-acard={a.name}>
             <div className="ach">
@@ -47,7 +52,7 @@ export function AirlineCards({ cards, airlines, photos }: {
               <span><b>{Math.round(c.flights_day)}</b> flights/day</span><span><b>{c.block_hours_day.toFixed(0)}</b> block h/day</span>
             </div>
             <div className="acf">
-              {m ? <Pill kind={m.level}>lowest maintenance ≈{m.pct}%</Pill> : null}
+              {m ? <Pill kind={m.level} title={m.from === "game" ? m.title : undefined}>{lowestWords(m)}</Pill> : null}
               {c.short_turns ? <Pill kind="bad">{c.short_turns} short turns</Pill> : null}
               {c.tight_turns ? <Pill kind="warn">{c.tight_turns} tight turns</Pill> : null}
               {c.clean ? <Pill kind="ok">clean</Pill> : null}

@@ -11,12 +11,12 @@ import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { tails, type Rules } from "@rules";
 import { useOurAirlines, useWorld } from "../../data/reads";
-import { gameFleetWords } from "../systems/model";
+import { gameFleetWords, gameMaintenance } from "../systems/model";
 import { useFleetChecks } from "../systems/reads";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { itemRoute } from "../screens";
 import { Issues, MaintPill } from "./AircraftPage";
-import { acquiredWords, blockClock, configCode, figuresOf, H, popupFlights, rulesLegs, typeName } from "./model";
+import { acquiredWords, blockClock, configCode, figuresOf, H, issuesShown, popupFlights, rulesLegs, shownMaint, typeName } from "./model";
 import { useConfigs, useTailsAircraft } from "./reads";
 
 export function AircraftPopup({ registration, rules, onClose }: { registration: string; rules: Rules; onClose: () => void }) {
@@ -38,7 +38,10 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
   const a = aircraftQ.data?.find((x) => x.registration === registration && x.status === "active");
   const configs = useMemo(() => new Map((configsQ.data ?? []).map((c) => [c.id, c])), [configsQ.data]);
   const fig = useMemo(() => (a ? figuresOf(rules, a.id, rulesLegs(rules)) : null), [rules, a]);
-  const issues = useMemo(() => (a && fig?.week ? tails.issues(rules, a.id, rulesLegs(rules), fig.week, fig.maint) : []), [rules, a, fig]);
+  // its issues judged on the game's maintenance where the latest fleet pages have it (since 23 Oct), as on Tails
+  const gameMaint = useMemo(() => (a ? gameMaintenance(fleetQ.data).get(a.id) : undefined), [fleetQ.data, a]);
+  const issues = useMemo(() => (a && fig?.week
+    ? issuesShown(tails.issues(rules, a.id, rulesLegs(rules), fig.week, fig.maint), shownMaint(rules, a.airline_id, fig.maint, gameMaint)) : []), [rules, a, fig, gameMaint]);
   if (!aircraftQ.data || !configsQ.data) return null;
   if (!a || !fig) return null;
   const airline = (airlinesQ.data ?? []).find((x) => x.id === a.airline_id);

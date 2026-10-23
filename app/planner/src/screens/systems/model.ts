@@ -444,3 +444,20 @@ export function gameFleetWords(f: FleetChecks | null | undefined, aircraftId: nu
   }
   return null;
 }
+
+/** The game's maintenance for one of our aircraft on the latest night's fleet pages: the figure as the game shows it
+ *  (103.8) and the night it was read. */
+export interface GameMaint { pct: number; night: string | null }
+/** Each aircraft's game maintenance from fleet_checks()'s latest night, by the planner's aircraft id (since 23 Oct, spec
+ *  docs/specs/2026-10-23-game-maintenance-on-tails.md): Tails' board, its issues and Home's airline cards show it in
+ *  place of the planner's estimate. An aircraft the planner doesn't have, or one without a figure, isn't in it. */
+export function gameMaintenance(f: FleetChecks | null | undefined): Map<number, GameMaint> {
+  const out = new Map<number, GameMaint>();
+  for (const al of f?.airlines ?? []) {
+    for (const a of al.aircraft) {
+      if (a.aircraft_id == null || a.maintenance_pct == null || !Number.isFinite(Number(a.maintenance_pct)) || out.has(a.aircraft_id)) continue;
+      out.set(a.aircraft_id, { pct: Number(a.maintenance_pct), night: f?.night ?? null });
+    }
+  }
+  return out;
+}

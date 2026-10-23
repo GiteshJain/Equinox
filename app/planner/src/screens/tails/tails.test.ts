@@ -12,8 +12,8 @@ import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
-  filingChanges, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
-  acquiredWords, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
+  filingChanges, maintPill, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
+  acquiredWords, issuesShown, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
 
@@ -108,6 +108,40 @@ describe("the list", () => {
     expect(words).toEqual(["flies 8.0 h a day — under the 10 h target", "1 short turn a week", "7 short turns a week", "maintenance ≈92% — under 100%, condition will fall",
       "maintenance ≈103% — little headroom", "2 turns a week under the 10-min margin", "1 leg start where the aircraft isn't", "longest gap 2:30 — under the 4 h target",
       "1 rotation off wave"]);
+  });
+});
+
+describe("the game's maintenance on Tails (23 Oct, spec docs/specs/2026-10-23-game-maintenance-on-tails.md)", () => {
+  const mine = tailsOf(fleet, 1);
+  const game = new Map([[1, { pct: 106.4, night: "2026-10-22" }], [3, { pct: 97.2, night: "2026-10-22" }]]);
+  const rows = tailRows(mine, { base: "", type: "", status: "" }, rules, configMap, game);
+  it("an aircraft on the fleet pages shows the game's figure with no ≈, its class from the settings and the capture's tooltip", () => {
+    const t1 = rows.find((r) => r.a.registration === "T-001");
+    expect(shownPill(t1?.maint ?? null)).toEqual({ text: "106%", cls: "ok", title: "In the game, last night's capture (22 Oct)" });
+    expect(shownPill(rows.find((r) => r.a.registration === "T-003")?.maint ?? null)).toMatchObject({ text: "97%", cls: "bad" });
+    const at = (pct: number) => shownPill(shownMaint(rules, 1, null, { pct, night: "2026-10-22" }));
+    expect([99.9, 100, 104.9, 105, 400, 458.7].map((p) => [at(p)?.text, at(p)?.cls])).toEqual([
+      ["100%", "bad"], ["100%", "warn"], ["105%", "warn"], ["105%", "ok"], ["400%", "ok"], ["400+%", "ok"]]);
+  });
+  it("one not on the fleet pages keeps the estimate with its ≈ and its hours", () => {
+    const est = tailRows(mine, { base: "", type: "", status: "" }, rules, configMap);
+    const t1 = est.find((r) => r.a.registration === "T-001");
+    expect(t1?.maint?.from).toBe("estimate");
+    expect(shownPill(t1?.maint ?? null)).toEqual(maintPill(t1?.fig.maint));
+    expect(shownPill(t1?.maint ?? null)?.text).toMatch(/^≈/);
+    // an idle aircraft has no estimate and no game figure: no pill
+    expect(rows.find((r) => r.a.registration === "T-002")?.maint).toBeNull();
+  });
+  it("the issue words follow the shown figure: the game's without ≈, none when the game's is fine", () => {
+    const est: TailIssue[] = [{ kind: "short_turns", count: 1 }, { kind: "maintenance", level: "warn", pct: 103, min_pct: 100, target_pct: 105 }, { kind: "positions", count: 1 }];
+    const bad = shownMaint(rules, 1, null, { pct: 97.2, night: "2026-10-22" });
+    expect(issuesShown(est, bad).map(issueWords)).toEqual(["1 short turn a week", "maintenance 97% — under 100%, condition will fall", "1 leg start where the aircraft isn't"]);
+    const ok = shownMaint(rules, 1, null, { pct: 110, night: "2026-10-22" });
+    expect(issuesShown(est, ok).map(issueWords)).toEqual(["1 short turn a week", "1 leg start where the aircraft isn't"]);
+    const warn = shownMaint(rules, 1, null, { pct: 102.6, night: "2026-10-22" });
+    expect(issuesShown([{ kind: "positions", count: 2 }], warn).map(issueWords)).toEqual(["maintenance 103% — little headroom", "2 legs start where the aircraft isn't"]);
+    // with no game figure the estimate's issues stay as they are, with ≈
+    expect(issuesShown(est, null).map(issueWords)[1]).toBe("maintenance ≈103% — little headroom");
   });
 });
 

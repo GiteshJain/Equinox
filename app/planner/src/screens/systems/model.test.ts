@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BOARDS, CABIN_STATE_WORDS, asd, backupWords, cabinAttention, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus, cashChanges,
-  dayStatus, fleetAttention, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, gameFleetWords, loadsChanges, mergeDay, nightlyLog, replaceAtWords, yearsWords,
+  dayStatus, fleetAttention, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, gameFleetWords, gameMaintenance, loadsChanges, mergeDay, nightlyLog, replaceAtWords, yearsWords,
   parseLoadPaste, pasteSaves, pctWords, seatWords, signedAsd, typedLoads, typedSave, underList, type CabinCharges, type CabinProblem, type CashToday,
   type FleetAircraft, type FleetChecks,
 } from "./model";
@@ -231,6 +231,12 @@ describe("Fleet (22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3)", () =
     ]);
     expect(fleetAttention(null)).toEqual([]);
     expect(fleetAttention(checks({ night: null }))).toEqual([]);
+  });
+  it("the game's maintenance by aircraft id for Tails and Home (23 Oct): only aircraft the planner has, with a figure", () => {
+    const f = checks();
+    f.airlines[0]?.aircraft.push(ac("N099AW", { maintenance_pct: 50 }), ac("N005AW", { aircraft_id: 15, maintenance_pct: null }));
+    expect([...gameMaintenance(f)]).toEqual([[13, { pct: 0, night: "2026-10-22" }], [12, { pct: 114.7, night: "2026-10-22" }]]);
+    expect(gameMaintenance(null).size).toBe(0);
   });
   it("the age check (22 Oct): the counts' words, each aircraft's age and replacement age, and Today's items for replace and looks used", () => {
     expect(fleetCountsWords(checks({ counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, replace: 2, age: 1, problems: 3 } })))
