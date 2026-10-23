@@ -339,13 +339,27 @@ def against_words(a, cp):
     return f"{head}; {esc(top['name'])} is its biggest rival on its pairs."
 
 
+def fleet_cell(x):
+    """A competitor's fleet as a table cell (since 23 Oct): 99 (44 on order), +6 on order this week."""
+    f = x.get("fleet")
+    if not f or f.get("overall") is None:
+        return "not read"
+    out = f"{f['overall']:,} ({f.get('on_order') or 0:,} on order)"
+    c = f.get("on_order_change")
+    if c:
+        colour = "#C4141C" if c > 0 else "#1A7F37"
+        out += f'<br/><font color="{colour}">{c:+,} on order</font>'
+    return out
+
+
 section("COMPETITION — AGAINST OUR RIVALS", "competitors", "Each airline against its three biggest competitors.")
 CP = next((a["competitors"] for a in AL if a.get("competitors")), None)
 story.append(P("For each airline, the three outside airlines with the most departures a week on its own city pairs in the "
                + (f"world scan of {day(CP['latest'])}" if CP else "latest world scan") + ", our airline first. Departures a week count "
                "each flight's days both ways, passenger flights only; freighters and our own airlines are no one's rivals here. Growth is "
                + (f"against the scan of {day(CP['week_before'])}" if CP and CP.get("week_before") else "against the scan a week before")
-               + ". From competition() in the database's figures.", "small"))
+               + ". Fleet: each rival's aircraft and aircraft on order from its overview page in the same scan, with the change in "
+               "aircraft on order over the week. From competition() in the database's figures.", "small"))
 for a in AL:
     cp = a.get("competitors")
     part = [P(f"{esc(a['name'])}: against its three biggest competitors", "h2")]
@@ -353,13 +367,17 @@ for a in AL:
         part.append(P("No world scan to compare yet.", "body"))
     else:
         me = cp["self"]
-        rows = [["Airline", "Departures a week on its city pairs", "Of its city pairs", "Departures a week, all", "Airports", "Growth over the week"],
+        fl = cp.get("fleets")   # each rival's fleet, since 23 Oct (none in older figures)
+        rows = [["Airline", "Departures a week on its city pairs", "Of its city pairs", "Departures a week, all", "Airports", "Growth over the week"]
+                + (["Fleet"] if fl else []),
                 [f"<b>{esc(a['name'])}</b>", f"<b>{num(me.get('on_pairs'))}</b>",
-                 f"{num(me.get('pairs'))} of {num(me.get('pairs_flown'))}", num(me.get("weekly")), num(me.get("airports")), growth(me)]]
+                 f"{num(me.get('pairs'))} of {num(me.get('pairs_flown'))}", num(me.get("weekly")), num(me.get("airports")), growth(me)] + (["—"] if fl else [])]
         for x in cp["top"]:
             rows.append([esc(x.get("name")), num(x.get("on_pairs")), num(x.get("pairs")), num(x.get("weekly")), num(x.get("airports")),
-                         growth(x) if x.get("weekly_before") is not None or not cp.get("week_before") else "not in that scan"])
-        part += [table(rows, [1.9 * inch, 1.05 * inch, 0.8 * inch, 1.05 * inch, 0.65 * inch, 1.55 * inch]), Spacer(1, 2), P(against_words(a, cp), "body")]
+                         growth(x) if x.get("weekly_before") is not None or not cp.get("week_before") else "not in that scan"] + ([fleet_cell(x)] if fl else []))
+        widths = ([1.55 * inch, 0.95 * inch, 0.7 * inch, 0.95 * inch, 0.6 * inch, 1.1 * inch, 1.1 * inch] if fl
+                  else [1.9 * inch, 1.05 * inch, 0.8 * inch, 1.05 * inch, 0.65 * inch, 1.55 * inch])
+        part += [table(rows, widths), Spacer(1, 2), P(against_words(a, cp), "body")]
     story.append(KeepTogether(part))
 story.append(PageBreak())
 
@@ -377,10 +395,30 @@ story.append(tw)
 story.append(P(f"Out of {R['world']['flying']} airlines flying in Gander ({R['world']['airlines']} registered), by departures a week in the world scan.", "small"))
 
 # ---------------- risks, opportunities, plan and progress: the Saturday review's notes
-if note("risks", "rows"):
+# the flagged order books (competition()'s order_flags, since 23 Oct; spec docs/specs/2026-10-23-rival-fleets.md §5): rivals
+# with aircraft on order of a quarter of their fleet or more, or on order with no flights yet, from the database's figures
+FLAGS = R.get("order_flags")
+if note("risks", "rows") or FLAGS:
     story.append(PageBreak()); section("RISKS", "risks", "The risks this week.")
+if note("risks", "rows"):
     story.append(table([["Risk", "Likelihood", "Impact", "Owner", "What we do about it"]] + [[x.get("risk", ""), x.get("likelihood", ""), x.get("impact", ""), x.get("owner", ""), x.get("action", "")]
                                                                                            for x in N["risks"]["rows"]], [2.35 * inch, 0.65 * inch, 0.55 * inch, 0.75 * inch, 2.65 * inch]))
+if FLAGS:
+    def book(x):
+        if x.get("kind") == "starting":
+            return f"{x['on_order']:,} on order, no flights yet" + (f" ({x['fleet']:,} aircraft)" if x.get("fleet") else "")
+        return f"{x['on_order']:,} on order, {x['share']:.1f}% of {x['fleet']:,} aircraft"
+
+    def week(x):
+        c = x.get("on_order_change")
+        return "—" if c is None else ("no change" if c == 0 else f"{c:+,} on order")
+
+    story.append(P("Rivals' order books", "h2"))
+    story.append(table([["Rival", "Order book", "This week", "Meets our airlines"]]
+                       + [[esc(x.get("name")), book(x), week(x), ", ".join(esc(m) for m in x["meets"]) if x.get("meets") else "none"] for x in FLAGS],
+                       [2.0 * inch, 2.45 * inch, 1.0 * inch, 1.5 * inch]))
+    story.append(P("From each rival's overview page in the latest world scan: aircraft on order of a quarter of its fleet or more (and at least 5), "
+                   "or aircraft on order with no flights yet. Meets: it flies one of that airline's city pairs or from one of its bases.", "small"))
 if note("opportunities", "rows"):
     story.append(PageBreak()); section("OPPORTUNITIES", "opportunities", "The opportunities this week.")
     story.append(table([["#", "Opportunity", "Size", "Where we are", "Next move"]] + [[str(i + 1), x.get("opportunity", ""), x.get("size", ""), x.get("where", ""), x.get("next", "")]

@@ -3,7 +3,8 @@
 // airline's share across its markets, the threats' numbers and days, the openings' words (stars, distance, rivals,
 // variant, hubs first), a profile's line, and Today's threat items (the latest scan's only, each with its key and words,
 // linking to Competition). Since 23 Oct (spec docs/specs/2026-10-23-planner-look-competition.md) the page's answers (the
-// titles), a tile's top opening, a threat's move in short, the threats newest first and the rows' counts. Every figure itself is competition()'s (database/tests/competition_test.sql).
+// titles), a tile's top opening, a threat's move in short, the threats newest first and the rows' counts. Since 23 Oct (spec
+// docs/specs/2026-10-23-rival-fleets.md §5) a rival's fleet line and top types, and the group's order books. Every figure itself is competition()'s (database/tests/competition_test.sql).
 import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { readFileSync } from "node:fs";
@@ -14,7 +15,7 @@ import {
   allowedWords, changeWords, dayWords, groupWords, kmWords, latestThreats, n0, openingsLine, otherListsWords, overallShare, pctWords, profileWords, rivalsWords,
   scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer,
   type Market, type Opening,
-  type Threat,
+  type Threat, fleetWords, fleetTypesWords, orderBooks, orderBookWords, meetsWords, orderBooksRowWords, type Fleet, type OrderFlag,
 } from "./model";
 
 const scan = (id: number, at: string) => ({ id, taken_at: at });
@@ -177,5 +178,50 @@ describe("the page's answers and rows (23 Oct, the new look)", () => {
     expect([marketsRowWords(0), marketsRowWords(1), marketsRowWords(4)]).toEqual(["no routes yet", "1 market", "4 markets"]);
     expect([profilesRowWords(0), profilesRowWords(10)]).toEqual(["no rivals", "10 rivals"]);
     expect([threatsRowWords(0), threatsRowWords(3)]).toEqual(["none in 7 days", "3 in 7 days"]);
+  });
+});
+
+describe("rivals' fleets and the order books (23 Oct, spec docs/specs/2026-10-23-rival-fleets.md)", () => {
+  const fleet = (x: Partial<Fleet> = {}): Fleet => ({
+    overall: 99, on_order: 44, avg_age_years: 2.1, types_count: 8,
+    types: [{ type: "Airbus A321XLR", overall: 23, on_order: 10, avg_age_years: 0.2 }, { type: "Boeing 737-9 HGW", overall: 23, on_order: 5, avg_age_years: 0.1 },
+            { type: "Airbus A321LR", overall: 21, on_order: 10, avg_age_years: 0.1 }, { type: "Boeing 737-8 HGW", overall: 16, on_order: 10, avg_age_years: 0.2 },
+            { type: "Boeing 757-200", overall: 4, on_order: 0, avg_age_years: 24.1 }],
+    overall_before: 99, on_order_before: 38, overall_change: 0, on_order_change: 6, ...x,
+  });
+  const flag = (x: Partial<OrderFlag> = {}): OrderFlag => ({
+    airline_id: 101, name: "Icelandair", kind: "orders", fleet: 99, on_order: 44, share: 44.4, weekly: 186, on_order_change: 6, fleet_change: 0,
+    on_pairs: false, at_bases: false, meets: false, words: "Icelandair: 44 on order, 44.4% of its 99 aircraft", ...x,
+  });
+  it("a rival's fleet: size, on order and the week's change, or why there's none", () => {
+    expect(fleetWords(fleet())).toBe("99 aircraft, 44 on order, +6 on order this week");
+    expect(fleetWords(fleet({ on_order_change: -3 }))).toBe("99 aircraft, 44 on order, −3 on order this week");
+    expect(fleetWords(fleet({ on_order_change: 0 }))).toBe("99 aircraft, 44 on order, no change in orders this week");
+    expect(fleetWords(fleet({ on_order_change: null }))).toBe("99 aircraft, 44 on order");
+    expect(fleetWords(null)).toBe("fleet not read in the latest scan");
+    expect(fleetWords(undefined)).toBe("fleet not read in the latest scan");
+  });
+  it("its top types, with what's on order, and how many more", () => {
+    expect(fleetTypesWords(fleet())).toBe("Airbus A321XLR 23 (10 on order) · Boeing 737-9 HGW 23 (5 on order) · Airbus A321LR 21 (10 on order) · Boeing 737-8 HGW 16 (10 on order) · Boeing 757-200 4 +3 more");
+    expect(fleetTypesWords(fleet({ types: [], types_count: 0 }))).toBeNull();
+    expect(fleetTypesWords(null)).toBeNull();
+  });
+  it("the order books: one row per rival across our airlines, biggest share first (starting first), with whom it meets", () => {
+    const pa = answer({ airline_id: 1, code: "PA", order_flags: [flag({ meets: true, on_pairs: true }), flag({ airline_id: 7, name: "New Air", kind: "starting", fleet: 0, on_order: 12, share: null, weekly: 0 }),
+                                                                  flag({ airline_id: 8, name: "Mid Air", share: 30, on_order: 9, fleet: 30 })] });
+    const kf = answer({ airline_id: 2, code: "KF", order_flags: [flag({ meets: true, at_bases: true }), flag({ airline_id: 7, name: "New Air", kind: "starting", fleet: 0, on_order: 12, share: null, weekly: 0 }),
+                                                                  flag({ airline_id: 8, name: "Mid Air", share: 30, on_order: 9, fleet: 30 })] });
+    const books = orderBooks([pa, kf, undefined]);
+    expect(books.map((b) => [b.name, b.meets, b.meets_codes, b.on_pairs, b.at_bases])).toEqual([
+      ["New Air", false, [], false, false], ["Icelandair", true, ["PA", "KF"], true, true], ["Mid Air", false, [], false, false]]);
+    expect(orderBooks([answer()])).toEqual([]);
+  });
+  it("an order book's words, whom it meets, and the row's count", () => {
+    expect(orderBookWords(flag())).toBe("44 on order, 44.4% of 99 aircraft");
+    expect(orderBookWords(flag({ kind: "starting", fleet: 0, on_order: 12, share: null }))).toBe("12 on order, no flights yet");
+    expect(orderBookWords(flag({ kind: "starting", fleet: 3, on_order: 12, share: 400 }))).toBe("12 on order, no flights yet (3 aircraft)");
+    expect(meetsWords(["PA", "KF"])).toBe("meets PA, KF");
+    expect(meetsWords([])).toBe("meets none of our airlines");
+    expect([orderBooksRowWords(0), orderBooksRowWords(1), orderBooksRowWords(3)]).toEqual(["none", "1 rival", "3 rivals"]);
   });
 });

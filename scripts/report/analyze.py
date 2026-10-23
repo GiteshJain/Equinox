@@ -8,7 +8,8 @@ Reads, from the current folder, what pull.py downloaded:
 - figures.json (the captured figures, #19): all the money. Cash, profit a day, flight profit a day, the lowest point in
   the next 14 days and when, the next order, route profit, the growth signals and hubs first, each airline on its own:
   no surplus figure and no group totals (manual §1, §3); and since 22 Oct each airline against its three biggest
-  competitors (competition()'s competitors, self and scans; manual §7);
+  competitors (competition()'s competitors, self and scans; manual §7), since 23 Oct each with its fleet, aircraft on
+  order and the week's change, and the world's flagged order books (order_flags; spec docs/specs/2026-10-23-rival-fleets.md);
 - airlines.json, airports.json, scan.json (the world scan) and airports_oa.csv (OurAirports' public airport list): the
   competition, markets and hubs, as before;
 - site_airlines.json (the website's airlines), if there: each airline's colour for the charts.
@@ -246,9 +247,31 @@ def competitors_of(airline_id):
     if "competitors" not in f or not scans.get("latest"):
         return None
     keep = ("rank", "airline_id", "name", "on_pairs", "pairs", "weekly", "airports", "weekly_before", "change", "change_pct")
+    fleet = ("overall", "on_order", "avg_age_years", "overall_change", "on_order_change")
     return {"latest": scans["latest"].get("taken_at"), "week_before": (scans.get("week_before") or {}).get("taken_at"),
             "self": {k: (f.get("self") or {}).get(k) for k in keep[3:] + ("pairs_flown",)},
-            "top": [{k: c.get(k) for k in keep} for c in (f.get("competitors") or [])[:3]]}
+            # each one's fleet since 23 Oct: None when the scan didn't read its overview page, absent in older figures
+            "top": [{k: c.get(k) for k in keep} | ({"fleet": {k: (c["fleet"] or {}).get(k) for k in fleet} if c.get("fleet") else None} if "fleet" in c else {})
+                    for c in (f.get("competitors") or [])[:3]],
+            "fleets": any("fleet" in c for c in (f.get("competitors") or []))}
+
+
+def order_flags():
+    """The world's flagged order books (competition()'s order_flags, since 23 Oct; spec docs/specs/2026-10-23-rival-fleets.md
+    §5), the same in every airline's figures: each with the codes of our airlines it meets. None when the figures predate
+    them."""
+    out, seen = {}, False
+    for a in FIG.get("airlines") or []:
+        if "order_flags" not in a:
+            continue
+        seen = True
+        for x in a.get("order_flags") or []:
+            o = out.setdefault(x["airline_id"], {k: x.get(k) for k in ("airline_id", "name", "kind", "fleet", "on_order", "share", "weekly", "on_order_change")} | {"meets": []})
+            if x.get("meets"):
+                o["meets"].append(a.get("code") or a.get("name"))
+    if not seen:
+        return None
+    return sorted(out.values(), key=lambda o: (-(o["share"] if o["share"] is not None else float("inf")), -(o["on_order"] or 0), o["name"] or ""))
 
 
 G = FIG.get("growth_signals") or {}
@@ -268,7 +291,7 @@ for i, a in enumerate(OURS_ROWS):
                          "bases": [{"code": b.get("code"), "role": b.get("role"), "contested": b.get("contested"),
                                     "top_rival": b.get("top_rival"), "contested_routes": len(b.get("contested_routes") or [])} for b in hp.get("bases") or []]}})
 json.dump({"as_of": FIG.get("as_of"), "scan": {"id": SCAN.get("id"), "taken_at": SCAN.get("taken_at")},
-           "airlines": airlines, "growth": growth,
+           "airlines": airlines, "growth": growth, "order_flags": order_flags(),
            "mtab": mtab, "hubtab": hubtab, "h2h": h2h[:60], "ourpairs": ourpairs, "contested": contested,
            "rivals": {k: v.most_common(8) for k, v in riv.items()},
            "rank": rank[:30], "our_rank": [(i + 1, n, w) for i, (n, w, o) in enumerate(rank) if o],

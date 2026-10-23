@@ -61,7 +61,9 @@ export interface SystemStatus {
     failed: { table: string | null; month: string | null; at: string; note: string | null }[];
   } | null;
   cleanup: SysJob | null;
-  scan: { taken_at: string; week: string | null; status: string | null } | null;
+  /** The latest world scan with its airport summary; since 23 Oct (spec docs/specs/2026-10-23-rival-fleets.md §5) with the
+   *  overview pages it read and failed (absent from an older database). */
+  scan: { taken_at: string; week: string | null; status: string | null; fleet_pages?: number | null; fleet_failed?: number | null } | null;
   /** A scan that stopped part-way since the latest finished one (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md
    *  §1): marked stopped when the next scan started, or left unfinished over an hour; null when there's none. */
   scan_stopped?: ScanStopped | null;
@@ -230,6 +232,16 @@ export function stoppedWords(x: ScanStopped): string {
   return `the scan of ${dayWords(String(x.taken_at).slice(0, 10))} stopped after ${n(x.airlines)}${of} airline${x.airlines_expected == null && Number(x.airlines) === 1 ? "" : "s"}`;
 }
 
+/** The fleet pages the scan read (since 23 Oct): "171 fleet pages" or "169 fleet pages, 2 failed"; nothing from a database
+ *  before them. "no fleet pages" for a scan that read none. */
+export function fleetPagesWords(s: SystemStatus["scan"]): string | null {
+  if (!s || s.fleet_pages == null) return null;
+  const n = (v: number) => Number(v).toLocaleString("en-US");
+  const read = Number(s.fleet_pages), failed = Number(s.fleet_failed ?? 0);
+  if (!read && !failed) return "no fleet pages";
+  return `${n(read)} fleet page${read === 1 ? "" : "s"}${failed ? `, ${n(failed)} failed` : ""}`;
+}
+
 /** The world scan's age: amber over 8 days, red over 15. Since 21 Oct it runs with the evening capture when one is due
  *  (settings.scan_every_days; spec docs/specs/2026-10-21-competition-analysis.md §3), not at the Saturday review. Since
  *  22 Oct (spec docs/specs/2026-10-21-tidy-ups.md §1) a scan that stopped part-way, with no finished scan after it, says
@@ -240,7 +252,8 @@ export function scanLine(s: SystemStatus["scan"], now: Date, everyDays?: number 
   const age: Mark = d == null || d > SCAN_BAD_D ? "bad" : d > SCAN_LATE_D ? "warn" : "ok";
   const runs = `runs with the evening capture ${scanEveryWords(everyDays)}`;
   const stop = stopped ? ` · ${stoppedWords(stopped)}; the next capture scans again` : "";
-  const text = !s ? `no world scan yet${stop} · ${runs}` : `${agoWords(h)}${s.week ? ` (week ${s.week})` : ""}${stop} · ${runs}`
+  const fleets = fleetPagesWords(s);
+  const text = !s ? `no world scan yet${stop} · ${runs}` : `${agoWords(h)}${s.week ? ` (week ${s.week})` : ""}${fleets ? ` · ${fleets}` : ""}${stop} · ${runs}`
     + (age === "ok" ? "" : "; capture again while it's due, or gscan.py by hand");
   return { key: "scan", label: "World scan", mark: stopped ? worse(age, "warn") : age, when: whenWords(s?.taken_at), text };
 }

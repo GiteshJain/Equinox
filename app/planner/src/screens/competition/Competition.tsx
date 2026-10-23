@@ -7,14 +7,17 @@
 //     with 6 Oct") and the group line under it. Then one tile per airline (three a row, two under 1100 px, one on a
 //     phone: its share across its markets with its arrow, its threats and its top opening in one line; tap to open it)
 //     and every airline's threats as one table (airline, rival, pair, the numbers, the day and the link to the route's
-//     page on Performance), newest first; on a phone each threat is a compact row.
+//     page on Performance), newest first; on a phone each threat is a compact row. Since 23 Oct (spec
+//     docs/specs/2026-10-23-rival-fleets.md §5) the board Order books under it: the rivals with a big order book or
+//     starting with orders (competition()'s order_flags), biggest share first, each marked with the airlines it meets.
 //   - An airline (/planner/competition/<code>): the title is its share across its markets with its arrow, the scans'
 //     pill beside it, the airline switch (the segmented control Performance uses) under it. Then the sections as rows
 //     that open (FoldBoard, as on Systems and Performance), each with its count: Market share (a tile per market: our
 //     share with its arrow and the top rivals as a bar and a list), Threats (a table), Openings (open on arrival: the
 //     ranked table, rank, pair, stars, distance, rivals, variant and hubs first as a pill, allowed or the reason, cut to
 //     10 with "show all"; a 1-star opening on the E195-E2 says "or the E190-E2 if thin" under its variant, spec
-//     docs/specs/2026-10-21-tidy-ups.md §2) and Rival profiles (cards).
+//     docs/specs/2026-10-21-tidy-ups.md §2) and Rival profiles (cards; since 23 Oct each with its fleet, "99 aircraft, 44
+//     on order, +6 on order this week", and its top types).
 // Read only: nothing here saves. Phone first: tiles stack, the openings table scrolls inside its own box.
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -26,8 +29,8 @@ import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { listCut } from "../performance/model";
 import { itemRoute } from "../screens";
 import {
-  airlineHeadline, allowedWords, changeWords, dayWords, groupHeadline, groupWords, kmWords, marketsRowWords, n0, openingsLine, otherListsWords, overallShare,
-  pctWords, profileWords, profilesRowWords, rivalsWords, scansWords, shareBar, starsWords, threatMoveWords, threatNumbers, threatWhen, threatsLine,
+  airlineHeadline, allowedWords, changeWords, dayWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
+  openingsLine, orderBookWords, orderBooks, orderBooksRowWords, otherListsWords, overallShare, pctWords, profileWords, profilesRowWords, rivalsWords, scansWords, shareBar, starsWords, threatMoveWords, threatNumbers, threatWhen, threatsLine,
   threatsNewestFirst, threatsRowWords, topOpeningWords, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer, type Market, type Opening,
   type Profile, type Threat,
 } from "./model";
@@ -123,9 +126,10 @@ function GroupLine({ a, share }: { a: CompetitionAnswer; share: ReturnType<typeo
   );
 }
 
-/** The group page: one tile per airline, then every airline's threats as one table, newest first. */
+/** The group page: one tile per airline, then every airline's threats as one table, newest first, then the order books. */
 function Group({ airlines, answers, onPick }: { airlines: readonly OurAirline[]; answers: ReadonlyMap<number, CompetitionAnswer>; onPick: (a: OurAirline) => void }) {
   const threats = threatsNewestFirst(airlines.flatMap((al) => (answers.get(al.id)?.threats ?? []).map((t) => ({ ...t, al }))));
+  const books = orderBooks(airlines.map((al) => answers.get(al.id)));
   return (
     <>
       <div className="fgrid cpgrid" data-figure="competition: airlines">
@@ -157,6 +161,29 @@ function Group({ airlines, answers, onPick }: { airlines: readonly OurAirline[];
         <p className="note perflead">Rivals who started on, or added a daily flight or more to, one of our city pairs since the scan before · each pauses the route's fares for a week (manual §5) · newest first.</p>
         <div className="cpcardbox">
           {threats.length ? <ThreatTable items={threats} /> : <div className="dim">No rival moves on our routes in the last 7 days.</div>}
+        </div>
+      </section>
+      <section className="perfsec cpsec" data-figure="competition: order books" data-board="Order books" aria-labelledby="cp-books-h">
+        <h2 className="perfh" id="cp-books-h">Order books <span className="dim cpcount">{orderBooksRowWords(books.length)}</span></h2>
+        <p className="note perflead">Rivals with aircraft on order of a quarter of their fleet or more (at least 5), or on order with no flights yet, from their overview pages in the latest scan · biggest share first · each marked with our airlines it meets on their city pairs or at their bases.</p>
+        <div className="cpcardbox">
+          {books.length ? (
+            <div className="tblwrap">
+              <table className="tbl cpbooks">
+                <thead><tr><th>Rival</th><th>Order book</th><th>This week</th><th>Meets</th></tr></thead>
+                <tbody>
+                  {books.map((f) => (
+                    <tr key={f.airline_id} data-order-book={f.name} data-kind={f.kind} data-meets={f.meets ? "yes" : "no"} title={f.words}>
+                      <td className="cprival"><b>{f.name}</b>{f.kind === "starting" ? <> <span className="pill warn sm">starting</span></> : null}</td>
+                      <td className="cpnums">{orderBookWords(f)}</td>
+                      <td className="cpday"><Change v={f.on_order_change} k={"orders " + f.name} /></td>
+                      <td className="cpal">{f.meets ? <span className="pill warn sm">{meetsWords(f.meets_codes)}</span> : <span className="dim">{meetsWords([])}</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <div className="dim">No rival has a big order book or orders without flights in the latest scan.</div>}
         </div>
       </section>
     </>
@@ -302,6 +329,8 @@ function ProfileCard({ p, before }: { p: Profile; before: string }) {
     <div className="cpm" data-profile={p.name}>
       <div className="cpmh"><b>{p.name}</b> <span className="dim">on {p.pairs_shared} of our pair{p.pairs_shared === 1 ? "" : "s"}</span></div>
       <div className="cpmv">{profileWords(p, before)}</div>
+      {p.fleet !== undefined ? <div className="cpline" data-fleet><span className="dim">Fleet:</span> {fleetWords(p.fleet)}</div> : null}
+      {fleetTypesWords(p.fleet) ? <div className="cpline cpcity" data-fleet-types>{fleetTypesWords(p.fleet)}</div> : null}
       <div className="cpline"><span className="dim">Shared:</span> {p.pairs.slice(0, 6).map((x) => `${x.route} ${x.weekly} (ours ${x.ours})`).join(" · ")}
         {p.pairs.length > 6 ? <span className="dim"> +{p.pairs.length - 6} more</span> : null}</div>
       {p.biggest_airports.length ? <div className="cpline"><span className="dim">Biggest airports:</span> {p.biggest_airports.map((x) => `${x.code} ${n0(x.weekly)}`).join(" · ")}</div> : null}

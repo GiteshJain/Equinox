@@ -10,6 +10,65 @@ def rpc(kind, payload):
             if a==2: raise
             time.sleep(3)
 def text(s): return re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',s))).strip()
+# each airline's overview page (spec docs/specs/2026-10-23-rival-fleets.md §1, §2): its Fleet table (per type: owned,
+# leased, overall, leased out, on offer, on order, average age; tfoot the totals), General Information and General
+# statistics, read exactly as Capture all airlines 1.8 reads them (readOverviewPage()), sent as kind fleet
+FLEET_COLS=("owned","leased","overall","leased_out","on_offer","on_order")
+def count(s):
+    m=re.search(r'-?\d+(?:\.\d+)?', str(s).replace(',',''))
+    return (float(m.group(0)) if '.' in m.group(0) else int(m.group(0))) if m else None
+def fleet_row(cells):
+    out={k:(count(text(cells[i])) if len(cells)>i else None) for i,k in enumerate(FLEET_COLS)}
+    out["avg_age_years"]=count(text(cells[6])) if len(cells)>6 else None
+    return out
+def tds(row): return re.findall(r'<td[^>]*>([\s\S]*?)</td>', row)
+def legend_table(s, legend):
+    m=re.search(r'<span class="legend">\s*'+re.escape(legend)+r'\s*</span>[\s\S]*?<table[^>]*>([\s\S]*?)</table>', s)
+    if not m: return None
+    out={}
+    for row in re.findall(r'<tr[\s\S]*?</tr>', m.group(1)):
+        c=tds(row)
+        if len(c)>=2: out[text(c[0])]=c[1]
+    return out
+def overview(s):
+    s=re.sub(r'<script[\s\S]*?</script>','',s)
+    info=legend_table(s,"General Information"); stats=legend_table(s,"General statistics") or {}
+    fm=re.search(r'<table[^>]*class="[^"]*\bfleet\b[^"]*"[^>]*>([\s\S]*?)</table>', s)
+    if not fm and info is None: return {"error":"no Fleet table or General Information on the page"}
+    mb=re.search(r'<tbody[^>]*>([\s\S]*?)</tbody>', fm.group(1)) if fm else None
+    body=mb.group(1) if mb else ""
+    types=[]
+    for row in re.findall(r'<tr[\s\S]*?</tr>', body):
+        c=tds(row)
+        if len(c)<8: continue
+        name=text(c[0]); tid=re.search(r'aircraftsType\?id=(\d+)', c[0])
+        if not name: continue
+        types.append({"type":name,"type_id":int(tid.group(1)) if tid else None, **fleet_row(c[1:])})
+    foot=re.search(r'<tfoot[^>]*>([\s\S]*?)</tfoot>', fm.group(1)) if fm else None
+    ft=tds(foot.group(1)) if foot else []
+    totals=fleet_row(ft) if len(ft)>=7 else {**{k:sum(t[k] or 0 for t in types) for k in FLEET_COLS},"avg_age_years":None}
+    v=lambda k: text(info[k]) if info and k in info else None
+    raw=lambda k: (info or {}).get(k) or ""
+    al=re.search(r'alliances/(\d+)', raw("Alliance")); hq=re.search(r'\(\s*([A-Z0-9]{3})\s*\)', v("Headquarters") or "")
+    par=re.search(r'href="(?:\./|[^"]*enterprises/)(\d+)"', raw("Parent company")); fd=re.search(r'\d{4}-\d{2}-\d{2}', v("Founded") or "")
+    st=lambda k: count(text(stats[k])) if k in stats else None
+    return {"name":v("Name") or None,"types":types,"totals":totals,
+            "profile":{"code":v("Code") or None,"alliance":(v("Alliance") or None) if al else None,"alliance_id":int(al.group(1)) if al else None,
+                       "headquarters":hq.group(1) if hq else None,"parent_id":int(par.group(1)) if par else None,"parent":(v("Parent company") or None) if par else None,
+                       "founded":fd.group(0) if fd else None,"passengers":st("Transported passengers"),"stations":st("Stations"),
+                       "fleet_size":st("Fleet size"),"staff":st("Staff")}}
+def send_fleet(snap, eid, name):
+    """The overview page, flying or not; a page that doesn't read is sent with its error, logged and skipped."""
+    try:
+        r=overview(get(f"https://gander.airlinesim.aero/app/info/enterprises/{eid}"))
+    except Exception as e:
+        r={"error":str(e)}
+    p={"snapshot_id":snap,"enterprise_id":eid,"name":name}
+    p.update({"error":r["error"]} if "error" in r else {"types":r["types"],"totals":r["totals"],"profile":r["profile"]})
+    rpc("fleet", p)
+    if "error" in r: log("fleet page failed", eid, name, r["error"])
+    time.sleep(0.5)
+    return "error" not in r
 def log(*a):
     print(datetime.datetime.now(datetime.UTC).strftime('%H:%M:%S'), *a, flush=True)
 # 1. every enterprise in Gander
@@ -30,7 +89,7 @@ for k,(eid,name) in enumerate(sorted(ents.items())):
     try:
         s=get(f"https://gander.airlinesim.aero/app/info/enterprises/{eid}?tab=3")
     except Exception as e:
-        log("schedule failed", eid, name, e); continue
+        log("schedule failed", eid, name, e); send_fleet(snap, eid, name); continue
     for aid,code in re.findall(r'href="\.\./airports/(\d+)"[^>]*>\s*([A-Z0-9]{3})\s*<', s): apid[code]=int(aid)
     clean=re.sub(r'<script[\s\S]*?</script>','',s); m=re.search(r'<table[\s\S]*?</table>', clean); table=m.group(0) if m else ""
     fl=[]; frm=to=""
@@ -46,6 +105,7 @@ for k,(eid,name) in enumerate(sorted(ents.items())):
     rpc("airline", {"snapshot_id":snap,"enterprise_id":eid,"name":name,"flights":fl,"n_flights":len(fl),"n_weekly":weekly,"n_airports":aps})
     if k%20==0: log(f"{k+1}/{len(ents)} {name}: {len(fl)} flights")
     time.sleep(0.5)
+    send_fleet(snap, eid, name)
 json.dump(apid, open('/home/claude/apid.json','w'))
 log("airport ids learned:", len(apid))
 if PHASE=="airlines": sys.exit(0)

@@ -76,17 +76,23 @@ def synthetic_competitors(F):
     before = before_m.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     scans = {"latest": {"id": 902, "taken_at": latest}, "week_before": {"id": 901, "taken_at": before}, "previous": {"id": 901, "taken_at": before}}
 
-    def one(rank, name, on_pairs, pairs, weekly, airports, weekly_before):
+    def one(rank, name, on_pairs, pairs, weekly, airports, weekly_before, fleet=None):
         change = None if weekly_before is None else weekly - weekly_before
         pct = None if not weekly_before else round(100.0 * change / weekly_before, 1)
         return {"rank": rank, "airline_id": 9000 + rank, "name": name, "on_pairs": on_pairs, "pairs": pairs, "weekly": weekly,
-                "airports": airports, "weekly_before": weekly_before, "change": change, "change_pct": pct}
+                "airports": airports, "weekly_before": weekly_before, "change": change, "change_pct": pct, "fleet": fleet}
+
+    def fl(overall, on_order, change):   # a rival's fleet as competition() gives it (since 23 Oct)
+        return {"overall": overall, "on_order": on_order, "avg_age_years": 2.1, "types_count": 1,
+                "types": [{"type": "Test Type", "overall": overall, "on_order": on_order, "avg_age_years": 2.1}],
+                "overall_before": None if change is None else overall, "on_order_before": None if change is None else on_order - change,
+                "overall_change": None if change is None else 0, "on_order_change": change}
 
     def me(on_pairs, pairs, flown, weekly, airports, weekly_before):
         x = one(0, "", on_pairs, pairs, weekly, airports, weekly_before)
         return {k: v for k, v in x.items() if k not in ("rank", "airline_id", "name")} | {"pairs_flown": flown}
 
-    rivals = [one(1, "Test Rival Atlas", 1420, 12, 1420, 160, 1000), one(2, "Test Rival Borealis", 300, 4, 2600, 95, 2700),
+    rivals = [one(1, "Test Rival Atlas", 1420, 12, 1420, 160, 1000, fl(99, 44, 6)), one(2, "Test Rival Borealis", 300, 4, 2600, 95, 2700, fl(40, 0, 0)),
               one(3, "Test Rival Cirrus", 120, 2, 400, 30, 400)]
     when = f"{before_m.day} {before_m:%b}"
     cases = [  # (self, competitors, scans, the words for an airline named N)
@@ -105,6 +111,14 @@ def synthetic_competitors(F):
         self_, comps, sc, words = cases[i % len(cases)]
         a.update(competitors=[dict(c) for c in comps], self=dict(self_, airline_id=a["airline_id"], code=a.get("code"), name=a.get("name")), scans=sc)
         want[a["airline_id"]] = words
+    # the world's flagged order books (since 23 Oct), the same in every airline's figures, marked for each: Atlas meets the
+    # first airline, the starting airline none
+    for i, a in enumerate(airlines):
+        a["order_flags"] = [
+            {"airline_id": 9001, "name": "Test Rival Atlas", "kind": "orders", "fleet": 99, "on_order": 44, "share": 44.4, "weekly": 1420,
+             "on_order_change": 6, "fleet_change": 0, "on_pairs": i == 0, "at_bases": False, "meets": i == 0, "words": ""},
+            {"airline_id": 9009, "name": "Test Starter Air", "kind": "starting", "fleet": 0, "on_order": 12, "share": None, "weekly": 0,
+             "on_order_change": None, "fleet_change": None, "on_pairs": False, "at_bases": False, "meets": False, "words": ""}]
     return want
 
 
@@ -225,15 +239,39 @@ def main():
                 check("No world scan to compare yet." in seg, f"{name}: \"No world scan to compare yet.\"", seg[:300])
                 continue
             me = f["self"]
-            row = f"{name} {n0(me['on_pairs'])} {n0(me['pairs'])} of {n0(me['pairs_flown'])} {n0(me['weekly'])} {n0(me['airports'])} {cell(me)}"
+            fleets = any("fleet" in c for c in f["competitors"])   # since 23 Oct each rival's fleet, a column of its own
+
+            def fleet(c):
+                x = c.get("fleet")
+                if not x or x.get("overall") is None:
+                    return " not read"
+                ch = x.get("on_order_change")
+                return f" {x['overall']:,} ({x.get('on_order') or 0:,} on order)" + (f" {ch:+,} on order" if ch else "")
+            row = f"{name} {n0(me['on_pairs'])} {n0(me['pairs'])} of {n0(me['pairs_flown'])} {n0(me['weekly'])} {n0(me['airports'])} {cell(me)}" + (" —" if fleets else "")
             rows = [row] + [f"{c['name']} {n0(c['on_pairs'])} {n0(c['pairs'])} {n0(c['weekly'])} {n0(c['airports'])} "
                             + (cell(c) if c.get("weekly_before") is not None or not f["scans"].get("week_before") else "not in that scan")
+                            + (fleet(c) if fleets else "")
                             for c in f["competitors"]]
             at = [seg.find(r) for r in rows]
             check(all(i >= 0 for i in at) and at == sorted(at),
                   f"{name}: its own row first, then its {len(rows) - 1} competitor(s), with the figures' numbers", f"want {rows} in: {seg[:700]}")
             if a["id"] in words:
                 check(words[a["id"]](name) in seg, f"{name}: the line {words[a['id']](name)!r}", seg[-400:])
+        # the rivals' order books in the risks (since 23 Oct): each flagged rival once, with whom it meets
+        flags = {x["airline_id"]: x for a in F.get("airlines") or [] for x in a.get("order_flags") or []}
+        if flags:
+            k = text.find("Rivals' order books")
+            seg = text[k:k + 1500] if k >= 0 else ""
+            check(k > text.find("RISKS") >= 0, "the risks list the rivals' order books", text[text.find("RISKS"):][:300])
+            first = (ours[0].get("iata_code") or names[0]) if ours else ""
+            for x in sorted(flags.values(), key=lambda x: (-(x["share"] if x["share"] is not None else float("inf")), -x["on_order"])):
+                meets = [(fa.get(a["id"]) or {}).get("code") or name for a, name in zip(ours, names)
+                         if any(y["airline_id"] == x["airline_id"] and y.get("meets") for y in (fa.get(a["id"]) or {}).get("order_flags") or [])]
+                book = (f"{x['on_order']:,} on order, no flights yet" if x["kind"] == "starting"
+                        else f"{x['on_order']:,} on order, {x['share']:.1f}% of {x['fleet']:,} aircraft")
+                wk = "—" if x.get("on_order_change") is None else ("no change" if x["on_order_change"] == 0 else f"{x['on_order_change']:+,} on order")
+                want = f"{x['name']} {book} {wk} {', '.join(meets) if meets else 'none'}"
+                check(want in seg, f"the order books: {want!r}", seg[:500])
         if synthetic:
             print("      (the sample predates competition()'s competitors in the figures: the test's copy has a synthetic block)", flush=True)
     finally:

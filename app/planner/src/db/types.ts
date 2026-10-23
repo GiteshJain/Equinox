@@ -1329,6 +1329,32 @@ isOneToOne: false
       referencedColumns: ["id","world_id"]
     }
                   ]
+                },"scan_airline_fleet": {
+                  Row: {
+                    "airline_id": number,"avg_age_years": number | null,"game_type_id": number | null,"leased": number | null,"leased_out": number | null,"on_offer": number | null,"on_order": number | null,"overall": number | null,"owned": number | null,"scan_id": number,"type_name": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"avg_age_years"?: number | null,"game_type_id"?: number | null,"leased"?: number | null,"leased_out"?: number | null,"on_offer"?: number | null,"on_order"?: number | null,"overall"?: number | null,"owned"?: number | null,"scan_id": number,"type_name": string,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"avg_age_years"?: number | null,"game_type_id"?: number | null,"leased"?: number | null,"leased_out"?: number | null,"on_offer"?: number | null,"on_order"?: number | null,"overall"?: number | null,"owned"?: number | null,"scan_id"?: number,"type_name"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "scan_airline_fleet_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "scan_airline_fleet_scan_world_fkey"
+      columns: ["scan_id","world_id"]
+isOneToOne: false
+      referencedRelation: "game_scans"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
                 },"scan_airline_markets": {
                   Row: {
                     "airline_id": number,"city_pairs": number,"market": string,"scan_id": number,"weekly_departures": number,"world_id": number
@@ -1349,6 +1375,32 @@ isOneToOne: false
       referencedColumns: ["id","world_id"]
     },{
       foreignKeyName: "scan_airline_markets_scan_world_fkey"
+      columns: ["scan_id","world_id"]
+isOneToOne: false
+      referencedRelation: "game_scans"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
+                },"scan_airline_profile": {
+                  Row: {
+                    "airline_id": number,"alliance": string | null,"avg_age_years": number | null,"fleet_size": number | null,"founded": string | null,"note": string | null,"on_order": number | null,"parent_game_id": number | null,"passengers": number | null,"read_at": string,"read_ok": boolean,"scan_id": number,"staff": number | null,"stations": number | null,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"alliance"?: string | null,"avg_age_years"?: number | null,"fleet_size"?: number | null,"founded"?: string | null,"note"?: string | null,"on_order"?: number | null,"parent_game_id"?: number | null,"passengers"?: number | null,"read_at"?: string,"read_ok": boolean,"scan_id": number,"staff"?: number | null,"stations"?: number | null,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"alliance"?: string | null,"avg_age_years"?: number | null,"fleet_size"?: number | null,"founded"?: string | null,"note"?: string | null,"on_order"?: number | null,"parent_game_id"?: number | null,"passengers"?: number | null,"read_at"?: string,"read_ok"?: boolean,"scan_id"?: number,"staff"?: number | null,"stations"?: number | null,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "scan_airline_profile_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "scan_airline_profile_scan_world_fkey"
       columns: ["scan_id","world_id"]
 isOneToOne: false
       referencedRelation: "game_scans"

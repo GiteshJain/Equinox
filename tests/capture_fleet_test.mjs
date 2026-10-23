@@ -146,7 +146,7 @@ await check("the panel: each airline's fleet pages in one line once sent (a page
 
 // ---------------------------------------------------------------- 4. the file and the sample
 await check("the file: version 1.6 and later, fleet pages sent to capture_ingest() with the key as kind fleet, half a second apart, after the loads", () => {
-  assert.match(source, /^\/\/ @version\s+1\.7$/m);
+  assert.match(source, /^\/\/ @version\s+1\.8$/m);
   assert.match(source, /rpc\("capture_ingest", \{ p_key: KEY, p_airline: String\(gameId\), p_kind: "fleet", p_page: url, p_rows: rows \}\)/);
   assert.equal(S.FLEET_PACE, 500);
   assert.match(source, /send\(id, "loads"[^\n]*\n\s*await captureFleets\(id, name\);/, "the fleets aren't read after the loads page");
