@@ -33,4 +33,4 @@ four new 5-star routes (openings 2, 4, 7 and 23), 154 connections. No used aircr
 - Cash below the SHARP at order time: then a new or used E195 on the best 3- and 4-star openings (cash decides, §3).
 
 ## Outcome
-**A, 23 Oct (Gitesh).** Ordered new; plan card 139 (registration expected EI-ACD, to confirm).
+**A, 23 Oct (Gitesh).** Ordered new; plan card 139 registered EI-ACF (CDG), arriving 24 Oct 12:33 UTC.
