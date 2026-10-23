@@ -55,6 +55,9 @@ the Building chat).* Why: the scan read schedules only, so Icelandair's 99 aircr
 Every evening rather than weekly (the brief recommended weekly): the earliest warning, for about 3 minutes more an
 evening. The 25% flag: a quarter more aircraft on the way; at least 5 keeps a small start-up's single order off it.
 
+*Built 23 Oct (`Equinox` #93, spec `docs/specs/2026-10-23-rival-fleets.md`) and moved into §7.* The *Decided, not yet
+built* entry, retired with the build: "- **To build: rivals' fleets in the world scan** (brief `docs/briefs/2026-10-23-rival-fleets.md`, option A, Gitesh 23 Oct). Each evening's scan also reads every enterprise's overview page (its Fleet table, about 171 pages, about 3 minutes more) and keeps each rival's fleet and aircraft on order by type with the scan. Competition and the weekly report's three competitors show them with the change since the week-before scan, and flag a rival whose aircraft on order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`), and one with aircraft on order and no flights yet. Until it's built, §7's scan reads schedules and airports only. *(decided 23 Oct; history: rule-history.md)*"
+
 ### Decided, not yet built: rivals' connecting options
 *Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-connections.md` chosen in
 the Building chat with a 1.5 detour limit).* Why: `competition()` counted a rival only where it flies our pair direct,

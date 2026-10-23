@@ -26,13 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **To build: rivals' fleets in the world scan** (brief `docs/briefs/2026-10-23-rival-fleets.md`, option A, Gitesh
-  23 Oct). Each evening's scan also reads every enterprise's overview page (its Fleet table, about 171 pages, about 3
-  minutes more) and keeps each rival's fleet and aircraft on order by type with the scan. Competition and the weekly
-  report's three competitors show them with the change since the week-before scan, and flag a rival whose aircraft on
-  order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`), and one with
-  aircraft on order and no flights yet. Until it's built, §7's scan reads schedules and airports only. *(decided
-  23 Oct; history: rule-history.md)*
 - **To build: rivals' connecting options** (brief `docs/briefs/2026-10-23-rival-connections.md`, option A, Gitesh
   23 Oct). When the evening's scan finishes, the database works out each rival's one-stop connections on our pairs
   (flown and on our route lists) from that scan's schedules: same airline, the second flight leaving from the airport's
@@ -522,6 +515,14 @@ Details and open points: `docs/decisions.md`.
     failed that evening; a failed scan page is logged and skipped, and with more than 10% of the airlines failed the
     scan isn't finished, so the Systems board keeps the last finished one. Raise `scan_every_days` to 3 (about twice a
     week) if the evening gets long. *(since 21 Oct; history: rule-history.md)*
+  - **Rivals' fleets, with every scan** (since 23 Oct, capture 1.8): after each airline's schedule the scan reads its
+    overview page (its Fleet table and general figures; about 171 more pages, about 3 minutes) and keeps each rival's
+    fleet and aircraft on order by type (`scan_airline_fleet`, `scan_airline_profile`, kept for good). A failed overview
+    page is logged and skipped and never counts towards the 10% that leave a scan unfinished. Competition and the weekly
+    report's three competitors show each rival's fleet with the change since the week-before scan, and flag a rival whose
+    aircraft on order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`),
+    and one with aircraft on order and no flights yet; the flags feed nothing else. *(since 23 Oct; history:
+    rule-history.md)*
   - **Each page is checked as it arrives** (#21): ok, short or broken. Loads are short below 90% of the airline's
     flights scheduled in the page's window (the 24 hours before the capture, a new rotation counting from the day after
     it launched, and a new aircraft only once a capture has shown it flying; setting `capture_loads_min_share`); a bank
