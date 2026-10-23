@@ -256,6 +256,8 @@ Details and open points: `docs/decisions.md`.
   biggest type the cash forecast allows, and it takes the best openings that type can fly (by the openings' order, among
   those its size band allows: an E195 takes the top 1- to 4-star openings). The openings that need a bigger type wait for
   an evening when cash covers it. A line is never left idle to wait for cash. *(since 21 Oct; history: rule-history.md)*
+- **No leased aircraft older than 3.5 years:** an aircraft is replaced when it reaches 3.5 years, and a used aircraft
+  is taken only under that age. *(since 22 Oct; history: rule-history.md)*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *(since 28 Sep)*
 - **Route first, then the airline, then the aircraft.** The Scheduling chat picks the routes the group should open
@@ -271,8 +273,8 @@ Details and open points: `docs/decisions.md`.
   The proposal goes one airline at a time: each airline's order is decided, ordered and logged before the next is
   shown. Gitesh orders that evening. *(since 18 Oct; history: rule-history.md)*
   - **The used market too:** each evening's proposal also looks at the game's used aircraft offers (Aircraft
-    Market) and proposes a bid where one on the default line flies the airline's chosen routes for less than a new
-    order. The most we bid is the new aircraft's own price (its factory price's deposit and weekly lease); above that,
+    Market) and proposes a bid where one on the default line, under 3.5 years old, flies the airline's chosen routes for
+    less than a new order. The most we bid is the new aircraft's own price (its factory price's deposit and weekly lease); above that,
     or when outbid, the airline orders new. Gitesh places the bid and says when the auction closes; Claude logs it and
     writes the plan card as for a new order. *(since 22 Oct; history: rule-history.md)*
 - **When an airline can order: the cash forecast.** Planner → Today → Orders says who can order now or from when, and

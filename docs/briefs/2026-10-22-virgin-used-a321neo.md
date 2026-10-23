@@ -40,4 +40,5 @@ for a lower lease than any new aircraft Virgin can buy.
 - Maintenance of a 9-year-old aircraft eating the lease saving, seen in a week of captures (as with N023AW).
 
 ## Outcome
-<Gitesh's decision and the date>
+**Not A, 22 Oct (Gitesh):** 9 years is too old. No leased aircraft may be older than 3.5 years (manual §3, written
+the same evening). Virgin's order tonight is decided separately.

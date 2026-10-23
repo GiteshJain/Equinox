@@ -170,6 +170,13 @@ Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feede
 
 ### 3. Fleet and orders
 
+#### No leased aircraft older than 3.5 years
+*Since 22 Oct (Gitesh, Scheduling chat).* Leased aircraft fly until they are 3.5 years old and are then replaced; a
+used aircraft is taken only under that age. Before, the manual set no age limit, and the evening of 22 Oct took
+N023AW (3.6 years) and bid for 5Y-AAC (7.2 years) and proposed VH-AGP (9.0 years) under the used-market rule as first
+written · why: Gitesh doesn't want old aircraft flying (he had meant to say so with the used-market rule). The used
+market rule's "on the default line" became "on the default line, under 3.5 years old".
+
 #### The used aircraft market in each evening's proposal
 *Since 22 Oct (Gitesh, Scheduling chat).* The first used aircraft, 5Y-AAD (A320neo Light, 3.6 years), was bid for as
 Pan Am's aircraft at the opening bid instead of a new A320neo SHARP: the same routes, 12% less a week and 0.24M less
