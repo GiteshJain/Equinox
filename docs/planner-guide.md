@@ -151,7 +151,12 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
     then seats that don't match the aircraft's cabin in the planner or no cabin in the planner, an aircraft in the game
     the planner doesn't have, and an aircraft in service in the planner missing from the game's fleet pages (listed only
     when every fleet page of that airline came in ok that night; amber). An aircraft the planner has opens its pop-up;
-    one it doesn't opens Systems' Fleet board. Dismissed, a problem comes back the next night while it lasts.
+    one it doesn't opens Systems' Fleet board. Dismissed, a problem comes back the next night while it lasts. Since
+    22 Oct (manual §3, replacement by age) also, in amber, an aircraft within 60 days of its replacement age by the
+    game's age ("N001AW (JFK): replace at 3 years (now 2.9): order its replacement"; once there, "past its replacement
+    age (3 years, now 3.0)"), and one marked new that is older in the game than its time with us ("N023AW (JFK): looks
+    used (3.6 years in the game), marked new"). The ages are settings: *replace_new_years* (3), *replace_used_years*
+    (10) and *replace_warn_days* (60).
 
   **×** dismisses an item and **show again** (under the tiles) brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
@@ -258,6 +263,8 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   day, legs a week, maintenance, every issue and its flights, with **Open in Tails**. Since 22 Oct **In the game**
   beside the maintenance: the game's own maintenance and condition from the latest night's fleet pages ("103.8%
   maintenance · 83% condition · 22 Oct", red under the limit), so the planner's figure can be compared with the game's.
+  Since 22 Oct **Replacement**: how it came and when it's replaced ("came new, replace at 3 years", "came used, replace
+  at 10 years"; *aircraft.acquired* and the settings).
 - The block-hours target (10 h a day) is a setting, *aircraft_block_target_h*: a flag on the screen, not a floor.
 - **The plan card's service check** (14 Oct): a flight on a plan card whose service code isn't the one its route's
   distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
@@ -560,9 +567,11 @@ Each button is saved on its own, as one change.
 - **Fleet** (since 22 Oct; spec docs/specs/2026-10-22-fleet-capture.md): the latest night's fleet of each airline as the
   game's fleet pages showed it (*fleet_checks()*, from *game_fleet*). Its title says the night and what needs a look
   ("the night of 22 Oct: 1 maintenance · 1 cabin"). Per airline a table: each aircraft's registration and base, type,
-  where it was ("ORD → JFK · AW 1003", or "at FRA" between flights), condition, maintenance, seats Y/C/F and pilots,
-  with the maintenance under the limit, the seats that don't match the planner's cabin and no pilots marked, and an
-  aircraft the planner doesn't have marked **not in the planner**; under it, an aircraft in service the pages didn't
+  where it was ("ORD → JFK · AW 1003", or "at FRA" between flights), its age in the game and the age it's replaced at
+  ("3 y (new)", "10 y (used)"; since 22 Oct), condition, maintenance, seats Y/C/F and pilots,
+  with the maintenance under the limit, the seats that don't match the planner's cabin and no pilots marked, an
+  aircraft the planner doesn't have marked **not in the planner**, and one to replace or that looks used marked
+  **to replace** or **looks used** with its age; under it, an aircraft in service the pages didn't
   have (only when every fleet page of the airline came in ok), and how many of its fleet pages came in ok.
 - **Cabin charges** (since 22 Oct; manual §4): each first cabin fit filing logged since *cabin_charge_check_from* (18
   Oct, the first day the plan card chose the cabin; earlier fits include refits), against the game's "Installation of

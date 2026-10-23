@@ -11,7 +11,9 @@
 //     when Today's item sent you (#cabin-charges);
 //   - Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): the latest night's fleet as the game showed it
 //     (fleet_checks()), a table per airline (registration and base, type, location, condition, maintenance, seats,
-//     pilots), each problem marked; open on arrival when Today's item sent you (#fleet).
+//     pilots), each problem marked; open on arrival when Today's item sent you (#fleet). Since 22 Oct (spec
+//     docs/specs/2026-10-22-aircraft-age-check.md §2) each aircraft's age and replacement age too, a row to replace or
+//     that looks used marked.
 // The Cabins board (each aircraft's cabin against its markets, with Refitted to, Keep as is and Show again; Check's) went
 // on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1): the cabin is chosen with each order, and the plan card
 // suggests it (Tails). The Aircraft checks board (the one-week checks, with Mark checked and the aircraft pop-up it
@@ -39,7 +41,7 @@ import { refreshFigures } from "../performance/reads";
 import { ManualEntry } from "./ManualEntry";
 import {
   BOARDS, CABIN_STATE_WORDS, CAPTURE_KINDS, FLEET_KIND_WORDS, backupWords, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell,
-  captureStatus, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, nightWords, pctWords, seatWords, signedAsd, type BoardKey,
+  captureStatus, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, nightWords, pctWords, replaceAtWords, seatWords, signedAsd, yearsWords, type BoardKey,
   type CabinCharges, type CabinProblem, type FleetChecks,
 } from "./model";
 import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useSystemStatus } from "./reads";
@@ -212,17 +214,19 @@ function FleetBody({ f, airline }: { f: FleetChecks; airline: (id: number) => Ou
               <div className="tblwrap">
                 <table className="tbl" data-figure="systems: fleet table">
                   <tbody>
-                    <tr><th>Aircraft</th><th>Type</th><th>Where</th><th className="num">Condition</th><th className="num">Maintenance</th><th>Seats Y/C/F</th><th>Pilots</th><th></th></tr>
+                    <tr><th>Aircraft</th><th>Type</th><th>Where</th><th className="num">Age</th><th className="num">Replace at</th><th className="num">Condition</th><th className="num">Maintenance</th><th>Seats Y/C/F</th><th>Pilots</th><th></th></tr>
                     {al.aircraft.map((x) => (
                       <tr key={x.registration} data-fleet={x.registration} data-fleet-problems={x.problems.join(" ")}>
                         <td><b>{x.registration}</b> <span className="dim">{x.base ?? ""}</span></td>
                         <td>{x.type ?? "—"}</td>
                         <td>{fleetWhere(x)}</td>
+                        <td className="num">{x.problems.includes("replace") || x.problems.includes("age") ? <span className="pill warn sm">{yearsWords(x.age_years)}</span> : yearsWords(x.age_years)}</td>
+                        <td className="num">{replaceAtWords(x)}</td>
                         <td className="num">{pctWords(x.condition_pct, 0)}</td>
                         <td className="num">{x.problems.includes("maintenance") ? <span className="pill bad sm">{pctWords(x.maintenance_pct, 1)}</span> : pctWords(x.maintenance_pct, 1)}</td>
                         <td>{x.problems.includes("cabin") ? <span className="pill warn sm">{seatWords(x)}</span> : seatWords(x)}</td>
                         <td>{x.pilots === false ? <span className="pill bad sm">no</span> : x.pilots ? "yes" : "—"}</td>
-                        <td>{x.problems.filter((k) => k === "not_in_planner").map((k) => <span key={k} className="pill warn sm">{FLEET_KIND_WORDS[k]}</span>)}</td>
+                        <td>{x.problems.filter((k) => k === "not_in_planner" || k === "replace" || k === "age").map((k) => <span key={k} className="pill warn sm">{FLEET_KIND_WORDS[k]}</span>)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -233,7 +237,7 @@ function FleetBody({ f, airline }: { f: FleetChecks; airline: (id: number) => Ou
           </div>
         );
       })}
-      <div className="note">The game's figures from the evening capture. Maintenance under the airline's limit (the manual's 100%) lets the condition fall; a cabin is marked when the seats don't match the planner's; an aircraft in the planner is listed missing only when every fleet page of its airline came in ok.</div>
+      <div className="note">The game's figures from the evening capture. Maintenance under the airline's limit (the manual's 100%) lets the condition fall; a cabin is marked when the seats don't match the planner's; an aircraft in the planner is listed missing only when every fleet page of its airline came in ok. An aircraft is replaced at 3 years if it came new, 10 if used (manual §3), marked from 60 days before; one marked new that is older in the game than its time with us looks used.</div>
     </>
   );
 }

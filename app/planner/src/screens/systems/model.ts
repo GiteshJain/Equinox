@@ -319,8 +319,11 @@ export function pasteSaves(parsed: readonly PastedLoad[], marked: readonly strin
 
 
 // ---------- Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md): the evening capture's fleet pages, each
-// aircraft as the game showed it on the latest night, and what needs a look, from fleet_checks()
-export type FleetKind = "maintenance" | "crew" | "cabin" | "not_in_planner" | "not_in_game";
+// aircraft as the game showed it on the latest night, and what needs a look, from fleet_checks(). Since 22 Oct (spec
+// docs/specs/2026-10-22-aircraft-age-check.md; manual §3, replacement by age) two more kinds: replace (within
+// replace_warn_days of its replacement age by the game's age, or past it) and age (marked new, but older in the game than
+// its time with us).
+export type FleetKind = "maintenance" | "crew" | "cabin" | "not_in_planner" | "not_in_game" | "replace" | "age";
 export interface FleetProblem {
   kind: FleetKind;
   airline_id: number;
@@ -342,6 +345,10 @@ export interface FleetAircraft {
   to: string | null;
   flight: string | null;
   age_years: number | null;
+  /** How we got it, new or used (aircraft.acquired, since 22 Oct); null for an aircraft the planner doesn't have. */
+  acquired: string | null;
+  /** The age it's replaced at: settings.replace_new_years (3) or replace_used_years (10); null without a planner row. */
+  replace_at_years: number | null;
   condition_pct: number | null;
   maintenance_pct: number | null;
   y: number | null;
@@ -371,9 +378,10 @@ export interface FleetChecks {
 }
 
 /** Each kind as the board and Today name it, worst first. */
-export const FLEET_KINDS: readonly FleetKind[] = ["maintenance", "crew", "cabin", "not_in_planner", "not_in_game"];
+export const FLEET_KINDS: readonly FleetKind[] = ["maintenance", "crew", "cabin", "not_in_planner", "not_in_game", "replace", "age"];
 export const FLEET_KIND_WORDS: Record<FleetKind, string> = {
   maintenance: "maintenance", crew: "no pilots", cabin: "cabin", not_in_planner: "not in the planner", not_in_game: "not in the game",
+  replace: "to replace", age: "looks used",
 };
 
 /** A night as the board writes it: "22 Oct". */
@@ -401,6 +409,15 @@ export function fleetPagesWords(a: Pick<FleetAirline, "pages">): string {
   const p = a.pages;
   if (!p) return "no fleet pages that night";
   return `${p.ok} of ${p.expected ?? p.read} fleet page${(p.expected ?? p.read) === 1 ? "" : "s"} ok`;
+}
+
+/** An age in years as the game rounds it, one decimal: "2.9 y"; "—" when unknown. */
+export const yearsWords = (v: number | null | undefined): string =>
+  (v == null || !Number.isFinite(Number(v)) ? "—" : `${Number(v).toFixed(1)} y`);
+/** The age an aircraft is replaced at, with how it came: "3 y (new)", "10 y (used)"; "—" without a planner row. */
+export function replaceAtWords(a: Pick<FleetAircraft, "acquired" | "replace_at_years">): string {
+  if (a.replace_at_years == null) return "—";
+  return `${Number(a.replace_at_years)} y${a.acquired ? ` (${a.acquired})` : ""}`;
 }
 
 /** Today's needs attention: one item per problem, worst first as fleet_checks() gives them (maintenance, crew, then the

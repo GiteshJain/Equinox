@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BOARDS, CABIN_STATE_WORDS, asd, backupWords, cabinAttention, cabinCountsWords, cabinGameWords, cabinLoggedWords, captureCell, captureStatus, cashChanges,
-  dayStatus, fleetAttention, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, gameFleetWords, loadsChanges, mergeDay, nightlyLog,
+  dayStatus, fleetAttention, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, gameFleetWords, loadsChanges, mergeDay, nightlyLog, replaceAtWords, yearsWords,
   parseLoadPaste, pasteSaves, pctWords, seatWords, signedAsd, typedLoads, typedSave, underList, type CabinCharges, type CabinProblem, type CashToday,
   type FleetAircraft, type FleetChecks,
 } from "./model";
@@ -187,12 +187,12 @@ describe("loads by hand", () => {
 describe("Fleet (22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3)", () => {
   const ac = (registration: string, x: Partial<FleetAircraft> = {}): FleetAircraft => ({
     registration, aircraft_id: null, base: "JFK", fleet: "JFK", type: "Airbus A321NEO Light", nickname: null, from: "JFK", to: null, flight: null,
-    age_years: 0.1, condition_pct: 97, maintenance_pct: 120, y: 180, c: 15, f: 0, pilots: true, owned: false, contract: "active",
+    age_years: 0.1, acquired: "new", replace_at_years: 3, condition_pct: 97, maintenance_pct: 120, y: 180, c: 15, f: 0, pilots: true, owned: false, contract: "active",
     captured_at: "2026-10-22T23:10:00.000Z", problems: [], ...x,
   });
   const checks = (x: Partial<FleetChecks> = {}): FleetChecks => ({
     night: "2026-10-22",
-    counts: { maintenance: 1, crew: 1, cabin: 1, not_in_planner: 1, not_in_game: 1, problems: 5 },
+    counts: { maintenance: 1, crew: 1, cabin: 1, not_in_planner: 1, not_in_game: 1, replace: 0, age: 0, problems: 5 },
     problems: [
       { kind: "maintenance", airline_id: 1, code: "PA", registration: "N003AW", base: "JFK", aircraft_id: 13, words: "N003AW (JFK): maintenance 0.0%, condition 83%" },
       { kind: "crew", airline_id: 1, code: "PA", registration: "N004AW", base: "JFK", aircraft_id: 14, words: "N004AW (JFK): no pilots" },
@@ -206,7 +206,7 @@ describe("Fleet (22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3)", () =
   });
   it("the board's line: the night and each kind's count, or nothing to look at, or nothing captured yet", () => {
     expect(fleetCountsWords(checks())).toBe("the night of 22 Oct: 1 maintenance · 1 no pilots · 1 cabin · 1 not in the planner · 1 not in the game");
-    expect(fleetCountsWords(checks({ counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, problems: 0 }, problems: [] })))
+    expect(fleetCountsWords(checks({ counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, replace: 0, age: 0, problems: 0 }, problems: [] })))
       .toBe("the night of 22 Oct: nothing to look at");
     expect(fleetCountsWords(checks({ night: null }))).toBe("no fleet pages captured yet (Capture all airlines 1.6 reads them each evening)");
   });
@@ -231,6 +231,22 @@ describe("Fleet (22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3)", () =
     ]);
     expect(fleetAttention(null)).toEqual([]);
     expect(fleetAttention(checks({ night: null }))).toEqual([]);
+  });
+  it("the age check (22 Oct): the counts' words, each aircraft's age and replacement age, and Today's items for replace and looks used", () => {
+    expect(fleetCountsWords(checks({ counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, replace: 2, age: 1, problems: 3 } })))
+      .toBe("the night of 22 Oct: 2 to replace · 1 looks used");
+    expect([yearsWords(2.9), yearsWords(10), yearsWords(null)]).toEqual(["2.9 y", "10.0 y", "—"]);
+    expect(replaceAtWords(ac("N001AW"))).toBe("3 y (new)");
+    expect(replaceAtWords(ac("N023AW", { acquired: "used", replace_at_years: 10 }))).toBe("10 y (used)");
+    expect(replaceAtWords(ac("N099AW", { acquired: null, replace_at_years: null }))).toBe("—");
+    const items = fleetAttention(checks({ problems: [
+      { kind: "replace", airline_id: 1, code: "PA", registration: "N001AW", base: "JFK", aircraft_id: 11, words: "N001AW (JFK): replace at 3 years (now 2.9): order its replacement" },
+      { kind: "age", airline_id: 1, code: "PA", registration: "N023AW", base: "JFK", aircraft_id: 33, words: "N023AW (JFK): looks used (3.6 years in the game), marked new" },
+    ] }));
+    expect(items.map((a) => [a.key, a.cls, a.screen, a.tail ?? null, a.text])).toEqual([
+      ["fleet|replace|N001AW|2026-10-22", "warn", "tails", "N001AW", "N001AW (JFK): replace at 3 years (now 2.9): order its replacement"],
+      ["fleet|age|N023AW|2026-10-22", "warn", "tails", "N023AW", "N023AW (JFK): looks used (3.6 years in the game), marked new"],
+    ]);
   });
   it("the Tails pop-up: the game's maintenance and condition on the latest night, marked under the airline's limit", () => {
     expect(gameFleetWords(checks(), 13, "N003AW")).toEqual({ text: "0.0% maintenance · 83% condition · 22 Oct", bad: true });

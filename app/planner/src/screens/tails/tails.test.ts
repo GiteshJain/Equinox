@@ -13,7 +13,7 @@ import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
   filingChanges, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
-  suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
+  acquiredWords, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
 
@@ -53,6 +53,16 @@ const configs: ConfigRow[] = [
 ];
 const configMap = new Map(configs.map((c) => [c.id, c]));
 const airlines: TailAirline[] = [{ id: 1, code: "TA", name: "Test Air", color: "#123456", is_lcc: false, game_id: 113 }, { id: 2, code: "OA", name: "Other Air", color: null, is_lcc: true, game_id: 114 }];
+
+describe("the pop-up's replacement line (22 Oct, spec docs/specs/2026-10-22-aircraft-age-check.md §2)", () => {
+  it("says how the aircraft came and the age it's replaced at, from the settings", () => {
+    const ages = buildRules({ ...input, settings: { ...input.settings, replace_new_years: 3, replace_used_years: 10 } });
+    expect(acquiredWords(ages, ac(1, "T-001"))).toBe("came new, replace at 3 years");
+    expect(acquiredWords(ages, ac(1, "T-001", { acquired: "new" }))).toBe("came new, replace at 3 years");
+    expect(acquiredWords(ages, ac(1, "T-001", { acquired: "used" }))).toBe("came used, replace at 10 years");
+    expect(acquiredWords(rules, ac(1, "T-001", { acquired: "used" }))).toBe("came used");
+  });
+});
 
 describe("the list", () => {
   it("keeps its filters in the address and reads them back", () => {

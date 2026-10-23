@@ -310,7 +310,8 @@ begin
        || ' | FA-099: in the game (ZF1 fleet), not in the planner | FB-777: in the game (ZF1 fleet), not in the planner'
        || ' | FA-006 (ZF2): in the planner, not on the game''s fleet pages';
   assert got = want, format('the words should be %s; got %s', want, got);
-  assert d -> 'counts' = '{"maintenance": 2, "crew": 1, "cabin": 2, "not_in_planner": 2, "not_in_game": 1, "problems": 8}'::jsonb,
+  -- (replace and age since 22 Oct, migration 20261022090000: none here, every aircraft 0.1 years and none with a delivery date)
+  assert d -> 'counts' = '{"maintenance": 2, "crew": 1, "cabin": 2, "not_in_planner": 2, "not_in_game": 1, "replace": 0, "age": 0, "problems": 8}'::jsonb,
     'the counts: ' || (d -> 'counts')::text;
   select e into x from jsonb_array_elements(d -> 'problems') e where e ->> 'registration' = 'FA-002';
   assert x ->> 'code' = 'FA' and x ->> 'base' = 'ZF1' and (x ->> 'aircraft_id')::bigint = (select a.id from public.aircraft a where a.airline_id = fa and a.registration = 'FA-002'),

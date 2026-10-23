@@ -201,7 +201,9 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   airline, then the aircraft; the order queues; when cash doesn't cover the aircraft the top openings need).
 - **Look at the used offers too** (since 22 Oct): the game's Aircraft Market, each evening, for one on the default
   line that flies the chosen routes for less than new. You place the bid and say when the auction closes (rule:
-  manual §3, the used market too; how auctions work: manual §9).
+  manual §3, the used market too; how auctions work: manual §9). When it's won, Claude logs the order with
+  `aircraft.acquired` set to `used`, so its replacement comes at 10 years, not 3 (manual §3, replacement by age); a
+  used aircraft logged without it shows on Today's Fleet group as "looks used, marked new" the first night it flies.
 - **The routes come from the top of the openings** (since 21 Oct): Competition → the airline → **Openings**, or the
   airline briefing, or `select public.competition(<airline id>);` for the rest (rule: manual §3, the openings, ranked).
   In November the trunks are listed first and marked; whether each makes sense stays the Scheduling chat's call (rule:
