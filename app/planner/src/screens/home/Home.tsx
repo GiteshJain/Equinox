@@ -12,6 +12,10 @@
 // figures, the hero, positions and the airline cards; the database's captured figures for the group's average load and
 // the loads per route; the tables for the rest. Home only words and arranges them. It moves on with the clock each
 // minute.
+// Since 23 Oct (spec docs/specs/2026-10-23-planner-look-home.md, the new look's step 8) Home wears the style of Today and
+// Performance: the hero on the foundation's tokens, needs attention's cards as Today's were (.waitgrid, .wcard), the map
+// in a card with a one-line heading and its airline legend as pills, and the airline cards as Performance's scorecards
+// (AirlineCards.tsx). Nothing it shows, reads or links to changed.
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { positions, summary } from "@rules";

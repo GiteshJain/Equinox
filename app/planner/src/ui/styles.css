@@ -1862,3 +1862,67 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .phdests{grid-template-columns:minmax(0,1fr);gap:16px}
   .view.photos .ph-body{padding:14px 16px 16px}
 }
+
+/* ---------- Home's layout (23 Oct, spec docs/specs/2026-10-23-planner-look-home.md): the hero on the foundation's tokens;
+   needs attention's cards as Today's were (.waitgrid, .wcard, unchanged); the network map in a card with a one-line
+   heading and its airline legend as pills (one row that scrolls inside itself on a phone); the airline cards in
+   Performance's scorecard style: the city photo (or the logo alone) as a band at the top, the colour dot and name as the
+   head, label/value rows that start at the top with every label on one line (the value column takes the rest, so the
+   Bases pills wrap under each other rather than squeeze the label), the pills and "Open fleet ›" as the footer. New rules only, all under .home, #eqhero, .eqh-* and .ac*. ---------- */
+#eqhero{background:radial-gradient(120% 90% at 70% 40%,var(--night-3) 0%,var(--night) 60%)}
+.eqh-t span{color:var(--amber)}
+.eqh-tiles{gap:12px}
+.eqh-tiles div{min-width:0}
+.eqh-tiles span{overflow-wrap:anywhere}
+
+.view.home .homeatt{margin-bottom:var(--gap-sec)}
+
+.view.home .mapb{margin-bottom:var(--gap-sec)}
+.view.home .maph{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:14px;margin:0 0 18px}
+.view.home .maph .rh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;margin:0;min-width:0}
+.view.home .maph .rh .note{margin:0;overflow-wrap:anywhere}
+.view.home .mleg{gap:8px;min-width:0}
+.view.home .mleg .mf{flex:none}
+
+.view.home .agrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.view.home .acard{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:0;min-width:0;padding:24px var(--pad-card)}
+.view.home .acard::before{z-index:1}
+.acband{position:relative;display:flex;align-items:flex-end;min-height:72px;margin:-24px calc(-1 * var(--pad-card)) 18px;padding:14px var(--pad-card);
+  background:var(--porcelain)}
+.acband:empty:not(.ph){display:none}
+.acband.ph{min-height:112px;background:linear-gradient(180deg,rgba(10,18,48,.10),rgba(10,18,48,.55)),var(--ph) center/cover}
+.acband .alogo{max-width:70%;background:var(--paper);border-radius:10px;padding:6px 8px;box-sizing:content-box}
+.view.home .acard .fchead{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.view.home .acard .ach{display:flex;align-items:center;gap:8px;min-width:0}
+.view.home .acard .ach b{flex:1;min-width:0;font:800 var(--t-h3)/1.3 var(--font);color:var(--ink);overflow-wrap:anywhere}
+.view.home .acard .ach .lv{width:12px;height:12px}
+.view.home .acard .ach .pill{flex:none;margin-left:auto}
+.acard dl.acrows{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 16px;margin:0;font-size:var(--t-small);align-content:start}
+.acard dl.acrows dt{color:var(--muted);white-space:nowrap}
+.acard dl.acrows dd{margin:0;min-width:0;text-align:right;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.acard dl.acrows dd.acb{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;font-size:var(--t-small)}
+.acard dl.acrows dd.acb .hubtag{margin:0}
+.acard dl.acrows dd.acb .dim{font-weight:500;color:var(--muted)}
+.acfoot{flex-direction:column;align-items:stretch;gap:12px}
+.acfoot .acf{display:flex;flex-wrap:wrap;gap:6px}
+.acfoot .acf:empty{display:none}
+.acfoot .acf .pill{margin:0}
+.acfoot > a.link{align-self:flex-start;min-height:44px;display:inline-flex;align-items:center;text-align:left}
+
+@media (max-width:1100px){
+  .view.home .agrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .view.home .agrid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .view.home .homeatt,.view.home .mapb{margin-bottom:var(--gap-sec)}
+  .view.home .mapb{padding:20px 16px}
+  .view.home .mleg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .view.home .mleg::-webkit-scrollbar{display:none}
+  .view.home .acard{padding:20px var(--pad-card)}
+  .acband{margin-top:-20px}
+  .acard dl.acrows{gap:6px 10px}
+  .acfoot .acf .pill{white-space:normal}
+  .eqh-tiles{gap:8px}
+}

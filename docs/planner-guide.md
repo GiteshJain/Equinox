@@ -55,6 +55,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
 moved to Today on 20 Oct (needs attention's lists, coming up and the to-do board). Since 23 Oct (spec
 docs/specs/2026-10-23-attention-on-home.md) needs attention's summary cards are here, right after the globe, and the
 aircraft on order board is gone (Today's **Orders** shows each delivery line, and Tails' **Deliveries** each aircraft).
+Since 23 Oct it also wears the new look (spec docs/specs/2026-10-23-planner-look-home.md): the globe on the website's
+colours, the cards as Today's were, the map in a card, and the airline cards in Performance's scorecard style.
 - **At the top, the globe:** the earth lit as it is now, every route, each aircraft in the air as a light, "**N aircraft
   in the air.**" and four tiles: **flights today**, **departing in the next hour**, **aircraft on N routes** and the
   **average load, last 7 days**. It moves on each minute and turns slowly (not if your device asks for less motion);
@@ -79,7 +81,8 @@ aircraft on order board is gone (Today's **Orders** shows each delivery line, an
   the page but hidden, as on the old Home, where the globe's tiles stand in for them. The average load is the
   database's: every flight the loads pages captured in the last 7 days, averaged (or, with none captured, every flight
   the load reports cover).
-- **The network right now:** the map of every route in its airline's colour (wider the more flights a day), our bases
+- **The network right now**, in a card with a one-line heading (how many routes, and the time the night is drawn for)
+  and the airline buttons as pills under it (on a phone one row you swipe sideways inside the card): the map of every route in its airline's colour (wider the more flights a day), our bases
   and the airports they reach, with night shaded as it is now. **+**, **−** and **⟲** zoom; the wheel zooms where it
   points, and a zoomed map drags. An airline's button shows that airline, centred on its busiest base, with its routes
   coloured by economy load over 7 days (green 95%+, amber 85–95, orange 70–85, red under 70, grey without loads).
@@ -87,12 +90,15 @@ aircraft on order board is gone (Today's **Orders** shows each delivery line, an
   name it; a route opens its pop-up (its distance, demand, flights a day, loads, the load pattern's signal and each
   frequency, with **Open in Routes**), a planned route its aircraft's plan card on Tails (Aircraft on order until 23 Oct).
   A station (since 22 Oct) is drawn as an ordinary airport dot, never a hub ring.
-- **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
-  route flies from them; never its stations), aircraft, routes, flights and block hours a day, its lowest maintenance
+- **The airline cards** at the foot (three a row, two on a narrower window, one on a phone), laid out as Performance's
+  scorecards since 23 Oct: a band at the top with the airline's logo, on its home city's photo when the website has one;
+  then its colour dot and name with **flying** or **not launched**; then one row each for its **bases** (hubs and focus
+  cities, filled once a route flies from them; never its stations), **aircraft**, **routes**, **flights a day** and
+  **block hours a day**; then, at the foot, its pills: lowest maintenance
   (since 23 Oct the game's figure from the latest night's fleet pages, "lowest maintenance 98%", for each aircraft the
   game flies; the planner's estimate, with ≈, only for one not on them), short and tight turns (or **clean**: flying,
-  no short or tight turns and that lowest maintenance at 105% or more), with its home city's photo behind when the website has one (the city is the airline's own,
-  *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
+  no short or tight turns and that lowest maintenance at 105% or more), and **Open fleet ›**, which opens the airline on
+  Tails. The photo's city is the airline's own (*airlines.photo_city*).
 
 ## Today
 *What do I do now?* The evening after a capture, or whenever one lands (since 20 Oct). Laid out since 22 Oct as the
