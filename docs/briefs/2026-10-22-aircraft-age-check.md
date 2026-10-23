@@ -60,4 +60,8 @@ built, put the 3, 10 and the warning window in `settings`, and let `fleet_checks
 - If used purchases stay rare (three so far), A's hand check is less risky, but the fleet is set to grow every evening.
 
 ## Outcome
-<to be decided>
+**B, 22 Oct 2026 (Gitesh), simplified:** "its fine to use games age, dont need to be so precise". No built date: the
+check reads the game's age (`game_fleet.age_years`, tenths of a year) against the replacement age, and warns once the
+aircraft is within the warning window of it. Each aircraft records whether it came new or used. The cross-check stays,
+from the game's age against the delivery date. Spec: `docs/specs/2026-10-22-aircraft-age-check.md`. The manual's §3
+bullet names the settings rows when the build merges.
