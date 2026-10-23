@@ -76,6 +76,9 @@ monthly archive deletes the scans' full schedules after a full calendar month, a
 them, so it would reach back only one to two months. Every pair, so a pair added to a route list later already has its
 history; one scan a week, about 20 MB a year against about 155 MB for every scan.
 
+*Each week's rivals by pair built 23 Oct (`Equinox` #95, spec `docs/specs/2026-10-23-rival-pairs-history.md`) and moved
+into §7.* The *Decided, not yet built* entry, retired with the build: "- **To build: each week's rivals by pair, kept for good** (brief `docs/briefs/2026-10-23-rival-pairs-history.md`, option C, Gitesh 23 Oct). From the first finished scan on or after each Saturday, each airline's weekly departures on every pair in the world are kept for good (`scan_pair_airlines`), so a route's *Rivals on the pair* reaches back past the monthly archive: every evening's scan for the last month, weekly points before. Built after the rival connections. *(decided 23 Oct; history: rule-history.md)*"
+
 ### Decided, not yet built: point-to-point routes away from our bases
 *Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
 manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base

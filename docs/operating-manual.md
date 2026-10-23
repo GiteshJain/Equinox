@@ -26,11 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **To build: each week's rivals by pair, kept for good** (brief `docs/briefs/2026-10-23-rival-pairs-history.md`,
-  option C, Gitesh 23 Oct). From the first finished scan on or after each Saturday, each airline's weekly departures on
-  every pair in the world are kept for good (`scan_pair_airlines`), so a route's *Rivals on the pair* reaches back past
-  the monthly archive: every evening's scan for the last month, weekly points before. Built after the rival
-  connections. *(decided 23 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -585,7 +580,10 @@ Details and open points: `docs/decisions.md`.
   that month's release in `equinox-backups`, both copies are read back and checked, and only then deleted, through a
   guarded database function that refuses anything else. Only the first night on or after the 1st has work to do
   (October leaves on 1 December); a month that fails is tried again the next night. The daily history (`airline_days`,
-  `route_days`) and the scan summaries stay for good.
+  `route_days`) and the scan summaries stay for good, and so do each week's rivals by pair: from the first finished scan
+  on or after each Saturday, every airline's weekly departures on every pair (`scan_pair_airlines`, since 23 Oct), so a
+  route's *Rivals on the pair* reaches back past the archive (every evening's scan for the last month, weekly points
+  before).
 - **Every job writes a row to `job_runs`,** and the planner's Today warns when the last good backup is more than 30 hours
   old, the latest snapshot is more than 30 hours old (or the 10:00 UTC job hasn't run for 30 hours: the scheduler may
   have stopped; restart it from Supabase's settings), the month's archive hasn't run by the 3rd, or any job's last run
