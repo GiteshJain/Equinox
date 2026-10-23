@@ -297,8 +297,10 @@ as normal on Friday evening first.
      own), one at a time. It stops at the first problem and says which change and why; what's done stays done, and
      pressing it again makes only what the captures haven't seen yet (a change made twice does no harm). The next
      capture ticks the changes off on the fare plan. A route a rival started on or grew on holds on its own, and the
-     ladder says so ("rival Air China started here on 22 Oct: paused until 29 Oct"). Fare moves are only ever reviewed
-     here, never as Needs attention.
+     ladder says so ("rival Air China started here on 22 Oct: paused until 29 Oct"). Since 23 Oct the ladder may jump a
+     cabin under launch, and lists the **cut-or-keep decisions** (the card's "1 decision", the row's **cut or keep?**):
+     decide each one here, cut the route or keep it (rules: manual §5, the fare ladder; weak routes get cut, manual §5,
+     fares). Fare moves are only ever reviewed here, never as Needs attention.
    - **Competition** (since 21 Oct): each airline's market share against last week's scan, the threats of the week
      (Today listed each evening's), and the top openings the evening proposals are working down (Competition → the
      airline). The weekly report's competition by market reads the same scans.

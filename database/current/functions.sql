@@ -3752,6 +3752,8 @@ declare
   v_scan bigint; v_scan_at timestamptz;
   v_rows jsonb; v_actions jsonb := '[]'::jsonb; v_n int := 0;
   v_r record; v_sets jsonb; v_change jsonb; v_dir jsonb; v_lv numeric; v_words text;
+  -- the fare ladder under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md)
+  v_ul_load numeric; v_ul_days numeric; v_ul_min numeric; v_ul_decide numeric; v_ul_levels numeric[]; v_ul_below numeric[]; v_ul_j jsonb; v_ul_span text;
 begin
   v_step := private.fig_num(w, p_airline_id, 'fare_ladder_step_pts');
   v_up := private.fig_num(w, p_airline_id, 'fare_ladder_up_share');
@@ -3763,6 +3765,26 @@ begin
   v_new_days := private.fig_num(w, p_airline_id, 'growth_new_route_days');
   v_added_days := private.fig_num(w, p_airline_id, 'fare_ladder_capacity_hold_days');
   select (r.value #>> '{}')::numeric into v_floor from public.world_rules r where r.world_id = w and r.key = 'fare_floor_pct';
+  -- under launch: a cabin at launch averaging under fare_under_launch_load_pct full over fare_under_launch_days jumps to
+  -- the first of fare_under_launch_levels, holds that many days and is judged on its revenue a flight (an airline's own
+  -- row wins over the world's, as fig_num() reads them)
+  v_ul_load := private.fig_num(w, p_airline_id, 'fare_under_launch_load_pct');
+  v_ul_days := private.fig_num(w, p_airline_id, 'fare_under_launch_days');
+  v_ul_min := private.fig_num(w, p_airline_id, 'fare_under_launch_min_flights');
+  v_ul_decide := private.fig_num(w, p_airline_id, 'fare_under_launch_decide_load_pct');
+  select s.value into v_ul_j from public.settings s
+   where s.world_id = w and s.key = 'fare_under_launch_levels' and (s.airline_id is null or s.airline_id = p_airline_id)
+   order by s.airline_id nulls last limit 1;
+  if v_ul_j is null or jsonb_typeof(v_ul_j) <> 'array'
+     or exists (select 1 from jsonb_array_elements(v_ul_j) e where jsonb_typeof(e) <> 'number') then
+    raise exception 'setting fare_under_launch_levels is missing or isn''t a list of numbers' using errcode = '22023';
+  end if;
+  select array_agg((e #>> '{}')::numeric order by i) into v_ul_levels from jsonb_array_elements(v_ul_j) with ordinality as t(e, i);
+  v_ul_span := case when v_ul_days > 0 and v_ul_days % 7 = 0
+                    then format('%s week%s', trim_scale(v_ul_days / 7), case when v_ul_days = 7 then '' else 's' end)
+                    else format('%s days', trim_scale(v_ul_days)) end;
+  -- the jump levels under this airline's launch, in order (a level at or above launch is never a jump)
+  select array_agg(u.l order by u.i) into v_ul_below from unnest(v_ul_levels) with ordinality as u(l, i) where u.l < v_launch;
   -- this Saturday: the latest Saturday on or before the moment's UTC date. A move recorded on the fare plan since then is
   -- this week's (on the fare plan already); the levels before it are the ones the week's move starts from
   v_week := v_today - ((extract(isodow from v_today)::int + 1) % 7);
@@ -3790,18 +3812,21 @@ begin
   lf as materialized (
     select coalesce(r1.id, r2.id) as route_id, x.*
       from (select distinct on (f.game_date, f.flight_no) f.game_date, f.origin_code as o, f.dest_code as d, f.dep_at,
-                   f.eco_pct, f.eco_fare, f.bus_pct, f.bus_seats, f.bus_fare
+                   f.eco_pct, f.eco_fare, f.bus_pct, f.bus_seats, f.bus_fare, f.eco_pax, f.bus_pax
               from public.game_flights f
              where f.airline_id = p_airline_id and f.flight_no is not null and f.loads_captured_at <= p_as_of and f.game_date <= v_today
              order by f.game_date, f.flight_no, f.id desc) x
       left join ro r1 on r1.hub_code = x.o and r1.dest_code = x.d
       left join ro r2 on r2.hub_code = x.d and r2.dest_code = x.o
      where coalesce(r1.id, r2.id) is not null),
-  -- by cabin: economy on every row with its load, business on flights with business seats; each with its direction (o)
+  -- by cabin: economy on every row with its load, business on flights with business seats; each with its direction (o),
+  -- and since 23 Oct its passengers (revenue a flight, under launch: pax × fare)
   lc as materialized (
-    select lf.route_id, 'economy'::text as cabin, lf.o, lf.game_date, lf.dep_at, lf.eco_pct as pct, lf.eco_fare as fare from lf where lf.eco_pct is not null
+    select lf.route_id, 'economy'::text as cabin, lf.o, lf.game_date, lf.dep_at, lf.eco_pct as pct, lf.eco_fare as fare, lf.eco_pax as pax,
+           coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') as at from lf where lf.eco_pct is not null
     union all
-    select lf.route_id, 'business', lf.o, lf.game_date, lf.dep_at, lf.bus_pct, lf.bus_fare from lf where lf.bus_pct is not null and coalesce(lf.bus_seats, 0) > 0),
+    select lf.route_id, 'business', lf.o, lf.game_date, lf.dep_at, lf.bus_pct, lf.bus_fare, lf.bus_pax,
+           coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') from lf where lf.bus_pct is not null and coalesce(lf.bus_seats, 0) > 0),
   -- the 7 days before the moment, by scheduled departure (the departure date where it isn't known)
   st as (select lc.route_id, lc.cabin, count(*)::int as n, (count(*) filter (where lc.pct >= 100))::int as sold, avg(lc.fare) as fare
            from lc
@@ -3845,13 +3870,64 @@ begin
                left join base b on b.route_id = lc.route_id and b.cabin = lc.cabin and b.o = lc.o
               group by ld.route_id, ld.cabin, ld.day),
   -- the levels the fare plan recorded (manual §5): before this Saturday, the latest is the level; since it, this week's move
-  rec as (select fp.id, fp.route_id, coalesce(fp.cabin_class, 'economy') as cabin, fp.level_pct, fp.ladder_move, fp.proposed_on, fp.reason
+  rec as (select fp.id, fp.route_id, coalesce(fp.cabin_class, 'economy') as cabin, fp.level_pct, fp.ladder_move, fp.proposed_on, fp.reason,
+                 fp.fare_from, fp.change_pct
             from public.fare_plan fp
            where fp.airline_id = p_airline_id and fp.world_id = w and fp.level_pct is not null and fp.status <> 'dropped'
              and fp.proposed_on <= v_today),
   prev as (select distinct on (r.route_id, r.cabin) r.* from rec r where r.proposed_on < v_week order by r.route_id, r.cabin, r.proposed_on desc, r.id desc),
   wk as (select distinct on (r.route_id, r.cabin) r.* from rec r where r.proposed_on >= v_week order by r.route_id, r.cabin, r.proposed_on desc, r.id desc),
   dn as (select r.route_id, r.cabin, max(r.proposed_on) as down_on from rec r where r.ladder_move = 'down' and r.proposed_on < v_week group by 1, 2),
+  -- under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md §2). Each cabin's day by day fare
+  -- (both directions), and its jumps recorded before this Saturday, each with the day it took effect: the first captured
+  -- day on or after it was proposed whose fare is the fare then times its ratio, within 1% (fare_plan_status()'s rule,
+  -- read over every captured day, so the day holds once the flights are older than its 10 days), else the day proposed
+  cday as materialized (select lc.route_id, lc.cabin, lc.game_date as day, avg(lc.fare) as fare from lc where lc.fare > 0 group by 1, 2, 3),
+  jr as (select r.id, r.route_id, r.cabin, r.level_pct, r.proposed_on,
+                coalesce((select min(c.day) from cday c
+                           where c.route_id = r.route_id and c.cabin = r.cabin and c.day >= r.proposed_on and r.fare_from > 0
+                             and abs(c.fare / r.fare_from - (1 + coalesce(r.change_pct, 0) / 100)) <= 0.01), r.proposed_on) as on_day
+           from rec r where r.ladder_move = 'jump' and r.proposed_on < v_week),
+  jf as (select distinct on (jr.route_id, jr.cabin) jr.route_id, jr.cabin, jr.on_day as first_on from jr order by jr.route_id, jr.cabin, jr.proposed_on, jr.id),
+  jl as (select distinct on (jr.route_id, jr.cabin) jr.route_id, jr.cabin, jr.id, jr.proposed_on, jr.on_day as jumped_on
+           from jr order by jr.route_id, jr.cabin, jr.proposed_on desc, jr.id desc),
+  -- done: a revert recorded, or a row after the latest jump (the judgement that it paid, recorded as a hold, or the
+  -- ladder's moves since): no more jumps for that cabin
+  ud as (select jl.route_id, jl.cabin from jl
+          where exists (select 1 from rec r where r.route_id = jl.route_id and r.cabin = jl.cabin and r.proposed_on < v_week
+                           and (r.ladder_move = 'revert' or (r.ladder_move in ('up', 'down', 'hold') and (r.proposed_on, r.id) > (jl.proposed_on, jl.id))))),
+  -- the latest recorded level change (any row but a hold): at launch, the window must be all at that level
+  lch as (select r.route_id, r.cabin, max(r.proposed_on) as changed_on from rec r where r.ladder_move is distinct from 'hold' group by 1, 2),
+  -- the window at launch: the fare_under_launch_days before the moment, by scheduled departure
+  uw as (select lc.route_id, lc.cabin, count(*)::int as n, avg(lc.pct) as load, avg(lc.pax * lc.fare) as rev
+           from lc where lc.at >= p_as_of - make_interval(days => v_ul_days::int) and lc.at < p_as_of group by 1, 2),
+  -- the launch baseline: revenue a flight over the fare_under_launch_days before the first jump took effect. By the last
+  -- level's judgement those days can be 6 weeks old and their flights archived: a day with no captured flights is read
+  -- from the daily history instead (route_days: passengers × average fare in that cabin, over the day's flights)
+  ubf as (select lc.route_id, lc.cabin, lc.game_date as day, count(*) as n, sum(lc.pax * lc.fare) as rev
+            from lc join jf on jf.route_id = lc.route_id and jf.cabin = lc.cabin
+           where lc.at >= (jf.first_on - v_ul_days::int)::timestamp at time zone 'UTC' and lc.at < jf.first_on::timestamp at time zone 'UTC'
+             and lc.pax is not null and lc.fare is not null
+           group by 1, 2, 3),
+  ubh as (select jf.route_id, jf.cabin, d.day, sum(d.flights) as n,
+                 sum(case jf.cabin when 'economy' then d.eco_pax * d.eco_fare_avg else d.bus_pax * d.bus_fare_avg end) as rev
+            from jf
+            join ro on ro.id = jf.route_id
+            join public.route_days d on d.airline_id = p_airline_id
+             and ((d.origin_code = ro.hub_code and d.dest_code = ro.dest_code) or (d.origin_code = ro.dest_code and d.dest_code = ro.hub_code))
+           where d.day >= jf.first_on - v_ul_days::int and d.day < jf.first_on and d.flights > 0
+             and case jf.cabin when 'economy' then d.eco_pax is not null and d.eco_fare_avg is not null
+                               else d.bus_pax is not null and d.bus_fare_avg is not null end
+             and not exists (select 1 from ubf where ubf.route_id = jf.route_id and ubf.cabin = jf.cabin and ubf.day = d.day)
+           group by 1, 2, 3),
+  ub as (select x.route_id, x.cabin, sum(x.rev) / nullif(sum(x.n), 0) as rev
+           from (select ubf.route_id, ubf.cabin, ubf.n, ubf.rev from ubf union all select ubh.route_id, ubh.cabin, ubh.n, ubh.rev from ubh) x
+          group by 1, 2),
+  -- at the jump level: the flights since the latest jump took effect, to the moment
+  uj as (select lc.route_id, lc.cabin, count(*)::int as n, avg(lc.pct) as load, avg(lc.pax * lc.fare) as rev
+           from lc join jl on jl.route_id = lc.route_id and jl.cabin = lc.cabin
+          where lc.at >= jl.jumped_on::timestamp at time zone 'UTC' and lc.at < p_as_of
+          group by 1, 2),
   -- whether the captures show this week's move yet (fare_plan_status()'s rule)
   seen as (select (e ->> 'id')::bigint as id, (e ->> 'applied')::boolean as applied, (e ->> 'seen_on')::date as seen_on
              from jsonb_array_elements(case when exists (select 1 from wk) then private.fig_fare_plan(p_airline_id, p_as_of) -> 'plan' else '[]'::jsonb end) e),
@@ -3886,7 +3962,10 @@ begin
                 wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
                 coalesce(se.applied, false) as applied, se.seen_on, dn.down_on, ag.first_day, ad.last_day,
                 exists (select 1 from contested c where c.a = least(ro.hub_code, ro.dest_code) and c.b = greatest(ro.hub_code, ro.dest_code)) as contested,
-                th.rival as rv_name, th.kind as rv_kind, th.added_weekly as rv_added, th.scan_at as rv_on, th.until as rv_until
+                th.rival as rv_name, th.kind as rv_kind, th.added_weekly as rv_added, th.scan_at as rv_on, th.until as rv_until,
+                jl.jumped_on, jf.first_on, ud.route_id is not null as ul_done, lch.changed_on,
+                coalesce(uw.n, 0) as w_n, uw.load as w_load, uw.rev as w_rev, ub.rev as b_rev,
+                coalesce(uj.n, 0) as j_n, uj.load as j_load, uj.rev as j_rev
            from rc join ro on ro.id = rc.route_id
            left join thr th on th.a = least(ro.hub_code, ro.dest_code) and th.b = greatest(ro.hub_code, ro.dest_code)
            left join st on st.route_id = rc.route_id and st.cabin = rc.cabin
@@ -3897,8 +3976,15 @@ begin
            left join seen se on se.id = wk.id
            left join dn on dn.route_id = rc.route_id and dn.cabin = rc.cabin
            left join age ag on ag.route_id = rc.route_id
-           left join added ad on ad.route_id = rc.route_id),
-  mv as (select lv.*,
+           left join added ad on ad.route_id = rc.route_id
+           left join jl on jl.route_id = rc.route_id and jl.cabin = rc.cabin
+           left join jf on jf.route_id = rc.route_id and jf.cabin = rc.cabin
+           left join ud on ud.route_id = rc.route_id and ud.cabin = rc.cabin
+           left join lch on lch.route_id = rc.route_id and lch.cabin = rc.cabin
+           left join uw on uw.route_id = rc.route_id and uw.cabin = rc.cabin
+           left join ub on ub.route_id = rc.route_id and ub.cabin = rc.cabin
+           left join uj on uj.route_id = rc.route_id and uj.cabin = rc.cabin),
+  mv0 as (select lv.*,
                 case when lv.n > 0 then lv.sold * 100.0 / lv.n end as share,
                 v_launch + v_cap as cap_pct,
                 -- never under launch, nor under the house floor where another player flies the pair
@@ -3907,8 +3993,38 @@ begin
                 coalesce(lv.down_on is not null and v_week - lv.down_on < v_hold * 7, false) as held,
                 -- a flight added in the last fare_ladder_capacity_hold_days, to a route older than that (manual §5, since 21 Oct)
                 coalesce(lv.last_day is not null and v_today - lv.last_day < v_added_days
-                         and lv.first_day is not null and v_today - lv.first_day >= v_added_days, false) as added
+                         and lv.first_day is not null and v_today - lv.first_day >= v_added_days, false) as added,
+                -- under launch (since 23 Oct): the cabin's state, from the fare plan's rows before this Saturday. launch: at
+                -- its launch level and never jumped; holding: its latest jump under fare_under_launch_days old, counted from
+                -- the day it took effect; due: the hold is over; done: reverted, or judged (a row after the latest jump)
+                case when lv.jumped_on is null then case when lv.level = v_launch and v_ul_below is not null then 'launch' end
+                     when lv.ul_done then 'done'
+                     when v_today - lv.jumped_on < v_ul_days then 'holding'
+                     else 'due' end as ul_state,
+                lv.jumped_on + v_ul_days::int as judge_on,
+                -- the latest recorded level change (a cabin back at launch after a step down): the window must have none,
+                -- so all its flights are at the launch level (spec §2); a new route waits as before (growth_new_route_days)
+                lv.changed_on as launch_since,
+                -- the jump levels under the cabin's level: the next is the first of them; at the last, none is left
+                (select u.l from unnest(v_ul_below) with ordinality as u(l, i) where u.l < lv.level order by u.i limit 1) as next_level
            from lv),
+  -- the under-launch kind (spec §2), worked out before this week's plan so a move put on the plan this week keeps it
+  mv as (select mv0.*,
+                case
+                  when mv0.ul_state = 'launch' then
+                    case when mv0.share >= v_down or mv0.n < v_min or mv0.w_load is null or mv0.w_load >= v_ul_load then null
+                         when mv0.launch_since is not null and p_as_of - make_interval(days => v_ul_days::int) < mv0.launch_since::timestamp at time zone 'UTC' then 'ul_since'
+                         when mv0.w_n < v_ul_min then 'ul_few'
+                         else 'ul_jump' end
+                  when mv0.ul_state = 'holding' then 'ul_hold'
+                  when mv0.ul_state = 'due' then
+                    case when mv0.j_n < v_ul_min or mv0.b_rev is null or mv0.j_rev is null then 'ul_few'
+                         when mv0.j_rev >= mv0.b_rev and not (mv0.next_level is null and mv0.j_load < v_ul_decide) then 'ul_paid'
+                         when mv0.j_rev < mv0.b_rev and mv0.next_level is not null then 'ul_jump'
+                         when mv0.j_rev < mv0.b_rev then 'ul_revert'
+                         else 'ul_keep' end
+                end as uk
+           from mv0),
   dc as (select mv.*,
                 case when mv.plan_id is not null then 'planned'
                      when mv.young then 'young'
@@ -3916,17 +4032,35 @@ begin
                      when mv.held then 'held'
                      when mv.added then 'added'
                      when mv.rv_name is not null then 'rival'
+                     -- under launch (since 23 Oct; spec §2): the jump at launch only where the ladder would hold at launch
+                     -- (under fare_ladder_down_share sold out); the hold, the judgement and the waits whatever it sells
+                     when mv.uk in ('ul_hold', 'ul_paid', 'ul_keep', 'ul_revert') or (mv.uk = 'ul_jump' and mv.ul_state = 'due')
+                          or (mv.uk = 'ul_few' and mv.ul_state = 'due') then mv.uk
+                     when mv.uk in ('ul_jump', 'ul_few', 'ul_since') and mv.level <= mv.floor_pct then mv.uk
+                     -- under launch, once jumped or done, the ladder only climbs or holds
+                     when mv.level < v_launch and mv.share < v_down then 'ul_climb'
                      when mv.share >= v_up then case when mv.level >= mv.cap_pct then 'capped' else 'up' end
                      when mv.share >= v_down then 'hold'
                      when mv.level <= mv.floor_pct then 'floor'
                      else 'down' end as k
            from mv),
   fin as (select dc.*,
-                 case dc.k when 'planned' then dc.plan_move when 'up' then 'up' when 'down' then 'down' else 'hold' end as move,
+                 -- a jump is a move down and a revert a move up (since 23 Oct), so existing readers keep working; ladder_kind
+                 -- says which
+                 case dc.k when 'planned' then case dc.plan_move when 'jump' then 'down' when 'revert' then 'up' else dc.plan_move end
+                           when 'up' then 'up' when 'down' then 'down' when 'ul_jump' then 'down' when 'ul_revert' then 'up' else 'hold' end as move,
+                 case dc.k when 'planned' then dc.plan_move when 'up' then 'up' when 'down' then 'down' when 'ul_jump' then 'jump'
+                           when 'ul_revert' then 'revert' else 'hold' end as ladder_kind,
                  case dc.k when 'planned' then dc.plan_level
                            when 'up' then least(dc.level + v_step, dc.cap_pct)
                            when 'down' then greatest(dc.level - v_step, dc.floor_pct)
+                           when 'ul_jump' then dc.next_level
+                           when 'ul_revert' then v_launch
                            else dc.level end as new_level,
+                 -- a cut-or-keep decision for Gitesh (since 23 Oct): at the last jump level, reverted or holding under the
+                 -- decide load; still shown once put on the fare plan this week
+                 dc.uk in ('ul_revert', 'ul_keep') and dc.k in ('ul_revert', 'ul_keep', 'planned') as decide,
+                 to_char(round(dc.b_rev), 'FM999,999,999,990') as b_words, to_char(round(dc.j_rev), 'FM999,999,999,990') as j_words,
                  case when dc.contested and v_floor > v_launch then format('the %s%% floor', trim_scale(v_floor))
                       else format('launch (%s%%)', trim_scale(v_launch)) end as floor_words
             from dc),
@@ -3948,6 +4082,26 @@ begin
                    when 'hold' then format('sold out %s of %s', fin.sold, fin.n)
                    when 'down' then format('sold out %s of %s', fin.sold, fin.n)
                                     || case when fin.level - v_step <= fin.floor_pct then ', down to ' || fin.floor_words else '' end
+                   -- under launch (since 23 Oct; spec §2)
+                   when 'ul_jump' then case when fin.ul_state = 'due'
+                     then format('at %s%%: revenue a flight %s against %s at launch: to %s%% for %s', trim_scale(fin.level), fin.j_words, fin.b_words,
+                                 trim_scale(fin.next_level), v_ul_span)
+                     else format('%s%% full over %s days at launch: to %s%% for %s', round(fin.w_load), trim_scale(v_ul_days), trim_scale(fin.next_level), v_ul_span) end
+                   when 'ul_hold' then format('at %s%% since %s: judged on %s', trim_scale(fin.level), to_char(fin.jumped_on, 'FMDD Mon'), to_char(fin.judge_on, 'FMDD Mon'))
+                   when 'ul_paid' then format('at %s%%: revenue a flight %s against %s at launch, paid off', trim_scale(fin.level), fin.j_words, fin.b_words)
+                   when 'ul_revert' then format('at %s%% for %s: %s%% full, revenue a flight %s against %s at launch: back to launch; cut or keep? (Saturday review)',
+                                                trim_scale(fin.level), v_ul_span, round(fin.j_load), fin.j_words, fin.b_words)
+                   when 'ul_keep' then format('at %s%% for %s: %s%% full, revenue a flight %s against %s at launch: holds at %s%%; cut or keep? (Saturday review)',
+                                              trim_scale(fin.level), v_ul_span, round(fin.j_load), fin.j_words, fin.b_words, trim_scale(fin.level))
+                   when 'ul_few' then case when fin.ul_state = 'due' then
+                       case when fin.j_n < v_ul_min then format('at %s%% since %s: %s flight%s, needs %s to be judged', trim_scale(fin.level),
+                                                                to_char(fin.jumped_on, 'FMDD Mon'), fin.j_n, case when fin.j_n = 1 then '' else 's' end, trim_scale(v_ul_min))
+                            else format('at %s%% since %s: no revenue captured at launch to judge it against', trim_scale(fin.level), to_char(fin.jumped_on, 'FMDD Mon')) end
+                     else format('sold out %s of %s, at %s: %s flight%s in %s days, needs %s to jump', fin.sold, fin.n, fin.floor_words, fin.w_n,
+                                 case when fin.w_n = 1 then '' else 's' end, trim_scale(v_ul_days), trim_scale(v_ul_min)) end
+                   when 'ul_since' then format('sold out %s of %s, at %s since %s: may jump from %s', fin.sold, fin.n, fin.floor_words,
+                                               to_char(fin.launch_since, 'FMDD Mon'), to_char(fin.launch_since + v_ul_days::int, 'FMDD Mon'))
+                   when 'ul_climb' then 'under launch: climbs or holds only'
                    else format('sold out %s of %s, at %s', fin.sold, fin.n, fin.floor_words) end as reason,
                  -- the level the game should show: this week's, once the captures see it
                  case when fin.plan_id is not null and fin.applied then fin.new_level else fin.level end as expect
@@ -3975,8 +4129,20 @@ begin
            'change_pct', case when o.level > 0 then trim_scale(round((o.new_level / o.level - 1) * 100, 1)) end,
            'reason', o.reason, 'contested', o.contested, 'floor', trim_scale(o.floor_pct), 'cap', trim_scale(o.cap_pct), 'new_route', o.young,
            'planned', o.plan_id is not null, 'plan_id', o.plan_id, 'applied', o.applied, 'seen_on', o.seen_on,
-           -- what Put on the fare plan writes: every level that changes, and a hold that follows a step down
-           'to_plan', o.plan_id is null and ((o.move in ('up', 'down') and o.new_level <> o.level) or o.k = 'held'),
+           -- what Put on the fare plan writes: every level that changes (jumps and reverts included), a hold that follows a
+           -- step down, and since 23 Oct a judgement under launch that holds (so the cabin is done)
+           'to_plan', o.plan_id is null and ((o.move in ('up', 'down') and o.new_level <> o.level) or o.k in ('held', 'ul_paid', 'ul_keep')),
+           -- under launch (since 23 Oct): what Put on the fare plan writes as ladder_move, the cabin's state with its
+           -- figures, and whether it is a cut-or-keep decision for Gitesh
+           'ladder_kind', o.ladder_kind,
+           'under_launch', case when o.ul_state is not null then jsonb_strip_nulls(jsonb_build_object(
+             'state', o.ul_state,
+             'baseline_revenue', round(o.b_rev, 2),
+             'window_revenue', round(case when o.ul_state = 'launch' then o.w_rev else o.j_rev end, 2),
+             'window_load', round(case when o.ul_state = 'launch' then o.w_load else o.j_load end, 1),
+             'window_flights', case when o.ul_state = 'launch' then o.w_n else o.j_n end,
+             'jumped_on', o.jumped_on, 'judge_on', o.judge_on)) end,
+           'decide', o.decide,
            -- a change that sets it back to its level (manual §5, since 21 Oct)
            'fix', o.fix,
            'fix_reason', case when o.fix then format('captured fare at %s%%, level %s%%', trim_scale(round(o.worst, 1)), trim_scale(o.expect)) end)
@@ -4029,12 +4195,16 @@ begin
     'settings', jsonb_build_object('step_pts', v_step, 'up_share', v_up, 'down_share', v_down, 'min_departures', v_min,
                                    'hold_weeks', v_hold, 'cap_pts', v_cap, 'launch_pct', v_launch, 'cap_pct', v_launch + v_cap,
                                    'floor_pct', v_floor, 'new_route_days', v_new_days, 'capacity_hold_days', v_added_days,
-                                   'baseline_day', v_base_day),
+                                   'baseline_day', v_base_day,
+                                   'under_launch', jsonb_build_object('load_pct', v_ul_load, 'levels', to_jsonb(v_ul_levels), 'days', v_ul_days,
+                                                                      'min_flights', v_ul_min, 'decide_load_pct', v_ul_decide)),
     'scan', case when v_scan is null then null else jsonb_build_object('id', v_scan, 'taken_at', private.fig_ts(v_scan_at)) end,
     'moves', jsonb_build_object(
       'up', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'up'),
       'hold', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'hold'),
-      'down', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'down')),
+      'down', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'down'),
+      'jumps', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'ladder_kind' = 'jump'),
+      'decisions', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'decide')::boolean)),
     'to_plan', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'to_plan')::boolean),
     'planned', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'planned')::boolean),
     'off_level', (select count(distinct e ->> 'route_id') from jsonb_array_elements(v_rows) e where (e ->> 'fix')::boolean),
@@ -4043,7 +4213,6 @@ begin
       'The fare index compares each flight of the latest captured day with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level. A route more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, new, or not captured since its newest flight launched.'));
 end
 $function$
-
 ;
 
 -- private.fig_fare_plan(p_airline_id bigint, p_as_of timestamp with time zone)
