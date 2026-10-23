@@ -90,3 +90,14 @@ change the floor.
 builds it from this brief. Note: a 2-point step moves revenue a flight by about 2%, less than a week's normal swing in
 loads, so the revenue check may need two or three weeks of a step to tell a real fall from noise. The build should say
 how it handles that.
+
+**Changed 23 Oct (Gitesh, Building chat), before any build: two jumps instead of 2-point steps.** A cabin under 80%
+full over 2 weeks at launch goes to 80% and holds 2 weeks; if its revenue a flight didn't fall, the normal ladder
+carries on; if it fell, 60% for 2 weeks the same way; at 60% still under 60% full, or revenue fallen, back to the last
+level that paid and a cut-or-keep decision. Each judgement needs 10 flights; under launch the ladder only climbs or
+holds. Why: the captures (`route_days`, 9–22 Oct) show revenue a flight on these cabins swinging 23–43% flight to
+flight and a median 13% week to week, against about 2% for a 2-point step, so no per-step revenue check could read it.
+Options weighed in chat: a one-week check per step (random), three weeks per step (still noise, three times slower), a
+cumulative check against the launch baseline (works, but catches a cabin that doesn't respond only after 16–20
+points), and the same with 5-point steps. Gitesh's two jumps give a signal two weeks can read and reach the floor in 4
+weeks.

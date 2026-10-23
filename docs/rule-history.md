@@ -351,6 +351,17 @@ lower fare is tried first. The 80% load limit keeps cuts off nearly full cabins,
 floor is the house rule's (§9). The rule in force until it's built: "The level never goes under launch, nor under the
 60% floor where another player flies the route."
 
+*Changed 23 Oct, before any build (Gitesh, Building chat): two jumps, to 80% then 60%, each held 2 weeks, in place of
+2-point steps.* The wording replaced: "A cabin averaging under 80% full may go under launch, **2 points a step**,
+judged each Saturday, down to a 60% floor. A step that lowers the cabin's revenue a flight is undone. A cabin at the
+floor and still under 60% full goes to Gitesh as a cut-or-keep decision." Why: a 2-point step moves revenue a flight
+by about 2%, while on the cabins it touches revenue a flight swings 23–43% from flight to flight and a week's average
+by a median 13% from the week before (`route_days`, 9–22 Oct), so no per-step check could tell a real fall from
+noise. A 20-point jump moves revenue by up to 20%, which two weeks can show, and reaches the floor in 4 weeks instead
+of about 20. "Paid off" is revenue a flight not falling, not just higher loads (a 32% cabin needs about 40% full at
+80% to break even). Under launch the ladder only climbs or holds, so its 5-point cuts don't add to the jumps; each
+judgement needs 10 flights so thin routes aren't judged on a handful.
+
 A route that gained a frequency in the last 7 days holds for that week, so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct).
 
 A route whose captured fares don't match its level is set back to it: not for a route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).
