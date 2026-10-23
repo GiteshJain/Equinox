@@ -294,7 +294,7 @@ export function Tails() {
         </div>
         <div className="detail" id="detail">
           {open && rules && fig && airline ? (
-            <AircraftPage rules={rules} a={open} configs={configs} fig={fig} issues={issues} types={typeList} bases={baseList}
+            <AircraftPage rules={rules} a={open} configs={configs} fig={fig} maint={openRow?.maint ?? null} issues={issues} types={typeList} bases={baseList}
               configsFor={(t) => cfgList(t || undefined)} roundTrips={roundTrips.length} busy={busy}
               onBack={() => navigate("/tails" + filtersQuery({ ...listFilters(filters), card: "", file: "" }))} onEdit={onEdit} onDelete={() => void onDelete()} />
           ) : reg && ready ? (

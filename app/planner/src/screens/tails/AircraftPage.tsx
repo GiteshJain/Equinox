@@ -43,6 +43,8 @@ export interface AircraftPageProps {
   a: TailAircraft;
   configs: ReadonlyMap<number, ConfigRow>;
   fig: TailFigures;
+  /** The maintenance shown in the header: the game's for an aircraft on the latest fleet pages, else the estimate. */
+  maint: ShownMaint | null;
   issues: readonly ShownIssue[];
   types: readonly string[];
   bases: readonly string[];
@@ -83,7 +85,7 @@ export function AircraftPage(p: AircraftPageProps) {
       <div className="dhead">
         <button type="button" className="back" id="back-tail" onClick={p.onBack}>‹ Tails</button>
         <h2>{a.registration}</h2>
-        <div className="dsub" data-figure="tails: aircraft">{headerWords(rules, a, p.configs, fig)} <MaintPill fig={fig} /></div>
+        <div className="dsub" data-figure="tails: aircraft">{headerWords(rules, a, p.configs, fig)} <MaintPill fig={fig} shown={p.maint} /></div>
         <div className="fg">
           {text("id", "Registration", a.registration)}
           {select("type", "Type", type, p.types)}

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, summary, type RulesInput } from "@rules";
 import { shortType, familyOf } from "../../ui/aircraftNames";
 import { addDays, dayDiff, dueWords, inDays, niceDate, untilText } from "../../ui/dates";
-import { greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords } from "./figures";
+import { cardClean, greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords } from "./figures";
 import { arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, zoomView } from "./map";
 import { familyWords, onOrder } from "./onOrder";
 import type { AircraftRow, CardsRead, HomeAirline } from "./reads";
@@ -121,6 +121,17 @@ describe("the airline cards' lowest maintenance (23 Oct, spec docs/specs/2026-10
       .find((c) => c.airline_id === 1)?.lowest_maintenance;
     const mixed = lowestMaintenance(rules, 1, new Map([[1, { pct: 9999, night: "2026-10-22" }]]));
     expect([mixed?.from, mixed?.pct]).toEqual(["estimate", t3?.pct]);
+    // "clean" follows the same figure: the library's card on the estimate, the game's where there is one
+    const card = summary.airlineCards(rules).find((c) => c.airline_id === 1);
+    if (!card) throw new Error("no card");
+    expect(cardClean(card, lowestMaintenance(rules, 1, undefined))).toBe(card.clean);
+    const flat = { ...card, short_turns: 0, tight_turns: 0 };
+    expect(cardClean(flat, fine)).toBe(true);
+    expect(cardClean(flat, both)).toBe(false);
+    expect(cardClean(flat, lowestMaintenance(rules, 1, new Map([[1, { pct: 104.9, night: "2026-10-22" }], [3, { pct: 300, night: "2026-10-22" }]])))).toBe(false);
+    expect(cardClean({ ...flat, short_turns: 1 }, fine)).toBe(false);
+    expect(cardClean({ ...flat, flying: false }, fine)).toBe(false);
+    expect(cardClean(flat, null)).toBe(false);
     // an idle aircraft (T-002) counts for nothing, as on the library's card
     expect(lowestMaintenance(rules, 1, new Map([[2, { pct: 10, night: "2026-10-22" }], [1, { pct: 300, night: "2026-10-22" }], [3, { pct: 300, night: "2026-10-22" }]]))?.pct).toBe(300);
   });

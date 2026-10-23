@@ -3,7 +3,7 @@
 // worked out in the database as the old Home did), and the operations hero above them (the old eqHeroUpdate: aircraft in
 // the air, flights today, departing in the next hour, aircraft and routes, from summary.now; the load tile repeats the
 // key figure). On the old Home the hero carries the figures and the key-figure row stays in the page, hidden.
-import { aircraftWeek, block, maintenance, type KeyFigures, type NowFigures, type Rules, type TimedLeg } from "@rules";
+import { aircraftWeek, block, maintenance, type AirlineCard, type KeyFigures, type NowFigures, type Rules, type TimedLeg } from "@rules";
 import { shownMaint, type GameMaintFigure, type ShownMaint } from "../tails/model";
 import type { CardsRead } from "./reads";
 
@@ -77,5 +77,9 @@ export function lowestMaintenance(rules: Rules, airlineId: number, game: Readonl
   }
   return low?.m ?? null;
 }
+/** Whether an airline card says "clean" (since 23 Oct): flying, no short or tight turns, and its lowest maintenance
+ *  (lowestMaintenance: the game's where there is one) at its target. */
+export const cardClean = (c: Pick<AirlineCard, "flying" | "short_turns" | "tight_turns">, lowest: Pick<ShownMaint, "level"> | null): boolean =>
+  c.flying && !c.short_turns && !c.tight_turns && lowest?.level === "ok";
 /** The card's pill words: "lowest maintenance 98%" from the game, "lowest maintenance ≈98%" from the estimate. */
 export const lowestWords = (m: Pick<ShownMaint, "from" | "pct">): string => `lowest maintenance ${m.from === "game" ? "" : "≈"}${m.pct}%`;

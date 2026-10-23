@@ -4,7 +4,8 @@
 // maintenance among its aircraft, short and tight turns or "clean", and "Open fleet ›". Every figure is the planning
 // library's (summary.airlineCards), but the lowest maintenance: since 23 Oct (spec
 // docs/specs/2026-10-23-game-maintenance-on-tails.md) the game's figure from the latest night's fleet pages for each
-// aircraft that has one, the estimate for the rest (figures.ts' lowestMaintenance). Where the website has a photo of the airline's city (airlines.photo_city, since build
+// aircraft that has one, the estimate for the rest (figures.ts' lowestMaintenance), and "clean" judged on that figure
+// (cardClean). Where the website has a photo of the airline's city (airlines.photo_city, since build
 // pull request 12; the old planner kept the list in its code, EQ_HUBPHOTO), the card shows it behind (from site_public()).
 // "Open fleet ›" opens the airline on Tails (build pull request 7).
 import { useEffect, useState, type CSSProperties } from "react";
@@ -13,7 +14,7 @@ import type { AirlineCard, Rules } from "@rules";
 import type { GameMaintFigure } from "../tails/model";
 import { Pill } from "../../ui/Pill";
 import { loadLogos } from "../../ui/siteFiles";
-import { lowestMaintenance, lowestWords } from "./figures";
+import { cardClean, lowestMaintenance, lowestWords } from "./figures";
 import type { HomeAirline } from "./reads";
 
 export function AirlineCards({ cards, airlines, photos, rules, game }: {
@@ -55,7 +56,7 @@ export function AirlineCards({ cards, airlines, photos, rules, game }: {
               {m ? <Pill kind={m.level} title={m.from === "game" ? m.title : undefined}>{lowestWords(m)}</Pill> : null}
               {c.short_turns ? <Pill kind="bad">{c.short_turns} short turns</Pill> : null}
               {c.tight_turns ? <Pill kind="warn">{c.tight_turns} tight turns</Pill> : null}
-              {c.clean ? <Pill kind="ok">clean</Pill> : null}
+              {cardClean(c, m) ? <Pill kind="ok">clean</Pill> : null}
             </div>
             <Link className="link" to={"/tails" + (a.code ? "?airline=" + encodeURIComponent(a.code) : "")} data-open-fleet={a.name}>Open fleet ›</Link>
           </div>

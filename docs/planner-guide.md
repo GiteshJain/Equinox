@@ -75,7 +75,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
 - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
   route flies from them; never its stations), aircraft, routes, flights and block hours a day, its lowest maintenance
   (since 23 Oct the game's figure from the latest night's fleet pages, "lowest maintenance 98%", for each aircraft the
-  game flies; the planner's estimate, with ≈, only for one not on them), short and tight turns (or **clean**), with its home city's photo behind when the website has one (the city is the airline's own,
+  game flies; the planner's estimate, with ≈, only for one not on them), short and tight turns (or **clean**: flying,
+  no short or tight turns and that lowest maintenance at 105% or more), with its home city's photo behind when the website has one (the city is the airline's own,
   *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
 
 ## Today
@@ -234,7 +235,8 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   the list; **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
   flies a route. On a phone the list is a column of cards.
 - **An aircraft** (its own address, such as /planner/tails/N001AW): its type, cabin, legs a week, block hours a day, gap
-  target, minimum turn, gaps at the target this week and maintenance; the fields that change it (registration, type,
+  target, minimum turn, gaps at the target this week and maintenance (since 23 Oct the game's figure, no ≈, for an
+  aircraft on the latest fleet pages, as on the list; the estimate otherwise); the fields that change it (registration, type,
   base, cabin, the maintenance gap, notes; each saves when you leave it), **Delete aircraft…** (its round trips go and
   it's retired, after asking in the page); every issue (under the block-hours target, short and tight turns,
   maintenance, legs starting elsewhere, the longest gap, rotations off wave; since 23 Oct an aircraft on the latest
@@ -266,8 +268,8 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
   as a round trip, launched today, and then opens the aircraft.
 - **The aircraft pop-up** (from Today's needs attention or a frequency's aircraft on Routes): its base, block hours a
-  day, legs a week, maintenance (the planner's estimate), every issue (its maintenance judged on the game's figure
-  where it has one, since 23 Oct, as on the aircraft's page) and its flights, with **Open in Tails**. Since 22 Oct **In the game**
+  day, legs a week, maintenance (since 23 Oct the game's figure, no ≈, where the latest fleet pages have it, the
+  estimate otherwise, as on the list), every issue (its maintenance judged on the same figure) and its flights, with **Open in Tails**. Since 22 Oct **In the game**
   beside the maintenance: the game's own maintenance and condition from the latest night's fleet pages ("103.8%
   maintenance · 83% condition · 22 Oct", red under the limit), so the planner's figure can be compared with the game's.
   Since 22 Oct **Replacement**: how it came and when it's replaced ("came new, replace at 3 years", "came used, replace
