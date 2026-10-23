@@ -154,12 +154,15 @@ export function agreementChange(worldId: number, airlineId: number, cc: string, 
 }
 
 // ---------- the filters, in the address (?airline=KF&status=open)
-export type StatusFilter = "" | "open" | "signed" | "declined";
+/** Since 23 Oct (spec docs/specs/2026-10-23-planner-look-interline.md §2) each status's tile filters by it too, so the
+ *  status filter also takes none, requested and nopartner; the old addresses (open, signed, declined) work as before. */
+export type StatusFilter = "" | "open" | IlStatus;
+const STATUS_FILTERS: readonly string[] = ["open", ...IL_STATUS];
 export interface IlFilters { airline: string; status: StatusFilter }
 export function parseFilters(search: string): IlFilters {
   const q = new URLSearchParams(search);
   const s = q.get("status") ?? "";
-  return { airline: (q.get("airline") ?? "").toUpperCase(), status: (["open", "signed", "declined"].includes(s) ? s : "") as StatusFilter };
+  return { airline: (q.get("airline") ?? "").toUpperCase(), status: (STATUS_FILTERS.includes(s) ? s : "") as StatusFilter };
 }
 export function filterSearch(f: IlFilters): string {
   const q = new URLSearchParams();
@@ -190,4 +193,27 @@ export function coveredWords(countries: readonly { code: string; name: string }[
     kinds.set(k.label, [...(kinds.get(k.label) ?? []), c.name || c.code]);
   }
   return [...kinds].map(([k, v]) => `${k.replace("covered by ", "")} — ${v.join(", ")}`).join(" · ");
+}
+
+// ---------- the page head and the tiles (since 23 Oct, spec docs/specs/2026-10-23-planner-look-interline.md §1–2)
+/** The answer as the title: how many agreements are still to sign ("5 agreements to set up"), or all in place. */
+export const answerWords = (open: number): string =>
+  open ? `${open} agreement${open === 1 ? "" : "s"} to set up` : "All agreements in place";
+
+/** How many rows have each status, in IL_STATUS's order. */
+export function statusCounts(rows: readonly IlRow[], status: (r: IlRow) => IlStatus): Record<IlStatus, number> {
+  const n = Object.fromEntries(IL_STATUS.map((s) => [s, 0])) as Record<IlStatus, number>;
+  for (const r of rows) n[status(r)] += 1;
+  return n;
+}
+
+/** The rows in runs of one airline each, in the rows' order (the table's groups). */
+export function byAirline(rows: readonly IlRow[]): { airline_id: number; rows: IlRow[] }[] {
+  const out: { airline_id: number; rows: IlRow[] }[] = [];
+  for (const r of rows) {
+    const last = out[out.length - 1];
+    if (last && last.airline_id === r.airline_id) last.rows.push(r);
+    else out.push({ airline_id: r.airline_id, rows: [r] });
+  }
+  return out;
 }

@@ -1566,3 +1566,71 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .cprows .cpm{padding:14px 16px}
   .cprows .cpbig{font-size:26px}
 }
+
+/* ---------- Interline's layout (23 Oct, spec docs/specs/2026-10-23-planner-look-interline.md): the answer as the title
+   with the airline and status filters as pills beside it; count tiles by status (Today's tiles, three a row, two on a
+   phone); the agreements as one table grouped by airline under its colour dot, each row on a phone a compact card
+   (country, airline, status pill) that opens to its fields; the interline countries and the guidance as Systems' rows
+   that open. New rules only, all under .interline / .il*. ---------- */
+.ilvh .todayttl{align-items:flex-end}
+.ilchips{flex:0 1 auto;display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:100%;min-width:0;margin:0}
+.ilchipset{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:6px;max-width:100%;min-width:0}
+.ilchips .chiplbl{min-width:0;margin:0 4px 0 0;font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ilchips .chip{display:inline-flex;align-items:center;gap:8px;flex:none}
+.ilchips .chip .lv{margin:0}
+
+.ilcounts > h3.rh{display:flex;flex-direction:column;gap:4px}
+.ilcounts > h3.rh .note{margin:0}
+.iltiles .tile.on .tname{color:#fff}
+
+.ilboard .tblwrap{margin:0 0 6px}
+.tbl.il{border-collapse:separate}
+.tbl.il td{vertical-align:middle}
+.tbl.il tr.ilgrp th{position:static;padding:22px 14px 10px;border-bottom:1px solid var(--line);background:none;text-transform:none;letter-spacing:0;
+  font:800 var(--t-h3)/1.3 var(--font);color:var(--ink)}
+.tbl.il tbody:first-of-type tr.ilgrp th{padding-top:10px}
+.ilgname{display:inline-flex;align-items:center;gap:10px;vertical-align:middle}
+.ilgname .lv{width:12px;height:12px}
+.ilgnote{margin-left:12px;font:500 var(--t-small)/1.4 var(--font);color:var(--muted)}
+.tbl.il tbody tr:last-child td{border-bottom:1px solid var(--line)}
+.tbl.il tbody:last-of-type tr:last-child td{border-bottom:0}
+.tbl.il tr.signed td{background:var(--ok-soft)}
+.tbl.il tr.declined td{color:var(--muted)}
+.tbl.il td input{min-height:44px;min-width:120px}
+.tbl.il td select{min-height:44px}
+/* on a wide screen the row's first cell is just its country: the airline is the group's head, the status is its box */
+.iltap{display:block;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:default}
+.iltap .ilcty{font-weight:800}
+.iltap .ilal,.iltap .ilst,.iltap .chev{display:none}
+
+.ilrows .ilguide,.ilrows .ilcovered{margin:0;max-width:110ch;color:var(--ink);font-size:var(--t-body);line-height:1.6;overflow-wrap:anywhere}
+
+@media (max-width:640px){
+  .ilvh .todayttl{align-items:stretch}
+  .ilchips{align-items:stretch}
+  .ilchipset{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .ilchipset::-webkit-scrollbar{display:none}
+  .ilchips .chiplbl{flex:none}
+  .ilboard{padding:20px 16px}
+  /* the agreements as one compact card per row: country, airline, status pill; a tap opens its fields */
+  .tbl.il,.tbl.il tbody,.tbl.il tr,.tbl.il td,.tbl.il th{display:block;width:auto}
+  .tbl.il thead{display:none}
+  .tbl.il tr.ilgrp th{padding:18px 4px 8px;border-bottom:0}
+  .tbl.il tbody:first-of-type tr.ilgrp th{padding-top:4px}
+  .ilgnote{display:block;margin:2px 0 0 22px}
+  .tbl.il tr[data-il-row]{margin:0 0 8px;padding:0 14px;border-radius:var(--r-md);background:var(--porcelain);box-shadow:inset 0 0 0 1px var(--line)}
+  .tbl.il tr.signed{background:var(--ok-soft)}
+  .tbl.il tr[data-il-row] td,.tbl.il tbody tr:last-child td{padding:0;border:0;background:none}
+  .tbl.il tr[data-il-row] > td:not(.ilh){display:none}
+  .tbl.il tr[data-il-row][data-open=yes] > td:not(.ilh){display:block;padding:10px 0;border-top:1px solid var(--line)}
+  .tbl.il tr[data-il-row][data-open=yes] > td:last-child{padding-bottom:14px}
+  .tbl.il td[data-l]::before{content:attr(data-l);display:block;margin:0 0 6px;font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .tbl.il td input,.tbl.il td select{width:100%;min-width:0}
+  .iltap{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;grid-template-areas:"cty st chev" "al st chev";align-items:center;gap:2px 10px;
+    min-height:64px;padding:10px 0;cursor:pointer}
+  .iltap .ilcty{grid-area:cty;min-width:0;overflow-wrap:anywhere}
+  .iltap .ilal{grid-area:al;display:flex;align-items:center;gap:8px;min-width:0;font:500 var(--t-small)/1.4 var(--font);color:var(--muted);overflow-wrap:anywhere}
+  .iltap .ilst{grid-area:st;display:inline-flex;margin:0;white-space:normal;text-align:right;max-width:44vw}
+  .iltap .chev{grid-area:chev;display:inline-block;width:8px;height:8px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg);margin:0 2px 3px 0}
+  .tbl.il tr[data-open=yes] .iltap .chev{transform:rotate(-135deg);margin-bottom:-3px}
+}
