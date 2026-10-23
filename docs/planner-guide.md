@@ -475,7 +475,12 @@ fold them, and a row's title opens or closes it.
     **Connecting** column: each rival's one-stop departures a week on the pair through its own hub, with the connecting
     airports, and after the rivals that fly it the rivals that only connect ("—" direct). A line under the table gives
     both totals ("rivals 14 direct · 17 connecting a week"); connecting departures are never added to direct, to the
-    rivals' total or to our share. The column is there once the latest scan has them worked out.
+    rivals' total or to our share. The column is there once the latest scan has them worked out. Since 23 Oct (spec
+    docs/specs/2026-10-23-rival-pairs-history.md) the share line reaches back past the monthly archive: every evening's
+    scan for the last month, and before that one scan a week (the first on or after each Saturday), whose figures are
+    kept for good. When some points are weekly, a note under the line says how many and from when every scan is shown
+    ("3 weekly points before Sat, Nov 1 (one scan a week, kept after the monthly archive); every scan from then").
+    Connecting departures are shown only for scans that still have their full schedules.
   - **Connections:** at each end, how many city pairs its flights connect to and the top 10 with how many times a week,
     onward (from the far end through this one) and feeding (into the far end), from the minimum connection time up to
     8 hours across all our airlines (the plan card's rule).

@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { FoldBoard } from "../../ui/FoldBoard";
 import {
-  barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, storyChartLayout, storyFareWords, storyHeader, storyWeekOnWeek, weekBars,
+  barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyWeekOnWeek, weekBars,
   type RouteStory, type StoryDay, type StoryEvent, type StoryWeek,
 } from "./model";
 import { RouteStoryView } from "./RoutePage";
@@ -222,6 +222,16 @@ describe("the rivals on the pair", () => {
     expect(l?.dots[1]?.tip).toBe("2026-10-18: 66.7% (ours 28, rivals 14 a week)");
     expect(shareLine(story().rivals.shares.slice(0, 1), day10)).toBeNull();
   });
+  it("since 23 Oct: a note under the line when some points are the week's kept scan only, none when every point is a full scan", () => {
+    const s = story().rivals.shares;
+    expect(shareWeeklyNote(s, null, day10)).toBeNull();
+    const weekly = [{ ...s[0]!, weekly: true }, { ...s[0]!, scan_id: 7, taken_at: "2026-10-04T08:00:00.000Z", weekly: true }, s[1]!];
+    expect(shareWeeklyNote(weekly, "2026-10-18T08:00:00.000Z", day10))
+      .toBe("2 weekly points before 2026-10-18 (one scan a week, kept after the monthly archive); every scan from then");
+    expect(shareWeeklyNote(weekly.slice(0, 1), null, day10)).toBe("1 weekly point (one scan a week, kept after the monthly archive)");
+    // the weekly points are drawn like any other
+    expect(shareLine(weekly, day10)?.dots).toHaveLength(3);
+  });
 });
 
 describe("the address", () => {
@@ -296,5 +306,13 @@ describe("the page", () => {
     expect(html).toContain("5 days with flights so far");
     expect(html).toContain("No rival flies this pair.");
     expect(html).toContain("Nothing has happened on it yet.");
+  });
+  it("since 23 Oct: a note under our share line only when some points are weekly", () => {
+    const s = story();
+    expect(render(s)).not.toContain("data-weekly-note");
+    const html = render({ ...s, rivals: { ...s.rivals, daily_from: "2026-10-18T08:00:00.000Z", weekly_points: 1,
+      shares: [{ ...s.rivals.shares[0]!, weekly: true }, s.rivals.shares[1]!] } });
+    expect(html).toContain("data-weekly-note");
+    expect(html).toMatch(/1 weekly point before [^<]*18[^<]* \(one scan a week, kept after the monthly archive\); every scan from then/);
   });
 });

@@ -4,7 +4,9 @@
 --   1. What's due: each listed table's months before its kept window (one full calendar month; 12 for change_log), with
 --      their row counts; nothing inside the window. Hand-made rows in an old month of each of the six tables (three
 --      months back; change_log fourteen) are listed exactly; since 23 Oct scan_rival_connections (the rivals'
---      connections, spec docs/specs/2026-10-23-rival-connections.md §2) goes with the scan schedules.
+--      connections, spec docs/specs/2026-10-23-rival-connections.md §2) goes with the scan schedules; scan_pair_airlines
+--      (each week's rivals by pair, kept for good, spec docs/specs/2026-10-23-rival-pairs-history.md §4) is left alone: never
+--      listed or due, and the hand-made scan's kept rows stay through the delete.
 --   2. The manifest: the row count, the checksum (worked out here independently: md5 of every row as Postgres prints it,
 --      in UTC, joined by newlines, in primary-key order), the table's layout and the latest migration version; the
 --      export query gives exactly those rows.
@@ -27,6 +29,10 @@ begin
   assert (select string_agg(table_name || ':' || keep_months, ', ' order by table_name) from private.archive_tables())
          = 'change_log:12, game_events:1, game_flights:1, game_scan_airports:1, game_scan_schedules:1, scan_rival_connections:1',
     'the archive''s tables aren''t design §7''s';
+  -- left alone (since 23 Oct): the week's rivals by pair are kept for good
+  assert not exists (select 1 from private.archive_tables() t where t.table_name = 'scan_pair_airlines')
+     and not exists (select 1 from private.archive_due() x where x.table_name = 'scan_pair_airlines'),
+    'the archive lists scan_pair_airlines, which is kept for good';
   -- the kept window: one full calendar month (12 for change_log)
   assert private.archive_kept_from('game_flights', date '2026-12-01') = date '2026-11-01'
      and private.archive_kept_from('game_flights', date '2026-11-30') = date '2026-10-01'
@@ -50,6 +56,7 @@ begin
   insert into t_counts select 'game_scan_airports', count(*) from public.game_scan_airports;
   insert into t_counts select 'scan_rival_connections', count(*) from public.scan_rival_connections;
   insert into t_counts select 'change_log', count(*) from public.change_log;
+  insert into t_counts select 'scan_pair_airlines', count(*) from public.scan_pair_airlines;
 
   -- game_events: three payments in the month
   insert into public.game_events (world_id, airline_id, airline, event_date, event_time, descr, debit, captured_at, due_at)
@@ -86,6 +93,9 @@ begin
   -- its rivals' connections (two rows; a1 stands in for the rival: the table takes any airline of the world)
   insert into public.scan_rival_connections (scan_id, world_id, airline_id, origin, dest, via, weekly_departures, best_gap_min)
   values (v_scan, w, a1.id, 'ZZA', 'ZZB', 'ZZC', 7, 120), (v_scan, w, a1.id, 'ZZB', 'ZZA', 'ZZC', 3, 95);
+  -- its pairs kept for good (scan_pair_airlines, left alone by the archive): one row, which must stay
+  insert into public.scan_pair_airlines (scan_id, world_id, airline_id, a, b, weekly_a_to_b, weekly_b_to_a, passenger)
+  values (v_scan, w, a1.id, 'ZZA', 'ZZB', 7, 0, true);
   -- the change log: three rows fourteen months back
   insert into public.change_log (changed_at, world_id, table_name, row_key, op, old_values, new_values, actor, actor_detail)
   select (mc + g)::timestamp at time zone 'UTC', w, 'todos', jsonb_build_object('id', -g), 'update', '{"title": "a"}', '{"title": "b"}', 'claude', 'jobs-test'
@@ -230,9 +240,18 @@ begin
     perform pg_temp.refused(r.table_name || ' a second time', r.month, r.table_name, (r.manifest ->> 'rows')::bigint, r.manifest ->> 'checksum',
                             format('%%the count doesn''t match (%s expected, 0 there now)%%', r.rows));
   end loop;
+  -- the week's rivals by pair stayed: the hand-made scan's row and every other
+  assert (select count(*) from public.scan_pair_airlines) = (select x.n from t_counts x where x.table_name = 'scan_pair_airlines') + 1,
+    'the archive''s deletes touched scan_pair_airlines, which is kept for good';
+  begin
+    perform private.archive_delete((select month from t_arch where table_name = 'game_scan_schedules'), 'scan_pair_airlines', 1, 'x');
+    raise exception 'archive_delete didn''t refuse scan_pair_airlines';
+  exception when others then
+    if sqlerrm not like '%scan_pair_airlines is not a table the archive may touch%' then raise; end if;
+  end;
   -- the flights just before and after the month stayed
   assert (select count(*) from public.game_flights where origin_code = 'ZZA' and statement_blk = 2) = 2, 'a flight outside the month went';
-  raise notice 'archive_delete with the manifest''s count and checksum: exactly the month''s rows of each of the 6 tables went (the flights a minute either side stayed), one job_runs row each (archive, the month); asked again, refused';
+  raise notice 'archive_delete with the manifest''s count and checksum: exactly the month''s rows of each of the 6 tables went (the flights a minute either side stayed; scan_pair_airlines left alone and refused), one job_runs row each (archive, the month); asked again, refused';
 end
 $test$;
 

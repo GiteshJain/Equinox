@@ -19,7 +19,7 @@ import { Stars } from "../routes/parts";
 import { itemRoute } from "../screens";
 import { BarChart, ShareLine, StoryChart } from "./Charts";
 import {
-  ROUTE_BOARDS, STORY_MIN_DAYS, eventWords, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, storyChartLayout, storyHeader,
+  ROUTE_BOARDS, STORY_MIN_DAYS, eventWords, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyHeader,
   storyWeekOnWeek, weekBars, type RouteBoardKey, type RouteStory,
 } from "./model";
 import { useRouteAt, useRouteStory } from "./reads";
@@ -92,6 +92,7 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
   const bars = weekBars(s, (d) => niceDate(d));
   const rv = rivalLines(s, dayOf);
   const share = shareLine(s.rivals.shares, dayOf);
+  const weeklyNote = shareWeeklyNote(s.rivals.shares, s.rivals.daily_from, dayOf);
   const [eventsOpen, setEventsOpen] = useState(false);
   const ev = listCut(s.events, eventsOpen);
   return (
@@ -159,6 +160,7 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
           <div className="rpours">{rv.ours}</div>
           {share ? <div className="rpshare"><span className="dim">our share at each scan since launch</span><ShareLine s={share} /></div>
             : <div className="dim">{s.rivals.shares.length === 1 ? `one scan since launch: ${s.rivals.shares[0]?.share ?? "—"}%` : "no scan since launch yet"}</div>}
+          {weeklyNote ? <div className="dim" data-weekly-note>{weeklyNote}</div> : null}
         </div>
       ), "performance route: rivals board")}
       {board("Connections", conns ? (

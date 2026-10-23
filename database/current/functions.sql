@@ -5558,31 +5558,32 @@ begin
            where c.table_name = 'routes' and c.world_id = w and c.op = 'update' and (c.row_key ->> 'id')::bigint = p_route_id
              and c.new_values ? 'cabin_choice' and c.changed_at <= p_as_of and coalesce(c.actor, '') <> 'migration') x;
 
-  -- ---------- the scans: the latest finished by the moment (with its schedules), and the week before as competition()
-  -- picks it (the latest at least 6 days older, else the oldest there is)
+  -- ---------- the scans: the latest finished by the moment (with its schedules, or since 23 Oct its kept rows), and the
+  -- week before as competition() picks it (the latest at least 6 days older, else the oldest there is)
   select s.id, s.taken_at into v_scan, v_scan_at from public.game_scans s
    where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
-     and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+     and (exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id) or exists (select 1 from public.scan_pair_airlines x where x.scan_id = s.id))
    order by s.taken_at desc, s.id desc limit 1;
   if v_scan is not null then
     select s.id, s.taken_at into v_before, v_before_at from public.game_scans s
      where s.world_id = w and s.status = 'done' and s.taken_at <= v_scan_at - interval '6 days'
-       and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+       and (exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id) or exists (select 1 from public.scan_pair_airlines x where x.scan_id = s.id))
      order by s.taken_at desc, s.id desc limit 1;
     if v_before is null then
       select s.id, s.taken_at into v_before, v_before_at from public.game_scans s
        where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of and s.id <> v_scan
-         and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+         and (exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id) or exists (select 1 from public.scan_pair_airlines x where x.scan_id = s.id))
        order by s.taken_at, s.id limit 1;
     end if;
   end if;
-  -- every finished scan by the moment with its schedules, each with the one before it; read: the latest, the week before,
-  -- and each scan since launch with the one before it
+  -- every finished scan by the moment with its schedules or its kept rows (scan_pair_airlines, since 23 Oct: the week's
+  -- kept scan once the monthly archive has taken its schedules), each with the one before it; read: the latest, the week
+  -- before, and each scan since launch with the one before it
   with sc as (
     select s.id, s.taken_at, lag(s.id) over o as prev_id
       from public.game_scans s
      where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
-       and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+       and (exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id) or exists (select 1 from public.scan_pair_airlines x where x.scan_id = s.id))
     window o as (order by s.taken_at, s.id))
   select array_remove(array_agg(distinct z.id), null) into v_ids
     from (select v_scan as id union all select v_before
@@ -5593,15 +5594,27 @@ begin
     select s.id, s.taken_at, lag(s.id) over o as prev_id
       from public.game_scans s
      where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
-       and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+       and (exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id) or exists (select 1 from public.scan_pair_airlines x where x.scan_id = s.id))
     window o as (order by s.taken_at, s.id)),
   since as (select sc.* from sc where v_launch is not null and sc.taken_at >= v_launch::timestamp at time zone 'UTC'),
-  -- each airline's passenger departures a week on the pair, both ways, in each scan read (private.scan_pair_flights());
-  -- every airline that isn't one of ours is a rival (competition analysis's rule)
+  -- each airline's passenger departures a week on the pair, both ways, in each scan read: from its schedules where it
+  -- still has them (private.scan_pair_flights()), otherwise from its kept rows (scan_pair_airlines, passenger rows only;
+  -- spec docs/specs/2026-10-23-rival-pairs-history.md §3), the same figures; every airline that isn't one of ours is a
+  -- rival (competition analysis's rule)
+  fl as (
+    select f.scan_id, f.airline_id, f.weekly from private.scan_pair_flights(coalesce(v_ids, '{}'::bigint[]), array[v_pair]) f
+    union all
+    select k.scan_id, k.airline_id, k.weekly_a_to_b + k.weekly_b_to_a
+      from public.scan_pair_airlines k
+     where k.scan_id = any (coalesce(v_ids, '{}'::bigint[])) and k.a = least(v_hub, v_dest) and k.b = greatest(v_hub, v_dest) and k.passenger
+       and not exists (select 1 from public.game_scan_schedules y where y.scan_id = k.scan_id)),
+  -- the scans read from their kept rows (weekly points)
+  wk as (select s.scan_id from (select unnest(coalesce(v_ids, '{}'::bigint[])) as scan_id) s
+          where not exists (select 1 from public.game_scan_schedules y where y.scan_id = s.scan_id)),
   ex as materialized (
     select x.scan_id, x.airline_id, sum(x.weekly)::int as weekly, coalesce(g.kind, 'rival') <> 'ours' as rival,
            coalesce(ra.public_name, ra.game_name, ra.planner_name, 'airline ' || x.airline_id) as name
-      from private.scan_pair_flights(coalesce(v_ids, '{}'::bigint[]), array[v_pair]) x
+      from fl x
       join public.airlines ra on ra.id = x.airline_id
       left join public.groups g on g.id = ra.group_id
      group by x.scan_id, x.airline_id, g.kind, ra.public_name, ra.game_name, ra.planner_name),
@@ -5627,7 +5640,8 @@ begin
   -- docs/specs/2026-10-23-rival-connections.md §3), both ways, by connecting airport; shown beside direct, never added.
   -- Only the scans they were worked out for (a row in scan_rival_connections_week)
   cs as (select s.scan_id from (select unnest(coalesce(v_ids, '{}'::bigint[])) as scan_id) s
-          where exists (select 1 from public.scan_rival_connections_week c where c.scan_id = s.scan_id)),
+          where exists (select 1 from public.scan_rival_connections_week c where c.scan_id = s.scan_id)
+            and not exists (select 1 from wk where wk.scan_id = s.scan_id)),
   cn as materialized (
     select c.scan_id, c.airline_id, coalesce(ra.public_name, ra.game_name, ra.planner_name, 'airline ' || c.airline_id) as name,
            c.via, sum(c.weekly_departures)::int as weekly
@@ -5650,8 +5664,10 @@ begin
                                        else format('%s added %s a week (%s → %s)', rv.name, rv.now_w - rv.then_w, rv.then_w, rv.now_w) end)), '[]'::jsonb)
                         from rv),
            'rivals', jsonb_build_object(
-             'scan', case when v_scan is null then null else jsonb_build_object('id', v_scan, 'taken_at', private.fig_ts(v_scan_at)) end,
-             'week_before', case when v_before is null then null else jsonb_build_object('id', v_before, 'taken_at', private.fig_ts(v_before_at)) end,
+             'scan', case when v_scan is null then null else jsonb_build_object('id', v_scan, 'taken_at', private.fig_ts(v_scan_at))
+                                                                 || case when v_scan in (select wk.scan_id from wk) then jsonb_build_object('weekly', true) else '{}'::jsonb end end,
+             'week_before', case when v_before is null then null else jsonb_build_object('id', v_before, 'taken_at', private.fig_ts(v_before_at))
+                                                                     || case when v_before in (select wk.scan_id from wk) then jsonb_build_object('weekly', true) else '{}'::jsonb end end,
              -- ours: the live schedule, both ways (competition()'s); before: the airline's flights in the week-before scan
              'ours', v_out + v_back, 'rivals_weekly', (select tot.rivals from tot),
              'share', case when v_scan is not null then round(100.0 * (v_out + v_back) / nullif(v_out + v_back + (select tot.rivals from tot), 0), 1) end,
@@ -5669,9 +5685,14 @@ begin
                                      else '{}'::jsonb end
                              order by lt.weekly desc, lt.name), '[]'::jsonb) from lt),
              -- our share at each finished scan since launch: the airline's departures in the scan against every rival's
+             -- (since 23 Oct) weekly: the point is a week's kept scan read from its kept rows, its schedules archived
              'shares', (select coalesce(jsonb_agg(jsonb_build_object(
                            'scan_id', sh.id, 'taken_at', private.fig_ts(sh.taken_at), 'ours', sh.ours, 'rivals', sh.rivals,
-                           'share', round(100.0 * sh.ours / nullif(sh.ours + sh.rivals, 0), 1)) order by sh.taken_at, sh.id), '[]'::jsonb) from sh))
+                           'share', round(100.0 * sh.ours / nullif(sh.ours + sh.rivals, 0), 1),
+                           'weekly', exists (select 1 from wk where wk.scan_id = sh.id)) order by sh.taken_at, sh.id), '[]'::jsonb) from sh),
+             'weekly_points', (select count(*)::int from sh where exists (select 1 from wk where wk.scan_id = sh.id)),
+             'daily_from', case when exists (select 1 from sh join wk on wk.scan_id = sh.id)
+                                then (select private.fig_ts(min(sh.taken_at)) from sh where not exists (select 1 from wk where wk.scan_id = sh.id)) end)
            -- connecting (since 23 Oct), only when the latest scan has them worked out: the rivals' one-stop departures on
            -- the pair, those with no direct flight that connect (connecting_only), and each rival's at each scan read
            || case when exists (select 1 from cs where cs.scan_id = v_scan) then jsonb_build_object(
@@ -5688,7 +5709,8 @@ begin
                                         order by gs.taken_at, s.scan_id), '[]'::jsonb)
                                        from cs s join public.game_scans gs on gs.id = s.scan_id))
               else '{}'::jsonb end,
-           'used', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'taken_at', private.fig_ts(s.taken_at)) order by s.taken_at, s.id), '[]'::jsonb)
+           'used', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'taken_at', private.fig_ts(s.taken_at),
+                                                                 'weekly', exists (select 1 from wk where wk.scan_id = s.id)) order by s.taken_at, s.id), '[]'::jsonb)
                       from since s))
     into v_scanpart;
 
@@ -5720,7 +5742,8 @@ begin
       'Both directions together, from the daily history (route_days): a day is a UTC day, and one with no flights is left out. load_pct is the passengers on the flights whose loads were captured over their seats; profit_per_hour is profit (millions of AS$) over block hours (the scheduled block of the flights that have one). Weeks are 7-day blocks ending on latest_day, newest first.',
       'Events: the schedule''s saves from the change log (one per save; changes a migration made left out; the rotations that are the launch itself not repeated), the fare plan''s rows, the route''s own cabin choice, and rivals that started or added competition_threat_min_weekly a week between consecutive scans since launch (passenger flights only).',
       'Rivals are every airline in the scan that isn''t one of ours; ours now are the live schedule both ways, ours in a scan the airline''s flights in it.',
-      'Connecting (since 23 Oct): each rival''s one-stop departures a week on the pair, both ways, from scan_rival_connections (same airline, from the connecting airport''s minimum connection time to connection_max_wait_h, both legs together at most rival_connection_detour_max times the direct distance, each first flight once), with its top 3 connecting airports; beside weekly, never added to it, to rivals_weekly or to the share. connecting_only: rivals with no direct flight that connect; connecting_scans: each rival''s at each scan read that has them worked out. Absent when the latest scan has none worked out.'));
+      'Connecting (since 23 Oct): each rival''s one-stop departures a week on the pair, both ways, from scan_rival_connections (same airline, from the connecting airport''s minimum connection time to connection_max_wait_h, both legs together at most rival_connection_detour_max times the direct distance, each first flight once), with its top 3 connecting airports; beside weekly, never added to it, to rivals_weekly or to the share. connecting_only: rivals with no direct flight that connect; connecting_scans: each rival''s at each scan read that has them worked out. Absent when the latest scan has none worked out.',
+      'Weekly points (since 23 Oct): a scan whose schedules the monthly archive has taken is read from its kept rows (scan_pair_airlines: the week''s kept scan, the first finished on or after each Saturday, every airline''s departures on every pair, kept for good), the same figures; such a point has weekly true in shares, since_launch and the scans. weekly_points counts them and daily_from is the first point read from full schedules (null when every point is). Before the last month the line is weekly; connections only on scans with their schedules.'));
 end
 $function$
 
@@ -7141,6 +7164,14 @@ begin
         exception when query_canceled or others then
           update public.game_scans set note = concat_ws(' · ', nullif(note, ''), 'connections not worked out: ' || left(sqlerrm, 200)) where id = v_scan;
         end;
+        -- each airline's departures on every pair, kept for good when this is the week's kept scan (the first finished on
+        -- or after the Saturday; spec docs/specs/2026-10-23-rival-pairs-history.md §2). A second scan the same week writes
+        -- nothing. A write that fails never stops the finish: the note says so (run it by hand)
+        begin
+          perform private.scan_pairs_keep(v_scan);
+        exception when query_canceled or others then
+          update public.game_scans set note = concat_ws(' · ', nullif(note, ''), 'pairs not kept: ' || left(sqlerrm, 200)) where id = v_scan;
+        end;
       end if;
       v_res := jsonb_build_object('ok', true);
     elsif p_kind = 'fleet' then
@@ -7320,6 +7351,74 @@ $function$
 
 ;
 
+-- private.scan_pairs_fill_back()
+CREATE OR REPLACE FUNCTION private.scan_pairs_fill_back()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare s record; r jsonb; v_res jsonb := '[]'::jsonb;
+begin
+  -- every finished scan still holding its schedules, in order of time; scan_pairs_keep() keeps the first of each week
+  -- that has none kept yet, and writes nothing for the rest
+  for s in select g.id from public.game_scans g
+            where g.status = 'done' and exists (select 1 from public.game_scan_schedules y where y.scan_id = g.id)
+            order by g.world_id, g.taken_at, g.id loop
+    r := private.scan_pairs_keep(s.id);
+    if (r ->> 'kept')::boolean then v_res := v_res || jsonb_build_array(r); end if;
+  end loop;
+  return v_res;
+end
+$function$
+
+;
+
+-- private.scan_pairs_keep(p_scan_id bigint)
+CREATE OR REPLACE FUNCTION private.scan_pairs_keep(p_scan_id bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_world bigint; v_at timestamptz; v_status text; v_week date; v_kept bigint; n int := 0;
+begin
+  select s.world_id, s.taken_at, s.status into v_world, v_at, v_status from public.game_scans s where s.id = p_scan_id;
+  if v_world is null then return jsonb_build_object('scan_id', p_scan_id, 'kept', false, 'rows', 0, 'why', 'no such scan'); end if;
+  v_week := private.scan_week(v_at);
+  if v_status <> 'done' then
+    return jsonb_build_object('scan_id', p_scan_id, 'week', v_week, 'kept', false, 'rows', 0, 'why', 'not finished');
+  end if;
+  -- the week's kept scan, if there is one already (this scan itself included: a finish sent twice writes once)
+  select g.id into v_kept from public.game_scans g
+   where g.world_id = v_world and g.taken_at >= (v_week::timestamp at time zone 'UTC') and g.taken_at < ((v_week + 7)::timestamp at time zone 'UTC')
+     and exists (select 1 from public.scan_pair_airlines k where k.scan_id = g.id)
+   order by g.taken_at, g.id limit 1;
+  if v_kept is not null then
+    return jsonb_build_object('scan_id', p_scan_id, 'week', v_week, 'kept', false, 'rows', 0, 'kept_scan', v_kept,
+                              'why', case when v_kept = p_scan_id then 'already kept' else 'the week has a kept scan' end);
+  end if;
+  if not exists (select 1 from public.game_scan_schedules x where x.scan_id = p_scan_id) then
+    return jsonb_build_object('scan_id', p_scan_id, 'week', v_week, 'kept', false, 'rows', 0, 'why', 'no schedules');
+  end if;
+  -- each airline's departures a week on each pair, each way: each flight's days counted as gscan.py counts n_weekly
+  -- (private.scan_pair_flights()'s rule), passenger and freighter flights apart (private.scan_passenger())
+  insert into public.scan_pair_airlines (scan_id, world_id, airline_id, a, b, weekly_a_to_b, weekly_b_to_a, passenger)
+  select x.scan_id, x.world_id, x.airline_id, x.a, x.b,
+         coalesce(sum(x.n) filter (where x.o = x.a), 0)::int, coalesce(sum(x.n) filter (where x.o = x.b), 0)::int, x.passenger
+    from (select sc.scan_id, sc.world_id, sc.airline_id, f ->> 2 as o, least(f ->> 2, f ->> 3) as a, greatest(f ->> 2, f ->> 3) as b,
+                 private.scan_passenger(f ->> 7) as passenger, length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')) as n
+            from public.game_scan_schedules sc
+            cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
+           where sc.scan_id = p_scan_id and jsonb_typeof(f) = 'array'
+             and coalesce(f ->> 2, '') <> '' and coalesce(f ->> 3, '') <> '' and f ->> 2 <> f ->> 3) x
+   group by x.scan_id, x.world_id, x.airline_id, x.a, x.b, x.passenger
+  having sum(x.n) > 0;
+  get diagnostics n = row_count;
+  return jsonb_build_object('scan_id', p_scan_id, 'week', v_week, 'kept', n > 0, 'rows', n);
+end
+$function$
+
+;
+
 -- private.scan_passenger(p_type text)
 CREATE OR REPLACE FUNCTION private.scan_passenger(p_type text)
  RETURNS boolean
@@ -7412,6 +7511,18 @@ begin
   get diagnostics n = row_count;
   return n;
 end
+$function$
+
+;
+
+-- private.scan_week(p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.scan_week(p_at timestamp with time zone)
+ RETURNS date
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select (p_at at time zone 'UTC')::date - ((extract(isodow from (p_at at time zone 'UTC'))::int + 1) % 7)
 $function$
 
 ;
