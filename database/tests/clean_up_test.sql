@@ -130,6 +130,19 @@ begin
     a := jsonb_set(a, '{airlines}', coalesce((select jsonb_agg(x - array['competitors', 'self', 'scans'] order by i)
                                               from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
   end if;
+  -- rivals' fleets (20261023120000) add each airline's order_flags and each competitor's fleet to the figures on purpose
+  -- (rival_fleets_test.sql checks them): while it is pending (the figures before have no order_flags), exactly those are
+  -- left out here, so the rest must still be exactly as before. Once it is live, the figures before carry them too and
+  -- nothing is left out.
+  if not exists (select 1 from jsonb_array_elements(b -> 'airlines') x where x ? 'order_flags') then
+    a := jsonb_set(a, '{airlines}', coalesce((select jsonb_agg(
+                                                case when x ? 'competitors' and jsonb_typeof(x -> 'competitors') = 'array'
+                                                     then jsonb_set(x - 'order_flags', '{competitors}',
+                                                                    coalesce((select jsonb_agg(c - 'fleet' order by j)
+                                                                                from jsonb_array_elements(x -> 'competitors') with ordinality f(c, j)), '[]'::jsonb))
+                                                     else x - 'order_flags' end order by i)
+                                              from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
+  end if;
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;
