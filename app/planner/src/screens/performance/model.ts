@@ -935,8 +935,10 @@ export interface StoryRival {
   /** Since 23 Oct: its one-stop departures a week on the pair in the latest scan, beside weekly and never added to it. */
   connecting_weekly?: number; connecting_via?: StoryVia[];
 }
-export interface StoryShare { scan_id: number; taken_at: string; ours: number; rivals: number; share: number | null }
-export interface ScanRef { id: number; taken_at: string }
+/** Since 23 Oct (spec docs/specs/2026-10-23-rival-pairs-history.md §3) weekly: the point is a week's kept scan read from its
+ *  kept rows, its full schedules archived. */
+export interface StoryShare { scan_id: number; taken_at: string; ours: number; rivals: number; share: number | null; weekly?: boolean }
+export interface ScanRef { id: number; taken_at: string; weekly?: boolean }
 export interface RouteStory {
   route_id: number;
   as_of: string;
@@ -969,6 +971,9 @@ export interface RouteStory {
     connecting_weekly?: number;
     connecting_only?: StoryRival[];
     connecting_scans?: { scan_id: number; taken_at: string; weekly: number; airlines: { airline_id: number; name: string; weekly: number; via: StoryVia[] }[] }[];
+    /** Since 23 Oct: how many points are weekly (read from the kept rows), and the first point from full schedules
+     *  (null when there is no weekly point, or when every point is weekly). */
+    weekly_points?: number; daily_from?: string | null;
   };
   scans: { latest: ScanRef | null; week_before: ScanRef | null; since_launch: ScanRef[] };
   notes: string[];
@@ -1184,6 +1189,18 @@ export function shareLine(shares: readonly StoryShare[], day: (iso: string) => s
     path: shown.map((x, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(x.share as number).toFixed(1)}`).join(" "),
     dots: shown.map((x, i) => ({ x: X(i), y: Y(x.share as number), tip: `${day(x.taken_at)}: ${pct1(x.share)} (ours ${x.ours}, rivals ${x.rivals} a week)` })),
   };
+}
+
+/** The note under our share line when some points are weekly (spec docs/specs/2026-10-23-rival-pairs-history.md §3): the
+ *  scans before the last month are the week's kept scan only, their full schedules archived. Null when every point is a
+ *  full scan. */
+export function shareWeeklyNote(shares: readonly StoryShare[], dailyFrom: string | null | undefined, day: (iso: string) => string): string | null {
+  const weekly = shares.filter((x) => x.weekly).length;
+  if (!weekly) return null;
+  const points = `${weekly} weekly point${weekly === 1 ? "" : "s"}`;
+  return dailyFrom
+    ? `${points} before ${day(dailyFrom)} (one scan a week, kept after the monthly archive); every scan from then`
+    : `${points} (one scan a week, kept after the monthly archive)`;
 }
 
 /** A city beyond one end of the route: its times a week onward (to) and feeding (from), and both together. */

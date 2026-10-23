@@ -1407,6 +1407,32 @@ isOneToOne: false
       referencedColumns: ["id","world_id"]
     }
                   ]
+                },"scan_pair_airlines": {
+                  Row: {
+                    "a": string,"airline_id": number,"b": string,"passenger": boolean,"scan_id": number,"weekly_a_to_b": number,"weekly_b_to_a": number,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "a": string,"airline_id": number,"b": string,"passenger": boolean,"scan_id": number,"weekly_a_to_b"?: number,"weekly_b_to_a"?: number,"world_id": number
+                  }
+                  Update: {
+                    "a"?: string,"airline_id"?: number,"b"?: string,"passenger"?: boolean,"scan_id"?: number,"weekly_a_to_b"?: number,"weekly_b_to_a"?: number,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "scan_pair_airlines_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "scan_pair_airlines_scan_world_fkey"
+      columns: ["scan_id","world_id"]
+isOneToOne: false
+      referencedRelation: "game_scans"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
                 },"scan_rival_connections": {
                   Row: {
                     "airline_id": number,"best_gap_min": number,"dest": string,"origin": string,"scan_id": number,"via": string,"weekly_departures": number,"world_id": number
