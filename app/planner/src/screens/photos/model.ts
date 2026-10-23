@@ -66,6 +66,11 @@ export function fitWidth(width: number, height: number, max: number): { width: n
   return { width: Math.round(width * k), height: Math.round(height * k) };
 }
 
+/** The screen's answer, its title (since 23 Oct, spec docs/specs/2026-10-23-planner-look-photos.md): how many destinations
+ *  have no photo, or that every one has. */
+export const photosTitle = (missing: number) =>
+  missing === 0 ? "Every destination has a photo" : `${missing} destination${missing === 1 ? "" : "s"} missing a photo`;
+
 /** The words after an upload, as the old screen's note. */
 export const photoLiveWords = (city: string) => `${city}'s photo is live on the website. A visitor who already has the site open sees it within a minute.`;
 export const logoLiveWords = (airline: string) => `${airline}'s new logo is live on the website.`;

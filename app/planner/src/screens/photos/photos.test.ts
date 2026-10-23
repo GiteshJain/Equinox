@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { cityOf, destinations, fitWidth, logoPath, photoOf, photoPath, type AirportCities, type Media } from "./model";
+import { cityOf, destinations, fitWidth, logoPath, photoOf, photoPath, photosTitle, type AirportCities, type Media } from "./model";
 
 const lists: AirportCities = { name: { LGW: "London Gatwick", BOM: "Mumbai", GOI: "Goa" }, photo: { LHR: "London", LGW: "London" } };
 
@@ -24,6 +24,10 @@ describe("Photos", () => {
     expect(photoOf(media, "LHR")).toEqual({ url: "https://x/london.jpg", kind: "City photo", credit: "A", removable: false });
     expect(photoOf(media, "BOM")).toBeNull();
     expect(photoOf({ ...media, cities: undefined }, "LHR")).toBeNull();
+  });
+  it("the title is the answer: how many destinations have no photo, or that every one has", () => {
+    expect([photosTitle(0), photosTitle(1), photosTitle(12)])
+      .toEqual(["Every destination has a photo", "1 destination missing a photo", "12 destinations missing a photo"]);
   });
   it("uploads: their names in the bucket, and their size, never enlarged", () => {
     expect(photoPath("LGW", 1760000000000)).toBe("airports/LGW-1760000000000.jpg");
