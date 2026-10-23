@@ -39,4 +39,5 @@ fits after that one, since both touch the scan's finish.
 - **The database nears the 350 MB trigger for other reasons:** D.
 
 ## Outcome
-*Pending Gitesh's decision.*
+**C, 23 Oct (Gitesh, Building chat):** one scan a week (the first finished scan on or after each Saturday), every pair
+in the world, kept for good. Built after the rival connections pull request.

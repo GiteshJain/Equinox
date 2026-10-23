@@ -49,6 +49,11 @@ Until each is built and merged, the rules below stand as they are.
   direct departures and never added to them, on Competition, a route's page and the weekly report. Display only: the
   openings, the contested test, hubs first, the three biggest competitors and the fare pause don't read it.
   *(decided 23 Oct; history: rule-history.md)*
+- **To build: each week's rivals by pair, kept for good** (brief `docs/briefs/2026-10-23-rival-pairs-history.md`,
+  option C, Gitesh 23 Oct). From the first finished scan on or after each Saturday, each airline's weekly departures on
+  every pair in the world are kept for good (`scan_pair_airlines`), so a route's *Rivals on the pair* reaches back past
+  the monthly archive: every evening's scan for the last month, weekly points before. Built after the rival
+  connections. *(decided 23 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 

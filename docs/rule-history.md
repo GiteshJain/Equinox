@@ -64,6 +64,12 @@ flight counts once so the figure sits on the same scale as direct departures; th
 the way out (with none, 270 pairs "had" one). Display only until Gitesh decides whether connections count in the
 openings, the contested test or the fare pause.
 
+### Decided, not yet built: each week's rivals by pair, kept for good
+*Decided 23 Oct (Gitesh, Building chat, option C of `docs/briefs/2026-10-23-rival-pairs-history.md`).* Why: the
+monthly archive deletes the scans' full schedules after a full calendar month, and the route page's rival line reads
+them, so it would reach back only one to two months. Every pair, so a pair added to a route list later already has its
+history; one scan a week, about 20 MB a year against about 155 MB for every scan.
+
 ### Decided, not yet built: point-to-point routes away from our bases
 *Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
 manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base
