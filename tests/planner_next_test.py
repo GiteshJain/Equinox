@@ -446,7 +446,9 @@ async def competition_opens(pl):
     """Competition (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): the group page with the scans' dates and
     the group line on top, a card for each of our airlines in their order and the threats; one airline's page (the first
     card's) with its boards in order (Market share, Threats, Openings, Rival profiles), a market card for each market and
-    the openings cut to 10 with "show all" (opened and cut again), as competition() gives them on the copy."""
+    the openings cut to 10 with "show all" (opened and cut again), as competition() gives them on the copy. Since 23 Oct (spec
+    docs/specs/2026-10-23-rival-fleets.md §5, §6) the group page's Order books board, one row per rival competition()'s
+    order_flags give across our airlines, and on the airline's page a fleet line on every rival profile."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
@@ -458,8 +460,18 @@ async def competition_opens(pl):
         scans: (document.querySelector('[data-scans]') || {}).textContent || '',
         line: (document.querySelector('[data-figure="competition: group line"]') || {}).textContent || '',
         cards: [...document.querySelectorAll('[data-competition-card]')].map(c => c.dataset.competitionCard),
-        threats: !!document.querySelector('[data-figure="competition: threats"]') })""")
+        threats: !!document.querySelector('[data-figure="competition: threats"]'),
+        books: !!document.querySelector('[data-figure="competition: order books"]'),
+        bookRows: [...document.querySelectorAll('[data-order-book]')].map(r => r.dataset.orderBook) })""")
     problems = []
+    if not group["books"]:
+        problems.append("Competition has no Order books board")
+    books = json.loads(psql(f"""select coalesce(json_agg(distinct f ->> 'airline_id'), '[]') from public.airlines a
+                                  join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                  cross join lateral jsonb_array_elements(coalesce(public.competition(a.id) -> 'order_flags', '[]')) f
+                                  where g.kind = 'ours' and a.world_id = {WORLD} and a.active""").strip())
+    if len(group["bookRows"]) != len(books):
+        problems.append(f"Competition's Order books show {len(group['bookRows'])} rivals; competition() flags {len(books)}")
     if not group["scans"].startswith(("latest scan ", "no world scan")):
         problems.append(f"Competition's scans line says {group['scans']!r}")
     if group["cards"] != want:
@@ -475,6 +487,7 @@ async def competition_opens(pl):
         markets: document.querySelectorAll('[data-market]').length, threats: document.querySelectorAll('main[data-screen=competition] [data-threat]').length,
         rows: document.querySelectorAll('[data-opening]').length, list: (document.querySelector('[data-list^="openings "]') || {dataset: {}}).dataset,
         more: !!document.querySelector('[data-list-more^="openings "]'), profiles: document.querySelectorAll('[data-profile]').length,
+        fleets: document.querySelectorAll('[data-profile] [data-fleet]').length,
         first: [...document.querySelectorAll('[data-opening]')].slice(0, 5).map(r => r.dataset.opening) })""")
     if got["boards"] != ["Market share", "Threats", "Openings", "Rival profiles"]:
         problems.append(f"{code}'s Competition boards are {got['boards']}")
@@ -487,6 +500,8 @@ async def competition_opens(pl):
     if got["markets"] != db["markets"] or got["threats"] != db["threats"] or got["profiles"] != db["profiles"]:
         problems.append(f"{code}: {got['markets']} markets, {got['threats']} threats and {got['profiles']} profiles shown; competition() gives "
                         f"{db['markets']}, {db['threats']} and {db['profiles']}")
+    if got["fleets"] != got["profiles"]:
+        problems.append(f"{code}: {got['fleets']} of its {got['profiles']} rival profiles show a fleet line")
     if got["rows"] != min(10, db["openings"]) or got["more"] != (db["openings"] > 10) or got["first"] != (db["first"] or [])[:len(got["first"])]:
         problems.append(f"{code}: the openings show {got['rows']} rows (show all: {got['more']}), first {got['first']}; competition() gives "
                         f"{db['openings']} of {db['count']}, first {db['first']}")
@@ -500,9 +515,10 @@ async def competition_opens(pl):
         await settle(pl.pg, 200)
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return (f"Competition opens with {group['scans'] or 'no scans line'!r} and a card for each of the copy's {len(group['cards'])} airlines; {code}'s page has "
+    return (f"Competition opens with {group['scans'] or 'no scans line'!r}, a card for each of the copy's {len(group['cards'])} airlines and "
+            f"{len(group['bookRows'])} order books; {code}'s page has "
             f"{got['markets']} markets, {got['threats']} threats, {db['count']} openings ({got['rows']} shown, top: {', '.join(got['first'])}) and "
-            f"{got['profiles']} rival profiles, as competition() gives them"), problems
+            f"{got['profiles']} rival profiles, each with its fleet line, as competition() gives them"), problems
 
 
 async def routes_opens(pl):

@@ -1,6 +1,7 @@
 // Competition's logic (spec docs/specs/2026-10-21-competition-analysis.md §3): the words for the scans, the group line,
 // each market's share with its arrow and its top rivals as a bar, the threats, the openings table and the rival profiles,
-// and Today's threat items. Every figure is competition()'s (the database's, private.fig_competition()): this file only
+// and Today's threat items; since 23 Oct (spec docs/specs/2026-10-23-rival-fleets.md §5) each rival's fleet and the
+// order books. Every figure is competition()'s (the database's, private.fig_competition()): this file only
 // words and orders them.
 
 // ---------- competition()'s answer
@@ -43,11 +44,28 @@ export interface Opening {
   variant_alt?: string | null;
   variant_note?: string | null;
 }
+/** A rival's fleet from its overview page in the latest scan (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §4):
+ *  its size, aircraft on order, average age, its 5 biggest types, and the change against the week-before scan (null when
+ *  either scan didn't read its page). The whole fleet is null when the latest scan didn't read it. */
+export interface Fleet {
+  overall: number | null; on_order: number | null; avg_age_years: number | null; types_count: number;
+  types: { type: string; overall: number | null; on_order: number | null; avg_age_years: number | null }[];
+  overall_before: number | null; on_order_before: number | null; overall_change: number | null; on_order_change: number | null;
+}
+/** A rival with a big order book (on order at least rival_orders_flag_pct of its fleet and at least rival_orders_flag_min)
+ *  or starting (on order and no flights yet): the world's list, the same for every airline, marked for the one asked. */
+export interface OrderFlag {
+  airline_id: number; name: string; kind: "orders" | "starting"; fleet: number | null; on_order: number; share: number | null;
+  weekly: number | null; on_order_change: number | null; fleet_change: number | null;
+  on_pairs: boolean; at_bases: boolean; meets: boolean; words: string;
+}
 export interface Profile {
   airline_id: number; name: string; pairs_shared: number; weekly_on_pairs: number;
   weekly: number | null; weekly_before: number | null; change: number | null; airports: number | null;
   pairs: { pair: string; route: string; weekly: number; ours: number }[];
   biggest_airports: { code: string; weekly: number }[];
+  /** Since 23 Oct; absent in an answer from before. */
+  fleet?: Fleet | null;
 }
 export interface CompetitionAnswer {
   airline_id: number; code: string | null; name: string | null; as_of: string; limit: number;
@@ -61,6 +79,8 @@ export interface CompetitionAnswer {
   /** November's trunks (manual §4): whether the moment is in the trunk month, and its first and last day. */
   trunk_month?: { on: boolean; from: string | null; to: string | null };
   profiles: Profile[];
+  /** Since 23 Oct: the world's big order books and starting airlines (absent in an answer from before). */
+  order_flags?: OrderFlag[];
   pairs_flown: number; pairs_listed: number;
   notes: string[];
 }
@@ -194,6 +214,46 @@ export function openingsLine(a: Pick<CompetitionAnswer, "openings_count" | "open
 
 /** The threats line for a card: "3 threats" or "no threats". */
 export const threatsLine = (n: number): string => (n ? `${n} threat${n === 1 ? "" : "s"} in the last 7 days` : "no threats in the last 7 days");
+
+// ---------- fleets and order books (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §5)
+/** A rival's fleet in one line: "99 aircraft, 44 on order, +6 on order this week"; "fleet not read in the latest scan"
+ *  when the scan has none; no "this week" part without a week-before read. */
+export function fleetWords(f: Fleet | null | undefined): string {
+  if (!f || f.overall == null) return "fleet not read in the latest scan";
+  const head = `${n0(f.overall)} aircraft, ${n0(f.on_order ?? 0)} on order`;
+  const c = f.on_order_change;
+  if (c == null) return head;
+  return `${head}, ${c === 0 ? "no change in orders" : `${c > 0 ? "+" : "−"}${n0(Math.abs(c))} on order`} this week`;
+}
+/** Its top types: "A321XLR 23 (10 on order) · 737-9 HGW 23 (5 on order)". */
+export function fleetTypesWords(f: Fleet | null | undefined): string | null {
+  if (!f?.types.length) return null;
+  const more = f.types_count > f.types.length ? ` +${f.types_count - f.types.length} more` : "";
+  return f.types.map((t) => `${t.type} ${n0(t.overall)}${t.on_order ? ` (${n0(t.on_order)} on order)` : ""}`).join(" · ") + more;
+}
+/** The group's order books: the world's flags (the same in every airline's answer), biggest share first (starting, with no
+ *  fleet yet, first), each with the codes of our airlines it meets. */
+export function orderBooks(answers: readonly (CompetitionAnswer | undefined)[]): (OrderFlag & { meets_codes: string[] })[] {
+  const byId = new Map<number, OrderFlag & { meets_codes: string[] }>();
+  for (const a of answers) {
+    for (const f of a?.order_flags ?? []) {
+      const x = byId.get(f.airline_id) ?? { ...f, meets: false, on_pairs: false, at_bases: false, meets_codes: [] };
+      if (f.meets) { x.meets = true; x.meets_codes.push(a?.code ?? String(a?.airline_id)); }
+      x.on_pairs = x.on_pairs || f.on_pairs; x.at_bases = x.at_bases || f.at_bases;
+      byId.set(f.airline_id, x);
+    }
+  }
+  return [...byId.values()].sort((p, q) => (q.share ?? Infinity) - (p.share ?? Infinity) || q.on_order - p.on_order || p.name.localeCompare(q.name));
+}
+/** An order book's line: "44 on order, 44.4% of 99 aircraft" or "12 on order, no flights yet". */
+export function orderBookWords(f: Pick<OrderFlag, "kind" | "on_order" | "share" | "fleet">): string {
+  return f.kind === "starting" ? `${n0(f.on_order)} on order, no flights yet${f.fleet ? ` (${n0(f.fleet)} aircraft)` : ""}`
+    : `${n0(f.on_order)} on order, ${pctWords(f.share)} of ${n0(f.fleet)} aircraft`;
+}
+/** Whom it meets: "meets PA, KF" or "meets none of our airlines". */
+export const meetsWords = (codes: readonly string[]): string => (codes.length ? `meets ${codes.join(", ")}` : "meets none of our airlines");
+/** The board's row count: "2 rivals" or "none". */
+export const orderBooksRowWords = (n: number): string => (n ? `${n} rival${n === 1 ? "" : "s"}` : "none");
 
 // ---------- the page's answers and rows (since 23 Oct, spec docs/specs/2026-10-23-planner-look-competition.md)
 /** The group page's title: our departures' share of the world's ("4.1% of the world's departures"). */

@@ -181,7 +181,7 @@ declare v_world bigint; v_scan bigint; v_res jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
-  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish') then
+  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'fleet') then
     return jsonb_build_object('ok', false, 'error', 'bad kind');
   end if;
   perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), 'capture'), true),
@@ -493,7 +493,7 @@ declare v_res jsonb;
   v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);
 begin
   if not exists (select 1 from public.ingest_secret s where s.secret = p_secret) then raise exception 'not allowed'; end if;
-  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets') then raise exception 'unknown kind'; end if;
+  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets', 'fleet') then raise exception 'unknown kind'; end if;
   perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), 'script'), true),
           set_config('equinox.actor_detail', coalesce(nullif(v_detail, ''), 'ingest_snapshot'), true);
   -- the work is shared with the capture's scan (capture_scan()); a start scans the default world
@@ -1347,7 +1347,10 @@ begin
    order by j.started_at desc, j.id desc limit 1;
 
   -- the world scan: the latest that has its airport summary (as hub_progress() reads it)
-  select jsonb_build_object('taken_at', private.fig_ts(s.taken_at), 'week', s.week, 'status', s.status)
+  -- since 23 Oct (spec docs/specs/2026-10-23-rival-fleets.md §5) with the overview pages it read and failed
+  select jsonb_build_object('taken_at', private.fig_ts(s.taken_at), 'week', s.week, 'status', s.status,
+                            'fleet_pages', (select count(*) from public.scan_airline_profile p where p.scan_id = s.id and p.read_ok)::int,
+                            'fleet_failed', (select count(*) from public.scan_airline_profile p where p.scan_id = s.id and not p.read_ok)::int)
     into v_scan
     from public.game_scans s
    where s.world_id = w and s.taken_at <= v_at and exists (select 1 from public.scan_airline_airports x where x.scan_id = s.id)
@@ -3250,7 +3253,7 @@ declare
   v_latest bigint; v_latest_at timestamptz; v_before bigint; v_before_at timestamptz; v_prev bigint; v_prev_at timestamptz;
   v_main text; v_exempt boolean; v_target numeric; v_rival_weekly numeric; v_rival_daily numeric; v_min numeric; v_dep int;
   v_code text; v_name text; v_pairs text[]; v_ids bigint[];
-  v_threats jsonb; v_body jsonb; v_group jsonb;
+  v_threats jsonb; v_body jsonb; v_group jsonb; v_flags jsonb;
   v_trunk_from date; v_trunk_to date; v_trunks boolean;
 begin
   select a.iata_code, coalesce(a.public_name, a.planner_name, a.game_name) into v_code, v_name from public.airlines a where a.id = p_airline_id;
@@ -3320,6 +3323,10 @@ begin
              'share_change', round(100.0 * t.ours / nullif(t.world, 0), 1) - round(100.0 * t.ours_b / nullif(t.world_b, 0), 1))
       into v_group from t;
   end if;
+
+  -- the world's big order books and airlines starting with orders (spec docs/specs/2026-10-23-rival-fleets.md §4), each
+  -- marked whether it meets this airline (its city pairs or its bases); feeds nothing else here
+  v_flags := private.scan_order_flags(p_airline_id, v_latest, v_before, v_pairs);
 
   -- the threats (1b): the shared function the fare ladder's rival pause reads too
   select coalesce(jsonb_agg(jsonb_build_object(
@@ -3541,7 +3548,9 @@ begin
                         where s.airline_id = pf.airline_id),
              'biggest_airports', (select coalesce(jsonb_agg(jsonb_build_object('code', x.origin, 'weekly', x.weekly) order by x.weekly desc, x.origin), '[]'::jsonb)
                                     from (select y.origin, sum(y.n)::int as weekly from pfx y where y.scan_id = v_latest and y.airline_id = pf.airline_id
-                                           group by 1 having sum(y.n) > 0 order by 2 desc, 1 limit 3) x))
+                                           group by 1 having sum(y.n) > 0 order by 2 desc, 1 limit 3) x),
+             -- its fleet from its overview page (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §4)
+             'fleet', private.scan_fleet(v_latest, v_before, pf.airline_id))
              order by pf.pairs desc, pf.weekly_on_pairs desc, pf.name), '[]'::jsonb) as d
       from pf
       left join pfs n on n.scan_id = v_latest and n.airline_id = pf.airline_id
@@ -3575,7 +3584,8 @@ begin
     select coalesce(jsonb_agg(jsonb_build_object(
              'rank', cr.rank, 'airline_id', cr.airline_id, 'name', cr.name, 'on_pairs', cr.on_pairs, 'pairs', cr.pairs,
              'weekly', n.weekly, 'airports', n.airports, 'weekly_before', o.weekly, 'change', n.weekly - o.weekly,
-             'change_pct', round(100.0 * (n.weekly - o.weekly) / nullif(o.weekly, 0), 1))
+             'change_pct', round(100.0 * (n.weekly - o.weekly) / nullif(o.weekly, 0), 1),
+             'fleet', private.scan_fleet(v_latest, v_before, cr.airline_id))
              order by cr.rank), '[]'::jsonb) as d
       from cr
       left join crs n on n.scan_id = v_latest and n.airline_id = cr.airline_id
@@ -3617,11 +3627,13 @@ begin
     -- the weekly report's three biggest competitors and the airline beside them (none without a scan)
     'competitors', case when v_latest is null then '[]'::jsonb else v_body -> 'competitors' end,
     'self', case when v_latest is null then null else v_body -> 'self' end,
+    'order_flags', v_flags,
     'notes', jsonb_build_array(
       'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them, passenger flights only (freighters left out, as the weekly report counts). Our own now are the airline''s live legs; before, its flights in the week-before scan.',
       'From trunk_month_from to trunk_month_to (November, manual §4) the trunks, pairs between two of our bases (any of our airlines''), come first, shortest first: hubs first isn''t applied to them and no distance leaves one out. Whether a trunk makes sense stays the Scheduling chat''s judgment.',
       'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats. A 1-star opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest seats (variant_alt, the E190-E2, "or the E190-E2 if thin" in variant_note): the default line gives it to the thinnest 1-star city, and nothing in our data says how thin a city is, so the evening proposal decides.',
-      'competitors (the weekly report''s, manual §7): the three rivals with the most departures a week on the city pairs the airline flies (its live legs, both ways) in the latest scan, ties by name; weekly and airports are each one''s whole passenger network in the latest scan, weekly_before in the week-before scan (none when that scan holds no schedule for it), the change against it as a number and a percent. self is the airline on the same terms, from the same scans'' schedules.'));
+      'competitors (the weekly report''s, manual §7): the three rivals with the most departures a week on the city pairs the airline flies (its live legs, both ways) in the latest scan, ties by name; weekly and airports are each one''s whole passenger network in the latest scan, weekly_before in the week-before scan (none when that scan holds no schedule for it), the change against it as a number and a percent. self is the airline on the same terms, from the same scans'' schedules.',
+      'fleet (each competitor''s and rival profile''s, since 23 Oct): from its overview page in the latest scan (scan_airline_fleet, scan_airline_profile): overall, on order, average age and its 5 biggest types, with the change in overall and on order against the week-before scan (null when either scan didn''t read its page); null when the latest scan didn''t read it. order_flags: every airline in the latest scan that isn''t one of ours, freighters only left out, with aircraft on order at least rival_orders_flag_pct of its fleet and at least rival_orders_flag_min (kind orders), or on order and no flights in the scan (kind starting); the same list for every airline, each marked on_pairs (it flies one of this airline''s city pairs), at_bases (it departs from one of its hubs or focus cities) and meets (either). No flag feeds the openings, the contested test or the fare pause.'));
 end
 $function$
 
@@ -3722,7 +3734,9 @@ begin
         'aircraft_profit', jsonb_build_object('1', r1.d -> 'aircraft', '3', r3.d -> 'aircraft', '7', r7.d -> 'aircraft'),
         'fare_changes', r7.d -> 'fare_changes',
         -- the weekly report's three biggest competitors (manual §7; since 22 Oct): competition()'s, with its scans
-        'competitors', cp.d -> 'competitors', 'self', cp.d -> 'self', 'scans', cp.d -> 'scans') order by al.ord), '[]'::jsonb)
+        'competitors', cp.d -> 'competitors', 'self', cp.d -> 'self', 'scans', cp.d -> 'scans',
+        -- the world's flagged order books (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §5): the weekly report's risks
+        'order_flags', cp.d -> 'order_flags') order by al.ord), '[]'::jsonb)
         from private.fig_airlines(p_world_id) al
         -- offset 0 keeps each document worked out once (folded into the outer query, each use would work it out again)
         cross join lateral (select private.fig_route_profit(al.airline_id, 1, p_as_of) as d offset 0) r1
@@ -6817,15 +6831,39 @@ $function$
 
 ;
 
+-- private.scan_fleet(p_scan_id bigint, p_before_id bigint, p_airline_id bigint)
+CREATE OR REPLACE FUNCTION private.scan_fleet(p_scan_id bigint, p_before_id bigint, p_airline_id bigint)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with p as (select x.* from public.scan_airline_profile x where x.scan_id = p_scan_id and x.airline_id = p_airline_id and x.read_ok),
+  b as (select x.* from public.scan_airline_profile x where x.scan_id = p_before_id and x.airline_id = p_airline_id and x.read_ok)
+  select jsonb_build_object(
+           'overall', p.fleet_size, 'on_order', p.on_order, 'avg_age_years', p.avg_age_years,
+           'types_count', (select count(*) from public.scan_airline_fleet f where f.scan_id = p_scan_id and f.airline_id = p_airline_id)::int,
+           'types', (select coalesce(jsonb_agg(jsonb_build_object('type', t.type_name, 'overall', t.overall, 'on_order', t.on_order,
+                                                                  'avg_age_years', t.avg_age_years)
+                                               order by coalesce(t.overall, 0) desc, coalesce(t.on_order, 0) desc, t.type_name), '[]'::jsonb)
+                       from (select f.* from public.scan_airline_fleet f where f.scan_id = p_scan_id and f.airline_id = p_airline_id
+                              order by coalesce(f.overall, 0) desc, coalesce(f.on_order, 0) desc, f.type_name limit 5) t),
+           'overall_before', b.fleet_size, 'on_order_before', b.on_order,
+           'overall_change', p.fleet_size - b.fleet_size, 'on_order_change', p.on_order - b.on_order)
+    from p left join b on true
+$function$
+
+;
+
 -- private.scan_ingest(p_world_id bigint, p_kind text, p_payload jsonb)
 CREATE OR REPLACE FUNCTION private.scan_ingest(p_world_id bigint, p_kind text, p_payload jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
  SET search_path TO ''
 AS $function$
-declare v_world bigint; v_scan bigint; v_al bigint; v_res jsonb; n int := 0;
+declare v_world bigint; v_scan bigint; v_al bigint; v_res jsonb; n int := 0; v_err text; t jsonb;
 begin
-  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets') then raise exception 'unknown kind'; end if;
+  if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'markets', 'fleet') then raise exception 'unknown kind'; end if;
   if p_kind = 'start' then
     if p_world_id is null then
       select x.id into v_world from public.worlds x where x.is_default;
@@ -6872,6 +6910,51 @@ begin
         perform private.scan_summarise(v_scan);
       end if;
       v_res := jsonb_build_object('ok', true);
+    elsif p_kind = 'fleet' then
+      -- one airline's overview page (spec docs/specs/2026-10-23-rival-fleets.md §2, §3): {snapshot_id, enterprise_id, name,
+      -- types: [{type, type_id, owned, leased, overall, leased_out, on_offer, on_order, avg_age_years}], totals: {...},
+      -- profile: {code, alliance, alliance_id, headquarters, parent_id, parent, founded, passengers, stations, fleet_size,
+      -- staff}}, or error in place of the rows when the page didn't read. The airline is placed as the scan places airlines.
+      if coalesce(p_payload ->> 'enterprise_id', '') !~ '^\d{1,9}$' then raise exception 'fleet: no enterprise_id'; end if;
+      v_al := private.scan_airline(v_world, (p_payload ->> 'enterprise_id')::int, p_payload ->> 'name');
+      v_err := case when p_payload ? 'error' then left(coalesce(nullif(btrim(p_payload ->> 'error'), ''), 'no reason given'), 300)
+                    when jsonb_typeof(p_payload -> 'types') is distinct from 'array' then 'no types list' end;
+      if v_err is not null then
+        -- a page that didn't read: kept as such, unless the same scan already read it
+        insert into public.scan_airline_profile as x (scan_id, world_id, airline_id, read_ok, note)
+        values (v_scan, v_world, v_al, false, v_err)
+        on conflict (scan_id, airline_id) do update set note = excluded.note, read_at = now() where not x.read_ok;
+        v_res := jsonb_build_object('ok', true, 'read_ok', false, 'rows', 0);
+      else
+        delete from public.scan_airline_fleet where scan_id = v_scan and airline_id = v_al;
+        for t in select x from jsonb_array_elements(p_payload -> 'types') x loop
+          if nullif(btrim(t ->> 'type'), '') is null then continue; end if;
+          insert into public.scan_airline_fleet as f (scan_id, world_id, airline_id, type_name, game_type_id, owned, leased, overall,
+                                                      leased_out, on_offer, on_order, avg_age_years)
+          values (v_scan, v_world, v_al, left(btrim(t ->> 'type'), 120), private.json_int(t -> 'type_id'), private.json_int(t -> 'owned'),
+                  private.json_int(t -> 'leased'), private.json_int(t -> 'overall'), private.json_int(t -> 'leased_out'),
+                  private.json_int(t -> 'on_offer'), private.json_int(t -> 'on_order'), round(private.json_num(t -> 'avg_age_years'), 1))
+          on conflict (scan_id, airline_id, type_name) do update set game_type_id = excluded.game_type_id, owned = excluded.owned,
+            leased = excluded.leased, overall = excluded.overall, leased_out = excluded.leased_out, on_offer = excluded.on_offer,
+            on_order = excluded.on_order, avg_age_years = excluded.avg_age_years;
+          n := n + 1;
+        end loop;
+        insert into public.scan_airline_profile as x (scan_id, world_id, airline_id, fleet_size, on_order, avg_age_years, stations, staff,
+                                                      passengers, alliance, parent_game_id, founded, read_ok, note)
+        values (v_scan, v_world, v_al,
+                coalesce(private.json_int(p_payload #> '{totals,overall}'), private.json_int(p_payload #> '{profile,fleet_size}')),
+                private.json_int(p_payload #> '{totals,on_order}'), round(private.json_num(p_payload #> '{totals,avg_age_years}'), 1),
+                private.json_int(p_payload #> '{profile,stations}'), private.json_int(p_payload #> '{profile,staff}'),
+                private.json_int(p_payload #> '{profile,passengers}'), left(nullif(btrim(p_payload #>> '{profile,alliance}'), ''), 120),
+                private.json_int(p_payload #> '{profile,parent_id}'),
+                case when (p_payload #>> '{profile,founded}') ~ '^\d{4}-\d{2}-\d{2}$' then (p_payload #>> '{profile,founded}')::date end,
+                true, null)
+        on conflict (scan_id, airline_id) do update set fleet_size = excluded.fleet_size, on_order = excluded.on_order,
+          avg_age_years = excluded.avg_age_years, stations = excluded.stations, staff = excluded.staff, passengers = excluded.passengers,
+          alliance = excluded.alliance, parent_game_id = excluded.parent_game_id, founded = excluded.founded, read_ok = true, note = null,
+          read_at = now();
+        v_res := jsonb_build_object('ok', true, 'read_ok', true, 'rows', n);
+      end if;
     elsif p_kind = 'markets' then
       if jsonb_typeof(p_payload -> 'markets') is distinct from 'array' then
         raise exception 'markets: the payload needs a list, markets: [{enterprise_id, market, weekly_departures, city_pairs}]';
@@ -6907,6 +6990,76 @@ AS $function$
      and s.taken_at > p_as_of - interval '1 hour' and s.taken_at <= p_as_of
    order by s.taken_at desc, s.id desc
    limit 1
+$function$
+
+;
+
+-- private.scan_order_flags(p_airline_id bigint, p_scan_id bigint, p_before_id bigint, p_pairs text[])
+CREATE OR REPLACE FUNCTION private.scan_order_flags(p_airline_id bigint, p_scan_id bigint, p_before_id bigint, p_pairs text[])
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint := private.fig_airline_world(p_airline_id);
+  -- the world's own rows (not an airline's), so every airline's answer has the same list
+  v_pct numeric := private.fig_num(w, null, 'rival_orders_flag_pct');
+  v_min numeric := private.fig_num(w, null, 'rival_orders_flag_min');
+  v_res jsonb;
+begin
+  if p_scan_id is null then return '[]'::jsonb; end if;
+  with c as (
+    -- every rival whose overview page the scan read, with aircraft on order
+    select p.airline_id, p.fleet_size, p.on_order, coalesce(ra.public_name, ra.game_name, ra.planner_name, 'airline ' || p.airline_id) as name
+      from public.scan_airline_profile p
+      join public.airlines ra on ra.id = p.airline_id
+      left join public.groups g on g.id = ra.group_id
+     where p.scan_id = p_scan_id and p.read_ok and coalesce(p.on_order, 0) > 0 and coalesce(g.kind, 'rival') <> 'ours'),
+  -- each one's flights in the scan: all of them, and passenger flights (private.scan_passenger(), the weekly report's
+  -- rule); null when the scan holds no schedule for it
+  fx as (
+    select sc.airline_id, f ->> 2 as origin, f ->> 3 as dest, length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')) as n,
+           private.scan_passenger(f ->> 7) as pax
+      from public.game_scan_schedules sc
+      cross join lateral jsonb_array_elements(case when jsonb_typeof(sc.flights) = 'array' then sc.flights else '[]'::jsonb end) f
+     where sc.scan_id = p_scan_id and sc.airline_id in (select c.airline_id from c) and jsonb_typeof(f) = 'array'),
+  fl as (
+    select c.*,
+           case when exists (select 1 from public.game_scan_schedules sc where sc.scan_id = p_scan_id and sc.airline_id = c.airline_id)
+                then (select coalesce(sum(x.n), 0) from fx x where x.airline_id = c.airline_id)::int end as weekly_all,
+           (select coalesce(sum(x.n) filter (where x.pax), 0) from fx x where x.airline_id = c.airline_id)::int as weekly,
+           exists (select 1 from fx x where x.airline_id = c.airline_id and x.pax and x.n > 0
+                      and least(x.origin, x.dest) || '-' || greatest(x.origin, x.dest) = any (coalesce(p_pairs, '{}'::text[]))) as on_pairs,
+           exists (select 1 from public.scan_airline_airports a
+                    where a.scan_id = p_scan_id and a.airline_id = c.airline_id and a.weekly_departures > 0
+                      and a.airport_code in (select b.airport_code from public.airline_bases b
+                                              where b.airline_id = p_airline_id and b.role <> 'station')) as at_bases
+      from c),
+  k as (
+    select fl.*,
+           case when fl.weekly_all = 0 then 'starting'
+                when fl.on_order >= v_min and fl.on_order * 100.0 >= v_pct * coalesce(fl.fleet_size, 0) then 'orders' end as kind
+      from fl
+     -- freighters only (flights, none of them passenger flights) are no one's rivals
+     where not (coalesce(fl.weekly_all, 0) > 0 and fl.weekly = 0))
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'airline_id', k.airline_id, 'name', k.name, 'kind', k.kind, 'fleet', k.fleet_size, 'on_order', k.on_order,
+           'share', round(100.0 * k.on_order / nullif(k.fleet_size, 0), 1), 'weekly', k.weekly_all,
+           'on_order_change', fc.d -> 'on_order_change', 'fleet_change', fc.d -> 'overall_change',
+           'on_pairs', k.on_pairs, 'at_bases', k.at_bases, 'meets', k.on_pairs or k.at_bases,
+           'words', case when k.kind = 'starting'
+                         then format('%s: %s on order and no flights yet%s', k.name, k.on_order,
+                                     case when coalesce(k.fleet_size, 0) > 0 then format(' (%s aircraft)', k.fleet_size) else '' end)
+                         else format('%s: %s on order, %s%% of its %s aircraft', k.name, k.on_order,
+                                     trim_scale(round(100.0 * k.on_order / nullif(k.fleet_size, 0), 1)), k.fleet_size) end)
+           order by round(100.0 * k.on_order / nullif(k.fleet_size, 0), 1) desc nulls first, k.on_order desc, k.name, k.airline_id), '[]'::jsonb)
+    into v_res
+    from k
+    cross join lateral (select private.scan_fleet(p_scan_id, p_before_id, k.airline_id) as d) fc
+   where k.kind is not null;
+  return v_res;
+end
 $function$
 
 ;

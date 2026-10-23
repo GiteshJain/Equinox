@@ -495,6 +495,13 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   its share across its markets and its arrow, its threats in the last 7 days (amber) and its top opening in one line;
   tap one to open it. Under them, **Threats**: every airline's in one table (airline, rival, pair, the numbers, the day
   and until when the fares hold, and the link to the route's page), newest first; on a phone each is a compact row.
+  Under it (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md), **Order books**: the rivals whose aircraft on
+  order, on their overview page in the latest scan, are a quarter of their fleet or more and at least 5
+  (*rival_orders_flag_pct* 25, *rival_orders_flag_min* 5), and those with aircraft on order and no flights yet
+  (**starting**), biggest share first. Each with its order book ("44 on order, 44.4% of 99 aircraft"), the change in
+  aircraft on order since the week-before scan, and the airlines of ours it meets (it flies one of their city pairs or
+  from one of their bases; amber), else "meets none of our airlines". Our own airlines and freighter-only airlines are
+  never listed. The list feeds nothing else: no opening, contested base or fare pause.
 - **An airline** (/planner/competition/MU), with the airline switch under the title and **‹ All airlines**. Its four
   sections are rows that open, each with its count (**Expand all** and **Collapse all** open or close every one);
   **Openings** is open on arrival:
@@ -520,7 +527,9 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     on its list"). The list marks trunks; whether each makes sense stays the Scheduling chat's call. Outside those days
     nothing changes.
   - **Rival profiles:** the 10 rivals who fly most of its city pairs: their size and growth since the week-before
-    scan, airports, the pairs shared (theirs and ours a week) and their biggest airports.
+    scan, airports, the pairs shared (theirs and ours a week) and their biggest airports. Since 23 Oct each also shows
+    its **fleet** from its overview page in the latest scan ("99 aircraft, 44 on order, +6 on order this week"; "fleet
+    not read in the latest scan" when the scan didn't read it) and its five biggest types with what's on order.
 - **No scan, or one:** with none, the openings rank by stars and distance and only the main hub's are allowed; with
   one, nothing is compared and there are no threats.
 - In a chat, `select public.competition(<airline id>);` gives the same, and the airline briefing carries the top 20
@@ -636,7 +645,9 @@ Each button is saved on its own, as one change.
     adds "capture again while it's due, or gscan.py by hand". Since 22 Oct, when a scan stopped part-way (the phone
     closed, the tab went away) and no finished scan came after it, it adds "the scan of 21 Oct stopped after 812 of
     1,040 airlines" (of the finished scan before it) in amber, not red: the next capture scans again. A scan left
-    unfinished for over an hour is marked stopped when the next one starts, with a note of how far it got.
+    unfinished for over an hour is marked stopped when the next one starts, with a note of how far it got. Since 23 Oct
+    it says how many fleet pages (each airline's overview page, its fleet and aircraft on order) the latest scan read,
+    and how many failed ("171 fleet pages, 2 failed"); a failed fleet page never stops a scan.
   - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
     minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
   - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),

@@ -4,7 +4,7 @@
 // and the planner's build stamp.
 import { describe, expect, it } from "vitest";
 import {
-  ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
+  ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, fleetPagesWords, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
   usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
 } from "./systems";
 
@@ -101,6 +101,17 @@ describe("the jobs", () => {
     expect(scanLine(null, now).text).toBe("no world scan yet · runs with the evening capture when one is due (scan_every_days)");
     expect(scanEveryWords(2)).toBe("every 2 capture days (scan_every_days 2)");
     for (const x of [scanLine(scan(1), now, 1), scanLine(scan(20), now, 1), scanLine(null, now)]) expect(x.text).not.toMatch(/Saturday/);
+  });
+  it("the world scan says how many fleet pages it read (23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §5)", () => {
+    const scan = (fleet_pages: number | null | undefined, fleet_failed?: number | null) => ({ taken_at: ago(12), week: "43", status: "done", fleet_pages, fleet_failed });
+    expect(scanLine(scan(171, 0), now, 1).text).toBe("12 hours ago (week 43) · 171 fleet pages · runs with the evening capture every evening (scan_every_days 1)");
+    expect(fleetPagesWords(scan(169, 2))).toBe("169 fleet pages, 2 failed");
+    expect(fleetPagesWords(scan(1, 0))).toBe("1 fleet page");
+    expect(fleetPagesWords(scan(0, 0))).toBe("no fleet pages");
+    expect(fleetPagesWords(scan(undefined))).toBeNull();
+    expect(fleetPagesWords(null)).toBeNull();
+    expect(scanLine(scan(169, 2), now, 1).mark).toBe("ok");
+    expect(scanLine({ taken_at: ago(12), week: "43", status: "done" }, now, 1).text).not.toMatch(/fleet/);
   });
   it("a scan that stopped part-way, with none finished after it: amber, not red, saying how far it got (22 Oct)", () => {
     const scan = (d: number) => ({ taken_at: ago(d * 24), week: "43", status: "done" });

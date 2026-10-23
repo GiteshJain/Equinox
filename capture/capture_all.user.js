@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.7
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and the airport pages, sent with the capture key. Keep the tab open; a scan evening takes about 5 minutes longer. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
+// @version      1.8
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Keep the tab open; a scan evening takes about 5 minutes longer. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
@@ -13,7 +13,11 @@
 // key, at gscan.py's pace. Since 1.6 (spec docs/specs/2026-10-22-fleet-capture.md §1) each airline's pages end with its
 // fleets: the fleet list and every fleet with aircraft, each sent to capture_ingest() as page kind fleet, half a second
 // apart. Since 1.7 the panel's lines scroll inside it and follow the newest one, so the last lines ("Done",
-// "World scan done") stay in view however long the evening's log gets. The reading of the pages is plain functions over the pages' HTML, without the page, so
+// "World scan done") stay in view however long the evening's log gets. Since 1.8 (spec
+// docs/specs/2026-10-23-rival-fleets.md §2) the scan also reads each airline's overview page after its schedule
+// (/app/info/enterprises/<id>: its fleet by type with aircraft on order, and its general figures) and sends it to
+// capture_scan() as kind fleet; a failed overview page is logged and skipped, and never counts towards the 10% of failed
+// airline pages that leave a scan unfinished. The reading of the pages is plain functions over the pages' HTML, without the page, so
 // tests/capture_scan_test.mjs and tests/capture_fleet_test.mjs run this same file in Node, where (with no page) it only
 // hands those functions over (as eqScan): the first compares what they read with what gscan.py reads from the same saved
 // pages, the second reads a saved fleet page.
@@ -21,14 +25,15 @@
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.7";                                      // the @version above, in the scan's notes
+  const VERSION = "1.8";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const PACE = { letter: 400, airline: 500, airport: 250 };   // ms between pages, gscan.py's own
+  const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
   const PAGE_TIMEOUT_MS = 40000;                               // gfetch.py's timeout
   const letterUrl = L => "/app/info/enterprises?letter=" + L;
   const airlineUrl = id => "/app/info/enterprises/" + id + "?tab=3";
   const airportUrl = id => "/app/info/airports/" + id;
+  const overviewUrl = id => "/app/info/enterprises/" + id;   // 1.8: the overview tab, its Fleet table
 
   // html.unescape() as Python does it, for what the game's pages hold: numeric references and the named ones below (a
   // name not listed is decoded by the browser where there is one, else left as it is)
@@ -112,9 +117,67 @@
     return { info, stations, news };
   }
   const airportPayload = (scanId, code, airportId, page) => ({ snapshot_id: scanId, code, airport_id: airportId, info: page.info, stations: page.stations, news: page.news });
-  // finish, with gscan.py's note and what the capture's scan adds
-  const finishPayload = (scanId, nAirlines, nAirports, failedAirlines, noId) => ({ snapshot_id: scanId,
-    note: `full scan: ${nAirlines} enterprises, ${nAirports} airports (Capture all airlines ${VERSION}; ${plural(failedAirlines, "airline page", "airline pages")} failed, ${plural(noId, "airport", "airports")} without an id)` });
+  // 1.8 (spec docs/specs/2026-10-23-rival-fleets.md §1, §2): one airline's overview page, as gscan.py reads it: its Fleet
+  // table (table.fleet: per type the link's text and its aircraftsType?id=, owned, leased, overall, leased out, on offer,
+  // on order and the average age; tfoot the totals), General Information (code, alliance, headquarters, parent company,
+  // founded) and General statistics (passengers, stations, fleet size, staff). An error when the page has neither the
+  // Fleet table nor General Information (not the overview page, or the page changed); an airline with no aircraft at all
+  // may have no Fleet table, so General Information alone reads as a fleet of none.
+  const count = s => { const m = String(s).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+  const FLEET_COLS = ["owned", "leased", "overall", "leased_out", "on_offer", "on_order"];
+  function fleetRow(cells) {
+    const out = {};
+    FLEET_COLS.forEach((k, i) => { out[k] = cells.length > i ? count(text(cells[i])) : null; });
+    out.avg_age_years = cells.length > 6 ? count(text(cells[6])) : null;
+    return out;
+  }
+  const tdsOf = row => [...String(row).matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(c => c[1]);
+  // the label-and-value table under a legend ("General Information"), as {label: the value's HTML}
+  function legendTable(html, legend) {
+    const m = html.match(new RegExp('<span class="legend">\\s*' + reEscape(legend) + '\\s*</span>[\\s\\S]*?<table[^>]*>([\\s\\S]*?)</table>'));
+    if (!m) return null;
+    const out = {};
+    for (const row of m[1].match(/<tr[\s\S]*?<\/tr>/g) || []) { const c = tdsOf(row); if (c.length >= 2) out[text(c[0])] = c[1]; }
+    return out;
+  }
+  function readOverviewPage(html) {
+    html = String(html).replace(/<script[\s\S]*?<\/script>/g, "");
+    const info = legendTable(html, "General Information"), stats = legendTable(html, "General statistics") || {};
+    const fm = html.match(/<table[^>]*class="[^"]*\bfleet\b[^"]*"[^>]*>([\s\S]*?)<\/table>/);
+    if (!fm && !info) return { error: "no Fleet table or General Information on the page" };
+    const types = [];
+    const body = fm ? (fm[1].match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/) || [null, ""])[1] : "";
+    for (const row of body.match(/<tr[\s\S]*?<\/tr>/g) || []) {
+      const c = tdsOf(row);
+      if (c.length < 8) continue;
+      const name = text(c[0]), id = c[0].match(/aircraftsType\?id=(\d+)/);
+      if (!name) continue;
+      types.push({ type: name, type_id: id ? Number(id[1]) : null, ...fleetRow(c.slice(1)) });
+    }
+    const foot = fm ? (fm[1].match(/<tfoot[^>]*>([\s\S]*?)<\/tfoot>/) || [null, ""])[1] : "";
+    const ft = tdsOf(foot);
+    const totals = ft.length >= 7 ? fleetRow(ft)
+      : { ...Object.fromEntries(FLEET_COLS.map(k => [k, types.reduce((n, t) => n + (t[k] || 0), 0)])), avg_age_years: null };
+    const v = k => (info && info[k] != null ? text(info[k]) : null), raw = k => (info && info[k]) || "";
+    const al = raw("Alliance").match(/alliances\/(\d+)/), hq = (v("Headquarters") || "").match(/\(\s*([A-Z0-9]{3})\s*\)/);
+    const parent = raw("Parent company").match(/href="(?:\.\/|[^"]*enterprises\/)(\d+)"/), founded = (v("Founded") || "").match(/\d{4}-\d{2}-\d{2}/);
+    const st = k => (stats[k] != null ? count(text(stats[k])) : null);
+    return { name: v("Name") || null, types, totals,
+             profile: { code: v("Code") || null, alliance: al ? v("Alliance") || null : null, alliance_id: al ? Number(al[1]) : null,
+                        headquarters: hq ? hq[1] : null, parent_id: parent ? Number(parent[1]) : null, parent: parent ? v("Parent company") || null : null,
+                        founded: founded ? founded[0] : null, passengers: st("Transported passengers"), stations: st("Stations"),
+                        fleet_size: st("Fleet size"), staff: st("Staff") } };
+  }
+  // what capture_scan() takes for an overview page (kind fleet), as gscan.py sends it to ingest_snapshot(); with error in
+  // place of the rows when the page didn't read
+  function fleetScanPayload(scanId, id, name, read, error) {
+    const base = { snapshot_id: scanId, enterprise_id: id, name };
+    const err = error || (read && read.error) || (!read ? "nothing read" : null);
+    return err ? { ...base, error: String(err) } : { ...base, types: read.types, totals: read.totals, profile: read.profile };
+  }
+  // finish, with gscan.py's note and what the capture's scan adds (1.8: the fleet pages read and failed)
+  const finishPayload = (scanId, nAirlines, nAirports, failedAirlines, noId, fleetPages = 0, fleetFailed = 0) => ({ snapshot_id: scanId,
+    note: `full scan: ${nAirlines} enterprises, ${nAirports} airports (Capture all airlines ${VERSION}; ${plural(failedAirlines, "airline page", "airline pages")} failed, ${plural(noId, "airport", "airports")} without an id; ${plural(fleetPages, "fleet page", "fleet pages")}, ${fleetFailed} failed)` });
 
   // more than 10% of the airlines failed (or none were read): the scan isn't finished
   const tooManyFailed = (failed, total) => !total || failed > MAX_FAILED_SHARE * total;
@@ -217,8 +280,8 @@
     return `${head} · ${v || plural(Number(r.rows) || 0, "aircraft", "aircraft")}`;
   }
 
-  const lib = { LETTERS, PACE, MAX_FAILED_SHARE, letterUrl, airlineUrl, airportUrl, unescape, text, readLetterPage, addAirlines, airlineList,
-                readSchedulePage, airlinePayload, readAirportPage, airportPayload, finishPayload, tooManyFailed, isoWeek, planOf, noScanWords,
+  const lib = { LETTERS, PACE, MAX_FAILED_SHARE, letterUrl, airlineUrl, airportUrl, overviewUrl, unescape, text, readLetterPage, addAirlines, airlineList,
+                readSchedulePage, airlinePayload, readAirportPage, airportPayload, readOverviewPage, fleetScanPayload, finishPayload, tooManyFailed, isoWeek, planOf, noScanWords,
                 progressWords, VERSION, FLEET_PACE, fleetListUrl, fleetUrl, readFleetPage, fleetsToRead, fleetPayload, fleetProgress, fleetWords,
                 fleetOk, fleetSummary };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
@@ -309,7 +372,7 @@
     if (s.phase === "home") { log("Done: all " + airlinesOf(s).length + " airlines captured. Back on the airline you started with.");
       const why = noScanWords(s.scan, get().failed || 0);   // 1.5: then the world scan, when one is due
       if (why) { log(why); closable(); clear(); return; }
-      const t = get(); t.phase = "scan"; t.sc = { step: "start", li: 0, byId: {}, list: [], ai: 0, apid: {}, airports: t.scan.airports, pi: 0, failedAirlines: 0, failedAirports: 0, noId: 0 }; set(t);
+      const t = get(); t.phase = "scan"; t.sc = { step: "start", li: 0, byId: {}, list: [], ai: 0, apid: {}, airports: t.scan.airports, pi: 0, failedAirlines: 0, failedAirports: 0, noId: 0, fleetPages: 0, fleetFailed: 0 }; set(t);
       log(`World scan: due${t.scan.latest ? ` (the last finished ${when(t.scan.latest.taken_at)})` : ""}. About 5 minutes; keep this tab open. Stop is below.`);
       return scan(); }
     if (s.phase === "scan") return scan();
@@ -373,6 +436,17 @@
         const r = await scanSend("airline", airlinePayload(sc.id, id, name, read.flights));
         if (!r || r.ok !== true) throw new Error("not stored: " + errorOf(r));
       } catch (e) { sc.failedAirlines++; log(`World scan: ${name} (${id}) failed (${e.message}); skipped`); }
+      // 1.8: then its overview page (its fleet and aircraft on order), flying or not; a failure is logged and skipped and
+      // never counts towards the 10% that leave the scan unfinished
+      await sleep(PACE.fleet);
+      let read = null, err = null;
+      try { read = readOverviewPage(await page(overviewUrl(id))); } catch (e) { err = e.message; }
+      const fr = await scanSend("fleet", fleetScanPayload(sc.id, id, name, read, err));
+      sc.fleetPages = (sc.fleetPages || 0) + 1;
+      if (!fr || fr.ok !== true || err || (read && read.error)) {
+        sc.fleetFailed = (sc.fleetFailed || 0) + 1;
+        log(`World scan: ${name} (${id}) fleet page failed (${err || (read && read.error) || "not stored: " + errorOf(fr)}); skipped`);
+      }
       sc.ai++; save(sc); await sleep(PACE.airline);
     }
     if (sc.step === "airlines") {
@@ -393,9 +467,9 @@
       sc.pi++; save(sc); await sleep(PACE.airport);
     }
     // 4. finish: the database builds the scan's airport summaries, and the Systems board goes green
-    const r = await scanSend("finish", finishPayload(sc.id, sc.list.length, sc.airports.length, sc.failedAirlines, sc.noId));
+    const r = await scanSend("finish", finishPayload(sc.id, sc.list.length, sc.airports.length, sc.failedAirlines, sc.noId, sc.fleetPages || 0, sc.fleetFailed || 0));
     if (!r || r.ok !== true) return end("World scan: every page read, but finishing it failed (" + errorOf(r) + "). The Systems board keeps the last finished scan; the next evening's capture scans again.");
-    end(`World scan done: ${sc.list.length} airlines (${plural(sc.failedAirlines, "page", "pages")} failed), ${sc.airports.length - sc.noId - sc.failedAirports} of ${sc.airports.length} airports read.`);
+    end(`World scan done: ${sc.list.length} airlines (${plural(sc.failedAirlines, "page", "pages")} failed), ${sc.airports.length - sc.noId - sc.failedAirports} of ${sc.airports.length} airports read; ${plural(sc.fleetPages || 0, "fleet page", "fleet pages")}, ${sc.fleetFailed || 0} failed.`);
   }
 
   function addButton() {
