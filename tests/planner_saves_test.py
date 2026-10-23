@@ -898,18 +898,27 @@ async def fare_ladder(s, pl):
         since = psql("select coalesce(max(id), 0) from public.fare_plan").strip()
 
         def jumps_written():
-            # every jump the ladder marked written with ladder_move jump at its level (spec §3), counted as yes or no: how
-            # many there are depends on the night
+            # every jump the ladder marked, now on the fare plan, has its row written with ladder_move jump at its level
+            # (spec §3). The answer is true, or the rows that aren't (how many jumps there are depends on the night).
+            # Levels are compared as numbers: fare_plan.level_pct is numeric(5,1) (80.0), fare_ladder() trims it (80)
             want = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', (x ->> 'route_id')::bigint, 'cabin', x ->> 'cabin',
-                                           'level', (x ->> 'new_level')::numeric) order by x ->> 'route_id', x ->> 'cabin'), '[]')
+                                           'level', (x ->> 'new_level')::numeric)), '[]')
                                         from jsonb_array_elements(private.fig_fare_ladder(:'a'::bigint, :'m'::timestamptz) -> 'routes') x
                                        where x ->> 'ladder_kind' = 'jump' and (x ->> 'planned')::boolean""", a=jumper["id"], m=COPY["moment"]).strip())
-            got = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', route_id, 'cabin', cabin_class, 'level', level_pct)
-                                          order by route_id::text, cabin_class), '[]')
-                                       from public.fare_plan where id > :'n'::bigint and airline_id = :'a'::bigint and ladder_move = 'jump'""",
-                                  n=since, a=jumper["id"]).strip())
-            same = sorted(json.dumps(x, sort_keys=True) for x in got) == sorted(json.dumps(x, sort_keys=True) for x in want)
-            return {"jumps_written_as_jump": bool(got) and same}
+            got = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', route_id, 'cabin', cabin_class, 'level', level_pct,
+                                          'move', ladder_move)), '[]')
+                                       from public.fare_plan where id > :'n'::bigint and airline_id = :'a'::bigint""", n=since, a=jumper["id"]).strip())
+            rows = {(g["route_id"], g["cabin"]): g for g in got}
+            bad = []
+            for j in want:
+                g = rows.get((j["route_id"], j["cabin"]))
+                if g is None:
+                    bad.append(f"route {j['route_id']} {j['cabin']}: no row written")
+                elif g["move"] != "jump" or float(g["level"]) != float(j["level"]):
+                    bad.append(f"route {j['route_id']} {j['cabin']}: written {g['move']} at {g['level']}, the ladder's jump to {j['level']}")
+            if not want:
+                bad.append("the ladder shows no jump on the fare plan after the save")
+            return {"jumps_written_as_jump": True if not bad else bad}
         await s.act("performance: put the fare ladder on the fare plan, with a jump under launch", lambda: pg.click(f"[data-ladder-plan={json.dumps(code)}]"),
                     variable=("planner_save fare_plan insert", "fare_plan insert"), extra=jumps_written)
     try:
@@ -1060,13 +1069,20 @@ async def reference(s, pl):
             await pg.click("#cf-add")
         await ref("night-bans")
         await s.act("reference: a night ban (an airport with no row of its own)", night_ban)
+    # a removed route whose restore also sets edit_kept (the recorded answer: an edit left with nothing in it is kept as
+    # one, model.ts's restoreChange): no other edit on it, and edit_kept not set yet. The first removed route used to be
+    # one; on 22 Oct the review chat gave it stars (stars_override), so its restore writes removed alone. It is picked by
+    # its shape, not by its id
     rm = one(f"""select json_build_object('key', coalesce(a.planner_name, a.public_name) || '|' || r.hub_code || '|' || r.dest_code)
-                  from public.routes r join public.airlines a on a.id = r.airline_id where r.world_id = {w} and r.removed order by r.id limit 1""")
+                  from public.routes r join public.airlines a on a.id = r.airline_id
+                 where r.world_id = {w} and r.removed and not r.edit_kept and r.removed_note is null and r.city_override is null
+                   and r.distance_override_km is null and r.market_override_id is null and not r.market_cleared and r.stars_override is null
+                 order by r.id limit 1""")
     if rm:
         await ref("removed")
         await s.act("reference: a removed route restored", lambda: pg.click(f"[data-restore={json.dumps(rm['key'])}]"))
     else:
-        s.not_tried("no removed route", "reference: a removed route restored")
+        s.not_tried("no removed route with no other edit and edit_kept not set", "reference: a removed route restored")
     tz = one(f"""select json_build_object('code', wa.airport_code, 'offset', ap.utc_offset) from public.world_airports wa join public.airports ap on ap.code = wa.airport_code
                   where wa.world_id = {w} and wa.utc_offset_override is null and ap.utc_offset is not null and wa.airport_code is distinct from :'b'
                     and not exists (select 1 from public.flight_legs l where l.world_id = {w} and (l.origin_code = wa.airport_code or l.dest_code = wa.airport_code))
