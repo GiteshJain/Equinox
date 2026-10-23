@@ -1,85 +1,60 @@
-# Kingfisher's two A350s: off Delhi–JFK? — 23 Oct 2026
+# Kingfisher's two A350s: off Delhi–JFK? — 23 Oct 2026 (revised 00:40 CT)
 
 **Decision:** Gitesh asked what's best if Kingfisher stops flying Delhi–JFK: return the two leased A350-900ULRs, VT-AAA
-(DEL) and VT-AAB (DEL), and put the money into other aircraft, or move them elsewhere. This brings forward part of the
+(DEL) and VT-AAB (DEL), and use the money for other aircraft, or move them elsewhere. This brings forward part of the
 28 Nov review (to-do #3).
 
-**Recommendation: B, move one of the two.** VT-AAA (DEL) stays on JFK and VT-AAB (DEL) opens a second North American
-city, so each A350 has a market of its own. Returning the leases (C) doesn't free money for narrowbodies: the A350s
-already earn about their own lease, so giving them back takes away as much flight profit as it saves in lease. C also
-gives up Kingfisher's only US flying, which the group's roles give it (manual §2). Before B goes ahead, the game's route
-evaluation should confirm the second city's demand.
+**Recommendation: C, return both.** Each A350's security deposit comes back on return: about **7.19M each, 14.39M for
+the pair** (5% of the list price, the same terms as the used-aircraft brief's deposits). That buys about six A321neo
+Lights (2.4M each with the cabin) for Kingfisher's sold-out Delhi network. They would earn about **3M a week after
+their leases**, against roughly nothing from the A350s after theirs, and add about 250 departures a week at Delhi on
+the way to its 750 (hubs first, §3).
+- **The cost:** Kingfisher gives up its only US route until long-haul's turn comes (§3 reach first).
+- **D, the middle path:** return one and keep one on JFK. It earns about 1M a week less and keeps the US flow.
+- **Before returning:** Gitesh confirms the return screen's terms (the deposit back in full, no fee).
+- **The manual changes too:** §3 says "Kingfisher's two Delhi–JFK A350s stay as they are"; that sentence would be
+  replaced.
 
-| Option | Growth | Profit a week after the A350 leases | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
+| Option | Growth | Profit a week after leases (once delivered) | Cash at the lowest point | Opportunity cost | Risk | Easy to undo? |
 |---|---|---|---|---|---|---|
-| A. Keep both on JFK, as now, until 28 Nov | none | about +0.01M, before the A350 crews' pay (negative after it) | no change | 1.44M a week of leases earning nothing over cost | low; the fare ladder can't fix it (no level goes under launch, §5) | yes |
-| **B. Split: VT-AAA (DEL) stays on JFK, VT-AAB (DEL) opens a second US or Canadian city** **(recommended)** | **+1 five-star long-haul city; JFK goes from 59% to a full economy cabin** | **about +0.6 to +1.0M (estimate; see below)** | **no change** | **none** | **the second city's demand is unproven: check it with the game's route evaluation first** | **yes: reschedule** |
-| C. Return both leases, order narrowbodies with the money | none from the change itself; the narrowbodies come from cash either way | about 0 (loses ~1.45M of flight profit, saves ~1.44M of lease), plus the crews' pay saved (maybe 0.1–0.2M) | unknown: depends on the game's return terms | Kingfisher's US–India flow; coming back later needs a new A350 (A350-900 list 140.1M) | high: the return terms aren't known yet | no |
+| A. Keep both on JFK; the fare ladder may go under launch | none | about 0 now; up to about +0.6M if a lower economy fare fills the cabin, reached slowly (5 points a step, then a 2-week hold) | no change | 14.39M tied up in two aircraft earning their lease | the fare's effect on demand is unknown | yes |
+| B. Split: VT-AAA (DEL) on JFK, VT-AAB (DEL) opens a second US or Canadian city | +1 long-haul city | about +0.6 to +1.0M (estimate) | no change | as A | the second city's demand is unproven | yes |
+| **C. Return both; about 6 A321neo Lights for Delhi (recommended)** | **about +250 departures a week at Delhi; 6 aircraft of new routes or frequency** | **about +2.5 to +3.1M** | **+14.39M, then spent on orders as each evening's proposal allows** | **Kingfisher's US–India flow; coming back means a new A350 (A350-900 list 140.1M)** | **the return terms, still to read in the game; rivals could take Delhi–JFK meanwhile (none fly it today)** | **no** |
+| D. Return VT-AAB (DEL); VT-AAA (DEL) stays on JFK | about +125 departures a week at Delhi; keeps the US route | about +2.0M (3 A321neos about +1.5M, JFK on one aircraft about +0.5M) | +7.19M, then spent on orders | half of C's narrowbodies | as C, for one aircraft | partly |
 
 ## Background
 All figures are from `route_profit(2, 7)` and the captured payments for the 7 days to 22 Oct.
 
 - **Delhi–JFK:** 12 flights a week (6 round trips), flight profit **1.452M a week** (121k a flight, before leases).
-  Business is 96% full and economy 59%, on the 350-CMF cabin (24 business, 264 economy). Its mark is *fix*: economy
-  averages 59%.
-- **Per aircraft hour it is Kingfisher's best route** (8.07k against 5.3–7.1k for the rest), because each flight is
-  long and business fills. The trouble isn't the route; it's the cost of the two aircraft flying it.
-- **The leases:** 0.719M a week each, 1.438M for the pair, paid 21 and 22 Oct. That leaves about **+14k a week**
-  before the A350 crews' pay. Kingfisher's salaries were 1.03M last week for 17 aircraft, and the game doesn't split
-  them by aircraft.
-- **Use:** a round trip takes about 30 hours (15 aircraft hours a leg), so each A350 flies 3 round trips a week, about
-  12.8 hours a day.
+  Business is 96% full and economy 59%, on the 350-CMF cabin (24 business, 264 economy). Its mark is *fix*.
+- **Per aircraft hour it is Kingfisher's best route** (8.07k against 5.3–7.1k), so the route itself is fine. What it
+  can't do is pay well for two aircraft that tie up 14.39M.
+- **The leases:** 0.719M a week each, 1.438M for the pair. That leaves about +14k a week before the A350 crews' pay
+  (Kingfisher's salaries were 1.03M last week for 17 aircraft, not split by aircraft).
+- **Use:** a round trip takes about 30 hours, so each A350 flies 3 round trips a week, about 12.8 hours a day.
 
-**Why B, the estimate.** Demand is per airport and per direction (§9), and six weekly departures a direction on JFK
-leave economy 41% empty.
-- **JFK on one aircraft (3 round trips):** about 156 economy passengers a flight today become a full 264-seat cabin.
-  Income falls from about 2.29M to about 1.6M a week, and flying costs halve (about 0.84M to 0.42M). That's roughly
-  **1.2M a week** from one aircraft, against the 1.45M both make now.
-- **The second city:** if it sells like JFK, another 1.0–1.2M a week.
-- **Together:** about 2.2–2.4M of flight profit against the same 1.44M of leases, so +0.8 to +1.0M a week. If the new
-  city sells at half of JFK, about +0.6M.
-- **Shaky inputs:** business income is worked back from the route's total, and the new city is assumed to sell like
-  JFK. The route evaluation settles the second.
+**C's numbers.**
+- **Each A321neo Light at Delhi:** about 0.76M of flight profit a week against a 0.24M lease, so about +0.52M a week.
+  That comes from VT-ABA's and VT-ABB's briefs, 17 Oct, and today's route profit, where every Delhi route is sold out.
+- **Six of them:** about +3.1M a week. Take off the A350s' flight profit less their leases (about 0.01M) and add back
+  the A350 crews' pay. The narrowbodies' crews cost more in total, hence the range of 2.5–3.1M.
+- **The aircraft arrive over several days:** one every 21 hours on the A320-family line, which is idle today. Some can
+  be E195s on their own line (one every 15 hours, 1.8M each) to arrive sooner.
+- **Kingfisher's openings:** 877 pairs on its list, most within narrowbody reach (`competition(2)`).
 
-**Candidate cities** (Kingfisher's openings from Delhi needing an A350, all 5-star with no rivals in the 22 Oct scan;
-`competition(2)`):
+**The fare ladder (Gitesh, 23 Oct).** The ladder should be allowed to go under launch. Today §5 stops it at launch, so
+Delhi–JFK's economy (59%) can't fall below 100%. That rule change is taken separately. It improves A and B, but not
+enough to overtake C: even a full economy cabin at 85% of the fare adds about 0.65M a week, and the ladder would take
+several weeks to get there.
 
-| City | Distance |
-|---|---|
-| Vancouver | 11,139 km |
-| Montreal | 11,272 km |
-| Boston | 11,479 km |
-| Toronto | 11,640 km |
-| New York LaGuardia | 11,745 km |
-| Newark | 11,765 km |
-| Philadelphia | 11,886 km |
-| Detroit | 11,894 km |
-| Chicago | 12,022 km |
-| San Francisco | 12,382 km |
-| Atlanta | 12,831 km |
-| Los Angeles | 12,877 km |
-| Dallas | 13,154 km |
-
-Each is its own airport market, Newark included. The ULR's cabin reaches all of them.
-
-**Rules checked.**
-- §3 reach first concerns new aircraft; these two are already in the fleet.
-- Delhi is the main hub, so hubs first allows it.
-- US and Canada to India is Kingfisher's (§2).
-- Moving an aircraft off a route is a real trade-off, hence this brief (§1).
-- The new plan card is checked as usual: maintenance, turns and connections at both ends.
-
-**C, what isn't known.** The game's terms for handing a leased aircraft back (any fee, and whether the deposit paid
-at lease comes back) aren't in our data or the manual. Gitesh would read them on the aircraft's page in the game
-before C could be weighed properly.
+**What isn't known.** The return terms on the aircraft's page in the game: whether the whole deposit comes back, and
+whether there's a fee. Gitesh reads them before returning.
 
 ## What would change the recommendation
-- **The route evaluation shows thin demand everywhere else:** then A until 28 Nov, or C if the return terms are
-  cheap.
-- **The return terms give back a large deposit:** C's cash column improves. It still gives up the US flow and earns
-  no more a week.
-- **JFK's economy doesn't fill on one aircraft:** that would mean the demand is thinner than it looks, and the case
-  for keeping any A350 at all weakens.
+- **The deposit doesn't come back in full, or there's a fee:** C and D shrink; below about half the deposit, B.
+- **Gitesh wants Kingfisher to keep a US presence now:** D.
+- **A rival starts on Delhi–JFK:** that doesn't change C. A rival on the route would make coming back harder, but the
+  narrowbodies still earn more.
 
 ## Outcome
 *Waiting for Gitesh.*
