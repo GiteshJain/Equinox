@@ -11,6 +11,13 @@
 // with it (manual §1). A time zone moves every flight touching the airport in UTC so its local times stay, as Routes'
 // offset does (after the page lists what moves and asks). Import and clear went with the tables (design §14, choice 2);
 // the exports stay. The bank windows and next free numbers are the planning library's, on the start's rules input.
+// Since 23 Oct (spec docs/specs/2026-10-23-planner-look-reference.md) in the planner's new look, as Systems: the title is
+// the page's name with a muted line saying what it holds; the sections are large rows that open (still <details>, the
+// open one in the address), each with its name, a muted one-line note and a count where it has one ("14 bases"),
+// grouped under three small headings: Network (bases and banks, night bans, time zones, removed routes), Fleet and fares
+// (aircraft, configs, markets, service profiles) and Settings and data (constants, game schedules, storage, data). Open,
+// a section's full note leads its content; its tables have a header row, row lines and numbers on the right, and scroll
+// inside their own box on a phone. Every edit, the time zone's confirm step and the exports are as before.
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { banks, game, schedule, type Rules } from "@rules";
@@ -39,6 +46,28 @@ import {
 } from "./reads";
 
 const H = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const many = (n: number, one: string, more = one + "s") => `${n} ${n === 1 ? one : more}`;
+/** Each section's one-line note on its row; the full note leads the section once it's open. */
+const SHORT: Record<SectionSlug, string> = {
+  "hubs": "Each base's role, flight numbers, MCT and bank times",
+  "night-bans": "Airports that close overnight in the game",
+  "time-zones": "Airports whose UTC offset is set by hand",
+  "removed": "Routes taken off in Routes, ready to restore",
+  "aircraft": "Each type's seats, speed, turn and order cabin",
+  "configs": "Each cabin layout and its seats",
+  "markets": "The layout each market calls for",
+  "services": "What a new frequency starts with",
+  "constants": "The rule numbers the planner works with",
+  "schedules": "Each airline's public schedule page in the game",
+  "storage": "Whether saving works",
+  "data": "Export a backup or the flights",
+};
+/** The three groups the rows sit under, in order. */
+const GROUPS: readonly [string, string, readonly SectionSlug[]][] = [
+  ["network", "Network", ["hubs", "night-bans", "time-zones", "removed"]],
+  ["fleet", "Fleet and fares", ["aircraft", "configs", "markets", "services"]],
+  ["settings", "Settings and data", ["constants", "schedules", "storage", "data"]],
+];
 const enter = (e: KeyboardEvent<HTMLInputElement>) => { if (e.key === "Enter") e.currentTarget.blur(); };
 
 /** A box that saves when you leave it (or press Enter), as the old planner's change event; it starts again from the value
@@ -177,31 +206,31 @@ export function Reference() {
   const markets = (marketsQ.data ?? []).map((m) => ({ m, key: `${nameOf(m.airline_id)}|${m.name}` })).sort((a, b) => keyOrder(a.key, b.key));
   const overrides = (waQ.data ?? []).filter((r) => r.utc_offset_override != null).sort((a, b) => keyOrder(a.airport_code, b.airport_code));
 
-  const section = (slug: SectionSlug, title: ReactNode, note: ReactNode, body: ReactNode, key = String(title)) => (
+  // each row's count or state, where it has one
+  const COUNT: Partial<Record<SectionSlug, ReactNode>> = {
+    "hubs": many(bases.length, "base"), "night-bans": many(bans.length, "airport"),
+    "time-zones": overrides.length ? many(overrides.length, "override") : "no overrides",
+    "aircraft": many(types.length, "aircraft type"), "configs": many(configs.length, "config"), "markets": many(markets.length, "market"),
+    "services": many((servicesQ.data ?? []).length, "profile"), "constants": many(CONSTANTS.length, "number"),
+    "schedules": many(airlines.length, "airline"), "storage": save_.label,
+  };
+  const section = (slug: SectionSlug, title: ReactNode, note: ReactNode, body: ReactNode, key = String(title), aside: ReactNode = COUNT[slug]) => (
     <details className="rsec" data-rsec={key} data-section={slug} key={slug} open={open.has(slug)} onToggle={(e) => toggle(slug, e.currentTarget.open)}>
-      <summary><span className="rst">{title}</span>{note ? <span className="note">{note}</span> : null}</summary>
-      <div className="rsb">{body}</div>
+      <summary>
+        <span className="rst">{title}</span>
+        <span className="note rshort">{SHORT[slug]}</span>
+        {aside != null && aside !== "" ? <span className="raside" data-count={slug}>{aside}</span> : null}
+      </summary>
+      <div className="rsb">{note ? <div className="note rlead">{note}</div> : null}{body}</div>
     </details>
   );
 
-  return (
-    <main className="view ref-view" data-screen="reference" data-reference-ready={ready ? "yes" : "no"} data-reference-view={loc.pathname} data-open={[...open].join(" ")}>
-      <div className="vh"><p className="vk">Settings and records</p><h1>Reference</h1><p>Banks, aircraft, configs, markets and time zones.</p></div>
-      {loadError ? <ErrorBox error={loadError} /> : null}
-      {!ready && !loadError ? <div className="empty">Loading…</div> : null}
-      {offset ? (
-        <ConfirmPanel question={offset.question} yes="Change it" busy={busy} onYes={() => { const o = offset; setOffset(null); void o.apply(); }} onNo={() => setOffset(null)}>
-          {offset.moves.length ? <ul data-offset-moves>{offset.moves.map((m, i) => <li key={i}>{moveWords(m, airlines.find((a) => a.id === m.airline_id)?.code ?? null)}</li>)}</ul>
-            : <div className="dim">No flight touches {offset.code}, so nothing moves.</div>}
-        </ConfirmPanel>
-      ) : null}
-      {ready && rules ? (
-        <div className="ref">
-          {section("hubs", SECTIONS[0][1], "a hub runs banks and connections · a focus city is an aircraft base that serves its own market point-to-point and feeds a hub with trunk flights, so it has no banks of its own · a station is an airport flown point-to-point from without making it a base: no banks, and its numbers come from the airline's station pool (settings station_flight_no_from to station_flight_no_to) · departure times, hub local · MCT in hours · \"last no. used\" = highest flight number already taken in the game, including anything not entered here",
+  const S: Partial<Record<SectionSlug, ReactNode>> = !(ready && rules) ? {} : {
+    "hubs": section("hubs", SECTIONS[0][1], "a hub runs banks and connections · a focus city is an aircraft base that serves its own market point-to-point and feeds a hub with trunk flights, so it has no banks of its own · a station is an airport flown point-to-point from without making it a base: no banks, and its numbers come from the airline's station pool (settings station_flight_no_from to station_flight_no_to) · departure times, hub local · MCT in hours · \"last no. used\" = highest flight number already taken in the game, including anything not entered here",
             <HubsTable rules={rules} bases={bases} nameOf={nameOf} wa={wa} busy={busy}
               onField={(b, f, v) => saveOne(baseChange(b, f, v, bases))}
-              onMct={(b, v) => w !== undefined && saveOne(mctChange(w, b, v, bases, wa.get(b.airport_code), site))} />)}
-          {section("constants", "Constants", null, (
+              onMct={(b, v) => w !== undefined && saveOne(mctChange(w, b, v, bases, wa.get(b.airport_code), site))} />),
+    "constants": section("constants", "Constants", null, (
             <>
               <div className="fg" data-figure="reference: constants">
                 {CONSTANTS.map(([k, label, key]) => (
@@ -211,17 +240,17 @@ export function Reference() {
               </div>
               <div className="note">These are rule numbers: each is its row in settings (the departures cap in world_rules). Change the operating manual with them (manual §1: rule changes are agreed in chat and the manual updated).</div>
             </>
-          ))}
-          {section("aircraft", "Aircraft", "block estimates are the block allowance plus the distance at the type's cruise speed (manual §4); nothing is fitted to the times typed · the order cabin is the layout a new order of the type comes with (Tails, the cash forecast)",
+          )),
+    "aircraft": section("aircraft", "Aircraft", "block estimates are the block allowance plus the distance at the type's cruise speed (manual §4); nothing is fitted to the times typed · the order cabin is the layout a new order of the type comes with (Tails, the cash forecast)",
             <>
               <div className="tblwrap">
                 <table className="tbl edit" data-figure="reference: aircraft">
                   <tbody>
-                    <tr><th>Type</th><th>Family</th><th>Max seats</th><th>Cruise km/h (fallback)</th><th>Min turn (min)</th><th>Gap target (h)</th><th>Order cabin</th><th>Learned from your schedule</th><th></th></tr>
+                    <tr><th>Type</th><th className="num">Family</th><th className="num">Max seats</th><th className="num">Cruise km/h (fallback)</th><th className="num">Min turn (min)</th><th className="num">Gap target (h)</th><th>Order cabin</th><th>Learned from your schedule</th><th></th></tr>
                     {types.map((t, i) => (
                       <tr key={t.id}>
                         {([["name", t.name], ["family", t.family_no], ["seats", t.seats_max], ["cruise", t.cruise_kmh], ["minTurn", t.min_turn_min], ["gap", t.gap_target_h]] as [TypeField, unknown][]).map(([f, v]) => (
-                          <td key={f}><Box data-ref={`types.${i}.${f}`} value={v == null ? "" : String(v)} disabled={busy} onSave={(x) => saveOne(typeChange(t, f, x))} /></td>
+                          <td key={f} className={f === "name" ? undefined : "num"}><Box data-ref={`types.${i}.${f}`} value={v == null ? "" : String(v)} disabled={busy} onSave={(x) => saveOne(typeChange(t, f, x))} /></td>
                         ))}
                         <td><select data-ref={`types.${i}.orderCabin`} value={t.order_config_id == null ? "" : String(t.order_config_id)} disabled={busy}
                           onChange={(e) => saveOne(orderCabinChange(t, e.currentTarget.value, configs))}><Layouts configs={configs} typeId={t.id} /></select></td>
@@ -270,13 +299,13 @@ export function Reference() {
                   setOwnAdd({ airline: "", type: "" });
                 }}>Add</button>
               </div>
-            </>)}
-          {section("configs", "Configs", "seats follow the config",
+            </>),
+    "configs": section("configs", "Configs", "seats follow the config",
             <>
               <div className="tblwrap">
                 <table className="tbl edit" data-figure="reference: configs">
                   <tbody>
-                    <tr><th>Config</th><th>Type</th><th>Cabin</th><th>Seats</th><th></th></tr>
+                    <tr><th>Config</th><th>Type</th><th>Cabin</th><th className="num">Seats</th><th></th></tr>
                     {configs.map((c, i) => {
                       const tn = types.find((t) => t.id === c.aircraft_type_id)?.name ?? "";
                       const field = (f: ConfigField, v: string) => saveOne(configChange(c, f, v, types));
@@ -285,7 +314,7 @@ export function Reference() {
                           <td><Box data-ref={`configs.${i}.code`} value={c.code} disabled={busy} onSave={(v) => field("code", v)} /></td>
                           <td><select data-ref={`configs.${i}.type`} value={tn} disabled={busy} onChange={(e) => field("type", e.currentTarget.value)}><Opt list={types.map((t) => t.name)} value={tn} empty="—" /></select></td>
                           <td><Box data-ref={`configs.${i}.cabin`} value={c.cabin ?? ""} disabled={busy} onSave={(v) => field("cabin", v)} /></td>
-                          <td><Box data-ref={`configs.${i}.seats`} value={c.seats == null ? "" : String(c.seats)} disabled={busy} onSave={(v) => field("seats", v)} /></td>
+                          <td className="num"><Box data-ref={`configs.${i}.seats`} value={c.seats == null ? "" : String(c.seats)} disabled={busy} onSave={(v) => field("seats", v)} /></td>
                           <td><button type="button" className="link" data-rm={`configs.${i}`} disabled={busy} onClick={() => void remove("cabin_configs", c, c.code)}>remove</button></td>
                         </tr>
                       );
@@ -294,8 +323,8 @@ export function Reference() {
                 </table>
               </div>
               <button type="button" className="secondary" data-addrow="configs" disabled={busy || w === undefined} onClick={() => w !== undefined && void save([addConfig(w)])}>Add config</button>
-            </>)}
-          {section("markets", "Markets", "the layout each market calls for: a plan card takes it where one route of the market flies more than 65% of the aircraft's block time, unless the route has its own choice (manual §5)",
+            </>),
+    "markets": section("markets", "Markets", "the layout each market calls for: a plan card takes it where one route of the market flies more than 65% of the aircraft's block time, unless the route has its own choice (manual §5)",
             <>
               <div className="chips" data-chips="markets">
                 <span className="chiplbl">Airline</span>
@@ -316,13 +345,13 @@ export function Reference() {
                   </tbody>
                 </table>
               </div>
-            </>)}
-          {section("services", "Service profiles", "a new frequency starts with the first profile whose \"up to km\" exceeds the route distance; Ryanair uses its own row",
+            </>),
+    "services": section("services", "Service profiles", "a new frequency starts with the first profile whose \"up to km\" exceeds the route distance; Ryanair uses its own row",
             <>
               <div className="tblwrap">
                 <table className="tbl edit" data-figure="reference: services">
                   <tbody>
-                    <tr><th>Code</th><th>Airline</th><th>Up to km</th><th>Note</th><th></th></tr>
+                    <tr><th>Code</th><th>Airline</th><th className="num">Up to km</th><th>Note</th><th></th></tr>
                     {(servicesQ.data ?? []).map((s, i) => {
                       const al = s.airline_id == null ? "Legacy" : nameOf(s.airline_id);
                       const field = (f: ServiceField, v: string) => saveOne(serviceChange(s, f, v, (n) => airlines.find((a) => a.name === n)?.id ?? null));
@@ -330,7 +359,7 @@ export function Reference() {
                         <tr key={s.id}>
                           <td><Box data-ref={`services.${i}.code`} value={s.code} disabled={busy} onSave={(v) => field("code", v)} /></td>
                           <td><select data-ref={`services.${i}.airline`} value={al} disabled={busy} onChange={(e) => field("airline", e.currentTarget.value)}><Opt list={["Legacy", ...airlines.map((a) => a.name)]} value={al} /></select></td>
-                          <td><Box data-ref={`services.${i}.upTo`} value={s.up_to_km == null ? "" : String(s.up_to_km)} disabled={busy} onSave={(v) => field("upTo", v)} /></td>
+                          <td className="num"><Box data-ref={`services.${i}.upTo`} value={s.up_to_km == null ? "" : String(s.up_to_km)} disabled={busy} onSave={(v) => field("upTo", v)} /></td>
                           <td><Box data-ref={`services.${i}.note`} value={s.note ?? ""} disabled={busy} onSave={(v) => field("note", v)} /></td>
                           <td><button type="button" className="link" data-rm={`services.${i}`} disabled={busy} onClick={() => void remove("service_profiles", s, s.code)}>remove</button></td>
                         </tr>
@@ -340,14 +369,15 @@ export function Reference() {
                 </table>
               </div>
               <button type="button" className="secondary" data-addrow="services" disabled={busy || w === undefined} onClick={() => w !== undefined && void save([addService(w)])}>Add profile</button>
-            </>)}
-          {removed.length ? section("removed", <>Removed routes <button type="button" className="link" id="restore-all" disabled={busy}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); void save(removed.map((x) => restoreChange(x.r))); }}>restore all {removed.length}</button></>, null,
+            </>),
+    "removed": removed.length ? section("removed", "Removed routes", null,
             <div className="dim" data-figure="reference: removed routes">
               {removed.map(({ r, key }, i) => <span key={r.id}>{i ? " · " : null}{removedWords(nameOf(r.airline_id), r)} <button type="button" className="link" data-restore={key} disabled={busy}
                 onClick={() => void save([restoreChange(r)])}>restore</button></span>)}
-            </div>, `Removed routes restore all ${removed.length}`) : null}
-          {section("night-bans", "Night bans", "airports that close overnight in the game (read from each airport's page) — flights landing or leaving inside a ban are flagged on their route",
+            </div>, `Removed routes restore all ${removed.length}`,
+      <>{many(removed.length, "route")} <button type="button" className="link" id="restore-all" disabled={busy}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); void save(removed.map((x) => restoreChange(x.r))); }}>restore all {removed.length}</button></>) : null,
+    "night-bans": section("night-bans", "Night bans", "airports that close overnight in the game (read from each airport's page) — flights landing or leaving inside a ban are flagged on their route",
             <>
               <div className="fg"><label>Find<input id="cf-q" value={cfq} placeholder="airport or city" onChange={(e) => setCfq(e.currentTarget.value.trim().toUpperCase())} /></label></div>
               <div className="tblwrap">
@@ -380,8 +410,8 @@ export function Reference() {
                   setCfAdd({ code: "", val: "" });
                 }}>Add</button>
               </div>
-            </>)}
-          {section("schedules", "Game schedules", "each airline's public flight-schedule page in the game — used by Check → Game check",
+            </>),
+    "schedules": section("schedules", "Game schedules", "each airline's public flight-schedule page in the game — used by Check → Game check",
             <div className="tblwrap">
               <table className="tbl edit" data-figure="reference: game schedules">
                 <tbody>
@@ -398,8 +428,8 @@ export function Reference() {
                   })}
                 </tbody>
               </table>
-            </div>)}
-          {section("time-zones", "Time zones", "the game runs on standard time all year — no daylight saving — and these offsets match it (verified against the live schedules); override an airport only if the game disagrees",
+            </div>),
+    "time-zones": section("time-zones", "Time zones", "the game runs on standard time all year — no daylight saving — and these offsets match it (verified against the live schedules); override an airport only if the game disagrees",
             <>
               <div className="fg">
                 <label>Airport<input id="utc-code" placeholder="e.g. JFK" maxLength={3} value={utc.code} onChange={(e) => setUtc({ ...utc, code: e.currentTarget.value })} /></label>
@@ -407,20 +437,41 @@ export function Reference() {
                 <button type="button" className="secondary" id="utc-set" disabled={busy} onClick={() => void askOffset()}>Set</button>
               </div>
               <div className="dim" data-figure="reference: time zones">{overrides.map((r) => `${r.airport_code} ${Number(r.utc_offset_override)}`).join(" · ") || "No overrides."}</div>
-            </>)}
-          {section("storage", "Storage", null,
+            </>),
+    "storage": section("storage", "Storage", null,
             <div id="diag">
               <div className="dim" data-figure="reference: storage">Cloud store: <b>{save_.label}</b> (each change saves as you make it) · This device: <b>nothing kept</b> (design §14) · {countsQ.data?.freqs ?? 0} frequencies, {countsQ.data?.tails ?? 0} tails, {countsQ.data?.edits ?? 0} route edits, {(marketsQ.data ?? []).length} markets, {(servicesQ.data ?? []).length} service profiles</div>
               <button type="button" className="secondary" id="save-now" onClick={() => void saver.retry()}>Save now</button>
-            </div>)}
-          {section("data", "Data", null,
+            </div>),
+    "data": section("data", "Data", null,
             <>
               <div className="fg">
                 <button type="button" className="secondary" id="exp" onClick={() => { if (w !== undefined) void tablesJson(w).then((t) => download(t, "equinox-planner-tables.json", "application/json")).catch((e: unknown) => showMessage(String(e))); }}>Export backup (JSON)</button>
                 <button type="button" className="secondary" id="expcsv" onClick={() => { if (w !== undefined) void flightsCsv(rules, w, new Map(airlines.map((a) => [a.id, a.name]))).then((t) => download(t, "gander-flights.csv", "text/csv")).catch((e: unknown) => showMessage(String(e))); }}>Export flights (CSV)</button>
               </div>
               <div className="note">The backup is every planner table for the world. Importing a backup and clearing everything went with the tables (design §14, choice 2): the nightly backup and the change log are the safety net.</div>
-            </>)}
+            </>),
+  };
+
+  return (
+    <main className="view ref-view" data-screen="reference" data-reference-ready={ready ? "yes" : "no"} data-reference-view={loc.pathname} data-open={[...open].join(" ")}>
+      <div className="vh"><p className="vk">Settings and records</p><h1>Reference</h1><p className="ansp">Every setting and lookup the planner works with: the bases and their banks, the fleet's types and layouts, markets, time zones, the rule numbers and the exports.</p></div>
+      {loadError ? <ErrorBox error={loadError} /> : null}
+      {!ready && !loadError ? <div className="empty">Loading…</div> : null}
+      {offset ? (
+        <ConfirmPanel question={offset.question} yes="Change it" busy={busy} onYes={() => { const o = offset; setOffset(null); void o.apply(); }} onNo={() => setOffset(null)}>
+          {offset.moves.length ? <ul data-offset-moves>{offset.moves.map((m, i) => <li key={i}>{moveWords(m, airlines.find((a) => a.id === m.airline_id)?.code ?? null)}</li>)}</ul>
+            : <div className="dim">No flight touches {offset.code}, so nothing moves.</div>}
+        </ConfirmPanel>
+      ) : null}
+      {ready && rules ? (
+        <div className="ref rref">
+          {GROUPS.map(([id, name, slugs]) => (
+            <section className="rgroup" key={id} data-rgroup={id} aria-labelledby={"rg-" + id}>
+              <h2 className="rgh" id={"rg-" + id}>{name}</h2>
+              <div className="rrows">{slugs.map((slug) => S[slug] ?? null)}</div>
+            </section>
+          ))}
         </div>
       ) : null}
     </main>
@@ -435,7 +486,7 @@ function HubsTable({ rules, bases, nameOf, wa, busy, onField, onMct }: {
     <div className="tblwrap">
       <table className="tbl edit" data-figure="reference: hubs">
         <tbody>
-          <tr><th>Base</th><th>Airline</th><th>Role</th><th>Feeds</th><th>Block</th><th>Last no. used</th><th>Next pair</th><th>MCT</th><th>Bank 1</th><th>Bank 2</th><th>Bank 3</th><th>Bank 4</th><th>Arrival windows</th></tr>
+          <tr><th>Base</th><th>Airline</th><th>Role</th><th>Feeds</th><th className="num">Block</th><th className="num">Last no. used</th><th>Next pair</th><th className="num">MCT</th><th>Bank 1</th><th>Bank 2</th><th>Bank 3</th><th>Bank 4</th><th>Arrival windows</th></tr>
           {bases.map((hb, i) => {
             const rb = rules.bases.find((x) => x.id === hb.id);
             const fc = hb.role === "focus";
@@ -455,11 +506,11 @@ function HubsTable({ rules, bases, nameOf, wa, busy, onField, onMct }: {
                   <option value="station" disabled={!!hb.is_main} title={hb.is_main ? "the main hub can't be a station" : "point-to-point routes only: no banks, numbers from the airline's station pool"}>Station</option>
                 </select></td>
                 <td>{fc ? <select data-ref={`hubs.${i}.parent`} value={parent} disabled={busy} onChange={(e) => onField(hb, "parent", e.currentTarget.value)}><Opt list={parents} value={parent} empty="—" /></select> : <span className="dim">—</span>}</td>
-                <td>{st ? <span className="dim" title="a station has no block: its numbers come from the airline's station pool">—</span>
+                <td className="num">{st ? <span className="dim" title="a station has no block: its numbers come from the airline's station pool">—</span>
                   : <Box data-ref={`hubs.${i}.block`} value={hb.flight_no_from == null ? "" : String(hb.flight_no_from)} disabled={busy} onSave={(v) => onField(hb, "block", v)} />}</td>
-                <td><Box data-ref={`hubs.${i}.lastUsed`} value={hb.last_flight_no == null ? "" : String(hb.last_flight_no)} placeholder={nx?.from_schedule ? String(nx.from_schedule) : ""} disabled={busy} onSave={(v) => onField(hb, "lastUsed", v)} /></td>
+                <td className="num"><Box data-ref={`hubs.${i}.lastUsed`} value={hb.last_flight_no == null ? "" : String(hb.last_flight_no)} placeholder={nx?.from_schedule ? String(nx.from_schedule) : ""} disabled={busy} onSave={(v) => onField(hb, "lastUsed", v)} /></td>
                 <td className="dim">{nx ? (nx.full ? `pool ${nx.pool?.from ?? ""}–${nx.pool?.to ?? ""} full` : `${nx.out} / ${nx.back}`) : ""}</td>
-                <td><Box data-ref={`hubs.${i}.mct`} value={mctHours(wa.get(hb.airport_code))} disabled={busy} onSave={(v) => onMct(hb, v)} /></td>
+                <td className="num"><Box data-ref={`hubs.${i}.mct`} value={mctHours(wa.get(hb.airport_code))} disabled={busy} onSave={(v) => onMct(hb, v)} /></td>
                 {boxes.map((b, k) => (st ? <td key={k} className="dim">—</td> : (
                   <td key={k}><Box data-ref={`hubs.${i}.banks.${k}`} value={b} placeholder="hh:mm" disabled={busy || fc} title={fc ? "not used: a focus city times its flights to the banks of the hub it feeds" : undefined}
                     onSave={(v) => onField(hb, `banks.${k}` as BaseField, v)} /></td>
