@@ -436,19 +436,25 @@ manual §3, market share first.) Every figure is *competition()*'s, from the wor
 (`scan_every_days`). Rivals are every airline in the scan that isn't one of ours; departures a week count each
 flight's days, as *gscan.py* counts them, passenger flights only: freighters (a type ending in F, or ATF, ABX, 74Y,
 77X, 76X, or none, the weekly report's rule) are no one's rivals, anywhere here. Read only: nothing here saves.
-- **At the top:** the scans' dates ("latest scan 17 Oct, compared with 6 Oct": the latest finished scan, against the
-  latest one at least 6 days older, else the oldest there is) and the group line: our airlines' departures a week
-  against the world's, our share and its arrow.
-- **The group** (/planner/competition): a card per airline with its share across its markets and its arrow, its
-  threats in the last 7 days (amber) and its openings with the top 3; tap one to open it. Under them, **Threats**, every
-  airline's.
-- **An airline** (/planner/competition/MU), with the airlines along the top:
-  - **Market share:** a card per market (the airline's routes, flown or not, either direction): our share with its
+- **The answer is the title** (since 23 Oct, spec docs/specs/2026-10-23-planner-look-competition.md, laid out as Today,
+  Systems and Performance). On the group page it is our airlines' share of the world's departures ("8.4% of the world's
+  departures"); on an airline's page, its share across its markets with its arrow ("20.0% of its markets ▲ 3.3 pts").
+  Beside it, a small pill with the scans' dates ("latest scan 17 Oct, compared with 6 Oct": the latest finished scan,
+  against the latest one at least 6 days older, else the oldest there is). Under it, the group line: our airlines'
+  departures a week against the world's, our share and its arrow (on an airline's page its own departures first).
+- **The group** (/planner/competition): a tile per airline (three a row, two in a narrow window, one on a phone) with
+  its share across its markets and its arrow, its threats in the last 7 days (amber) and its top opening in one line;
+  tap one to open it. Under them, **Threats**: every airline's in one table (airline, rival, pair, the numbers, the day
+  and until when the fares hold, and the link to the route's page), newest first; on a phone each is a compact row.
+- **An airline** (/planner/competition/MU), with the airline switch under the title and **‹ All airlines**. Its four
+  sections are rows that open, each with its count (**Expand all** and **Collapse all** open or close every one);
+  **Openings** is open on arrival:
+  - **Market share:** a tile per market (the airline's routes, flown or not, either direction): our share with its
     arrow against the week-before scan, and the top rivals as a bar (ours dark, the rivals grey) and a list with their
     departures, share and change. Our own departures are the live schedule's; a week before, the scan's.
   - **Threats:** each rival who started on a pair the airline flies (none in the scan before) or added at least 7
     departures a week (*competition_threat_min_weekly*), with the numbers then and now, ours, the day and until when
-    the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance.
+    the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance; a table, newest first.
   - **Openings:** the pairs on its list no airline of ours flies, ranked: stars, then the rivals' departures a week on
     the pair, then the shorter distance, then the pair's code. Each with its stars, distance, the rivals and their
     departures, the **variant** from the default line (manual §3: the smallest size the stars allow, bigger only "for
@@ -456,7 +462,7 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     city on the E195-E2 says "or the E190-E2 if thin" under it: the default line gives the E190-E2 to the thinnest
     1-star city, nothing in our data says how thin a city is, so the evening proposal decides) and **Hubs first**:
     **yes** with why (main hub, contested base or route, main hub at its target, exempt), or **not yet** with the
-    reason, listed after the allowed ones. The first 10, with **show all** (the top 50; a chat reads more with
+    reason, listed after the allowed ones (each as a pill, green or grey). The first 10, with **show all** (the top 50; a chat reads more with
     *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted. A pair
     another airline of ours has on its list says so ("also on VS's list"): one airline per city pair decides.
   - **In November** (*trunk_month_from* to *trunk_month_to*, 1 to 30 Nov; manual §4) a line over the openings says the
