@@ -1816,3 +1816,49 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .pcmodal .pfoot{flex-direction:column;align-items:stretch}
   .pcmodal .pfoot .primary.sm{width:100%}
 }
+
+/* ---------- Photos' layout (23 Oct, spec docs/specs/2026-10-23-planner-look-photos.md): the answer as the title
+   (how many destinations have no photo) with the counts as a small pill beside it; the logos as a row of six tiles (three
+   a row under 1100px, two on a phone); the destinations as a grid of photo tiles with "Missing a photo only" as a pill
+   toggle. Only .ph* and .photos rules here; the older .ph-* rules above stay as they are. */
+.phvh .todayttl{align-items:flex-end}
+.phvh .phcount{margin:0 0 8px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);font-size:var(--t-small);white-space:normal}
+.view.photos .phsec:first-of-type{margin-top:0}
+.view.photos .ph-note{margin:0 0 var(--gap-card);border-radius:var(--r-md);font-size:var(--t-small)}
+.view.photos .ph-card{border-radius:var(--r-lg);border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);min-width:0}
+.view.photos .ph-body{padding:16px 20px 20px;gap:10px}
+.view.photos .ph-body .phname{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;font:800 var(--t-body)/1.3 var(--font);overflow-wrap:anywhere;min-width:0}
+.view.photos .ph-body .phname .note{font-weight:600;color:var(--muted)}
+.view.photos .ph-body .phname .lv{align-self:center}
+.view.photos .ph-body .small{font-size:var(--t-small)}
+.view.photos .ph-body input[type=text]{min-height:44px;font-size:14px;padding:0 12px}
+.view.photos .ph-acts{gap:10px 14px}
+.view.photos .ph-acts .confirm{justify-content:flex-start}
+.view.photos .ph-acts label.primary:focus-within{outline:2px solid var(--violet);outline-offset:2px}
+.view.photos .ph-img .tag{left:12px;top:12px;padding:6px 10px}
+.phlogos{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.phlogo .phlimg{aspect-ratio:3/1;background:var(--paper);border-bottom:1px solid var(--line)}
+.phlogo .phlimg img{object-fit:contain;padding:14px 18px}
+.phlogo .ph-body{padding:14px 16px 16px}
+.view.photos .phlogo .phkind{justify-self:start;margin:0;white-space:nowrap;max-width:none}
+.phlogo .ph-acts{flex-direction:column;align-items:flex-start}
+.phlogo .ph-acts label.primary{width:100%}
+.phdests{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--gap-card)}
+.ph-tools .phpill{position:relative;cursor:pointer;user-select:none;margin:0}
+.ph-tools .phpill:focus-within{outline:2px solid var(--violet);outline-offset:2px}
+.ph-tools .phpill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.35}
+.ph-tools .phpill.on::before{opacity:1;background:var(--amber)}
+
+@media (max-width:1100px){
+  .phlogos{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .phvh .todayttl{align-items:flex-start}
+  .phvh .phcount{align-self:flex-start;margin:0}
+  .phlogos{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .phlogo .ph-body{padding:12px}
+  .phlogo .phlimg img{padding:10px 12px}
+  .phlogo .ph-acts label.primary{padding:0 12px}
+  .phdests{grid-template-columns:minmax(0,1fr);gap:16px}
+  .view.photos .ph-body{padding:14px 16px 16px}
+}

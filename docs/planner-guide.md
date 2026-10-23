@@ -523,8 +523,13 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
 
 ## Photos
 *Airline logos and destination photos for the public website.*
-- A card for each of our airlines' logos (in the airlines' order) and for each destination, busiest first, **Missing a
-  photo only** to start with.
+- **The answer is the title:** "N destinations missing a photo", or "Every destination has a photo", with how many
+  destinations and logos there are as a small pill beside it.
+- **Airline logos** as a row of six tiles, in the airlines' order (three a row on narrower screens, two on a phone):
+  the logo, the airline with its colour, whether it's the in-game logo or one we uploaded, and its buttons.
+- **Destinations** as a grid of photo tiles, busiest first: the photo, the city and its code, its flights a week and
+  the credit, and the buttons. **Missing a photo only** is a pill you tap on and off; it starts on, and a photo you've
+  just uploaded stays in view.
 - **Upload photo** or **Replace** (with a credit) and **Upload logo** resize the picture in the browser and put it live
   on the website at once. **Remove** and **Use the in-game logo** ask in the page first, and go back to the in-game logo
   or the plain card. A preview uploads nothing.
