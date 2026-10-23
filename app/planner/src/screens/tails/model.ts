@@ -6,7 +6,7 @@
 // unit tests run it. Every planning figure is the library's (aircraftWeek, maintenance, tails, frequency, time); this
 // file joins the tables' rows to it and words what it answers, as the old planner words it.
 import {
-  RulesError, aircraftWeek, banks, block, buildRules, card as cardRules, frequency, game, maintenance, service, tails, time, type AircraftWeek, type AirportRow,
+  RulesError, aircraftWeek, banks, block, buildRules, card as cardRules, frequency, game, maintenance, service, setting, tails, time, type AircraftWeek, type AirportRow,
   type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type FareLadder, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
   type NoMaintenance, type RouteFare, type Rules, type ServiceProfile, type TailIssue, type TimedLeg, type WeekLeg,
 } from "@rules";
@@ -36,9 +36,22 @@ export interface TailAircraft {
   retired_on: string | null;
   extra: Json;
   updated_at: string;
+  /** How we got it, new from the factory or used from the game's Aircraft Market (since 22 Oct, manual §3); it decides
+   *  the replacement age. Optional so a row made in the planner before it's read again still types. */
+  acquired?: string;
 }
 export const AIRCRAFT_COLUMNS = "id, registration, airline_id, aircraft_type_id, cabin_config_id, base_code, status, ordered_on, delivery_at, "
-  + "order_base_code, order_config_id, order_note, checked_on, schedule_changed_on, maintenance_note, retired_on, extra, updated_at";
+  + "order_base_code, order_config_id, order_note, checked_on, schedule_changed_on, maintenance_note, retired_on, extra, updated_at, acquired";
+
+/** The pop-up's line on how the aircraft came and when it's replaced (manual §3, replacement by age; spec
+ *  docs/specs/2026-10-22-aircraft-age-check.md §2): "came new, replace at 3 years", "came used, replace at 10 years",
+ *  the ages from settings.replace_new_years and replace_used_years (an airline's own where it has one); without the
+ *  setting, just how it came. */
+export function acquiredWords(rules: Rules, a: Pick<TailAircraft, "airline_id" | "acquired">): string {
+  const used = a.acquired === "used";
+  const n = Number(setting(rules, used ? "replace_used_years" : "replace_new_years", a.airline_id));
+  return `came ${used ? "used" : "new"}${Number.isFinite(n) && n > 0 ? `, replace at ${n} years` : ""}`;
+}
 
 export interface ConfigRow { id: number; code: string; aircraft_type_id: number | null; cabin: string | null; cost: number | null }
 export interface BuyTypeRow { airline_id: number; aircraft_type_id: number }

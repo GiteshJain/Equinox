@@ -257,7 +257,9 @@ Details and open points: `docs/decisions.md`.
   those its size band allows: an E195 takes the top 1- to 4-star openings). The openings that need a bigger type wait for
   an evening when cash covers it. A line is never left idle to wait for cash. *(since 21 Oct; history: rule-history.md)*
 - **Replacement by age:** an aircraft we ordered new is replaced when it reaches 3 years; one we took from the used
-  market, when it reaches 10 years. *(since 22 Oct; history: rule-history.md)*
+  market, when it reaches 10 years. The numbers are `settings.replace_new_years`, `replace_used_years` and
+  `replace_warn_days`; each aircraft's `aircraft.acquired` says new or used, and Today's Fleet group warns from 60 days
+  before, by the game's age. *(since 22 Oct; history: rule-history.md)*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   Kingfisher's two Delhi–JFK A350s stay as they are. *(since 28 Sep)*
 - **Route first, then the airline, then the aircraft.** The Scheduling chat picks the routes the group should open
@@ -275,8 +277,9 @@ Details and open points: `docs/decisions.md`.
   - **The used market too:** each evening's proposal also looks at the game's used aircraft offers (Aircraft
     Market) and proposes a bid where one on the default line, with at least a year to fly before its replacement at
     10 years (9 years old at most), flies the airline's chosen routes for less than a new order. The most we bid is
-    the new aircraft's own price (its factory price's deposit and weekly lease); above that, or when outbid, the airline orders new. Gitesh places the bid and says when the auction closes; Claude logs it and
-    writes the plan card as for a new order. *(since 22 Oct; history: rule-history.md)*
+    the new aircraft's own price (its factory price's deposit and weekly lease); above that, or when outbid, the airline orders new. Gitesh places the bid and says when the auction closes; Claude logs it, sets
+    `aircraft.acquired` to `used`, and writes the plan card as for a new order. *(since 22 Oct; history:
+    rule-history.md)*
 - **When an airline can order: the cash forecast.** Planner → Today → Orders says who can order now or from when, and
   the safe types; the detail is Performance → the airline → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
@@ -506,8 +509,9 @@ Details and open points: `docs/decisions.md`.
     and each fleet with aircraft) and checks each page as it arrives: short with no aircraft rows, broken when it
     doesn't read; Today's Fleet group then lists the game's maintenance under `settings.maintenance_min_pct`, no
     pilots, seats that don't match the planner's cabin, and an aircraft in the game but not the planner or in service
-    in the planner but missing from that night's fleet pages (only when every fleet page of its airline came in ok).
-    *(since 22 Oct)*
+    in the planner but missing from that night's fleet pages (only when every fleet page of its airline came in ok),
+    an aircraft within 60 days of its replacement age or past it (§3, replacement by age), and one marked new that is
+    older in the game than its time with us by more than 0.2 years (looks used). *(since 22 Oct)*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *(since 10 Oct; history:
   rule-history.md)*

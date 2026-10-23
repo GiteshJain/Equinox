@@ -4232,7 +4232,13 @@ CREATE OR REPLACE FUNCTION private.fig_fleet_checks(p_world_id bigint, p_as_of t
  SET search_path TO ''
 AS $function$
 declare v_night date; v_doc jsonb;
+  v_new numeric; v_used numeric; v_warn numeric;
 begin
+  -- the replacement ages (manual §3, since 22 Oct): new at replace_new_years, used at replace_used_years, warned
+  -- replace_warn_days before
+  v_new := private.fig_num(p_world_id, null, 'replace_new_years');
+  v_used := private.fig_num(p_world_id, null, 'replace_used_years');
+  v_warn := private.fig_num(p_world_id, null, 'replace_warn_days');
   -- the latest night any of our airlines' fleet pages came in, by the moment
   select max(f.capture_day) into v_night
     from public.game_fleet f join private.fig_airlines(p_world_id) al on al.airline_id = f.airline_id
@@ -4262,6 +4268,7 @@ begin
       from runpages rp group by rp.airline_id),
   ac as (
     select a.id, a.airline_id, a.registration, a.base_code, a.status, a.cabin_config_id, c.code as cabin_code,
+           a.acquired, a.delivery_at,
            c.economy_seats, c.business_seats,
            case when c.seats is not null and c.business_seats is not null and c.economy_seats is not null
                 then greatest(c.seats - c.business_seats - c.economy_seats, 0) else 0 end as first_seats
@@ -4269,7 +4276,8 @@ begin
      where a.world_id = p_world_id and a.airline_id in (select al.airline_id from al)),
   fl as (
     select f.*, al.ord, al.iata_code, al.min_pct, m.id as planner_id, m.base_code, m.cabin_config_id, m.cabin_code,
-           m.economy_seats, m.business_seats, m.first_seats,
+           m.economy_seats, m.business_seats, m.first_seats, m.acquired, m.delivery_at,
+           case when m.acquired = 'used' then v_used when m.acquired = 'new' then v_new end as replace_at,
            f.registration || ' (' || coalesce(m.base_code, f.fleet_name, '?') || ')' as who,
            format('%s/%s/%s', coalesce(f.seats_y::text, '?'), coalesce(f.seats_c::text, '?'), coalesce(f.seats_f::text, '?')) as seats
       from public.game_fleet f
@@ -4306,8 +4314,24 @@ begin
            format('%s (%s): in the planner, not on the game''s fleet pages', a.registration, coalesce(a.base_code, '?'))
       from ac a join al on al.airline_id = a.airline_id join runs ru on ru.airline_id = a.airline_id and ru.all_ok
      where a.status = 'active'
-       and not exists (select 1 from fl where fl.airline_id = a.airline_id and fl.registration = upper(a.registration))),
-  kinds as (select * from unnest(array['maintenance', 'crew', 'cabin', 'not_in_planner', 'not_in_game']) with ordinality k(kind, o))
+       and not exists (select 1 from fl where fl.airline_id = a.airline_id and fl.registration = upper(a.registration))
+    union all
+    -- replacement by age (manual §3, since 22 Oct): from replace_warn_days before the replacement age, on the game's age
+    select 6, 'replace', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
+           case when fl.age_years >= fl.replace_at
+                then format('%s: past its replacement age (%s years, now %s)', fl.who, trim_scale(fl.replace_at), fl.age_years)
+                else format('%s: replace at %s years (now %s): order its replacement', fl.who, trim_scale(fl.replace_at), fl.age_years) end
+      from fl
+     where fl.planner_id is not null and fl.replace_at is not null and fl.age_years is not null
+       and fl.age_years >= fl.replace_at - v_warn / 365.25
+    union all
+    -- the cross-check: marked new, but older in the game than its time with us by more than 0.2 years
+    select 7, 'age', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
+           format('%s: looks used (%s years in the game), marked new', fl.who, fl.age_years)
+      from fl
+     where fl.planner_id is not null and fl.acquired = 'new' and fl.delivery_at is not null and fl.age_years is not null
+       and fl.age_years - (v_night - (fl.delivery_at at time zone 'UTC')::date) / 365.25 > 0.2),
+  kinds as (select * from unnest(array['maintenance', 'crew', 'cabin', 'not_in_planner', 'not_in_game', 'replace', 'age']) with ordinality k(kind, o))
   select jsonb_build_object(
     'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'night', v_night,
     'counts', (select jsonb_object_agg(k.kind, (select count(*) from probs p where p.kind = k.kind) order by k.o)
@@ -4325,7 +4349,8 @@ begin
         'aircraft', coalesce((select jsonb_agg(jsonb_build_object(
             'registration', fl.registration, 'aircraft_id', fl.planner_id, 'base', coalesce(fl.base_code, fl.fleet_name),
             'fleet', fl.fleet_name, 'type', fl.type_name, 'nickname', fl.nickname, 'from', fl.location_from, 'to', fl.location_to,
-            'flight', fl.flight, 'age_years', fl.age_years, 'condition_pct', fl.condition_pct, 'maintenance_pct', fl.maintenance_pct,
+            'flight', fl.flight, 'age_years', fl.age_years, 'acquired', fl.acquired, 'replace_at_years', fl.replace_at,
+            'condition_pct', fl.condition_pct, 'maintenance_pct', fl.maintenance_pct,
             'y', fl.seats_y, 'c', fl.seats_c, 'f', fl.seats_f, 'pilots', fl.pilots, 'owned', fl.owned, 'contract', fl.contract_status,
             'captured_at', private.fig_ts(fl.captured_at),
             'problems', coalesce((select jsonb_agg(p.kind order by p.rank) from probs p

@@ -280,7 +280,7 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(homeAttention(input({ cabins: null }))).toEqual([]);
   });
   it("the fleet (22 Oct): one item per problem fleet_checks() finds, in its order, in the Fleet group; none before it's read", () => {
-    const fleet: FleetChecks = { night: "2026-10-22", counts: { maintenance: 1, crew: 0, cabin: 0, not_in_planner: 1, not_in_game: 0, problems: 2 }, airlines: [],
+    const fleet: FleetChecks = { night: "2026-10-22", counts: { maintenance: 1, crew: 0, cabin: 0, not_in_planner: 1, not_in_game: 0, replace: 0, age: 0, problems: 2 }, airlines: [],
       problems: [
         { kind: "maintenance", airline_id: 1, code: "TA", registration: "N003AW", base: "JFK", aircraft_id: 13, words: "N003AW (JFK): maintenance 0.0%, condition 83%" },
         { kind: "not_in_planner", airline_id: 1, code: "TA", registration: "N099AW", base: "JFK", aircraft_id: null, words: "N099AW: in the game (JFK fleet), not in the planner" },
@@ -293,6 +293,21 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(got.map(attKind)).toEqual(["fleet", "fleet"]);
     expect(groupAttention(got).map((g) => [g.label, g.cls, g.items.length])).toEqual([["Fleet", "bad", 2]]);
     expect(homeAttention(input({ fleet: null }))).toEqual([]);
+  });
+  it("the aircraft age check (22 Oct): replace and looks used listed in the Fleet group with fleet_checks()'s words, after the others", () => {
+    const fleet: FleetChecks = { night: "2029-08-01", counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, replace: 2, age: 1, problems: 3 }, airlines: [],
+      problems: [
+        { kind: "replace", airline_id: 1, code: "TA", registration: "N001AW", base: "JFK", aircraft_id: 11, words: "N001AW (JFK): replace at 3 years (now 2.9): order its replacement" },
+        { kind: "replace", airline_id: 1, code: "TA", registration: "N002AW", base: "JFK", aircraft_id: 12, words: "N002AW (JFK): past its replacement age (3 years, now 3.0)" },
+        { kind: "age", airline_id: 1, code: "TA", registration: "N023AW", base: "JFK", aircraft_id: 33, words: "N023AW (JFK): looks used (3.6 years in the game), marked new" },
+      ] };
+    const got = homeAttention(input({ fleet }));
+    expect(got).toEqual([
+      { key: "fleet|replace|N001AW|2029-08-01", cls: "warn", screen: "tails", tail: "N001AW", text: "N001AW (JFK): replace at 3 years (now 2.9): order its replacement" },
+      { key: "fleet|replace|N002AW|2029-08-01", cls: "warn", screen: "tails", tail: "N002AW", text: "N002AW (JFK): past its replacement age (3 years, now 3.0)" },
+      { key: "fleet|age|N023AW|2029-08-01", cls: "warn", screen: "tails", tail: "N023AW", text: "N023AW (JFK): looks used (3.6 years in the game), marked new" },
+    ]);
+    expect(groupAttention(got).map((g) => [g.label, g.cls, g.items.length])).toEqual([["Fleet", "warn", 3]]);
   });
   it("the backup: late, failed, none yet; a test run doesn't count", () => {
     const run = (h: number, ok: boolean, kind = "nightly", note: string | null = null) => ({ ran_at: new Date(now.getTime() - h * 3_600_000).toISOString(), kind, ok, note });

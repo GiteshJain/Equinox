@@ -5,7 +5,8 @@
 // docs/specs/2026-10-22-remove-aircraft-checks.md; manual §1 has none since 15 Oct). Every figure is the planning
 // library's on the start's rules, but one: since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3) the game's own
 // maintenance and condition from the latest night's fleet pages (fleet_checks()) beside the planner's maintenance, so the
-// two can be compared.
+// two can be compared; and since 22 Oct (spec docs/specs/2026-10-22-aircraft-age-check.md §2) how it came and when it's
+// replaced ("came used, replace at 10 years", manual §3).
 import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { tails, type Rules } from "@rules";
@@ -15,7 +16,7 @@ import { useFleetChecks } from "../systems/reads";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { itemRoute } from "../screens";
 import { Issues, MaintPill } from "./AircraftPage";
-import { blockClock, configCode, figuresOf, H, popupFlights, rulesLegs, typeName } from "./model";
+import { acquiredWords, blockClock, configCode, figuresOf, H, popupFlights, rulesLegs, typeName } from "./model";
 import { useConfigs, useTailsAircraft } from "./reads";
 
 export function AircraftPopup({ registration, rules, onClose }: { registration: string; rules: Rules; onClose: () => void }) {
@@ -63,6 +64,7 @@ export function AircraftPopup({ registration, rules, onClose }: { registration: 
             <div><span className="dim">Maintenance</span><b><MaintPill fig={fig} /></b></div>
             <div data-figure="tails: pop-up game"><span className="dim">In the game</span><b>{game ? (game.bad ? <span className="pill bad sm">{game.text}</span> : game.text)
               : <span className="dim">{fleetQ.data ? "not on the latest fleet pages" : fleetQ.error ? "couldn't read" : "…"}</span>}</b></div>
+            <div data-figure="tails: pop-up age"><span className="dim">Replacement</span><b>{acquiredWords(rules, a)}</b></div>
           </div>
           <Issues issues={issues} />
           {flights.length ? (
