@@ -61,4 +61,7 @@ maintenance are identical. If we're outbid, the new SHARP is ordered the next ev
   to be set), decided after a week of data, not now.
 
 ## Outcome
-<Gitesh's decision and the date; rule changes made in the manual>
+**B, 22 Oct (Gitesh):** bid on 5Y-AAD at the opening bid. Gitesh also asked for the used offers to be checked every
+day from now on, and noted that an aircraft gets cheaper the longer it stays unsold. Manual §3 (the used market in
+each evening's proposal) and §9 (how auctions work) written the same evening. Whether age eats the saving is read from
+a week of 5Y-AAD's captured costs.

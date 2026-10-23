@@ -199,6 +199,9 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   **Orders** and its cash forecast, and proposes the aircraft that can be ordered and the routes for each, with variant
   and cabin, one airline at a time (rules: manual §3, order every evening the forecast allows; route first, then the
   airline, then the aircraft; the order queues; when cash doesn't cover the aircraft the top openings need).
+- **Look at the used offers too** (since 22 Oct): the game's Aircraft Market, each evening, for one on the default
+  line that flies the chosen routes for less than new. You place the bid and say when the auction closes (rule:
+  manual §3, the used market too; how auctions work: manual §9).
 - **The routes come from the top of the openings** (since 21 Oct): Competition → the airline → **Openings**, or the
   airline briefing, or `select public.competition(<airline id>);` for the rest (rule: manual §3, the openings, ranked).
   In November the trunks are listed first and marked; whether each makes sense stays the Scheduling chat's call (rule:

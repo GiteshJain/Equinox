@@ -170,6 +170,14 @@ Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feede
 
 ### 3. Fleet and orders
 
+#### The used aircraft market in each evening's proposal
+*Since 22 Oct (Gitesh, Scheduling chat).* The first used aircraft, 5Y-AAD (A320neo Light, 3.6 years), was bid for as
+Pan Am's aircraft at the opening bid instead of a new A320neo SHARP: the same routes, 12% less a week and 0.24M less
+down (brief `docs/briefs/2026-10-22-used-aircraft.md`, option B). Gitesh then asked for the used offers to be checked
+every day · why: at the opening bid used aircraft lease for 8–37% less than new, few players bid, and a used aircraft
+leaves the airline's delivery line free. Before, the manual said nothing about the used market. The ceiling (the new
+aircraft's own price) is the brief's; how much age adds to maintenance is still to be seen in the captures.
+
 #### Stars from the game's passenger demand
 *Since 22 Oct (Gitesh, review chat).* Every airport on our lists was read from its page in Gander (1,346 of 1,364; 18
 codes had no match: AYN, BFU, BIH, BKB, BSL, DAX, IXK, IXV, IXX, JLG, NMB, PAB, PBI, PNH, REW, RUP, SDW, SSE, mostly
@@ -380,6 +388,11 @@ The Systems board, at the top of Systems (#23; of Check until 20 Oct). The world
 *Roundups per airline since 17 Oct · why (Gitesh): one post per airline reads like each airline's own news. No delivery posts since 20 Oct (Gitesh).*
 
 ### 9. Game rules and mechanics (Gander)
+
+#### Used aircraft auctions
+How the auction ends, the 110% immediate purchase and the cost of age are from AirlineSim's documentation (the 2012
+aircraft market announcement and the Handbook's building your fleet); that a used aircraft gets cheaper the longer it
+stays unsold, and that the ferry from the factory costs nothing, are from Gitesh, from playing the game (22 Oct).
 
 #### Bookings are divided among the flights on offer
 Bookings on a route are divided among the flights on offer, so more departures win more of a market than fewer, bigger flights (Gitesh, from playing the game, 18 Oct).

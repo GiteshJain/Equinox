@@ -270,6 +270,11 @@ Details and open points: `docs/decisions.md`.
   cabin. Where cash allows more than one option, the route we most want to fly decides (market share first, below).
   The proposal goes one airline at a time: each airline's order is decided, ordered and logged before the next is
   shown. Gitesh orders that evening. *(since 18 Oct; history: rule-history.md)*
+  - **The used market too:** each evening's proposal also looks at the game's used aircraft offers (Aircraft
+    Market) and proposes a bid where one on the default line flies the airline's chosen routes for less than a new
+    order. The most we bid is the new aircraft's own price (its factory price's deposit and weekly lease); above that,
+    or when outbid, the airline orders new. Gitesh places the bid and says when the auction closes; Claude logs it and
+    writes the plan card as for a new order. *(since 22 Oct; history: rule-history.md)*
 - **When an airline can order: the cash forecast.** Planner → Today → Orders says who can order now or from when, and
   the safe types; the detail is Performance → the airline → "Cash, next 14 days": captured cash, plus flight
   profit from the last day's bank statement, minus every scheduled lease payment and week-end closing (the weekly salary
@@ -604,6 +609,10 @@ be copied from the game's settings page)
 - Passengers book each direction separately; no location-based demand.
 - Maintenance need depends on take-offs and landings as well as hours, and can be done at any airport with a long
   enough ground gap.
+- **Used aircraft are sold by auction:** it ends once an hour passes with no new bid, each bid restarting the hour,
+  and the money bid stays committed until it ends. Immediate purchase is 110% of the factory price. An aircraft gets
+  cheaper the longer it stays unsold. Older aircraft cost more to maintain. A new aircraft also ferries in from the
+  factory, free, so where a used one is parked doesn't matter. *(since 22 Oct; history: rule-history.md)*
 - An aircraft's first lease payment falls 7 days after it arrives, then weekly; an order needs only its price up front.
   Weekly leases seen in the captures: A321neo about 0.24M, XLR 0.29M, E195 0.18M, A350 0.72M.
 - The week-end closing is the airline's weekly salary payment. The game's advance figure can lag when staff are added:
