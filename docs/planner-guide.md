@@ -241,7 +241,7 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   order, or arrived and not scheduled), **On order**, **Arrived** or **Flying**, each with its date and time (UTC),
   base, plan and status; **card** opens its plan card in its own window, the rest of the screen dimmed (title, base,
   its cabin, each flight's number, route, times, block and service; × or Escape closes it). An airport where the
-  airline has no station yet (none of its flights or bases touch it) is highlighted on the card. The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
+  airline has no station yet is highlighted on the card: any airport the airline has no active route to (since 22 Oct its bases and point-to-point stations don't count until it flies there). The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
   it, and the card says **no cabin chosen** while neither the card nor the order names one. Beside the box (since
   21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason ("JFK–LHR is
   72% of block time: Leisure Plus", or "no route over 65%: the most seats"; Ryanair Standard only), and **Use the

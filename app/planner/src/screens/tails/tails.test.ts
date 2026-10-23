@@ -273,11 +273,24 @@ describe("filing", () => {
     // an aircraft given a cabin by hand before filing keeps it
     expect(filingChanges({ ...x, aircraft: { ...bare, cabin_config_id: 13 }, cabin: null })[0]?.values).toEqual({ status: "active", base_code: "HUB" });
   });
-  it("knows where an airline has a station: its bases and every airport its flights touch", () => {
+  it("knows where an airline has a station: only where it has an active route (every airport its active flights touch)", () => {
     const s = stationsOf(rules, 1);
     for (const code of ["HUB", "AAA", "FOC"]) expect(s.has(code)).toBe(true);
     // DDD is only on T-005's plan card: no station yet
     expect(s.has("DDD")).toBe(false);
+    // 22 Oct bug (N022AW (JFK)'s card left MCI and STL unmarked): a base or point-to-point station with no flights isn't a
+    // station in the game, nor is an airport flown only by a retired aircraft or by a leg that flies on no day
+    const withPlans = buildRules({ ...input,
+      airline_bases: [...input.airline_bases,
+        { id: 9, airline_id: 1, airport_code: "CCC", role: "station", is_main: false, bank_times: null, flight_no_from: null, last_flight_no: null, position: 9 },
+        { id: 10, airline_id: 1, airport_code: "EEE", role: "focus", is_main: false, bank_times: null, flight_no_from: null, last_flight_no: null, position: 10 }],
+      aircraft: [...input.aircraft, { ...(input.aircraft[0] as (typeof input.aircraft)[number]), id: 7, registration: "T-007", status: "retired" }],
+      flight_legs: [...input.flight_legs,
+        { ...(input.flight_legs[0] as (typeof input.flight_legs)[number]), id: 90, aircraft_id: 7, origin_code: "HUB", dest_code: "GGG" },
+        { ...(input.flight_legs[0] as (typeof input.flight_legs)[number]), id: 91, days_utc: [], origin_code: "HUB", dest_code: "HHH" }] });
+    const p = stationsOf(withPlans, 1);
+    for (const code of ["CCC", "EEE", "GGG", "HHH"]) expect(p.has(code)).toBe(false);
+    expect(p.has("HUB")).toBe(true);
   });
   it("chooses or clears a plan card's cabin as one change on the card", () => {
     expect(cardCabinChange(card, 14)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: 14 } }]);

@@ -253,9 +253,18 @@ export function configsFor(rules: Rules, configs: readonly ConfigRow[], airline:
 }
 /** The airports where an airline has a station (18 Oct): its bases, and every airport its scheduled flights touch. An
  *  airport on a plan card outside this set needs a new station in the game. */
+/** The airports where the airline has an active route: every airport its flights touch (legs that fly on at least one day,
+ *  on no aircraft or one not retired). Since 22 Oct (Gitesh) its bases no longer count on their own: an airline_bases
+ *  row, a point-to-point station especially (role station, manual §2), is a plan, not a station in the game, so a plan
+ *  card highlights any airport the airline doesn't fly yet, base or not. */
 export function stationsOf(rules: Rules, airlineId: number): Set<string> {
-  const s = new Set(basesOf(rules, airlineId));
-  for (const l of rules.legs) if (l.airline_id === airlineId) { s.add(l.origin_code); s.add(l.dest_code); }
+  const s = new Set<string>();
+  for (const l of rules.legs) {
+    if (l.airline_id !== airlineId || !l.days_utc.length) continue;
+    const a = l.aircraft_id == null ? undefined : rules.aircraft.get(l.aircraft_id);
+    if (a && a.status === "retired") continue;
+    s.add(l.origin_code); s.add(l.dest_code);
+  }
   return s;
 }
 /** The airline's bases, hubs and focus cities, in their order. */
