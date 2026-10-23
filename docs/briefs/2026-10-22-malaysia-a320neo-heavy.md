@@ -38,4 +38,11 @@ full cabin.
 - Cash short of the Heavy at order time: then B (cash decides, manual §3).
 
 ## Outcome
-<Gitesh's decision and the date>
+**Beijing and Don Mueang, on a used A320neo Light, 22 Oct (Gitesh).** The game's route evaluation for KUL–Beijing
+(22 Oct) put the A320neo Light ahead of the Heavy: 168 seats on both, 152 a seat against 159, 41% margin against 38%
+at 80% loads. The Light's 3,690 km is its range with a full load; on Beijing it still carries more than our 147-seat
+Leisure Plus, so it seats the market and reaches the city (default line, manual §3). The schedule is unchanged on the
+Light (87 connections, 170%). That made the used 5Y-AAC (A320neo Light, 7.2 years) fit: Malaysia bid at the opening
+30.02M (deposit 1.50M, lease 0.150M a week, against 2.15M and 0.215M new), ceiling the new Light's 42.9M. The lease
+saving (about 2,300 a flight) is more than the route's whole maintenance (about 1,850 a flight), so age is unlikely to
+undo it.
