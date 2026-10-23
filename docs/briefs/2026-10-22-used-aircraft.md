@@ -65,3 +65,6 @@ maintenance are identical. If we're outbid, the new SHARP is ordered the next ev
 day from now on, and noted that an aircraft gets cheaper the longer it stays unsold. Manual §3 (the used market in
 each evening's proposal) and §9 (how auctions work) written the same evening. Whether age eats the saving is read from
 a week of 5Y-AAD's captured costs.
+
+**Won 22 Oct, about 21:45 Chicago:** Pan Am, at 38.61M (deposit 1.93M, lease 0.193M a week), one step above a
+China Eastern bid placed by mistake. Registered N023AW (JFK); plan card 136.
