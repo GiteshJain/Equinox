@@ -177,6 +177,10 @@ a week against 1.44M) while the pair held 14.39M of security deposits, which com
 six A321neo Lights for Delhi's sold-out network, about +2.5 to +3.1M a week after leases, and about 250 more departures
 a week towards Delhi's 750. The cost is Kingfisher's only US route until long-haul's turn. The 28 Nov Delhi–JFK review
 (to-do #3) is no longer needed.
+The sentence was then taken out of the manual the same night (Gitesh): a decision about two aircraft isn't a rule; the
+decision lives in its brief. Wording removed: "Kingfisher's two Delhi–JFK A350s (VT-AAA and VT-AAB, DEL) are handed back
+and their security deposits go into narrowbodies for Delhi (brief `docs/briefs/2026-10-23-kingfisher-a350s.md`, option
+C); Kingfisher's US flying waits for long-haul's turn."
 
 #### Used aircraft: at least a year left
 *Since 22 Oct (Gitesh, Scheduling chat).* A used aircraft is taken only with at least a year to fly before its
