@@ -3,11 +3,15 @@
 // as one action (registration, type, base, cabin, the maintenance gap, notes), Delete aircraft…, every issue (the old
 // tailIssues, which the spec asks for here too), the week strip in the base's local time and its legs by flight number
 // with the ground time to the next and the turn or gap. Every figure is the planning library's (model.ts words them).
+// Since 23 Oct (spec docs/specs/2026-10-23-planner-look-tails.md) the registration is the title, its base above it; the
+// header's words as pills (type, cabin, legs, block hours, gap target and turn, gaps at the target, maintenance; the
+// whole line kept for a screen reader); its fields in two groups (the aircraft; notes); Issues, The week and Flights as
+// section heads. The fields, Delete aircraft… and what each saves are as before.
 import { useState, type FocusEvent, type KeyboardEvent } from "react";
 import type { Rules } from "@rules";
 import { ConfirmPanel } from "../../ui/Confirm";
 import {
-  daysText, gapWords, H, headerWords, hhmm, issueWords, legGroups, maintPill, shownPill, tailNotes, weekStrip, DAYS, type ConfigRow, type ShownIssue, type ShownMaint,
+  daysText, gapWords, H, headerPills, headerWords, hhmm, issueWords, legGroups, maintPill, shownPill, tailNotes, weekStrip, DAYS, type ConfigRow, type ShownIssue, type ShownMaint,
   type TailAircraft, type TailFigures, type TailField,
 } from "./model";
 
@@ -82,17 +86,35 @@ export function AircraftPage(p: AircraftPageProps) {
   );
   return (
     <div data-tail-page={a.registration}>
-      <div className="dhead">
+      <div className="dhead tdhead">
         <button type="button" className="back" id="back-tail" onClick={p.onBack}>‹ Tails</button>
+        <p className="vk">{a.base_code ? `Based at ${a.base_code}` : "No base"}</p>
         <h2>{a.registration}</h2>
-        <div className="dsub" data-figure="tails: aircraft">{headerWords(rules, a, p.configs, fig)} <MaintPill fig={fig} shown={p.maint} /></div>
-        <div className="fg">
-          {text("id", "Registration", a.registration)}
-          {select("type", "Type", type, p.types)}
-          {select("base", "Base", a.base_code ?? "", p.bases)}
-          {select("config", "Config", config, p.configsFor(type))}
-          {text("maint", "Maintenance gap — where / when", a.maintenance_note ?? "", true)}
-          {text("notes", "Notes", tailNotes(a), true)}
+        {/* the header's words as pills; the same words in one line for a screen reader and the tests' text */}
+        <div className="dsub tpills" data-figure="tails: aircraft">
+          <span className="sr">{headerWords(rules, a, p.configs, fig)}</span>
+          {headerPills(rules, a, p.configs, fig).map((x) => <span key={x.k} className="pill mute" data-head={x.k} aria-hidden="true">{x.text}</span>)}
+          <span className="tpmaint"><span className="dim" aria-hidden="true">maintenance</span> <MaintPill fig={fig} shown={p.maint} /></span>
+        </div>
+        <div className="tfgroups">
+          <div className="tfgroup">
+            <h3 className="tph">The aircraft</h3>
+            <div className="fg">
+              {text("id", "Registration", a.registration)}
+              {select("type", "Type", type, p.types)}
+              {select("base", "Base", a.base_code ?? "", p.bases)}
+              {select("config", "Config", config, p.configsFor(type))}
+            </div>
+          </div>
+          <div className="tfgroup">
+            <h3 className="tph">Notes</h3>
+            <div className="fg">
+              {text("maint", "Maintenance gap — where / when", a.maintenance_note ?? "", true)}
+              {text("notes", "Notes", tailNotes(a), true)}
+            </div>
+          </div>
+        </div>
+        <div className="tfdel">
           <button type="button" className="secondary danger" data-tdel={a.registration} disabled={p.busy} onClick={() => setAsking(true)}>Delete aircraft…</button>
         </div>
         {asking ? (
@@ -102,7 +124,9 @@ export function AircraftPage(p: AircraftPageProps) {
           </ConfirmPanel>
         ) : null}
       </div>
+      <h3 className="tph tsec">Issues</h3>
       <Issues issues={p.issues} />
+      <h3 className="tph tsec">The week</h3>
       <div className="week" data-figure="tails: week">
         <div className="wk-axis">{[0, 6, 12, 18].map((x) => <span key={x} style={{ left: `${x / 24 * 100}%` }}>{String(x).padStart(2, "0")}:00</span>)}</div>
         {DAYS.map((d, i) => (
@@ -117,6 +141,7 @@ export function AircraftPage(p: AircraftPageProps) {
         ))}
       </div>
       <div className="note">Bars in {strip.base || "base"} local time. Red = short turn or aircraft not where the next leg starts.</div>
+      <h3 className="tph tsec">Flights</h3>
       <div className="tblwrap">
         <table className="tbl" data-figure="tails: legs">
           <tbody>

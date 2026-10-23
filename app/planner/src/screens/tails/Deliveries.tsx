@@ -15,6 +15,10 @@
 // docs/specs/2026-10-21-frequencies-and-fares.md §2) its Fare column gives the fare level of each route it flies, once per
 // route on the route's first leg ("economy +10%, business +5% of the default price", "launch (+0% of the default price)"
 // for a route not flown yet; the library's card.cardFares on fare_ladder()), so a new flight is priced like its route.
+// Since 23 Oct (spec docs/specs/2026-10-23-planner-look-tails.md) restyled: a row with a plan card opens it when tapped
+// (card stays too), the card's head carries the type, cabin and flight count as pills, its legs table and the footer
+// (Cabin box, the suggestion with Use the suggestion, File into planner) are spaced as the other screens'; on a phone
+// each delivery is a block. Every field, check, the station highlight and every save are as before.
 import { useEffect } from "react";
 import type { CabinSuggestion } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
@@ -55,10 +59,10 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
   const differs = !filed && cabinDiffers(suggestion ?? null, config);
   return (
     <div className="pcard" data-plan-card={reg}>
-      <div className="pch"><b>{reg} · {card.base_code || base} — <StnText text={card.title || title} stations={stations} /></b><span>{type} · {config
+      <div className="pch"><b>{reg} · {card.base_code || base} — <StnText text={card.title || title} stations={stations} /></b><span className="pchtags"><span className="pill mute sm">{type}</span> {config
         ? <span className={differs ? "pill warn sm" : undefined} data-card-cabin={config} data-card-cabin-differs={differs ? "yes" : undefined}
           title={differs && suggestion?.code ? `the rule calls for ${suggestion.code}` : undefined}>{config}</span>
-        : <span className="pill warn sm" data-card-cabin="">no cabin chosen</span>}</span></div>
+        : <span className="pill warn sm" data-card-cabin="">no cabin chosen</span>}{legs.length ? <> <span className="pill mute sm">{legs.length} flight{legs.length === 1 ? "" : "s"}</span></> : null}</span></div>
       <div className="tblwrap">
         <table className="tbl pt">
           <tbody>
@@ -77,7 +81,7 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
       </div>
       <div className="pfoot">
         {!filed && onCabin && cabins?.length ? (
-          <label className="dim" style={{ marginRight: 10 }}>Cabin{" "}
+          <label className="dim pcab">Cabin{" "}
             <select data-card-cabin-pick={reg} value={cardCabin ?? ""} disabled={busy} onChange={(e) => onCabin(e.target.value)}>
               <option value="">{cardCabin ? "none" : "choose…"}</option>
               {cabins.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -85,13 +89,13 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
           </label>
         ) : null}
         {sw && suggestion?.code ? (
-          <span className="cabsug" data-card-suggest={suggestion.code} style={{ marginRight: 10 }}>
+          <span className="cabsug" data-card-suggest={suggestion.code}>
             <b>{sw.text}</b> <span className="dim">{sw.reason}</span>
             {onCabin && cardCabin !== suggestion.code ? <>{" "}
               <button type="button" className="secondary sm" data-card-suggest-use={reg} disabled={busy} onClick={() => onCabin(suggestion.code ?? "")}>Use the suggestion</button></> : null}
           </span>
         ) : null}
-        {card.note ?? ""}
+        {card.note ? <span className="pnote">{card.note}</span> : null}
         {filed ? <> <span className="pill ok">in the planner</span></>
           : canFile ? <> <button type="button" className="primary sm" data-planfile={reg} disabled={busy} onClick={onFile}>File into planner</button></> : null}
       </div>
@@ -138,18 +142,18 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
   }, [shownCard, onCard]);
   const openCount = all.filter((r) => r.status !== "flying").length;
   const head = (
-    <h3 className="rh">Deliveries <span className="note">{openCount} aircraft on order or waiting to be scheduled · flying aircraft drop off this list on their own (the Flying filter shows them) · Claude fills this from your delivery reports</span></h3>
+    <h3 className="rh">Deliveries <span className="note">{openCount} aircraft on order or waiting to be scheduled · tap one to open its plan card · flying aircraft drop off this list on their own (the Flying filter shows them) · Claude fills this from your delivery reports</span></h3>
   );
   if (!all.some((r) => r.a.airline_id === airline?.id)) {
     return (
-      <div className="board" data-figure="tails: deliveries">
+      <div className="board tdel" id="deliveries" data-figure="tails: deliveries">
         {head}
         <div className="dim">Nothing on order for {airline?.name ?? ""}. Send a delivery report and each aircraft appears here with its date, base and plan card.</div>
       </div>
     );
   }
   return (
-    <div className="board" data-figure="tails: deliveries">
+    <div className="board tdel" id="deliveries" data-figure="tails: deliveries">
       {head}
       <div className="chips" data-chips="deliveries">
         <span className="chiplbl">Status</span>
@@ -166,16 +170,17 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
             {shown.map((r) => {
               const at = Number.isFinite(r.at) ? new Date(r.at) : null;
               return [
-                <tr key={r.a.id} data-delivery={r.a.registration}>
-                  <td><b>{r.a.registration}</b></td>
-                  <td><AirlineMark color={r.airline?.color} /> {r.airline?.name ?? ""}</td>
-                  <td>{r.type} {r.config ? "· " + r.config : ""}</td>
-                  <td>{at ? <>{niceDate(r.due)} <span className="dim">{pad(at.getUTCHours())}:{pad(at.getUTCMinutes())} UTC</span></> : r.due ? niceDate(r.due) : "—"}
+                <tr key={r.a.id} data-delivery={r.a.registration} className={(r.card ? "dopen" : "") + (open === r.a.registration ? " sel" : "")}
+                  onClick={r.card ? (e) => { if (!(e.target as HTMLElement).closest("button")) onCard(r.a.registration); } : undefined}>
+                  <td className="dreg"><b>{r.a.registration}</b></td>
+                  <td className="dal"><AirlineMark color={r.airline?.color} /> {r.airline?.name ?? ""}</td>
+                  <td className="dty">{r.type} {r.config ? "· " + r.config : ""}</td>
+                  <td className="dwhen">{at ? <>{niceDate(r.due)} <span className="dim">{pad(at.getUTCHours())}:{pad(at.getUTCMinutes())} UTC</span></> : r.due ? niceDate(r.due) : "—"}
                     {comingIn(r.hrs) ? <> <span className="dim">· {comingIn(r.hrs)}</span></> : null}</td>
-                  <td>{r.base}</td>
-                  <td className="dim">{r.plan}</td>
-                  <td><span className={"pill " + (r.status === "unscheduled" ? "bad" : r.status === "flying" ? "ok" : "mute")}>{r.status === "unscheduled" ? "arrived — not scheduled" : r.status}</span></td>
-                  <td className="n">{r.card ? <><button type="button" className="link" data-plancard={r.a.registration} onClick={() => onCard(r.a.registration)}>{open === r.a.registration ? "hide card" : "card"}</button>{" · "}</> : null}
+                  <td className="dbase">{r.base}</td>
+                  <td className="dim dplan">{r.plan}</td>
+                  <td className="dst"><span className={"pill " + (r.status === "unscheduled" ? "bad" : r.status === "flying" ? "ok" : "mute")}>{r.status === "unscheduled" ? "arrived — not scheduled" : r.status}</span></td>
+                  <td className="n dact">{r.card ? <><button type="button" className="link" data-plancard={r.a.registration} onClick={() => onCard(r.a.registration)}>{open === r.a.registration ? "hide card" : "card"}</button>{" · "}</> : null}
                     <button type="button" className="link" data-deldel={r.a.registration} disabled={busy} onClick={() => onRemove(r)}>remove</button></td>
                 </tr>,
               ];
@@ -185,7 +190,7 @@ export function Deliveries({ all, shown, airline, filters, open, legsOf, service
       </div>
       {shownCard ? (
         <div className="mback" onClick={(e) => { if (e.target === e.currentTarget) onCard(shownCard.a.registration); }}>
-          <div className="modal" role="dialog" aria-modal="true" aria-label={`Plan card ${shownCard.a.registration}`}>
+          <div className="modal pcmodal" role="dialog" aria-modal="true" aria-label={`Plan card ${shownCard.a.registration}`}>
             <div className="mhead"><div><AirlineMark color={shownCard.airline?.color} /><b>Plan card · {shownCard.a.registration}</b></div>
               <button type="button" className="mx" aria-label="Close" onClick={() => onCard(shownCard.a.registration)}>×</button></div>
             <div className="mbody">

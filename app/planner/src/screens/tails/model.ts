@@ -341,6 +341,41 @@ export function headerWords(rules: Rules, a: TailAircraft, configs: ReadonlyMap<
     + `gap target ${gap} h, min turn ${turn} min · ${fig.week?.gaps_at_target ?? 0} gaps ≥ target this week · maintenance`;
 }
 
+/** The header's pieces as pills (the look, 23 Oct): the same words as headerWords, one pill each. */
+export function headerPills(rules: Rules, a: TailAircraft, configs: ReadonlyMap<number, ConfigRow>, fig: TailFigures): { k: string; text: string }[] {
+  const ty = a.aircraft_type_id == null ? undefined : rules.types.get(a.aircraft_type_id);
+  const gap = ty ? String(ty.gap_target_h ?? "undefined") : "?", turn = ty ? String(ty.min_turn_min ?? "undefined") : "?";
+  return [
+    { k: "type", text: typeName(rules, a.aircraft_type_id) || "no type" }, { k: "cabin", text: configCode(configs, a.cabin_config_id) || "no cabin" },
+    { k: "legs", text: `${fig.legsWk} legs/wk` }, { k: "block", text: `${fig.blockDay.toFixed(1)} block h/day` },
+    { k: "gap", text: `gap target ${gap} h, min turn ${turn} min` }, { k: "gaps", text: `${fig.week?.gaps_at_target ?? 0} gaps ≥ target this week` },
+  ];
+}
+
+// ---------- the screen's answer and its count tiles (the look, 23 Oct; spec docs/specs/2026-10-23-planner-look-tails.md)
+export interface TailCounts { all: number; flying: number; idle: number; warn: number; blockDay: number }
+/** The rows' counts by the list's status filters (Flying, No flights, Needs a look: the same tests as tailRows), and
+ *  the average block hours a day over all of them. */
+export function tailCounts(rows: readonly TailRow[]): TailCounts {
+  const all = rows.length, sum = rows.reduce((t, r) => t + r.fig.blockDay, 0);
+  return { all, flying: rows.filter((r) => r.fig.legsWk).length, idle: rows.filter((r) => !r.fig.legsWk).length,
+    warn: rows.filter((r) => r.fig.needsALook).length, blockDay: all ? sum / all : 0 };
+}
+/** The title: "N aircraft need a look" (the Needs a look count), else "All N aircraft flying well"; and its pill. */
+export function tailsAnswer(c: TailCounts): { title: string; pill: string } {
+  const title = c.warn ? `${c.warn} aircraft ${c.warn === 1 ? "needs" : "need"} a look` : `All ${c.all} aircraft flying well`;
+  return { title, pill: `${c.all} aircraft · ${c.blockDay.toFixed(1)} block h/day on average` };
+}
+/** The Deliveries tile's counts, from the board's open rows: on order, arrived, and arrived with a plan card (to file). */
+export function deliveryCounts(rows: readonly DeliveryRow[]): { onOrder: number; arrived: number; toFile: number } {
+  return { onOrder: rows.filter((r) => r.status === "on order").length, arrived: rows.filter((r) => r.status === "unscheduled").length,
+    toFile: rows.filter((r) => r.status === "unscheduled" && !!r.card).length };
+}
+/** The routes an aircraft flies this week, as "HUB–AAA", in the week's order (the list's Routes cell, full on hover). */
+export function routeNames(rules: Rules, week: AircraftWeek | null): string[] {
+  return (week?.route_ids ?? []).map((id) => rules.routes.get(id)).filter((r): r is NonNullable<typeof r> => !!r).map((r) => `${r.hub_code}–${r.dest_code}`);
+}
+
 export interface StripBar { day: number; left: number; width: number; bad: boolean; title: string; text: string }
 /** The week strip: each leg as bars in the base's local time (the aircraft's base, else its first leg's origin), split at
  *  midnight; red where the turn is short or the next leg starts elsewhere (the old renderTailDetail). */

@@ -233,7 +233,20 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   until 21 Oct). A new frequency's price is the airline's launch fare (*fare_launch_pct*: 100%, Ryanair 85%).
 
 ## Tails
-*Every aircraft: what it flies each week and how hard it works.*
+*Every aircraft: what it flies each week and how hard it works.* Laid out since 23 Oct short and answer-first, as Today
+(spec docs/specs/2026-10-23-planner-look-tails.md):
+- **The answer is the title:** **N aircraft need a look** (the Needs a look count for the airline), or **All N aircraft
+  flying well**, with the fleet's size and its average block hours a day as a small pill beside it.
+- **Counts first:** tiles for **Flying**, **No flights** and **Needs a look**, each applying that filter (tap it again to
+  clear it; the filter stays in the address), and **Deliveries** (on order, arrived, to file), which takes you to the
+  board below. The tiles count the base and type picked.
+- **The list is one table:** registration and base, type, cabin, legs a week, block hours a day, maintenance and the
+  routes it flies (cut short; the full list on hover). On a phone each aircraft is a compact row (registration and
+  base, block hours, maintenance); the arrow opens the rest and **remove**.
+- **Deliveries:** tap a row to open its plan card (or **card**). The card's head shows the type, cabin and number of
+  flights as pills.
+- **An aircraft's page:** its registration as the title, its figures as pills, its fields in two groups (the aircraft;
+  notes), then Issues, The week and Flights.
 - **The list:** one airline at a time; filters for **Base**, **Type** and **Flying**, **No flights** or **Needs a look**
   (a short turn, a leg starting where the aircraft isn't, or maintenance under 105%), kept in the address. Each
   aircraft's type, cabin, base, **Legs/wk** (flights a week), **Block h/day** (hours flown a day), **Maint.** (since
@@ -243,7 +256,7 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   is enough, hover or tap for the hours) and
   **Routes**; a red dot marks a short turn or a leg starting elsewhere. **Add a tail** adds one by hand at the end of
   the list; **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
-  flies a route. On a phone the list is a column of cards.
+  flies a route. On a phone the list is a column of compact rows that open.
 - **An aircraft** (its own address, such as /planner/tails/N001AW): its type, cabin, legs a week, block hours a day, gap
   target, minimum turn, gaps at the target this week and maintenance (since 23 Oct the game's figure, no ≈, for an
   aircraft on the latest fleet pages, as on the list; the estimate otherwise); the fields that change it (registration, type,

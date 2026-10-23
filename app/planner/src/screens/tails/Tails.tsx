@@ -7,6 +7,14 @@
 //     with the cabin its routes call for and Use the suggestion, and the fare level of each route it flies, from
 //     fare_ladder() for the card's airline, read while a card is open), and filing an arrived one into the planner after
 //     checking it against the game (Filing.tsx).
+// Since 23 Oct (spec docs/specs/2026-10-23-planner-look-tails.md) in the new look, as Today, Routes, Systems and
+// Performance: the answer is the title ("N aircraft need a look", from the Needs a look filter's count over the airline's
+// fleet, or "All N aircraft flying well") with the fleet's size and block hours a day as a muted pill; count tiles for
+// Flying, No flights and Needs a look, each applying its filter (tap again to clear), and Deliveries (on order, arrived,
+// to file) taking you to the board; the list as one table (registration and base, type, cabin, legs, block hours,
+// maintenance, routes cut short with the full list on hover), on a phone compact rows (registration and base, block
+// hours, maintenance) that open to the rest; the deliveries as rows that open their plan card. Nothing it reads, works
+// out or saves changed.
 // Addresses: /planner/tails (filters in the address: ?airline=PA&base=JFK&type=...&status=warn&del=on+order&card=REG)
 // and /planner/tails/<registration>. Home's "File into planner" opens ?file=<registration>, which starts filing at
 // once, as the old Home's button did. Each action is one planner_save() call; the start's rules are read again after it.
@@ -32,7 +40,7 @@ import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
+  addTailChanges, basesOf, deliveryCounts, routeNames, tailCounts, tailsAnswer, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   issuesShown, rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type ShownIssue, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
@@ -68,6 +76,8 @@ export function Tails() {
   const gameMaint = useMemo(() => gameMaintenance(fleetQ.data), [fleetQ.data]);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<TailAircraft | null>(null);
+  // on a phone, the list's row opened to show the rest of its figures (registration of the row)
+  const [unfolded, setUnfolded] = useState("");
 
   const airlines: TailAirline[] = useMemo(() => (airlinesQ.data ?? []).map((a) => ({
     id: a.id, code: a.iata_code, name: a.planner_name ?? a.public_name ?? a.game_name ?? `Airline ${a.game_id}`, color: a.livery_color,
@@ -86,12 +96,18 @@ export function Tails() {
 
   const mine = useMemo(() => tailsOf(all, airline?.id), [all, airline]);
   const rows = useMemo(() => (rules ? tailRows(mine, filters, rules, configs, gameMaint) : []), [mine, filters, rules, configs, gameMaint]);
+  // the answer and the count tiles (the look, 23 Oct): the title from the airline's whole fleet, the tiles from the base
+  // and type picked, so each tile's count is what its filter shows
+  const whole = useMemo(() => (rules ? tailCounts(tailRows(mine, { base: "", type: "", status: "" }, rules, configs, gameMaint)) : null), [mine, rules, configs, gameMaint]);
+  const counts = useMemo(() => (rules ? tailCounts(tailRows(mine, { ...filters, status: "" }, rules, configs, gameMaint)) : null), [mine, filters, rules, configs, gameMaint]);
+  const answer = whole ? tailsAnswer(whole) : null;
   const chipLists = useMemo(() => (rules ? chips(mine, rules) : { bases: [], types: [] }), [mine, rules]);
   const flying = useMemo(() => (rules ? flyingIds(rules) : new Set<number>()), [rules]);
   const stations = useMemo(() => (rules && airline ? stationsOf(rules, airline.id) : undefined), [rules, airline]);
   const deliveries = useMemo(() => (rules && cardsQ.data ? deliveryRows(all, airlines, rules, configs, cardsQ.data, now.getTime(), today) : []),
     [all, airlines, rules, configs, cardsQ.data, now, today]);
   const shown = useMemo(() => shownDeliveries(deliveries, airline?.id, filters), [deliveries, airline, filters]);
+  const delCounts = useMemo(() => deliveryCounts(shownDeliveries(deliveries, airline?.id, { ...filters, del: "" })), [deliveries, airline, filters]);
   // the plan card's service check and its cabin (21 Oct): the airline's routes laid in, as filing takes a leg's distance
   // from them, with their markets' layouts and their own cabin choices
   const routesQ = useAirlineRoutes(w, airline?.id);
@@ -222,7 +238,14 @@ export function Tails() {
   return (
     <main className={"view tails" + (open || reg ? " has-detail" : "")} data-screen="tails" data-tails-ready={ready ? "yes" : "no"}
       data-tails-airline={airline?.code ?? ""} data-tail-open={open?.registration ?? ""} data-tails-view={loc.pathname + loc.search}>
-      <div className="vh"><p className="vk">The network</p><h1>Tails</h1><p>Every aircraft — what it flies each week and how hard it works.</p></div>
+      <div className="vh todayvh tailsvh" data-figure="tails: answer">
+        <p className="vk">The network</p>
+        <div className="todayttl">
+          <h1 className="ansh" data-tails-answer={whole ? (whole.warn ? "look" : "well") : ""}>{answer && ready ? answer.title : "Tails"}</h1>
+          {answer && ready ? <span className="pill mute tailspill">{answer.pill}</span> : null}
+        </div>
+        <p className="ansp">Every aircraft{airline ? ` of ${airline.name}` : ""}: what it flies each week and how hard it works.</p>
+      </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {airlinesQ.data && !airline ? <ErrorBox error={`There's no airline ${filters.airline} among ours.`} /> : null}
       <div className="toolbar">
@@ -236,6 +259,22 @@ export function Tails() {
         </div>
         <span className="count" data-figure="tails: count">{mine.length} tails</span>
       </div>
+      {counts && ready ? (
+        <div className="tiles tailtiles" role="group" aria-label="Flying, no flights, needs a look and deliveries">
+          {([["flying", counts.flying, "Flying", "fly at least one leg a week", "ok"], ["idle", counts.idle, "No flights", "nothing scheduled yet", ""],
+            ["warn", counts.warn, "Needs a look", "short turn, a leg elsewhere or maintenance", counts.warn ? "bad" : "ok"]] as const).map(([k, n, name, line, cls]) => (
+            <button type="button" key={k} className={"tile " + cls + (filters.status === k ? " on" : "")} aria-pressed={filters.status === k} data-tails-tile={k}
+              onClick={() => keep({ ...filters, status: filters.status === k ? "" : k })}>
+              <b className="tn">{n}</b><span className="tname">{name}</span><span className="tline">{line}</span>
+            </button>
+          ))}
+          <button type="button" className={"tile" + (delCounts.toFile ? " warn" : "")} data-tails-tile="deliveries"
+            onClick={() => { keep({ ...filters, del: "" }); requestAnimationFrame(() => document.getElementById("deliveries")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>
+            <b className="tn">{delCounts.onOrder + delCounts.arrived}</b><span className="tname">Deliveries</span>
+            <span className="tline">{delCounts.onOrder} on order · {delCounts.arrived} arrived · {delCounts.toFile} to file</span>
+          </button>
+        </div>
+      ) : null}
       <div className="chips" data-chips="tails">
         <span className="chiplbl">Base</span>
         <button type="button" className={"chip" + (!filters.base ? " on" : "")} data-tf="base" data-v="" onClick={() => keep({ ...filters, base: "" })}>All</button>
@@ -256,21 +295,29 @@ export function Tails() {
         <div className="list" id="taillist">
           <table className="tbl tlist" data-figure="tails: list">
             <tbody>
-              <tr><th>Tail</th><th>Type</th><th>Config</th><th>Base</th><th>Legs/wk</th><th>Block h/day</th><th>Maint.</th><th>Routes</th><th></th></tr>
-              {rows.map((r) => (
-                <tr key={r.a.id} className={open?.id === r.a.id ? "sel" : ""} data-tail={r.a.registration} role="link" tabIndex={0} onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) toTail(r.a.registration); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") toTail(r.a.registration); }}>
-                  <td data-l="Tail"><b>{r.a.registration}</b>{r.fig.marked ? <> <span className="dot bad" /></> : null}</td>
-                  <td data-l="Type">{r.type}</td>
-                  <td data-l="Config">{r.config}</td>
-                  <td data-l="Base">{r.base}</td>
-                  <td data-l="Legs/wk">{r.fig.legsWk}</td>
-                  <td data-l="Block h/day">{r.fig.blockDay.toFixed(1)}</td>
-                  <td data-l="Maint."><MaintPill fig={r.fig} shown={r.maint} /></td>
-                  <td data-l="Routes">{r.fig.routes}</td>
-                  <td><button type="button" className="link" data-deltail={r.a.registration} disabled={busy} onClick={() => onRemove(r.a)}>remove</button></td>
-                </tr>
-              ))}
+              <tr><th>Tail</th><th>Type</th><th>Cabin</th><th className="num">Legs/wk</th><th className="num">Block h/day</th><th>Maint.</th><th>Routes</th><th></th></tr>
+              {rows.map((r) => {
+                const names = rules ? routeNames(rules, r.fig.week) : [];
+                const unf = unfolded === r.a.registration;
+                return (
+                  <tr key={r.a.id} className={(open?.id === r.a.id ? "sel" : "") + (unf ? " unf" : "")} data-tail={r.a.registration} role="link" tabIndex={0}
+                    onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) toTail(r.a.registration); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) toTail(r.a.registration); }}>
+                    <td data-l="Tail" className="treg"><b>{r.a.registration}</b>{r.fig.marked ? <> <span className="dot bad" role="img" aria-label="short turn or a leg elsewhere" /></> : null}
+                      <span className="tbase" data-l="Base">{r.base || "—"}</span></td>
+                    <td data-l="Type" className="tx">{r.type}</td>
+                    <td data-l="Cabin" className="tx">{r.config || <span className="dim">—</span>}</td>
+                    <td data-l="Legs/wk" className="num tx">{r.fig.legsWk}</td>
+                    <td data-l="Block h/day" className="num tblk">{r.fig.blockDay.toFixed(1)}</td>
+                    <td data-l="Maint." className="tmnt"><MaintPill fig={r.fig} shown={r.maint} /></td>
+                    <td data-l="Routes" className="tx troutes" title={names.join(", ") || undefined}>
+                      <span className="trn">{r.fig.routes}</span>{names.length ? <span className="trl">{names.join(", ")}</span> : null}</td>
+                    <td className="tact"><button type="button" className="link tunf" aria-expanded={unf} aria-label={unf ? `Fold ${r.a.registration}` : `More about ${r.a.registration}`}
+                      onClick={() => setUnfolded(unf ? "" : r.a.registration)}><span className="chev" /></button>
+                      <button type="button" className="link" data-deltail={r.a.registration} disabled={busy} onClick={() => onRemove(r.a)}>remove</button></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {!rows.length ? <div className="empty">{ready ? "No tails match. Clear a filter." : "Loading…"}</div> : null}
