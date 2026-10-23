@@ -333,6 +333,35 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(groupAttention(got).map((g) => [g.label, g.cls, g.items.length])).toEqual([["Fleet", "bad", 2]]);
     expect(homeAttention(input({ fleet: null }))).toEqual([]);
   });
+  it("maintenance (23 Oct): an aircraft on the fleet pages is judged on the game's figure, the estimate's ≈ item only for one without", () => {
+    const all = [1, 2, 3, 4, 5, 6, 7];
+    const leg = (id: number, n: 1 | 2, from: string, to: string, dep: number, blk: number) => ({
+      id, airline_id: 1, rotation_id: 1, leg_no: n, flight_no: 1000 + id, origin_code: from, dest_code: to, aircraft_id: 1, days_utc: all, dep_utc_min: dep, block_min: blk,
+    });
+    // T-001 flies almost all day: the estimate says its maintenance is under the minimum
+    const rules = buildRules({ ...base, rotations: [{ id: 1, airline_id: 1, route_id: 1 }],
+      flight_legs: [leg(1, 1, "HUB", "AAA", 0, 300), leg(2, 2, "AAA", "HUB", 390, 300), leg(3, 1, "HUB", "AAA", 780, 300), leg(4, 2, "AAA", "HUB", 1170, 220)] });
+    const maintItems = (got: AttItem[]) => got.filter((a) => a.key?.startsWith("maint|") || a.key?.startsWith("fleet|maintenance|")).map((a) => [a.key, a.cls, a.text]);
+    // no fleet pages (or not read yet): the estimate, with ≈
+    expect(maintItems(homeAttention(input({ rules })))).toEqual([["maint|T-001", "bad", "T-001 maintenance ≈0% — condition will fall"]]);
+    const fleet = (pct: number, problems: FleetChecks["problems"] = []): FleetChecks => ({
+      night: "2026-10-22", counts: { maintenance: problems.length, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, replace: 0, age: 0, problems: problems.length }, problems,
+      airlines: [{ airline_id: 1, code: "TA", name: "Test Air", maintenance_min_pct: 100, pages: { read: 1, ok: 1, expected: 1, all_ok: true }, at: "2026-10-22T23:10:00.000Z",
+        aircraft: [{ registration: "T-001", aircraft_id: 1, base: "HUB", fleet: "HUB", type: "A321 NEO LIGHT", nickname: null, from: "HUB", to: null, flight: null,
+          age_years: 0.1, acquired: "new", replace_at_years: 3, condition_pct: 97, maintenance_pct: pct, y: 180, c: 0, f: 0, pilots: true, owned: false, contract: "active",
+          captured_at: "2026-10-22T23:10:00.000Z", problems: pct < 100 ? ["maintenance"] : [] }] }],
+    });
+    // the game's figure at or above the minimum: no item at all, whatever the estimate says
+    expect(maintItems(homeAttention(input({ rules, fleet: fleet(112.4) })))).toEqual([]);
+    expect(maintItems(homeAttention(input({ rules, fleet: fleet(100) })))).toEqual([]);
+    // under it: only the Fleet group's item, in the game's words with no ≈, never the estimate's beside it
+    const under = homeAttention(input({ rules, fleet: fleet(97.5, [{ kind: "maintenance", airline_id: 1, code: "TA", registration: "T-001", base: "HUB", aircraft_id: 1,
+      words: "T-001 (HUB): maintenance 97.5%, condition 97%" }]) }));
+    expect(maintItems(under)).toEqual([["fleet|maintenance|T-001|2026-10-22", "bad", "T-001 (HUB): maintenance 97.5%, condition 97%"]]);
+    expect(under.some((a) => a.text.includes("≈"))).toBe(false);
+    // its short turns are still the planner's to say
+    expect(under.some((a) => a.text === "T-001: 7 legs with a short turn or wrong position")).toBe(true);
+  });
   it("the aircraft age check (22 Oct): replace and looks used listed in the Fleet group with fleet_checks()'s words, after the others", () => {
     const fleet: FleetChecks = { night: "2029-08-01", counts: { maintenance: 0, crew: 0, cabin: 0, not_in_planner: 0, not_in_game: 0, replace: 2, age: 1, problems: 3 }, airlines: [],
       problems: [

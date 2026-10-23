@@ -140,7 +140,11 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
     with its note;
   - to-dos due or overdue (the one-week aircraft checks went on 22 Oct: manual §1 has none since 15 Oct);
-  - maintenance, turns and positions, night bans, flight numbers used twice;
+  - maintenance, turns and positions, night bans, flight numbers used twice. Since 23 Oct maintenance follows the same
+    source as Tails and Home's airline cards: an aircraft on last night's fleet pages is judged on the game's figure, so
+    it shows only under **Fleet**, in the game's words with no ≈, and only when it's under the minimum (100%,
+    *maintenance_min_pct*). The planner's estimate ("T-001 maintenance ≈97% — condition will fall") is listed only for an
+    aircraft without the game's figure;
   - airports from 80% of the game's departure cap (the setting *airport_cap_warning_pct*);
   - **Interline:** how many airline–country pairs on Interline have no agreement yet (not signed, declined or without
     a partner in the game), from the same rows and rules as Interline (the setting *interline_rules*);
