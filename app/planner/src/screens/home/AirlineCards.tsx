@@ -1,13 +1,16 @@
-// The airline cards at the foot of Home (the old planner's airline grid, .agrid, and eqCards): one card per airline in
-// its colour, with its in-game logo (the website's logos.js) and whether it's flying, its bases (hubs, then focus cities
-// dashed; filled once a route flies from them), its aircraft, routes, flights and block hours a day, the lowest
-// maintenance among its aircraft, short and tight turns or "clean", and "Open fleet ›". Every figure is the planning
-// library's (summary.airlineCards), but the lowest maintenance: since 23 Oct (spec
+// The airline cards at the foot of Home (the old planner's airline grid, .agrid, and eqCards): one card per airline, with
+// its in-game logo (the website's logos.js) and whether it's flying, its bases (hubs, then focus cities dashed; filled
+// once a route flies from them), its aircraft, routes, flights and block hours a day, the lowest maintenance among its
+// aircraft, short and tight turns or "clean", and "Open fleet ›". Every figure is the planning library's
+// (summary.airlineCards), but the lowest maintenance: since 23 Oct (spec
 // docs/specs/2026-10-23-game-maintenance-on-tails.md) the game's figure from the latest night's fleet pages for each
 // aircraft that has one, the estimate for the rest (figures.ts' lowestMaintenance), and "clean" judged on that figure
-// (cardClean). Where the website has a photo of the airline's city (airlines.photo_city, since build
-// pull request 12; the old planner kept the list in its code, EQ_HUBPHOTO), the card shows it behind (from site_public()).
-// "Open fleet ›" opens the airline on Tails (build pull request 7).
+// (cardClean). Where the website has a photo of the airline's city (airlines.photo_city, since build pull request 12; the
+// old planner kept the list in its code, EQ_HUBPHOTO), it shows in the band at the card's top (from site_public()), with
+// the logo on it. "Open fleet ›" opens the airline on Tails (build pull request 7).
+// Since 23 Oct (spec docs/specs/2026-10-23-planner-look-home.md) the cards wear Performance's scorecard style: the band,
+// then the colour dot and name as the head with the flying pill, then label/value rows that start at the top of the card
+// and keep a readable label column, then the pills and "Open fleet ›" as the footer.
 import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import type { AirlineCard, Rules } from "@rules";
@@ -36,29 +39,38 @@ export function AirlineCards({ cards, airlines, photos, rules, game }: {
         const style = { "--lv": a.color || "#8B96A8", ...(photo ? { "--ph": `url("${photo}")` } : {}) } as CSSProperties;
         const m = lowestMaintenance(rules, a.id, game);
         return (
-          <div key={a.id} className={"acard" + (photo ? " eqphoto" : "")} style={style} data-acard={a.name}>
-            <div className="ach">
-              {logos?.[a.name] ? <img className="alogo" src={logos[a.name]} alt={a.name} style={{ height: 23 }} />
-                : <><i className="lv" style={{ "--lv": a.color || "#8B96A8" } as CSSProperties} /><b>{a.name}</b></>}
-              {c.flying ? <Pill kind="ok">flying</Pill> : <Pill kind="mute">not launched</Pill>}
+          <div key={a.id} className="acard" style={style} data-acard={a.name}>
+            <div className={"acband" + (photo ? " ph" : "")}>
+              {logos?.[a.name] ? <img className="alogo" src={logos[a.name]} alt={a.name} style={{ height: 23 }} /> : null}
             </div>
-            <div className="acb">
-              {c.bases.map((b) => (
-                <span key={b.code} className={`hubtag ${b.live ? "on" : ""} ${b.role === "focus" ? "fc" : ""}`} data-hubtag={b.code}
-                  title={`${b.role === "focus" ? "focus city" + (b.parent_code ? ", feeds " + b.parent_code : "") + " · " : "hub · "}${b.live ? "flights based here" : "not yet operating as a base"}`}>{b.code}</span>
-              ))}
+            <div className="fchead">
+              <div className="fch ach">
+                <i className="lv" style={{ "--lv": a.color || "#8B96A8" } as CSSProperties} /><b>{a.name}</b>
+                {c.flying ? <Pill kind="ok">flying</Pill> : <Pill kind="mute">not launched</Pill>}
+              </div>
             </div>
-            <div className="acs">
-              <span><b>{c.aircraft}</b> aircraft</span><span><b>{c.routes}</b> routes</span>
-              <span><b>{Math.round(c.flights_day)}</b> flights/day</span><span><b>{c.block_hours_day.toFixed(0)}</b> block h/day</span>
+            <dl className="wowl acrows">
+              <dt>Bases</dt>
+              <dd className="acb">
+                {c.bases.length ? c.bases.map((b) => (
+                  <span key={b.code} className={`hubtag ${b.live ? "on" : ""} ${b.role === "focus" ? "fc" : ""}`} data-hubtag={b.code}
+                    title={`${b.role === "focus" ? "focus city" + (b.parent_code ? ", feeds " + b.parent_code : "") + " · " : "hub · "}${b.live ? "flights based here" : "not yet operating as a base"}`}>{b.code}</span>
+                )) : <span className="dim">none</span>}
+              </dd>
+              <dt>Aircraft</dt><dd>{c.aircraft}</dd>
+              <dt>Routes</dt><dd>{c.routes}</dd>
+              <dt>Flights a day</dt><dd>{Math.round(c.flights_day)}</dd>
+              <dt>Block hours a day</dt><dd>{c.block_hours_day.toFixed(0)}</dd>
+            </dl>
+            <div className="ffoot acfoot">
+              <div className="acf">
+                {m ? <Pill kind={m.level} title={m.from === "game" ? m.title : undefined}>{lowestWords(m)}</Pill> : null}
+                {c.short_turns ? <Pill kind="bad">{c.short_turns} short turns</Pill> : null}
+                {c.tight_turns ? <Pill kind="warn">{c.tight_turns} tight turns</Pill> : null}
+                {cardClean(c, m) ? <Pill kind="ok">clean</Pill> : null}
+              </div>
+              <Link className="link" to={"/tails" + (a.code ? "?airline=" + encodeURIComponent(a.code) : "")} data-open-fleet={a.name}>Open fleet ›</Link>
             </div>
-            <div className="acf">
-              {m ? <Pill kind={m.level} title={m.from === "game" ? m.title : undefined}>{lowestWords(m)}</Pill> : null}
-              {c.short_turns ? <Pill kind="bad">{c.short_turns} short turns</Pill> : null}
-              {c.tight_turns ? <Pill kind="warn">{c.tight_turns} tight turns</Pill> : null}
-              {cardClean(c, m) ? <Pill kind="ok">clean</Pill> : null}
-            </div>
-            <Link className="link" to={"/tails" + (a.code ? "?airline=" + encodeURIComponent(a.code) : "")} data-open-fleet={a.name}>Open fleet ›</Link>
           </div>
         );
       })}

@@ -4,9 +4,13 @@
 // tests there). Needs attention, the to-do board and Coming up moved to Today on 20 Oct with their tests
 // (screens/today/today.test.ts; spec docs/specs/2026-10-20-today-performance-systems.md).
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import { buildRules, summary, type RulesInput } from "@rules";
 import { addDays, dayDiff, dueWords, inDays, niceDate, untilText } from "../../ui/dates";
+import { AirlineCards } from "./AirlineCards";
 import { cardClean, greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords } from "./figures";
 import { arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, zoomView } from "./map";
 import { attentionAnchor, attentionHref, countTiles, tileForHash, waitingCards, type CardsInput } from "../today/model";
@@ -107,6 +111,38 @@ describe("the airline cards' lowest maintenance (23 Oct, spec docs/specs/2026-10
     expect(cardClean(flat, null)).toBe(false);
     // an idle aircraft (T-002) counts for nothing, as on the library's card
     expect(lowestMaintenance(rules, 1, new Map([[2, { pct: 10, night: "2026-10-22" }], [1, { pct: 300, night: "2026-10-22" }], [3, { pct: 300, night: "2026-10-22" }]]))?.pct).toBe(300);
+  });
+  it("the card in Performance's scorecard style (23 Oct, spec docs/specs/2026-10-23-planner-look-home.md): the dot and name as its head, label/value rows, the pills and Open fleet as its footer", () => {
+    const cards = summary.airlineCards(rules);
+    const card = cards.find((c) => c.airline_id === 1);
+    if (!card) throw new Error("no card");
+    const airlines = [{ id: 1, name: "Pan Am", code: "PA", color: "#1F5FAE", photo: "nyc" }];
+    const html = renderToString(createElement(MemoryRouter, null, createElement(AirlineCards, {
+      cards, airlines, photos: { nyc: { url: "/photos/nyc.jpg" } }, rules, game: new Map([[1, { pct: 98.4, night: "2026-10-22" }], [3, { pct: 250, night: "2026-10-22" }]]),
+    })));
+    const order = ["acband ph", "fchead", "<dl class=\"wowl acrows\"", "ffoot acfoot", "data-open-fleet"].map((k) => html.indexOf(k));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(html).toContain('data-acard="Pan Am"');
+    expect(html).toContain("<b>Pan Am</b>");
+    expect(html).toContain('href="/tails?airline=PA"');
+    // every figure the card showed before is there, one row each, and the pills as they were
+    const rows = [...html.matchAll(/<dt>([^<]+)<\/dt><dd[^>]*>([^<]*)/g)].map((m) => [m[1], m[2]]);
+    expect(rows).toEqual([["Bases", ""], ["Aircraft", String(card.aircraft)], ["Routes", String(card.routes)],
+      ["Flights a day", String(Math.round(card.flights_day))], ["Block hours a day", card.block_hours_day.toFixed(0)]]);
+    for (const b of card.bases) expect(html).toContain(`data-hubtag="${b.code}"`);
+    expect(html).toContain("lowest maintenance 98%");
+    expect(html).toContain(card.flying ? ">flying<" : ">not launched<");
+  });
+  it("every row's label stays on one line: the labels' column is as wide as its longest label, the values take the rest", () => {
+    const css = readFileSync(new URL("../../ui/styles.css", import.meta.url), "utf8");
+    const rule = (sel: string) => [...css.matchAll(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{([^}]*)\\}", "g"))].map((m) => m[1]);
+    expect(rule(".acard dl.acrows")[0]).toContain("grid-template-columns:max-content minmax(0,1fr)");
+    expect(rule(".acard dl.acrows dt")[0]).toContain("white-space:nowrap");
+    // no later rule (a phone's included) gives the rows other columns
+    expect(rule(".acard dl.acrows").slice(1).join("")).not.toContain("grid-template-columns");
+    // the bases wrap inside the value column
+    expect(rule(".acard dl.acrows dd.acb")[0]).toContain("flex-wrap:wrap");
   });
 });
 
