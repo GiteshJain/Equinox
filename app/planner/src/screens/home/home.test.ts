@@ -1,19 +1,21 @@
-// Home's logic (spec docs/specs/2026-10-13-home.md §3): dates as words, aircraft on order, the key figures and the hero,
-// and the network map's drawing. Needs attention, the to-do board and Coming up moved to Today on 20 Oct with their tests
+// Home's logic (spec docs/specs/2026-10-13-home.md §3): dates as words, the key figures and the hero, and the network
+// map's drawing; since 23 Oct (spec docs/specs/2026-10-23-attention-on-home.md) needs attention's summary cards, Today's
+// until then, and no aircraft on order board (its words, onOrder, moved to screens/today/ for Aircraft to file, with its
+// tests there). Needs attention, the to-do board and Coming up moved to Today on 20 Oct with their tests
 // (screens/today/today.test.ts; spec docs/specs/2026-10-20-today-performance-systems.md).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildRules, summary, type RulesInput } from "@rules";
-import { shortType, familyOf } from "../../ui/aircraftNames";
 import { addDays, dayDiff, dueWords, inDays, niceDate, untilText } from "../../ui/dates";
 import { cardClean, greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords } from "./figures";
 import { arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, zoomView } from "./map";
-import { familyWords, onOrder } from "./onOrder";
-import type { AircraftRow, CardsRead, HomeAirline } from "./reads";
+import { attentionAnchor, attentionHref, countTiles, tileForHash, waitingCards, type CardsInput } from "../today/model";
+import { groupAttention, withoutDismissed, type AttItem } from "../../ui/attention";
+import { screen } from "../screens";
+import type { CardsRead } from "./reads";
 
 const L = "en-US";
 const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
-const airlines: HomeAirline[] = [{ id: 1, name: "Test Air", code: "TA", color: "#123456" }, { id: 2, name: "Other Air", code: "OA", color: "#654321" }];
 const T0 = "2026-10-12T10:00:00.000000+00:00";
 
 describe("dates as words (the old planner's)", () => {
@@ -46,36 +48,7 @@ describe("dates as words (the old planner's)", () => {
   });
 });
 
-describe("aircraft on order and the key figures", () => {
-  const rules = buildRules({ ...base, cabin_configs: [{ id: 7, code: "321-LEI", aircraft_type_id: 1, seats: 200 }] });
-  const ac = (id: number, x: Partial<AircraftRow>): AircraftRow => ({
-    id, registration: `R-${id}`, airline_id: 1, aircraft_type_id: 1, order_config_id: 7, status: "on_order", delivery_at: null,
-    order_base_code: "HUB", order_note: "HUB · AAA + BBB", updated_at: T0, ...x,
-  });
-  it("lists what isn't in service yet, by airline, soonest first, with what arrived", () => {
-    const now = Date.parse("2026-10-13T12:00:00Z");
-    const got = onOrder([
-      ac(1, { delivery_at: "2026-10-15T05:53:30+00:00" }), ac(2, { delivery_at: "2026-10-12T02:00:00+00:00", status: "delivered" }),
-      ac(3, { status: "active" }), ac(4, { airline_id: 2, aircraft_type_id: 2, delivery_at: "2026-10-20T00:00:00+00:00", order_note: null }),
-    ], rules, new Map([[2, null]]), airlines, now);
-    expect(got.count).toBe(3);
-    expect(got.groups.map((g) => [g.airline.name, g.rows.map((r) => r.registration), g.arrived, g.families.map(familyWords)])).toEqual([
-      ["Test Air", ["R-2", "R-1"], 1, ["2 A320-family"]], ["Other Air", ["R-4"], 0, ["1 E195"]],
-    ]);
-    expect(got.groups[0]?.rows[1]).toMatchObject({ type: "A321neo", config: "321-LEI", plan: "AAA + BBB", arrived: false, hasCard: false, at: Date.parse("2026-10-15T05:53:00Z") });
-    expect(got.groups[0]?.rows[0]).toMatchObject({ arrived: true, hasCard: true });
-    expect(shortType("A350-900ULR")).toBe("A350");
-    expect(familyOf("A321XLR")).toBe("A320 family");
-  });
-  it("names each one's plan by its card's title, else the old order note (21 Oct: a card with no order note showed blank)", () => {
-    const now = Date.parse("2026-10-21T23:00:00Z");
-    const got = onOrder([
-      ac(5, { delivery_at: "2026-10-22T07:08:00+00:00", order_note: null }), ac(6, { delivery_at: "2026-10-22T07:10:00+00:00" }),
-      ac(7, { delivery_at: "2026-10-22T08:00:00+00:00", order_note: "HUB · old words" }), ac(8, { delivery_at: "2026-10-22T09:00:00+00:00" }),
-    ], rules, new Map<number, string | null>([[5, "MCI + STL + IND"], [7, "AAA + DDD"], [8, " "]]), airlines, now);
-    expect(got.groups[0]?.rows.map((r) => [r.registration, r.plan, r.hasCard])).toEqual([
-      ["R-5", "MCI + STL + IND", true], ["R-6", "AAA + BBB", false], ["R-7", "AAA + DDD", true], ["R-8", "AAA + BBB", true]]);
-  });
+describe("the key figures", () => {
   const cards = (load: number | null, from: CardsRead["load_7_days_from"]): CardsRead => ({ airlines: [], load_7_days: load, load_7_days_flights: load == null ? 0 : 412, load_7_days_from: from });
   it("the key figures: the library's, and the group's average load as airline_cards() works it out", () => {
     const tiles = keyFigureTiles({ aircraft: 87, routes_flying: 184, flights_day: 467.857, seats_day: 75_314 }, cards(98.6, "captures"));
@@ -166,5 +139,85 @@ describe("the network map (the old networkMap's drawing)", () => {
     const night = nightPolygon(new Date("2026-12-21T12:00:00Z")).split(" ");
     expect(night).toHaveLength(123);
     expect(night.slice(-2)).toEqual(["1000.0,0.0", "0.0,0.0"]);   // the north pole sits in night in December
+  });
+});
+
+describe("needs attention's summary cards on Home (23 Oct, spec docs/specs/2026-10-23-attention-on-home.md)", () => {
+  // a sample as Today had it on 22 Oct: an airline that can order, an aircraft to file, a to-do due, routes to fix, a
+  // rival move, the Fleet group with the game's maintenance under the limit, one dismissed item
+  const pa = { id: 1, name: "Pan Am", code: "PA", color: "#123456", game_id: null }, vs = { id: 2, name: "Virgin", code: "VS", color: "#654321", game_id: null };
+  const items: AttItem[] = [
+    { key: "fleet|maintenance|N003AW|2026-10-22", cls: "bad", screen: "tails", tail: "N003AW", text: "N003AW (JFK): maintenance 0.0%, condition 83%" },
+    { key: "fleet|crew|N004AW|2026-10-22", cls: "bad", screen: "tails", tail: "N004AW", text: "N004AW (JFK): no pilots" },
+    { key: "route|Pan Am|JFK|ORD", cls: "bad", screen: "performance", route: "Pan Am|JFK|ORD", text: "JFK–ORD: losing money — x" },
+    { key: "route|Pan Am|JFK|BOS", cls: "warn", screen: "performance", route: "Pan Am|JFK|BOS", text: "JFK–BOS: fix or reduce — y" },
+    { key: "route|Pan Am|JFK|MIA", cls: "warn", screen: "performance", route: "Pan Am|JFK|MIA", text: "JFK–MIA: fix or reduce — z" },
+    { key: "threat|VS|LGW-CAI|EgyptAir|2026-10-22", cls: "warn", screen: "competition", text: "EgyptAir started on LGW–CAI, 7 a week" },
+    { key: "order|Virgin|2026-10-22", cls: "ok", screen: "performance", text: "Virgin can safely order: A321neo" },
+    { key: "todo|t-7", cls: "bad", screen: "today", text: "To-do (overdue): Ring the bank" },
+  ];
+  const shown = withoutDismissed(items, new Set(["route|Pan Am|JFK|MIA"])).shown;
+  const input: CardsInput = {
+    orders: [{ airline: pa, status: { kind: "later", text: "Safe from Thu, Oct 22" }, types: [], lines: [] },
+      { airline: vs, status: { kind: "now", text: "Can order now" }, types: [{ when: "now", now: true, names: ["A321neo"] }], lines: [] }],
+    toFile: [{ airline: pa, registration: "N023AW", type: "A321neo", config: "Y180", at: 0, base: "JFK", plan: "JFK–ORD", href: "/tails?airline=PA&file=N023AW" }],
+    attention: shown,
+    todos: [{ id: 7, world_id: 1, legacy_key: "t-7", title: "Ring the bank", due_on: "2026-10-20", done: false, done_at: null, updated_at: T0 }],
+    game: 0, today: "2026-10-22", hrefOf: (a) => attentionHref(a, [pa, vs]), screenName: (a) => screen(a.screen).name, locale: L,
+  };
+
+  it("builds the same cards Today built on the same sample: same groups, same words, same order, dismissed left out", () => {
+    const cards = waitingCards(input);
+    expect(cards.map((c) => [c.kind, c.label, c.heading, c.detail, c.urgent, c.action.text])).toEqual([
+      ["order", "Order now", "Virgin can safely order: A321neo", null, true, "Cash, next 14 days"],
+      ["maint", "Fleet · maintenance", "N003AW (JFK): maintenance 0.0%, condition 83%", "and 1 more in Fleet", false, "See all 2"],
+      ["due", "Overdue · due Tue, Oct 20", "Ring the bank", null, false, "Open the to-do"],
+      ["file", "To file", "N023AW has arrived for Pan Am", "A321neo Y180 · JFK · JFK–ORD", false, "File into planner"],
+      ["attention", "Needs attention", "JFK–ORD: losing money — x", "and 1 more in Routes to fix", false, "See all 2"],
+      ["attention", "Needs attention", "EgyptAir started on LGW–CAI, 7 a week", "Rival moves", false, "Open Competition"],
+    ]);
+  });
+
+  it("each See all opens its group's section on Today, by an anchor Today gives that section", () => {
+    const cards = waitingCards(input);
+    const sections = countTiles(input.toFile.length, shown).map((t) => t.key);
+    const seeAll = cards.filter((c) => c.action.text.startsWith("See all"));
+    expect(seeAll.map((c) => c.action.href)).toEqual(["/today#att-fleet", "/today#att-route"]);
+    for (const c of seeAll) {
+      const [path, hash = ""] = (c.action.href ?? "").split("#");
+      expect(path).toBe("/today");
+      const tile = tileForHash("#" + hash);
+      expect(sections).toContain(tile);
+      expect(attentionAnchor(tile as string)).toBe(hash);
+      // the section lists the group whole, as many as the card says
+      expect(groupAttention(shown).find((g) => g.kind === tile)?.items.length).toBe(Number(c.action.text.replace("See all ", "")));
+    }
+    // a card with one item opens where it's fixed, as on Today; a route its page on Performance, a rival its airline
+    expect(cards.find((c) => c.heading.startsWith("EgyptAir"))?.action.href).toBe("/competition/VS");
+    expect(attentionHref(shown[2] as AttItem, [pa, vs])).toBe("/performance/PA/JFK-ORD");
+  });
+
+  it("with nothing waiting there are no cards, and Home says so in one line", () => {
+    expect(waitingCards({ ...input, orders: [], toFile: [], attention: [], todos: [] })).toEqual([]);
+    const src = readFileSync(new URL("./Home.tsx", import.meta.url), "utf8");
+    expect(src).toContain("Nothing to order or file, and nothing needs attention.");
+  });
+
+  it("sits right after the hero, before the network map; Home has no aircraft on order board any more", () => {
+    const src = readFileSync(new URL("./Home.tsx", import.meta.url), "utf8");
+    const at = (s: string) => src.indexOf(s);
+    expect(at("<AttentionCards")).toBeGreaterThan(at("<Hero"));
+    expect(at("<AttentionCards")).toBeLessThan(at("<NetworkMap"));
+    expect(src).not.toMatch(/OnOrderBoard|Aircraft on order"|onOrder\(/);
+    expect(() => readFileSync(new URL("./onOrder.ts", import.meta.url), "utf8")).toThrow();
+  });
+
+  it("Today no longer renders the cards but keeps every section, each with its anchor", () => {
+    const src = readFileSync(new URL("../today/Today.tsx", import.meta.url), "utf8");
+    expect(src).not.toMatch(/waitingCards|data-wait-card=\{/);
+    expect(src).toContain('id={attentionAnchor(g.kind)}');
+    expect(src).toContain('id={attentionAnchor("to-file")}');
+    expect(src).toContain("onDismiss");
+    expect(src).toContain("data-show-again");
   });
 });

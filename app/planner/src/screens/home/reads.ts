@@ -64,7 +64,7 @@ export function useHomeAircraft(worldId: number | undefined) {
 
 export interface PlanCardRow { id: number; aircraft_id: number; title: string | null; updated_at: string }
 
-/** Which aircraft have a plan card, with its title (Aircraft on order: "File into planner", and its Plan column). */
+/** Which aircraft have a plan card, with its title (Today's Aircraft to file: "File into planner", and its Plan column). */
 export function usePlanCards(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("plan_cards", "home", worldId),

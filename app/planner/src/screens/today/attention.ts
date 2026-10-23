@@ -12,7 +12,8 @@
 // (spec docs/specs/2026-10-21-tidy-ups.md §3) one item when a cabin charge doesn't match the first fit we logged, from
 // cabin_charges(), linking to Systems' Cabin charges; and since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3)
 // the Fleet group, one item per problem fleet_checks() finds on the latest night's fleet pages (the game's maintenance under
-// maintenance_min_pct, no pilots, seats against the planner's cabin, an aircraft in one and not the other), worst first.
+// maintenance_min_pct, no pilots, seats against the planner's cabin, an aircraft in one and not the other), worst first;
+// since 23 Oct the estimate's "maintenance ≈P%" item only for an aircraft without the game's figure.
 // This file only words them. Monthly checks have none since 8 Oct, as
 // in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
@@ -21,7 +22,7 @@ import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
 import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAirline, JobRun, JobsRead, TodoRow } from "../home/reads";
 import { threatItemWords, threatKey, type ThreatItem } from "../competition/model";
-import { cabinAttention, fleetAttention, type CabinCharges, type FleetChecks } from "../systems/model";
+import { cabinAttention, fleetAttention, gameMaintenance, type CabinCharges, type FleetChecks } from "../systems/model";
 
 /** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
 export type { HomeAirline };
@@ -91,10 +92,15 @@ export function homeAttention(x: AttentionInput): AttItem[] {
 
   // each aircraft in service: its maintenance, then its short turns and wrong positions
   const legs = block.timedLegs(rules);
+  const inGame = gameMaintenance(x.fleet);
   for (const a of rules.aircraft.values()) {
     if (a.status !== "active") continue;
     const week = aircraftWeek.forAircraft(rules, a, legs);
-    const m = week ? maintenance.forAircraft(rules, a, legs, week) : null;
+    // since 23 Oct (as Tails and Home's airline cards, spec docs/specs/2026-10-23-game-maintenance-on-tails.md) an
+    // aircraft on the latest night's fleet pages is judged on the game's figure, not the estimate: under the minimum the
+    // Fleet group lists it already (fleet|maintenance), at or above it there is nothing to say, so no item here either
+    // way. The estimate, with its ≈, only for an aircraft the fleet pages don't have a figure for.
+    const m = week && !inGame.has(a.id) ? maintenance.forAircraft(rules, a, legs, week) : null;
     if (m && m.ratio !== null && m.level !== "ok") {
       items.push({ key: "maint|" + a.registration, cls: m.level, screen: "tails", tail: a.registration,
         text: `${a.registration} maintenance ≈${Math.round(m.ratio * 100)}% — ${m.level === "bad" ? "condition will fall" : "little headroom"}` });

@@ -13,52 +13,46 @@
 // An old load-report address (/planner/check?day=…, which web/_redirects sends here) goes on to Performance's Flights by
 // day with its day. Every action is one planner_save() call.
 // Since 22 Oct (spec docs/specs/2026-10-22-planner-look-today.md) laid out as the approved mockup: the answer is the
-// page's title with the capture as a pill beside it; the things waiting as big cards (model.ts, waitingCards); Orders as
+// page's title with the capture as a pill beside it; the things waiting as big cards (until 23 Oct); Orders as
 // one table, a column per delivery line (one compact row per airline on a phone); then Aircraft to file and each group
 // of needs attention as count tiles (countTiles), each opening its list below them; Game check and the to-dos as before.
 // The one-week checks (needs attention's group and Coming up's) went on 22 Oct (spec
 // docs/specs/2026-10-22-remove-aircraft-checks.md). Since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3) needs
 // attention has a Fleet group from fleet_checks() (the game's figures on the latest night's fleet pages), and the game's
 // maintenance under the limit is its own card, the most urgent after order now.
-import { useEffect, useMemo, useState } from "react";
+// Since 23 Oct (spec docs/specs/2026-10-23-attention-on-home.md) the summary cards are Home's, not Today's: Today keeps
+// every group's full list as its own section with a stable anchor (#to-file, #att-<kind>: model.ts's attentionAnchor),
+// which Home's buttons open (the list open, scrolled to it), still with dismiss and show again. The answer's count is
+// what's left on Today, a thing per section with something in it. The orders, the aircraft to file and needs
+// attention's reads and figures are in useAttention.ts, shared with Home.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { game, growth } from "@rules";
-import { ourAirlines, type OurAirline } from "../../data/airlines";
+import { game } from "@rules";
+import type { OurAirline } from "../../data/airlines";
 import { useNow } from "../../data/clock";
 import { queryClient } from "../../data/query";
-import { useOurAirlines, useWorld } from "../../data/reads";
-import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
 import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { AttentionItems } from "../../ui/AttentionList";
-import { familyOf } from "../../ui/aircraftNames";
-import { dismissKey, groupAttention, withoutDismissed, type AttItem } from "../../ui/attention";
+import { groupAttention, type AttItem } from "../../ui/attention";
 import { Board } from "../../ui/Board";
-import { niceDate, toMinute, todayAt, untilText } from "../../ui/dates";
+import { niceDate, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
-import { onOrder } from "../home/onOrder";
-import { useBackups, useCaptureStatus, useDismissals, useGrowth, useHomeAircraft, useJobs, usePlanCards, useTodoItems, useTodos } from "../home/reads";
-import { isOpen, statusOf } from "../interline/model";
-import { useAgreements } from "../interline/reads";
-import { useInterlineRows } from "../interline/useRows";
-import { useForecasts, useReviewCards } from "../performance/reads";
-import { readAirports } from "../routes/reads";
-import { itemRoute, movedTo, screen } from "../screens";
+import { itemRoute, movedTo } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
-import { gameLink, typeName, type TailAircraft } from "../tails/model";
-import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useBuyTypes, useGameHost, useTailsAircraft } from "../tails/reads";
-import { useLatestThreats } from "../competition/reads";
-import { useCabinCharges, useFleetChecks } from "../systems/reads";
-import { homeAttention, type HomeAirline } from "./attention";
+import { gameLink, type TailAircraft } from "../tails/model";
+import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useGameHost, useTailsAircraft } from "../tails/reads";
+import { readAirports } from "../routes/reads";
 import { ComingUp } from "./ComingUp";
 import { comingUp } from "./comingUp";
 import { checkedAtWords, fixChanges, fixRotations, importChanges, noLinkWords, type GameResult } from "./game";
 import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameCheck";
-import { captureLine, countTiles, deliveryLines, lineCell, lineColumns, orderStatus, safeTypes, toFile, waitingCards, waitingWords, type OrderRow } from "./model";
+import { attentionAnchor, captureLine, countTiles, lineCell, lineColumns, tileForHash, waitingWords } from "./model";
 import { readLegs } from "./reads";
 import { TodoBoard } from "./TodoBoard";
-import { dismissChanges, showAgainChanges, todoViews } from "./todos";
+import { todoViews } from "./todos";
+import { opensAircraft, useAttention } from "./useAttention";
 
 const first = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -68,43 +62,19 @@ export function Today() {
   const [search, setSearch] = useSearchParams();
   const now = useNow();
   const today = todayAt(now);
-  const world = useWorld();
-  const w = world.data?.id;
-  const airlinesQ = useOurAirlines(w);
-  const rulesQ = useRules(w);
-  const aircraftQ = useHomeAircraft(w);
-  const planCardsQ = usePlanCards(w);
-  const todosQ = useTodos(w);
-  const itemsQ = useTodoItems(w);
-  const dismissalsQ = useDismissals(w);
-  const backupsQ = useBackups();
-  const jobsQ = useJobs();
-  const captureQ = useCaptureStatus(w);
-  const cardsQ = useReviewCards(w);
-  const growthQ = useGrowth(w);
-  const interline = useInterlineRows(w);
-  const agreementsQ = useAgreements(w);
-  const buyQ = useBuyTypes(w);
+  // the orders, the aircraft to file and needs attention, read and worked out once for Home and Today (useAttention.ts)
+  const att = useAttention(now, today);
+  const { w, airlines, airlinesQ, rules, todosQ, itemsQ, captureQ, orders, filing, attShown, hrefOf } = att;
+  // Today's own reads beyond those: the game check's aircraft and the game's address
   const tailsQ = useTailsAircraft(w);
   const hostQ = useGameHost(w);
-  const airlines: OurAirline[] = useMemo(() => ourAirlines(airlinesQ.data), [airlinesQ.data]);
-  // the orders are for the airlines the captured figures cover (airline_cards(): our active airlines), in our order
-  const ordering = useMemo(() => airlines.filter((a) => (cardsQ.data?.airlines ?? []).some((c) => c.airline_id === a.id)), [airlines, cardsQ.data]);
-  const forecastsQ = useForecasts(ordering.map((a) => a.id));
-  // the rivals' moves the latest world scan showed (competition(), since 21 Oct), for needs attention
-  const competition = useLatestThreats(ordering.map((a) => a.id));
-  const threats = competition.threats;
-  // the cabin charge check (cabin_charges(), since 22 Oct), for needs attention
-  const cabinsQ = useCabinCharges(w !== undefined);
-  // the fleet checks (fleet_checks(), since 22 Oct), for needs attention's Fleet group
-  const fleetQ = useFleetChecks(w);
-  // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
-  const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [gc, setGc] = useState<{ running: boolean; at: Date | null; res: ReadonlyMap<number, GameResult> }>({ running: false, at: null, res: new Map() });
   const [gcOpen, setGcOpen] = useState<number | null>(null);
-  // the count tile whose list is open below the tiles (one at a time; Home's "to file on Today" opens Aircraft to file)
-  const [tile, setTile] = useState<string | null>(() => (loc.hash === "#to-file" ? "to-file" : null));
+  // the count tile whose list is open below the tiles (one at a time). Since 23 Oct (spec
+  // docs/specs/2026-10-23-attention-on-home.md) Home's needs attention cards open a group's section by its anchor
+  // (/planner/today#att-route), as the old "to file on Today" opened Aircraft to file (#to-file)
+  const [tile, setTile] = useState<string | null>(() => tileForHash(loc.hash));
   // the airlines whose delivery lines are open on a phone (the table's compact rows)
   const [openRows, setOpenRows] = useState<ReadonlySet<number>>(new Set());
   const tailPopup = search.get("aircraft");
@@ -115,48 +85,11 @@ export function Today() {
     return n;
   });
 
-  // an old load report's day (/planner/check?day=…, sent here by web/_redirects) opens Performance's Flights by day
+  // an old load-report's day (/planner/check?day=…, sent here by web/_redirects) opens Performance's Flights by day
   const moved = movedTo(loc.pathname, loc.search);
   useEffect(() => { if (moved) navigate(moved, { replace: true }); }, [moved, navigate]);
 
-  const rules = rulesQ.data?.rules;
-  // needs attention words airlines as Home did (HomeAirline: the old planner's names)
-  const homeAirlines: HomeAirline[] = useMemo(() => airlines.map((a) => ({ id: a.id, name: a.name, code: a.code, color: a.color })), [airlines]);
   const todos = useMemo(() => (todosQ.data && itemsQ.data ? todoViews(todosQ.data, itemsQ.data) : null), [todosQ.data, itemsQ.data]);
-  const interlineOpen = useMemo(() => {
-    if (!interline.rows || !agreementsQ.data) return null;
-    const records = new Map(agreementsQ.data.map((a) => [a.airline_id + "|" + a.country_code, a]));
-    return interline.rows.filter((r) => isOpen(statusOf(records.get(r.airline_id + "|" + r.cc)))).length;
-  }, [interline.rows, agreementsQ.data]);
-  const attention = useMemo(() => (rules && todosQ.data ? homeAttention({
-    now, today, airlines: homeAirlines, rules, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
-    jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen, threats, cabins: cabinsQ.data ?? null,
-    fleet: fleetQ.data ?? null,
-  }) : null), [now, today, homeAirlines, rules, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats,
-    cabinsQ.data, fleetQ.data]);
-  const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
-  const attShown = useMemo(() => (attention ? withoutDismissed(attention, dismissed) : null), [attention, dismissed]);
-
-  // ---------- orders: can order now or from when, the safe types, and each delivery line
-  const orders: OrderRow[] | null = useMemo(() => {
-    if (!rules || !cardsQ.data || !buyQ.data || !aircraftQ.data || forecastsQ.some((q) => !q.data)) return null;
-    const family = (id: number | null) => familyOf(typeName(rules, id));
-    const families = [...new Set(buyQ.data.filter((b) => airlines.some((a) => a.id === b.airline_id)).map((b) => family(b.aircraft_type_id)))].sort();
-    const unfiled = aircraftQ.data.filter((a) => a.status === "on_order" || a.status === "delivered");
-    return ordering.map((a, i) => {
-      const card = cardsQ.data.airlines.find((c) => c.airline_id === a.id);
-      const allowed = new Set(buyQ.data.filter((b) => b.airline_id === a.id).map((b) => family(b.aircraft_type_id)));
-      const cells = growth.orderQueues(rules, a.id, families, allowed,
-        unfiled.filter((x) => x.airline_id === a.id && x.delivery_at).map((x) => ({ family: family(x.aircraft_type_id), delivery_ms: toMinute(x.delivery_at as string) })), now.getTime());
-      const types = forecastsQ[i]?.data?.types;
-      return { airline: a, status: orderStatus(card?.next_order, card?.can_order_now), types: safeTypes(types), lines: deliveryLines(cells, types, (t) => family(t.aircraft_type_id)) };
-    });
-  }, [rules, cardsQ.data, buyQ.data, aircraftQ.data, forecastsQ, airlines, ordering, now]);
-
-  // ---------- aircraft to file: arrived with a plan card
-  const filing = useMemo(() => (rules && aircraftQ.data && planCardsQ.data
-    ? toFile(onOrder(aircraftQ.data, rules, new Map(planCardsQ.data.map((p) => [p.aircraft_id, p.title] as const)), homeAirlines, now.getTime()).groups) : null),
-  [rules, aircraftQ.data, planCardsQ.data, homeAirlines, now]);
 
   // ---------- Game check (Check's until 20 Oct)
   const all = useMemo(() => tailsQ.data ?? [], [tailsQ.data]);
@@ -221,55 +154,29 @@ export function Today() {
   const missingLinks = airlines.filter((a) => !linkOf(a)).map((a) => a.name);
   const openLine = gcOpen == null ? undefined : gameLines.find((x) => x.airline.id === gcOpen);
 
-  // ---------- needs attention: where each item is fixed, dismiss and show again
-  const hrefOf = (a: AttItem) => {
-    if (a.screen === "today") return itemRoute("today", { hash: "todo" });
-    if (a.tail) return itemRoute(a.screen, { tail: a.tail });
-    if (a.route) {
-      const [al = "", hub = "", dest = ""] = a.route.split("|");
-      return itemRoute(a.screen, { airline: airlines.find((x) => x.name === al)?.code, hub, dest });
-    }
-    // can order: the airline's page on Performance, with its cash for the next 14 days
-    if (a.screen === "performance" && a.key?.startsWith("order|")) return itemRoute("performance", { airline: airlines.find((x) => x.name === a.key?.split("|")[1])?.code });
-    // a rival's move: the airline's Competition page (its key: threat|<code>|<pair>|<rival>|<day>)
-    if (a.screen === "competition" && a.key?.startsWith("threat|")) return itemRoute("competition", { airline: a.key.split("|")[1] });
-    // a cabin charge that doesn't match: Systems' Cabin charges board, open on arrival
-    if (a.screen === "systems" && a.key?.startsWith("cabin|")) return itemRoute("systems", { hash: "cabin-charges" });
-    // an aircraft in the game the planner doesn't have: Systems' Fleet board, open on arrival
-    if (a.screen === "systems" && a.key?.startsWith("fleet|")) return itemRoute("systems", { hash: "fleet" });
-    return itemRoute(a.screen);
-  };
-  async function dismiss(a: AttItem) {
-    if (w === undefined) return;
-    const key = dismissKey(a);
-    setDismissedHere((s) => new Set([...s, key]));
-    const res = await saver.save(dismissChanges(w, key, today));
-    if (res.status === "clash") setDismissedHere((s) => new Set([...s].filter((k) => k !== key)));
-  }
-  async function showAgain() {
-    setDismissedHere(new Set());
-    if (dismissalsQ.data?.length) await saver.save(showAgainChanges(dismissalsQ.data));
-  }
-
-  const ready = !!(rules && todos && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
-    && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && tailsQ.data && hostQ.isSuccess && threats
-    && cabinsQ.data && fleetQ.data);
-  const loadError = first(world, airlinesQ, rulesQ, aircraftQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
-    buyQ, tailsQ, hostQ, ...forecastsQ, competition, cabinsQ, fleetQ);
+  const ready = !!(att.ready && todos && tailsQ.data && hostQ.isSuccess);
+  const loadError = att.loadError ?? first(tailsQ, hostQ);
   const cap = captureQ.data && airlinesQ.data ? captureLine(airlines, captureQ.data, now) : null;
+  const groups = attShown ? groupAttention(attShown.shown) : [];
+  // the answer counts what's left on Today, a thing per section with something in it (since 23 Oct): Orders when an
+  // airline can order, Aircraft to file, each group of needs attention (Can order counted once, with Orders) and Game check
   const waiting = ready && orders && filing && attShown ? waitingWords({
-    canOrder: orders.filter((o) => o.status.kind === "now").map((o) => o.airline.name), toFile: filing.length, attention: attShown.shown.length, game: differences,
+    canOrder: orders.filter((o) => o.status.kind === "now").map((o) => o.airline.name), toFile: filing.length,
+    attention: groups.filter((g) => g.kind !== "order").map((g) => ({ label: g.label, count: g.items.length })), game: differences,
   }) : null;
 
   const tiles = attShown && filing ? countTiles(filing.length, attShown.shown) : null;
-  const groups = attShown ? groupAttention(attShown.shown) : [];
-  const cards = waiting && !waiting.clear && orders && filing && attShown && todosQ.data ? waitingCards({
-    orders, toFile: filing, attention: attShown.shown, todos: todosQ.data, game: differences, today, hrefOf, screenName: (a) => screen(a.screen).name,
-  }) : [];
   const columns = orders ? lineColumns(orders) : [];
-  const openAircraft = (a: AttItem) => { if (!a.tail || a.route || a.screen !== "tails") return false; setTailPopup(a.tail); return true; };
-  const goTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const openTile = (k: string) => { setTile(k); requestAnimationFrame(() => goTo("attention")); };
+  const openAircraft = (a: AttItem) => { if (!opensAircraft(a) || !a.tail) return false; setTailPopup(a.tail); return true; };
+  // arriving at a section's anchor (Home's buttons: a group's See all, #att-<kind>; a to-do, #todo; Game check,
+  // #game-check): scroll to it once everything is read and, for a group, its list is open
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (!ready || arrived.current) return;
+    arrived.current = true;
+    const id = loc.hash.slice(1);
+    if (id) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
+  }, [ready, loc.hash]);
 
   return (
     <main className="view review today" data-screen="today" data-today-ready={ready ? "yes" : "no"} data-today-view={loc.pathname + loc.search}>
@@ -295,25 +202,6 @@ export function Today() {
             <span className="wkind">All clear</span>
             <h2 className="wh">{waiting.parts[0]}</h2>
           </div>
-        </section>
-      ) : cards.length ? (
-        <section className="waitgrid" aria-label="Waiting">
-          {cards.map((c) => (
-            <div className={"wcard " + c.kind + (c.urgent ? " urgent" : "")} key={c.key} data-wait-card={c.kind}>
-              <span className="wkind">{c.label}</span>
-              <h2 className="wh">{c.heading}</h2>
-              {c.detail ? <p className="wd">{c.detail}</p> : null}
-              <div className="wact">
-                {c.action.href ? (
-                  <Link className={"primary" + (c.urgent ? " now" : "")} to={c.action.href}
-                    onClick={(e) => { if (c.action.item && openAircraft(c.action.item)) e.preventDefault(); }}>{c.action.text}</Link>
-                ) : (
-                  <button type="button" className={"primary" + (c.urgent ? " now" : "")}
-                    onClick={() => { if (c.action.tile) openTile(c.action.tile); else if (c.action.scroll) goTo(c.action.scroll); }}>{c.action.text}</button>
-                )}
-              </div>
-            </div>
-          ))}
         </section>
       ) : null}
 
@@ -379,7 +267,7 @@ export function Today() {
             <div className="tiles" role="group" aria-label="Aircraft to file and needs attention">
               {tiles.map((t) => (
                 <button type="button" key={t.key} className={"tile " + t.cls + (tile === t.key ? " on" : "")} aria-expanded={tile === t.key}
-                  aria-controls={"tile-" + t.key} data-att-tile={t.key} onClick={() => setTile((k) => (k === t.key ? null : t.key))}>
+                  aria-controls={attentionAnchor(t.key)} data-att-tile={t.key} onClick={() => setTile((k) => (k === t.key ? null : t.key))}>
                   <b className="tn">{t.count}</b>
                   <span className="tname">{t.name}</span>
                   <span className="tline">{t.line}</span>
@@ -388,11 +276,11 @@ export function Today() {
             </div>
             {attShown.hidden ? (
               <div className="dim hiddenline" data-dismissed={attShown.hidden}>
-                {attShown.hidden} dismissed · <button type="button" className="link" onClick={() => void showAgain()} data-show-again>show again</button>
+                {attShown.hidden} dismissed · <button type="button" className="link" onClick={() => void att.showAgain()} data-show-again>show again</button>
               </div>
             ) : null}
 
-            <div className="tilepanel" id="to-file" data-figure="today: aircraft to file" hidden={tile !== "to-file"}>
+            <section className="tilepanel" id={attentionAnchor("to-file")} data-figure="today: aircraft to file" hidden={tile !== "to-file"} aria-label="Aircraft to file">
               <h4 className="tph">Aircraft to file <span className="note">arrived in the game with a plan card · File into planner checks the card against the game's schedule, on Tails</span></h4>
               {filing && filing.length ? (
                 <div className="tblwrap">
@@ -417,14 +305,14 @@ export function Today() {
                   </table>
                 </div>
               ) : <div className="dim">Nothing to file.</div>}
-            </div>
+            </section>
 
             <div className="tilepanels" data-figure="today: needs attention">
               {groups.map((g) => (
-                <div className="tilepanel" key={g.kind} id={"tile-" + g.kind} data-att-group={g.kind} hidden={tile !== g.kind}>
+                <section className="tilepanel" key={g.kind} id={attentionAnchor(g.kind)} data-att-group={g.kind} hidden={tile !== g.kind} aria-label={g.label}>
                   <h4 className="tph">{g.label} <span className="note">{g.items.length} item{g.items.length === 1 ? "" : "s"}</span></h4>
-                  <AttentionItems items={g.items} hrefOf={hrefOf} onDismiss={(a) => void dismiss(a)} onOpen={openAircraft} />
-                </div>
+                  <AttentionItems items={g.items} hrefOf={hrefOf} onDismiss={(a) => void att.dismiss(a)} onOpen={openAircraft} />
+                </section>
               ))}
               {!attShown.shown.length ? <div className="dim">Every aircraft is inside its maintenance, turn and night-ban rules.</div> : null}
             </div>

@@ -11,7 +11,7 @@ export function shortType(name: string | null | undefined): string {
   return SHORT_TYPE[n.toUpperCase()] ?? n;
 }
 
-/** The family a type belongs to, as Home's Aircraft on order counts them: "A320 family", "A350", "E195". */
+/** The family a type belongs to, as Today's delivery lines count them (Home's Aircraft on order did until 23 Oct): "A320 family", "A350", "E195". */
 export function familyOf(name: string | null | undefined): string {
   const t = String(name ?? "").toUpperCase();
   return /A3(19|20|21)|XLR/.test(t) ? "A320 family" : /A350/.test(t) ? "A350" : /E19/.test(t) ? "E195" : t || "?";

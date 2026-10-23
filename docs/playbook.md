@@ -44,7 +44,7 @@ full stop; manual §8, brand). Website and planner: **equinox-alliance.com** (pl
 
 **Where to find the current state** (this guide holds no figures, so it can't go out of date):
 - **Bases, hubs and focus cities:** manual §2, bases.
-- **Fleet, routes and aircraft on order:** the planner's Home (the airline cards, **Aircraft on order**) and Tails.
+- **Fleet, routes and aircraft on order:** the planner's Home (the airline cards), Today (**Orders**: each delivery line) and Tails (**Deliveries**).
 - **Arrivals waiting to be filed, orders possible tonight, open to-dos:** the planner's Today (the **To-do** board).
 - **Money and route performance:** Performance; rivals and openings: Competition.
 
@@ -118,7 +118,7 @@ button.
 
 | Screen | Use it for | Look at it |
 |---|---|---|
-| **Home** | The network at a glance: the globe, the map, **Aircraft on order**, the airline cards | Whenever |
+| **Home** | The network at a glance and what needs attention: the globe, needs attention's cards (each opens its section on Today), the map, the airline cards | Whenever |
 | **Today** | What to do now. At the top **All clear**, or what's waiting, and the capture in one line. Then **Orders** (who can order now or from when, the safe types, each delivery line), **Aircraft to file** (with **File into planner**), **Needs attention**, **Game check** (planner against the game), the **To-do** board and **Coming up** | Every evening after the capture |
 | **Routes** | Every route by airline: stars, market, distance, load, round trips. Open a route to see or edit its frequencies, with every check (night bans, banks, turns, position, second-daily gap, connections at both ends) | When planning or retiming |
 | **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards, the service check and the cabin the rule calls for (**Use the suggestion**). Filing happens here | When an aircraft arrives; when something needs a look |
@@ -210,8 +210,8 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   manual §4, from 1 to 30 November).
 - **You order in the game** and tell the Scheduling chat (rule: manual §3, who orders). Claude logs it and writes the
   **plan card** with those routes and that cabin (Tails → Deliveries → **card**), following step 4.
-- The aircraft appears in Home's **Aircraft on order** and Tails' **Deliveries** with its arrival time (UTC), and on
-  Today's **Aircraft to file** once it arrives.
+- The aircraft appears in Tails' **Deliveries** with its arrival time (UTC), counts on its delivery line in Today's
+  **Orders**, and shows on Today's **Aircraft to file** (and Home's **To file** card) once it arrives.
 
 ### Step 4: The plan card's rules
 Every plan card, written with the order, follows these rules. When the aircraft arrives the card stands; go straight
