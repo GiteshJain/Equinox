@@ -509,8 +509,13 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   data the website reads (since 15 Oct; before, each kept its own copy of the lists).
 
 ## Reference
-*Banks, aircraft, configs, markets and time zones.* Each section is folded on arrival; opening one puts it in the
-address (/planner/reference/night-bans), so a link reopens it. Each box saves when you leave it, as one change.
+*Every setting and lookup the planner works with.* Since 23 Oct the sections are large rows that open, each with its
+name, a one-line note and a count where it has one ("14 bases", "12 aircraft types"), under three headings: **Network**
+(hubs, focus cities and banks; night bans; time zones; removed routes), **Fleet and fares** (aircraft, configs, markets,
+service profiles) and **Settings and data** (constants, game schedules, storage, data). Each is folded on arrival;
+opening one puts it in the address (/planner/reference/night-bans), so a link reopens it. Open, the section's full note
+comes first, then its tables (numbers on the right; on a phone a wide table scrolls inside its own box). Each box saves
+when you leave it, as one change.
 - **Hubs, focus cities and banks:** a hub runs banks and connections. A focus city is a base that serves its own market
   and feeds a hub. A **station** (since 22 Oct, manual §2) is an airport flown point-to-point from without making it a
   base: the role picker has **Hub**, **Focus city** and **Station** (not for the main hub), and making a base a station

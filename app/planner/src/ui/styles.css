@@ -1634,3 +1634,56 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .iltap .chev{grid-area:chev;display:inline-block;width:8px;height:8px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg);margin:0 2px 3px 0}
   .tbl.il tr[data-open=yes] .iltap .chev{transform:rotate(-135deg);margin-bottom:-3px}
 }
+
+/* ---------- Reference's layout (23 Oct, spec docs/specs/2026-10-23-planner-look-reference.md): the page's name as the
+   title with a muted line saying what it holds; the sections as large rows that open, as on Systems (the name, a muted
+   one-line note and a count, the chevron on the right), grouped under three small headings (Network, Fleet and fares,
+   Settings and data), each group one card; open, the section's full note leads its content, its tables have a header
+   row, row lines and numbers on the right, and scroll inside their own box on a phone. Only .rref and its parts here. */
+.rref{display:flex;flex-direction:column;gap:var(--gap-sec);min-width:0}
+.rref .rgroup{min-width:0}
+.rref .rgh{margin:0 0 12px;font:700 13px/1.3 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rref .rrows{padding:4px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);min-width:0}
+.rref details.rsec{margin:0;padding:0;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;background:none;min-width:0}
+.rref .rrows > details.rsec:first-child{border-top:0}
+.rref details.rsec > summary{display:grid;grid-template-columns:minmax(0,1fr) auto 18px;grid-template-areas:"name aside chev" "note aside chev";
+  align-items:center;gap:2px 16px;min-height:76px;margin:0;padding:16px 0}
+.rref details.rsec > summary::before{grid-area:chev;justify-self:end;width:12px;height:12px;margin:0;background-size:12px 12px}
+.rref details.rsec > summary .rst{grid-area:name;font:800 var(--t-h3)/1.3 var(--font);letter-spacing:-.01em;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.rref details.rsec > summary:hover .rst{color:var(--violet)}
+.rref details.rsec > summary .rshort{grid-area:note;margin:0;font:500 var(--t-small)/1.45 var(--font);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.rref details.rsec > summary .raside{grid-area:aside;display:inline-flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 10px;
+  font:600 var(--t-small)/1.3 var(--font);color:var(--muted);text-align:right}
+.rref details.rsec > summary .raside .link{font-size:var(--t-small)}
+/* open, the section's full note leads its content, so the row's short one steps aside */
+.rref details.rsec[open] > summary .rshort{display:none}
+.rref details.rsec[open] > summary{grid-template-areas:"name aside chev" "name aside chev"}
+.rref .rsb{padding:0 0 24px;min-width:0}
+.rref .rsb > .rlead{margin:0 0 14px;color:var(--muted);overflow-wrap:anywhere;max-width:120ch}
+.rref .rsb > .secondary{margin-top:14px}
+.rref .rsb .fg{margin-top:14px}
+.rref .rsb > .dim{overflow-wrap:anywhere}
+/* the tables: a hairline box, header row, row lines, numbers on the right; wide ones scroll inside their own box */
+.rref .tblwrap{border-radius:var(--r-md);box-shadow:inset 0 0 0 1px var(--line)}
+.rref .tbl{background:none;border:0;box-shadow:none;border-radius:0;overflow:visible}
+.rref .tbl th{white-space:nowrap;vertical-align:bottom}
+.rref .tbl td{vertical-align:middle}
+.rref .tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.rref .tbl td.num input{text-align:right}
+.rref .tbl.edit input,.rref .tbl.edit select{min-height:40px}
+.rref .tbl .link{white-space:nowrap}
+.rref .tbl td.dim{font-size:var(--t-small)}
+.rref tr.focusrow td{background:var(--porcelain)}
+.rref .rsb h4.rh{font:800 var(--t-body)/1.3 var(--font)}
+
+@media (max-width:640px){
+  .rref{gap:var(--gap-sec)}
+  .rref .rrows{padding:0 20px}
+  .rref details.rsec > summary{min-height:64px;padding:14px 0;grid-template-columns:minmax(0,1fr) 14px;grid-template-areas:"name chev" "note chev" "aside chev";gap:3px 12px}
+  .rref details.rsec[open] > summary{grid-template-areas:"name chev" "aside chev"}
+  .rref details.rsec > summary .rshort{white-space:normal}
+  .rref details.rsec > summary .raside{justify-content:flex-start;text-align:left}
+  .rref .rsb{padding:0 0 20px}
+  .rref .fg input,.rref .fg select{width:100%}
+  .rref .fg label{flex:1 1 140px;min-width:0}
+}
