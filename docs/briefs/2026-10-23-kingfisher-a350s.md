@@ -60,3 +60,11 @@ whether there's a fee. Gitesh reads them before returning.
 **C, 23 Oct (Gitesh):** "let's go for C for now". Gitesh reads the return terms and hands both back in the game; Claude
 logs the deposits and retires the two aircraft in the planner. The Scheduling chat's evening proposals spend the
 deposits on Delhi narrowbodies. Manual §3 updated the same night.
+
+**The return terms, found 23 Oct** (Gitesh; AirlineSim forum, "Ending a lease", 2017,
+https://forums.airlinesim.aero/t/ending-a-lease/14414): no fee for ending a lease. The aircraft goes back at the end of
+the current contract week. The lease is paid up to then, the security deposit comes back with the return, and the
+cabin is lost. Flights booked after the return are deleted with no cancellation fee; cancelling them by hand costs
+money. So VT-AAA (DEL) and VT-AAB (DEL), whose weekly leases were paid 21 and 22 Oct, keep flying Delhi–JFK until about
+28 and 29 Oct, and the 14.39M comes back then, not on the day the lease is ended. The thread is from 2017; the
+contract's end date on each aircraft's page in the game is the check.
