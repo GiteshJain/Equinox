@@ -73,8 +73,10 @@ as you make it. On a preview address the planner saves nothing and says **previe
 - **Aircraft on order:** each aircraft not yet in service, by airline: its type, when it arrives (UTC), its base and
   plan. One that has arrived with a plan card says **to file on Today**: its **File into planner** is on Today.
 - **The airline cards** at the foot: each airline's logo, whether it's flying, its hubs and focus cities (filled once a
-  route flies from them; never its stations), aircraft, routes, flights and block hours a day, its lowest maintenance, short and tight
-  turns (or **clean**), with its home city's photo behind when the website has one (the city is the airline's own,
+  route flies from them; never its stations), aircraft, routes, flights and block hours a day, its lowest maintenance
+  (since 23 Oct the game's figure from the latest night's fleet pages, "lowest maintenance 98%", for each aircraft the
+  game flies; the planner's estimate, with ≈, only for one not on them), short and tight turns (or **clean**: flying,
+  no short or tight turns and that lowest maintenance at 105% or more), with its home city's photo behind when the website has one (the city is the airline's own,
   *airlines.photo_city*). **Open fleet ›** opens the airline on Tails.
 
 ## Today
@@ -224,16 +226,22 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
 *Every aircraft: what it flies each week and how hard it works.*
 - **The list:** one airline at a time; filters for **Base**, **Type** and **Flying**, **No flights** or **Needs a look**
   (a short turn, a leg starting where the aircraft isn't, or maintenance under 105%), kept in the address. Each
-  aircraft's type, cabin, base, **Legs/wk** (flights a week), **Block h/day** (hours flown a day), **Maint.** (usable
-  ground time against the maintenance time the aircraft needs: 100% or more is enough; hover or tap for the hours) and
+  aircraft's type, cabin, base, **Legs/wk** (flights a week), **Block h/day** (hours flown a day), **Maint.** (since
+  23 Oct the game's own figure for an aircraft on the latest night's fleet pages, "106%" with no ≈, red under 100%,
+  amber under 105%, "In the game, last night's capture (22 Oct)" on hover; for any other aircraft, not on the fleet
+  pages yet, the planner's estimate of usable ground time against the maintenance time it needs, "≈106%", 100% or more
+  is enough, hover or tap for the hours) and
   **Routes**; a red dot marks a short turn or a leg starting elsewhere. **Add a tail** adds one by hand at the end of
   the list; **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
   flies a route. On a phone the list is a column of cards.
 - **An aircraft** (its own address, such as /planner/tails/N001AW): its type, cabin, legs a week, block hours a day, gap
-  target, minimum turn, gaps at the target this week and maintenance; the fields that change it (registration, type,
+  target, minimum turn, gaps at the target this week and maintenance (since 23 Oct the game's figure, no ≈, for an
+  aircraft on the latest fleet pages, as on the list; the estimate otherwise); the fields that change it (registration, type,
   base, cabin, the maintenance gap, notes; each saves when you leave it), **Delete aircraft…** (its round trips go and
   it's retired, after asking in the page); every issue (under the block-hours target, short and tight turns,
-  maintenance, legs starting elsewhere, the longest gap, rotations off wave), or **schedule clean**; its week as bars in
+  maintenance, legs starting elsewhere, the longest gap, rotations off wave; since 23 Oct an aircraft on the latest
+  fleet pages is judged on the game's maintenance, "maintenance 97% — under 100%", the rest on the estimate with ≈),
+  or **schedule clean**; its week as bars in
   its base's local time, red where a turn is short or the next leg starts elsewhere; and its legs by flight number with
   days, times, duration, the ground time to the next and the turn or gap. The types offered are the ones the airline
   may have (Reference), and the cabins its kind of airline's.
@@ -260,7 +268,8 @@ as one table, then counts you tap for detail. Nothing folds on arrival.
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
   as a round trip, launched today, and then opens the aircraft.
 - **The aircraft pop-up** (from Today's needs attention or a frequency's aircraft on Routes): its base, block hours a
-  day, legs a week, maintenance, every issue and its flights, with **Open in Tails**. Since 22 Oct **In the game**
+  day, legs a week, maintenance (since 23 Oct the game's figure, no ≈, where the latest fleet pages have it, the
+  estimate otherwise, as on the list), every issue (its maintenance judged on the same figure) and its flights, with **Open in Tails**. Since 22 Oct **In the game**
   beside the maintenance: the game's own maintenance and condition from the latest night's fleet pages ("103.8%
   maintenance · 83% condition · 22 Oct", red under the limit), so the planner's figure can be compared with the game's.
   Since 22 Oct **Replacement**: how it came and when it's replaced ("came new, replace at 3 years", "came used, replace

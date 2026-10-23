@@ -12,7 +12,7 @@
 // once, as the old Home's button did. Each action is one planner_save() call; the start's rules are read again after it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { tails as tailRules, type TailIssue } from "@rules";
+import { tails as tailRules } from "@rules";
 import { useNow } from "../../data/clock";
 import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
@@ -25,13 +25,15 @@ import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
 import { useFareLadder } from "../performance/reads";
+import { gameMaintenance } from "../systems/model";
+import { useFleetChecks } from "../systems/reads";
 import { useAirlineRoutes, useAirports, useMarkets } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
   addTailChanges, basesOf, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
-  rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type Filters, type PlanCardRow, type PlanLegRow,
+  issuesShown, rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type ShownIssue, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
 import {
@@ -60,6 +62,10 @@ export function Tails() {
   const cardsQ = usePlanCards(w);
   const planLegsQ = usePlanLegs(w);
   const hostQ = useGameHost(w);
+  // the game's maintenance from the latest night's fleet pages (fleet_checks(), the read the pop-up shares): the board
+  // and the issues show it for an aircraft the game flies (since 23 Oct); until it's read, or if it can't be, the estimate
+  const fleetQ = useFleetChecks(w);
+  const gameMaint = useMemo(() => gameMaintenance(fleetQ.data), [fleetQ.data]);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<TailAircraft | null>(null);
 
@@ -79,7 +85,7 @@ export function Tails() {
   const rules = useMemo(() => (startRules ? withAirports(startRules, airportsQ.data ?? []) : undefined), [startRules, airportsQ.data]);
 
   const mine = useMemo(() => tailsOf(all, airline?.id), [all, airline]);
-  const rows = useMemo(() => (rules ? tailRows(mine, filters, rules, configs) : []), [mine, filters, rules, configs]);
+  const rows = useMemo(() => (rules ? tailRows(mine, filters, rules, configs, gameMaint) : []), [mine, filters, rules, configs, gameMaint]);
   const chipLists = useMemo(() => (rules ? chips(mine, rules) : { bases: [], types: [] }), [mine, rules]);
   const flying = useMemo(() => (rules ? flyingIds(rules) : new Set<number>()), [rules]);
   const stations = useMemo(() => (rules && airline ? stationsOf(rules, airline.id) : undefined), [rules, airline]);
@@ -109,8 +115,10 @@ export function Tails() {
     (serviceRules ? fareCells(legs, cardFareLevels(serviceRules, card, legsByCard.get(card.id) ?? [], ladderQ.data)) : new Map<number, string>()),
   [serviceRules, legsByCard, ladderQ.data]);
 
-  const fig = useMemo(() => (rules && open ? tailRows([open], { base: "", type: "", status: "" }, rules, configs)[0]?.fig : undefined), [rules, open, configs]);
-  const issues: TailIssue[] = useMemo(() => (rules && open && fig?.week ? tailRules.issues(rules, open.id, rulesLegs(rules), fig.week, fig.maint) : []), [rules, open, fig]);
+  const openRow = useMemo(() => (rules && open ? tailRows([open], { base: "", type: "", status: "" }, rules, configs, gameMaint)[0] : undefined), [rules, open, configs, gameMaint]);
+  const fig = openRow?.fig;
+  const issues: ShownIssue[] = useMemo(() => (rules && open && fig?.week
+    ? issuesShown(tailRules.issues(rules, open.id, rulesLegs(rules), fig.week, fig.maint), openRow?.maint ?? null) : []), [rules, open, fig, openRow]);
   const roundTrips = useMemo(() => {
     if (!rules || !open) return [];
     const ids = new Set<number>();
@@ -258,7 +266,7 @@ export function Tails() {
                   <td data-l="Base">{r.base}</td>
                   <td data-l="Legs/wk">{r.fig.legsWk}</td>
                   <td data-l="Block h/day">{r.fig.blockDay.toFixed(1)}</td>
-                  <td data-l="Maint."><MaintPill fig={r.fig} /></td>
+                  <td data-l="Maint."><MaintPill fig={r.fig} shown={r.maint} /></td>
                   <td data-l="Routes">{r.fig.routes}</td>
                   <td><button type="button" className="link" data-deltail={r.a.registration} disabled={busy} onClick={() => onRemove(r.a)}>remove</button></td>
                 </tr>
@@ -286,7 +294,7 @@ export function Tails() {
         </div>
         <div className="detail" id="detail">
           {open && rules && fig && airline ? (
-            <AircraftPage rules={rules} a={open} configs={configs} fig={fig} issues={issues} types={typeList} bases={baseList}
+            <AircraftPage rules={rules} a={open} configs={configs} fig={fig} maint={openRow?.maint ?? null} issues={issues} types={typeList} bases={baseList}
               configsFor={(t) => cfgList(t || undefined)} roundTrips={roundTrips.length} busy={busy}
               onBack={() => navigate("/tails" + filtersQuery({ ...listFilters(filters), card: "", file: "" }))} onEdit={onEdit} onDelete={() => void onDelete()} />
           ) : reg && ready ? (

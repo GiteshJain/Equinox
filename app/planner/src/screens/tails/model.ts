@@ -117,13 +117,70 @@ export function maintPill(m: Maintenance | NoMaintenance | null | undefined): { 
   };
 }
 
-/** An issue in the old tailIssues' words. */
-export function issueWords(i: TailIssue): string {
+// ---------- the game's maintenance in place of the estimate (since 23 Oct, spec
+// docs/specs/2026-10-23-game-maintenance-on-tails.md): an aircraft on the latest night's fleet pages (fleet_checks()) shows
+// and is judged on the game's figure, with no ≈; any other keeps the planner's estimate. Plan cards and what-ifs keep the
+// estimate: the game has no figure for a schedule it isn't flying yet.
+/** The game's figure for an aircraft (systems' gameMaintenance()): as the game shows it, and the night it was read. */
+export interface GameMaintFigure { pct: number; night: string | null }
+/** The maintenance a screen shows for an aircraft: the game's or the estimate's, its whole percent and its class. */
+export interface ShownMaint { from: "game" | "estimate"; pct: number; level: "ok" | "warn" | "bad"; min_pct: number; target_pct: number; title: string }
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** A night as the fleet board writes it: "22 Oct"; "" without one. */
+const nightDay = (night: string | null | undefined): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(night ?? ""));
+  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? ""}` : "";
+};
+/** The tooltip on the game's figure: "In the game, last night's capture (22 Oct)". */
+export const gameMaintTitle = (night: string | null | undefined): string => `In the game, last night's capture${nightDay(night) ? ` (${nightDay(night)})` : ""}`;
+/** The estimate's tooltip: the hours behind it. */
+const estimateTitle = (m: Maintenance): string =>
+  `Estimated maintenance ratio: ${hhmm(Math.round(m.have_min_day))} of usable ground time a day against about ${hhmm(Math.round(m.need_min_day))} needed`;
+/** The maintenance shown for an aircraft: the game's when it has one (its class from settings.maintenance_min_pct and
+ *  maintenance_target_pct, the airline's own where it has one: bad under the minimum, warn under the target, ok
+ *  otherwise), else the estimate's; null when neither has a figure. */
+export function shownMaint(rules: Rules, airlineId: number | null, est: Maintenance | NoMaintenance | null | undefined,
+  game: GameMaintFigure | null | undefined): ShownMaint | null {
+  if (game && Number.isFinite(game.pct)) {
+    const min = Number(setting(rules, "maintenance_min_pct", airlineId)), target = Number(setting(rules, "maintenance_target_pct", airlineId));
+    if (Number.isFinite(min) && Number.isFinite(target)) {
+      return { from: "game", pct: Math.round(game.pct), level: game.pct < min ? "bad" : game.pct < target ? "warn" : "ok", min_pct: min, target_pct: target,
+        title: gameMaintTitle(game.night) };
+    }
+  }
+  if (!est || est.ratio == null || !("level" in est)) return null;
+  return { from: "estimate", pct: est.pct, level: est.level, min_pct: est.min_pct, target_pct: est.target_pct, title: estimateTitle(est) };
+}
+/** A shown figure's words: "106%" from the game, "≈106%" for the estimate, "400+" above 400 either way. */
+export const shownMaintText = (m: Pick<ShownMaint, "from" | "pct">): string => `${m.from === "game" ? "" : "≈"}${m.pct > 400 ? "400+" : m.pct}%`;
+/** The Maint. column's pill for a shown figure. */
+export function shownPill(m: ShownMaint | null): { text: string; cls: "ok" | "warn" | "bad"; title: string } | null {
+  return m ? { text: shownMaintText(m), cls: m.level, title: m.title } : null;
+}
+/** An issue as Tails words it: the library's, a maintenance one marked when it is the game's figure (no ≈). */
+export type ShownIssue = TailIssue & { game?: boolean };
+/** An aircraft's issues with its maintenance judged on the shown figure: the estimate's maintenance issue gives way to
+ *  the game's (none when the game's is fine), in the same place (after the short turns). */
+export function issuesShown(issues: readonly TailIssue[], m: ShownMaint | null): ShownIssue[] {
+  if (!m || m.from !== "game") return [...issues];
+  const out: ShownIssue[] = issues.filter((i) => i.kind !== "maintenance");
+  if (m.level === "ok") return out;
+  const at = out.findIndex((i) => i.kind !== "block_hours" && i.kind !== "short_turns");
+  const issue: ShownIssue = { kind: "maintenance", level: m.level, pct: m.pct, min_pct: m.min_pct, target_pct: m.target_pct, game: true };
+  out.splice(at < 0 ? out.length : at, 0, issue);
+  return out;
+}
+
+/** An issue in the old tailIssues' words; the game's maintenance without ≈ (since 23 Oct). */
+export function issueWords(i: ShownIssue): string {
   const s = (n: number) => (n > 1 ? "s" : "");
   switch (i.kind) {
     case "block_hours": return `flies ${i.block_hours_day.toFixed(1)} h a day — under the ${i.target_h} h target`;
     case "short_turns": return `${i.count} short turn${s(i.count)} a week`;
-    case "maintenance": return i.level === "bad" ? `maintenance ≈${i.pct}% — under ${i.min_pct}%, condition will fall` : `maintenance ≈${i.pct}% — little headroom`;
+    case "maintenance": {
+      const p = "game" in i && i.game ? `${i.pct}%` : `≈${i.pct}%`;
+      return i.level === "bad" ? `maintenance ${p} — under ${i.min_pct}%, condition will fall` : `maintenance ${p} — little headroom`;
+    }
     case "tight_turns": return `${i.count} turn${s(i.count)} a week under the ${i.margin_min}-min margin`;
     case "positions": return `${i.count} leg${s(i.count)} start where the aircraft isn't`;
     case "longest_gap": return `longest gap ${hhmm(i.gap_min)} — under the ${i.target_h} h target`;
@@ -214,14 +271,20 @@ export function tailsOf(aircraft: readonly TailAircraft[], airlineId: number | u
   return aircraft.filter((a) => a.airline_id === airlineId && a.status === "active").sort((a, b) => a.id - b.id);
 }
 
-export interface TailRow { a: TailAircraft; type: string; config: string; base: string; fig: TailFigures }
+/** A row of the list; maint is the Maint. column's figure: the game's for an aircraft on the latest fleet pages, else
+ *  the estimate (since 23 Oct). */
+export interface TailRow { a: TailAircraft; type: string; config: string; base: string; fig: TailFigures; maint: ShownMaint | null }
 
-/** The list as renderTailsCore shows it: the airline's tails with the base, type and status filters. */
-export function tailRows(mine: readonly TailAircraft[], f: Pick<Filters, "base" | "type" | "status">, rules: Rules, configs: ReadonlyMap<number, ConfigRow>): TailRow[] {
+/** The list as renderTailsCore shows it: the airline's tails with the base, type and status filters; with the game's
+ *  maintenance by aircraft id (systems' gameMaintenance()), each row's Maint. figure is the game's where it has one. */
+export function tailRows(mine: readonly TailAircraft[], f: Pick<Filters, "base" | "type" | "status">, rules: Rules, configs: ReadonlyMap<number, ConfigRow>,
+  game?: ReadonlyMap<number, GameMaintFigure>): TailRow[] {
   const legs = rulesLegs(rules);
   const out: TailRow[] = [];
   for (const a of mine) {
-    const row = { a, type: typeName(rules, a.aircraft_type_id), config: configCode(configs, a.cabin_config_id), base: a.base_code ?? "", fig: figuresOf(rules, a.id, legs) };
+    const fig = figuresOf(rules, a.id, legs);
+    const row = { a, type: typeName(rules, a.aircraft_type_id), config: configCode(configs, a.cabin_config_id), base: a.base_code ?? "", fig,
+      maint: shownMaint(rules, a.airline_id, fig.maint, game?.get(a.id)) };
     if (f.base && row.base !== f.base) continue;
     if (f.type && row.type !== f.type) continue;
     if (f.status === "flying" && !row.fig.legsWk) continue;

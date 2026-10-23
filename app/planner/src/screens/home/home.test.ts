@@ -3,10 +3,10 @@
 // (screens/today/today.test.ts; spec docs/specs/2026-10-20-today-performance-systems.md).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildRules, type RulesInput } from "@rules";
+import { buildRules, summary, type RulesInput } from "@rules";
 import { shortType, familyOf } from "../../ui/aircraftNames";
 import { addDays, dayDiff, dueWords, inDays, niceDate, untilText } from "../../ui/dates";
-import { greeting, heroFigures, keyFigureTiles, loadTile } from "./figures";
+import { cardClean, greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords } from "./figures";
 import { arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, zoomView } from "./map";
 import { familyWords, onOrder } from "./onOrder";
 import type { AircraftRow, CardsRead, HomeAirline } from "./reads";
@@ -93,6 +93,47 @@ describe("aircraft on order and the key figures", () => {
     expect(greeting(new Date("2026-10-13T13:40:00Z"))).toBe("Good morning. Here's the network right now.");
     expect(greeting(new Date("2026-10-13T17:00:00Z"))).toBe("Good afternoon. Here's the network right now.");
     expect(greeting(new Date("2026-10-13T02:00:00Z"))).toBe("Good evening. Here's the network right now.");
+  });
+});
+
+describe("the airline cards' lowest maintenance (23 Oct, spec docs/specs/2026-10-23-game-maintenance-on-tails.md)", () => {
+  const all = [1, 2, 3, 4, 5, 6, 7];
+  const leg = (id: number, rot: number, n: 1 | 2, from: string, to: string, aircraft: number, dep: number, blk: number) => ({
+    id, airline_id: 1, rotation_id: rot, leg_no: n, flight_no: 1000 + id, origin_code: from, dest_code: to, aircraft_id: aircraft, days_utc: all, dep_utc_min: dep, block_min: blk,
+  });
+  const rules = buildRules({ ...base, rotations: [{ id: 1, airline_id: 1, route_id: 1 }, { id: 2, airline_id: 1, route_id: 8 }],
+    flight_legs: [leg(1, 1, 1, "HUB", "AAA", 1, 420, 120), leg(2, 1, 2, "AAA", "HUB", 1, 620, 120), leg(3, 2, 1, "HUB", "FOC", 3, 480, 60), leg(4, 2, 2, "FOC", "HUB", 3, 580, 60)] });
+  const libLowest = summary.airlineCards(rules).find((c) => c.airline_id === 1)?.lowest_maintenance;
+  it("without fleet pages: the library's lowest estimate, with ≈", () => {
+    const m = lowestMaintenance(rules, 1, undefined);
+    expect(m?.from).toBe("estimate");
+    expect([m?.pct, m?.level]).toEqual([libLowest?.pct, libLowest?.level]);
+    expect(lowestWords(m ?? { from: "estimate", pct: 0 })).toBe(`lowest maintenance ≈${libLowest?.pct}%`);
+  });
+  it("the game's figure where the aircraft is on the fleet pages, without ≈; the estimate only for one without", () => {
+    const both = lowestMaintenance(rules, 1, new Map([[1, { pct: 98.4, night: "2026-10-22" }], [3, { pct: 250, night: "2026-10-22" }]]));
+    expect([both?.from, both?.pct, both?.level, both && lowestWords(both)]).toEqual(["game", 98, "bad", "lowest maintenance 98%"]);
+    // every flying aircraft on the fleet pages, all fine: the lowest of the game's
+    const fine = lowestMaintenance(rules, 1, new Map([[1, { pct: 300, night: "2026-10-22" }], [3, { pct: 180.2, night: "2026-10-22" }]]));
+    expect([fine?.from, fine?.pct, fine?.level]).toEqual(["game", 180, "ok"]);
+    // T-001 on the fleet pages, T-003 not: T-003 is judged on its estimate, with ≈, when that is the lower
+    const t3 = summary.airlineCards(buildRules({ ...rules.input, flight_legs: rules.input.flight_legs.filter((l) => l.aircraft_id === 3) }))
+      .find((c) => c.airline_id === 1)?.lowest_maintenance;
+    const mixed = lowestMaintenance(rules, 1, new Map([[1, { pct: 9999, night: "2026-10-22" }]]));
+    expect([mixed?.from, mixed?.pct]).toEqual(["estimate", t3?.pct]);
+    // "clean" follows the same figure: the library's card on the estimate, the game's where there is one
+    const card = summary.airlineCards(rules).find((c) => c.airline_id === 1);
+    if (!card) throw new Error("no card");
+    expect(cardClean(card, lowestMaintenance(rules, 1, undefined))).toBe(card.clean);
+    const flat = { ...card, short_turns: 0, tight_turns: 0 };
+    expect(cardClean(flat, fine)).toBe(true);
+    expect(cardClean(flat, both)).toBe(false);
+    expect(cardClean(flat, lowestMaintenance(rules, 1, new Map([[1, { pct: 104.9, night: "2026-10-22" }], [3, { pct: 300, night: "2026-10-22" }]])))).toBe(false);
+    expect(cardClean({ ...flat, short_turns: 1 }, fine)).toBe(false);
+    expect(cardClean({ ...flat, flying: false }, fine)).toBe(false);
+    expect(cardClean(flat, null)).toBe(false);
+    // an idle aircraft (T-002) counts for nothing, as on the library's card
+    expect(lowestMaintenance(rules, 1, new Map([[2, { pct: 10, night: "2026-10-22" }], [1, { pct: 300, night: "2026-10-22" }], [3, { pct: 300, night: "2026-10-22" }]]))?.pct).toBe(300);
   });
 });
 

@@ -4,20 +4,22 @@
 // tailIssues, which the spec asks for here too), the week strip in the base's local time and its legs by flight number
 // with the ground time to the next and the turn or gap. Every figure is the planning library's (model.ts words them).
 import { useState, type FocusEvent, type KeyboardEvent } from "react";
-import type { Rules, TailIssue } from "@rules";
+import type { Rules } from "@rules";
 import { ConfirmPanel } from "../../ui/Confirm";
 import {
-  daysText, gapWords, H, headerWords, hhmm, issueWords, legGroups, maintPill, tailNotes, weekStrip, DAYS, type ConfigRow, type TailAircraft, type TailFigures,
-  type TailField,
+  daysText, gapWords, H, headerWords, hhmm, issueWords, legGroups, maintPill, shownPill, tailNotes, weekStrip, DAYS, type ConfigRow, type ShownIssue, type ShownMaint,
+  type TailAircraft, type TailFigures, type TailField,
 } from "./model";
 
-export function MaintPill({ fig }: { fig: TailFigures }) {
-  const p = maintPill(fig.maint);
+/** The maintenance pill: the planner's estimate (≈), or, given a shown figure (Tails' board, since 23 Oct), that one:
+ *  the game's for an aircraft on the latest fleet pages. */
+export function MaintPill({ fig, shown }: { fig: TailFigures; shown?: ShownMaint | null }) {
+  const p = shown !== undefined ? shownPill(shown) : maintPill(fig.maint);
   if (!p) return <span className="dim">—</span>;
-  return <span className={`pill ${p.cls}`} title={p.title} data-maint>{p.text}</span>;
+  return <span className={`pill ${p.cls}`} title={p.title} data-maint={shown?.from ?? "estimate"}>{p.text}</span>;
 }
 
-export function Issues({ issues }: { issues: readonly TailIssue[] }) {
+export function Issues({ issues }: { issues: readonly ShownIssue[] }) {
   return (
     <div className="ckb" data-figure="tails: issues">
       {issues.length ? issues.map((i, k) => <span key={k} className="pill bad" data-issue={i.kind}>{issueWords(i)}</span>)
@@ -41,7 +43,9 @@ export interface AircraftPageProps {
   a: TailAircraft;
   configs: ReadonlyMap<number, ConfigRow>;
   fig: TailFigures;
-  issues: readonly TailIssue[];
+  /** The maintenance shown in the header: the game's for an aircraft on the latest fleet pages, else the estimate. */
+  maint: ShownMaint | null;
+  issues: readonly ShownIssue[];
   types: readonly string[];
   bases: readonly string[];
   configsFor: (type: string) => string[];
@@ -81,7 +85,7 @@ export function AircraftPage(p: AircraftPageProps) {
       <div className="dhead">
         <button type="button" className="back" id="back-tail" onClick={p.onBack}>‹ Tails</button>
         <h2>{a.registration}</h2>
-        <div className="dsub" data-figure="tails: aircraft">{headerWords(rules, a, p.configs, fig)} <MaintPill fig={fig} /></div>
+        <div className="dsub" data-figure="tails: aircraft">{headerWords(rules, a, p.configs, fig)} <MaintPill fig={fig} shown={p.maint} /></div>
         <div className="fg">
           {text("id", "Registration", a.registration)}
           {select("type", "Type", type, p.types)}

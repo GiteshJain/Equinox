@@ -21,6 +21,8 @@ import { ErrorBox } from "../../ui/ErrorBox";
 import { Pill } from "../../ui/Pill";
 import { RoutePopup } from "../routes/RoutePopup";
 import { itemRoute } from "../screens";
+import { gameMaintenance } from "../systems/model";
+import { useFleetChecks } from "../systems/reads";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import type { HomeAirline } from "./reads";
 import { AirlineCards } from "./AirlineCards";
@@ -43,6 +45,10 @@ export function Home() {
   const planCardsQ = usePlanCards(w);
   const cardsQ = useAirlineCards(w);
   const photosQ = useSitePhotos();
+  // the game's maintenance from the latest night's fleet pages (fleet_checks(), the read Tails and its pop-up share): the
+  // airline cards' lowest maintenance uses it where it has a figure (since 23 Oct); until it's read, the estimate
+  const fleetQ = useFleetChecks(w);
+  const gameMaint = useMemo(() => (fleetQ.data ? gameMaintenance(fleetQ.data) : undefined), [fleetQ.data]);
   // the route pop-up a click on the map's route opens (Routes' RoutePopup, build pull request 6)
   const [popup, setPopup] = useState<number | null>(null);
   // the aircraft pop-up (Tails' AircraftPopup, build pull request 7), kept in the address (/planner/?aircraft=N001AW) so a
@@ -109,7 +115,7 @@ export function Home() {
           ? <OnOrderBoard data={onOrder(aircraftQ.data, rules, new Map(planCardsQ.data.map((p) => [p.aircraft_id, p.title] as const)), airlines, now.getTime())} now={now.getTime()} />
           : null}
 
-        {cards ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} /> : null}
+        {cards && rules ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} rules={rules} game={gameMaint} /> : null}
       </main>
     </>
   );
