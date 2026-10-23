@@ -170,6 +170,15 @@ Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feede
 
 ### 3. Fleet and orders
 
+#### Replacement by age
+*Since 22 Oct (Gitesh, Scheduling chat), replacing the 3.5-year limit set an hour earlier.* Aircraft ordered new are
+replaced at 3 years; aircraft taken from the used market, at 10 years. N023AW (3.6 years) and 5Y-AAC (7.2 years, a
+bid that couldn't be withdrawn) are kept under it · why: used aircraft are taken because they're cheaper, and Gitesh
+chose to fly them longer than new ones. The wording it replaced, in §3:
+"- **No leased aircraft older than 3.5 years:** an aircraft is replaced when it reaches 3.5 years, and a used aircraft
+is taken only under that age." The used-market rule's "on the default line, under 3.5 years old" went back to "on
+the default line".
+
 #### No leased aircraft older than 3.5 years
 *Since 22 Oct (Gitesh, Scheduling chat).* Leased aircraft fly until they are 3.5 years old and are then replaced; a
 used aircraft is taken only under that age. Before, the manual set no age limit, and the evening of 22 Oct took
