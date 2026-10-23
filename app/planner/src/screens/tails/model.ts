@@ -372,6 +372,12 @@ export function deliveryCounts(rows: readonly DeliveryRow[]): { onOrder: number;
     toFile: rows.filter((r) => r.status === "unscheduled" && !!r.card).length };
 }
 /** The routes an aircraft flies this week, as "HUB–AAA", in the week's order (the list's Routes cell, full on hover). */
+/** The list's Routes cell: "—" (dim) for an aircraft that flies no route; else the routes' names, or their count when
+ *  the start doesn't carry their names. */
+export function routesCell(count: number, names: readonly string[]): { kind: "none" | "names" | "count"; text: string } {
+  if (!count && !names.length) return { kind: "none", text: "—" };
+  return names.length ? { kind: "names", text: names.join(", ") } : { kind: "count", text: String(count) };
+}
 export function routeNames(rules: Rules, week: AircraftWeek | null): string[] {
   return (week?.route_ids ?? []).map((id) => rules.routes.get(id)).filter((r): r is NonNullable<typeof r> => !!r).map((r) => `${r.hub_code}–${r.dest_code}`);
 }

@@ -13,7 +13,7 @@ import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
   filingChanges, maintPill, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
-  acquiredWords, deliveryCounts, headerPills, headerWords, issuesShown, routeNames, tailCounts, tailsAnswer, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
+  acquiredWords, deliveryCounts, headerPills, routesCell, headerWords, issuesShown, routeNames, tailCounts, tailsAnswer, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
 
@@ -169,6 +169,15 @@ describe("the look (23 Oct, spec docs/specs/2026-10-23-planner-look-tails.md)", 
     const t1 = rows.find((r) => r.a.registration === "T-001");
     expect(routeNames(rules, t1?.fig.week ?? null)).toHaveLength(t1?.fig.routes ?? -1);
     expect(routeNames(rules, null)).toEqual([]);
+  });
+  it("shows a dim dash, not 0, in the Routes cell of an aircraft with no routes (23 Oct: N002AW showed 0)", () => {
+    const t2 = rows.find((r) => r.a.registration === "T-002");
+    if (!t2) throw new Error("no T-002");
+    expect(routesCell(t2.fig.routes, routeNames(rules, t2.fig.week))).toEqual({ kind: "none", text: "—" });
+    expect(routesCell(0, [])).toEqual({ kind: "none", text: "—" });
+    expect(routesCell(2, ["HUB–AAA", "HUB–FOC"])).toEqual({ kind: "names", text: "HUB–AAA, HUB–FOC" });
+    // routes the start doesn't name: their count, never blank
+    expect(routesCell(3, [])).toEqual({ kind: "count", text: "3" });
     const t3 = rows.find((r) => r.a.registration === "T-003");
     if (!t3) throw new Error("no T-003");
     const pills = headerPills(rules, t3.a, configMap, t3.fig).map((p) => p.text);

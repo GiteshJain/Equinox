@@ -40,7 +40,7 @@ import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
-  addTailChanges, basesOf, deliveryCounts, routeNames, tailCounts, tailsAnswer, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
+  addTailChanges, basesOf, deliveryCounts, routeNames, routesCell, tailCounts, tailsAnswer, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
   issuesShown, rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type ShownIssue, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
@@ -298,6 +298,7 @@ export function Tails() {
               <tr><th>Tail</th><th>Type</th><th>Cabin</th><th className="num">Legs/wk</th><th className="num">Block h/day</th><th>Maint.</th><th>Routes</th><th></th></tr>
               {rows.map((r) => {
                 const names = rules ? routeNames(rules, r.fig.week) : [];
+                const rc = routesCell(r.fig.routes, names);
                 const unf = unfolded === r.a.registration;
                 return (
                   <tr key={r.a.id} className={(open?.id === r.a.id ? "sel" : "") + (unf ? " unf" : "")} data-tail={r.a.registration} role="link" tabIndex={0}
@@ -310,8 +311,8 @@ export function Tails() {
                     <td data-l="Legs/wk" className="num tx">{r.fig.legsWk}</td>
                     <td data-l="Block h/day" className="num tblk">{r.fig.blockDay.toFixed(1)}</td>
                     <td data-l="Maint." className="tmnt"><MaintPill fig={r.fig} shown={r.maint} /></td>
-                    <td data-l="Routes" className="tx troutes" title={names.join(", ") || undefined}>
-                      <span className="trn">{r.fig.routes}</span>{names.length ? <span className="trl">{names.join(", ")}</span> : null}</td>
+                    <td data-l="Routes" className="tx troutes" data-routes={rc.kind} title={rc.kind === "names" ? rc.text : undefined}>
+                      {rc.kind === "none" ? <span className="dim">—</span> : <span className={rc.kind === "names" ? "trl" : "trn"}>{rc.text}</span>}</td>
                     <td className="tact"><button type="button" className="link tunf" aria-expanded={unf} aria-label={unf ? `Fold ${r.a.registration}` : `More about ${r.a.registration}`}
                       onClick={() => setUnfolded(unf ? "" : r.a.registration)}><span className="chev" /></button>
                       <button type="button" className="link" data-deltail={r.a.registration} disabled={busy} onClick={() => onRemove(r.a)}>remove</button></td>
