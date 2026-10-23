@@ -67,6 +67,9 @@ flight counts once so the figure sits on the same scale as direct departures; th
 the way out (with none, 270 pairs "had" one). Display only until Gitesh decides whether connections count in the
 openings, the contested test or the fare pause.
 
+*Rivals' connecting options built 23 Oct (`Equinox` #94, spec `docs/specs/2026-10-23-rival-connections.md`) and moved
+into §3.* The *Decided, not yet built* entry, retired with the build: "- **To build: rivals' connecting options** (brief `docs/briefs/2026-10-23-rival-connections.md`, option A, Gitesh 23 Oct). When the evening's scan finishes, the database works out each rival's one-stop connections on our pairs (flown and on our route lists) from that scan's schedules: same airline, the second flight leaving from the airport's minimum connection time to 8 hours after the first lands, both legs together at most 1.5 times the direct distance (`rival_connection_detour_max`). Each rival flight that connects counts once, as departures a week, shown beside direct departures and never added to them, on Competition, a route's page and the weekly report. Display only: the openings, the contested test, hubs first, the three biggest competitors and the fare pause don't read it. *(decided 23 Oct; history: rule-history.md)*"
+
 ### Decided, not yet built: each week's rivals by pair, kept for good
 *Decided 23 Oct (Gitesh, Building chat, option C of `docs/briefs/2026-10-23-rival-pairs-history.md`).* Why: the
 monthly archive deletes the scans' full schedules after a full calendar month, and the route page's rival line reads

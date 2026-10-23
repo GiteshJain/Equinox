@@ -26,14 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **To build: rivals' connecting options** (brief `docs/briefs/2026-10-23-rival-connections.md`, option A, Gitesh
-  23 Oct). When the evening's scan finishes, the database works out each rival's one-stop connections on our pairs
-  (flown and on our route lists) from that scan's schedules: same airline, the second flight leaving from the airport's
-  minimum connection time to 8 hours after the first lands, both legs together at most 1.5 times the direct distance
-  (`rival_connection_detour_max`). Each rival flight that connects counts once, as departures a week, shown beside
-  direct departures and never added to them, on Competition, a route's page and the weekly report. Display only: the
-  openings, the contested test, hubs first, the three biggest competitors and the fare pause don't read it.
-  *(decided 23 Oct; history: rule-history.md)*
 - **To build: each week's rivals by pair, kept for good** (brief `docs/briefs/2026-10-23-rival-pairs-history.md`,
   option C, Gitesh 23 Oct). From the first finished scan on or after each Saturday, each airline's weekly departures on
   every pair in the world are kept for good (`scan_pair_airlines`), so a route's *Rivals on the pair* reaches back past
@@ -330,7 +322,13 @@ Details and open points: `docs/decisions.md`.
   30 Nov, §4) the trunks come first, shortest first, marked, with hubs first not applied to them and no distance
   leaving one out (the A350s beyond the A321XLR); the other openings follow as always. The list marks trunks; whether
   each makes sense stays the Scheduling chat's judgment. Freighters are no one's rivals: market share, threats and the
-  openings' rivals count passenger flights only, by the weekly report's rule. *(since 21 Oct; history:
+  openings' rivals count passenger flights only, by the weekly report's rule.
+  **Rivals' connections are shown, never counted** (since 23 Oct): when the evening's scan finishes, the database works
+  out each rival's one-stop connections on our pairs (flown and on our route lists): same airline, from the connecting
+  airport's minimum connection time to 8 hours, both legs together at most 1.5 times the direct distance
+  (`rival_connection_detour_max`), each connecting flight counted once as departures a week. Competition, a route's
+  page and the weekly report show them beside direct departures, never added; the openings, the contested test, hubs
+  first, the three biggest competitors and the fare pause read direct departures only. *(since 21 Oct; history:
   rule-history.md)*
 - **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
   profit per aircraft hour is at or above its airline's middle route, and **raise fares** when it's below. An aircraft
