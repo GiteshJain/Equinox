@@ -68,3 +68,6 @@ cabin is lost. Flights booked after the return are deleted with no cancellation 
 money. So VT-AAA (DEL) and VT-AAB (DEL), whose weekly leases were paid 21 and 22 Oct, keep flying Delhi–JFK until about
 28 and 29 Oct, and the 14.39M comes back then, not on the day the lease is ended. The thread is from 2017; the
 contract's end date on each aircraft's page in the game is the check.
+
+**Leases ended 23 Oct (Gitesh).** VT-AAA (DEL) returns Wed 28 Oct 05:11 UTC; VT-AAB (DEL) Thu 29 Oct 11:11 UTC (each
+aircraft's contract in the game). Both fly Delhi–JFK until then; the deposits come back on those dates.
