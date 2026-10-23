@@ -2,13 +2,15 @@
 // the group line, a market's share with its arrow and its bar (ours first, the top rivals, the rest as others), the
 // airline's share across its markets, the threats' numbers and days, the openings' words (stars, distance, rivals,
 // variant, hubs first), a profile's line, and Today's threat items (the latest scan's only, each with its key and words,
-// linking to Competition). Every figure itself is competition()'s (database/tests/competition_test.sql).
+// linking to Competition). Since 23 Oct (spec docs/specs/2026-10-23-planner-look-competition.md) the page's answers (the
+// titles), a tile's top opening, a threat's move in short, the threats newest first and the rows' counts. Every figure itself is competition()'s (database/tests/competition_test.sql).
 import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { readFileSync } from "node:fs";
 import { homeAttention, type AttentionInput } from "../today/attention";
 import { ATT_KIND, attKind, groupAttention } from "../../ui/attention";
 import {
+  airlineHeadline, groupHeadline, marketsRowWords, profilesRowWords, threatMoveWords, threatsNewestFirst, threatsRowWords, topOpeningWords,
   allowedWords, changeWords, dayWords, groupWords, kmWords, latestThreats, n0, openingsLine, otherListsWords, overallShare, pctWords, profileWords, rivalsWords,
   scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer,
   type Market, type Opening,
@@ -147,5 +149,33 @@ describe("Today: the rivals' moves from the latest scan in needs attention", () 
     // none until read, and none when the latest scan showed none
     expect(homeAttention({ ...input, threats: null })).toEqual([]);
     expect(homeAttention({ ...input, threats: [] })).toEqual([]);
+  });
+});
+
+describe("the page's answers and rows (23 Oct, the new look)", () => {
+  it("the titles: the group's share of the world's departures, an airline's share of its markets", () => {
+    expect(groupHeadline(answer().group)).toBe("4.1% of the world's departures");
+    expect(groupHeadline(null)).toBe("Competition");
+    expect(airlineHeadline(overallShare([market()]))).toBe("20.0% of its markets");
+    expect(airlineHeadline(overallShare([]))).toBe("No markets yet");
+  });
+  it("a tile's top opening in one line, and none", () => {
+    expect(topOpeningWords(answer())).toBe("PVG–CTU · 5★ · A320neo SHARP");
+    expect(topOpeningWords(answer({ openings: [] }))).toBe("no openings");
+  });
+  it("a threat's move in short: started, or added with then and now", () => {
+    expect(threatMoveWords(threat())).toBe("started, 14 a week");
+    expect(threatMoveWords(threat({ kind: "added", then: 7, added: 7 }))).toBe("added 7: 7 → 14 a week");
+  });
+  it("the threats newest first, the database's order kept within a day", () => {
+    const a = threat({ rival_id: 1, on: "2026-10-17T19:00:00.000Z" });
+    const b = threat({ rival_id: 2, on: "2026-10-20T19:00:00.000Z" });
+    const c = threat({ rival_id: 3, on: "2026-10-17T19:00:00.000Z" });
+    expect(threatsNewestFirst([a, b, c]).map((t) => t.rival_id)).toEqual([2, 1, 3]);
+  });
+  it("the rows' counts", () => {
+    expect([marketsRowWords(0), marketsRowWords(1), marketsRowWords(4)]).toEqual(["no routes yet", "1 market", "4 markets"]);
+    expect([profilesRowWords(0), profilesRowWords(10)]).toEqual(["no rivals", "10 rivals"]);
+    expect([threatsRowWords(0), threatsRowWords(3)]).toEqual(["none in 7 days", "3 in 7 days"]);
   });
 });

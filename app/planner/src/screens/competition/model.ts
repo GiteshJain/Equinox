@@ -195,6 +195,38 @@ export function openingsLine(a: Pick<CompetitionAnswer, "openings_count" | "open
 /** The threats line for a card: "3 threats" or "no threats". */
 export const threatsLine = (n: number): string => (n ? `${n} threat${n === 1 ? "" : "s"} in the last 7 days` : "no threats in the last 7 days");
 
+// ---------- the page's answers and rows (since 23 Oct, spec docs/specs/2026-10-23-planner-look-competition.md)
+/** The group page's title: our departures' share of the world's ("4.1% of the world's departures"). */
+export function groupHeadline(g: GroupLine | null | undefined): string {
+  return g && g.share != null ? `${pctWords(g.share)} of the world's departures` : "Competition";
+}
+
+/** An airline page's title: its share across its markets ("16.7% of its markets"), or that it has none yet. */
+export function airlineHeadline(s: Pick<ReturnType<typeof overallShare>, "share">): string {
+  return s.share != null ? `${pctWords(s.share)} of its markets` : "No markets yet";
+}
+
+/** A group tile's top opening in one line: "PVG–CTU · 5★ · A320neo SHARP", or none. */
+export function topOpeningWords(a: Pick<CompetitionAnswer, "openings">): string {
+  const o = a.openings[0];
+  return o ? `${o.route} · ${starsWords(o.stars)} · ${variantWords(o.variant)}` : "no openings";
+}
+
+/** A threat's move in short, for the threats table: "started, 14 a week" or "7 → 14 a week". */
+export function threatMoveWords(t: Pick<Threat, "kind" | "then" | "added">): string {
+  return t.kind === "started" ? `started, ${n0(t.added)} a week` : `added ${n0(t.added)}: ${n0(t.then)} → ${n0(t.then + t.added)} a week`;
+}
+
+/** The threats newest first (by the scan's day), keeping the order they came in within a day. */
+export function threatsNewestFirst<T extends Pick<Threat, "on">>(items: readonly T[]): T[] {
+  return items.map((t, i) => ({ t, i, at: Date.parse(t.on) || 0 })).sort((x, y) => y.at - x.at || x.i - y.i).map((x) => x.t);
+}
+
+/** The airline page's rows: each one's count, for the end of the row. */
+export const marketsRowWords = (n: number): string => (n ? `${n} market${n === 1 ? "" : "s"}` : "no routes yet");
+export const profilesRowWords = (n: number): string => (n ? `${n} rival${n === 1 ? "" : "s"}` : "no rivals");
+export const threatsRowWords = (n: number): string => (n ? `${n} in 7 days` : "none in 7 days");
+
 // ---------- Today: the threats from the latest scan in Needs attention
 export interface ThreatItem { airline_id: number; code: string | null; threat: Threat }
 
