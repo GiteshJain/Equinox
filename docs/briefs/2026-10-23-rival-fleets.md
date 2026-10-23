@@ -64,4 +64,7 @@ overview page. **It needs one saved copy of Icelandair's overview page** from Gi
 - **The 25% flag fires on many rivals at once:** raise it to 35%.
 
 ## Outcome
-*Pending Gitesh's decision.*
+**A, 23 Oct (Gitesh, Building chat):** every evening, all enterprises, as part of the world scan; the flags as
+recommended (25% of the fleet and at least 5 on order; aircraft on order with no flights yet). Found while saving the
+test sample: the overview page reads signed out (the built-in browser, not signed in, showed the full Fleet table), so
+the fallback `gscan.py` needs only the redirect and its session cookie, as for the schedule pages.

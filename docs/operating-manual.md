@@ -34,6 +34,13 @@ Until each is built and merged, the rules below stand as they are.
   needs at least 10 flights, else it waits a week. Under launch the ladder only climbs or holds (no 5-point cuts). The
   numbers become `settings` rows (`fare_under_launch_*`, Ryanair's levels its own row). Until it's built, §5's "never under launch" stands. *(decided 23 Oct, these steps
   the same day, Ryanair's 75% the same day; history: rule-history.md)*
+- **To build: rivals' fleets in the world scan** (brief `docs/briefs/2026-10-23-rival-fleets.md`, option A, Gitesh
+  23 Oct). Each evening's scan also reads every enterprise's overview page (its Fleet table, about 171 pages, about 3
+  minutes more) and keeps each rival's fleet and aircraft on order by type with the scan. Competition and the weekly
+  report's three competitors show them with the change since the week-before scan, and flag a rival whose aircraft on
+  order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`), and one with
+  aircraft on order and no flights yet. Until it's built, §7's scan reads schedules and airports only. *(decided
+  23 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 

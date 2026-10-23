@@ -49,6 +49,12 @@ Every rule in force for the equinox. group, with the date it started and why. De
 #### A frequency taken away isn't tracked yet
 From the built item "New frequencies and the fare ladder are built" (below, *Built from the decision list*).
 
+### Decided, not yet built: rivals' fleets in the world scan
+*Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-fleets.md` chosen in
+the Building chat).* Why: the scan read schedules only, so Icelandair's 99 aircraft and 44 on order showed nowhere.
+Every evening rather than weekly (the brief recommended weekly): the earliest warning, for about 3 minutes more an
+evening. The 25% flag: a quarter more aircraft on the way; at least 5 keeps a small start-up's single order off it.
+
 ### Decided, not yet built: point-to-point routes away from our bases
 *Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
 manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base
