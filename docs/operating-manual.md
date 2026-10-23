@@ -273,9 +273,9 @@ Details and open points: `docs/decisions.md`.
   The proposal goes one airline at a time: each airline's order is decided, ordered and logged before the next is
   shown. Gitesh orders that evening. *(since 18 Oct; history: rule-history.md)*
   - **The used market too:** each evening's proposal also looks at the game's used aircraft offers (Aircraft
-    Market) and proposes a bid where one on the default line flies the airline's chosen routes for
-    less than a new order. The most we bid is the new aircraft's own price (its factory price's deposit and weekly lease); above that,
-    or when outbid, the airline orders new. Gitesh places the bid and says when the auction closes; Claude logs it and
+    Market) and proposes a bid where one on the default line, with at least a year to fly before its replacement at
+    10 years (9 years old at most), flies the airline's chosen routes for less than a new order. The most we bid is
+    the new aircraft's own price (its factory price's deposit and weekly lease); above that, or when outbid, the airline orders new. Gitesh places the bid and says when the auction closes; Claude logs it and
     writes the plan card as for a new order. *(since 22 Oct; history: rule-history.md)*
 - **When an airline can order: the cash forecast.** Planner → Today → Orders says who can order now or from when, and
   the safe types; the detail is Performance → the airline → "Cash, next 14 days": captured cash, plus flight

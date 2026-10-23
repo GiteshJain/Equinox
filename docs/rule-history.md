@@ -170,6 +170,11 @@ Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feede
 
 ### 3. Fleet and orders
 
+#### Used aircraft: at least a year left
+*Since 22 Oct (Gitesh, Scheduling chat).* A used aircraft is taken only with at least a year to fly before its
+replacement at 10 years, so 9 years old at most · why: Gitesh: "it's fine as long as it can fly at least 1 year".
+Before, the used-market rule set no age ("on the default line").
+
 #### Replacement by age
 *Since 22 Oct (Gitesh, Scheduling chat), replacing the 3.5-year limit set an hour earlier.* Aircraft ordered new are
 replaced at 3 years; aircraft taken from the used market, at 10 years. N023AW (3.6 years) and 5Y-AAC (7.2 years, a
