@@ -261,7 +261,9 @@ Details and open points: `docs/decisions.md`.
   `replace_warn_days`; each aircraft's `aircraft.acquired` says new or used, and Today's Fleet group warns from 60 days
   before, by the game's age. *(since 22 Oct; history: rule-history.md)*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
-  Kingfisher's two Delhi–JFK A350s stay as they are. *(since 28 Sep)*
+  Kingfisher's two Delhi–JFK A350s (VT-AAA and VT-AAB, DEL) are handed back and their security deposits go into
+  narrowbodies for Delhi (brief `docs/briefs/2026-10-23-kingfisher-a350s.md`, option C); Kingfisher's US flying waits
+  for long-haul's turn. *(since 28 Sep; the A350s since 23 Oct; history: rule-history.md)*
 - **Route first, then the airline, then the aircraft.** The Scheduling chat picks the routes the group should open
   next, then the airline that flies them (hubs first and one airline per city pair, below and §2), then the variant
   that seats the market and reaches the city (the default line, above) and its cabin. That is what gets ordered: the

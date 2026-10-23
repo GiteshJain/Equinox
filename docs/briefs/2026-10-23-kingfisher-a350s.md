@@ -57,4 +57,6 @@ whether there's a fee. Gitesh reads them before returning.
   narrowbodies still earn more.
 
 ## Outcome
-*Waiting for Gitesh.*
+**C, 23 Oct (Gitesh):** "let's go for C for now". Gitesh reads the return terms and hands both back in the game; Claude
+logs the deposits and retires the two aircraft in the planner. The Scheduling chat's evening proposals spend the
+deposits on Delhi narrowbodies. Manual §3 updated the same night.

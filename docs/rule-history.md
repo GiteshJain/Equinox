@@ -170,6 +170,14 @@ Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feede
 
 ### 3. Fleet and orders
 
+#### Kingfisher's A350s handed back
+*Since 23 Oct (Gitesh, review chat, brief `docs/briefs/2026-10-23-kingfisher-a350s.md`, option C).* Earlier wording:
+"Kingfisher's two Delhi–JFK A350s stay as they are." · why: Delhi–JFK earned about its two leases (1.45M of flight profit
+a week against 1.44M) while the pair held 14.39M of security deposits, which come back on return. That money buys about
+six A321neo Lights for Delhi's sold-out network, about +2.5 to +3.1M a week after leases, and about 250 more departures
+a week towards Delhi's 750. The cost is Kingfisher's only US route until long-haul's turn. The 28 Nov Delhi–JFK review
+(to-do #3) is no longer needed.
+
 #### Used aircraft: at least a year left
 *Since 22 Oct (Gitesh, Scheduling chat).* A used aircraft is taken only with at least a year to fly before its
 replacement at 10 years, so 9 years old at most · why: Gitesh: "it's fine as long as it can fly at least 1 year".
