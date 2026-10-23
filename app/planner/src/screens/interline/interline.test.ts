@@ -3,7 +3,8 @@
 // (FR, group only) flies to Japan; a waiting plan card of Test Air's goes to Brazil.
 import { describe, expect, it } from "vitest";
 import {
-  agreementChange, airportsOf, classify, coveredWords, filterSearch, interlineRows, isOpen, parseFilters, parseRules, planOrder, rtWords, shownRows, statusOf,
+  agreementChange, airportsOf, answerWords, byAirline, classify, coveredWords, filterSearch, interlineRows, isOpen, parseFilters, parseRules, planOrder, rtWords,
+  shownRows, statusCounts, statusOf,
   type AgreementRow, type IlRow,
 } from "./model";
 
@@ -66,6 +67,13 @@ describe("Interline's filters", () => {
     expect(filterSearch({ airline: "TA", status: "open" })).toBe("?airline=TA&status=open");
     expect(parseFilters("?status=nonsense").status).toBe("");
   });
+  it("since 23 Oct each status's tile filters by it: not contacted, requested and no partner too", () => {
+    const codeOf = (id: number) => airlines.find((a) => a.id === id)?.code ?? null;
+    expect(shownRows(rows, parseFilters("?status=none"), codeOf, status).map((r) => r.cc)).toEqual(["BR"]);
+    expect(shownRows(rows, parseFilters("?status=requested"), codeOf, status).map((r) => r.cc)).toEqual(["ID"]);
+    expect(shownRows(rows, parseFilters("?status=nopartner"), codeOf, status)).toEqual([]);
+    expect(filterSearch(parseFilters("?airline=TA&status=nopartner"))).toBe("?airline=TA&status=nopartner");
+  });
   it("the old statuses: to_sign is requested, no row is not contacted; signed, declined and no partner are no longer open", () => {
     expect(statusOf(undefined)).toBe("none");
     expect(statusOf(agreement({ status: "to_sign" }))).toBe("requested");
@@ -88,5 +96,21 @@ describe("Interline's edits, as the old adapter wrote them", () => {
     expect(agreementChange(1, 1, "JP", agreement({ status: "signed" }), "status", "none")).toEqual({ table: "interline_agreements", op: "delete", key: { id: 9 }, base: "t" });
     expect(agreementChange(1, 1, "JP", undefined, "notes", "  ")).toBeNull();
     expect(agreementChange(1, 1, "JP", agreement({ status: "signed", note: "x" }), "status", "none")?.values).toEqual({ status: null });
+  });
+});
+
+describe("Interline's page head and tiles (23 Oct)", () => {
+  const status = (r: IlRow) => statusOf(r.cc === "JP" ? agreement({ status: "signed" }) : r.cc === "ID" ? agreement({ status: "to_sign" }) : undefined);
+  it("the answer is the title: the agreements still to sign, or all in place", () => {
+    expect(answerWords(5)).toBe("5 agreements to set up");
+    expect(answerWords(1)).toBe("1 agreement to set up");
+    expect(answerWords(0)).toBe("All agreements in place");
+  });
+  it("a count for every status, none missing", () => {
+    expect(statusCounts(rows, status)).toEqual({ none: 1, requested: 1, signed: 1, declined: 0, nopartner: 0 });
+  });
+  it("the rows in runs of one airline, in their order", () => {
+    const g = byAirline([...rows, { airline_id: 2, cc: "JP", airports: new Map(), rt_day: 0, planned: false }]);
+    expect(g.map((x) => [x.airline_id, x.rows.map((r) => r.cc)])).toEqual([[1, ["ID", "JP", "BR"]], [2, ["JP"]]]);
   });
 });

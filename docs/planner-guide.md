@@ -478,15 +478,23 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   openings and the threats (the evening proposal reads them, manual §3).
 
 ## Interline
-*Which foreign countries each airline flies into, and whether it has an interline agreement there.*
-- **Interline agreements:** one row per airline (its logo on every row) and interline country it flies to or has planned (on a plan card not
-  yet filed), with the airports, round trips a day (or **planned**), the status (still to sign, signed or declined),
-  the partner in the game, since when and notes. Each saves as you change it (a box when you leave it). The **Airline**
-  and **Status** chips filter the rows and are in the address (/planner/interline?airline=KF&status=open). Today's
-  needs attention counts the rows still without an agreement.
-- **The interline countries:** the countries with a real domestic network or a regional gateway, why each one is, the
-  partners that exist in Gander (each a link to its page in the game) and our airlines flying or planned there; then
-  what to do when another airline asks, and the countries each of our airlines covers. Each airline signs its own
+*Which foreign countries each airline flies into, and whether it has an interline agreement there.* Laid out since
+23 Oct answer-first, as Today and Systems (spec docs/specs/2026-10-23-planner-look-interline.md):
+- **The answer is the title:** how many agreements are still to sign ("5 agreements to set up"), or **All agreements in
+  place**. The **Airline** and **Status** filters sit beside it as pills and are in the address
+  (/planner/interline?airline=KF&status=open).
+- **Tiles by status:** still to sign, not contacted, requested, signed, declined and no partner in Gander yet, each with
+  its count (for the airline picked, or all). Tapping a tile shows only those rows (?status=none, requested, signed,
+  declined, nopartner or open); tapping it again shows all.
+- **Interline agreements:** one table, grouped by airline under its colour dot and logo, one row per interline country
+  it flies to or has planned (on a plan card not yet filed), with the airports, round trips a day (or **planned**), the
+  status, the partner in the game, since when and notes. Each saves as you change it (a box when you leave it). On a
+  phone each row is a compact card (country, airline, status pill) that opens to its fields. Today's needs attention
+  counts the rows still without an agreement.
+- **The rules,** as rows that open (all closed on arrival; **Expand all** and **Collapse all**): **The interline
+  countries** (the countries with a real domestic network or a regional gateway, why each one is, the partners that
+  exist in Gander, each a link to its page in the game, and our airlines flying or planned there); **When another
+  airline asks** (who to accept and who to decline); **Countries our airlines cover**. Each airline signs its own
   partner, and the group's airlines already interline with each other. The countries, partners and rules are a setting
   (*interline_rules*), where the old planner kept them in its code.
 
