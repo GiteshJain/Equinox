@@ -75,7 +75,9 @@ begin
   -- 20261021233000 (the world scan in the capture, scan_every_days) adds, the three 20261021235000 (competition
   -- analysis: competition_threat_min_weekly, trunk_month_from, trunk_month_to) adds and the one 20261022010000 (the
   -- cabin charge check, cabin_charge_check_from) adds, the two 20261022060000 (stations) adds and the three
-  -- 20261022090000 (the aircraft age check: replace_new_years, replace_used_years, replace_warn_days) adds, which are new in it: they're checked, then taken out (from the
+  -- 20261022090000 (the aircraft age check: replace_new_years, replace_used_years, replace_warn_days) adds and the five
+  -- 20261023100000 (the fare ladder under launch: fare_under_launch_load_pct, _levels, _days, _min_flights and
+  -- _decide_load_pct, with Ryanair's own _levels) adds, which are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
   d_cmp := d_all;
@@ -90,7 +92,9 @@ begin
                              'fare_ladder_hold_weeks', 'fare_ladder_cap_pts', 'cabin_route_share_pct', 'fare_ladder_capacity_hold_days',
                              'scan_every_days', 'competition_threat_min_weekly', 'trunk_month_from', 'trunk_month_to',
                              'cabin_charge_check_from', 'station_flight_no_from', 'station_flight_no_to',
-                             'replace_new_years', 'replace_used_years', 'replace_warn_days'] loop
+                             'replace_new_years', 'replace_used_years', 'replace_warn_days',
+                             'fare_under_launch_load_pct', 'fare_under_launch_levels', 'fare_under_launch_days',
+                             'fare_under_launch_min_flights', 'fare_under_launch_decide_load_pct'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

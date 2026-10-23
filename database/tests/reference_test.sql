@@ -2,8 +2,10 @@
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says where (keys and counts only):
 --   1. countries.region: described; every country the old planner's REGION_OF list names has its region; the unknown
---      country (--) is Other; every other country is Europe (the old fallback), and so is a country added later (the
---      column's default).
+--      country (--) is Other; every other country there when the regions came (14 Oct) is Europe (the old fallback), and
+--      a country added later with no region given takes Europe (the column's default). Since 23 Oct a country added
+--      after 14 Oct that isn't on the list may carry any of the planner's regions (the review chat of 22 Oct gave Syria,
+--      Burkina Faso, Mali, Liberia, Sierra Leone, Niger and North Korea theirs): it is checked to be one of them.
 --   2. rules_input(): each airport carries its country's region, none for an airport with no country.
 --   3. suggested_size: in every world as the old planner's code had it (bigSize, suggestSize, feedSize), with its unit,
 --      description, since 14 Oct and reason; Ryanair's own for each Ryanair of ours; rules_input() gives the world's value
@@ -29,7 +31,10 @@ begin
     'countries.region has no description';
   select string_agg(c.code || ' ' || c.region, ', ') into bad
     from public.countries c left join pg_temp.t_rf_list l on l.code = c.code
-   where c.region is distinct from coalesce(l.region, case when c.code = '--' then 'Other' else 'Europe' end);
+   where case when l.code is null and c.code <> '--' and c.created_at >= timestamptz '2026-10-15 00:00:00+00'
+              -- added after the regions came, not on the old list: one of the planner's regions
+              then c.region is null or c.region not in (select distinct t.region from pg_temp.t_rf_list t union select 'Europe')
+              else c.region is distinct from coalesce(l.region, case when c.code = '--' then 'Other' else 'Europe' end) end;
   assert bad is null, 'these countries don''t have the old planner''s region: ' || bad;
   select count(*) into n_listed from public.countries c join pg_temp.t_rf_list l on l.code = c.code;
   select count(*) filter (where c.region = 'Other'), count(*) filter (where c.region = 'Europe') into n_other, n_europe from public.countries c;
