@@ -362,6 +362,9 @@ of about 20. "Paid off" is revenue a flight not falling, not just higher loads (
 80% to break even). Under launch the ladder only climbs or holds, so its 5-point cuts don't add to the jumps; each
 judgement needs 10 flights so thin routes aren't judged on a handful.
 
+*Ryanair's first jump to 75%, 23 Oct (Gitesh, Building chat).* The entry had said 80% for every airline. Why: Ryanair
+launches at 85%, so a jump to 80% would be only 5 points, too small for two weeks to show; 75% then 60%.
+
 A route that gained a frequency in the last 7 days holds for that week, so the ladder judges it at its new size, not on the drop the extra seats cause (Gitesh, 21 Oct).
 
 A route whose captured fares don't match its level is set back to it: not for a route on the fare plan this week, a new route, or one not captured since its newest flight launched (since 21 Oct).

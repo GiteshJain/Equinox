@@ -28,12 +28,12 @@ Until each is built and merged, the rules below stand as they are.
   rule-history.md)*
 - **To build: the fare ladder under launch** (brief `docs/briefs/2026-10-23-fare-ladder-under-launch.md`, Gitesh
   23 Oct, its steps changed the same day). A cabin under 80% full over 2 weeks at launch goes to **80%** of the default
-  price and holds 2 weeks. If its revenue a flight didn't fall, the normal ladder carries on from there; if it fell,
+  price (Ryanair, launching at 85%, to **75%**) and holds 2 weeks. If its revenue a flight didn't fall, the normal ladder carries on from there; if it fell,
   the cabin goes to **60%** and holds 2 weeks the same way. A cabin at 60% still under 60% full, or whose revenue a
   flight fell, goes back to the last level that paid and to Gitesh as a cut-or-keep decision. Each 2-week judgement
   needs at least 10 flights, else it waits a week. Under launch the ladder only climbs or holds (no 5-point cuts). The
-  numbers become `settings` rows. Until it's built, §5's "never under launch" stands. *(decided 23 Oct, these steps
-  the same day; history: rule-history.md)*
+  numbers become `settings` rows (`fare_under_launch_*`, Ryanair's levels its own row). Until it's built, §5's "never under launch" stands. *(decided 23 Oct, these steps
+  the same day, Ryanair's 75% the same day; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
