@@ -7,7 +7,8 @@
 // it shows beside the type ("no cabin chosen" when neither the card nor the order names one), and until the aircraft is
 // filed the card's Cabin box sets it; filing fits that cabin and logs its first fit at its price. Since 18 Oct a card opens
 // in its own window over the board (the rest of the screen dimmed, as the old planner's did), and an airport where the
-// airline has no station yet (stationsOf(): none of its flights or bases touch it) is highlighted on the card. Since 21 Oct
+// airline has no station yet (stationsOf(): none of its active flights touch it; since 22 Oct its bases and point-to-point
+// stations don't count on their own) is highlighted on the card. Since 21 Oct
 // (spec docs/specs/2026-10-21-cabins-new-rule.md §3) the card says which cabin the rule calls for beside its Cabin box
 // ("suggested: 321-LP", with the reason; the library's card.cabinFor), Use the suggestion sets it (the card-cabin save),
 // and a cabin that differs from it shows in amber. Since 21 Oct too (manual §5; spec
