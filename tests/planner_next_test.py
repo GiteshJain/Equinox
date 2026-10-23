@@ -448,7 +448,9 @@ async def competition_opens(pl):
     card's) with its boards in order (Market share, Threats, Openings, Rival profiles), a market card for each market and
     the openings cut to 10 with "show all" (opened and cut again), as competition() gives them on the copy. Since 23 Oct (spec
     docs/specs/2026-10-23-rival-fleets.md §5, §6) the group page's Order books board, one row per rival competition()'s
-    order_flags give across our airlines, and on the airline's page a fleet line on every rival profile."""
+    order_flags give across our airlines, and on the airline's page a fleet line on every rival profile. Since 23 Oct (spec
+    docs/specs/2026-10-23-rival-connections.md §5) the rivals' connecting departures beside direct on every market card,
+    rival profile and opening competition() gives them for, with its number."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
@@ -488,6 +490,9 @@ async def competition_opens(pl):
         rows: document.querySelectorAll('[data-opening]').length, list: (document.querySelector('[data-list^="openings "]') || {dataset: {}}).dataset,
         more: !!document.querySelector('[data-list-more^="openings "]'), profiles: document.querySelectorAll('[data-profile]').length,
         fleets: document.querySelectorAll('[data-profile] [data-fleet]').length,
+        mconn: [...document.querySelectorAll('[data-market] [data-connecting]')].map(e => +e.dataset.connecting),
+        pconn: document.querySelectorAll('[data-profile] [data-connecting]').length,
+        oconn: [...document.querySelectorAll('[data-opening]')].slice(0, 10).map(r => { const c = r.querySelector('[data-connecting]'); return c ? +c.dataset.connecting : null; }),
         first: [...document.querySelectorAll('[data-opening]')].slice(0, 5).map(r => r.dataset.opening) })""")
     if got["boards"] != ["Market share", "Threats", "Openings", "Rival profiles"]:
         problems.append(f"{code}'s Competition boards are {got['boards']}")
@@ -495,13 +500,24 @@ async def competition_opens(pl):
     db = json.loads(psql(f"""select json_build_object('markets', jsonb_array_length(d -> 'markets'), 'threats', jsonb_array_length(d -> 'threats'),
                                  'openings', jsonb_array_length(d -> 'openings'), 'count', d -> 'openings_count', 'profiles', jsonb_array_length(d -> 'profiles'),
                                  'first', (select json_agg(o ->> 'route' order by (o ->> 'rank')::int) from jsonb_array_elements(d -> 'openings') o
-                                           where (o ->> 'rank')::int <= 5))
+                                           where (o ->> 'rank')::int <= 5),
+                                 'mconn', (select coalesce(json_agg((m ->> 'connecting_weekly')::int order by i), '[]') from jsonb_array_elements(d -> 'markets') with ordinality x(m, i)
+                                           where m ? 'connecting_weekly'),
+                                 'pconn', (select count(*) from jsonb_array_elements(d -> 'profiles') p where p ? 'connecting_weekly'),
+                                 'oconn', (select coalesce(json_agg((o ->> 'connecting_weekly')::int order by (o ->> 'rank')::int), '[]') from jsonb_array_elements(d -> 'openings') o
+                                           where (o ->> 'rank')::int <= 10))
                             from (select public.competition({int(aid)}) as d) x""").strip())
     if got["markets"] != db["markets"] or got["threats"] != db["threats"] or got["profiles"] != db["profiles"]:
         problems.append(f"{code}: {got['markets']} markets, {got['threats']} threats and {got['profiles']} profiles shown; competition() gives "
                         f"{db['markets']}, {db['threats']} and {db['profiles']}")
     if got["fleets"] != got["profiles"]:
         problems.append(f"{code}: {got['fleets']} of its {got['profiles']} rival profiles show a fleet line")
+    # the rivals' connecting departures (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md §5): beside direct on
+    # every market card, rival profile and opening that competition() gives them for, with its number
+    if got["mconn"] != db["mconn"] or got["pconn"] != db["pconn"]:
+        problems.append(f"{code}: connecting shown on markets {got['mconn']} and {got['pconn']} profiles; competition() gives {db['mconn']} and {db['pconn']}")
+    if got["oconn"] != (db["oconn"] or [])[:len(got["oconn"])]:
+        problems.append(f"{code}: the openings show connecting {got['oconn']}; competition() gives {db['oconn']}")
     if got["rows"] != min(10, db["openings"]) or got["more"] != (db["openings"] > 10) or got["first"] != (db["first"] or [])[:len(got["first"])]:
         problems.append(f"{code}: the openings show {got['rows']} rows (show all: {got['more']}), first {got['first']}; competition() gives "
                         f"{db['openings']} of {db['count']}, first {db['first']}")
@@ -518,7 +534,8 @@ async def competition_opens(pl):
     return (f"Competition opens with {group['scans'] or 'no scans line'!r}, a card for each of the copy's {len(group['cards'])} airlines and "
             f"{len(group['bookRows'])} order books; {code}'s page has "
             f"{got['markets']} markets, {got['threats']} threats, {db['count']} openings ({got['rows']} shown, top: {', '.join(got['first'])}) and "
-            f"{got['profiles']} rival profiles, each with its fleet line, as competition() gives them"), problems
+            f"{got['profiles']} rival profiles, each with its fleet line, and connecting departures beside direct on {len(got['mconn'])} markets "
+            f"({sum(got['mconn'])} a week) and {got['pconn']} profiles, as competition() gives them"), problems
 
 
 async def routes_opens(pl):
@@ -883,7 +900,8 @@ ROUTE_PAGE_JS = """(() => { const m = document.querySelector('main[data-route-pa
       chart: !!q('svg.storychart'), short: !!q('[data-story-short]'), markers: +((q('svg.storychart') || {dataset: {}}).dataset.markers || 0),
       events: +((q('[data-list="route events"]') || {dataset: {}}).dataset.listRows || 0),
       shown: m.querySelectorAll('[data-list="route events"] li').length,
-      rivals: m.querySelectorAll('[data-rival]').length, ends: [...m.querySelectorAll('[data-end]')].map(e => e.dataset.end),
+      rivals: m.querySelectorAll('[data-rival]').length, conly: m.querySelectorAll('[data-connecting-rival]').length,
+      cconn: m.querySelectorAll('[data-figure="performance route: rivals"] td[data-connecting]').length, ends: [...m.querySelectorAll('[data-end]')].map(e => e.dataset.end),
       conns: m.querySelectorAll('[data-conn]').length,
       back: (q('[data-back]') || {}).getAttribute ? q('[data-back]').getAttribute('href') : '',
       schedule: (q('[data-schedule]') || {}).getAttribute ? q('[data-schedule]').getAttribute('href') : '' }; })()"""
@@ -895,7 +913,8 @@ async def route_page_opens(pl):
     against the 7 before (a tile for load, passengers, profit, profit an aircraft hour and the fares), and its five boards
     open (Since launch, Profit an aircraft hour, Events, Rivals on the pair, Connections), the chart there from 14 days
     with flights and a line saying so before, as many events and rivals as route_story() gives on the copy, 10 events
-    shown at most, the connections at both ends. Its links: "Schedule in Routes" opens the route on Routes, whose header
+    shown at most, the connections at both ends; since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md §5) Rivals on
+    the pair's connecting column on every row and the rivals that only connect, as route_story() gives them. Its links: "Schedule in Routes" opens the route on Routes, whose header
     links back with "The route's story ›" (a flown route), and "‹ <airline>" opens the airline's page. Competition's threats
     each link to their route's page. Counts and codes only."""
     problems = []
@@ -942,6 +961,12 @@ async def route_page_opens(pl):
         problems.append(f"the page lists {got['events']} events ({got['shown']} shown); route_story() gives {len(doc['events'])}")
     if got["rivals"] != len(doc["rivals"]["airlines"]):
         problems.append(f"the page lists {got['rivals']} rivals; route_story() gives {len(doc['rivals']['airlines'])}")
+    # since 23 Oct: the rivals that only connect, and a connecting cell on every row, when route_story() has them
+    conn_only = len(doc["rivals"].get("connecting_only") or [])
+    has_conn = "connecting_weekly" in doc["rivals"]
+    if got["conly"] != conn_only or got["cconn"] != ((got["rivals"] + conn_only) if has_conn else 0):
+        problems.append(f"the page shows {got['conly']} connecting-only rivals and {got['cconn']} connecting cells; route_story() gives {conn_only} "
+                        f"(connections {'worked out' if has_conn else 'not worked out'})")
     if got["ends"] != [hub, dest]:
         problems.append(f"the connections are at {got['ends']}, not {hub} and {dest}")
     if got["back"] != f"/planner/performance/{acode}" or got["schedule"] != f"/planner/routes/{acode}/{key}":

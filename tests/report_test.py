@@ -94,6 +94,9 @@ def synthetic_competitors(F):
 
     rivals = [one(1, "Test Rival Atlas", 1420, 12, 1420, 160, 1000, fl(99, 44, 6)), one(2, "Test Rival Borealis", 300, 4, 2600, 95, 2700, fl(40, 0, 0)),
               one(3, "Test Rival Cirrus", 120, 2, 400, 30, 400)]
+    # each one's connecting departures on the airline's pairs (since 23 Oct), beside direct and never added to it
+    for r, (n, pairs, via) in zip(rivals, [(14, 3, [{"via": "KEF", "weekly": 10}, {"via": "OSL", "weekly": 4}]), (0, 0, []), (5, 1, [{"via": "DUB", "weekly": 5}])]):
+        r.update(connecting_weekly=n, connecting_pairs=pairs, connecting_via=via)
     when = f"{before_m.day} {before_m:%b}"
     cases = [  # (self, competitors, scans, the words for an airline named N)
         (me(236, 18, 20, 236, 21, 200), rivals, scans, lambda n: f"{n} grew 18% this week; Test Rival Atlas, its biggest rival on its pairs, grew 42%."),
@@ -240,6 +243,14 @@ def main():
                 continue
             me = f["self"]
             fleets = any("fleet" in c for c in f["competitors"])   # since 23 Oct each rival's fleet, a column of its own
+            conns = any("connecting_weekly" in c for c in f["competitors"])   # since 23 Oct each rival's connecting departures, beside direct
+
+            def conn(c):
+                n = c.get("connecting_weekly")
+                if n is None:
+                    return " —"
+                via = ", ".join(v["via"] for v in c.get("connecting_via") or [] if v.get("via"))
+                return f" {n:,}" + (f" via {via}" if n and via else "")
 
             def fleet(c):
                 x = c.get("fleet")
@@ -247,8 +258,9 @@ def main():
                     return " not read"
                 ch = x.get("on_order_change")
                 return f" {x['overall']:,} ({x.get('on_order') or 0:,} on order)" + (f" {ch:+,} on order" if ch else "")
-            row = f"{name} {n0(me['on_pairs'])} {n0(me['pairs'])} of {n0(me['pairs_flown'])} {n0(me['weekly'])} {n0(me['airports'])} {cell(me)}" + (" —" if fleets else "")
-            rows = [row] + [f"{c['name']} {n0(c['on_pairs'])} {n0(c['pairs'])} {n0(c['weekly'])} {n0(c['airports'])} "
+            row = (f"{name} {n0(me['on_pairs'])}" + (" —" if conns else "")
+                   + f" {n0(me['pairs'])} of {n0(me['pairs_flown'])} {n0(me['weekly'])} {n0(me['airports'])} {cell(me)}" + (" —" if fleets else ""))
+            rows = [row] + [f"{c['name']} {n0(c['on_pairs'])}" + (conn(c) if conns else "") + f" {n0(c['pairs'])} {n0(c['weekly'])} {n0(c['airports'])} "
                             + (cell(c) if c.get("weekly_before") is not None or not f["scans"].get("week_before") else "not in that scan")
                             + (fleet(c) if fleets else "")
                             for c in f["competitors"]]
@@ -257,6 +269,8 @@ def main():
                   f"{name}: its own row first, then its {len(rows) - 1} competitor(s), with the figures' numbers", f"want {rows} in: {seg[:700]}")
             if a["id"] in words:
                 check(words[a["id"]](name) in seg, f"{name}: the line {words[a['id']](name)!r}", seg[-400:])
+            if conns:
+                check("Connecting a week (not added)" in seg, f"{name}: the connecting column is headed as never added to direct", seg[:300])
         # the rivals' order books in the risks (since 23 Oct): each flagged rival once, with whom it meets
         flags = {x["airline_id"]: x for a in F.get("airlines") or [] for x in a.get("order_flags") or []}
         if flags:

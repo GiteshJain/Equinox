@@ -471,7 +471,11 @@ fold them, and a row's title opens or closes it.
     (*competition_threat_min_weekly*; passenger flights only).
   - **Rivals on the pair:** every other airline flying it either way in the latest scan, with its departures a week and
     its change since the week-before scan; ours and our share, and our share at each scan since launch as a small line.
-    "No rival flies this pair" when none does.
+    "No rival flies this pair" when none does. Since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md) a
+    **Connecting** column: each rival's one-stop departures a week on the pair through its own hub, with the connecting
+    airports, and after the rivals that fly it the rivals that only connect ("—" direct). A line under the table gives
+    both totals ("rivals 14 direct · 17 connecting a week"); connecting departures are never added to direct, to the
+    rivals' total or to our share. The column is there once the latest scan has them worked out.
   - **Connections:** at each end, how many city pairs its flights connect to and the top 10 with how many times a week,
     onward (from the far end through this one) and feeding (into the far end), from the minimum connection time up to
     8 hours across all our airlines (the plan card's rule).
@@ -507,7 +511,9 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   **Openings** is open on arrival:
   - **Market share:** a tile per market (the airline's routes, flown or not, either direction): our share with its
     arrow against the week-before scan, and the top rivals as a bar (ours dark, the rivals grey) and a list with their
-    departures, share and change. Our own departures are the live schedule's; a week before, the scan's.
+    departures, share and change. Our own departures are the live schedule's; a week before, the scan's. Since 23 Oct a
+    line under it gives the rivals' direct and connecting departures apart ("Rivals: 160 direct · 14 connecting"), with
+    the connecting airports; the share counts direct only.
   - **Threats:** each rival who started on a pair the airline flies (none in the scan before) or added at least 7
     departures a week (*competition_threat_min_weekly*), with the numbers then and now, ours, the day and until when
     the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance; a table, newest first.
@@ -520,7 +526,9 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     **yes** with why (main hub, contested base or route, main hub at its target, exempt), or **not yet** with the
     reason, listed after the allowed ones (each as a pill, green or grey). The first 10, with **show all** (the top 50; a chat reads more with
     *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted. A pair
-    another airline of ours has on its list says so ("also on VS's list"): one airline per city pair decides.
+    another airline of ours has on its list says so ("also on VS's list"): one airline per city pair decides. Since 23
+    Oct the rivals column says "3 direct · 14 connecting", with the connecting rivals under it ("connecting: Icelandair
+    14 via KEF"); the ranking still reads direct departures only.
   - **In November** (*trunk_month_from* to *trunk_month_to*, 1 to 30 Nov; manual §4) a line over the openings says the
     trunks come first: each pair between two of our bases is marked **trunk**, listed first, shortest first, allowed
     with hubs first suspended ("November trunk"), and never left out for reach (a type the airline can't buy says "not
@@ -529,7 +537,17 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   - **Rival profiles:** the 10 rivals who fly most of its city pairs: their size and growth since the week-before
     scan, airports, the pairs shared (theirs and ours a week) and their biggest airports. Since 23 Oct each also shows
     its **fleet** from its overview page in the latest scan ("99 aircraft, 44 on order, +6 on order this week"; "fleet
-    not read in the latest scan" when the scan didn't read it) and its five biggest types with what's on order.
+    not read in the latest scan" when the scan didn't read it) and its five biggest types with what's on order. Since
+    23 Oct a line **On our pairs** gives its direct and connecting departures a week on the airline's pairs apart ("21
+    direct · 14 connecting"), with its connecting airports; a profile is still chosen by the pairs it flies direct.
+- **Connecting departures** (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md; manual, *Decided, not yet
+  built*): when the evening's world scan finishes, the database works out each rival's one-stop connections on our
+  pairs (the pairs any of our airlines flies or has on its list) from that scan's schedules: the same airline, the second
+  flight leaving from the connecting airport's minimum connection time (90 minutes where unknown) up to 8 hours after the
+  first lands, both legs together at most 1.5 times the direct distance (*rival_connection_detour_max*). Each rival
+  flight that connects counts once a day, so connecting departures sit on the same scale as direct ones; they are
+  always shown beside direct and never added to it. Display only: the share, the threats, the openings' order, the
+  contested test, hubs first, the three biggest competitors and the fare pause read direct departures alone.
 - **No scan, or one:** with none, the openings rank by stars and distance and only the main hub's are allowed; with
   one, nothing is compared and there are no threats.
 - In a chat, `select public.competition(<airline id>);` gives the same, and the airline briefing carries the top 20

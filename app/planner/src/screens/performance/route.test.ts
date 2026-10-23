@@ -189,9 +189,27 @@ describe("the rivals on the pair", () => {
   it("lists each rival with its change, ours and our share, and which scans", () => {
     const r = rivalLines(story(), day10);
     expect(r.none).toBe(false);
-    expect(r.rows).toEqual([{ id: 50, name: "Air China", weekly: 14, change: "▲ 14", before: 0 }]);
+    expect(r.rows).toEqual([{ id: 50, name: "Air China", weekly: "14", change: "▲ 14", before: 0, connecting: null, via: "", only: false }]);
+    expect(r.connecting).toBe(false);
+    expect(r.connectingLine).toBeNull();
     expect(r.ours).toBe("ours 28 a week, 66.7% of the pair (100% in the week-before scan)");
     expect(r.scans).toBe("latest scan 2026-10-18, against 2026-10-11");
+  });
+  it("since 23 Oct: each rival's connecting departures beside direct, the rivals that only connect after, never one total", () => {
+    const s = story();
+    const r = rivalLines({ ...s, rivals: { ...s.rivals,
+      airlines: [{ ...s.rivals.airlines[0]!, connecting_weekly: 3, connecting_via: [{ via: "PEK", weekly: 3 }] }],
+      connecting_weekly: 17,
+      connecting_only: [{ airline_id: 60, name: "Icelandair", weekly: 0, weekly_before: null, change: null, connecting_weekly: 14,
+                          connecting_via: [{ via: "KEF", weekly: 10 }, { via: "OSL", weekly: 4 }] }] } }, day10);
+    expect(r.connecting).toBe(true);
+    expect(r.rows).toEqual([
+      { id: 50, name: "Air China", weekly: "14", change: "▲ 14", before: 0, connecting: "3", via: "via PEK", only: false },
+      { id: 60, name: "Icelandair", weekly: "—", change: "", before: null, connecting: "14", via: "via KEF, OSL", only: true }]);
+    expect(r.connectingLine).toBe("rivals 14 direct · 17 connecting a week, shown apart and never added together");
+    expect(r.none).toBe(false);
+    // a pair only connected on: not "no rival"
+    expect(rivalLines({ ...s, rivals: { ...s.rivals, airlines: [], connecting_weekly: 14, connecting_only: [{ airline_id: 60, name: "Icelandair", weekly: 0, weekly_before: null, change: null, connecting_weekly: 14 }] } }, day10).none).toBe(false);
   });
   it("says no rival flies the pair, and no scan yet", () => {
     const s = story();

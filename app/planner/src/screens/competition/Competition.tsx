@@ -17,7 +17,10 @@
 //     ranked table, rank, pair, stars, distance, rivals, variant and hubs first as a pill, allowed or the reason, cut to
 //     10 with "show all"; a 1-star opening on the E195-E2 says "or the E190-E2 if thin" under its variant, spec
 //     docs/specs/2026-10-21-tidy-ups.md §2) and Rival profiles (cards; since 23 Oct each with its fleet, "99 aircraft, 44
-//     on order, +6 on order this week", and its top types).
+//     on order, +6 on order this week", and its top types). Since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md
+//     §4) the rivals' connecting departures sit beside direct, never added: each market card's rivals "160 direct · 14
+//     connecting" with the connecting airports, the openings' rivals column "3 direct · 14 connecting", and each rival
+//     profile's connecting line.
 // Read only: nothing here saves. Phone first: tiles stack, the openings table scrolls inside its own box.
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -29,7 +32,7 @@ import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { listCut } from "../performance/model";
 import { itemRoute } from "../screens";
 import {
-  airlineHeadline, allowedWords, changeWords, dayWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
+  airlineHeadline, allowedWords, changeWords, connectingLine, connectingRivalsWords, dayWords, directConnectingWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
   openingsLine, orderBookWords, orderBooks, orderBooksRowWords, otherListsWords, overallShare, pctWords, profileWords, profilesRowWords, rivalsWords, scansWords, shareBar, starsWords, threatMoveWords, threatNumbers, threatWhen, threatsLine,
   threatsNewestFirst, threatsRowWords, topOpeningWords, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer, type Market, type Opening,
   type Profile, type Threat,
@@ -240,6 +243,12 @@ function MarketCard({ m }: { m: Market }) {
       <div className="cpmh"><b>{m.name}</b> <span className="dim">{m.flown} of {m.pairs} pair{m.pairs === 1 ? "" : "s"} flown</span></div>
       <div className="cpmv"><b className="cpbig">{pctWords(m.share)}</b> <Change v={m.share_change} points k={"market " + m.name} />
         <span className="dim"> · ours {n0(m.ours)} of {n0(m.total)} a week</span></div>
+      {m.connecting_weekly != null ? (
+        <div className="cpline cpconn" data-connecting={m.connecting_weekly}>
+          <span className="dim">Rivals:</span> {directConnectingWords(m.rivals, m)}
+          {connectingLine(m) ? <span className="dim"> · {connectingLine(m)}, never counted in the share</span> : null}
+        </div>
+      ) : null}
       {bar.length ? (
         <div className="cpbar" role="img" aria-label={bar.map((p) => `${p.label} ${p.pct.toFixed(0)}%`).join(", ")}>
           {bar.map((p, i) => <i key={i} className={p.ours ? "ours" : `r${Math.min(i, 6)}`} style={{ width: `${p.pct}%` }} title={`${p.label} ${p.pct.toFixed(1)}%`} />)}
@@ -307,7 +316,9 @@ function Openings({ code, openings, total }: { code: string; openings: readonly 
                     {otherListsWords(o) ? <div className="dim cpcity">{otherListsWords(o)}</div> : null}</td>
                   <td>{starsWords(o.stars)}</td>
                   <td className="num">{kmWords(o.distance_km)}</td>
-                  <td><span className="num">{n0(o.rivals_weekly)}</span> <span className="dim">{rivalsWords(o)}</span></td>
+                  <td>{o.connecting_weekly != null ? <span className="num" data-connecting={o.connecting_weekly}>{directConnectingWords(o.rivals_weekly, o)}</span>
+                    : <span className="num">{n0(o.rivals_weekly)}</span>} <span className="dim">{rivalsWords(o)}</span>
+                    {connectingRivalsWords(o) ? <div className="dim cpcity">connecting: {connectingRivalsWords(o)}</div> : null}</td>
                   <td>{variantWords(o.variant)}{variantNoteWords(o) ? <div className="dim cpcity" data-variant-note>{variantNoteWords(o)}</div> : null}</td>
                   <td className="cphf">{al.ok ? <span className="pill ok sm" title={al.why}>{al.text}{al.why ? ` · ${al.why}` : ""}</span>
                     : <span className="pill mute sm" title={al.why}>{al.text}</span>}{al.ok ? null : <div className="dim cpwhy">{al.why}</div>}</td>
@@ -331,6 +342,10 @@ function ProfileCard({ p, before }: { p: Profile; before: string }) {
       <div className="cpmv">{profileWords(p, before)}</div>
       {p.fleet !== undefined ? <div className="cpline" data-fleet><span className="dim">Fleet:</span> {fleetWords(p.fleet)}</div> : null}
       {fleetTypesWords(p.fleet) ? <div className="cpline cpcity" data-fleet-types>{fleetTypesWords(p.fleet)}</div> : null}
+      {p.connecting_weekly != null ? (
+        <div className="cpline" data-connecting={p.connecting_weekly}><span className="dim">On our pairs:</span> {directConnectingWords(p.weekly_on_pairs, p)}
+          {connectingLine(p) ? <span className="dim"> · {connectingLine(p)}</span> : null}</div>
+      ) : null}
       <div className="cpline"><span className="dim">Shared:</span> {p.pairs.slice(0, 6).map((x) => `${x.route} ${x.weekly} (ours ${x.ours})`).join(" · ")}
         {p.pairs.length > 6 ? <span className="dim"> +{p.pairs.length - 6} more</span> : null}</div>
       {p.biggest_airports.length ? <div className="cpline"><span className="dim">Biggest airports:</span> {p.biggest_airports.map((x) => `${x.code} ${n0(x.weekly)}`).join(" · ")}</div> : null}

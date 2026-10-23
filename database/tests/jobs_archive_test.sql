@@ -2,8 +2,9 @@
 -- last night's backup, after the new migrations, inside a transaction that is rolled back. A failed check stops with an
 -- error that says which (tables, months and counts, never rows).
 --   1. What's due: each listed table's months before its kept window (one full calendar month; 12 for change_log), with
---      their row counts; nothing inside the window. Hand-made rows in an old month of each of the five tables (three
---      months back; change_log fourteen) are listed exactly.
+--      their row counts; nothing inside the window. Hand-made rows in an old month of each of the six tables (three
+--      months back; change_log fourteen) are listed exactly; since 23 Oct scan_rival_connections (the rivals'
+--      connections, spec docs/specs/2026-10-23-rival-connections.md §2) goes with the scan schedules.
 --   2. The manifest: the row count, the checksum (worked out here independently: md5 of every row as Postgres prints it,
 --      in UTC, joined by newlines, in primary-key order), the table's layout and the latest migration version; the
 --      export query gives exactly those rows.
@@ -24,7 +25,7 @@ declare
   m date; mc date; v_scan bigint; d date; bad text; n bigint; f1 bigint;
 begin
   assert (select string_agg(table_name || ':' || keep_months, ', ' order by table_name) from private.archive_tables())
-         = 'change_log:12, game_events:1, game_flights:1, game_scan_airports:1, game_scan_schedules:1',
+         = 'change_log:12, game_events:1, game_flights:1, game_scan_airports:1, game_scan_schedules:1, scan_rival_connections:1',
     'the archive''s tables aren''t design §7''s';
   -- the kept window: one full calendar month (12 for change_log)
   assert private.archive_kept_from('game_flights', date '2026-12-01') = date '2026-11-01'
@@ -47,6 +48,7 @@ begin
   insert into t_counts select 'game_events', count(*) from public.game_events;
   insert into t_counts select 'game_scan_schedules', count(*) from public.game_scan_schedules;
   insert into t_counts select 'game_scan_airports', count(*) from public.game_scan_airports;
+  insert into t_counts select 'scan_rival_connections', count(*) from public.scan_rival_connections;
   insert into t_counts select 'change_log', count(*) from public.change_log;
 
   -- game_events: three payments in the month
@@ -81,13 +83,16 @@ begin
   values (v_scan, w, a1.id, '[["ZZ", "1", "ZZA", "ZZB", "1234567", "07:00", "08:00", "A320", null]]'), (v_scan, w, a2.id, '[]');
   insert into public.game_scan_airports (scan_id, world_id, airport_code, game_airport_id, info, stations, news, position)
   values (v_scan, w, 'ZZA', 1, '{"name": "jobs-test"}', '[]', '[]', 1), (v_scan, w, 'ZZB', 2, '{}', '[]', '[]', 2);
+  -- its rivals' connections (two rows; a1 stands in for the rival: the table takes any airline of the world)
+  insert into public.scan_rival_connections (scan_id, world_id, airline_id, origin, dest, via, weekly_departures, best_gap_min)
+  values (v_scan, w, a1.id, 'ZZA', 'ZZB', 'ZZC', 7, 120), (v_scan, w, a1.id, 'ZZB', 'ZZA', 'ZZC', 3, 95);
   -- the change log: three rows fourteen months back
   insert into public.change_log (changed_at, world_id, table_name, row_key, op, old_values, new_values, actor, actor_detail)
   select (mc + g)::timestamp at time zone 'UTC', w, 'todos', jsonb_build_object('id', -g), 'update', '{"title": "a"}', '{"title": "b"}', 'claude', 'jobs-test'
     from generate_series(1, 3) g;
 
   insert into t_arch values ('game_events', m, 3, null), ('game_flights', m, 4, null), ('game_scan_schedules', m, 2, null),
-                            ('game_scan_airports', m, 2, null), ('change_log', mc, 3, null);
+                            ('game_scan_airports', m, 2, null), ('scan_rival_connections', m, 2, null), ('change_log', mc, 3, null);
   select string_agg(t.table_name, ', ') into bad from t_arch t
    where not exists (select 1 from private.archive_due() x where x.table_name = t.table_name and x.month = t.month and x.rows = t.rows);
   assert bad is null, 'the hand-made months aren''t due as made: ' || bad || ' (' || (select string_agg(x.table_name || ' ' || x.month || ' ' || x.rows, ', ') from private.archive_due() x) || ')';
@@ -227,7 +232,7 @@ begin
   end loop;
   -- the flights just before and after the month stayed
   assert (select count(*) from public.game_flights where origin_code = 'ZZA' and statement_blk = 2) = 2, 'a flight outside the month went';
-  raise notice 'archive_delete with the manifest''s count and checksum: exactly the month''s rows of each of the 5 tables went (the flights a minute either side stayed), one job_runs row each (archive, the month); asked again, refused';
+  raise notice 'archive_delete with the manifest''s count and checksum: exactly the month''s rows of each of the 6 tables went (the flights a minute either side stayed), one job_runs row each (archive, the month); asked again, refused';
 end
 $test$;
 
