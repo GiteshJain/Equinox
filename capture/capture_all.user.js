@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.6
+// @version      1.7
 // @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and the airport pages, sent with the capture key. Keep the tab open; a scan evening takes about 5 minutes longer. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
@@ -12,7 +12,8 @@
 // pages capture_airlines() lists, read exactly as gscan.py reads them and sent through capture_scan() with the capture
 // key, at gscan.py's pace. Since 1.6 (spec docs/specs/2026-10-22-fleet-capture.md §1) each airline's pages end with its
 // fleets: the fleet list and every fleet with aircraft, each sent to capture_ingest() as page kind fleet, half a second
-// apart. The reading of the pages is plain functions over the pages' HTML, without the page, so
+// apart. Since 1.7 the panel's lines scroll inside it and follow the newest one, so the last lines ("Done",
+// "World scan done") stay in view however long the evening's log gets. The reading of the pages is plain functions over the pages' HTML, without the page, so
 // tests/capture_scan_test.mjs and tests/capture_fleet_test.mjs run this same file in Node, where (with no page) it only
 // hands those functions over (as eqScan): the first compares what they read with what gscan.py reads from the same saved
 // pages, the second reads a saved fleet page.
@@ -20,7 +21,7 @@
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.6";                                      // the @version above, in the scan's notes
+  const VERSION = "1.7";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, airport: 250 };   // ms between pages, gscan.py's own
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -235,9 +236,10 @@
   const failed = () => { const t = get(); if (t) { t.failed = (t.failed || 0) + 1; set(t); } };
   const send = async (gameId, kind, rows, page) => { const r = await rpc("capture_ingest", { p_key: KEY, p_airline: String(gameId), p_kind: kind, p_page: page, p_rows: rows }); if (!r || r.ok !== true) failed(); return r; };   // the airline by its game ID
   const loadAirlines = async () => { const r = await rpc("capture_airlines", { p_key: KEY }); if (!r || !r.ok || !Array.isArray(r.airlines) || !r.airlines.length) throw new Error((r && (r.error || r.message)) || "no airlines"); return { list: r.airlines.map(a => [a.game_id, a.name, a.game_name || a.name]), scan: planOf(r) }; };
-  // the panel: its lines, the live progress line under them, and a Stop button while the world scan runs
-  const panel = () => { let b = document.getElementById("eq-cap-panel"); if (!b) { b = document.createElement("div"); b.id = "eq-cap-panel"; b.style.cssText = "position:fixed;top:12px;right:12px;z-index:999999;background:#0A1230;color:#fff;font:14px/1.5 system-ui,sans-serif;padding:14px 18px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4);max-width:380px;white-space:pre-line"; const t = document.createElement("div"); t.className = "eq-cap-text"; const k = document.createElement("div"); k.className = "eq-cap-buttons"; k.style.cssText = "margin-top:10px;display:flex;gap:8px"; b.append(t, k); document.body.appendChild(b); } return b; };
-  const show = t => { panel().querySelector(".eq-cap-text").textContent = t; };
+  // the panel: its lines, the live progress line under them, and a Stop button while the world scan runs. Since 1.7 it
+  // never grows past the window: its lines scroll, and follow the newest one unless Gitesh has scrolled up to read
+  const panel = () => { let b = document.getElementById("eq-cap-panel"); if (!b) { b = document.createElement("div"); b.id = "eq-cap-panel"; b.style.cssText = "position:fixed;top:12px;right:12px;z-index:999999;background:#0A1230;color:#fff;font:14px/1.5 system-ui,sans-serif;padding:14px 18px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4);max-width:380px;max-height:calc(100vh - 24px);box-sizing:border-box;display:flex;flex-direction:column;white-space:pre-line"; const t = document.createElement("div"); t.className = "eq-cap-text"; t.style.cssText = "overflow-y:auto;flex:1 1 auto;min-height:0;overscroll-behavior:contain"; const k = document.createElement("div"); k.className = "eq-cap-buttons"; k.style.cssText = "margin-top:10px;display:flex;gap:8px"; b.append(t, k); document.body.appendChild(b); } return b; };
+  const show = t => { const e = panel().querySelector(".eq-cap-text"), end = e.scrollHeight - e.scrollTop - e.clientHeight < 40; e.textContent = t; if (end) e.scrollTop = e.scrollHeight; };   // 1.7: follows the newest line unless scrolled up
   const lines = s => (s.log || []).join("\n") + (s.progress ? "\n" + s.progress : "");
   const log = t => { const s = get(); if (s) { s.log = (s.log || []).concat(t).slice(-40); set(s); } show(get() ? lines(get()) : t); };
   const buttons = list => { const k = panel().querySelector(".eq-cap-buttons"); k.textContent = ""; for (const [label, fn] of list) { const x = document.createElement("button"); x.textContent = label; x.style.cssText = "border:0;border-radius:999px;padding:7px 14px;font:700 13px system-ui,sans-serif;cursor:pointer;background:#F6B44B;color:#0A1230"; x.onclick = e => { e.stopPropagation(); fn(); }; k.appendChild(x); } };

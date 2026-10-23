@@ -122,8 +122,8 @@ await check("finish: gscan.py's note, with what the capture's scan adds", () => 
   const mine = plain(S.finishPayload(SCAN, Object.keys(ref.ents).length, hubs.length, 6, 50));
   assert.equal(mine.snapshot_id, theirs[0].snapshot_id);
   assert.ok(mine.note.startsWith(theirs[0].note + " "), `the note "${mine.note}" doesn't start with gscan.py's "${theirs[0].note}"`);
-  assert.match(mine.note, /\(Capture all airlines 1\.6; 6 airline pages failed, 50 airports without an id\)$/);
-  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.6; 1 airline page failed, 1 airport without an id\)$/);
+  assert.match(mine.note, /\(Capture all airlines 1\.7; 6 airline pages failed, 50 airports without an id\)$/);
+  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.7; 1 airline page failed, 1 airport without an id\)$/);
 });
 function gscanHubs() { const m = gscan.match(/^AP="([A-Z0-9 ]+)"\.split\(\)/m); assert.ok(m, "gscan.py's airport list (AP) not found"); return m[1].split(" "); }
 await check("the airports to read: the migration's big rival hubs are gscan.py's list, in its order", () => {
@@ -177,15 +177,20 @@ await check("html.unescape() as Python does it: numeric references, the usual na
 });
 
 // ---------------------------------------------------------------- the file itself
-await check("the file: a userscript for the game, version 1.6, the key a placeholder, the public key only, capture_scan() with the key", () => {
+await check("the file: a userscript for the game, version 1.7, the key a placeholder, the public key only, capture_scan() with the key", () => {
   assert.match(source, /^\/\/ ==UserScript==/);
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/\*$/m);
-  assert.match(source, /^\/\/ @version\s+1\.6$/m);
-  assert.equal(S.VERSION, "1.6", "the scan's notes name another version than @version");
+  assert.match(source, /^\/\/ @version\s+1\.7$/m);
+  assert.equal(S.VERSION, "1.7", "the scan's notes name another version than @version");
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
   assert.match(source, /RPC \+ "capture_scan"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /rpc\("capture_airlines", \{ p_key: KEY \}\)/);
   assert.match(source, /rpc\("capture_ingest", \{ p_key: KEY, p_airline: String\(gameId\), p_kind: kind, p_page: page, p_rows: rows \}\)/);
+});
+await check("the panel (1.7, bug of 22 Oct: the log ran off the screen and hid \"Done\"): never taller than the window, its lines scroll and follow the newest", () => {
+  assert.match(source, /eq-cap-panel"; b\.style\.cssText = "[^"]*max-height:calc\(100vh - 24px\)[^"]*display:flex;flex-direction:column/);
+  assert.match(source, /t\.className = "eq-cap-text"; t\.style\.cssText = "overflow-y:auto;flex:1 1 auto;min-height:0/);
+  assert.match(source, /const show = t => \{[^\n]*if \(end\) e\.scrollTop = e\.scrollHeight;/);
 });
 await check("the file: no browser dialogs, no POST to the game, and only the game addresses it needs", () => {
   assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(source.replace(/^\s*\/\/.*$/gm, "")), "alert, confirm or prompt used");
