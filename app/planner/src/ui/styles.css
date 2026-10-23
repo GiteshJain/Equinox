@@ -1687,3 +1687,132 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .rref .fg input,.rref .fg select{width:100%}
   .rref .fg label{flex:1 1 140px;min-width:0}
 }
+
+/* ---------- Tails' layout (23 Oct, spec docs/specs/2026-10-23-planner-look-tails.md): the answer as the title with the
+   fleet's size and block hours as a muted pill; four count tiles that apply the list's filters (Flying, No flights,
+   Needs a look) or go to the deliveries; the list as one table (registration and base, type, cabin, legs, block hours,
+   maintenance, routes cut short with the full list on hover), compact rows on a phone that open to the rest; the
+   deliveries as rows that open their plan card; the plan card's head, legs table and checks as pills; an aircraft's
+   page with its registration as the title, its figures as pills and its fields in two groups. Tails rules only. ---------- */
+.tailsvh .todayttl{align-items:flex-end}
+.tailsvh .tailspill{margin:0 0 8px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);font-variant-numeric:tabular-nums;color:var(--muted)}
+.view.tails > .toolbar{margin-bottom:16px}
+.view.tails > .toolbar .seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.view.tails > .toolbar .seg::-webkit-scrollbar{display:none}
+.view.tails > .toolbar .seg button{flex:none;padding:0 12px}
+.tailtiles{grid-template-columns:repeat(4,minmax(0,1fr));margin:0 0 20px}
+.tailtiles .tile.on .tn{color:#fff}
+.view.tails > .chips{margin-bottom:16px}
+/* the list */
+.view.tails .tlist{width:100%;border-collapse:collapse}
+.view.tails .tlist th.num,.view.tails .tlist td.num{text-align:right;font-variant-numeric:tabular-nums}
+.view.tails .tlist td.tblk{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.view.tails .tlist td{vertical-align:middle}
+.view.tails .list .tlist th,.view.tails .list .tlist td{padding-left:10px;padding-right:10px}
+.view.tails .list .tlist th:first-child,.view.tails .list .tlist td:first-child{padding-left:20px}
+.view.tails .list .tlist td.tx:not(.troutes){white-space:normal}
+/* with no aircraft open the list takes the page's width, its prompt under it */
+.view.tails:not(.has-detail) .split{grid-template-columns:minmax(0,1fr)}
+.view.tails:not(.has-detail) .detail{position:static;max-height:none;padding:20px var(--pad-card);color:var(--muted)}
+.view.tails .tlist .treg b{font-weight:800}
+.view.tails .tlist .tbase{display:block;color:var(--muted);font:600 13px/1.3 var(--font)}
+.view.tails .tlist .troutes{max-width:200px}
+.view.tails:not(.has-detail) .tlist .troutes{max-width:360px}
+.view.tails .tlist .troutes .trl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px}
+.view.tails .tlist .tact{white-space:nowrap;text-align:right}
+.view.tails .tlist .tunf{display:none}
+.view.tails .tlist tr[data-tail]:hover td{background:var(--porcelain)}
+.view.tails .tlist tr.sel td{background:var(--sel)}
+.view.tails .tlist tr.sel td:first-child{box-shadow:inset 4px 0 0 var(--violet)}
+.view.tails .tlist tbody tr:last-child td{border-bottom:0}
+.view.tails .addform{padding:16px 20px;gap:8px;background:var(--group);border-top:1px solid var(--line)}
+.view.tails .addform > b{flex:1 0 100%;font:800 var(--t-body)/1.3 var(--font)}
+.view.tails .addform input,.view.tails .addform select{min-height:44px;padding:0 12px}
+.view.tails .addform .primary{margin:0}
+/* an aircraft's page */
+.tdhead .vk{margin:0 0 6px;font:700 13px/1.3 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tdhead h2{margin:0}
+.tpills{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:14px 0 0}
+.tpills .pill{margin:0;font-variant-numeric:tabular-nums}
+.tpmaint{display:inline-flex;align-items:center;gap:6px}
+.tfgroups{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:20px}
+.tfgroup{min-width:0;padding:16px 18px;border-radius:var(--r-md);background:var(--group)}
+.tfgroup .tph{margin:0}
+.tfgroup .fg{margin-top:10px}
+.tfdel{margin-top:12px}
+.tfdel .danger{margin:0}
+.view.tails .tsec{margin:24px 0 6px}
+.view.tails .detail .ckb{margin:4px 0 0}
+/* the deliveries: rows that open their plan card */
+.tdel .deltbl{width:100%;border-collapse:collapse}
+.tdel .deltbl tr.dopen{cursor:pointer}
+.tdel .deltbl tr.dopen:hover td{background:var(--porcelain)}
+.tdel .deltbl tr.sel td{background:var(--sel)}
+.tdel .deltbl tbody tr:last-child td{border-bottom:0}
+.tdel .deltbl .dreg b{font-weight:800}
+.tdel .deltbl .dact{white-space:nowrap;text-align:right}
+/* the plan card's window */
+.pcmodal .pch{padding-bottom:12px;border-bottom:1px solid var(--line)}
+.pcmodal .pch > b{font:800 var(--t-h3)/1.3 var(--font);color:var(--ink);overflow-wrap:anywhere;min-width:0}
+.pcmodal .pchtags{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
+.pcmodal .pchtags .pill{margin:0}
+.pcmodal .pt{margin-top:12px}
+.pcmodal .pt td .pill{margin-left:4px}
+.pcmodal .pt td{white-space:nowrap}
+.pcmodal .pfoot{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);gap:10px 14px;font-size:var(--t-small)}
+.pcmodal .pcab{display:inline-flex;align-items:center;gap:8px;font-weight:700}
+.pcmodal .cabsug{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 12px;border-radius:var(--r-md);background:var(--porcelain);color:var(--ink);min-width:0}
+.pcmodal .cabsug .secondary.sm{margin:0}
+.pcmodal .pnote{color:var(--muted);overflow-wrap:anywhere}
+.pcmodal .pfoot .primary.sm{margin:0}
+
+@media (max-width:1100px){
+  .tailtiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* phones: compact rows (registration and base, block h/day, maintenance) that open to the rest; the deliveries as
+   blocks; nothing scrolls sideways */
+@media (max-width:860px){
+  .view.tails .tlist tr[data-tail]{grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:6px 12px;padding:12px 16px}
+  .view.tails .tlist tr[data-tail] td{display:block;background:none!important;box-shadow:none!important}
+  .view.tails .tlist tr[data-tail]:hover,.view.tails .tlist tr[data-tail].sel{background:var(--porcelain)}
+  .view.tails .tlist tr[data-tail].sel{box-shadow:inset 4px 0 0 var(--violet)}
+  .view.tails .tlist tr[data-tail] td.treg b{white-space:nowrap}
+  .view.tails .tlist tr[data-tail] td.treg{overflow-wrap:normal;min-width:0;white-space:nowrap}
+  .view.tails .tlist tr[data-tail] td.num.tx{text-align:left}
+  .view.tails .tlist tr[data-tail] td.treg{grid-column:1;grid-row:1;font-size:var(--t-body)}
+  .view.tails .tlist tr[data-tail] td.tblk{grid-column:2;grid-row:1}
+  .view.tails .tlist tr[data-tail] td.tblk::after{content:" h/day";font-weight:500;color:var(--muted);font-size:13px}
+  .view.tails .tlist tr[data-tail] td.tmnt{grid-column:3;grid-row:1}
+  .view.tails .tlist tr[data-tail] td.tact{grid-column:4;grid-row:1;display:flex;align-items:center;gap:8px}
+  .view.tails .tlist tr[data-tail] td[data-l].tblk::before,.view.tails .tlist tr[data-tail] td[data-l].tmnt::before{content:none}
+  .view.tails .tlist tr[data-tail] td.tact [data-deltail]{display:none}
+  .view.tails .tlist tr[data-tail].unf td.tact [data-deltail]{display:inline}
+  .view.tails .tlist tr[data-tail] td.tx{display:none}
+  .view.tails .tlist tr[data-tail].unf td.tx{display:block;grid-column:span 1}
+  .view.tails .tlist tr[data-tail].unf td.troutes{grid-column:1 / -1}
+  .view.tails .tlist tr[data-tail].unf td.troutes .trl{white-space:normal}
+  .view.tails .tlist tr[data-tail].unf{grid-template-columns:minmax(0,1fr) auto auto auto}
+  .view.tails .tlist .troutes{max-width:none}
+  .view.tails .tlist .tunf{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-10px -12px -10px 0}
+  .view.tails .tlist .tunf .chev{display:inline-block;width:8px;height:8px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg);margin-bottom:3px}
+  .view.tails .tlist tr.unf .tunf .chev{transform:rotate(-135deg);margin:3px 0 0}
+  .tdel .deltbl,.tdel .deltbl tbody{display:block}
+  .tdel .deltbl tr:first-child{display:none}
+  .tdel .deltbl tr[data-delivery]{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+  .tdel .deltbl tr[data-delivery]:last-child{border-bottom:0}
+  .tdel .deltbl tr[data-delivery] td{display:block;padding:0;border:0;min-width:0;overflow-wrap:anywhere}
+  .tdel .deltbl .dreg{grid-column:1;grid-row:1}
+  .tdel .deltbl .dst{grid-column:2;grid-row:1;text-align:right}
+  .tdel .deltbl .dal,.tdel .deltbl .dty,.tdel .deltbl .dwhen,.tdel .deltbl .dbase,.tdel .deltbl .dplan{grid-column:1 / -1;font-size:var(--t-small)}
+  .tdel .deltbl .dal,.tdel .deltbl .dbase{display:none}
+  .tdel .deltbl .dact{grid-column:1 / -1;text-align:left}
+  .tdel .deltbl tr:not([data-delivery]) td{display:block;padding:12px 4px;border:0}
+}
+@media (max-width:640px){
+  .tailsvh .todayttl{align-items:flex-start}
+  .tailsvh .tailspill{align-self:flex-start;margin:0}
+  .tailtiles{gap:10px}
+  .tfgroup{padding:14px}
+  .pcmodal .pfoot{flex-direction:column;align-items:stretch}
+  .pcmodal .pfoot .primary.sm{width:100%}
+}

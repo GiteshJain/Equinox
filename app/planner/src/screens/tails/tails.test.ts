@@ -13,7 +13,7 @@ import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
   filingChanges, maintPill, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
-  acquiredWords, issuesShown, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
+  acquiredWords, deliveryCounts, headerPills, routesCell, headerWords, issuesShown, routeNames, tailCounts, tailsAnswer, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
 } from "./model";
 
@@ -142,6 +142,46 @@ describe("the game's maintenance on Tails (23 Oct, spec docs/specs/2026-10-23-ga
     expect(issuesShown([{ kind: "positions", count: 2 }], warn).map(issueWords)).toEqual(["maintenance 103% — little headroom", "2 legs start where the aircraft isn't"]);
     // with no game figure the estimate's issues stay as they are, with ≈
     expect(issuesShown(est, null).map(issueWords)[1]).toBe("maintenance ≈103% — little headroom");
+  });
+});
+
+describe("the look (23 Oct, spec docs/specs/2026-10-23-planner-look-tails.md)", () => {
+  const mine = tailsOf(fleet, 1);
+  const rows = tailRows(mine, { base: "", type: "", status: "" }, rules, configMap);
+  it("counts the rows as the status filters do, and words the answer", () => {
+    const c = tailCounts(rows);
+    expect(c).toMatchObject({ all: 3, flying: 2, idle: 1, warn: 1 });
+    expect(c.flying).toBe(tailRows(mine, { base: "", type: "", status: "flying" }, rules, configMap).length);
+    expect(c.idle).toBe(tailRows(mine, { base: "", type: "", status: "idle" }, rules, configMap).length);
+    expect(c.warn).toBe(tailRows(mine, { base: "", type: "", status: "warn" }, rules, configMap).length);
+    expect(c.blockDay).toBeCloseTo(2, 5);
+    expect(tailsAnswer(c)).toEqual({ title: "1 aircraft needs a look", pill: "3 aircraft · 2.0 block h/day on average" });
+    expect(tailsAnswer({ ...c, warn: 2 }).title).toBe("2 aircraft need a look");
+    expect(tailsAnswer({ ...c, warn: 0 }).title).toBe("All 3 aircraft flying well");
+    expect(tailCounts([])).toEqual({ all: 0, flying: 0, idle: 0, warn: 0, blockDay: 0 });
+  });
+  it("counts the deliveries on order, arrived and to file (arrived with a plan card)", () => {
+    const cards: PlanCardRow[] = [{ id: 7, airline_id: 1, aircraft_id: 5, base_code: "HUB", title: "AAA + DDD", note: null, updated_at: T0 }];
+    expect(deliveryCounts(deliveryRows(fleet, airlines, rules, configMap, cards, NOW, TODAY))).toEqual({ onOrder: 1, arrived: 1, toFile: 1 });
+    expect(deliveryCounts(deliveryRows(fleet, airlines, rules, configMap, [], NOW, TODAY))).toEqual({ onOrder: 1, arrived: 1, toFile: 0 });
+  });
+  it("names the routes each aircraft flies, and keeps the header's words as pills", () => {
+    const t1 = rows.find((r) => r.a.registration === "T-001");
+    expect(routeNames(rules, t1?.fig.week ?? null)).toHaveLength(t1?.fig.routes ?? -1);
+    expect(routeNames(rules, null)).toEqual([]);
+  });
+  it("shows a dim dash, not 0, in the Routes cell of an aircraft with no routes (23 Oct: N002AW showed 0)", () => {
+    const t2 = rows.find((r) => r.a.registration === "T-002");
+    if (!t2) throw new Error("no T-002");
+    expect(routesCell(t2.fig.routes, routeNames(rules, t2.fig.week))).toEqual({ kind: "none", text: "—" });
+    expect(routesCell(0, [])).toEqual({ kind: "none", text: "—" });
+    expect(routesCell(2, ["HUB–AAA", "HUB–FOC"])).toEqual({ kind: "names", text: "HUB–AAA, HUB–FOC" });
+    // routes the start doesn't name: their count, never blank
+    expect(routesCell(3, [])).toEqual({ kind: "count", text: "3" });
+    const t3 = rows.find((r) => r.a.registration === "T-003");
+    if (!t3) throw new Error("no T-003");
+    const pills = headerPills(rules, t3.a, configMap, t3.fig).map((p) => p.text);
+    expect(pills.join(" · ") + " · maintenance").toBe(headerWords(rules, t3.a, configMap, t3.fig));
   });
 });
 
