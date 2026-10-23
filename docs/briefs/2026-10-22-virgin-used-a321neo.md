@@ -41,4 +41,7 @@ for a lower lease than any new aircraft Virgin can buy.
 
 ## Outcome
 **Not A, 22 Oct (Gitesh):** 9 years is too old. No leased aircraft may be older than 3.5 years (manual §3, written
-the same evening). Virgin's order tonight is decided separately.
+the same evening). Instead, Virgin bid on **VT-ABG** (A321neo Light, 7.2 years, about 2.8 years
+to fly before its 10-year replacement, manual §3) at the opening 33.61M (deposit 1.68M, lease 0.168M a week), for the
+same card. Virgin had 2.28M in the game: 0.60M after the deposit; the cabin (0.19M) is fitted at filing the next day,
+after a day's flights. If outbid, no higher bid (the next step leaves under 0.5M).
