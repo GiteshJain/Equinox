@@ -34,7 +34,9 @@ the saves' names follow their screens, and Log an order as went with the order r
     with them.) Since 22 Oct, Cabin charges' Use the game's amount, on a first fit made to differ
     for the test (spec docs/specs/2026-10-21-tidy-ups.md §3).
   Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct: one row per route and cabin it marks,
-    how many depending on the night).
+    how many depending on the night). Since 23 Oct, when the copy has a jump under launch to put on the fare plan, that
+    airline's Put on the fare plan is recorded as its own save instead, with each jump written as ladder_move jump at its
+    level (spec docs/specs/2026-10-23-fare-ladder-under-launch.md §5); the other is then not tried, and the other way round.
   Interline: a status; a note.
   Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
@@ -865,15 +867,51 @@ async def review(s, pl, al, now):
 async def fare_ladder(s, pl):
     """Put on the fare plan for the first airline with a move to put there: one planner_save() call, a fare_plan row for
     each route and cabin the ladder marks (how many depends on the night, so recorded as *); then the board says the moves
-    are on the fare plan."""
+    are on the fare plan. Since 23 Oct (spec docs/specs/2026-10-23-fare-ladder-under-launch.md §5) an airline with a jump
+    under launch comes first, and the rows written for its jumps must have ladder_move jump: the answer records which
+    ladder_move values the rows written have (jump among them when there was one to put)."""
     pg = pl.pg
     await to_screen(pl, "performance", "/performance")
-    code = await pg.evaluate("(document.querySelector('[data-ladder-plan]:not([disabled])') || {dataset: {}}).dataset.ladderPlan || ''")
+    # an airline whose fare ladder has a jump to put on the fare plan comes first (fare_ladder() on the copy, at the
+    # frozen moment): its save is recorded under a name of its own, with the jump's row checked; else the first airline
+    # with any move, as before, and the jump's save is reported as not tried on this copy
+    jumper = None
+    for a in COPY["airlines"]:
+        if not a["code"]:
+            continue
+        n = psql("""select count(*) from jsonb_array_elements(private.fig_fare_ladder(:'a'::bigint, :'m'::timestamptz) -> 'routes') x
+                     where x ->> 'ladder_kind' = 'jump' and (x ->> 'to_plan')::boolean""", a=a["id"], m=COPY["moment"]).strip()
+        if n not in ("", "0"):
+            jumper = a
+            break
+    code = jumper["code"] if jumper else await pg.evaluate("(document.querySelector('[data-ladder-plan]:not([disabled])') || {dataset: {}}).dataset.ladderPlan || ''")
+    if not jumper:
+        s.not_tried("no airline has a jump under launch to put on the fare plan on this copy", "performance: put the fare ladder on the fare plan, with a jump")
     if not code:
         s.not_tried("no airline has a fare ladder move to put on the fare plan on this copy", "performance: put the fare ladder on the fare plan")
         return
-    await s.act("performance: put the fare ladder on the fare plan", lambda: pg.click(f"[data-ladder-plan={json.dumps(code)}]"),
-                variable=("planner_save fare_plan insert", "fare_plan insert"))
+    if not jumper:
+        await s.act("performance: put the fare ladder on the fare plan", lambda: pg.click(f"[data-ladder-plan={json.dumps(code)}]"),
+                    variable=("planner_save fare_plan insert", "fare_plan insert"))
+    else:
+        s.not_tried("the airline with a jump under launch is put on the fare plan instead", "performance: put the fare ladder on the fare plan")
+        since = psql("select coalesce(max(id), 0) from public.fare_plan").strip()
+
+        def jumps_written():
+            # every jump the ladder marked written with ladder_move jump at its level (spec §3), counted as yes or no: how
+            # many there are depends on the night
+            want = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', (x ->> 'route_id')::bigint, 'cabin', x ->> 'cabin',
+                                           'level', (x ->> 'new_level')::numeric) order by x ->> 'route_id', x ->> 'cabin'), '[]')
+                                        from jsonb_array_elements(private.fig_fare_ladder(:'a'::bigint, :'m'::timestamptz) -> 'routes') x
+                                       where x ->> 'ladder_kind' = 'jump' and (x ->> 'planned')::boolean""", a=jumper["id"], m=COPY["moment"]).strip())
+            got = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', route_id, 'cabin', cabin_class, 'level', level_pct)
+                                          order by route_id::text, cabin_class), '[]')
+                                       from public.fare_plan where id > :'n'::bigint and airline_id = :'a'::bigint and ladder_move = 'jump'""",
+                                  n=since, a=jumper["id"]).strip())
+            same = sorted(json.dumps(x, sort_keys=True) for x in got) == sorted(json.dumps(x, sort_keys=True) for x in want)
+            return {"jumps_written_as_jump": bool(got) and same}
+        await s.act("performance: put the fare ladder on the fare plan, with a jump under launch", lambda: pg.click(f"[data-ladder-plan={json.dumps(code)}]"),
+                    variable=("planner_save fare_plan insert", "fare_plan insert"), extra=jumps_written)
     try:
         await pg.wait_for_function(f"""() => {{ const b = document.querySelector('[data-ladder-plan={json.dumps(code)}]');
             return !!b && b.disabled && b.textContent === 'On the fare plan'; }}""", timeout=30000)
@@ -1073,6 +1111,7 @@ COPY = {}
 
 def read_copy():
     COPY["world"] = int(psql(f"select {WORLD}").strip())
+    COPY["moment"] = copy_moment()
     COPY["airlines"] = json.loads(psql(f"""select coalesce(json_agg(json_build_object('id', a.id, 'code', a.iata_code, 'game_id', a.game_id,
               'name', coalesce(a.planner_name, a.public_name, a.game_name, 'Airline ' || a.game_id),
               'bases', (select coalesce(json_agg(b.airport_code order by b.position nulls last, b.id), '[]') from public.airline_bases b

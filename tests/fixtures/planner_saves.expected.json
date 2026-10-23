@@ -44,6 +44,18 @@
     "fare_plan insert": "*"
    }
   },
+  "performance: put the fare ladder on the fare plan, with a jump under launch": {
+   "jumps_written_as_jump": true,
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save fare_plan insert airline_id,cabin_class,change_pct,fare_from,ladder_move,legacy_key,level_pct,proposed_on,reason,route_id,status,world_id": "*"
+   },
+   "written": {
+    "fare_plan insert": "*"
+   }
+  },
   "performance: remove a planned fare change": {
    "logged": [
     "planner tab"

@@ -64,7 +64,7 @@ import {
 } from "./reads";
 
 /** The fare ladder's line under its heading. */
-const LADDER_NOTE = "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90% (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off";
+const LADDER_NOTE = "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90%; a cabin that doesn't fill at launch may jump under it, judged on revenue a flight (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off";
 /** Each row's one-line note; the board's full words (NOTES) lead it once open. */
 const SHORT: Record<BoardKey | GroupBoardKey, string> = {
   "The group today": "Each airline's flight profit against its leases, a day",

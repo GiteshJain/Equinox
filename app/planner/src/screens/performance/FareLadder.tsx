@@ -10,7 +10,10 @@
 // them with the moves. Every level, move and action is fare_ladder()'s. Colour only for action: a step down in amber, a
 // step up plain. The moves never appear on Today or in Needs attention. Since 22 Oct (spec
 // docs/specs/2026-10-22-planner-look-performance.md §3) one card per airline: its moves as three counts, the changes to
-// make, Put on the fare plan and See the changes, which opens the lists below the card.
+// make, Put on the fare plan and See the changes, which opens the lists below the card. Since 23 Oct (spec
+// docs/specs/2026-10-23-fare-ladder-under-launch.md §4) the card also counts the week's jumps under launch and the
+// cut-or-keep decisions ("2 jumps, 1 decision"), the routes table words a jump, a revert and the hold after a jump, and
+// a row that is a decision for Gitesh shows "cut or keep?" beside its reason. Nothing goes to Today's Needs attention.
 import { useState } from "react";
 import { Link } from "react-router";
 import type { OurAirline } from "../../data/airlines";
@@ -19,7 +22,8 @@ import { niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import {
-  LADDER_SORTS, changesWords, ladderRows, levelWords, listCut, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
+  LADDER_SORTS, changesWords, decideWords, ladderRows, levelWords, listCut, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
+  underLaunchLine,
   type LadderAction, type LadderAnswer, type LadderSort,
 } from "./model";
 
@@ -58,6 +62,7 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
   const btn = planButton(ladder);
   const { fixes, moves } = splitActions(ladder.actions);
   const m = ladder.moves;
+  const ul = underLaunchLine(m);
   const panel = `ladder-${code}`;
   return (
     <section className="flair" data-ladder={code}>
@@ -68,6 +73,7 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
           <span className="flc"><b>{m.hold}</b> hold</span><span className="sr">, </span>
           <span className={"flc" + (m.down ? " down" : "")}><b>{m.down}</b> down</span>
         </div>
+        {ul ? <div className="flchg" data-ladder-under={code}><span className="sr">· </span>{ul}</div> : null}
         <div className="flchg" data-ladder-changes={code}><span className="sr">· </span>{changesWords(ladder.actions.length)}</div>
         <div className="fltools">
           <button type="button" className="primary sm" data-ladder-plan={code} disabled={busy || !btn.enabled} onClick={onPlan}>{btn.text}</button>
@@ -93,9 +99,10 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
                     <tbody>
                       <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th>Move</th><th>Why</th></tr>
                       {cut.shown.map((r) => {
-                        const mv = moveWords(r), p = plannedWords(r, (d) => niceDate(d));
+                        const mv = moveWords(r), p = plannedWords(r, (d) => niceDate(d)), dk = decideWords(r);
                         return (
-                          <tr key={`${r.route_id}|${r.cabin}`} data-ladder-row={`${r.hub}-${r.dest} ${r.cabin}`} data-move={r.move}>
+                          <tr key={`${r.route_id}|${r.cabin}`} data-ladder-row={`${r.hub}-${r.dest} ${r.cabin}`} data-move={r.move}
+                            data-ladder-kind={r.ladder_kind ?? r.move}>
                             <td><Link className="link" to={itemRoute("routes", { airline: airline.code, hub: r.hub, dest: r.dest })}><b>{r.hub}–{r.dest}</b></Link></td>
                             <td>{r.cabin}</td>
                             <td>{levelWords(r.level, r.steps)}{r.index_matches === false && r.fare_index != null
@@ -103,7 +110,7 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
                                   title="each flight of the latest captured day against the route's fare on 21 Oct (or its first, launched later), times the launch level: a flight more than a point off the level">· index {Math.round(r.fare_index)}{r.fix ? " · set back" : ""}</span></> : null}</td>
                             <td className="num">{soldWords(r)}</td>
                             <td><span className={mv.kind === "down" ? "pill warn sm" : mv.kind === "up" ? "flup" : "dim"}>{mv.text}</span>{p ? <> <span className="dim">· {p}</span></> : null}</td>
-                            <td className="dim">{r.reason}</td>
+                            <td className="dim">{dk ? <><span className="pill warn sm" data-ladder-decide={`${r.hub}-${r.dest} ${r.cabin}`}>{dk}</span> </> : null}{r.reason}</td>
                           </tr>
                         );
                       })}

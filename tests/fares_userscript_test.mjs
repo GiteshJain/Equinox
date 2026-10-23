@@ -83,6 +83,17 @@ await check("a + change in business only, and back to the default price (+0)", (
   const z = action("ORD", "JFK", "+", 0, ["economy", "business"]);
   assert.match(F.changeUrl(z, ids(z)), /&factor=1&percent=0&base=standard&economy=true&business=true$/);
 });
+await check("a jump under launch to 80% (spec 2026-10-23-fare-ladder-under-launch.md §5): the database's −20% action, made as any − change", () => {
+  // fare_ladder() gives a level under 100 as sign "-" and pct 100 − level: a jump to 80 is −20, to 60 −40, Ryanair's to 75 −25
+  const a = action("PVG", "CCU", "-", 20, ["economy"], { level: 80, text: "From PVG to CCU: −20% of the default price, economy" });
+  assert.equal(F.actionProblem(a), null);
+  assert.equal(F.changeWords(a), "From PVG to CCU: −20% of the default price, economy");
+  const j = action("LHR", "JFK", "-", 20, ["economy"]);
+  assert.equal(F.changeUrl(j, ids(j)),
+    "/action/enterprise/flightsPrices?adjust=true&fromCode=a%3A1054&toCode=a%3A3551&serviceProfileId=0&factor=-1&percent=20&base=standard&economy=true");
+  const k = action("LHR", "JFK", "-", 40, ["economy"]);
+  assert.match(F.changeUrl(k, ids(k)), /&factor=-1&percent=40&base=standard&economy=true$/);
+});
 await check("the address uses the form's own fields and values, and nothing else (no first class, no cargo, any service profile)", () => {
   const a = action("JFK", "LHR", "-", 5, ["economy", "business"]);
   const q = new URL(F.changeUrl(a, ids(a)), "https://gander.airlinesim.aero").searchParams;

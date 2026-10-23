@@ -340,8 +340,8 @@ fold them, and a row's title opens or closes it.
   flight sold out (at least 5 departures), **holds** at 90–99%, and goes **down** 5 points under 90%, then holds 2
   weeks. It holds while a route is under 7 days old, and (since 21 Oct) for 7 days after a route gains a flight ("a
   flight added on 2 Nov: judged at its new size from 9 Nov"; the setting *fare_ladder_capacity_hold_days*), never goes
-  more than 20 points above launch for now, and never under launch (nor under the 60% floor where another player flies
-  the pair). Each airline has a card (two a row, one on a phone): its moves as three counts (up, hold, down; the down
+  more than 20 points above launch for now, and never under launch by a 5-point step (nor under the 60% floor where
+  another player flies the pair). Each airline has a card (two a row, one on a phone): its moves as three counts (up, hold, down; the down
   count amber when there is one), how many changes to make in the game ("24 changes in the game": the set-back changes
   and the moves), **Put on the fare plan (n)** and **See the changes**, which opens the long lists in the row under the
   card (**Hide the changes** closes them):
@@ -370,6 +370,26 @@ fold them, and a row's title opens or closes it.
   to (*competition_threat_min_weekly*, 7), in a world scan of the last 7 days holds, with why: "rival Air China started
   here on 22 Oct: paused until 29 Oct". The threats are Competition's. Fare moves never appear on Today or in Needs
   attention (a rival's move does, as itself). In a chat, `select public.fare_ladder(<airline id>);` gives the same list.
+
+  **Under launch** (since 23 Oct, spec `docs/specs/2026-10-23-fare-ladder-under-launch.md`): a cabin that doesn't fill
+  may go under its launch level, in two jumps, each judged on its **revenue a flight** (passengers × fare, averaged over
+  its flights) after 2 weeks. The numbers are settings (*fare_under_launch_load_pct*, *_levels*, *_days*,
+  *_min_flights* and *_decide_load_pct*).
+  - **jump to 80%** (Ryanair, launching at 85%: **jump to 75%**): a cabin at launch that has been under 80% full over the
+    last 14 days, with at least 10 flights, all at launch, where the ladder would otherwise hold it there ("41% full over
+    14 days at launch: to 80% for 2 weeks"). With fewer flights it waits, saying how many;
+  - **hold under launch** for 2 weeks from the day the captures saw the jump ("at 80% since 25 Oct: judged on 8 Nov");
+  - then it is **judged**: its revenue a flight since the jump against its **launch baseline** (the 14 days before its
+    first jump). Not lower: it stays, and the ladder carries on from there ("paid off"). Lower: **jump to 60%** for 2
+    weeks the same way. At 60% and lower: **back to launch**; at 60%, not lower but still under 60% full: it holds at
+    60%. Either way the row shows **cut or keep?** beside its reason, a decision for the Saturday review, never in Needs
+    attention;
+  - under launch the ladder only climbs or holds ("under launch: climbs or holds only"): never a 5-point cut; a cabin
+    that sells out again climbs as usual (from 80, up 5, Pan Am and China Eastern 7).
+
+  The card adds the week's jumps and decisions under its counts ("2 jumps, 1 decision"); **Put on the fare plan** writes
+  a jump as `jump` and a return to launch as `revert`, and the fares userscript makes them like any other change (a jump
+  to 80% is "−20% of the default price").
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
   business (manual §5).
