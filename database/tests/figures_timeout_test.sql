@@ -8,6 +8,7 @@
 --      fleet_checks() (the fleet capture, migration 20261022070000; fleet_capture_test.sql checks its 30 s), so the roles'
 --      limits (anon 3 s, staff 8 s) still hold everywhere else.
 --   3. The figures still come back in one call on the copy, within the 30 seconds.
+--   4. Every function with the 30 s limit plans each call afresh (plan_cache_mode = force_custom_plan, 24 Oct).
 
 do $test$
 declare cfg text[]; t0 timestamptz; missing text; v jsonb; others text; s text := 'figures-timeout-test-' || gen_random_uuid()::text;
@@ -33,12 +34,19 @@ begin
      and exists (select 1 from unnest(p.proconfig) c where c like 'statement_timeout=%');
   assert others is null, 'other functions carry a statement limit: ' || others;
 
+  -- 4. (24 Oct, migration 20261024120000) every function with its own 30 s limit plans each call afresh: on the data
+  --    API's pooled connections a reused generic plan made fare_ladder about four times slower
+  select string_agg(p.proname, ', ') into missing from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proconfig @> array['statement_timeout=30s']
+     and not p.proconfig @> array['plan_cache_mode=force_custom_plan'];
+  assert missing is null, 'functions with the 30 s limit that reuse generic plans: ' || missing;
+
   t0 := clock_timestamp();
   v := public.export_for_report(s, 'figures', '{}');
   assert v ? 'airlines', 'the figures came back without their airlines';
   assert clock_timestamp() - t0 < interval '30 seconds', 'the figures took 30 seconds or more on the copy';
 
-  raise notice 'figures timeout: export_for_report has its own 30 s limit (search_path kept), the thirteen figure functions have it too, no other function has one but capture_fare_actions and fleet_checks, and the figures came back in % ms on the copy',
+  raise notice 'figures timeout: export_for_report has its own 30 s limit (search_path kept), the thirteen figure functions have it too, no other function has one but capture_fare_actions and fleet_checks, each plans its calls afresh, and the figures came back in % ms on the copy',
     round(extract(epoch from clock_timestamp() - t0) * 1000);
 end
 $test$;
