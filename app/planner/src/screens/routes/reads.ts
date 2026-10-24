@@ -10,6 +10,7 @@
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview reads them too.
 import { useQuery } from "@tanstack/react-query";
+import { limited } from "../../data/limit";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import {
@@ -192,7 +193,7 @@ export function useLoads(worldId: number | undefined) {
     queryKey: ["figures", "route_loads", "routes and flights", worldId],
     enabled: worldId !== undefined,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("route_loads", { p_world_id: worldId ?? 0, p_as_of: new Date().toISOString() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("route_loads", { p_world_id: worldId ?? 0, p_as_of: new Date().toISOString() }, { get: true }));
       if (error) return fail("the loads", error.message);
       const d = data as { routes?: RouteLoadRow[]; flights?: FlightLoadRow[] };
       return { routes: d.routes ?? [], flights: d.flights ?? [] };
@@ -208,7 +209,7 @@ export function usePatterns(worldId: number | undefined, enabled = true) {
     queryKey: ["figures", "growth_signals", "patterns", worldId],
     enabled: worldId !== undefined && enabled,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: new Date().toISOString() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: new Date().toISOString() }, { get: true }));
       if (error) return fail("the load patterns", error.message);
       return ((data as { load_patterns?: PatternRow[] }).load_patterns ?? []);
     },

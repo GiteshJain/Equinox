@@ -13,6 +13,7 @@
 // call to the data API, reads them too. A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts
 // its answer into them and reads them again.
 import { useQuery } from "@tanstack/react-query";
+import { limited } from "../../data/limit";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 
@@ -241,7 +242,7 @@ export function useAirlineCards(worldId: number | undefined) {
     queryKey: ["figures", "airline_cards", worldId],
     enabled: worldId !== undefined,
     queryFn: async (): Promise<CardsRead> => {
-      const { data, error } = await supabase.rpc("airline_cards", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("airline_cards", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
       if (error) return fail("the airlines' cards", error.message);
       const d = data as Partial<CardsRead>;
       return {
@@ -277,7 +278,7 @@ export function useGrowth(worldId: number | undefined) {
     queryKey: ["figures", "growth_signals", worldId],
     enabled: worldId !== undefined,
     queryFn: async (): Promise<GrowthRead> => {
-      const { data, error } = await supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
       if (error) return fail("the growth signals", error.message);
       const d = data as Partial<GrowthRead>;
       return { fix_or_reduce: d.fix_or_reduce ?? [], profit_captured: d.profit_captured ?? true, load_patterns: d.load_patterns ?? [] };
@@ -293,7 +294,7 @@ export function useRouteLoads(worldId: number | undefined, enabled: boolean) {
     queryKey: ["figures", "route_loads", worldId],
     enabled: worldId !== undefined && enabled,
     queryFn: async (): Promise<RouteLoad[]> => {
-      const { data, error } = await supabase.rpc("route_loads", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true });
+      const { data, error } = await limited(() => supabase.rpc("route_loads", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
       if (error) return fail("the loads per route", error.message);
       return ((data as { routes?: RouteLoad[] }).routes ?? []).map((r) => ({ ...r, average: Number(r.average) }));
     },
