@@ -5,6 +5,7 @@ CREATE OR REPLACE FUNCTION public.aircraft_profit(p_airline_id bigint, p_days in
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare d jsonb;
 begin
@@ -23,6 +24,7 @@ CREATE OR REPLACE FUNCTION public.airline_cards(p_world_id bigint DEFAULT NULL::
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -39,6 +41,7 @@ CREATE OR REPLACE FUNCTION public.airline_profit(p_airline_id bigint, p_as_of ti
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare d jsonb;
 begin
@@ -130,6 +133,7 @@ CREATE OR REPLACE FUNCTION public.capture_fare_actions(p_key text)
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare v_world bigint;
 begin
@@ -239,6 +243,7 @@ CREATE OR REPLACE FUNCTION public.cash_forecast(p_airline_id bigint, p_orders js
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -270,6 +275,7 @@ CREATE OR REPLACE FUNCTION public.competition(p_airline_id bigint, p_as_of times
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -313,6 +319,7 @@ CREATE OR REPLACE FUNCTION public.export_for_report(p_secret text, p_kind text, 
  SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare v_arg jsonb; v_world bigint; v_airline bigint;
 begin
@@ -392,6 +399,7 @@ CREATE OR REPLACE FUNCTION public.fare_changes(p_airline_id bigint, p_as_of time
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare d jsonb;
 begin
@@ -410,6 +418,7 @@ CREATE OR REPLACE FUNCTION public.fare_ladder(p_airline_id bigint, p_as_of times
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -426,6 +435,7 @@ CREATE OR REPLACE FUNCTION public.fare_plan_status(p_airline_id bigint, p_as_of 
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -442,6 +452,7 @@ CREATE OR REPLACE FUNCTION public.fleet_checks(p_world_id bigint DEFAULT NULL::b
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -458,6 +469,7 @@ CREATE OR REPLACE FUNCTION public.growth_signals(p_world_id bigint DEFAULT NULL:
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -474,6 +486,7 @@ CREATE OR REPLACE FUNCTION public.hub_progress(p_world_id bigint DEFAULT NULL::b
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -879,6 +892,7 @@ CREATE OR REPLACE FUNCTION public.route_loads(p_world_id bigint DEFAULT NULL::bi
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
@@ -895,6 +909,7 @@ CREATE OR REPLACE FUNCTION public.route_profit(p_airline_id bigint, p_days integ
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare d jsonb; a jsonb; v_in numeric; v_out numeric;
 begin
@@ -921,6 +936,7 @@ CREATE OR REPLACE FUNCTION public.route_story(p_route_id bigint, p_as_of timesta
  STABLE SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
