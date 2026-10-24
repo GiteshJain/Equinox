@@ -269,6 +269,7 @@ CREATE OR REPLACE FUNCTION public.competition(p_airline_id bigint, p_as_of times
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
