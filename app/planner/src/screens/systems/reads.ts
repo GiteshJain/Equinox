@@ -13,6 +13,7 @@
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview (decision #8) reads them too.
 import { useQuery } from "@tanstack/react-query";
+import { limited } from "../../data/limit";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
@@ -27,7 +28,7 @@ const num = (v: Json | undefined): number | null => (v == null ? null : Number(v
 const asOf = () => new Date().toISOString();
 
 async function rpc<T>(what: string, fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.rpc(fn as never, args as never, { get: true });
+  const { data, error } = await limited(() => supabase.rpc(fn as never, args as never, { get: true }));
   if (error) return fail(what, error.message);
   return data as unknown as T;
 }

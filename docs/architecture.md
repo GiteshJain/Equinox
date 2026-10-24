@@ -167,7 +167,10 @@ flowchart LR
 2. **The planner** (#18; at `/planner/` since the switch on 14 Oct, the only one since the clean-up the same day)
      reads only what each screen shows, straight from the tables and views under their staff rules,
      through TanStack Query, which keeps a screen's data while you move around and reads it again when it's stale or
-     after a save. Home (build pull request 5) and the screens after it also ask the planning library (on `rules_input(world, 'flown')`) and the
+     after a save. Tables go stale after a minute; the captured figures after 15 minutes, since they change only with a
+     capture (24 Oct; the capture's and the systems' state stay at a minute), and every figure goes through one queue,
+     at most four at a time (`data/limit.ts`; Performance's since 22 Oct, every screen's since 24 Oct), so opening a
+     screen while the evening's capture and scan write doesn't push the calls past their limits. Home (build pull request 5) and the screens after it also ask the planning library (on `rules_input(world, 'flown')`) and the
      captured figures (at the screen's moment) for its figures, and moves on with the clock each minute. Each action sends one `planner_save()` call with every row it changes (actor
      `planner`, the tab's ID in the change log), each update or delete with
      the row's `updated_at` as it was read. If any of those rows changed since, nothing is written: the answer gives
