@@ -1437,6 +1437,12 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .flpanel{grid-column:1 / -1;min-width:0;padding:24px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);
   border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow)}
 .flpanel > .tph{display:flex;align-items:center;gap:8px}
+.perfal + .perfladder{margin-top:var(--gap-card)}
+.fllinks{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.fllink{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 16px;border-radius:var(--r-md);background:var(--paper);
+  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);font:700 var(--t-body)/1.3 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
+.fllink:hover,.fllink:focus-visible{box-shadow:0 0 0 2px var(--night),var(--shadow)}
+.fllink .fla{margin-left:auto;color:var(--muted)}
 
 .perfrows{margin-top:var(--gap-sec)}
 .perfal + .perfrows,.perfal ~ .perfrows{margin-top:var(--gap-card)}

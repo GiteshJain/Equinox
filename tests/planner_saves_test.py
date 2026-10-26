@@ -33,7 +33,8 @@ the saves' names follow their screens, and Log an order as went with the order r
     with the one-week checks on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md, and their recorded rows
     with them.) Since 22 Oct, Cabin charges' Use the game's amount, on a first fit made to differ
     for the test (spec docs/specs/2026-10-21-tidy-ups.md §3).
-  Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct: one row per route and cabin it marks,
+  Performance: + fare plan; remove; Put on the fare plan (the fare ladder, 21 Oct, on the airline's own page since 26 Oct:
+    one row per route and cabin it marks,
     since 26 Oct per direction, each row written with its direction, out or back,
     how many depending on the night). Since 23 Oct, when the copy has a jump under launch to put on the fare plan, that
     airline's Put on the fare plan is recorded as its own save instead, with each jump written as ladder_move jump at its
@@ -866,16 +867,17 @@ async def review(s, pl, al, now):
 
 # ---------- Performance → the fare ladder (21 Oct, spec docs/specs/2026-10-21-fare-ladder.md)
 async def fare_ladder(s, pl):
-    """Put on the fare plan for the first airline with a move to put there: one planner_save() call, a fare_plan row for
-    each route and cabin the ladder marks (how many depends on the night, so recorded as *); then the board says the moves
+    """Put on the fare plan, on the airline's own page (since 26 Oct), for the first airline with a move to put there: one
+    planner_save() call, a fare_plan row for each route and cabin the ladder marks (how many depends on the night, so recorded as *); then the board says the moves
     are on the fare plan. Since 23 Oct (spec docs/specs/2026-10-23-fare-ladder-under-launch.md §5) an airline with a jump
     under launch comes first, and the rows written for its jumps must have ladder_move jump: the answer records which
     ladder_move values the rows written have (jump among them when there was one to put). Since 26 Oct (spec
     docs/specs/2026-10-26-fare-ladder-per-direction.md §5) a row per route, cabin and direction: every row written has its
     direction (out or back), as many as the ladder marked, each the direction of a row it marked."""
     pg = pl.pg
-    await to_screen(pl, "performance", "/performance")
-    # an airline whose fare ladder has a jump to put on the fare plan comes first (fare_ladder() on the copy, at the
+    # since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-one-airline.md) the fare ladder is on each airline's page, so
+    # Put on the fare plan is pressed there; the rows written are the same as before.
+    # An airline whose fare ladder has a jump to put on the fare plan comes first (fare_ladder() on the copy, at the
     # frozen moment): its save is recorded under a name of its own, with the jump's row checked; else the first airline
     # with any move, as before, and the jump's save is reported as not tried on this copy
     jumper = None
@@ -887,7 +889,12 @@ async def fare_ladder(s, pl):
         if n not in ("", "0"):
             jumper = a
             break
-    code = jumper["code"] if jumper else await pg.evaluate("(document.querySelector('[data-ladder-plan]:not([disabled])') || {dataset: {}}).dataset.ladderPlan || ''")
+    code = ""
+    for a in ([jumper] if jumper else [a for a in COPY["airlines"] if a["code"]]):
+        await to_screen(pl, "performance", f"/performance/{a['code']}")   # ready once its fare ladder is read (or failed)
+        if jumper or await pg.evaluate(f"!!document.querySelector('[data-ladder-plan={json.dumps(a['code'])}]:not([disabled])')"):
+            code = a["code"]
+            break
     if not jumper:
         s.not_tried("no airline has a jump under launch to put on the fare plan on this copy", "performance: put the fare ladder on the fare plan, with a jump")
     if not code:

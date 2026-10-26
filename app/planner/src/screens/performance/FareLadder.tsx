@@ -18,6 +18,8 @@
 // the routes table has a row per direction and cabin, its route shown as "EDI → FRA" (the airports that way round, linking
 // to the route's page), with its own sold out, Load (that direction's average load over the 7 days), level, move and why;
 // the counts, the game actions (one per direction) and Put on the fare plan (with each row's direction) follow.
+// Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-one-airline.md) the board is on each airline's page, for that
+// airline only, under its scorecard (the group page has a link to each): all six at once timed out together.
 import { useState } from "react";
 import { Link } from "react-router";
 import type { OurAirline } from "../../data/airlines";
@@ -31,7 +33,7 @@ import {
   type LadderAction, type LadderAnswer, type LadderSort,
 } from "./model";
 
-/** The board: one card per airline, in the airlines' order, in a two-column grid (one on a phone). Since 22 Oct (spec
+/** The board: one card per airline given (since 26 Oct the airline page's one), in the airlines' order, in a two-column grid (one on a phone). Since 22 Oct (spec
  *  docs/specs/2026-10-22-planner-look-performance.md §3) each card shows only its moves as three counts, how many
  *  changes to make in the game and its two actions; **See the changes** opens the long lists (the set-back changes,
  *  the game actions, the routes table with its sorts) right below the card's row. */
