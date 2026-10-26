@@ -253,8 +253,9 @@ Details and open points: `docs/decisions.md`.
   family, the E-jet E2 and the A350. *(since 18 Oct; the A350 rows since 21 Oct; history: rule-history.md)*
   - **Turnaround of a new variant:** the game shows none, so a new variant takes its family's (A320 family 66 minutes,
     E-jet E2 67, A350 90). *(since 19 Oct; history: rule-history.md)*
-  - **Reach is checked by the Scheduling chat** when it picks the variant for a route (§3), not by the plan card.
-    *(since 19 Oct; history: rule-history.md)*
+  - **Reach is checked by the Scheduling chat** when it picks the variant for a route (§3), not by the plan card. A
+    route slightly past a variant's full-load range is proposed only after asking Gitesh, each time: the game flies it
+    with fewer seats. *(since 19 Oct; asking first since 26 Oct; history: rule-history.md)*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
   E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
   forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both

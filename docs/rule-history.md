@@ -278,6 +278,11 @@ Left out because another variant beats them: the A350-900ULR (above), the A319ne
 #### Turnaround of a new variant; reach checked by the Scheduling chat
 Both rules came from the built item "#18 and #19 ... Decided 18 Oct, for the Building chat: the planner learns the default line's variants" (below, *Built from the decision list*): "The game shows no turnaround, so a new variant takes its family's (A320 family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card)."
 
+*Asking first since 26 Oct (Gitesh, Scheduling chat): "since we know ranges are a bit flexible ask if needed for each
+where you want to push slightly".* Earlier wording ended at "not by the plan card." · why: the listed range is with a
+full load and not a limit (the default line, §3), so a route a little beyond it can fly the aircraft longer at the cost
+of some seats; Gitesh decides each case. Raised by G-AAFK (LGW) on Tel Aviv (3,557 km against the SHARP's 3,355).
+
 #### Order across both delivery lines
 *Since 18 Oct · why (Gitesh, agreed): under market share first, an E195 buys about a third more departures for the money (about 310 a week per 10M against 235) and comes sooner on its own line, while the A321neo buys more seats (about 1,000 per 10M against 810); cash, not the lines, limits orders (an aircraft every 2 to 2.5 days per airline against a line delivering every 15 or 21 hours).*
 
