@@ -1,7 +1,9 @@
 // The fares userscript (capture/fares_apply.user.js; spec docs/specs/2026-10-21-fares-userscript.md §3) on the game's
 // pages, with no browser and no game: the script's own file runs in Node, where (with no page) it only hands over its
 // logic. On the dated samples: the fares form Gitesh saved on 21 Oct (tests/fixtures/flightsPrices_2026-10-21.html) and
-// the answer to one change, made by hand from his screenshot (tests/fixtures/flightsPrices_answer_2026-10-21.html).
+// the answer to one change, made by hand from his screenshot (tests/fixtures/flightsPrices_answer_2026-10-21.html), and
+// since 26 Oct the game's real answer to one change (tests/fixtures/flightsPrices_answer_2026-10-26.html), whose airport
+// cells the first real run couldn't read ("New York (<a>JFK</a>)" reads "New York ( JFK )").
 // Checks: the airport map read from the form; the GET address for a + and a − change, with one class and with both; the
 // answer read, the right rows found and a missing row caught; a change that can't be made refused before anything is
 // sent; capture_fare_actions()'s answer grouped by airline; a set-back change (fix, spec
@@ -16,6 +18,7 @@ const here = new URL(".", import.meta.url);
 const source = readFileSync(new URL("../capture/fares_apply.user.js", here), "utf8");
 const form = readFileSync(new URL("fixtures/flightsPrices_2026-10-21.html", here), "utf8");
 const answer = readFileSync(new URL("fixtures/flightsPrices_answer_2026-10-21.html", here), "utf8");
+const realAnswer = readFileSync(new URL("fixtures/flightsPrices_answer_2026-10-26.html", here), "utf8");
 
 const sandbox = {};
 vm.createContext(sandbox);
@@ -128,6 +131,17 @@ await check("the answer checked: a missing row is caught (the other direction; a
 await check("the answer checked: airports named in full, or as the form names them, are read too", () => {
   const full = answer.replace(/<td>LHR<\/td>/g, "<td>London Heathrow (LHR)</td>").replace(/<td>JFK<\/td>/g, "<td><a href=\"#\">New York John F. Kennedy</a></td>");
   assert.equal(plain(F.checkAnswer(full, action("LHR", "JFK", "+", 0, ["economy", "business"]), airports.names)).ok, true);
+});
+await check("the game's real answer (26 Oct): From JFK to BCN, both classes found, with the code in its own link inside the brackets", () => {
+  const realAirports = F.airportsOf(realAnswer);
+  assert.ok(realAirports, "the real answer's fares form wasn't read");
+  const rows = plain(F.changedPairs(realAnswer));
+  assert.equal(rows.length, 2);
+  const c = plain(F.checkAnswer(realAnswer, action("JFK", "BCN", "+", 7, ["economy", "business"]), realAirports.names));
+  assert.equal(c.ok, true, c.why);
+  assert.deepEqual(c.rows, [{ cls: "Y", old: "474 AS$", new: "474 AS$" }, { cls: "C", old: "1,186 AS$", new: "1,186 AS$" }]);
+  const back = plain(F.checkAnswer(realAnswer, action("BCN", "JFK", "+", 7, ["economy"]), realAirports.names));
+  assert.equal(back.ok, false, "the other direction must not be taken for this one");
 });
 await check("the answer checked: no table on the fares page, and a page that isn't the fares page (the session lost)", () => {
   const none = plain(F.checkAnswer(form, action("LHR", "JFK", "+", 0, ["economy"]), airports.names));
