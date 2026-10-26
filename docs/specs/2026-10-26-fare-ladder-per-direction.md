@@ -5,8 +5,8 @@ Decided by Gitesh on 26 Oct (brief `docs/briefs/2026-10-26-fare-ladder-per-direc
 (`docs/architecture.md`), the manual (§5 especially) and the two earlier fare-ladder specs first:
 `docs/specs/2026-10-21-fare-ladder.md` and `docs/specs/2026-10-23-fare-ladder-under-launch.md`.
 
-**Start from `main` once pull request #102 (each direction's average load, `load_out` and `load_back`) is merged**, since
-it changes the same builder and table. This build replaces #102's out · back column (see 4).
+Start from `main`. (Pull request #102, each direction's average load as an out · back column, was closed unmerged on
+26 Oct: this build gives each direction's row its own load instead.)
 
 ## What and why
 Today each cabin of each route has one **level**, judged on both directions' flights together. From now on **each
@@ -48,8 +48,7 @@ Per direction and cabin:
   `average_fare`, the fare index (`latest`, `ratios`, `baseline_fare`: they are per direction already inside, keep them
   so), `level`, `steps`, `move`, `new_level`, `change_pct`, `reason`, `planned`, `plan_id`, `applied`, `seen_on`,
   `to_plan`, `ladder_kind`, `under_launch`, `decide`, `fix`, `fix_reason`. Add `load` (that direction's average load in
-  the cabin over the 7 days, rounded to 0.1) and remove #102's `load_out`, `load_back`, `departures_out` and
-  `departures_back`.
+  the cabin over the 7 days, rounded to 0.1).
 - `new_route`, the capacity hold (`added`), the rival pause and `contested` are worked out per route and given on both
   of its directions' rows.
 - **Actions:** one per direction (From → To), set-back changes first, then the moves, in the rows' order; where a
@@ -75,8 +74,8 @@ Per direction and cabin:
   yet still shows launch. Update `cases/` and the tests.
 - **The planner:**
   - Performance → **the fare ladder**: the routes table gets a row per direction and cabin, its route shown as
-    "EDI → FRA" (the airports in that direction), with its own sold out, **Load** (that direction's average, in place of
-    #102's out · back column), level, move and why; the cards' counts, the numbered game changes and **Put on the fare
+    "EDI → FRA" (the airports in that direction), with its own sold out, **Load** (that direction's average load over
+    the 7 days, a new column after Sold out), level, move and why; the cards' counts, the numbered game changes and **Put on the fare
     plan** follow (`screens/performance/FareLadder.tsx`, `model.ts`).
   - The airline page's route profit table's fare index, the fare plan list (show a row's direction: "out", "back" or
     nothing for both), the route page's header fares and events, Tails' plan card **Fare level** column (per leg, from the
