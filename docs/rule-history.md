@@ -278,6 +278,11 @@ Left out because another variant beats them: the A350-900ULR (above), the A319ne
 #### Turnaround of a new variant; reach checked by the Scheduling chat
 Both rules came from the built item "#18 and #19 ... Decided 18 Oct, for the Building chat: the planner learns the default line's variants" (below, *Built from the decision list*): "The game shows no turnaround, so a new variant takes its family's (A320 family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card)."
 
+*Asking first since 26 Oct (Gitesh, Scheduling chat): "since we know ranges are a bit flexible ask if needed for each
+where you want to push slightly".* Earlier wording ended at "not by the plan card." · why: the listed range is with a
+full load and not a limit (the default line, §3), so a route a little beyond it can fly the aircraft longer at the cost
+of some seats; Gitesh decides each case. Raised by G-AAFK (LGW) on Tel Aviv (3,557 km against the SHARP's 3,355).
+
 #### Order across both delivery lines
 *Since 18 Oct · why (Gitesh, agreed): under market share first, an E195 buys about a third more departures for the money (about 310 a week per 10M against 235) and comes sooner on its own line, while the A321neo buys more seats (about 1,000 per 10M against 810); cash, not the lines, limits orders (an aircraft every 2 to 2.5 days per airline against a line delivering every 15 or 21 hours).*
 
@@ -607,6 +612,8 @@ Kept so they don't come back. Newest first.
 |---|---|---|
 | 26 Oct | The fare ladder by route and cabin: one level for both directions, judged on both directions' flights together; set back, under launch and the game changes (both ways at once) the same | Each direction of each cabin of each route its own level, judged on that direction's flights (up, hold, down, the hold after a step down, under launch, set back); one game change per direction; a new route, the capacity hold, the rival pause and the 60% floor stay the whole route's (§5). Why: Gitesh, option A of the per-direction brief; passengers book each direction separately |
 | 26 Oct | The cabin by market: the layout of the market of a route taking over 65% of block time (`cabin_route_share_pct`, `markets.layout`), else the layout with the most seats | The cabin by distance of the main route: Leisure under 3,500 km, Leisure Plus to 6,500 km, Comfort beyond (§5). Why: Gitesh, the layouts trade seat comfort for seats, a question of flight length; demand is met by fares (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`) |
+| 26 Oct | An aircraft logged without saying new or used was taken as new (`aircraft.acquired` defaulted to new) | Every aircraft logged must say new or used: no default (§3). Why: Gitesh; on 23 Oct VT-ABE, bought used, was logged without it and marked new, which would have set its replacement at 3 years instead of 10 |
+| 26 Oct | The fleet checks counted every aircraft on the night's fleet pages | An aircraft not delivered yet (on order in the planner, or at the factory with no seats and no pilots) is left out until it arrives (§7). Why: Gitesh; on 24 Oct EI-ACF, ordered new, showed as "looks used (24.1 years)" from the factory's meaningless age |
 | 26 Oct | The cabin by distance of the main route | The distance band taking over 65% of block time decides, else the most seats; no route override (§5). Why: Gitesh, the 65% rule still applies to aircraft flying several ranges |
 | 21 Oct | Every Saturday, first the world scan: `gscan.py`, run from the Saturday chat (since 14 Oct, #22) | The world scan runs with the evening capture when one is due (`scan_every_days`, 1: every evening); `gscan.py` by hand only when the Systems board shows it old (§7). Why: Gitesh, competition analysis and the evening order proposal need fresh rivals (brief `docs/briefs/2026-10-21-competition-analysis.md`) |
 | 21 Oct | The evening proposal shows every airline that can order at once | One airline at a time, each decided, ordered and logged before the next (§3). Why: Gitesh |

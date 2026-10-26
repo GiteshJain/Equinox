@@ -126,7 +126,7 @@ button.
 | **Competition** | Who we're up against and where to open next (since 21 Oct). The scans' dates and the group line on top; for each airline its **Market share** by market (our share, its arrow, the top rivals as a bar), **Threats** (rivals who started on or grew on our pairs), **Openings** ranked (stars, rivals, distance; variant and hubs first) and **Rival profiles** | Each evening before an order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and each airline's skip list | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
-| **Reference** | The rule numbers (Constants), aircraft types and cabins, order cabins, markets and their layouts, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together (manual §1, rule numbers have one source) |
+| **Reference** | The rule numbers (Constants), aircraft types and cabins, order cabins, markets, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together (manual §1, rule numbers have one source) |
 | **Systems** | The plumbing. The **Systems** board (is everything working?), then the capture's details, and **Manual entry** if a capture fails | When Today's capture line or needs attention points there |
 
 Check, Review and Hubs went on 20 Oct: their boards are on Today, Performance and Systems, and their old addresses
@@ -202,14 +202,14 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 - **Look at the used offers too** (since 22 Oct): the game's Aircraft Market, each evening, for one on the default
   line that flies the chosen routes for less than new. You place the bid and say when the auction closes (rule:
   manual §3, the used market too; how auctions work: manual §9). When it's won, Claude logs the order with
-  `aircraft.acquired` set to `used`, so its replacement comes at 10 years, not 3 (manual §3, replacement by age); a
-  used aircraft logged without it shows on Today's Fleet group as "looks used, marked new" the first night it flies.
+  `aircraft.acquired` set to `used`, so its replacement comes at 10 years, not 3 (manual §3, replacement by age).
+  Since 26 Oct `acquired` has no default: logging any aircraft without `new` or `used` is refused.
 - **The routes come from the top of the openings** (since 21 Oct): Competition → the airline → **Openings**, or the
   airline briefing, or `select public.competition(<airline id>);` for the rest (rule: manual §3, the openings, ranked).
   In November the trunks are listed first and marked; whether each makes sense stays the Scheduling chat's call (rule:
   manual §4, from 1 to 30 November).
-- **You order in the game** and tell the Scheduling chat (rule: manual §3, who orders). Claude logs it and writes the
-  **plan card** with those routes and that cabin (Tails → Deliveries → **card**), following step 4.
+- **You order in the game** and tell the Scheduling chat (rule: manual §3, who orders). Claude logs it, with
+  `acquired` `new` (or `used` from the market), and writes the **plan card** with those routes and that cabin (Tails → Deliveries → **card**), following step 4.
 - The aircraft appears in Tails' **Deliveries** with its arrival time (UTC), counts on its delivery line in Today's
   **Orders**, and shows on Today's **Aircraft to file** (and Home's **To file** card) once it arrives.
 

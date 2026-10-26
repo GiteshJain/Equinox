@@ -235,7 +235,7 @@ begin
   assert (e ->> 'scheduled')::int = 4, 'a loads page''s window should hold 4 of One''s flights, not ' || coalesce(e ->> 'scheduled', 'none') || ': ' || e::text;
   -- an aircraft that hasn't flown yet doesn't count (15 Oct: aircraft filed on the 13th hadn't started); once a capture
   -- before the page names it flying, its legs count
-  insert into public.aircraft (world_id, airline_id, registration, status) values (w, a1, 'VA-NEW', 'active') returning id into rot5;
+  insert into public.aircraft (world_id, airline_id, registration, status, acquired) values (w, a1, 'VA-NEW', 'active', 'new') returning id into rot5;
   insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r, null) returning id into rot6;
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min) values
     (w, a1, rot6, 1, 109, 'ZY1', 'ZY2', rot5, '{1,2,3,4,5,6,7}', 360, 120);

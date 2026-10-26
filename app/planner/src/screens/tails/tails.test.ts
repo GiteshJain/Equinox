@@ -371,29 +371,34 @@ describe("filing", () => {
     expect(cardCabinChange({ ...card, config_id: 14 }, null)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: null } }]);
     expect(cardCabinChange({ ...card, config_id: 14 }, 14)).toEqual([]);
   });
-  // 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §3): the card suggests its cabin by the rule (manual §5)
-  it("suggests the cabin the card's routes call for, with the airline's routes laid in with their markets' layouts", () => {
+  // 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §3): the card suggests its cabin by the rule (manual §5); by
+  // distance since 26 Oct (the range over 65% of block time decides; no market or route choice overrides it)
+  it("suggests the cabin the card's routes call for by distance, with the airline's routes laid in", () => {
     // the start without the card's two routes (as rules_input('flown') when they aren't flown yet), the layouts with their names
     const start = buildRules({ ...input, routes: input.routes.filter((r) => r.id !== 4 && r.id !== 1), cabin_configs: [
       { id: 11, code: "321-LEI", aircraft_type_id: 1, seats: 195, cabin: "Leisure" }, { id: 13, code: "321-STD", aircraft_type_id: 1, seats: 216, cabin: "Standard" },
       { id: 12, code: "E195-LEI", aircraft_type_id: 2, seats: 112, cabin: "Leisure" }, { id: 14, code: "321-CMF", aircraft_type_id: 1, seats: 141, cabin: "Comfort" },
       { id: 15, code: "321-LP", aircraft_type_id: 1, seats: 166, cabin: "Leisure Plus" }] });
-    const laid = withRoutes(start, routes, [...markets.values()]);
+    // HUB–DDD at 4,200 km is in the Leisure Plus range (3,500 to 6,500)
+    const far = routes.map((r) => (r.id === 4 ? { ...r, distance_km: 4200 } : r));
+    const laid = withRoutes(start, far, [...markets.values()]);
     expect(laid.routes.get(4)).toMatchObject({ market_id: 1, market: "Asia", market_layout: "Leisure Plus", cabin_choice: null });
-    // HUB–DDD is 690 of the card's 855 block minutes a day: 81%, over 65%, so its market's Leisure Plus
+    // HUB–DDD is 690 of the card's 855 block minutes a day: 81% in the 3,500–6,500 km range, over 65%: Leisure Plus
     const s = cardCabin(laid, card, planLegs);
-    expect(s).toMatchObject({ code: "321-LP", config_id: 15, reason: "HUB–DDD is 81% of block time: Leisure Plus", missing: true, differs: true });
-    expect(suggestionWords(s)).toEqual({ text: "suggested: 321-LP", reason: "HUB–DDD is 81% of block time: Leisure Plus" });
+    expect(s).toMatchObject({ code: "321-LP", config_id: 15, reason: "3,500–6,500 km is 81% of block time: Leisure Plus", missing: true, differs: true });
+    expect(suggestionWords(s)).toEqual({ text: "suggested: 321-LP", reason: "3,500–6,500 km is 81% of block time: Leisure Plus" });
     // a card's cabin that differs shows in amber; the suggestion itself doesn't, nor no cabin (that has its own pill)
     expect([cabinDiffers(s, "321-LEI"), cabinDiffers(s, "321-LP"), cabinDiffers(s, ""), cabinDiffers(null, "321-LEI")]).toEqual([true, false, false, false]);
     expect(cardCabin(laid, { ...card, config_id: 15 }, planLegs)).toMatchObject({ missing: false, differs: false });
     // Use the suggestion is the card-cabin save there already is
     expect(cardCabinChange(card, s?.config_id ?? null)).toEqual([{ table: "plan_cards", op: "update", key: { id: 7 }, base: T0, values: { config_id: 15 } }]);
-    // the route's own choice wins over its market's layout
-    const own = withRoutes(start, routes.map((r) => (r.id === 4 ? { ...r, cabin_choice: "Comfort" } : r)), [...markets.values()]);
-    expect(cardCabin(own, card, planLegs)?.code).toBe("321-CMF");
-    // without its market's layout (the markets not read yet): the most seats a full-service airline may choose
-    expect(cardCabin(withRoutes(start, routes), card, planLegs)).toMatchObject({ code: "321-LEI", reason: "HUB–DDD is 81% of block time, but it has no market layout: the most seats" });
+    // since 26 Oct a route's own choice no longer wins: distance alone decides
+    const own = withRoutes(start, far.map((r) => (r.id === 4 ? { ...r, cabin_choice: "Comfort" } : r)), [...markets.values()]);
+    expect(cardCabin(own, card, planLegs)?.code).toBe("321-LP");
+    // nor does the markets' layout matter: without them read, the same
+    expect(cardCabin(withRoutes(start, far), card, planLegs)).toMatchObject({ code: "321-LP", reason: "3,500–6,500 km is 81% of block time: Leisure Plus" });
+    // at its own 1,400 km HUB–DDD is short haul with HUB–AAA: all of it under 3,500 km, Leisure
+    expect(cardCabin(withRoutes(start, routes, [...markets.values()]), card, planLegs)).toMatchObject({ code: "321-LEI", reason: "under 3,500 km is 100% of block time: Leisure" });
     // an aircraft the start doesn't hold: nothing to suggest
     expect(cardCabin(laid, { ...card, aircraft_id: 99 }, planLegs)).toBeNull();
   });
@@ -474,8 +479,11 @@ describe("filing a station route (spec docs/specs/2026-10-22-station-role.md)", 
 
 describe("adding, changing and removing an aircraft", () => {
   it("adds a tail in service, and refuses a registration in use", () => {
-    expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet)).toEqual({ changes: [
-      { table: "aircraft", op: "insert", values: { world_id: 1, registration: "T-009", airline_id: 1, aircraft_type_id: 1, cabin_config_id: 11, base_code: "HUB", status: "active" } }] });
+    expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB", acquired: "used" }, rules, configs, fleet)).toEqual({ changes: [
+      { table: "aircraft", op: "insert", values: { world_id: 1, registration: "T-009", airline_id: 1, aircraft_type_id: 1, cabin_config_id: 11, base_code: "HUB", status: "active", acquired: "used" } }] });
+    // since 26 Oct a new aircraft must say whether it came new or used
+    expect(addTailChanges(1, 1, { id: "T-009", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet)).toEqual({ error: "Say whether it came new or used." });
+    expect(addTailChanges(1, 1, { id: "T-009", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB", acquired: "" }, rules, configs, fleet)).toEqual({ error: "Say whether it came new or used." });
     expect(addTailChanges(1, 1, { id: "T-001", type: "", config: "", base: "" }, rules, configs, fleet)).toEqual({ error: "That tail id exists." });
     expect(addTailChanges(1, 1, { id: "  ", type: "", config: "", base: "" }, rules, configs, fleet)).toEqual({ changes: [] });
     const retired = [...fleet, ac(9, "T-009", { status: "retired", retired_on: "2026-10-01", extra: {} })];

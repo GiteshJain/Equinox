@@ -2943,8 +2943,22 @@ CREATE OR REPLACE FUNCTION private.fig_capex(p_airline_id bigint, p_d0 date, p_d
  STABLE
  SET search_path TO ''
 AS $function$
-  select coalesce(sum(s.amount), 0) / 1000000 from public.spending_log s
-   where s.airline_id = p_airline_id and s.kind <> 'loss' and s.spent_on > p_d0 and s.spent_on <= p_d1
+  -- the money put back into the fleet between two reported days (since 26 Oct): from the bank statement, between the
+  -- two days' balance captures, every security deposit (one refunded counts against it), aircraft purchase, cabin
+  -- installation, refit and pilot training, and an auction's bid provision (its refund counts against it); before the statement's payments begin, or
+  -- for a day typed by hand, the spending log as before
+  with t as (select (select max(b.captured_at) from public.game_balance b
+                      where b.airline_id = p_airline_id and b.account like '2800%' and b.captured_on = p_d0) as t0,
+                    (select max(b.captured_at) from public.game_balance b
+                      where b.airline_id = p_airline_id and b.account like '2800%' and b.captured_on = p_d1) as t1,
+                    (select min(p.paid_at) from public.game_payments p where p.airline_id = p_airline_id) as since)
+  select case when t.t0 is not null and t.t1 is not null and t.since is not null and t.t0 >= t.since then
+           coalesce((select sum(case when p.side = 'C' then -p.amount else p.amount end) from public.game_payments p
+                      where p.airline_id = p_airline_id and p.paid_at > t.t0 and p.paid_at <= t.t1
+                        and (p.kind in ('deposit', 'cabin', 'purchase', 'refit') or (p.kind = 'other' and p.descr ilike '%provisions for bid%'))), 0) / 1000000
+         else (select coalesce(sum(s.amount), 0) / 1000000 from public.spending_log s
+                where s.airline_id = p_airline_id and s.kind <> 'loss' and s.spent_on > p_d0 and s.spent_on <= p_d1) end
+    from t
 $function$
 
 ;
@@ -4578,6 +4592,10 @@ begin
            m.economy_seats, m.business_seats, m.first_seats, m.acquired, m.delivery_at,
            case when m.acquired = 'used' then v_used when m.acquired = 'new' then v_new end as replace_at,
            f.registration || ' (' || coalesce(m.base_code, f.fleet_name, '?') || ')' as who,
+           -- not delivered yet (since 26 Oct): on order in the planner, or listed by the game with no seats and no pilots
+           -- (an ordered aircraft waits at the factory with an age that means nothing); left out of the aircraft's checks
+           coalesce(m.status = 'on_order', false)
+             or (coalesce(f.seats_y, 0) = 0 and coalesce(f.seats_c, 0) = 0 and coalesce(f.seats_f, 0) = 0 and f.pilots is false) as undelivered,
            format('%s/%s/%s', coalesce(f.seats_y::text, '?'), coalesce(f.seats_c::text, '?'), coalesce(f.seats_f::text, '?')) as seats
       from public.game_fleet f
       join al on al.airline_id = f.airline_id
@@ -4588,18 +4606,18 @@ begin
     select 1 as rank, 'maintenance' as kind, fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name) as base,
            fl.planner_id as aircraft_id,
            format('%s: maintenance %s%%, condition %s%%', fl.who, fl.maintenance_pct, coalesce(trim_scale(fl.condition_pct)::text, '?')) as words
-      from fl where fl.maintenance_pct < fl.min_pct
+      from fl where fl.maintenance_pct < fl.min_pct and not fl.undelivered
     union all
     select 2, 'crew', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
            format('%s: no pilots', fl.who)
-      from fl where fl.pilots = false
+      from fl where fl.pilots = false and not fl.undelivered
     union all
     select 3, 'cabin', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
            case when fl.cabin_config_id is null then format('%s: no cabin in the planner (%s in the game)', fl.who, fl.seats)
                 else format('%s: seats %s in the game, %s/%s/%s in the planner (%s)', fl.who, fl.seats, coalesce(fl.economy_seats::text, '?'),
                             coalesce(fl.business_seats::text, '?'), fl.first_seats, coalesce(nullif(fl.cabin_code, ''), 'its cabin')) end
       from fl
-     where fl.planner_id is not null
+     where fl.planner_id is not null and not fl.undelivered
        and (fl.cabin_config_id is null
             or (fl.economy_seats is not null and fl.seats_y is distinct from fl.economy_seats)
             or (fl.business_seats is not null and fl.seats_c is distinct from fl.business_seats)
@@ -4621,14 +4639,14 @@ begin
                 then format('%s: past its replacement age (%s years, now %s)', fl.who, trim_scale(fl.replace_at), fl.age_years)
                 else format('%s: replace at %s years (now %s): order its replacement', fl.who, trim_scale(fl.replace_at), fl.age_years) end
       from fl
-     where fl.planner_id is not null and fl.replace_at is not null and fl.age_years is not null
+     where fl.planner_id is not null and not fl.undelivered and fl.replace_at is not null and fl.age_years is not null
        and fl.age_years >= fl.replace_at - v_warn / 365.25
     union all
     -- the cross-check: marked new, but older in the game than its time with us by more than 0.2 years
     select 7, 'age', fl.airline_id, fl.ord, fl.iata_code, fl.registration, coalesce(fl.base_code, fl.fleet_name), fl.planner_id,
            format('%s: looks used (%s years in the game), marked new', fl.who, fl.age_years)
       from fl
-     where fl.planner_id is not null and fl.acquired = 'new' and fl.delivery_at is not null and fl.age_years is not null
+     where fl.planner_id is not null and not fl.undelivered and fl.acquired = 'new' and fl.delivery_at is not null and fl.age_years is not null
        and fl.age_years - (v_night - (fl.delivery_at at time zone 'UTC')::date) / 365.25 > 0.2),
   kinds as (select * from unnest(array['maintenance', 'crew', 'cabin', 'not_in_planner', 'not_in_game', 'replace', 'age']) with ordinality k(kind, o))
   select jsonb_build_object(
@@ -4648,7 +4666,7 @@ begin
         'aircraft', coalesce((select jsonb_agg(jsonb_build_object(
             'registration', fl.registration, 'aircraft_id', fl.planner_id, 'base', coalesce(fl.base_code, fl.fleet_name),
             'fleet', fl.fleet_name, 'type', fl.type_name, 'nickname', fl.nickname, 'from', fl.location_from, 'to', fl.location_to,
-            'flight', fl.flight, 'age_years', fl.age_years, 'acquired', fl.acquired, 'replace_at_years', fl.replace_at,
+            'flight', fl.flight, 'age_years', fl.age_years, 'acquired', fl.acquired, 'replace_at_years', fl.replace_at, 'undelivered', fl.undelivered,
             'condition_pct', fl.condition_pct, 'maintenance_pct', fl.maintenance_pct,
             'y', fl.seats_y, 'c', fl.seats_c, 'f', fl.seats_f, 'pilots', fl.pilots, 'owned', fl.owned, 'contract', fl.contract_status,
             'captured_at', private.fig_ts(fl.captured_at),

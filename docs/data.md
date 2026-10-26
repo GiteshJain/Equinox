@@ -108,7 +108,7 @@ file. How the parts fit together: `docs/architecture.md`.
 | `extra` | jsonb | What the old planner kept on a tail that the table has no column for, under tail (its notes, which Tails shows). The old lists' places and delivery items went with the clean-up (build pull request 14). Expected otherwise empty |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
-| `acquired` | text | How we got the aircraft: new from the factory, or used from the game's Aircraft Market; decides its replacement age, manual §3 (settings replace_new_years, replace_used_years) |
+| `acquired` | text | How the aircraft came: new (ordered from the factory) or used (bought on the used market). Decides its replacement age (manual §3: settings.replace_new_years, replace_used_years) and the fleet check's looks-used cross-check. Since 26 Oct it has no default: every new row must say which. |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
@@ -1034,7 +1034,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `name` | text | e.g. Transatlantic – dense |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
-| `layout` | text | The cabin layout the market calls for: Standard, Leisure, Leisure Plus or Comfort (manual §5). A plan card's cabin takes it where one route of the market flies more than cabin_route_share_pct of the aircraft's block time, unless the route has its own choice (routes.cabin_choice). Filled on 21 Oct from the cabin of the market's old default layout; changed in Reference → Markets |
+| `layout` | text | Since 26 Oct no longer used by the cabin rule (manual §5: the cabin by distance). Was: the cabin layout the market calls for (Standard, Leisure, Leisure Plus or Comfort), taken by a plan card where one route of the market flew more than cabin_route_share_pct of the aircraft's block time. Kept as history; changed in Reference → Markets |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
@@ -1212,7 +1212,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `distance_override_km` | integer | Typed in the planner; null = the research value |
 | `market_override_id` | bigint | Chosen in the planner; null = the research value, or no market when market_cleared |
 | `stars_override` | smallint | The game's passenger demand as stars (manual §3, since 22 Oct), or typed in the planner; null = the research value |
-| `cabin_choice` | text | The cabin chosen for the route (the planner's routeCabin) |
+| `cabin_choice` | text | Since 26 Oct no longer used by the cabin rule (manual §5: distance alone decides). Was: the route's own cabin layout, which won over its market's. Kept as history |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
 | `market_cleared` | boolean | The planner's route edit clears the market (its market ""): the route has no market, whatever the research says. market_override_id is then empty |
@@ -1662,7 +1662,7 @@ In the `private` schema, which the data API doesn't expose (#13): trigger functi
 | `private.fig_airline_world(p_airline_id bigint)` | bigint | internal only | The captured figures (#19): an airline's world; refuses an airline that doesn't exist. |
 | `private.fig_airlines(p_world_id bigint)` | TABLE(airline_id bigint, ord integer, iata_code text, name text, home_code text, main_code text) | internal only | The captured figures (#19): our active airlines in a world, in display order, each with its code, name, home airport (fig_home) and main base (null for none). |
 | `private.fig_cabin_charges(p_world_id bigint, p_as_of timestamp with time zone)` | jsonb | internal only | The captured figures (#19): builds cabin_charges()'s document with no check of its own. See cabin_charges(). |
-| `private.fig_capex(p_airline_id bigint, p_d0 date, p_d1 date)` | numeric | internal only | The captured figures (#19): the old planner's capexIn(), order payments (orders and cabins, not losses) logged after the first date up to the second, in millions. |
+| `private.fig_capex(p_airline_id bigint, p_d0 date, p_d1 date)` | numeric | internal only | The captured figures: the money put back into the fleet between two reported days (millions), which profit a day adds back to the change in cash. From the bank statement between the two days' balance captures (deposits, cabins and pilot training, bid provisions; refunds count against them), else the spending log (since 26 Oct). |
 | `private.fig_capture_status(p_world_id bigint, p_as_of timestamp with time zone)` | jsonb | internal only | The captured figures (#19): the capture board's document (captureBoard), each airline's pages today and yesterday (UTC), flights by departure date, what is missing today and its status; since #21 also its latest page (last_at) and that capture's verdicts (private.capture_airline_verdict(): verdict, verdict_words, verdict_at, verdict_day and each kind's under verdicts); since 22 Oct its fleet pages count as pages for last_at, and fleet gives that capture day's fleet pages (verdicts.fleet), only when it has some. See capture_status(). |
 | `private.fig_cash_days(p_airline_id bigint, p_as_of timestamp with time zone)` | TABLE(day date, cash numeric) | internal only | The captured figures (#19): the old planner's finSeries(), an airline's cash by date in millions: each capture date's latest balance rounded to 0.01M (a figure typed in cash_entries wins before the last 7 days), up to p_as_of. |
 | `private.fig_cash_forecast(p_airline_id bigint, p_orders jsonb, p_as_of timestamp with time zone, p_lease_map jsonb)` | jsonb | internal only | The captured figures (#19): builds cash_forecast()'s document with no check of its own; p_lease_map: fig_lease_map() for the world when the caller has it already. See cash_forecast(). |

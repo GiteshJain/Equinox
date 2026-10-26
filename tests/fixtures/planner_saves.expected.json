@@ -420,7 +420,7 @@
     "planner tab"
    ],
    "sent": {
-    "planner_save aircraft insert aircraft_type_id,airline_id,base_code,cabin_config_id,registration,status,world_id": 1
+    "planner_save aircraft insert acquired,aircraft_type_id,airline_id,base_code,cabin_config_id,registration,status,world_id": 1
    },
    "written": {
     "aircraft insert": 1

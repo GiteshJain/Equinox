@@ -248,8 +248,9 @@ Details and open points: `docs/decisions.md`.
   family, the E-jet E2 and the A350. *(since 18 Oct; the A350 rows since 21 Oct; history: rule-history.md)*
   - **Turnaround of a new variant:** the game shows none, so a new variant takes its family's (A320 family 66 minutes,
     E-jet E2 67, A350 90). *(since 19 Oct; history: rule-history.md)*
-  - **Reach is checked by the Scheduling chat** when it picks the variant for a route (§3), not by the plan card.
-    *(since 19 Oct; history: rule-history.md)*
+  - **Reach is checked by the Scheduling chat** when it picks the variant for a route (§3), not by the plan card. A
+    route slightly past a variant's full-load range is proposed only after asking Gitesh, each time: the game flies it
+    with fewer seats. *(since 19 Oct; asking first since 26 Oct; history: rule-history.md)*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
   E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
   forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both
@@ -261,7 +262,8 @@ Details and open points: `docs/decisions.md`.
   an evening when cash covers it. A line is never left idle to wait for cash. *(since 21 Oct; history: rule-history.md)*
 - **Replacement by age:** an aircraft we ordered new is replaced when it reaches 3 years; one we took from the used
   market, when it reaches 10 years. The numbers are `settings.replace_new_years`, `replace_used_years` and
-  `replace_warn_days`; each aircraft's `aircraft.acquired` says new or used, and Today's Fleet group warns from 60 days
+  `replace_warn_days`; each aircraft's `aircraft.acquired` says new or used (every aircraft logged must say which: no default since
+  26 Oct), and Today's Fleet group warns from 60 days
   before, by the game's age. *(since 22 Oct; history: rule-history.md)*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   *(since 28 Sep; history: rule-history.md)*
@@ -547,7 +549,9 @@ Details and open points: `docs/decisions.md`.
     pilots, seats that don't match the planner's cabin, and an aircraft in the game but not the planner or in service
     in the planner but missing from that night's fleet pages (only when every fleet page of its airline came in ok),
     an aircraft within 60 days of its replacement age or past it (§3, replacement by age), and one marked new that is
-    older in the game than its time with us by more than 0.2 years (looks used). *(since 22 Oct)*
+    older in the game than its time with us by more than 0.2 years (looks used). An aircraft not delivered yet (on order
+    in the planner, or listed by the game at the factory with no seats and no pilots) is left out of these until its
+    first fleet capture after it arrives. *(since 22 Oct; undelivered left out since 26 Oct)*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *(since 10 Oct; history:
   rule-history.md)*

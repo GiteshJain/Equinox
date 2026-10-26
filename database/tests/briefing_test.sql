@@ -206,10 +206,10 @@ begin
   perform set_config('equinox.actor', 'script', true), set_config('equinox.actor_detail', 'briefing_test', true);
   insert into public.airports (code, city) values ('ZZA', 'Test A'), ('ZZB', 'Test B') on conflict (code) do nothing;
   insert into public.aircraft_types (world_id, name) values (w, 'BRIEFING TEST TYPE') returning id into t_id;
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_note)
-  values (w, a1, 'ZZ-BRF1', t_id, 'on_order', current_date, now() + interval '3 days', 'ZZA', 'briefing test') returning id into ac;
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code)
-  values (w, a1, 'ZZ-BRF2', t_id, 'active', 'ZZA') returning id into ac_active;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_note, acquired)
+  values (w, a1, 'ZZ-BRF1', t_id, 'on_order', current_date, now() + interval '3 days', 'ZZA', 'briefing test', 'new') returning id into ac;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code, acquired)
+  values (w, a1, 'ZZ-BRF2', t_id, 'active', 'ZZA', 'new') returning id into ac_active;
   insert into public.plan_cards (world_id, airline_id, aircraft_id, base_code, title) values (w, a1, ac, 'ZZA', 'ZZA + ZZB') returning id into pc;
   -- given out of order: the document gives them by position
   insert into public.plan_card_legs (world_id, plan_card_id, position, flight_no, origin_code, dest_code, days_utc, dep_utc_min, block_min, service_code)

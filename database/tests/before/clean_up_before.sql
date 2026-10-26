@@ -29,7 +29,10 @@ begin
     ('new_route_days_set', to_jsonb(exists (select 1 from public.settings s where s.key = 'growth_new_route_days'))),
     -- route profit's definition before the pending changes (20261017180000, add or raise by aircraft hour, moves the marks
     -- on purpose): the clean-up test puts it back to compare the rest
-    ('route_profit_def', to_jsonb(pg_get_functiondef('private.fig_route_profit(bigint, integer, timestamp with time zone)'::regprocedure)));
+    ('route_profit_def', to_jsonb(pg_get_functiondef('private.fig_route_profit(bigint, integer, timestamp with time zone)'::regprocedure))),
+    -- the reinvestment profit adds back, before the pending changes (20261026160000, from the bank statement, moves
+    -- profit on purpose): the clean-up test puts it back to compare the rest
+    ('capex_def', to_jsonb(pg_get_functiondef('private.fig_capex(bigint, date, date)'::regprocedure)));
   if to_regprocedure('public.planner_loads_get(bigint)') is not null then
     execute $q$
       insert into rehearsal_before.clean_up_outputs (name, value)

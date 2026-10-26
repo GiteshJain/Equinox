@@ -100,8 +100,8 @@ declare r bigint; rot bigint; ac bigint; i int; t timestamptz;
 begin
   insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source) values (w, al, hub, dest, 1000, 'research') returning id into r;
   insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, al, r, launched) returning id into rot;
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code)
-  values (w, al, 'ZL-' || k, ty, cfg, 'active', hub) returning id into ac;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code, acquired)
+  values (w, al, 'ZL-' || k, ty, cfg, 'active', hub, 'new') returning id into ac;
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min) values
     (w, al, rot, 1, 5000 + k * 2, hub, dest, ac, '{1,2,3,4,5,6,7}', 840, 60),
     (w, al, rot, 2, 5001 + k * 2, dest, hub, ac, '{1,2,3,4,5,6,7}', 1080, 60);

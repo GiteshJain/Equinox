@@ -76,7 +76,7 @@ begin
   insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position)
   values (w, g, 990101, 'Loads One', 'One', 'L1', 'ZZ1', true, 1) returning id into a1;
   insert into public.airline_bases (world_id, airline_id, airport_code, role, is_main, position) values (w, a1, 'ZZ1', 'hub', true, 0);
-  insert into public.aircraft (world_id, airline_id, registration, status, base_code) values (w, a1, 'L1-001', 'active', 'ZZ1') returning id into ac;
+  insert into public.aircraft (world_id, airline_id, registration, status, base_code, acquired) values (w, a1, 'L1-001', 'active', 'ZZ1', 'new') returning id into ac;
   insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source) values (w, a1, 'ZZ1', 'ZZ2', 500, 'research') returning id into r1;
   insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r1, '2030-01-11') returning id into rot;
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min)

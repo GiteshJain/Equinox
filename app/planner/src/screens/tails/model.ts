@@ -854,8 +854,9 @@ export type TailField = "id" | "type" | "base" | "config" | "maint" | "notes";
 export type ChangeAnswer = { changes: Change[] } | { error: string };
 
 /** Add a tail (the old t-add): a new aircraft in service; a registration that's retired comes back (the old planner's save
- *  brought it back the same way). */
-export function addTailChanges(worldId: number, airlineId: number, typed: { id: string; type: string; config: string; base: string }, rules: Rules,
+ *  brought it back the same way), keeping how it came. A new aircraft must say whether it came new or used (manual §3,
+ *  replacement by age; since 26 Oct the database has no default). */
+export function addTailChanges(worldId: number, airlineId: number, typed: { id: string; type: string; config: string; base: string; acquired?: string }, rules: Rules,
   configs: readonly ConfigRow[], aircraft: readonly TailAircraft[]): ChangeAnswer {
   const reg = typed.id.trim();
   if (!reg) return { changes: [] };
@@ -867,7 +868,8 @@ export function addTailChanges(worldId: number, airlineId: number, typed: { id: 
     airline_id: airlineId, aircraft_type_id: type?.id ?? null, cabin_config_id: cfg?.id ?? null, base_code: typed.base || null, status: "active",
   };
   if (have) return { changes: [{ table: "aircraft", op: "update", key: { id: have.id }, base: have.updated_at, values: { ...values, retired_on: null } }] };
-  return { changes: [{ table: "aircraft", op: "insert", values: { world_id: worldId, registration: reg, ...values } }] };
+  if (typed.acquired !== "new" && typed.acquired !== "used") return { error: "Say whether it came new or used." };
+  return { changes: [{ table: "aircraft", op: "insert", values: { world_id: worldId, registration: reg, ...values, acquired: typed.acquired } }] };
 }
 
 /** One field of an aircraft's page changed (the old data-tk): its one row. */

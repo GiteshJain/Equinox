@@ -11,7 +11,7 @@
 // (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each leg its own direction's level.
 import { forAircraft as aircraftWeek } from "./aircraftWeek.js";
 import { bankOfArrival, bankOfDeparture, baseAt, hasBanks } from "./banks.js";
-import { blockFor, timedLegs } from "./block.js";
+import { blockFor, distanceBetween, timedLegs } from "./block.js";
 import { connectionsAtBothEnds } from "./connections.js";
 import { RulesError, findAircraft, findType, pairKey, setting, settingNumber } from "./input.js";
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
@@ -63,7 +63,8 @@ function cardBasics(rules: Rules, card: Card): { ac: AircraftRow | undefined; ty
   return { ac, type, airlineId };
 }
 
-// ---------- the cabin the rule calls for (manual §5, since 20 Oct; spec docs/specs/2026-10-21-cabins-new-rule.md §3)
+// ---------- the cabin the rule calls for (manual §5: by distance since 26 Oct, brief
+// docs/briefs/2026-10-26-cabin-layout-by-distance.md; by market from 20 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §3)
 /** One route's share of the card's block time. */
 export interface CabinRouteShare {
   /** The airline's route for the leg's airports (either way round), or null when it has none yet. */
@@ -74,10 +75,22 @@ export interface CabinRouteShare {
   block_min: number;
   /** Its share of the card's block minutes, percent (not rounded). */
   pct: number;
-  /** The layout it calls for: its own cabin choice, else its market's layout; null when it has neither. */
+  /** Its distance (the route's, else the great circle), km; null when neither is known. */
+  km: number | null;
+  /** The layout its distance calls for (its range: Leisure, Leisure Plus or Comfort); null when its distance isn't known. */
   layout: string | null;
-  /** Where that layout comes from. */
-  from: "route" | "market" | null;
+  /** Where that layout comes from: its distance (since 26 Oct), or null when it has none. */
+  from: "distance" | null;
+}
+
+/** One distance range's share of the card's block time (since 26 Oct): every route in it together. */
+export interface CabinRangeShare {
+  /** Leisure (under cabin_leisure_max_km), Leisure Plus (to under cabin_leisure_plus_max_km) or Comfort (beyond). */
+  layout: string;
+  /** "under 3,500 km", "3,500–6,500 km", "6,500 km and over". */
+  range: string;
+  block_min: number;
+  pct: number;
 }
 
 /** The cabin a plan card's routes call for, and whether the card's own cabin differs. */
@@ -89,12 +102,14 @@ export interface CabinSuggestion {
    *  two), or its layout with the most seats. Null when the variant has no layouts in the input. */
   config_id: number | null;
   code: string | null;
-  /** Why, in words: "JFK–LHR is 72% of block time: Leisure Plus", "no route over 65%: the most seats". */
+  /** Why, in words: "3,500–6,500 km is 72% of block time: Leisure Plus", "no distance range over 65%: the most seats". */
   reason: string;
   /** cabin_route_share_pct, the airline's own where it has one. */
   threshold_pct: number;
   /** Each route's share of the card's block time, most first. */
   routes: CabinRouteShare[];
+  /** Each distance range's share of the card's block time, most first (since 26 Oct). */
+  ranges: CabinRangeShare[];
   /** The card's own cabin, as given (null: not chosen). */
   card_config_id: number | null;
   card_code: string | null;
@@ -114,23 +129,37 @@ function pctWords(pct: number, threshold: number): string {
   return (pct > threshold && r <= threshold) || (pct <= threshold && r > threshold) ? `${pct.toFixed(1)}%` : `${r}%`;
 }
 
-/** The cabin the rule calls for (manual §5): if one route takes more than cabin_route_share_pct of the card's block time,
- *  the layout that route calls for (its own cabin_choice, else its market's layout); otherwise the layout with the most
- *  seats; a low-cost airline (Ryanair) flies Standard only. The cabin is the card's variant's layout of that name, among
- *  the layouts the airline may choose for the variant, as Tails' Cabin box offers them (a low-cost airline's Standard
- *  ones, the others' every other layout); without one of that name, the one with the most seats, and the reason says
- *  why. A leg's block time is its block_min, else the library's estimate (block.blockFor), times the days it flies; a
- *  leg no estimate can be had for counts nothing. A card with no legs gets the most seats. */
+const kmWords = (km: number) => km.toLocaleString("en-US");
+/** The distance range a route's km falls in (manual §5, since 26 Oct): Leisure under cabin_leisure_max_km, Leisure Plus
+ *  to under cabin_leisure_plus_max_km, Comfort beyond. */
+export function cabinRange(km: number, leisureMax: number, leisurePlusMax: number): { layout: string; range: string } {
+  if (km < leisureMax) return { layout: "Leisure", range: `under ${kmWords(leisureMax)} km` };
+  if (km < leisurePlusMax) return { layout: "Leisure Plus", range: `${kmWords(leisureMax)}–${kmWords(leisurePlusMax)} km` };
+  return { layout: "Comfort", range: `${kmWords(leisurePlusMax)} km and over` };
+}
+
+/** The cabin the rule calls for (manual §5, since 26 Oct): each route is in a distance range (Leisure under
+ *  cabin_leisure_max_km, Leisure Plus to under cabin_leisure_plus_max_km, Comfort beyond; the route's distance, else the
+ *  great circle), and the range taking more than cabin_route_share_pct of the card's block time decides its layout;
+ *  with no range over it, the layout with the most seats. Distance alone decides: no market layout or route choice
+ *  overrides it. A low-cost airline (Ryanair) flies Standard only. The cabin is the card's variant's layout of that
+ *  name, among the layouts the airline may choose for the variant, as Tails' Cabin box offers them (a low-cost airline's
+ *  Standard ones, the others' every other layout); without one of that name, the one with the most seats, and the
+ *  reason says why. A leg's block time is its block_min, else the library's estimate (block.blockFor), times the days it
+ *  flies; a leg no estimate can be had for counts nothing, and one whose distance isn't known counts towards the total
+ *  but no range. A card with no legs gets the most seats. */
 export function cabinFor(rules: Rules, card: Card): CabinSuggestion {
   if (!card || !Array.isArray(card.legs)) throw new RulesError("the card has no list of legs");
   const { type, airlineId } = cardBasics(rules, card);
   const airline = rules.airlines.get(airlineId);
   const lcc = !!airline?.is_lcc;
   const threshold = settingNumber(rules, "cabin_route_share_pct", airlineId);
+  const leisureMax = settingNumber(rules, "cabin_leisure_max_km", airlineId);
+  const leisurePlusMax = settingNumber(rules, "cabin_leisure_plus_max_km", airlineId);
   const all = [...rules.configs.values()];
   const variant = all.filter((c) => c.aircraft_type_id === type.id && (lcc ? c.cabin === "Standard" : c.cabin !== "Standard"));
 
-  // each route's block minutes a week
+  // each route's block minutes a week, and its distance range
   const shares = new Map<string, CabinRouteShare>();
   let total = 0;
   for (const l of card.legs) {
@@ -147,31 +176,44 @@ export function cabinFor(rules: Rules, card: Card): CabinSuggestion {
     const pair = pairKey(l.origin_code, l.dest_code);
     const route = (rules.routesByPair.get(pair) ?? []).find((r) => r.airline_id === airlineId);
     const key = route ? `route ${route.id}` : `pair ${pair}`;
-    const own = route?.cabin_choice || null, market = route?.market_layout || null;
-    const x: CabinRouteShare = shares.get(key) ?? {
-      route_id: route?.id ?? null, route: route ? `${route.hub_code}–${route.dest_code}` : `${l.origin_code}–${l.dest_code}`, block_min: 0, pct: 0,
-      layout: own ?? market, from: own ? "route" : market ? "market" : null,
-    };
+    let x = shares.get(key);
+    if (!x) {
+      const km = distanceBetween(rules, l.origin_code, l.dest_code, airlineId)?.km ?? null;
+      x = {
+        route_id: route?.id ?? null, route: route ? `${route.hub_code}–${route.dest_code}` : `${l.origin_code}–${l.dest_code}`, block_min: 0, pct: 0,
+        km: km == null ? null : Math.round(km), layout: km == null ? null : cabinRange(km, leisureMax, leisurePlusMax).layout, from: km == null ? null : "distance",
+      };
+    }
     x.block_min += blk * days;
     total += blk * days;
     shares.set(key, x);
   }
   const routes = [...shares.values()].map((x, i) => ({ x: { ...x, pct: total > 0 ? x.block_min / total * 100 : 0 }, i }))
     .sort((a, b) => b.x.block_min - a.x.block_min || a.i - b.i).map((v) => v.x);
+  // each range's block minutes: its routes together
+  const byRange = new Map<string, CabinRangeShare>();
+  for (const r of routes) {
+    if (r.km == null) continue;
+    const { layout, range } = cabinRange(r.km, leisureMax, leisurePlusMax);
+    const g = byRange.get(layout) ?? { layout, range, block_min: 0, pct: 0 };
+    g.block_min += r.block_min;
+    g.pct = total > 0 ? g.block_min / total * 100 : 0;
+    byRange.set(layout, g);
+  }
+  const ranges = [...byRange.values()].sort((a, b) => b.block_min - a.block_min);
 
   // the layout the rule calls for, and why
   let layout: string | null, reason: string;
-  const top = routes[0];
+  const top = ranges[0];
   if (lcc) {
     layout = "Standard";
     reason = `${airline?.planner_name ?? airline?.public_name ?? "a low-cost airline"} flies Standard only`;
   } else if (top && top.pct > threshold) {
-    const share = `${top.route} is ${pctWords(top.pct, threshold)} of block time`;
     layout = top.layout;
-    reason = top.layout ? `${share}: ${top.layout}${top.from === "route" ? " (the route's own choice)" : ""}` : `${share}, but it has no market layout: the most seats`;
+    reason = `${top.range} is ${pctWords(top.pct, threshold)} of block time: ${top.layout}`;
   } else {
     layout = null;
-    reason = routes.length ? `no route over ${threshold}%: the most seats` : "no legs yet: the most seats";
+    reason = routes.length ? `no distance range over ${threshold}%: the most seats` : "no legs yet: the most seats";
   }
 
   // from the layout to the variant's cabin
@@ -190,7 +232,7 @@ export function cabinFor(rules: Rules, card: Card): CabinSuggestion {
   const own = given == null || given === "" ? undefined : typeof given === "number" ? rules.configs.get(given) : all.find((c) => c.code === given);
   if (given != null && given !== "" && !own) throw new RulesError(`no cabin layout ${String(given)} in the input`);
   return {
-    layout: pick?.cabin ?? null, config_id: pick?.id ?? null, code: pick?.code ?? null, reason, threshold_pct: threshold, routes,
+    layout: pick?.cabin ?? null, config_id: pick?.id ?? null, code: pick?.code ?? null, reason, threshold_pct: threshold, routes, ranges,
     card_config_id: own?.id ?? null, card_code: own?.code ?? null, missing: !own && !!pick, differs: !!pick && own?.id !== pick.id,
   };
 }
@@ -379,9 +421,11 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
   for (const c of clashes) problems.push(`flight ${c.flight_no} is used twice on day(s) ${c.days.join(", ")}`);
   for (const a of caps) if (a.over) problems.push(`${a.airport}: ${a.departures_week} departures a week, over the cap of ${a.cap}`);
   for (const i of svc.issues) problems.push(serviceWords(i));
-  // the cabin (21 Oct): an input without cabin_route_share_pct (made before the rule had its setting) isn't checked, as
+  // the cabin (21 Oct; by distance since 26 Oct): an input without cabin_route_share_pct or the two distance settings
+  // (made before the rule had them) isn't checked, as
   // an input without service profiles skips the service check; cabinFor() itself refuses without it
-  const cabin = setting(rules, "cabin_route_share_pct", airlineId) === undefined ? null : cabinFor(rules, card);
+  const cabin = setting(rules, "cabin_route_share_pct", airlineId) === undefined || setting(rules, "cabin_leisure_max_km", airlineId) === undefined
+    || setting(rules, "cabin_leisure_plus_max_km", airlineId) === undefined ? null : cabinFor(rules, card);
   const cabinIssue = cabin ? cabinProblem(cabin) : null;
   if (cabinIssue) problems.push(cabinIssue);
   return {

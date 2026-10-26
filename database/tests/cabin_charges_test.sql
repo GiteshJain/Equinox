@@ -129,7 +129,7 @@ begin
   -- a rival's installation line is no business of ours
   insert into public.airlines (world_id, group_id, game_id, game_name, active) values (w, gr, 990802, 'Cabin Rival', true) returning id into rv;
   for ac in select 'CQ-00' || n as reg from generate_series(1, 8) n loop
-    insert into public.aircraft (world_id, airline_id, registration, status) values (w, al, ac.reg, 'active') returning id into g;
+    insert into public.aircraft (world_id, airline_id, registration, status, acquired) values (w, al, ac.reg, 'active', 'new') returning id into g;
     a := a || jsonb_build_object(ac.reg, g);
   end loop;
   -- the first fits as Tails' filing logs them, a refit row (kind cabin, not a first fit), and a fit before the setting's day

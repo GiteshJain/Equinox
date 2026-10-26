@@ -63,7 +63,8 @@ concurrency:
 jobs:
   rehearse:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45 since 26 Oct: runs take 15 to 27 minutes, and with several pull requests at once some passed 30 and were cancelled
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash   # bash -eo pipefail: a failing script fails its step even though its output goes through tee

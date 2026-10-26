@@ -135,7 +135,7 @@ begin
   assert refused, 'a rotation moved to another route under its legs';
 
   -- plan-card legs follow the same weekday rule, every day by default
-  insert into public.aircraft (world_id, airline_id, registration, status) values (w, al, 'RULES-001', 'on_order') returning id into ac;
+  insert into public.aircraft (world_id, airline_id, registration, status, acquired) values (w, al, 'RULES-001', 'on_order', 'new') returning id into ac;
   insert into public.plan_cards (world_id, airline_id, aircraft_id, title) values (w, al, ac, 'Rules test') returning id into pc;
   insert into public.plan_card_legs (world_id, plan_card_id, position, origin_code, dest_code) values (w, pc, 1, 'XDEL', 'XOTH');
   assert (select days_utc from public.plan_card_legs where plan_card_id = pc) = '{1,2,3,4,5,6,7}', 'a plan-card leg isn''t every day by default';

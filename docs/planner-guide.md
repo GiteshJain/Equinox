@@ -181,8 +181,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **Game check** (Check's until 20 Oct): **Check against the game** reads each airline's live schedule from the game.
   Each airline's line says how many flights are in each and the differences. **Review** lists them, with **Use the
   game's times** where it's only a time or a day change, **Fix all from the game**, and the game's flights the planner
-  hasn't got, each with an aircraft and **Add to planner** (for a new aircraft, pick **new tail…** and type its
-  registration in the box). After a fix or an add the differences are worked out again from the planner as it is now.
+  hasn't got, each with an aircraft and **Add to planner** (for a new aircraft, pick **new tail…**, type its
+  registration in the box and, since 26 Oct, pick **new** or **used**). After a fix or an add the differences are worked out again from the planner as it is now.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
   tell Claude and it ticks it; add one with its steps, one a line; **×** deletes one after asking you in the page.
 - **Coming up:** the to-dos due in the next 14 days, with **All** and **To-dos** buttons.
@@ -216,8 +216,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **A route** (its own address, such as /planner/routes/PA/JFK-ORD): its name, such as "New York → Atlanta", with its
   codes; a muted line with the airline, distance, stars and market; then its figures as big numbers: the estimated block
   on the airline's most-flown type, round trips a day (and how many frequencies) and the load over 7 days; then the
-  **layout** the route calls for (its market's, or its own cabin choice, which wins: manual §5; since 21 Oct, in place of
-  the market's aircraft, plan and prices), the service profile, the hub's banks ("station · no banks" from a station) and
+  **layout** the route's distance calls for ("layout Leisure Plus (3,500–6,500 km)": manual §5, by distance since 26 Oct;
+  since 21 Oct in place of the market's aircraft, plan and prices), the service profile, the hub's banks ("station · no banks" from a station) and
   the two UTC offsets; **edit route**
   (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies, after asking in
   the page). Not flown yet, it shows the next free flight numbers. Flown, its frequencies, **Add frequency**, its loads
@@ -261,7 +261,7 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   pages yet, the planner's estimate of usable ground time against the maintenance time it needs, "≈106%", 100% or more
   is enough, hover or tap for the hours) and
   **Routes**; a red dot marks a short turn or a leg starting elsewhere. **Add a tail** adds one by hand at the end of
-  the list; **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
+  the list (since 26 Oct it asks **New or used**, which sets its replacement age; it won't add one without); **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
   flies a route. On a phone the list is a column of compact rows that open.
 - **An aircraft** (its own address, such as /planner/tails/N001AW): its type, cabin, legs a week, block hours a day, gap
   target, minimum turn, gaps at the target this week and maintenance (since 23 Oct the game's figure, no ≈, for an
@@ -280,8 +280,9 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   its cabin, each flight's number, route, times, block and service; × or Escape closes it). An airport where the
   airline has no station yet is highlighted on the card: any airport the airline has no active route to (since 22 Oct its bases and point-to-point stations don't count until it flies there). The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
   it, and the card says **no cabin chosen** while neither the card nor the order names one. Beside the box (since
-  21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason ("JFK–LHR is
-  72% of block time: Leisure Plus", or "no route over 65%: the most seats"; Ryanair Standard only), and **Use the
+  21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason (since 26 Oct
+  by distance: "3,500–6,500 km is 72% of block time: Leisure Plus", or "no distance range over 65%: the most seats";
+  Ryanair Standard only), and **Use the
   suggestion** sets it in one tap; a cabin that differs from the suggestion shows in amber. Since 21 Oct (manual §5)
   the card's **Fare level** column gives the fare level of each route it flies, from the fare ladder; since 26 Oct
   once per direction, on the first leg that way, each its own direction's level (out from the route's hub, back to it): "economy +10%, business +5% of the default price" for a route the airline flies (this week's new
@@ -427,8 +428,10 @@ fold them, and a row's title opens or closes it.
   on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
   return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load
   with their changes in a line under them. Then its boards as rows that open, Route profit open on arrival:
-  - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus that
-    day's order payments), with the 7-day average and the table of reported days. Cash moves on payment days, so read
+  - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus what
+    was put back into the fleet between the two captures: since 26 Oct from the bank statement, every deposit,
+    purchase, cabin, refit, pilot training and auction bid, refunds counted against them; the spending log before
+    7 Oct), with the 7-day average and the table of reported days. Cash moves on payment days, so read
     the average.
   - **Cash, next 14 days:** today's captured cash, plus flight profit from the last day's bank statement, minus every
     scheduled lease and week-end closing. An order is **safe** when 0.5M stays in hand at the lowest point afterwards,
@@ -625,10 +628,9 @@ when you leave it, as one change.
   cash forecast prices an order with it. **An airline's own order cabin**, below the table, is for an airline whose orders
   come with another layout (Ryanair's Standard cabins): pick the airline and type and **Add** (it starts as the type's),
   then pick its layout; **remove** gives it the type's again. Each pick saves as one change.
-- **Markets** (Market defaults until 21 Oct): each market's **layout**, the cabin it calls for (Standard, Leisure,
-  Leisure Plus or Comfort; manual §5): a plan card takes it where one route of the market flies more than 65% of the
-  aircraft's block time, unless the route has its own choice. Pick it from the box; it saves as one change. A market
-  keeps nothing else since 21 Oct: its default aircraft, cabin and fares went (a new frequency launches at the airline's
+- **Markets** (Market defaults until 21 Oct): each airline's markets, with **remove**. Since 26 Oct a market's layout
+  isn't shown: the cabin goes by distance (manual §5), and the layout stays in the database as history. A market kept
+  nothing else since 21 Oct: its default aircraft, cabin and fares went (a new frequency launches at the airline's
   launch fare).
 - **Service profiles:** what a new frequency starts with.
 - **Removed routes:** **restore** (or **restore all**) any route removed from Routes.
@@ -639,7 +641,7 @@ when you leave it, as one change.
   the flights whose UTC time moves and asks first, as Routes does.
 - **Storage:** whether saving works, with **Save now**; nothing is kept on the device.
 - **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**, whose last column (since 21 Oct)
-  is the layout each flight's route calls for (its own choice, else its market's). Importing a backup and clearing
+  is the layout each flight's route calls for (since 26 Oct its distance's range, manual §5). Importing a backup and clearing
   everything are gone with the tables (design §14): the nightly backup and the change log are the safety net.
 
 ## Systems
