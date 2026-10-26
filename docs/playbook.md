@@ -442,7 +442,6 @@ All in manual §9. What each covers:
 | **Contested route** | A route where a rival is strong enough at the base or on the route for hubs first to let another base take it (manual §3, hubs first) |
 | **Hubs first** | New aircraft go to the main hub until it is built out (manual §3, hubs first) |
 | **Service code** | The on-board service level a flight carries by distance, shown on the plan card |
-| **Market layout** | The cabin layout a market calls for (Standard, Leisure, Leisure Plus or Comfort; Reference → Markets), used by the cabin rule (manual §5, the cabin is chosen with each order) |
 | **Fare plan** | The fare changes to make in the game this week, from the fare ladder (**Put on the fare plan**); the next capture ticks each off |
 | **Week-end closing** | The game's weekly salary payment (manual §9, mechanics) |
 | **Interline** | An agreement to sell connections on another airline's flights |

@@ -26,6 +26,9 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **The planner's cabin suggestion by distance** (§5, since 26 Oct): until it's built, the plan card's suggestion and
+  card check still follow the old market rule, so the Scheduling chat sets each new card's cabin by distance and a
+  card flagged as differing is expected. *(since 26 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -427,15 +430,13 @@ Details and open points: `docs/decisions.md`.
   late-game step, once the other hubs are built out. *(since 21 Oct; history: rule-history.md)*
 
 ## 5. Cabins and fares
-- **The cabin is chosen with each order, recorded on its plan card and fitted in the game when the aircraft
-  arrives,** among the layouts set up for its variant: if one route takes more than
-  **65% of the aircraft's block time** (`settings.cabin_route_share_pct`), the layout that route's market calls for
-  (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins
-  over it); otherwise the layout with the most seats. Ryanair flies Standard only; Standard (economy only, no business)
-  is Ryanair's, so the other airlines choose among the two-cabin layouts (Leisure, Leisure Plus, Comfort), and "the most
-  seats" for them is Leisure. We don't refit. The plan card suggests its cabin by this rule (Tails → Deliveries, with
-  **Use the suggestion**) and the card check flags a card whose cabin is missing or differs. *(since 20 Oct; wording
-  clarified 22 Oct; history: rule-history.md)*
+- **The cabin is chosen by distance with each order, recorded on its plan card and fitted in the game when the
+  aircraft arrives:** by the distance of the aircraft's main route (the one taking most of its block time), **Leisure
+  under 3,500 km, Leisure Plus from 3,500 to under 6,500 km, Comfort from 6,500 km** (`settings.cabin_leisure_max_km`,
+  `cabin_leisure_plus_max_km`). Demand differences are met by the fare ladder, not the layout. A layout the variant
+  doesn't have yet is set up in the game (§3). Ryanair flies Standard (economy only) everywhere. We don't refit: the
+  current fleet keeps its cabins. *(since 26 Oct, brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`;
+  history: rule-history.md)*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. **A new
   flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare.

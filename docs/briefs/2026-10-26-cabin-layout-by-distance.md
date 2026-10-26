@@ -72,4 +72,9 @@ need a Leisure Plus layout set up in the game (a couple of minutes, §3).
 - AirlineSim documentation showing a seat-comfort penalty by flight length: set the bands from it.
 
 ## Outcome
-<to be decided>
+**Gitesh, 26 Oct: by distance, three bands** (a variant of C, after asking whether Comfort is ever used):
+**Leisure under 3,500 km, Leisure Plus 3,500 to 6,500 km, Comfort from 6,500 km**, by the aircraft's main route. In
+air time, roughly: Leisure under about 4¼ hours, Leisure Plus about 4¼ to 7¾, Comfort beyond. Comfort stays on long
+haul because nothing in our data tests Leisure Plus there. Manual §5 changed; the old rule is in `rule-history.md`;
+`settings.cabin_leisure_max_km` (3,500) and `cabin_leisure_plus_max_km` (6,500) added. The planner's suggestion and
+card check follow when the Building chat builds them (manual, *Decided, not yet built*).

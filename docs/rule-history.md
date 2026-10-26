@@ -371,6 +371,8 @@ Narrowbody trunks first: *Since 20 Oct (Gitesh).*
 ### 5. Cabins and fares
 
 #### The cabin is chosen with each order
+**Changed 26 Oct (Gitesh): by distance.** The old rule read: "The cabin is chosen with each order, recorded on its plan card and fitted in the game when the aircraft arrives, among the layouts set up for its variant: if one route takes more than 65% of the aircraft's block time (`settings.cabin_route_share_pct`), the layout that route's market calls for (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins over it); otherwise the layout with the most seats." Why: the layouts differ in the economy seat (comfort against seat count), not in business, so they are a question of flight length like service codes; demand is met by the fare ladder. Our flights 12–25 Oct: Leisure earned as much or more a flight than Leisure Plus in every distance band both flew, and on the A321XLR Leisure Plus outsold Comfort; long haul beyond about 7,000 km is untested, so Comfort stays there. Gitesh set the bands at 3,500 and 6,500 km (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`).
+
 "The most seats" for them is Leisure (clarified 21 Oct, Gitesh).
 
 Wording clarified 22 Oct (Gitesh): the old sentence read "The cabin is chosen with each order", which a chat took to mean the cabin is set on the game's order screen. It isn't: the game takes only the aircraft; the cabin is recorded on the plan card and fitted when the aircraft arrives and is filed. The rule itself did not change.
@@ -563,6 +565,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 26 Oct | The cabin by market: the layout of the market of a route taking over 65% of block time (`cabin_route_share_pct`, `markets.layout`), else the layout with the most seats | The cabin by distance of the main route: Leisure under 3,500 km, Leisure Plus to 6,500 km, Comfort beyond (§5). Why: Gitesh, the layouts trade seat comfort for seats, a question of flight length; demand is met by fares (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`) |
 | 21 Oct | Every Saturday, first the world scan: `gscan.py`, run from the Saturday chat (since 14 Oct, #22) | The world scan runs with the evening capture when one is due (`scan_every_days`, 1: every evening); `gscan.py` by hand only when the Systems board shows it old (§7). Why: Gitesh, competition analysis and the evening order proposal need fresh rivals (brief `docs/briefs/2026-10-21-competition-analysis.md`) |
 | 21 Oct | The evening proposal shows every airline that can order at once | One airline at a time, each decided, ordered and logged before the next (§3). Why: Gitesh |
 | 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |
