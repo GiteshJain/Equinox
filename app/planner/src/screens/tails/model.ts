@@ -590,8 +590,8 @@ export function cardCabin(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | 
 // ---------- the plan card's fares (manual §5, since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2): the
 // library's card.cardFares on the card's legs, from fare_ladder()'s answer for the card's airline; nothing is stored on
 // the card
-/** Each route the card flies with its fare level, once per route in the order of its legs; null when it can't be worked
- *  out (no ladder yet, an aircraft without a type, a missing setting). */
+/** Each route the card flies with its fare level, once per direction (since 26 Oct, each direction its own level) in the
+ *  order of its legs; null when it can't be worked out (no ladder yet, an aircraft without a type, a missing setting). */
 export function cardFareLevels(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | "config_id">, legs: readonly PlanLegRow[], ladder: FareLadder | null | undefined): RouteFare[] | null {
   if (!ladder) return null;
   try {
@@ -604,17 +604,25 @@ export function cardFareLevels(rules: Rules, card: Pick<PlanCardRow, "aircraft_i
     throw e;
   }
 }
-/** The card's Fare column: each route's fare level on the first of its legs on the card (by the leg's row id), so each
- *  route shows once ("economy +10%, business +5% of the default price", "launch (+0% of the default price)"). */
+/** The card's Fare column: each route's fare level in each direction on the first of the card's legs that way (by the
+ *  leg's row id), so each direction shows once with its own level (since 26 Oct: "economy +10%, business +5% of the
+ *  default price" out, "economy +5% of the default price" back; "launch (+0% of the default price)"). An answer without
+ *  from and to (from before 26 Oct) is matched by its route, either way round. */
 export function fareCells(legs: readonly CardLeg[], fares: readonly RouteFare[] | null): Map<number, string> {
   const out = new Map<number, string>();
   if (!fares) return out;
-  const pair = (a: string, b: string) => [a, b].sort().join("|");
-  const byPair = new Map(fares.map((f) => [pair(...(f.route.split("–") as [string, string])), f]));
+  const byWay = new Map<string, RouteFare>();
+  for (const f of fares) {
+    if (f.from && f.to) byWay.set(`${f.from}>${f.to}`, f);
+    else {
+      const [a, b] = f.route.split("–") as [string, string];
+      for (const k of [`${a}>${b}`, `${b}>${a}`]) if (!byWay.has(k)) byWay.set(k, f);
+    }
+  }
   const done = new Set<string>();
   for (const L of legs) {
-    const k = pair(L.from, L.to);
-    const f = byPair.get(k);
+    const k = `${L.from}>${L.to}`;
+    const f = byWay.get(k);
     if (!f || done.has(k)) continue;
     done.add(k);
     out.set(L.row.id, f.words);

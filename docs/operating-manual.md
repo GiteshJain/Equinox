@@ -29,11 +29,6 @@ Until each is built and merged, the rules below stand as they are.
 - **The planner's cabin suggestion by distance** (§5, since 26 Oct): until it's built, the plan card's suggestion and
   card check still follow the old market rule, so the Scheduling chat sets each new card's cabin by distance and a
   card flagged as differing is expected. *(since 26 Oct; history: rule-history.md)*
-- **The fare ladder per direction** (§5): each direction of each cabin of each route (A→B and B→A apart) gets its own
-  level, judged on its own flights (up, hold, down, the hold after a step down, under launch's jumps and the set-back
-  each per direction); the capacity hold and the rival pause stay the whole route's; each direction starts from the
-  route's level when it's built. Until it is built and merged, §5 stands as it is. *(decided 26 Oct, Gitesh; brief
-  `docs/briefs/2026-10-26-fare-ladder-per-direction.md`, spec `docs/specs/2026-10-26-fare-ladder-per-direction.md`)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -450,22 +445,31 @@ Details and open points: `docs/decisions.md`.
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. **A new
   flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare.
   *(since 20–21 Sep; the new flight's rule since 21 Oct; history: rule-history.md)*
-- **The fare ladder, every Saturday.** Each cabin of each route has a **level**: its fare as a % of the game's default
-  price (launch: 100%, Ryanair 85%). At the Saturday review, from the week's captured flights in that cabin:
-  - **up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5 departures in the 7 days);
+- **The fare ladder, every Saturday.** Each direction of each cabin of each route has a **level** (A→B and B→A apart:
+  "out" from the route's hub, "back" to it): its fare as a % of the game's default price (launch: 100%, Ryanair 85%).
+  At the Saturday review, from the week's captured flights in that cabin and direction only:
+  - **up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5 departures that way in the 7
+    days);
   - **hold** when 90–99% sold out;
-  - **down 5 points** (Pan Am and China Eastern 7) when under 90% sold out, then hold for 2 weeks before climbing again.
+  - **down 5 points** (Pan Am and China Eastern 7) when under 90% sold out, then that direction holds for 2 weeks
+    before climbing again.
 
-  New routes start after their first 7 days (§3), and **a route that gained a frequency in the last 7 days holds**
-  for that week (`settings.fare_ladder_capacity_hold_days`, 7: its newest rotation under 7 days old, its first older),
-  so the ladder judges it at its new size, not on the drop the extra seats cause. Every plan card shows the fare level
-  of each route it flies, so a new flight is priced like the rest of its route. **A route whose captured fares don't
-  match its level is set back to it:** when any flight of its latest captured day is more than a point off (against the
-  route's fare on 21 Oct, when every route was at its launch level), the planner lists a change each way at its level,
-  first, and the fares userscript makes it with the week's changes; not for a route on the fare plan this week, a new
-  route, or one not captured since its newest flight launched.
-  **Under launch, two jumps** (since 23 Oct): a cabin at launch that the ladder would hold there (under 90% sold out),
-  averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the default price
+  Passengers book each direction separately (§9), so one direction can sell out while the other doesn't. **The whole
+  route, both directions together,** decides four things: new routes start after their first 7 days (§3); **a route
+  that gained a frequency in the last 7 days holds** for that week (`settings.fare_ladder_capacity_hold_days`, 7: its
+  newest rotation under 7 days old, its first older), so the ladder judges it at its new size, not on the drop the
+  extra seats cause; the rival pause (below); and whether another player flies the pair (the 60% floor). Each
+  direction's level is its own latest fare plan row, or a row for both directions if that is later; the rows written
+  before 26 Oct are for both, so each direction started from its route's level. Every plan card shows the fare level
+  of each route it flies, each leg its own direction's, so a new flight is priced like the rest of its route that way.
+  **A direction whose captured fares don't match its level is set back to it:** when any flight of its latest captured
+  day that way is more than a point off (against that direction's fare on 21 Oct, when every route was at its launch
+  level), the planner lists a change for that direction at its level, first, and the fares userscript makes it with the
+  week's changes; not for a direction on the fare plan this week, a new route, or one not captured since its route's
+  newest flight launched.
+  **Under launch, two jumps** (since 23 Oct; each direction on its own since 26 Oct: its window, its launch baseline
+  and its judgement from that direction's flights only): a cabin at launch that the ladder would hold there (under 90%
+  sold out), averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the default price
   (Ryanair, launching at 85%, to **75%**) and holds 2 weeks from the day the captures see it. Then it is judged on revenue
   a flight against the 14 days before its first jump: not lower, it stays and the ladder goes on from there; lower, it
   **jumps to 60%** and is judged the same way. At 60%, lower, it goes back to launch; at 60% and still under 60% full, it
@@ -481,10 +485,11 @@ Details and open points: `docs/decisions.md`.
   until 29 Oct"), checked after a new route, too few departures, the hold after a step down and a new frequency, and
   before the sold-out share; the threats are `competition()`'s (passenger flights only: a freighter never pauses a
   route), and Today lists the latest scan's.
-  The planner works out each route's level and Saturday's moves, and lists the fewest changes to make in the game:
-  **Ticket price adjustment** with the calculation baseline **default price**, so each change sets the level itself,
-  **route by route only** (From A to B, and From B to A): never a whole base, so routes under 7 days old are never
-  touched. The fare plan records them and the next capture ticks each off.
+  The planner works out each direction's level and Saturday's moves, and lists the fewest changes to make in the
+  game: **Ticket price adjustment** with the calculation baseline **default price**, so each change sets the level
+  itself, **route by route only**, one change per direction that moves (From A to B, or From B to A; both classes
+  ticked where its two cabins go to the same level): never a whole base, so routes under 7 days old are never touched.
+  The fare plan records each with its direction and the next capture ticks each off by that direction's fares.
   **The fares userscript makes them** (`capture/fares_apply.user.js`): after **Put on the fare plan** in Performance,
   Gitesh presses **Apply fare plan** in the game and watches. It reads this week's planned changes the captures haven't
   seen yet (`capture_fare_actions()`, with the capture key), shows each airline's count and asks once, then makes them
@@ -493,7 +498,8 @@ Details and open points: `docs/decisions.md`.
   simulogics terms (§4 II) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
   the capture, the salary script, the fares script and the scanner are allowed there; no need to ask the owner.
   Fare moves never appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and the hold
-  after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; history: rule-history.md)*
+  after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; per direction since 26 Oct, brief
+  `docs/briefs/2026-10-26-fare-ladder-per-direction.md`; history: rule-history.md)*
 
 ## 6. Interline
 - **Our airlines interline with each other.**

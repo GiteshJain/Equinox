@@ -510,7 +510,8 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
   const shown = shownRoutes(r.routes, mark, sort);
   const query = q.trim().toLowerCase();
   const k = (v: number) => (v >= 0 ? "+" : "−") + Math.round(Math.abs(v) * 1000) + "k";
-  const indexOf = (x: { route_id: number | null; hub: string; dest: string }) => indexWords(ladder?.routes.find((l) => l.cabin === "economy"
+  // the route's economy rows, out and back since 26 Oct (one figure when both directions agree, else "out · back")
+  const indexOf = (x: { route_id: number | null; hub: string; dest: string }) => indexWords(ladder?.routes.filter((l) => l.cabin === "economy"
     && (x.route_id != null ? l.route_id === x.route_id : (l.hub === x.hub && l.dest === x.dest) || (l.hub === x.dest && l.dest === x.hub))));
   return (
     <>
@@ -634,7 +635,7 @@ function FarePlanBody({ airline, plan, busy, onDrop }: { airline: string; plan: 
             const x = planWords(p, (d) => niceDate(d));
             return (
               <tr key={p.id} data-fareplan={p.id}>
-                <td><b>{x.route}</b></td><td>{x.cls}</td><td className="num">{x.change}</td><td className="num">{x.fares}</td><td className="num">{x.now}</td>
+                <td><b>{x.route}</b>{x.dir ? <> <span className="dim" data-fareplan-dir={x.dir}>{x.dir}</span></> : null}</td><td>{x.cls}</td><td className="num">{x.change}</td><td className="num">{x.fares}</td><td className="num">{x.now}</td>
                 <td><span className={x.status.kind === "ok" ? "dim" : `pill ${x.status.kind} sm`}>{x.status.text}</span></td><td className="num">{x.loads}</td><td className="dim">{x.why}</td>
                 <td><button type="button" className="link" data-faredel={p.id} disabled={busy} title="Remove from the plan" onClick={() => onDrop(p)}>remove</button></td>
               </tr>

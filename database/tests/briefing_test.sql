@@ -153,9 +153,11 @@ begin
       format('airline %s: the fare plan''s changes differ from the table''s', r.airline_id);
     n_fare := n_fare + jsonb_array_length(d -> 'fare_plan' -> 'plan');
     -- the fare levels (since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2): fare_ladder()'s routes and
-    -- cabins, each with its level, new level and whether this week's move is on the fare plan, and the launch level
+    -- cabins, since 26 Oct per direction (with direction, from and to), each with its level, new level and whether this
+    -- week's move is on the fare plan, and the launch level
     fl := private.fig_fare_ladder(r.airline_id, (d ->> 'as_of')::timestamptz);
     assert d -> 'fare_ladder' -> 'routes' = coalesce((select jsonb_agg(jsonb_build_object('route_id', e -> 'route_id', 'hub', e -> 'hub', 'dest', e -> 'dest',
+                                                                                          'direction', e -> 'direction', 'from', e -> 'from', 'to', e -> 'to',
                                                                                           'cabin', e -> 'cabin', 'level', e -> 'level', 'new_level', e -> 'new_level',
                                                                                           'planned', e -> 'planned') order by o)
                                                         from jsonb_array_elements(fl -> 'routes') with ordinality x(e, o)), '[]'::jsonb)
@@ -173,7 +175,7 @@ begin
     n_routes := n_routes + jsonb_array_length(d -> 'route_loads' -> 'routes');
   end loop;
   assert n_al > 0, 'the copy has none of our airlines';
-  raise notice 'one airline only, for % airlines: % deliveries, % plan cards, % legs, % open to-dos (the group''s in each), % fare changes, % routes'' and cabins'' fare levels (fare_ladder()''s), % routes'' loads, each as the tables hold them',
+  raise notice 'one airline only, for % airlines: % deliveries, % plan cards, % legs, % open to-dos (the group''s in each), % fare changes, % routes'', directions'' and cabins'' fare levels (fare_ladder()''s), % routes'' loads, each as the tables hold them',
     n_al, n_del, n_cards, n_legs, n_todos, n_fare, n_levels, n_routes;
 end
 $test$;

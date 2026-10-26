@@ -14,6 +14,10 @@
 // docs/specs/2026-10-23-fare-ladder-under-launch.md §4) the card also counts the week's jumps under launch and the
 // cut-or-keep decisions ("2 jumps, 1 decision"), the routes table words a jump, a revert and the hold after a jump, and
 // a row that is a decision for Gitesh shows "cut or keep?" beside its reason. Nothing goes to Today's Needs attention.
+// Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each direction of each cabin has its own level:
+// the routes table has a row per direction and cabin, its route shown as "EDI → FRA" (the airports that way round, linking
+// to the route's page), with its own sold out, Load (that direction's average load over the 7 days), level, move and why;
+// the counts, the game actions (one per direction) and Put on the fare plan (with each row's direction) follow.
 import { useState } from "react";
 import { Link } from "react-router";
 import type { OurAirline } from "../../data/airlines";
@@ -22,8 +26,8 @@ import { niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import {
-  LADDER_SORTS, changesWords, decideWords, ladderRows, levelWords, listCut, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
-  underLaunchLine,
+  LADDER_SORTS, changesWords, decideWords, directionWords, ladderKey, ladderRows, levelWords, listCut, loadWords, moveWords, offLevelWords, planButton,
+  plannedWords, soldWords, splitActions, underLaunchLine,
   type LadderAction, type LadderAnswer, type LadderSort,
 } from "./model";
 
@@ -97,20 +101,21 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
                 <div className="tscroll">
                   <table className="tbl gtbl fltbl" data-figure={`performance ${airline.name}: fare ladder routes`}>
                     <tbody>
-                      <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th>Move</th><th>Why</th></tr>
+                      <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th className="num">Load</th><th>Move</th><th>Why</th></tr>
                       {cut.shown.map((r) => {
                         const mv = moveWords(r), p = plannedWords(r, (d) => niceDate(d)), dk = decideWords(r);
                         return (
-                          <tr key={`${r.route_id}|${r.cabin}`} data-ladder-row={`${r.hub}-${r.dest} ${r.cabin}`} data-move={r.move}
+                          <tr key={ladderKey(r)} data-ladder-row={`${r.from}-${r.to} ${r.cabin}`} data-move={r.move} data-direction={r.direction}
                             data-ladder-kind={r.ladder_kind ?? r.move}>
-                            <td><Link className="link" to={itemRoute("routes", { airline: airline.code, hub: r.hub, dest: r.dest })}><b>{r.hub}–{r.dest}</b></Link></td>
+                            <td><Link className="link" to={itemRoute("routes", { airline: airline.code, hub: r.hub, dest: r.dest })}><b>{directionWords(r)}</b></Link></td>
                             <td>{r.cabin}</td>
                             <td>{levelWords(r.level, r.steps)}{r.index_matches === false && r.fare_index != null
-                              ? <> <span className="dim" data-ladder-index={`${r.hub}-${r.dest} ${r.cabin}`}
-                                  title="each flight of the latest captured day against the route's fare on 21 Oct (or its first, launched later), times the launch level: a flight more than a point off the level">· index {Math.round(r.fare_index)}{r.fix ? " · set back" : ""}</span></> : null}</td>
+                              ? <> <span className="dim" data-ladder-index={`${r.from}-${r.to} ${r.cabin}`}
+                                  title="each flight of the latest captured day in this direction against its fare on 21 Oct (or its first, launched later), times the launch level: a flight more than a point off the level">· index {Math.round(r.fare_index)}{r.fix ? " · set back" : ""}</span></> : null}</td>
                             <td className="num">{soldWords(r)}</td>
+                            <td className="num" data-ladder-load={`${r.from}-${r.to} ${r.cabin}`}>{loadWords(r)}</td>
                             <td><span className={mv.kind === "down" ? "pill warn sm" : mv.kind === "up" ? "flup" : "dim"}>{mv.text}</span>{p ? <> <span className="dim">· {p}</span></> : null}</td>
-                            <td className="dim">{dk ? <><span className="pill warn sm" data-ladder-decide={`${r.hub}-${r.dest} ${r.cabin}`}>{dk}</span> </> : null}{r.reason}</td>
+                            <td className="dim">{dk ? <><span className="pill warn sm" data-ladder-decide={`${r.from}-${r.to} ${r.cabin}`}>{dk}</span> </> : null}{r.reason}</td>
                           </tr>
                         );
                       })}
@@ -139,8 +144,8 @@ function copyAction(a: LadderAction) {
   }
 }
 
-/** The set-back changes (since 21 Oct): routes whose captured fares don't match their level, each direction its own
- *  change at the route's level, numbered as fare_ladder() numbers them (first), each with why and a copy button; cut to
+/** The set-back changes (since 21 Oct): directions whose captured fares don't match their level (since 26 Oct each
+ *  direction its own level), each its own change at its level, numbered as fare_ladder() numbers them (first), each with why and a copy button; cut to
  *  10 as the other lists. Nothing when every route is at its level. */
 function Fixes({ code, fixes }: { code: string; fixes: readonly LadderAction[] }) {
   const [open, setOpen] = useState(false);
@@ -152,7 +157,7 @@ function Fixes({ code, fixes }: { code: string; fixes: readonly LadderAction[] }
         otherwise, or a change not made). Ticket price adjustment, default price, each direction on its own.</span></div>
       <ol>
         {cut.shown.map((a) => (
-          <li key={a.n} value={a.n} data-action={a.n} data-route={a.route} data-classes={a.classes.join(" ")} data-fix="yes">
+          <li key={a.n} value={a.n} data-action={a.n} data-route={a.route} data-way={`${a.from}>${a.to}`} data-classes={a.classes.join(" ")} data-fix="yes">
             <span className="fltext">{a.text}</span> <span className="dim">· {a.reason ?? "off its level"}</span>{" "}
             <button type="button" className="link sm" data-copy-action={a.n} onClick={() => copyAction(a)}>copy</button>
           </li>

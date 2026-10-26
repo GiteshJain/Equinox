@@ -394,6 +394,40 @@ Wording clarified 22 Oct (Gitesh): the old sentence read "The cabin is chosen wi
 *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low then raising across 50 routes is too much work. The new flight's rule since 21 Oct (Gitesh).* As of 21 Oct every route is at its launch level: legacy airlines 100% of the default price, Ryanair 85% (Gitesh); the fare ladder's first moves start from there.
 
 #### The fare ladder, every Saturday
+*Per direction since 26 Oct (Gitesh, option A of `docs/briefs/2026-10-26-fare-ladder-per-direction.md`; built with spec
+`docs/specs/2026-10-26-fare-ladder-per-direction.md`).* Why: passengers book each direction separately (§9) and the
+game's Ticket price adjustment already changes one direction at a time, but the ladder judged both directions' flights
+together, so a direction that sold out every flight was held by a weaker way back. In the week to 26 Oct, 24 of 266
+routes had one direction sell out every economy flight while the route as a whole held. A new route, the capacity hold
+after a new frequency, the rival pause and the 60% floor stay the whole route's: a new flight, a rival or another
+player on the pair changes both directions at once. Each direction started from its route's level: a fare plan row
+without a direction (every row before then) counts for both until a direction has a later row of its own, so nothing
+moved on day one. The wording replaced, word for word:
+- "Each cabin of each route has a **level**: its fare as a % of the game's default price (launch: 100%, Ryanair 85%).
+  At the Saturday review, from the week's captured flights in that cabin:" and its three moves, "up 5 points (Pan Am and
+  China Eastern 7) when every flight sold out (at least 5 departures in the 7 days); hold when 90–99% sold out; down 5
+  points (Pan Am and China Eastern 7) when under 90% sold out, then hold for 2 weeks before climbing again."
+- "New routes start after their first 7 days (§3), and **a route that gained a frequency in the last 7 days holds**
+  for that week (`settings.fare_ladder_capacity_hold_days`, 7: its newest rotation under 7 days old, its first older),
+  so the ladder judges it at its new size, not on the drop the extra seats cause. Every plan card shows the fare level of each route it flies, so a new flight is priced like the
+  rest of its route. **A route whose captured fares don't match its level is set back to it:** when any flight of its
+  latest captured day is more than a point off (against the route's fare on 21 Oct, when every route was at its launch
+  level), the planner lists a change each way at its level, first, and the fares userscript makes it with the week's
+  changes; not for a route on the fare plan this week, a new route, or one not captured since its newest flight
+  launched."
+- The under-launch sentence opened "**Under launch, two jumps** (since 23 Oct): a cabin at launch that the ladder would
+  hold there"; the rest of it is unchanged, now read for each direction on its own.
+- "The planner works out each route's level and Saturday's moves, and lists the fewest changes to make in the game:
+  **Ticket price adjustment** with the calculation baseline **default price**, so each change sets the level itself,
+  **route by route only** (From A to B, and From B to A): never a whole base, so routes under 7 days old are never
+  touched. The fare plan records them and the next capture ticks each off."
+- The *Decided, not yet built* entry, retired with the build: "- **The fare ladder per direction** (§5): each direction
+  of each cabin of each route (A→B and B→A apart) gets its own level, judged on its own flights (up, hold, down, the
+  hold after a step down, under launch's jumps and the set-back each per direction); the capacity hold and the rival
+  pause stay the whole route's; each direction starts from the route's level when it's built. Until it is built and
+  merged, §5 stands as it is. *(decided 26 Oct, Gitesh; brief `docs/briefs/2026-10-26-fare-ladder-per-direction.md`,
+  spec `docs/specs/2026-10-26-fare-ladder-per-direction.md`)*"
+
 *Under launch, decided 23 Oct, not yet built (Gitesh, review chat, brief
 `docs/briefs/2026-10-23-fare-ladder-under-launch.md`, option C with the revenue check and 2-point steps instead of the
 brief's 10).* Why: a cabin that doesn't sell out held at launch for ever, so a weak route's only path was a cut; a
@@ -576,6 +610,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 26 Oct | The fare ladder by route and cabin: one level for both directions, judged on both directions' flights together; set back, under launch and the game changes (both ways at once) the same | Each direction of each cabin of each route its own level, judged on that direction's flights (up, hold, down, the hold after a step down, under launch, set back); one game change per direction; a new route, the capacity hold, the rival pause and the 60% floor stay the whole route's (§5). Why: Gitesh, option A of the per-direction brief; passengers book each direction separately |
 | 26 Oct | The cabin by market: the layout of the market of a route taking over 65% of block time (`cabin_route_share_pct`, `markets.layout`), else the layout with the most seats | The cabin by distance of the main route: Leisure under 3,500 km, Leisure Plus to 6,500 km, Comfort beyond (§5). Why: Gitesh, the layouts trade seat comfort for seats, a question of flight length; demand is met by fares (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`) |
 | 26 Oct | An aircraft logged without saying new or used was taken as new (`aircraft.acquired` defaulted to new) | Every aircraft logged must say new or used: no default (§3). Why: Gitesh; on 23 Oct VT-ABE, bought used, was logged without it and marked new, which would have set its replacement at 3 years instead of 10 |
 | 26 Oct | The fleet checks counted every aircraft on the night's fleet pages | An aircraft not delivered yet (on order in the planner, or at the factory with no seats and no pilots) is left out until it arrives (§7). Why: Gitesh; on 24 Oct EI-ACF, ordered new, showed as "looks used (24.1 years)" from the factory's meaningless age |

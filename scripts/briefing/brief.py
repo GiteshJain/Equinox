@@ -15,7 +15,7 @@ It only gathers. Each figure comes from its one home (#19), downloaded through e
   fare level of each route it flies: --fares with the briefing's fare_ladder);
 - kind briefing: the airline's deliveries (aircraft on order or arrived, not yet filed) with their plan cards and legs,
   its open to-dos and the group's, its fare plan (fare_plan_status()), each route's fare level (fare_ladder()'s, since
-  21 Oct), competition analysis (competition()'s scans, group line, threats and top 20 openings, since 21 Oct: the
+  21 Oct; per direction since 26 Oct), competition analysis (competition()'s scans, group line, threats and top 20 openings, since 21 Oct: the
   evening proposal's ranked list, manual §3; since 22 Oct a 1-star opening on the E195-E2 says "or the E190-E2 if thin")
   and its loads by route over 7 days (route_loads());
 - kinds snapshots and airlines: the latest finished world scan by the moment, for the rivals on the routes it flies and
@@ -350,14 +350,17 @@ def next_order(no):
 
 
 def fare_words(fares):
-    """Each route's fare level on a card, in one line: "HUB–AAA economy +10%, business +5%; HUB–NBN launch +0% of the
-    default price" (the library's cardFares, through check-card --fares)."""
+    """Each route's fare level on a card, in one line, per direction since 26 Oct (spec
+    docs/specs/2026-10-26-fare-ladder-per-direction.md §3): "HUB → AAA economy +10%, business +5%; AAA → HUB economy +5%;
+    HUB → NBN launch +0% of the default price" (the library's cardFares, through check-card --fares; an answer from before
+    26 Oct, without from and to, by its route "HUB–AAA")."""
     if not fares:
         return ""
     def one(f):
+        name = f"{f['from']} → {f['to']}" if f.get("from") and f.get("to") else f["route"]
         if f.get("flown"):
-            return f"{f['route']} " + ", ".join(f"{c['cabin']} {level_pct(c['level'])}" for c in f.get("cabins") or [])
-        return f"{f['route']} launch {level_pct(f.get('launch_pct'))}"
+            return f"{name} " + ", ".join(f"{c['cabin']} {level_pct(c['level'])}" for c in f.get("cabins") or [])
+        return f"{name} launch {level_pct(f.get('launch_pct'))}"
     return "; ".join(one(f) for f in fares) + " of the default price"
 
 

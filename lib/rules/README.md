@@ -68,7 +68,11 @@ the card flies, once per route in the order of its legs, from `fare_ladder()`'s 
 the ladder has for the route at its level (this week's new level once the move is on the fare plan), worded as the
 game's Ticket price adjustment takes it ("economy +10%, business +5% of the default price"), and a route not flown yet
 at launch ("launch (+0% of the default price)", Ryanair −15%); handed the same ladder, `checkCard()`'s answer has them
-as `fares` (`cases/cardFares.json`). Nothing is stored on the card. `airport` gives an airport's minimum connection time
+as `fares` (`cases/cardFares.json`). Since 26 Oct (spec `docs/specs/2026-10-26-fare-ladder-per-direction.md` §3) each
+direction has its own level: the answer has one entry per direction the card flies, in the order of its legs, each with
+`direction` (out from the route's hub, back to it; null for a pair the airline has no route for), `from` and `to`, and
+the levels of that direction's ladder rows (a row without a direction, from before then, counts for both). Nothing is
+stored on the card. `airport` gives an airport's minimum connection time
 and night ban.
 
 **Stations** (since 22 Oct, manual §2; spec `docs/specs/2026-10-22-station-role.md`): an `airline_bases` row with role
@@ -99,7 +103,8 @@ It answers in JSON; an error goes to standard error with a non-zero exit. A card
 without `block_min` gets the estimate, and an aircraft not in the input needs `type` and `airline`. The card's cabin is
 `config_id` (as `plan_cards` stores it, or a layout's code such as `"321-LP"`); the answer's `cabin` is the suggestion.
 With `--fares`, `fare_ladder()`'s answer for the card's airline (`select public.fare_ladder(<id>);`, or the airline
-briefing's `fare_ladder`, or its whole JSON), the answer's `fares` is each route's fare level (since 21 Oct).
+briefing's `fare_ladder`, or its whole JSON), the answer's `fares` is each route's fare level (since 21 Oct), once per
+direction the card flies it (since 26 Oct).
 The optimiser's
 start window and step default to 05:00 to 11:00 local and 5 minutes.
 

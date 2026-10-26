@@ -1810,11 +1810,13 @@ AS $function$
        where t.world_id = al.world_id and t.done is not true and (t.airline_id = p_airline_id or t.airline_id is null)), '[]'::jsonb),
     -- the fare plan and whether the captures show each change (fare_plan_status()'s document)
     'fare_plan', private.fig_fare_plan(p_airline_id, p_as_of),
-    -- each route and cabin's fare level (fare_ladder()'s routes: the level, and this week's new level once it's on the
-    -- fare plan) and the launch level for a route not flown yet: the plan card check's fare line (manual §5, since 21 Oct)
+    -- each route, cabin and direction's fare level (fare_ladder()'s routes: the level, and this week's new level once it's
+    -- on the fare plan; per direction since 26 Oct, from and to its airports that way round) and the launch level for a
+    -- route not flown yet: the plan card check's fare line (manual §5, since 21 Oct)
     'fare_ladder', (select jsonb_build_object(
         'week_of', fl.d -> 'week_of', 'settings', jsonb_build_object('launch_pct', fl.d #> '{settings,launch_pct}'),
-        'routes', coalesce((select jsonb_agg(jsonb_build_object('route_id', e -> 'route_id', 'hub', e -> 'hub', 'dest', e -> 'dest', 'cabin', e -> 'cabin',
+        'routes', coalesce((select jsonb_agg(jsonb_build_object('route_id', e -> 'route_id', 'hub', e -> 'hub', 'dest', e -> 'dest',
+                                                               'direction', e -> 'direction', 'from', e -> 'from', 'to', e -> 'to', 'cabin', e -> 'cabin',
                                                                'level', e -> 'level', 'new_level', e -> 'new_level', 'planned', e -> 'planned') order by x.o)
                               from jsonb_array_elements(fl.d -> 'routes') with ordinality x(e, o)), '[]'::jsonb))
       from fl),
@@ -2083,14 +2085,16 @@ begin
     d := private.fig_fare_ladder(v_al.id, p_as_of);
     v_week := coalesce(v_week, d ->> 'week_of');
     -- an action is kept when it sets a route back to its level (fix: no fare plan row; the index matching again is the
-    -- proof), or when every class it names is a route row (matched by its route, "HUB–DEST", and cabin) that is on the
-    -- fare plan this week (planned) and not yet seen in the captures (applied false)
+    -- proof), or when every class it names is a route row (matched by its route, "HUB–DEST", its direction, From and To,
+    -- since 26 Oct, and cabin) that is on the fare plan this week (planned) and not yet seen in the captures (applied
+    -- false, by its own direction's fares when the row has one)
     with acts as (select t.x, t.i from jsonb_array_elements(d -> 'actions') with ordinality as t(x, i)),
          cls as (select acts.i, c.k, m.rt
                    from acts
                    cross join lateral jsonb_array_elements_text(acts.x -> 'classes') with ordinality as c(cabin, k)
                    left join lateral (select e as rt from jsonb_array_elements(d -> 'routes') e
                                        where (e ->> 'hub') || '–' || (e ->> 'dest') = acts.x ->> 'route' and e ->> 'cabin' = c.cabin
+                                         and e ->> 'from' = acts.x ->> 'from' and e ->> 'to' = acts.x ->> 'to'
                                        limit 1) m on true),
          ok as (select cls.i, jsonb_agg((cls.rt ->> 'plan_id')::bigint order by cls.k) as plan_ids
                   from cls
@@ -3863,7 +3867,7 @@ declare
   v_base_day constant date := date '2026-10-21';
   v_scan bigint; v_scan_at timestamptz;
   v_rows jsonb; v_actions jsonb := '[]'::jsonb; v_n int := 0;
-  v_r record; v_sets jsonb; v_change jsonb; v_dir jsonb; v_lv numeric; v_words text;
+  v_r record; v_sets jsonb; v_change jsonb; v_lv numeric; v_words text;
   -- the fare ladder under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md)
   v_ul_load numeric; v_ul_days numeric; v_ul_min numeric; v_ul_decide numeric; v_ul_levels numeric[]; v_ul_below numeric[]; v_ul_j jsonb; v_ul_span text;
 begin
@@ -3920,9 +3924,10 @@ begin
             join public.cabin_configs cc on cc.id = a.cabin_config_id
            where f.live and coalesce(cc.business_seats, 0) > 0),
   -- every captured loads row of the airline by then (one per date and flight number, the latest), with its route as the
-  -- airline's list has it, either way round (as route profit matches them: route_id is often empty)
+  -- airline's list has it, either way round (as route profit matches them: route_id is often empty), and since 26 Oct its
+  -- direction: out from the route's hub, back to it
   lf as materialized (
-    select coalesce(r1.id, r2.id) as route_id, x.*
+    select coalesce(r1.id, r2.id) as route_id, case when r1.id is not null then 'out' else 'back' end as dir, x.*
       from (select distinct on (f.game_date, f.flight_no) f.game_date, f.origin_code as o, f.dest_code as d, f.dep_at,
                    f.eco_pct, f.eco_fare, f.bus_pct, f.bus_seats, f.bus_fare, f.eco_pax, f.bus_pax
               from public.game_flights f
@@ -3934,17 +3939,18 @@ begin
   -- by cabin: economy on every row with its load, business on flights with business seats; each with its direction (o),
   -- and since 23 Oct its passengers (revenue a flight, under launch: pax × fare)
   lc as materialized (
-    select lf.route_id, 'economy'::text as cabin, lf.o, lf.game_date, lf.dep_at, lf.eco_pct as pct, lf.eco_fare as fare, lf.eco_pax as pax,
+    select lf.route_id, 'economy'::text as cabin, lf.dir, lf.o, lf.game_date, lf.dep_at, lf.eco_pct as pct, lf.eco_fare as fare, lf.eco_pax as pax,
            coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') as at from lf where lf.eco_pct is not null
     union all
-    select lf.route_id, 'business', lf.o, lf.game_date, lf.dep_at, lf.bus_pct, lf.bus_fare, lf.bus_pax,
+    select lf.route_id, 'business', lf.dir, lf.o, lf.game_date, lf.dep_at, lf.bus_pct, lf.bus_fare, lf.bus_pax,
            coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') from lf where lf.bus_pct is not null and coalesce(lf.bus_seats, 0) > 0),
-  -- the 7 days before the moment, by scheduled departure (the departure date where it isn't known)
-  st as (select lc.route_id, lc.cabin, count(*)::int as n, (count(*) filter (where lc.pct >= 100))::int as sold, avg(lc.fare) as fare
+  -- the 7 days before the moment, by scheduled departure (the departure date where it isn't known), per direction since
+  -- 26 Oct, with the direction's average load in the cabin
+  st as (select lc.route_id, lc.cabin, lc.dir, count(*)::int as n, (count(*) filter (where lc.pct >= 100))::int as sold, avg(lc.fare) as fare,
+                avg(lc.pct) as load
            from lc
-          where coalesce(lc.dep_at, lc.game_date::timestamp at time zone 'UTC') >= p_as_of - interval '7 days'
-            and coalesce(lc.dep_at, lc.game_date::timestamp at time zone 'UTC') < p_as_of
-          group by lc.route_id, lc.cabin),
+          where lc.at >= p_as_of - interval '7 days' and lc.at < p_as_of
+          group by lc.route_id, lc.cabin, lc.dir),
   -- the fare index's baseline (manual §5, since 21 Oct). Each captured day's fare by cabin and direction: the flights'
   -- lowest (one the game priced otherwise, as a new flight at the default price on a Ryanair route, sits above it), else
   -- the daily history's average fare in that cabin (route_days, kept for good once the flights are archived): economy's,
@@ -3972,74 +3978,89 @@ begin
              left join age ag on ag.route_id = bk.route_id
              join bd on bd.route_id = bk.route_id and bd.cabin = bk.cabin and bd.o = bk.o
                     and bd.day = coalesce(bk.on_day, case when ag.first_day is not null and bk.first_seen - ag.first_day < v_new_days then bk.first_seen end)),
-  bs as (select base.route_id, base.cabin, avg(base.fare) as fare, max(base.day) as day from base group by 1, 2),
-  -- the latest captured day by cabin: its average fare, and each flight's fare against its direction's baseline
-  lday as (select lc.route_id, lc.cabin, max(lc.game_date) as day from lc where lc.fare > 0 group by 1, 2),
-  latest as (select ld.route_id, ld.cabin, ld.day, avg(lc.fare) as fare,
-                    array_agg(lc.fare / b.fare order by lc.o, lc.dep_at) filter (where b.fare > 0) as ratios
+  -- each direction's baseline (since 26 Oct a row each: out from the route's hub, back to it)
+  bs as (select base.route_id, base.cabin, case when base.o = ro.hub_code then 'out' else 'back' end as dir, avg(base.fare) as fare, max(base.day) as day
+           from base join ro on ro.id = base.route_id group by 1, 2, 3),
+  -- the latest captured day by cabin and direction: its average fare, and each flight's fare against the direction's
+  -- baseline
+  lday as (select lc.route_id, lc.cabin, lc.dir, max(lc.game_date) as day from lc where lc.fare > 0 group by 1, 2, 3),
+  latest as (select ld.route_id, ld.cabin, ld.dir, ld.day, avg(lc.fare) as fare,
+                    array_agg(lc.fare / b.fare order by lc.dep_at) filter (where b.fare > 0) as ratios
                from lday ld
-               join lc on lc.route_id = ld.route_id and lc.cabin = ld.cabin and lc.game_date = ld.day and lc.fare > 0
+               join lc on lc.route_id = ld.route_id and lc.cabin = ld.cabin and lc.dir = ld.dir and lc.game_date = ld.day and lc.fare > 0
                left join base b on b.route_id = lc.route_id and b.cabin = lc.cabin and b.o = lc.o
-              group by ld.route_id, ld.cabin, ld.day),
-  -- the levels the fare plan recorded (manual §5): before this Saturday, the latest is the level; since it, this week's move
-  rec as (select fp.id, fp.route_id, coalesce(fp.cabin_class, 'economy') as cabin, fp.level_pct, fp.ladder_move, fp.proposed_on, fp.reason,
-                 fp.fare_from, fp.change_pct
+              group by ld.route_id, ld.cabin, ld.dir, ld.day),
+  -- the levels the fare plan recorded (manual §5): before this Saturday, the latest is the level; since it, this week's move.
+  -- Since 26 Oct per direction: a row with a direction counts for that direction, a both-directions row (direction null,
+  -- every row written before then) for each of them, so a direction's level is its own latest row, or the latest
+  -- both-directions row if that is later (proposed on, then id)
+  rec as (select fp.id, fp.route_id, coalesce(fp.cabin_class, 'economy') as cabin, d.dir, fp.direction, fp.level_pct, fp.ladder_move,
+                 fp.proposed_on, fp.reason, fp.fare_from, fp.change_pct
             from public.fare_plan fp
+           cross join (values ('out'), ('back')) d (dir)
            where fp.airline_id = p_airline_id and fp.world_id = w and fp.level_pct is not null and fp.status <> 'dropped'
-             and fp.proposed_on <= v_today),
-  prev as (select distinct on (r.route_id, r.cabin) r.* from rec r where r.proposed_on < v_week order by r.route_id, r.cabin, r.proposed_on desc, r.id desc),
-  wk as (select distinct on (r.route_id, r.cabin) r.* from rec r where r.proposed_on >= v_week order by r.route_id, r.cabin, r.proposed_on desc, r.id desc),
-  dn as (select r.route_id, r.cabin, max(r.proposed_on) as down_on from rec r where r.ladder_move = 'down' and r.proposed_on < v_week group by 1, 2),
-  -- under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md §2). Each cabin's day by day fare
-  -- (both directions), and its jumps recorded before this Saturday, each with the day it took effect: the first captured
-  -- day on or after it was proposed whose fare is the fare then times its ratio, within 1% (fare_plan_status()'s rule,
-  -- read over every captured day, so the day holds once the flights are older than its 10 days), else the day proposed
-  cday as materialized (select lc.route_id, lc.cabin, lc.game_date as day, avg(lc.fare) as fare from lc where lc.fare > 0 group by 1, 2, 3),
-  jr as (select r.id, r.route_id, r.cabin, r.level_pct, r.proposed_on,
+             and fp.proposed_on <= v_today and (fp.direction is null or fp.direction = d.dir)),
+  prev as (select distinct on (r.route_id, r.cabin, r.dir) r.* from rec r where r.proposed_on < v_week
+            order by r.route_id, r.cabin, r.dir, r.proposed_on desc, r.id desc),
+  wk as (select distinct on (r.route_id, r.cabin, r.dir) r.* from rec r where r.proposed_on >= v_week
+          order by r.route_id, r.cabin, r.dir, r.proposed_on desc, r.id desc),
+  dn as (select r.route_id, r.cabin, r.dir, max(r.proposed_on) as down_on from rec r where r.ladder_move = 'down' and r.proposed_on < v_week group by 1, 2, 3),
+  -- under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md §2), per direction since 26 Oct.
+  -- Each cabin's day by day fare, each direction's and both directions' together (dir 'both', for a both-directions row),
+  -- and its jumps recorded before this Saturday, each with the day it took effect: the first captured day on or after it
+  -- was proposed whose fare (the row's direction's, or both directions' for a both-directions row) is the fare then times
+  -- its ratio, within 1% (fare_plan_status()'s rule, read over every captured day, so the day holds once the flights are
+  -- older than its 10 days), else the day proposed
+  cday as materialized (select lc.route_id, lc.cabin, coalesce(lc.dir, 'both') as dir, lc.game_date as day, avg(lc.fare) as fare
+                          from lc where lc.fare > 0 group by grouping sets ((lc.route_id, lc.cabin, lc.dir, lc.game_date), (lc.route_id, lc.cabin, lc.game_date))),
+  jr as (select r.id, r.route_id, r.cabin, r.dir, r.level_pct, r.proposed_on,
                 coalesce((select min(c.day) from cday c
-                           where c.route_id = r.route_id and c.cabin = r.cabin and c.day >= r.proposed_on and r.fare_from > 0
+                           where c.route_id = r.route_id and c.cabin = r.cabin and c.dir = coalesce(r.direction, 'both') and c.day >= r.proposed_on and r.fare_from > 0
                              and abs(c.fare / r.fare_from - (1 + coalesce(r.change_pct, 0) / 100)) <= 0.01), r.proposed_on) as on_day
            from rec r where r.ladder_move = 'jump' and r.proposed_on < v_week),
-  jf as (select distinct on (jr.route_id, jr.cabin) jr.route_id, jr.cabin, jr.on_day as first_on from jr order by jr.route_id, jr.cabin, jr.proposed_on, jr.id),
-  jl as (select distinct on (jr.route_id, jr.cabin) jr.route_id, jr.cabin, jr.id, jr.proposed_on, jr.on_day as jumped_on
-           from jr order by jr.route_id, jr.cabin, jr.proposed_on desc, jr.id desc),
+  jf as (select distinct on (jr.route_id, jr.cabin, jr.dir) jr.route_id, jr.cabin, jr.dir, jr.on_day as first_on from jr
+          order by jr.route_id, jr.cabin, jr.dir, jr.proposed_on, jr.id),
+  jl as (select distinct on (jr.route_id, jr.cabin, jr.dir) jr.route_id, jr.cabin, jr.dir, jr.id, jr.proposed_on, jr.on_day as jumped_on
+           from jr order by jr.route_id, jr.cabin, jr.dir, jr.proposed_on desc, jr.id desc),
   -- done: a revert recorded, or a row after the latest jump (the judgement that it paid, recorded as a hold, or the
-  -- ladder's moves since): no more jumps for that cabin
-  ud as (select jl.route_id, jl.cabin from jl
-          where exists (select 1 from rec r where r.route_id = jl.route_id and r.cabin = jl.cabin and r.proposed_on < v_week
+  -- ladder's moves since): no more jumps for that cabin and direction
+  ud as (select jl.route_id, jl.cabin, jl.dir from jl
+          where exists (select 1 from rec r where r.route_id = jl.route_id and r.cabin = jl.cabin and r.dir = jl.dir and r.proposed_on < v_week
                            and (r.ladder_move = 'revert' or (r.ladder_move in ('up', 'down', 'hold') and (r.proposed_on, r.id) > (jl.proposed_on, jl.id))))),
   -- the latest recorded level change (any row but a hold): at launch, the window must be all at that level
-  lch as (select r.route_id, r.cabin, max(r.proposed_on) as changed_on from rec r where r.ladder_move is distinct from 'hold' group by 1, 2),
-  -- the window at launch: the fare_under_launch_days before the moment, by scheduled departure
-  uw as (select lc.route_id, lc.cabin, count(*)::int as n, avg(lc.pct) as load, avg(lc.pax * lc.fare) as rev
-           from lc where lc.at >= p_as_of - make_interval(days => v_ul_days::int) and lc.at < p_as_of group by 1, 2),
-  -- the launch baseline: revenue a flight over the fare_under_launch_days before the first jump took effect. By the last
-  -- level's judgement those days can be 6 weeks old and their flights archived: a day with no captured flights is read
-  -- from the daily history instead (route_days: passengers × average fare in that cabin, over the day's flights)
-  ubf as (select lc.route_id, lc.cabin, lc.game_date as day, count(*) as n, sum(lc.pax * lc.fare) as rev
-            from lc join jf on jf.route_id = lc.route_id and jf.cabin = lc.cabin
+  lch as (select r.route_id, r.cabin, r.dir, max(r.proposed_on) as changed_on from rec r where r.ladder_move is distinct from 'hold' group by 1, 2, 3),
+  -- the window at launch: the fare_under_launch_days before the moment, by scheduled departure, the direction's flights
+  uw as (select lc.route_id, lc.cabin, lc.dir, count(*)::int as n, avg(lc.pct) as load, avg(lc.pax * lc.fare) as rev
+           from lc where lc.at >= p_as_of - make_interval(days => v_ul_days::int) and lc.at < p_as_of group by 1, 2, 3),
+  -- the launch baseline: revenue a flight over the fare_under_launch_days before the first jump took effect, the
+  -- direction's flights. By the last level's judgement those days can be 6 weeks old and their flights archived: a day
+  -- with no captured flights in that direction is read from the daily history instead (route_days, the direction's row:
+  -- passengers × average fare in that cabin, over the day's flights)
+  ubf as (select lc.route_id, lc.cabin, lc.dir, lc.game_date as day, count(*) as n, sum(lc.pax * lc.fare) as rev
+            from lc join jf on jf.route_id = lc.route_id and jf.cabin = lc.cabin and jf.dir = lc.dir
            where lc.at >= (jf.first_on - v_ul_days::int)::timestamp at time zone 'UTC' and lc.at < jf.first_on::timestamp at time zone 'UTC'
              and lc.pax is not null and lc.fare is not null
-           group by 1, 2, 3),
-  ubh as (select jf.route_id, jf.cabin, d.day, sum(d.flights) as n,
+           group by 1, 2, 3, 4),
+  ubh as (select jf.route_id, jf.cabin, jf.dir, d.day, sum(d.flights) as n,
                  sum(case jf.cabin when 'economy' then d.eco_pax * d.eco_fare_avg else d.bus_pax * d.bus_fare_avg end) as rev
             from jf
             join ro on ro.id = jf.route_id
             join public.route_days d on d.airline_id = p_airline_id
-             and ((d.origin_code = ro.hub_code and d.dest_code = ro.dest_code) or (d.origin_code = ro.dest_code and d.dest_code = ro.hub_code))
+             and ((jf.dir = 'out' and d.origin_code = ro.hub_code and d.dest_code = ro.dest_code)
+                  or (jf.dir = 'back' and d.origin_code = ro.dest_code and d.dest_code = ro.hub_code))
            where d.day >= jf.first_on - v_ul_days::int and d.day < jf.first_on and d.flights > 0
              and case jf.cabin when 'economy' then d.eco_pax is not null and d.eco_fare_avg is not null
                                else d.bus_pax is not null and d.bus_fare_avg is not null end
-             and not exists (select 1 from ubf where ubf.route_id = jf.route_id and ubf.cabin = jf.cabin and ubf.day = d.day)
-           group by 1, 2, 3),
-  ub as (select x.route_id, x.cabin, sum(x.rev) / nullif(sum(x.n), 0) as rev
-           from (select ubf.route_id, ubf.cabin, ubf.n, ubf.rev from ubf union all select ubh.route_id, ubh.cabin, ubh.n, ubh.rev from ubh) x
-          group by 1, 2),
-  -- at the jump level: the flights since the latest jump took effect, to the moment
-  uj as (select lc.route_id, lc.cabin, count(*)::int as n, avg(lc.pct) as load, avg(lc.pax * lc.fare) as rev
-           from lc join jl on jl.route_id = lc.route_id and jl.cabin = lc.cabin
+             and not exists (select 1 from ubf where ubf.route_id = jf.route_id and ubf.cabin = jf.cabin and ubf.dir = jf.dir and ubf.day = d.day)
+           group by 1, 2, 3, 4),
+  ub as (select x.route_id, x.cabin, x.dir, sum(x.rev) / nullif(sum(x.n), 0) as rev
+           from (select ubf.route_id, ubf.cabin, ubf.dir, ubf.n, ubf.rev from ubf union all select ubh.route_id, ubh.cabin, ubh.dir, ubh.n, ubh.rev from ubh) x
+          group by 1, 2, 3),
+  -- at the jump level: the direction's flights since the latest jump took effect, to the moment
+  uj as (select lc.route_id, lc.cabin, lc.dir, count(*)::int as n, avg(lc.pct) as load, avg(lc.pax * lc.fare) as rev
+           from lc join jl on jl.route_id = lc.route_id and jl.cabin = lc.cabin and jl.dir = lc.dir
           where lc.at >= jl.jumped_on::timestamp at time zone 'UTC' and lc.at < p_as_of
-          group by 1, 2),
+          group by 1, 2, 3),
   -- whether the captures show this week's move yet (fare_plan_status()'s rule)
   seen as (select (e ->> 'id')::bigint as id, (e ->> 'applied')::boolean as applied, (e ->> 'seen_on')::date as seen_on
              from jsonb_array_elements(case when exists (select 1 from wk) then private.fig_fare_plan(p_airline_id, p_as_of) -> 'plan' else '[]'::jsonb end) e),
@@ -4060,15 +4081,18 @@ begin
             from private.competition_threats(p_airline_id, p_as_of) t
            order by t.a, t.b, t.until desc, t.now_weekly desc, t.rival),
   -- the routes and cabins on the ladder: each flying route in economy, and in business where its aircraft have business
-  -- seats; any with flights captured in the 7 days or a move recorded this week
-  rc as (select distinct x.route_id, x.cabin
+  -- seats; any with flights captured in the 7 days or a move recorded this week. Since 26 Oct each in both directions
+  rc as (select distinct x.route_id, x.cabin, d.dir
            from (select f.route_id, 'economy'::text as cabin from fq f where f.live
                  union all select bz.route_id, 'business' from biz bz
                  union all select st.route_id, st.cabin from st
                  union all select wk.route_id, wk.cabin from wk) x
-           join ro on ro.id = x.route_id),
-  lv as (select rc.route_id, rc.cabin, ro.hub_code as hub, ro.dest_code as dest,
-                coalesce(st.n, 0) as n, coalesce(st.sold, 0) as sold, st.fare as fare_week,
+           join ro on ro.id = x.route_id
+           cross join (values ('out'), ('back')) d (dir)),
+  lv as (select rc.route_id, rc.cabin, rc.dir, ro.hub_code as hub, ro.dest_code as dest,
+                case rc.dir when 'out' then ro.hub_code else ro.dest_code end as dir_from,
+                case rc.dir when 'out' then ro.dest_code else ro.hub_code end as dir_to,
+                coalesce(st.n, 0) as n, coalesce(st.sold, 0) as sold, st.fare as fare_week, st.load as load_week,
                 lt.fare as latest_fare, lt.day as latest_on, lt.ratios, bs.fare as baseline_fare, bs.day as baseline_on,
                 coalesce(pv.level_pct, v_launch) as level, pv.id is not null as recorded,
                 wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
@@ -4080,22 +4104,22 @@ begin
                 coalesce(uj.n, 0) as j_n, uj.load as j_load, uj.rev as j_rev
            from rc join ro on ro.id = rc.route_id
            left join thr th on th.a = least(ro.hub_code, ro.dest_code) and th.b = greatest(ro.hub_code, ro.dest_code)
-           left join st on st.route_id = rc.route_id and st.cabin = rc.cabin
-           left join latest lt on lt.route_id = rc.route_id and lt.cabin = rc.cabin
-           left join bs on bs.route_id = rc.route_id and bs.cabin = rc.cabin
-           left join prev pv on pv.route_id = rc.route_id and pv.cabin = rc.cabin
-           left join wk on wk.route_id = rc.route_id and wk.cabin = rc.cabin
+           left join st on st.route_id = rc.route_id and st.cabin = rc.cabin and st.dir = rc.dir
+           left join latest lt on lt.route_id = rc.route_id and lt.cabin = rc.cabin and lt.dir = rc.dir
+           left join bs on bs.route_id = rc.route_id and bs.cabin = rc.cabin and bs.dir = rc.dir
+           left join prev pv on pv.route_id = rc.route_id and pv.cabin = rc.cabin and pv.dir = rc.dir
+           left join wk on wk.route_id = rc.route_id and wk.cabin = rc.cabin and wk.dir = rc.dir
            left join seen se on se.id = wk.id
-           left join dn on dn.route_id = rc.route_id and dn.cabin = rc.cabin
+           left join dn on dn.route_id = rc.route_id and dn.cabin = rc.cabin and dn.dir = rc.dir
            left join age ag on ag.route_id = rc.route_id
            left join added ad on ad.route_id = rc.route_id
-           left join jl on jl.route_id = rc.route_id and jl.cabin = rc.cabin
-           left join jf on jf.route_id = rc.route_id and jf.cabin = rc.cabin
-           left join ud on ud.route_id = rc.route_id and ud.cabin = rc.cabin
-           left join lch on lch.route_id = rc.route_id and lch.cabin = rc.cabin
-           left join uw on uw.route_id = rc.route_id and uw.cabin = rc.cabin
-           left join ub on ub.route_id = rc.route_id and ub.cabin = rc.cabin
-           left join uj on uj.route_id = rc.route_id and uj.cabin = rc.cabin),
+           left join jl on jl.route_id = rc.route_id and jl.cabin = rc.cabin and jl.dir = rc.dir
+           left join jf on jf.route_id = rc.route_id and jf.cabin = rc.cabin and jf.dir = rc.dir
+           left join ud on ud.route_id = rc.route_id and ud.cabin = rc.cabin and ud.dir = rc.dir
+           left join lch on lch.route_id = rc.route_id and lch.cabin = rc.cabin and lch.dir = rc.dir
+           left join uw on uw.route_id = rc.route_id and uw.cabin = rc.cabin and uw.dir = rc.dir
+           left join ub on ub.route_id = rc.route_id and ub.cabin = rc.cabin and ub.dir = rc.dir
+           left join uj on uj.route_id = rc.route_id and uj.cabin = rc.cabin and uj.dir = rc.dir),
   mv0 as (select lv.*,
                 case when lv.n > 0 then lv.sold * 100.0 / lv.n end as share,
                 v_launch + v_cap as cap_pct,
@@ -4232,8 +4256,9 @@ begin
                          and (ix.last_day is null or ix.latest_on > ix.last_day), false) as fix
            from ix)
   select coalesce(jsonb_agg(jsonb_build_object(
-           'route_id', o.route_id, 'hub', o.hub, 'dest', o.dest, 'cabin', o.cabin,
-           'departures', o.n, 'sold_out', o.sold, 'sold_out_share', round(o.share, 1), 'average_fare', round(o.fare_week, 2),
+           -- since 26 Oct a row per direction: out from the route's hub, back to it, with its airports that way round
+           'route_id', o.route_id, 'hub', o.hub, 'dest', o.dest, 'direction', o.dir, 'from', o.dir_from, 'to', o.dir_to, 'cabin', o.cabin,
+           'departures', o.n, 'sold_out', o.sold, 'sold_out_share', round(o.share, 1), 'load', round(o.load_week, 1), 'average_fare', round(o.fare_week, 2),
            'baseline_fare', round(o.baseline_fare, 2), 'baseline_on', o.baseline_on, 'latest_fare', round(o.latest_fare, 2), 'latest_on', o.latest_on,
            'fare_index', o.fare_index, 'index_matches', o.matches,
            'level', trim_scale(o.level), 'recorded', o.recorded, 'steps', trim_scale(round((o.level - v_launch) / v_step, 1)),
@@ -4258,26 +4283,29 @@ begin
            -- a change that sets it back to its level (manual §5, since 21 Oct)
            'fix', o.fix,
            'fix_reason', case when o.fix then format('captured fare at %s%%, level %s%%', trim_scale(round(o.worst, 1)), trim_scale(o.expect)) end)
-           order by o.hub, o.dest, o.cabin desc), '[]'::jsonb)
+           order by o.hub, o.dest, o.dir = 'back', o.cabin desc), '[]'::jsonb)
     into v_rows from fx o;
 
   -- the game's Ticket price adjustments, route by route only (manual §5, since 21 Oct: never a whole base, so a route
-  -- under 7 days old is never touched). Each sets the level with the baseline default price, and each direction is a
-  -- change of its own (From A to B, From B to A). First the set-back changes (fix), then the week's moves, each in the
-  -- routes' order (hub, dest): for each route, when both cabins go to the same level, one action each way with both
-  -- classes ticked; otherwise one each way for each cabin, economy first. A route whose levels don't change gets no move.
-  for v_r in select x.fix, x.hub, x.dest,
+  -- under 7 days old is never touched). Each sets the level with the baseline default price. Since 26 Oct each direction
+  -- has its own level, so each direction is an action of its own (From A to B, From B to A). First the set-back changes
+  -- (fix), then the week's moves, each in the rows' order (hub, dest, out before back): for each direction, when both
+  -- cabins go to the same level, one action with both classes ticked; otherwise one for each cabin, economy first. A
+  -- direction whose levels don't change gets no action.
+  for v_r in select x.fix, x.hub, x.dest, x.dir_from, x.dir_to,
                     jsonb_agg(jsonb_build_object('cabin', x.cabin, 'level', x.level, 'reason', x.reason) order by x.cabin = 'business') as moves
-               from (select true as fix, e ->> 'route_id' as route_id, e ->> 'hub' as hub, e ->> 'dest' as dest, e ->> 'cabin' as cabin,
+               from (select true as fix, e ->> 'route_id' as route_id, e ->> 'hub' as hub, e ->> 'dest' as dest, e ->> 'direction' as dir,
+                            e ->> 'from' as dir_from, e ->> 'to' as dir_to, e ->> 'cabin' as cabin,
                             (e ->> 'level')::numeric as level, e ->> 'fix_reason' as reason
                        from jsonb_array_elements(v_rows) e
                       where (e ->> 'fix')::boolean
                      union all
-                     select false, e ->> 'route_id', e ->> 'hub', e ->> 'dest', e ->> 'cabin', (e ->> 'new_level')::numeric, null
+                     select false, e ->> 'route_id', e ->> 'hub', e ->> 'dest', e ->> 'direction', e ->> 'from', e ->> 'to', e ->> 'cabin',
+                            (e ->> 'new_level')::numeric, null
                        from jsonb_array_elements(v_rows) e
                       where (e ->> 'new_level')::numeric <> (e ->> 'level')::numeric) x
-              group by x.fix, x.route_id, x.hub, x.dest
-              order by x.fix desc, x.hub, x.dest loop
+              group by x.fix, x.route_id, x.hub, x.dest, x.dir, x.dir_from, x.dir_to
+              order by x.fix desc, x.hub, x.dest, x.dir = 'back' loop
     if jsonb_array_length(v_r.moves) = 2 and (v_r.moves #>> '{0,level}')::numeric = (v_r.moves #>> '{1,level}')::numeric then
       v_sets := jsonb_build_array(jsonb_build_object(
         'classes', jsonb_build_array('economy', 'business'), 'level', v_r.moves #> '{0,level}',
@@ -4289,15 +4317,13 @@ begin
     for v_change in select x from jsonb_array_elements(v_sets) x loop
       v_lv := (v_change ->> 'level')::numeric;
       select string_agg(c, ' and ' order by i) into v_words from jsonb_array_elements_text(v_change -> 'classes') with ordinality as t(c, i);
-      foreach v_dir in array array[jsonb_build_array(v_r.hub, v_r.dest), jsonb_build_array(v_r.dest, v_r.hub)] loop
-        v_n := v_n + 1;
-        v_actions := v_actions || jsonb_build_object(
-          'n', v_n, 'route', v_r.hub || '–' || v_r.dest, 'classes', v_change -> 'classes', 'from', v_dir ->> 0, 'to', v_dir ->> 1,
-          'level', trim_scale(v_lv), 'sign', case when v_lv >= 100 then '+' else '-' end, 'pct', trim_scale(abs(v_lv - 100)),
-          'baseline', 'default price', 'fix', v_r.fix, 'reason', v_change ->> 'reason',
-          'text', format('From %s to %s: %s%s%% of the default price, %s', v_dir ->> 0, v_dir ->> 1,
-                         case when v_lv >= 100 then '+' else '−' end, trim_scale(abs(v_lv - 100)), v_words));
-      end loop;
+      v_n := v_n + 1;
+      v_actions := v_actions || jsonb_build_object(
+        'n', v_n, 'route', v_r.hub || '–' || v_r.dest, 'classes', v_change -> 'classes', 'from', v_r.dir_from, 'to', v_r.dir_to,
+        'level', trim_scale(v_lv), 'sign', case when v_lv >= 100 then '+' else '-' end, 'pct', trim_scale(abs(v_lv - 100)),
+        'baseline', 'default price', 'fix', v_r.fix, 'reason', v_change ->> 'reason',
+        'text', format('From %s to %s: %s%s%% of the default price, %s', v_r.dir_from, v_r.dir_to,
+                       case when v_lv >= 100 then '+' else '−' end, trim_scale(abs(v_lv - 100)), v_words));
     end loop;
   end loop;
 
@@ -4319,10 +4345,11 @@ begin
       'decisions', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'decide')::boolean)),
     'to_plan', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'to_plan')::boolean),
     'planned', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'planned')::boolean),
-    'off_level', (select count(distinct e ->> 'route_id') from jsonb_array_elements(v_rows) e where (e ->> 'fix')::boolean),
+    -- since 26 Oct the directions set back (a route and direction each)
+    'off_level', (select count(distinct (e ->> 'route_id') || ' ' || (e ->> 'direction')) from jsonb_array_elements(v_rows) e where (e ->> 'fix')::boolean),
     'routes', v_rows, 'actions', v_actions,
     'notes', jsonb_build_array(
-      'The fare index compares each flight of the latest captured day with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level. A route more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, new, or not captured since its newest flight launched.'));
+      'The fare index compares each flight of the latest captured day with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level. Since 26 Oct each direction has its own level, judged on its own flights: a direction more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, its route is new, or it isn''t captured since its route''s newest flight launched.'));
 end
 $function$
 
@@ -4349,35 +4376,39 @@ begin
                 order by f.game_date, f.flight_no, f.id desc),
     r as (select ro.id, ro.hub_code, ro.dest_code from public.routes ro where ro.airline_id = p_airline_id and ro.world_id = w),
     -- each route's fares and economy loads by date: the day's average fare, and the loads summed with their count (the
-    -- before and after are averages over every flight, not over the days)
+    -- before and after are averages over every flight, not over the days). Since 26 Oct each direction's too (dir out from
+    -- the route's hub, back to it) beside both directions' together (dir both): a fare ladder row with a direction is read
+    -- on its own direction's flights
     rd as materialized (
-      select r.id as route_id, l.game_date as day, avg(l.fare) as fare, sum(l.eco) as eco_sum, count(l.eco) as eco_n
+      select r.id as route_id, coalesce(case when l.origin = r.hub_code then 'out' else 'back' end, 'both') as dir, l.game_date as day,
+             avg(l.fare) as fare, sum(l.eco) as eco_sum, count(l.eco) as eco_n
         from r join l on l.fare is not null
          and ((l.origin = r.hub_code and l.dest = r.dest_code) or (l.origin = r.dest_code and l.dest = r.hub_code))
-       group by r.id, l.game_date),
+       group by grouping sets ((r.id, case when l.origin = r.hub_code then 'out' else 'back' end, l.game_date), (r.id, l.game_date))),
     -- the same in business, for the fare ladder's business rows (flights with business seats)
     rb as materialized (
-      select r.id as route_id, l.game_date as day, avg(l.bfare) as fare, sum(l.bus) as eco_sum, count(l.bus) as eco_n
+      select r.id as route_id, coalesce(case when l.origin = r.hub_code then 'out' else 'back' end, 'both') as dir, l.game_date as day,
+             avg(l.bfare) as fare, sum(l.bus) as eco_sum, count(l.bus) as eco_n
         from r join l on l.bfare is not null
          and ((l.origin = r.hub_code and l.dest = r.dest_code) or (l.origin = r.dest_code and l.dest = r.hub_code))
-       group by r.id, l.game_date),
-    p as (select fp.*, ro.hub_code, ro.dest_code,
+       group by grouping sets ((r.id, case when l.origin = r.hub_code then 'out' else 'back' end, l.game_date), (r.id, l.game_date))),
+    p as (select fp.*, ro.hub_code, ro.dest_code, coalesce(fp.direction, 'both') as dk,
                  fp.fare_from * (1 + fp.change_pct / 100) as target,
                  case when fp.level_pct is not null and fp.cabin_class = 'business'
-                      then (select rb.fare from rb where rb.route_id = fp.route_id order by rb.day desc limit 1)
-                      else (select rd.fare from rd where rd.route_id = fp.route_id order by rd.day desc limit 1) end as cur,
+                      then (select rb.fare from rb where rb.route_id = fp.route_id and rb.dir = coalesce(fp.direction, 'both') order by rb.day desc limit 1)
+                      else (select rd.fare from rd where rd.route_id = fp.route_id and rd.dir = coalesce(fp.direction, 'both') order by rd.day desc limit 1) end as cur,
                  case
                    -- a fare test: seen once at least half the change shows in the day's average fare, on or after the day it
                    -- was proposed
                    when fp.level_pct is null
-                     then (select min(rd.day) from rd where rd.route_id = fp.route_id and rd.day >= fp.proposed_on
+                     then (select min(rd.day) from rd where rd.route_id = fp.route_id and rd.dir = coalesce(fp.direction, 'both') and rd.day >= fp.proposed_on
                               and rd.fare >= fp.fare_from * (1 + fp.change_pct / 200))
                    -- the fare ladder's: seen once the day's average fare in its cabin is the fare then times the expected
                    -- ratio, within 1%, on or after the day it was proposed
                    when fp.cabin_class = 'business'
-                     then (select min(rb.day) from rb where rb.route_id = fp.route_id and rb.day >= fp.proposed_on and fp.fare_from > 0
+                     then (select min(rb.day) from rb where rb.route_id = fp.route_id and rb.dir = coalesce(fp.direction, 'both') and rb.day >= fp.proposed_on and fp.fare_from > 0
                               and abs(rb.fare / fp.fare_from - (1 + coalesce(fp.change_pct, 0) / 100)) <= 0.01)
-                   else (select min(rd.day) from rd where rd.route_id = fp.route_id and rd.day >= fp.proposed_on and fp.fare_from > 0
+                   else (select min(rd.day) from rd where rd.route_id = fp.route_id and rd.dir = coalesce(fp.direction, 'both') and rd.day >= fp.proposed_on and fp.fare_from > 0
                             and abs(rd.fare / fp.fare_from - (1 + coalesce(fp.change_pct, 0) / 100)) <= 0.01) end as seen,
                  fp.level_pct is not null and fp.cabin_class = 'business' as biz
             from public.fare_plan fp left join public.routes ro on ro.id = fp.route_id
@@ -4390,16 +4421,16 @@ begin
                  'proposed_on', p.proposed_on, 'status', p.status, 'reason', p.reason, 'updated_at', p.updated_at,
                  'fare_now', p.cur, 'target', p.target, 'applied', p.seen is not null, 'seen_on', p.seen,
                  'economy_before', case when p.seen is null then null
-                                        when p.biz then (select sum(rb.eco_sum) / nullif(sum(rb.eco_n), 0) from rb where rb.route_id = p.route_id and rb.day < p.seen)
-                                        else (select sum(rd.eco_sum) / nullif(sum(rd.eco_n), 0) from rd where rd.route_id = p.route_id and rd.day < p.seen) end,
+                                        when p.biz then (select sum(rb.eco_sum) / nullif(sum(rb.eco_n), 0) from rb where rb.route_id = p.route_id and rb.dir = p.dk and rb.day < p.seen)
+                                        else (select sum(rd.eco_sum) / nullif(sum(rd.eco_n), 0) from rd where rd.route_id = p.route_id and rd.dir = p.dk and rd.day < p.seen) end,
                  'economy_after', case when p.seen is null then null
-                                       when p.biz then (select sum(rb.eco_sum) / nullif(sum(rb.eco_n), 0) from rb where rb.route_id = p.route_id and rb.day >= p.seen)
-                                       else (select sum(rd.eco_sum) / nullif(sum(rd.eco_n), 0) from rd where rd.route_id = p.route_id and rd.day >= p.seen) end,
-                 'level_pct', trim_scale(p.level_pct), 'ladder_move', p.ladder_move)
+                                       when p.biz then (select sum(rb.eco_sum) / nullif(sum(rb.eco_n), 0) from rb where rb.route_id = p.route_id and rb.dir = p.dk and rb.day >= p.seen)
+                                       else (select sum(rd.eco_sum) / nullif(sum(rd.eco_n), 0) from rd where rd.route_id = p.route_id and rd.dir = p.dk and rd.day >= p.seen) end,
+                 'level_pct', trim_scale(p.level_pct), 'ladder_move', p.ladder_move, 'direction', p.direction)
                  order by p.id) from p), '[]'::jsonb),
       'fares', coalesce((select jsonb_agg(jsonb_build_object('route_id', x.route_id, 'hub', r.hub_code, 'dest', r.dest_code, 'day', x.day, 'fare', x.fare)
                                           order by x.route_id)
-                           from (select distinct on (rd.route_id) rd.route_id, rd.day, rd.fare from rd order by rd.route_id, rd.day desc) x
+                           from (select distinct on (rd.route_id) rd.route_id, rd.day, rd.fare from rd where rd.dir = 'both' order by rd.route_id, rd.day desc) x
                            join r on r.id = x.route_id), '[]'::jsonb)));
 end
 $function$
@@ -5454,7 +5485,8 @@ begin
            where rt.route_id = p_route_id and rt.airline_id = al and not v_removed
            group by t.id, t.name) x;
   v_ladder := private.fig_fare_ladder(al, p_as_of);
-  select coalesce(jsonb_agg(e - 'route_id' - 'hub' - 'dest' order by e ->> 'cabin' = 'business'), '[]'::jsonb) into v_fares
+  -- since 26 Oct a row per direction and cabin: out then back, economy first
+  select coalesce(jsonb_agg(e - 'route_id' - 'hub' - 'dest' order by e ->> 'direction' = 'back', e ->> 'cabin' = 'business'), '[]'::jsonb) into v_fares
     from jsonb_array_elements(v_ladder -> 'routes') e where (e ->> 'route_id')::bigint = p_route_id;
 
   -- ---------- the days and the weeks, both directions together, from the daily history
@@ -5579,7 +5611,9 @@ begin
     from (select jsonb_build_object(
                    'day', fp.proposed_on, 'kind', 'fare', 'cabin', coalesce(fp.cabin_class, 'economy'), 'level', fp.level_pct,
                    'change_pct', fp.change_pct, 'move', fp.ladder_move, 'dropped', fp.status = 'dropped', 'reason', fp.reason,
-                   'words', case when fp.level_pct is not null
+                   -- since 26 Oct a ladder row may be one direction's (out from the hub, back to it): its words say which
+                   'direction', fp.direction,
+                   'words', coalesce(fp.direction || ': ', '') || case when fp.level_pct is not null
                                  then format('%s %s %s%%', coalesce(fp.cabin_class, 'economy'),
                                              case fp.ladder_move when 'up' then 'up to' when 'down' then 'down to' else 'holds at' end, trim_scale(fp.level_pct))
                                  else format('%s %s%s%% fare test', coalesce(fp.cabin_class, 'economy'),
