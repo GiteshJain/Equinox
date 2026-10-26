@@ -13,7 +13,7 @@
 //                                                a plan card's legs checked against every rule, at both ends, and its
 //                                                cabin (config_id) against the one its routes call for (cabin, 21 Oct);
 //                                                with fare_ladder()'s answer for its airline (or the briefing's), each
-//                                                route's fare level (fares, 21 Oct)
+//                                                route's fare level (fares, 21 Oct; once per direction since 26 Oct)
 //   optimise <base> <dest,dest,...> --type <type> [--start 05:00-11:00] [--step 5] [--hubs X,Y] [--airline <id>]
 //                                                the best day's schedule for one aircraft
 // The optimiser's start window and step default to plan.py's (05:00 to 11:00 local at the base, every 5 minutes):

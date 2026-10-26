@@ -201,23 +201,27 @@ def main():
                   and "service" in ck and f'card "its own legs", {len(legs)} legs:' in r.stdout,
                   f"a plan card ({ac['registration']}'s {len(legs)} legs) is checked by the library, service codes included",
                   (r.stderr or str(ck))[-600:])
-            # each route's fare level (since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2): with the
-            # briefing's fare_ladder, the check's fares and the card's line; the first route on the ladder at 110 in
-            # economy, the rest not on it (launch)
+            # each route's fare level (since 21 Oct; spec docs/specs/2026-10-21-frequencies-and-fares.md §2), per direction
+            # since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3): with the briefing's fare_ladder, the
+            # check's fares and the card's line; the first leg's route on the ladder at 110 out (from its hub) and 105 back,
+            # each leg at its own direction's level, the rest not on it (launch)
             first = legs[0]
             hub, dest = sorted((first["origin_code"], first["dest_code"]))
             T["briefings"][str(x["id"])]["fare_ladder"] = {"week_of": "2026-10-17", "settings": {"launch_pct": 100}, "routes": [
-                {"route_id": None, "hub": hub, "dest": dest, "cabin": "economy", "level": 110, "new_level": 115, "planned": False}]}
+                {"route_id": None, "hub": hub, "dest": dest, "direction": "out", "from": hub, "to": dest, "cabin": "economy", "level": 110, "new_level": 115, "planned": False},
+                {"route_id": None, "hub": hub, "dest": dest, "direction": "back", "from": dest, "to": hub, "cabin": "economy", "level": 105, "new_level": 105, "planned": False}]}
             r, b = run(T, x["iata_code"])
             ck = (b or {"deliveries": [{"plan_cards": [{}]}]})["deliveries"][0]["plan_cards"][0].get("check") or {}
             fares = ck.get("fares") or []
-            pairs = {frozenset((L["origin_code"], L["dest_code"])) for L in legs}
-            check(r.returncode == 0 and len(fares) == len(pairs) and fares[0].get("route") == f"{hub}–{dest}"
-                  and fares[0].get("words") == "economy +10% of the default price"
-                  and all(f.get("words") == "launch (+0% of the default price)" for f in fares[1:])
-                  and f"· fares: {hub}–{dest} economy +10%" in r.stdout,
-                  f"a plan card's fare levels: each of its {len(pairs)} routes once, the one on the ladder at its level (economy +10%), "
-                  "the others at launch, on the card's line", (r.stderr or str(fares))[-600:])
+            ways = {(L["origin_code"], L["dest_code"]) for L in legs}
+            want = lambda f: (("economy +10% of the default price" if f.get("from") == hub else "economy +5% of the default price")
+                              if {f.get("from"), f.get("to")} == {hub, dest} else "launch (+0% of the default price)")
+            first_words = "economy +10%" if first["origin_code"] == hub else "economy +5%"
+            check(r.returncode == 0 and len(fares) == len(ways) and fares[0].get("route") == f"{hub}–{dest}"
+                  and fares[0].get("from") == first["origin_code"] and all(f.get("words") == want(f) for f in fares)
+                  and f"· fares: {first['origin_code']} → {first['dest_code']} {first_words}" in r.stdout,
+                  f"a plan card's fare levels: each of its {len(ways)} directions once, the one on the ladder at its own direction's level "
+                  "(economy +10% out, +5% back), the others at launch, on the card's line", (r.stderr or str(fares))[-600:])
             del T["briefings"][str(x["id"])]["fare_ladder"]
             for L in legs:
                 L["service_code"] = "S9"

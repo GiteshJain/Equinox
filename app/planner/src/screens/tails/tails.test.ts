@@ -398,19 +398,28 @@ describe("filing", () => {
     expect(cardCabin(laid, { ...card, aircraft_id: 99 }, planLegs)).toBeNull();
   });
   // 21 Oct (spec docs/specs/2026-10-21-frequencies-and-fares.md §2): every plan card shows the fare level of each route it flies
-  it("shows each route's fare level once, on its first leg: the ladder's levels, the new one once on the fare plan, launch for a route not flown yet", () => {
+  it("shows each route's fare level once per direction, on its first leg that way: the ladder's levels, the new one once on the fare plan, launch for a route not flown yet", () => {
+    // since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each direction has its own level
     const ladder = { settings: { launch_pct: 100 }, routes: [
-      { route_id: 1, hub: "HUB", dest: "AAA", cabin: "economy", level: 110, new_level: 115, planned: true },
-      { route_id: 1, hub: "HUB", dest: "AAA", cabin: "business", level: 105, new_level: 110, planned: false }] };
-    // HUB–DDD (legs 71 and 72) isn't on the ladder: launch; HUB–AAA (73 and 74) at its levels, economy's move on the fare plan
+      { route_id: 1, hub: "HUB", dest: "AAA", direction: "out", cabin: "economy", level: 110, new_level: 115, planned: true },
+      { route_id: 1, hub: "HUB", dest: "AAA", direction: "out", cabin: "business", level: 105, new_level: 110, planned: false },
+      { route_id: 1, hub: "HUB", dest: "AAA", direction: "back", cabin: "economy", level: 100, new_level: 100, planned: false },
+      { route_id: 1, hub: "HUB", dest: "AAA", direction: "back", cabin: "business", level: 95, new_level: 95, planned: false }] };
+    // HUB–DDD (legs 71 and 72) isn't on the ladder: launch each way; HUB–AAA out (73) at its levels, economy's move on the
+    // fare plan, and back (74) at its own
     const fares = cardFareLevels(launch, card, planLegs, ladder);
-    expect(fares?.map((f) => [f.route, f.flown, f.words])).toEqual([
-      ["HUB–DDD", false, "launch (+0% of the default price)"], ["HUB–AAA", true, "economy +15%, business +5% of the default price"]]);
-    expect([...fareCells(legs, fares)]).toEqual([[71, "launch (+0% of the default price)"], [73, "economy +15%, business +5% of the default price"]]);
+    expect(fares?.map((f) => [f.route, f.direction, f.flown, f.words])).toEqual([
+      ["HUB–DDD", "out", false, "launch (+0% of the default price)"], ["HUB–DDD", "back", false, "launch (+0% of the default price)"],
+      ["HUB–AAA", "out", true, "economy +15%, business +5% of the default price"], ["HUB–AAA", "back", true, "economy +0%, business −5% of the default price"]]);
+    expect([...fareCells(legs, fares)]).toEqual([[71, "launch (+0% of the default price)"], [72, "launch (+0% of the default price)"],
+      [73, "economy +15%, business +5% of the default price"], [74, "economy +0%, business −5% of the default price"]]);
+    // an answer from before 26 Oct (no from and to): matched by its route, either way round
+    expect([...fareCells(legs, [{ route_id: 1, route: "HUB–AAA", flown: true, cabins: [], launch_pct: 100, words: "economy +5% of the default price" } as never])])
+      .toEqual([[73, "economy +5% of the default price"], [74, "economy +5% of the default price"]]);
     // Ryanair's launch: −15%, from the airline's own setting when the ladder gives none
     const ryan = buildRules({ ...input, settings: { ...input.settings, fare_launch_pct: 100 },
       airlines: input.airlines.map((a) => (a.id === 1 ? { ...a, settings: { fare_launch_pct: 85 } } : a)) });
-    expect(cardFareLevels(ryan, card, planLegs, { routes: [] })?.map((f) => f.words)).toEqual(["launch (−15% of the default price)", "launch (−15% of the default price)"]);
+    expect(cardFareLevels(ryan, card, planLegs, { routes: [] })?.map((f) => f.words)).toEqual(Array(4).fill("launch (−15% of the default price)"));
     // no ladder read yet, or an aircraft the start doesn't hold: nothing shown
     expect(cardFareLevels(launch, card, planLegs, undefined)).toBeNull();
     expect(cardFareLevels(launch, { ...card, aircraft_id: 99 }, planLegs, ladder)).toBeNull();

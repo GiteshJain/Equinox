@@ -133,6 +133,8 @@ export interface PlanRow {
   /** The fare ladder's rows (since 21 Oct): the level they set, % of the default price, and the move. */
   level_pct?: number | null;
   ladder_move?: string | null;
+  /** Since 26 Oct a ladder row may be one direction's: out from the route's hub, back to it; null for both. */
+  direction?: LadderDirection | null;
 }
 export interface FarePlanAnswer { plan: PlanRow[]; fares: { route_id: number; hub: string; dest: string; day: string; fare: number }[] }
 
@@ -492,6 +494,8 @@ export function listCut<T>(rows: readonly T[], open: boolean, top = LIST_TOP): {
 export function planWords(p: PlanRow, nice: (day: string) => string) {
   return {
     route: `${p.hub ?? ""}–${p.dest ?? ""}`,
+    /** The row's direction (since 26 Oct): "out" or "back", "" for both directions. */
+    dir: p.direction ?? "",
     cls: p.cabin_class || "economy",
     change: `${(p.change_pct ?? 0) > 0 ? "+" : ""}${p.change_pct}%`
       + (p.level_pct != null ? ` · ${p.ladder_move ?? "ladder"} to ${Math.round(p.level_pct * 10) / 10}%` : ""),
@@ -588,6 +592,9 @@ export type LadderMove = "up" | "hold" | "down";
  *  a jump under launch has move down and a revert move up, so readers of move keep working. */
 export type LadderKind = LadderMove | "jump" | "revert";
 export type LadderCabin = "economy" | "business";
+/** Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-per-direction.md) each direction has its own level: out from the
+ *  route's hub, back to it. */
+export type LadderDirection = "out" | "back";
 /** A cabin under launch (since 23 Oct): its state and the figures it is judged on, where they apply. */
 export interface UnderLaunch {
   state: "launch" | "holding" | "due" | "done";
@@ -602,10 +609,16 @@ export interface LadderRoute {
   route_id: number;
   hub: string;
   dest: string;
+  /** Since 26 Oct a row per direction, with its airports that way round (out: from the hub to dest). */
+  direction: LadderDirection;
+  from: string;
+  to: string;
   cabin: LadderCabin;
   departures: number;
   sold_out: number;
   sold_out_share: number | null;
+  /** That direction's average load in the cabin over the 7 days, % (since 26 Oct); null with no flights. */
+  load: number | null;
   average_fare: number | null;
   /** The fare index's baseline (since 21 Oct): the route's fare on 21 Oct 2026, when every route was at its launch
    *  level, or its first captured fare for a route launched later; and the day it's from. */
@@ -648,12 +661,13 @@ export interface LadderRoute {
   decide?: boolean;
 }
 /** One Ticket price adjustment, route by route only since 21 Oct (spec docs/specs/2026-10-21-fare-actions-by-route.md):
- *  never a whole base, each direction its own action (From hub to dest, then From dest to hub). */
+ *  never a whole base, each direction its own action (From hub to dest, then From dest to hub); since 26 Oct one per
+ *  direction whose level changes. */
 export interface LadderAction {
   n: number;
   /** The route, "JFK–ORD". */
   route: string;
-  /** The classes it changes: both when the route's two cabins move to the same new level, else one. */
+  /** The classes it changes: both when the direction's two cabins move to the same new level, else one. */
   classes: LadderCabin[];
   from: string;
   to: string;
@@ -676,7 +690,7 @@ export interface LadderAnswer {
   moves: { up: number; hold: number; down: number; jumps?: number; decisions?: number };
   to_plan: number;
   planned: number;
-  /** How many routes are set back to their level (since 21 Oct). */
+  /** How many directions are set back to their level (since 21 Oct; directions since 26 Oct). */
   off_level?: number;
   routes: LadderRoute[];
   actions: LadderAction[];
@@ -688,11 +702,16 @@ export interface LadderAnswer {
 export function splitActions(actions: readonly LadderAction[]): { fixes: LadderAction[]; moves: LadderAction[] } {
   return { fixes: actions.filter((a) => a.fix === true), moves: actions.filter((a) => a.fix !== true) };
 }
-/** The set-back list's heading, by the routes it sets back: "3 routes off their level", "1 route off its level". */
+/** The set-back list's heading, by the directions it sets back (since 26 Oct each its own level): "3 directions off their
+ *  level", "1 direction off its level". */
 export function offLevelWords(fixes: readonly LadderAction[]): string {
-  const n = new Set(fixes.map((a) => a.route)).size;
-  return `${n} route${n === 1 ? "" : "s"} off ${n === 1 ? "its" : "their"} level`;
+  const n = new Set(fixes.map((a) => `${a.from}>${a.to}`)).size;
+  return `${n} direction${n === 1 ? "" : "s"} off ${n === 1 ? "its" : "their"} level`;
 }
+/** A row's direction as the board shows it (since 26 Oct): its airports that way round, "EDI → FRA". */
+export const directionWords = (r: Pick<LadderRoute, "from" | "to">): string => `${r.from} → ${r.to}`;
+/** That direction's average load over the 7 days (since 26 Oct): "84%", "—" with no flights. */
+export const loadWords = (r: Pick<LadderRoute, "load">): string => (r.load == null ? "—" : `${Math.round(r.load)}%`);
 /** This Saturday's moves in one line: "12 up, 30 hold, 2 down", and since 23 Oct the jumps under launch and the
  *  cut-or-keep decisions when there are any: "12 up, 30 hold, 2 down · 2 jumps, 1 decision". */
 export const ladderLine = (m: LadderAnswer["moves"]): string => {
@@ -759,8 +778,11 @@ export function ladderRows(rows: readonly LadderRoute[], sort: LadderSort): Ladd
   };
   return rows.slice().sort(by[sort] ?? by.move);
 }
-/** Put on the fare plan: one insert per route and cabin the database marks to_plan (each level that changes, each
- *  hold that follows a step down, and since 23 Oct a judgement under launch that holds), all in one planner_save() call.
+/** A row's key on the board: its route, direction and cabin (since 26 Oct a row per direction). */
+export const ladderKey = (r: Pick<LadderRoute, "route_id" | "direction" | "cabin">): string => `${r.route_id}|${r.direction}|${r.cabin}`;
+/** Put on the fare plan: one insert per route, cabin and direction (since 26 Oct, with its direction) the database marks
+ *  to_plan (each level that changes, each hold that follows a step down, and since 23 Oct a judgement under launch that
+ *  holds), all in one planner_save() call.
  *  The level and the move are the ladder's (ladder_move jump or revert from ladder_kind, since 23 Oct); the fare
  *  then is the latest captured fare in that cabin (fare_plan_status() ticks a row off when the captured fare moves by
  *  its change, within 1%); proposed on the UTC day, the day the database's week is counted in. */
@@ -769,16 +791,27 @@ export function ladderPlanChanges(x: { worldId: number; airlineId: number; route
     world_id: x.worldId, airline_id: x.airlineId, route_id: r.route_id, legacy_key: `fl${x.nowMs.toString(36)}-${i}`, cabin_class: r.cabin,
     change_pct: r.change_pct ?? 0, fare_from: r.latest_fare == null ? null : Math.round(r.latest_fare * 100) / 100, proposed_on: x.utcDay,
     status: "planned", reason: r.reason, level_pct: r.new_level,
-    ladder_move: r.ladder_kind === "jump" || r.ladder_kind === "revert" ? r.ladder_kind : r.move } }));
+    ladder_move: r.ladder_kind === "jump" || r.ladder_kind === "revert" ? r.ladder_kind : r.move, direction: r.direction ?? null } }));
 }
 /** A cut-or-keep decision for Gitesh (since 23 Oct): the marker beside its reason, "" for any other row. Never in
  *  Needs attention (manual §5: fare moves never are). */
 export const decideWords = (r: Pick<LadderRoute, "decide">): string => (r.decide ? "cut or keep?" : "");
-/** The fare index for the route profit table, from the ladder's economy row: "105", flagged when the level recorded
- *  differs from it by more than a point. */
-export function indexWords(r: Pick<LadderRoute, "fare_index" | "index_matches" | "level"> | undefined): { text: string; flag: string } {
-  if (!r || r.fare_index == null) return { text: "—", flag: "" };
-  return { text: String(Math.round(r.fare_index)), flag: r.index_matches === false ? `level ${pts(r.level)}%` : "" };
+/** The fare index for the route profit table, from the ladder's economy rows: "105", flagged when the level recorded
+ *  differs from it by more than a point. Since 26 Oct a row per direction: one figure when both directions agree, else
+ *  "105 · 100" (out · back), the flag naming each direction off its level ("out: level 110%"). */
+type IndexRow = Pick<LadderRoute, "fare_index" | "index_matches" | "level"> & Partial<Pick<LadderRoute, "direction">>;
+export function indexWords(rows: IndexRow | readonly IndexRow[] | undefined): { text: string; flag: string } {
+  const list = (rows == null ? [] : Array.isArray(rows) ? rows : [rows as IndexRow])
+    .slice().sort((a, b) => Number(a.direction === "back") - Number(b.direction === "back"));
+  const known = list.filter((r) => r.fare_index != null);
+  if (!known.length) return { text: "—", flag: "" };
+  const figs = list.map((r) => (r.fare_index == null ? "—" : String(Math.round(r.fare_index))));
+  const text = new Set(figs).size === 1 ? figs[0] ?? "—" : figs.join(" · ");
+  const off = list.filter((r) => r.index_matches === false);
+  const flag = !off.length ? ""
+    : list.length > 1 && off.length < list.length ? off.map((r) => `${r.direction ?? ""}: level ${pts(r.level)}%`).join(", ")
+    : `level ${[...new Set(off.map((r) => pts(r.level)))].join("/")}%`;
+  return { text, flag };
 }
 
 // ---------- the route profit table's 14-day load sparkline, from the daily history (route_days)
@@ -917,8 +950,10 @@ export interface StoryEvent {
   kind: StoryKind;
   words: string;
   at?: string | null;
-  /** A fare event's: its cabin, level (a ladder move) or change (a fare test), move and whether it was dropped. */
+  /** A fare event's: its cabin, level (a ladder move) or change (a fare test), move and whether it was dropped; since 26
+   *  Oct its direction (out, back, or null for both). */
   cabin?: string | null;
+  direction?: LadderDirection | null;
   level?: number | null;
   change_pct?: number | null;
   move?: string | null;
@@ -1008,10 +1043,12 @@ export function storyHeader(s: RouteStory, nice: (day: string) => string) {
   };
 }
 /** A cabin's fare level with this Saturday's move: "economy 105% · up to 110%", "business 100% · hold", with " · on the
- *  fare plan" (or "· seen in the game") once the move is planned. */
-export function storyFareWords(f: Pick<StoryFare, "cabin" | "level" | "move" | "new_level" | "planned" | "applied">): string {
+ *  fare plan" (or "· seen in the game") once the move is planned. Since 26 Oct each direction's, named first:
+ *  "EDI → FRA economy 105% · up to 110%". */
+export function storyFareWords(f: Pick<StoryFare, "cabin" | "level" | "move" | "new_level" | "planned" | "applied"> & Partial<Pick<StoryFare, "from" | "to">>): string {
   const m = moveWords(f);
-  return `${f.cabin} ${pts(f.level)}% · ${m.text}${f.planned ? (f.applied ? " · seen in the game" : " · on the fare plan") : ""}`;
+  const dir = f.from && f.to ? `${f.from} → ${f.to} ` : "";
+  return `${dir}${f.cabin} ${pts(f.level)}% · ${m.text}${f.planned ? (f.applied ? " · seen in the game" : " · on the fare plan") : ""}`;
 }
 
 /** One figure of the last 7 days against the 7 before, with its arrow. */
@@ -1057,9 +1094,11 @@ export const eventWords = (e: Pick<StoryEvent, "kind" | "words">): string => {
 };
 
 /** Each cabin's fare level on each day given: the launch level, then each of the ladder's fare plan rows (an event with a
- *  level, not dropped) from the day it was proposed. Null for business with no ladder row of its own. */
+ *  level, not dropped) from the day it was proposed. Null for business with no ladder row of its own. Since 26 Oct a row
+ *  may be one direction's: the chart's line is the out direction's (from the hub), so a row for both or for out counts,
+ *  one for back doesn't. */
 export function levelSteps(s: RouteStory, cabin: "economy" | "business", days: readonly string[]): (number | null)[] | null {
-  const rows = s.events.filter((e) => e.kind === "fare" && e.level != null && !e.dropped && (e.cabin ?? "economy") === cabin)
+  const rows = s.events.filter((e) => e.kind === "fare" && e.level != null && !e.dropped && (e.cabin ?? "economy") === cabin && e.direction !== "back")
     .slice().sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   if (cabin === "business" && !rows.length) return null;
   return days.map((d) => {

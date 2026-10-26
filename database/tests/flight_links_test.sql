@@ -175,7 +175,8 @@ do $test$
 declare v_at timestamptz := date_trunc('minute', coalesce((select max(r.captured_at) from public.game_capture_raw r), now())) + interval '1 hour';
   al record; v_k text; n_rows int; n_bus int; n_hist int; n_bus_moved int; n_new int; n_fix int; n_other int; ids text; others text;
 begin
-  create temporary table t_lk_ladder (which text, airline_id bigint, iata text, route_id bigint, cabin text, baseline_fare numeric,
+  -- since 26 Oct a row per direction (spec docs/specs/2026-10-26-fare-ladder-per-direction.md): matched by its direction too
+  create temporary table t_lk_ladder (which text, airline_id bigint, iata text, route_id bigint, direction text, cabin text, baseline_fare numeric,
     baseline_on date, fare_index numeric, index_matches boolean, level numeric, move text, new_level numeric, fix boolean) on commit drop;
   select count(*) into n_hist from public.route_days d where d.bus_pax > 0 and d.bus_fare_avg > 0;
   foreach v_k in array array['now', 'before'] loop
@@ -184,7 +185,7 @@ begin
     end if;
     for al in select x.airline_id, a.iata_code from private.fig_airlines(private.fig_world(null)) x join public.airlines a on a.id = x.airline_id loop
       insert into t_lk_ladder
-      select v_k, al.airline_id, al.iata_code, (e ->> 'route_id')::bigint, e ->> 'cabin', (e ->> 'baseline_fare')::numeric,
+      select v_k, al.airline_id, al.iata_code, (e ->> 'route_id')::bigint, e ->> 'direction', e ->> 'cabin', (e ->> 'baseline_fare')::numeric,
              (e ->> 'baseline_on')::date, (e ->> 'fare_index')::numeric, (e ->> 'index_matches')::boolean, (e ->> 'level')::numeric,
              e ->> 'move', (e ->> 'new_level')::numeric, (e ->> 'fix')::boolean
         from jsonb_array_elements(private.fig_fare_ladder(al.airline_id, v_at) -> 'routes') e;
@@ -192,19 +193,20 @@ begin
   end loop;
   select count(*), count(*) filter (where n.cabin = 'business') into n_rows, n_bus from t_lk_ladder n where n.which = 'now';
   with n as (select * from t_lk_ladder x where x.which = 'now'), b as (select * from t_lk_ladder x where x.which = 'before'),
-  j as (select coalesce(n.iata, b.iata) as iata, coalesce(n.route_id, b.route_id) as route_id, coalesce(n.cabin, b.cabin) as cabin,
+  j as (select coalesce(n.iata, b.iata) as iata, coalesce(n.route_id, b.route_id) as route_id, coalesce(n.direction, b.direction) as direction,
+               coalesce(n.cabin, b.cabin) as cabin,
                n.route_id is null or b.route_id is null as came_or_went,
                (n.baseline_fare, n.baseline_on, n.fare_index, n.index_matches) is distinct from (b.baseline_fare, b.baseline_on, b.fare_index, b.index_matches) as index_moved,
                (n.level, n.move, n.new_level) is distinct from (b.level, b.move, b.new_level) as move_moved,
                n.fix is distinct from b.fix as fix_moved,
                b.baseline_fare is null and n.baseline_fare is not null as new_baseline
-          from n full join b on b.airline_id = n.airline_id and b.route_id = n.route_id and b.cabin = n.cabin)
+          from n full join b on b.airline_id = n.airline_id and b.route_id = n.route_id and b.direction is not distinct from n.direction and b.cabin = n.cabin)
   select count(*) filter (where j.cabin = 'business' and j.index_moved),
-         string_agg(j.iata || ' ' || j.route_id, ', ' order by j.iata, j.route_id) filter (where j.cabin = 'business' and j.index_moved),
+         string_agg(distinct j.iata || ' ' || j.route_id, ', ') filter (where j.cabin = 'business' and j.index_moved),
          count(*) filter (where j.cabin = 'business' and j.new_baseline),
          count(*) filter (where j.cabin = 'business' and j.fix_moved),
          count(*) filter (where j.came_or_went or j.move_moved or (j.cabin <> 'business' and (j.index_moved or j.fix_moved))),
-         string_agg(j.iata || ' ' || j.route_id || ' ' || j.cabin, ', ' order by j.iata, j.route_id)
+         string_agg(j.iata || ' ' || j.route_id || ' ' || coalesce(j.direction, '') || ' ' || j.cabin, ', ' order by j.iata, j.route_id, j.direction)
            filter (where j.came_or_went or j.move_moved or (j.cabin <> 'business' and (j.index_moved or j.fix_moved)))
     into n_bus_moved, ids, n_new, n_fix, n_other, others
     from j;

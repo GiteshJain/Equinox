@@ -173,8 +173,9 @@ begin
 end
 $setup$;
 
--- the setup as the fare ladder sees it: F1's 14 actions (the 7 routes' moves, both ways), F4's and the rival's 2 each,
--- so what capture_fare_actions() leaves out is its own doing
+-- the setup as the fare ladder sees it: F1's 14 actions (the 7 routes' moves, one per direction since 26 Oct, each
+-- direction's cabins together where they go to the same level), F4's and the rival's 2 each, so what
+-- capture_fare_actions() leaves out is its own doing
 do $test$
 declare f1 bigint := (select (v #>> '{}')::bigint from t_fa where k = 'f1'); f4 bigint := (select (v #>> '{}')::bigint from t_fa where k = 'f4');
   rv bigint := (select (v #>> '{}')::bigint from t_fa where k = 'rv'); d jsonb; got text;
@@ -184,12 +185,12 @@ begin
                     || (select string_agg(c, ',') from jsonb_array_elements_text(x -> 'classes') c), ' | ' order by (x ->> 'n')::int)
     into got from jsonb_array_elements(d -> 'actions') x;
   assert got = '1 ZF1>ZG1 +5 economy | 2 ZG1>ZF1 +5 economy | 3 ZF1>ZG2 +5 economy,business | 4 ZG2>ZF1 +5 economy,business | '
-            || '5 ZF1>ZG3 +5 economy | 6 ZG3>ZF1 +5 economy | 7 ZF1>ZG4 -5 economy | 8 ZG4>ZF1 -5 economy | '
-            || '9 ZF1>ZG4 +5 business | 10 ZG4>ZF1 +5 business | 11 ZF1>ZG5 +5 economy | 12 ZG5>ZF1 +5 economy | '
+            || '5 ZF1>ZG3 +5 economy | 6 ZG3>ZF1 +5 economy | 7 ZF1>ZG4 -5 economy | 8 ZF1>ZG4 +5 business | '
+            || '9 ZG4>ZF1 -5 economy | 10 ZG4>ZF1 +5 business | 11 ZF1>ZG5 +5 economy | 12 ZG5>ZF1 +5 economy | '
             || '13 ZF1>ZG6 +5 economy,business | 14 ZG6>ZF1 +5 economy,business',
     'the hand-made F1 isn''t as the fare ladder should see it: ' || coalesce(got, 'no actions');
   select string_agg((x ->> 'dest') || ' ' || (x ->> 'cabin') || ' ' || (x ->> 'planned') || ' ' || (x ->> 'applied'), ', ' order by x ->> 'dest', x ->> 'cabin')
-    into got from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' in ('ZG3', 'ZG4', 'ZG5', 'ZG6');
+    into got from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' in ('ZG3', 'ZG4', 'ZG5', 'ZG6') and x ->> 'direction' = 'back';
   assert got = 'ZG3 economy true true, ZG4 business true true, ZG4 economy true false, ZG5 economy false false, ZG6 business false false, ZG6 economy true false',
     'the hand-made F1''s routes aren''t planned and seen as meant: ' || coalesce(got, 'none');
   assert jsonb_array_length(private.fig_fare_ladder(f4, now()) -> 'actions') = 2 and jsonb_array_length(private.fig_fare_ladder(rv, now()) -> 'actions') = 2,
@@ -231,7 +232,7 @@ begin
     into got from jsonb_array_elements(r -> 'actions') with ordinality as t(x, i);
   assert got = '990501 Fares One 1 ZF1–ZG1 ZF1>ZG1 +5 105 economy | 990501 Fares One 2 ZF1–ZG1 ZG1>ZF1 +5 105 economy | '
             || '990501 Fares One 3 ZF1–ZG2 ZF1>ZG2 +5 105 economy,business | 990501 Fares One 4 ZF1–ZG2 ZG2>ZF1 +5 105 economy,business | '
-            || '990501 Fares One 7 ZF1–ZG4 ZF1>ZG4 -5 95 economy | 990501 Fares One 8 ZF1–ZG4 ZG4>ZF1 -5 95 economy | '
+            || '990501 Fares One 7 ZF1–ZG4 ZF1>ZG4 -5 95 economy | 990501 Fares One 9 ZF1–ZG4 ZG4>ZF1 -5 95 economy | '
             || '990502 Fares Two Planner 1 ZF2–ZG7 ZF2>ZG7 +10 110 economy | 990502 Fares Two Planner 2 ZF2–ZG7 ZG7>ZF2 +10 110 economy | '
             || '990503 Fares Three 1 ZF1–ZGB ZF1>ZGB +10 110 economy | 990503 Fares Three 2 ZF1–ZGB ZGB>ZF1 +10 110 economy',
     'world 1''s actions (every class planned and unseen, and the set-back changes) are ' || coalesce(got, 'none');

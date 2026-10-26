@@ -8,8 +8,8 @@ local Supabase restored from last night's backup, after the pull request's migra
    short briefing (every heading, at most 60 lines) and write its JSON with every section filled from the copy: the
    card, cash and capture; the fleet holds every aircraft in service; every route is the airline's; the hubs; the
    deliveries, open to-dos and fare changes as many as the tables hold, every plan card with legs checked, with the fare
-   level of each route it flies (since 21 Oct: the check's fares, once per route; the first card's printed, codes and
-   levels only); the rivals from the latest finished scan.
+   level of each route it flies (since 21 Oct: the check's fares, once per route, since 26 Oct once per direction; the
+   first card's printed, codes and levels only); the rivals from the latest finished scan.
 2. The map's guide (docs/architecture.md, "Which call answers which question"): every call it names exists (a database
    function in public, a library command, the briefing), and every example answers on the copy exactly as written:
    SQL as postgres, the library's commands on rules.json made from the copy (and card.json, a plan card from the copy,
@@ -106,14 +106,15 @@ def briefings(home, api, work):
         cards = [c for d in b["deliveries"] for c in d["plan_cards"]]
         check(len(b["deliveries"]) == n_del and all(c.get("check") is not None for c in cards if c.get("legs")),
               f"{code}: {n_del} deliveries, each plan card with legs checked", len(b["deliveries"]), quiet=True)
-        # each card's fare levels (21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §2): once per route it flies
+        # each card's fare levels (21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §2): once per direction it
+        # flies (since 26 Oct, spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3)
         bad = [c.get("id") for c in cards if c.get("legs") and not (c.get("check") or {}).get("error")
-               and len((c.get("check") or {}).get("fares") or []) != len({frozenset((l["origin_code"], l["dest_code"])) for l in c["legs"]})]
-        check(not bad, f"{code}: each plan card's fare levels, one per route it flies", f"plan cards without them: {bad[:5]}", quiet=True)
+               and len((c.get("check") or {}).get("fares") or []) != len({(l["origin_code"], l["dest_code"]) for l in c["legs"]})]
+        check(not bad, f"{code}: each plan card's fare levels, one per direction it flies", f"plan cards without them: {bad[:5]}", quiet=True)
         shown_card = next((c for c in cards if (c.get("check") or {}).get("fares")), None)
         if shown_card:
             print(f"      {code}: plan card {shown_card['id']}'s fare levels: "
-                  + "; ".join(f"{f['route']} {f['words']}" for f in shown_card["check"]["fares"]), flush=True)
+                  + "; ".join(f"{f.get('from', '')}→{f.get('to', '')} {f['words']}" for f in shown_card["check"]["fares"]), flush=True)
         n_todo = one(f"select count(*) from public.todos t where t.world_id = {w} and not t.done and (t.airline_id = {aid} or t.airline_id is null)")
         check(len(b["todos"]) == n_todo, f"{code}: {n_todo} open to-dos (the airline's and the group's)", len(b["todos"]), quiet=True)
         n_fare = one(f"select count(*) from public.fare_plan f where f.airline_id = {aid} and f.status <> 'dropped'")

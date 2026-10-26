@@ -18,7 +18,7 @@ import {
   planRowWords, profitAnswer, profitRowWords, routeRowWords, scatterLayout,
   CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, changesWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay,
   fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords,
-  decideWords, offLevelWords, offersFarePlan, underLaunchLine, planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, splitActions, stepWords, weekOnWeek,
+  decideWords, directionWords, ladderKey, loadWords, offLevelWords, offersFarePlan, underLaunchLine, planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, splitActions, stepWords, weekOnWeek,
   type Card, type DayRow,
   type LadderAction, type LadderRoute, type PlanRow, type ProfitDay, type RouteDayRow, type RouteRow,
 } from "./model";
@@ -244,7 +244,8 @@ describe("the growth lists cut to their first 10 rows (21 Oct: Performance ran t
 });
 
 const lr = (hub: string, dest: string, x: Partial<LadderRoute> = {}): LadderRoute => ({
-  route_id: 1, hub, dest, cabin: "economy", departures: 14, sold_out: 14, sold_out_share: 100, average_fare: 300, baseline_fare: 300, baseline_on: "2026-10-06",
+  route_id: 1, hub, dest, direction: "out", from: hub, to: dest, cabin: "economy", departures: 14, sold_out: 14, sold_out_share: 100, load: 100,
+  average_fare: 300, baseline_fare: 300, baseline_on: "2026-10-06",
   latest_fare: 300, latest_on: "2026-10-20", fare_index: 100, index_matches: true, level: 100, recorded: false, steps: 0, move: "up", new_level: 105, new_steps: 1,
   change_pct: 5, reason: "sold out 14 of 14", contested: false, floor: 100, cap: 120, new_route: false, planned: false, plan_id: null, applied: false, seen_on: null,
   to_plan: true, ...x,
@@ -318,12 +319,16 @@ describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and
     const key = (i: number) => `fl${(1_793_000_000_000).toString(36)}-${i}`;
     expect(ch).toEqual([
       { table: "fare_plan", op: "insert", values: { world_id: 1, airline_id: 2, route_id: 7, legacy_key: key(0), cabin_class: "economy", change_pct: 5, fare_from: 300,
-        proposed_on: "2026-10-24", status: "planned", reason: "sold out 14 of 14", level_pct: 105, ladder_move: "up" } },
+        proposed_on: "2026-10-24", status: "planned", reason: "sold out 14 of 14", level_pct: 105, ladder_move: "up", direction: "out" } },
       { table: "fare_plan", op: "insert", values: { world_id: 1, airline_id: 2, route_id: 9, legacy_key: key(1), cabin_class: "business", change_pct: 0, fare_from: 912.35,
-        proposed_on: "2026-10-24", status: "planned", reason: "held after a step down on 18 Oct", level_pct: 105, ladder_move: "hold" } },
+        proposed_on: "2026-10-24", status: "planned", reason: "held after a step down on 18 Oct", level_pct: 105, ladder_move: "hold", direction: "out" } },
       { table: "fare_plan", op: "insert", values: { world_id: 1, airline_id: 2, route_id: 10, legacy_key: key(2), cabin_class: "economy", change_pct: -4.5, fare_from: null,
-        proposed_on: "2026-10-24", status: "planned", reason: "sold out 11 of 14", level_pct: 105, ladder_move: "down" } },
+        proposed_on: "2026-10-24", status: "planned", reason: "sold out 11 of 14", level_pct: 105, ladder_move: "down", direction: "out" } },
     ]);
+    // since 26 Oct a row per direction: each writes its own direction
+    expect(ladderPlanChanges({ worldId: 1, airlineId: 2, routes: [lr("A", "B", { route_id: 7 }), lr("A", "B", { route_id: 7, direction: "back", from: "B", to: "A", new_level: 100, move: "down" })],
+      utcDay: "2026-10-24", nowMs: 1 }).map((c) => [c.values?.route_id, c.values?.direction, c.values?.level_pct, c.values?.ladder_move]))
+      .toEqual([[7, "out", 105, "up"], [7, "back", 100, "down"]]);
     expect(ladderPlanChanges({ worldId: 1, airlineId: 2, routes: [routes[1] as LadderRoute], utcDay: "2026-10-24", nowMs: 1 })).toEqual([]);
   });
   it("Put on the fare plan under launch (23 Oct): ladder_move jump or revert from the row's ladder_kind, else the move", () => {
@@ -338,15 +343,29 @@ describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and
     expect(planWords(plan({ change_pct: 5, level_pct: 105, ladder_move: "up" }), (d) => d).change).toBe("+5% · up to 105%");
     expect(planWords(plan({ change_pct: 0, level_pct: 105, ladder_move: "hold" }), (d) => d).change).toBe("0% · hold to 105%");
     expect(planWords(plan(), (d) => d).change).toBe("+5%");
+    // since 26 Oct a ladder row may be one direction's: "out", "back", or nothing for both
+    expect([planWords(plan({ direction: "out" }), (d) => d).dir, planWords(plan({ direction: "back" }), (d) => d).dir, planWords(plan(), (d) => d).dir]).toEqual(["out", "back", ""]);
   });
   it("the route profit table's fare index, flagged when the level recorded doesn't match it", () => {
     expect(indexWords(lr("A", "B", { fare_index: 104.96 }))).toEqual({ text: "105", flag: "" });
     expect(indexWords(lr("A", "B", { fare_index: 100, index_matches: false, level: 110 }))).toEqual({ text: "100", flag: "level 110%" });
     expect(indexWords(lr("A", "B", { fare_index: null }))).toEqual({ text: "—", flag: "" });
     expect(indexWords(undefined)).toEqual({ text: "—", flag: "" });
+    // since 26 Oct the route's two economy rows: one figure when they agree, else out · back, the flag naming the direction off
+    const out = lr("A", "B", { fare_index: 105, level: 105 }), back = lr("A", "B", { direction: "back", from: "B", to: "A", fare_index: 105, level: 105 });
+    expect(indexWords([back, out])).toEqual({ text: "105", flag: "" });
+    expect(indexWords([out, { ...back, fare_index: 100, index_matches: false }])).toEqual({ text: "105 · 100", flag: "back: level 105%" });
+    expect(indexWords([{ ...out, index_matches: false, fare_index: 100, level: 110 }, { ...back, index_matches: false, fare_index: 100, level: 110 }]))
+      .toEqual({ text: "100", flag: "level 110%" });
+    expect(indexWords([])).toEqual({ text: "—", flag: "" });
+  });
+  it("a row's direction and load (26 Oct): its airports that way round, that direction's average load, and its key", () => {
+    expect(directionWords(lr("EDI", "FRA", { direction: "back", from: "FRA", to: "EDI" }))).toBe("FRA → EDI");
+    expect([loadWords(lr("A", "B", { load: 84.36 })), loadWords(lr("A", "B", { load: null }))]).toEqual(["84%", "—"]);
+    expect(ladderKey(lr("A", "B", { route_id: 7, direction: "back", cabin: "business" }))).toBe("7|back|business");
   });
   // 21 Oct (spec docs/specs/2026-10-21-frequencies-and-fares.md §3): the set-back changes first, in their own short list
-  it("the set-back changes apart from the week's moves, and their heading by the routes they set back", () => {
+  it("the set-back changes apart from the week's moves, and their heading by the directions they set back", () => {
     const act = (n: number, route: string, fix: boolean): LadderAction => ({ n, route, classes: ["economy"], from: route.slice(0, 3), to: route.slice(4), level: 110,
       sign: "+", pct: 10, baseline: "default price", text: `From ${route.slice(0, 3)} to ${route.slice(4)}: +10% of the default price, economy`, fix,
       reason: fix ? "captured fare at 100%, level 110%" : null });
@@ -354,8 +373,10 @@ describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and
     const { fixes, moves } = splitActions(actions);
     expect(fixes.map((a) => a.n)).toEqual([1, 2, 3, 4]);
     expect(moves.map((a) => a.n)).toEqual([5, 6]);
-    expect(offLevelWords(fixes)).toBe("2 routes off their level");
-    expect(offLevelWords(fixes.slice(0, 2))).toBe("1 route off its level");
+    // since 26 Oct each direction its own level: the heading counts directions (here each route's one way only)
+    expect(offLevelWords(fixes)).toBe("2 directions off their level");
+    expect(offLevelWords(fixes.slice(0, 2))).toBe("1 direction off its level");
+    expect(offLevelWords([...fixes.slice(0, 1), { ...(fixes[0] as LadderAction), n: 9, from: "BBB", to: "AAA" }])).toBe("2 directions off their level");
     // a ladder from before 21 Oct has no fix: every action is a move
     expect(splitActions(actions.map((a) => ({ ...a, fix: undefined }))).fixes).toEqual([]);
   });

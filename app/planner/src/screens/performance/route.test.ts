@@ -84,6 +84,9 @@ describe("the route page's header", () => {
     expect(storyHeader({ ...s, route: { ...s.route, launched_from: "history", launched_days: 1 }, now: { ...s.now, departures: { out: 7, back: 3 } } }, nice))
       .toMatchObject({ launched: "first flights 2026-10-01 · 1 day", departures: "7 a week out, 3 back" });
     expect(storyFareWords({ cabin: "economy", level: 95, move: "down", new_level: 90, planned: true, applied: true })).toBe("economy 95% · down to 90% · seen in the game");
+    // since 26 Oct a row per direction, its airports that way round first
+    expect(storyFareWords({ from: "ORD", to: "JFK", cabin: "economy", level: 100, move: "down", new_level: 95, planned: false, applied: false }))
+      .toBe("ORD → JFK economy 100% · down to 95%");
   });
 });
 
@@ -158,6 +161,11 @@ describe("the since-launch chart", () => {
     expect(levelSteps(withBus, "business", ["2026-10-18", "2026-10-19"])).toEqual([100, 105]);
     const g = storyChartLayout(withBus, nice);
     expect(g?.levelBus).not.toBeNull();
+    // since 26 Oct: the line is the out direction's, so a row for back alone doesn't move it, one for out does
+    const dirs = story({ events: [...s.events,
+      { day: "2026-10-19", kind: "fare", words: "back: economy up to 110%", cabin: "economy", level: 110, move: "up", dropped: false, direction: "back" },
+      { day: "2026-10-20", kind: "fare", words: "out: economy up to 115%", cabin: "economy", level: 115, move: "up", dropped: false, direction: "out" }] });
+    expect(levelSteps(dirs, "economy", ["2026-10-18", "2026-10-19", "2026-10-20"])).toEqual([105, 105, 115]);
   });
 });
 

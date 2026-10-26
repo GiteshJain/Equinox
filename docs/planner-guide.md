@@ -283,8 +283,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason ("JFK–LHR is
   72% of block time: Leisure Plus", or "no route over 65%: the most seats"; Ryanair Standard only), and **Use the
   suggestion** sets it in one tap; a cabin that differs from the suggestion shows in amber. Since 21 Oct (manual §5)
-  the card's **Fare level** column gives the fare level of each route it flies, once per route on its first leg, from
-  the fare ladder: "economy +10%, business +5% of the default price" for a route the airline flies (this week's new
+  the card's **Fare level** column gives the fare level of each route it flies, from the fare ladder; since 26 Oct
+  once per direction, on the first leg that way, each its own direction's level (out from the route's hub, back to it): "economy +10%, business +5% of the default price" for a route the airline flies (this week's new
   level once the move is on the fare plan), "launch (+0% of the default price)" for one it doesn't yet (Ryanair
   −15%). In the game, set each new flight's fare to it (Ticket price adjustment, default price), or leave it to the
   fares userscript's next run, which sets back a route whose fares are off its level. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
@@ -336,35 +336,38 @@ fold them, and a row's title opens or closes it.
   its change); **Next order** is its footer: since 26 Oct how much the airline can spend on an order now, "up to 1.34M" (price and
   cabin, keeping 0.5M in hand at the lowest point of the next 14 days with the order's own lease), as a pill when that
   buys an aircraft.
-- **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves, one section per airline. Each cabin of
-  each route has a **level**, its fare as a % of the game's default price (the latest the fare plan recorded, else the
-  launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin it goes **up** 5 points when every
-  flight sold out (at least 5 departures), **holds** at 90–99%, and goes **down** 5 points under 90%, then holds 2
-  weeks. It holds while a route is under 7 days old, and (since 21 Oct) for 7 days after a route gains a flight ("a
+- **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves, one section per airline. Since 26 Oct
+  each direction of each cabin of each route (out from the route's hub, back to it) has its own **level**, its fare as
+  a % of the game's default price (the latest the fare plan recorded for that direction, or for both directions if that
+  is later, else the launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin and direction it
+  goes **up** 5 points when every flight sold out (at least 5 departures that way), **holds** at 90–99%, and goes
+  **down** 5 points under 90%, then that direction holds 2 weeks. The whole route, both directions, holds while it is
+  under 7 days old, and (since 21 Oct) for 7 days after it gains a flight ("a
   flight added on 2 Nov: judged at its new size from 9 Nov"; the setting *fare_ladder_capacity_hold_days*), never goes
   more than 20 points above launch for now, and never under launch by a 5-point step (nor under the 60% floor where
   another player flies the pair). Each airline has a card (two a row, one on a phone): its moves as three counts (up, hold, down; the down
   count amber when there is one), how many changes to make in the game ("24 changes in the game": the set-back changes
   and the moves), **Put on the fare plan (n)** and **See the changes**, which opens the long lists in the row under the
   card (**Hide the changes** closes them):
-  - since 21 Oct, first, **the routes off their level** ("3 routes off their level"), when there are any: a route
-    whose captured fares don't match its level (any flight of its latest captured day more than a point off, against
-    the route's fare on 21 Oct, when every route was at its launch level) gets a change each way that sets it back to
-    its level, with why ("captured fare at 100%, level 110%") and **copy**. Not for a route on the fare plan this week, a
-    new route, or one not captured since its newest flight launched. They need no fare plan row: the fares userscript
+  - since 21 Oct, first, **the directions off their level** ("3 directions off their level", since 26 Oct), when there
+    are any: a direction whose captured fares don't match its level (any flight of its latest captured day that way
+    more than a point off, against that direction's fare on 21 Oct, when every route was at its launch level) gets a
+    change that sets it back to its level, with why ("captured fare at 100%, level 110%") and **copy**. Not for a
+    direction on the fare plan this week, a new route, or one not captured since its route's newest flight launched. They need no fare plan row: the fares userscript
     makes them on its next run, and the index matching again is the proof;
   - **the game actions**, numbered, each with **copy**: in the game, **Ticket price adjustment** with the calculation
     baseline **default price** (each action sets the level itself), **route by route only**, never a whole base, so a
-    route under 7 days old is never touched (since 21 Oct). Each route whose level changes has two actions, From the hub
-    to the destination and back (the game changes each direction on its own), and each names the classes to tick:
-    "economy and business" when both cabins move to the same level, otherwise one action each way for each cabin that
-    moves, economy first. A route that holds (held, new, capped) has none. The first 10 show, with **show all N** for
+    route under 7 days old is never touched (since 21 Oct). Since 26 Oct each direction whose level changes has its own
+    action (From the hub to the destination, or back: the game changes each direction on its own), and each names the
+    classes to tick: "economy and business" when that direction's two cabins move to the same level, otherwise one
+    action for each cabin that moves, economy first. A direction that holds (held, new, capped) has none. The first 10 show, with **show all N** for
     the rest;
   - **Put on the fare plan:** one tap writes a fare plan row for each level that changes, and for a hold that follows a
-    step down (so the hold has a record). The button then says **On the fare plan**, with how many the captures show
+    step down (so the hold has a record), since 26 Oct each with its direction. The button then says **On the fare plan**, with how many the captures show
     in the game; the next capture ticks each off (the Fare plan board on the airline's page);
-  - the routes table: route, cabin, level with its steps above launch, the sold-out share, the move (a step down in
-    amber) and its reason. **Sort** by the moves (first), route, level or sold-out share. It shows its first 10 rows,
+  - the routes table: since 26 Oct a row per direction and cabin, its route shown as its airports that way round ("EDI →
+    FRA"), then cabin, level with its steps above launch, the sold-out share, **Load** (that direction's average load over
+    the 7 days), the move (a step down in amber) and its reason. **Sort** by the moves (first), route, level or sold-out share. It shows its first 10 rows,
     with **show all N**, as the growth lists do. A level the captured fares don't match shows its fare index beside it
     ("· index 100 · set back" when it's set back).
 
@@ -441,14 +444,16 @@ fold them, and a row's title opens or closes it.
     a 5% economy rise (the setting *fare_plan_raise_pct*) from the route's latest captured fare. Since 21 Oct each route
     also has its **fare index** (each flight of the latest captured day against the route's fare on 21 Oct, when every
     route was at its launch level, or its first fare for a route launched later, times the launch level: a route still
-    at launch reads 100, Ryanair's 85; a level on the fare ladder the fares don't match is named beside it) and a
+    at launch reads 100, Ryanair's 85; a level on the fare ladder the fares don't match is named beside it; since 26 Oct
+    "out · back" when the two directions differ, e.g. "105 · 100") and a
     **14-day** sparkline of its loads, a bar a day from the daily history (*route_days*: passengers ÷ seats, both
     directions; lighter under 85%). Each route's name opens its route page (since 22 Oct; Routes until then).
   - **Aircraft:** each one's flight profit a day, less its lease, for the period Route profit picks, with its table.
   - **Fare changes:** the fare changes spotted in the captures, with the load the day before and after.
   - **Fare plan:** the fare changes to make in the game, with **remove**: fare tests, and since 21 Oct the fare ladder's
-    moves, each with its move and level ("+5% · up to 105%"). The next capture spots each one: a fare test once half
-    its change shows, a ladder's move once its fare moves by the change, within 1%, in its own cabin. It's reviewed
+    moves, each with its move and level ("+5% · up to 105%") and since 26 Oct its direction ("out", "back", or nothing
+    for both). The next capture spots each one: a fare test once half its change shows, a ladder's move once its fare
+    moves by the change, within 1%, in its own cabin (and direction, when it has one). It's reviewed
     together on Saturdays.
 
 - **A route's page** (since 22 Oct, spec docs/specs/2026-10-21-route-page.md; /planner/performance/PA/JFK-ORD): its
@@ -456,7 +461,8 @@ fold them, and a row's title opens or closes it.
   directions count together; every figure is *route_story()*'s, from the daily history. Read only.
   - **The header:** the route and its city, stars, airline, distance, market and the cabin it calls for (its own, else
     its market's), **launched** (the first frequency's launch day, and how many days ago), departures a week each way,
-    the types flying it, and each cabin's fare level with this Saturday's move. **‹ <airline>** goes back to the
+    the types flying it, and each cabin's fare level with this Saturday's move (since 26 Oct each direction's, "EDI → FRA
+    economy 105% · up to 110%"; the Since launch chart's level line follows the out direction). **‹ <airline>** goes back to the
     airline's page; **Schedule in Routes** opens the route on Routes.
   - **The last 7 days against the 7 before:** load, passengers, profit, profit an aircraft hour and the economy and
     business fares, each with its arrow (the week ending on the latest captured day; nothing to compare without a week
