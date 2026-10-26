@@ -26,6 +26,10 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **The fare ladder's hold after a step up** (§5, since 26 Oct): until it's built, `fare_ladder()` still lists a
+  direction that went up the Saturday before as free to move, so the review chat holds those by hand (on 31 Oct, every
+  direction moved on 26 Oct) and removes their rows before **Put on the fare plan**. *(since 26 Oct; history:
+  rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -449,10 +453,15 @@ Details and open points: `docs/decisions.md`.
   "out" from the route's hub, "back" to it): its fare as a % of the game's default price (launch: 100%, Ryanair 85%).
   At the Saturday review, from the week's captured flights in that cabin and direction only:
   - **up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5 departures that way in the 7
-    days);
+    days), then that direction holds the next Saturday (`settings.fare_ladder_up_hold_weeks`, 1);
   - **hold** when 90–99% sold out;
   - **down 5 points** (Pan Am and China Eastern 7) when under 90% sold out, then that direction holds for 2 weeks
     before climbing again.
+
+  The hold after a step up is there because bookings open 3 days ahead (§9): the week after a change mostly flies at
+  the old price, so a direction is next judged two Saturdays on, on a full week at its new level. A direction that
+  didn't move is judged every Saturday. *(the hold after a step up since 26 Oct, brief
+  `docs/briefs/2026-10-26-fare-ladder-hold-after-step-up.md`)*
 
   Passengers book each direction separately (§9), so one direction can sell out while the other doesn't. **The whole
   route, both directions together,** decides four things: new routes start after their first 7 days (§3); **a route

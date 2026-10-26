@@ -485,6 +485,16 @@ The numbers are settings (step, up, down, hold weeks, cap, and since 21 Oct the 
 
 ### 6. Interline
 
+**The hold after a step up, since 26 Oct (Gitesh, brief `docs/briefs/2026-10-26-fare-ladder-hold-after-step-up.md`).**
+The up line read, word for word: "**up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5
+departures that way in the 7 days);". Why: bookings open 3 days ahead and a fare change applies only to flights not
+yet booked (§9, from the game's documentation, 26 Oct), so the Saturday after a change judges a week flown mostly at
+the old price, and a route could climb a second step on evidence from the first. Holding one week after a step up means
+the next judgement reads a full week at the new level. Directions that didn't move stay weekly, since their week is all
+at one price. Chosen over judging only flights flown at the current level (faster, but as few as 4 days of evidence and
+a larger build) and over a two-weekly review for every direction (slower for routes that held). The cost: a route that
+keeps selling out climbs every 2 weeks, reaching the cap in about 8 weeks instead of 4.
+
 #### Gulf hub carriers are rivals
 *Since 5 Oct · why: they would carry our passengers through Dubai against Kingfisher and Malaysia.*
 
