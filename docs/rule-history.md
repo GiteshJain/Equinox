@@ -190,6 +190,13 @@ any long-haul", with no point at which feeder-first ended · why: base-case grow
 by 31 Dec, more than its short and medium openings can take, so the end of feeder-first needed a test. On 21 Oct, 27
 such openings were unflown (Bali and Taipei on a plan card). Openings beyond 4,708 km (Tokyo Narita, Melbourne, the
 Gulf, Brisbane, Adelaide) count as long-haul for this rule. November's trunks keep their exception (§4).*
+
+*9M-ABA's exception since 26 Oct (Gitesh, Scheduling chat, brief `docs/briefs/2026-10-26-malaysia-a321lr-dubai.md`,
+option B of three: A keep the rule, B one route as an exception, C change the trigger).* Gitesh ordered an A321LR on
+25 Oct; under the trigger it could fly only openings within 4,708 km, with 49 of them still unflown. Earlier wording:
+"November's trunks (§4) are the one exception." · why: the aircraft was bought for its range; Dubai (5,548 km, no
+rival) flies 15.5 hours a day with Pekanbaru, against 15.4 for Chengdu Tianfu and Guiyang under the rule. The trigger
+itself is unchanged for every other aircraft.
 Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul.
 
 #### No new airlines before January 2027

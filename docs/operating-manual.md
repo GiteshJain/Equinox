@@ -178,8 +178,8 @@ Details and open points: `docs/decisions.md`.
   price. *(since 29 Sep; the reason written in 22 Oct)*
 - **Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul. **Long-haul starts
   once every 4- and 5-star opening on Malaysia's route list within the A320neo's reach (the A320neo Heavy, 4,708 km,
-  §3) is flown.** November's trunks (§4) are the one exception. *(since 29 Sep; the trigger since 21 Oct; history:
-  rule-history.md)*
+  §3) is flown.** The exceptions: November's trunks (§4), and 9M-ABA (KUL), an A321LR on KUL–Dubai since 26 Oct.
+  *(since 29 Sep; the trigger since 21 Oct; 9M-ABA since 26 Oct; history: rule-history.md)*
 - **Kingfisher:** India is open; aim to capture all of it. *(since 2 Oct)*
 - **No new airlines before January 2027:** the two low-demand holdings the house rules allow (§9) wait until then.
   *(since 15 Oct; history: rule-history.md)*
