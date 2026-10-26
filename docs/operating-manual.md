@@ -656,6 +656,9 @@ be copied from the game's settings page)
   bigger flights. *(since 18 Oct; history: rule-history.md)*
 - Departure time of day doesn't affect demand; it matters only for connections.
 - Passengers book each direction separately; no location-based demand.
+- **Bookings open 3 days ahead, and a fare change applies only to flights not yet booked:** flights already selling
+  fly at the old price, so a change shows in the captured flights about 3 days after it's made (the fare plan's ticks,
+  the set-backs and the next Saturday's ladder all see it then). *(since 26 Oct, from the game's documentation)*
 - Maintenance need depends on take-offs and landings as well as hours, and can be done at any airport with a long
   enough ground gap.
 - **Used aircraft are sold by auction:** it ends once an hour passes with no new bid, each bid restarting the hour,
