@@ -505,7 +505,7 @@ async def tails(s, pl, al, tag, now):
 
     async def add_tail():
         await pg.fill("#t-id", reg)
-        for sel in ("#t-type", "#t-cfg", "#t-base"):
+        for sel in ("#t-type", "#t-cfg", "#t-base", "#t-acq"):
             v = await pg.evaluate(f"(document.querySelector('{sel}').options[1] || {{}}).value || ''")
             if v:
                 await pg.select_option(sel, v)
@@ -543,8 +543,8 @@ async def tails(s, pl, al, tag, now):
     if not t:
         s.not_tried(f"{code} has no aircraft in service to copy", "tails: remove a delivery")
     else:
-        as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id)
-                    select {WORLD}, {int(al['id'])}, :'r', {int(t['type'])}, 'on_order', :'d'::date, :'m'::timestamptz + interval '3 days', :'b', {int(t['config'])}""",
+        as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id, acquired)
+                    select {WORLD}, {int(al['id'])}, :'r', {int(t['type'])}, 'on_order', :'d'::date, :'m'::timestamptz + interval '3 days', :'b', {int(t['config'])}, 'new'""",
                 r=dreg, d=now[:10], m=now, b=t["base"])
         await reload(pl)
 
@@ -591,8 +591,8 @@ async def filing(s, pl, al, tag, now, t):
     n1 = top + 101 + (top + 101) % 2
     freg = "ZF" + tag[:4].upper()
     blk = int(r["block"])
-    as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id)
-                select {WORLD}, {aid}, :'r', {int(t['type'])}, 'delivered', :'d'::date - 30, :'m'::timestamptz - interval '2 hours', :'b', {int(t['config'])};
+    as_test(f"""insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id, acquired)
+                select {WORLD}, {aid}, :'r', {int(t['type'])}, 'delivered', :'d'::date - 30, :'m'::timestamptz - interval '2 hours', :'b', {int(t['config'])}, 'new';
                 insert into public.plan_cards (world_id, airline_id, aircraft_id, base_code, title)
                 select {WORLD}, {aid}, a.id, :'b', 'saves test' from public.aircraft a where a.world_id = {WORLD} and a.registration = :'r';
                 insert into public.plan_card_legs (world_id, plan_card_id, position, flight_no, origin_code, dest_code, days_utc, dep_utc_min, block_min)

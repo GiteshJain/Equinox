@@ -66,7 +66,7 @@ export interface ImportInput {
   airlineId: number;
   cand: ImportCandidate;
   /** The aircraft chosen: one of the airline's in service, or a registration typed for a new one. */
-  tail: { aircraft: TailAircraft } | { registration: string };
+  tail: { aircraft: TailAircraft } | { registration: string; acquired?: "new" | "used" };
   /** Every aircraft (a typed registration may be an aircraft on order, or retired), and the airline's tails. */
   aircraft: readonly TailAircraft[];
   tails: readonly TailAircraft[];
@@ -108,7 +108,7 @@ export function importChanges(x: ImportInput): Change[] {
   const lead: Change = have
     ? { table: "aircraft", op: "update", key: { id: have.id }, base: have.updated_at, values: {
         ...values, retired_on: null, checked_on: null, schedule_changed_on: null, maintenance_note: null } }
-    : { table: "aircraft", op: "insert", as: "new aircraft", values: { world_id: x.worldId, registration: reg, ...values } };
+    : { table: "aircraft", op: "insert", as: "new aircraft", values: { world_id: x.worldId, registration: reg, ...values, acquired: x.tail.acquired ?? null } };
   const stand: TailAircraft = {
     id: have?.id ?? -1, registration: reg, airline_id: x.airlineId, aircraft_type_id: typeId ?? null, cabin_config_id: configId ?? null, base_code: null, status: "active",
     ordered_on: null, delivery_at: null, order_base_code: null, order_config_id: null, order_note: null, checked_on: null, schedule_changed_on: null, maintenance_note: null,

@@ -127,13 +127,13 @@ begin
   -- FA: 001 at the limit, 002 under it, 003 without pilots, 004 another layout, 005 no cabin in the planner, 006 not on
   -- the game's pages, 007 retired and not on them either; FA-099 on the game's pages only
   for i in 1 .. 7 loop
-    insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code)
+    insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code, acquired)
     values (w, fa, 'FA-00' || i, ty, case when i = 5 then null else c1 end, case when i = 7 then 'retired' else 'active' end,
-            case when i = 6 then 'ZF2' else 'ZF1' end);
+            case when i = 6 then 'ZF2' else 'ZF1' end, 'new');
   end loop;
   -- FB: 001 under its own 105, 002 not on its pages; FB-777 an aircraft of FB whose registration FA's page also shows
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code)
-  values (w, fb, 'FB-001', ty, c1, 'active', 'ZF2'), (w, fb, 'FB-002', ty, c1, 'active', 'ZF2'), (w, fb, 'FB-777', ty, c1, 'active', 'ZF2');
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code, acquired)
+  values (w, fb, 'FB-001', ty, c1, 'active', 'ZF2', 'new'), (w, fb, 'FB-002', ty, c1, 'active', 'ZF2', 'new'), (w, fb, 'FB-777', ty, c1, 'active', 'ZF2', 'new');
   insert into public.capture_keys (label, key_hash, world_id)
   values ('fleet capture test', extensions.crypt('fleet-capture-test-key', extensions.gen_salt('bf')), w);
   insert into t_fc values ('w', to_jsonb(w)), ('fa', to_jsonb(fa)), ('fb', to_jsonb(fb)), ('fc', to_jsonb(fc)), ('rv', to_jsonb(rv));

@@ -576,8 +576,8 @@ describe("Game check (Check's until 20 Oct)", () => {
       expect(arrived[0]).toMatchObject({ table: "aircraft", op: "update", key: { id: 9 }, values: { status: "active", base_code: "HUB", cabin_config_id: 3 } });
       expect(arrived[0]?.values).not.toHaveProperty("extra");
       expect(arrived.filter((c) => c.table === "flight_legs").every((c) => c.values?.aircraft_id === 9)).toBe(true);
-      const fresh = importChanges({ ...common, tail: { registration: "T-777" } });
-      expect(fresh[0]).toMatchObject({ table: "aircraft", op: "insert", as: "new aircraft", values: { registration: "T-777", aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB" } });
+      const fresh = importChanges({ ...common, tail: { registration: "T-777", acquired: "new" } });
+      expect(fresh[0]).toMatchObject({ table: "aircraft", op: "insert", as: "new aircraft", values: { registration: "T-777", aircraft_type_id: 1, cabin_config_id: 1, base_code: "HUB", acquired: "new" } });
       expect(fresh[0]?.values).not.toHaveProperty("extra");
       expect(fresh.filter((c) => c.table === "flight_legs").map((c) => [c.values?.aircraft_id, c.from?.aircraft_id])).toEqual([[undefined, "new aircraft"], [undefined, "new aircraft"]]);
     });

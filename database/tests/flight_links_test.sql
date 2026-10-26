@@ -229,8 +229,8 @@ begin
   -- not active: its pages never complete a capture day, so no snapshot is taken unless the test takes one
   insert into public.airlines (world_id, group_id, game_id, planner_name, iata_code, home_airport_code, active)
   values (w, g, 990801, 'Links Test Air', 'LK', 'QLA', false) returning id into al;
-  insert into public.aircraft (world_id, airline_id, registration, status, base_code) values (w, al, 'LK-AAA', 'active', 'QLA') returning id into ac_a;
-  insert into public.aircraft (world_id, airline_id, registration, status, base_code) values (w, al, 'LK-AAB', 'active', 'QLA') returning id into ac_b;
+  insert into public.aircraft (world_id, airline_id, registration, status, base_code, acquired) values (w, al, 'LK-AAA', 'active', 'QLA', 'new') returning id into ac_a;
+  insert into public.aircraft (world_id, airline_id, registration, status, base_code, acquired) values (w, al, 'LK-AAB', 'active', 'QLA', 'new') returning id into ac_b;
   insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source) values (w, al, 'QLA', 'QLB', 1000, 'research') returning id into r_ab;
   insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source, removed) values
     (w, al, 'QLB', 'QLA', 1000, 'research', false), (w, al, 'QLA', 'QLC', 1000, 'research', true),

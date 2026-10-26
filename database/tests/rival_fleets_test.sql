@@ -126,8 +126,8 @@ begin
     (w, f1, 'XA1', 'XA2', 800, 4, 'research'), (w, f1, 'XA1', 'XC1', 900, 4, 'research'), (w, f2, 'XB1', 'XB2', 700, 3, 'research');
   insert into public.rotations (world_id, airline_id, route_id, launched_on)
   select w, x.airline_id, x.id, date '2030-01-01' from public.routes x where x.world_id = w and x.dest_code in ('XA2', 'XB2');
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code) values
-    (w, f1, 'XF-1', ty, 'active', 'XA1'), (w, f2, 'XF-2', ty, 'active', 'XB1');
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code, acquired) values
+    (w, f1, 'XF-1', ty, 'active', 'XA1', 'new'), (w, f2, 'XF-2', ty, 'active', 'XB1', 'new');
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min)
   select w, ro.airline_id, ro.id, l.n, case when ro.airline_id = f1 then 100 else 200 end + l.n, case when l.n = 1 then x.hub_code else x.dest_code end,
          case when l.n = 1 then x.dest_code else x.hub_code end, ac.id, '{1,2,3,4,5,6,7}', 600 + 200 * l.n, 90

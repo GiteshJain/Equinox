@@ -207,10 +207,10 @@ begin
   insert into public.cabin_configs (world_id, code, aircraft_type_id, cabin, seats, business_seats, economy_seats) values
     (w, 'RS-J', ty, 'Leisure', 180, 12, 168) returning id into cj;
   insert into public.markets (world_id, airline_id, name, layout) values (w, rs, 'Story market', 'Leisure') returning id into m1;
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code)
-  values (w, rs, 'QS-1', ty, cj, 'active', 'QS1') returning id into ac1;
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code)
-  values (w, rs, 'QS-2', ty, cj, 'active', 'QS1') returning id into ac2;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code, acquired)
+  values (w, rs, 'QS-1', ty, cj, 'active', 'QS1', 'new') returning id into ac1;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code, acquired)
+  values (w, rs, 'QS-2', ty, cj, 'active', 'QS1', 'new') returning id into ac2;
   insert into public.routes (world_id, airline_id, hub_code, dest_code, city, distance_km, stars, market_id, source)
   values (w, rs, 'QS1', 'QS2', 'Story City', 1000, 4, m1, 'research') returning id into r1;
   insert into public.routes (world_id, airline_id, hub_code, dest_code, city, distance_km, stars, market_id, source)

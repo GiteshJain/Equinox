@@ -141,7 +141,7 @@ export function Today() {
     const cand = line.cands?.[index];
     if (!rules || !cand || w === undefined) return;
     const mine = tailList.filter((a) => a.airline_id === airlineId);
-    const tail = choice.isNew ? { registration: choice.registration } : { aircraft: mine.find((a) => a.registration === choice.registration) as TailAircraft };
+    const tail = choice.isNew ? { registration: choice.registration, acquired: choice.acquired } : { aircraft: mine.find((a) => a.registration === choice.registration) as TailAircraft };
     if (!choice.isNew && !("aircraft" in tail && tail.aircraft)) return;
     const codes = [...new Set([cand.a.from, cand.a.to, ...(cand.b ? [cand.b.from, cand.b.to] : [])])];
     const [routes, markets, profiles, airports] = await Promise.all([readAirlineRoutes(airlineId), readMarkets(w), readProfiles(w), readAirports(w, codes)]);

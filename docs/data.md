@@ -108,7 +108,7 @@ file. How the parts fit together: `docs/architecture.md`.
 | `extra` | jsonb | What the old planner kept on a tail that the table has no column for, under tail (its notes, which Tails shows). The old lists' places and delivery items went with the clean-up (build pull request 14). Expected otherwise empty |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
-| `acquired` | text | How we got the aircraft: new from the factory, or used from the game's Aircraft Market; decides its replacement age, manual §3 (settings replace_new_years, replace_used_years) |
+| `acquired` | text | How the aircraft came: new (ordered from the factory) or used (bought on the used market). Decides its replacement age (manual §3: settings.replace_new_years, replace_used_years) and the fleet check's looks-used cross-check. Since 26 Oct it has no default: every new row must say which. |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
