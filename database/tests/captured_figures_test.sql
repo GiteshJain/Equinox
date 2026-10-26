@@ -288,7 +288,7 @@ begin
      and abs((one ->> 'payback_days')::numeric - 2 / 3.0) < 1e-12 and one ->> 'load_7_days' is null,
     'cards: One''s card isn''t 3M a day, 3M per aircraft, 1 flying and 1 on order, 2 flights, 1050% a week, pays back in 2/3 day: ' || one::text;
   -- since 26 Oct the next order also says how much can be spent now (up_to; checked in its own test below)
-  assert one #> '{next_order}' - 'up_to' = '{"when": "now", "types": ["TEST JET B", "TEST JET A"]}'::jsonb and (one #>> '{next_order,up_to}')::numeric >= 0 and one -> 'can_order_now' = '["TEST JET B", "TEST JET A"]'::jsonb,
+  assert (one -> 'next_order') - 'up_to' = '{"when": "now", "types": ["TEST JET B", "TEST JET A"]}'::jsonb and (one #>> '{next_order,up_to}')::numeric >= 0 and one -> 'can_order_now' = '["TEST JET B", "TEST JET A"]'::jsonb,
     'cards: One''s next order isn''t "can order B or A": ' || (one -> 'next_order')::text;
   assert (select x -> 'next_order' from jsonb_array_elements(c -> 'airlines') x where x ->> 'name' = 'Two') = '{"when": "needs", "missing": "a capture"}'::jsonb
      and (select x -> 'next_order' from jsonb_array_elements(c -> 'airlines') x where x ->> 'name' = 'Three') = '{"when": "needs", "missing": "a bank statement capture"}'::jsonb,
