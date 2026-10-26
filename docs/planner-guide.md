@@ -216,8 +216,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **A route** (its own address, such as /planner/routes/PA/JFK-ORD): its name, such as "New York → Atlanta", with its
   codes; a muted line with the airline, distance, stars and market; then its figures as big numbers: the estimated block
   on the airline's most-flown type, round trips a day (and how many frequencies) and the load over 7 days; then the
-  **layout** the route calls for (its market's, or its own cabin choice, which wins: manual §5; since 21 Oct, in place of
-  the market's aircraft, plan and prices), the service profile, the hub's banks ("station · no banks" from a station) and
+  **layout** the route's distance calls for ("layout Leisure Plus (3,500–6,500 km)": manual §5, by distance since 26 Oct;
+  since 21 Oct in place of the market's aircraft, plan and prices), the service profile, the hub's banks ("station · no banks" from a station) and
   the two UTC offsets; **edit route**
   (stars, market, distance, city, the offsets) and **remove route** (only once it has no frequencies, after asking in
   the page). Not flown yet, it shows the next free flight numbers. Flown, its frequencies, **Add frequency**, its loads
@@ -280,8 +280,9 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   its cabin, each flight's number, route, times, block and service; × or Escape closes it). An airport where the
   airline has no station yet is highlighted on the card: any airport the airline has no active route to (since 22 Oct its bases and point-to-point stations don't count until it flies there). The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
   it, and the card says **no cabin chosen** while neither the card nor the order names one. Beside the box (since
-  21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason ("JFK–LHR is
-  72% of block time: Leisure Plus", or "no route over 65%: the most seats"; Ryanair Standard only), and **Use the
+  21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason (since 26 Oct
+  by distance: "3,500–6,500 km is 72% of block time: Leisure Plus", or "no distance range over 65%: the most seats";
+  Ryanair Standard only), and **Use the
   suggestion** sets it in one tap; a cabin that differs from the suggestion shows in amber. Since 21 Oct (manual §5)
   the card's **Fare level** column gives the fare level of each route it flies, once per route on its first leg, from
   the fare ladder: "economy +10%, business +5% of the default price" for a route the airline flies (this week's new
@@ -633,7 +634,7 @@ when you leave it, as one change.
   the flights whose UTC time moves and asks first, as Routes does.
 - **Storage:** whether saving works, with **Save now**; nothing is kept on the device.
 - **Data:** **Export backup (JSON)** (every planner table) and **Export flights (CSV)**, whose last column (since 21 Oct)
-  is the layout each flight's route calls for (its own choice, else its market's). Importing a backup and clearing
+  is the layout each flight's route calls for (since 26 Oct its distance's range, manual §5). Importing a backup and clearing
   everything are gone with the tables (design §14): the nightly backup and the change log are the safety net.
 
 ## Systems

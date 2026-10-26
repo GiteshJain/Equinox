@@ -109,13 +109,15 @@ describe("the list: the old planner's routeRows", () => {
     expect(r).toMatchObject({ stars: 5, city: "Bombay", dist: 1500, market: "", market_id: null, layout: "" });
     expect(marketChips(routes)).toEqual(["", "Europe", "Long haul"]);
   });
-  // 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §2): a market keeps only its layout
-  it("shows the layout a route calls for: its own cabin choice over its market's layout", () => {
+  // 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §2): a market keeps only its layout; since 26 Oct the header's
+  // layout is the route's distance range (manual §5), whatever its market or own choice
+  it("shows the layout a route calls for: its distance's range", () => {
     expect(ccc.layout).toBe("Comfort");
-    expect(layoutWords(ccc)).toBe("layout Comfort");
-    expect(layoutWords(routeOf(routeRow(3, "HUB", "CCC", 6720, { market_id: 2, cabin_choice: "Leisure Plus" }), markets)))
-      .toBe("layout Leisure Plus (the route's own; its market: Comfort)");
-    expect(layoutWords(routeOf(routeRow(10, "HUB", "BBB", 5600, { market_id: null }), markets))).toBe("no market, no layout");
+    expect(layoutWords(rules, ccc)).toBe("layout Comfort (6,500 km and over)");
+    expect(layoutWords(rules, routeOf(routeRow(3, "HUB", "CCC", 6720, { market_id: 2, cabin_choice: "Leisure Plus" }), markets))).toBe("layout Comfort (6,500 km and over)");
+    expect(layoutWords(rules, routeOf(routeRow(10, "HUB", "BBB", 5600, { market_id: null }), markets))).toBe("layout Leisure Plus (3,500–6,500 km)");
+    expect(layoutWords(rules, routeOf(routeRow(11, "HUB", "AAA", 700, { market_id: null }), markets))).toBe("layout Leisure (under 3,500 km)");
+    expect(layoutWords(rules, { airline_id: 1, dist: 3500 })).toBe("layout Leisure Plus (3,500–6,500 km)");
   });
   it("a new frequency's fare is the airline's launch fare (fare_launch_pct, its own where it has one), not the market's", () => {
     const at = (settings: RulesInput["settings"], airlines = base.airlines) => buildRules({ ...base, settings: { ...base.settings, ...settings }, airlines });

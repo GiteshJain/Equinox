@@ -54,12 +54,15 @@ Each part is exported under its name. One example each, on the cases' small worl
 
 Two more: `card.checkCard()` checks a plan card's legs against every rule above, at both ends, its service codes
 included (each leg's `service_code`, its `service_given` and `service_wanted`, and `service` with the issues), and its
-cabin (since 21 Oct, manual §5): `card.cabinFor()` works out the cabin the card's routes call for (each route's share of
-its block time; over `cabin_route_share_pct` the route's own `cabin_choice`, else its market's layout; otherwise the
-layout with the most seats; a low-cost airline Standard only; then the variant's layout of that name, among those the
-airline may choose), with the reason in words ("JFK–LHR is 72% of block time: Leisure Plus", "no route over 65%: the
-most seats"), and a card whose cabin is missing or differs is a problem; an input without the variant's layouts, or
-without `cabin_route_share_pct` (made before 21 Oct), isn't checked for its cabin (`cases/cabinFor.json`). Since 21 Oct
+cabin (since 21 Oct, manual §5; by distance since 26 Oct): `card.cabinFor()` works out the cabin the card's routes call
+for (each route in a distance range, `card.cabinRange()`: Leisure under `cabin_leisure_max_km`, Leisure Plus to under
+`cabin_leisure_plus_max_km`, Comfort beyond, from the route's distance else the great circle; the range over
+`cabin_route_share_pct` of the card's block time decides, otherwise the layout with the most seats; no market layout or
+route choice overrides it; a low-cost airline Standard only; then the variant's layout of that name, among those the
+airline may choose), with each route's and each range's share and the reason in words ("3,500–6,500 km is 72% of block
+time: Leisure Plus", "no distance range over 65%: the most seats"), and a card whose cabin is missing or differs is a
+problem; an input without the variant's layouts, or without `cabin_route_share_pct` or the two distance settings (made
+before they came), isn't checked for its cabin (`cases/cabinFor.json`). Since 21 Oct
 (manual §5; spec `docs/specs/2026-10-21-frequencies-and-fares.md` §2) `card.cardFares()` gives the fare level of each route
 the card flies, once per route in the order of its legs, from `fare_ladder()`'s answer for the card's airline: each cabin
 the ladder has for the route at its level (this week's new level once the move is on the fare plan), worded as the

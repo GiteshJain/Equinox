@@ -2,7 +2,7 @@
 // offsets; the estimated block, its layout, its service profile, the hub's banks), edit route and remove route; the next
 // free numbers when it isn't flown, its loads when it is; each frequency; and Add frequency. Every action is one
 // planner_save() call; the questions are asked in the page. Since 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md
-// §2) the header shows the layout the route calls for (its own cabin choice, else its market's) where it showed the
+// §2) the header shows the layout the route calls for (since 26 Oct its distance's range, manual §5) where it showed the
 // market's aircraft, cabin and fares, and the block is estimated on the airline's most-flown type. Since 22 Oct (spec
 // docs/specs/2026-10-21-route-page.md §3) a flown route links to its route page on Performance. Since the new look (22 Oct,
 // spec docs/specs/2026-10-22-planner-look-routes.md §5): the route's name ("New York → Atlanta") with its codes, a muted
@@ -113,7 +113,7 @@ export function RouteDetail(p: DetailProps) {
           </div>
         </div>
         <div className="dsub" data-dsub="2">
-          <span data-route-layout>{layoutWords(r)}</span> · service {svc}
+          <span data-route-layout>{layoutWords(rules, r)}</span> · service {svc}
           {" · " + bankWords(base, (b) => disp(Number(b.slice(0, 2)) * 60 + Number(b.slice(3, 5)), offMin(r.hub), p.mode)) + (base && base.role !== "station" ? z : "")}
         </div>
         <div className="dsub" data-dsub="3">

@@ -1,5 +1,5 @@
 {
-  "note": "The small world every case starts from, shaped as rules_input() answers. A case file's input, then a case's own, is laid over it: settings and world_rules merge key by key, any other key (a list) is replaced whole. The settings are Gander's as of 12 Oct 2026 (with the three of 13 Oct: airport_cap_warning_pct, aircraft_check_after_days and aircraft_block_target_h, and five of the seven the Check screen added on 14 Oct: growth_big_min_stars, growth_ready_min_days, growth_ready_full_share, order_queue_grace_h and order_queue_warn_h, its two refit settings gone with the Cabins board on 21 Oct; load_leeway_days as Gander has it; and cabin_route_share_pct, 21 Oct); the airports are made up. HUB is a hub with three banks (06:00, 14:00, 22:00) and a minimum connection time of 60 minutes; FOC a focus city; BBB has no minimum connection time of its own (90 minutes is used); DDD's offset is corrected by the world (5 → 5.5); NBN has a night ban that wraps past midnight.",
+  "note": "The small world every case starts from, shaped as rules_input() answers. A case file's input, then a case's own, is laid over it: settings and world_rules merge key by key, any other key (a list) is replaced whole. The settings are Gander's as of 12 Oct 2026 (with the three of 13 Oct: airport_cap_warning_pct, aircraft_check_after_days and aircraft_block_target_h, and five of the seven the Check screen added on 14 Oct: growth_big_min_stars, growth_ready_min_days, growth_ready_full_share, order_queue_grace_h and order_queue_warn_h, its two refit settings gone with the Cabins board on 21 Oct; load_leeway_days as Gander has it; and cabin_route_share_pct, 21 Oct; cabin_leisure_max_km and cabin_leisure_plus_max_km, 26 Oct); the airports are made up. HUB is a hub with three banks (06:00, 14:00, 22:00) and a minimum connection time of 60 minutes; FOC a focus city; BBB has no minimum connection time of its own (90 minutes is used); DDD's offset is corrected by the world (5 → 5.5); NBN has a night ban that wraps past midnight.",
   "input": {
     "world": { "id": 1, "name": "Test world" },
     "settings": {
@@ -19,6 +19,8 @@
       "aircraft_block_target_h": 10,
       "load_leeway_days": 7,
       "cabin_route_share_pct": 65,
+      "cabin_leisure_max_km": 3500,
+      "cabin_leisure_plus_max_km": 6500,
       "growth_big_min_stars": 4,
       "growth_ready_min_days": 5,
       "growth_ready_full_share": 0.95,

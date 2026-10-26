@@ -9,7 +9,7 @@ import type { Rules } from "@rules";
 import { supabase } from "../../data/supabase";
 import { PLANNER_TABLES } from "../../data/save";
 import {
-  LEG_COLUMNS, MARKET_ROW_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS, freqOf, hhmm as dur, priceFor, routeOf, serviceFor,
+  LEG_COLUMNS, MARKET_ROW_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS, freqOf, hhmm as dur, layoutWords, priceFor, routeOf, serviceFor,
   type AircraftRow, type LegRow, type MarketRow, type RotationRow, type RouteRow,
 } from "../routes/model";
 import { CSV_HEAD, csvBanks, csvLine } from "./model";
@@ -71,8 +71,8 @@ export async function flightsCsv(rules: Rules, worldId: number, names: ReadonlyM
     const common = [reg, type?.name ?? "", config?.code ?? "", seats, service, price] as const;
     const out = f.view.out, back = f.view.back;
     const [waveOut, waveBack] = csvBanks(f.wave);
-    // the layout the route calls for (since 21 Oct): its own cabin choice, else its market's
-    const layout = route.row.cabin_choice || route.layout;
+    // the layout the route calls for (manual §5, by distance since 26 Oct): its distance's range, as Routes' header
+    const layout = layoutWords(rules, route).replace(/^layout /, "").replace(/ \(.*\)$/, "");
     if (out) lines.push(csvLine([f.noOut, name, route.hub, route.dest, days, H(out.dep), H(out.arr), out.arr_day, dur(out.block), ...common,
       String(extra.slfOut ?? ""), waveOut, layout]));
     if (back) lines.push(csvLine([f.noBack, name, route.dest, route.hub, days, H(back.dep), H(back.arr), back.arr_day, dur(back.block), ...common,

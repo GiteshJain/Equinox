@@ -1033,7 +1033,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `name` | text | e.g. Transatlantic – dense |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
-| `layout` | text | The cabin layout the market calls for: Standard, Leisure, Leisure Plus or Comfort (manual §5). A plan card's cabin takes it where one route of the market flies more than cabin_route_share_pct of the aircraft's block time, unless the route has its own choice (routes.cabin_choice). Filled on 21 Oct from the cabin of the market's old default layout; changed in Reference → Markets |
+| `layout` | text | Since 26 Oct no longer used by the cabin rule (manual §5: the cabin by distance). Was: the cabin layout the market calls for (Standard, Leisure, Leisure Plus or Comfort), taken by a plan card where one route of the market flew more than cabin_route_share_pct of the aircraft's block time. Kept as history; changed in Reference → Markets |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
@@ -1211,7 +1211,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `distance_override_km` | integer | Typed in the planner; null = the research value |
 | `market_override_id` | bigint | Chosen in the planner; null = the research value, or no market when market_cleared |
 | `stars_override` | smallint | The game's passenger demand as stars (manual §3, since 22 Oct), or typed in the planner; null = the research value |
-| `cabin_choice` | text | The cabin chosen for the route (the planner's routeCabin) |
+| `cabin_choice` | text | Since 26 Oct no longer used by the cabin rule (manual §5: distance alone decides). Was: the route's own cabin layout, which won over its market's. Kept as history |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
 | `market_cleared` | boolean | The planner's route edit clears the market (its market ""): the route has no market, whatever the research says. market_override_id is then empty |
