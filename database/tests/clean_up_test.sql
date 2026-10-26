@@ -109,6 +109,14 @@ begin
   if (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def') not like '%aircraft_hours%' then
     execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def');
   end if;
+  -- profit without reinvestment (20261026160000) takes the order payments from the bank statement on purpose, moving
+  -- profit (profit_without_reinvestment_test.sql checks it): while it is pending (the definition before reads only the
+  -- spending log), that definition is put back here (rolled back with the test), so everything else must still be
+  -- exactly as before. Once it is live, the definition before carries it too and nothing is changed here.
+  if coalesce((select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'capex_def'), '') not like '%game_payments%'
+     and (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'capex_def') is not null then
+    execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'capex_def');
+  end if;
   -- the default line's variants (20261019180000) add types every airline may buy and correct the deposits and cruise
   -- speeds on purpose (default_line_variants_test.sql checks them): while it is pending (the copy had fewer
   -- aircraft types before), the types' figures and who may buy which are put back here (rolled back with the test), so everything else

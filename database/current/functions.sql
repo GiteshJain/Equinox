@@ -2939,8 +2939,22 @@ CREATE OR REPLACE FUNCTION private.fig_capex(p_airline_id bigint, p_d0 date, p_d
  STABLE
  SET search_path TO ''
 AS $function$
-  select coalesce(sum(s.amount), 0) / 1000000 from public.spending_log s
-   where s.airline_id = p_airline_id and s.kind <> 'loss' and s.spent_on > p_d0 and s.spent_on <= p_d1
+  -- the money put back into the fleet between two reported days (since 26 Oct): from the bank statement, between the
+  -- two days' balance captures, every security deposit (one refunded counts against it), aircraft purchase, cabin
+  -- installation, refit and pilot training, and an auction's bid provision (its refund counts against it); before the statement's payments begin, or
+  -- for a day typed by hand, the spending log as before
+  with t as (select (select max(b.captured_at) from public.game_balance b
+                      where b.airline_id = p_airline_id and b.account like '2800%' and b.captured_on = p_d0) as t0,
+                    (select max(b.captured_at) from public.game_balance b
+                      where b.airline_id = p_airline_id and b.account like '2800%' and b.captured_on = p_d1) as t1,
+                    (select min(p.paid_at) from public.game_payments p where p.airline_id = p_airline_id) as since)
+  select case when t.t0 is not null and t.t1 is not null and t.since is not null and t.t0 >= t.since then
+           coalesce((select sum(case when p.side = 'C' then -p.amount else p.amount end) from public.game_payments p
+                      where p.airline_id = p_airline_id and p.paid_at > t.t0 and p.paid_at <= t.t1
+                        and (p.kind in ('deposit', 'cabin', 'purchase', 'refit') or (p.kind = 'other' and p.descr ilike '%provisions for bid%'))), 0) / 1000000
+         else (select coalesce(sum(s.amount), 0) / 1000000 from public.spending_log s
+                where s.airline_id = p_airline_id and s.kind <> 'loss' and s.spent_on > p_d0 and s.spent_on <= p_d1) end
+    from t
 $function$
 
 ;
