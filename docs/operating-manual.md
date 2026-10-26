@@ -29,6 +29,11 @@ Until each is built and merged, the rules below stand as they are.
 - **The planner's cabin suggestion by distance** (§5, since 26 Oct): until it's built, the plan card's suggestion and
   card check still follow the old market rule, so the Scheduling chat sets each new card's cabin by distance and a
   card flagged as differing is expected. *(since 26 Oct; history: rule-history.md)*
+- **The fare ladder per direction** (§5): each direction of each cabin of each route (A→B and B→A apart) gets its own
+  level, judged on its own flights (up, hold, down, the hold after a step down, under launch's jumps and the set-back
+  each per direction); the capacity hold and the rival pause stay the whole route's; each direction starts from the
+  route's level when it's built. Until it is built and merged, §5 stands as it is. *(decided 26 Oct, Gitesh; brief
+  `docs/briefs/2026-10-26-fare-ladder-per-direction.md`, spec `docs/specs/2026-10-26-fare-ladder-per-direction.md`)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
