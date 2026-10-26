@@ -333,7 +333,9 @@ fold them, and a row's title opens or closes it.
   day a week ago says so, shows no arrow and keeps the card's "+N this week". The money figures have no such change: the
   history keeps no profit a day, and their trend is the sparkline. Tap a scorecard to open the airline. The card's head
   is the name with the sparkline and the big profit figure; its rows are two columns (the label, then the value with
-  its change); **Next order** is its footer, with its pill.
+  its change); **Next order** is its footer: since 26 Oct how much the airline can spend on an order now, "up to 1.34M" (price and
+  cabin, keeping 0.5M in hand at the lowest point of the next 14 days with the order's own lease), as a pill when that
+  buys an aircraft.
 - **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves, one section per airline. Each cabin of
   each route has a **level**, its fare as a % of the game's default price (the latest the fare plan recorded, else the
   launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin it goes **up** 5 points when every

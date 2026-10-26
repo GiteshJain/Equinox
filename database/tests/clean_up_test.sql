@@ -23,6 +23,14 @@
 --   5. The archive: archive_due() runs, and every archived table's manifest for last month has the same layout, rows
 --      and checksum as before.
 
+-- every "up_to" key, at any depth (the cash forecast's up to, 20261026140000), for comparing with figures from before it
+create or replace function pg_temp.without_up_to(j jsonb) returns jsonb language sql immutable as $f$
+  select case jsonb_typeof(j)
+           when 'object' then coalesce((select jsonb_object_agg(k, pg_temp.without_up_to(v)) from jsonb_each(j) e(k, v) where k <> 'up_to'), '{}'::jsonb)
+           when 'array' then coalesce((select jsonb_agg(pg_temp.without_up_to(v) order by i) from jsonb_array_elements(j) with ordinality e(v, i)), '[]'::jsonb)
+           else j end
+$f$;
+
 do $test$
 declare
   w bigint := (select id from public.worlds where is_default);
@@ -157,6 +165,12 @@ begin
                                                                                 from jsonb_array_elements(x -> 'competitors') with ordinality f(c, j)), '[]'::jsonb))
                                                      else x end order by i)
                                               from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
+  end if;
+  -- the cash forecast's up to (20261026140000) adds up_to to every cash forecast and next order in the figures on purpose
+  -- (captured_figures_test.sql checks it): while it is pending (the figures before have none), exactly those are left
+  -- out here, so the rest must still be exactly as before. Once it is live, the figures before carry it too.
+  if b::text not like '%"up_to"%' then
+    a := pg_temp.without_up_to(a);
   end if;
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad

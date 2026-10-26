@@ -75,6 +75,11 @@ describe("an airline's card, as the old Review words it", () => {
     expect(nextOrderWords(null)).toEqual({ text: "needs a capture", kind: "dim" });
     expect(nextOrderWords({ when: "later", type: "E195-E2", safe_from: "2026-10-16T05:52:00.000Z" })).toEqual({ text: "E195 safe from Fri, Oct 16", kind: "plain" });
     expect(nextOrderWords({ when: "not within 14 days" })).toEqual({ text: "not in the next 14 days", kind: "dim" });
+    // since 26 Oct: how much it can spend now, whether or not that buys an aircraft yet
+    expect(nextOrderWords({ when: "now", types: ["A321 NEO", "A321 NEO LIGHT"], up_to: 2.731 })).toEqual({ text: "up to 2.73M", kind: "pill" });
+    expect(nextOrderWords({ when: "later", type: "E195-E2", safe_from: "2026-10-16T05:52:00.000Z", up_to: "1.34" })).toEqual({ text: "up to 1.34M", kind: "plain" });
+    expect(nextOrderWords({ when: "later", type: "E195-E2", up_to: 0 })).toEqual({ text: "up to 0.00M", kind: "plain" });
+    expect(nextOrderWords({ when: "needs", missing: "a capture", up_to: 1 })).toEqual({ text: "needs a capture", kind: "dim" });
   });
   it("the old formats: millions, thousands, days, the forecast's day and payment", () => {
     expect([sg(0.005), sg(-0.004), kk(0.0004), kk(-0.0125), dd(0.5), dd(1.4), dd(null)]).toEqual(["+0.01M", "−0.00M", "+0k", "−13k", "under a day", "1 day", "—"]);

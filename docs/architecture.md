@@ -247,7 +247,7 @@ called wrongly here fails that check.
 | Question | The call | Example (tested on the copy) |
 |---|---|---|
 | An airline's whole background before scheduling: money, fleet, routes, hubs, deliveries and plan cards, to-dos, fare plan, competition (the top 20 openings and the threats, since 21 Oct), rivals, the capture | the briefing | `python3 scripts/briefing/brief.py KF` |
-| Can it order now, when, and the cash forecast's lowest point | `cash_forecast()` | `select public.cash_forecast(2);` |
+| Can it order now, when, how much it can spend now (`up_to`, since 26 Oct), and the cash forecast's lowest point | `cash_forecast()` | `select public.cash_forecast(2);` |
 | Would an order keep the cushion | `cash_forecast()` with orders | `select public.cash_forecast(2, '[{"type": "A321 NEO LIGHT", "count": 2}]');` |
 | Performance's scorecards: profit a day, per aircraft, load over 7 days, next order | `airline_cards()` | `select public.airline_cards();` |
 | Profit for each day between captures | `airline_profit()` | `select public.airline_profit(2);` |

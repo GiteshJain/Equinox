@@ -3036,7 +3036,7 @@ declare
   v_t timestamptz[]; v_v numeric[]; v_li int; v_cause jsonb;
   v_types jsonb; v_p numeric; v_l numeric;
   v_o jsonb; v_oty record; v_n int; v_sum_p numeric := 0; v_sum_l numeric := 0; v_olist jsonb := '[]'::jsonb; v_orders jsonb;
-  v_low_after record; v_next jsonb; v_now jsonb;
+  v_low_after record; v_next jsonb; v_now jsonb; v_up numeric;
   v_doc jsonb;
 begin
   v_home := private.fig_home(p_airline_id);
@@ -3145,6 +3145,12 @@ begin
     v_next := coalesce(v_next, jsonb_build_object('when', 'not within 14 days'));
   end if;
 
+  -- up to: the largest order (price and cabin, paid at the capture's moment) that keeps the cushion at every point from
+  -- then on, its own lease (lease_estimate_pct of the price) counted as it falls (since 26 Oct): the card's Next order
+  select greatest(0, min((x.v - v_cushion) / (1 + v_pct * private.fig_lease_weeks(x.t, v_t0)))) into v_up
+    from unnest(v_t, v_v) as x(t, v) where x.t >= v_t0;
+  v_next := v_next || jsonb_build_object('up_to', round(v_up, 2));
+
   -- p_orders: several orders tested together, all placed now, each with its own lease (manual §3)
   if p_orders is not null and jsonb_typeof(p_orders) <> 'array' then
     raise exception 'p_orders must be a list: [{"type": "<aircraft type>", "count": 1}, ...]' using errcode = '22023';
@@ -3186,6 +3192,7 @@ begin
     'status', 'ok',
     'profit_per_flight', v_per_flight, 'flights_per_day', v_fpd, 'flight_profit_day', v_ops_day,
     'cushion', v_cushion,
+    'up_to', round(v_up, 2),
     'payments', (select coalesce(jsonb_agg(jsonb_build_object('at', private.fig_ts(p.at), 'amount', p.amount, 'what', p.what, 'repeat', p.rep) order by p.i), '[]'::jsonb)
                    from unnest(v_pat, v_pam, v_pwhat, v_prep) with ordinality as p(at, amount, what, rep, i)),
     'payments_next_7_days', (select coalesce(sum(p.a), 0) from unnest(v_pat, v_pam) as p(at, a) where p.at <= v_t0 + interval '168 hours'),
