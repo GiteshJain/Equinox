@@ -322,6 +322,8 @@ Each comes with the variant from the default line (below: the smallest size its 
 
 *Stations open nothing until the main hub reaches the 750, contested or not: since 22 Oct (Gitesh, with the station role, brief `docs/briefs/2026-10-22-point-to-point-routes.md`) · why: under the contested test a station would count as "any other base", so a rival at a station airport would open point-to-point flying before the 7 Nov strategy session decides on it. None of Kingfisher's likely stations is contested in Gander today (21 Oct scan: Ahmedabad 28 rival departures a week, the others none).*
 
+*Kingfisher's Mumbai exception: since 26 Oct (Gitesh, option B with eight aircraft, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`). Before it, the paragraph ended "Ryanair is exempt." with no exception, and the §2 bases table had Kingfisher's hubs as Delhi only, with Mumbai under Next · why: Gitesh wanted the 14.39M from returning VT-AAA (DEL) and VT-AAB (DEL) to start a second base's network rather than add to Delhi (the 23 Oct plan). Mumbai has the most openings after Delhi (159, 41 five-star) and the most rival flying on its pairs (224 departures a week); under hubs first it could fly only its Gulf routes, already covered by VT-ABF (BOM) and VT-ABH (BOM). The exception covers only these eight aircraft; Delhi was at 279 of 750 departures a week.*
+
 ### 4. Scheduling
 
 #### How it runs: every evening, from the order queues

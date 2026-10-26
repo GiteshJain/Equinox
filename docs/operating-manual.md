@@ -189,7 +189,7 @@ Details and open points: `docs/decisions.md`.
 | Airline | Hubs | Focus cities | Next |
 |---|---|---|---|
 | Pan Am | JFK, Los Angeles, Dallas | ORD, SFO, SEA | — (LAX and Dallas off hold 20 Oct; they open with November's trunks) |
-| Kingfisher | Delhi | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | Mumbai |
+| Kingfisher | Delhi, Mumbai (its network starts with the eight deposit aircraft, §3 hubs first) | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | — |
 | Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order) | Milan and Munich; no eastern base for now |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
 | China Eastern | Shanghai PVG, Xi'an, Kunming | Beijing Daxing, Shenzhen | — |
@@ -343,12 +343,15 @@ Details and open points: `docs/decisions.md`.
   Any other base, whether new or already open (second hubs and focus cities alike), gets an aircraft only to fly
   contested routes: a rival with over 250 departures a week at that base, or over 2 a day on the route itself. A base
   that is contested for one route (Manchester for Amsterdam, say) doesn't open its other routes. **Stations open
-  nothing** until the main hub reaches the 750, contested or not (since 22 Oct). Ryanair is exempt.
+  nothing** until the main hub reaches the 750, contested or not (since 22 Oct). Ryanair is exempt. **One exception:
+  Kingfisher's eight aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, ordered 28–29 Oct)
+  go to Mumbai, on any route, contested or not; Kingfisher's other orders still go to Delhi until it reaches the 750
+  (since 26 Oct, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`).
   Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
   Atlanta or Phoenix, SFO and SEA. The numbers are `settings.hub_first_departures` (750),
   `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'
-  thresholds are the `growth_*` and `pattern_*` settings. *(since 5 Oct; stations since 22 Oct; history:
-  rule-history.md)*
+  thresholds are the `growth_*` and `pattern_*` settings. *(since 5 Oct; stations since 22 Oct; Kingfisher's Mumbai
+  exception since 26 Oct; history: rule-history.md)*
 
 ## 4. Scheduling
 - **How it runs: every evening, from the order queues; a card with each order.** After the capture the Scheduling

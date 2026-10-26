@@ -48,3 +48,10 @@ for these six aircraft only; every other Kingfisher order keeps going to Delhi u
 - Gitesh prefers keeping hubs first intact: C.
 - Delhi's banks need the departures first (connections over local markets): A.
 - A rival starts building at Mumbai: B, sooner.
+
+## Outcome
+**B, 26 Oct (Gitesh), with eight aircraft instead of six:** four A320neo SHARPs and four E195-E2s for Mumbai, about
+16.35M with cabins against the 14.39M of deposits, the rest from Kingfisher's own earnings (about 0.7M a day). Ordered
+four on 28 Oct (once VT-AAA's deposit is in) and four on 29 Oct (VT-AAB's), each evening two of each so both delivery
+lines keep turning; each evening's cash forecast confirms it (the forecast had the lowest point near the 0.5M cushion).
+Manual §3 (hubs first) and the §2 bases table updated the same day.

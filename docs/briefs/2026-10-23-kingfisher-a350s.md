@@ -71,3 +71,6 @@ contract's end date on each aircraft's page in the game is the check.
 
 **Leases ended 23 Oct (Gitesh).** VT-AAA (DEL) returns Wed 28 Oct 05:11 UTC; VT-AAB (DEL) Thu 29 Oct 11:11 UTC (each
 aircraft's contract in the game). Both fly Delhi–JFK until then; the deposits come back on those dates.
+
+**Changed 26 Oct (Gitesh):** the deposits go to Mumbai instead of Delhi, eight aircraft ordered 28–29 Oct (brief
+`2026-10-26-kingfisher-deposits-new-base.md`). The aircraft are still returned as above.
