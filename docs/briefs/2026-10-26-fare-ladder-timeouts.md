@@ -1,7 +1,8 @@
 # The fare ladder timing out outside capture times
 
 **Decision:** how to stop Performance's fare ladder hitting the database's 30-second limit.
-**Recommendation: B.** Performance asks for the six airlines' ladders one at a time instead of four at once.
+**Decided 26 Oct 2026 (Gitesh): option E,** raised by Gitesh: no fare ladder overview on the group page; each airline's
+page shows its own ladder. Spec: `docs/specs/2026-10-26-fare-ladder-one-airline.md`. (First recommended: B.)
 
 ## Options
 
@@ -13,6 +14,11 @@
 | Opportunity cost | Biggest build: a table, its writes, its staleness rules | Small planner change, about an hour with the checks | 1 to 3 hours of a helper, result unknown | Saturday's review may stall on the board |
 | Risk | A stored ladder that's out of date: holds and pauses end by date, and every fare-plan save changes it | Slower board; other screens' figures still share the database | May find no big win | Errors on 31 Oct, the first per-direction Saturday |
 | Easy to undo | Medium | Yes (revert) | Yes | — |
+
+**E. Each airline's own page** (Gitesh's option, decided): the board leaves the group page, which keeps one link per
+airline, and goes on each airline's page, where its ladder is already read for the route profit table's fare index.
+The board loads in 1 to 2 s with no extra call, the group page gets lighter, and the overview of all six goes (links
+only). About an hour's build; easy to undo. Better than B on every count but the overview.
 
 ## Background
 - **26 Oct, 13:03 Chicago (18:03 UTC):** eight fare ladder calls cancelled at 30 s between 18:03 and 18:05 UTC, and the
