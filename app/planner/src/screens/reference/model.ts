@@ -271,13 +271,8 @@ export const removeRow = (table: "aircraft_types" | "cabin_configs" | "service_p
 // docs/specs/2026-10-21-cabins-new-rule.md §2)
 export interface MarketRow { id: number; airline_id: number; name: string; layout: string; updated_at: string }
 export const MARKET_COLUMNS = "id, airline_id, name, layout, updated_at";
-/** The layouts a market may call for (markets.layout's check; manual §5). */
-export const LAYOUTS = ["Standard", "Leisure", "Leisure Plus", "Comfort"] as const;
-/** A market's layout chosen: one change on the market; nothing when it's the same or not one of the four. */
-export function marketChange(m: MarketRow, typed: string): Change | null {
-  if (!(LAYOUTS as readonly string[]).includes(typed) || typed === m.layout) return null;
-  return { table: "markets", op: "update", key: { id: m.id }, base: m.updated_at, values: { layout: typed } };
-}
+// Since 26 Oct a market's layout isn't edited here: the cabin goes by distance (manual §5), and markets.layout stays in
+// the database as history.
 /** The old document's market order: its keys ("Airline|Market") as JSON keys come back as the database keeps a jsonb
  *  object's keys, shortest first in bytes (UTF-8: a dash "–" is three), then byte by byte. The rehearsal found "Ryanair|Europe
  *  – low" (20 letters, 22 bytes) placed before "Pan American|Transcon" (21) when letters were counted. */
