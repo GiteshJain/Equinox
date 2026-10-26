@@ -160,7 +160,7 @@ export function ask(input: RulesInput, q: Ask): unknown {
       const c = card.cabinFor(rules, q.card as unknown as Card);
       const ask = q.card as unknown as Card;
       const problems = ask.legs.length ? card.checkCard(rules, ask).problems.filter((p) => p.startsWith("cabin")) : null;
-      return { ...c, routes: c.routes.map((r) => ({ ...r, pct: Math.round(r.pct * 10) / 10 })), problems };
+      return { ...c, routes: c.routes.map((r) => ({ ...r, pct: Math.round(r.pct * 10) / 10 })), ranges: c.ranges.map((r) => ({ ...r, pct: Math.round(r.pct * 10) / 10 })), problems };
     }
     // the Routes screen's frequency (#18 build pull request 6): times as "HH:MM" (or null) in the ask, minutes in the answer
     case "frequency_to_legs":

@@ -3,7 +3,7 @@
 // library sees it, the figures the screen words, and every action as one planner_save() call. No screen code, so the
 // unit tests run it. Every rule is the library's (lib/rules: frequency, banks, schedule, service); this file only joins
 // the tables' rows to it and words what it answers.
-import { banks, block, buildRules, frequency, game, schedule, service, setting, time, type FrequencyEnds, type FrequencyView, type LocalTimes, type Rules,
+import { banks, block, buildRules, card, frequency, game, schedule, service, setting, time, type FrequencyEnds, type FrequencyView, type LocalTimes, type Rules,
   type ServiceProfile, type StoredLeg, type Wave } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
@@ -409,12 +409,17 @@ export const daysWords = (k: { days: number; of: number }): string => (k.days ==
 export function serviceFor(profiles: readonly ServiceProfile[], route: Route): string {
   return service.profileFor(profiles, route.airline_id, route.dist)?.code ?? "";
 }
-/** The layout a route calls for, as its header words it (manual §5, since 21 Oct): its own cabin choice wins over its
- *  market's layout. */
-export function layoutWords(route: Pick<Route, "layout" | "market"> & { row: Pick<RouteRow, "cabin_choice"> }): string {
-  const own = route.row.cabin_choice || "";
-  if (own) return `layout ${own} (the route's own${route.layout && route.layout !== own ? `; its market: ${route.layout}` : ""})`;
-  return route.layout ? `layout ${route.layout}` : route.market ? "no layout" : "no market, no layout";
+/** The layout a route calls for, as its header words it (manual §5, by distance since 26 Oct): its distance's range,
+ *  Leisure under cabin_leisure_max_km, Leisure Plus to under cabin_leisure_plus_max_km, Comfort beyond (the airline's own
+ *  settings where it has them; a low-cost airline flies Standard). An aircraft's cabin follows the range over
+ *  cabin_route_share_pct of its block time (the plan card's suggestion); no market or route choice overrides it. */
+export function layoutWords(rules: Rules, route: Pick<Route, "dist" | "airline_id">): string {
+  if (rules.airlines.get(route.airline_id)?.is_lcc) return "layout Standard";
+  const num = (k: string) => { const v = setting(rules, k, route.airline_id); const n = typeof v === "string" ? Number(v) : v; return typeof n === "number" && Number.isFinite(n) ? n : null; };
+  const lo = num("cabin_leisure_max_km"), hi = num("cabin_leisure_plus_max_km");
+  if (route.dist == null || lo == null || hi == null) return "no layout (no distance)";
+  const r = card.cabinRange(route.dist, lo, hi);
+  return `layout ${r.layout} (${r.range})`;
 }
 /** A new frequency's fare: the airline's launch fare (settings.fare_launch_pct, Ryanair's own 85%; manual §5). Until 21 Oct
  *  it was the market's economy fare, which went with the markets' fares (spec docs/specs/2026-10-21-cabins-new-rule.md

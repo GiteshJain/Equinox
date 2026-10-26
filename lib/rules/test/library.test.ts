@@ -104,14 +104,14 @@ describe("the command (node lib/rules/dist/cli.js)", () => {
     const c = file("card.json", { aircraft: "T-003", legs: [{ origin_code: "FOC", dest_code: "AAA", dep_local: "07:00" }, { origin_code: "AAA", dest_code: "FOC", dep_local: "11:00" }] });
     expect(run(["check-card", input, c])).toMatchObject({ aircraft: "T-003", type: "E195-E2", ok: true });
   });
-  it("check-card <card.json>: the cabin the rule calls for, and a card without it is a problem (21 Oct)", () => {
+  it("check-card <card.json>: the cabin the rule calls for, and a card without it is a problem (21 Oct; by distance since 26 Oct)", () => {
     const withCabins = file("cabins.json", world({ cabin_configs: [
       { id: 11, code: "E195-LEI", aircraft_type_id: 2, seats: 112, cabin: "Leisure" }, { id: 12, code: "E195-CMF", aircraft_type_id: 2, seats: 84, cabin: "Comfort" }] }));
     const legs = [{ origin_code: "FOC", dest_code: "AAA", dep_local: "07:00" }, { origin_code: "AAA", dest_code: "FOC", dep_local: "11:00" }];
     const none = run(["check-card", withCabins, file("none.json", { aircraft: "T-003", legs })]) as { ok: boolean; problems: string[]; cabin: { code: string } };
     expect(none.cabin.code).toBe("E195-LEI");
     expect(none.ok).toBe(false);
-    expect(none.problems).toEqual(["cabin: none chosen; the rule calls for E195-LEI (FOC–AAA is 100% of block time, but it has no market layout: the most seats)"]);
+    expect(none.problems).toEqual(["cabin: none chosen; the rule calls for E195-LEI (under 3,500 km is 100% of block time: Leisure)"]);
     expect(run(["check-card", withCabins, file("lei.json", { aircraft: "T-003", config_id: 11, legs })])).toMatchObject({ ok: true, cabin: { differs: false } });
     // an input made before the rule had its setting (as the briefing sample of 15 Oct): the cabin isn't checked
     const older = world({ cabin_configs: [{ id: 11, code: "E195-LEI", aircraft_type_id: 2, seats: 112, cabin: "Leisure" }] });
