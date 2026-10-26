@@ -289,7 +289,7 @@ as normal on Friday evening first.
    aircraft.
 5. **The weekly review together:**
    - **The fare ladder** (rule: manual §5, the fare ladder): Performance → **The fare ladder** lists each airline's
-     moves and the game actions that make them, in order, and first, since 21 Oct, the routes off their level with the
+     moves and the game actions that make them, in order, and first, since 21 Oct, the directions off their level (since 26 Oct each direction has its own level) with the
      changes that set them back (in this chat, `select public.fare_ladder(<airline id>);` gives the same). Press **Put
      on the fare plan**, then in the game press **Apply fare plan** (the fares userscript) and watch it: it shows each
      airline's count (and how many set a route back) and asks once, then makes every planned change and every set-back
