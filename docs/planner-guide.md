@@ -315,7 +315,7 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 money figure is the database's. Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) it's laid out
 as the new Today, Routes and Systems: the group page's title is the answer, how many airlines are in profit ("Six
 airlines, all in profit", or "5 of 6 airlines in profit"; never a group total, manual §1); then the scorecards, the
-fare ladder's cards, and **The details**: the other boards as rows that open, each with a one-line note and its count or
+fare ladder's links (since 26 Oct; the board itself is on each airline's page), and **The details**: the other boards as rows that open, each with a one-line note and its count or
 state, all closed on arrival (Flights by day open when the address names a day). **Collapse all** and **Expand all**
 fold them, and a row's title opens or closes it.
 - **The address:** /planner/performance is the group; /planner/performance/VS one airline's page;
@@ -337,7 +337,13 @@ fold them, and a row's title opens or closes it.
   its change); **Next order** is its footer: since 26 Oct how much the airline can spend on an order now, "up to 1.34M" (price and
   cabin, keeping 0.5M in hand at the lowest point of the next 14 days with the order's own lease), as a pill when that
   buys an aircraft.
-- **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves, one section per airline. Since 26 Oct
+- **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves. **On the group page** (since 26 Oct, spec
+  `docs/specs/2026-10-26-fare-ladder-one-airline.md`) it is only a link per airline, in our airlines' order, under the
+  line "One airline at a time: open an airline for this Saturday's fare moves." Each opens that airline's page at its
+  fare ladder (/planner/performance/VS#fare-ladder). The group page reads no fare ladder: all six at once, beside the
+  other figures, ran into the database's 30-second limit. **On each airline's page** the board is right under the
+  scorecard, open on arrival, for that airline alone; it loads in a second or two, says so while it does, and if it
+  can't be read it shows the error there, for that airline only. Since 26 Oct
   each direction of each cabin of each route (out from the route's hub, back to it) has its own **level**, its fare as
   a % of the game's default price (the latest the fare plan recorded for that direction, or for both directions if that
   is later, else the launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin and direction it
@@ -346,7 +352,7 @@ fold them, and a row's title opens or closes it.
   under 7 days old, and (since 21 Oct) for 7 days after it gains a flight ("a
   flight added on 2 Nov: judged at its new size from 9 Nov"; the setting *fare_ladder_capacity_hold_days*), never goes
   more than 20 points above launch for now, and never under launch by a 5-point step (nor under the 60% floor where
-  another player flies the pair). Each airline has a card (two a row, one on a phone): its moves as three counts (up, hold, down; the down
+  another player flies the pair). The airline has a card: its moves as three counts (up, hold, down; the down
   count amber when there is one), how many changes to make in the game ("24 changes in the game": the set-back changes
   and the moves), **Put on the fare plan (n)** and **See the changes**, which opens the long lists in the row under the
   card (**Hide the changes** closes them):
@@ -427,7 +433,8 @@ fold them, and a row's title opens or closes it.
 - **The airline's page:** its name as the title with **‹ All airlines**, the airline switch (one segmented control, as
   on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
   return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load
-  with their changes in a line under them. Then its boards as rows that open, Route profit open on arrival:
+  with their changes in a line under them. Then (since 26 Oct) **the fare ladder** for this airline, open (above), and its
+  boards as rows that open, Route profit open on arrival:
   - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus what
     was put back into the fleet between the two captures: since 26 Oct from the bank statement, every deposit,
     purchase, cabin, refit, pilot training and auction bid, refunds counted against them; the spending log before

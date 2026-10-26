@@ -5,7 +5,8 @@
 //   scorecards' sparklines, and the airline page's chart and table), cash_forecast() (the airline page; Today's orders
 //   too), route_profit() and aircraft_profit() for the period picked, fare_changes(), fare_plan_status(),
 //   growth_signals() (the growth signals), hub_progress() (main hubs towards their target) and, since 21 Oct,
-//   fare_ladder() for every airline (the fare ladder board; on the airline page the route profit table's fare index);
+//   fare_ladder() for one airline (its page's fare ladder board and the route profit table's fare index; since 26 Oct
+//   never for every airline at once, spec docs/specs/2026-10-26-fare-ladder-one-airline.md);
 // - the daily history by route, route_days (the route profit table's 14-day load sparkline; staff read it);
 // - since 22 Oct, the route page: the route the address names (routes) and its story, route_story();
 // - the daily history, airline_days (each airline's fleet, schedule and loads each evening: the scorecards' change
@@ -125,18 +126,11 @@ export function useFarePlan(airlineId: number | undefined) {
   });
 }
 
-/** The fare ladder for each airline (fare_ladder(), manual §5): this Saturday's move for each route and cabin and the game
- *  actions that make them. Keyed under the fare plan's table, which it reads, so Put on the fare plan reads it again. */
-export function useFareLadders(airlineIds: readonly number[]) {
-  return useQueries({
-    queries: airlineIds.map((id) => ({
-      queryKey: tableKey("fare_plan", "ladder", id),
-      queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: id, p_as_of: asOf() }),
-    })),
-  });
-}
-
-/** One airline's fare ladder (the same read as useFareLadders): the route profit table's fare index. */
+/** One airline's fare ladder (fare_ladder(), manual §5): this Saturday's move for each route, cabin and direction and the
+ *  game actions that make them; on the airline page its fare ladder board and the route profit table's fare index (one
+ *  call: both read this key), and Tails' plan cards. Keyed under the fare plan's table, which it reads, so Put on the fare
+ *  plan reads it again. Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-one-airline.md) the only fare ladder read:
+ *  the group page no longer asks for every airline's at once (they timed out together). */
 export function useFareLadder(airlineId: number | undefined) {
   return useQuery({
     queryKey: tableKey("fare_plan", "ladder", airlineId),

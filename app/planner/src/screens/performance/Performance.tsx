@@ -4,13 +4,16 @@
 // most important first (Collapse all and Expand all fold them).
 //   - The group (/planner/performance): the scorecards, one per airline (Review's cards, airline_cards(), with each
 //     airline's sparkline from airline_profit(), and the fleet, flights a day and average load against the same day last
-//     week from the daily history, airline_days, with an arrow); tap one to open the airline. Then the fare ladder (since 21
-//     Oct, spec docs/specs/2026-10-21-fare-ladder.md: fare_ladder() for each airline, FareLadder.tsx), the group today (each
+//     week from the daily history, airline_days, with an arrow); tap one to open the airline. Then the fare ladder: since
+//     26 Oct (spec docs/specs/2026-10-26-fare-ladder-one-airline.md) only a link per airline to its page's fare ladder
+//     (/performance/<code>#fare-ladder), so the group page calls fare_ladder() not at all; then the group today (each
 //     airline's flight profit, leases and week-end closing, net; no group totals, manual §5), the growth signals (ready
 //     for another flight, raise fares, fix or reduce, aircraft losing money after their lease: growth_signals()), the
 //     main hubs towards 750 (hub_progress(), with hub readiness, the library's growth.hubReadiness, folded into each line)
 //     and Flights by day (Check's daily load report, renamed; its day in the address, ?day=).
-//   - The airline (/planner/performance/<code>): its scorecard, then Review's page: the profit chart for the last 14
+//   - The airline (/planner/performance/<code>): its scorecard, then (since 26 Oct) its fare ladder (FareLadder.tsx, from
+//     the one fare_ladder() call the route profit table's fare index reads too; open on arrival, #fare-ladder, with Put on
+//     the fare plan), then Review's page: the profit chart for the last 14
 //     intervals with its average and the table of reported days (airline_profit()), Cash, next 14 days (cash_forecast()),
 //     Route profit with its aircraft and fare changes (route_profit(), aircraft_profit(), fare_changes(); since 21 Oct each
 //     route's fare index from fare_ladder() and its 14-day load sparkline from route_days) and the Fare plan
@@ -20,12 +23,12 @@
 //     page, its story since launch (RoutePage.tsx, route_story()).
 // Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) in the style of the new Today, Routes and Systems:
 // the group page's title is the answer (how many airlines are in profit, never a group total), the scorecards tidy,
-// the fare ladder one card per airline, and the other boards rows that open, all closed on arrival; an airline's page
+// the fare ladder one card per airline (on each airline's own page since 26 Oct), and the other boards rows that open, all closed on arrival; an airline's page
 // has its name as the title with four big numbers and the airline switch under it, its boards rows that open with
 // Route profit open on arrival (Aircraft and Fare changes rows of their own).
 // Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
 // planner_save() call each.
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { game, growth, loadReport, setting } from "@rules";
 import { ourAirlines, type OurAirline } from "../../data/airlines";
@@ -59,11 +62,13 @@ import {
   type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
 } from "./model";
 import {
-  refreshFigures, useAircraftProfit, useAirlineDays, useDayLoads, useFareChanges, useFareLadder, useFareLadders, useFarePlan, useForecast, useGrowthSignals, useHandLoads,
+  refreshFigures, useAircraftProfit, useAirlineDays, useDayLoads, useFareChanges, useFareLadder, useFarePlan, useForecast, useGrowthSignals, useHandLoads,
   useHubProgress, useProfits, useReviewCards, useRouteDays, useRouteProfit,
 } from "./reads";
 
-/** The fare ladder's line under its heading. */
+/** The fare ladder's line under its heading (the airline page's board). */
+/** The group page's line under the fare ladder's heading, above its links (since 26 Oct). */
+const LADDER_LINKS_NOTE = "One airline at a time: open an airline for this Saturday's fare moves.";
 const LADDER_NOTE = "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90%; a cabin that doesn't fill at launch may jump under it, judged on revenue a flight (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off";
 /** Each row's one-line note; the board's full words (NOTES) lead it once open. */
 const SHORT: Record<BoardKey | GroupBoardKey, string> = {
@@ -142,9 +147,6 @@ function PerformanceScreen() {
 
   // ---------- the group's boards
   const group = !isAirline ? w : undefined;
-  const laddersQ = useFareLadders(group !== undefined ? cards.map((c) => c.airline_id) : []);
-  const ladders = new Map<number, LadderAnswer>();
-  laddersQ.forEach((q, i) => { const c = cards[i]; if (c && q.data) ladders.set(c.airline_id, q.data); });
   const signalsQ = useGrowthSignals(group);
   const progressQ = useHubProgress(group);
   const routesQ = useAllRoutes(group);
@@ -233,14 +235,25 @@ function PerformanceScreen() {
 
   const selProfit = selId != null ? profitOf.get(selId) : undefined;
   const common = !!(cardsQ.data && airlinesQ.data && rules && profitsQ.every((q) => q.data) && daysQ.data);
+  // the fare ladder's own error shows on its board, for that airline only (since 26 Oct), so the page is ready without it
   const airlineReady = !!(sel && selProfit && forecastQ.data && routeQ.data && !routeQ.isFetching && aircraftQ.data && !aircraftQ.isFetching && changesQ.data && planQ.data
-    && ladderQ.data && routeDaysQ.data);
-  const groupReady = !!(signalsQ.data && progressQ.data && growthParts && (!cardCodes.length || airportsQ.data) && launchesQ.data && dayReady
-    && laddersQ.every((q) => q.data && !q.isFetching));
+    && (ladderQ.data || ladderQ.error) && routeDaysQ.data);
+  const groupReady = !!(signalsQ.data && progressQ.data && growthParts && (!cardCodes.length || airportsQ.data) && launchesQ.data && dayReady);
   const ready = common && (isAirline ? airlineReady : groupReady);
   const loadError = firstError(world, airlinesQ, rulesQ, cardsQ, daysQ, ...profitsQ,
-    ...(isAirline ? [forecastQ, routeQ, aircraftQ, changesQ, planQ, ladderQ, routeDaysQ]
-      : [...laddersQ, signalsQ, progressQ, routesQ, loadsQ, marketsQ, tailsQ, planCardsQ, planLegsQ, launchesQ, airportsQ, dayLoadsQ, handQ]));
+    ...(isAirline ? [forecastQ, routeQ, aircraftQ, changesQ, planQ, routeDaysQ]
+      : [signalsQ, progressQ, routesQ, loadsQ, marketsQ, tailsQ, planCardsQ, planLegsQ, launchesQ, airportsQ, dayLoadsQ, handQ]));
+  // arriving at an airline's fare ladder from the group page's links (#fare-ladder): scroll to it once the page has read
+  // everything, once per address
+  const scrolledTo = useRef("");
+  useEffect(() => {
+    if (!ready || !isAirline || !loc.hash) return;
+    const at = loc.pathname + loc.hash;
+    if (scrolledTo.current === at) return;
+    scrolledTo.current = at;
+    const id = decodeURIComponent(loc.hash.slice(1));
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
+  }, [ready, isAirline, loc.pathname, loc.hash]);
   const board = (k: BoardKey | GroupBoardKey, children: ReactNode, opts: { title?: ReactNode; lead?: ReactNode; figure?: string; aside?: ReactNode } = {}) => (
     <FoldBoard key={k} k={k} title={<span className="fbname">{opts.title ?? k}</span>} note={SHORT[k]} aside={opts.aside} folded={folded.has(k)} onToggle={() => toggle(k)}
       figure={opts.figure}>{(opts.lead ?? NOTES[k]) ? <div className="note fblead">{opts.lead ?? NOTES[k]}</div> : null}{children}</FoldBoard>
@@ -270,6 +283,15 @@ function PerformanceScreen() {
     + (summary.kind === "captured" ? ` · ${summary.soldOut} sold out` : summary.kind === "hand" ? " · by hand" : "");
   const cashAside = forecastQ.data ? cashRowWords(forecastQ.data, cushion(forecastQ.data)) : null;
   const tailsAside = aircraftQ.data ? aircraftRowWords(aircraftQ.data) : null;
+  // Put on the fare plan (the fare ladder, on an airline's page since 26 Oct): one planner_save() call, as before
+  const putOnPlan = (a: OurAirline, ladder: LadderAnswer) => {
+    const ch = w !== undefined ? ladderPlanChanges({ worldId: w, airlineId: a.id, routes: ladder.routes, utcDay, nowMs: Date.now() }) : [];
+    if (!ch.length) { showMessage(`Nothing of ${a.name}'s to put on the fare plan.`); return; }
+    void save(ch).then((res) => { if (res?.status === "saved") showMessage(`${a.name}: ${ch.length} on the fare plan (${ladderLine(ladder.moves)}). Make them in the game; the next capture ticks each off.`); });
+  };
+  const selAirline = selId != null ? airlines.find((a) => a.id === selId) : undefined;
+  // the group page's links: each of our airlines with a page here (a scorecard), in our airlines' order
+  const ladderLinks = airlines.filter((a) => cards.some((c) => c.airline_id === a.id));
 
   return (
     <main className="view finance performance" data-screen="performance" data-performance-ready={ready ? "yes" : "no"} data-performance-view={view}
@@ -303,7 +325,15 @@ function PerformanceScreen() {
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {isAirline && cardsQ.data && !sel ? <div className="empty">There's no airline {code} in the planner. <Link className="link" to="/performance">All airlines</Link></div> : null}
-      {cardsQ.data && rules ? (sel ? rows(
+      {cardsQ.data && rules ? (sel ? (<>
+        <section className="perfsec perfladder" id="fare-ladder" data-board="Fare ladder" data-figure="performance: fare ladder board" aria-labelledby="perf-ladder-h">
+          <h2 className="perfh" id="perf-ladder-h">The fare ladder</h2>
+          <p className="note perflead">{LADDER_NOTE}</p>
+          {ladderQ.error ? <ErrorBox error={ladderQ.error} />
+            : !ladderQ.data || !selAirline ? <div className="dim" data-ladder-loading>Loading {sel.name}'s fare ladder…</div>
+            : <FareLadderBoard airlines={[selAirline]} ladders={new Map([[selAirline.id, ladderQ.data]])} busy={busy} onPlan={putOnPlan} />}
+        </section>
+        {rows(
         <>
           {selProfit ? board("Profit", <ProfitBody p={selProfit} />, {
             title: <>{sel.name}: profit</>, figure: `performance ${sel.name}: profit`, aside: profitRowWords(selProfit) }) : null}
@@ -332,17 +362,25 @@ function PerformanceScreen() {
           {planQ.data ? board("Fare plan", <FarePlanBody airline={sel.name} plan={planQ.data} busy={busy} onDrop={(p) => void save([farePlanDrop(p)])} />,
             { figure: `performance ${sel.name}: Fare plan`, aside: planRowWords(planQ.data.plan.length) }) : null}
         </>
-      ) : !isAirline ? (
+        )}
+      </>) : !isAirline ? (
         <>
           <div className="fgrid" data-figure="performance: scorecards">{cards.map((c) => card(c))}</div>
-          <section className="perfsec" data-board="Fare ladder" data-figure="performance: fare ladder board" aria-labelledby="perf-ladder-h">
+          <section className="perfsec" data-board="Fare ladder" data-figure="performance: fare ladder links" aria-labelledby="perf-ladder-h">
             <h2 className="perfh" id="perf-ladder-h">The fare ladder</h2>
-            <p className="note perflead">{LADDER_NOTE}</p>
-            <FareLadderBoard airlines={airlines} ladders={ladders} busy={busy} onPlan={(a, ladder) => {
-              const ch = w !== undefined ? ladderPlanChanges({ worldId: w, airlineId: a.id, routes: ladder.routes, utcDay, nowMs: Date.now() }) : [];
-              if (!ch.length) { showMessage(`Nothing of ${a.name}'s to put on the fare plan.`); return; }
-              void save(ch).then((res) => { if (res?.status === "saved") showMessage(`${a.name}: ${ch.length} on the fare plan (${ladderLine(ladder.moves)}). Make them in the game; the next capture ticks each off.`); });
-            }} />
+            <p className="note perflead">{LADDER_LINKS_NOTE}</p>
+            <ul className="fllinks" data-ladder-links>
+              {ladderLinks.map((a) => {
+                const c = a.code ?? String(a.id);
+                return (
+                  <li key={a.id}>
+                    <Link className="fllink" to={itemRoute("performance", { airline: c }) + "#fare-ladder"} data-ladder-link={c}>
+                      <AirlineMark color={a.color} />{a.name}<span className="fla" aria-hidden="true">›</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
           {rows(<>
             {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={groupRows} />, { figure: "performance: the group today", aside: groupTodayWords(groupRows) }) : null}
