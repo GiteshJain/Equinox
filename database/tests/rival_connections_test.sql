@@ -122,7 +122,7 @@ begin
     (w, c1, 'YC1', 'YC3', 222, 4, 'research'), (w, c1, 'YC1', 'YC5', 333, 4, 'research');
   insert into public.rotations (world_id, airline_id, route_id, launched_on)
   select w, c1, x.id, date '2030-01-01' from public.routes x where x.world_id = w and x.dest_code = 'YC3';
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code) values (w, c1, 'YC-1', ty, 'active', 'YC1');
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code, acquired) values (w, c1, 'YC-1', ty, 'active', 'YC1', 'new');
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min)
   select w, c1, ro.id, l.n, 100 + l.n, case when l.n = 1 then 'YC1' else 'YC3' end, case when l.n = 1 then 'YC3' else 'YC1' end,
          (select id from public.aircraft where registration = 'YC-1' and world_id = w), '{1,2,3,4,5,6,7}', 400 + 200 * l.n, 60

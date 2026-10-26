@@ -177,8 +177,8 @@ begin
   values (w, al, hub, dest, dist, stars, market, 'research') returning id into r;
   if flown then
     insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, al, r, date '2030-01-01') returning id into rot;
-    insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code)
-    values (w, al, 'YC-' || k, ty, 'active', hub) returning id into ac;
+    insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code, acquired)
+    values (w, al, 'YC-' || k, ty, 'active', hub, 'new') returning id into ac;
     insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min) values
       (w, al, rot, 1, 7000 + k * 2, hub, dest, ac, '{1,2,3,4,5,6,7}', 600, 90),
       (w, al, rot, 2, 7001 + k * 2, dest, hub, ac, '{1,2,3,4,5,6,7}', 800, 90);

@@ -100,9 +100,9 @@ begin
   insert into public.airline_aircraft_types (world_id, airline_id, aircraft_type_id) values (w, a1, ta), (w, a1, tb), (w, a1, tc);
 
   -- One's schedule: ZZ1-ZZ2 daily both ways on T1-001; T1-009 on order with a plan card from ZZ1
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, base_code, status)
-  values (w, a1, 'T1-001', ta, ca, 'ZZ1', 'active') returning id into ac;
-  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on) values (w, a1, 'T1-009', ta, 'on_order', '2030-01-14') returning id into ac9;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, base_code, status, acquired)
+  values (w, a1, 'T1-001', ta, ca, 'ZZ1', 'active', 'new') returning id into ac;
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, acquired) values (w, a1, 'T1-009', ta, 'on_order', '2030-01-14', 'new') returning id into ac9;
   insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source) values (w, a1, 'ZZ1', 'ZZ2', 1000, 'research') returning id into r1;
   insert into public.rotations (world_id, airline_id, route_id) values (w, a1, r1) returning id into rot;
   insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min)

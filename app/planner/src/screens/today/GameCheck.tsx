@@ -51,7 +51,7 @@ export function GameLines({ lines, busy, onFixAll, onOpen }: {
 }
 
 /** The aircraft an added flight goes on: one of the airline's tails, or a registration typed for a new one. */
-export type TailChoice = { registration: string; isNew: boolean };
+export type TailChoice = { registration: string; isNew: boolean; acquired?: "new" | "used" };
 
 export function GameModal({ line, tails, busy, onFix, onFixAll, onAdd, onClose }: {
   line: GameLine;
@@ -72,6 +72,8 @@ export function GameModal({ line, tails, busy, onFix, onFixAll, onAdd, onClose }
   }, []);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
+  // a new tail says how it came (since 26 Oct: an aircraft has no default)
+  const [came, setCame] = useState<Record<string, "" | "new" | "used">>({});
   const c = line.cmp;
   if (!c) return null;
   const cands = line.cands ?? [];
@@ -120,8 +122,12 @@ export function GameModal({ line, tails, busy, onFix, onFixAll, onAdd, onClose }
                     </select>
                     {choice === "__new" ? <input data-impnew={`${line.airline.code ?? ""}|${i}`} placeholder="Registration of the new aircraft" value={typed[k] ?? ""}
                       onChange={(e) => { const v = e.currentTarget.value; setTyped((p) => ({ ...p, [k]: v })); }} /> : null}
-                    <button type="button" className="secondary sm" data-imp={`${line.airline.code ?? ""}|${i}`} disabled={busy || (choice === "__new" && !(typed[k] ?? "").trim())}
-                      onClick={() => onAdd(i, choice === "__new" ? { registration: (typed[k] ?? "").trim().toUpperCase(), isNew: true } : { registration: choice, isNew: false })}>Add to planner</button>
+                    {choice === "__new" ? <select data-impacq={`${line.airline.code ?? ""}|${i}`} value={came[k] ?? ""} title="how it came: new from the factory or used from the market"
+                      onChange={(e) => { const v = e.currentTarget.value as "" | "new" | "used"; setCame((p) => ({ ...p, [k]: v })); }}>
+                      <option value="">New or used</option><option value="new">new</option><option value="used">used</option>
+                    </select> : null}
+                    <button type="button" className="secondary sm" data-imp={`${line.airline.code ?? ""}|${i}`} disabled={busy || (choice === "__new" && (!(typed[k] ?? "").trim() || !came[k]))}
+                      onClick={() => onAdd(i, choice === "__new" ? { registration: (typed[k] ?? "").trim().toUpperCase(), isNew: true, acquired: came[k] || undefined } : { registration: choice, isNew: false })}>Add to planner</button>
                   </div>
                 );
               })}

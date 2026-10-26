@@ -2,7 +2,8 @@
 -- docs/specs/2026-10-22-aircraft-age-check.md §1; manual §3, replacement by age). Run by database/rehearse.sh on the copy
 -- of last night's backup, after the new migrations, inside a transaction that is rolled back. A failed check stops with
 -- an error that says which (codes, registrations and counts only).
---   1. The objects: aircraft.acquired text, not null, default new, only new or used, described; the three used aircraft
+--   1. The objects: aircraft.acquired text, not null, no default (since 26 Oct: a row added without it is refused), only
+--      new or used, described; the three used aircraft
 --      bought on 22 Oct (N023AW, 9M-AAY, G-AAFB; ids 283, 284, 285) marked used, every other aircraft from before the build new; the settings
 --      replace_new_years 3, replace_used_years 10 and replace_warn_days 60 in every world, world rows only, each with its
 --      unit, description, since 22 Oct and reason.
@@ -33,8 +34,15 @@ begin
     into c
     from pg_attribute a left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
    where a.attrelid = 'public.aircraft'::regclass and a.attname = 'acquired' and not a.attisdropped;
-  assert c.type = 'text' and c.attnotnull and c.def = '''new''::text', 'aircraft.acquired isn''t text, not null, default new: ' || coalesce(c.type, 'missing');
-  assert c.descr like 'How we got the aircraft%used%manual §3%', 'aircraft.acquired has no description';
+  assert c.type = 'text' and c.attnotnull and c.def is null, 'aircraft.acquired isn''t text, not null, with no default: ' || coalesce(c.type, 'missing') || ' ' || coalesce(c.def, '');
+  assert c.descr like 'How the aircraft came%used%manual §3%no default%', 'aircraft.acquired has no description';
+  -- a row added without it is refused (since 26 Oct)
+  begin
+    insert into public.aircraft (world_id, airline_id, registration, status)
+    select al.world_id, al.id, 'ZZ-NOACQ', 'on_order' from public.airlines al order by al.id limit 1;
+    raise exception 'an aircraft without acquired was accepted';
+  exception when not_null_violation then null;
+  end;
   assert exists (select 1 from pg_constraint x where x.conrelid = 'public.aircraft'::regclass and x.conname = 'aircraft_acquired_kinds'
                     and x.contype = 'c' and pg_get_constraintdef(x.oid) like '%new%used%'),
     'aircraft.acquired isn''t checked to new or used';
@@ -59,7 +67,7 @@ begin
     'an airline has its own replacement setting';
   assert obj_description('public.fleet_checks(bigint, timestamptz)'::regprocedure, 'pg_proc') like '%replace_at_years%looks used%',
     'fleet_checks()''s description doesn''t give replace and age';
-  raise notice 'aircraft.acquired: text, not null, default new, new or used only, described; % aircraft used (the three of 22 Oct), the rest new; the three settings in each of % world(s), described',
+  raise notice 'aircraft.acquired: text, not null, no default (a row without it refused), new or used only, described; % aircraft used (the three of 22 Oct), the rest new; the three settings in each of % world(s), described',
     (select count(*) from public.aircraft a where a.acquired = 'used'), n_worlds;
 end
 $test$;

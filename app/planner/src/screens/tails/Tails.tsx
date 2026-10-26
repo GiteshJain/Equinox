@@ -211,7 +211,7 @@ export function Tails() {
   };
 
   // ---------- Add a tail (the old t-add)
-  const [form, setForm] = useState({ id: "", type: "", config: "", base: "" });
+  const [form, setForm] = useState({ id: "", type: "", config: "", base: "", acquired: "" });
   const typeList = rules && airline && buyQ.data ? typesFor(rules, buyQ.data, airline.id) : [];
   const cfgList = (type?: string) => (rules && airline && configsQ.data ? configsFor(rules, configsQ.data, airline, type) : []);
   const baseList = rules && airline ? basesOf(rules, airline.id) : [];
@@ -223,7 +223,7 @@ export function Tails() {
     const x = await save(res.changes);
     if (x.status === "saved") {
       const r = form.id.trim();
-      setForm({ id: "", type: "", config: "", base: "" });
+      setForm({ id: "", type: "", config: "", base: "", acquired: "" });
       toTail(r);
     }
   }
@@ -336,6 +336,10 @@ export function Tails() {
             </select>
             <select id="t-base" value={form.base} onChange={(e) => setForm({ ...form, base: e.currentTarget.value })}>
               <option value="">Base</option>{baseList.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select id="t-acq" value={form.acquired} onChange={(e) => setForm({ ...form, acquired: e.currentTarget.value })}
+              title="how it came: new from the factory (replaced at 3 years) or used from the market (at 10)">
+              <option value="">New or used</option><option value="new">new</option><option value="used">used</option>
             </select>
             <button type="button" className="primary" id="t-add" disabled={busy} onClick={() => void addTail()}>Add</button>
           </div>

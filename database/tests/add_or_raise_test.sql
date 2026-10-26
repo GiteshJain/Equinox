@@ -51,8 +51,8 @@ begin
     insert into public.routes (world_id, airline_id, hub_code, dest_code, distance_km, source) values (w, a1, 'ZZ1', d, 1000, 'research') returning id into r_id;
     insert into public.rotations (world_id, airline_id, route_id, launched_on) values (w, a1, r_id, date '2029-12-01') returning id into rot;
     if v_out >= 0 then
-      insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code)
-      values (w, a1, 'ZZ-HR' || k, ty, 'active', 'ZZ1') returning id into ac;
+      insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, base_code, acquired)
+      values (w, a1, 'ZZ-HR' || k, ty, 'active', 'ZZ1', 'new') returning id into ac;
       insert into public.flight_legs (world_id, airline_id, rotation_id, leg_no, flight_no, origin_code, dest_code, aircraft_id, days_utc, dep_utc_min, block_min) values
         (w, a1, rot, 1, 3000 + k * 2, 'ZZ1', d, ac, '{1,2,3,4,5,6,7}', 360, v_out),
         (w, a1, rot, 2, 3001 + k * 2, d, 'ZZ1', ac, '{1,2,3,4,5,6,7}', 720, v_back);

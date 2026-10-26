@@ -470,8 +470,11 @@ describe("filing a station route (spec docs/specs/2026-10-22-station-role.md)", 
 
 describe("adding, changing and removing an aircraft", () => {
   it("adds a tail in service, and refuses a registration in use", () => {
-    expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet)).toEqual({ changes: [
-      { table: "aircraft", op: "insert", values: { world_id: 1, registration: "T-009", airline_id: 1, aircraft_type_id: 1, cabin_config_id: 11, base_code: "HUB", status: "active" } }] });
+    expect(addTailChanges(1, 1, { id: " T-009 ", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB", acquired: "used" }, rules, configs, fleet)).toEqual({ changes: [
+      { table: "aircraft", op: "insert", values: { world_id: 1, registration: "T-009", airline_id: 1, aircraft_type_id: 1, cabin_config_id: 11, base_code: "HUB", status: "active", acquired: "used" } }] });
+    // since 26 Oct a new aircraft must say whether it came new or used
+    expect(addTailChanges(1, 1, { id: "T-009", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB" }, rules, configs, fleet)).toEqual({ error: "Say whether it came new or used." });
+    expect(addTailChanges(1, 1, { id: "T-009", type: "A321 NEO LIGHT", config: "321-LEI", base: "HUB", acquired: "" }, rules, configs, fleet)).toEqual({ error: "Say whether it came new or used." });
     expect(addTailChanges(1, 1, { id: "T-001", type: "", config: "", base: "" }, rules, configs, fleet)).toEqual({ error: "That tail id exists." });
     expect(addTailChanges(1, 1, { id: "  ", type: "", config: "", base: "" }, rules, configs, fleet)).toEqual({ changes: [] });
     const retired = [...fleet, ac(9, "T-009", { status: "retired", retired_on: "2026-10-01", extra: {} })];

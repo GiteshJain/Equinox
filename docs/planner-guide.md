@@ -181,8 +181,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **Game check** (Check's until 20 Oct): **Check against the game** reads each airline's live schedule from the game.
   Each airline's line says how many flights are in each and the differences. **Review** lists them, with **Use the
   game's times** where it's only a time or a day change, **Fix all from the game**, and the game's flights the planner
-  hasn't got, each with an aircraft and **Add to planner** (for a new aircraft, pick **new tail…** and type its
-  registration in the box). After a fix or an add the differences are worked out again from the planner as it is now.
+  hasn't got, each with an aircraft and **Add to planner** (for a new aircraft, pick **new tail…**, type its
+  registration in the box and, since 26 Oct, pick **new** or **used**). After a fix or an add the differences are worked out again from the planner as it is now.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
   tell Claude and it ticks it; add one with its steps, one a line; **×** deletes one after asking you in the page.
 - **Coming up:** the to-dos due in the next 14 days, with **All** and **To-dos** buttons.
@@ -261,7 +261,7 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   pages yet, the planner's estimate of usable ground time against the maintenance time it needs, "≈106%", 100% or more
   is enough, hover or tap for the hours) and
   **Routes**; a red dot marks a short turn or a leg starting elsewhere. **Add a tail** adds one by hand at the end of
-  the list; **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
+  the list (since 26 Oct it asks **New or used**, which sets its replacement age; it won't add one without); **remove** retires one (never deleted, so its history stays) after asking in the page, and not while it
   flies a route. On a phone the list is a column of compact rows that open.
 - **An aircraft** (its own address, such as /planner/tails/N001AW): its type, cabin, legs a week, block hours a day, gap
   target, minimum turn, gaps at the target this week and maintenance (since 23 Oct the game's figure, no ≈, for an

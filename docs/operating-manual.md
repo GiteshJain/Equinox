@@ -266,7 +266,8 @@ Details and open points: `docs/decisions.md`.
   an evening when cash covers it. A line is never left idle to wait for cash. *(since 21 Oct; history: rule-history.md)*
 - **Replacement by age:** an aircraft we ordered new is replaced when it reaches 3 years; one we took from the used
   market, when it reaches 10 years. The numbers are `settings.replace_new_years`, `replace_used_years` and
-  `replace_warn_days`; each aircraft's `aircraft.acquired` says new or used, and Today's Fleet group warns from 60 days
+  `replace_warn_days`; each aircraft's `aircraft.acquired` says new or used (every aircraft logged must say which: no default since
+  26 Oct), and Today's Fleet group warns from 60 days
   before, by the game's age. *(since 22 Oct; history: rule-history.md)*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   *(since 28 Sep; history: rule-history.md)*
