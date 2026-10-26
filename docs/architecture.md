@@ -112,7 +112,8 @@ flowchart LR
      `docs/specs/2026-10-22-aircraft-age-check.md`; manual §3, replacement by age) an aircraft within
      `settings.replace_warn_days` (60) of its replacement age by the game's age (`replace_new_years` 3 for one marked new in
      `aircraft.acquired`, `replace_used_years` 10 for one marked used), or past it, and one marked new that is older in
-     the game than its time with us (the night less its delivery) by more than 0.2 years: Today's Fleet group, Systems'
+     the game than its time with us (the night less its delivery) by more than 0.2 years (an aircraft not delivered yet,
+     on order in the planner or at the factory with no seats and no pilots, is left out of these, since 26 Oct): Today's Fleet group, Systems'
      Fleet board (with each aircraft's age and replacement age) and the Tails pop-up read it;
    - loads go to `game_flights` too. A flight's money and its loads are matched by route and time into one row
      (`private.match_flights()`) as the pages arrive, using the airports' UTC offsets (loaded by #13, pull request 4).

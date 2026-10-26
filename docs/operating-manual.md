@@ -542,7 +542,9 @@ Details and open points: `docs/decisions.md`.
     pilots, seats that don't match the planner's cabin, and an aircraft in the game but not the planner or in service
     in the planner but missing from that night's fleet pages (only when every fleet page of its airline came in ok),
     an aircraft within 60 days of its replacement age or past it (§3, replacement by age), and one marked new that is
-    older in the game than its time with us by more than 0.2 years (looks used). *(since 22 Oct)*
+    older in the game than its time with us by more than 0.2 years (looks used). An aircraft not delivered yet (on order
+    in the planner, or listed by the game at the factory with no seats and no pilots) is left out of these until its
+    first fleet capture after it arrives. *(since 22 Oct; undelivered left out since 26 Oct)*
 - **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
   the airline he's on, setting each position to 10% above the country average. *(since 10 Oct; history:
   rule-history.md)*
