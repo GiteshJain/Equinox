@@ -424,8 +424,10 @@ fold them, and a row's title opens or closes it.
   on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
   return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load
   with their changes in a line under them. Then its boards as rows that open, Route profit open on arrival:
-  - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus that
-    day's order payments), with the 7-day average and the table of reported days. Cash moves on payment days, so read
+  - **[Airline] profit:** profit for each of the last 14 intervals between captures (the change in cash plus what
+    was put back into the fleet between the two captures: since 26 Oct from the bank statement, every deposit,
+    purchase, cabin, refit, pilot training and auction bid, refunds counted against them; the spending log before
+    7 Oct), with the 7-day average and the table of reported days. Cash moves on payment days, so read
     the average.
   - **Cash, next 14 days:** today's captured cash, plus flight profit from the last day's bank statement, minus every
     scheduled lease and week-end closing. An order is **safe** when 0.5M stays in hand at the lowest point afterwards,
