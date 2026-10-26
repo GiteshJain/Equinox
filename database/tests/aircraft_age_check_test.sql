@@ -11,6 +11,8 @@
 --      and replace_at_years; then one new aircraft's latest age set to 2.9 gives replace ("replace at 3 years (now 2.9):
 --      order its replacement"), at 3.1 the past-age words; one marked used at 9.9 gives replace at 10; one new aircraft
 --      delivered a month before the night with age 3.6 gives age ("looks used (3.6 years in the game), marked new").
+--      Not delivered yet (since 26 Oct): on order in the planner, or at the factory in the game (no seats, no pilots): none
+--      of the aircraft's checks.
 --   3. A world of its own, made inside the test, with its fleet night written straight into game_fleet: new at 2.8 isn't
 --      warned and at 2.9 is; new at 3.0 is past its age; used at 9.8 isn't warned, at 9.9 is, at 10.0 is past; a used one
 --      older in the game than its time with us is no age problem; a new one 3.6 in the game a month after delivery is
@@ -97,11 +99,13 @@ begin
 
   -- three aircraft of the night the planner has, marked new and with a delivery date
   select f.aircraft_id, f.registration into n_new, r_new from public.game_fleet f join public.aircraft a on a.id = f.aircraft_id
-   where f.world_id = w and f.capture_day = night and a.acquired = 'new' order by f.registration limit 1;
+   where f.world_id = w and f.capture_day = night and a.acquired = 'new' and a.status = 'active' and coalesce(f.seats_y, 0) > 0 order by f.registration limit 1;
   select f.aircraft_id, f.registration into n_used, r_used from public.game_fleet f join public.aircraft a on a.id = f.aircraft_id
-   where f.world_id = w and f.capture_day = night and f.aircraft_id <> n_new order by a.acquired = 'used' desc, f.registration limit 1;
+   where f.world_id = w and f.capture_day = night and f.aircraft_id <> n_new and a.status = 'active' and coalesce(f.seats_y, 0) > 0
+   order by a.acquired = 'used' desc, f.registration limit 1;
   select f.aircraft_id, f.registration into n_age, r_age from public.game_fleet f join public.aircraft a on a.id = f.aircraft_id
-   where f.world_id = w and f.capture_day = night and f.aircraft_id not in (n_new, n_used) order by f.registration limit 1;
+   where f.world_id = w and f.capture_day = night and f.aircraft_id not in (n_new, n_used) and a.status = 'active' and coalesce(f.seats_y, 0) > 0
+   order by f.registration limit 1;
   if n_age is null then
     raise notice 'on the copy: fewer than three aircraft on the night, so only the hand-made world below';
     return;
@@ -189,6 +193,16 @@ begin
   insert into public.game_fleet (world_id, airline_id, capture_day, aircraft_id, registration, type_name, location_from, age_years,
                                  condition_pct, maintenance_pct, seats_y, seats_c, seats_f, pilots, owned, contract_status, fleet_name, captured_at)
   values (w, aa, night, null, 'GA-099', 'Airbus A321NEO Light', 'ZG1', 9.9, 95, 120, 150, 16, 0, true, false, 'active', 'ZG1', t);
+  -- not delivered yet (since 26 Oct): GA-010 on order in the planner, GA-011 active in the planner but listed by the game
+  -- at the factory with no seats and no pilots; both with an age that would otherwise say looks used, past its age, no
+  -- pilots and seats unlike the planner's: none of it counts
+  insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, cabin_config_id, status, base_code, acquired, delivery_at)
+  values (w, aa, 'GA-010', ty, c1, 'on_order', 'ZG1', 'new', (night + 1)::timestamp at time zone 'UTC'),
+         (w, aa, 'GA-011', ty, c1, 'active', 'ZG1', 'new', (night - 1)::timestamp at time zone 'UTC');
+  insert into public.game_fleet (world_id, airline_id, capture_day, aircraft_id, registration, type_name, location_from, age_years,
+                                 condition_pct, maintenance_pct, seats_y, seats_c, seats_f, pilots, owned, contract_status, fleet_name, captured_at)
+  select w, aa, night, a.id, a.registration, 'Airbus A321NEO Light', 'TLS', 24.1, 100, 100, 0, 0, 0, false, false, 'active', 'Default', t
+    from public.aircraft a where a.world_id = w and a.registration in ('GA-010', 'GA-011');
   insert into t_ag values ('w', to_jsonb(w)), ('aa', to_jsonb(aa)), ('t', to_jsonb(t + interval '1 hour'));
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
 end
@@ -220,6 +234,13 @@ begin
     'GA-007''s row: ' || x::text;
   select a into x from jsonb_array_elements(d -> 'airlines') al, jsonb_array_elements(al -> 'aircraft') a where a ->> 'registration' = 'GA-005';
   assert x ->> 'acquired' = 'used' and (x ->> 'replace_at_years')::numeric = 10 and x -> 'problems' = '["replace"]'::jsonb, 'GA-005''s row: ' || x::text;
+  -- not delivered yet: in the list, marked so, with no problems (since 26 Oct)
+  select a into x from jsonb_array_elements(d -> 'airlines') al, jsonb_array_elements(al -> 'aircraft') a where a ->> 'registration' = 'GA-010';
+  assert (x ->> 'undelivered')::boolean and coalesce(x -> 'problems', '[]'::jsonb) = '[]'::jsonb, 'GA-010 (on order) isn''t left out: ' || coalesce(x::text, 'missing');
+  select a into x from jsonb_array_elements(d -> 'airlines') al, jsonb_array_elements(al -> 'aircraft') a where a ->> 'registration' = 'GA-011';
+  assert (x ->> 'undelivered')::boolean and coalesce(x -> 'problems', '[]'::jsonb) = '[]'::jsonb, 'GA-011 (at the factory) isn''t left out: ' || coalesce(x::text, 'missing');
+  select a into x from jsonb_array_elements(d -> 'airlines') al, jsonb_array_elements(al -> 'aircraft') a where a ->> 'registration' = 'GA-007';
+  assert not (x ->> 'undelivered')::boolean, 'GA-007 (flying) is marked undelivered';
   select a into x from jsonb_array_elements(d -> 'airlines') al, jsonb_array_elements(al -> 'aircraft') a where a ->> 'registration' = 'GA-099';
   assert x -> 'acquired' = 'null'::jsonb and x -> 'replace_at_years' = 'null'::jsonb, 'an aircraft the planner doesn''t have has an age rule: ' || x::text;
   -- the numbers are the settings': warned from 400 days, GA-001 at 2.8 is in the window too
