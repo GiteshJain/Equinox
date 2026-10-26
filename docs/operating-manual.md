@@ -26,9 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **The planner's cabin suggestion by distance** (§5, since 26 Oct): until it's built, the plan card's suggestion and
-  card check still follow the old market rule, so the Scheduling chat sets each new card's cabin by distance and a
-  card flagged as differing is expected. *(since 26 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
