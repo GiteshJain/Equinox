@@ -431,12 +431,14 @@ Details and open points: `docs/decisions.md`.
 
 ## 5. Cabins and fares
 - **The cabin is chosen by distance with each order, recorded on its plan card and fitted in the game when the
-  aircraft arrives:** by the distance of the aircraft's main route (the one taking most of its block time), **Leisure
-  under 3,500 km, Leisure Plus from 3,500 to under 6,500 km, Comfort from 6,500 km** (`settings.cabin_leisure_max_km`,
-  `cabin_leisure_plus_max_km`). Demand differences are met by the fare ladder, not the layout. A layout the variant
-  doesn't have yet is set up in the game (§3). Ryanair flies Standard (economy only) everywhere. We don't refit: the
-  current fleet keeps its cabins. *(since 26 Oct, brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`;
-  history: rule-history.md)*
+  aircraft arrives:** each route is in a distance band, **Leisure under 3,500 km, Leisure Plus from 3,500 to under
+  6,500 km, Comfort from 6,500 km** (`settings.cabin_leisure_max_km`, `cabin_leisure_plus_max_km`), and the band
+  taking more than **65% of the aircraft's block time** (`settings.cabin_route_share_pct`) decides; with no band over
+  65% (an aircraft flying several ranges about evenly), the layout with the most seats (Leisure). Distance alone
+  decides: no market or route choice overrides it. Demand differences are met by the fare ladder, not the layout. A
+  layout the variant doesn't have yet is set up in the game (§3). Ryanair flies Standard (economy only) everywhere. We
+  don't refit: the current fleet keeps its cabins. *(since 26 Oct, brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`;
+  the 65% band test and no route override since the same day; history: rule-history.md)*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. **A new
   flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare.

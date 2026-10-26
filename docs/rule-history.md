@@ -372,6 +372,12 @@ Narrowbody trunks first: *Since 20 Oct (Gitesh).*
 
 #### The cabin is chosen with each order
 **Changed 26 Oct (Gitesh): by distance.** The old rule read: "The cabin is chosen with each order, recorded on its plan card and fitted in the game when the aircraft arrives, among the layouts set up for its variant: if one route takes more than 65% of the aircraft's block time (`settings.cabin_route_share_pct`), the layout that route's market calls for (`markets.layout`: Standard, Leisure, Leisure Plus or Comfort, in Reference → Markets; a route's own cabin choice wins over it); otherwise the layout with the most seats." Why: the layouts differ in the economy seat (comfort against seat count), not in business, so they are a question of flight length like service codes; demand is met by the fare ladder. Our flights 12–25 Oct: Leisure earned as much or more a flight than Leisure Plus in every distance band both flew, and on the A321XLR Leisure Plus outsold Comfort; long haul beyond about 7,000 km is untested, so Comfort stays there. Gitesh set the bands at 3,500 and 6,500 km (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`).
+**Changed the same day (Gitesh, Building chat): the 65% test by distance band, and no route override.** The wording
+it replaced: "by the distance of the aircraft's main route (the one taking most of its block time), Leisure under
+3,500 km, Leisure Plus from 3,500 to under 6,500 km, Comfort from 6,500 km". Why: Gitesh, "65% rule still applies for
+aircraft which fly multiple ranges": an aircraft flying several ranges about evenly takes the most seats, as before;
+the block time is grouped by band, so many short routes together still make a Leisure aircraft. A route's own cabin
+choice (`routes.cabin_choice`), which used to win, no longer overrides distance (Gitesh).
 
 "The most seats" for them is Leisure (clarified 21 Oct, Gitesh).
 
@@ -566,6 +572,7 @@ Kept so they don't come back. Newest first.
 | Ended | Old rule | Replaced by |
 |---|---|---|
 | 26 Oct | The cabin by market: the layout of the market of a route taking over 65% of block time (`cabin_route_share_pct`, `markets.layout`), else the layout with the most seats | The cabin by distance of the main route: Leisure under 3,500 km, Leisure Plus to 6,500 km, Comfort beyond (§5). Why: Gitesh, the layouts trade seat comfort for seats, a question of flight length; demand is met by fares (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`) |
+| 26 Oct | The cabin by distance of the main route | The distance band taking over 65% of block time decides, else the most seats; no route override (§5). Why: Gitesh, the 65% rule still applies to aircraft flying several ranges |
 | 21 Oct | Every Saturday, first the world scan: `gscan.py`, run from the Saturday chat (since 14 Oct, #22) | The world scan runs with the evening capture when one is due (`scan_every_days`, 1: every evening); `gscan.py` by hand only when the Systems board shows it old (§7). Why: Gitesh, competition analysis and the evening order proposal need fresh rivals (brief `docs/briefs/2026-10-21-competition-analysis.md`) |
 | 21 Oct | The evening proposal shows every airline that can order at once | One airline at a time, each decided, ordered and logged before the next (§3). Why: Gitesh |
 | 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |
