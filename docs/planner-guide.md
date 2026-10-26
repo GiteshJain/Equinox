@@ -620,10 +620,9 @@ when you leave it, as one change.
   cash forecast prices an order with it. **An airline's own order cabin**, below the table, is for an airline whose orders
   come with another layout (Ryanair's Standard cabins): pick the airline and type and **Add** (it starts as the type's),
   then pick its layout; **remove** gives it the type's again. Each pick saves as one change.
-- **Markets** (Market defaults until 21 Oct): each market's **layout**, the cabin it calls for (Standard, Leisure,
-  Leisure Plus or Comfort; manual §5): a plan card takes it where one route of the market flies more than 65% of the
-  aircraft's block time, unless the route has its own choice. Pick it from the box; it saves as one change. A market
-  keeps nothing else since 21 Oct: its default aircraft, cabin and fares went (a new frequency launches at the airline's
+- **Markets** (Market defaults until 21 Oct): each airline's markets, with **remove**. Since 26 Oct a market's layout
+  isn't shown: the cabin goes by distance (manual §5), and the layout stays in the database as history. A market kept
+  nothing else since 21 Oct: its default aircraft, cabin and fares went (a new frequency launches at the airline's
   launch fare).
 - **Service profiles:** what a new frequency starts with.
 - **Removed routes:** **restore** (or **restore all**) any route removed from Routes.

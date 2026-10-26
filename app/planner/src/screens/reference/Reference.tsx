@@ -3,8 +3,8 @@
 // open one in the address, /planner/reference/<section>), with the same words and look:
 //   hubs, focus cities, stations (since 22 Oct) and banks; constants; aircraft (with each type's order cabin and, since 15 Oct, an airline's own
 //   where it differs: spec docs/specs/2026-10-15-last-leftovers.md §1); configs; markets (market defaults until 21 Oct:
-//   since then each market keeps only its layout, which is edited here; spec docs/specs/2026-10-21-cabins-new-rule.md
-//   §2); service profiles; removed routes with restore and restore all; night bans; game schedules; time zones; storage;
+//   since then each market keeps only its layout, spec docs/specs/2026-10-21-cabins-new-rule.md §2; since 26 Oct the
+//   layout isn't shown or edited: the cabin goes by distance, manual §5); service profiles; removed routes with restore and restore all; night bans; game schedules; time zones; storage;
 //   data.
 // Every edit is one planner_save() call writing exactly the rows the old planner's adapter wrote for it (model.ts says
 // which); a constant is its setting's row (or the departures cap's world rule), and the section says the manual changes
@@ -35,8 +35,8 @@ import { moveWords, offsetChanges, parseOffset, type OffsetMove } from "../route
 import { useGameHost } from "../tails/reads";
 import { download, flightsCsv, tablesJson } from "./csv";
 import {
-  CONSTANTS, LAYOUTS, SECTIONS, addConfig, addOwnOrder, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange,
-  constantChange, constantValue, keyOrder, layoutsOf, marketChange, mctChange, mctHours, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, removeRow,
+  CONSTANTS, SECTIONS, addConfig, addOwnOrder, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange,
+  constantChange, constantValue, keyOrder, layoutsOf, mctChange, mctHours, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, removeRow,
   removedWords, restoreChange, scheduleLink, sectionOf, serviceChange, typeChange, worldRowChange, type BaseField, type BaseRow, type ConfigField,
   type ConfigRow, type SectionSlug, type ServiceField, type TypeField,
 } from "./model";
@@ -55,7 +55,7 @@ const SHORT: Record<SectionSlug, string> = {
   "removed": "Routes taken off in Routes, ready to restore",
   "aircraft": "Each type's seats, speed, turn and order cabin",
   "configs": "Each cabin layout and its seats",
-  "markets": "The layout each market calls for",
+  "markets": "Each airline's markets",
   "services": "What a new frequency starts with",
   "constants": "The rule numbers the planner works with",
   "schedules": "Each airline's public schedule page in the game",
@@ -324,7 +324,7 @@ export function Reference() {
               </div>
               <button type="button" className="secondary" data-addrow="configs" disabled={busy || w === undefined} onClick={() => w !== undefined && void save([addConfig(w)])}>Add config</button>
             </>),
-    "markets": section("markets", "Markets", "the layout each market calls for: a plan card takes it where one route of the market flies more than 65% of the aircraft's block time, unless the route has its own choice (manual §5)",
+    "markets": section("markets", "Markets", "each airline's markets (since 26 Oct the cabin goes by distance, manual §5: a market's layout no longer counts, so it isn't shown)",
             <>
               <div className="chips" data-chips="markets">
                 <span className="chiplbl">Airline</span>
@@ -334,11 +334,10 @@ export function Reference() {
               <div className="tblwrap">
                 <table className="tbl edit" data-figure="reference: markets">
                   <tbody>
-                    <tr><th>Airline</th><th>Market</th><th>Layout</th><th></th></tr>
+                    <tr><th>Airline</th><th>Market</th><th></th></tr>
                     {markets.filter((x) => !mkAl || nameOf(x.m.airline_id) === mkAl).map(({ m, key }) => (
                       <tr key={m.id}>
                         <td>{nameOf(m.airline_id)}</td><td>{m.name}</td>
-                        <td><select data-mk={key + ".layout"} value={m.layout} disabled={busy} onChange={(e) => saveOne(marketChange(m, e.currentTarget.value))}><Opt list={LAYOUTS} value={m.layout} /></select></td>
                         <td><button type="button" className="link" data-rmmk={key} disabled={busy} onClick={() => void remove("markets", m, `${nameOf(m.airline_id)}'s ${m.name}`)}>remove</button></td>
                       </tr>
                     ))}

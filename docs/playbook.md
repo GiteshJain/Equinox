@@ -126,7 +126,7 @@ button.
 | **Competition** | Who we're up against and where to open next (since 21 Oct). The scans' dates and the group line on top; for each airline its **Market share** by market (our share, its arrow, the top rivals as a bar), **Threats** (rivals who started on or grew on our pairs), **Openings** ranked (stars, rivals, distance; variant and hubs first) and **Rival profiles** | Each evening before an order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and each airline's skip list | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
-| **Reference** | The rule numbers (Constants), aircraft types and cabins, order cabins, markets and their layouts, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together (manual §1, rule numbers have one source) |
+| **Reference** | The rule numbers (Constants), aircraft types and cabins, order cabins, markets, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together (manual §1, rule numbers have one source) |
 | **Systems** | The plumbing. The **Systems** board (is everything working?), then the capture's details, and **Manual entry** if a capture fails | When Today's capture line or needs attention points there |
 
 Check, Review and Hubs went on 20 Oct: their boards are on Today, Performance and Systems, and their old addresses
