@@ -606,6 +606,12 @@ export interface LadderRoute {
   departures: number;
   sold_out: number;
   sold_out_share: number | null;
+  /** Since 26 Oct: each direction's average load in the cabin over the same 7 days, out from the hub and back to it, %,
+   *  with their flights; null where it had none. */
+  load_out?: number | string | null;
+  load_back?: number | string | null;
+  departures_out?: number | null;
+  departures_back?: number | null;
   average_fare: number | null;
   /** The fare index's baseline (since 21 Oct): the route's fare on 21 Oct 2026, when every route was at its launch
    *  level, or its first captured fare for a route launched later; and the day it's from. */
@@ -730,6 +736,14 @@ export function moveWords(r: Pick<LadderRoute, "move" | "new_level"> & Partial<P
   return { text: "hold", kind: "hold" };
 }
 /** The sold-out share: "14/14 · 100%", or "no flights" with none captured. */
+/** Each direction's average load over the 7 days, "96% · 88%" (out from the hub · back); "—" for a direction with no
+ *  flights, "" when the ladder doesn't give them (before 26 Oct). */
+export function loadsWords(r: Pick<LadderRoute, "load_out" | "load_back" | "departures_out" | "departures_back">): string {
+  if (r.load_out === undefined && r.load_back === undefined) return "";
+  const one = (v: number | string | null | undefined, n: number | null | undefined) =>
+    v == null || v === "" || !n ? "—" : `${Math.round(Number(v))}%`;
+  return `${one(r.load_out, r.departures_out ?? 1)} · ${one(r.load_back, r.departures_back ?? 1)}`;
+}
 export const soldWords = (r: Pick<LadderRoute, "departures" | "sold_out" | "sold_out_share">): string =>
   r.departures ? `${r.sold_out}/${r.departures} · ${Math.round(r.sold_out_share ?? (r.sold_out / r.departures) * 100)}%` : "no flights";
 /** A move already on the fare plan this Saturday, and whether the captures show it yet. */

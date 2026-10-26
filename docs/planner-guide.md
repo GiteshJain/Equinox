@@ -363,7 +363,7 @@ fold them, and a row's title opens or closes it.
   - **Put on the fare plan:** one tap writes a fare plan row for each level that changes, and for a hold that follows a
     step down (so the hold has a record). The button then says **On the fare plan**, with how many the captures show
     in the game; the next capture ticks each off (the Fare plan board on the airline's page);
-  - the routes table: route, cabin, level with its steps above launch, the sold-out share, the move (a step down in
+  - the routes table: route, cabin, level with its steps above launch, the sold-out share, since 26 Oct the average load each way ("96% · 88%", out from the hub · back), the move (a step down in
     amber) and its reason. **Sort** by the moves (first), route, level or sold-out share. It shows its first 10 rows,
     with **show all N**, as the growth lists do. A level the captured fares don't match shows its fare index beside it
     ("· index 100 · set back" when it's set back).

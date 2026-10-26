@@ -3926,8 +3926,11 @@ begin
     select lf.route_id, 'business', lf.o, lf.game_date, lf.dep_at, lf.bus_pct, lf.bus_fare, lf.bus_pax,
            coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') from lf where lf.bus_pct is not null and coalesce(lf.bus_seats, 0) > 0),
   -- the 7 days before the moment, by scheduled departure (the departure date where it isn't known)
-  st as (select lc.route_id, lc.cabin, count(*)::int as n, (count(*) filter (where lc.pct >= 100))::int as sold, avg(lc.fare) as fare
-           from lc
+  -- and (since 26 Oct) each direction's average load in the cabin over the same flights: out from the hub, and back
+  st as (select lc.route_id, lc.cabin, count(*)::int as n, (count(*) filter (where lc.pct >= 100))::int as sold, avg(lc.fare) as fare,
+                avg(lc.pct) filter (where lc.o = r.hub_code) as load_out, avg(lc.pct) filter (where lc.o <> r.hub_code) as load_back,
+                (count(*) filter (where lc.o = r.hub_code))::int as n_out, (count(*) filter (where lc.o <> r.hub_code))::int as n_back
+           from lc join ro r on r.id = lc.route_id
           where coalesce(lc.dep_at, lc.game_date::timestamp at time zone 'UTC') >= p_as_of - interval '7 days'
             and coalesce(lc.dep_at, lc.game_date::timestamp at time zone 'UTC') < p_as_of
           group by lc.route_id, lc.cabin),
@@ -4055,6 +4058,7 @@ begin
            join ro on ro.id = x.route_id),
   lv as (select rc.route_id, rc.cabin, ro.hub_code as hub, ro.dest_code as dest,
                 coalesce(st.n, 0) as n, coalesce(st.sold, 0) as sold, st.fare as fare_week,
+                st.load_out, st.load_back, coalesce(st.n_out, 0) as n_out, coalesce(st.n_back, 0) as n_back,
                 lt.fare as latest_fare, lt.day as latest_on, lt.ratios, bs.fare as baseline_fare, bs.day as baseline_on,
                 coalesce(pv.level_pct, v_launch) as level, pv.id is not null as recorded,
                 wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
@@ -4220,6 +4224,8 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object(
            'route_id', o.route_id, 'hub', o.hub, 'dest', o.dest, 'cabin', o.cabin,
            'departures', o.n, 'sold_out', o.sold, 'sold_out_share', round(o.share, 1), 'average_fare', round(o.fare_week, 2),
+           -- since 26 Oct: each direction's average load in the cabin over the 7 days (out from the hub, and back), with its flights
+           'load_out', round(o.load_out, 1), 'load_back', round(o.load_back, 1), 'departures_out', o.n_out, 'departures_back', o.n_back,
            'baseline_fare', round(o.baseline_fare, 2), 'baseline_on', o.baseline_on, 'latest_fare', round(o.latest_fare, 2), 'latest_on', o.latest_on,
            'fare_index', o.fare_index, 'index_matches', o.matches,
            'level', trim_scale(o.level), 'recorded', o.recorded, 'steps', trim_scale(round((o.level - v_launch) / v_step, 1)),

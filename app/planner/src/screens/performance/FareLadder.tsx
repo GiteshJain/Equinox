@@ -22,7 +22,7 @@ import { niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
 import {
-  LADDER_SORTS, changesWords, decideWords, ladderRows, levelWords, listCut, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
+  LADDER_SORTS, changesWords, decideWords, ladderRows, levelWords, listCut, loadsWords, moveWords, offLevelWords, planButton, plannedWords, soldWords, splitActions,
   underLaunchLine,
   type LadderAction, type LadderAnswer, type LadderSort,
 } from "./model";
@@ -97,7 +97,7 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
                 <div className="tscroll">
                   <table className="tbl gtbl fltbl" data-figure={`performance ${airline.name}: fare ladder routes`}>
                     <tbody>
-                      <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th>Move</th><th>Why</th></tr>
+                      <tr><th>Route</th><th>Cabin</th><th>Level</th><th className="num">Sold out</th><th className="num" title="average load over the 7 days, out from the hub · back">Load out · back</th><th>Move</th><th>Why</th></tr>
                       {cut.shown.map((r) => {
                         const mv = moveWords(r), p = plannedWords(r, (d) => niceDate(d)), dk = decideWords(r);
                         return (
@@ -109,6 +109,7 @@ function Airline({ airline, ladder, busy, onPlan }: { airline: OurAirline; ladde
                               ? <> <span className="dim" data-ladder-index={`${r.hub}-${r.dest} ${r.cabin}`}
                                   title="each flight of the latest captured day against the route's fare on 21 Oct (or its first, launched later), times the launch level: a flight more than a point off the level">· index {Math.round(r.fare_index)}{r.fix ? " · set back" : ""}</span></> : null}</td>
                             <td className="num">{soldWords(r)}</td>
+                            <td className="num" data-ladder-loads={`${r.hub}-${r.dest} ${r.cabin}`}>{loadsWords(r)}</td>
                             <td><span className={mv.kind === "down" ? "pill warn sm" : mv.kind === "up" ? "flup" : "dim"}>{mv.text}</span>{p ? <> <span className="dim">· {p}</span></> : null}</td>
                             <td className="dim">{dk ? <><span className="pill warn sm" data-ladder-decide={`${r.hub}-${r.dest} ${r.cabin}`}>{dk}</span> </> : null}{r.reason}</td>
                           </tr>

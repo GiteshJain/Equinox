@@ -17,7 +17,7 @@ import {
   BOARDS, BOARDS_FOLDED, GROUP_BOARDS, foldsFor, foldsOnArrival, SCATTER_CHAR_W, aircraftRowWords, cashRowWords, changesRowWords, groupTodayWords, growthWords, hubsWords, loadAxisFrom,
   planRowWords, profitAnswer, profitRowWords, routeRowWords, scatterLayout,
   CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, changesWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay,
-  fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords,
+  fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, loadsWords, markCounts, moveWords, nextOrderWords,
   decideWords, offLevelWords, offersFarePlan, underLaunchLine, planButton, planWords, plannedWords, safeWords, sg, shownRoutes, soldWords, sparkBars, sparkWords, splitActions, stepWords, weekOnWeek,
   type Card, type DayRow,
   type LadderAction, type LadderRoute, type PlanRow, type ProfitDay, type RouteDayRow, type RouteRow,
@@ -75,6 +75,10 @@ describe("an airline's card, as the old Review words it", () => {
     expect(nextOrderWords(null)).toEqual({ text: "needs a capture", kind: "dim" });
     expect(nextOrderWords({ when: "later", type: "E195-E2", safe_from: "2026-10-16T05:52:00.000Z" })).toEqual({ text: "E195 safe from Fri, Oct 16", kind: "plain" });
     expect(nextOrderWords({ when: "not within 14 days" })).toEqual({ text: "not in the next 14 days", kind: "dim" });
+    // since 26 Oct: the fare ladder's loads each way (out from the hub · back)
+    expect(loadsWords({ load_out: 96.4, load_back: "87.6", departures_out: 7, departures_back: 7 })).toBe("96% · 88%");
+    expect(loadsWords({ load_out: 100, load_back: null, departures_out: 3, departures_back: 0 })).toBe("100% · —");
+    expect(loadsWords({})).toBe("");
     // since 26 Oct: how much it can spend now, whether or not that buys an aircraft yet
     expect(nextOrderWords({ when: "now", types: ["A321 NEO", "A321 NEO LIGHT"], up_to: 2.731 })).toEqual({ text: "up to 2.73M", kind: "pill" });
     expect(nextOrderWords({ when: "later", type: "E195-E2", safe_from: "2026-10-16T05:52:00.000Z", up_to: "1.34" })).toEqual({ text: "up to 1.34M", kind: "plain" });
