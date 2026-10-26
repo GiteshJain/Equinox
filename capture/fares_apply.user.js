@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. apply fare plan
 // @namespace    equinox
-// @version      1.1
+// @version      1.2
 // @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, capture_fare_actions), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
@@ -106,10 +106,11 @@
   }
 
   const classOf = cell => ({ y: "economy", economy: "economy", c: "business", business: "business", f: "first", first: "first" })[String(cell).trim().toLowerCase()] || null;
-  // an answer's From or To cell is the airport: its code ("LHR"), its name with the code ("London Heathrow (LHR)"), or
-  // the name the fares form gives it
+  // an answer's From or To cell is the airport: its code ("LHR"), its name with the code ("London Heathrow (LHR)"; the
+  // game's real answer puts the code in its own link inside the brackets, which reads "New York ( JFK )"), or the name
+  // the fares form gives it
   function isAirport(cell, code, names) {
-    const c = String(cell).trim(), m = c.match(/\(([A-Z0-9]{3})\)\s*$/);
+    const c = String(cell).trim(), m = c.match(/\(\s*([A-Z0-9]{3})\s*\)\s*$/);
     if (c === code || (m && m[1] === code)) return true;
     const name = names && names[code];
     return !!name && c.toLowerCase() === name.toLowerCase();

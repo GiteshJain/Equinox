@@ -1,0 +1,1212 @@
+<!-- The game's real answer to one change, saved by Gitesh on 26 Oct 2026 from a background request (fetch) on the fares
+     page, as the fares userscript sends it: From JFK to BCN, +7% of the default price, economy and business, for Pan Am.
+     Each airport cell is the city's link with the code's own link inside brackets: "New York (<a>JFK</a>)". Scrubbed: the
+     player's name, profile id, cash balance and the page's settings script. -->
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+
+
+
+ 
+
+
+<!DOCTYPE html
+PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="de" data-theme="light" data-generation="gen2">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AirlineSim - the online airline management simulation game for pros.">
+    <meta name="author" content="simulogics GmbH">
+
+    <link rel="shortcut icon" href="../../favicon.ico"/>
+    <link rel="search" type="application/opensearchdescription+xml" title="AirlineSim Search"
+          href="../../app/openSearchDescription.xml"/>
+
+    <title>AirlineSim</title>
+
+    <link rel="stylesheet" type="text/css" href="../../assets/css/jquery-ui.theme.min.css"/>
+
+    <script type="text/javascript" src="../../assets/js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/jquery-checkboxes.js"></script>
+    <script type="text/javascript" src="../../assets/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/select2/select2.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/d3.min.js"></script>
+
+    
+    
+        
+            <script type="module" id="frontend-settings">
+                window.frontendSettings = {};
+
+            </script>
+        
+        
+        
+    
+
+    
+        
+        
+            <script type="module" src="/dist/assets/index-CGLtHgZv.js" id="main-js"></script>
+        
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/vendor-CKRTiAqP.css" id=""/>
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/modulepreload-polyfill-93wMxvwx.css" id=""/>
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/index-DqEWMDjf.css" id=""/>
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/theme-light-DuZEH0wS.css" id="theme-css"/>
+        
+    
+
+
+    
+</head>
+<body>
+<div class="root">
+
+    
+
+    
+
+    
+    <nav class="bootstrap navbar navbar-default as-navbar-meta" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse"
+                        data-target="#as-navbar-meta-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="fa fa-cog"></span>
+                </button>
+                <a class="navbar-brand" href="../portal/index">AirlineSim</a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="as-navbar-meta-collapse">
+                
+                <form class="navbar-form navbar-left" role="search" method="get" action="../../app/info/search">
+                    <div class="form-group">
+                        <div class="input-group">
+                            <input type="text" name="query" class="form-control" placeholder="Search">
+                            <span class="input-group-btn">
+                            <button type="submit" class="btn btn-default">
+                                <span class="fa fa-search"></span>
+                            </button>
+                        </span>
+                        </div>
+                    </div>
+                </form>
+                <ul class="nav navbar-nav navbar-right">
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                           title="Database">
+                            <span class="fa fa-database fa-lg"></span>
+                            <span class="as-icon-label">Database</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="dropdown-header">Directories</li>
+                            <li><a href="../info/countries">Countries</a></li>
+                            <li><a href="../../app/info/enterprises">Enterprises</a></li>
+                            <li><a href="../../app/info/alliances">Alliances</a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Other Resources</li>
+                            <li><a href="../info/fleets">Fleet Lists</a></li>
+                            <li><a href="../info/stats">Statistics</a></li>
+                            <li><a href="../../app/info/ors">Online Reservation System</a></li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                           title="Help">
+                            <span class="fa fa-lightbulb-o fa-lg"></span>
+                            <span class="as-icon-label">Help</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a href="https://handbook.airlinesim.aero/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Handbook
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../app/portal/support" title="Support">
+                                    <span class="fa fa-question"></span>
+                                    <span class="as-icon-label">Support</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../app/info/about">
+                                    <span class="fa fa-info"></span>
+                                    <span class="as-icon-label">About AirlineSim</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../app/info/status">
+                                    <span class="fa fa-heartbeat"></span>
+                                    <span class="as-icon-label">Simulation Status</span>
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Game Rules</li>
+                            <li><a href="../../app/info/rules/general">General Rules</a>
+                            </li>
+                            <li><a href="../../app/info/rules/naming">Naming Rules</a>
+                            </li>
+                            <li><a href="../../app/info/rules/routes">Forbidden Routes</a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Legal</li>
+                            <li>
+                                <a href="https://simulogics.games/terms/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Terms & Conditions
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/privacy/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Privacy Statement
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/impressum/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Impressum
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                           title="Community">
+                            <span class="fa fa-users"></span>
+                            <span class="as-icon-label">Community</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a href="https://www.airlinesim.aero/blog/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Blog
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://forums.airlinesim.aero" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Forums
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://discord.gg/5K2Axks" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Discord Chat
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Follow AirlineSim</li>
+                            <li>
+                                <a href="https://facebook.com/airlinesim" target="_blank">
+                                    <span class="fa fa-fw fa-facebook"></span>
+                                    Facebook
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://twitter.com/airlinesim" target="_blank">
+                                    <span class="fa fa-fw fa-twitter"></span>
+                                    Twitter
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://youtube.com/airlinesimofficial" target="_blank">
+                                    <span class="fa fa-fw fa-youtube"></span>
+                                    YouTube
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">More simulogics games</li>
+                            <li>
+                                <a href="https://prosperousuniverse.com/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Prosperous Universe
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                        <li>
+                            <a href="../../app/user/mail" title="Private Messages">
+                                <span class="fa fa-envelope fa-lg"></span>
+                                <span class="as-icon-label">Private Messages</span>
+                                
+                            </a>
+                        </li>
+                    
+                    
+                    
+    <li class="dropdown">
+        <a href="../../app/user/settings" class="dropdown-toggle" data-toggle="dropdown"
+           title="Settings">
+            <span class="fa fa-user fa-lg"></span>
+            <span class="as-icon-label">player</span>
+            <span class="caret"></span>
+        </a>
+        <ul class="dropdown-menu" role="menu">
+            <li class="dropdown-header">Account</li>
+            <li><a href="https://airlinesim.aero/account">Settings/Game Worlds</a></li>
+            
+                <li>
+                    <a class="logout" href="../user/logout">
+                        
+                            
+                        Log out player
+                    </a>
+                </li>
+            
+            
+                <li class="divider"></li>
+                <li class="dropdown-header">Game World</li>
+                <li><a href="../info/user?id=0">Your Profile</a></li>
+                <li><a href="../user/holdings">Your Holdings</a></li>
+                <li><a href="../../app/user/settings">Settings</a></li>
+                <li><a href="../../app/user/delete">Deactivation</a></li>
+            
+        </ul>
+    </li>
+
+                    
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container-fluid -->
+    </nav>
+
+    <nav class="bootstrap navbar navbar-default as-navbar-main" role="navigation">
+        
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse"
+                            data-target="#as-navbar-main-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                </div>
+
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse" id="as-navbar-main-collapse">
+                    <ul class="nav navbar-nav">
+                        <li class="dropdown">
+                            <a class="name" data-toggle="dropdown" href="../../app/enterprise/dashboard">
+                                    Pan American World Airways
+                                <span class="caret"></span>
+                            </a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li><a href="../../app/enterprise/dashboard">Overview</a></li>
+                                <li><a href="../../app/enterprise/settings">Settings</a></li>
+                                <li><a href="../../app/enterprise/delete">Liquidation/Reset</a></li>
+                                
+                                    <li class="divider"></li>
+                                    <li class="dropdown-header">Switch Enterprise</li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=207">
+                                                China Eastern Air Holding Company
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=208">
+                                                China Eastern Airlines
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=113">
+                                                Kingfisher Airlines
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=105">
+                                                Kingfisher Airlines Limited
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=210">
+                                                Malaysia Airlines
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=209">
+                                                Malaysia Aviation Group
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=107">
+                                                Pan American Airways Corporation
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=114">
+                                                Pan American World Airways
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=112">
+                                                Ryanair
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=106">
+                                                Ryanair Holdings PLC
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=203">
+                                                Virgin Atlantic
+                                            </a>
+                                        </li>
+                                    
+                                        <li>
+                                            <a href="../../app/enterprise/dashboard?select=202">
+                                                Virgin Group
+                                            </a>
+                                        </li>
+                                    
+                                
+                                <li class="divider"></li>
+                                <li class="dropdown-header">New Enterprise</li>
+                                <li><a href="../../app/enterprise/new">Create new Enterprise</a></li>
+                            </ul>
+                        </li>
+                        <li>
+                            <a class="balance" href="../../app/finance/accounting">
+                                
+                            <span class="good">
+                                0
+                            </span>
+                                
+                                
+                                AS$
+                            </a>
+                        </li>
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                Commercial
+                                <span class="caret"></span>
+                            </a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li class="dropdown-header">Network Planning</li>
+                                <li><a href="../../app/com/scheduling">Scheduling</a></li>
+                                <li><a href="../../app/com/numbers">Flight Numbers</a>
+                                </li>
+                                <li><a href="../../app/com/routes/evaluation">Route Evaluation</a></li>
+                                <li><a href="../../app/com/markets">Market Analysis</a></li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Sales & Distribution</li>
+                                <li><a href="../enterprise/flightsPrices">Pricing</a></li>
+                                <li><a href="../../app/com/inventory">Inventory</a>
+                                </li>
+                                <li><a href="../../app/com/loads">Load Monitoring</a></li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Product & Customer Service</li>
+                                <li><a href="../../app/seating">Cabin Configurations</a></li>
+                                <li><a href="../enterprise/serviceProfiles">Service Profiles</a></li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Business Development</li>
+                                <li><a href="../enterprise/interlining">Interlining</a></li>
+                                
+                                    <li><a href="../../app/alliance">Alliance</a></li>
+                                    <li><a href="../../app/alliance/admin">Alliance Administration</a></li>
+                                
+                                
+                            </ul>
+                        </li>
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                Operations
+                                <span class="caret"></span>
+                            </a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li class="dropdown-header">Flight Operations</li>
+                                <li><a href="../../app/fleets">Fleet Management</a></li>
+                                <li><a href="../../app/aircraft/evaluation">Aircraft Type Evaluation</a></li>
+                                <li><a href="../enterprise/maintenance">Maintenance</a></li>
+                                <li><a href="../enterprise/operationsControl">Operations Control</a></li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Ground Operations</li>
+                                <li><a href="../../app/ops/stations">Stations</a>
+                                </li>
+                                <li><a href="../enterprise/buildings">Facilities</a></li>
+                            </ul>
+                        </li>
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                                Management
+                                <span class="caret"></span>
+                            </a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li class="dropdown-header">Procurement</li>
+                                <li><a href="../../app/aircraft/manufacturers">Aircraft Manufacturers</a></li>
+                                <li><a href="../../app/aircraft/market">Aircraft Market</a></li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Human Resources</li>
+                                <li><a href="../enterprise/staffOverview">Personnel Management</a>
+                                </li>
+                                <li><a href="../enterprise/staffPilots">Crew Management</a>
+                                </li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Investments</li>
+                                <li><a href="../holding/stockexchanges">Markets & Exchanges</a></li>
+                                <li><a href="../../app/enterprise/shares">Subsidiaries & Portfolio</a></li>
+                                <li><a href="../holding/orders">Order List</a>
+                                </li>
+                                <li class="divider"></li>
+                                <li class="dropdown-header">Finance</li>
+                                <li><a href="../../app/finance/capital">Corporate Finance</a></li>
+                                <li><a href="../../app/finance/accounting">Accounting</a></li>
+                                <li><a href="../enterprise/schedule">Cash Flow</a></li>
+                                <li><a href="../../app/finance/assets">Asset Management</a></li>
+                                <li><a href="../../app/finance/leasing">Leasing</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <!-- /.navbar-collapse -->
+            </div>
+            <!-- /.container-fluid -->
+        
+    </nav>
+    
+
+    <div class="bootstrap container-fluid">
+
+        
+
+        
+
+        
+
+        
+
+
+
+
+ 
+
+<h1 id="title">
+	Ticket price adjustment
+</h1>
+
+
+
+
+
+
+ 
+
+
+
+    <div class="row">
+        <div class="col-md-3">
+            <form method="get" action="flightsPrices" class="as-panel">
+                <input type="hidden" name="adjust" value="true"/>
+
+                <div class="form-group">
+                    <label for="fromCode">From</label>
+                    <select name="fromCode" id="fromCode" size="1" class="form-control">
+                        <option value="">anywhere</option>
+                        
+                            <option value="c:75">Canada</option>
+                            
+                                <option value="a:1701">-- Toronto Pearson (YYZ)</option>
+                            
+                        
+                            <option value="c:47">France</option>
+                            
+                                <option value="a:878">-- Paris Charles de Gaulle (CDG)</option>
+                            
+                        
+                            <option value="c:35">Germany</option>
+                            
+                                <option value="a:712">-- Frankfurt International (FRA)</option>
+                            
+                        
+                            <option value="c:65">Ireland</option>
+                            
+                                <option value="a:1317">-- Dublin (DUB)</option>
+                            
+                        
+                            <option value="c:106">Mexico</option>
+                            
+                                <option value="a:2067">-- Cancun (CUN)</option>
+                            
+                                <option value="a:2098">-- Mexico City (MEX)</option>
+                            
+                        
+                            <option value="c:118">Netherlands</option>
+                            
+                                <option value="a:2245">-- Amsterdam Schiphol (AMS)</option>
+                            
+                        
+                            <option value="c:154">Spain</option>
+                            
+                                <option value="a:2797">-- Barcelona El Prat (BCN)</option>
+                            
+                        
+                            <option value="c:54">United Kingdom</option>
+                            
+                                <option value="a:1053">-- London Gatwick (LGW)</option>
+                            
+                                <option value="a:1054">-- London Heathrow (LHR)</option>
+                            
+                        
+                            <option value="c:182">USA</option>
+                            
+                                <option value="a:3330">-- Atlanta (ATL)</option>
+                            
+                                <option value="a:3659">-- Austin Bergstrom (AUS)</option>
+                            
+                                <option value="a:3448">-- Boston Logan International (BOS)</option>
+                            
+                                <option value="a:3690">-- Burlington, VT, US (BTV)</option>
+                            
+                                <option value="a:3638">-- Charleston, SC, US (CHS)</option>
+                            
+                                <option value="a:3562">-- Charlotte Douglas (CLT)</option>
+                            
+                                <option value="a:3360">-- Chicago O'Hare (ORD)</option>
+                            
+                                <option value="a:3665">-- Dallas Fort Worth International (DFW)</option>
+                            
+                                <option value="a:3292">-- Denver (DEN)</option>
+                            
+                                <option value="a:3456">-- Detroit Metropolitan (DTW)</option>
+                            
+                                <option value="a:3671">-- Houston Intercontinental (IAH)</option>
+                            
+                                <option value="a:3373">-- Indianapolis (IND)</option>
+                            
+                                <option value="a:3495">-- Kansas City (MCI)</option>
+                            
+                                <option value="a:3525">-- Las Vegas Harry Reid (LAS)</option>
+                            
+                                <option value="a:3395">-- Los Angeles (LAX)</option>
+                            
+                                <option value="a:3315">-- Miami International (MIA)</option>
+                            
+                                <option value="a:3479">-- Minneapolis/St. Paul (MSP)</option>
+                            
+                                <option value="a:3655">-- Nashville (BNA)</option>
+                            
+                                <option value="a:3436">-- New Orleans (MSY)</option>
+                            
+                                <option value="a:3551">-- New York John F. Kennedy (JFK)</option>
+                            
+                                <option value="a:3552">-- New York La Guardia (LGA)</option>
+                            
+                                <option value="a:3532">-- New York Newark (EWR)</option>
+                            
+                                <option value="a:3319">-- Orlando International (MCO)</option>
+                            
+                                <option value="a:3622">-- Pittsburgh (PIT)</option>
+                            
+                                <option value="a:3408">-- San Francisco (SFO)</option>
+                            
+                                <option value="a:3335">-- Savannah (SAV)</option>
+                            
+                                <option value="a:3723">-- Seattle/Tacoma (SEA)</option>
+                            
+                                <option value="a:3498">-- St. Louis (STL)</option>
+                            
+                                <option value="a:3558">-- Syracuse (SYR)</option>
+                            
+                                <option value="a:3729">-- Washington Dulles (IAD)</option>
+                            
+                                <option value="a:3730">-- Washington Reagan National (DCA)</option>
+                            
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toCode">To</label>
+                    <select name="toCode" id="toCode" size="1" class="form-control">
+                        <option value="">anywhere</option>
+                        
+                            <option value="c:75">Canada</option>
+                            
+                                <option value="a:1701">-- Toronto Pearson (YYZ)</option>
+                            
+                        
+                            <option value="c:47">France</option>
+                            
+                                <option value="a:878">-- Paris Charles de Gaulle (CDG)</option>
+                            
+                        
+                            <option value="c:35">Germany</option>
+                            
+                                <option value="a:712">-- Frankfurt International (FRA)</option>
+                            
+                        
+                            <option value="c:65">Ireland</option>
+                            
+                                <option value="a:1317">-- Dublin (DUB)</option>
+                            
+                        
+                            <option value="c:106">Mexico</option>
+                            
+                                <option value="a:2067">-- Cancun (CUN)</option>
+                            
+                                <option value="a:2098">-- Mexico City (MEX)</option>
+                            
+                        
+                            <option value="c:118">Netherlands</option>
+                            
+                                <option value="a:2245">-- Amsterdam Schiphol (AMS)</option>
+                            
+                        
+                            <option value="c:154">Spain</option>
+                            
+                                <option value="a:2797">-- Barcelona El Prat (BCN)</option>
+                            
+                        
+                            <option value="c:54">United Kingdom</option>
+                            
+                                <option value="a:1053">-- London Gatwick (LGW)</option>
+                            
+                                <option value="a:1054">-- London Heathrow (LHR)</option>
+                            
+                        
+                            <option value="c:182">USA</option>
+                            
+                                <option value="a:3330">-- Atlanta (ATL)</option>
+                            
+                                <option value="a:3659">-- Austin Bergstrom (AUS)</option>
+                            
+                                <option value="a:3448">-- Boston Logan International (BOS)</option>
+                            
+                                <option value="a:3690">-- Burlington, VT, US (BTV)</option>
+                            
+                                <option value="a:3638">-- Charleston, SC, US (CHS)</option>
+                            
+                                <option value="a:3562">-- Charlotte Douglas (CLT)</option>
+                            
+                                <option value="a:3360">-- Chicago O'Hare (ORD)</option>
+                            
+                                <option value="a:3665">-- Dallas Fort Worth International (DFW)</option>
+                            
+                                <option value="a:3292">-- Denver (DEN)</option>
+                            
+                                <option value="a:3456">-- Detroit Metropolitan (DTW)</option>
+                            
+                                <option value="a:3671">-- Houston Intercontinental (IAH)</option>
+                            
+                                <option value="a:3373">-- Indianapolis (IND)</option>
+                            
+                                <option value="a:3495">-- Kansas City (MCI)</option>
+                            
+                                <option value="a:3525">-- Las Vegas Harry Reid (LAS)</option>
+                            
+                                <option value="a:3395">-- Los Angeles (LAX)</option>
+                            
+                                <option value="a:3315">-- Miami International (MIA)</option>
+                            
+                                <option value="a:3479">-- Minneapolis/St. Paul (MSP)</option>
+                            
+                                <option value="a:3655">-- Nashville (BNA)</option>
+                            
+                                <option value="a:3436">-- New Orleans (MSY)</option>
+                            
+                                <option value="a:3551">-- New York John F. Kennedy (JFK)</option>
+                            
+                                <option value="a:3552">-- New York La Guardia (LGA)</option>
+                            
+                                <option value="a:3532">-- New York Newark (EWR)</option>
+                            
+                                <option value="a:3319">-- Orlando International (MCO)</option>
+                            
+                                <option value="a:3622">-- Pittsburgh (PIT)</option>
+                            
+                                <option value="a:3408">-- San Francisco (SFO)</option>
+                            
+                                <option value="a:3335">-- Savannah (SAV)</option>
+                            
+                                <option value="a:3723">-- Seattle/Tacoma (SEA)</option>
+                            
+                                <option value="a:3498">-- St. Louis (STL)</option>
+                            
+                                <option value="a:3558">-- Syracuse (SYR)</option>
+                            
+                                <option value="a:3729">-- Washington Dulles (IAD)</option>
+                            
+                                <option value="a:3730">-- Washington Reagan National (DCA)</option>
+                            
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="serviceProfileId">Service Profile</label>
+                    <select name="serviceProfileId" id="serviceProfileId" size="1" class="form-control">
+                        <option value="0">any</option>
+                        
+                            <option value="294">S1</option>
+                        
+                            <option value="295">S2</option>
+                        
+                            <option value="296">S3</option>
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="factor">Price adjustment</label>
+                    <div class="row">
+                        <div class="col-xs-2">
+                            <select name="factor" id="factor" size="1" class="form-control">
+                                <option value="1">+</option>
+                                <option value="-1">-</option>
+                            </select>
+                        </div>
+                        <div class="col-xs-10">
+                            <div class="input-group">
+                                <select name="percent" size="1" class="form-control text-right">
+                                    
+                                        <option>0</option>
+                                    
+                                        <option>1</option>
+                                    
+                                        <option>2</option>
+                                    
+                                        <option>3</option>
+                                    
+                                        <option>4</option>
+                                    
+                                        <option>5</option>
+                                    
+                                        <option>6</option>
+                                    
+                                        <option>7</option>
+                                    
+                                        <option>8</option>
+                                    
+                                        <option>9</option>
+                                    
+                                        <option>10</option>
+                                    
+                                        <option>11</option>
+                                    
+                                        <option>12</option>
+                                    
+                                        <option>13</option>
+                                    
+                                        <option>14</option>
+                                    
+                                        <option>15</option>
+                                    
+                                        <option>16</option>
+                                    
+                                        <option>17</option>
+                                    
+                                        <option>18</option>
+                                    
+                                        <option>19</option>
+                                    
+                                        <option>20</option>
+                                    
+                                        <option>21</option>
+                                    
+                                        <option>22</option>
+                                    
+                                        <option>23</option>
+                                    
+                                        <option>24</option>
+                                    
+                                        <option>25</option>
+                                    
+                                        <option>26</option>
+                                    
+                                        <option>27</option>
+                                    
+                                        <option>28</option>
+                                    
+                                        <option>29</option>
+                                    
+                                        <option>30</option>
+                                    
+                                        <option>31</option>
+                                    
+                                        <option>32</option>
+                                    
+                                        <option>33</option>
+                                    
+                                        <option>34</option>
+                                    
+                                        <option>35</option>
+                                    
+                                        <option>36</option>
+                                    
+                                        <option>37</option>
+                                    
+                                        <option>38</option>
+                                    
+                                        <option>39</option>
+                                    
+                                        <option>40</option>
+                                    
+                                        <option>41</option>
+                                    
+                                        <option>42</option>
+                                    
+                                        <option>43</option>
+                                    
+                                        <option>44</option>
+                                    
+                                        <option>45</option>
+                                    
+                                        <option>46</option>
+                                    
+                                        <option>47</option>
+                                    
+                                        <option>48</option>
+                                    
+                                        <option>49</option>
+                                    
+                                        <option>50</option>
+                                    
+                                        <option>51</option>
+                                    
+                                        <option>52</option>
+                                    
+                                        <option>53</option>
+                                    
+                                        <option>54</option>
+                                    
+                                        <option>55</option>
+                                    
+                                        <option>56</option>
+                                    
+                                        <option>57</option>
+                                    
+                                        <option>58</option>
+                                    
+                                        <option>59</option>
+                                    
+                                        <option>60</option>
+                                    
+                                        <option>61</option>
+                                    
+                                        <option>62</option>
+                                    
+                                        <option>63</option>
+                                    
+                                        <option>64</option>
+                                    
+                                        <option>65</option>
+                                    
+                                        <option>66</option>
+                                    
+                                        <option>67</option>
+                                    
+                                        <option>68</option>
+                                    
+                                        <option>69</option>
+                                    
+                                        <option>70</option>
+                                    
+                                        <option>71</option>
+                                    
+                                        <option>72</option>
+                                    
+                                        <option>73</option>
+                                    
+                                        <option>74</option>
+                                    
+                                        <option>75</option>
+                                    
+                                        <option>76</option>
+                                    
+                                        <option>77</option>
+                                    
+                                        <option>78</option>
+                                    
+                                        <option>79</option>
+                                    
+                                        <option>80</option>
+                                    
+                                        <option>81</option>
+                                    
+                                        <option>82</option>
+                                    
+                                        <option>83</option>
+                                    
+                                        <option>84</option>
+                                    
+                                        <option>85</option>
+                                    
+                                        <option>86</option>
+                                    
+                                        <option>87</option>
+                                    
+                                        <option>88</option>
+                                    
+                                        <option>89</option>
+                                    
+                                        <option>90</option>
+                                    
+                                        <option>91</option>
+                                    
+                                        <option>92</option>
+                                    
+                                        <option>93</option>
+                                    
+                                        <option>94</option>
+                                    
+                                        <option>95</option>
+                                    
+                                        <option>96</option>
+                                    
+                                        <option>97</option>
+                                    
+                                        <option>98</option>
+                                    
+                                        <option>99</option>
+                                    
+                                        <option>100</option>
+                                    
+                                </select>
+                                <span class="input-group-addon">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="base">Calculation baseline</label>
+                    <select name="base" id="base" size="1" class="form-control">
+                        <option value="standard">default price</option>
+                        <option value="current">current price</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <div>
+                        <strong>Class</strong>
+                    </div>
+                    <label>
+                        <input type="checkbox" name="economy" value="true"/>
+                        Economy
+                    </label>
+                    <label>
+                        <input type="checkbox" name="business" value="true"/>
+                        Business
+                    </label>
+                    <label>
+                        <input type="checkbox" name="first" value="true"/>
+                        First
+                    </label>
+                    <label>
+                        <input type="checkbox" name="cargo" value="true"/>
+                        Cargo
+                    </label>
+                </div>
+
+                <div class="form-group submit">
+                    <input type="submit" value="Change price..." class="btn btn-default"/>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-9">
+            
+                <h3>Changed Airport Pairs</h3>
+                <div class="as-panel">
+                    <div class="as-table-well">
+                        <table class="table table-bordered table-striped table-hover">
+                            <thead>
+                            <tr>
+                                <th scope="col">From</th>
+                                <th scope="col">To</th>
+                                <th scope="col">Service Class</th>
+                                <th scope="col">Old Price</th>
+                                <th scope="col">New Price</th>
+                                <th scope="col">Information</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            
+                                <tr>
+                                    <td>
+                                        <a href="../../app/ops/stations/JFK">New York</a>
+                                        (<a href="../../app/info/airports/3551">JFK</a>)
+                                    </td>
+                                    <td>
+                                        <a href="../../app/ops/stations/BCN">Barcelona</a>
+                                        (<a href="../../app/info/airports/2797">BCN</a>)
+                                    </td>
+                                    <td class="text-center">
+                                        C
+                                    </td>
+                                    <td class="number">
+                                        1,186 AS$
+                                    </td>
+                                    <td class="number">
+                                        1,186 AS$
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="../../app/com/inventory/JFKBCN">Inventory</a>,
+                                        <a href="../../app/com/scheduling/JFKBCN">Scheduling</a>
+                                    </td>
+                                </tr>
+                            
+                                <tr>
+                                    <td>
+                                        <a href="../../app/ops/stations/JFK">New York</a>
+                                        (<a href="../../app/info/airports/3551">JFK</a>)
+                                    </td>
+                                    <td>
+                                        <a href="../../app/ops/stations/BCN">Barcelona</a>
+                                        (<a href="../../app/info/airports/2797">BCN</a>)
+                                    </td>
+                                    <td class="text-center">
+                                        Y
+                                    </td>
+                                    <td class="number">
+                                        474 AS$
+                                    </td>
+                                    <td class="number">
+                                        474 AS$
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="../../app/com/inventory/JFKBCN">Inventory</a>,
+                                        <a href="../../app/com/scheduling/JFKBCN">Scheduling</a>
+                                    </td>
+                                </tr>
+                            
+                            
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            
+        </div>
+    </div>
+
+
+
+    </div>
+
+    
+    <nav id="footer" class="bootstrap navbar navbar-default navbar-fixed-bottom as-navbar-bottom"
+         role="navigation"></nav>
+    
+</div>
+
+<div class="bootstrap modal fade" id="help-modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h1 class="modal-title">Modal title</h1>
+            </div>
+            <div class="modal-body">
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<script>
+    $(document).ready(function() {
+        var $modal = $('#help-modal');
+
+        var updateModal = function(data) {
+            var html = $.parseHTML(data);
+            var $article = $(html);
+            var title = $article.find("#help-article-title").text();
+            var body = $article.find("#help-article-body").html();
+            $modal.find(".modal-title").text(title);
+            $modal.find(".modal-body").html(body);
+        }
+
+        // Clicks on help links outside of modal.
+        $("body").on("click", ".help-link", function(e) {
+            e.preventDefault();
+            $.get($(this).attr("href"), function (data) {
+                updateModal(data);
+                $modal.modal();
+            });
+        });
+
+        // Clicks on help links within modal.
+        $modal.on("click", "a", function(e) {
+            e.preventDefault();
+            $.get($(this).attr("href"), updateModal);
+        });
+
+        // Unread news.
+        $("#unread-news-hide").click(function(e) {
+            e.preventDefault();
+            $.get("../user/news-read", function() {
+                $('#unread-news').hide();
+            });
+        });
+        $("#unread-news-view").click(function(e) {
+            $.get("../user/news-read", function() {
+                window.location = "https://www.airlinesim.aero/blog/";
+            });
+        });
+    });
+</script>
+
+<script type="application/javascript">
+    function stc(e){var n="_sl_";function t(t,o){return!(!o||function(e){return document.cookie.split(";").some(function(t){return 0===t.trim().indexOf(n+e+"=")})}(t))&&(function(t,o){var i=new Date;i.setTime(Date.now()+62208e6),document.cookie=n+t+"="+encodeURIComponent(o)+"; expires="+i.toUTCString()+"; path=/; domain="+e+"; SameSite=Lax"}(t,o),!0)}t("lp",document.location)&&t("ref",document.referrer)}
+</script>
+<script type="application/javascript">
+    stc('airlinesim.aero');
+</script>
+
+</body>
+</html>
