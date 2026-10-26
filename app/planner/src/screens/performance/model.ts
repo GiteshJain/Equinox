@@ -13,7 +13,7 @@ import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
 
 // ---------- the database's answers
-export interface NextOrder { when: "needs" | "now" | "later" | "not within 14 days"; missing?: string; types?: string[]; type?: string; safe_from?: string }
+export interface NextOrder { when: "needs" | "now" | "later" | "not within 14 days"; missing?: string; types?: string[]; type?: string; safe_from?: string; up_to?: number | string | null }
 export interface Card {
   airline_id: number;
   code: string | null;
@@ -175,9 +175,12 @@ export interface CardWords {
   next: { text: string; kind: "dim" | "pill" | "plain" };
 }
 
-/** The card's "Next order": what's missing, what can be ordered now (the two dearest), or the first safe day. */
+/** The card's "Next order": what's missing, else (since 26 Oct, Gitesh) how much it can spend on an order now, the cash
+ *  forecast's up_to: a pill when that buys an aircraft, plain when it doesn't yet. Before up_to: the types, or the first
+ *  safe day. */
 export function nextOrderWords(n: NextOrder | null | undefined): CardWords["next"] {
   if (!n || n.when === "needs") return { text: `needs ${n?.missing || "a capture"}`, kind: "dim" };
+  if (n.up_to != null && Number.isFinite(Number(n.up_to))) return { text: `up to ${Number(n.up_to).toFixed(2)}M`, kind: n.when === "now" ? "pill" : "plain" };
   if (n.when === "now") return { text: `can order ${(n.types ?? []).slice(0, 2).map(shortType).join(" or ")}`, kind: "pill" };
   if (n.when === "later" && n.type && n.safe_from) return { text: `${shortType(n.type)} safe from ${fcDay(n.safe_from)}`, kind: "plain" };
   return { text: "not in the next 14 days", kind: "dim" };
