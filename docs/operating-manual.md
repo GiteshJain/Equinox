@@ -302,7 +302,8 @@ Details and open points: `docs/decisions.md`.
     the planner's Performance screen shows it, and Today's Orders the types safe now.
 - **The order queues:** each airline has one delivery line per family, and the aircraft on a line arrive one after
   another: an A320-family aircraft (A320neo, A321neo and XLR share the line) every 21 hours, an E195 every 15 hours, an
-  A350 every 30 hours. Order planning keeps the queues in mind (Today → Orders, each airline's delivery lines): what
+  A350 every 30 hours (the game's pace, for planning by eye: no calculation uses these three, since the queues read
+  each order's own arrival time from the game). Order planning keeps the queues in mind (Today → Orders, each airline's delivery lines): what
   each airline still has to arrive on each line, when each line runs dry, and when a new order's aircraft would arrive.
   An empty line is a line standing idle. A new order joins the end of its line: on an idle line its first aircraft
   arrives one interval after the order, on a busy line one interval after the last aircraft already queued. *(since

@@ -278,6 +278,13 @@ The forecast: the planner's Performance screen shows it, and Today's Orders the 
 #### The order queues
 A new order joins the end of its line: on an idle line its first aircraft arrives one interval after the order (the 18 Oct orders: A321neos 21 hours later, E195s 15), on a busy line one interval after the last aircraft already queued (EI-ABU, 21 hours after EI-ABT). *Since 17 Oct · why (Gitesh): plan future orders with the order queue in mind.*
 
+#### The delivery intervals are information only
+*Since 26 Oct (Gitesh, Building chat, option B of two: A store them as `world_rules` game rows, B mark them as
+information).* The document audit found §1's one-source rule covering §3's 21, 15 and 30 hours, with no row holding them
+and nothing reading them. Words added after "an A350 every 30 hours": "(the game's pace, for planning by eye: no
+calculation uses these three, since the queues read each order's own arrival time from the game)" · why: rows read by
+nothing could drift from the game unseen.
+
 #### Market share first, profit second
 Capturing the demand and holding the departures leaves new competition little room to move in. *Since 18 Oct · why (Gitesh): market share first; if we capture the demand and block more slots, new competition can't move in.*
 
