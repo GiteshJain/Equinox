@@ -2,11 +2,11 @@
 // (/performance/PA/JFK-ORD; the airline's page stays at /performance/<code>): a route's story since launch, so a fare move,
 // a new frequency or a rival can be judged by what happened after it. Phone first, by the rules for every screen (spec
 // docs/specs/2026-10-20-today-performance-systems.md). Top to bottom: the header (route and city, stars, airline, distance,
-// market, the cabin, launched, departures a week each way, the types, each cabin's fare level and this Saturday's move;
+// market, the layout its distance calls for (the planning library's, since 26 Oct), launched, departures a week each way, the types, each cabin's fare level and this Saturday's move;
 // "‹ <airline>" and "Schedule in Routes"); the last 7 days against the 7 before; then its boards, open on arrival: Since
 // launch (one chart), Profit an aircraft hour by week, Events, Rivals on the pair and Connections. Every figure is
 // route_story()'s (the database's) but the connections, which are the planning library's on the schedule the planner
-// reads (the plan card's rule). Its logic is model.ts's ("the route page"). Read only: nothing here saves.
+// reads (the plan card's rule), and the layout, the library's card.cabinRange on the route's distance (manual §5). Its logic is model.ts's ("the route page"). Read only: nothing here saves.
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ourAirlines } from "../../data/airlines";
@@ -20,7 +20,7 @@ import { itemRoute } from "../screens";
 import { BarChart, ShareLine, StoryChart } from "./Charts";
 import {
   ROUTE_BOARDS, STORY_MIN_DAYS, eventWords, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyHeader,
-  storyWeekOnWeek, weekBars, type RouteBoardKey, type RouteStory,
+  storyLayout, storyWeekOnWeek, weekBars, type RouteBoardKey, type RouteStory,
 } from "./model";
 import { useRouteAt, useRouteStory } from "./reads";
 
@@ -31,7 +31,7 @@ const dayOf = (iso: string): string => niceDate(String(iso).slice(0, 10));
 const NOTES: Record<RouteBoardKey, string> = {
   "Since launch": "economy and business loads by UTC day, both directions together, from the daily history · the fare level (right) from the fare plan's ladder rows · a dot under a day is an event: point at a day for its figures and events",
   "Profit an aircraft hour": "each week's profit ÷ the block hours flown, the 7 days to the latest captured day and the 12 weeks before · the airline's average isn't drawn: route profit covers only the last few days",
-  "Events": "newest first: the schedule's saves (frequencies, aircraft, times), the fare plan, the cabin, and rivals starting or growing on the pair between world scans",
+  "Events": "newest first: the schedule's saves (frequencies, aircraft, times), the fare plan, and rivals starting or growing on the pair between world scans",
   "Rivals on the pair": "every other airline flying it either way in the latest world scan, passenger flights only, against the week-before scan, with its one-stop connecting departures beside (never added) · our share at each scan since launch",
   "Connections": "the city pairs its flights connect to at each end, from the minimum connection time up to the longest wait, across all our airlines' schedules (the plan card's rule)",
 };
@@ -70,15 +70,18 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
       {!noAirline && noRoute ? (
         <div className="empty">{airline?.name ?? code} has no route {routeKey}. {back}</div>
       ) : null}
-      {s && airline ? <RouteStoryView s={{ ...s, route: { ...s.route, airline: { ...s.route.airline, name: airline.name } } }} code={code} back={back} conns={conns} board={board}
+      {s && airline && rules ? <RouteStoryView s={{ ...s, route: { ...s.route, airline: { ...s.route.airline, name: airline.name } } }} code={code} back={back} conns={conns} board={board}
+        layout={storyLayout(rules, s.route)}
         onCollapse={() => setFolded(new Set(ROUTE_BOARDS))} onExpand={() => setFolded(new Set())} /> : null}
     </main>
   );
 }
 
 /** The route page below its reads: the header, the week's comparison and the boards (exported for its render test). */
-export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpand }: {
+export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse, onExpand }: {
   s: RouteStory;
+  /** The layout its distance calls for, in words (storyLayout). */
+  layout: string;
   code: string;
   back: ReactNode;
   conns: ReturnType<typeof routeConnections> | null;
@@ -86,7 +89,7 @@ export function RouteStoryView({ s, code, back, conns, board, onCollapse, onExpa
   onCollapse: () => void;
   onExpand: () => void;
 }) {
-  const h = storyHeader(s, (d) => niceDate(d));
+  const h = storyHeader(s, (d) => niceDate(d), layout);
   const wk = storyWeekOnWeek(s);
   const chart = storyChartLayout(s, (d) => niceDate(d));
   const bars = weekBars(s, (d) => niceDate(d));

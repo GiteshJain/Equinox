@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { FoldBoard } from "../../ui/FoldBoard";
 import {
-  barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyWeekOnWeek, weekBars,
+  barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyLayout, storyWeekOnWeek, weekBars,
   type RouteStory, type StoryDay, type StoryEvent, type StoryWeek,
 } from "./model";
 import { RouteStoryView } from "./RoutePage";
@@ -31,7 +31,7 @@ function story(x: Partial<RouteStory> = {}): RouteStory {
     route_id: 7, as_of: "2026-10-21T12:00:00.000Z", latest_day: "2026-10-21",
     route: {
       id: 7, hub: "JFK", dest: "ORD", pair: "JFK-ORD", city: "Chicago", stars: 5, distance_km: 1185, removed: false,
-      market: { id: 1, name: "US domestic", layout: "Leisure" }, cabin: { layout: "Leisure Plus", own: true, market_layout: "Leisure" },
+      market: { id: 1, name: "US domestic", layout: "Leisure" },
       airline: { id: 1, code: "PA", name: "Pan Am" }, launched: "2026-10-01", launched_from: "rotation", launched_days: 20,
     },
     now: {
@@ -68,10 +68,10 @@ function story(x: Partial<RouteStory> = {}): RouteStory {
 
 describe("the route page's header", () => {
   it("words the route, its cabin, launch, departures each way, the types and each cabin's fare level with its move", () => {
-    const h = storyHeader(story(), nice);
+    const h = storyHeader(story(), nice, "layout Leisure (under 3,500 km)");
     expect(h.title).toBe("JFK–ORD");
     expect(h.city).toBe("Chicago");
-    expect(h.line).toBe("Pan Am · 1,185 km · US domestic · layout Leisure Plus (the route's own)");
+    expect(h.line).toBe("Pan Am · 1,185 km · US domestic · layout Leisure (under 3,500 km)");
     expect(h.launched).toBe("launched 2026-10-01 · 20 days");
     expect(h.departures).toBe("14 a week each way");
     expect(h.types).toBe("A320neo ×2");
@@ -79,14 +79,40 @@ describe("the route page's header", () => {
   });
   it("says so for a route not flown yet, first flights from the history, and departures that differ each way", () => {
     const s = story();
-    expect(storyHeader({ ...s, route: { ...s.route, launched: null, launched_from: null, launched_days: null }, now: { ...s.now, departures: { out: 0, back: 0 }, types: [], fares: [] } }, nice))
+    expect(storyHeader({ ...s, route: { ...s.route, launched: null, launched_from: null, launched_days: null }, now: { ...s.now, departures: { out: 0, back: 0 }, types: [], fares: [] } }, nice, "layout Leisure (under 3,500 km)"))
       .toMatchObject({ launched: "not flown yet", departures: "no flights in the schedule", types: "", fares: [] });
-    expect(storyHeader({ ...s, route: { ...s.route, launched_from: "history", launched_days: 1 }, now: { ...s.now, departures: { out: 7, back: 3 } } }, nice))
+    expect(storyHeader({ ...s, route: { ...s.route, launched_from: "history", launched_days: 1 }, now: { ...s.now, departures: { out: 7, back: 3 } } }, nice, "layout Leisure (under 3,500 km)"))
       .toMatchObject({ launched: "first flights 2026-10-01 · 1 day", departures: "7 a week out, 3 back" });
     expect(storyFareWords({ cabin: "economy", level: 95, move: "down", new_level: 90, planned: true, applied: true })).toBe("economy 95% · down to 90% · seen in the game");
     // since 26 Oct a row per direction, its airports that way round first
     expect(storyFareWords({ from: "ORD", to: "JFK", cabin: "economy", level: 100, move: "down", new_level: 95, planned: false, applied: false }))
       .toBe("ORD → JFK economy 100% · down to 95%");
+  });
+});
+
+describe("the layout its distance calls for (manual §5, since 26 Oct)", () => {
+  // the library's small world (lib/rules/cases/_base.json): Leisure under 3,500 km, Leisure Plus to under 6,500, Comfort
+  // beyond; Test Air (1) flies HUB–AAA 700 km, HUB–BBB 5,600 and HUB–CCC 6,720 (its own choice Leisure Plus, market Comfort)
+  const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
+  const rules = buildRules(base);
+  const at = (hub: string, dest: string, km: number | null, id = 1) => ({ hub, dest, distance_km: km, airline: { id, code: "TA", name: "Test Air" } });
+  it("is the planning library's range for the route's distance, as Routes' header words it", () => {
+    expect(storyLayout(rules, at("HUB", "AAA", 700))).toBe("layout Leisure (under 3,500 km)");
+    expect(storyLayout(rules, at("HUB", "BBB", 5600))).toBe("layout Leisure Plus (3,500–6,500 km)");
+    expect(storyLayout(rules, at("HUB", "CCC", 6720))).toBe("layout Comfort (6,500 km and over)");
+    // the edges: 3,500 km is Leisure Plus, 6,500 Comfort
+    expect(storyLayout(rules, at("HUB", "AAA", 3500))).toBe("layout Leisure Plus (3,500–6,500 km)");
+    expect(storyLayout(rules, at("HUB", "AAA", 6500))).toBe("layout Comfort (6,500 km and over)");
+  });
+  it("takes the library's distance (the route's, else the great circle) when the story has none", () => {
+    expect(storyLayout(rules, at("HUB", "CCC", null))).toBe("layout Comfort (6,500 km and over)");
+    expect(storyLayout(rules, at("ZZZ", "YYY", null))).toBe("no layout (no distance)");
+  });
+  it("follows the airline's own settings, and a low-cost airline flies Standard whatever the distance", () => {
+    const own = buildRules({ ...base, airlines: base.airlines.map((a) => (a.id === 1 ? { ...a, settings: { cabin_leisure_max_km: 6000 } } : a)) });
+    expect(storyLayout(own, at("HUB", "BBB", 5600))).toBe("layout Leisure (under 6,000 km)");
+    const lcc = buildRules({ ...base, airlines: base.airlines.map((a) => (a.id === 1 ? { ...a, is_lcc: true } : a)) });
+    expect(storyLayout(lcc, at("HUB", "CCC", 6720))).toBe("layout Standard");
   });
 });
 
@@ -292,7 +318,7 @@ describe("the connections at both ends", () => {
 
 describe("the page", () => {
   const render = (s: RouteStory) => renderToString(createElement(MemoryRouter, null, createElement(RouteStoryView, {
-    s, code: "PA", back: null,
+    s, code: "PA", back: null, layout: "layout Leisure (under 3,500 km)",
     conns: [{ at: "JFK", other: "ORD", pairs: 12, top: [{ city: "LHR", to: 7, from: 7, total: 14 }] }, { at: "ORD", other: "JFK", pairs: 0, top: [] }],
     board: (k, children, figure) => createElement(FoldBoard, { key: k, k, folded: false, onToggle: () => undefined, figure }, children),
     onCollapse: () => undefined, onExpand: () => undefined,
@@ -300,6 +326,7 @@ describe("the page", () => {
   it("renders the header, the week's tiles and every board, with its links", () => {
     const html = render(story());
     expect(html).toContain("JFK–ORD");
+    expect(html).toContain("US domestic · layout Leisure (under 3,500 km)");
     expect(html).toContain('href="/routes/PA/JFK-ORD"');
     for (const k of ["Since launch", "Profit an aircraft hour", "Events", "Rivals on the pair", "Connections"]) expect(html).toContain(`data-rkey="${k}"`);
     expect(html).toContain('data-figure="performance route: since launch"');

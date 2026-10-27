@@ -5453,10 +5453,9 @@ begin
            'id', r.id, 'hub', r.hub_code, 'dest', r.dest_code, 'pair', least(r.hub_code, r.dest_code) || '-' || greatest(r.hub_code, r.dest_code),
            'city', coalesce(r.city_override, r.city), 'stars', coalesce(r.stars_override, r.stars),
            'distance_km', coalesce(r.distance_override_km, r.distance_km), 'removed', r.removed,
-           'market', case when mk.id is null then null else jsonb_build_object('id', mk.id, 'name', mk.name, 'layout', mk.layout) end,
-           -- the cabin it calls for: its own choice, else its market's (Routes' header, since 21 Oct)
-           'cabin', jsonb_build_object('layout', coalesce(nullif(r.cabin_choice, ''), mk.layout), 'own', nullif(r.cabin_choice, '') is not null,
-                                       'market_layout', mk.layout))
+           -- since 26 Oct no cabin here: the layout is the route's distance's (manual §5), which the route page works out
+           -- with the planning library (card.cabinRange), as Routes' header does
+           'market', case when mk.id is null then null else jsonb_build_object('id', mk.id, 'name', mk.name, 'layout', mk.layout) end)
     into w, al, v_hub, v_dest, v_removed, v_route
     from public.routes r
     left join public.markets mk on mk.id = case when r.market_cleared then null else coalesce(r.market_override_id, r.market_id) end
@@ -5555,7 +5554,8 @@ begin
     from f;
 
   -- ---------- events from the change log: the schedule's saves for this route's rotations and legs (each save, its
-  -- txid, one event), and the route's own cabin choice. Changes made by a migration (data loads and fixes) aren't events.
+  -- txid, one event). Changes made by a migration (data loads and fixes) aren't events. Since 26 Oct the route's own cabin
+  -- choice is no event: distance alone decides the cabin (manual §5).
   with rots as (
     select rt.id from public.rotations rt where rt.route_id = p_route_id
     union
@@ -5618,7 +5618,7 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object('day', ev.day, 'kind', ev.kind, 'words', ev.words, 'at', private.fig_ts(ev.at))), '[]'::jsonb)
     into v_changes from ev;
 
-  -- the fare plan's rows for the route (fare tests, and the ladder's moves with level_pct), and the route's cabin choice
+  -- the fare plan's rows for the route (fare tests, and the ladder's moves with level_pct)
   select coalesce(jsonb_agg(x.e), '[]'::jsonb) into v_other
     from (select jsonb_build_object(
                    'day', fp.proposed_on, 'kind', 'fare', 'cabin', coalesce(fp.cabin_class, 'economy'), 'level', fp.level_pct,
@@ -5632,19 +5632,7 @@ begin
                                              case when coalesce(fp.change_pct, 0) >= 0 then '+' else '−' end, trim_scale(abs(coalesce(fp.change_pct, 0)))) end
                             || case when fp.status = 'dropped' then ', dropped' else '' end) as e
             from public.fare_plan fp
-           where fp.route_id = p_route_id and fp.airline_id = al and fp.proposed_on <= v_today
-          union all
-          select jsonb_build_object(
-                   'day', (c.changed_at at time zone 'UTC')::date, 'kind', 'cabin', 'at', private.fig_ts(c.changed_at),
-                   'cabin', nullif(c.new_values ->> 'cabin_choice', ''), 'before', nullif(c.old_values ->> 'cabin_choice', ''),
-                   'words', case when nullif(c.new_values ->> 'cabin_choice', '') is null
-                                 then format('own cabin %s cleared: its market''s from now', coalesce(nullif(c.old_values ->> 'cabin_choice', ''), ''))
-                                 else format('cabin set to %s', c.new_values ->> 'cabin_choice')
-                                      || case when nullif(c.old_values ->> 'cabin_choice', '') is not null
-                                              then format(' (was %s)', c.old_values ->> 'cabin_choice') else '' end end)
-            from public.change_log c
-           where c.table_name = 'routes' and c.world_id = w and c.op = 'update' and (c.row_key ->> 'id')::bigint = p_route_id
-             and c.new_values ? 'cabin_choice' and c.changed_at <= p_as_of and coalesce(c.actor, '') <> 'migration') x;
+           where fp.route_id = p_route_id and fp.airline_id = al and fp.proposed_on <= v_today) x;
 
   -- ---------- the scans: the latest finished by the moment (with its schedules, or since 23 Oct its kept rows), and the
   -- week before as competition() picks it (the latest at least 6 days older, else the oldest there is)
@@ -5814,7 +5802,7 @@ begin
     'days', v_days,
     'weeks', v_weeks,
     'events', (select coalesce(jsonb_agg(x.e order by (x.e ->> 'day')::date desc,
-                                          array_position(array['rival', 'fare', 'cabin', 'retimed', 'aircraft changed', 'frequency removed',
+                                          array_position(array['rival', 'fare', 'retimed', 'aircraft changed', 'frequency removed',
                                                                'frequency added', 'launched'], x.e ->> 'kind'),
                                           x.e ->> 'at' desc nulls last, x.e ->> 'words'), '[]'::jsonb)
                  from (select jsonb_array_elements(v_changes) as e
@@ -5828,7 +5816,7 @@ begin
       'latest', v_scanpart #> '{rivals,scan}', 'week_before', v_scanpart #> '{rivals,week_before}', 'since_launch', v_scanpart -> 'used'),
     'notes', jsonb_build_array(
       'Both directions together, from the daily history (route_days): a day is a UTC day, and one with no flights is left out. load_pct is the passengers on the flights whose loads were captured over their seats; profit_per_hour is profit (millions of AS$) over block hours (the scheduled block of the flights that have one). Weeks are 7-day blocks ending on latest_day, newest first.',
-      'Events: the schedule''s saves from the change log (one per save; changes a migration made left out; the rotations that are the launch itself not repeated), the fare plan''s rows, the route''s own cabin choice, and rivals that started or added competition_threat_min_weekly a week between consecutive scans since launch (passenger flights only).',
+      'Events: the schedule''s saves from the change log (one per save; changes a migration made left out; the rotations that are the launch itself not repeated), the fare plan''s rows, and rivals that started or added competition_threat_min_weekly a week between consecutive scans since launch (passenger flights only).',
       'Rivals are every airline in the scan that isn''t one of ours; ours now are the live schedule both ways, ours in a scan the airline''s flights in it.',
       'Connecting (since 23 Oct): each rival''s one-stop departures a week on the pair, both ways, from scan_rival_connections (same airline, from the connecting airport''s minimum connection time to connection_max_wait_h, both legs together at most rival_connection_detour_max times the direct distance, each first flight once), with its top 3 connecting airports; beside weekly, never added to it, to rivals_weekly or to the share. connecting_only: rivals with no direct flight that connect; connecting_scans: each rival''s at each scan read that has them worked out. Absent when the latest scan has none worked out.',
       'Weekly points (since 23 Oct): a scan whose schedules the monthly archive has taken is read from its kept rows (scan_pair_airlines: the week''s kept scan, the first finished on or after each Saturday, every airline''s departures on every pair, kept for good), the same figures; such a point has weekly true in shares, since_launch and the scans. weekly_points counts them and daily_from is the first point read from full schedules (null when every point is). Before the last month the line is weekly; connections only on scans with their schedules.'));

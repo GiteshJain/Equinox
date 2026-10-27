@@ -14,8 +14,9 @@
 --      flights 2 to 21 Mar (each direction's own loads), and on 10 Mar a flight known only from the bank statement. The
 --      writer (history_flows) keeps each cabin's passengers and seats, the business fare and the block; the story counts
 --      both directions together, by day and by week; its events: a frequency added (the launch's own rotation not
---      repeated), two fare plan rows (a ladder move and a dropped fare test), a cabin change, a retime, an aircraft
---      change, a migration's change left out, and rivals between scans (Rival One started; Rival Two added 7, while 3
+--      repeated), two fare plan rows (a ladder move and a dropped fare test), a retime, an aircraft change, a
+--      migration's change left out, a change to the route's own cabin choice left out (since 26 Oct, manual §5: distance
+--      alone decides, and the route page works the layout out with the planning library, so the story has no cabin), and rivals between scans (Rival One started; Rival Two added 7, while 3
 --      added isn't one; our other airline and a freighter never rivals); the rivals table and our share at each scan
 --      since launch; the same as of an earlier moment; a route with no flights yet.
 --   4. Signed out and an account that isn't staff are refused; staff get what postgres gets.
@@ -252,7 +253,7 @@ begin
   update public.flight_legs set block_min = 125 where rotation_id = rot1 and leg_no = 2;
   perform set_config('equinox.actor', 'claude', true);
   mark := pg_temp.rs_save(w, mark, 4, timestamptz '2030-03-17 10:00:00+00');
-  -- save 5, 18 Mar: the route's own cabin
+  -- save 5, 18 Mar: the route's own cabin, which since 26 Oct is no event (distance alone decides, manual §5)
   update public.routes set cabin_choice = 'Leisure Plus' where id = r1;
   mark := pg_temp.rs_save(w, mark, 5, timestamptz '2030-03-18 10:00:00+00');
   -- save 6, 19 Mar: RS 101 an hour later
@@ -330,8 +331,10 @@ begin
      and (d #>> '{route,stars}')::int = 4 and (d #>> '{route,distance_km}')::int = 1000 and d #>> '{route,market,name}' = 'Story market'
      and d #>> '{route,airline,code}' = 'RS' and d #>> '{route,airline,name}' = 'Story Air',
     'the route isn''t QS1–QS2, Story City, 4 stars, 1,000 km, Story market, RS: ' || (d -> 'route')::text;
-  assert d #>> '{route,cabin,layout}' = 'Leisure Plus' and (d #>> '{route,cabin,own}')::boolean and d #>> '{route,cabin,market_layout}' = 'Leisure',
-    'the cabin isn''t its own Leisure Plus over its market''s Leisure: ' || (d #> '{route,cabin}')::text;
+  -- since 26 Oct no cabin: the route page works the layout out from the distance with the planning library (manual §5);
+  -- the market keeps its layout
+  assert not (d -> 'route' ? 'cabin') and d #>> '{route,market,layout}' = 'Leisure',
+    'the route still has a cabin, or its market isn''t Leisure: ' || (d -> 'route')::text;
   assert d #>> '{route,launched}' = '2030-03-01' and d #>> '{route,launched_from}' = 'rotation' and (d #>> '{route,launched_days}')::int = 20,
     'launched isn''t 1 Mar (its first rotation), 20 days before: ' || (d -> 'route')::text;
   assert d ->> 'latest_day' = '2030-03-21', 'the latest captured day isn''t 21 Mar: ' || coalesce(d ->> 'latest_day', 'none');
@@ -372,7 +375,7 @@ begin
   assert (x ->> 'flights')::int = 15 and (x ->> 'profit')::numeric = 0.29 and (x ->> 'block_hours')::numeric = 28 and (x ->> 'profit_per_hour')::numeric = 0.01036
      and (x ->> 'load_pct')::numeric = 88.9 and (x ->> 'eco_fare')::numeric = 300,
     '8–14 Mar: 15 flights, profit 0.29M over 28 block hours (0.01036M an hour): ' || x::text;
-  raise notice 'the story of QS1–QS2: launched 1 Mar (its first rotation), its own cabin over its market''s, 10 departures a week each way on one type and two aircraft, the fare ladder''s two cabins each way, the out economy planned; 20 days both ways together (2 Mar: 320 passengers, 88.9%%, economy 89.3%%, business 83.3%%, fares 300 and 900, 0.04M over 4 block hours), and a statement-only flight''s passengers and money counted without its seats; 3 weeks newest first (8–14 Mar 0.29M over 28 hours)';
+  raise notice 'the story of QS1–QS2: launched 1 Mar (its first rotation), no cabin (its distance decides, in the planner), 10 departures a week each way on one type and two aircraft, the fare ladder''s two cabins each way, the out economy planned; 20 days both ways together (2 Mar: 320 passengers, 88.9%%, economy 89.3%%, business 83.3%%, fares 300 and 900, 0.04M over 4 block hours), and a statement-only flight''s passengers and money counted without its seats; 3 weeks newest first (8–14 Mar 0.29M over 28 hours)';
 end
 $test$;
 
@@ -386,12 +389,13 @@ begin
   want := '2030-03-20 aircraft changed: RS 101/102 now on QS-2'
        || ' | 2030-03-19 rival: Rival Two added 7 a week (10 → 17)'
        || ' | 2030-03-19 retimed: RS 101 06:00 → 07:00 UTC'
-       || ' | 2030-03-18 cabin: cabin set to Leisure Plus'
        || ' | 2030-03-16 fare: out: economy up to 105%'
        || ' | 2030-03-15 frequency added: RS 103/104 added, days 135'
        || ' | 2030-03-12 rival: Rival One started here, 14 a week'
        || ' | 2030-03-05 fare: economy +5% fare test, dropped'
        || ' | 2030-03-01 launched: launched';
+  assert not exists (select 1 from jsonb_array_elements(d -> 'events') e where e ->> 'kind' = 'cabin'),
+    'a change to the route''s own cabin choice is still an event';
   assert got = want, E'the events aren''t, newest first:\n' || want || E'\nbut:\n' || coalesce(got, 'none');
   assert (select (e ->> 'dropped')::boolean and (e ->> 'change_pct')::numeric = 5 and e ->> 'level' is null from jsonb_array_elements(d -> 'events') e
            where e ->> 'kind' = 'fare' and e ->> 'day' = '2030-03-05')
@@ -417,7 +421,7 @@ begin
   assert got = '2030-03-05 14/7 66.7, 2030-03-12 14/24 36.8, 2030-03-19 20/31 39.2',
     'our share at each scan since launch (s1 before it left out) isn''t 66.7, 36.8, 39.2: ' || coalesce(got, 'none');
   assert jsonb_array_length(d #> '{scans,since_launch}') = 3, 'the scans since launch aren''t s2, s3 and s4';
-  raise notice 'events newest first: an aircraft change, Rival Two''s 7 more between s3 and s4 (its 3 more before that not one), a retime, the cabin, the ladder''s move (out: …), a frequency added (the launch''s own not repeated), Rival One''s start, a dropped fare test, the launch; a migration''s change left out; rivals from s4 against s3 (Rival Two 17, +7; Rival One 14; our other airline and a freighter left out), ours 20 against 31, 39.2%% (36.8%% a week before), and our share at each scan since launch';
+  raise notice 'events newest first: an aircraft change, Rival Two''s 7 more between s3 and s4 (its 3 more before that not one), a retime (the route''s own cabin choice no event), the ladder''s move (out: …), a frequency added (the launch''s own not repeated), Rival One''s start, a dropped fare test, the launch; a migration''s change left out; rivals from s4 against s3 (Rival Two 17, +7; Rival One 14; our other airline and a freighter left out), ours 20 against 31, 39.2%% (36.8%% a week before), and our share at each scan since launch';
 end
 $test$;
 

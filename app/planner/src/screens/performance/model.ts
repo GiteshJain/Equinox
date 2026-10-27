@@ -8,7 +8,7 @@
 // history (airline_days). Manual entry's logic moved to Systems (screens/systems/model.ts) with its board. Since 22 Oct
 // (spec docs/specs/2026-10-21-route-page.md §3) the route page's too: route_story()'s answer worded, its charts laid out,
 // and the connections at both ends from the planning library.
-import { block, connections, time, type Rules, type TimedLeg } from "@rules";
+import { block, card, connections, setting, time, type Rules, type TimedLeg } from "@rules";
 import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
 
@@ -944,7 +944,8 @@ export interface StoryFigures {
 }
 export interface StoryDay extends StoryFigures { day: string }
 export interface StoryWeek extends StoryFigures { from: string; to: string; days: number }
-export type StoryKind = "launched" | "frequency added" | "frequency removed" | "aircraft changed" | "retimed" | "fare" | "cabin" | "rival";
+/** Since 26 Oct no "cabin" kind: a change to the route's own cabin choice is no event (distance alone decides, manual §5). */
+export type StoryKind = "launched" | "frequency added" | "frequency removed" | "aircraft changed" | "retimed" | "fare" | "rival";
 export interface StoryEvent {
   day: string;
   kind: StoryKind;
@@ -984,7 +985,6 @@ export interface RouteStory {
   route: {
     id: number; hub: string; dest: string; pair: string; city: string | null; stars: number | null; distance_km: number | null; removed: boolean;
     market: { id: number; name: string; layout: string | null } | null;
-    cabin: { layout: string | null; own: boolean; market_layout: string | null };
     airline: { id: number; code: string | null; name: string };
     launched: string | null; launched_from: "rotation" | "history" | null; launched_days: number | null;
   };
@@ -1023,11 +1023,27 @@ const thousands = (v: number | null | undefined): string => (v == null ? "—" :
 const thousands1 = (v: number | null | undefined): string => (v == null ? "—" : `${v < 0 ? "−" : ""}${(Math.round(Math.abs(v) * 10000) / 10).toFixed(1)}k`);
 const whole = (v: number | null | undefined): string => (v == null ? "—" : Math.round(v).toLocaleString("en-GB"));
 
-/** The route page's header in words: the route and its city, the airline, distance, market and the cabin it calls for,
- *  launched (date and days), departures a week each way, the types, and each cabin's fare level with this Saturday's move. */
-export function storyHeader(s: RouteStory, nice: (day: string) => string) {
+/** The layout a route's distance calls for, in words (manual §5, since 26 Oct): the planning library's card.cabinRange on
+ *  the route's distance (route_story()'s, overrides applied), else the great circle; Leisure under cabin_leisure_max_km,
+ *  Leisure Plus to under cabin_leisure_plus_max_km, Comfort beyond (the airline's own settings where it has them); a
+ *  low-cost airline flies Standard. As Routes' header words it: "layout Leisure Plus (3,500–6,500 km)". Distance alone
+ *  decides: no market layout or route choice overrides it. */
+export function storyLayout(rules: Rules, r: Pick<RouteStory["route"], "hub" | "dest" | "distance_km" | "airline">): string {
+  const al = r.airline.id;
+  if (rules.airlines.get(al)?.is_lcc) return "layout Standard";
+  const num = (k: string) => { const v = setting(rules, k, al); const n = typeof v === "string" && v.trim() !== "" ? Number(v) : v; return typeof n === "number" && Number.isFinite(n) ? n : null; };
+  const lo = num("cabin_leisure_max_km"), hi = num("cabin_leisure_plus_max_km");
+  const km = r.distance_km ?? block.distanceBetween(rules, r.hub, r.dest, al)?.km ?? null;
+  if (km == null || lo == null || hi == null) return "no layout (no distance)";
+  const x = card.cabinRange(km, lo, hi);
+  return `layout ${x.layout} (${x.range})`;
+}
+
+/** The route page's header in words: the route and its city, the airline, distance, market and the layout its distance
+ *  calls for (storyLayout, given; since 26 Oct), launched (date and days), departures a week each way, the types, and each
+ *  cabin's fare level with this Saturday's move. */
+export function storyHeader(s: RouteStory, nice: (day: string) => string, layout: string) {
   const r = s.route, d = s.now.departures;
-  const cabin = r.cabin.layout ? `layout ${r.cabin.layout}${r.cabin.own ? " (the route's own)" : ""}` : "no layout";
   const launched = r.launched == null ? "not flown yet"
     : `${r.launched_from === "history" ? "first flights" : "launched"} ${nice(r.launched)}${r.launched_days != null ? ` · ${r.launched_days} day${r.launched_days === 1 ? "" : "s"}` : ""}`;
   const departures = !d.out && !d.back ? "no flights in the schedule"
@@ -1035,7 +1051,7 @@ export function storyHeader(s: RouteStory, nice: (day: string) => string) {
   return {
     title: `${r.hub}–${r.dest}`,
     city: r.city ?? "",
-    line: [r.airline.name, r.distance_km == null ? null : `${whole(r.distance_km)} km`, r.market?.name ?? "no market", cabin].filter(Boolean).join(" · "),
+    line: [r.airline.name, r.distance_km == null ? null : `${whole(r.distance_km)} km`, r.market?.name ?? "no market", layout].filter(Boolean).join(" · "),
     launched,
     departures,
     types: s.now.types.map((t) => `${shortType(t.type)}${t.aircraft > 1 ? ` ×${t.aircraft}` : ""}`).join(", "),
@@ -1085,7 +1101,7 @@ export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: strin
 export const STORY_MIN_DAYS = 14;
 const KIND_WORDS: Record<StoryKind, string> = {
   launched: "launched", "frequency added": "frequency added", "frequency removed": "frequency removed", "aircraft changed": "aircraft changed",
-  retimed: "retimed", fare: "fare", cabin: "cabin", rival: "rival",
+  retimed: "retimed", fare: "fare", rival: "rival",
 };
 /** An event as the list shows it: its kind and its words, "rival · Air China started here, 14 a week" ("launched" alone). */
 export const eventWords = (e: Pick<StoryEvent, "kind" | "words">): string => {
