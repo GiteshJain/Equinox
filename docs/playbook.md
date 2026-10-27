@@ -108,7 +108,7 @@ The strategy is all in the manual. What each rule covers:
 
 ### Scheduling (manual §4)
 - **Every aircraft is named by its tail number and base**, in every chat.
-- **Until 31 October, only new routes**, and **from 1 to 30 November, every new order fortifies the trunk routes**
+- **From 1 to 30 November, every new order fortifies the trunk routes**
   (the plan: `docs/briefs/2026-10-20-november-trunks.md`).
 - **New airlines launch short-haul.**
 - **Ryanair stays inside the game's EU zone.**

@@ -378,10 +378,6 @@ Details and open points: `docs/decisions.md`.
   *(since 19 Oct; history: rule-history.md)*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *(since Sep)*
-- **Until 31 October, only new routes (Pan Am and China Eastern exempt since 22 Oct):** every flight planned from 18 to 31 Oct opens a
-  route the airline doesn't fly yet: no second dailies or extra frequency on existing routes, whatever the growth signals say; until 31 Oct this wins over §1 and §3's frequency rules. Plan cards made before
-  18 Oct stay as they are, filed or not (EI-ABS and EI-ABT keep their second dailies). *(from 18 Oct to 31 Oct;
-  history: rule-history.md)*
 - **From 1 to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
   bases (hubs and focus cities, any of our airlines). Orders that month add flights on trunk routes we fly, and open
   trunk routes we don't, until each is fortified. *(from 1 Nov to 30 Nov; history: rule-history.md)*

@@ -33,7 +33,7 @@ Figures below are from the captures of 26 Oct 16:15 UTC (all six "all good").
   At the next capture, if the E195 is safe, rerun LGW with Bologna, Algiers, Faro (the E190 gave 13.2 h, 143 connections)
   and show the hours.
 - **Malaysia** could order an E195 on the 16:17 UTC capture (2.37M); not yet proposed.
-- Everyone else from the next capture. Until 31 Oct only new routes (Pan Am and China Eastern exempt); from 1 Nov the
+- Everyone else from the next capture. ~~Until 31 Oct only new routes (Pan Am and China Eastern exempt);~~ (retired 27 Oct, Gitesh) from 1 Nov the
   trunk month (manual §4).
 - **Kingfisher's A350s** (to-do 169): VT-AAA returns 28 Oct 05:11 UTC, VT-AAB 29 Oct 11:11 UTC; retire each, remove
   its legs, log the deposit; then Delhi narrowbodies.

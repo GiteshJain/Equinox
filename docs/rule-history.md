@@ -348,8 +348,9 @@ Ryanair's and Virgin's first (11.0 and 11.2 hours a day on 17 Oct, against Malay
 #### Every aircraft is named by its tail number and base
 *Since 19 Oct · why (Gitesh): so each aircraft can be found in the game at once.*
 
-#### Until 31 October, only new routes
-*From 18 Oct to 31 Oct · why: Gitesh, 18 Oct.*
+#### Until 31 October, only new routes (retired 27 Oct)
+*From 18 Oct to 27 Oct, planned to 31 Oct · why: Gitesh, 18 Oct. Retired early on 27 Oct (Gitesh: "it's time for the
+new routes only plan to retire"); its last wording is in Retired rules below.*
 
 *Pan Am exempt since 22 Oct (Gitesh, review chat, brief `docs/briefs/2026-10-22-pan-am-speed.md`, option C) · why: Pan
 Am needs to move quickly; 19 of its routes sell out and are marked add a flight while United and American add hundreds
@@ -695,6 +696,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 27 Oct | Until 31 October, only new routes (Pan Am and China Eastern exempt since 22 Oct): every flight planned from 18 to 31 Oct opens a route the airline doesn't fly yet: no second dailies or extra frequency on existing routes, whatever the growth signals say; until 31 Oct this wins over §1 and §3's frequency rules. Plan cards made before 18 Oct stay as they are, filed or not (EI-ABS and EI-ABT keep their second dailies) | Nothing: every airline's orders follow §3 again (add a flight or raise fares by profit per aircraft hour, the growth signals, market share first), and from 1 Nov the trunk month (§4). Why: Gitesh, 27 Oct, ending it four days early |
 | 26 Oct | Reach checked by the Scheduling chat with no ask: a route past a variant's full-load range proposed without asking | Asked each time (§3). Why: Gitesh, ranges are a bit flexible, so he decides each route pushed slightly past a variant's full-load range (raised by G-AAFK (LGW) on Tel Aviv) |
 | 26 Oct | The fare ladder by route and cabin: one level for both directions, judged on both directions' flights together; set back, under launch and the game changes (both ways at once) the same | Each direction of each cabin of each route its own level, judged on that direction's flights (up, hold, down, the hold after a step down, under launch, set back); one game change per direction; a new route, the capacity hold, the rival pause and the 60% floor stay the whole route's (§5). Why: Gitesh, option A of the per-direction brief; passengers book each direction separately |
 | 26 Oct | The cabin by market: the layout of the market of a route taking over 65% of block time (`cabin_route_share_pct`, `markets.layout`), else the layout with the most seats | The cabin by distance of the main route: Leisure under 3,500 km, Leisure Plus to 6,500 km, Comfort beyond (§5). Why: Gitesh, the layouts trade seat comfort for seats, a question of flight length; demand is met by fares (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`) |
