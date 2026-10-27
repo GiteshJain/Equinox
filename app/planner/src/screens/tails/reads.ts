@@ -6,8 +6,8 @@
 //   the one-week check until it went on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md);
 // - and, when filing, fresh from the tables: the aircraft, its card's legs, the airline's routes, markets and service
 //   profiles, whether its first cabin fit is logged, how many aircraft are in the old planner's list of tails, the
-//   airports the card uses, the order's cabin (order_cabin(), the database's one home for it) and the game's schedule
-//   (/api/game-schedule).
+//   airports the card uses, the order's cabin (the aircraft's order_config_id, read with the aircraft; filingCabin() in
+//   model.ts takes the card's cabin, else that; order_cabin() isn't called) and the game's schedule (/api/game-schedule).
 // Every figure is the planning library's, on the start's rules (rules_input(world, 'flown'), src/data/rules.ts), which
 // carry every aircraft, rotation and leg. A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts
 // its answer into them and reads them again.
