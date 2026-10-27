@@ -472,8 +472,9 @@ fold them, and a row's title opens or closes it.
 - **A route's page** (since 22 Oct, spec docs/specs/2026-10-21-route-page.md; /planner/performance/PA/JFK-ORD): its
   story since launch, so a fare move, a new frequency or a rival can be judged by what happened after it. Both
   directions count together; every figure is *route_story()*'s, from the daily history. Read only.
-  - **The header:** the route and its city, stars, airline, distance, market and the cabin it calls for (its own, else
-    its market's), **launched** (the first frequency's launch day, and how many days ago), departures a week each way,
+  - **The header:** the route and its city, stars, airline, distance, market and the layout its distance calls for
+    (since 26 Oct, manual §5: "layout Leisure Plus (3,500–6,500 km)", worked out by the planning library as on Routes;
+    Ryanair Standard; no market or route choice changes it), **launched** (the first frequency's launch day, and how many days ago), departures a week each way,
     the types flying it, and each cabin's fare level with this Saturday's move (since 26 Oct each direction's, "EDI → FRA
     economy 105% · up to 110%"; the Since launch chart's level line follows the out direction). **‹ <airline>** goes back to the
     airline's page; **Schedule in Routes** opens the route on Routes.
@@ -487,9 +488,9 @@ fold them, and a row's title opens or closes it.
     isn't drawn: route profit covers only the last few days.
   - **Events,** newest first, 10 shown with **show all**: launched; a frequency added or removed, an aircraft changed or
     a retime (each save on Routes, Tails or Today's Game check, from the change log; a data fix made by a migration isn't
-    one); each fare plan row (a fare test, or the ladder's move, and whether it was dropped); the route's own cabin
-    changed; and a rival who started on the pair, or added a daily flight or more, between two world scans
-    (*competition_threat_min_weekly*; passenger flights only).
+    one); each fare plan row (a fare test, or the ladder's move, and whether it was dropped); and a rival who started
+    on the pair, or added a daily flight or more, between two world scans (*competition_threat_min_weekly*; passenger
+    flights only). Since 26 Oct a change to the route's own cabin choice is no event: distance alone decides the cabin.
   - **Rivals on the pair:** every other airline flying it either way in the latest scan, with its departures a week and
     its change since the week-before scan; ours and our share, and our share at each scan since launch as a small line.
     "No rival flies this pair" when none does. Since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md) a
