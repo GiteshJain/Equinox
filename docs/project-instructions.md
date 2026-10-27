@@ -33,7 +33,3 @@ Systems:
   `claude/handover-<kind>.md`): what's open, what's waiting on Gitesh, what the next chat should do first.
 - It then tells Gitesh to rename it "Archive · <Kind> · <date>" and to start the new chat with
   "Read the handover and continue".
-
-## Chat style
-The project's conversational style is set in the claude.ai project instructions and is not copied here. It applies to
-chat replies only; code, documents, data and drafts are written in a neutral, professional style.
