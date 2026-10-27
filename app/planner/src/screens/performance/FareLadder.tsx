@@ -12,8 +12,9 @@
 // docs/specs/2026-10-22-planner-look-performance.md §3) one card per airline: its moves as three counts, the changes to
 // make, Put on the fare plan and See the changes, which opens the lists below the card. Since 23 Oct (spec
 // docs/specs/2026-10-23-fare-ladder-under-launch.md §4) the card also counts the week's jumps under launch and the
-// cut-or-keep decisions ("2 jumps, 1 decision"), the routes table words a jump, a revert and the hold after a jump, and
-// a row that is a decision for Gitesh shows "cut or keep?" beside its reason. Nothing goes to Today's Needs attention.
+// cut-or-keep decisions ("2 jumps, 1 decision"), the routes table words a jump and the hold after a jump, and a row that
+// is a decision for Gitesh shows "cut or keep?" beside its reason (since 26 Oct, spec
+// docs/specs/2026-10-26-under-launch-by-loads.md, judged by loads: no revert). Nothing goes to Today's Needs attention.
 // Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each direction of each cabin has its own level:
 // the routes table has a row per direction and cabin, its route shown as "EDI → FRA" (the airports that way round, linking
 // to the route's page), with its own sold out, Load (that direction's average load over the 7 days), level, move and why;
