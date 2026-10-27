@@ -585,6 +585,12 @@ The Systems board, at the top of Systems (#23; of Check until 20 Oct). The world
 
 ### 9. Game rules and mechanics (Gander)
 
+#### The fares script's permission is text only
+*Since 26 Oct (Gitesh, Building chat, option B of two: A add a `world_rules` permission row `fares_script`, B leave it
+as text).* The document audit found every script allowed in Gander has a `permission` row except the fares script. The
+words added to §9's list of rows: "the fares script has no row of its own, its permission is this sentence and §5" ·
+why: nothing reads the rows today; they matter only when copying this setup to another world, and the manual names it.
+
 #### Used aircraft auctions
 How the auction ends, the 110% immediate purchase and the cost of age are from AirlineSim's documentation (the 2012
 aircraft market announcement and the Handbook's building your fleet); that a used aircraft gets cheaper the longer it

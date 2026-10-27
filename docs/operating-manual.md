@@ -691,7 +691,7 @@ be copied from the game's settings page)
 - **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
   game. That's why the interlines between our six airlines, the capture, the salary script, the fares script and the world
   scanner are fine here (#12; the `permission` rows `interline_own_airlines`, `capture_salary_step`, `world_scanner`,
-  `schedule_check`). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings,
+  `schedule_check`; the fares script has no row of its own, its permission is this sentence and §5). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings,
   and terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
 
 ---
