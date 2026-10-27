@@ -26,6 +26,11 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **The fare ladder under launch, judged by loads** (§5, since 26 Oct): until it's built, `fare_ladder()` still judges a
+  cabin under launch on revenue a flight and may revert it to launch, so at the Saturday review the review chat
+  overrides any revert or second jump the ladder proposes against the loads rule: removes those rows before **Put on
+  the fare plan** and, where a cabin under launch sold out, adds its step up by hand. *(since 26 Oct; history:
+  rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -477,15 +482,16 @@ Details and open points: `docs/decisions.md`.
   level), the planner lists a change for that direction at its level, first, and the fares userscript makes it with the
   week's changes; not for a direction on the fare plan this week, a new route, or one not captured since its route's
   newest flight launched.
-  **Under launch, two jumps** (since 23 Oct; each direction on its own since 26 Oct: its window, its launch baseline
-  and its judgement from that direction's flights only): a cabin at launch that the ladder would hold there (under 90%
-  sold out), averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the default price
-  (Ryanair, launching at 85%, to **75%**) and holds 2 weeks from the day the captures see it. Then it is judged on revenue
-  a flight against the 14 days before its first jump: not lower, it stays and the ladder goes on from there; lower, it
-  **jumps to 60%** and is judged the same way. At 60%, lower, it goes back to launch; at 60% and still under 60% full, it
-  holds. Either way it is marked **cut or keep?** for Gitesh at the Saturday review, and it never jumps again. Under
-  launch the ladder only climbs or holds (no 5-point cuts). The numbers are the `fare_under_launch_*` settings (Ryanair's
-  levels its own row). Otherwise the level never goes under launch, nor under the 60% floor where another player flies
+  **Under launch, two jumps** (since 23 Oct; each direction on its own since 26 Oct: its window and its judgement from
+  that direction's flights only; judged by loads since 26 Oct): a cabin at launch that the ladder would hold there (under
+  90% sold out), averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the
+  default price (Ryanair, launching at 85%, to **75%**) and holds 2 weeks from the day the captures see it. Then the
+  ladder judges it on its loads like any direction: sold out, it climbs a step (and holds the next Saturday), on through
+  launch to the cap; 90–99% sold out, it holds; under 90% sold out, it **jumps to 60%** and holds 2 weeks the same way.
+  At 60% and still under 90% sold out, it holds there and is marked **cut or keep?** for Gitesh at the Saturday review
+  (a route that isn't losing money is most likely kept), and it never jumps again. Under launch the ladder only climbs
+  or holds (no 5-point cuts). The numbers are the `fare_under_launch_*` settings (Ryanair's levels its own row).
+  Otherwise the level never goes under launch, nor under the 60% floor where another player flies
   the route. **For now it goes
   at most 20 points above launch** (120%, Ryanair 105%; **Pan Am and China Eastern 28 points, 128%**, since 22 Oct); the cap is lifted
   only once loads and image show it's safe. Their step and cap are their own `settings` rows.

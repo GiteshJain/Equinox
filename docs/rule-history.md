@@ -454,6 +454,14 @@ of about 20. "Paid off" is revenue a flight not falling, not just higher loads (
 80% to break even). Under launch the ladder only climbs or holds, so its 5-point cuts don't add to the jumps; each
 judgement needs 10 flights so thin routes aren't judged on a handful.
 
+*Judged by loads since 26 Oct (Gitesh, Building chat, option A of `docs/briefs/2026-10-26-under-launch-by-loads.md`:
+"it's not about more money, it's about keeping flights full while making the most we can").* The wording replaced, word
+for word: "**Under launch, two jumps** (since 23 Oct; each direction on its own since 26 Oct: its window, its launch baseline and its judgement from that direction's flights only): a cabin at launch that the ladder would hold there (under 90% sold out), averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the default price (Ryanair, launching at 85%, to **75%**) and holds 2 weeks from the day the captures see it. Then it is judged on revenue a flight against the 14 days before its first jump: not lower, it stays and the ladder goes on from there; lower, it **jumps to 60%** and is judged the same way. At 60%, lower, it goes back to launch; at 60% and still under 60% full, it holds. Either way it is marked **cut or keep?** for Gitesh at the Saturday review, and it never jumps again. Under launch the ladder only climbs or holds (no 5-point cuts). The numbers are the `fare_under_launch_*` settings (Ryanair's levels its own row)." · why: the revenue test sent a cabin full at 60% that earned less than at launch straight back to launch,
+often half empty, giving up full flights for money; judged by loads, it climbs a step at a time while it keeps selling
+out, so flights stay full and the fare rises to the most the route will bear. With no reverts, the question of a hold
+after a revert (raised the same evening) falls away. At 60% and still not filling, Gitesh decides; a route that isn't
+losing money is most likely kept (Gitesh).
+
 *Ryanair's first jump to 75%, 23 Oct (Gitesh, Building chat).* The entry had said 80% for every airline. Why: Ryanair
 launches at 85%, so a jump to 80% would be only 5 points, too small for two weeks to show; 75% then 60%.
 
