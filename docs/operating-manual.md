@@ -347,7 +347,9 @@ Details and open points: `docs/decisions.md`.
   nothing** until the main hub reaches the 750, contested or not (since 22 Oct). Ryanair is exempt. **One exception:
   Kingfisher's eight aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, to be ordered 28–29 Oct)
   go to Mumbai, on any route, contested or not; Kingfisher's other orders still go to Delhi until it reaches the 750
-  (since 26 Oct, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`).
+  (since 26 Oct, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`). `competition()` doesn't know this
+  exception: it marks Mumbai's openings "hubs first" and lists them after the rest, so for these eight aircraft the
+  Scheduling chat ranks Mumbai's openings itself, by the openings' order, ignoring that mark.
   Which bases and routes are contested is worked out from the latest world scan (`hub_progress()`, `competition()`).
   The numbers are `settings.hub_first_departures` (750),
   `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'

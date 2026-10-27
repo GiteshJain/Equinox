@@ -309,6 +309,13 @@ into §3.* The *Decided, not yet built* entry, retired with the build: "- **To b
 
 *Kingfisher's Mumbai exception: since 26 Oct (Gitesh, option B with eight aircraft, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`). Before it, the paragraph ended "Ryanair is exempt." with no exception, and the §2 bases table had Kingfisher's hubs as Delhi only, with Mumbai under Next · why: Gitesh wanted the 14.39M from returning VT-AAA (DEL) and VT-AAB (DEL) to start a second base's network rather than add to Delhi (the 23 Oct plan). Mumbai has the most openings after Delhi (159, 41 five-star) and the most rival flying on its pairs (224 departures a week); under hubs first it could fly only its Gulf routes, already covered by VT-ABF (BOM) and VT-ABH (BOM). The exception covers only these eight aircraft; Delhi was at 279 of 750 departures a week.*
 
+*Applied by hand, 26 Oct evening (Gitesh, Building chat, option B of two: A build the exception into `competition()`
+with a setting, B the Scheduling chat applies it).* The document audit found `competition()` marks Mumbai's openings
+"hubs first: DEL at … of 750" and lists them last. The sentence added: "`competition()` doesn't know this exception: it
+marks Mumbai's openings "hubs first" and lists them after the rest, so for these eight aircraft the Scheduling chat ranks
+Mumbai's openings itself, by the openings' order, ignoring that mark." Before, the paragraph ended at the brief's
+reference · why: an exception for eight aircraft over two evenings isn't worth a build.
+
 ### 4. Scheduling
 
 #### How it runs: every evening, from the order queues
