@@ -481,6 +481,8 @@ out, so flights stay full and the fare rises to the most the route will bear. Wi
 after a revert (raised the same evening) falls away. At 60% and still not filling, Gitesh decides; a route that isn't
 losing money is most likely kept (Gitesh).
 
+*Judged by loads built 26 Oct (`Equinox` #114, spec `docs/specs/2026-10-26-under-launch-by-loads.md`).* The *Decided, not yet built* entry, retired with the build: "- **The fare ladder under launch, judged by loads** (§5, since 26 Oct): until it's built, `fare_ladder()` still judges a cabin under launch on revenue a flight and may revert it to launch, so at the Saturday review the review chat overrides any revert or second jump the ladder proposes against the loads rule: removes those rows before **Put on the fare plan** and, where a cabin under launch sold out, adds its step up by hand. *(since 26 Oct; history: rule-history.md)*"
+
 *Ryanair's first jump to 75%, 23 Oct (Gitesh, Building chat).* The entry had said 80% for every airline. Why: Ryanair
 launches at 85%, so a jump to 80% would be only 5 points, too small for two weeks to show; 75% then 60%.
 
