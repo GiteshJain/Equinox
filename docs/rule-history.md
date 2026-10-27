@@ -178,6 +178,12 @@ routes from Kota Kinabalu that don't touch Kuala Lumpur, and Subang is its own m
 week, AirAsia Kota Kinabalu–Subang 56) that only pairs away from KUL can serve. The station role is per airline, so the
 build already covers it. Earlier wording: "Point-to-point routes away from our bases (Kingfisher first)".*
 
+#### No Subang station for the foreseeable future
+*Since 26 Oct (Gitesh, Building chat).* The document audit found §2 naming Subang among Malaysia's stations while none
+was set up. Gitesh: "we won't be using Subang, most likely, in the distant future". The wording replaced: "Malaysia's
+include Subang, its own market 30 km from KUL, and Kota Kinabalu's pairs away from KUL;" · why: Subang was an example
+from 22 Oct (AirAsia's network in the Airbus world), never a plan.
+
 ### 3. Fleet and orders
 
 #### Kingfisher's A350s handed back

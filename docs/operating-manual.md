@@ -203,7 +203,7 @@ Details and open points: `docs/decisions.md`.
 *(base roles since 29 Sep; history: rule-history.md)*
 
 - **Stations**, for every airline, are airports it flies point-to-point routes from without making them a base (Lucknow
-  for Lucknow–Patna; Malaysia's include Subang, its own market 30 km from KUL, and Kota Kinabalu's pairs away from KUL; Pan Am's include US and Canada to China away from its bases):
+  for Lucknow–Patna; Malaysia's include Kota Kinabalu's pairs away from KUL, but not Subang, for the foreseeable future; Pan Am's include US and Canada to China away from its bases):
   `airline_bases` rows with role station, no banks, flight numbers in 3 digits from one pool per airline
   (`settings.station_flight_no_from` 100 to `station_flight_no_to` 999), and never treated as hubs or focus cities
   (trunks, hubs first, the website, the briefing and the report). *(decided 22 Oct, every airline since the same day,
