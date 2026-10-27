@@ -236,7 +236,7 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
   type's speed, manual §4) is used, so it can differ by a few minutes from the old planner's, which it fitted to the
   times typed in. A frequency with no aircraft is estimated on the airline's most-flown type (its market's aircraft
-  until 21 Oct). A new frequency's price is the airline's launch fare (*fare_launch_pct*: 100%, Ryanair 85%).
+  until 21 Oct). A new frequency's price is the airline's launch fare (*fare_launch_pct*: 100%, Ryanair 85%): a record only, nothing calculates from it; the fare charged is the route's level (manual §5).
 
 ## Tails
 *Every aircraft: what it flies each week and how hard it works.* Laid out since 23 Oct short and answer-first, as Today

@@ -446,7 +446,9 @@ Details and open points: `docs/decisions.md`.
   the 65% band test and no route override since the same day; history: rule-history.md)*
 - **Fares:** new routes launch at 100% of the standard fare in both cabins; Ryanair 85%, economy only
   (`settings.fare_launch_pct`, with Ryanair's override). Weak routes get cut rather than launched cheap. **A new
-  flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare.
+  flight on a route already flown launches at that route's level** (the plan card shows it), not at launch fare. The
+  planner's **Price %** on a frequency (Routes, and filing on Tails) is a record only: it stores the launch level, nothing
+  calculates from it, and the fare actually charged is the route's level, set in the game by the fares script.
   *(since 20–21 Sep; the new flight's rule since 21 Oct; history: rule-history.md)*
 - **The fare ladder, every Saturday.** Each direction of each cabin of each route has a **level** (A→B and B→A apart:
   "out" from the route's hub, "back" to it): its fare as a % of the game's default price (launch: 100%, Ryanair 85%).

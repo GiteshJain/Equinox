@@ -390,6 +390,15 @@ with the build: "- **The planner's cabin suggestion by distance** (§5, since 26
   card flagged as differing is expected. *(since 26 Oct; history: rule-history.md)*"
 
 #### Fares
+*The frequency's Price % is a record only, since 26 Oct (Gitesh, Building chat, option C of three: A fill it with the
+route's level, B remove the box, C leave it and say so).* The document audit found Routes and Tails' filing store the
+launch level on every new frequency, even on a route already flown at another level; nothing reads it (the database
+never does; only the frequency's box and the data export show it). The sentence added after "not at launch fare.":
+"The planner's **Price %** on a frequency (Routes, and filing on Tails) is a record only: it stores the launch level,
+nothing calculates from it, and the fare actually charged is the route's level, set in the game by the fares script."
+· why: the plan card and Performance already show each direction's real level; a second copy would need keeping in
+step.
+
 *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low then raising across 50 routes is too much work. The new flight's rule since 21 Oct (Gitesh).* As of 21 Oct every route is at its launch level: legacy airlines 100% of the default price, Ryanair 85% (Gitesh); the fare ladder's first moves start from there.
 
 #### The fare ladder, every Saturday
