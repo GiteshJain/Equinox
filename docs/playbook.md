@@ -55,7 +55,7 @@ full stop; manual §8, brand). Website and planner: **equinox-alliance.com** (pl
 | Tool | What it's for | Where |
 |---|---|---|
 | **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries | gander.airlinesim.aero, one account with all six airlines |
-| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct, version 1.6); then, when a world scan is due, scans the world (every airline's schedule and the airport pages; since 21 Oct) | `capture/capture_all.user.js`, installed in a userscript manager (such as Tampermonkey) in your browser, with your capture key in place of `__CAPTURE_KEY__` |
+| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct); then, when a world scan is due, scans the world (every airline's schedule, its overview page and the airport pages; since 21 Oct; version 1.8, manual §7) | `capture/capture_all.user.js`, installed in the Userscripts app on the Mac or iPhone, with your capture key in place of `__CAPTURE_KEY__` |
 | **Salaries userscript** | One button sets every position of the airline you're on to the level the rule sets (rule: manual §7, salaries) | `capture/salary_adjust.user.js`, installed the same way |
 | **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one at a time, while you watch (section 7; rule: manual §5, the fare ladder) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
@@ -88,6 +88,7 @@ The strategy is all in the manual. What each rule covers:
 - **Kingfisher:** India's role.
 - **No new airlines before January 2027:** when the remaining holdings are decided.
 - **Bases:** each airline's hubs, focus cities and what's next.
+- **Stations:** airports an airline flies point-to-point routes from without making them a base.
 
 ### Fleet and growth (manual §3)
 - **Fleet types, as the route needs:** which types and families any airline may fly, and Ryanair's limits.
@@ -95,6 +96,10 @@ The strategy is all in the manual. What each rule covers:
 - **The default line:** which variant to pick for a size and a distance.
 - **Order across both delivery lines:** which type goes on which kind of route, and when to order the smaller one.
 - **When cash doesn't cover the aircraft the top openings need, cash decides.**
+- **Replacement by age:** when an aircraft is replaced, new or used.
+- **The used market too:** when to bid for a used aircraft instead of ordering new.
+- **Order every evening the forecast allows:** each evening's proposal, one airline at a time.
+- **The order queues:** one delivery line per family, and when each aircraft arrives.
 - **Reach first:** short and medium haul before long haul.
 - **Route first, then the airline, then the aircraft:** the order of choosing.
 - **Market share first, profit second:** what route choices lead with, and what still has to hold.
@@ -110,10 +115,15 @@ The strategy is all in the manual. What each rule covers:
 - **London:** which London airport new routes go to.
 - Interlines: manual §6.
 
+### Cabins and fares (manual §5)
+- **The cabin is chosen with each order:** the layout by distance, recorded on the plan card.
+- **Fares:** the launch level, and a new flight on a route already flown.
+- **The fare ladder:** each Saturday's moves per direction, under launch, the cap, the rival pause and the set-backs.
+
 ---
 
 ## 4. The planner, as you'll use it
-The nine screens, in the order of the header, grouped by when they're used (since 20 Oct). The planner guide has every
+The ten screens, in the order of the header, grouped by when they're used (since 20 Oct). The planner guide has every
 button.
 
 | Screen | Use it for | Look at it |
@@ -122,7 +132,7 @@ button.
 | **Today** | What to do now. At the top **All clear**, or what's waiting, and the capture in one line. Then **Orders** (who can order now or from when, the safe types, each delivery line), **Aircraft to file** (with **File into planner**), **Needs attention**, **Game check** (planner against the game), the **To-do** board and **Coming up** | Every evening after the capture |
 | **Routes** | Every route by airline: stars, market, distance, load, round trips. Open a route to see or edit its frequencies, with every check (night bans, banks, turns, position, second-daily gap, connections at both ends) | When planning or retiming |
 | **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards, the service check and the cabin the rule calls for (**Use the suggestion**). Filing happens here | When an aircraft arrives; when something needs a look |
-| **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, raise fares, fix or reduce, losing after lease), **Main hubs**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, the fare plan; a route's name there opens its **route page**, its story since launch (since 22 Oct) | Before every order; on Saturdays |
+| **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, raise fares, fix or reduce, losing after lease), **Main hubs**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, **The fare ladder** (since 26 Oct; the group page's fare ladder links to each airline's), the fare plan; a route's name there opens its **route page**, its story since launch (since 22 Oct) | Before every order; on Saturdays |
 | **Competition** | Who we're up against and where to open next (since 21 Oct). The scans' dates and the group line on top; for each airline its **Market share** by market (our share, its arrow, the top rivals as a bar), **Threats** (rivals who started on or grew on our pairs), **Openings** ranked (stars, rivals, distance; variant and hubs first) and **Rival profiles** | Each evening before an order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and each airline's skip list | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
@@ -139,8 +149,8 @@ lead there. A frequency's bank fit and its connections at both ends are on Route
 
 ## 5. Every evening
 
-**When:** each evening, Chicago time, at about the same time each day. It must be done before 05:00 in Chicago
-(10:00 UTC), when the database takes the day's snapshot itself if no full capture has come in (manual §7, every day,
+**When:** each evening, Chicago time, at about the same time each day. It must be done before 10:00 UTC (Chicago time changes with
+daylight saving), when the database takes the day's snapshot itself if no full capture has come in (manual §7, every day,
 inside the database).
 
 **Steps:**
@@ -161,15 +171,15 @@ inside the database).
 5. **Open the planner on Today.** The top says **All clear**, or what's waiting. The capture line should read "All six
    airlines captured, all good" with the time; if not, it says what's missing, short or broken, and **Systems ›** has
    each page. Since 22 Oct needs attention's **Fleet** group lists what the game's fleet pages showed that needs a look
-   (what counts: manual §4 and §7); the game's maintenance under the limit has its own card. Fix it in the game or the
+   (what counts: manual §4 and §7); the game's maintenance under the limit has its own tile on Today (a card on Home). Fix it in the game or the
    planner that evening.
 6. **Work down Today:** **Orders** (an airline that can order: the Scheduling chat proposes the aircraft and routes,
    section 6), **Aircraft to file** (**File into planner**), **Needs attention** (each item links to where it's fixed),
    **Game check** when something looks off, and the **To-do** board. When nothing is left, Today says **All clear**.
 7. **Optional:** run the salaries script for one airline when you choose (section 9).
 
-**Overnight, on its own:** the backup at 07:17 UTC (copied, restored to prove it works, sent to R2), the snapshot
-fallback at 10:00 UTC, the clean-ups at 10:20 UTC and, on the first night of a month, the monthly archive (manual §7).
+**Overnight, on its own:** the backup (copied, restored to prove it works, sent to R2), the snapshot fallback, the
+clean-ups and, on the first night of a month, the monthly archive (times: manual §7 and the map's *What runs when*).
 Nothing to do unless Today or the Systems board shows red (section 11).
 
 ---
@@ -202,7 +212,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 - **Look at the used offers too** (since 22 Oct): the game's Aircraft Market, each evening, for one on the default
   line that flies the chosen routes for less than new. You place the bid and say when the auction closes (rule:
   manual §3, the used market too; how auctions work: manual §9). When it's won, Claude logs the order with
-  `aircraft.acquired` set to `used`, so its replacement comes at 10 years, not 3 (manual §3, replacement by age).
+  `aircraft.acquired` set to `used`, (replacement age: manual §3, replacement by age).
   Since 26 Oct `acquired` has no default: logging any aircraft without `new` or `used` is refused.
 - **The routes come from the top of the openings** (since 21 Oct): Competition → the airline → **Openings**, or the
   airline briefing, or `select public.competition(<airline id>);` for the rest (rule: manual §3, the openings, ranked).
@@ -237,10 +247,10 @@ to step 5. The planner checks each card against them.
    to their first departure on their own (manual §9, mechanics).
 2. **Cabin:** the plan card's cabin. The card shows it (**suggested: …**, with **Use the suggestion**), and the card
    check flags a card whose cabin is missing or differs (rule: manual §5, the cabin is chosen with each order).
-3. **Fares:** set each new flight's fare from the card (Tails → Deliveries → **card**, its **Fare level** column:
-   **Ticket price adjustment**, baseline **default price**), or leave it to the fares userscript's next run, which sets
-   back any route whose fares are off its level (rules: manual §5, fares; the fare ladder; manual §9, house rules, the
-   fare floor).
+3. **Fares:** a new route's launch fare is set by hand from the card (Tails → Deliveries → **card**, its **Fare level**
+   column: **Ticket price adjustment**, baseline **default price**) when it differs from the game's default (Ryanair's
+   launch level). The fares userscript never sets back a new route; it sets back only an existing route's new flight,
+   after a capture has seen it (rules: manual §5, fares; the fare ladder; manual §9, house rules, the fare floor).
 
 ### Step 6: File it in the planner (you)
 File it as soon as it arrives (rule: manual §4, how it runs).
@@ -423,7 +433,7 @@ All in manual §9. What each covers:
 - **Mechanics:** demand is per airport, not per city; how bookings split among flights; time of day and demand;
   direction of bookings; what drives maintenance and where it happens; when leases are paid and what they cost; the
   week-end closing; aircraft positioning themselves; the game's time zones; why we don't use subsidiaries.
-- The planner shows Local or UTC (header switch); plan-card times are UTC (manual §1, data-only changes).
+- The planner shows Local or UTC (the account button's menu: **Times in Local** / **Times in UTC**); plan-card times are UTC (manual §1, data-only changes).
 
 ---
 
@@ -431,6 +441,7 @@ All in manual §9. What each covers:
 | Word | Meaning |
 |---|---|
 | **Hub** | A base that runs banks, so arrivals connect onto departures |
+| **Station** | An airport an airline flies point-to-point routes from without making it a base (manual §2, stations) |
 | **Focus city** | A base that serves its own market (and, for the legacy airlines, feeds a hub). Ryanair has only focus cities |
 | **Bank** | A window when arrivals land, followed by a window when departures leave, so passengers connect (manual §4, three banks per hub) |
 | **Minimum connection time** | The shortest connection an airport allows (manual §4, maximise connections at both ends) |

@@ -190,7 +190,7 @@ Details and open points: `docs/decisions.md`.
 |---|---|---|---|
 | Pan Am | JFK, Los Angeles, Dallas | ORD, SFO, SEA | — (LAX and Dallas off hold 20 Oct; they open with November's trunks) |
 | Kingfisher | Delhi, Mumbai (its network starts with the eight deposit aircraft, §3 hubs first) | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | — |
-| Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona (opening with the 14 Oct order) | Milan and Munich; no eastern base for now |
+| Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona, Milan Malpensa, Munich | — (no eastern base for now) |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
 | China Eastern | Shanghai PVG, Xi'an, Kunming | Beijing Daxing, Shenzhen | — |
 | Malaysia | KUL | — | — |
@@ -242,7 +242,8 @@ Details and open points: `docs/decisions.md`.
   The listed range is with a full load and is not a limit: the game flies longer routes with fewer seats. Left out
   because another variant beats them: the A350-900ULR (never the cheapest per seat), the A319neo (more per seat than
   the A320neo SHARP at every reach), the A321neo Medium, the A321XLR LIGHT and Heavy. Still three families: the A320
-  family, the E-jet E2 and the A350. *(since 18 Oct; the A350 rows since 21 Oct; history: rule-history.md)*
+  family, the E-jet E2 and the A350. The 15,000 km cut-over between the -900 and the -1000 is fixed in `competition()`
+  (not yet a setting). *(since 18 Oct; the A350 rows since 21 Oct; history: rule-history.md)*
   - **Turnaround of a new variant:** the game shows none, so a new variant takes its family's (A320 family 66 minutes,
     E-jet E2 67, A350 90). *(since 19 Oct; history: rule-history.md)*
   - **Reach is checked by the Scheduling chat** when it picks the variant for a route (§3), not by the plan card. A
@@ -344,11 +345,11 @@ Details and open points: `docs/decisions.md`.
   contested routes: a rival with over 250 departures a week at that base, or over 2 a day on the route itself. A base
   that is contested for one route (Manchester for Amsterdam, say) doesn't open its other routes. **Stations open
   nothing** until the main hub reaches the 750, contested or not (since 22 Oct). Ryanair is exempt. **One exception:
-  Kingfisher's eight aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, ordered 28–29 Oct)
+  Kingfisher's eight aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, to be ordered 28–29 Oct)
   go to Mumbai, on any route, contested or not; Kingfisher's other orders still go to Delhi until it reaches the 750
   (since 26 Oct, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`).
-  Contested as of 5 Oct: Mumbai (Gulf routes), Manchester (Amsterdam), Daxing (Chengdu), Dallas if opening with ORD,
-  Atlanta or Phoenix, SFO and SEA. The numbers are `settings.hub_first_departures` (750),
+  Which bases and routes are contested is worked out from the latest world scan (`hub_progress()`, `competition()`).
+  The numbers are `settings.hub_first_departures` (750),
   `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'
   thresholds are the `growth_*` and `pattern_*` settings. *(since 5 Oct; stations since 22 Oct; Kingfisher's Mumbai
   exception since 26 Oct; history: rule-history.md)*
@@ -382,7 +383,7 @@ Details and open points: `docs/decisions.md`.
   bases (hubs and focus cities, any of our airlines). Orders that month add flights on trunk routes we fly, and open
   trunk routes we don't, until each is fortified. *(from 1 Nov to 30 Nov; history: rule-history.md)*
   - **Fortified** means it no longer sells out: flights are added while a trunk runs at 95% or more
-    (`settings.growth_*`'s sold-out test), and stop once its loads fall below that.
+    (`settings.growth_ready_full_share`), and stop once its loads fall below that.
   - **Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within reach of
     the default line, §3) are chosen together, by profit per aircraft hour where flown and by market size where not.
   - **Hubs first is suspended for trunks in November:** any base can take an aircraft for a trunk route. One airline per
@@ -417,8 +418,8 @@ Details and open points: `docs/decisions.md`.
   S2 from 800 to 1,500 km, S3 over 1,500 km; Ryanair R on every route (`service_profiles`, Reference → service
   profiles). The plan card's service check marks a wrong code in red, and it's fixed before the card is filed.
   *(since 10 Oct; written into the manual 21 Oct)*
-- **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A321neo and XLR 840 km/h, E195 831,
-  A320neo 839, A350 911 (`aircraft_types.cruise_kmh`).
+- **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A320 family 840 km/h, E-jets 830,
+  A350 910 (`aircraft_types.cruise_kmh`).
 - **Three banks per hub;** bank times are in `airline_bases.bank_times` (the planner's Reference → hubs), the bank
   windows in `settings.bank_arrival_window_min` and `bank_departure_window_min`. Connections come first; an unbanked
   flight still earns. *(since 23 Sep)*
@@ -500,7 +501,7 @@ Details and open points: `docs/decisions.md`.
   seen yet (`capture_fare_actions()`, with the capture key), shows each airline's count and asks once, then makes them
   for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. The
-  simulogics terms (§4 II) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
+  simulogics terms (§5.3) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
   the capture, the salary script, the fares script and the scanner are allowed there; no need to ask the owner.
   Fare moves never appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and the hold
   after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; per direction since 26 Oct, brief
@@ -678,8 +679,8 @@ be copied from the game's settings page)
 - The game runs standard time all year: JFK −5, London 0, Paris and Amsterdam +1, Delhi +5:30.
 - Subsidiaries don't work with the game's demand model, so we don't use them.
 - **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
-  game. That's why the interlines between our six airlines, the capture and the salary script, and the world scanner are
-  fine here (#12; the `permission` rows `interline_own_airlines`, `capture_salary_step`, `world_scanner`,
+  game. That's why the interlines between our six airlines, the capture, the salary script, the fares script and the world
+  scanner are fine here (#12; the `permission` rows `interline_own_airlines`, `capture_salary_step`, `world_scanner`,
   `schedule_check`). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings,
   and terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
 

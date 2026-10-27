@@ -5,13 +5,13 @@ fallback: since 21 Oct the evening capture scans the world itself), and the
 planning library's command, which is the schedule optimiser (decision #10; #19; #24). They are Claude's working tools, not part of the website or
 planner, and they run in Claude's workspace.
 
-**Before running any of them**, know these limits as they stand on 8 Oct 2026:
+**Before running any of them**, know these limits:
 - **Fixed paths.** They read and write files in `/home/claude/` and the current folder.
 - **Two key files.** `~/.sb_anon` holds the public Supabase key, which is also in the planner's code.
   `~/.ingest_secret` holds the ingest secret, taken from the `ingest_secret` table. Neither file is ever committed.
   Recreate them in a new workspace before running a script. Decision #11 keeps the ingest secret as it is.
 - **Hand-made inputs.** Some inputs aren't made by any script yet. Where each one comes from is listed below.
-- **To be cleaned up:** these points are for #22 (scheduled jobs). Until then, run the scripts the way this page says.
+- **Run by hand.** Nothing new goes on a schedule (#22, decided 14 Oct; manual §7): run the scripts the way this page says.
 
 All database access goes through functions described in `docs/data.md`. Which call answers which question, with a
 tested example of each: the map, `docs/architecture.md`.
@@ -84,7 +84,7 @@ on a small dated sample on every pull request and keep the PDF (`tests/report_te
 | Step | Script | What it does | Needs | Makes |
 |---|---|---|---|---|
 | 1 | `newsletter/nl_analyze.py` | The market numbers for the issue: biggest airlines, airports and routes, market leaders, fleets | `airlines3.json` and `airports3.json` (a world scan, pulled as in the weekly report's step 1 and renamed), `game_stats.json` (the game's own statistics pages, saved by hand), `airports_oa.csv`; the market definitions are read from the repository's `report/analyze.py` (its market block, as `scan_markets.py` reads it; since 15 Oct, not a copy in the working folder) | `nl.json` |
-| 2 | `newsletter/nl_build.py` | Lays out the issue with its map | `nl.json`, `land110.geojson` (Natural Earth's public 1:110m land outline) | `nl_map.png`, `~/report/Gander_Monthly_Issue1_Oct2026.pdf`. The issue name is written into the script. |
+| 2 | `newsletter/nl_build.py` | Lays out the issue with its map | `nl.json`, `land110.geojson` (Natural Earth's public 1:110m land outline) | `nl_map.png`, `~/report/Gander_Monthly_Issue1_Oct2026.pdf`. The issue name (`Gander_Monthly_Issue1_Oct2026`) is written into `nl_build.py` and must change for each issue. |
 
 ## The world scan
 
@@ -155,7 +155,7 @@ from a clone of the repository, with Node 22:
    - `aircraft` (every aircraft's legs a week, block hours a day, maintenance and routes) or `aircraft 9M-AAB` (its week);
    - `check-card card.json`: a plan card's legs checked against every rule, at both ends, each leg's service code
      (`service_code`) against the one its route's distance calls for included, and since 21 Oct its cabin
-     (`config_id`, an id or a layout's code) against the one its routes call for (manual §5: the answer's `cabin`, with
+     (`config_id`, an id or a layout's code) against the one by distance (since 26 Oct; manual §5: the answer's `cabin`, with
      the reason; a card with none, or another, is a problem); with `--fares ladder.json` (`fare_ladder()`'s answer for
      the card's airline, or the briefing's), each route's fare level too (the answer's `fares`, since 21 Oct: what to
      set each new flight's fare to, Ticket price adjustment with the default price; since 26 Oct one per direction);

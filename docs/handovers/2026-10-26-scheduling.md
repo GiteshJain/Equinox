@@ -3,6 +3,14 @@
 Start as usual: read the operating manual, `docs/decisions.md` and the playbook, then check the planner's live state.
 Figures below are from the captures of 26 Oct 16:15 UTC (all six "all good").
 
+## Update, 26 Oct evening (Building chat)
+- **The cabin suggestion by distance is built** (#101): a new card's suggestion now follows manual §5, so no card needs
+  its cabin set by hand against a differing suggestion.
+- **Closed since this note:** to-dos 171, 170, 146, 148 and 161.
+- **Virgin and Malaysia have since ordered:** G-AAFL (LGW) and 9M-ABB (KUL), both E195-E2s due 27 Oct about 08:20 UTC
+  (brief `docs/briefs/2026-10-26-e195-orders.md`).
+- **Kingfisher's deposit aircraft go to Mumbai,** not Delhi (manual §3, hubs first's exception; commit b06721c).
+
 ## Working with Gitesh (this chat's lessons)
 - **Every proposal shows each aircraft's flying hours a day** (block hours). He pushes back on aircraft under 12 h.
 - **All airlines' orders are proposed first, then logged together** (cards, briefs) once he agrees.

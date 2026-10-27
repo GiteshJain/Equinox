@@ -49,47 +49,6 @@ Every rule in force for the equinox. group, with the date it started and why. De
 #### A frequency taken away isn't tracked yet
 From the built item "New frequencies and the fare ladder are built" (below, *Built from the decision list*).
 
-### Decided, not yet built: rivals' fleets in the world scan
-*Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-fleets.md` chosen in
-the Building chat).* Why: the scan read schedules only, so Icelandair's 99 aircraft and 44 on order showed nowhere.
-Every evening rather than weekly (the brief recommended weekly): the earliest warning, for about 3 minutes more an
-evening. The 25% flag: a quarter more aircraft on the way; at least 5 keeps a small start-up's single order off it.
-
-*Built 23 Oct (`Equinox` #93, spec `docs/specs/2026-10-23-rival-fleets.md`) and moved into §7.* The *Decided, not yet
-built* entry, retired with the build: "- **To build: rivals' fleets in the world scan** (brief `docs/briefs/2026-10-23-rival-fleets.md`, option A, Gitesh 23 Oct). Each evening's scan also reads every enterprise's overview page (its Fleet table, about 171 pages, about 3 minutes more) and keeps each rival's fleet and aircraft on order by type with the scan. Competition and the weekly report's three competitors show them with the change since the week-before scan, and flag a rival whose aircraft on order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`), and one with aircraft on order and no flights yet. Until it's built, §7's scan reads schedules and airports only. *(decided 23 Oct; history: rule-history.md)*"
-
-### Decided, not yet built: rivals' connecting options
-*Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-connections.md` chosen in
-the Building chat with a 1.5 detour limit).* Why: `competition()` counted a rival only where it flies our pair direct,
-so connections through a rival's hub (Icelandair via Keflavik) were invisible. In the 23 Oct scan rivals flew 123 of
-our 302 flown pairs direct, while one-stop options within 1.5 times the direct distance reached 190. Each connecting
-flight counts once so the figure sits on the same scale as direct departures; the detour limit keeps routings far off
-the way out (with none, 270 pairs "had" one). Display only until Gitesh decides whether connections count in the
-openings, the contested test or the fare pause.
-
-*Rivals' connecting options built 23 Oct (`Equinox` #94, spec `docs/specs/2026-10-23-rival-connections.md`) and moved
-into §3.* The *Decided, not yet built* entry, retired with the build: "- **To build: rivals' connecting options** (brief `docs/briefs/2026-10-23-rival-connections.md`, option A, Gitesh 23 Oct). When the evening's scan finishes, the database works out each rival's one-stop connections on our pairs (flown and on our route lists) from that scan's schedules: same airline, the second flight leaving from the airport's minimum connection time to 8 hours after the first lands, both legs together at most 1.5 times the direct distance (`rival_connection_detour_max`). Each rival flight that connects counts once, as departures a week, shown beside direct departures and never added to them, on Competition, a route's page and the weekly report. Display only: the openings, the contested test, hubs first, the three biggest competitors and the fare pause don't read it. *(decided 23 Oct; history: rule-history.md)*"
-
-### Decided, not yet built: each week's rivals by pair, kept for good
-*Decided 23 Oct (Gitesh, Building chat, option C of `docs/briefs/2026-10-23-rival-pairs-history.md`).* Why: the
-monthly archive deletes the scans' full schedules after a full calendar month, and the route page's rival line reads
-them, so it would reach back only one to two months. Every pair, so a pair added to a route list later already has its
-history; one scan a week, about 20 MB a year against about 155 MB for every scan.
-
-*Each week's rivals by pair built 23 Oct (`Equinox` #95, spec `docs/specs/2026-10-23-rival-pairs-history.md`) and moved
-into §7.* The *Decided, not yet built* entry, retired with the build: "- **To build: each week's rivals by pair, kept for good** (brief `docs/briefs/2026-10-23-rival-pairs-history.md`, option C, Gitesh 23 Oct). From the first finished scan on or after each Saturday, each airline's weekly departures on every pair in the world are kept for good (`scan_pair_airlines`), so a route's *Rivals on the pair* reaches back past the monthly archive: every evening's scan for the last month, weekly points before. Built after the rival connections. *(decided 23 Oct; history: rule-history.md)*"
-
-### Decided, not yet built: point-to-point routes away from our bases
-*Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
-manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base
-(`routes.hub_code`), so those pairs can't be listed. Gitesh: build it now, fly it after Delhi reaches 750 (hubs first
-unchanged). Bases at secondary cities (Lucknow, Ahmedabad, Pune and others) stay a question for a full brief.*
-
-*Every airline since the same day (Gitesh, review chat), not Kingfisher alone · why: the Airbus world's AirAsia flies 52
-routes from Kota Kinabalu that don't touch Kuala Lumpur, and Subang is its own market (Tigerair Singapore–Subang 78 a
-week, AirAsia Kota Kinabalu–Subang 56) that only pairs away from KUL can serve. The station role is per airline, so the
-build already covers it. Earlier wording: "Point-to-point routes away from our bases (Kingfisher first)".*
-
 ### 1. How we work
 
 #### Game changes are made in the planner at /planner/
@@ -123,7 +82,7 @@ Served under `/app/` with its page at `/planner/` (since the switch, 14 Oct; `we
 *Since 8 Oct (#8) · why: previews used the live database, so testing one could save into the live planner; database changes were tried first on live.*
 
 #### Automatic checks
-The checks' dates: the fares userscript on the saved fares form and answer (since 21 Oct); the capture's world scan against `gscan.py` on the same saved pages (since 21 Oct);
+The checks' dates: the fares userscript on the saved fares form and answer (since 21 Oct); the capture's world scan against `gscan.py` on the same saved pages (since 21 Oct).
 
 *Since 14 Oct (the clean-up, build pull request 14) these replace the side by sides with the old planner.*
 
@@ -162,7 +121,7 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 *Since 8 Oct (#9) · why: checks need fixed data to compare exact answers.*
 
 #### One chat per kind of work
-*Since 8 Oct (#3).* *Since 8 Oct · why: each chat keeps its own thread of context.*
+*Since 8 Oct (#3) · why: each chat keeps its own thread of context.*
 
 ### 2. Group strategy
 
@@ -197,13 +156,27 @@ option B of three: A keep the rule, B one route as an exception, C change the tr
 "November's trunks (§4) are the one exception." · why: the aircraft was bought for its range; Dubai (5,548 km, no
 rival) flies 15.5 hours a day with Pekanbaru, against 15.4 for Chengdu Tianfu and Guiyang under the rule. The trigger
 itself is unchanged for every other aircraft.
-Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul.
+Old wording: "**Malaysia:** make KUL a world transfer hub; build the Asian feeder network before any long-haul. **Long-haul starts
+once every 4- and 5-star opening on Malaysia's route list within the A320neo's reach (the A320neo Heavy, 4,708 km,
+§3) is flown.** November's trunks (§4) are the one exception. *(since 29 Sep; the trigger since 21 Oct; history:
+rule-history.md)*"
 
 #### No new airlines before January 2027
 *Since 15 Oct (Gitesh).*
 
 #### Bases
 *Base roles from 29 Sep, Kingfisher from 2 Oct, holds from 5 Oct; Ryanair's Barcelona decided 14 Oct (brief `docs/briefs/2026-10-14-ryanair-order.md`); Ryanair's CDG and Amsterdam made focus in the data 15 Oct (Gitesh: none less important than another, point to point rather than hubs).*
+
+#### Stations
+*Decided 22 Oct (Gitesh, review chat) · why: Kingfisher's list now holds Inter Connect's network in Ellinikon (the
+manual's scale model), about 214 of whose pairs touch none of our bases; every route on our lists is filed under a base
+(`routes.hub_code`), so those pairs can't be listed. Gitesh: build it now, fly it after Delhi reaches 750 (hubs first
+unchanged). Bases at secondary cities (Lucknow, Ahmedabad, Pune and others) stay a question for a full brief.*
+
+*Every airline since the same day (Gitesh, review chat), not Kingfisher alone · why: the Airbus world's AirAsia flies 52
+routes from Kota Kinabalu that don't touch Kuala Lumpur, and Subang is its own market (Tigerair Singapore–Subang 78 a
+week, AirAsia Kota Kinabalu–Subang 56) that only pairs away from KUL can serve. The station role is per airline, so the
+build already covers it. Earlier wording: "Point-to-point routes away from our bases (Kingfisher first)".*
 
 ### 3. Fleet and orders
 
@@ -233,7 +206,7 @@ chose to fly them longer than new ones. The wording it replaced, in §3:
 is taken only under that age." The used-market rule's "on the default line, under 3.5 years old" went back to "on
 the default line".
 
-#### No leased aircraft older than 3.5 years
+The earlier rule it replaced, set the same day (it read "No leased aircraft older than 3.5 years"):
 *Since 22 Oct (Gitesh, Scheduling chat).* Leased aircraft fly until they are 3.5 years old and are then replaced; a
 used aircraft is taken only under that age. Before, the manual set no age limit, and the evening of 22 Oct took
 N023AW (3.6 years) and bid for 5Y-AAC (7.2 years) and proposed VH-AGP (9.0 years) under the used-market rule as first
@@ -310,6 +283,18 @@ Capturing the demand and holding the departures leaves new competition little ro
 
 #### The openings, ranked: competition()
 Each comes with the variant from the default line (below: the smallest size its stars allow, bigger only for reach, the cheapest per seat whose range covers it, among the types the airline may buy; an opening no type reaches is left out). *Since 21 Oct (spec `docs/specs/2026-10-21-competition-analysis.md`) · why (Gitesh): route first, then the airline: each evening's proposal needs a ranked list.*
+
+#### Rivals' connections are shown, never counted
+*Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-connections.md` chosen in
+the Building chat with a 1.5 detour limit).* Why: `competition()` counted a rival only where it flies our pair direct,
+so connections through a rival's hub (Icelandair via Keflavik) were invisible. In the 23 Oct scan rivals flew 123 of
+our 302 flown pairs direct, while one-stop options within 1.5 times the direct distance reached 190. Each connecting
+flight counts once so the figure sits on the same scale as direct departures; the detour limit keeps routings far off
+the way out (with none, 270 pairs "had" one). Display only until Gitesh decides whether connections count in the
+openings, the contested test or the fare pause.
+
+*Rivals' connecting options built 23 Oct (`Equinox` #94, spec `docs/specs/2026-10-23-rival-connections.md`) and moved
+into §3.* The *Decided, not yet built* entry, retired with the build: "- **To build: rivals' connecting options** (brief `docs/briefs/2026-10-23-rival-connections.md`, option A, Gitesh 23 Oct). When the evening's scan finishes, the database works out each rival's one-stop connections on our pairs (flown and on our route lists) from that scan's schedules: same airline, the second flight leaving from the airport's minimum connection time to 8 hours after the first lands, both legs together at most 1.5 times the direct distance (`rival_connection_detour_max`). Each rival flight that connects counts once, as departures a week, shown beside direct departures and never added to them, on Competition, a route's page and the weekly report. Display only: the openings, the contested test, hubs first, the three biggest competitors and the fare pause don't read it. *(decided 23 Oct; history: rule-history.md)*"
 
 #### Add a flight or raise fares, by profit per aircraft hour
 *Since 17 Oct; built 17 Oct · why (Gitesh): profit per flight favours long routes because they take longer; per block hour alone would over-reward short hops, whose turns tie the aircraft up for nearly as long as they fly. Brief: `docs/briefs/2026-10-17-add-or-raise.md`.*
@@ -391,6 +376,11 @@ choice (`routes.cabin_choice`), which used to win, no longer overrides distance 
 Wording clarified 22 Oct (Gitesh): the old sentence read "The cabin is chosen with each order", which a chat took to mean the cabin is set on the game's order screen. It isn't: the game takes only the aircraft; the cabin is recorded on the plan card and fitted when the aircraft arrives and is filed. The rule itself did not change.
 
 *Since 20 Oct · why (Gitesh): the new layouts aren't captured by the defaults. Built 21 Oct (spec `docs/specs/2026-10-21-cabins-new-rule.md`): the Cabins board and its refit settings went, and each market keeps only its layout.*
+
+*The planner's cabin suggestion by distance built 26 Oct (`Equinox` #101).* The *Decided, not yet built* entry, retired
+with the build: "- **The planner's cabin suggestion by distance** (§5, since 26 Oct): until it's built, the plan card's suggestion and
+  card check still follow the old market rule, so the Scheduling chat sets each new card's cabin by distance and a
+  card flagged as differing is expected. *(since 26 Oct; history: rule-history.md)*"
 
 #### Fares
 *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low then raising across 50 routes is too much work. The new flight's rule since 21 Oct (Gitesh).* As of 21 Oct every route is at its launch level: legacy airlines 100% of the default price, Ryanair 85% (Gitesh); the fare ladder's first moves start from there.
@@ -483,8 +473,6 @@ The numbers are settings (step, up, down, hold weeks, cap, and since 21 Oct the 
 
 *Since 21 Oct · why (Gitesh, option A of `docs/briefs/2026-10-21-fare-ladder.md`): 88–98% of economy flights and 98–100% of business flights sell out at launch fares, no fare had ever been raised, and each 5% step that holds is worth about 5M a week.*
 
-### 6. Interline
-
 **The hold after a step up, since 26 Oct (Gitesh, brief `docs/briefs/2026-10-26-fare-ladder-hold-after-step-up.md`).**
 The up line read, word for word: "**up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5
 departures that way in the 7 days);". Why: bookings open 3 days ahead and a fare change applies only to flights not
@@ -494,6 +482,14 @@ the next judgement reads a full week at the new level. Directions that didn't mo
 at one price. Chosen over judging only flights flown at the current level (faster, but as few as 4 days of evidence and
 a larger build) and over a two-weekly review for every direction (slower for routes that held). The cost: a route that
 keeps selling out climbs every 2 weeks, reaching the cap in about 8 weeks instead of 4.
+
+*The hold after a step up built 26 Oct (`Equinox` #110, spec `docs/specs/2026-10-26-fare-ladder-hold-after-step-up.md`).*
+The entry retired with it: "- **The fare ladder's hold after a step up** (§5, since 26 Oct): until it's built, `fare_ladder()` still lists a
+  direction that went up the Saturday before as free to move, so the review chat holds those by hand (on 31 Oct, every
+  direction moved on 26 Oct) and removes their rows before **Put on the fare plan**. *(since 26 Oct; history:
+  rule-history.md)*"
+
+### 6. Interline
 
 #### Gulf hub carriers are rivals
 *Since 5 Oct · why: they would carry our passengers through Dubai against Kingfisher and Malaysia.*
@@ -506,8 +502,21 @@ keeps selling out climbs every 2 weeks, reaching the cap in about 8 weeks instea
 #### Then the world scan, when one is due
 *Since 21 Oct (spec `docs/specs/2026-10-21-scan-in-capture.md`) · why (Gitesh): competition analysis and the evening order proposal need fresh rivals, and the scan in the capture costs no extra work; raise `scan_every_days` to 3 (about twice a week) if the evening gets long.*
 
+#### Rivals' fleets, with every scan
+*Decided 23 Oct (Gitesh: raised in the review chat, option A of `docs/briefs/2026-10-23-rival-fleets.md` chosen in
+the Building chat).* Why: the scan read schedules only, so Icelandair's 99 aircraft and 44 on order showed nowhere.
+Every evening rather than weekly (the brief recommended weekly): the earliest warning, for about 3 minutes more an
+evening. The 25% flag: a quarter more aircraft on the way; at least 5 keeps a small start-up's single order off it.
+
+*Built 23 Oct (`Equinox` #93, spec `docs/specs/2026-10-23-rival-fleets.md`) and moved into §7.* The *Decided, not yet
+built* entry, retired with the build: "- **To build: rivals' fleets in the world scan** (brief `docs/briefs/2026-10-23-rival-fleets.md`, option A, Gitesh 23 Oct). Each evening's scan also reads every enterprise's overview page (its Fleet table, about 171 pages, about 3 minutes more) and keeps each rival's fleet and aircraft on order by type with the scan. Competition and the weekly report's three competitors show them with the change since the week-before scan, and flag a rival whose aircraft on order reach 25% of its fleet with at least 5 on order (`rival_orders_flag_pct`, `rival_orders_flag_min`), and one with aircraft on order and no flights yet. Until it's built, §7's scan reads schedules and airports only. *(decided 23 Oct; history: rule-history.md)*"
+
 #### Each page is checked as it arrives
 *Since 14 Oct (#21) · why: 11 and 12 Oct were missed and nothing said so for two days; loads for about 780 flights were lost.*
+
+#### The fleet pages: aircraft not delivered yet are left out
+*Since 26 Oct (#103) · why: on 24 Oct EI-ACF, ordered new, showed as "looks used (24.1 years)" from the factory's meaningless
+age (Retired rules, 26 Oct).*
 
 #### Salaries
 *Since 10 Oct · why: Gitesh suspects the nightly adjustment of all six airlines was inflating salaries.*
@@ -524,6 +533,15 @@ The only investor report: *The separate monthly report was dropped 15 Oct · why
 
 #### Every night, after the capture: the backup
 *Copies in R2 since 9 Oct (#16) · why: the single backup file would pass GitHub's 50 MB warning around late November and its 100 MB limit around December or January.* *Since 8 Oct (#6) · why: there were no backups, and the planner is one row.*
+
+#### Each week's rivals by pair, kept for good
+*Decided 23 Oct (Gitesh, Building chat, option C of `docs/briefs/2026-10-23-rival-pairs-history.md`).* Why: the
+monthly archive deletes the scans' full schedules after a full calendar month, and the route page's rival line reads
+them, so it would reach back only one to two months. Every pair, so a pair added to a route list later already has its
+history; one scan a week, about 20 MB a year against about 155 MB for every scan.
+
+*Each week's rivals by pair built 23 Oct (`Equinox` #95, spec `docs/specs/2026-10-23-rival-pairs-history.md`) and moved
+into §7.* The *Decided, not yet built* entry, retired with the build: "- **To build: each week's rivals by pair, kept for good** (brief `docs/briefs/2026-10-23-rival-pairs-history.md`, option C, Gitesh 23 Oct). From the first finished scan on or after each Saturday, each airline's weekly departures on every pair in the world are kept for good (`scan_pair_airlines`), so a route's *Rivals on the pair* reaches back past the monthly archive: every evening's scan for the last month, weekly points before. Built after the rival connections. *(decided 23 Oct; history: rule-history.md)*"
 
 #### Every job writes a row to job_runs
 *Since 11 Oct (#13 pull request 7, the jobs brief) · why: the daily record needs a fallback, the capture tables their clean-ups, #16 its archive before 1 Dec, and a job that fails must be seen.*
@@ -550,6 +568,10 @@ stays unsold, and that the ferry from the factory costs nothing, are from Gitesh
 
 #### Bookings are divided among the flights on offer
 Bookings on a route are divided among the flights on offer, so more departures win more of a market than fewer, bigger flights (Gitesh, from playing the game, 18 Oct).
+
+#### Bookings open 3 days ahead; a fare change applies only to flights not yet booked
+*Since 26 Oct (Gitesh, from the game's documentation; brief `docs/briefs/2026-10-26-fare-ladder-hold-after-step-up.md`,
+background).* Flights already selling fly at the old price.
 
 ---
 
@@ -622,11 +644,15 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 26 Oct | Reach checked by the Scheduling chat with no ask: a route past a variant's full-load range proposed without asking | Asked each time (§3). Why: Gitesh, ranges are a bit flexible, so he decides each route pushed slightly past a variant's full-load range (raised by G-AAFK (LGW) on Tel Aviv) |
 | 26 Oct | The fare ladder by route and cabin: one level for both directions, judged on both directions' flights together; set back, under launch and the game changes (both ways at once) the same | Each direction of each cabin of each route its own level, judged on that direction's flights (up, hold, down, the hold after a step down, under launch, set back); one game change per direction; a new route, the capacity hold, the rival pause and the 60% floor stay the whole route's (§5). Why: Gitesh, option A of the per-direction brief; passengers book each direction separately |
 | 26 Oct | The cabin by market: the layout of the market of a route taking over 65% of block time (`cabin_route_share_pct`, `markets.layout`), else the layout with the most seats | The cabin by distance of the main route: Leisure under 3,500 km, Leisure Plus to 6,500 km, Comfort beyond (§5). Why: Gitesh, the layouts trade seat comfort for seats, a question of flight length; demand is met by fares (brief `docs/briefs/2026-10-26-cabin-layout-by-distance.md`) |
 | 26 Oct | An aircraft logged without saying new or used was taken as new (`aircraft.acquired` defaulted to new) | Every aircraft logged must say new or used: no default (§3). Why: Gitesh; on 23 Oct VT-ABE, bought used, was logged without it and marked new, which would have set its replacement at 3 years instead of 10 |
 | 26 Oct | The fleet checks counted every aircraft on the night's fleet pages | An aircraft not delivered yet (on order in the planner, or at the factory with no seats and no pilots) is left out until it arrives (§7). Why: Gitesh; on 24 Oct EI-ACF, ordered new, showed as "looks used (24.1 years)" from the factory's meaningless age |
 | 26 Oct | The cabin by distance of the main route | The distance band taking over 65% of block time decides, else the most seats; no route override (§5). Why: Gitesh, the 65% rule still applies to aircraft flying several ranges |
+| 22 Oct | No leased aircraft older than 3.5 years | Replacement by age: 3 years new, 10 used (§3). Why: Gitesh, used aircraft are taken because they're cheaper, and he chose to fly them longer than new ones |
+| 22 Oct | Stars from the route research's ratings | Stars from the game's passenger demand (§3). Why: the research's ratings were often far off the game's demand (Shanghai Hongqiao 2 stars at demand 10) |
+| 22 Oct | The new look's merge exception ("keep merging if all is good") | Ended with step 4 of the redesign; every pull request needs "merge" again (§1). Why: the four steps were merged on 22 Oct (#71 to #74) |
 | 21 Oct | Every Saturday, first the world scan: `gscan.py`, run from the Saturday chat (since 14 Oct, #22) | The world scan runs with the evening capture when one is due (`scan_every_days`, 1: every evening); `gscan.py` by hand only when the Systems board shows it old (§7). Why: Gitesh, competition analysis and the evening order proposal need fresh rivals (brief `docs/briefs/2026-10-21-competition-analysis.md`) |
 | 21 Oct | The evening proposal shows every airline that can order at once | One airline at a time, each decided, ordered and logged before the next (§3). Why: Gitesh |
 | 21 Oct | The fare ladder's game changes: whole bases first, then single routes | Route by route only, so new routes are never touched (§5). Why: Gitesh, loads are high because the world is young; a base change moved new routes too |

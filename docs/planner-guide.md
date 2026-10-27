@@ -347,14 +347,14 @@ fold them, and a row's title opens or closes it.
   each direction of each cabin of each route (out from the route's hub, back to it) has its own **level**, its fare as
   a % of the game's default price (the latest the fare plan recorded for that direction, or for both directions if that
   is later, else the launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin and direction it
-  goes **up** 5 points when every flight sold out (at least 5 departures that way), then that direction holds the next
+  goes **up** a step (5 points; Pan Am and China Eastern 7, manual §5) when every flight sold out (at least 5 departures that way), then that direction holds the next
   Saturday ("held after a step up on 26 Oct"; since 26 Oct, the setting *fare_ladder_up_hold_weeks*: bookings open 3
-  days ahead, so the week after a change mostly flies at the old price), **holds** at 90–99%, and goes **down** 5
-  points under 90%, then that direction holds 2 weeks ("held after a step down on 12 Oct"). A held direction has no
+  days ahead, so the week after a change mostly flies at the old price), **holds** at 90–99%, and goes **down** a
+  step under 90%, then that direction holds 2 weeks ("held after a step down on 12 Oct"). A held direction has no
   game action and nothing to put on the fare plan after a step up. The whole route, both directions, holds while it is
   under 7 days old, and (since 21 Oct) for 7 days after it gains a flight ("a
   flight added on 2 Nov: judged at its new size from 9 Nov"; the setting *fare_ladder_capacity_hold_days*), never goes
-  more than 20 points above launch for now, and never under launch by a 5-point step (nor under the 60% floor where
+  above its cap for now (20 points above launch; Pan Am and China Eastern 28; manual §5), and never under launch by a 5-point step (nor under the 60% floor where
   another player flies the pair). The airline has a card: its moves as three counts (up, hold, down; the down
   count amber when there is one), how many changes to make in the game ("24 changes in the game": the set-back changes
   and the moves), **Put on the fare plan (n)** and **See the changes**, which opens the long lists in the row under the
@@ -407,7 +407,7 @@ fold them, and a row's title opens or closes it.
   to 80% is "−20% of the default price").
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
-  business (manual §5).
+  business (manual §1).
 - **Growth signals:** where each airline should grow next, and what to trim (Check → Growth until 20 Oct).
   - **Ready for another flight:** routes that sold out on most departures in the last 7 days and make at least as
     much an aircraft hour as the airline's middle route. An aircraft hour is the flight's block time plus the type's
@@ -566,8 +566,8 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     not read in the latest scan" when the scan didn't read it) and its five biggest types with what's on order. Since
     23 Oct a line **On our pairs** gives its direct and connecting departures a week on the airline's pairs apart ("21
     direct · 14 connecting"), with its connecting airports; a profile is still chosen by the pairs it flies direct.
-- **Connecting departures** (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md; manual, *Decided, not yet
-  built*): when the evening's world scan finishes, the database works out each rival's one-stop connections on our
+- **Connecting departures** (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md; manual §3, rivals' connections are
+  shown, never counted): when the evening's world scan finishes, the database works out each rival's one-stop connections on our
   pairs (the pairs any of our airlines flies or has on its list) from that scan's schedules: the same airline, the second
   flight leaving from the connecting airport's minimum connection time (90 minutes where unknown) up to 8 hours after the
   first lands, both legs together at most 1.5 times the direct distance (*rival_connection_detour_max*). Each rival

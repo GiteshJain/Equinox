@@ -74,6 +74,7 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   known about Equinox keeps applying. Existing Equinox chats are moved into it (Add to project) so they stay searchable;
   from then on, a new chat per kind of work: scheduling, the Saturday review, the monthly work, and building. The
   project's instructions are kept in `docs/project-instructions.md`.
+  *Since 15 Oct:* three chats (Scheduling, Saturday review, Building); the review chat also does the monthly work.
 - **8 Oct 2026 · #4 Operating manual.** Every rule in force lives in one file, `docs/operating-manual.md`, with the
   date it started and the reason, plus a list of retired rules so they don't come back. A copy sits in the Equinox
   project's files so every chat reads it. Where the manual and memory disagree, the manual wins; memory is background
@@ -82,6 +83,7 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   instructions become a short pointer to the manual. This file stays the log of foundation decisions. Reason: rules
   were spread across memory, the planner, to-do notes and the instructions; the main memory file was full and held
   old rules next to new ones, and a scheduling chat used the retired surplus method to recommend orders.
+  *Since 21 Oct:* the reasons and retired rules live in `rule-history.md`; the manual holds the rules in force only.
 - **8 Oct 2026 · #5 Decision brief.** Every decision gets the full brief (option A), in every chat: decision and
   recommendation first, then an options table (growth, profit a week, cash at the lowest point, opportunity cost, risk,
   easy to undo), the background with sources and competition, scenarios and the risk of waiting, and what would change
@@ -206,6 +208,7 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   don't clash with a newer change. 10 Oct, Gitesh: no waiting for 3 clean days; the switch-over goes as soon as it's
   built, after the website and scripts read the tables (build order now 8, 9, then 6, 7, 10). The comparison runs
   until then, and a failure found before the switch is fixed first.
+  *Done 14 Oct:* the adapter, `planner_state` and the old planner went with the clean-up (build pull request 14).
 - **9 Oct 2026 · #14 Worlds, groups and airlines.** Option C, without accounts for other players. In the #13 tables:
   - every row carries its world, and its airline where it has one;
   - airlines are rows with a stable ID and the game's ID in that world. The same brand in two worlds is two airlines;
@@ -347,11 +350,15 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   kept on each raw page; after an airline's loads page the capture's reply carries the panel's words, so the
   userscript needs no change. A rotation counts from the day after it launched (13 Oct's newly filed aircraft hadn't
   flown by that evening's capture).
+  *Since 20 Oct:* Home's warnings moved to Today, and the Systems board to the Systems screen; Check went. (Home's
+  attention cards came back 23 Oct as summary cards.)
 - **14 Oct 2026 · #22 Scheduled jobs.** Option A, with a rule: nothing new on a schedule. The backups, the archive and
   the two database jobs already run on their own (#6, #13, #16). The world scan stays a chat task, now a standing first
   step of the Saturday review, so every weekly report and gander monthly reads a fresh scan (manual §7). Report drafts
   stay in the Saturday chat. Why (Gitesh): the scanner runs from a chat in 5 to 10 minutes; only one scan had been taken
   (6 Oct) because it wasn't anyone's step. Brief: `docs/briefs/2026-10-14-scheduled-jobs.md`.
+  *Changed 21 Oct:* the world scan runs with the evening capture when one is due (manual §7); `gscan.py` by hand only
+  when the Systems board shows it old.
 - **14 Oct 2026 · #23 Monitoring.** Option B: a "Systems" board at the top of the planner's Check screen, one line each
   with a green, amber or red mark: the evening capture (each airline, with #21's verdict), the daily snapshot, the
   nightly backup and its restore check, the monthly archive, the clean-ups, the world scan's age, the planner's last
@@ -361,6 +368,8 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   deploys and usage nowhere. Brief: `docs/briefs/2026-10-14-monitoring.md`.
   *Built 14 Oct* with #21 (`Equinox` #40): `system_status()` gives the figures, and the build writes its time and change
   into the planner.
+  *Since 20 Oct:* Home's warnings moved to Today, and the Systems board to the Systems screen; Check went. (Home's
+  attention cards came back 23 Oct as summary cards.)
 - **14 Oct 2026 · #24 Ready-made data views.** Option B: one airline briefing command
   (`scripts/briefing/brief.py <airline>`) that gathers, for one airline, the captured figures from the database, the
   planning figures from the planning library, the rivals in its markets from the latest world scan (with its date), and
