@@ -589,17 +589,17 @@ export const historyFrom = (today: string): string => dayMinus(today, 15);
 // worded for the board, sorted, and Put on the fare plan's rows. Every level, move and game action is the database's.
 export type LadderMove = "up" | "hold" | "down";
 /** What Put on the fare plan writes as ladder_move (since 23 Oct, spec docs/specs/2026-10-23-fare-ladder-under-launch.md):
- *  a jump under launch has move down and a revert move up, so readers of move keep working. */
-export type LadderKind = LadderMove | "jump" | "revert";
+ *  a jump under launch has move down, so readers of move keep working. Since 26 Oct (spec
+ *  docs/specs/2026-10-26-under-launch-by-loads.md) a cabin under launch is judged by loads and never reverts. */
+export type LadderKind = LadderMove | "jump";
 export type LadderCabin = "economy" | "business";
 /** Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-per-direction.md) each direction has its own level: out from the
  *  route's hub, back to it. */
 export type LadderDirection = "out" | "back";
-/** A cabin under launch (since 23 Oct): its state and the figures it is judged on, where they apply. */
+/** A cabin under launch (since 23 Oct): its state and its load over the window, where they apply (by loads since 26 Oct:
+ *  no revenue figures). */
 export interface UnderLaunch {
   state: "launch" | "holding" | "due" | "done";
-  baseline_revenue?: number;
-  window_revenue?: number;
   window_load?: number;
   window_flights?: number;
   jumped_on?: string;
@@ -654,8 +654,8 @@ export interface LadderRoute {
    *  why: "captured fare at 100%, level 110%". */
   fix?: boolean;
   fix_reason?: string | null;
-  /** Since 23 Oct: up, down, hold, jump or revert (what Put on the fare plan writes as ladder_move); the cabin under
-   *  launch; and a cut-or-keep decision for Gitesh at the last jump level. */
+  /** Since 23 Oct: up, down, hold or jump (what Put on the fare plan writes as ladder_move); the cabin under launch; and
+   *  a cut-or-keep decision for Gitesh at the last jump level (since 26 Oct: held there under 90% sold out). */
   ladder_kind?: LadderKind;
   under_launch?: UnderLaunch | null;
   decide?: boolean;
@@ -740,9 +740,8 @@ export function stepWords(steps: number): string {
 export const levelWords = (level: number, steps: number): string => `${pts(level)}% · ${stepWords(steps)}`;
 /** The move, as the board shows it: up plain, down in amber (colour only for action), hold quiet. */
 export function moveWords(r: Pick<LadderRoute, "move" | "new_level"> & Partial<Pick<LadderRoute, "ladder_kind" | "under_launch">>): { text: string; kind: "up" | "down" | "hold" } {
-  // under launch (since 23 Oct): a jump in amber as a step down, a revert plain as a step up, the hold after a jump in words
+  // under launch (since 23 Oct): a jump in amber as a step down, the hold after a jump in words
   if (r.ladder_kind === "jump") return { text: `jump to ${pts(r.new_level)}%`, kind: "down" };
-  if (r.ladder_kind === "revert") return { text: `back to launch, ${pts(r.new_level)}%`, kind: "up" };
   if (r.move === "hold" && r.under_launch?.state === "holding") return { text: "hold under launch", kind: "hold" };
   if (r.move === "up") return { text: `up to ${pts(r.new_level)}%`, kind: "up" };
   if (r.move === "down") return { text: `down to ${pts(r.new_level)}%`, kind: "down" };
@@ -781,9 +780,9 @@ export function ladderRows(rows: readonly LadderRoute[], sort: LadderSort): Ladd
 /** A row's key on the board: its route, direction and cabin (since 26 Oct a row per direction). */
 export const ladderKey = (r: Pick<LadderRoute, "route_id" | "direction" | "cabin">): string => `${r.route_id}|${r.direction}|${r.cabin}`;
 /** Put on the fare plan: one insert per route, cabin and direction (since 26 Oct, with its direction) the database marks
- *  to_plan (each level that changes, each hold that follows a step down, and since 23 Oct a judgement under launch that
- *  holds), all in one planner_save() call.
- *  The level and the move are the ladder's (ladder_move jump or revert from ladder_kind, since 23 Oct); the fare
+ *  to_plan (each level that changes, each hold that follows a step down, and since 26 Oct the first cut-or-keep hold at
+ *  the last jump level under launch), all in one planner_save() call.
+ *  The level and the move are the ladder's (ladder_move jump from ladder_kind, since 23 Oct; else the move); the fare
  *  then is the latest captured fare in that cabin (fare_plan_status() ticks a row off when the captured fare moves by
  *  its change, within 1%); proposed on the UTC day, the day the database's week is counted in. */
 export function ladderPlanChanges(x: { worldId: number; airlineId: number; routes: readonly LadderRoute[]; utcDay: string; nowMs: number }): Change[] {
@@ -791,7 +790,7 @@ export function ladderPlanChanges(x: { worldId: number; airlineId: number; route
     world_id: x.worldId, airline_id: x.airlineId, route_id: r.route_id, legacy_key: `fl${x.nowMs.toString(36)}-${i}`, cabin_class: r.cabin,
     change_pct: r.change_pct ?? 0, fare_from: r.latest_fare == null ? null : Math.round(r.latest_fare * 100) / 100, proposed_on: x.utcDay,
     status: "planned", reason: r.reason, level_pct: r.new_level,
-    ladder_move: r.ladder_kind === "jump" || r.ladder_kind === "revert" ? r.ladder_kind : r.move, direction: r.direction ?? null } }));
+    ladder_move: r.ladder_kind === "jump" ? "jump" : r.move, direction: r.direction ?? null } }));
 }
 /** A cut-or-keep decision for Gitesh (since 23 Oct): the marker beside its reason, "" for any other row. Never in
  *  Needs attention (manual §5: fare moves never are). */

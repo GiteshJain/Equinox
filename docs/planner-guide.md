@@ -386,25 +386,27 @@ fold them, and a row's title opens or closes it.
   here on 22 Oct: paused until 29 Oct". The threats are Competition's. Fare moves never appear on Today or in Needs
   attention (a rival's move does, as itself). In a chat, `select public.fare_ladder(<airline id>);` gives the same list.
 
-  **Under launch** (since 23 Oct, spec `docs/specs/2026-10-23-fare-ladder-under-launch.md`): a cabin that doesn't fill
-  may go under its launch level, in two jumps, each judged on its **revenue a flight** (passengers × fare, averaged over
-  its flights) after 2 weeks. The numbers are settings (*fare_under_launch_load_pct*, *_levels*, *_days*,
-  *_min_flights* and *_decide_load_pct*).
+  **Under launch** (since 23 Oct, spec `docs/specs/2026-10-23-fare-ladder-under-launch.md`; judged by loads since 26 Oct,
+  spec `docs/specs/2026-10-26-under-launch-by-loads.md`): a cabin that doesn't fill may go under its launch level, in
+  two jumps, each held 2 weeks and then judged on its **loads**, like any direction. The numbers are settings
+  (*fare_under_launch_load_pct*, *_levels*, *_days* and *_min_flights*).
   - **jump to 80%** (Ryanair, launching at 85%: **jump to 75%**): a cabin at launch that has been under 80% full over the
     last 14 days, with at least 10 flights, all at launch, where the ladder would otherwise hold it there ("41% full over
     14 days at launch: to 80% for 2 weeks"). With fewer flights it waits, saying how many;
   - **hold under launch** for 2 weeks from the day the captures saw the jump ("at 80% since 25 Oct: judged on 8 Nov");
-  - then it is **judged**: its revenue a flight since the jump against its **launch baseline** (the 14 days before its
-    first jump). Not lower: it stays, and the ladder carries on from there ("paid off"). Lower: **jump to 60%** for 2
-    weeks the same way. At 60% and lower: **back to launch**; at 60%, not lower but still under 60% full: it holds at
-    60%. Either way the row shows **cut or keep?** beside its reason, a decision for the Saturday review, never in Needs
-    attention;
-  - under launch the ladder only climbs or holds ("under launch: climbs or holds only"): never a 5-point cut; a cabin
-    that sells out again climbs as usual (from 80, up 5, Pan Am and China Eastern 7).
+  - then each Saturday it is judged on the week's loads: every flight sold out, **up** a step (and it holds the next
+    Saturday, as after any step up), on through launch to the cap; 90–99% sold out, it **holds**; under 90% sold out,
+    **jump to 60%** for 2 weeks the same way ("at 80% since 25 Oct: sold out 2 of 7: to 60% for 2 weeks");
+  - at 60% and still under 90% sold out it **holds** there and the row shows **cut or keep?** beside its reason ("at 60%
+    since 8 Nov: sold out 1 of 7: holds at 60%; cut or keep? (Saturday review)"), a decision for the Saturday review,
+    never in Needs attention. Put on the fare plan records that hold once; the row stays marked until the cabin starts
+    selling out and climbs;
+  - under launch the ladder only climbs or holds ("under launch: climbs or holds only"): never a 5-point cut. There is no
+    revenue test and no going back to launch; a cabin that has climbed back to launch never jumps again.
 
   The card adds the week's jumps and decisions under its counts ("2 jumps, 1 decision"); **Put on the fare plan** writes
-  a jump as `jump` and a return to launch as `revert`, and the fares userscript makes them like any other change (a jump
-  to 80% is "−20% of the default price").
+  a jump as `jump`, and the fares userscript makes it like any other change (a jump to 80% is "−20% of the default
+  price").
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
   business (manual §1).

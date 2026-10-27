@@ -279,9 +279,14 @@ describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and
     expect(moveWords(lr("A", "B", { move: "down", new_level: 100 }))).toEqual({ text: "down to 100%", kind: "down" });
     expect(moveWords(lr("A", "B", { move: "hold", new_level: 90 }))).toEqual({ text: "hold", kind: "hold" });
   });
-  it("under launch (23 Oct): a jump in amber, a revert plain, the hold after a jump in words, and cut or keep?", () => {
+  it("under launch (23 Oct; by loads since 26 Oct): a jump in amber, the hold after a jump in words, a step up as any, and cut or keep?", () => {
     expect(moveWords(lr("A", "B", { move: "down", ladder_kind: "jump", new_level: 80 }))).toEqual({ text: "jump to 80%", kind: "down" });
-    expect(moveWords(lr("A", "B", { move: "up", ladder_kind: "revert", new_level: 100 }))).toEqual({ text: "back to launch, 100%", kind: "up" });
+    // since 26 Oct a cabin under launch that sells out after its hold steps up like any direction; there is no revert
+    expect(moveWords(lr("A", "B", { move: "up", ladder_kind: "up", level: 80, new_level: 85, under_launch: { state: "due", jumped_on: "2026-10-12" } })))
+      .toEqual({ text: "up to 85%", kind: "up" });
+    // a cut-or-keep hold at the last level is a plain hold, with the marker beside its reason
+    expect(moveWords(lr("A", "B", { move: "hold", ladder_kind: "hold", level: 60, new_level: 60, decide: true, under_launch: { state: "due", jumped_on: "2026-10-12" } })))
+      .toEqual({ text: "hold", kind: "hold" });
     expect(moveWords(lr("A", "B", { move: "hold", ladder_kind: "hold", level: 80, new_level: 80, under_launch: { state: "holding", jumped_on: "2026-10-25", judge_on: "2026-11-08" } })))
       .toEqual({ text: "hold under launch", kind: "hold" });
     expect(moveWords(lr("A", "B", { move: "hold", ladder_kind: "hold", new_level: 80, under_launch: { state: "done" } }))).toEqual({ text: "hold", kind: "hold" });
@@ -331,13 +336,14 @@ describe("the fare ladder (21 Oct, manual §5): the board's words, its sorts and
       .toEqual([[7, "out", 105, "up"], [7, "back", 100, "down"]]);
     expect(ladderPlanChanges({ worldId: 1, airlineId: 2, routes: [routes[1] as LadderRoute], utcDay: "2026-10-24", nowMs: 1 })).toEqual([]);
   });
-  it("Put on the fare plan under launch (23 Oct): ladder_move jump or revert from the row's ladder_kind, else the move", () => {
+  it("Put on the fare plan under launch (23 Oct; by loads since 26 Oct): ladder_move jump from the row's ladder_kind, else the move", () => {
     const routes = [lr("A", "B", { route_id: 7, move: "down", ladder_kind: "jump", new_level: 80, change_pct: -20, reason: "41% full over 14 days at launch: to 80% for 2 weeks" }),
-      lr("A", "C", { route_id: 8, move: "up", ladder_kind: "revert", level: 60, new_level: 100, change_pct: 66.7, decide: true, reason: "back to launch; cut or keep? (Saturday review)" }),
-      lr("A", "D", { route_id: 9, move: "hold", ladder_kind: "hold", level: 80, new_level: 80, change_pct: 0, reason: "at 80%: paid off" }),
-      lr("A", "E", { route_id: 10, ladder_kind: "up" })];
+      lr("A", "C", { route_id: 8, move: "down", ladder_kind: "jump", level: 80, new_level: 60, change_pct: -25, reason: "at 80% since 12 Oct: sold out 0 of 7: to 60% for 2 weeks" }),
+      lr("A", "D", { route_id: 9, move: "hold", ladder_kind: "hold", level: 60, new_level: 60, change_pct: 0, decide: true,
+        reason: "at 60% since 26 Oct: sold out 0 of 7: holds at 60%; cut or keep? (Saturday review)" }),
+      lr("A", "E", { route_id: 10, move: "up", ladder_kind: "up", level: 80, new_level: 85, change_pct: 6.3, reason: "sold out 7 of 7" })];
     expect(ladderPlanChanges({ worldId: 1, airlineId: 2, routes, utcDay: "2026-10-24", nowMs: 5 }).map((c) => [c.values?.route_id, c.values?.level_pct, c.values?.ladder_move]))
-      .toEqual([[7, 80, "jump"], [8, 100, "revert"], [9, 80, "hold"], [10, 105, "up"]]);
+      .toEqual([[7, 80, "jump"], [8, 60, "jump"], [9, 60, "hold"], [10, 85, "up"]]);
   });
   it("the fare plan words a ladder row with its move and level, and a fare test as before", () => {
     expect(planWords(plan({ change_pct: 5, level_pct: 105, ladder_move: "up" }), (d) => d).change).toBe("+5% · up to 105%");
