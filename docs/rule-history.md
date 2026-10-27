@@ -254,6 +254,12 @@ Left out because another variant beats them: the A350-900ULR (above), the A319ne
 
 *Since 18 Oct · why (Gitesh, agreed): the LIGHT variants reach only 4,192 km (A321) and 3,690 km (A320); the LR reaches 5,809 km for 3M less than the XLR, and the SHARP is the cheapest 189-seater.*
 
+#### The A350 cut-over stays in the code
+*Since 26 Oct (Gitesh, Building chat, option B of two: A make it a setting, B leave it as noted in §3).* The document
+audit found the 15,000 km cut-over between the A350-900 and the -1000 written into `competition()`, against §1's one
+source for rule numbers; §3 now says so · why: it follows from the aircraft's range (tested 21 Oct), not a figure we
+tune, and moving it needs a large `competition()` migration.
+
 #### Turnaround of a new variant; reach checked by the Scheduling chat
 Both rules came from the built item "#18 and #19 ... Decided 18 Oct, for the Building chat: the planner learns the default line's variants" (below, *Built from the decision list*): "The game shows no turnaround, so a new variant takes its family's (A320 family 66 minutes, E-jet E2 67, A350 90). Reach is checked by the Scheduling chat when it picks the variant for a route (§3), not by the plan card (dropped 19 Oct, Gitesh: the routes are decided before the card)."
 
