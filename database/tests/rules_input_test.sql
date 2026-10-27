@@ -79,7 +79,8 @@ begin
   -- 20261023100000 (the fare ladder under launch: fare_under_launch_load_pct, _levels, _days, _min_flights and
   -- _decide_load_pct, with Ryanair's own _levels) adds, the two 20261023120000 (rivals' fleets: rival_orders_flag_pct,
   -- rival_orders_flag_min) adds, the one 20261023140000 (rivals' connections: rival_connection_detour_max) adds and
-  -- the two 20261026180000 (the cabin by distance: cabin_leisure_max_km, cabin_leisure_plus_max_km) adds, which
+  -- the two 20261026180000 (the cabin by distance: cabin_leisure_max_km, cabin_leisure_plus_max_km) adds and the one
+  -- 20261027000000 (the fare ladder's hold after a step up: fare_ladder_up_hold_weeks) adds, which
   -- are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
@@ -99,7 +100,7 @@ begin
                              'fare_under_launch_load_pct', 'fare_under_launch_levels', 'fare_under_launch_days',
                              'fare_under_launch_min_flights', 'fare_under_launch_decide_load_pct',
                              'rival_orders_flag_pct', 'rival_orders_flag_min', 'rival_connection_detour_max',
-                             'cabin_leisure_max_km', 'cabin_leisure_plus_max_km'] loop
+                             'cabin_leisure_max_km', 'cabin_leisure_plus_max_km', 'fare_ladder_up_hold_weeks'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

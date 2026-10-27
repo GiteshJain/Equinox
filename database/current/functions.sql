@@ -3861,7 +3861,7 @@ declare
   w bigint := private.fig_airline_world(p_airline_id);
   v_today date := (p_as_of at time zone 'UTC')::date;
   v_week date;
-  v_step numeric; v_up numeric; v_down numeric; v_min numeric; v_hold numeric; v_cap numeric; v_launch numeric; v_floor numeric;
+  v_step numeric; v_up numeric; v_down numeric; v_min numeric; v_hold numeric; v_up_hold numeric; v_cap numeric; v_launch numeric; v_floor numeric;
   v_new_days numeric; v_added_days numeric;
   -- every route was at its launch level on 21 Oct 2026 (Gitesh; manual §5): each route's fare that day is its baseline
   v_base_day constant date := date '2026-10-21';
@@ -3876,6 +3876,9 @@ begin
   v_down := private.fig_num(w, p_airline_id, 'fare_ladder_down_share');
   v_min := private.fig_num(w, p_airline_id, 'fare_ladder_min_departures');
   v_hold := private.fig_num(w, p_airline_id, 'fare_ladder_hold_weeks');
+  -- the hold after a step up (since 26 Oct, manual §5): bookings open 3 days ahead (§9), so the week after a change mostly
+  -- flies at the old price
+  v_up_hold := private.fig_num(w, p_airline_id, 'fare_ladder_up_hold_weeks');
   v_cap := private.fig_num(w, p_airline_id, 'fare_ladder_cap_pts');
   v_launch := private.fig_num(w, p_airline_id, 'fare_launch_pct');
   v_new_days := private.fig_num(w, p_airline_id, 'growth_new_route_days');
@@ -4005,6 +4008,9 @@ begin
   wk as (select distinct on (r.route_id, r.cabin, r.dir) r.* from rec r where r.proposed_on >= v_week
           order by r.route_id, r.cabin, r.dir, r.proposed_on desc, r.id desc),
   dn as (select r.route_id, r.cabin, r.dir, max(r.proposed_on) as down_on from rec r where r.ladder_move = 'down' and r.proposed_on < v_week group by 1, 2, 3),
+  -- the latest step up before this Saturday (since 26 Oct, manual §5), a both-directions row counting for both as above.
+  -- Only up: a revert (back to launch), a jump and a set-back never start this hold
+  upr as (select r.route_id, r.cabin, r.dir, max(r.proposed_on) as up_on from rec r where r.ladder_move = 'up' and r.proposed_on < v_week group by 1, 2, 3),
   -- under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md §2), per direction since 26 Oct.
   -- Each cabin's day by day fare, each direction's and both directions' together (dir 'both', for a both-directions row),
   -- and its jumps recorded before this Saturday, each with the day it took effect: the first captured day on or after it
@@ -4096,7 +4102,7 @@ begin
                 lt.fare as latest_fare, lt.day as latest_on, lt.ratios, bs.fare as baseline_fare, bs.day as baseline_on,
                 coalesce(pv.level_pct, v_launch) as level, pv.id is not null as recorded,
                 wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
-                coalesce(se.applied, false) as applied, se.seen_on, dn.down_on, ag.first_day, ad.last_day,
+                coalesce(se.applied, false) as applied, se.seen_on, dn.down_on, upr.up_on, ag.first_day, ad.last_day,
                 exists (select 1 from contested c where c.a = least(ro.hub_code, ro.dest_code) and c.b = greatest(ro.hub_code, ro.dest_code)) as contested,
                 th.rival as rv_name, th.kind as rv_kind, th.added_weekly as rv_added, th.scan_at as rv_on, th.until as rv_until,
                 jl.jumped_on, jf.first_on, ud.route_id is not null as ul_done, lch.changed_on,
@@ -4111,6 +4117,7 @@ begin
            left join wk on wk.route_id = rc.route_id and wk.cabin = rc.cabin and wk.dir = rc.dir
            left join seen se on se.id = wk.id
            left join dn on dn.route_id = rc.route_id and dn.cabin = rc.cabin and dn.dir = rc.dir
+           left join upr on upr.route_id = rc.route_id and upr.cabin = rc.cabin and upr.dir = rc.dir
            left join age ag on ag.route_id = rc.route_id
            left join added ad on ad.route_id = rc.route_id
            left join jl on jl.route_id = rc.route_id and jl.cabin = rc.cabin and jl.dir = rc.dir
@@ -4127,6 +4134,8 @@ begin
                 greatest(v_launch, case when lv.contested then v_floor end) as floor_pct,
                 coalesce(lv.first_day is not null and v_today - lv.first_day < v_new_days, false) as young,
                 coalesce(lv.down_on is not null and v_week - lv.down_on < v_hold * 7, false) as held,
+                -- the hold after a step up (since 26 Oct): the next Saturday, fare_ladder_up_hold_weeks
+                coalesce(lv.up_on is not null and v_week - lv.up_on < v_up_hold * 7, false) as held_up,
                 -- a flight added in the last fare_ladder_capacity_hold_days, to a route older than that (manual §5, since 21 Oct)
                 coalesce(lv.last_day is not null and v_today - lv.last_day < v_added_days
                          and lv.first_day is not null and v_today - lv.first_day >= v_added_days, false) as added,
@@ -4165,7 +4174,9 @@ begin
                 case when mv.plan_id is not null then 'planned'
                      when mv.young then 'young'
                      when mv.n < v_min then 'few'
-                     when mv.held then 'held'
+                     -- a direction held both ways takes the more recent move's reason (the step down on the same day)
+                     when mv.held and not (mv.held_up and mv.up_on > mv.down_on) then 'held'
+                     when mv.held_up then 'held_up'
                      when mv.added then 'added'
                      when mv.rv_name is not null then 'rival'
                      -- under launch (since 23 Oct; spec §2): the jump at launch only where the ladder would hold at launch
@@ -4207,6 +4218,7 @@ begin
                    when 'few' then case when fin.n = 0 then 'no departures captured'
                                         else format('%s departure%s captured, needs %s', fin.n, case when fin.n = 1 then '' else 's' end, trim_scale(v_min)) end
                    when 'held' then format('held after a step down on %s', to_char(fin.down_on, 'FMDD Mon'))
+                   when 'held_up' then format('held after a step up on %s', to_char(fin.up_on, 'FMDD Mon'))
                    when 'added' then format('a flight added on %s: judged at its new size from %s', to_char(fin.last_day, 'FMDD Mon'),
                                             to_char(fin.last_day + v_added_days::int, 'FMDD Mon'))
                    when 'rival' then format('rival %s %s here on %s: paused until %s', fin.rv_name,
@@ -4331,7 +4343,7 @@ begin
     'airline_id', p_airline_id, 'as_of', private.fig_ts(p_as_of), 'week_of', v_week,
     'from', private.fig_ts(p_as_of - interval '7 days'), 'to', private.fig_ts(p_as_of),
     'settings', jsonb_build_object('step_pts', v_step, 'up_share', v_up, 'down_share', v_down, 'min_departures', v_min,
-                                   'hold_weeks', v_hold, 'cap_pts', v_cap, 'launch_pct', v_launch, 'cap_pct', v_launch + v_cap,
+                                   'hold_weeks', v_hold, 'up_hold_weeks', v_up_hold, 'cap_pts', v_cap, 'launch_pct', v_launch, 'cap_pct', v_launch + v_cap,
                                    'floor_pct', v_floor, 'new_route_days', v_new_days, 'capacity_hold_days', v_added_days,
                                    'baseline_day', v_base_day,
                                    'under_launch', jsonb_build_object('load_pct', v_ul_load, 'levels', to_jsonb(v_ul_levels), 'days', v_ul_days,

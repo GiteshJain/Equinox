@@ -2,7 +2,8 @@
 -- 20261021230000_frequencies_and_fares.sql and 20261021235000_competition.sql; specs docs/specs/2026-10-21-fare-ladder.md,
 -- docs/specs/2026-10-21-fare-actions-by-route.md, docs/specs/2026-10-21-frequencies-and-fares.md and
 -- docs/specs/2026-10-21-competition-analysis.md §2; since 26 Oct per direction, migration
--- 20261026220000_fare_ladder_per_direction.sql, spec docs/specs/2026-10-26-fare-ladder-per-direction.md). Run by
+-- 20261026220000_fare_ladder_per_direction.sql, spec docs/specs/2026-10-26-fare-ladder-per-direction.md; the hold after a
+-- step up since 26 Oct, migration 20261027000000_fare_ladder_up_hold.sql). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says which (codes, levels, moves and words of the hand-made routes only).
 -- Everything is made in a world of its own, so nothing on the copy is touched or counted.
@@ -82,6 +83,10 @@
 --      hold and the rival pause holding both; the actions (one per direction, both classes ticked when the cabins agree,
 --      set-backs first); fare_plan_status() seeing a direction's row by that direction's fares; capture_fare_actions()
 --      matching a direction; and on the copy, each route and cabin's two directions at the route's level before the build.
+--  14. The hold after a step up (since 26 Oct; migration 20261027000000_fare_ladder_up_hold.sql, spec
+--      docs/specs/2026-10-26-fare-ladder-hold-after-step-up.md), LH: a direction stepped up 5 days before the Saturday
+--      holds with its reason and no action; at 7 days it is judged; the hold after a step down keeps its 2 weeks; a revert
+--      or a hold row doesn't hold; a both-directions up row holds both; held both ways, the more recent move's reason.
 -- The routes off their level on the copy, before and after the new index, are counted in frequencies_and_fares_test.sql.
 
 create temporary table t_fl (k text primary key, v jsonb) on commit drop;
@@ -1218,5 +1223,116 @@ begin
   assert got = format('From ZP8 to ZP0: +0%% of the default price, economy [] | From ZP0 to ZP1: +10%% of the default price, economy [%s]', id),
     'capture_fare_actions() doesn''t list ZP1''s out row alone (and ZP8''s set-back): ' || coalesce(got, 'none');
   raise notice 'fare_plan_status() sees an out row on its out fares (12 Jan; both directions together wouldn''t) and gives each row its direction; an out row on the fare plan this Saturday is planned out only, and capture_fare_actions() lists From ZP0 to ZP1 with its plan row, not the way back';
+end
+$test$;
+
+-- ---------------------------------------------------------------- 14. the hold after a step up (spec docs/specs/2026-10-26-fare-ladder-hold-after-step-up.md)
+-- Migration 20261027000000_fare_ladder_up_hold.sql. In the same world, at the same moment T (Saturday 19 Jan 2030), one
+-- more of our airlines, LH (launch 100%; hub ZH0), every route flown since 1 Dec 2029, sold out 7 of 7 each way in the
+-- week (so every direction not held goes up), economy only, its fares at each direction's level (no set-backs):
+--   ZH1 a both-directions step up to 105 on 14 Jan (5 days before T): both directions held, "held after a step up on
+--       14 Jan", no move, no action, nothing to put on the fare plan; with fare_ladder_up_hold_weeks at 0, both go up;
+--   ZH2 an out step up to 105 on 12 Jan (7 days): judged as normal, out up to 110; back (no row) up to 105;
+--   ZH3 both up to 110 on 29 Dec, out down to 105 on 12 Jan: out keeps the 2-week hold after a step down and its reason;
+--       back up to 115;
+--   ZH4 both up to 105 on 29 Dec, a revert to 100 on 14 Jan: not held, up to 105 both ways;
+--   ZH5 a hold row at 100 on 14 Jan: not held, up to 105 both ways;
+--   ZH6 both up to 110 on 29 Dec, out down to 105 on 7 Jan (12 days: still held after it), out up to 110 on 14 Jan: out
+--       held both ways, the more recent move (the step up) gives the reason; back up to 115.
+-- (A set-back writes no fare plan row, and ladder_move takes no other value, so nothing else could start the hold.)
+do $setup$
+declare w bigint := (select (v #>> '{}')::bigint from t_fl where k = 'w');
+  g bigint; ty bigint; cy bigint; lh bigint; r bigint;
+begin
+  perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'fare ladder hold after a step up test', true);
+  select x2.id into g from public.groups x2 where x2.world_id = w and x2.kind = 'ours';
+  select x2.id into ty from public.aircraft_types x2 where x2.world_id = w and x2.name = 'LADDER TEST TYPE';
+  select x2.id into cy from public.cabin_configs x2 where x2.world_id = w and x2.code = 'LAD-Y';
+  insert into public.airports (code, utc_offset)
+  select c, 0 from unnest(array['ZH0', 'ZH1', 'ZH2', 'ZH3', 'ZH4', 'ZH5', 'ZH6']) c
+  on conflict (code) do update set utc_offset = excluded.utc_offset;
+  insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position)
+  values (w, g, 990312, 'Ladder Hold', 'L Hold', 'LH', 'ZH0', true, 12) returning id into lh;
+  insert into public.airline_bases (world_id, airline_id, airport_code, role, is_main, position) values (w, lh, 'ZH0', 'hub', true, 1);
+  -- ZH1: a both-directions step up 5 days before T
+  r := pg_temp.ladder_route(w, lh, 'ZH0', 'ZH1', 131, 14, 14, date '2029-12-01', ty, cy, 315);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 105, 'up', date '2030-01-14', 300, 5);
+  -- ZH2: an out step up 7 days before T; out fares 315, back 300
+  r := pg_temp.ladder_route(w, lh, 'ZH0', 'ZH2', 132, 14, 14, date '2029-12-01', ty, cy, 300);
+  update public.game_flights set eco_fare = 315 where airline_id = lh and registration = 'ZL-132' and origin_code = 'ZH0' and game_date >= '2030-01-12';
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 105, 'up', date '2030-01-12', 300, 5, 'out');
+  -- ZH3: out stepped down on 12 Jan; out fares 315, back 330
+  r := pg_temp.ladder_route(w, lh, 'ZH0', 'ZH3', 133, 14, 14, date '2029-12-01', ty, cy, 330);
+  update public.game_flights set eco_fare = 315 where airline_id = lh and registration = 'ZL-133' and origin_code = 'ZH0' and game_date >= '2030-01-12';
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 110, 'up', date '2029-12-29', 300, 10);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 105, 'down', date '2030-01-12', 330, -4.5, 'out');
+  -- ZH4: a revert on 14 Jan
+  r := pg_temp.ladder_route(w, lh, 'ZH0', 'ZH4', 134, 14, 14, date '2029-12-01', ty, cy, 300);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 105, 'up', date '2029-12-29', 300, 5);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 100, 'revert', date '2030-01-14', 315, -4.8);
+  -- ZH5: a hold row on 14 Jan
+  r := pg_temp.ladder_route(w, lh, 'ZH0', 'ZH5', 135, 14, 14, date '2029-12-01', ty, cy, 300);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 100, 'hold', date '2030-01-14', 300, 0);
+  -- ZH6: out down on 7 Jan, then up again on 14 Jan
+  r := pg_temp.ladder_route(w, lh, 'ZH0', 'ZH6', 136, 14, 14, date '2029-12-01', ty, cy, 330);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 110, 'up', date '2029-12-29', 300, 10);
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 105, 'down', date '2030-01-07', 330, -4.5, 'out');
+  perform pg_temp.ladder_row(w, lh, r, 'economy', 110, 'up', date '2030-01-14', 315, 4.8, 'out');
+  perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
+  insert into t_fl values ('lh', to_jsonb(lh));
+end
+$setup$;
+
+do $test$
+declare w bigint := (select (v #>> '{}')::bigint from t_fl where k = 'w'); lh bigint := (select (v #>> '{}')::bigint from t_fl where k = 'lh');
+  t timestamptz := (select (v #>> '{}')::timestamptz from t_fl where k = 't'); d jsonb; got text;
+begin
+  -- the setting: 1 week, in every world, airline null, described, with its date and reason
+  assert (select count(*) from public.settings s where s.key = 'fare_ladder_up_hold_weeks' and s.airline_id is null and s.value = '1'::jsonb
+            and s.unit = 'weeks' and length(coalesce(s.description, '')) > 40 and s.since = date '2026-10-26' and s.reason is not null
+            and s.world_id <> w) = (select count(*) from public.worlds where id <> w),
+    'fare_ladder_up_hold_weeks isn''t in every world at 1 week with its unit, description, date and reason';
+  d := private.fig_fare_ladder(lh, t);
+  assert d #>> '{settings,up_hold_weeks}' = '1' and d #>> '{settings,hold_weeks}' = '2',
+    'the settings echo doesn''t give up_hold_weeks 1 beside hold_weeks 2: ' || (d -> 'settings')::text;
+  -- stepped up 5 days before the Saturday: held both ways (a both-directions row), no move, no action, not to the plan
+  assert pg_temp.ladder_dirs(d, 'ZH1') = 'out economy hold 105>105 (held after a step up on 14 Jan); back economy hold 105>105 (held after a step up on 14 Jan)',
+    'ZH1, stepped up on 14 Jan: ' || pg_temp.ladder_dirs(d, 'ZH1');
+  assert (select bool_and(x ->> 'ladder_kind' = 'hold' and not (x ->> 'to_plan')::boolean and not (x ->> 'fix')::boolean and (x ->> 'index_matches')::boolean)
+            from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZH1'),
+    'ZH1''s held directions would go on the fare plan, be set back, or aren''t at their level: '
+      || (select string_agg(x::text, ' ') from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZH1');
+  -- 7 days: judged as normal
+  assert pg_temp.ladder_dirs(d, 'ZH2') = 'out economy up 105>110 (sold out 7 of 7); back economy up 100>105 (sold out 7 of 7)',
+    'ZH2, stepped up out on 12 Jan (7 days): ' || pg_temp.ladder_dirs(d, 'ZH2');
+  -- the hold after a step down keeps its 2 weeks and its reason
+  assert pg_temp.ladder_dirs(d, 'ZH3') = 'out economy hold 105>105 (held after a step down on 12 Jan); back economy up 110>115 (sold out 7 of 7)',
+    'ZH3, stepped down out on 12 Jan: ' || pg_temp.ladder_dirs(d, 'ZH3');
+  assert (select (x ->> 'to_plan')::boolean from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZH3' and x ->> 'direction' = 'out'),
+    'ZH3 out''s hold after a step down no longer goes on the fare plan';
+  -- a revert or a hold row doesn't start the hold
+  assert pg_temp.ladder_dirs(d, 'ZH4') = 'out economy up 100>105 (sold out 7 of 7); back economy up 100>105 (sold out 7 of 7)',
+    'ZH4, a revert on 14 Jan: ' || pg_temp.ladder_dirs(d, 'ZH4');
+  assert pg_temp.ladder_dirs(d, 'ZH5') = 'out economy up 100>105 (sold out 7 of 7); back economy up 100>105 (sold out 7 of 7)',
+    'ZH5, a hold row on 14 Jan: ' || pg_temp.ladder_dirs(d, 'ZH5');
+  -- held both ways: the more recent move's reason
+  assert pg_temp.ladder_dirs(d, 'ZH6') = 'out economy hold 110>110 (held after a step up on 14 Jan); back economy up 110>115 (sold out 7 of 7)',
+    'ZH6, out down on 7 Jan and up on 14 Jan: ' || pg_temp.ladder_dirs(d, 'ZH6');
+  -- the actions: none for a held direction
+  select string_agg(x ->> 'n' || '. ' || (x ->> 'text') || case when (x ->> 'fix')::boolean then ' [fix]' else '' end, ' | ' order by (x ->> 'n')::int) into got
+    from jsonb_array_elements(d -> 'actions') x;
+  assert got = '1. From ZH0 to ZH2: +10% of the default price, economy | 2. From ZH2 to ZH0: +5% of the default price, economy | '
+            || '3. From ZH3 to ZH0: +15% of the default price, economy | '
+            || '4. From ZH0 to ZH4: +5% of the default price, economy | 5. From ZH4 to ZH0: +5% of the default price, economy | '
+            || '6. From ZH0 to ZH5: +5% of the default price, economy | 7. From ZH5 to ZH0: +5% of the default price, economy | '
+            || '8. From ZH6 to ZH0: +15% of the default price, economy',
+    'LH''s game actions are ' || coalesce(got, 'none');
+  -- the hold is the setting's: at 0 weeks ZH1 is judged as normal
+  update public.settings set value = '0'::jsonb where world_id = w and airline_id is null and key = 'fare_ladder_up_hold_weeks';
+  d := private.fig_fare_ladder(lh, t);
+  assert pg_temp.ladder_dirs(d, 'ZH1') = 'out economy up 105>110 (sold out 7 of 7); back economy up 105>110 (sold out 7 of 7)',
+    'ZH1 with fare_ladder_up_hold_weeks at 0: ' || pg_temp.ladder_dirs(d, 'ZH1');
+  update public.settings set value = '1'::jsonb where world_id = w and airline_id is null and key = 'fare_ladder_up_hold_weeks';
+  raise notice 'the hold after a step up: fare_ladder_up_hold_weeks 1 in every world, described, echoed as up_hold_weeks; stepped up 5 days before the Saturday holds ("held after a step up on 14 Jan"), both directions for a both-directions row, with no action and nothing to put on the fare plan; at 7 days it is judged; the hold after a step down keeps its 2 weeks and reason; a revert or a hold row doesn''t hold; held both ways, the more recent move''s reason; at 0 weeks nothing is held';
 end
 $test$;

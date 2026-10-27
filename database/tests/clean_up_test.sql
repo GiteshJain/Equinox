@@ -180,6 +180,9 @@ begin
   if b::text not like '%"up_to"%' then
     a := pg_temp.without_up_to(a);
   end if;
+  -- the fare ladder's hold after a step up (20261027000000) adds settings.up_hold_weeks and the held_up reason to
+  -- fare_ladder() only: private.fig_export() doesn't read the fare ladder, so no new field reaches
+  -- export_for_report('figures') and nothing is set aside here (the figures must still be exactly as before)
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;
