@@ -113,6 +113,7 @@ The strategy is all in the manual. What each rule covers:
 - **New airlines launch short-haul.**
 - **Ryanair stays inside the game's EU zone.**
 - **London:** which London airport new routes go to.
+- **Long haul flies in 7-day lines:** routes beyond the line distance go on a line of 7 aircraft, each a day apart.
 - Interlines: manual §6.
 
 ### Cabins and fares (manual §5)
@@ -220,6 +221,10 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   manual §4, from 1 to 30 November).
 - **You order in the game** and tell the Scheduling chat (rule: manual §3, who orders). Claude logs it, with
   `acquired` `new` (or `used` from the market), and writes the **plan card** with those routes and that cabin (Tails → Deliveries → **card**), following step 4.
+- **A line's aircraft** (since 28 Oct): the Scheduling chat plans the line once with `optimise-line` and adds it to
+  the planner (`scripts/README.md`); each aircraft of it is ordered like any other, and its card is written from the
+  line at the next free place (Tails → Deliveries → the line → **Write the next card**). Today → **Orders** shows each
+  open line's progress (rule: manual §4, long haul flies in 7-day lines).
 - The aircraft appears in Tails' **Deliveries** with its arrival time (UTC), counts on its delivery line in Today's
   **Orders**, and shows on Today's **Aircraft to file** (and Home's **To file** card) once it arrives.
 
@@ -243,7 +248,8 @@ to step 5. The planner checks each card against them.
 - **Fare level of each route:** manual §5, the fare ladder.
 
 ### Step 5: Set it up in the game (you)
-1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. Aircraft fly
+1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. A line's
+   aircraft: the schedule editor's copy of the line with the card's offset, so each flies its own days. Aircraft fly
    to their first departure on their own (manual §9, mechanics).
 2. **Cabin:** the plan card's cabin. The card shows it (**suggested: …**, with **Use the suggestion**), and the card
    check flags a card whose cabin is missing or differs (rule: manual §5, the cabin is chosen with each order).

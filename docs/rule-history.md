@@ -38,12 +38,22 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
-### Decided, not yet built: long haul in 7-day lines
+### Long haul in 7-day lines: built 28 Oct (#118 to #121)
 *Decided 27 Oct (Gitesh, option B) · why: beyond about 7,750 km a round trip with turns and maintenance takes more than
 24 hours, so one aircraft can't fly the route daily and a pair gives only 6 a week; a 7-aircraft rotating line flies
 every route daily at the same time and in the banks (players in Gander do the same: "7 planes for 5–6 routes daily").
 Short and medium haul stay on 24-hour days (under 2% to gain). Built fully first because Gitesh wants nothing done by
 hand.*
+The item as it stood in *Decided, not yet built*, word for word: "- **Long haul in 7-day lines** (§4, decided 27 Oct): routes beyond about 7,750 km, whose round trip doesn't fit in a day (nearly every A321XLR route and every A350 route), fly in 7-day rotating lines of 7 aircraft of one type at one airline, each a day apart, so every route on the line flies daily at the same time. XLR lines first; A350 lines wait for the narrowbody-against-A350 question. Shorter routes keep the 24-hour day. Until it's built (spec `docs/specs/2026-10-27-long-haul-lines.md`), no routes beyond about 7,750 km are ordered. *(since 27 Oct, brief `docs/briefs/2026-10-27-long-haul-lines.md`; history: rule-history.md)*"
+Built 28 Oct in four pull requests: #118 the line optimiser (`optimise-line`), the maintenance spacing on every card and
+the card check across a line, with the settings `line_min_km`, `maintenance_max_gap_h` and `line_aircraft`; #119 the
+lines in the planner (`plan_lines`, `plan_line_legs`, `plan_cards.line_id` and `line_day_offset`, Tails' slots and
+Write the next card, each type's reach in `rules_input()`); #120 filing, Game check and the offset save day by day;
+#121 the open lines on Today → Orders. The rule moved to §4, and "no routes beyond about 7,750 km are ordered" ended
+with it. §4's maintenance rule before: "- **Maintenance at or above 100% is firm** (aim for 105%;
+`settings.maintenance_min_pct` and `maintenance_target_pct`). *(since 28 Sep)*" The 40 hours · why (Gitesh, 27 Oct):
+condition can fall below 50% with only one long stop a week (the first hand-built A350 line had a 78-hour stretch).
+§3's "Order every evening" ended before with "Gitesh orders that evening. *(since 18 Oct; history: rule-history.md)*".
 
 ### Decided, not yet built
 
