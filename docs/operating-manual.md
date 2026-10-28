@@ -70,7 +70,7 @@ Details and open points: `docs/decisions.md`.
   **If applying any change from the chat comes back "cancelled", Claude tries once more, then gives Gitesh the file's
   link to run in the SQL editor the same way.** *(since 12 Oct; history: rule-history.md)*
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
-  the fares userscript on the saved fares form and answer; the capture's world scan against `gscan.py` on the same
+  the fares userscript on the saved fares form and answer; the aircraft evaluation userscript on the tool's saved pages; the capture's world scan against `gscan.py` on the same
   saved pages; the capture's fleet pages on a saved fleet page; the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails,
   the planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its
   optimiser against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures;
