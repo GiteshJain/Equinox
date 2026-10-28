@@ -3430,8 +3430,8 @@ declare
   w bigint := private.fig_airline_world(p_airline_id);
   v_limit int := greatest(coalesce(p_limit, 50), 0);
   -- the wide-body line (manual §3): its listed range is with a full load and not a limit; the A350-900, cheapest per
-  -- seat, flies to about 15,000 km with its full cabin, and beyond that the type with the most seats
-  v_wide_km constant int := 15000;
+  -- seat, keeps its full cabin to settings.a350_1000_from_km, and beyond that the type with the most seats
+  v_wide_km int;
   v_latest bigint; v_latest_at timestamptz; v_before bigint; v_before_at timestamptz; v_prev bigint; v_prev_at timestamptz;
   v_main text; v_exempt boolean; v_target numeric; v_rival_weekly numeric; v_rival_daily numeric; v_min numeric; v_dep int;
   v_code text; v_name text; v_pairs text[]; v_ids bigint[];
@@ -3444,6 +3444,12 @@ begin
   v_target := private.fig_num(w, p_airline_id, 'hub_first_departures');
   v_rival_weekly := private.fig_num(w, p_airline_id, 'contested_rival_weekly');
   v_rival_daily := private.fig_num(w, p_airline_id, 'contested_rival_daily');
+  -- the A350-900/-1000 cut-over (manual §3, since 27 Oct), from settings (an airline's own first); if the row is
+  -- missing, 14,200 km, the -900's reach with a full cabin (brief docs/briefs/2026-10-27-real-aircraft-reach.md)
+  select (s.value #>> '{}')::numeric::int into v_wide_km from public.settings s
+   where s.world_id = w and s.key = 'a350_1000_from_km' and (s.airline_id is null or s.airline_id = p_airline_id)
+     and jsonb_typeof(s.value) = 'number' order by s.airline_id nulls last limit 1;
+  v_wide_km := coalesce(v_wide_km, 14200);
   select b.airport_code into v_main from public.airline_bases b where b.airline_id = p_airline_id and b.is_main order by b.id limit 1;
   -- November's trunks (manual §4): the month's first and last day (UTC), from settings (an airline's own first)
   select (s.value #>> '{}')::date into v_trunk_from from public.settings s
@@ -3656,7 +3662,7 @@ begin
                  -- the stars' size band (manual §3): 1–2 stars small; 3 small or mid; 4 small, mid or large; 5 mid or large
                  case when coalesce(op0.stars, 0) >= 5 then 2 else 1 end as band_lo,
                  case when coalesce(op0.stars, 0) <= 2 then 1 when op0.stars = 3 then 2 else 3 end as band_hi,
-                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size, v.own, alt.name as alt_type
+                 v.id as type_id, v.name as type, v.seats_max as seats, v.range_km, v.size, v.own
             from op0
             left join orv on orv.a = op0.a and orv.b = op0.b
             -- the variant (the default line): the smallest size in the band, else bigger for reach, whose range covers the
@@ -3672,16 +3678,7 @@ begin
                                                                            and n.range_km >= coalesce(op0.dist, 0))))
                order by t.own desc, t.size, case when t.size = 4 and coalesce(op0.dist, 0) > v_wide_km then -t.seats_max else 0 end,
                         t.price / t.seats_max, t.name
-               limit 1) v on true
-            -- the thinnest 1-star city (manual §3's default line: the E190-E2 for "3,542–4,065 km, or the thinnest 1-star
-            -- city"; spec docs/specs/2026-10-21-tidy-ups.md §2): nothing in our data says how thin a city is, so a 1-star
-            -- opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest
-            -- seats that the airline may buy and that reaches it (the E190-E2); the evening proposal decides
-            left join lateral (
-              select a.name from ty a
-               where a.own and a.size = 1 and a.range_km >= coalesce(op0.dist, 0) and a.seats_max < v.seats_max
-               order by a.seats_max, a.price / a.seats_max, a.name
-               limit 1) alt on coalesce(op0.stars, 0) = 1 and v.size = 1),
+               limit 1) v on true),
   -- hubs first (manual §3), from the latest scan: the busiest rival at a base (a hub or focus city: a station is never
   -- contested), and each rival's departures a week from the base to the destination
   bt as (select x.airport_code, max(x.weekly_departures)::int as weekly from public.scan_airline_airports x
@@ -3730,10 +3727,6 @@ begin
              || case when v_conn_scan is not null then jsonb_build_object(
                   'connecting_weekly', coalesce(oc.weekly, 0), 'connecting_via', coalesce(oc.via, '[]'::jsonb), 'connecting', coalesce(oc.rivals, '[]'::jsonb))
                 else '{}'::jsonb end
-             -- a thin 1-star city's alternative, only where there is one
-             || case when o.alt_type is not null
-                     then jsonb_build_object('variant_alt', o.alt_type, 'variant_note', format('or the %s if thin', o.alt_type))
-                     else '{}'::jsonb end
              order by o.rank) filter (where o.rank <= v_limit), '[]'::jsonb) as d,
            count(*)::int as n, (count(*) filter (where o.allowed))::int as n_allowed, (count(*) filter (where o.trunk))::int as n_trunks
       from op4 o left join ol l on l.a = o.a and l.b = o.b left join cxp oc on oc.a = o.a and oc.b = o.b),
@@ -3864,7 +3857,7 @@ begin
     'notes', jsonb_build_array(
       'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them, passenger flights only (freighters left out, as the weekly report counts). Our own now are the airline''s live legs; before, its flights in the week-before scan.',
       'From trunk_month_from to trunk_month_to (November, manual §4) the trunks, pairs between two of our bases (any of our airlines''), come first, shortest first: hubs first isn''t applied to them and no distance leaves one out. Whether a trunk makes sense stays the Scheduling chat''s judgment.',
-      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond 15,000 km the one with the most seats. A 1-star opening whose variant is the default small aircraft (the E195-E2) also names the small type with the fewest seats (variant_alt, the E190-E2, "or the E190-E2 if thin" in variant_note): the default line gives it to the thinnest 1-star city, and nothing in our data says how thin a city is, so the evening proposal decides.',
+      'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond settings.a350_1000_from_km (wide_full_cabin_km under settings here) the one with the most seats.',
       'competitors (the weekly report''s, manual §7): the three rivals with the most departures a week on the city pairs the airline flies (its live legs, both ways) in the latest scan, ties by name; weekly and airports are each one''s whole passenger network in the latest scan, weekly_before in the week-before scan (none when that scan holds no schedule for it), the change against it as a number and a percent. self is the airline on the same terms, from the same scans'' schedules.',
       'fleet (each competitor''s and rival profile''s, since 23 Oct): from its overview page in the latest scan (scan_airline_fleet, scan_airline_profile): overall, on order, average age and its 5 biggest types, with the change in overall and on order against the week-before scan (null when either scan didn''t read its page); null when the latest scan didn''t read it. order_flags: every airline in the latest scan that isn''t one of ours, freighters only left out, with aircraft on order at least rival_orders_flag_pct of its fleet and at least rival_orders_flag_min (kind orders), or on order and no flights in the scan (kind starting); the same list for every airline, each marked on_pairs (it flies one of this airline''s city pairs), at_bases (it departs from one of its hubs or focus cities) and meets (either). No flag feeds the openings, the contested test or the fare pause.',
       'connecting (since 23 Oct): each rival''s one-stop departures a week on the airline''s city pairs in the latest scan (scan_rival_connections, worked out at the scan''s finish by private.scan_connections(): same airline, the second flight from the connecting airport''s minimum connection time to connection_max_wait_h after the first lands, both legs together at most rival_connection_detour_max times the direct distance, each first flight counted once). connecting_weekly on each market, each opening (with each rival''s own in connecting), each rival profile and each competitor (with connecting_pairs), each with its top 3 connecting airports (connecting_via); shown beside direct, never added to it: total, share, rivals_weekly, on_pairs and the three biggest competitors (chosen by direct departures) are direct only, and the openings'' order, the contested test, hubs first, the threats and the fare pause don''t read it. Absent when the latest scan has no connections worked out.'));

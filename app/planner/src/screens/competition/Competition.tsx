@@ -15,8 +15,7 @@
 //     that open (FoldBoard, as on Systems and Performance), each with its count: Market share (a tile per market: our
 //     share with its arrow and the top rivals as a bar and a list), Threats (a table), Openings (open on arrival: the
 //     ranked table, rank, pair, stars, distance, rivals, variant and hubs first as a pill, allowed or the reason, cut to
-//     10 with "show all"; a 1-star opening on the E195-E2 says "or the E190-E2 if thin" under its variant, spec
-//     docs/specs/2026-10-21-tidy-ups.md §2) and Rival profiles (cards; since 23 Oct each with its fleet, "99 aircraft, 44
+//     10 with "show all") and Rival profiles (cards; since 23 Oct each with its fleet, "99 aircraft, 44
 //     on order, +6 on order this week", and its top types). Since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md
 //     §4) the rivals' connecting departures sit beside direct, never added: each market card's rivals "160 direct · 14
 //     connecting" with the connecting airports, the openings' rivals column "3 direct · 14 connecting", and each rival
@@ -34,7 +33,7 @@ import { itemRoute } from "../screens";
 import {
   airlineHeadline, allowedWords, changeWords, connectingLine, connectingRivalsWords, dayWords, directConnectingWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
   openingsLine, orderBookWords, orderBooks, orderBooksRowWords, otherListsWords, overallShare, pctWords, profileWords, profilesRowWords, rivalsWords, scansWords, shareBar, starsWords, threatMoveWords, threatNumbers, threatWhen, threatsLine,
-  threatsNewestFirst, threatsRowWords, topOpeningWords, trunkMonthWords, variantNoteWords, variantWords, type CompetitionAnswer, type Market, type Opening,
+  threatsNewestFirst, threatsRowWords, topOpeningWords, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening,
   type Profile, type Threat,
 } from "./model";
 import { useCompetition, useCompetitions } from "./reads";
@@ -319,7 +318,7 @@ function Openings({ code, openings, total }: { code: string; openings: readonly 
                   <td>{o.connecting_weekly != null ? <span className="num" data-connecting={o.connecting_weekly}>{directConnectingWords(o.rivals_weekly, o)}</span>
                     : <span className="num">{n0(o.rivals_weekly)}</span>} <span className="dim">{rivalsWords(o)}</span>
                     {connectingRivalsWords(o) ? <div className="dim cpcity">connecting: {connectingRivalsWords(o)}</div> : null}</td>
-                  <td>{variantWords(o.variant)}{variantNoteWords(o) ? <div className="dim cpcity" data-variant-note>{variantNoteWords(o)}</div> : null}</td>
+                  <td>{variantWords(o.variant)}</td>
                   <td className="cphf">{al.ok ? <span className="pill ok sm" title={al.why}>{al.text}{al.why ? ` · ${al.why}` : ""}</span>
                     : <span className="pill mute sm" title={al.why}>{al.text}</span>}{al.ok ? null : <div className="dim cpwhy">{al.why}</div>}</td>
                 </tr>

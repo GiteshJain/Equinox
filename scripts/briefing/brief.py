@@ -16,7 +16,7 @@ It only gathers. Each figure comes from its one home (#19), downloaded through e
 - kind briefing: the airline's deliveries (aircraft on order or arrived, not yet filed) with their plan cards and legs,
   its open to-dos and the group's, its fare plan (fare_plan_status()), each route's fare level (fare_ladder()'s, since
   21 Oct; per direction since 26 Oct), competition analysis (competition()'s scans, group line, threats and top 20 openings, since 21 Oct: the
-  evening proposal's ranked list, manual §3; since 22 Oct a 1-star opening on the E195-E2 says "or the E190-E2 if thin")
+  evening proposal's ranked list, manual §3)
   and its loads by route over 7 days (route_loads());
 - kinds snapshots and airlines: the latest finished world scan by the moment, for the rivals on the routes it flies and
   at the airports it serves, counted as the weekly report counts them (scripts/report/analyze.py's passenger-flight rule).
@@ -493,7 +493,6 @@ def render(b):
     if C.get("openings"):
         put("  top: " + "; ".join(f"{o.get('rank')}. {o.get('route')} {o.get('stars') or '?'}★ {o.get('distance_km') or '?'} km, rivals "
                                   f"{o.get('rivals_weekly')} a week, {(o.get('variant') or {}).get('type') or '—'}"
-                                  + (f" {o['variant_note']}" if o.get("variant_note") else "")
                                   + (" (November trunk)" if o.get("trunk") else "")
                                   + ("" if o.get("allowed") else " (not yet: hubs first)") for o in C["openings"][:3]))
 

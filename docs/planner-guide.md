@@ -554,9 +554,8 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   - **Openings:** the pairs on its list no airline of ours flies, ranked: stars, then the rivals' departures a week on
     the pair, then the shorter distance, then the pair's code. Each with its stars, distance, the rivals and their
     departures, the **variant** from the default line (manual §3: the smallest size the stars allow, bigger only "for
-    reach", the cheapest per seat whose range covers it, among the types the airline may buy; since 22 Oct a 1-star
-    city on the E195-E2 says "or the E190-E2 if thin" under it: the default line gives the E190-E2 to the thinnest
-    1-star city, nothing in our data says how thin a city is, so the evening proposal decides) and **Hubs first**:
+    reach", the cheapest per seat whose range covers it, among the types the airline may buy; beyond every
+    narrowbody the A350-900, and beyond `settings.a350_1000_from_km` the A350-1000, since 27 Oct) and **Hubs first**:
     **yes** with why (main hub, contested base or route, main hub at its target, exempt), or **not yet** with the
     reason, listed after the allowed ones (each as a pill, green or grey). The first 10, with **show all** (the top 50; a chat reads more with
     *competition()*'s *p_limit*). An opening no type the airline may buy reaches is left out and counted. A pair
