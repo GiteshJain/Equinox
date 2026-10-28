@@ -81,3 +81,12 @@ questions for later, not part of this decision.
 - **Outcome: B, Gitesh, 27 Oct**, with the E190-E2, the A320neo and the A321neo off the line (and the ULR off the types
   each airline may buy). Manual §3, `aircraft_types.range_km` and `airline_aircraft_types` changed the same night;
   `competition()`'s -900/-1000 cut-over (15,000 km in its code) is listed under Decided, not yet built.
+
+## The two later questions (Gitesh, 27 Oct)
+- **Bigger aircraft within a size band:** no change. "Within a band, the smaller type wins" (§3) stays: the evaluation's
+  profits and our per-flight profits don't account for the game splitting bookings among the flights on offer, which
+  is what favours more departures. (Evaluation: A321neo LIGHT about 15–25% more per unit of lease than the SHARP at 80%
+  load; our flights: 98% against 95% load, about 11% more per unit of lease.)
+- **Narrowbodies against the A350** (about a third the earnings per unit of lease): waits for the circuits decision,
+  since long-haul pools may need large orders (about 52M for 7 A350s at Pan Am) that an airline can't fund yet without
+  stopping its other orders for about 5 weeks.
