@@ -31,6 +31,12 @@ Until each is built and merged, the rules below stand as they are.
   fixed at 15,000 km in its code (now 14,200), and its note "or the E190-E2 if thin" on a 1-star city still names a
   type that's off the line. Until it's built, the Scheduling chat applies 14,200 km and ignores that note.
   *(since 27 Oct; history: rule-history.md)*
+- **Long haul in 7-day lines** (§4, decided 27 Oct): routes beyond about 7,750 km, whose round trip doesn't fit in a
+  day (nearly every A321XLR route and every A350 route), fly in 7-day rotating lines of 7 aircraft of one type at one
+  airline, each a day apart, so every route on the line flies daily at the same time. XLR lines first; A350 lines wait
+  for the narrowbody-against-A350 question. Shorter routes keep the 24-hour day. Until it's built (spec
+  `docs/specs/2026-10-27-long-haul-lines.md`), no routes beyond about 7,750 km are ordered. *(since 27 Oct, brief
+  `docs/briefs/2026-10-27-long-haul-lines.md`; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 

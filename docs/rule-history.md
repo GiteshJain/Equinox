@@ -38,6 +38,13 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### Decided, not yet built: long haul in 7-day lines
+*Decided 27 Oct (Gitesh, option B) · why: beyond about 7,750 km a round trip with turns and maintenance takes more than
+24 hours, so one aircraft can't fly the route daily and a pair gives only 6 a week; a 7-aircraft rotating line flies
+every route daily at the same time and in the banks (players in Gander do the same: "7 planes for 5–6 routes daily").
+Short and medium haul stay on 24-hour days (under 2% to gain). Built fully first because Gitesh wants nothing done by
+hand.*
+
 ### Decided, not yet built
 
 #### Report PDFs stay in the database until a trigger

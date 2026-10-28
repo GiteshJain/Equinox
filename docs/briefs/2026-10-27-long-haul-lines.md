@@ -69,3 +69,6 @@ and offset (no extra work against today).
 - The Building work turns out much larger than a day or two: C for the first line, B as it's built.
 - A rival competes on frequency on a long route: two aircraft on that route alone, outside the line.
 - The narrowbody-against-A350 question (waiting on this) says long haul waits altogether: B's build can wait with it.
+
+## Outcome
+**B, Gitesh, 27 Oct.** Spec `docs/specs/2026-10-27-long-haul-lines.md`, built after the short-connections target; manual lists it under Decided, not yet built.
