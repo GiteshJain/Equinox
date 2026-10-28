@@ -116,13 +116,16 @@ begin
     counts := counts || format('%s %s markets, %s threats, %s openings (%s allowed, %s left out), %s profiles, %s ms', r.iata_code,
       jsonb_array_length(d -> 'markets'), jsonb_array_length(d -> 'threats'), d ->> 'openings_count', d ->> 'openings_allowed',
       d ->> 'openings_left_out', jsonb_array_length(d -> 'profiles'), ms);
-    -- the A350 cut-over (27 Oct): across every opening, untimed; no opening names an alternative any more
-    select format('%s %s km, %s of %s openings on the A350 past it', r.iata_code, min(dd.d #>> '{settings,wide_full_cabin_km}'),
-                  count(*) filter (where o #>> '{variant,size}' = 'wide' and (o ->> 'distance_km')::numeric > (dd.d #>> '{settings,wide_full_cabin_km}')::numeric),
+    -- the A350 cut-over (27 Oct): across every opening, untimed; no opening names an alternative any more. The whole
+    -- document is worked out once into a variable: read inside the query, the planner calls fig_competition() again for
+    -- every opening (the rehearsal of 28 Oct ran past its 45 minutes that way)
+    dn := private.fig_competition(r.airline_id, now(), 100000);
+    select format('%s %s km, %s of %s openings on the A350 past it', r.iata_code, dn #>> '{settings,wide_full_cabin_km}',
+                  count(*) filter (where o #>> '{variant,type}' ilike '%A350%' and (o ->> 'distance_km')::numeric > (dn #>> '{settings,wide_full_cabin_km}')::numeric),
                   count(o)),
            count(*) filter (where o ? 'variant_alt' or o ? 'variant_note')
       into v_wide, v_alt
-      from (select private.fig_competition(r.airline_id, now(), 100000) as d) dd left join lateral jsonb_array_elements(dd.d -> 'openings') o on true;
+      from jsonb_array_elements(dn -> 'openings') o;
     assert v_alt = 0, format('on the copy %s has %s openings with variant_alt or variant_note', r.iata_code, v_alt);
     wide := wide || v_wide;
     tops := tops || format('%s: %s', r.iata_code, coalesce((select string_agg(format('%s. %s %s* %s km %s/wk %s%s', o ->> 'rank', o ->> 'route', o ->> 'stars',
