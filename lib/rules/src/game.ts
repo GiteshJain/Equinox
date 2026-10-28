@@ -9,11 +9,17 @@
 //     days (and the game has no other entry for it, unless that one is valid only for some dates); otherwise in the planner
 //     only, in the game only, or different (route, departure, arrival, days). A difference that is only a time or a day
 //     change (one entry each side, the same airports) can be fixed from the game: the frequency takes the game's times.
+//   - Since 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §4) every leg is read on its own days: a return on the
+//     local weekdays its own row gives (as the database's fig_flights_on reads it), not the outbound's moved by the old
+//     planner's rule, so a 7-day line's return days after its outbound isn't a false difference; and a line aircraft's
+//     flights (aircraftWeek.linePattern) are never fixed by days, only by times: on a line the days a number flies are which
+//     of the 7 aircraft are filed, not a time to take from the game. A plan card on a line is checked day by day.
 //   - The game's numbers the planner doesn't fly are paired into round trips to add: each with the first other one flying
 //     back with a number one apart.
 // The old code it follows: the old planner's plannerFlights, compareFlights, applyGameFix and importCandidates, and its
 // checkBeforeFile (Tails' compareCard). Plain data in and out; the game itself is read by the screen.
-import { type FrequencyEnds, type LocalTimes, localTimes, shiftDays, view, weekdays } from "./frequency.js";
+import { lineAircraft } from "./aircraftWeek.js";
+import { type FrequencyEnds, type LocalTimes, localTimes, ownBackDays, returnOnOwnDays, view, weekdays } from "./frequency.js";
 import { typeOfAircraft } from "./input.js";
 import { clock, parseClock } from "./time.js";
 import type { LegRow, Rules } from "./types.js";
@@ -39,11 +45,27 @@ export function sameTimes(L: Pick<LegToCheck, "dep" | "arr" | "days">, g: GameFl
   return g.dep === L.dep && (!g.arr || g.arr === L.arr) && (!g.days || sortDays(g.days) === sortDays(L.days));
 }
 
-/** Each leg with the game's flight of the same number and airports, and whether its times and days are the same. */
-export function compareCard<L extends LegToCheck>(legs: readonly L[], flights: readonly GameFlight[] | null, err = ""): CardCheck<L> {
+/** Whether the game flies a leg at its times on each of its days (a line card's leg, one weekday, against a flight the
+ *  game lists on every day its filed aircraft fly it): its departure, its arrival (when the game gives one), and its
+ *  days among the game's. */
+export function sameOnItsDays(L: Pick<LegToCheck, "dep" | "arr" | "days">, g: GameFlight): boolean {
+  const gd = sortDays(g.days);
+  return g.dep === L.dep && (!g.arr || g.arr === L.arr) && [...sortDays(L.days)].every((d) => gd.includes(d));
+}
+
+/** Each leg with the game's flight of the same number and airports, and whether its times and days are the same. byDay
+ *  (a plan card on a 7-day line, since 28 Oct): each leg day by day, against the game's entry of its number that flies on
+ *  its days (the same when that entry has its times; else the first entry flying on one of its days, else the first). */
+export function compareCard<L extends LegToCheck>(legs: readonly L[], flights: readonly GameFlight[] | null, err = "", byDay = false): CardCheck<L> {
   const rows = legs.map((L) => {
-    const g = flights ? flights.find((x) => String(x.no) === String(L.no) && x.from === L.from && x.to === L.to) ?? null : null;
-    return { L, g, same: !!g && sameTimes(L, g) };
+    const all = flights ? flights.filter((x) => String(x.no) === String(L.no) && x.from === L.from && x.to === L.to) : [];
+    if (!byDay) {
+      const g = all[0] ?? null;
+      return { L, g, same: !!g && sameTimes(L, g) };
+    }
+    const mine = sortDays(L.days);
+    const g = all.find((x) => sameOnItsDays(L, x)) ?? all.find((x) => [...mine].some((d) => sortDays(x.days).includes(d))) ?? all[0] ?? null;
+    return { L, g, same: !!g && sameOnItsDays(L, g) };
   });
   const found = rows.filter((r) => r.g).length, diff = rows.filter((r) => r.g && !r.same).length;
   return { rows, err, found, diff, miss: rows.length - found, allSame: !err && rows.length > 0 && rows.every((r) => r.same) };
@@ -60,6 +82,12 @@ export interface Frequency {
   leg2: LegRow | undefined;
   ends: FrequencyEnds;
   local: LocalTimes;
+  /** The local weekdays the return leaves on at the destination, its own row's (since 28 Oct); without a timed return,
+   *  the outbound's moved by the old planner's rule. */
+  back_days: number[];
+  /** Flown by a 7-day line's aircraft (aircraftWeek.linePattern), or its return on days of its own
+   *  (frequency.returnOnOwnDays): its days are kept as they are when it's re-timed. */
+  own_days: boolean;
 }
 
 /** Each airline's most-flown type, by airline: the type of its aircraft with the most departures a week (each of its legs
@@ -85,6 +113,16 @@ export function mostFlownTypes(rules: Rules): Map<number, number> {
  *  market's default type, which went with the markets' old columns. */
 export const mostFlownType = (rules: Rules, airlineId: number): number | null => mostFlownTypes(rules).get(airlineId) ?? null;
 
+/** returnOnOwnDays, false where the old rule can't be worked out (an untimed outbound with no estimate: a setting or the
+ *  type's cruise speed missing), so reading the frequencies never fails on it. */
+function ownDaysOrNot(rules: Rules, ends: FrequencyEnds, leg1: Parameters<typeof returnOnOwnDays>[2], leg2: Parameters<typeof returnOnOwnDays>[3]): boolean {
+  try {
+    return returnOnOwnDays(rules, ends, leg1, leg2);
+  } catch {
+    return false;
+  }
+}
+
 /** Each rotation of the airline's (every airline's with null), in id order, with its local times. An empty arrival's
  *  estimate uses the rotation's aircraft's type, else the airline's most-flown type (mostFlownType; its market's default
  *  type until 21 Oct, as the old planner's estBlock). */
@@ -100,6 +138,7 @@ export function frequencies(rules: Rules, airlineId: number | null): Frequency[]
   const out: Frequency[] = [];
   const ids = [...rules.rotations.keys()].sort((a, b) => a - b);
   let mostFlown: Map<number, number> | undefined;
+  const onLine = lineAircraft(rules);
   for (const id of ids) {
     const rot = rules.rotations.get(id);
     const route = rot ? rules.routes.get(rot.route_id) : undefined;
@@ -110,7 +149,12 @@ export function frequencies(rules: Rules, airlineId: number | null): Frequency[]
     const typeId = typeOfAircraft(rules, acId)?.id ?? (mostFlown ??= mostFlownTypes(rules)).get(route.airline_id) ?? null;
     const ends: FrequencyEnds = { airline_id: route.airline_id, hub: route.hub_code, dest: route.dest_code, distance_km: route.distance_km, type_id: typeId };
     const stored = (l: LegRow | undefined) => ({ days_utc: l?.days_utc ?? [], dep_utc_min: l?.dep_utc_min ?? null, block_min: l?.block_min ?? null });
-    out.push({ rotation_id: id, route_id: route.id, hub: route.hub_code, dest: route.dest_code, leg1, leg2, ends, local: localTimes(rules, ends, stored(leg1), stored(leg2)) });
+    const local = localTimes(rules, ends, stored(leg1), stored(leg2));
+    const timedBack = leg2?.dep_utc_min != null && leg1?.dep_utc_min != null;
+    // without both departures the old rule gives the return the outbound's day (view's back.dep_day is 0)
+    const back_days = timedBack ? ownBackDays(rules, ends, stored(leg2)) : [...local.days];
+    const own_days = (acId != null && onLine.has(acId)) || (timedBack && ownDaysOrNot(rules, ends, stored(leg1), stored(leg2)));
+    out.push({ rotation_id: id, route_id: route.id, hub: route.hub_code, dest: route.dest_code, leg1, leg2, ends, local, back_days, own_days });
   }
   return out;
 }
@@ -123,7 +167,8 @@ const daysOf = (d: readonly number[]): string => d.join("");
 export interface PlannerEntry { from: string; to: string; dep: string; arr: string; days: string }
 
 /** The airline's flights by number, as the planner has them (the old plannerFlights): the outbound on its local weekdays,
- *  the return on those moved to the day it leaves; a leg with no number of its own is left out. */
+ *  the return on its own (Frequency.back_days: since 28 Oct, so a line's return days later is read as it flies); a leg
+ *  with no number of its own is left out. */
 export function plannerFlights(rules: Rules, airlineId: number): Map<string, PlannerEntry[]> {
   const map = new Map<string, { from: string; to: string; dep: string; arr: string; days: Set<string> }[]>();
   const add = (no: string, from: string, to: string, dep: string, arr: string, days: string) => {
@@ -135,11 +180,9 @@ export function plannerFlights(rules: Rules, airlineId: number): Map<string, Pla
     map.set(no, e);
   };
   for (const f of frequencies(rules, airlineId)) {
-    const v = view(rules, f.ends, f.local);
     const days = daysOf(f.local.days);
     add(f.leg1?.flight_no == null ? "" : String(f.leg1.flight_no), f.hub, f.dest, hhmm(f.local.dep_hub), hhmm(f.local.arr_dest), days);
-    add(f.leg2?.flight_no == null ? "" : String(f.leg2.flight_no), f.dest, f.hub, hhmm(f.local.dep_dest), hhmm(f.local.arr_hub),
-      daysOf(shiftDays(f.local.days, v.back ? v.back.dep_day : 0)));
+    add(f.leg2?.flight_no == null ? "" : String(f.leg2.flight_no), f.dest, f.hub, hhmm(f.local.dep_dest), hhmm(f.local.arr_hub), daysOf(f.back_days));
   }
   return new Map([...map].map(([no, e]) => [no, e.map((m) => ({ from: m.from, to: m.to, dep: m.dep, arr: m.arr, days: [...m.days].sort().join("") }))]));
 }
@@ -178,6 +221,10 @@ function gameEntries(game: readonly GameFlight[]): Map<string, GameEntry[]> {
 /** Every flight number of the planner's and the game's for an airline, compared (the old compareFlights), in number order. */
 export function compare(rules: Rules, airlineId: number, game: readonly GameFlight[]): GameComparison {
   const P = plannerFlights(rules, airlineId), G = gameEntries(game);
+  // the numbers a line's aircraft fly: fixed by times only, never by days (which aircraft are filed)
+  const onLine = lineAircraft(rules);
+  const lineNos = new Set(rules.legs.filter((l) => l.airline_id === airlineId && l.aircraft_id != null && onLine.has(l.aircraft_id) && l.flight_no != null)
+    .map((l) => String(l.flight_no)));
   const issues: GameIssue[] = [];
   let ok = 0;
   const nums = [...new Set([...P.keys(), ...G.keys()])].sort((a, b) => Number(a) - Number(b));
@@ -194,7 +241,7 @@ export function compare(rules: Rules, airlineId: number, game: readonly GameFlig
     if (a.dep !== b.dep) what.push("departure");
     if (a.arr !== b.arr) what.push(a.arr ? "arrival" : "arrival not entered");
     if (a.days !== b.days) what.push("days");
-    const fix = p.length === 1 && g.length === 1 && a.from === b.from && a.to === b.to
+    const fix = p.length === 1 && g.length === 1 && a.from === b.from && a.to === b.to && !(lineNos.has(no) && a.days !== b.days)
       ? { from: b.from, to: b.to, dep: b.dep, arr: b.arr, days: b.days, pDays: a.days } : null;
     issues.push({ no, kind: "diff", text: "Different: " + (what.join(", ") || "schedule"), p: p.map(fmt).join("; "), g: g.map(fmt).join("; "), fix });
   }
@@ -240,7 +287,8 @@ export function importCandidates(rules: Rules, airlineId: number, game: readonly
 /** Each frequency the fixes change, with its local times once they're applied, in the order given (the old applyGameFix,
  *  one fix after another): a matching outbound takes the game's departure, its arrival when the game gives one and its
  *  days when they differ; a matching return takes its departure and arrival, and the days only when it leaves on the
- *  outbound's day. */
+ *  outbound's day. A rotation on days of its own (Frequency.own_days, a line's: since 28 Oct) keeps its days; store it with
+ *  frequency.toLegs(…, freq.back_days). */
 export function fixTimes(rules: Rules, airlineId: number, fixes: readonly { no: string; fix: GameFix | null }[]): Map<number, { freq: Frequency; local: LocalTimes }> {
   const freqs = frequencies(rules, airlineId);
   const out = new Map<number, { freq: Frequency; local: LocalTimes }>();
@@ -249,7 +297,7 @@ export function fixTimes(rules: Rules, airlineId: number, fixes: readonly { no: 
     if (!x) continue;
     for (const f of freqs) {
       const cur = out.get(f.rotation_id)?.local ?? { ...f.local, days: [...f.local.days] };
-      const changeDays = !!x.days && x.days !== x.pDays;
+      const changeDays = !!x.days && x.days !== x.pDays && !f.own_days;
       if (String(f.leg1?.flight_no ?? "") === i.no && f.hub === x.from && f.dest === x.to) {
         const next = { ...cur, dep_hub: parseClock(x.dep) };
         if (x.arr) next.arr_dest = parseClock(x.arr);

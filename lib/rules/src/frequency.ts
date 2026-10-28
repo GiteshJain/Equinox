@@ -150,12 +150,16 @@ export function returnDay(rules: Rules, ends: FrequencyEnds, local: LocalTimes):
   return view(rules, ends, local).back?.dep_day ?? 0;
 }
 
-/** A frequency typed in local time as its two legs in UTC, to store: the inverse of localTimes(). */
-export function toLegs(rules: Rules, ends: FrequencyEnds, local: LocalTimes): { leg1: StoredLeg; leg2: StoredLeg } {
+/** A frequency typed in local time as its two legs in UTC, to store: the inverse of localTimes(). backDays, when given
+ *  (a 7-day line's rotation, since 28 Oct: spec docs/specs/2026-10-27-long-haul-lines.md §4), are the local weekdays
+ *  the return leaves on at the destination, its own, in place of the day the old planner's rule gives it (within 24
+ *  hours of the landing): on a line the return is often days later, flown by the same aircraft. */
+export function toLegs(rules: Rules, ends: FrequencyEnds, local: LocalTimes, backDays?: readonly number[] | null): { leg1: StoredLeg; leg2: StoredLeg } {
   const oh = utcOffsetMin(rules, ends.hub), od = utcOffsetMin(rules, ends.dest);
   const days = weekdays(local.days);
   const back = returnDay(rules, ends, { ...local, days });
   const dh = local.dep_hub, dd = local.dep_dest;
+  const returnDays = backDays ? weekdays(backDays) : shiftDays(days, back);
   return {
     leg1: {
       days_utc: dh == null ? days : shiftDays(days, Math.floor((dh - oh) / DAY)),
@@ -163,11 +167,27 @@ export function toLegs(rules: Rules, ends: FrequencyEnds, local: LocalTimes): { 
       block_min: dh == null || local.arr_dest == null ? null : mod(local.arr_dest - dh - (od - oh), DAY),
     },
     leg2: {
-      days_utc: shiftDays(shiftDays(days, back), dd == null ? 0 : Math.floor((dd - od) / DAY)),
+      days_utc: shiftDays(returnDays, dd == null ? 0 : Math.floor((dd - od) / DAY)),
       dep_utc_min: dd == null ? null : mod(dd - od, DAY),
       block_min: dd == null || local.arr_hub == null ? null : mod(local.arr_hub - dd - (oh - od), DAY),
     },
   };
+}
+
+/** The local weekdays a stored return leaves on at its origin (the frequency's destination), its own: its UTC weekdays
+ *  moved to local time; untimed, its UTC weekdays (none is every day). */
+export function ownBackDays(rules: Rules, ends: FrequencyEnds, leg2: StoredLeg): number[] {
+  const d2 = leg2.dep_utc_min;
+  return d2 == null ? weekdays(leg2.days_utc) : shiftDays(weekdays(leg2.days_utc), Math.floor((d2 + utcOffsetMin(rules, ends.dest)) / DAY));
+}
+
+/** Whether a rotation's return flies on days of its own: its stored weekdays aren't those the old planner's rule gives
+ *  it (the first departure of its time after the outbound lands). A 7-day line's rotation (an outbound and its return
+ *  days apart, both one weekday) is; a plain frequency stored by toLegs() isn't. False without both departures. */
+export function returnOnOwnDays(rules: Rules, ends: FrequencyEnds, leg1: StoredLeg, leg2: StoredLeg): boolean {
+  if (leg1.dep_utc_min == null || leg2.dep_utc_min == null) return false;
+  const want = toLegs(rules, ends, localTimes(rules, ends, leg1, leg2)).leg2.days_utc;
+  return want.join(",") !== [...new Set(leg2.days_utc)].sort((a, b) => a - b).join(",");
 }
 
 /** The same rules with one airport's UTC offset set to the hours given (the world's correction, or the game's own offset
@@ -184,14 +204,22 @@ export function withOffset(rules: Rules, code: string, hours: number | null, cor
 }
 
 /** A rotation's two legs after an airport's offset changes, keeping their local times (the old planner keeps the local
- *  times when an offset changes): read in local time with the old offsets, stored again with the new ones. */
-export function retime(before: Rules, after: Rules, ends: FrequencyEnds, leg1: StoredLeg, leg2: StoredLeg): { leg1: StoredLeg; leg2: StoredLeg } {
-  return toLegs(after, ends, localTimes(before, ends, leg1, leg2));
+ *  times when an offset changes): read in local time with the old offsets, stored again with the new ones. ownDays (a
+ *  7-day line's rotation, since 28 Oct): the return keeps its own local weekdays, not the day the old rule would give it
+ *  after the move. */
+export function retime(before: Rules, after: Rules, ends: FrequencyEnds, leg1: StoredLeg, leg2: StoredLeg, ownDays = false): { leg1: StoredLeg; leg2: StoredLeg } {
+  return toLegs(after, ends, localTimes(before, ends, leg1, leg2), ownDays ? ownBackDays(before, ends, leg2) : null);
 }
 
 /** A departure stored in UTC (a plan card's leg) after its airport's offset changes, keeping its local time. */
 export function retimeDeparture(before: Rules, after: Rules, code: string, depUtcMin: number): number {
   return mod(depUtcMin + utcOffsetMin(before, code) - utcOffsetMin(after, code), DAY);
+}
+
+/** How many UTC days a departure moves when its airport's offset changes and its local time is kept: −1, 0 or 1 (a
+ *  leg on one weekday, a line's or a line card's, moves its day with it; since 28 Oct). */
+export function retimeDayShift(before: Rules, after: Rules, code: string, depUtcMin: number): number {
+  return Math.floor((depUtcMin + utcOffsetMin(before, code) - utcOffsetMin(after, code)) / DAY);
 }
 
 /** One of the frequency's legs and another leg it meets in a check. */

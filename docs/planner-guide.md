@@ -180,7 +180,10 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
 - **Game check** (Check's until 20 Oct): **Check against the game** reads each airline's live schedule from the game.
   Each airline's line says how many flights are in each and the differences. **Review** lists them, with **Use the
-  game's times** where it's only a time or a day change, **Fix all from the game**, and the game's flights the planner
+  game's times** where it's only a time or a day change, **Fix all from the game**, (since 28 Oct each flight is read on
+  its own days, so a 7-day line's return days after its outbound isn't a difference; a line's flight is fixed by its
+  times on every aircraft that flies it, each keeping its day, and never by its days, which only say which of the
+  line's aircraft are filed), and the game's flights the planner
   hasn't got, each with an aircraft and **Add to planner** (for a new aircraft, pick **new tail…**, type its
   registration in the box and, since 26 Oct, pick **new** or **used**). After a fix or an add the differences are worked out again from the planner as it is now.
 - **To-do:** the board where Claude puts anything you need to do or check (with steps). Tick an item when it's done, or
@@ -232,7 +235,10 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   the page first. The aircraft's registration beside its box (**N001AW ›**) opens its pop-up, as Today's needs
   attention does, with the address (?aircraft=N001AW) so a link reopens it.
 - **Changing an offset** keeps the local times, as the old planner did: the page first lists every flight whose UTC time
-  moves and asks. Empty the box to go back to the game's offset.
+  moves and asks. Empty the box to go back to the game's offset. Since 28 Oct a 7-day line's flights keep their own
+  days too (a return days after its outbound stays on its day), a line card's flight on one weekday moves its day when
+  its UTC time crosses midnight, and the lines' own flights leaving the airport (listed as "line 2001 …") move with
+  them, their line day too.
 - **Estimates:** where an arrival isn't typed, the planning library's estimate (25 minutes plus the distance at the
   type's speed, manual §4) is used, so it can differ by a few minutes from the old planner's, which it fitted to the
   times typed in. A frequency with no aircraft is estimated on the airline's most-flown type (its market's aircraft
@@ -303,14 +309,20 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   on its own weekday, its base the order's (else where the line starts), titled "<line> · 3 of 7", in one save. A card
   on a line says which line, its place and its slot, and its flights show their days. Lines themselves are added by the
   Scheduling chat from the line optimiser's answer (the SQL is in `scripts/README.md`); the planner doesn't add or
-  change them. Filing a line's aircraft day by day comes with the next build (until then file it with Claude).
+  change them. A line's aircraft is filed like any other (**File into planner**, below), day by day.
 - **File into planner** (on an arrived aircraft's plan card, or from Today's Aircraft to file): the planner reads the
   airline's schedule from the game and compares each flight on the card. When every one is the same, it files at once.
   Otherwise it shows each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with **the
   game's times** (the card takes them too) or **the plan card's times**. Filing puts the aircraft in service, fits its
   cabin and logs the first fit at that cabin's price: the plan card's cabin, else the order's. With neither, it sets no
   cabin, logs nothing and says so (it never takes the type's default, since 18 Oct). It adds each flight with its return
-  as a round trip, launched today, and then opens the aircraft.
+  as a round trip, launched today, and then opens the aircraft. **A line's aircraft** (since 28 Oct, spec
+  docs/specs/2026-10-27-long-haul-lines.md §4: its card is on a line, or its flights each fly one weekday) is checked
+  and filed **day by day**: each flight on the card (say 2001 on Monday) is compared with the game's flight of that
+  number on that day, so the game listing 2001 every day (all 7 aircraft) or on the days of the aircraft filed so far
+  is not a difference. Each flight is paired with its return even when the return is days later (2002 on Thursday), and
+  each keeps its own day. Filing with the game's times takes the game's times, never its days. Its block hours a day
+  on the list are the week's average over its 7 days.
 - **The aircraft pop-up** (from Today's needs attention or a frequency's aircraft on Routes): its base, block hours a
   day, legs a week, maintenance (since 23 Oct the game's figure, no ≈, where the latest fleet pages have it, the
   estimate otherwise, as on the list), every issue (its maintenance judged on the same figure) and its flights, with **Open in Tails**. Since 22 Oct **In the game**

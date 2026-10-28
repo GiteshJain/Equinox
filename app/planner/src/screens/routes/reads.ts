@@ -15,7 +15,7 @@ import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import {
   LEG_COLUMNS, MARKET_ROW_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS,
-  type AircraftRow, type AirportInfo, type LegRow, type Load, type MarketRow, type PlanLegRow, type RotationRow, type RouteRow,
+  type AircraftRow, type AirportInfo, type LegRow, type LineLegRow, type Load, type MarketRow, type PlanLegRow, type RotationRow, type RouteRow,
 } from "./model";
 
 const fail = (what: string, message: string): never => {
@@ -170,18 +170,22 @@ export async function readAirports(worldId: number, codes: readonly string[]): P
   });
 }
 
-/** Every flight leg touching an airport (any airline's) and the other leg of each one's rotation, and the plan cards'
- *  legs leaving it: what an offset change there re-times. Read fresh, with each row's updated_at. */
-export async function legsAt(worldId: number, code: string): Promise<{ legs: LegRow[]; planLegs: PlanLegRow[] }> {
+/** Every flight leg touching an airport (any airline's) and the other leg of each one's rotation, the plan cards' legs
+ *  leaving it and, since 28 Oct, the 7-day lines' legs leaving it: what an offset change there re-times. Read fresh, with
+ *  each row's updated_at. */
+export async function legsAt(worldId: number, code: string): Promise<{ legs: LegRow[]; planLegs: PlanLegRow[]; lineLegs: LineLegRow[] }> {
   const touching = await supabase.from("flight_legs").select("rotation_id").eq("world_id", worldId).or(`origin_code.eq.${code},dest_code.eq.${code}`);
   if (touching.error) return fail("the flights at " + code, touching.error.message);
   const ids = [...new Set((touching.data ?? []).map((r) => r.rotation_id))];
   const legs = ids.length ? await supabase.from("flight_legs").select(LEG_COLUMNS).in("rotation_id", ids).order("rotation_id").order("leg_no") : { data: [], error: null };
   if (legs.error) return fail("the flights at " + code, legs.error.message);
-  const plan = await supabase.from("plan_card_legs").select("id, plan_card_id, position, flight_no, origin_code, dest_code, dep_utc_min, updated_at")
+  const plan = await supabase.from("plan_card_legs").select("id, plan_card_id, position, flight_no, origin_code, dest_code, days_utc, dep_utc_min, updated_at")
     .eq("world_id", worldId).eq("origin_code", code).order("plan_card_id").order("position");
   if (plan.error) return fail("the plan cards at " + code, plan.error.message);
-  return { legs: legs.data as unknown as LegRow[], planLegs: plan.data as PlanLegRow[] };
+  const line = await supabase.from("plan_line_legs").select("id, line_id, position, line_day, flight_no, origin_code, dest_code, dep_utc_min, updated_at")
+    .eq("world_id", worldId).eq("origin_code", code).order("line_id").order("position");
+  if (line.error) return fail("the lines at " + code, line.error.message);
+  return { legs: legs.data as unknown as LegRow[], planLegs: plan.data as PlanLegRow[], lineLegs: line.data as LineLegRow[] };
 }
 
 export interface RouteLoadRow extends Load { airline_id: number; route_id: number; average: number }

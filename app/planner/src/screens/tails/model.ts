@@ -680,8 +680,15 @@ export type CheckRow = LibCheckRow<CardLeg>;
 export type CardCheck = LibCardCheck<CardLeg>;
 /** Whether the game flies a card leg at the card's times: its departure, its arrival (when the game gives one) and days. */
 export const sameTimes = game.sameTimes;
-/** Each leg with the game's flight of the same number and airports, and whether its times and days are the same. */
-export const compareCard = (legs: readonly CardLeg[], flights: readonly GameFlight[] | null, err = ""): CardCheck => game.compareCard(legs, flights, err);
+/** Whether a plan card is a 7-day line's (spec docs/specs/2026-10-27-long-haul-lines.md §4, since 28 Oct): on a line
+ *  (line_id), or its legs each on one weekday over more than one (aircraftWeek.linePattern). Its legs are checked
+ *  against the game and filed day by day. */
+export function isLineCard(card: Pick<PlanCardRow, "line_id"> | null | undefined, legs: readonly Pick<PlanLegRow, "days_utc">[]): boolean {
+  return card?.line_id != null || aircraftWeek.linePattern(legs);
+}
+/** Each leg with the game's flight of the same number and airports, and whether its times and days are the same; byDay
+ *  (a line's card, isLineCard) each leg on its own weekday against the game's entry that flies that day. */
+export const compareCard = (legs: readonly CardLeg[], flights: readonly GameFlight[] | null, err = "", byDay = false): CardCheck => game.compareCard(legs, flights, err, byDay);
 /** The check's line above its table. */
 export function checkSummary(c: CardCheck): string {
   const n = c.rows.length;
@@ -759,9 +766,12 @@ export function cardCabinChange(card: PlanCardRow, configId: number | null): Cha
 
 /** Filing as one action: the aircraft in service (status active, its base and cabin), its first cabin fit in
  *  spending_log, each outbound and its return as a rotation with its two legs (a route added where the airline has none),
- *  and, filing with the game's times, the plan card's legs taking them. */
+ *  and, filing with the game's times, the plan card's legs taking them. A line's card (isLineCard, since 28 Oct) is filed
+ *  day by day: each leg keeps its own weekday (the game's times, never its days, which are every filed aircraft's), and
+ *  a return days after its outbound is stored on its own day, not the day after the landing the old rule gives it. */
 export function filingChanges(x: FilingInput): Change[] {
   const out: Change[] = [];
+  const byDay = isLineCard(x.card, x.legs.map((L) => L.row));
   const a = x.aircraft;
   const reg = a.registration;
   // the aircraft, as the old planner's tail ({id, airline, type, config: the order's cabin, base: the card's or the order's})
@@ -783,7 +793,7 @@ export function filingChanges(x: FilingInput): Change[] {
   // the flights: as filed with the game's times, the legs take them
   const flights: FileFlight[] = x.legs.map((L, i) => {
     const g = x.game?.[i] ?? null;
-    return g ? { no: L.no, from: L.from, to: L.to, dep: g.dep, arr: g.arr || L.arr, days: g.days ? sortDays(g.days) : L.days }
+    return g ? { no: L.no, from: L.from, to: L.to, dep: g.dep, arr: g.arr || L.arr, days: g.days && !byDay ? sortDays(g.days) : L.days }
       : { no: L.no, from: L.from, to: L.to, dep: L.dep, arr: L.arr, days: L.days };
   });
   const hubs = new Set(x.bases);
@@ -843,7 +853,7 @@ export function filingChanges(x: FilingInput): Change[] {
       dep_dest: b ? clockMin(b.dep) : null, arr_hub: b ? clockMin(b.arr) : null,
     };
     const ends = { airline_id: a.airline_id, hub: o.from, dest: o.to, distance_km: distance, type_id: a.aircraft_type_id };
-    const { leg1, leg2 } = frequency.toLegs(x.rules, ends, local);
+    const { leg1, leg2 } = frequency.toLegs(x.rules, ends, local, byDay && b ? frequency.weekdays(b.days || "1234567") : null);
     const legRow = (k: 1 | 2, s: typeof leg1, no: string): Change => ({
       table: "flight_legs", op: "insert", from: { rotation_id: rotName }, values: {
         world_id: x.worldId, airline_id: a.airline_id, leg_no: k, flight_no: no === "" ? null : Number(no), origin_code: k === 1 ? o.from : o.to,
@@ -857,7 +867,7 @@ export function filingChanges(x: FilingInput): Change[] {
       if (!g) return;
       const dep = clockMin(g.dep);
       if (dep == null) return;
-      const days = frequency.weekdays(g.days ? sortDays(g.days) : L.days);
+      const days = frequency.weekdays(g.days && !byDay ? sortDays(g.days) : L.days);
       const u = time.fromLocal(x.rules, L.from, days, dep);
       const values: Values = {};
       if (u.dep_utc_min !== L.row.dep_utc_min) values.dep_utc_min = u.dep_utc_min;

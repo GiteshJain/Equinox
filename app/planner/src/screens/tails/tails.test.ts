@@ -12,7 +12,7 @@ import type { Change } from "../../data/save";
 import type { MarketRow, RouteRow } from "../routes/model";
 import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
-  filingChanges, maintPill, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
+  filingChanges, isLineCard, maintPill, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
   acquiredWords, deliveryCounts, headerPills, routesCell, headerWords, issuesShown, routeNames, tailCounts, tailsAnswer, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
   lineCandidates, lineCardChanges, lineCheck, lineCheckWords, lineSize, lineSlots, nextFreeOffset, slotState,
   type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type PlanLineLegRow, type PlanLineRow, type TailAircraft, type TailAirline,
@@ -325,6 +325,39 @@ describe("filing", () => {
       { table: "plan_card_legs", op: "update", key: { id: 73 }, base: T0, values: { dep_utc_min: 930, block_min: 85 } }]);
     // the card itself is left as it is: its legs are its rows (the old planner's copy of them went with the clean-up)
     expect(ch.map((c) => c.table)).not.toContain("plan_cards");
+  });
+  // 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §4): a line's card is filed day by day
+  describe("a 7-day line's card, day by day", () => {
+    const lineLegs: PlanLegRow[] = planLegs.map((l, i) => ({ ...l, days_utc: [[2], [5], [6], [6]][i] as number[] }));
+    const lineCard: PlanCardRow = { ...card, line_id: 40, line_day_offset: 1 };
+    const L = cardLegs(rules, lineLegs);
+    const lx: FilingInput = { ...x, card: lineCard, legs: L };
+    it("is a line's card by its line, or by its legs: each on one weekday, over more than one", () => {
+      expect(isLineCard(lineCard, lineLegs)).toBe(true);
+      expect(isLineCard({ ...lineCard, line_id: null }, lineLegs)).toBe(true);
+      expect(isLineCard(card, planLegs)).toBe(false);
+      expect(isLineCard(card, planLegs.map((l) => ({ ...l, days_utc: [3] })))).toBe(false);
+    });
+    it("each leg keeps its own day: the return three days after its outbound, not the day after the landing", () => {
+      const ch = filingChanges(lx).filter((c) => c.table === "flight_legs").map((c) => [c.values?.flight_no, c.values?.days_utc, c.values?.dep_utc_min, c.values?.block_min]);
+      expect(ch).toEqual([[1201, [2], 1260, 330], [1202, [5], 130, 360], [1203, [6], 900, 80], [1204, [6], 1030, 85]]);
+      // filed as a plain card, the old rule moves 1202 to the Thursday after the Wednesday landing
+      const plain = filingChanges({ ...lx, card: { ...lineCard, line_id: null }, legs: cardLegs(rules, lineLegs.map((l, i) => (i === 1 ? { ...l, days_utc: [5, 6] } : l))) });
+      expect(plain.filter((c) => c.table === "flight_legs")[1]?.values?.days_utc).toEqual([4]);
+    });
+    it("checked against the game day by day: a flight the game flies every day matches on the leg's day", () => {
+      const g = L.map((l) => ({ code: "TA", no: l.no, from: l.from, to: l.to, days: "1234567", dep: l.dep, arr: l.arr }));
+      expect(compareCard(L, g).allSame).toBe(false);
+      expect(compareCard(L, g, "", true).allSame).toBe(true);
+      expect(compareCard(L, g.map((x, i) => (i === 1 ? { ...x, days: "1234" } : x)), "", true).rows.map((r) => r.same)).toEqual([true, false, true, true]);
+    });
+    it("with the game's times, takes the game's times but never its days (every filed aircraft's)", () => {
+      const g = L.map((l, i) => ({ code: "TA", no: l.no, from: l.from, to: l.to, days: "1234567", dep: i === 1 ? "08:10" : l.dep, arr: i === 1 ? "08:40" : l.arr }));
+      const ch = filingChanges({ ...lx, game: g });
+      expect(ch.filter((c) => c.table === "flight_legs").map((c) => [c.values?.flight_no, c.values?.days_utc, c.values?.dep_utc_min])).toEqual([
+        [1201, [2], 1260], [1202, [5], 160], [1203, [6], 900], [1204, [6], 1030]]);
+      expect(ch.filter((c) => c.table === "plan_card_legs")).toEqual([{ table: "plan_card_legs", op: "update", key: { id: 72 }, base: T0, values: { dep_utc_min: 160 } }]);
+    });
   });
   // 18 Oct: filing gave every new aircraft its order's cabin (none) and logged the type's default cabin's price
   it("fits the plan card's cabin over the order's, and logs the first fit at its price", () => {
