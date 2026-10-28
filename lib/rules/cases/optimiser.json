@@ -1,6 +1,6 @@
 {
   "part": "optimiser",
-  "note": "The A321neo turns in 76 minutes here (66 + 10). HUB–AAA is 75 minutes, HUB–DDD 125, HUB–NBN 55, HUB–CCC 505. BBB–HUB lands at HUB at 05:00 every day.",
+  "note": "The A321neo turns in 76 minutes here (66 + 10). HUB–AAA is 75 minutes, HUB–DDD 125, HUB–NBN 55, HUB–CCC 505. BBB–HUB lands at HUB at 05:00 every day. Since 27 Oct the score counts first the connections within plan_connection_target_h (4 hours, as Gander has it): in the last three cases HUB–CCC (airline 2's) leaves HUB at 15:46, so AAA–HUB landing at 09:46 (a 06:00 start) connects onto it in 6 hours, landing at 12:16 (08:30) in 3 h 30; BBB–HUB landing at 00:00 feeds a 06:00 departure in 6 hours and misses one at 08:30 (8 h 30).",
   "cases": [
     {
       "name": "a known best plan: DDD first, from 06:00, makes 4 connections at HUB (AAA first makes 3)",
@@ -25,6 +25,7 @@
           "start_local": "06:00",
           "start_local_min": 360,
           "connections": 4,
+          "connections_within_target": 2,
           "maintenance_ratio": 6.0788608981380055,
           "maintenance_pct": 608,
           "block_hours_day": 6.666666666666667,
@@ -81,6 +82,27 @@
       "input": {"flight_legs": [{"id": 201, "airline_id": 2, "origin_code": "AAA", "dest_code": "BBB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 420}]},
       "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA"], "type": "A321 NEO LIGHT", "start": "06:00-06:00", "step": 5},
       "answer": {"best": {"connections": 0}}
+    },
+    {
+      "name": "two plans tie on connections within 8 hours; the one with more within 4 hours wins (06:00 makes HUB–CCC in 6 h, 08:30 in 3 h 30)",
+      "rule": "manual §4 (since 27 Oct; spec docs/specs/2026-10-27-planning-connection-target.md): the score's first key is the connections within plan_connection_target_h (4 h), then all connections to connection_max_wait_h (8 h), then maintenance",
+      "input": {"flight_legs": [{"id": 301, "airline_id": 2, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 946, "block_min": 505}]},
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA"], "type": "A321 NEO LIGHT", "start": "06:00-08:30", "step": 150},
+      "answer": {"connection_target_h": 4, "considered": 2, "feasible": 2, "best": {"order": ["AAA"], "start_local": "08:30", "connections": 1, "connections_within_target": 1}}
+    },
+    {
+      "name": "a plan with fewer connections overall but more within 4 hours wins (06:00 makes 2, both over 4 h; 08:30 makes 1, in 3 h 30)",
+      "rule": "manual §4 (since 27 Oct; spec docs/specs/2026-10-27-planning-connection-target.md): the score's first key is the connections within plan_connection_target_h (4 h), then all connections to connection_max_wait_h (8 h), then maintenance",
+      "input": {"flight_legs": [{"id": 301, "airline_id": 2, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 946, "block_min": 505}, {"id": 302, "airline_id": 2, "origin_code": "BBB", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1140, "block_min": 300}]},
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA"], "type": "A321 NEO LIGHT", "start": "06:00-08:30", "step": 150},
+      "answer": {"considered": 2, "feasible": 2, "best": {"order": ["AAA"], "start_local": "08:30", "connections": 1, "connections_within_target": 1}}
+    },
+    {
+      "name": "with the target at 8 hours (every connection alike, as before 27 Oct) the same input keeps 06:00 and its 2",
+      "rule": "manual §4 (since 27 Oct; spec docs/specs/2026-10-27-planning-connection-target.md): the score's first key is the connections within plan_connection_target_h (4 h), then all connections to connection_max_wait_h (8 h), then maintenance",
+      "input": {"settings": {"plan_connection_target_h": 8}, "flight_legs": [{"id": 301, "airline_id": 2, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 946, "block_min": 505}, {"id": 302, "airline_id": 2, "origin_code": "BBB", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1140, "block_min": 300}]},
+      "ask": {"what": "optimise", "base": "HUB", "destinations": ["AAA"], "type": "A321 NEO LIGHT", "start": "06:00-08:30", "step": 150},
+      "answer": {"connection_target_h": 8, "best": {"start_local": "06:00", "connections": 2, "connections_within_target": 2}}
     }
   ]
 }

@@ -114,9 +114,10 @@ while; run it in slices with `[from] [to]` if needed.
 The planning library's `optimise` command (decision #19; `scripts/planning/plan.py`, which did this before, was retired
 by build pull request 4). It builds the best day's schedule for one aircraft from a base: it tries every order of the
 given destinations and every start time in the window, keeps the plans that respect night bans, the second-daily gap,
-turns and the maintenance the day needs, and picks the one with the most connections at the base (and any extra hubs),
-then the most maintenance time. Connections count from the airport's minimum connection time to
-`connection_max_wait_h` (manual §4); block times are 25 minutes + distance ÷ the type's speed, or the leg's stored time.
+turns and the maintenance the day needs, and picks the one with the most connections at the base (and any extra hubs)
+within the planning target, from the airport's minimum connection time to `plan_connection_target_h` (4 hours, since
+27 Oct; manual §4); then the most connections overall, to `connection_max_wait_h` (8 hours); then the most maintenance
+time. Block times are 25 minutes + distance ÷ the type's speed, or the leg's stored time.
 
 Its input is `rules.json`, from `export_for_report()` with kind `rules` (next section, step 2): every leg already flying,
 so new connections are counted against the real network. A worked example, Malaysia's next aircraft at KUL:
@@ -125,10 +126,10 @@ so new connections are counted against the real network. A worked example, Malay
 node lib/rules/dist/cli.js optimise rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --start 05:00-11:00 --step 5
 ```
 
-It answers in JSON: `best` (the order, the local start, connections, the maintenance ratio, and each leg with its local
-and UTC times and block), `plans` (the next best), and how many plans it tried and found feasible. On the 10 Oct test
-sample this gives KCH, PQC, then PEN from 06:45, 70 connections at KUL and maintenance 289%, exactly what plan.py gave
-(`tests/optimiser_saved_answer_test.py`). Add `--hubs DEL,PVG` to count connections at other hubs too, and `--airline
+It answers in JSON: `best` (the order, the local start, `connections_within_target` and `connections`, the maintenance
+ratio, and each leg with its local and UTC times and block), the target it used (`connection_target_h`), and how many
+plans it tried and found feasible. On the 10 Oct test sample this gives KCH, PQC, then PEN from 06:45, 70 connections
+at KUL (43 of them within 4 hours) and maintenance 289%: the plan plan.py gave (`tests/optimiser_saved_answer_test.py`). Add `--hubs DEL,PVG` to count connections at other hubs too, and `--airline
 <id>` when the base serves more than one of our airlines. Check the plan card it suggests with `check-card` before it
 goes into the planner.
 
@@ -159,8 +160,10 @@ from a clone of the repository, with Node 22:
      the reason; a card with none, or another, is a problem); with `--fares ladder.json` (`fare_ladder()`'s answer for
      the card's airline, or the briefing's), each route's fare level too (the answer's `fares`, since 21 Oct: what to
      set each new flight's fare to, Ticket price adjustment with the default price; since 26 Oct one per direction);
+     since 27 Oct, beside each leg's connections at both ends, how many fall within the 4-hour planning target
+     (`within_target`, `within_target_share`), and the same for the card (`connections`); a figure, never a problem;
    - `optimise KUL KCH,PQC,PEN --type "A321 NEO LIGHT" [--start 05:00-11:00] [--step 5] [--hubs DEL]`: the best day's
-     schedule for one aircraft, by connections, then maintenance.
+     schedule for one aircraft, by connections within 4 hours, then all connections, then maintenance.
 
    Each answers in JSON. The weekly report runs `aircraft` (above), and the website's trip search uses the library's
    connection test from `web/assets/rules.js`, which the same build writes.

@@ -3,6 +3,8 @@
 // than connection_max_wait_h after it (manual §4: "with no extra margin", "within 8 hours"). Worked across the week,
 // day by day, in UTC (the same instants as local time at the airport). An airport with no minimum connection time
 // uses 90 minutes (spec §5). Our airlines interline with each other (manual §6), so connections are across all of them.
+// Since 27 Oct plans aim for connections within plan_connection_target_h (4 hours; targetLimits), which the optimiser
+// scores first and the card check reports; nothing else reads it.
 // The old code it follows: the old planner's link, onward, feeders and hubConnections; plan.py's conns.
 import { DEFAULT_MCT_MIN, mctAt } from "./airport.js";
 import { bankOfArrival, bankOfDeparture, bankWindows, baseAt, hasBanks } from "./banks.js";
@@ -46,6 +48,17 @@ export function limitsFrom(mctMin: number | null | undefined, maxWaitH: number, 
 
 /** Whether a gap between landing and departure is a valid connection at the airport. */
 export const isConnection = (gap: number, lim: ConnectionLimits): boolean => gap >= lim.min_min && gap <= lim.max_min;
+
+/** The planning target for connections, hours (manual §4, since 27 Oct; brief docs/briefs/2026-10-27-connection-waits.md):
+ *  settings.plan_connection_target_h, world-wide. Only the optimiser's score and the card check read it; a connection
+ *  still counts up to connection_max_wait_h everywhere. */
+export const planTargetH = (rules: Rules): number => settingNumber(rules, "plan_connection_target_h");
+
+/** The same limits cut to the planning target: from the minimum connection time to plan_connection_target_h (never
+ *  beyond connection_max_wait_h). */
+export function targetLimits(rules: Rules, code: string, lim: ConnectionLimits = connectionLimits(rules, code), targetH: number = planTargetH(rules)): ConnectionLimits {
+  return { ...lim, max_min: Math.min(lim.max_min, targetH * 60) };
+}
 
 /** Minute of the week each of a leg's departures leaves, and lands, in UTC. */
 export const departuresOf = (l: TimedLeg): number[] => l.days_utc.map((d) => weekMinute(d, l.dep_utc_min));

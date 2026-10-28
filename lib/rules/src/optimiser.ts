@@ -6,15 +6,17 @@
 //   - maintenance is at least maintenance_min_pct (maintenance, on the aircraft's week);
 //   - no new flight comes within second_daily_gap_h (or the game's same_route_gap_min) of a flight already on its route.
 // The best plan makes the most connections at the base (and any extra hubs) involving its new flights, counted as
-// pairs of arrival and departure that connect on at least one day (connections); then the most maintenance. Ties keep
-// the first plan found, in the order the orders and start times are tried (itertools.permutations' order, then start
-// time), as plan.py does.
+// pairs of arrival and departure that connect on at least one day. Since 27 Oct (manual §4; brief
+// docs/briefs/2026-10-27-connection-waits.md) the score has three keys, in order: the connections within the planning
+// target, from the minimum connection time to plan_connection_target_h (connections_within_target); then all
+// connections, to connection_max_wait_h (connections); then the most maintenance. Ties keep the first plan found, in
+// the order the orders and start times are tried (itertools.permutations' order, then start time), as plan.py did.
 // The old code it follows: scripts/planning/plan.py (retired by pull request 4).
 import { sequenceWeek, weekLegsOf } from "./aircraftWeek.js";
 import { inNightBan } from "./airport.js";
 import { baseAt } from "./banks.js";
 import { blockFor, timedLegs } from "./block.js";
-import { connectionLimits, link } from "./connections.js";
+import { connectionLimits, link, planTargetH, targetLimits } from "./connections.js";
 import { RulesError, findType, settingNumber, worldRuleNumber } from "./input.js";
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
 import { closestDepartures } from "./schedule.js";
@@ -54,7 +56,10 @@ export interface OptimisedPlan {
   order: string[];
   start_local: string;
   start_local_min: number;
+  /** Connections from the minimum connection time to connection_max_wait_h: every connection that counts. */
   connections: number;
+  /** Of those, the ones within the planning target (to plan_connection_target_h): the score's first key, since 27 Oct. */
+  connections_within_target: number;
   maintenance_ratio: number;
   maintenance_pct: number;
   block_hours_day: number;
@@ -68,6 +73,8 @@ export interface OptimiseAnswer {
   type: string;
   airline_id: number;
   turn_min: number;
+  /** settings.plan_connection_target_h, the planning target the score counts first (since 27 Oct). */
+  connection_target_h: number;
   considered: number;
   feasible: number;
   rejected: { turn: number; night_ban: number; maintenance: number; route_gap: number };
@@ -103,12 +110,14 @@ export function optimise(rules: Rules, opts: OptimiseOptions, existing: readonly
   const offBase = utcOffsetMin(rules, opts.base);
   const hubs = [opts.base, ...(opts.extraHubs ?? []).filter((h) => h !== opts.base)];
   const limits = new Map(hubs.map((h) => [h, connectionLimits(rules, h)] as const));
+  const targetH = planTargetH(rules);
+  const short = new Map(hubs.map((h) => [h, targetLimits(rules, h, limits.get(h), targetH)] as const));
   const routeLegs = (from: string, to: string) => existing.filter((l) => l.origin === from && l.dest === to);
   const answer: OptimiseAnswer = {
-    base: opts.base, type: type.name, airline_id: airlineId, turn_min: turn, considered: 0, feasible: 0,
+    base: opts.base, type: type.name, airline_id: airlineId, turn_min: turn, connection_target_h: targetH, considered: 0, feasible: 0,
     rejected: { turn: 0, night_ban: 0, maintenance: 0, route_gap: 0 }, best: null,
   };
-  let bestKey: { c: number; m: number } | null = null;
+  let bestKey: { s: number; c: number; m: number } | null = null;
 
   // a new leg leaving `from` at base-local minute t (may run past midnight), on each of the plan's local days
   const newLeg = (id: number, from: string, to: string, t: number, b: number): TimedLeg => {
@@ -148,19 +157,29 @@ export function optimise(rules: Rules, opts: OptimiseOptions, existing: readonly
         continue;
       }
       answer.feasible++;
-      let c = 0;
+      // every connection (c), and those within the planning target (s): a pair connects within it when its tightest
+      // connection, on any of its days, is no longer than plan_connection_target_h
+      let c = 0, s = 0;
       for (const h of hubs) {
-        const lim = limits.get(h);
-        if (!lim) continue;
+        const lim = limits.get(h), lims = short.get(h);
+        if (!lim || !lims) continue;
         const newArr = legs.filter((l) => l.dest === h), newDep = legs.filter((l) => l.origin === h);
         const oldArr = existing.filter((l) => l.dest === h), oldDep = existing.filter((l) => l.origin === h);
-        for (const i of newArr) for (const o of [...oldDep, ...newDep]) if (o.dest !== i.origin && link(rules, i, o, lim)) c++;
-        for (const i of oldArr) for (const o of newDep) if (o.dest !== i.origin && link(rules, i, o, lim)) c++;
+        const count = (i: TimedLeg, o: TimedLeg) => {
+          if (o.dest === i.origin) return;
+          const k = link(rules, i, o, lim);
+          if (!k) return;
+          c++;
+          if (k.gap_min <= lims.max_min) s++;
+        };
+        for (const i of newArr) for (const o of [...oldDep, ...newDep]) count(i, o);
+        for (const i of oldArr) for (const o of newDep) count(i, o);
       }
-      if (bestKey === null || c > bestKey.c || (c === bestKey.c && m.ratio > bestKey.m + EPS)) {
-        bestKey = { c, m: m.ratio };
+      if (bestKey === null || s > bestKey.s || (s === bestKey.s && (c > bestKey.c || (c === bestKey.c && m.ratio > bestKey.m + EPS)))) {
+        bestKey = { s, c, m: m.ratio };
         answer.best = {
-          order: [...order], start_local: clock(st), start_local_min: st, connections: c, maintenance_ratio: m.ratio, maintenance_pct: m.pct,
+          order: [...order], start_local: clock(st), start_local_min: st, connections: c, connections_within_target: s,
+          maintenance_ratio: m.ratio, maintenance_pct: m.pct,
           block_hours_day: blk / 60, night_at_base_min: night,
           legs: legs.map((l, k) => ({
             from: l.origin, to: l.dest, dep_local: clock(local[k]?.dep ?? 0), arr_local: clock(local[k]?.arr ?? 0),

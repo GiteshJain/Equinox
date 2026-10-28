@@ -8,11 +8,14 @@
 // calls for, and a card whose cabin is missing or differs from it is a problem with the reason. And since 21 Oct (manual
 // §5; spec docs/specs/2026-10-21-frequencies-and-fares.md §2) the check gives each route's fare level when it is handed
 // fare_ladder()'s answer for the card's airline (cardFares): a new flight is priced like the rest of its route; since 26 Oct
-// (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each leg its own direction's level.
+// (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each leg its own direction's level. Since 27 Oct (manual
+// §4; spec docs/specs/2026-10-27-planning-connection-target.md §3) beside the connections at both ends it reports how
+// many fall within the planning target (plan_connection_target_h), count and share, for each leg and the card; it is a
+// figure, never a problem: a card isn't wrong for having long connections.
 import { forAircraft as aircraftWeek } from "./aircraftWeek.js";
 import { bankOfArrival, bankOfDeparture, baseAt, hasBanks } from "./banks.js";
 import { blockFor, distanceBetween, timedLegs } from "./block.js";
-import { connectionsAtBothEnds } from "./connections.js";
+import { connectionsAtBothEnds, planTargetH, type LinkedLeg } from "./connections.js";
 import { RulesError, findAircraft, findType, pairKey, setting, settingNumber } from "./input.js";
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
 import { departuresPerAirport, flightNumberClashes, nightBanHits, routeGapHits } from "./schedule.js";
@@ -353,6 +356,9 @@ function cabinProblem(c: CabinSuggestion): string | null {
   return null;
 }
 
+/** The share of connections within the target, percent to one decimal; null with no connections. */
+const shareOf = (within: number, all: number): number | null => (all > 0 ? Math.round(within / all * 1000) / 10 : null);
+
 /** Checks a plan card; see the top of this file. With fare_ladder()'s answer for the card's airline (options.fares), the
  *  answer's fares gives each route's fare level in each direction the card flies it (cardFares, since 21 Oct; per
  *  direction since 26 Oct); without it, fares is null. */
@@ -386,10 +392,20 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
   const week = aircraftWeek(rules, pseudo, legs.map((l) => ({ ...l, aircraft_id: pseudo.id })));
   const maint = maintenanceOfWeek(rules, type, airlineId, week?.legs ?? []);
   const svc = serviceCheck(rules, airlineId, card.legs);
+  // the planning target (since 27 Oct): an input without plan_connection_target_h (made before it came) gets no target
+  // figures (null), as an input without the cabin settings skips the cabin check
+  const targetH = setting(rules, "plan_connection_target_h") === undefined ? null : planTargetH(rules);
+  const within = (xs: readonly LinkedLeg[]) => (targetH == null ? null : xs.filter((x) => x.gap_min <= targetH * 60).length);
+  const pairs = new Map<string, boolean>();
   const perLeg = legs.map((l, i) => {
     const depLocal = toLocal(rules, l.origin, l.dep_utc_min, DAY), arrLocal = toLocal(rules, l.dest, l.dep_utc_min + l.block_min, DAY);
     const bo = baseAt(rules, l.origin, airlineId), bd = baseAt(rules, l.dest, airlineId);
     const ends = connectionsAtBothEnds(rules, network, l);
+    const fw = within(ends.feeders), ow = within(ends.onward), all = ends.feeders.length + ends.onward.length;
+    // the card's connections, each arrival and departure pair once (a connection between two of the card's own legs is
+    // one leg's onward and the other's feeder)
+    for (const x of ends.feeders) pairs.set(`${x.leg.id}>${l.id}`, targetH != null && x.gap_min <= targetH * 60);
+    for (const x of ends.onward) pairs.set(`${l.id}>${x.leg.id}`, targetH != null && x.gap_min <= targetH * 60);
     return {
       leg: i + 1, flight_no: l.flight_no, from: l.origin, to: l.dest, days_utc: l.days_utc, dep_utc: clock(l.dep_utc_min),
       dep_local: clock(depLocal), arr_local: clock(arrLocal), block_min: l.block_min, block_source: l.block_source,
@@ -397,6 +413,9 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
       bank_in: hasBanks(bd) && bd ? bankOfArrival(rules, bd, arrLocal) : null,
       service_given: svc.legs[i]?.given ?? null, service_wanted: svc.legs[i]?.wanted ?? null,
       feeders: ends.feeders.length, onward: ends.onward.length,
+      feeders_within_target: fw, onward_within_target: ow,
+      within_target: fw == null || ow == null ? null : fw + ow,
+      within_target_share: fw == null || ow == null ? null : shareOf(fw + ow, all),
       feeders_list: ends.feeders.map((x) => ({ leg_id: x.leg.id, from: x.leg.origin, flight_no: x.leg.flight_no, days: x.days, gap_min: x.gap_min })),
       onward_list: ends.onward.map((x) => ({ leg_id: x.leg.id, to: x.leg.dest, flight_no: x.leg.flight_no, days: x.days, gap_min: x.gap_min })),
     };
@@ -428,9 +447,14 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
     || setting(rules, "cabin_leisure_plus_max_km", airlineId) === undefined ? null : cabinFor(rules, card);
   const cabinIssue = cabin ? cabinProblem(cabin) : null;
   if (cabinIssue) problems.push(cabinIssue);
+  const nWithin = [...pairs.values()].filter(Boolean).length;
+  const connections = {
+    target_h: targetH, total: pairs.size, within_target: targetH == null ? null : nWithin,
+    within_target_share: targetH == null ? null : shareOf(nWithin, pairs.size),
+  };
   return {
     aircraft: ac?.registration ?? null, type: type.name, airline_id: airlineId, ok: problems.length === 0, problems,
-    legs: perLeg, turns_not_ok: turns.length, maintenance: maint, night_bans: nightBans, route_gaps: routeGaps, flight_number_clashes: clashes,
+    legs: perLeg, connections, turns_not_ok: turns.length, maintenance: maint, night_bans: nightBans, route_gaps: routeGaps, flight_number_clashes: clashes,
     departures: caps, legs_week: week?.legs_week ?? 0, block_hours_day: week?.block_hours_day ?? 0, service: svc, cabin,
     fares: options.fares ? cardFares(rules, card, options.fares) : null,
   };

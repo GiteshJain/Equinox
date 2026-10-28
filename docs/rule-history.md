@@ -375,6 +375,17 @@ Narrowbody trunks first: *Since 20 Oct (Gitesh).*
 #### Maximise connections at both ends
 *Since 6 Oct, updated 7 Oct; margin dropped 9 Oct · why: Gitesh: as long as it's over the minimum connection time, it's good.*
 
+*The 4-hour planning target since 27 Oct (Gitesh, option B of `docs/briefs/2026-10-27-connection-waits.md`, planning
+only; spec `docs/specs/2026-10-27-planning-connection-target.md`) · why:* only about a third of our flights sat in their
+hub's banks, and 58% of our 5,447 connections waited more than 4 hours (average about 4.5 h). Passengers choose on
+price, time, cabin and service (Gitesh, from the game), so long waits lose bookings. The optimiser scored every
+connection up to 8 hours alike, so nearly any departure time collected connections and nothing pulled flights into
+the banks. A flight in its bank connects in the minimum connection time to about two hours more (1.3 to 3.5 h), so
+4 hours means "in a bank, or close". The 8 hours stays for counting everywhere else (Routes, hub readiness, the banks,
+rivals' connections, the website's trip search, the audit's counts, the weekly report). The old sentence, word for
+word: "and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`)", with every
+connection up to 8 hours scored alike by the optimiser.
+
 #### Night slots are fine
 *Since 27 Sep · why: the game's demand ignores time of day, and captures show night departures sell as well as daytime ones.*
 
@@ -570,6 +581,12 @@ age (Retired rules, 26 Oct).*
 #### Every Saturday: the world scan
 *Since 21 Oct (spec `docs/specs/2026-10-21-scan-in-capture.md`); a Saturday step since 14 Oct (#22) · why (Gitesh): only one scan had been taken by 14 Oct, because no step called for it; since 21 Oct the capture takes it.*
 
+#### Every Saturday: the connection audit
+*Retimes of 30 minutes or less since 27 Oct (Gitesh, `docs/briefs/2026-10-27-connection-waits.md`) · why:* most of
+our connections wait more than 4 hours and only a third of our flights sit in their banks; moves of 10 minutes or
+less rarely pull a flight into its bank. The old wording, word for word: "the connection audit across all hubs (valid
+connections, near misses, and retimes of 10 minutes or less);"
+
 #### Every Saturday: the weekly report
 The pace towards an aircraft a day per airline (*since 20 Oct, Gitesh*).
 
@@ -706,6 +723,8 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 27 Oct | Departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`), every connection up to 8 hours scored alike by the optimiser | Plans and retimes aim for connections within 4 hours (`plan_connection_target_h`), which the optimiser counts first and the card check reports; a connection still counts up to 8 hours everywhere (§4). Why: 58% of our connections waited over 4 hours, and long waits lose bookings; brief `docs/briefs/2026-10-27-connection-waits.md` |
+| 27 Oct | The connection audit's retimes of 10 minutes or less | Retimes of 30 minutes or less (§7). Why: small moves rarely pull a flight into its bank; brief `docs/briefs/2026-10-27-connection-waits.md` |
 | 27 Oct | The default line's reach was each variant's range with a full load, from the game's aircraft pages (18 Oct): E195-E2 3,542 km, E190-E2 4,065 (3,542–4,065 km, or the thinnest 1-star city), A320neo SHARP 3,355, A320neo LIGHT 3,690, A320neo 4,045, A320neo Heavy 4,708, A321neo LIGHT 4,192, A321neo 4,742, A321LR 5,809, A321XLR 6,939, A350-900 to about 15,000 km, A350-1000 beyond 15,000; a route past a variant's full-load range asked first | Reach is the full-cabin distance in our seat type for the distance, from the game's evaluation tool: E195 5,700, SHARP 4,100, LIGHT 5,200, Heavy 6,750, A321neo LIGHT 5,250, LR 7,700, XLR 8,600, A350-900 14,200, A350-1000 15,200; the E190-E2, A320neo and A321neo off the line (§3). Why: our cabins carry 19–41% fewer seats than the full load, and the game cuts seats gradually instead of stopping at a range (9M-AAY (KUL), a 147-seat LIGHT, flew KUL–Beijing, 4,414 km, full); the evaluation of 675 routes, two route sets that agree within about 100 km and 9 hand checks by Gitesh, all matching (brief `docs/briefs/2026-10-27-real-aircraft-reach.md`) |
 | 27 Oct | Until 31 October, only new routes (Pan Am and China Eastern exempt since 22 Oct): every flight planned from 18 to 31 Oct opens a route the airline doesn't fly yet: no second dailies or extra frequency on existing routes, whatever the growth signals say; until 31 Oct this wins over §1 and §3's frequency rules. Plan cards made before 18 Oct stay as they are, filed or not (EI-ABS and EI-ABT keep their second dailies) | Nothing: every airline's orders follow §3 again (add a flight or raise fares by profit per aircraft hour, the growth signals, market share first), and from 1 Nov the trunk month (§4). Why: Gitesh, 27 Oct, ending it four days early |
 | 26 Oct | Reach checked by the Scheduling chat with no ask: a route past a variant's full-load range proposed without asking | Asked each time (§3). Why: Gitesh, ranges are a bit flexible, so he decides each route pushed slightly past a variant's full-load range (raised by G-AAFK (LGW) on Tel Aviv) |

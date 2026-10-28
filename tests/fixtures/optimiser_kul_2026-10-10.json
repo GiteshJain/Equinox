@@ -1,6 +1,6 @@
 {
   "part": "optimiser",
-  "note": "The optimiser against plan.py's saved answer on one fixed input (rules library spec §4; scripts/planning/plan.py retired by build pull request 4): the test sample's legs at KUL (sample_2026-10-10, the 60 legs arriving there or leaving it, as rules_input() would give them), three destinations to plan (KCH, PQC and PEN, which Malaysia already flies), and a night ban added at PEN (00:01 to 05:59) so the night-ban rule takes part. The type's figures are plan.py's own: an 80-minute turn (66 + a 14-minute margin), 27.6 minutes a cycle, 1.7 a block hour, and 66 minutes kept at the base. The answer is plan.py's, saved from plan.py run unchanged on this input before it was retired; tests/optimiser_saved_answer_test.py runs the library's command on it and must find the same plan.",
+  "note": "The optimiser against plan.py's saved answer on one fixed input (rules library spec §4; scripts/planning/plan.py retired by build pull request 4): the test sample's legs at KUL (sample_2026-10-10, the 60 legs arriving there or leaving it, as rules_input() would give them), three destinations to plan (KCH, PQC and PEN, which Malaysia already flies), and a night ban added at PEN (00:01 to 05:59) so the night-ban rule takes part. The type's figures are plan.py's own: an 80-minute turn (66 + a 14-minute margin), 27.6 minutes a cycle, 1.7 a block hour, and 66 minutes kept at the base. The answer is plan.py's, saved from plan.py run unchanged on this input before it was retired; tests/optimiser_saved_answer_test.py runs the library's command on it and must find the same plan. Since 27 Oct (manual §4, plan_connection_target_h) the score counts first the connections within 4 hours: the same plan still wins, with 43 of its 70 connections within 4 hours (connections_within_target).",
   "input": {
     "settings": {"turn_margin_min": 14},
     "aircraft_types": [{"id": 1, "name": "A321 NEO LIGHT", "cruise_kmh": 840, "min_turn_min": 66, "ground_keep_min": 66, "maint_per_cycle": 27.6, "maint_per_hour": 1.7}],
@@ -846,7 +846,7 @@
       "name": "the same best plan as plan.py: order, start, connections and maintenance",
       "rule": "spec §4; scripts/planning/plan.py",
       "ask": {"what": "optimise", "base": "KUL", "destinations": ["KCH", "PQC", "PEN"], "type": "A321 NEO LIGHT", "start": "05:00-11:00", "step": 5},
-      "answer": {"best": {"order": ["KCH", "PQC", "PEN"], "start_local": "06:45", "start_local_min": 405, "connections": 70, "maintenance_ratio": 2.889515240886267}}
+      "answer": {"best": {"order": ["KCH", "PQC", "PEN"], "start_local": "06:45", "start_local_min": 405, "connections": 70, "connections_within_target": 43, "maintenance_ratio": 2.889515240886267}}
     }
   ]
 }

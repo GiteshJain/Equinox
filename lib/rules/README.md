@@ -50,7 +50,7 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `game` | The planner against the game's public schedule (Tails' check before filing and Check's game check, #18 build pull requests 7 and 9), as the old planner's `plannerFlights`, `compareFlights`, `importCandidates` and `applyGameFix`: `plannerFlights` (each flight number's entries in local time, a return on the day it leaves), `compare` (each number the same, different, in the planner only or in the game only, a flight valid only for some dates aside, with the fix where it's only a time or a day change), `importCandidates` (the game's numbers the planner hasn't got, paired into round trips one apart), `fixTimes` (the frequencies a fix changes, with their new local times) and `compareCard` (a plan card's legs). A rotation with no aircraft estimates its empty arrival on the airline's most-flown type (`mostFlownType`: the type with the most departures a week; its market's default type until 21 Oct) | `game.compare(rules, 1, flights).issues[0]` → flight 1002, "Different: departure, arrival", with the game's times as its fix (`cases/game.json`) |
 | `loadReport` | Check's daily load report (#18 build pull request 9): `flightsOn` (one day's departures, each outbound on its local weekdays at the hub and each return on the day it leaves, by airline then departure, a frequency in its first `load_leeway_days` after its launch marked) | `loadReport.flightsOn(rules, "2026-10-13", launches)` → 1001 at 06:00, then the overnight return 1004 at 06:30, in its first week (`cases/loadReport.json`) |
 | `growth` | Check's Growth board (#18 build pull request 9): the order rotation (manual §3: `lastMove`, `nextMove`, `moveCandidates` with `growth_big_min_stars`, `shownMove` skipping a move with nothing ready), `readyFromLoads` (ready for another flight from the load reports: `growth_ready_full_share` over `growth_ready_min_days`), `hubReadiness` (each bank's cities feeding it now and with the plan cards, by region), `suggestedSize` (the aircraft size the next move suggests for a route: the first entry of the setting `suggested_size` for the move, the airline's own list before the world's, whose `min_stars` and `over_km` the route meets) and `orderQueues` (`order_queue_grace_h`, `order_queue_warn_h`) | `growth.nextMove(log, 2)` → `big` for an airline with nothing logged (`cases/growth.json`) |
-| `optimiser` | The best day's schedule for one aircraft from a base and some destinations: every order and start time, feasible against night bans, maintenance, the second-daily gap and turns; best by connections at the base (and any extra hubs), then maintenance | `optimiser.optimise(rules, {base: "HUB", destinations: ["AAA", "DDD"], ...}).best.order` → `["DDD", "AAA"]` |
+| `optimiser` | The best day's schedule for one aircraft from a base and some destinations: every order and start time, feasible against night bans, maintenance, the second-daily gap and turns; best by the connections at the base (and any extra hubs) within the planning target, from the minimum connection time to `plan_connection_target_h` (4 hours, since 27 Oct, manual §4); then all connections, to `connection_max_wait_h`; then maintenance. Its `best` gives both counts (`connections_within_target`, `connections`) and the answer the target (`connection_target_h`); an input without the setting is refused, naming it | `optimiser.optimise(rules, {base: "HUB", destinations: ["AAA", "DDD"], ...}).best.order` → `["DDD", "AAA"]` |
 
 Two more: `card.checkCard()` checks a plan card's legs against every rule above, at both ends, its service codes
 included (each leg's `service_code`, its `service_given` and `service_wanted`, and `service` with the issues), and its
@@ -72,7 +72,13 @@ as `fares` (`cases/cardFares.json`). Since 26 Oct (spec `docs/specs/2026-10-26-f
 direction has its own level: the answer has one entry per direction the card flies, in the order of its legs, each with
 `direction` (out from the route's hub, back to it; null for a pair the airline has no route for), `from` and `to`, and
 the levels of that direction's ladder rows (a row without a direction, from before then, counts for both). Nothing is
-stored on the card. `airport` gives an airport's minimum connection time
+stored on the card. Since 27 Oct (manual §4; spec `docs/specs/2026-10-27-planning-connection-target.md` §3) the check
+also says how many of the connections fall within the planning target, `plan_connection_target_h` (4 hours;
+`connections.targetLimits`): each leg's `feeders_within_target`, `onward_within_target`, `within_target` and
+`within_target_share` (percent, one decimal; null with no connections) beside its `feeders` and `onward`, and the card's
+`connections` (`target_h`, `total`, `within_target`, `within_target_share`; each arrival and departure pair once). It is
+a figure, never a problem: a card isn't wrong for having long connections. An input made before the setting gets null
+figures (`cases/connections.json`'s last case). `airport` gives an airport's minimum connection time
 and night ban.
 
 **Stations** (since 22 Oct, manual §2; spec `docs/specs/2026-10-22-station-role.md`): an `airline_bases` row with role
@@ -115,7 +121,8 @@ start window and step default to 05:00 to 11:00 local and 5 minutes.
   answer names only what it checks; numbers match to within 1e-9; `{"error": "..."}` expects a refusal. The questions
   are listed in `test/ask.ts`.
 - **`tests/fixtures/optimiser_kul_2026-10-10.json`**: the optimiser on the test sample's legs at KUL, whose answer is
-  plan.py's, saved before plan.py was retired (build pull request 4). A case in the same format, kept with the dated
+  plan.py's, saved before plan.py was retired (build pull request 4). Since 27 Oct the score counts the connections
+  within 4 hours first; the same plan still wins, and the answer adds its 43 connections within 4 hours (of 70). A case in the same format, kept with the dated
   samples because it is game data (decision #9); the Vitest runner lists it in `test/cases.test.ts` and lays it over
   `_base.json` like the rest. `tests/optimiser_saved_answer_test.py` runs the built command on it and must find that
   answer.
