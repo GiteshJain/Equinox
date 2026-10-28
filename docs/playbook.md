@@ -426,8 +426,8 @@ one is **7 Nov 2026**.
 
 ## 13. Game mechanics worth knowing (Gander)
 All in manual §9. What each covers:
-- **Gander is an exclusive world:** why interlining our own airlines, the capture and salary scripts, and the world
-  scanner are allowed here, and not in a public world.
+- **Gander is an exclusive world:** why everything we do there is allowed (interlining our own airlines and every
+  script we use), and why it wouldn't be in a public world.
 - **House rules:** holdings per player and per country, starting capital, departures per airport, the gap between
   departures on one route, the fare floor, freedom-route and alliance caps, and a new brand's first route.
 - **Mechanics:** demand is per airport, not per city; how bookings split among flights; time of day and demand;
