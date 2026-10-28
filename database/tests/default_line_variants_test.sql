@@ -20,7 +20,11 @@ begin
                        and t.price > 0 and t.cruise_kmh > 0 and t.min_turn_min > 0 and t.family_no is not null);
   assert missing is null, 'types missing or without their figures: ' || missing;
   assert (select seats_max from public.aircraft_types where world_id = w and name = 'A350-900ULR') = 440, 'the A350-900ULR should have 440 seats';
-  assert (select range_km from public.aircraft_types where world_id = w and name = 'A321LR') = 5809, 'the A321LR should reach 5,809 km';
+  -- The reach is data the Scheduling chat keeps (manual §3's default line; on 28 Oct it set the full-cabin reach from the
+  -- aircraft evaluation, the A321LR 5,809 → 7,700 km), so the test checks the line's order, not a figure.
+  assert (select range_km from public.aircraft_types where world_id = w and name = 'A321LR')
+       > (select range_km from public.aircraft_types where world_id = w and name = 'A321 NEO LIGHT'),
+       'the A321LR should reach further than the A321neo LIGHT';
 
   select count(*) into n from public.cabin_configs c join public.aircraft_types t on t.id = c.aircraft_type_id
    where c.world_id = w and t.name in ('E190-E2','A320neo SHARP','A320neo','A320neo Heavy','A321neo','A321LR','A350-900','A350-1000');
