@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<!-- Gitesh's saved page of the game's aircraft type evaluation tool, /app/aircraft/evaluation?134 (JFK to SGN selected, no aircraft added), 27 Oct 2026.
+     Scrubbed: only the tool's own part of the page is kept (from its heading to the end of its forms); the game's
+     header, menus, scripts and our userscripts' buttons are left out. -->
+<html><head><meta charset="utf-8"><title>Aircraft type evaluation</title></head><body>
+<div class="container">
+<h1>Aircraft type evaluation</h1>
+
+    <div class="as-panel">
+        <p>Please select a route which you want to evaluate aircraft types for:</p>
+        <form class="form-inline" id="id6ee" method="post" action="./evaluation?134-2.-aircraft.eval.route.form"><div id="id6ee_hf_0" hidden="" class="hidden-fields"></div>
+            <div class="form-group">
+                From
+            </div>
+            <div class="form-group">
+                <div>
+	<input type="text" class="form-control" value="New York John F. Kennedy" name="from:phrase" maxlength="255">
+	
+</div>
+            </div>
+            <div class="form-group">
+                to
+            </div>
+            <div class="form-group">
+                <div>
+	<input type="text" class="form-control" value="Ho Chi Minh City Tan Son Nhat" name="to:phrase" maxlength="255">
+	
+</div>
+            </div>
+            <div class="form-group">
+                <input type="submit" class="btn btn-default" value="select route">
+            </div>
+        </form>
+    </div>
+
+    <div>
+        <h2>Evaluation for route from New York John F. Kennedy to Ho Chi Minh City Tan Son Nhat</h2>
+
+        <h3>Aircraft comparison</h3>
+        <div class="as-panel">
+            <div class="as-table-well">
+                <table class="table table-bordered tabled-striped table-hover aircraftEvaluation">
+                    <thead>
+                    <tr>
+                        <th class="column1">Aircraft type</th>
+                        <th>Flights per week</th>
+                        <th>Available seats</th>
+                        <th>Fuel</th>
+                        <th>Aircraft Handling</th>
+                        <th>ATC</th>
+                        <th>Landing Fees</th>
+                        <th>Maintenance</th>
+                        <th>Capital cost</th>
+                        <th>Crew</th>
+                        <th>Fixed costs total</th>
+                        <th>per seat</th>
+                        <th>50%</th>
+                        <th>60%</th>
+                        <th>70%</th>
+                        <th>80%</th>
+                        <th>90%</th>
+                        <th>100%</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="text-align:center;" colspan="18" class="column1">
+                            Please select the aircraft types you wish to compare.
+                        </td>
+                    </tr>
+                    
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-5">
+                <h3>Add Aircraft Type</h3>
+                <form class="as-panel" id="id6ef" method="post" action="./evaluation?134-2.-evaluation-add"><div id="id6ef_hf_0" hidden="" class="hidden-fields"></div>
+                    <div class="form-group">
+                        <select class="form-control" name="types" multiple="multiple" size="8">
+<option value="0">Aerospatiale / Nord 262</option>
+<option value="1">Airbus A220-100</option>
+<option value="2">Airbus A220-300</option>
+<option value="3">Airbus A300-600</option>
+<option value="4">Airbus A300-600R</option>
+<option value="5">Airbus A300-600R HGW</option>
+<option value="6">Airbus A300B2</option>
+<option value="7">Airbus A300B4</option>
+<option value="8">Airbus A300C4</option>
+<option value="9">Airbus A310-200</option>
+<option value="10">Airbus A310-200 (winglets)</option>
+<option value="11">Airbus A310-200C</option>
+<option value="12">Airbus A310-300</option>
+<option value="13">Airbus A310-300ET</option>
+<option value="14">Airbus A318-100</option>
+<option value="15">Airbus A318-100 Heavy</option>
+<option value="16">Airbus A318-100 Light</option>
+<option value="17">Airbus A319-100 heavy</option>
+<option value="18">Airbus A319-100 heavy (enhanced)</option>
+<option value="19">Airbus A319-100 high density</option>
+<option value="20">Airbus A319-100 high density (enhanced)</option>
+<option value="21">Airbus A319-100 light</option>
+<option value="22">Airbus A319-100 light (enhanced)</option>
+<option value="23">Airbus A319-100 LR</option>
+<option value="24">Airbus A319-100 LR (enhanced)</option>
+<option value="25">Airbus A319-100 medium</option>
+<option value="26">Airbus A319-100 medium (enhanced)</option>
+<option value="27">Airbus A319-100 SHARP</option>
+<option value="28">Airbus A319NEO</option>
+<option value="29">Airbus A319NEO Heavy</option>
+<option value="30">Airbus A319NEO Light</option>
+<option value="31">Airbus A320-100</option>
+<option value="32">Airbus A320-200 heavy</option>
+<option value="33">Airbus A320-200 heavy (enhanced)</option>
+<option value="34">Airbus A320-200 light</option>
+<option value="35">Airbus A320-200 light (enhanced)</option>
+<option value="36">Airbus A320-200 medium</option>
+<option value="37">Airbus A320-200 medium (enhanced)</option>
+<option value="38">Airbus A320NEO</option>
+<option value="39">Airbus A320NEO Heavy</option>
+<option value="40">Airbus A320NEO Light</option>
+<option value="41">Airbus A320NEO SHARP</option>
+<option value="42">Airbus A321-100</option>
+<option value="43">Airbus A321-100 Heavy</option>
+<option value="44">Airbus A321-200</option>
+<option value="45">Airbus A321-200 (Sharklet)</option>
+<option value="46">Airbus A321-200 Heavy</option>
+<option value="47">Airbus A321-200 Heavy (Sharklet)</option>
+<option value="48">Airbus A321LR</option>
+<option value="49">Airbus A321NEO</option>
+<option value="50">Airbus A321NEO Heavy</option>
+<option value="51">Airbus A321NEO Light</option>
+<option value="52">Airbus A321NEO Medium</option>
+<option value="53">Airbus A321XLR</option>
+<option value="54">Airbus A321XLR Heavy</option>
+<option value="55">Airbus A321XLR Light</option>
+<option value="56">Airbus A330-200</option>
+<option value="57">Airbus A330-200E</option>
+<option value="58">Airbus A330-300</option>
+<option value="59">Airbus A330-300E</option>
+<option value="60">Airbus A330-300R</option>
+<option value="61">Airbus A330-300X</option>
+<option value="62">Airbus A330-800</option>
+<option value="63">Airbus A330-800E</option>
+<option value="64">Airbus A330-900</option>
+<option value="65">Airbus A330-900E</option>
+<option value="66">Airbus A330-900X</option>
+<option value="67">Airbus A340-200</option>
+<option value="68">Airbus A340-300</option>
+<option value="69">Airbus A340-300E</option>
+<option value="70">Airbus A340-500</option>
+<option value="71">Airbus A340-600</option>
+<option value="72">Airbus A350-1000</option>
+<option value="73">Airbus A350-900</option>
+<option value="74">Airbus A350-900ULR</option>
+<option value="75">Airbus A380-800</option>
+<option value="76">Antonov AN-140A</option>
+<option value="77">Antonov AN-148-100A</option>
+<option value="78">Antonov AN-148-100B</option>
+<option value="79">Antonov AN-148-100E</option>
+<option value="80">Antonov AN-158</option>
+<option value="81">Antonov AN-24B</option>
+<option value="82">Antonov AN-38-100</option>
+<option value="83">Antonov AN-38K</option>
+<option value="84">Antonov AN-74TK-200 Convertible</option>
+<option value="85">ATR 42-300</option>
+<option value="86">ATR 42-300QC</option>
+<option value="87">ATR 42-320</option>
+<option value="88">ATR 42-500</option>
+<option value="89">ATR 42-600</option>
+<option value="90">ATR 72-210</option>
+<option value="91">ATR 72-500</option>
+<option value="92">ATR 72-600</option>
+<option value="93">AVIC II / Harbin Y-12 IV Twin Panda</option>
+<option value="94">AVIC II / MA-60</option>
+<option value="95">AVIC II / MA-600</option>
+<option value="96">AVIC II / XIAN Y-7-100A</option>
+<option value="97">AVIC II / XIAN Y-7-200</option>
+<option value="98">Avro Regionaljet RJ100</option>
+<option value="99">Avro Regionaljet RJ70</option>
+<option value="100">Avro Regionaljet RJ85</option>
+<option value="101">BAE / BAC 1-11-475</option>
+<option value="102">BAE / BAC 1-11-500</option>
+<option value="103">BAE / HS 748 Serie 2B</option>
+<option value="104">BAE 146-100</option>
+<option value="105">BAE 146-200</option>
+<option value="106">BAE 146-200QC</option>
+<option value="107">BAE 146-300</option>
+<option value="108">BAE 146-300LR</option>
+<option value="109">BAE ATP</option>
+<option value="110">BAE Jetstream 41</option>
+<option value="111">Boeing 707-320B Intercontinental</option>
+<option value="112">Boeing 707-320C Convertible</option>
+<option value="113">Boeing 717-200</option>
+<option value="114">Boeing 717-200 HGW</option>
+<option value="115">Boeing 727-100</option>
+<option value="116">Boeing 727-100C</option>
+<option value="117">Boeing 727-100QC</option>
+<option value="118">Boeing 727-200</option>
+<option value="119">Boeing 727-200 Adv.</option>
+<option value="120">Boeing 727-200 Adv. RE</option>
+<option value="121">Boeing 727-200 Adv. RE (winglets)</option>
+<option value="122">Boeing 737-10</option>
+<option value="123">Boeing 737-10 HGW</option>
+<option value="124">Boeing 737-200</option>
+<option value="125">Boeing 737-200 Adv</option>
+<option value="126">Boeing 737-200 Adv (HK)</option>
+<option value="127">Boeing 737-200C/QC Adv</option>
+<option value="128">Boeing 737-200C/QC Adv (HK)</option>
+<option value="129">Boeing 737-300 BGW</option>
+<option value="130">Boeing 737-300 HGW</option>
+<option value="131">Boeing 737-300QC</option>
+<option value="132">Boeing 737-400 BGW</option>
+<option value="133">Boeing 737-400 HGW</option>
+<option value="134">Boeing 737-500 BGW</option>
+<option value="135">Boeing 737-500 HGW</option>
+<option value="136">Boeing 737-600</option>
+<option value="137">Boeing 737-600 HGW</option>
+<option value="138">Boeing 737-7</option>
+<option value="139">Boeing 737-7 HGW</option>
+<option value="140">Boeing 737-700 BGW</option>
+<option value="141">Boeing 737-700 BGW (scimitar)</option>
+<option value="142">Boeing 737-700 HGW</option>
+<option value="143">Boeing 737-700 HGW (winglets)</option>
+<option value="144">Boeing 737-700C</option>
+<option value="145">Boeing 737-700C (winglets)</option>
+<option value="146">Boeing 737-700ER (scimitar)</option>
+<option value="147">Boeing 737-700ER (winglets)</option>
+<option value="148">Boeing 737-8</option>
+<option value="149">Boeing 737-8 HGW</option>
+<option value="150">Boeing 737-8-200</option>
+<option value="151">Boeing 737-8-200 HGW</option>
+<option value="152">Boeing 737-800 BGW</option>
+<option value="153">Boeing 737-800 BGW (scimitar)</option>
+<option value="154">Boeing 737-800 HGW</option>
+<option value="155">Boeing 737-800 HGW (scimitar)</option>
+<option value="156">Boeing 737-800 HGW (winglets)</option>
+<option value="157">Boeing 737-800 SFP</option>
+<option value="158">Boeing 737-9</option>
+<option value="159">Boeing 737-9 HGW</option>
+<option value="160">Boeing 737-900 BGW</option>
+<option value="161">Boeing 737-900 HGW</option>
+<option value="162">Boeing 737-900ER BGW</option>
+<option value="163">Boeing 737-900ER BGW (scimitar)</option>
+<option value="164">Boeing 737-900ER BGW (winglets)</option>
+<option value="165">Boeing 737-900ER HGW</option>
+<option value="166">Boeing 737-900ER HGW (scimitar)</option>
+<option value="167">Boeing 737-900ER HGW (winglets)</option>
+<option value="168">Boeing 747 SP</option>
+<option value="169">Boeing 747-100</option>
+<option value="170">Boeing 747-100SR</option>
+<option value="171">Boeing 747-200B</option>
+<option value="172">Boeing 747-200B Combi</option>
+<option value="173">Boeing 747-200B Convertible</option>
+<option value="174">Boeing 747-300</option>
+<option value="175">Boeing 747-300M</option>
+<option value="176">Boeing 747-400</option>
+<option value="177">Boeing 747-400D</option>
+<option value="178">Boeing 747-400ER</option>
+<option value="179">Boeing 747-400M</option>
+<option value="180">Boeing 747-8I</option>
+<option value="181">Boeing 757-200</option>
+<option value="182">Boeing 757-200 IGW</option>
+<option value="183">Boeing 757-200ER</option>
+<option value="184">Boeing 757-200ER (winglets)</option>
+<option value="185">Boeing 757-300</option>
+<option value="186">Boeing 757-300 (winglets)</option>
+<option value="187">Boeing 767-200</option>
+<option value="188">Boeing 767-200ER</option>
+<option value="189">Boeing 767-300</option>
+<option value="190">Boeing 767-300ER</option>
+<option value="191">Boeing 767-300ER (Winglets)</option>
+<option value="192">Boeing 767-400ER</option>
+<option value="193">Boeing 777-200</option>
+<option value="194">Boeing 777-200ER</option>
+<option value="195">Boeing 777-200LR</option>
+<option value="196">Boeing 777-300</option>
+<option value="197">Boeing 777-300ER</option>
+<option value="198">Boeing 787-10</option>
+<option value="199">Boeing 787-10 HGW</option>
+<option value="200">Boeing 787-8</option>
+<option value="201">Boeing 787-9</option>
+<option value="202">Boeing 787-9 HGW</option>
+<option value="203">Britten-Norman BN-2A Trislander</option>
+<option value="204">Britten-Norman BN-2B-26 Islander</option>
+<option value="205">Britten-Norman BN-2T Turbine-Islander</option>
+<option value="206">Casa CN-235</option>
+<option value="207">Cessna 208A Caravan</option>
+<option value="208">Cessna 208B Grand Caravan</option>
+<option value="209">Cessna 408 SkyCourier Passenger</option>
+<option value="210">Comac C909</option>
+<option value="211">Comac C909ER</option>
+<option value="212">Comac C919</option>
+<option value="213">Comac C919 ER</option>
+<option value="214">Convair CV-580</option>
+<option value="215">CRJ 1000 NextGen</option>
+<option value="216">CRJ 1000 NextGen EL</option>
+<option value="217">CRJ 1000 NextGen ER</option>
+<option value="218">CRJ 100ER</option>
+<option value="219">CRJ 100LR</option>
+<option value="220">CRJ 200ER</option>
+<option value="221">CRJ 200LR</option>
+<option value="222">CRJ 700</option>
+<option value="223">CRJ 700 NextGen</option>
+<option value="224">CRJ 700 NextGen ER</option>
+<option value="225">CRJ 700 NextGen LR</option>
+<option value="226">CRJ 700ER</option>
+<option value="227">CRJ 700LR</option>
+<option value="228">CRJ 900</option>
+<option value="229">CRJ 900 NextGen</option>
+<option value="230">CRJ 900 NextGen ER</option>
+<option value="231">CRJ 900 NextGen LR</option>
+<option value="232">CRJ 900ER</option>
+<option value="233">CRJ 900LR</option>
+<option value="234">De Havilland Canada Dash 7</option>
+<option value="235">De Havilland DHC-6-400</option>
+<option value="236">DHC Dash 8-100A</option>
+<option value="237">DHC Dash 8-100B</option>
+<option value="238">DHC Dash 8-200A</option>
+<option value="239">DHC Dash 8-200B</option>
+<option value="240">DHC Dash 8-300A</option>
+<option value="241">DHC Dash 8-300B</option>
+<option value="242">DHC Dash 8-300B LR</option>
+<option value="243">DHC Dash 8-400 BASIC</option>
+<option value="244">DHC Dash 8-400 EHGW</option>
+<option value="245">DHC Dash 8-400A</option>
+<option value="246">DHC Dash 8-400B</option>
+<option value="247">DHC Dash 8-400CC</option>
+<option value="248">Embraer 170</option>
+<option value="249">Embraer 170 LR</option>
+<option value="250">Embraer 175</option>
+<option value="251">Embraer 175 (enhanced)</option>
+<option value="252">Embraer 175 LR</option>
+<option value="253">Embraer 175 LR (enhanced)</option>
+<option value="254">Embraer 190</option>
+<option value="255">Embraer 190 AR</option>
+<option value="256">Embraer 190 E2</option>
+<option value="257">Embraer 190 LR</option>
+<option value="258">Embraer 190 SR</option>
+<option value="259">Embraer 195</option>
+<option value="260">Embraer 195 AR</option>
+<option value="261">Embraer 195 E2</option>
+<option value="262">Embraer 195 LR</option>
+<option value="263">Embraer EMB-120ER Brasilia</option>
+<option value="264">Embraer EMB-120RT Brasilia</option>
+<option value="265">Embraer ERJ-135ER</option>
+<option value="266">Embraer ERJ-135LR</option>
+<option value="267">Embraer ERJ-140ER</option>
+<option value="268">Embraer ERJ-140LR</option>
+<option value="269">Embraer ERJ-145ER</option>
+<option value="270">Embraer ERJ-145LR</option>
+<option value="271">Embraer ERJ-145XR</option>
+<option value="272">Fairchild Dornier 228-100</option>
+<option value="273">Fairchild Dornier 328-120</option>
+<option value="274">Fairchild Dornier 328JET</option>
+<option value="275">Fairchild F-27J</option>
+<option value="276">Fairchild FH-227</option>
+<option value="277">Fokker 100 BGW</option>
+<option value="278">Fokker 100 HGW</option>
+<option value="279">Fokker 100 IGW</option>
+<option value="280">Fokker 50</option>
+<option value="281">Fokker 50 HGW</option>
+<option value="282">Fokker 70</option>
+<option value="283">Fokker F27-100 Friendship</option>
+<option value="284">Fokker F27-200 Friendship</option>
+<option value="285">Fokker F27-300 Friendship</option>
+<option value="286">Fokker F27-400 Friendship</option>
+<option value="287">Fokker F27-500 Friendship</option>
+<option value="288">Fokker F27-600 Friendship</option>
+<option value="289">Fokker F28-1000 Fellowship</option>
+<option value="290">Fokker F28-1000C Fellowship</option>
+<option value="291">Fokker F28-2000 Fellowship</option>
+<option value="292">Fokker F28-3000 Fellowship</option>
+<option value="293">Fokker F28-4000 Fellowship</option>
+<option value="294">General Atomics DO 228 NG</option>
+<option value="295">Ilyushin IL-114</option>
+<option value="296">Ilyushin IL-18D</option>
+<option value="297">Ilyushin IL-62M</option>
+<option value="298">Ilyushin IL-86</option>
+<option value="299">Ilyushin IL-96-300</option>
+<option value="300">LET 410 NG</option>
+<option value="301">LET 410UVP</option>
+<option value="302">Lockheed L-1011-1 TriStar</option>
+<option value="303">Lockheed L-1011-100 TriStar</option>
+<option value="304">Lockheed L-1011-200 TriStar</option>
+<option value="305">Lockheed L-1011-500 TriStar</option>
+<option value="306">McDonnell Douglas DC-10-10</option>
+<option value="307">McDonnell Douglas DC-10-30</option>
+<option value="308">McDonnell Douglas DC-10-30CF</option>
+<option value="309">McDonnell Douglas DC-10-30ER</option>
+<option value="310">McDonnell Douglas DC-10-40</option>
+<option value="311">McDonnell Douglas DC-8-62</option>
+<option value="312">McDonnell Douglas DC-8-62CF</option>
+<option value="313">McDonnell Douglas DC-8-72</option>
+<option value="314">McDonnell Douglas DC-8-72CF</option>
+<option value="315">McDonnell Douglas DC-8-73CF</option>
+<option value="316">McDonnell Douglas DC-9-10/15</option>
+<option value="317">McDonnell Douglas DC-9-20(HK)</option>
+<option value="318">McDonnell Douglas DC-9-31</option>
+<option value="319">McDonnell Douglas DC-9-32(HK)</option>
+<option value="320">McDonnell Douglas DC-9-40(HK)</option>
+<option value="321">McDonnell Douglas DC-9-50</option>
+<option value="322">McDonnell Douglas MD-11</option>
+<option value="323">McDonnell Douglas MD-11CF</option>
+<option value="324">McDonnell Douglas MD-11Combi</option>
+<option value="325">McDonnell Douglas MD-11ER</option>
+<option value="326">McDonnell Douglas MD-81</option>
+<option value="327">McDonnell Douglas MD-82</option>
+<option value="328">McDonnell Douglas MD-83</option>
+<option value="329">McDonnell Douglas MD-87</option>
+<option value="330">McDonnell Douglas MD-88</option>
+<option value="331">McDonnell Douglas MD-90</option>
+<option value="332">McDonnell Douglas MD-90ER</option>
+<option value="333">NAMC YS-11</option>
+<option value="334">Pilatus PC-12</option>
+<option value="335">Pilatus PC-12 Mixed</option>
+<option value="336">Pilatus PC-12 NGX</option>
+<option value="337">Pilatus PC-24</option>
+<option value="338">PZL / Antonov AN-28-Skytruck</option>
+<option value="339">Raytheon / Beech 1900D Airliner</option>
+<option value="340">Saab 2000</option>
+<option value="341">Saab 340B</option>
+<option value="342">Saab 340B Plus</option>
+<option value="343">Saab Fairchild 340A</option>
+<option value="344">Shorts 330-200</option>
+<option value="345">Shorts 360-200</option>
+<option value="346">Shorts 360-300</option>
+<option value="347">Sukhoi Superjet 100-95</option>
+<option value="348">Sukhoi Superjet 100-95LR</option>
+<option value="349">Tupolev TU-134A</option>
+<option value="350">Tupolev TU-134B</option>
+<option value="351">Tupolev TU-154B</option>
+<option value="352">Tupolev TU-154M</option>
+<option value="353">Tupolev TU-204-100</option>
+<option value="354">Tupolev TU-204-120</option>
+<option value="355">Tupolev TU-204-300</option>
+<option value="356">Tupolev TU-214</option>
+<option value="357">Yakovlev YAK-40</option>
+<option value="358">Yakovlev YAK-42D</option>
+</select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-success">
+                            <span class="fa fa-plus"></span>
+                            add
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-7">
+                <h3>Settings</h3>
+                <form class="as-panel" id="id6f0" method="post" action="./evaluation?134-2.-evaluation-settings"><div id="id6f0_hf_0" hidden="" class="hidden-fields"></div>
+                    <div class="layout-row">
+                        <div class="layout-col-md-6">
+                            <fieldset>
+                                <legend>Aircraft</legend>
+
+                                <div class="form-group">
+                                    <label>Age</label>
+                                    <select class="form-control number" name="age">
+<option selected="selected" value="0">0 year(s)</option>
+<option value="1">1 year(s)</option>
+<option value="2">2 year(s)</option>
+<option value="3">3 year(s)</option>
+<option value="4">4 year(s)</option>
+<option value="5">5 year(s)</option>
+<option value="6">6 year(s)</option>
+<option value="7">7 year(s)</option>
+<option value="8">8 year(s)</option>
+<option value="9">9 year(s)</option>
+<option value="10">10 year(s)</option>
+<option value="11">11 year(s)</option>
+<option value="12">12 year(s)</option>
+<option value="13">13 year(s)</option>
+<option value="14">14 year(s)</option>
+<option value="15">15 year(s)</option>
+<option value="16">16 year(s)</option>
+<option value="17">17 year(s)</option>
+<option value="18">18 year(s)</option>
+<option value="19">19 year(s)</option>
+<option value="20">20 year(s)</option>
+<option value="21">21 year(s)</option>
+<option value="22">22 year(s)</option>
+<option value="23">23 year(s)</option>
+<option value="24">24 year(s)</option>
+</select>
+                                </div>
+                            </fieldset>
+                        </div>
+                        <div class="layout-col-md-6">
+                            <fieldset>
+                                <legend>Payload</legend>
+
+                                <div class="form-group">
+                                    <label>Service Class</label>
+                                    <select class="form-control" name="serviceClass">
+<option selected="selected" value="2">Economy</option>
+<option value="1">Business</option>
+<option value="0">First</option>
+</select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Seat</label>
+                                    <select class="form-control" name="seat">
+<option value="100">Slimline HD</option>
+<option selected="selected" value="101">Standard</option>
+<option value="102">Leisure</option>
+<option value="103">Leisure Plus</option>
+<option value="104">Comfort</option>
+<option value="105">Comfort Plus</option>
+<option value="106">Recliner Shorthaul</option>
+<option value="107">Recliner Longhaul</option>
+<option value="108">Lie-Flat 140</option>
+<option value="109">Lie-Flat 160</option>
+<option value="110">Full Bed</option>
+<option value="111">Full Bed Wide</option>
+<option value="112">Open Suite</option>
+<option value="113">Open Suite Deluxe</option>
+<option value="114">Private Suite</option>
+<option value="115">Luxury Suite</option>
+</select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Price Factor</label>
+                                    <select class="form-control" name="priceFactor">
+<option value="50">50%</option>
+<option value="51">51%</option>
+<option value="52">52%</option>
+<option value="53">53%</option>
+<option value="54">54%</option>
+<option value="55">55%</option>
+<option value="56">56%</option>
+<option value="57">57%</option>
+<option value="58">58%</option>
+<option value="59">59%</option>
+<option value="60">60%</option>
+<option value="61">61%</option>
+<option value="62">62%</option>
+<option value="63">63%</option>
+<option value="64">64%</option>
+<option value="65">65%</option>
+<option value="66">66%</option>
+<option value="67">67%</option>
+<option value="68">68%</option>
+<option value="69">69%</option>
+<option value="70">70%</option>
+<option value="71">71%</option>
+<option value="72">72%</option>
+<option value="73">73%</option>
+<option value="74">74%</option>
+<option value="75">75%</option>
+<option value="76">76%</option>
+<option value="77">77%</option>
+<option value="78">78%</option>
+<option value="79">79%</option>
+<option value="80">80%</option>
+<option value="81">81%</option>
+<option value="82">82%</option>
+<option value="83">83%</option>
+<option value="84">84%</option>
+<option value="85">85%</option>
+<option value="86">86%</option>
+<option value="87">87%</option>
+<option value="88">88%</option>
+<option value="89">89%</option>
+<option value="90">90%</option>
+<option value="91">91%</option>
+<option value="92">92%</option>
+<option value="93">93%</option>
+<option value="94">94%</option>
+<option value="95">95%</option>
+<option value="96">96%</option>
+<option value="97">97%</option>
+<option value="98">98%</option>
+<option value="99">99%</option>
+<option selected="selected" value="100">100%</option>
+<option value="101">101%</option>
+<option value="102">102%</option>
+<option value="103">103%</option>
+<option value="104">104%</option>
+<option value="105">105%</option>
+<option value="106">106%</option>
+<option value="107">107%</option>
+<option value="108">108%</option>
+<option value="109">109%</option>
+<option value="110">110%</option>
+<option value="111">111%</option>
+<option value="112">112%</option>
+<option value="113">113%</option>
+<option value="114">114%</option>
+<option value="115">115%</option>
+<option value="116">116%</option>
+<option value="117">117%</option>
+<option value="118">118%</option>
+<option value="119">119%</option>
+<option value="120">120%</option>
+<option value="121">121%</option>
+<option value="122">122%</option>
+<option value="123">123%</option>
+<option value="124">124%</option>
+<option value="125">125%</option>
+<option value="126">126%</option>
+<option value="127">127%</option>
+<option value="128">128%</option>
+<option value="129">129%</option>
+<option value="130">130%</option>
+<option value="131">131%</option>
+<option value="132">132%</option>
+<option value="133">133%</option>
+<option value="134">134%</option>
+<option value="135">135%</option>
+<option value="136">136%</option>
+<option value="137">137%</option>
+<option value="138">138%</option>
+<option value="139">139%</option>
+<option value="140">140%</option>
+<option value="141">141%</option>
+<option value="142">142%</option>
+<option value="143">143%</option>
+<option value="144">144%</option>
+<option value="145">145%</option>
+<option value="146">146%</option>
+<option value="147">147%</option>
+<option value="148">148%</option>
+<option value="149">149%</option>
+<option value="150">150%</option>
+<option value="151">151%</option>
+<option value="152">152%</option>
+<option value="153">153%</option>
+<option value="154">154%</option>
+<option value="155">155%</option>
+<option value="156">156%</option>
+<option value="157">157%</option>
+<option value="158">158%</option>
+<option value="159">159%</option>
+<option value="160">160%</option>
+<option value="161">161%</option>
+<option value="162">162%</option>
+<option value="163">163%</option>
+<option value="164">164%</option>
+<option value="165">165%</option>
+<option value="166">166%</option>
+<option value="167">167%</option>
+<option value="168">168%</option>
+<option value="169">169%</option>
+<option value="170">170%</option>
+<option value="171">171%</option>
+<option value="172">172%</option>
+<option value="173">173%</option>
+<option value="174">174%</option>
+<option value="175">175%</option>
+<option value="176">176%</option>
+<option value="177">177%</option>
+<option value="178">178%</option>
+<option value="179">179%</option>
+<option value="180">180%</option>
+<option value="181">181%</option>
+<option value="182">182%</option>
+<option value="183">183%</option>
+<option value="184">184%</option>
+<option value="185">185%</option>
+<option value="186">186%</option>
+<option value="187">187%</option>
+<option value="188">188%</option>
+<option value="189">189%</option>
+<option value="190">190%</option>
+<option value="191">191%</option>
+<option value="192">192%</option>
+<option value="193">193%</option>
+<option value="194">194%</option>
+<option value="195">195%</option>
+<option value="196">196%</option>
+<option value="197">197%</option>
+<option value="198">198%</option>
+<option value="199">199%</option>
+<option value="200">200%</option>
+</select>
+                                </div>
+                            </fieldset>
+                        </div>
+                    </div>
+                    <ul class="as-action-bar">
+                        <li>
+                            <input type="submit" class="btn btn-success" value="Apply settings">
+                        </li>
+                    </ul>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+
+
+    </div>
+</div>
+</body></html>
