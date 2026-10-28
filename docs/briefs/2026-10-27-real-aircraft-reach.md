@@ -70,3 +70,14 @@ questions for later, not part of this decision.
 - `aircraft_types.range_km` (the planner's and `competition()`'s reach) is updated with the manual, and the A350
   rows' stale 11,102 km with them.
 - Asking before pushing past a variant's reach (§3, since 26 Oct) stays, at the new figures.
+
+## Review and outcome (27 Oct)
+- **Review:** a stricter pass ignoring one-off airports (London City; the E190-E2's size-10 pairs) gave the same limits;
+  the two route sets agree within about 100 km; neighbouring variants hand over on earnings within 250–500 km of their
+  reach; Gitesh's 9 hand checks on routes the script never ran all matched (just inside: full; just past: a few seats
+  fewer). Corrected in the review: the A350-1000 keeps its full cabin to about 15,200 km (376 of 416 seats on JFK–Sydney,
+  16,014 km), not beyond 16,000; the ULR keeps the most seats only beyond about 16,500 km. Ryanair: the SHARP keeps a
+  full Standard cabin to 3,600 km; Ryanair's longest listed route is 3,343 km.
+- **Outcome: B, Gitesh, 27 Oct**, with the E190-E2, the A320neo and the A321neo off the line (and the ULR off the types
+  each airline may buy). Manual §3, `aircraft_types.range_km` and `airline_aircraft_types` changed the same night;
+  `competition()`'s -900/-1000 cut-over (15,000 km in its code) is listed under Decided, not yet built.

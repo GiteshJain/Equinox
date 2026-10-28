@@ -26,6 +26,11 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **The default line's reach in the openings** (§3, since 27 Oct): `competition()` reads each variant's reach from
+  `aircraft_types.range_km` (updated 27 Oct) and the types each airline may buy, but its -900/-1000 cut-over is still
+  fixed at 15,000 km in its code (now 14,200), and its note "or the E190-E2 if thin" on a 1-star city still names a
+  type that's off the line. Until it's built, the Scheduling chat applies 14,200 km and ignores that note.
+  *(since 27 Oct; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -215,40 +220,46 @@ Details and open points: `docs/decisions.md`.
     stars override, with the research's rating kept underneath, and read for every new airport when it joins a list.
     *(since 22 Oct; history: rule-history.md)*
   - **Size by city stars:** 1- and 2-star cities get the E195; 3-star the E195 or the A320neo; 4-star any of the
-    E195, A320neo and A321neo; 5-star the A320neo, A321neo or XLR (the XLR beyond an A321neo's reach). Within a band,
+    E195, A320neo and A321neo; 5-star the A320neo, A321neo, LR or XLR (the LR and XLR beyond the A321neo LIGHT's reach). Within a band,
     the smaller type wins, heavy routes included: a busy pair gets more flights on more aircraft, not a bigger
     aircraft. A bigger variant only where the route needs its reach. The A320neo shares the A320-family line, the E195
     has its own. A cabin layout takes a couple of minutes to set up in the game, so a missing layout is never a reason
     to pick a type. *(since 18 Oct; history: rule-history.md)*
 - **The default line: the cheapest variant that seats the market and reaches the city.** Stars set the size (above),
-  smaller wins within the band, and distance picks the variant (list prices; range with a full load, from the game's
-  aircraft pages, 18 Oct). The current fleet stays as it is; new orders pick from this line.
+  smaller wins within the band, and distance picks the variant. List prices; reach is the distance each variant keeps
+  its full cabin in the seat type the cabin rule gives that distance (§5: Leisure under 3,500 km, Leisure Plus to
+  6,500, Comfort beyond), from the game's aircraft evaluation tool on 675 routes and 9 hand checks, 27 Oct. The current
+  fleet stays as it is; new orders pick from this line.
 
-  | Size | Variant | Seats | Reach | List price | Use |
+  | Size | Variant | Seats | Reach (full cabin) | List price | Use |
   |---|---|---|---|---|---|
-  | Small | E195-E2 | 146 | 3,542 km | 35.4M | the default small aircraft |
-  | Small | E190-E2 | 114 | 4,065 km | 33.7M | 3,542–4,065 km, or the thinnest 1-star city (the openings name it beside the E195-E2 on a 1-star city, "or the E190-E2 if thin", and the evening proposal decides: nothing in our data says how thin a city is; since 21 Oct) |
-  | Mid | A320neo SHARP | 189 | 3,355 km | 41.2M | the default 189-seater |
-  | Mid | A320neo LIGHT | 189 | 3,690 km | 42.9M | 3,355–3,690 km |
-  | Mid | A320neo | 189 | 4,045 km | 43.4M | 3,690–4,045 km |
-  | Mid | A320neo Heavy | 189 | 4,708 km | 44.8M | 4,045–4,708 km |
-  | Large | A321neo LIGHT | 240 | 4,192 km | 48.0M | the default 240-seater, cheapest per seat |
-  | Large | A321neo | 240 | 4,742 km | 50.6M | 4,192–4,742 km |
-  | Large | A321LR | 240 | 5,809 km | 54.2M | 4,742–5,809 km |
-  | Large | A321XLR | 240 | 6,939 km | 57.2M | 5,809–6,939 km |
-  | Wide | A350-900 | 440 | flies to about 15,000 km with its full cabin | 140.1M | every long-haul route up to about 15,000 km |
-  | Wide | A350-1000 | 480 | keeps the most seats beyond 15,000 km | 157.1M | beyond about 15,000 km, and trunks where the -900 sells out |
+  | Small | E195-E2 | 146 | 5,700 km | 35.4M | the default small aircraft |
+  | Mid | A320neo SHARP | 189 | 4,100 km | 41.2M | the default 189-seater |
+  | Mid | A320neo LIGHT | 189 | 5,200 km | 42.9M | 4,100–5,200 km |
+  | Mid | A320neo Heavy | 189 | 6,750 km | 44.8M | 5,200–6,750 km |
+  | Large | A321neo LIGHT | 240 | 5,250 km | 48.0M | the default 240-seater, cheapest per seat |
+  | Large | A321LR | 240 | 7,700 km | 54.2M | 5,250–7,700 km |
+  | Large | A321XLR | 240 | 8,600 km | 57.2M | 7,700–8,600 km |
+  | Wide | A350-900 | 440 | 14,200 km | 140.1M | every long-haul route from 8,600 to 14,200 km |
+  | Wide | A350-1000 | 480 | 15,200 km (90% of its seats to 16,000) | 157.1M | beyond 14,200 km, and trunks where the -900 sells out |
 
-  The listed range is with a full load and is not a limit: the game flies longer routes with fewer seats. Left out
-  because another variant beats them: the A350-900ULR (never the cheapest per seat), the A319neo (more per seat than
-  the A320neo SHARP at every reach), the A321neo Medium, the A321XLR LIGHT and Heavy. Still three families: the A320
-  family, the E-jet E2 and the A350. The 15,000 km cut-over between the -900 and the -1000 is fixed in `competition()`
-  (not yet a setting). *(since 18 Oct; the A350 rows since 21 Oct; history: rule-history.md)*
+  Under 3,500 km every variant keeps its full cabin. The game never stops an aircraft at a range: past its reach it
+  takes seats off gradually, until none are left (airports can cut seats too: London City, and the E190-E2 between two
+  size-10 airports). **Ryanair** (Standard seats): the SHARP keeps its full cabin to 3,600 km, past Ryanair's longest
+  listed route. Left out because another variant beats them: the E190-E2 (the lowest earnings per unit of lease; the
+  E195 now reaches further), the A320neo (the LIGHT and the Heavy cover its distances, and the Heavy earns more beyond
+  5,000 km), the A321neo (80 km more than the LIGHT and lower earnings at every distance), the A350-900ULR (keeps more
+  seats only beyond about 16,500 km, longer than any route on our lists), the A319neo, the A321neo Medium and Heavy, and
+  the A321XLR LIGHT and Heavy. Still three families: the A320 family, the E-jet E2 and the A350. The cut-over between
+  the -900 and the -1000 is fixed in `competition()` (not yet a setting). *(since 18 Oct; the A350 rows since 21 Oct;
+  reach from the evaluation since 27 Oct, brief `docs/briefs/2026-10-27-real-aircraft-reach.md`; history:
+  rule-history.md)*
   - **Turnaround of a new variant:** the game shows none, so a new variant takes its family's (A320 family 66 minutes,
     E-jet E2 67, A350 90). *(since 19 Oct; history: rule-history.md)*
   - **Reach is checked by the Scheduling chat** when it picks the variant for a route (§3), not by the plan card. A
-    route slightly past a variant's full-load range is proposed only after asking Gitesh, each time: the game flies it
-    with fewer seats. *(since 19 Oct; asking first since 26 Oct; history: rule-history.md)*
+    route slightly past a variant's reach (the default line's full-cabin distance) is proposed only after asking
+    Gitesh, each time: the game flies it with fewer seats. *(since 19 Oct; asking first since 26 Oct; at the full-cabin
+    reach since 27 Oct; history: rule-history.md)*
 - **Order across both delivery lines:** A321neos go on the big routes that sell out, where seats absorb the demand;
   E195s go on short, thin and new markets, where departures count most. An E195 is ordered on an evening when the cash
   forecast covers an E195 (1.8M) but not yet an A321neo (2.4M), rather than waiting a day for the A321neo, so both
