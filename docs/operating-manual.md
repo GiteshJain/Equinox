@@ -26,12 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **Long haul in 7-day lines** (§4, decided 27 Oct): routes beyond about 7,750 km, whose round trip doesn't fit in a
-  day (nearly every A321XLR route and every A350 route), fly in 7-day rotating lines of 7 aircraft of one type at one
-  airline, each a day apart, so every route on the line flies daily at the same time. XLR lines first; A350 lines wait
-  for the narrowbody-against-A350 question. Shorter routes keep the 24-hour day. Until it's built (spec
-  `docs/specs/2026-10-27-long-haul-lines.md`), no routes beyond about 7,750 km are ordered. *(since 27 Oct, brief
-  `docs/briefs/2026-10-27-long-haul-lines.md`; history: rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -288,7 +282,9 @@ Details and open points: `docs/decisions.md`.
   and its cash forecast, and proposes the aircraft that can be ordered and the routes for each, with variant and
   cabin. Where cash allows more than one option, the route we most want to fly decides (market share first, below).
   The proposal goes one airline at a time: each airline's order is decided, ordered and logged before the next is
-  shown. Gitesh orders that evening. *(since 18 Oct; history: rule-history.md)*
+  shown. Gitesh orders that evening. A line's aircraft (§4) are proposed and ordered the same way, one at a time;
+  Today → Orders shows each open line's progress ("XLR line, Pan Am: 3 of 7 ordered (2 arrived)") and when its next
+  aircraft can be ordered. *(since 18 Oct; lines since 28 Oct; history: rule-history.md)*
   - **The used market too:** each evening's proposal also looks at the game's used aircraft offers (Aircraft
     Market) and proposes a bid where one on the default line, with at least a year to fly before its replacement at
     10 years (9 years old at most), flies the airline's chosen routes for less than a new order. The most we bid is
@@ -421,7 +417,18 @@ Details and open points: `docs/decisions.md`.
   connections, and check whether one more short rotation fits. *(since 7 Oct)*
 - **Night slots are fine.** *(since 27 Sep; history: rule-history.md)*
 - **Maintenance at or above 100% is firm** (aim for 105%; `settings.maintenance_min_pct` and
-  `maintenance_target_pct`). *(since 28 Sep)*
+  `maintenance_target_pct`), **and no stretch longer than 40 hours** (`settings.maintenance_max_gap_h`) between two
+  ground stops that count for maintenance: the plan card's check and Tails flag a longer one. *(since 28 Sep; the
+  40 hours since 28 Oct; history: rule-history.md)*
+- **Long haul flies in 7-day lines:** routes at or beyond 7,750 km (`settings.line_min_km`), whose round trip with
+  turns and a maintenance stop doesn't fit in a day (nearly every A321XLR route and every A350 route), fly in 7-day
+  rotating lines of 7 aircraft (`settings.line_aircraft`) of one type at one airline, each a day apart, so every route
+  on the line flies daily at the same time. Shorter routes keep the 24-hour day. XLR lines first; A350 lines wait for
+  the narrowbody-against-A350 question. The Scheduling chat plans a line with the planning library's `optimise-line`
+  and adds it to the planner (`plan_lines`, `scripts/README.md`); each of its aircraft is ordered as any order (§3),
+  with its plan card written from the line at the next free place, and Gitesh sets it up in the game with the schedule
+  editor's copy and offset. *(decided 27 Oct, built 28 Oct, #118 to #121; brief
+  `docs/briefs/2026-10-27-long-haul-lines.md`; history: rule-history.md)*
 - **Turns:** the game's turnaround plus a 10–15 minute margin (`settings.turn_margin_min`, 10); 5 minutes is tolerated
   only on the busiest aircraft where 15 won't fit. *(since 25 Sep; history: rule-history.md)*
 - **A second daily** goes wherever it makes the most connections, with no spread of our own: at least 5 minutes
