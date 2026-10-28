@@ -87,6 +87,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"aircraft_eval_results": {
+                  Row: {
+                    "atc": number | null,"can_operate": boolean,"capital": number | null,"cells": NonNullable<Json>,"crew": number | null,"fixed_total": number | null,"flights_week": number | null,"fuel": number | null,"game_type_id": number | null,"handling": number | null,"landing": number | null,"maintenance": number | null,"margin_100": number | null,"margin_50": number | null,"margin_60": number | null,"margin_70": number | null,"margin_80": number | null,"margin_90": number | null,"message": string | null,"per_seat": number | null,"profit_100": number | null,"profit_50": number | null,"profit_60": number | null,"profit_70": number | null,"profit_80": number | null,"profit_90": number | null,"run_id": number,"saved_at": string,"seats": number | null,"type_name": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "atc"?: number | null,"can_operate": boolean,"capital"?: number | null,"cells": NonNullable<Json>,"crew"?: number | null,"fixed_total"?: number | null,"flights_week"?: number | null,"fuel"?: number | null,"game_type_id"?: number | null,"handling"?: number | null,"landing"?: number | null,"maintenance"?: number | null,"margin_100"?: number | null,"margin_50"?: number | null,"margin_60"?: number | null,"margin_70"?: number | null,"margin_80"?: number | null,"margin_90"?: number | null,"message"?: string | null,"per_seat"?: number | null,"profit_100"?: number | null,"profit_50"?: number | null,"profit_60"?: number | null,"profit_70"?: number | null,"profit_80"?: number | null,"profit_90"?: number | null,"run_id": number,"saved_at"?: string,"seats"?: number | null,"type_name": string
+                  }
+                  Update: {
+                    "atc"?: number | null,"can_operate"?: boolean,"capital"?: number | null,"cells"?: NonNullable<Json>,"crew"?: number | null,"fixed_total"?: number | null,"flights_week"?: number | null,"fuel"?: number | null,"game_type_id"?: number | null,"handling"?: number | null,"landing"?: number | null,"maintenance"?: number | null,"margin_100"?: number | null,"margin_50"?: number | null,"margin_60"?: number | null,"margin_70"?: number | null,"margin_80"?: number | null,"margin_90"?: number | null,"message"?: string | null,"per_seat"?: number | null,"profit_100"?: number | null,"profit_50"?: number | null,"profit_60"?: number | null,"profit_70"?: number | null,"profit_80"?: number | null,"profit_90"?: number | null,"run_id"?: number,"saved_at"?: string,"seats"?: number | null,"type_name"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "aircraft_eval_results_run_id_fkey"
+      columns: ["run_id"]
+isOneToOne: false
+      referencedRelation: "aircraft_eval_runs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"aircraft_eval_runs": {
+                  Row: {
+                    "created_at": string,"distance_km": number | null,"done_at": string | null,"from_code": string,"from_name": string | null,"id": number,"note": string | null,"pass": number,"seat": string,"seq": number,"settings": Json | null,"to_code": string,"to_name": string | null,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"distance_km"?: number | null,"done_at"?: string | null,"from_code": string,"from_name"?: string | null,"id"?: never,"note"?: string | null,"pass": number,"seat": string,"seq": number,"settings"?: Json | null,"to_code": string,"to_name"?: string | null,"world_id": number
+                  }
+                  Update: {
+                    "created_at"?: string,"distance_km"?: number | null,"done_at"?: string | null,"from_code"?: string,"from_name"?: string | null,"id"?: never,"note"?: string | null,"pass"?: number,"seat"?: string,"seq"?: number,"settings"?: Json | null,"to_code"?: string,"to_name"?: string | null,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "aircraft_eval_runs_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"aircraft_types": {
                   Row: {
                     "created_at": string,"cruise_kmh": number | null,"family_no": number | null,"gap_target_h": number | null,"ground_keep_min": number | null,"id": number,"maint_per_cycle": number | null,"maint_per_hour": number | null,"min_turn_min": number | null,"name": string,"order_config_id": number | null,"price": number | null,"range_km": number | null,"seats_max": number | null,"updated_at": string,"world_id": number
@@ -1867,6 +1907,12 @@ isOneToOne: false
 { Args: { "p_as_of"?: string }; Returns: Json
                            },
 "capture_airlines":
+{ Args: { "p_key": string }; Returns: Json
+                           },
+"capture_eval_result":
+{ Args: { "p_doc": Json,"p_key": string,"p_run": number }; Returns: Json
+                           },
+"capture_eval_runs":
 { Args: { "p_key": string }; Returns: Json
                            },
 "capture_fare_actions":

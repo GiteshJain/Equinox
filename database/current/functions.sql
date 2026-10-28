@@ -126,6 +126,138 @@ $function$
 
 ;
 
+-- capture_eval_result(p_key text, p_run bigint, p_doc jsonb)
+CREATE OR REPLACE FUNCTION public.capture_eval_result(p_key text, p_run bigint, p_doc jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_world bigint; v_seat text; v_types jsonb; v_rows jsonb; v_bad text; v_n integer;
+  c_figs constant text[] := array['flights_week', 'seats', 'fuel', 'handling', 'atc', 'landing', 'maintenance', 'capital',
+                                  'crew', 'fixed_total', 'per_seat', 'profit_50', 'profit_60', 'profit_70', 'profit_80',
+                                  'profit_90', 'profit_100', 'margin_50', 'margin_60', 'margin_70', 'margin_80', 'margin_90',
+                                  'margin_100'];
+begin
+  v_world := private.capture_key_world(p_key);
+  if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  select r.seat into v_seat from public.aircraft_eval_runs r where r.id = p_run and r.world_id = v_world;
+  if not found then
+    return jsonb_build_object('ok', false, 'error', 'run ' || coalesce(p_run::text, '(none)') || ' isn''t on this world''s run list');
+  end if;
+  select s.value into v_types from public.settings s
+   where s.world_id = v_world and s.airline_id is null and s.key = 'aircraft_eval_types';
+  if v_types is null or jsonb_typeof(v_types) <> 'array' or jsonb_array_length(v_types) = 0 then
+    return jsonb_build_object('ok', false, 'error', 'no aircraft_eval_types setting in this world');
+  end if;
+  if p_doc is null or jsonb_typeof(p_doc) <> 'object' or jsonb_typeof(p_doc -> 'rows') is distinct from 'array' then
+    return jsonb_build_object('ok', false, 'error', 'the result has no rows');
+  end if;
+  if coalesce(btrim(p_doc ->> 'from_name'), '') = '' or coalesce(btrim(p_doc ->> 'to_name'), '') = '' then
+    return jsonb_build_object('ok', false, 'error', 'the result doesn''t name the route''s two airports');
+  end if;
+  if jsonb_typeof(p_doc -> 'settings') is distinct from 'object' or p_doc -> 'settings' ->> 'seat' is distinct from v_seat then
+    return jsonb_build_object('ok', false, 'error', 'the result''s seat is ' || coalesce(p_doc -> 'settings' ->> 'seat', 'not given')
+                                                    || ', the run''s ' || v_seat);
+  end if;
+  v_rows := p_doc -> 'rows';
+
+  -- each row: an object with its type's name, can_operate true or false, the game's type id a whole number or null,
+  -- and its cells as a list
+  select string_agg('row ' || e.i, ', ' order by e.i) into v_bad
+    from jsonb_array_elements(v_rows) with ordinality as e(x, i)
+   where jsonb_typeof(e.x) <> 'object' or jsonb_typeof(e.x -> 'type_name') is distinct from 'string'
+      or btrim(e.x ->> 'type_name') = '' or jsonb_typeof(e.x -> 'can_operate') is distinct from 'boolean'
+      or jsonb_typeof(e.x -> 'cells') is distinct from 'array'
+      or coalesce(jsonb_typeof(e.x -> 'game_type_id'), 'null') not in ('null', 'number')
+      or (jsonb_typeof(e.x -> 'game_type_id') = 'number' and (e.x ->> 'game_type_id') !~ '^[0-9]+$');
+  if v_bad is not null then
+    return jsonb_build_object('ok', false, 'error', v_bad || ': needs type_name, can_operate (true or false), cells and a whole game_type_id or none');
+  end if;
+  select string_agg(t.n, ', ' order by t.n) into v_bad
+    from (select e.x ->> 'type_name' as n from jsonb_array_elements(v_rows) e(x) group by 1 having count(*) > 1) t;
+  if v_bad is not null then return jsonb_build_object('ok', false, 'error', 'a type twice in the result: ' || v_bad); end if;
+
+  -- every type of the setting has its row
+  select string_agg(t.n, ', ' order by t.i) into v_bad
+    from jsonb_array_elements_text(v_types) with ordinality as t(n, i)
+   where not exists (select 1 from jsonb_array_elements(v_rows) e(x) where e.x ->> 'type_name' = t.n);
+  if v_bad is not null then return jsonb_build_object('ok', false, 'error', 'the result has no row for ' || v_bad); end if;
+
+  -- a type that can fly: every figure a number; one that can't: none
+  select string_agg(e.x ->> 'type_name' || ': ' || f.k, ', ' order by e.i, f.j) into v_bad
+    from jsonb_array_elements(v_rows) with ordinality as e(x, i)
+    cross join unnest(c_figs) with ordinality as f(k, j)
+   where (e.x ->> 'can_operate')::boolean and jsonb_typeof(e.x -> f.k) is distinct from 'number';
+  if v_bad is not null then return jsonb_build_object('ok', false, 'error', 'not a number: ' || v_bad); end if;
+  select string_agg(e.x ->> 'type_name' || ': ' || f.k, ', ' order by e.i, f.j) into v_bad
+    from jsonb_array_elements(v_rows) with ordinality as e(x, i)
+    cross join unnest(c_figs) with ordinality as f(k, j)
+   where not (e.x ->> 'can_operate')::boolean and coalesce(jsonb_typeof(e.x -> f.k), 'null') <> 'null';
+  if v_bad is not null then return jsonb_build_object('ok', false, 'error', 'a figure for a type that cannot operate: ' || v_bad); end if;
+
+  -- replace any earlier result for the run
+  delete from public.aircraft_eval_results r where r.run_id = p_run;
+  insert into public.aircraft_eval_results (run_id, type_name, game_type_id, can_operate, message, flights_week, seats, fuel,
+                                            handling, atc, landing, maintenance, capital, crew, fixed_total, per_seat,
+                                            profit_50, profit_60, profit_70, profit_80, profit_90, profit_100,
+                                            margin_50, margin_60, margin_70, margin_80, margin_90, margin_100, cells)
+  select p_run, btrim(x ->> 'type_name'), (x ->> 'game_type_id')::bigint, (x ->> 'can_operate')::boolean,
+         nullif(btrim(x ->> 'message'), ''),
+         (x ->> 'flights_week')::numeric, (x ->> 'seats')::numeric, (x ->> 'fuel')::numeric, (x ->> 'handling')::numeric,
+         (x ->> 'atc')::numeric, (x ->> 'landing')::numeric, (x ->> 'maintenance')::numeric, (x ->> 'capital')::numeric,
+         (x ->> 'crew')::numeric, (x ->> 'fixed_total')::numeric, (x ->> 'per_seat')::numeric,
+         (x ->> 'profit_50')::numeric, (x ->> 'profit_60')::numeric, (x ->> 'profit_70')::numeric,
+         (x ->> 'profit_80')::numeric, (x ->> 'profit_90')::numeric, (x ->> 'profit_100')::numeric,
+         (x ->> 'margin_50')::numeric, (x ->> 'margin_60')::numeric, (x ->> 'margin_70')::numeric,
+         (x ->> 'margin_80')::numeric, (x ->> 'margin_90')::numeric, (x ->> 'margin_100')::numeric,
+         x -> 'cells'
+    from jsonb_array_elements(v_rows) e(x);
+  get diagnostics v_n = row_count;
+  update public.aircraft_eval_runs r
+     set from_name = btrim(p_doc ->> 'from_name'), to_name = btrim(p_doc ->> 'to_name'), settings = p_doc -> 'settings',
+         done_at = clock_timestamp()
+   where r.id = p_run;
+  return jsonb_build_object(
+    'ok', true, 'run', p_run, 'saved', v_n,
+    'done', (select count(*) from public.aircraft_eval_runs r where r.world_id = v_world and r.done_at is not null),
+    'total', (select count(*) from public.aircraft_eval_runs r where r.world_id = v_world));
+end
+$function$
+
+;
+
+-- capture_eval_runs(p_key text)
+CREATE OR REPLACE FUNCTION public.capture_eval_runs(p_key text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_world bigint; v_types jsonb;
+begin
+  v_world := private.capture_key_world(p_key);
+  if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  select s.value into v_types from public.settings s
+   where s.world_id = v_world and s.airline_id is null and s.key = 'aircraft_eval_types';
+  if v_types is null or jsonb_typeof(v_types) <> 'array' or jsonb_array_length(v_types) = 0 then
+    return jsonb_build_object('ok', false, 'error', 'no aircraft_eval_types setting in this world');
+  end if;
+  return jsonb_build_object(
+    'ok', true,
+    'world', (select w.name from public.worlds w where w.id = v_world),
+    'types', v_types,
+    'total', (select count(*) from public.aircraft_eval_runs r where r.world_id = v_world),
+    'done', (select count(*) from public.aircraft_eval_runs r where r.world_id = v_world and r.done_at is not null),
+    'runs', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'pass', r.pass, 'seq', r.seq, 'from', r.from_code,
+                                                          'to', r.to_code, 'seat', r.seat) order by r.pass, r.seq)
+                        from public.aircraft_eval_runs r where r.world_id = v_world and r.done_at is null), '[]'::jsonb));
+end
+$function$
+
+;
+
 -- capture_fare_actions(p_key text)
 CREATE OR REPLACE FUNCTION public.capture_fare_actions(p_key text)
  RETURNS jsonb

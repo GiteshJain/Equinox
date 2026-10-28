@@ -4,12 +4,14 @@ Generated from the database's own descriptions by `database/describe.py`. Don't 
 description in a migration (`comment on table ...`), and the database rehearsal regenerates and checks this
 file. How the parts fit together: `docs/architecture.md`.
 
-64 tables, 7 views and 45 functions, all in Supabase's `public` schema, plus 123 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
+66 tables, 7 views and 47 functions, all in Supabase's `public` schema, plus 123 internal functions in `private`. Website photos and logos are files in the `site-photos` storage bucket, not tables.
 
 ## Contents
 
 - [`aircraft`](#aircraft) (table): Each aircraft from order to delivery to service to retirement, one row each
 - [`aircraft_cabin_keeps`](#aircraft-cabin-keeps) (table): Retired 21 Oct (manual §5; spec docs/specs/2026-10-21-cabins-new-rule.md): the Cabins board's "Keep as is" decisions, kept as history; nothing writes to it since the board went (we no longer refit; the cabin is chosen with each order)
+- [`aircraft_eval_results`](#aircraft-eval-results) (table): What the game's aircraft evaluation tool showed for each aircraft type on a run (spec docs/specs/2026-10-27-aircraft-evaluation-script.md): one row per run and type, every figure of its row in the tool's table, parsed as numbers and as the page showed them (cells), so nothing needs re-running if another figure turns out to matter
+- [`aircraft_eval_runs`](#aircraft-eval-runs) (table): The aircraft evaluation script's run list (spec docs/specs/2026-10-27-aircraft-evaluation-script.md): one row per route and economy seat type to run through the game's aircraft evaluation tool (/app/aircraft/evaluation), in order (pass, then seq), about 520 in all
 - [`aircraft_types`](#aircraft-types) (table): Aircraft types and their figures in a world: seats, cruise speed, turns, maintenance, price
 - [`airline_aircraft_types`](#airline-aircraft-types) (table): The aircraft types each airline may buy
 - [`airline_bases`](#airline-bases) (table): Each airline's hubs and focus cities, with bank times and flight-number blocks, and since 22 Oct its stations (role station, manual §2): airports it flies point-to-point routes from without making them a base, with no banks, no block of their own (their numbers come from the airline's station pool, settings station_flight_no_from to station_flight_no_to) and never treated as hubs or focus cities
@@ -130,6 +132,68 @@ file. How the parts fit together: `docs/architecture.md`.
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
 **Triggers:** log_change, set_updated_at.
+
+## aircraft_eval_results
+
+*Table.* What the game's aircraft evaluation tool showed for each aircraft type on a run (spec docs/specs/2026-10-27-aircraft-evaluation-script.md): one row per run and type, every figure of its row in the tool's table, parsed as numbers and as the page showed them (cells), so nothing needs re-running if another figure turns out to matter. A type that can't fly the route has can_operate false, the game's message and no figures. Money is in AS$ a week, as the tool shows it. Written only by capture_eval_result(), which replaces a run's rows when it is saved again; rows for types beyond settings.aircraft_eval_types are kept too. Staff read it; the Scheduling chat reads it as postgres.
+
+| Column | Type | Notes |
+|---|---|---|
+| `run_id` | bigint | The run (aircraft_eval_runs); its rows go with it |
+| `type_name` | text | The type by the tool's name, e.g. Airbus A350-900 |
+| `game_type_id` | bigint | The game's id of the type, from the link in the tool's first cell (aircraftsType?id=3921) |
+| `can_operate` | boolean | Whether the type can fly the route; false when the tool says "This type cannot operate on the selected relation." |
+| `message` | text | The tool's text for a type that cannot operate; null otherwise |
+| `flights_week` | numeric | Flights per week one aircraft can fly on the route (6.00) |
+| `seats` | numeric | Available seats with the run's settings (the class and seat type) |
+| `fuel` | numeric | Fuel, AS$ a week |
+| `handling` | numeric | Aircraft handling, AS$ a week |
+| `atc` | numeric | ATC, AS$ a week |
+| `landing` | numeric | Landing fees, AS$ a week |
+| `maintenance` | numeric | Maintenance, AS$ a week |
+| `capital` | numeric | Capital cost, AS$ a week |
+| `crew` | numeric | Crew, AS$ a week |
+| `fixed_total` | numeric | Fixed costs total, AS$ a week |
+| `per_seat` | numeric | Fixed costs per seat, AS$ (539 AS$) |
+| `profit_50` | numeric | Profit at 50% load, AS$ a week |
+| `profit_60` | numeric | Profit at 60% load, AS$ a week |
+| `profit_70` | numeric | Profit at 70% load, AS$ a week |
+| `profit_80` | numeric | Profit at 80% load, AS$ a week |
+| `profit_90` | numeric | Profit at 90% load, AS$ a week |
+| `profit_100` | numeric | Profit at 100% load, AS$ a week |
+| `margin_50` | numeric | Margin at 50% load, % (the bracket beside the profit) |
+| `margin_60` | numeric | Margin at 60% load, % |
+| `margin_70` | numeric | Margin at 70% load, % |
+| `margin_80` | numeric | Margin at 80% load, % |
+| `margin_90` | numeric | Margin at 90% load, % |
+| `margin_100` | numeric | Margin at 100% load, % |
+| `cells` | jsonb | Every cell of the type's row as the page showed it, as text, the type's cell first |
+| `saved_at` | timestamp with time zone | When the row was saved |
+
+**Access:** staff read: select for authenticated.
+
+## aircraft_eval_runs
+
+*Table.* The aircraft evaluation script's run list (spec docs/specs/2026-10-27-aircraft-evaluation-script.md): one row per route and economy seat type to run through the game's aircraft evaluation tool (/app/aircraft/evaluation), in order (pass, then seq), about 520 in all. The Scheduling chat writes the list with plain SQL (manual §1's actor line); the script (capture/aircraft_eval.user.js) reads the runs without a result through capture_eval_runs() and writes each result's header here through capture_eval_result(). Staff read it; not in the change log. Its results are aircraft_eval_results.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | The run's own number, which capture_eval_result() is given |
+| `world_id` | bigint | The world whose capture key may run and save it |
+| `pass` | integer | The pass, 1 to 4: 1 the distance ladder, 2 a second region at each ladder distance, 3 real decisions (the November trunks and each airline's top openings), 4 Ryanair on Standard seats |
+| `seq` | integer | The order within the world (unique): the script runs pass by pass, then by seq, shortest first within passes 1 to 3, so the seat type changes only twice |
+| `from_code` | text | The route's first airport, IATA, as typed into the tool's From box |
+| `to_code` | text | The route's second airport, IATA, as typed into the tool's To box |
+| `distance_km` | integer | The route's distance, km, for the Scheduling chat; optional, the script doesn't use it |
+| `seat` | text | The economy seat type to run with, by the tool's name: Standard, Leisure, Leisure Plus or Comfort (manual §5: by distance; Standard for Ryanair). The script sets the tool's Seat to it before the run when it differs |
+| `note` | text | A note from the Scheduling chat (why this route is on the list); optional |
+| `from_name` | text | The first airport's name as the tool resolved the code (written with the result) |
+| `to_name` | text | The second airport's name as the tool resolved the code (written with the result) |
+| `settings` | jsonb | The tool's settings as the result page showed them, by their texts: age ("0 year(s)"), class ("Economy"), seat ("Comfort") and price_factor ("100%") |
+| `done_at` | timestamp with time zone | When its result was saved; null while it has none (capture_eval_runs() lists only those). A run saved again moves it on |
+| `created_at` | timestamp with time zone | When the run was put on the list |
+
+**Access:** staff read: select for authenticated.
 
 ## aircraft_types
 
@@ -1579,6 +1643,8 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `auto_confirm_planner_user()` | trigger | internal only · runs as owner | Trigger on sign-up: confirms the email straight away when it is on planner_users. |
 | `cabin_charges(p_as_of timestamp with time zone)` | jsonb | authenticated · runs as owner | The cabin charge check (spec docs/specs/2026-10-21-tidy-ups.md §3; manual §4: filing fits the plan card's cabin and logs its first fit at its price), in the default world, as of p_as_of (now by default), using only what was recorded by then: each first cabin fit logged from settings.cabin_charge_check_from on (2026-10-18, check_from: the first day the plan card chose the cabin; earlier fits include refits), from spending_log (kind cabin, note "<reg> first cabin fit (<config>)"), against the game's installation lines for its registration in its airline from that day on (game_payments kind cabin, "Installation of cabin interior (<reg>)"; pilot training, the same kind, left out; a credit counts against). counts: checked, matches (one line at the logged amount, to the dollar: counted, not listed), differs (one line at another amount), charged_twice (more than one line), not_charged (no line, and the airline's latest captured statement line more than 2 days after the day it was logged), waiting (no line yet, within those 2 days), not_logged (a registration with installation lines and no first fit logged on any day) and problems. problems: every one that isn't a match or waiting, by airline (our order), then differs, charged twice, not charged yet and not logged, each with its state, airline_id, code, airline, registration, aircraft_id, logged (the spending_log row: id, spent_on, amount, config and updated_at, which a change to its amount is made from; null when not logged), lines (each game line: id, paid_at UTC, amount, descr), game_amount and difference (game less logged, AS$) where there is one line. latest_statement: each airline's latest captured statement line. Today lists one item when there are problems, and Systems → Cabin charges lists them, with Use the game's amount on a differing one. Staff only; runs as owner and checks the caller itself. Read with GET. |
 | `capture_airlines(p_key text)` | jsonb | anon, authenticated · runs as owner | For the capture userscript, with the capture key: the key's world and its active airlines of our groups (game ID, name, code), in display order, so the userscript doesn't keep its own list. Since 21 Oct also the world scan (private.capture_scan_plan(), spec docs/specs/2026-10-21-scan-in-capture.md): scan_every_days, scan_due, scan_open, scan_latest and scan_airports, so the capture scans the world after our airlines when one is due. A wrong or missing key gets {"ok": false, "error": "bad key"}. |
+| `capture_eval_result(p_key text, p_run bigint, p_doc jsonb)` | jsonb | anon, authenticated · runs as owner | For the aircraft evaluation script (capture/aircraft_eval.user.js; spec docs/specs/2026-10-27-aircraft-evaluation-script.md), with the capture key: saves one run's result. p_doc is {from_name, to_name, settings: {age, class, seat, price_factor}, rows: [{type_name, game_type_id, can_operate, message, flights_week, seats, fuel, handling, atc, landing, maintenance, capital, crew, fixed_total, per_seat, profit_50 to profit_100, margin_50 to margin_100, cells}]}. Refuses, saving nothing ({"ok": false, "error": why}): a wrong key, a run not on the key's world's list, no route names, a seat other than the run's, a row without its type, a type twice, no row for one of settings.aircraft_eval_types, a figure that isn't a number for a type that can operate, or any figure for one that can't. Saves rows for extra types too. Replaces any earlier result for the run (saving twice is no harm), writes the run's from_name, to_name, settings and done_at, and answers {ok, run, saved (rows), done, total}. Runs as owner with an empty search path, callable signed out and signed in, as capture_fare_actions(). |
+| `capture_eval_runs(p_key text)` | jsonb | anon, authenticated · runs as owner | For the aircraft evaluation script (capture/aircraft_eval.user.js; spec docs/specs/2026-10-27-aircraft-evaluation-script.md), with the capture key: the runs of the key's world without a result (aircraft_eval_runs, done_at null) in pass, then seq order, each {id, pass, seq, from, to, seat}; types, the world's settings.aircraft_eval_types (the tool's names of the types every run compares); total, the runs on the list, and done, those with a result. {ok, world, types, total, done, runs}. A wrong or missing key gets {"ok": false, "error": "bad key"}, a world without the setting {"ok": false, "error": "no aircraft_eval_types setting in this world"}. Read only; runs as owner with an empty search path, callable signed out and signed in, as capture_fare_actions(). |
 | `capture_fare_actions(p_key text)` | jsonb | anon, authenticated · runs as owner | For the fares userscript (capture/fares_apply.user.js; manual §5, since 21 Oct; specs docs/specs/2026-10-21-fares-userscript.md and docs/specs/2026-10-21-frequencies-and-fares.md §3), with the capture key: the game's Ticket price adjustments still to make. For each active airline of our groups in the key's world, in display order (as capture_airlines()), its fare_ladder() actions that set a route back to its level (fix true: they need no fare plan row, and the index matching again is the proof), and those whose route is on the fare plan this week and not yet seen in the captures (every class the action names is a route row of the action's direction, since 26 Oct, with planned true and applied false), in fare_ladder()'s order (the set-back changes first). airlines: each airline's game_id, name (the website's, else the planner's), game_name, code, count of actions and fixes (how many of them set a route back); actions: each with game_id and airline (its name), n (the action's number in fare_ladder()), route (HUB–DEST), from and to (IATA), level (% of the default price), sign (+ or -) and pct (the game's percent, a whole number), classes (economy and/or business), plan_ids (the fare plan rows, one per class in the same order; none for a set-back change), fix and reason (a set-back's, "captured fare at 100%, level 110%") and text (the action in words); week_of (this Saturday) and as_of. A wrong or missing key gets {"ok": false, "error": "bad key"} and nothing else. Runs as owner with an empty search path and its own statement limit of 30 seconds (it works out every airline's fare ladder in one call, signed out). |
 | `capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)` | jsonb | anon, authenticated · runs as owner | Entry point for the in-game capture. Checks the capture key, which belongs to one world; finds the airline by the game's ID or, from older userscripts, by name, and refuses one outside the key's world; keeps the raw page (the 10:20 UTC clean-up deletes it after 14 days), parses it (private.capture_store, private.capture_page): bank statement into game_flights and game_payments, loads into game_flights, and since 22 Oct a fleet page (kind fleet, Capture all airlines 1.6) into game_fleet; and checks it (#21: the verdict under verdict). After the loads page, rows holds the capture panel's words (what was read, and the airline's verdict: "all good" or what came in short or broken) and count the rows read. Answers with the capture day and whether it is complete; the page that completes the world's capture for the day also takes the daily snapshot (airline_days, route_days) and answers with it. Fleet pages take no part in completeness or the snapshot. |
 | `capture_scan(p_key text, p_kind text, p_payload jsonb)` | jsonb | anon, authenticated · runs as owner | The world scan in Capture all airlines (capture/capture_all.user.js 1.5, 1.8 with the fleet pages; spec docs/specs/2026-10-21-scan-in-capture.md; manual §7), with the capture key: kinds start, airline, airport, fleet (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md §2: an airline's overview page, its fleet by type and its general figures, or its error) and finish, with the payloads scripts/scanner/gscan.py sends ingest_snapshot(), stored exactly as ingest_snapshot() stores them (private.scan_ingest()), in the key's world. start answers {ok, snapshot_id, carried_on}: an unfinished scan of the world started within the hour (private.scan_open()) is carried on instead of starting another (one start at a time per world); the other kinds answer {ok, snapshot_id} (fleet with read_ok and rows) and take only a scan of the key's world. A wrong or missing key gets {"ok": false, "error": "bad key"}, an unknown kind {"ok": false, "error": "bad kind"}, and a payload that doesn't read {"ok": false, "error": ...}, writing nothing. Every airline the scan sees gets an airlines row (change log actor capture, detail capture_scan). Runs as owner with an empty search path. |
