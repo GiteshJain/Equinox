@@ -3,7 +3,7 @@
 --   1. All 13 variants of manual §3 are aircraft types of the default world, each with its seats, range, deposit (price),
 --      cruise speed, turnaround and family; the A350-900ULR has 440 seats.
 --   2. 28 new cabin layouts, each on its type, with its seats the business and economy seats added up; 321-STD keeps 216.
---   3. Every one of our airlines may buy every new type, except Ryanair the A350s; Ryanair's E190-E2 and A320neo SHARP
+--   3. Every one of our airlines may buy the new types on the default line, except Ryanair the A350s; Ryanair's E190-E2 and A320neo SHARP
 --      orders come with Standard.
 --   4. The cash forecast tests an order of a new type (an A321LR), priced at its deposit and its order cabin (321LR-LEI),
 --      and lists the new types among those each airline may buy.
@@ -36,7 +36,9 @@ begin
 
   assert not exists (select 1 from public.airlines al join public.groups g on g.id = al.group_id and g.kind = 'ours'
                        cross join public.aircraft_types t
-                      where al.world_id = w and t.world_id = w and t.name in ('E190-E2','A320neo SHARP','A321LR','A350-900')
+                      -- since 28 Oct the types left off the default line (manual §3: the E190-E2, A320neo, A321neo ...) are no
+                      -- longer bought, a data change the Scheduling chat made; the test keeps to types on the line
+                      where al.world_id = w and t.world_id = w and t.name in ('A320neo SHARP','A321LR','A350-900')
                         and not (al.iata_code = 'FR' and t.family_no = 87)
                         and not exists (select 1 from public.airline_aircraft_types x where x.airline_id = al.id and x.aircraft_type_id = t.id)),
     'an airline may not buy a new type';
@@ -51,7 +53,7 @@ begin
   f0 := public.cash_forecast(a);
   f1 := public.cash_forecast(a, '[{"type": "A321LR", "count": 1}]');
   assert f1 is not null and f1::text like '%A321LR%', 'the cash forecast gave nothing for an order of an A321LR: ' || left(coalesce(f1::text,'none'), 300);
-  assert (select count(*) from jsonb_array_elements(f0 -> 'types') x where x ->> 'type' in ('A321LR','A320neo SHARP','E190-E2')) = 3
+  assert (select count(*) from jsonb_array_elements(f0 -> 'types') x where x ->> 'type' in ('A321LR','A320neo SHARP')) = 2
            or (f0 ->> 'status') is distinct from 'ok',
     'the cash forecast doesn''t list the new types: ' || left(coalesce((f0 -> 'types')::text, f0::text), 300);
   raise notice 'default line: 13 types with range, % cabin layouts; the cash forecast takes an A321LR (%)',
