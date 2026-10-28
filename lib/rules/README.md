@@ -3,7 +3,8 @@
 The planning rules in one place (decision #19, design `docs/design/2026-10-12-planner-app.md` §7): block times,
 turns, connections, banks, maintenance, an aircraft's week, the schedule checks, where each aircraft is, the key
 figures for the planner's Home, a route's frequencies for its Routes screen, the game check, daily load report
-and growth lists for its Check screen, the plan card's service check and its cabin, and the optimiser. (An airport's
+and growth lists for its Check screen, the plan card's service check and its cabin, the optimiser and, since 28 Oct, the
+7-day line optimiser and the card check across a line. (An airport's
 board for the Hubs screen went with the Hubs clean-up, 21 Oct; the Cabins board's `cabins` with the board, 21 Oct; the one-week aircraft checks' `checks`, 22 Oct.) The new planner, the website's trip search, the optimiser and Claude all use it, so they all give the same
 answer. The rules themselves are in the manual (§4 and §9); this is how they are worked out.
 
@@ -38,7 +39,7 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `connections` | Which arrivals connect onto which departures: from `mct_min` + `connection_buffer_min` to `connection_max_wait_h`, day by day across the week, across all our airlines; onward flights and feeders of a leg; a hub's city pairs and the bank each connects in | `connections.link(rules, arrival, departure)` → `{days: 7, of: 7, gap_min: 60}` |
 | `banks` | A hub's bank windows (`airline_bases.bank_times`, the bank settings); which bank a departure collects and an arrival feeds. A focus city has none | `banks.bankOfArrival(rules, hub, 270)` → bank 1, "in", 90 minutes before it leaves |
 | `banks` (bank fit in words) | `wave`: how a frequency's departure and arrival fit a base's banks, as the old Routes words it ("B1 out · B2 in", "dep floats", "B2 in, 2:00 early", "arr off wave", "focus city · times to X banks", "no banks set"), each with its pill's level; `airlineBaseAt`, an airline's base at an airport (#18 build pull request 6) | `banks.wave(rules, hub, 390, 270).text` → "B1 out · B1 in" (leaves 06:30, the return lands 04:30; `cases/banks.json`) |
-| `maintenance` | Usable ground time against the need for an aircraft's week: need = cycles × `maint_per_cycle` + block hours × `maint_per_hour`; have = each gap beyond `ground_keep_min`, once that is at least `maint_min_ground_min`. Bad under `maintenance_min_pct`, a warning under `maintenance_target_pct`. A gap is left out only when it is a real overlap (the next flight leaves before this one lands); the old planner also left out every gap longer than 156 hours. No aircraft on the 12 Oct copy was affected | `maintenance.forAircraft(rules, "T-001").pct` → 101, a warning |
+| `maintenance` | Usable ground time against the need for an aircraft's week: need = cycles × `maint_per_cycle` + block hours × `maint_per_hour`; have = each gap beyond `ground_keep_min`, once that is at least `maint_min_ground_min`. Bad under `maintenance_min_pct`, a warning under `maintenance_target_pct`. A gap is left out only when it is a real overlap (the next flight leaves before this one lands); the old planner also left out every gap longer than 156 hours. No aircraft on the 12 Oct copy was affected. **The spacing** (since 28 Oct, spec `docs/specs/2026-10-27-long-haul-lines.md` §3): the figures also give `counting_stops` and `max_gap_h`, the longest stretch between two stops that count (from the departure after one to the landing at the next, over the repeating week and wrapping its end; null when none counts), against `maintenance_max_gap_h` (`max_gap_limit_h`, `max_gap_ok`; both null on an input without the setting). A plain card (one day repeated) and a line's card (7 different days) are each one repeating week, so the same walk serves both (`spacing`) | `maintenance.forAircraft(rules, "T-001").pct` → 101, a warning; on `cases/maintenance.json`'s 78-hour card `max_gap_h` → 78, not ok |
 | `aircraftWeek` | An aircraft's week, as the Tails screen shows it: legs a week, block hours a day, routes, each departure with its ground time, turn and position | `aircraftWeek.forAircraft(rules, "T-001").block_hours_day` → 12 |
 | `schedule` | Night bans hit, a second daily too close (`second_daily_gap_h`, and the game's `same_route_gap_min`), flight numbers used twice, departures a week per airport against the cap (and Home's warning from `airport_cap_warning_pct` of it, bad at the cap: `airportCapWarnings`), the next free flight-number pair at a base | `schedule.nextFlightNumbers(rules, hub)` → 1009 / 1010 |
 | `frequency` | A route's frequency for the Routes screen (#18 build pull request 6): a rotation's two legs from the times typed in local time at each end (`toLegs`: stored in UTC; the return on the old planner's day, the first departure after the outbound lands; an arrival left empty stores no block and takes the estimate) and back (`localTimes`, `view`: the old `computeFreq`, with day markers and est); `retime`, the legs re-timed to keep their local times when an airport's offset changes (`withOffset`); `checks`, every check on one frequency against the whole schedule (night bans, numbers used twice, the second-daily gap, the aircraft's position, the turn at the destination, the connections at both ends); `numberRanges` | `frequency.toLegs(rules, ends, {days: [1], dep_hub: 1200, arr_dest: 1335, dep_dest: 390, arr_hub: 410})` → the return on day 2, `cases/frequency.json` |
@@ -46,10 +47,11 @@ Each part is exported under its name. One example each, on the cases' small worl
 | `positions` | Where each aircraft is at a moment: in the air with the share flown, or on the ground since its last landing | `positions.positionsAt(rules, "2026-10-12T06:30:00Z")` → T-001 in the air, 40% of the way |
 | `summary` | The key figures on the planner's Home (#18 build pull request 5), for the group and each airline: aircraft in service (status active), routes flying (those with a rotation), flights a day (each departure by an aircraft in service, ÷ 7) and seats a day (those departures' seats: the aircraft's cabin layout, else its type's `seats_max`, ÷ 7) | `summary.keyFigures(rules).flights_day` → 3.14 on `cases/summary.json` (22 departures a week) |
 | `summary` (Home's other figures) | `airlineCards`: each airline's card (aircraft, routes, flights and block hours a day of its aircraft in service, the lowest maintenance with its level, departures with a short turn or wrong position, tight turns, flying, clean, its bases with live ones marked); `now`: the hero at a moment (aircraft in the air, departures on the moment's UTC weekday and in its next hour); `roundTrips`: each flying route's round trips a week | `summary.now(rules, "2026-10-12T06:30:00Z").in_air` → 1 on `cases/summary.json` |
-| `tails` | An aircraft's issues on the Tails screen (#18 build pull request 7), in the old planner's `tailIssues` order: under the block-hours target (`aircraft_block_target_h`, a flag, not a floor), short turns, maintenance under `maintenance_min_pct` or `maintenance_target_pct`, tight turns, legs starting where it isn't, its longest ground gap under the type's `gap_target_h`, rotations off wave at either end (`offWave`: the bank fit's level bad); `marked` (the list's red dot) and `needsALook` (the Needs a look filter) | `tails.issues(rules, "T-001")` → four issues on `cases/tails.json`'s second case (8 h a day, 7 short and 7 tight turns, 14 legs starting elsewhere) |
+| `tails` | An aircraft's issues on the Tails screen (#18 build pull request 7), in the old planner's `tailIssues` order: under the block-hours target (`aircraft_block_target_h`, a flag, not a floor), short turns, maintenance under `maintenance_min_pct` or `maintenance_target_pct`, tight turns, legs starting where it isn't, its longest ground gap under the type's `gap_target_h`, since 28 Oct a stretch without a counting maintenance stop over `maintenance_max_gap_h` (`maintenance_gap`: "no maintenance stop for 78 h, over 40"; nothing on an input without the setting), rotations off wave at either end (`offWave`: the bank fit's level bad); `marked` (the list's red dot) and `needsALook` (the Needs a look filter) | `tails.issues(rules, "T-001")` → four issues on `cases/tails.json`'s second case (8 h a day, 7 short and 7 tight turns, 14 legs starting elsewhere) |
 | `game` | The planner against the game's public schedule (Tails' check before filing and Check's game check, #18 build pull requests 7 and 9), as the old planner's `plannerFlights`, `compareFlights`, `importCandidates` and `applyGameFix`: `plannerFlights` (each flight number's entries in local time, a return on the day it leaves), `compare` (each number the same, different, in the planner only or in the game only, a flight valid only for some dates aside, with the fix where it's only a time or a day change), `importCandidates` (the game's numbers the planner hasn't got, paired into round trips one apart), `fixTimes` (the frequencies a fix changes, with their new local times) and `compareCard` (a plan card's legs). A rotation with no aircraft estimates its empty arrival on the airline's most-flown type (`mostFlownType`: the type with the most departures a week; its market's default type until 21 Oct) | `game.compare(rules, 1, flights).issues[0]` → flight 1002, "Different: departure, arrival", with the game's times as its fix (`cases/game.json`) |
 | `loadReport` | Check's daily load report (#18 build pull request 9): `flightsOn` (one day's departures, each outbound on its local weekdays at the hub and each return on the day it leaves, by airline then departure, a frequency in its first `load_leeway_days` after its launch marked) | `loadReport.flightsOn(rules, "2026-10-13", launches)` → 1001 at 06:00, then the overnight return 1004 at 06:30, in its first week (`cases/loadReport.json`) |
 | `growth` | Check's Growth board (#18 build pull request 9): the order rotation (manual §3: `lastMove`, `nextMove`, `moveCandidates` with `growth_big_min_stars`, `shownMove` skipping a move with nothing ready), `readyFromLoads` (ready for another flight from the load reports: `growth_ready_full_share` over `growth_ready_min_days`), `hubReadiness` (each bank's cities feeding it now and with the plan cards, by region), `suggestedSize` (the aircraft size the next move suggests for a route: the first entry of the setting `suggested_size` for the move, the airline's own list before the world's, whose `min_stars` and `over_km` the route meets) and `orderQueues` (`order_queue_grace_h`, `order_queue_warn_h`) | `growth.nextMove(log, 2)` → `big` for an airline with nothing logged (`cases/growth.json`) |
+| `lineOptimiser` | **The best 7-day rotating line** (since 28 Oct; manual §4, long haul in lines; spec `docs/specs/2026-10-27-long-haul-lines.md` §1): for an airline, a type, the hubs a line day may start or end at (where its connections count) and the candidate routes (long ones and medium fillers; `fixed` ones must be on it), one aircraft's 168 hours over the routes, each flown once each way as one closed walk from a hub (day 2 starts where day 1 ends, day 7 ends where day 1 starts), and its 7 cards: aircraft k flies line day d on weekday ((d + k − 2) mod 7) + 1, so every leg operates daily. Feasible when turns (the turnaround plus `turn_margin_min`), night bans, the same-route gap against the flights flying (`same_route_gap_min`), every route within the type's reach (`aircraft_types.range_km`, or the caller's `rangeKm` since `rules_input()` doesn't carry it yet: a route beyond is refused with the reason, a reach it hasn't got is an error naming it), maintenance at or above `maintenance_min_pct`, no stretch over `maintenance_max_gap_h` without a counting stop, and the week closing on itself. Scored by connections within `plan_connection_target_h` at the hubs (counted as the day optimiser counts them, `optimiser.countConnections`), then all to `connection_max_wait_h`, then routes covered, block hours, maintenance. The search is a heuristic: every route set (all, then each with one dropped, only while nothing fits), each closed walk in a fixed order, the first departure on the start hub's bank ladder (by `step`), the rest by a greedy chain kept as a small beam (at a hub its ladder times and the banks' arrival deadlines, everywhere the earliest and the earliest that makes a counting stop, pushed past night bans), then local moves on the best line; capped by a `budget` of work (chains plus lines evaluated) or the caller's time check, and the answer says whether it finished (`search.finished`, `search.note`: "best found …, search not finished"). No randomness: the same input and work budget give the same answer. Each leg gets a flight number from the airline's pool at the start hub (`schedule.nextFlightNumbers`, above the flight legs' and the base's last number, skipping `usedFlightNumbers`, the plan cards'; the way out odd, the way back the next) and its service code by distance (`service.wantedFor`) | `lineOptimiser.optimiseLine(rules, {airlineId: 1, type: "A321 NEO LIGHT", hubs: ["HUB"], routes: [["HUB","BBB"],["HUB","CCC"],["HUB","NBN"]], step: 30, rangeKm: 7000, budget: {work: 120}}).best.legs.length` → 6 on `cases/lineOptimiser.json`; the Pan Am A350 sample in `tests/fixtures/line_a350_2026-10-12.json` |
 | `optimiser` | The best day's schedule for one aircraft from a base and some destinations: every order and start time, feasible against night bans, maintenance, the second-daily gap and turns; best by the connections at the base (and any extra hubs) within the planning target, from the minimum connection time to `plan_connection_target_h` (4 hours, since 27 Oct, manual §4); then all connections, to `connection_max_wait_h`; then maintenance. Its `best` gives both counts (`connections_within_target`, `connections`) and the answer the target (`connection_target_h`); an input without the setting is refused, naming it | `optimiser.optimise(rules, {base: "HUB", destinations: ["AAA", "DDD"], ...}).best.order` → `["DDD", "AAA"]` |
 
 Two more: `card.checkCard()` checks a plan card's legs against every rule above, at both ends, its service codes
@@ -78,7 +80,17 @@ also says how many of the connections fall within the planning target, `plan_con
 `within_target_share` (percent, one decimal; null with no connections) beside its `feeders` and `onward`, and the card's
 `connections` (`target_h`, `total`, `within_target`, `within_target_share`; each arrival and departure pair once). It is
 a figure, never a problem: a card isn't wrong for having long connections. An input made before the setting gets null
-figures (`cases/connections.json`'s last case). `airport` gives an airport's minimum connection time
+figures (`cases/connections.json`'s last case). Since 28 Oct (spec `docs/specs/2026-10-27-long-haul-lines.md` §3) the
+check also flags the maintenance spacing: a stretch without a counting stop longer than `maintenance_max_gap_h` is a
+problem ("no maintenance stop for 78 h, over 40"; "no maintenance stop all week, over 40 h" when none counts), on every
+card, lines or not, and an input without the setting isn't checked. And `card.checkLine()` checks **a line of up to 7
+cards** (the same spec): each card as `checkCard()` does, with the other cards' legs laid into the network (so a line's
+own flights count as its connections, and two cards with the same number on the same local weekday clash as they would
+in the game), then the line as a whole: each flight's local weekdays across the cards (`flights`: `days`, `missing`,
+`daily`, which cards), `missing_days` until all 7 cards exist, each route's days out and back (`routes`,
+`both_ways_daily`), and `complete` with 7 cards; with every card, a flight missing a day or a route not flown back daily
+is a problem, with fewer cards the missing days are reported and not. The same flight number on different days of
+different cards is never a clash. `airport` gives an airport's minimum connection time
 and night ban.
 
 **Stations** (since 22 Oct, manual §2; spec `docs/specs/2026-10-22-station-role.md`): an `airline_bases` row with role
@@ -99,8 +111,11 @@ For Claude and the scripts (how to get the input: `scripts/README.md`). `npm run
 node lib/rules/dist/cli.js block       rules.json DEL BOM "A321 NEO LIGHT"
 node lib/rules/dist/cli.js connections rules.json KUL
 node lib/rules/dist/cli.js aircraft    rules.json            # every aircraft; or add a registration for one week
-node lib/rules/dist/cli.js check-card  rules.json card.json [--fares ladder.json]
+node lib/rules/dist/cli.js check-card  rules.json card.json [--fares ladder.json]     # or line.json: a line of cards
 node lib/rules/dist/cli.js optimise    rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --start 05:00-11:00 --hubs DEL
+node lib/rules/dist/cli.js optimise-line rules.json --airline 1 --type A350-900 --hubs SFO,LGW,SEA,LAX,PVG,PKX \
+     --routes SFO-LGW,LGW-SEA,SEA-PKX,LGW-LAX,SFO-PVG,PVG-LAX [--fixed SFO-LGW] [--step 15] [--seconds 60] [--work 1200] \
+     [--range 14200] [--used 5001,5002]
 ```
 
 It answers in JSON; an error goes to standard error with a non-zero exit. A card is
@@ -114,6 +129,23 @@ direction the card flies it (since 26 Oct).
 The optimiser's
 start window and step default to 05:00 to 11:00 local and 5 minutes.
 
+**`optimise-line`** (since 28 Oct) answers with the line (`best`: `routes`, `start_hub`, each leg with its `line_day`,
+`flight_no`, `service_code`, `dep_utc_min` and `dep_local`, `arr_local`, `block_min`, the ground after it and whether it
+is a maintenance stop, the banks at each end; `days`, where each line day starts and ends; `block_hours_day`;
+`maintenance` with the spacing; `connections` and `connections_within_target`; `score`; `flight_numbers`, the pool
+used; and `cards`, the 7 aircraft cards as `check-card` takes them, each with its `line_day_offset`), the settings it
+used (`turn_min`, `connection_target_h`, `maintenance_max_gap_h`, `range_km`), `search` (`finished`, `work`,
+`lines_evaluated`, `feasible`, and `note`: "best found with 906 lines evaluated, search not finished") and `rejected`,
+why lines were dropped. `--seconds` is the run-time cap (60 by default, the one clock the command reads; 0 for none),
+`--work` a cap on chains and lines evaluated instead (the same answer on every machine; the tests use it), `--step` the
+minutes between the candidate times on each hub's bank ladder (15), `--range` the type's reach in km when the input
+doesn't carry `range_km` (`rules_input()` doesn't yet; without either the command refuses, naming it), `--fixed` routes
+that must be on the line, `--used` flight numbers already taken by plan cards. Save `best.cards` as
+`{"line": {...}, "cards": [...]}` and `check-card` checks the line.
+**`check-card` on a line file** (a document with `cards`, up to 7, each a card as above, and optionally `line` with the
+`airline` and `type` the cards share) answers with each card's check (`card_checks`) and the line as a whole
+(`flights`, `routes`, `missing_days`, `complete`, `ok`, `problems`); a document with `legs` is one card, as today.
+
 ## The tests
 - **Cases** (`cases/*.json`), run by Vitest in `npm test`: plain JSON, so pull request 3's database tests can answer the
   same questions. `_base.json` is a small made-up world; each file is one part's cases, each with its input (laid over
@@ -126,12 +158,19 @@ start window and step default to 05:00 to 11:00 local and 5 minutes.
   samples because it is game data (decision #9); the Vitest runner lists it in `test/cases.test.ts` and lays it over
   `_base.json` like the rest. `tests/optimiser_saved_answer_test.py` runs the built command on it and must find that
   answer.
+- **`tests/fixtures/line_a350_2026-10-12.json`** (since 28 Oct): the line optimiser on the Pan Am A350-900 sample of the
+  Scheduling chat's hand-built line (the 12 Oct sample's 140 legs at SFO, LGW, SEA, PKX, LAX and PVG, six routes, the
+  A350-900 with its reach), with a work budget so the answer is the same everywhere, its 7 cards through the line check,
+  one card alone, and a route beyond reach refused; the Vitest runner lists it with the KUL case, and
+  `tests/line_saved_answer_test.py` runs the built command on it. `cases/lineOptimiser.json` has the mechanics on the
+  base world, and `cases/maintenance.json` and `cases/tails.json` the spacing (the 78-hour card).
 - **`test/library.test.ts`**: the builder's checks, settings and world rules, a plan card, every command, and the
   website's connection test (below) against the library's own.
 - **On last night's copy** (the rehearsal): `tests/rules_library_test.py` compares the library with the old planner's
   Tails, Hubs and Check screens (`tests/README.md`).
 
-Run them: `npm run typecheck`, `npm run lint`, `npm test`, then `npm run build` and `python3 tests/optimiser_saved_answer_test.py`.
+Run them: `npm run typecheck`, `npm run lint`, `npm test`, then `npm run build`, `python3 tests/optimiser_saved_answer_test.py` and
+`python3 tests/line_saved_answer_test.py`.
 
 ## The website's file
 The website's trip search uses the library's connection test, from one browser file: `npm run build` (`build:rules`)

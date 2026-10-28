@@ -11,17 +11,19 @@
 // (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3) each leg its own direction's level. Since 27 Oct (manual
 // §4; spec docs/specs/2026-10-27-planning-connection-target.md §3) beside the connections at both ends it reports how
 // many fall within the planning target (plan_connection_target_h), count and share, for each leg and the card; it is a
-// figure, never a problem: a card isn't wrong for having long connections.
+// figure, never a problem: a card isn't wrong for having long connections. Since 28 Oct (spec
+// docs/specs/2026-10-27-long-haul-lines.md §3) the maintenance figures carry the spacing of the counting stops, and a
+// stretch longer than maintenance_max_gap_h without one is a problem ("no maintenance stop for 78 h, over 40").
 import { forAircraft as aircraftWeek } from "./aircraftWeek.js";
 import { bankOfArrival, bankOfDeparture, baseAt, hasBanks } from "./banks.js";
 import { blockFor, distanceBetween, timedLegs } from "./block.js";
 import { connectionsAtBothEnds, planTargetH, type LinkedLeg } from "./connections.js";
-import { RulesError, findAircraft, findType, pairKey, setting, settingNumber } from "./input.js";
+import { RulesError, buildRules, findAircraft, findType, pairKey, setting, settingNumber } from "./input.js";
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
 import { departuresPerAirport, flightNumberClashes, nightBanHits, routeGapHits } from "./schedule.js";
 import { checkLegs as serviceCheck, issueWords as serviceWords } from "./service.js";
-import { DAY, clock, fromLocal, parseClock, toLocal } from "./time.js";
-import type { AircraftRow, AircraftTypeRow, CabinConfigRow, Rules, TimedLeg } from "./types.js";
+import { DAY, clock, fromLocal, localDays, parseClock, toLocal } from "./time.js";
+import type { AircraftRow, AircraftTypeRow, CabinConfigRow, LegRow, Rules, TimedLeg } from "./types.js";
 
 export interface CardLeg {
   flight_no?: number | null;
@@ -435,6 +437,12 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
   }
   if (maint.ratio == null) problems.push(`maintenance can't be worked out: ${"reason" in maint ? maint.reason : ""}`);
   else if (maint.level === "bad") problems.push(`maintenance ${maint.pct}%, under ${maint.min_pct}%`);
+  // the maintenance spacing (since 28 Oct, spec docs/specs/2026-10-27-long-haul-lines.md §3): an input without
+  // maintenance_max_gap_h isn't checked
+  if (maint.ratio != null && maint.max_gap_ok === false && maint.max_gap_limit_h != null) {
+    problems.push(maint.max_gap_h == null ? `no maintenance stop all week, over ${maint.max_gap_limit_h} h`
+      : `no maintenance stop for ${maint.max_gap_h} h, over ${maint.max_gap_limit_h}`);
+  }
   for (const h of nightBans) problems.push(`${h.airport}: ${h.what} ${h.local}, inside its night ban (${h.ban})`);
   for (const h of routeGaps) problems.push(`${h.origin}–${h.dest}: ${h.gap_min} min from another flight on the route (at least ${h.need_min}, ${h.rule})`);
   for (const c of clashes) problems.push(`flight ${c.flight_no} is used twice on day(s) ${c.days.join(", ")}`);
@@ -457,5 +465,126 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
     legs: perLeg, connections, turns_not_ok: turns.length, maintenance: maint, night_bans: nightBans, route_gaps: routeGaps, flight_number_clashes: clashes,
     departures: caps, legs_week: week?.legs_week ?? 0, block_hours_day: week?.block_hours_day ?? 0, service: svc, cabin,
     fares: options.fares ? cardFares(rules, card, options.fares) : null,
+  };
+}
+
+// ---------- a line of cards (since 28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §3): up to 7 cards of one
+// 7-day rotating line, each checked as today, and across them whether every leg operates daily once all 7 exist
+/** A line file for check-card: its cards (1 to 7), each as a card is given. */
+export interface LineFile {
+  line?: { name?: string | null; airline?: string | number | null; type?: string | number | null } | null;
+  cards: (Card & { line_day_offset?: number | null })[];
+}
+
+/** One flight of the line (a flight number, or the airports and departure where it has none) across the cards. */
+export interface LineFlight {
+  flight_no: number | null;
+  from: string;
+  to: string;
+  dep_utc: string;
+  /** The local weekdays it flies at its origin, across the cards. */
+  days: number[];
+  /** The local weekdays it doesn't fly yet (with fewer than 7 cards); empty when it operates daily. */
+  missing: number[];
+  daily: boolean;
+  /** On which cards it is (their places in the file, from 1). */
+  cards: number[];
+}
+
+/** Checks a line of up to 7 cards: each card on its own (checkCard, with the other cards of the line laid into the
+ *  network, so a line's own flights count as its connections and a same-day clash between two cards shows), then the
+ *  line as a whole: every flight operates daily once all 7 cards exist (and which weekdays are missing until then), the
+ *  same flight number on different weekdays of different cards isn't a clash (two cards with it on the same local
+ *  weekday is), and each route is flown both ways every day. A line with every card and a flight missing a day, or a
+ *  route not flown back daily, is a problem; with fewer cards the missing days are reported and not a problem. */
+export function checkLine(rules: Rules, line: LineFile, options: { fares?: FareLadder | null } = {}) {
+  if (!line || !Array.isArray(line.cards) || !line.cards.length) throw new RulesError("the line has no cards");
+  if (line.cards.length > 7) throw new RulesError(`a line has at most 7 cards, not ${line.cards.length}`);
+  const cards = line.cards.map((c) => ({ ...c, type: c.type ?? line.line?.type ?? null, airline: c.airline ?? line.line?.airline ?? null }));
+  const basics = cards.map((c) => cardBasics(rules, c));
+  const airlineId = basics[0]?.airlineId ?? null, type = basics[0]?.type ?? null;
+  const problems: string[] = [];
+  basics.forEach((b, i) => {
+    if (b.airlineId !== airlineId) problems.push(`card ${i + 1} is another airline's (${b.airlineId}); a line is one airline's`);
+    if (b.type.id !== type?.id) problems.push(`card ${i + 1} is a ${b.type.name}; a line is one type's (${type?.name ?? "?"})`);
+  });
+  // each card's legs as flight_legs rows, so the other cards can be laid into the network each card is checked against
+  let nextId = -1;
+  const extra = cards.map((c, i) => {
+    const owner = c.aircraft == null ? undefined : findAircraft(rules, c.aircraft);
+    return c.legs.map((l, k): LegRow => {
+      let days = l.days_utc ?? null, dep = l.dep_utc_min ?? null;
+      if (dep == null && l.dep_local != null) {
+        const m = parseClock(l.dep_local);
+        if (m == null) throw new RulesError(`card ${i + 1}, leg ${k + 1}: dep_local ${l.dep_local} isn't a clock time`);
+        const u = fromLocal(rules, l.origin_code, l.days_local?.length ? l.days_local : [1, 2, 3, 4, 5, 6, 7], m);
+        days = u.days_utc;
+        dep = u.dep_utc_min;
+      }
+      if (dep == null) throw new RulesError(`card ${i + 1}, leg ${k + 1}: give dep_utc_min or dep_local`);
+      const b = basics[i];
+      const est = l.block_min == null && b ? blockFor(rules, l.origin_code, l.dest_code, b.type.id, b.airlineId).block_min : null;
+      return {
+        id: nextId--, airline_id: b?.airlineId ?? 0, rotation_id: null, leg_no: null, flight_no: l.flight_no ?? null, origin_code: l.origin_code, dest_code: l.dest_code,
+        aircraft_id: owner?.id ?? -(1000 + i), days_utc: (days?.length ? days : [1, 2, 3, 4, 5, 6, 7]).slice().sort((a, b) => a - b), dep_utc_min: dep, block_min: l.block_min ?? est ?? 0,
+      };
+    });
+  });
+  const checks = cards.map((c, i) => {
+    const others = extra.filter((_, k) => k !== i).flat();
+    // the other cards' legs laid into the input, each on its own stand-in aircraft (one not in the input is -1001, -1002…)
+    const laid = buildRules({ ...rules.input, flight_legs: [...rules.input.flight_legs, ...others],
+      aircraft: [...rules.input.aircraft, ...cards.flatMap((x, k) => (k === i || (x.aircraft != null && findAircraft(rules, x.aircraft)) ? []
+        : [{ id: -(1000 + k), registration: `(line card ${k + 1})`, airline_id: basics[k]?.airlineId ?? 0, aircraft_type_id: basics[k]?.type.id ?? null, status: "active" }]))] });
+    return checkCard(laid, c, options);
+  });
+  checks.forEach((c, i) => { for (const p of c.problems) problems.push(`card ${i + 1}: ${p}`); });
+  // across the line: each flight's local weekdays over the cards
+  const flights = new Map<string, LineFlight>();
+  extra.forEach((legs, i) => {
+    for (const l of legs) {
+      const key = l.flight_no != null ? `${l.flight_no}` : `${l.origin_code}>${l.dest_code}@${l.dep_utc_min}`;
+      const local = localDays(rules, l.origin_code, l.days_utc, l.dep_utc_min ?? 0);
+      const f = flights.get(key) ?? { flight_no: l.flight_no, from: l.origin_code, to: l.dest_code, dep_utc: clock(l.dep_utc_min ?? 0), days: [], missing: [], daily: false, cards: [] };
+      if (f.from !== l.origin_code || f.to !== l.dest_code || f.dep_utc !== clock(l.dep_utc_min ?? 0)) {
+        problems.push(`flight ${l.flight_no} on card ${i + 1} is ${l.origin_code}–${l.dest_code} at ${clock(l.dep_utc_min ?? 0)} UTC, but ${f.from}–${f.to} at ${f.dep_utc} on card ${(f.cards[0] ?? 0)}`);
+      }
+      for (const d of local) {
+        if (f.days.includes(d)) problems.push(`flight ${l.flight_no ?? `${l.origin_code}–${l.dest_code}`} is on card ${i + 1} and card ${f.cards[f.days.indexOf(d)] ?? "?"} on the same local weekday ${d}`);
+        else { f.days.push(d); f.cards.push(i + 1); }
+      }
+      flights.set(key, f);
+    }
+  });
+  const complete = cards.length === 7;
+  for (const f of flights.values()) {
+    const pairs = f.days.map((d, k) => ({ d, c: f.cards[k] ?? 0 })).sort((a, b) => a.d - b.d);
+    f.days = pairs.map((p) => p.d);
+    f.cards = pairs.map((p) => p.c);
+    f.missing = [1, 2, 3, 4, 5, 6, 7].filter((d) => !f.days.includes(d));
+    f.daily = f.missing.length === 0;
+    if (complete && !f.daily) problems.push(`flight ${f.flight_no ?? `${f.from}–${f.to}`} doesn't operate on weekday(s) ${f.missing.join(", ")} across the 7 cards`);
+  }
+  // each route both ways every day: the days the line flies out against the days it flies back
+  // (named as the airline's route, hub first, where it has one; else as first flown)
+  const routes = new Map<string, { out: Set<number>; back: Set<number>; a: string; b: string }>();
+  for (const f of flights.values()) {
+    const k = pairKey(f.from, f.to);
+    const own = (rules.routesByPair.get(k) ?? []).find((r) => r.airline_id === airlineId);
+    const r = routes.get(k) ?? { out: new Set<number>(), back: new Set<number>(), a: own?.hub_code ?? f.from, b: own?.dest_code ?? f.to };
+    for (const d of f.days) (f.from === r.a ? r.out : r.back).add(d);
+    routes.set(k, r);
+  }
+  const bothWays = [...routes.values()].map((r) => ({
+    route: `${r.a}–${r.b}`, out_days: [...r.out].sort((x, y) => x - y), back_days: [...r.back].sort((x, y) => x - y),
+    both_ways_daily: r.out.size === 7 && r.back.size === 7,
+  }));
+  if (complete) for (const r of bothWays) if (!r.both_ways_daily) problems.push(`${r.route} isn't flown both ways every day (out on ${r.out_days.join(", ") || "none"}, back on ${r.back_days.join(", ") || "none"})`);
+  // the days still missing until the line is complete, over every flight
+  const missingDays = [...new Set([...flights.values()].flatMap((f) => f.missing))].sort((a, b) => a - b);
+  return {
+    name: line.line?.name ?? null, airline_id: airlineId, type: type?.name ?? null, cards: cards.length, complete, ok: problems.length === 0, problems,
+    flights: [...flights.values()], routes: bothWays, missing_days: missingDays,
+    card_checks: checks,
   };
 }

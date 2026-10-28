@@ -1,7 +1,7 @@
 // The planning library (decision #19, design §7): the planning rules in one home, for the new planner, the website's
 // trip search, the optimiser and Claude. Plain data in, plain data out; no screen code, no clock, no network.
 // Each part is exported under its name (time, block, turns, connections, banks, maintenance, aircraftWeek, schedule,
-// positions, summary, optimiser, tails, and for the Check screen game, loadReport and growth), plus card (a plan card
+// positions, summary, optimiser, lineOptimiser (the 7-day line, since 28 Oct), tails, and for the Check screen game, loadReport and growth), plus card (a plan card
 // checked against all of them, the cabin its routes call for: cabinFor, and since 21 Oct each route's fare level from
 // fare_ladder(): cardFares) and airport (connection times, night bans). The
 // Cabins board's part, cabins, went on 21 Oct with the board, and checks (the one-week aircraft checks) on 22 Oct (spec
@@ -23,6 +23,7 @@ export * as schedule from "./schedule.js";
 export * as positions from "./positions.js";
 export * as summary from "./summary.js";
 export * as optimiser from "./optimiser.js";
+export * as lineOptimiser from "./lineOptimiser.js";
 export * as card from "./card.js";
 export * as frequency from "./frequency.js";
 export * as service from "./service.js";
@@ -41,7 +42,8 @@ export type { Position } from "./positions.js";
 export type { AirlineCard, CardBase, KeyFigures, NowFigures, SummaryFigures } from "./summary.js";
 export type { ZoneClock } from "./time.js";
 export type { OptimiseAnswer, OptimiseOptions, OptimisedPlan, PlannedLeg } from "./optimiser.js";
-export type { CabinFare, CabinRouteShare, CabinSuggestion, Card, CardLeg, FareLadder, FareLadderRow, RouteFare } from "./card.js";
+export type { Line, LineAnswer, LineDay, LineLeg, LineOptions, LineScore, RoutePair } from "./lineOptimiser.js";
+export type { CabinFare, CabinRouteShare, CabinSuggestion, Card, CardLeg, FareLadder, FareLadderRow, LineFile, LineFlight, RouteFare } from "./card.js";
 export type { Wave } from "./banks.js";
 export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, LocalTimes, OtherLeg, StoredLeg, Way } from "./frequency.js";
 export type { ServiceCheck, ServiceIssue, ServiceLeg, ServiceLegAnswer, ServiceProfile } from "./service.js";

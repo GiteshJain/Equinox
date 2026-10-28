@@ -184,6 +184,8 @@ export function issueWords(i: ShownIssue): string {
     case "tight_turns": return `${i.count} turn${s(i.count)} a week under the ${i.margin_min}-min margin`;
     case "positions": return `${i.count} leg${s(i.count)} start where the aircraft isn't`;
     case "longest_gap": return `longest gap ${hhmm(i.gap_min)} — under the ${i.target_h} h target`;
+    case "maintenance_gap": return i.max_gap_h == null ? `no maintenance stop all week, over ${i.limit_h} h`
+      : `no maintenance stop for ${i.max_gap_h} h, over ${i.limit_h}`;
     case "off_wave": return `${i.count} rotation${s(i.count)} off wave`;
   }
 }

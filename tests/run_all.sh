@@ -32,6 +32,7 @@ run "Capture's fleet pages: a saved fleet page read as the database keeps it" no
 run "Planner and planning library: types, lint, unit tests and cases, build" new_planner
 run "Planner: the screens' figures on the 12 Oct sample against saved answers" node tests/planner_figures.mjs
 run "Planning library: the optimiser against plan.py's saved answer" python3 tests/optimiser_saved_answer_test.py
+run "Planning library: the line optimiser against its saved answer on the A350 sample" python3 tests/line_saved_answer_test.py
 run "Weekly report: end to end on the report sample, its money from the figures" python3 tests/report_test.py
 run "Airline briefing: every airline on the briefing sample, each section its own" python3 tests/briefing_test.py
 run "Market definitions: scan_markets.py and nl_analyze.py on the report sample" python3 tests/market_definitions_test.py

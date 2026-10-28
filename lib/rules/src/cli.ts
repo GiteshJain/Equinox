@@ -16,16 +16,26 @@
 //                                                route's fare level (fares, 21 Oct; once per direction since 26 Oct)
 //   optimise <base> <dest,dest,...> --type <type> [--start 05:00-11:00] [--step 5] [--hubs X,Y] [--airline <id>]
 //                                                the best day's schedule for one aircraft
-// The optimiser's start window and step default to plan.py's (05:00 to 11:00 local at the base, every 5 minutes):
-// search settings, not rules.
+//   optimise-line --airline <id> --type <type> --hubs X,Y --routes SFO-LGW,LGW-SEA,... [--fixed SFO-LGW] [--step 15]
+//                 [--seconds 60] [--work <n>] [--range <km>] [--used 5001,5002]
+//                                                the best 7-day rotating line (since 28 Oct, spec
+//                                                docs/specs/2026-10-27-long-haul-lines.md §1): its legs by line day,
+//                                                the 7 aircraft cards, the score, and whether the search finished
+// check-card also takes a line file, {"line": {...}, "cards": [card, card, ...]} (up to 7 cards), and checks each card
+// and the line as a whole (spec §3): every flight daily once all 7 exist, the days missing until then, each route both
+// ways daily; the same number on different days of different cards isn't a clash.
+// The optimiser's start window and step default to plan.py's (05:00 to 11:00 local at the base, every 5 minutes), and
+// the line optimiser's step and run-time cap to 15 minutes and 60 seconds: search settings, not rules. The run-time cap
+// is the one clock the command reads (the library itself takes a time check as an argument).
 import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { forAircraft as aircraftWeekFor } from "./aircraftWeek.js";
 import { blockFor, timedLegs } from "./block.js";
-import { checkCard, type Card, type FareLadder } from "./card.js";
+import { checkCard, checkLine, type Card, type FareLadder, type LineFile } from "./card.js";
 import { connectionsAt } from "./connections.js";
 import { RulesError, buildRules } from "./input.js";
 import { forAircraft as maintenanceFor } from "./maintenance.js";
+import { optimiseLine, type RoutePair } from "./lineOptimiser.js";
 import { optimise } from "./optimiser.js";
 import { parseClock } from "./time.js";
 import type { Json, Rules, RulesInput } from "./types.js";
@@ -34,8 +44,10 @@ const USAGE = `usage: node lib/rules/dist/cli.js <command> <input.json> [argumen
   block <origin> <dest> <type>
   connections <airport>
   aircraft [registration]
-  check-card <card.json> [--fares <ladder.json>]
+  check-card <card.json or line.json> [--fares <ladder.json>]
   optimise <base> <dest,dest,...> --type <type> [--start 05:00-11:00] [--step 5] [--hubs X,Y] [--airline <id>]
+  optimise-line --airline <id> --type <type> --hubs X,Y --routes A-B,B-C,... [--fixed A-B] [--step 15] [--seconds 60]
+                [--work <n>] [--range <km>] [--used <flight numbers>]
 input.json is rules_input()'s answer (export_for_report(secret, 'rules') for the scripts); ladder.json is fare_ladder()'s
 answer for the card's airline (select public.fare_ladder(<airline id>)), or the briefing's (its fare_ladder).`;
 
@@ -147,9 +159,31 @@ export function run(argv: string[]): Json {
       return aircraftAnswer(rules, pos[0]);
     case "check-card": {
       const [cardPath] = pos;
-      if (!cardPath) throw new UsageError("check-card <card.json> [--fares <ladder.json>]");
+      if (!cardPath) throw new UsageError("check-card <card.json or line.json> [--fares <ladder.json>]");
       const fares = opt.fares ? unwrapLadder(readJson(opt.fares)) : null;
-      return checkCard(rules, readJson(cardPath) as Card, { fares }) as unknown as Json;
+      const doc = readJson(cardPath) as Card | LineFile;
+      // a line file holds cards; a card holds legs
+      if (doc && typeof doc === "object" && Array.isArray((doc as LineFile).cards)) return checkLine(rules, doc as LineFile, { fares }) as unknown as Json;
+      return checkCard(rules, doc as Card, { fares }) as unknown as Json;
+    }
+    case "optimise-line":
+    case "optimize-line": {
+      if (!opt.airline || !opt.type || !opt.hubs || !opt.routes) throw new UsageError("optimise-line --airline <id> --type <type> --hubs X,Y --routes A-B,B-C,...");
+      const type = /^\d+$/.test(opt.type) ? Number(opt.type) : opt.type;
+      const list = (x: string | undefined) => (x ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+      const pairs = (x: string | undefined): RoutePair[] => list(x).map((r) => {
+        const [a, b] = r.split(/[-–]/, 2);
+        if (!a || !b) throw new UsageError(`a route is two airports, A-B, not ${r}`);
+        return [a, b];
+      });
+      const seconds = opt.seconds ? Number(opt.seconds) : 60;
+      const t0 = Date.now();
+      return optimiseLine(rules, {
+        airlineId: Number(opt.airline), type, hubs: list(opt.hubs), routes: pairs(opt.routes), fixed: pairs(opt.fixed),
+        step: opt.step ? Number(opt.step) : 15,
+        budget: { work: opt.work ? Number(opt.work) : null, timeUp: seconds > 0 ? () => Date.now() - t0 >= seconds * 1000 : null },
+        usedFlightNumbers: list(opt.used).map(Number), rangeKm: opt.range ? Number(opt.range) : null,
+      }) as unknown as Json;
     }
     case "optimise":
     case "optimize": {

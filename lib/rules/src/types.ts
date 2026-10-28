@@ -17,6 +17,9 @@ export interface AircraftTypeRow {
   maint_per_cycle: number | null;
   maint_per_hour: number | null;
   ground_keep_min: number | null;
+  /** The range with a full load, km (aircraft_types.range_km, since 19 Oct; the line optimiser's reach check). rules_input()
+   *  doesn't carry it yet, so a caller may give it instead. */
+  range_km?: number | null;
 }
 
 export interface CabinConfigRow {

@@ -163,7 +163,17 @@ from a clone of the repository, with Node 22:
      since 27 Oct, beside each leg's connections at both ends, how many fall within the 4-hour planning target
      (`within_target`, `within_target_share`), and the same for the card (`connections`); a figure, never a problem;
    - `optimise KUL KCH,PQC,PEN --type "A321 NEO LIGHT" [--start 05:00-11:00] [--step 5] [--hubs DEL]`: the best day's
-     schedule for one aircraft, by connections within 4 hours, then all connections, then maintenance.
+     schedule for one aircraft, by connections within 4 hours, then all connections, then maintenance;
+   - `optimise-line --airline 1 --type A350-900 --hubs SFO,LGW,SEA,LAX,PVG,PKX --routes SFO-LGW,LGW-SEA,... [--fixed
+     SFO-LGW] [--step 15] [--seconds 60] [--range 14200] [--used 5001,5002]` (since 28 Oct, manual §4, long haul in
+     7-day lines): the best 7-day rotating line for the routes (long ones and medium fillers), its legs by line day with
+     flight numbers and service codes, the 7 aircraft cards with their weekday offsets (`best.cards`), the score
+     (connections within 4 hours at the hubs first) and whether the search finished in the run-time cap ("best found
+     …, search not finished"); `--range` is the type's reach in km until `rules_input()` carries `range_km`
+     (`aircraft_types.range_km`, the A350-900's 14,200), `--used` the flight numbers plan cards hold. Save the cards as
+     `{"line": {...}, "cards": [...]}` and `check-card line.json` checks them as a line: every flight daily once all 7
+     exist, the days missing until then, each route both ways daily, and each card's own check with the maintenance
+     spacing (`maintenance_max_gap_h`, 40 hours).
 
    Each answers in JSON. The weekly report runs `aircraft` (above), and the website's trip search uses the library's
    connection test from `web/assets/rules.js`, which the same build writes.

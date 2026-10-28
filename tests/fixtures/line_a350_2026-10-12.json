@@ -1,0 +1,8069 @@
+{
+ "part": "lineOptimiser",
+ "note": "The line optimiser's Pan Am A350-900 sample (the Scheduling chat's hand-built line of 27 Oct: SFO–LGW, LGW–SEA, SEA–PKX, LGW–LAX, SFO–PVG and PVG–LAX, 12 legs) on the 12 Oct test sample's legs at those six airports (report_2026-10-12, the 140 legs arriving at or leaving SFO, LGW, SEA, PKX, LAX and PVG, with the airports, aircraft, routes and bases they use, as rules_input() would give them; the A350-900 as the 19 Oct migration gives it, with its 14,200 km reach, and the four shared service profiles), with maintenance_max_gap_h 40, line_min_km and line_aircraft laid over cases/_base.json's settings. The search is capped by work (1,200: chains started plus lines evaluated), not seconds, so the answer is the same on every machine; that much of the fixed order reaches 17.7 h a day, maintenance 180%, a counting stop at most every 25 hours and 95 of 129 connections within 4 hours (the hand-built sample: 17.7 h, 193%, 39.6 h). Its answer is saved here; tests/line_saved_answer_test.py runs the built command on the same input and must find it. Then its 7 cards through the line check and one card alone, and a route beyond reach refused. Game data, so it lives with the dated samples (decision #9).",
+ "input": {
+  "settings": {
+   "maintenance_max_gap_h": 40,
+   "line_min_km": 7750,
+   "line_aircraft": 7
+  },
+  "aircraft_types": [
+   {
+    "id": 1,
+    "name": "E195-E2",
+    "family_no": 83,
+    "seats_max": 146,
+    "cruise_kmh": 831,
+    "gap_target_h": 3.0,
+    "min_turn_min": 67,
+    "maint_per_hour": 1.8,
+    "ground_keep_min": 72,
+    "maint_per_cycle": 22.0
+   },
+   {
+    "id": 2,
+    "name": "A321 NEO LIGHT",
+    "family_no": 9,
+    "seats_max": 240,
+    "cruise_kmh": 840,
+    "gap_target_h": 4.0,
+    "min_turn_min": 66,
+    "maint_per_hour": 1.7,
+    "ground_keep_min": 72,
+    "maint_per_cycle": 27.6
+   },
+   {
+    "id": 3,
+    "name": "A321XLR",
+    "family_no": 9,
+    "seats_max": 240,
+    "cruise_kmh": 840,
+    "gap_target_h": 4.0,
+    "min_turn_min": 66,
+    "maint_per_hour": 1.8,
+    "ground_keep_min": 86,
+    "maint_per_cycle": 30.0
+   },
+   {
+    "id": 9,
+    "name": "A350-900",
+    "family_no": 87,
+    "seats_max": 440,
+    "cruise_kmh": 910,
+    "min_turn_min": 90,
+    "gap_target_h": 4.0,
+    "maint_per_cycle": 37.0,
+    "maint_per_hour": 2.0,
+    "ground_keep_min": 97,
+    "range_km": 14200
+   }
+  ],
+  "airports": [
+   {
+    "lat": 36.675,
+    "lon": -4.499,
+    "city": "Málaga",
+    "code": "AGP",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 1.0,
+    "country_code": "ES",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 52.309,
+    "lon": 4.764,
+    "city": "Amsterdam",
+    "code": "AMS",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 1.0,
+    "country_code": "NL",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 41.297,
+    "lon": 2.078,
+    "city": "Barcelona",
+    "code": "BCN",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 1.0,
+    "country_code": "ES",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 13.681,
+    "lon": 100.747,
+    "city": "Bangkok",
+    "code": "BKK",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 7.0,
+    "country_code": "TH",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 50.901,
+    "lon": 4.484,
+    "city": "Zaventem",
+    "code": "BRU",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 1.0,
+    "country_code": "BE",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 30.112,
+    "lon": 31.397,
+    "city": "Cairo",
+    "code": "CAI",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 2.0,
+    "country_code": "EG",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 23.392,
+    "lon": 113.299,
+    "city": "Guangzhou (Huadu)",
+    "code": "CAN",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 50.866,
+    "lon": 7.143,
+    "city": "Cologne",
+    "code": "CGN",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 1.0,
+    "country_code": "DE",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 34.52,
+    "lon": 113.841,
+    "city": "Zhengzhou",
+    "code": "CGO",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 29.719,
+    "lon": 106.642,
+    "city": "Chongqing",
+    "code": "CKG",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 55.618,
+    "lon": 12.656,
+    "city": "Copenhagen",
+    "code": "CPH",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 1.0,
+    "country_code": "DK",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 28.189,
+    "lon": 113.22,
+    "city": "Changsha",
+    "code": "CSX",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 30.578,
+    "lon": 103.947,
+    "city": "Chengdu",
+    "code": "CTU",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 53.429,
+    "lon": -6.262,
+    "city": "Dublin",
+    "code": "DUB",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 0.0,
+    "country_code": "IE",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 55.95,
+    "lon": -3.372,
+    "city": "Ingliston, Edinburgh",
+    "code": "EDI",
+    "closed": false,
+    "mct_min": 60,
+    "utc_offset": 0.0,
+    "country_code": "GB",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 41.805,
+    "lon": 12.252,
+    "city": "Rome",
+    "code": "FCO",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 1.0,
+    "country_code": "IT",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 25.935,
+    "lon": 119.663,
+    "city": "Fuzhou",
+    "code": "FOC",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 50.027,
+    "lon": 8.558,
+    "city": "Frankfurt am Main",
+    "code": "FRA",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 1.0,
+    "country_code": "DE",
+    "night_ban_to": "05:59",
+    "night_ban_from": "00:01",
+    "utc_offset_override": null
+   },
+   {
+    "lat": 19.935,
+    "lon": 110.459,
+    "city": "Haikou",
+    "code": "HAK",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 22.312,
+    "lon": 113.915,
+    "city": "Hong Kong",
+    "code": "HKG",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 8.0,
+    "country_code": "HK",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 35.55,
+    "lon": 139.787,
+    "city": "Tokyo",
+    "code": "HND",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 9.0,
+    "country_code": "JP",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 37.469,
+    "lon": 126.451,
+    "city": "Seoul",
+    "code": "ICN",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 9.0,
+    "country_code": "KR",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 41.275,
+    "lon": 28.732,
+    "city": "Istanbul",
+    "code": "IST",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 2.0,
+    "country_code": "TR",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 40.639,
+    "lon": -73.779,
+    "city": "New York",
+    "code": "JFK",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": -5.0,
+    "country_code": "US",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 24.992,
+    "lon": 102.744,
+    "city": "Kunming",
+    "code": "KMG",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 2.746,
+    "lon": 101.71,
+    "city": "Sepang",
+    "code": "KUL",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 8.0,
+    "country_code": "MY",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 26.538,
+    "lon": 106.801,
+    "city": "Guiyang",
+    "code": "KWE",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 33.943,
+    "lon": -118.408,
+    "city": "Los Angeles",
+    "code": "LAX",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": -8.0,
+    "country_code": "US",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 51.149,
+    "lon": -0.186,
+    "city": "London",
+    "code": "LGW",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 0.0,
+    "country_code": "GB",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 38.781,
+    "lon": -9.136,
+    "city": "Lisbon",
+    "code": "LIS",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 0.0,
+    "country_code": "PT",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 45.726,
+    "lon": 5.09,
+    "city": "Colombier-Saugnieu, Rhône",
+    "code": "LYS",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 1.0,
+    "country_code": "FR",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 40.493,
+    "lon": -3.572,
+    "city": "Madrid",
+    "code": "MAD",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 1.0,
+    "country_code": "ES",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 53.349,
+    "lon": -2.28,
+    "city": "Manchester, Greater Manchest",
+    "code": "MAN",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 0.0,
+    "country_code": "GB",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 43.438,
+    "lon": 5.213,
+    "city": "Marignane, Bouches-du-Rhône",
+    "code": "MRS",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 1.0,
+    "country_code": "FR",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 48.354,
+    "lon": 11.786,
+    "city": "Munich",
+    "code": "MUC",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 1.0,
+    "country_code": "DE",
+    "night_ban_to": "05:59",
+    "night_ban_from": "00:01",
+    "utc_offset_override": null
+   },
+   {
+    "lat": 45.631,
+    "lon": 8.728,
+    "city": "Ferno (VA)",
+    "code": "MXP",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 1.0,
+    "country_code": "IT",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 35.769,
+    "lon": 140.389,
+    "city": "Narita",
+    "code": "NRT",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 9.0,
+    "country_code": "JP",
+    "night_ban_to": "05:59",
+    "night_ban_from": "00:01",
+    "utc_offset_override": null
+   },
+   {
+    "lat": 60.194,
+    "lon": 11.1,
+    "city": "Oslo (Gardermoen)",
+    "code": "OSL",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 1.0,
+    "country_code": "NO",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 40.077,
+    "lon": 116.597,
+    "city": "Beijing",
+    "code": "PEK",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 39.5,
+    "lon": 116.4,
+    "city": "Beijing",
+    "code": "PKX",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 50.101,
+    "lon": 14.26,
+    "city": "Prague",
+    "code": "PRG",
+    "closed": false,
+    "mct_min": 60,
+    "utc_offset": 1.0,
+    "country_code": "CZ",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 31.143,
+    "lon": 121.805,
+    "city": "Shanghai (Pudong)",
+    "code": "PVG",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 47.448,
+    "lon": -122.31,
+    "city": "Seattle",
+    "code": "SEA",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": -8.0,
+    "country_code": "US",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 37.62,
+    "lon": -122.375,
+    "city": "San Francisco",
+    "code": "SFO",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": -8.0,
+    "country_code": "US",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 22.639,
+    "lon": 113.811,
+    "city": "Shenzhen",
+    "code": "SZX",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 36.365,
+    "lon": 120.098,
+    "city": "Qingdao",
+    "code": "TAO",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 43.629,
+    "lon": 1.364,
+    "city": "Toulouse/Blagnac",
+    "code": "TLS",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 1.0,
+    "country_code": "FR",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 25.078,
+    "lon": 121.233,
+    "city": "Taoyuan",
+    "code": "TPE",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 8.0,
+    "country_code": "TW",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 45.505,
+    "lon": 12.352,
+    "city": "Venezia (VE)",
+    "code": "VCE",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 1.0,
+    "country_code": "IT",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 27.912,
+    "lon": 120.852,
+    "city": "Wenzhou",
+    "code": "WNZ",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 30.784,
+    "lon": 114.208,
+    "city": "Wuhan",
+    "code": "WUH",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 34.447,
+    "lon": 108.752,
+    "city": "Xianyang",
+    "code": "XIY",
+    "closed": false,
+    "mct_min": 75,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 24.544,
+    "lon": 118.127,
+    "city": "Xiamen",
+    "code": "XMN",
+    "closed": false,
+    "mct_min": null,
+    "utc_offset": 8.0,
+    "country_code": "CN",
+    "night_ban_to": null,
+    "night_ban_from": null,
+    "utc_offset_override": null
+   },
+   {
+    "lat": 47.458,
+    "lon": 8.548,
+    "city": "Zurich",
+    "code": "ZRH",
+    "closed": false,
+    "mct_min": 90,
+    "utc_offset": 1.0,
+    "country_code": "CH",
+    "night_ban_to": "05:59",
+    "night_ban_from": "00:01",
+    "utc_offset_override": null
+   }
+  ],
+  "airlines": [
+   {
+    "id": 1,
+    "ours": true,
+    "active": true,
+    "game_id": 114,
+    "position": 1,
+    "game_name": null,
+    "iata_code": "AW",
+    "public_name": "Pan Am",
+    "planner_name": "Pan American"
+   },
+   {
+    "id": 2,
+    "ours": true,
+    "active": true,
+    "game_id": 113,
+    "position": 2,
+    "game_name": null,
+    "iata_code": "KF",
+    "public_name": "Kingfisher",
+    "planner_name": "Kingfisher"
+   },
+   {
+    "id": 3,
+    "ours": true,
+    "active": true,
+    "game_id": 112,
+    "position": 3,
+    "game_name": null,
+    "iata_code": "FR",
+    "public_name": "Ryanair",
+    "planner_name": "Ryanair"
+   },
+   {
+    "id": 4,
+    "ours": true,
+    "active": true,
+    "game_id": 203,
+    "position": 4,
+    "game_name": null,
+    "iata_code": "VS",
+    "public_name": "Virgin Atlantic",
+    "planner_name": "Virgin Atlantic"
+   },
+   {
+    "id": 5,
+    "ours": true,
+    "active": true,
+    "game_id": 208,
+    "position": 5,
+    "game_name": null,
+    "iata_code": "MU",
+    "public_name": "China Eastern",
+    "planner_name": "China Eastern"
+   },
+   {
+    "id": 6,
+    "ours": true,
+    "active": true,
+    "game_id": 210,
+    "position": 6,
+    "game_name": null,
+    "iata_code": "MH",
+    "public_name": "Malaysia Airlines",
+    "planner_name": "Malaysia Airlines"
+   }
+  ],
+  "airline_bases": [
+   {
+    "id": 1,
+    "role": "hub",
+    "is_main": true,
+    "position": 0,
+    "airline_id": 1,
+    "bank_times": [
+     "06:45",
+     "14:45",
+     "22:45",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "JFK",
+    "flight_no_from": 1000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 2,
+    "role": "hub",
+    "is_main": false,
+    "position": 1,
+    "airline_id": 1,
+    "bank_times": [
+     "10:30",
+     "18:30",
+     "02:30",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "LAX",
+    "flight_no_from": 5000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 4,
+    "role": "focus",
+    "is_main": false,
+    "position": 3,
+    "airline_id": 1,
+    "bank_times": [
+     "11:00",
+     "19:00",
+     "03:00",
+     null
+    ],
+    "parent_code": "LAX",
+    "airport_code": "SFO",
+    "flight_no_from": 2000,
+    "last_flight_no": null,
+    "parent_base_id": 2
+   },
+   {
+    "id": 6,
+    "role": "focus",
+    "is_main": false,
+    "position": 5,
+    "airline_id": 1,
+    "bank_times": [
+     "10:00",
+     "18:00",
+     "02:00",
+     null
+    ],
+    "parent_code": "LAX",
+    "airport_code": "SEA",
+    "flight_no_from": 6000,
+    "last_flight_no": null,
+    "parent_base_id": 2
+   },
+   {
+    "id": 10,
+    "role": "hub",
+    "is_main": false,
+    "position": 9,
+    "airline_id": 3,
+    "bank_times": [
+     "02:45",
+     "06:00",
+     "10:45",
+     "22:30"
+    ],
+    "parent_code": null,
+    "airport_code": "AMS",
+    "flight_no_from": 3000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 11,
+    "role": "focus",
+    "is_main": false,
+    "position": 10,
+    "airline_id": 3,
+    "bank_times": [
+     "06:45",
+     "14:45",
+     "22:45",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "BCN",
+    "flight_no_from": 1000,
+    "last_flight_no": 1004,
+    "parent_base_id": null
+   },
+   {
+    "id": 12,
+    "role": "focus",
+    "is_main": false,
+    "position": 11,
+    "airline_id": 3,
+    "bank_times": [
+     "11:30",
+     "19:30",
+     "03:30",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "MXP",
+    "flight_no_from": 4000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 13,
+    "role": "focus",
+    "is_main": false,
+    "position": 12,
+    "airline_id": 3,
+    "bank_times": [
+     "14:15",
+     "22:15",
+     "06:15",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "MUC",
+    "flight_no_from": 5000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 14,
+    "role": "hub",
+    "is_main": true,
+    "position": 13,
+    "airline_id": 4,
+    "bank_times": [
+     "06:45",
+     "14:45",
+     "22:45",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "LGW",
+    "flight_no_from": 1000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 15,
+    "role": "focus",
+    "is_main": false,
+    "position": 14,
+    "airline_id": 4,
+    "bank_times": [
+     "09:45",
+     "17:45",
+     "01:45",
+     null
+    ],
+    "parent_code": "LGW",
+    "airport_code": "EDI",
+    "flight_no_from": 2000,
+    "last_flight_no": null,
+    "parent_base_id": 14
+   },
+   {
+    "id": 16,
+    "role": "hub",
+    "is_main": false,
+    "position": 15,
+    "airline_id": 4,
+    "bank_times": [
+     "09:30",
+     "17:30",
+     "01:30",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "MAN",
+    "flight_no_from": 3000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 17,
+    "role": "hub",
+    "is_main": true,
+    "position": 16,
+    "airline_id": 5,
+    "bank_times": [
+     "11:30",
+     "19:30",
+     "03:30",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "PVG",
+    "flight_no_from": 1000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 18,
+    "role": "focus",
+    "is_main": false,
+    "position": 17,
+    "airline_id": 5,
+    "bank_times": [
+     "07:00",
+     "15:00",
+     "23:00",
+     null
+    ],
+    "parent_code": "PVG",
+    "airport_code": "PKX",
+    "flight_no_from": 2000,
+    "last_flight_no": null,
+    "parent_base_id": 17
+   },
+   {
+    "id": 19,
+    "role": "focus",
+    "is_main": false,
+    "position": 18,
+    "airline_id": 5,
+    "bank_times": [
+     "07:15",
+     "15:15",
+     "23:15",
+     null
+    ],
+    "parent_code": "PVG",
+    "airport_code": "SZX",
+    "flight_no_from": 3000,
+    "last_flight_no": null,
+    "parent_base_id": 17
+   },
+   {
+    "id": 20,
+    "role": "hub",
+    "is_main": false,
+    "position": 19,
+    "airline_id": 5,
+    "bank_times": [
+     "07:00",
+     "15:00",
+     "23:00",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "KMG",
+    "flight_no_from": 4000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 21,
+    "role": "hub",
+    "is_main": false,
+    "position": 20,
+    "airline_id": 5,
+    "bank_times": [
+     "10:45",
+     "18:45",
+     "02:45",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "XIY",
+    "flight_no_from": 5000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   },
+   {
+    "id": 22,
+    "role": "hub",
+    "is_main": true,
+    "position": 21,
+    "airline_id": 6,
+    "bank_times": [
+     "12:30",
+     "23:10",
+     "04:30",
+     null
+    ],
+    "parent_code": null,
+    "airport_code": "KUL",
+    "flight_no_from": 1000,
+    "last_flight_no": null,
+    "parent_base_id": null
+   }
+  ],
+  "aircraft": [
+   {
+    "id": 2,
+    "status": "active",
+    "base_code": "JFK",
+    "airline_id": 1,
+    "registration": "N002AW",
+    "cabin_config_id": 3,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 8,
+    "status": "active",
+    "base_code": "JFK",
+    "airline_id": 1,
+    "registration": "N008AW",
+    "cabin_config_id": 5,
+    "aircraft_type_id": 3
+   },
+   {
+    "id": 9,
+    "status": "active",
+    "base_code": "JFK",
+    "airline_id": 1,
+    "registration": "N009AW",
+    "cabin_config_id": 5,
+    "aircraft_type_id": 3
+   },
+   {
+    "id": 32,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADG",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 33,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0157",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 35,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADH",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 36,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0158",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 43,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0159",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 51,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADI",
+    "cabin_config_id": 3,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 57,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0160",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 59,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADJ",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 65,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0161",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 66,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0162",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 67,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADK",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 68,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADL",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 69,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADM",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 70,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0163",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 72,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0220",
+    "cabin_config_id": 8,
+    "aircraft_type_id": 1
+   },
+   {
+    "id": 73,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0164",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 74,
+    "status": "active",
+    "base_code": "PKX",
+    "airline_id": 5,
+    "registration": "B-0165",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 80,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AAEC",
+    "cabin_config_id": 8,
+    "aircraft_type_id": 1
+   },
+   {
+    "id": 81,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADN",
+    "cabin_config_id": 3,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 82,
+    "status": "active",
+    "base_code": "LGW",
+    "airline_id": 4,
+    "registration": "G-AADO",
+    "cabin_config_id": 3,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 85,
+    "status": "active",
+    "base_code": "PVG",
+    "airline_id": 5,
+    "registration": "B-0166",
+    "cabin_config_id": 2,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 86,
+    "status": "active",
+    "base_code": "KUL",
+    "airline_id": 6,
+    "registration": "9M-AAJ",
+    "cabin_config_id": 3,
+    "aircraft_type_id": 2
+   },
+   {
+    "id": 87,
+    "status": "active",
+    "base_code": "JFK",
+    "airline_id": 1,
+    "registration": "N015AW",
+    "cabin_config_id": 6,
+    "aircraft_type_id": 3
+   }
+  ],
+  "routes": [
+   {
+    "id": 48,
+    "market": "Transatlantic – dense",
+    "hub_code": "JFK",
+    "dest_code": "FRA",
+    "market_id": 7,
+    "airline_id": 1,
+    "distance_km": 6189
+   },
+   {
+    "id": 60,
+    "market": "Transatlantic – dense",
+    "hub_code": "JFK",
+    "dest_code": "DUB",
+    "market_id": 7,
+    "airline_id": 1,
+    "distance_km": 5103
+   },
+   {
+    "id": 83,
+    "market": "Transatlantic – dense",
+    "hub_code": "JFK",
+    "dest_code": "AMS",
+    "market_id": 7,
+    "airline_id": 1,
+    "distance_km": 5848
+   },
+   {
+    "id": 123,
+    "market": "Transatlantic – dense",
+    "hub_code": "JFK",
+    "dest_code": "LGW",
+    "market_id": 7,
+    "airline_id": 1,
+    "distance_km": 5569
+   },
+   {
+    "id": 159,
+    "market": "Transcon",
+    "hub_code": "JFK",
+    "dest_code": "LAX",
+    "market_id": 9,
+    "airline_id": 1,
+    "distance_km": 3974
+   },
+   {
+    "id": 187,
+    "market": "Transcon",
+    "hub_code": "JFK",
+    "dest_code": "SFO",
+    "market_id": 9,
+    "airline_id": 1,
+    "distance_km": 4152
+   },
+   {
+    "id": 192,
+    "market": "Transcon",
+    "hub_code": "JFK",
+    "dest_code": "SEA",
+    "market_id": 9,
+    "airline_id": 1,
+    "distance_km": 3887
+   },
+   {
+    "id": 1997,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "AMS",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 364
+   },
+   {
+    "id": 2153,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "BCN",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1109
+   },
+   {
+    "id": 2279,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "MXP",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 899
+   },
+   {
+    "id": 2419,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "MUC",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 913
+   },
+   {
+    "id": 2457,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "PRG",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1024
+   },
+   {
+    "id": 2460,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "CPH",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 984
+   },
+   {
+    "id": 2482,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "LYS",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 717
+   },
+   {
+    "id": 2483,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "MRS",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 949
+   },
+   {
+    "id": 2490,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "TLS",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 844
+   },
+   {
+    "id": 2492,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "CGN",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 514
+   },
+   {
+    "id": 2494,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "FRA",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 629
+   },
+   {
+    "id": 2522,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "DUB",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 485
+   },
+   {
+    "id": 2538,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "FCO",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1406
+   },
+   {
+    "id": 2540,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "VCE",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1117
+   },
+   {
+    "id": 2561,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "OSL",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1226
+   },
+   {
+    "id": 2572,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "LIS",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1542
+   },
+   {
+    "id": 2591,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "MAD",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1213
+   },
+   {
+    "id": 2592,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "AGP",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 1645
+   },
+   {
+    "id": 2607,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "ZRH",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 754
+   },
+   {
+    "id": 2616,
+    "market": "Africa",
+    "hub_code": "LGW",
+    "dest_code": "IST",
+    "market_id": 26,
+    "airline_id": 4,
+    "distance_km": 2460
+   },
+   {
+    "id": 2624,
+    "market": "UK domestic",
+    "hub_code": "LGW",
+    "dest_code": "EDI",
+    "market_id": 32,
+    "airline_id": 4,
+    "distance_km": 574
+   },
+   {
+    "id": 2996,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "PEK",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1099
+   },
+   {
+    "id": 2997,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "PKX",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1050
+   },
+   {
+    "id": 2999,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "CSX",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 892
+   },
+   {
+    "id": 3002,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "CTU",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1704
+   },
+   {
+    "id": 3006,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "CKG",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1461
+   },
+   {
+    "id": 3019,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "FOC",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 616
+   },
+   {
+    "id": 3022,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "CAN",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1203
+   },
+   {
+    "id": 3024,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "KWE",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 1547
+   },
+   {
+    "id": 3025,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "HAK",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 1686
+   },
+   {
+    "id": 3045,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "KMG",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1988
+   },
+   {
+    "id": 3069,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "TAO",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 602
+   },
+   {
+    "id": 3077,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "SZX",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1233
+   },
+   {
+    "id": 3092,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "WNZ",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 371
+   },
+   {
+    "id": 3093,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "WUH",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 725
+   },
+   {
+    "id": 3094,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "XIY",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1273
+   },
+   {
+    "id": 3095,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "XMN",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 818
+   },
+   {
+    "id": 3117,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "CGO",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 833
+   },
+   {
+    "id": 3128,
+    "market": "China domestic – trunks",
+    "hub_code": "PVG",
+    "dest_code": "HKG",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1255
+   },
+   {
+    "id": 3142,
+    "market": "Asia regional",
+    "hub_code": "PVG",
+    "dest_code": "HND",
+    "market_id": 33,
+    "airline_id": 5,
+    "distance_km": 1738
+   },
+   {
+    "id": 3143,
+    "market": "Asia regional",
+    "hub_code": "PVG",
+    "dest_code": "NRT",
+    "market_id": 33,
+    "airline_id": 5,
+    "distance_km": 1796
+   },
+   {
+    "id": 3149,
+    "market": "Asia & Australia",
+    "hub_code": "KUL",
+    "dest_code": "PVG",
+    "market_id": 40,
+    "airline_id": 6,
+    "distance_km": 3797
+   },
+   {
+    "id": 3172,
+    "market": "Asia regional",
+    "hub_code": "PVG",
+    "dest_code": "ICN",
+    "market_id": 33,
+    "airline_id": 5,
+    "distance_km": 822
+   },
+   {
+    "id": 3179,
+    "market": "China domestic – secondary",
+    "hub_code": "PVG",
+    "dest_code": "TPE",
+    "market_id": 35,
+    "airline_id": 5,
+    "distance_km": 677
+   },
+   {
+    "id": 3181,
+    "market": "Asia regional",
+    "hub_code": "PVG",
+    "dest_code": "BKK",
+    "market_id": 33,
+    "airline_id": 5,
+    "distance_km": 2897
+   },
+   {
+    "id": 3210,
+    "market": "China domestic – trunks",
+    "hub_code": "PKX",
+    "dest_code": "CTU",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1504
+   },
+   {
+    "id": 3274,
+    "market": "China domestic – trunks",
+    "hub_code": "PKX",
+    "dest_code": "SZX",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 1891
+   },
+   {
+    "id": 3292,
+    "market": "China domestic – trunks",
+    "hub_code": "PKX",
+    "dest_code": "XIY",
+    "market_id": 36,
+    "airline_id": 5,
+    "distance_km": 881
+   },
+   {
+    "id": 4113,
+    "market": "Europe",
+    "hub_code": "LGW",
+    "dest_code": "BRU",
+    "market_id": 29,
+    "airline_id": 4,
+    "distance_km": 328
+   },
+   {
+    "id": 4116,
+    "market": "Africa",
+    "hub_code": "LGW",
+    "dest_code": "CAI",
+    "market_id": 26,
+    "airline_id": 4,
+    "distance_km": 3499
+   },
+   {
+    "id": 4166,
+    "market": "UK domestic",
+    "hub_code": "LGW",
+    "dest_code": "MAN",
+    "market_id": 32,
+    "airline_id": 4,
+    "distance_km": 283
+   }
+  ],
+  "rotations": [
+   {
+    "id": 4,
+    "route_id": 187,
+    "airline_id": 1,
+    "legacy_key": "7va2w9q"
+   },
+   {
+    "id": 13,
+    "route_id": 159,
+    "airline_id": 1,
+    "legacy_key": "05xoloi"
+   },
+   {
+    "id": 15,
+    "route_id": 192,
+    "airline_id": 1,
+    "legacy_key": "cm7uhlq"
+   },
+   {
+    "id": 75,
+    "route_id": 2624,
+    "airline_id": 4,
+    "legacy_key": "fmukbo5fcqjh"
+   },
+   {
+    "id": 76,
+    "route_id": 2522,
+    "airline_id": 4,
+    "legacy_key": "fmukbo64b2fx"
+   },
+   {
+    "id": 77,
+    "route_id": 1997,
+    "airline_id": 4,
+    "legacy_key": "fmukbo71706m"
+   },
+   {
+    "id": 78,
+    "route_id": 4166,
+    "airline_id": 4,
+    "legacy_key": "fmukbo7zwg4e"
+   },
+   {
+    "id": 79,
+    "route_id": 2996,
+    "airline_id": 5,
+    "legacy_key": "fmukc2gtxovo"
+   },
+   {
+    "id": 80,
+    "route_id": 2997,
+    "airline_id": 5,
+    "legacy_key": "fmukc2heaoo7"
+   },
+   {
+    "id": 81,
+    "route_id": 3172,
+    "airline_id": 5,
+    "legacy_key": "fmukc2hsny5m"
+   },
+   {
+    "id": 84,
+    "route_id": 2591,
+    "airline_id": 4,
+    "legacy_key": "fmulbmr4b4zz"
+   },
+   {
+    "id": 85,
+    "route_id": 2538,
+    "airline_id": 4,
+    "legacy_key": "fmulbmtbh2g0"
+   },
+   {
+    "id": 86,
+    "route_id": 2153,
+    "airline_id": 4,
+    "legacy_key": "fmulbmv3u1yf"
+   },
+   {
+    "id": 87,
+    "route_id": 3128,
+    "airline_id": 5,
+    "legacy_key": "fmulbvhmimw0"
+   },
+   {
+    "id": 88,
+    "route_id": 3077,
+    "airline_id": 5,
+    "legacy_key": "fmulbvj7xnp3"
+   },
+   {
+    "id": 89,
+    "route_id": 3022,
+    "airline_id": 5,
+    "legacy_key": "fmulbvko8ib6"
+   },
+   {
+    "id": 107,
+    "route_id": 3094,
+    "airline_id": 5,
+    "legacy_key": "fmumx3krxf1r"
+   },
+   {
+    "id": 108,
+    "route_id": 3019,
+    "airline_id": 5,
+    "legacy_key": "fmumx3krx4z4"
+   },
+   {
+    "id": 109,
+    "route_id": 3006,
+    "airline_id": 5,
+    "legacy_key": "fmumx3krx4oq"
+   },
+   {
+    "id": 132,
+    "route_id": 2572,
+    "airline_id": 4,
+    "legacy_key": "fmumysv404fc"
+   },
+   {
+    "id": 133,
+    "route_id": 2616,
+    "airline_id": 4,
+    "legacy_key": "fmumysv40ayo"
+   },
+   {
+    "id": 149,
+    "route_id": 3179,
+    "airline_id": 5,
+    "legacy_key": "fmunlm4d8dnk"
+   },
+   {
+    "id": 150,
+    "route_id": 3142,
+    "airline_id": 5,
+    "legacy_key": "fmunlm4d8g67"
+   },
+   {
+    "id": 151,
+    "route_id": 3002,
+    "airline_id": 5,
+    "legacy_key": "fmunlm4d8v79"
+   },
+   {
+    "id": 155,
+    "route_id": 2492,
+    "airline_id": 4,
+    "legacy_key": "fmunlv4d2e1w"
+   },
+   {
+    "id": 156,
+    "route_id": 2419,
+    "airline_id": 4,
+    "legacy_key": "fmunlv4d28se"
+   },
+   {
+    "id": 157,
+    "route_id": 2494,
+    "airline_id": 4,
+    "legacy_key": "fmunlv4d2ldo"
+   },
+   {
+    "id": 158,
+    "route_id": 2607,
+    "airline_id": 4,
+    "legacy_key": "fmunlv4d2lmr"
+   },
+   {
+    "id": 172,
+    "route_id": 3045,
+    "airline_id": 5,
+    "legacy_key": "fmuqfrpj163i"
+   },
+   {
+    "id": 173,
+    "route_id": 3181,
+    "airline_id": 5,
+    "legacy_key": "fmuqfrpj1fa3"
+   },
+   {
+    "id": 174,
+    "route_id": 3143,
+    "airline_id": 5,
+    "legacy_key": "fmuqgbu7d2r2"
+   },
+   {
+    "id": 175,
+    "route_id": 3069,
+    "airline_id": 5,
+    "legacy_key": "fmuqgbu7dach"
+   },
+   {
+    "id": 176,
+    "route_id": 3024,
+    "airline_id": 5,
+    "legacy_key": "fmuqgbu7dcm4"
+   },
+   {
+    "id": 177,
+    "route_id": 2279,
+    "airline_id": 4,
+    "legacy_key": "fmuqgsd84a9g"
+   },
+   {
+    "id": 178,
+    "route_id": 2482,
+    "airline_id": 4,
+    "legacy_key": "fmuqgsd8426d"
+   },
+   {
+    "id": 179,
+    "route_id": 2490,
+    "airline_id": 4,
+    "legacy_key": "fmuqgsd84fxf"
+   },
+   {
+    "id": 180,
+    "route_id": 4113,
+    "airline_id": 4,
+    "legacy_key": "fmuqgsd84tix"
+   },
+   {
+    "id": 181,
+    "route_id": 2460,
+    "airline_id": 4,
+    "legacy_key": "fmuqgyk101pb"
+   },
+   {
+    "id": 182,
+    "route_id": 2592,
+    "airline_id": 4,
+    "legacy_key": "fmuqgyk108um"
+   },
+   {
+    "id": 183,
+    "route_id": 2483,
+    "airline_id": 4,
+    "legacy_key": "fmuqgyk10v0m"
+   },
+   {
+    "id": 184,
+    "route_id": 2561,
+    "airline_id": 4,
+    "legacy_key": "fmur9wbo0cwj"
+   },
+   {
+    "id": 185,
+    "route_id": 2457,
+    "airline_id": 4,
+    "legacy_key": "fmur9wbo0b2s"
+   },
+   {
+    "id": 186,
+    "route_id": 2540,
+    "airline_id": 4,
+    "legacy_key": "fmur9wbo0r6x"
+   },
+   {
+    "id": 187,
+    "route_id": 3092,
+    "airline_id": 5,
+    "legacy_key": "fmura0gjqqg0"
+   },
+   {
+    "id": 188,
+    "route_id": 3117,
+    "airline_id": 5,
+    "legacy_key": "fmura0gjqw8o"
+   },
+   {
+    "id": 189,
+    "route_id": 3095,
+    "airline_id": 5,
+    "legacy_key": "fmura0gjqlry"
+   },
+   {
+    "id": 190,
+    "route_id": 3093,
+    "airline_id": 5,
+    "legacy_key": "fmura0gjreb0"
+   },
+   {
+    "id": 193,
+    "route_id": 2997,
+    "airline_id": 5,
+    "legacy_key": "fmuuenc9xx5g"
+   },
+   {
+    "id": 194,
+    "route_id": 3128,
+    "airline_id": 5,
+    "legacy_key": "fmuuenc9yafw"
+   },
+   {
+    "id": 195,
+    "route_id": 2996,
+    "airline_id": 5,
+    "legacy_key": "fmuuenc9ymei"
+   },
+   {
+    "id": 196,
+    "route_id": 3077,
+    "airline_id": 5,
+    "legacy_key": "fmuuerm06sr5"
+   },
+   {
+    "id": 197,
+    "route_id": 3025,
+    "airline_id": 5,
+    "legacy_key": "fmuuerm067gf"
+   },
+   {
+    "id": 198,
+    "route_id": 2999,
+    "airline_id": 5,
+    "legacy_key": "fmuuerm06dab"
+   },
+   {
+    "id": 199,
+    "route_id": 3292,
+    "airline_id": 5,
+    "legacy_key": "fmuuev9xxz6m"
+   },
+   {
+    "id": 200,
+    "route_id": 3274,
+    "airline_id": 5,
+    "legacy_key": "fmuuev9xx4aj"
+   },
+   {
+    "id": 201,
+    "route_id": 3210,
+    "airline_id": 5,
+    "legacy_key": "fmuuev9xxuy4"
+   },
+   {
+    "id": 215,
+    "route_id": 2153,
+    "airline_id": 4,
+    "legacy_key": "fmuugz96cm0f"
+   },
+   {
+    "id": 216,
+    "route_id": 2591,
+    "airline_id": 4,
+    "legacy_key": "fmuugz96cp4e"
+   },
+   {
+    "id": 217,
+    "route_id": 2538,
+    "airline_id": 4,
+    "legacy_key": "fmuugz96caef"
+   },
+   {
+    "id": 218,
+    "route_id": 2616,
+    "airline_id": 4,
+    "legacy_key": "fmuuh1xsj6zw"
+   },
+   {
+    "id": 219,
+    "route_id": 2522,
+    "airline_id": 4,
+    "legacy_key": "fmuuh1xsjuvd"
+   },
+   {
+    "id": 220,
+    "route_id": 2624,
+    "airline_id": 4,
+    "legacy_key": "fmuuh1xsj4d8"
+   },
+   {
+    "id": 221,
+    "route_id": 1997,
+    "airline_id": 4,
+    "legacy_key": "fmuuh51qzhew"
+   },
+   {
+    "id": 222,
+    "route_id": 4166,
+    "airline_id": 4,
+    "legacy_key": "fmuuh51qz7dq"
+   },
+   {
+    "id": 223,
+    "route_id": 4116,
+    "airline_id": 4,
+    "legacy_key": "fmuuh51qzi7i"
+   },
+   {
+    "id": 230,
+    "route_id": 3022,
+    "airline_id": 5,
+    "legacy_key": "fmuvh0xuyb8g"
+   },
+   {
+    "id": 231,
+    "route_id": 3006,
+    "airline_id": 5,
+    "legacy_key": "fmuvh0xuykau"
+   },
+   {
+    "id": 232,
+    "route_id": 3094,
+    "airline_id": 5,
+    "legacy_key": "fmuvh0xuylfk"
+   },
+   {
+    "id": 234,
+    "route_id": 3149,
+    "airline_id": 6,
+    "legacy_key": "fmuvh40fkkdu"
+   },
+   {
+    "id": 235,
+    "route_id": 123,
+    "airline_id": 1,
+    "legacy_key": "fmuvritbptk7"
+   }
+  ],
+  "flight_legs": [
+   {
+    "id": 7,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 321,
+    "dest_code": "SFO",
+    "flight_no": 1007,
+    "airline_id": 1,
+    "aircraft_id": 2,
+    "dep_utc_min": 705,
+    "origin_code": "JFK",
+    "rotation_id": 4
+   },
+   {
+    "id": 8,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 360,
+    "dest_code": "JFK",
+    "flight_no": 1008,
+    "airline_id": 1,
+    "aircraft_id": 2,
+    "dep_utc_min": 1140,
+    "origin_code": "SFO",
+    "rotation_id": 4
+   },
+   {
+    "id": 25,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 309,
+    "dest_code": "LAX",
+    "flight_no": 1037,
+    "airline_id": 1,
+    "aircraft_id": 8,
+    "dep_utc_min": 705,
+    "origin_code": "JFK",
+    "rotation_id": 13
+   },
+   {
+    "id": 26,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 309,
+    "dest_code": "JFK",
+    "flight_no": 1038,
+    "airline_id": 1,
+    "aircraft_id": 8,
+    "dep_utc_min": 1255,
+    "origin_code": "LAX",
+    "rotation_id": 13
+   },
+   {
+    "id": 29,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 302,
+    "dest_code": "SEA",
+    "flight_no": 1041,
+    "airline_id": 1,
+    "aircraft_id": 9,
+    "dep_utc_min": 705,
+    "origin_code": "JFK",
+    "rotation_id": 15
+   },
+   {
+    "id": 30,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 302,
+    "dest_code": "JFK",
+    "flight_no": 1042,
+    "airline_id": 1,
+    "aircraft_id": 9,
+    "dep_utc_min": 1255,
+    "origin_code": "SEA",
+    "rotation_id": 15
+   },
+   {
+    "id": 149,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 66,
+    "dest_code": "EDI",
+    "flight_no": 1001,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 456,
+    "origin_code": "LGW",
+    "rotation_id": 75
+   },
+   {
+    "id": 150,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 66,
+    "dest_code": "LGW",
+    "flight_no": 1002,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 603,
+    "origin_code": "EDI",
+    "rotation_id": 75
+   },
+   {
+    "id": 151,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 60,
+    "dest_code": "DUB",
+    "flight_no": 1003,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 750,
+    "origin_code": "LGW",
+    "rotation_id": 76
+   },
+   {
+    "id": 152,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 60,
+    "dest_code": "LGW",
+    "flight_no": 1004,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 891,
+    "origin_code": "DUB",
+    "rotation_id": 76
+   },
+   {
+    "id": 153,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 51,
+    "dest_code": "AMS",
+    "flight_no": 1005,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 1032,
+    "origin_code": "LGW",
+    "rotation_id": 77
+   },
+   {
+    "id": 154,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 51,
+    "dest_code": "LGW",
+    "flight_no": 1006,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 1164,
+    "origin_code": "AMS",
+    "rotation_id": 77
+   },
+   {
+    "id": 155,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 45,
+    "dest_code": "MAN",
+    "flight_no": 1007,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 1366,
+    "origin_code": "LGW",
+    "rotation_id": 78
+   },
+   {
+    "id": 156,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 45,
+    "dest_code": "LGW",
+    "flight_no": 1008,
+    "airline_id": 4,
+    "aircraft_id": 32,
+    "dep_utc_min": 330,
+    "origin_code": "MAN",
+    "rotation_id": 78
+   },
+   {
+    "id": 157,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 104,
+    "dest_code": "PEK",
+    "flight_no": 1001,
+    "airline_id": 5,
+    "aircraft_id": 33,
+    "dep_utc_min": 1230,
+    "origin_code": "PVG",
+    "rotation_id": 79
+   },
+   {
+    "id": 158,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 104,
+    "dest_code": "PVG",
+    "flight_no": 1002,
+    "airline_id": 5,
+    "aircraft_id": 33,
+    "dep_utc_min": 1415,
+    "origin_code": "PEK",
+    "rotation_id": 79
+   },
+   {
+    "id": 159,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 100,
+    "dest_code": "PKX",
+    "flight_no": 1003,
+    "airline_id": 5,
+    "aircraft_id": 33,
+    "dep_utc_min": 210,
+    "origin_code": "PVG",
+    "rotation_id": 80
+   },
+   {
+    "id": 160,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 100,
+    "dest_code": "PVG",
+    "flight_no": 1004,
+    "airline_id": 5,
+    "aircraft_id": 33,
+    "dep_utc_min": 422,
+    "origin_code": "PKX",
+    "rotation_id": 80
+   },
+   {
+    "id": 161,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 84,
+    "dest_code": "ICN",
+    "flight_no": 1005,
+    "airline_id": 5,
+    "aircraft_id": 33,
+    "dep_utc_min": 694,
+    "origin_code": "PVG",
+    "rotation_id": 81
+   },
+   {
+    "id": 162,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 84,
+    "dest_code": "PVG",
+    "flight_no": 1006,
+    "airline_id": 5,
+    "aircraft_id": 33,
+    "dep_utc_min": 1065,
+    "origin_code": "ICN",
+    "rotation_id": 81
+   },
+   {
+    "id": 167,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 112,
+    "dest_code": "MAD",
+    "flight_no": 1009,
+    "airline_id": 4,
+    "aircraft_id": 35,
+    "dep_utc_min": 465,
+    "origin_code": "LGW",
+    "rotation_id": 84
+   },
+   {
+    "id": 168,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 112,
+    "dest_code": "LGW",
+    "flight_no": 1010,
+    "airline_id": 4,
+    "aircraft_id": 35,
+    "dep_utc_min": 658,
+    "origin_code": "MAD",
+    "rotation_id": 84
+   },
+   {
+    "id": 169,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 125,
+    "dest_code": "FCO",
+    "flight_no": 1011,
+    "airline_id": 4,
+    "aircraft_id": 35,
+    "dep_utc_min": 886,
+    "origin_code": "LGW",
+    "rotation_id": 85
+   },
+   {
+    "id": 170,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 125,
+    "dest_code": "LGW",
+    "flight_no": 1012,
+    "airline_id": 4,
+    "aircraft_id": 35,
+    "dep_utc_min": 1093,
+    "origin_code": "FCO",
+    "rotation_id": 85
+   },
+   {
+    "id": 171,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 104,
+    "dest_code": "BCN",
+    "flight_no": 1013,
+    "airline_id": 4,
+    "aircraft_id": 35,
+    "dep_utc_min": 1300,
+    "origin_code": "LGW",
+    "rotation_id": 86
+   },
+   {
+    "id": 172,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 104,
+    "dest_code": "LGW",
+    "flight_no": 1014,
+    "airline_id": 4,
+    "aircraft_id": 35,
+    "dep_utc_min": 46,
+    "origin_code": "BCN",
+    "rotation_id": 86
+   },
+   {
+    "id": 173,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 115,
+    "dest_code": "HKG",
+    "flight_no": 1007,
+    "airline_id": 5,
+    "aircraft_id": 36,
+    "dep_utc_min": 1228,
+    "origin_code": "PVG",
+    "rotation_id": 87
+   },
+   {
+    "id": 174,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 115,
+    "dest_code": "PVG",
+    "flight_no": 1008,
+    "airline_id": 5,
+    "aircraft_id": 36,
+    "dep_utc_min": 1424,
+    "origin_code": "HKG",
+    "rotation_id": 87
+   },
+   {
+    "id": 175,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "SZX",
+    "flight_no": 1009,
+    "airline_id": 5,
+    "aircraft_id": 36,
+    "dep_utc_min": 210,
+    "origin_code": "PVG",
+    "rotation_id": 88
+   },
+   {
+    "id": 176,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "PVG",
+    "flight_no": 1010,
+    "airline_id": 5,
+    "aircraft_id": 36,
+    "dep_utc_min": 435,
+    "origin_code": "SZX",
+    "rotation_id": 88
+   },
+   {
+    "id": 177,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 111,
+    "dest_code": "CAN",
+    "flight_no": 1011,
+    "airline_id": 5,
+    "aircraft_id": 36,
+    "dep_utc_min": 630,
+    "origin_code": "PVG",
+    "rotation_id": 89
+   },
+   {
+    "id": 178,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 111,
+    "dest_code": "PVG",
+    "flight_no": 1012,
+    "airline_id": 5,
+    "aircraft_id": 36,
+    "dep_utc_min": 1035,
+    "origin_code": "CAN",
+    "rotation_id": 89
+   },
+   {
+    "id": 213,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 116,
+    "dest_code": "XIY",
+    "flight_no": 1013,
+    "airline_id": 5,
+    "aircraft_id": 43,
+    "dep_utc_min": 1410,
+    "origin_code": "PVG",
+    "rotation_id": 107
+   },
+   {
+    "id": 214,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 116,
+    "dest_code": "PVG",
+    "flight_no": 1014,
+    "airline_id": 5,
+    "aircraft_id": 43,
+    "dep_utc_min": 168,
+    "origin_code": "XIY",
+    "rotation_id": 107
+   },
+   {
+    "id": 215,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 69,
+    "dest_code": "FOC",
+    "flight_no": 1015,
+    "airline_id": 5,
+    "aircraft_id": 43,
+    "dep_utc_min": 366,
+    "origin_code": "PVG",
+    "rotation_id": 108
+   },
+   {
+    "id": 216,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 69,
+    "dest_code": "PVG",
+    "flight_no": 1016,
+    "airline_id": 5,
+    "aircraft_id": 43,
+    "dep_utc_min": 516,
+    "origin_code": "FOC",
+    "rotation_id": 108
+   },
+   {
+    "id": 217,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 129,
+    "dest_code": "CKG",
+    "flight_no": 1017,
+    "airline_id": 5,
+    "aircraft_id": 43,
+    "dep_utc_min": 691,
+    "origin_code": "PVG",
+    "rotation_id": 109
+   },
+   {
+    "id": 218,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 129,
+    "dest_code": "PVG",
+    "flight_no": 1018,
+    "airline_id": 5,
+    "aircraft_id": 43,
+    "dep_utc_min": 902,
+    "origin_code": "CKG",
+    "rotation_id": 109
+   },
+   {
+    "id": 263,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 135,
+    "dest_code": "LIS",
+    "flight_no": 1015,
+    "airline_id": 4,
+    "aircraft_id": 51,
+    "dep_utc_min": 408,
+    "origin_code": "LGW",
+    "rotation_id": 132
+   },
+   {
+    "id": 264,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 135,
+    "dest_code": "LGW",
+    "flight_no": 1016,
+    "airline_id": 4,
+    "aircraft_id": 51,
+    "dep_utc_min": 625,
+    "origin_code": "LIS",
+    "rotation_id": 132
+   },
+   {
+    "id": 265,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 201,
+    "dest_code": "IST",
+    "flight_no": 1017,
+    "airline_id": 4,
+    "aircraft_id": 51,
+    "dep_utc_min": 887,
+    "origin_code": "LGW",
+    "rotation_id": 133
+   },
+   {
+    "id": 266,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 201,
+    "dest_code": "LGW",
+    "flight_no": 1018,
+    "airline_id": 4,
+    "aircraft_id": 51,
+    "dep_utc_min": 110,
+    "origin_code": "IST",
+    "rotation_id": 133
+   },
+   {
+    "id": 297,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 73,
+    "dest_code": "TPE",
+    "flight_no": 1019,
+    "airline_id": 5,
+    "aircraft_id": 57,
+    "dep_utc_min": 1330,
+    "origin_code": "PVG",
+    "rotation_id": 149
+   },
+   {
+    "id": 298,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 73,
+    "dest_code": "PVG",
+    "flight_no": 1020,
+    "airline_id": 5,
+    "aircraft_id": 57,
+    "dep_utc_min": 45,
+    "origin_code": "TPE",
+    "rotation_id": 149
+   },
+   {
+    "id": 299,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 149,
+    "dest_code": "HND",
+    "flight_no": 1021,
+    "airline_id": 5,
+    "aircraft_id": 57,
+    "dep_utc_min": 210,
+    "origin_code": "PVG",
+    "rotation_id": 150
+   },
+   {
+    "id": 300,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 149,
+    "dest_code": "PVG",
+    "flight_no": 1022,
+    "airline_id": 5,
+    "aircraft_id": 57,
+    "dep_utc_min": 441,
+    "origin_code": "HND",
+    "rotation_id": 150
+   },
+   {
+    "id": 301,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 147,
+    "dest_code": "CTU",
+    "flight_no": 1023,
+    "airline_id": 5,
+    "aircraft_id": 57,
+    "dep_utc_min": 672,
+    "origin_code": "PVG",
+    "rotation_id": 151
+   },
+   {
+    "id": 302,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 147,
+    "dest_code": "PVG",
+    "flight_no": 1024,
+    "airline_id": 5,
+    "aircraft_id": 57,
+    "dep_utc_min": 901,
+    "origin_code": "CTU",
+    "rotation_id": 151
+   },
+   {
+    "id": 309,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 62,
+    "dest_code": "CGN",
+    "flight_no": 1019,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 60,
+    "origin_code": "LGW",
+    "rotation_id": 155
+   },
+   {
+    "id": 310,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 62,
+    "dest_code": "LGW",
+    "flight_no": 1020,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 193,
+    "origin_code": "CGN",
+    "rotation_id": 155
+   },
+   {
+    "id": 311,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 90,
+    "dest_code": "MUC",
+    "flight_no": 1021,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 326,
+    "origin_code": "LGW",
+    "rotation_id": 156
+   },
+   {
+    "id": 312,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 90,
+    "dest_code": "LGW",
+    "flight_no": 1022,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 488,
+    "origin_code": "MUC",
+    "rotation_id": 156
+   },
+   {
+    "id": 313,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 70,
+    "dest_code": "FRA",
+    "flight_no": 1023,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 650,
+    "origin_code": "LGW",
+    "rotation_id": 157
+   },
+   {
+    "id": 314,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 70,
+    "dest_code": "LGW",
+    "flight_no": 1024,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 791,
+    "origin_code": "FRA",
+    "rotation_id": 157
+   },
+   {
+    "id": 315,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 79,
+    "dest_code": "ZRH",
+    "flight_no": 1025,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 932,
+    "origin_code": "LGW",
+    "rotation_id": 158
+   },
+   {
+    "id": 316,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 79,
+    "dest_code": "LGW",
+    "flight_no": 1026,
+    "airline_id": 4,
+    "aircraft_id": 59,
+    "dep_utc_min": 1082,
+    "origin_code": "ZRH",
+    "rotation_id": 158
+   },
+   {
+    "id": 343,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 165,
+    "dest_code": "KMG",
+    "flight_no": 1025,
+    "airline_id": 5,
+    "aircraft_id": 65,
+    "dep_utc_min": 210,
+    "origin_code": "PVG",
+    "rotation_id": 172
+   },
+   {
+    "id": 344,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 165,
+    "dest_code": "PVG",
+    "flight_no": 1026,
+    "airline_id": 5,
+    "aircraft_id": 65,
+    "dep_utc_min": 459,
+    "origin_code": "KMG",
+    "rotation_id": 172
+   },
+   {
+    "id": 345,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 232,
+    "dest_code": "BKK",
+    "flight_no": 1027,
+    "airline_id": 5,
+    "aircraft_id": 65,
+    "dep_utc_min": 708,
+    "origin_code": "PVG",
+    "rotation_id": 173
+   },
+   {
+    "id": 346,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 232,
+    "dest_code": "PVG",
+    "flight_no": 1028,
+    "airline_id": 5,
+    "aircraft_id": 65,
+    "dep_utc_min": 1325,
+    "origin_code": "BKK",
+    "rotation_id": 173
+   },
+   {
+    "id": 347,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 153,
+    "dest_code": "NRT",
+    "flight_no": 1029,
+    "airline_id": 5,
+    "aircraft_id": 66,
+    "dep_utc_min": 1170,
+    "origin_code": "PVG",
+    "rotation_id": 174
+   },
+   {
+    "id": 348,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 153,
+    "dest_code": "PVG",
+    "flight_no": 1030,
+    "airline_id": 5,
+    "aircraft_id": 66,
+    "dep_utc_min": 1405,
+    "origin_code": "NRT",
+    "rotation_id": 174
+   },
+   {
+    "id": 349,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 68,
+    "dest_code": "TAO",
+    "flight_no": 1031,
+    "airline_id": 5,
+    "aircraft_id": 66,
+    "dep_utc_min": 210,
+    "origin_code": "PVG",
+    "rotation_id": 175
+   },
+   {
+    "id": 350,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 68,
+    "dest_code": "PVG",
+    "flight_no": 1032,
+    "airline_id": 5,
+    "aircraft_id": 66,
+    "dep_utc_min": 359,
+    "origin_code": "TAO",
+    "rotation_id": 175
+   },
+   {
+    "id": 351,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 135,
+    "dest_code": "KWE",
+    "flight_no": 1033,
+    "airline_id": 5,
+    "aircraft_id": 66,
+    "dep_utc_min": 693,
+    "origin_code": "PVG",
+    "rotation_id": 176
+   },
+   {
+    "id": 352,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 135,
+    "dest_code": "PVG",
+    "flight_no": 1034,
+    "airline_id": 5,
+    "aircraft_id": 66,
+    "dep_utc_min": 906,
+    "origin_code": "KWE",
+    "rotation_id": 176
+   },
+   {
+    "id": 353,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 89,
+    "dest_code": "MXP",
+    "flight_no": 1027,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 5,
+    "origin_code": "LGW",
+    "rotation_id": 177
+   },
+   {
+    "id": 354,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 89,
+    "dest_code": "LGW",
+    "flight_no": 1028,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 166,
+    "origin_code": "MXP",
+    "rotation_id": 177
+   },
+   {
+    "id": 355,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 76,
+    "dest_code": "LYS",
+    "flight_no": 1029,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 327,
+    "origin_code": "LGW",
+    "rotation_id": 178
+   },
+   {
+    "id": 356,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 76,
+    "dest_code": "LGW",
+    "flight_no": 1030,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 475,
+    "origin_code": "LYS",
+    "rotation_id": 178
+   },
+   {
+    "id": 357,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 85,
+    "dest_code": "TLS",
+    "flight_no": 1031,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 623,
+    "origin_code": "LGW",
+    "rotation_id": 179
+   },
+   {
+    "id": 358,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 85,
+    "dest_code": "LGW",
+    "flight_no": 1032,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 780,
+    "origin_code": "TLS",
+    "rotation_id": 179
+   },
+   {
+    "id": 359,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 48,
+    "dest_code": "BRU",
+    "flight_no": 1033,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 937,
+    "origin_code": "LGW",
+    "rotation_id": 180
+   },
+   {
+    "id": 360,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 48,
+    "dest_code": "LGW",
+    "flight_no": 1034,
+    "airline_id": 4,
+    "aircraft_id": 67,
+    "dep_utc_min": 1057,
+    "origin_code": "BRU",
+    "rotation_id": 180
+   },
+   {
+    "id": 361,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 95,
+    "dest_code": "CPH",
+    "flight_no": 1035,
+    "airline_id": 4,
+    "aircraft_id": 68,
+    "dep_utc_min": 465,
+    "origin_code": "LGW",
+    "rotation_id": 181
+   },
+   {
+    "id": 362,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 95,
+    "dest_code": "LGW",
+    "flight_no": 1036,
+    "airline_id": 4,
+    "aircraft_id": 68,
+    "dep_utc_min": 642,
+    "origin_code": "CPH",
+    "rotation_id": 181
+   },
+   {
+    "id": 363,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 142,
+    "dest_code": "AGP",
+    "flight_no": 1037,
+    "airline_id": 4,
+    "aircraft_id": 68,
+    "dep_utc_min": 889,
+    "origin_code": "LGW",
+    "rotation_id": 182
+   },
+   {
+    "id": 364,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 142,
+    "dest_code": "LGW",
+    "flight_no": 1038,
+    "airline_id": 4,
+    "aircraft_id": 68,
+    "dep_utc_min": 1114,
+    "origin_code": "AGP",
+    "rotation_id": 182
+   },
+   {
+    "id": 365,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 93,
+    "dest_code": "MRS",
+    "flight_no": 1039,
+    "airline_id": 4,
+    "aircraft_id": 68,
+    "dep_utc_min": 1365,
+    "origin_code": "LGW",
+    "rotation_id": 183
+   },
+   {
+    "id": 366,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 93,
+    "dest_code": "LGW",
+    "flight_no": 1040,
+    "airline_id": 4,
+    "aircraft_id": 68,
+    "dep_utc_min": 99,
+    "origin_code": "MRS",
+    "rotation_id": 183
+   },
+   {
+    "id": 367,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "OSL",
+    "flight_no": 1041,
+    "airline_id": 4,
+    "aircraft_id": 69,
+    "dep_utc_min": 465,
+    "origin_code": "LGW",
+    "rotation_id": 184
+   },
+   {
+    "id": 368,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "LGW",
+    "flight_no": 1042,
+    "airline_id": 4,
+    "aircraft_id": 69,
+    "dep_utc_min": 659,
+    "origin_code": "OSL",
+    "rotation_id": 184
+   },
+   {
+    "id": 369,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 98,
+    "dest_code": "PRG",
+    "flight_no": 1043,
+    "airline_id": 4,
+    "aircraft_id": 69,
+    "dep_utc_min": 888,
+    "origin_code": "LGW",
+    "rotation_id": 185
+   },
+   {
+    "id": 370,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 98,
+    "dest_code": "LGW",
+    "flight_no": 1044,
+    "airline_id": 4,
+    "aircraft_id": 69,
+    "dep_utc_min": 1068,
+    "origin_code": "PRG",
+    "rotation_id": 185
+   },
+   {
+    "id": 371,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 105,
+    "dest_code": "VCE",
+    "flight_no": 1045,
+    "airline_id": 4,
+    "aircraft_id": 69,
+    "dep_utc_min": 1248,
+    "origin_code": "LGW",
+    "rotation_id": 186
+   },
+   {
+    "id": 372,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 105,
+    "dest_code": "LGW",
+    "flight_no": 1046,
+    "airline_id": 4,
+    "aircraft_id": 69,
+    "dep_utc_min": 1434,
+    "origin_code": "VCE",
+    "rotation_id": 186
+   },
+   {
+    "id": 373,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 52,
+    "dest_code": "WNZ",
+    "flight_no": 1035,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 1385,
+    "origin_code": "PVG",
+    "rotation_id": 187
+   },
+   {
+    "id": 374,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 52,
+    "dest_code": "PVG",
+    "flight_no": 1036,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 68,
+    "origin_code": "WNZ",
+    "rotation_id": 187
+   },
+   {
+    "id": 375,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 84,
+    "dest_code": "CGO",
+    "flight_no": 1037,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 211,
+    "origin_code": "PVG",
+    "rotation_id": 188
+   },
+   {
+    "id": 376,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 84,
+    "dest_code": "PVG",
+    "flight_no": 1038,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 367,
+    "origin_code": "CGO",
+    "rotation_id": 188
+   },
+   {
+    "id": 377,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 83,
+    "dest_code": "XMN",
+    "flight_no": 1039,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 523,
+    "origin_code": "PVG",
+    "rotation_id": 189
+   },
+   {
+    "id": 378,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 83,
+    "dest_code": "PVG",
+    "flight_no": 1040,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 678,
+    "origin_code": "XMN",
+    "rotation_id": 189
+   },
+   {
+    "id": 379,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 77,
+    "dest_code": "WUH",
+    "flight_no": 1041,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 833,
+    "origin_code": "PVG",
+    "rotation_id": 190
+   },
+   {
+    "id": 380,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 77,
+    "dest_code": "PVG",
+    "flight_no": 1042,
+    "airline_id": 5,
+    "aircraft_id": 70,
+    "dep_utc_min": 981,
+    "origin_code": "WUH",
+    "rotation_id": 190
+   },
+   {
+    "id": 385,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 101,
+    "dest_code": "PKX",
+    "flight_no": 1053,
+    "airline_id": 5,
+    "aircraft_id": 72,
+    "dep_utc_min": 1320,
+    "origin_code": "PVG",
+    "rotation_id": 193
+   },
+   {
+    "id": 386,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 101,
+    "dest_code": "PVG",
+    "flight_no": 1054,
+    "airline_id": 5,
+    "aircraft_id": 72,
+    "dep_utc_min": 60,
+    "origin_code": "PKX",
+    "rotation_id": 193
+   },
+   {
+    "id": 387,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 116,
+    "dest_code": "HKG",
+    "flight_no": 1055,
+    "airline_id": 5,
+    "aircraft_id": 72,
+    "dep_utc_min": 240,
+    "origin_code": "PVG",
+    "rotation_id": 194
+   },
+   {
+    "id": 388,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 116,
+    "dest_code": "PVG",
+    "flight_no": 1056,
+    "airline_id": 5,
+    "aircraft_id": 72,
+    "dep_utc_min": 435,
+    "origin_code": "HKG",
+    "rotation_id": 194
+   },
+   {
+    "id": 389,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 104,
+    "dest_code": "PEK",
+    "flight_no": 1057,
+    "airline_id": 5,
+    "aircraft_id": 72,
+    "dep_utc_min": 695,
+    "origin_code": "PVG",
+    "rotation_id": 195
+   },
+   {
+    "id": 390,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 104,
+    "dest_code": "PVG",
+    "flight_no": 1058,
+    "airline_id": 5,
+    "aircraft_id": 72,
+    "dep_utc_min": 879,
+    "origin_code": "PEK",
+    "rotation_id": 195
+   },
+   {
+    "id": 391,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "SZX",
+    "flight_no": 1043,
+    "airline_id": 5,
+    "aircraft_id": 73,
+    "dep_utc_min": 1230,
+    "origin_code": "PVG",
+    "rotation_id": 196
+   },
+   {
+    "id": 392,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "PVG",
+    "flight_no": 1044,
+    "airline_id": 5,
+    "aircraft_id": 73,
+    "dep_utc_min": 1424,
+    "origin_code": "SZX",
+    "rotation_id": 196
+   },
+   {
+    "id": 393,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 145,
+    "dest_code": "HAK",
+    "flight_no": 1045,
+    "airline_id": 5,
+    "aircraft_id": 73,
+    "dep_utc_min": 212,
+    "origin_code": "PVG",
+    "rotation_id": 197
+   },
+   {
+    "id": 394,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 145,
+    "dest_code": "PVG",
+    "flight_no": 1046,
+    "airline_id": 5,
+    "aircraft_id": 73,
+    "dep_utc_min": 440,
+    "origin_code": "HAK",
+    "rotation_id": 197
+   },
+   {
+    "id": 395,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 89,
+    "dest_code": "CSX",
+    "flight_no": 1047,
+    "airline_id": 5,
+    "aircraft_id": 73,
+    "dep_utc_min": 694,
+    "origin_code": "PVG",
+    "rotation_id": 198
+   },
+   {
+    "id": 396,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 89,
+    "dest_code": "PVG",
+    "flight_no": 1048,
+    "airline_id": 5,
+    "aircraft_id": 73,
+    "dep_utc_min": 864,
+    "origin_code": "CSX",
+    "rotation_id": 198
+   },
+   {
+    "id": 397,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 88,
+    "dest_code": "XIY",
+    "flight_no": 2001,
+    "airline_id": 5,
+    "aircraft_id": 74,
+    "dep_utc_min": 1290,
+    "origin_code": "PKX",
+    "rotation_id": 199
+   },
+   {
+    "id": 398,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 88,
+    "dest_code": "PKX",
+    "flight_no": 2002,
+    "airline_id": 5,
+    "aircraft_id": 74,
+    "dep_utc_min": 15,
+    "origin_code": "XIY",
+    "rotation_id": 199
+   },
+   {
+    "id": 399,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 160,
+    "dest_code": "SZX",
+    "flight_no": 2003,
+    "airline_id": 5,
+    "aircraft_id": 74,
+    "dep_utc_min": 180,
+    "origin_code": "PKX",
+    "rotation_id": 200
+   },
+   {
+    "id": 400,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 160,
+    "dest_code": "PKX",
+    "flight_no": 2004,
+    "airline_id": 5,
+    "aircraft_id": 74,
+    "dep_utc_min": 417,
+    "origin_code": "SZX",
+    "rotation_id": 200
+   },
+   {
+    "id": 401,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 132,
+    "dest_code": "CTU",
+    "flight_no": 2019,
+    "airline_id": 5,
+    "aircraft_id": 74,
+    "dep_utc_min": 654,
+    "origin_code": "PKX",
+    "rotation_id": 201
+   },
+   {
+    "id": 402,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 132,
+    "dest_code": "PKX",
+    "flight_no": 2020,
+    "airline_id": 5,
+    "aircraft_id": 74,
+    "dep_utc_min": 864,
+    "origin_code": "CTU",
+    "rotation_id": 201
+   },
+   {
+    "id": 429,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 105,
+    "dest_code": "BCN",
+    "flight_no": 1063,
+    "airline_id": 4,
+    "aircraft_id": 80,
+    "dep_utc_min": 410,
+    "origin_code": "LGW",
+    "rotation_id": 215
+   },
+   {
+    "id": 430,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 105,
+    "dest_code": "LGW",
+    "flight_no": 1064,
+    "airline_id": 4,
+    "aircraft_id": 80,
+    "dep_utc_min": 594,
+    "origin_code": "BCN",
+    "rotation_id": 215
+   },
+   {
+    "id": 431,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "MAD",
+    "flight_no": 1065,
+    "airline_id": 4,
+    "aircraft_id": 80,
+    "dep_utc_min": 778,
+    "origin_code": "LGW",
+    "rotation_id": 216
+   },
+   {
+    "id": 432,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 113,
+    "dest_code": "LGW",
+    "flight_no": 1066,
+    "airline_id": 4,
+    "aircraft_id": 80,
+    "dep_utc_min": 970,
+    "origin_code": "MAD",
+    "rotation_id": 216
+   },
+   {
+    "id": 433,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 127,
+    "dest_code": "FCO",
+    "flight_no": 1067,
+    "airline_id": 4,
+    "aircraft_id": 80,
+    "dep_utc_min": 1162,
+    "origin_code": "LGW",
+    "rotation_id": 217
+   },
+   {
+    "id": 434,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 127,
+    "dest_code": "LGW",
+    "flight_no": 1068,
+    "airline_id": 4,
+    "aircraft_id": 80,
+    "dep_utc_min": 1367,
+    "origin_code": "FCO",
+    "rotation_id": 217
+   },
+   {
+    "id": 435,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 201,
+    "dest_code": "IST",
+    "flight_no": 1047,
+    "airline_id": 4,
+    "aircraft_id": 81,
+    "dep_utc_min": 405,
+    "origin_code": "LGW",
+    "rotation_id": 218
+   },
+   {
+    "id": 436,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 201,
+    "dest_code": "LGW",
+    "flight_no": 1048,
+    "airline_id": 4,
+    "aircraft_id": 81,
+    "dep_utc_min": 687,
+    "origin_code": "IST",
+    "rotation_id": 218
+   },
+   {
+    "id": 437,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 60,
+    "dest_code": "DUB",
+    "flight_no": 1049,
+    "airline_id": 4,
+    "aircraft_id": 81,
+    "dep_utc_min": 969,
+    "origin_code": "LGW",
+    "rotation_id": 219
+   },
+   {
+    "id": 438,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 60,
+    "dest_code": "LGW",
+    "flight_no": 1050,
+    "airline_id": 4,
+    "aircraft_id": 81,
+    "dep_utc_min": 1109,
+    "origin_code": "DUB",
+    "rotation_id": 219
+   },
+   {
+    "id": 439,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 66,
+    "dest_code": "EDI",
+    "flight_no": 1051,
+    "airline_id": 4,
+    "aircraft_id": 81,
+    "dep_utc_min": 1249,
+    "origin_code": "LGW",
+    "rotation_id": 220
+   },
+   {
+    "id": 440,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 66,
+    "dest_code": "LGW",
+    "flight_no": 1052,
+    "airline_id": 4,
+    "aircraft_id": 81,
+    "dep_utc_min": 1395,
+    "origin_code": "EDI",
+    "rotation_id": 220
+   },
+   {
+    "id": 441,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 51,
+    "dest_code": "AMS",
+    "flight_no": 1053,
+    "airline_id": 4,
+    "aircraft_id": 82,
+    "dep_utc_min": 405,
+    "origin_code": "LGW",
+    "rotation_id": 221
+   },
+   {
+    "id": 442,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 51,
+    "dest_code": "LGW",
+    "flight_no": 1054,
+    "airline_id": 4,
+    "aircraft_id": 82,
+    "dep_utc_min": 536,
+    "origin_code": "AMS",
+    "rotation_id": 221
+   },
+   {
+    "id": 443,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 45,
+    "dest_code": "MAN",
+    "flight_no": 1055,
+    "airline_id": 4,
+    "aircraft_id": 82,
+    "dep_utc_min": 667,
+    "origin_code": "LGW",
+    "rotation_id": 222
+   },
+   {
+    "id": 444,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 45,
+    "dest_code": "LGW",
+    "flight_no": 1056,
+    "airline_id": 4,
+    "aircraft_id": 82,
+    "dep_utc_min": 792,
+    "origin_code": "MAN",
+    "rotation_id": 222
+   },
+   {
+    "id": 445,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 275,
+    "dest_code": "CAI",
+    "flight_no": 1057,
+    "airline_id": 4,
+    "aircraft_id": 82,
+    "dep_utc_min": 917,
+    "origin_code": "LGW",
+    "rotation_id": 223
+   },
+   {
+    "id": 446,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 275,
+    "dest_code": "LGW",
+    "flight_no": 1058,
+    "airline_id": 4,
+    "aircraft_id": 82,
+    "dep_utc_min": 1272,
+    "origin_code": "CAI",
+    "rotation_id": 223
+   },
+   {
+    "id": 459,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 111,
+    "dest_code": "CAN",
+    "flight_no": 1059,
+    "airline_id": 5,
+    "aircraft_id": 85,
+    "dep_utc_min": 1290,
+    "origin_code": "PVG",
+    "rotation_id": 230
+   },
+   {
+    "id": 460,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 111,
+    "dest_code": "PVG",
+    "flight_no": 1060,
+    "airline_id": 5,
+    "aircraft_id": 85,
+    "dep_utc_min": 42,
+    "origin_code": "CAN",
+    "rotation_id": 230
+   },
+   {
+    "id": 461,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 129,
+    "dest_code": "CKG",
+    "flight_no": 1061,
+    "airline_id": 5,
+    "aircraft_id": 85,
+    "dep_utc_min": 234,
+    "origin_code": "PVG",
+    "rotation_id": 231
+   },
+   {
+    "id": 462,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 129,
+    "dest_code": "PVG",
+    "flight_no": 1062,
+    "airline_id": 5,
+    "aircraft_id": 85,
+    "dep_utc_min": 445,
+    "origin_code": "CKG",
+    "rotation_id": 231
+   },
+   {
+    "id": 463,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 116,
+    "dest_code": "XIY",
+    "flight_no": 1063,
+    "airline_id": 5,
+    "aircraft_id": 85,
+    "dep_utc_min": 694,
+    "origin_code": "PVG",
+    "rotation_id": 232
+   },
+   {
+    "id": 464,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 116,
+    "dest_code": "PVG",
+    "flight_no": 1064,
+    "airline_id": 5,
+    "aircraft_id": 85,
+    "dep_utc_min": 892,
+    "origin_code": "XIY",
+    "rotation_id": 232
+   },
+   {
+    "id": 467,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 296,
+    "dest_code": "PVG",
+    "flight_no": 1039,
+    "airline_id": 6,
+    "aircraft_id": 86,
+    "dep_utc_min": 915,
+    "origin_code": "KUL",
+    "rotation_id": 234
+   },
+   {
+    "id": 468,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 296,
+    "dest_code": "KUL",
+    "flight_no": 1040,
+    "airline_id": 6,
+    "aircraft_id": 86,
+    "dep_utc_min": 1340,
+    "origin_code": "PVG",
+    "rotation_id": 234
+   },
+   {
+    "id": 469,
+    "leg_no": 1,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 423,
+    "dest_code": "LGW",
+    "flight_no": 1055,
+    "airline_id": 1,
+    "aircraft_id": 87,
+    "dep_utc_min": 1395,
+    "origin_code": "JFK",
+    "rotation_id": 235
+   },
+   {
+    "id": 470,
+    "leg_no": 2,
+    "days_utc": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "block_min": 423,
+    "dest_code": "JFK",
+    "flight_no": 1056,
+    "airline_id": 1,
+    "aircraft_id": 87,
+    "dep_utc_min": 900,
+    "origin_code": "LGW",
+    "rotation_id": 235
+   }
+  ],
+  "service_profiles": [
+   {
+    "id": 1,
+    "code": "S1",
+    "airline_id": null,
+    "up_to_km": 800
+   },
+   {
+    "id": 2,
+    "code": "S2",
+    "airline_id": null,
+    "up_to_km": 1500
+   },
+   {
+    "id": 3,
+    "code": "S3",
+    "airline_id": null,
+    "up_to_km": 4192
+   },
+   {
+    "id": 4,
+    "code": "S4",
+    "airline_id": null,
+    "up_to_km": 99999
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "the Pan Am A350-900 sample line of 27 Oct: six routes, 12 legs, on the 12 Oct sample's legs at the six airports, a work budget of 1,200",
+   "rule": "spec docs/specs/2026-10-27-long-haul-lines.md §1: scored by connections within plan_connection_target_h at the hubs, then all connections, then routes covered, block hours and maintenance; feasible on turns, night bans, the same-route gap, reach, maintenance at or above 100%, no stretch over maintenance_max_gap_h, closing after 168 hours, each route both ways",
+   "ask": {
+    "what": "optimise_line",
+    "airline_id": 1,
+    "type": "A350-900",
+    "hubs": [
+     "SFO",
+     "LGW",
+     "SEA",
+     "LAX",
+     "PVG",
+     "PKX"
+    ],
+    "routes": [
+     "SFO-LGW",
+     "LGW-SEA",
+     "SEA-PKX",
+     "LGW-LAX",
+     "SFO-PVG",
+     "PVG-LAX"
+    ],
+    "step": 15,
+    "work": 1200
+   },
+   "answer": {
+    "type": "A350-900",
+    "turn_min": 100,
+    "connection_target_h": 4,
+    "maintenance_max_gap_h": 40,
+    "range_km": 14200,
+    "search": {
+     "work": 1200,
+     "lines_evaluated": 906,
+     "feasible": 488,
+     "finished": false
+    },
+    "best": {
+     "routes": [
+      "SFO–LGW",
+      "LGW–SEA",
+      "SEA–PKX",
+      "SFO–PVG",
+      "PVG–LAX",
+      "LGW–LAX"
+     ],
+     "start_hub": "SFO",
+     "block_hours_day": 17.738095238095237,
+     "connections": 129,
+     "connections_within_target": 95,
+     "score": {
+      "connections_within_target": 95,
+      "connections": 129,
+      "routes": 6,
+      "block_hours_week": 124.16666666666667,
+      "maintenance_ratio": 1.8025999037072702
+     },
+     "maintenance": {
+      "pct": 180,
+      "ratio": 1.8025999037072702,
+      "counting_stops": 7,
+      "max_gap_h": 25,
+      "max_gap_ok": true
+     },
+     "flight_numbers": {
+      "base": "SFO",
+      "from": 2001,
+      "to": 4999,
+      "used": [
+       2001,
+       2002,
+       2003,
+       2004,
+       2005,
+       2006,
+       2007,
+       2008,
+       2009,
+       2010,
+       2011,
+       2012
+      ]
+     },
+     "legs": [
+      {
+       "leg": 1,
+       "line_day": 1,
+       "from": "SFO",
+       "to": "LGW",
+       "flight_no": 2001,
+       "service_code": "S4",
+       "dep_utc_min": 1080,
+       "dep_local": "10:00",
+       "arr_local": "03:56",
+       "block_min": 596,
+       "ground_min": 229,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 2,
+       "line_day": 2,
+       "from": "LGW",
+       "to": "SEA",
+       "flight_no": 2003,
+       "service_code": "S4",
+       "dep_utc_min": 465,
+       "dep_local": "07:45",
+       "arr_local": "08:40",
+       "block_min": 535,
+       "ground_min": 100,
+       "maintenance_stop": false
+      },
+      {
+       "leg": 3,
+       "line_day": 2,
+       "from": "SEA",
+       "to": "PKX",
+       "flight_no": 2005,
+       "service_code": "S4",
+       "dep_utc_min": 1100,
+       "dep_local": "10:20",
+       "arr_local": "12:21",
+       "block_min": 601,
+       "ground_min": 219,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 4,
+       "line_day": 3,
+       "from": "PKX",
+       "to": "SEA",
+       "flight_no": 2006,
+       "service_code": "S4",
+       "dep_utc_min": 480,
+       "dep_local": "16:00",
+       "arr_local": "10:01",
+       "block_min": 601,
+       "ground_min": 100,
+       "maintenance_stop": false
+      },
+      {
+       "leg": 5,
+       "line_day": 3,
+       "from": "SEA",
+       "to": "LGW",
+       "flight_no": 2004,
+       "service_code": "S4",
+       "dep_utc_min": 1181,
+       "dep_local": "11:41",
+       "arr_local": "04:36",
+       "block_min": 535,
+       "ground_min": 217,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 6,
+       "line_day": 4,
+       "from": "LGW",
+       "to": "SFO",
+       "flight_no": 2002,
+       "service_code": "S4",
+       "dep_utc_min": 493,
+       "dep_local": "08:13",
+       "arr_local": "10:09",
+       "block_min": 596,
+       "ground_min": 171,
+       "maintenance_stop": false
+      },
+      {
+       "leg": 7,
+       "line_day": 4,
+       "from": "SFO",
+       "to": "PVG",
+       "flight_no": 2007,
+       "service_code": "S4",
+       "dep_utc_min": 1260,
+       "dep_local": "13:00",
+       "arr_local": "16:16",
+       "block_min": 676,
+       "ground_min": 239,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 8,
+       "line_day": 5,
+       "from": "PVG",
+       "to": "LAX",
+       "flight_no": 2009,
+       "service_code": "S4",
+       "dep_utc_min": 735,
+       "dep_local": "20:15",
+       "arr_local": "16:07",
+       "block_min": 712,
+       "ground_min": 183,
+       "maintenance_stop": false
+      },
+      {
+       "leg": 9,
+       "line_day": 6,
+       "from": "LAX",
+       "to": "LGW",
+       "flight_no": 2011,
+       "service_code": "S4",
+       "dep_utc_min": 190,
+       "dep_local": "19:10",
+       "arr_local": "13:15",
+       "block_min": 605,
+       "ground_min": 570,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 10,
+       "line_day": 6,
+       "from": "LGW",
+       "to": "LAX",
+       "flight_no": 2012,
+       "service_code": "S4",
+       "dep_utc_min": 1365,
+       "dep_local": "22:45",
+       "arr_local": "00:50",
+       "block_min": 605,
+       "ground_min": 217,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 11,
+       "line_day": 7,
+       "from": "LAX",
+       "to": "PVG",
+       "flight_no": 2010,
+       "service_code": "S4",
+       "dep_utc_min": 747,
+       "dep_local": "04:27",
+       "arr_local": "08:19",
+       "block_min": 712,
+       "ground_min": 236,
+       "maintenance_stop": true
+      },
+      {
+       "leg": 12,
+       "line_day": 1,
+       "from": "PVG",
+       "to": "SFO",
+       "flight_no": 2008,
+       "service_code": "S4",
+       "dep_utc_min": 255,
+       "dep_local": "12:15",
+       "arr_local": "07:31",
+       "block_min": 676,
+       "ground_min": 149,
+       "maintenance_stop": false
+      }
+     ],
+     "days": [
+      {
+       "day": 1,
+       "starts_at": "PVG",
+       "ends_at": "LGW",
+       "legs": [
+        12,
+        1
+       ],
+       "block_min": 1272
+      },
+      {
+       "day": 2,
+       "starts_at": "LGW",
+       "ends_at": "PKX",
+       "legs": [
+        2,
+        3
+       ],
+       "block_min": 1136
+      },
+      {
+       "day": 3,
+       "starts_at": "PKX",
+       "ends_at": "LGW",
+       "legs": [
+        4,
+        5
+       ],
+       "block_min": 1136
+      },
+      {
+       "day": 4,
+       "starts_at": "LGW",
+       "ends_at": "PVG",
+       "legs": [
+        6,
+        7
+       ],
+       "block_min": 1272
+      },
+      {
+       "day": 5,
+       "starts_at": "PVG",
+       "ends_at": "LAX",
+       "legs": [
+        8
+       ],
+       "block_min": 712
+      },
+      {
+       "day": 6,
+       "starts_at": "LAX",
+       "ends_at": "LAX",
+       "legs": [
+        9,
+        10
+       ],
+       "block_min": 1210
+      },
+      {
+       "day": 7,
+       "starts_at": "LAX",
+       "ends_at": "PVG",
+       "legs": [
+        11
+       ],
+       "block_min": 712
+      }
+     ],
+     "cards": [
+      {
+       "line_day_offset": 0,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          1
+         ]
+        }
+       ]
+      },
+      {
+       "line_day_offset": 1,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          2
+         ]
+        }
+       ]
+      },
+      {
+       "line_day_offset": 2,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          3
+         ]
+        }
+       ]
+      },
+      {
+       "line_day_offset": 3,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          4
+         ]
+        }
+       ]
+      },
+      {
+       "line_day_offset": 4,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          5
+         ]
+        }
+       ]
+      },
+      {
+       "line_day_offset": 5,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          6
+         ]
+        }
+       ]
+      },
+      {
+       "line_day_offset": 6,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "days_utc": [
+          7
+         ]
+        },
+        {
+         "flight_no": 2003,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2005,
+         "days_utc": [
+          1
+         ]
+        },
+        {
+         "flight_no": 2006,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2004,
+         "days_utc": [
+          2
+         ]
+        },
+        {
+         "flight_no": 2002,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2007,
+         "days_utc": [
+          3
+         ]
+        },
+        {
+         "flight_no": 2009,
+         "days_utc": [
+          4
+         ]
+        },
+        {
+         "flight_no": 2011,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2012,
+         "days_utc": [
+          5
+         ]
+        },
+        {
+         "flight_no": 2010,
+         "days_utc": [
+          6
+         ]
+        },
+        {
+         "flight_no": 2008,
+         "days_utc": [
+          7
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "the same line's 7 cards through the line check: complete, every flight daily, each route both ways every day, each card fine",
+   "rule": "spec §3: across the line every leg operates daily once all 7 cards exist; the same flight number on different days of different cards is not a clash; each route flown both ways every day",
+   "ask": {
+    "what": "check_line",
+    "line": {
+     "line": {
+      "name": "A350 sample",
+      "airline": 1,
+      "type": "A350-900"
+     },
+     "cards": [
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 0,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 1,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 2,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 3,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 4,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 5,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 6,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "answer": {
+    "cards": 7,
+    "complete": true,
+    "ok": true,
+    "problems": [],
+    "missing_days": [],
+    "flights": [
+     {
+      "flight_no": 2001,
+      "from": "SFO",
+      "to": "LGW",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2003,
+      "from": "LGW",
+      "to": "SEA",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2005,
+      "from": "SEA",
+      "to": "PKX",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2006,
+      "from": "PKX",
+      "to": "SEA",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2004,
+      "from": "SEA",
+      "to": "LGW",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2002,
+      "from": "LGW",
+      "to": "SFO",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2007,
+      "from": "SFO",
+      "to": "PVG",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2009,
+      "from": "PVG",
+      "to": "LAX",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2011,
+      "from": "LAX",
+      "to": "LGW",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2012,
+      "from": "LGW",
+      "to": "LAX",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2010,
+      "from": "LAX",
+      "to": "PVG",
+      "daily": true,
+      "missing": []
+     },
+     {
+      "flight_no": 2008,
+      "from": "PVG",
+      "to": "SFO",
+      "daily": true,
+      "missing": []
+     }
+    ],
+    "routes": [
+     {
+      "route": "SFO–LGW",
+      "both_ways_daily": true
+     },
+     {
+      "route": "LGW–SEA",
+      "both_ways_daily": true
+     },
+     {
+      "route": "SEA–PKX",
+      "both_ways_daily": true
+     },
+     {
+      "route": "SFO–PVG",
+      "both_ways_daily": true
+     },
+     {
+      "route": "PVG–LAX",
+      "both_ways_daily": true
+     },
+     {
+      "route": "LAX–LGW",
+      "both_ways_daily": true
+     }
+    ],
+    "card_checks": [
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     },
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     },
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     },
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     },
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     },
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     },
+     {
+      "ok": true,
+      "legs_week": 12,
+      "maintenance": {
+       "pct": 180,
+       "max_gap_h": 25,
+       "max_gap_ok": true
+      },
+      "connections": {
+       "total": 129,
+       "within_target": 95
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "the first 3 cards only: not complete, each flight on 3 weekdays with 4 missing, nothing flagged",
+   "rule": "spec §3: which days are missing until all 7 cards exist; with fewer cards a missing day is reported, not a problem",
+   "ask": {
+    "what": "check_line",
+    "line": {
+     "line": {
+      "name": "A350 sample",
+      "airline": 1,
+      "type": "A350-900"
+     },
+     "cards": [
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 0,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 1,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      },
+      {
+       "aircraft": null,
+       "type": "A350-900",
+       "airline": 1,
+       "line_day_offset": 2,
+       "legs": [
+        {
+         "flight_no": 2001,
+         "origin_code": "SFO",
+         "dest_code": "LGW",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 1080,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2003,
+         "origin_code": "LGW",
+         "dest_code": "SEA",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 465,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2005,
+         "origin_code": "SEA",
+         "dest_code": "PKX",
+         "days_utc": [
+          4
+         ],
+         "dep_utc_min": 1100,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2006,
+         "origin_code": "PKX",
+         "dest_code": "SEA",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 480,
+         "block_min": 601,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2004,
+         "origin_code": "SEA",
+         "dest_code": "LGW",
+         "days_utc": [
+          5
+         ],
+         "dep_utc_min": 1181,
+         "block_min": 535,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2002,
+         "origin_code": "LGW",
+         "dest_code": "SFO",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 493,
+         "block_min": 596,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2007,
+         "origin_code": "SFO",
+         "dest_code": "PVG",
+         "days_utc": [
+          6
+         ],
+         "dep_utc_min": 1260,
+         "block_min": 676,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2009,
+         "origin_code": "PVG",
+         "dest_code": "LAX",
+         "days_utc": [
+          7
+         ],
+         "dep_utc_min": 735,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2011,
+         "origin_code": "LAX",
+         "dest_code": "LGW",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 190,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2012,
+         "origin_code": "LGW",
+         "dest_code": "LAX",
+         "days_utc": [
+          1
+         ],
+         "dep_utc_min": 1365,
+         "block_min": 605,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2010,
+         "origin_code": "LAX",
+         "dest_code": "PVG",
+         "days_utc": [
+          2
+         ],
+         "dep_utc_min": 747,
+         "block_min": 712,
+         "service_code": "S4"
+        },
+        {
+         "flight_no": 2008,
+         "origin_code": "PVG",
+         "dest_code": "SFO",
+         "days_utc": [
+          3
+         ],
+         "dep_utc_min": 255,
+         "block_min": 676,
+         "service_code": "S4"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "answer": {
+    "cards": 3,
+    "complete": false,
+    "ok": true,
+    "problems": [],
+    "missing_days": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "flights": [
+     {
+      "flight_no": 2001,
+      "days": [
+       1,
+       2,
+       3
+      ],
+      "missing": [
+       4,
+       5,
+       6,
+       7
+      ],
+      "daily": false,
+      "cards": [
+       1,
+       2,
+       3
+      ]
+     },
+     {},
+     {},
+     {},
+     {},
+     {},
+     {},
+     {},
+     {},
+     {},
+     {},
+     {}
+    ],
+    "routes": [
+     {
+      "route": "SFO–LGW",
+      "out_days": [
+       1,
+       2,
+       3
+      ],
+      "back_days": [
+       4,
+       5,
+       6
+      ],
+      "both_ways_daily": false
+     },
+     {},
+     {},
+     {},
+     {},
+     {}
+    ]
+   }
+  },
+  {
+   "name": "one card of the line on its own: a plain card check, 12 legs on 7 different days, maintenance 180% with a counting stop at most every 25 hours",
+   "rule": "spec §3: each card as today, plus the maintenance spacing; a line's card is 7 different days, one repeating week",
+   "ask": {
+    "what": "check_card",
+    "card": {
+     "aircraft": null,
+     "type": "A350-900",
+     "airline": 1,
+     "line_day_offset": 0,
+     "legs": [
+      {
+       "flight_no": 2001,
+       "origin_code": "SFO",
+       "dest_code": "LGW",
+       "days_utc": [
+        1
+       ],
+       "dep_utc_min": 1080,
+       "block_min": 596,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2003,
+       "origin_code": "LGW",
+       "dest_code": "SEA",
+       "days_utc": [
+        2
+       ],
+       "dep_utc_min": 465,
+       "block_min": 535,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2005,
+       "origin_code": "SEA",
+       "dest_code": "PKX",
+       "days_utc": [
+        2
+       ],
+       "dep_utc_min": 1100,
+       "block_min": 601,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2006,
+       "origin_code": "PKX",
+       "dest_code": "SEA",
+       "days_utc": [
+        3
+       ],
+       "dep_utc_min": 480,
+       "block_min": 601,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2004,
+       "origin_code": "SEA",
+       "dest_code": "LGW",
+       "days_utc": [
+        3
+       ],
+       "dep_utc_min": 1181,
+       "block_min": 535,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2002,
+       "origin_code": "LGW",
+       "dest_code": "SFO",
+       "days_utc": [
+        4
+       ],
+       "dep_utc_min": 493,
+       "block_min": 596,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2007,
+       "origin_code": "SFO",
+       "dest_code": "PVG",
+       "days_utc": [
+        4
+       ],
+       "dep_utc_min": 1260,
+       "block_min": 676,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2009,
+       "origin_code": "PVG",
+       "dest_code": "LAX",
+       "days_utc": [
+        5
+       ],
+       "dep_utc_min": 735,
+       "block_min": 712,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2011,
+       "origin_code": "LAX",
+       "dest_code": "LGW",
+       "days_utc": [
+        6
+       ],
+       "dep_utc_min": 190,
+       "block_min": 605,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2012,
+       "origin_code": "LGW",
+       "dest_code": "LAX",
+       "days_utc": [
+        6
+       ],
+       "dep_utc_min": 1365,
+       "block_min": 605,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2010,
+       "origin_code": "LAX",
+       "dest_code": "PVG",
+       "days_utc": [
+        7
+       ],
+       "dep_utc_min": 747,
+       "block_min": 712,
+       "service_code": "S4"
+      },
+      {
+       "flight_no": 2008,
+       "origin_code": "PVG",
+       "dest_code": "SFO",
+       "days_utc": [
+        1
+       ],
+       "dep_utc_min": 255,
+       "block_min": 676,
+       "service_code": "S4"
+      }
+     ]
+    }
+   },
+   "answer": {
+    "ok": true,
+    "problems": [],
+    "legs_week": 12,
+    "maintenance": {
+     "pct": 180,
+     "counting_stops": 7,
+     "max_gap_h": 25,
+     "max_gap_limit_h": 40,
+     "max_gap_ok": true
+    },
+    "connections": {
+     "total": 129,
+     "within_target": 95
+    }
+   }
+  },
+  {
+   "name": "a route beyond the type's reach is refused with the reason",
+   "rule": "spec §1: every route within the type's reach (aircraft_types.range_km); asking first is the Scheduling chat's job",
+   "ask": {
+    "what": "optimise_line",
+    "airline_id": 1,
+    "type": "A350-900",
+    "hubs": [
+     "SFO",
+     "LGW",
+     "SEA",
+     "LAX",
+     "PVG",
+     "PKX"
+    ],
+    "routes": [
+     "SFO-LGW",
+     "LGW-SEA",
+     "SEA-PKX",
+     "LGW-LAX",
+     "SFO-PVG",
+     "PVG-LAX"
+    ],
+    "step": 15,
+    "work": 1200,
+    "range_km": 9000
+   },
+   "answer": {
+    "error": "SFO–PVG is 9,877 km, beyond the A350-900's reach of 9,000 km"
+   }
+  }
+ ]
+}
