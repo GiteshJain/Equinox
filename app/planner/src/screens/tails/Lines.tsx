@@ -4,7 +4,8 @@
 // until all 7 exist, every flight daily, each route both ways, no false flight-number clash), and Write the next card:
 // an aircraft of the line's airline and type on order without a card gets one at the next free offset, its legs each line
 // leg on its weekday (card.fromLine), as one planner_save() call. A slot's aircraft opens its plan card. Lines are added
-// by the Scheduling chat with SQL from optimise-line's answer (scripts/README.md); the board only shows them.
+// by the Scheduling chat with SQL from optimise-line's answer (scripts/README.md); the board only shows them. Each line's
+// block has the anchor line-<id>, which Today's Orders links to (since 28 Oct, spec §5).
 import { useState } from "react";
 import { SLOT_WORDS, lineCheckWords, type LineCheck, type LineSlot, type PlanLineRow, type TailAircraft } from "./model";
 
@@ -44,7 +45,7 @@ function LineBlock({ v, busy, open, onCard, onWrite }: { v: LineView; busy: bool
   const held = v.slots.filter((s) => s.state !== "empty").length;
   const chosen = v.candidates.find((a) => a.registration === pick) ?? v.candidates[0];
   return (
-    <div className="tline" data-line={v.line.name} data-line-id={v.line.id}>
+    <div className="tline" id={"line-" + v.line.id} data-line={v.line.name} data-line-id={v.line.id}>
       <div className="tlhead">
         <b>{v.line.name}</b>
         <span className="pill mute sm">{v.type}</span>

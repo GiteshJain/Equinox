@@ -97,6 +97,13 @@ export function useAttention(now: Date, today: string) {
     });
   }, [rules, cardsQ.data, buyQ.data, aircraftQ.data, forecastsQ, airlines, ordering, now]);
 
+  // each airline's cash_forecast() types (undefined until read, or for an airline the figures don't cover), for Today's
+  // open lines (since 28 Oct): when a line's next aircraft can be ordered
+  const forecastOf = useMemo(() => {
+    const by = new Map(ordering.map((a, i) => [a.id, forecastsQ[i]?.data?.types] as const));
+    return (airlineId: number) => by.get(airlineId);
+  }, [ordering, forecastsQ]);
+
   // ---------- aircraft to file: arrived with a plan card
   const filing = useMemo(() => (rules && aircraftQ.data && planCardsQ.data
     ? toFile(onOrder(aircraftQ.data, rules, new Map(planCardsQ.data.map((p) => [p.aircraft_id, p.title] as const)), homeAirlines, now.getTime()).groups) : null),
@@ -123,6 +130,6 @@ export function useAttention(now: Date, today: string) {
 
   return {
     w, world, airlines, airlinesQ, rules, rulesQ, todosQ, itemsQ, captureQ, aircraftQ, dismissalsQ,
-    orders, filing, attShown, hrefOf, dismiss, showAgain, ready, loadError,
+    orders, forecastOf, filing, attShown, hrefOf, dismiss, showAgain, ready, loadError,
   };
 }

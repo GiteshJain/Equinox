@@ -9,6 +9,10 @@
 //   - Needs attention, moved whole from Home, with dismiss and show again (attention.ts);
 //   - Game check, moved from Check (GameCheck.tsx, game.ts);
 //   - the to-do board and Coming up, moved from Home.
+// Since 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §5) Orders also lists each open 7-day line: how many of its
+// places are ordered and arrived (Tails' slots, from plan_lines and the plan cards), when its next aircraft can be ordered
+// by the cash forecast, and a link to the line on Tails. It adds nothing to the answer's count: an airline that can
+// order is counted there already.
 // Address: /planner/today, the aircraft pop-up (?aircraft=REG, Tails' AircraftPopup, as Home's needs attention opened it).
 // An old load-report address (/planner/check?day=…, which web/_redirects sends here) goes on to Performance's Flights by
 // day with its day. Every action is one planner_save() call.
@@ -41,14 +45,14 @@ import { niceDate, todayAt, untilText } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { itemRoute, movedTo } from "../screens";
 import { AircraftPopup } from "../tails/AircraftPopup";
-import { gameLink, type TailAircraft } from "../tails/model";
-import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useGameHost, useTailsAircraft } from "../tails/reads";
+import { flyingIds, gameLink, lineSize, typeName, type TailAircraft } from "../tails/model";
+import { readAirlineRoutes, readGameSchedule, readMarkets, readProfiles, useGameHost, usePlanCards as useLineCards, usePlanLines, useTailsAircraft } from "../tails/reads";
 import { readAirports } from "../routes/reads";
 import { ComingUp } from "./ComingUp";
 import { comingUp } from "./comingUp";
 import { checkedAtWords, fixChanges, fixRotations, importChanges, noLinkWords, type GameResult } from "./game";
 import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameCheck";
-import { attentionAnchor, captureLine, countTiles, lineCell, lineColumns, tileForHash, waitingWords } from "./model";
+import { attentionAnchor, captureLine, countTiles, lineCell, lineColumns, openLines, tileForHash, waitingWords } from "./model";
 import { readLegs } from "./reads";
 import { TodoBoard } from "./TodoBoard";
 import { todoViews } from "./todos";
@@ -64,10 +68,13 @@ export function Today() {
   const today = todayAt(now);
   // the orders, the aircraft to file and needs attention, read and worked out once for Home and Today (useAttention.ts)
   const att = useAttention(now, today);
-  const { w, airlines, airlinesQ, rules, todosQ, itemsQ, captureQ, orders, filing, attShown, hrefOf } = att;
-  // Today's own reads beyond those: the game check's aircraft and the game's address
+  const { w, airlines, airlinesQ, rules, todosQ, itemsQ, captureQ, orders, forecastOf, filing, attShown, hrefOf } = att;
+  // Today's own reads beyond those: the game check's aircraft and the game's address; and (since 28 Oct) the 7-day lines
+  // and the plan cards with their line and offset, Tails' own reads, for the open lines
   const tailsQ = useTailsAircraft(w);
   const hostQ = useGameHost(w);
+  const linesQ = usePlanLines(w);
+  const lineCardsQ = useLineCards(w);
   const [busy, setBusy] = useState(false);
   const [gc, setGc] = useState<{ running: boolean; at: Date | null; res: ReadonlyMap<number, GameResult> }>({ running: false, at: null, res: new Map() });
   const [gcOpen, setGcOpen] = useState<number | null>(null);
@@ -107,6 +114,11 @@ export function Today() {
     }
     return out;
   }, [rules, airlines, hostQ.data, gc.res]);
+  // ---------- each open 7-day line (since 28 Oct)
+  const lines = useMemo(() => (rules && linesQ.data && lineCardsQ.data && tailsQ.data ? openLines({
+    airlines, lines: linesQ.data, cards: lineCardsQ.data, aircraft: tailsQ.data, flying: flyingIds(rules), now: now.getTime(),
+    sizeOf: (id) => lineSize(rules, id), typeOf: (id) => typeName(rules, id), forecastOf,
+  }) : null), [rules, linesQ.data, lineCardsQ.data, tailsQ.data, airlines, now, forecastOf]);
   const differences = gameLines.reduce((n, l) => n + (l.cmp?.issues.length ?? 0), 0);
 
   async function save(changes: Change[], rulesToo = false) {
@@ -154,8 +166,8 @@ export function Today() {
   const missingLinks = airlines.filter((a) => !linkOf(a)).map((a) => a.name);
   const openLine = gcOpen == null ? undefined : gameLines.find((x) => x.airline.id === gcOpen);
 
-  const ready = !!(att.ready && todos && tailsQ.data && hostQ.isSuccess);
-  const loadError = att.loadError ?? first(tailsQ, hostQ);
+  const ready = !!(att.ready && todos && tailsQ.data && hostQ.isSuccess && lines);
+  const loadError = att.loadError ?? first(tailsQ, hostQ, linesQ, lineCardsQ);
   const cap = captureQ.data && airlinesQ.data ? captureLine(airlines, captureQ.data, now) : null;
   const groups = attShown ? groupAttention(attShown.shown) : [];
   // the answer counts what's left on Today, a thing per section with something in it (since 23 Oct): Orders when an
@@ -253,6 +265,22 @@ export function Today() {
                 })}
               </tbody>
             </table>
+            {lines?.length ? (
+              <div className="ordlines" data-figure="today: open lines">
+                <h4 className="ordlh">Lines <span className="note">7 aircraft of one type, each a day apart · next by the cash forecast, the type with its order cabin</span></h4>
+                <ul>
+                  {lines.map((l) => (
+                    <li key={l.key} data-open-line={l.lineId} data-line-ordered={l.ordered} data-line-arrived={l.arrived}>
+                      <AirlineMark color={l.airline.color} size={10} />
+                      <b>{l.heading}</b>
+                      <span className="dim">{l.type}</span>
+                      {l.next?.now ? <span className="pill now">{l.nextText}</span> : <span className={l.next ? "ordsafe" : "dim"}>{l.nextText}</span>}
+                      <Link className="link" to={l.href} data-line-link>{l.name} on Tails ›</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         )}
       </Board>
