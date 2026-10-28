@@ -396,7 +396,7 @@
   function addButton() {
     if (document.getElementById("eq-eval-btn")) return;
     const b = document.createElement("button"); b.id = "eq-eval-btn"; b.textContent = "Aircraft evaluation";
-    b.style.cssText = "position:fixed;bottom:64px;right:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
+    b.style.cssText = "position:fixed;bottom:64px;left:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
     b.onclick = () => begin(b);
     document.body.appendChild(b);
   }
