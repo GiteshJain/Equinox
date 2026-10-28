@@ -293,7 +293,7 @@ called wrongly here fails that check.
 | The planning library's input (`rules.json`) | `rules_input()`, or `export_for_report()` kind `rules` | `select jsonb_array_length(public.rules_input() -> 'flight_legs');` |
 | An aircraft's week: its legs, block hours, turns and maintenance | library `aircraft` | `node lib/rules/dist/cli.js aircraft rules.json VT-AAA` |
 | Every aircraft's legs a week, block hours a day, maintenance and issues | library `aircraft` | `node lib/rules/dist/cli.js aircraft rules.json` |
-| A plan card's check at both ends, service codes, the cabin its routes call for and each route's fare level in each direction included | library `check-card` | `node lib/rules/dist/cli.js check-card rules.json card.json --fares fare_ladder.json` |
+| A plan card's check at both ends (with how many connections fall within the 4-hour planning target, since 27 Oct), service codes, the cabin its routes call for and each route's fare level in each direction included | library `check-card` | `node lib/rules/dist/cli.js check-card rules.json card.json --fares fare_ladder.json` |
 | Every connection at an airport, with its days, gaps and banks | library `connections` | `node lib/rules/dist/cli.js connections rules.json DEL` |
 | The block time of a leg not yet timed | library `block` | `node lib/rules/dist/cli.js block rules.json DEL BOM "A321 NEO LIGHT"` |
 | The best day's schedule for one aircraft from a base | library `optimise` | `node lib/rules/dist/cli.js optimise rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --step 15` |

@@ -118,6 +118,17 @@ describe("the command (node lib/rules/dist/cli.js)", () => {
     delete (older.settings as Record<string, unknown>).cabin_route_share_pct;
     expect(run(["check-card", file("older.json", older), file("none2.json", { aircraft: "T-003", legs })])).toMatchObject({ ok: true, cabin: null });
   });
+  it("an input made before plan_connection_target_h (27 Oct): the card check gives no target figures, the optimiser names the setting", () => {
+    const older = world({ flight_legs: [leg(3, "BBB", "HUB", 0, 300, { aircraft_id: 2 })] });
+    delete (older.settings as Record<string, unknown>).plan_connection_target_h;
+    const path = file("older-target.json", older);
+    const c = file("card-target.json", { aircraft: "T-001", legs: [{ origin_code: "HUB", dest_code: "AAA", dep_local: "06:00" }, { origin_code: "AAA", dest_code: "HUB", dep_local: "09:31" }] });
+    expect(run(["check-card", path, c])).toMatchObject({
+      connections: { target_h: null, total: 1, within_target: null, within_target_share: null },
+      legs: [{ feeders: 1, feeders_within_target: null, within_target: null, within_target_share: null }, { onward: 0, onward_within_target: null }],
+    });
+    expect(() => run(["optimise", path, "HUB", "DDD", "--type", "A321 NEO LIGHT", "--start", "06:00-06:00"])).toThrow(/settings.plan_connection_target_h is missing/);
+  });
   it("optimise <base> <dest,...> --type <type> [--start] [--step] [--hubs]", () => {
     const a = run(["optimise", input, "HUB", "DDD", "--type", "A321 NEO LIGHT", "--start", "06:00-07:00", "--step", "30"]) as { considered: number; best: { order: string[] } };
     expect(a.considered).toBe(3);

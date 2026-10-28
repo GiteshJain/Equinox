@@ -309,6 +309,11 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   distance calls for shows it beside the code, in red: **S1, wants S3**, or **none, wants S2** when it has no code.
   Ryanair takes its own **R** on every route. The distance is the route's (the airline's own, either way round, with any
   override), as filing takes it, else the great circle.
+- **The plan card's check at both ends** (Claude's card check, `check-card`, in the Scheduling chat and the airline
+  briefing; not a planner screen): since 27 Oct (manual §4), beside each flight's connections at both ends, how many
+  fall within the 4-hour planning target (*plan_connection_target_h*) and what share, and the same for the whole card:
+  "8 connections, 5 within 4 hours (62.5%)". It's a figure, never a problem: a card isn't wrong for having long
+  connections, and a connection still counts up to 8 hours everywhere, Routes' connections at both ends included.
 
 ## Performance
 *How are we doing, and why?* (since 20 Oct: Review's screen, with Check's growth boards and daily load report). Every

@@ -7,7 +7,10 @@ The input is tests/fixtures/optimiser_kul_2026-10-10.json, a case in the same fo
 cases/_base.json, as every case is): the test sample's 60 legs at KUL (sample_2026-10-10), shaped as rules_input()
 answers, with three destinations to plan. It is game data, so it lives with the other dated samples in tests/fixtures/
 (decision #9). Its answer is plan.py's: KCH, PQC, then PEN from 06:45 local, 70 connections at KUL, maintenance 289%
-(2.889515240886267, to within 1e-9). Vitest checks the library's own function against the same answer on every run of
+(2.889515240886267, to within 1e-9). Since 27 Oct (manual §4; spec docs/specs/2026-10-27-planning-connection-target.md) the
+score counts first the connections within settings.plan_connection_target_h (4 hours, laid in from cases/_base.json),
+then all of them: the same plan still wins, and the saved answer adds its 43 connections within 4 hours (of the 70).
+Vitest checks the library's own function against the same answer on every run of
 npm test; this check runs the built command end to end, as scripts/README.md tells Claude to run it.
 
 Usage: python3 tests/optimiser_saved_answer_test.py   (after npm run build)
@@ -21,6 +24,8 @@ CLI = ROOT / "lib" / "rules" / "dist" / "cli.js"
 # plan.py's answer on this input, as it gave it before it was retired (also kept in the fixture, as the case's answer)
 PLAN_PY = {"order": ["KCH", "PQC", "PEN"], "start_local": "06:45", "start_local_min": 405, "connections": 70,
            "maintenance_ratio": 2.889515240886267}
+# and since 27 Oct (the planning target, 4 hours) the same plan's connections within it: the score's first key
+SAVED = {**PLAN_PY, "connections_within_target": 43}
 failures = []
 
 
@@ -44,7 +49,8 @@ def merged(*parts):
 def compare(got, want):
     if got is None or want is None:
         return [] if got is want else [f"one found a plan and the other didn't ({got} / {want})"]
-    out = [f"{k}: {got.get(k)!r}, expected {want.get(k)!r}" for k in ("order", "start_local_min", "start_local", "connections") if got.get(k) != want.get(k)]
+    keys = ("order", "start_local_min", "start_local", "connections", "connections_within_target")
+    out = [f"{k}: {got.get(k)!r}, expected {want.get(k)!r}" for k in keys if k in want and got.get(k) != want.get(k)]
     if abs(got["maintenance_ratio"] - want["maintenance_ratio"]) > 1e-9:
         out.append(f"maintenance_ratio: {got['maintenance_ratio']!r}, expected {want['maintenance_ratio']!r}")
     return out
@@ -56,8 +62,8 @@ def main():
     case = doc["cases"][0]
     inp = merged(base, doc.get("input"), case.get("input"))
     ask = case["ask"]
-    step(not compare(case["answer"]["best"], PLAN_PY), "the fixture still holds plan.py's saved answer (KCH, PQC, PEN from 06:45, 70 connections, maintenance 289%)",
-         compare(case["answer"]["best"], PLAN_PY))
+    step(not compare(case["answer"]["best"], SAVED), "the fixture still holds plan.py's saved answer (KCH, PQC, PEN from 06:45, 70 connections, maintenance 289%), "
+         "with its 43 connections within 4 hours (since 27 Oct)", compare(case["answer"]["best"], SAVED))
     if not CLI.is_file():
         step(False, "the library's command on the same input", ["lib/rules/dist/cli.js is missing: run npm run build first"])
     else:
@@ -74,11 +80,12 @@ def main():
         else:
             ans = json.loads(r.stdout)
             lib = ans.get("best")
-            step(not compare(lib, PLAN_PY), f"the library's command (node lib/rules/dist/cli.js optimise) on {len(inp['flight_legs'])} of the sample's legs at "
+            step(not compare(lib, SAVED), f"the library's command (node lib/rules/dist/cli.js optimise) on {len(inp['flight_legs'])} of the sample's legs at "
                                            f"{ask['base']} gives plan.py's saved plan: {' then '.join((lib or {}).get('order') or ['none'])} from "
-                                           f"{(lib or {}).get('start_local', '?')}, {(lib or {}).get('connections', '?')} connections, maintenance "
+                                           f"{(lib or {}).get('start_local', '?')}, {(lib or {}).get('connections', '?')} connections "
+                                           f"({(lib or {}).get('connections_within_target', '?')} within {ans.get('connection_target_h', '?')} h), maintenance "
                                            f"{round(((lib or {}).get('maintenance_ratio') or 0) * 100)}% ({ans.get('considered')} plans tried, "
-                                           f"{ans.get('feasible')} feasible)", compare(lib, PLAN_PY))
+                                           f"{ans.get('feasible')} feasible)", compare(lib, SAVED))
     print(f"\n{len(failures)} step(s) failed" if failures else "\noptimiser against plan.py's saved answer: all passed", flush=True)
     sys.exit(1 if failures else 0)
 

@@ -1,6 +1,6 @@
 {
   "part": "connections",
-  "note": "Legs with their block times stored and no rotation, so only the connection rule is at work. HUB's minimum connection time is 60 minutes, AAA's 75; BBB has none (90).",
+  "note": "Legs with their block times stored and no rotation, so only the connection rule is at work. HUB's minimum connection time is 60 minutes, AAA's 75; BBB has none (90). The last case is a plan card's check (since 27 Oct): its HUB–AAA leaves HUB at 08:30, fed by BBB–HUB landing at 07:00 (1 h 30, within the 4-hour target) and FOC–HUB at 03:00 (5 h 30); its AAA–HUB lands at 12:16 and feeds HUB–CCC at 15:46 (3 h 30) and HUB–DDD at 20:00 (7 h 44).",
   "input": {
     "flight_legs": [
       {"id": 1, "airline_id": 2, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 480, "block_min": 75},
@@ -161,6 +161,22 @@
           {"n": 1, "dep_local_min": 360, "arriving_from": ["AAA"], "leaving_to": ["BBB"], "city_pairs": 2},
           {"n": 2, "dep_local_min": 840, "arriving_from": ["DDD"], "leaving_to": ["CCC"], "city_pairs": 1},
           {"n": 0, "dep_local_min": null, "arriving_from": [], "leaving_to": ["NBN"], "city_pairs": 0}
+        ]
+      }
+    },
+    {
+      "name": "the card check counts the connections within the planning target beside all of them, for each leg and the card, and makes no problem of the long ones",
+      "rule": "manual §4 (since 27 Oct; spec docs/specs/2026-10-27-planning-connection-target.md §3): beside today's connections at both ends, how many fall within plan_connection_target_h (count and share), for the card and each leg; no new problem mark",
+      "input": {"flight_legs": [{"id": 401, "airline_id": 2, "origin_code": "BBB", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 120, "block_min": 300}, {"id": 402, "airline_id": 2, "origin_code": "FOC", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 0, "block_min": 180}, {"id": 403, "airline_id": 2, "origin_code": "HUB", "dest_code": "CCC", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 946, "block_min": 505}, {"id": 404, "airline_id": 2, "origin_code": "HUB", "dest_code": "DDD", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 1200, "block_min": 125}]},
+      "ask": {"what": "check_card", "card": {"aircraft": "T-001", "legs": [
+        {"flight_no": 1101, "origin_code": "HUB", "dest_code": "AAA", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 510, "block_min": 75},
+        {"flight_no": 1102, "origin_code": "AAA", "dest_code": "HUB", "days_utc": [1, 2, 3, 4, 5, 6, 7], "dep_utc_min": 661, "block_min": 75}]}},
+      "answer": {
+        "problems": [],
+        "connections": {"target_h": 4, "total": 4, "within_target": 2, "within_target_share": 50},
+        "legs": [
+          {"leg": 1, "feeders": 2, "onward": 0, "feeders_within_target": 1, "onward_within_target": 0, "within_target": 1, "within_target_share": 50},
+          {"leg": 2, "feeders": 0, "onward": 2, "feeders_within_target": 0, "onward_within_target": 1, "within_target": 1, "within_target_share": 50}
         ]
       }
     }

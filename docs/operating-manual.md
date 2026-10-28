@@ -417,8 +417,11 @@ Details and open points: `docs/decisions.md`.
     dollar); A350 trunks follow. The plan: `docs/briefs/2026-10-20-november-trunks.md`.
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
-  0), and departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`). Every new plan card
-  and every retime is checked at both ends. *(since 6 Oct; history: rule-history.md)*
+  0). Plans and retimes aim for connections within 4 hours of the arrival (`settings.plan_connection_target_h`): the
+  optimiser counts those first, and the plan card's check shows how many fall within it. A connection still counts up
+  to 8 hours (`connection_max_wait_h`), everywhere. Every new plan card and every retime is checked at both ends.
+  *(since 6 Oct; the 4-hour target since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`; history:
+  rule-history.md)*
 - **Use each aircraft as much as possible.** No fixed floor on flying hours (the Saturday 12-hour list and Tails' 10-hour mark are flags, not floors); options show hours a day next to
   connections, and check whether one more short rotation fits. *(since 7 Oct)*
 - **Night slots are fine.** *(since 27 Sep; history: rule-history.md)*
@@ -597,7 +600,8 @@ Details and open points: `docs/decisions.md`.
     `self`, in the figures the report pulls; the scans run every evening, so growth is against the week-before scan,
     not the previous one). It is the only investor report: on the first Saturday of the month it adds a page on the
     month just ended (month-on-month figures and the month's decisions). *(since 5–8 Oct; history: rule-history.md)*
-  - the connection audit across all hubs (valid connections, near misses, and retimes of 10 minutes or less);
+  - the connection audit across all hubs (valid connections, near misses, and retimes of 30 minutes or less;
+    *since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`*);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
   - the weekly review together: the fare ladder's moves (§5), aircraft under 12 block hours a day (§4), orders and
     hubs first.
