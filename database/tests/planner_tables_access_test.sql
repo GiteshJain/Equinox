@@ -19,6 +19,7 @@ insert into t_new values
   ('interline_agreements', true), ('monthly_checks', true), ('dismissals', true), ('cash_entries', true),
   ('load_entries', true), ('load_days', true), ('settings', true), ('world_rules', true),
   ('airline_order_cabins', true),   -- the 33rd, 15 Oct (20261015220000_last_leftovers.sql)
+  ('plan_lines', true), ('plan_line_legs', true),   -- the 34th and 35th, 28 Oct (20261028180000_plan_lines.sql)
   ('change_log', false);
 create temporary table t_views (name text primary key) on commit drop;
 insert into t_views values ('flight_legs_local'), ('flight_no_clashes');

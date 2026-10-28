@@ -1145,14 +1145,14 @@ isOneToOne: false
                   ]
                 },"plan_cards": {
                   Row: {
-                    "aircraft_id": number,"airline_id": number,"base_code": string | null,"config_id": number | null,"created_at": string,"extra": NonNullable<Json>,"id": number,"note": string | null,"title": string | null,"updated_at": string,"world_id": number
+                    "aircraft_id": number,"airline_id": number,"base_code": string | null,"config_id": number | null,"created_at": string,"extra": NonNullable<Json>,"id": number,"line_day_offset": number | null,"line_id": number | null,"note": string | null,"title": string | null,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "aircraft_id": number,"airline_id": number,"base_code"?: string | null,"config_id"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id": number
+                    "aircraft_id": number,"airline_id": number,"base_code"?: string | null,"config_id"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"line_day_offset"?: number | null,"line_id"?: number | null,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "aircraft_id"?: number,"airline_id"?: number,"base_code"?: string | null,"config_id"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id"?: number
+                    "aircraft_id"?: number,"airline_id"?: number,"base_code"?: string | null,"config_id"?: number | null,"created_at"?: string,"extra"?: NonNullable<Json>,"id"?: never,"line_day_offset"?: number | null,"line_id"?: number | null,"note"?: string | null,"title"?: string | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -1180,7 +1180,83 @@ isOneToOne: false
       referencedRelation: "cabin_configs"
       referencedColumns: ["id","world_id"]
     },{
+      foreignKeyName: "plan_cards_line_fkey"
+      columns: ["line_id","world_id"]
+isOneToOne: false
+      referencedRelation: "plan_lines"
+      referencedColumns: ["id","world_id"]
+    },{
       foreignKeyName: "plan_cards_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"plan_line_legs": {
+                  Row: {
+                    "block_min": number | null,"created_at": string,"dep_utc_min": number,"dest_code": string,"flight_no": number | null,"id": number,"line_day": number,"line_id": number,"origin_code": string,"position": number,"service_code": string | null,"updated_at": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "block_min"?: number | null,"created_at"?: string,"dep_utc_min": number,"dest_code": string,"flight_no"?: number | null,"id"?: never,"line_day": number,"line_id": number,"origin_code": string,"position": number,"service_code"?: string | null,"updated_at"?: string,"world_id": number
+                  }
+                  Update: {
+                    "block_min"?: number | null,"created_at"?: string,"dep_utc_min"?: number,"dest_code"?: string,"flight_no"?: number | null,"id"?: never,"line_day"?: number,"line_id"?: number,"origin_code"?: string,"position"?: number,"service_code"?: string | null,"updated_at"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "plan_line_legs_dest_code_fkey"
+      columns: ["dest_code"]
+isOneToOne: false
+      referencedRelation: "airports"
+      referencedColumns: ["code"]
+    },{
+      foreignKeyName: "plan_line_legs_line_fkey"
+      columns: ["line_id","world_id"]
+isOneToOne: false
+      referencedRelation: "plan_lines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "plan_line_legs_origin_code_fkey"
+      columns: ["origin_code"]
+isOneToOne: false
+      referencedRelation: "airports"
+      referencedColumns: ["code"]
+    },{
+      foreignKeyName: "plan_line_legs_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"plan_lines": {
+                  Row: {
+                    "aircraft_type_id": number,"airline_id": number,"created_at": string,"id": number,"name": string,"note": string | null,"optimiser_answer": Json | null,"updated_at": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "aircraft_type_id": number,"airline_id": number,"created_at"?: string,"id"?: never,"name": string,"note"?: string | null,"optimiser_answer"?: Json | null,"updated_at"?: string,"world_id": number
+                  }
+                  Update: {
+                    "aircraft_type_id"?: number,"airline_id"?: number,"created_at"?: string,"id"?: never,"name"?: string,"note"?: string | null,"optimiser_answer"?: Json | null,"updated_at"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "plan_lines_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "plan_lines_type_fkey"
+      columns: ["aircraft_type_id","world_id"]
+isOneToOne: false
+      referencedRelation: "aircraft_types"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "plan_lines_world_id_fkey"
       columns: ["world_id"]
 isOneToOne: false
       referencedRelation: "worlds"

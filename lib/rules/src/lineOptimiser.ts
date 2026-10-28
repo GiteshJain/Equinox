@@ -11,8 +11,8 @@
 //
 // Feasible when: every ground gap is at least the turn (the type's turnaround plus turn_margin_min); no departure or
 // arrival in a night ban; every new leg at least same_route_gap_min from an existing flight on its route (world rules);
-// every route within the type's reach (aircraft_types.range_km, or the caller's figure, since rules_input() doesn't
-// carry it yet: a route beyond it is refused with the reason, asking first being the Scheduling chat's job; a reach the
+// every route within the type's reach (aircraft_types.range_km, which rules_input() carries since 28 Oct, or the
+// caller's figure: a route beyond it is refused with the reason, asking first being the Scheduling chat's job; a reach the
 // library hasn't got is an error naming it, never a guess); maintenance at or above maintenance_min_pct on the week; no stretch longer than maintenance_max_gap_h
 // without a counting stop (maintenance.spacing); the week closing on itself after 168 hours.
 //
@@ -44,7 +44,7 @@ import { wantedFor } from "./service.js";
 import { DAY, WEEK, clock, dayOf, minuteOf, mod, toLocal, utcOffsetMin } from "./time.js";
 import { turnNeed } from "./turns.js";
 import type { AircraftTypeRow, BaseRow, Rules, TimedLeg } from "./types.js";
-import type { Card, CardLeg } from "./card.js";
+import { fromLine, type Card } from "./card.js";
 
 /** A route as the caller names it: its two airports, either way round. */
 export type RoutePair = readonly [string, string];
@@ -67,7 +67,7 @@ export interface LineOptions {
   budget?: { work?: number | null; timeUp?: (() => boolean) | null };
   /** Flight numbers already taken outside flight_legs (plan_card_legs' numbers for the airline). */
   usedFlightNumbers?: number[];
-  /** The type's reach in km, when the input doesn't carry aircraft_types.range_km (rules_input() doesn't yet), or to
+  /** The type's reach in km, when the input doesn't carry aircraft_types.range_km (rules_input() does since 28 Oct), or to
    *  override it. */
   rangeKm?: number | null;
   /** How many partial lines the greedy chain keeps at each leg (the beam); 12 by default. */
@@ -534,13 +534,9 @@ function numberLegs(ctx: Ctx, line: Line, used: ReadonlySet<number>): void {
  *  ((d + k − 2) mod 7) + 1; each card is the whole line, shifted. */
 export function lineCards(line: Line, type: string, airlineId: number): (Card & { line_day_offset: number })[] {
   const out: (Card & { line_day_offset: number })[] = [];
-  for (let k = 1; k <= 7; k++) {
-    const legs: CardLeg[] = line.legs.map((l) => ({
-      flight_no: l.flight_no, origin_code: l.from, dest_code: l.to, days_utc: [mod(l.line_day + k - 2, 7) + 1], dep_utc_min: l.dep_utc_min,
-      block_min: l.block_min, service_code: l.service_code,
-    }));
-    out.push({ aircraft: null, type, airline: airlineId, line_day_offset: k - 1, legs });
-  }
+  const legs = line.legs.map((l) => ({ line_day: l.line_day, flight_no: l.flight_no, origin_code: l.from, dest_code: l.to, dep_utc_min: l.dep_utc_min,
+    block_min: l.block_min, service_code: l.service_code }));
+  for (let k = 1; k <= 7; k++) out.push({ aircraft: null, type, airline: airlineId, line_day_offset: k - 1, legs: fromLine({ legs }, k - 1) });
   return out;
 }
 

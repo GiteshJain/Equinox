@@ -58,8 +58,30 @@ export interface BuyTypeRow { airline_id: number; aircraft_type_id: number }
 /** A plan card: its legs are its plan_card_legs rows (the old planner's copy of them in extra.legs went with the clean-up,
  *  build pull request 14). */
 /** A plan card. config_id is the cabin chosen with its routes (since 18 Oct): filing fits it and logs its first fit. */
-export interface PlanCardRow { id: number; airline_id: number; aircraft_id: number; base_code: string | null; title: string | null; note: string | null; config_id?: number | null; updated_at: string }
-export const PLAN_CARD_COLUMNS = "id, airline_id, aircraft_id, base_code, title, note, config_id, updated_at";
+/** Since 28 Oct a card may fly a 7-day line (spec docs/specs/2026-10-27-long-haul-lines.md §2): line_id and its place on
+ *  it, line_day_offset (0 to 6), both set or both empty. */
+export interface PlanCardRow {
+  id: number; airline_id: number; aircraft_id: number; base_code: string | null; title: string | null; note: string | null; config_id?: number | null;
+  line_id?: number | null; line_day_offset?: number | null; updated_at: string;
+}
+export const PLAN_CARD_COLUMNS = "id, airline_id, aircraft_id, base_code, title, note, config_id, line_id, line_day_offset, updated_at";
+/** A 7-day line (plan_lines) and its legs (plan_line_legs), since 28 Oct. */
+export interface PlanLineRow { id: number; airline_id: number; aircraft_type_id: number; name: string; note: string | null; updated_at: string }
+export const PLAN_LINE_COLUMNS = "id, airline_id, aircraft_type_id, name, note, updated_at";
+export interface PlanLineLegRow {
+  id: number;
+  line_id: number;
+  position: number;
+  line_day: number;
+  flight_no: number | null;
+  origin_code: string;
+  dest_code: string;
+  dep_utc_min: number;
+  block_min: number | null;
+  service_code: string | null;
+  updated_at: string;
+}
+export const PLAN_LINE_LEG_COLUMNS = "id, line_id, position, line_day, flight_no, origin_code, dest_code, dep_utc_min, block_min, service_code, updated_at";
 export interface PlanLegRow {
   id: number;
   plan_card_id: number;
@@ -959,3 +981,110 @@ export function removeDeliveryChanges(a: TailAircraft, facts: RemovalFacts, toda
   return [{ table: "aircraft", op: "update", key, base: a.updated_at, values: order }];
 }
 
+
+// ---------- 7-day lines (since 28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §2; manual §4, long haul in lines)
+// A line is 7 aircraft of one type at one airline flying one weekly pattern a day apart (plan_lines, plan_line_legs);
+// each aircraft's plan card names the line and its offset. The board shows each line's slots, the line's check across the
+// cards that exist (the library's card.checkLine), and Write the next card for an aircraft on order.
+/** How many aircraft a line has: settings.line_aircraft (7; the game repeats each aircraft's week, so a rotating line is
+ *  exactly 7), 7 when the input lacks it. */
+export function lineSize(rules: Rules, airlineId?: number | null): number {
+  const n = Number(setting(rules, "line_aircraft", airlineId));
+  return Number.isInteger(n) && n >= 1 && n <= 7 ? n : 7;
+}
+/** A slot's state: its aircraft ordered, arrived (not filed yet), filed (in the planner, flying or not), or no aircraft. */
+export type SlotState = "ordered" | "arrived" | "filed" | "empty";
+export interface LineSlot {
+  offset: number;
+  state: SlotState;
+  aircraft: TailAircraft | null;
+  card: PlanCardRow | null;
+  /** Retired aircraft whose cards held this place (kept as the record). */
+  retired: string[];
+}
+/** An aircraft's state on its line: filed once it is in service (filing makes it active) or flies, arrived once its
+ *  delivery is past or it is marked delivered, else ordered. */
+export function slotState(a: TailAircraft, flying: ReadonlySet<number>, now: number): Exclude<SlotState, "empty"> {
+  if (a.status === "active" || flying.has(a.id)) return "filed";
+  const at = a.delivery_at ? toMinute(String(a.delivery_at)) : NaN;
+  return a.status === "delivered" || (Number.isFinite(at) && at <= now) ? "arrived" : "ordered";
+}
+/** The line's slots, offset 0 to size − 1, each with the card that holds it (its aircraft not retired). */
+export function lineSlots(line: Pick<PlanLineRow, "id">, cards: readonly PlanCardRow[], aircraft: readonly TailAircraft[], flying: ReadonlySet<number>, now: number,
+  size = 7): LineSlot[] {
+  const byId = new Map(aircraft.map((a) => [a.id, a]));
+  const mine = cards.filter((c) => c.line_id === line.id && c.line_day_offset != null);
+  return Array.from({ length: size }, (_, offset): LineSlot => {
+    const here = mine.filter((c) => c.line_day_offset === offset);
+    const holder = here.find((c) => byId.get(c.aircraft_id)?.status !== "retired");
+    const a = holder ? byId.get(holder.aircraft_id) ?? null : null;
+    const retired = here.filter((c) => c !== holder).map((c) => byId.get(c.aircraft_id)?.registration ?? "").filter(Boolean);
+    return { offset, state: a ? slotState(a, flying, now) : "empty", aircraft: a, card: holder ?? null, retired };
+  });
+}
+/** The first slot no aircraft holds, or null when the line is full. */
+export const nextFreeOffset = (slots: readonly LineSlot[]): number | null => slots.find((s) => s.state === "empty")?.offset ?? null;
+/** The aircraft that can take the line's next card: the line's airline and type, ordered or arrived, not filed, and
+ *  with no plan card yet; the soonest delivery first. */
+export function lineCandidates(line: Pick<PlanLineRow, "airline_id" | "aircraft_type_id">, aircraft: readonly TailAircraft[], cards: readonly PlanCardRow[]): TailAircraft[] {
+  const carded = new Set(cards.map((c) => c.aircraft_id));
+  return aircraft.filter((a) => a.airline_id === line.airline_id && a.aircraft_type_id === line.aircraft_type_id && (a.status === "on_order" || a.status === "delivered")
+    && !carded.has(a.id))
+    .sort((a, b) => String(a.delivery_at ?? "9999").localeCompare(String(b.delivery_at ?? "9999")) || a.id - b.id);
+}
+/** A line's legs as the library takes them (plan_line_legs in their order). */
+export const lineLegsOf = (legs: readonly PlanLineLegRow[]) => [...legs].sort((a, b) => a.position - b.position).map((l) => ({
+  line_day: l.line_day, flight_no: l.flight_no, origin_code: l.origin_code, dest_code: l.dest_code, dep_utc_min: l.dep_utc_min, block_min: l.block_min,
+  service_code: l.service_code,
+}));
+/** Write the next card: one planner_save() call writing the card (on the line, at the offset), and its legs, each line
+ *  leg on its weekday for that offset (the library's card.fromLine). Its base is the order's, else where the line
+ *  starts; its title names the line and the place ("PA XLR line 1 · 3 of 7"). */
+export function lineCardChanges(x: { worldId: number; line: PlanLineRow; legs: readonly PlanLineLegRow[]; aircraft: TailAircraft; offset: number; size: number }): ChangeAnswer {
+  const { line, aircraft: a, offset } = x;
+  if (a.airline_id !== line.airline_id || a.aircraft_type_id !== line.aircraft_type_id) return { error: `${a.registration} isn't this line's airline and type.` };
+  const ordered = lineLegsOf(x.legs);
+  let legs;
+  try {
+    legs = cardRules.fromLine({ legs: ordered }, offset);
+  } catch (e) {
+    return { error: e instanceof RulesError ? e.message : String(e) };
+  }
+  const changes: Change[] = [{ table: "plan_cards", op: "insert", as: "card", values: {
+    world_id: x.worldId, airline_id: line.airline_id, aircraft_id: a.id, base_code: a.order_base_code ?? ordered[0]?.origin_code ?? null,
+    title: `${line.name} · ${offset + 1} of ${x.size}`, line_id: line.id, line_day_offset: offset } }];
+  legs.forEach((l, i) => changes.push({ table: "plan_card_legs", op: "insert", from: { plan_card_id: "card" }, values: {
+    world_id: x.worldId, position: i + 1, flight_no: l.flight_no ?? null, origin_code: l.origin_code, dest_code: l.dest_code, days_utc: l.days_utc ?? [1, 2, 3, 4, 5, 6, 7],
+    dep_utc_min: l.dep_utc_min ?? null, block_min: l.block_min ?? null, service_code: l.service_code ?? null } }));
+  return { changes };
+}
+/** The line's check across the cards that exist (the library's card.checkLine): which local weekdays are still missing,
+ *  every flight daily and each route both ways once all exist, and no false flight-number clash. Null with no card yet. */
+export function lineCheck(rules: Rules, line: PlanLineRow, slots: readonly LineSlot[], legsOf: (cardId: number) => readonly PlanLegRow[]) {
+  const cards = slots.filter((s) => s.card && s.aircraft).map((s) => ({
+    aircraft: s.aircraft?.id ?? null, line_day_offset: s.offset,
+    legs: [...legsOf(s.card?.id ?? 0)].sort((a, b) => a.position - b.position).map((l) => ({
+      flight_no: l.flight_no, origin_code: l.origin_code, dest_code: l.dest_code, days_utc: l.days_utc, dep_utc_min: l.dep_utc_min, block_min: l.block_min,
+      service_code: l.service_code })),
+  }));
+  if (!cards.length) return null;
+  try {
+    return cardRules.checkLine(rules, { line: { name: line.name, airline: line.airline_id, type: line.aircraft_type_id }, cards });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+export type LineCheck = ReturnType<typeof lineCheck>;
+/** The line check in words: "complete: every flight daily, each route both ways", or the weekdays still missing, or the
+ *  problems; its level for the pill. */
+export function lineCheckWords(c: LineCheck, size = 7): { text: string; level: "ok" | "warn" | "bad"; problems: string[] } {
+  if (!c) return { text: "no cards yet", level: "warn", problems: [] };
+  if ("error" in c) return { text: `can't check: ${c.error}`, level: "bad", problems: [] };
+  const problems = c.problems;
+  if (problems.length) return { text: `${problems.length} problem${problems.length === 1 ? "" : "s"}`, level: "bad", problems };
+  if (c.complete) return { text: "complete: every flight daily, each route both ways", level: "ok", problems };
+  const days = c.missing_days.map((d) => DAYS[d - 1] ?? "?").join(" ");
+  return { text: `${c.cards} of ${size} cards · missing ${days || "nothing"}`, level: "warn", problems };
+}
+/** A slot's words on the board. */
+export const SLOT_WORDS: Record<SlotState, string> = { ordered: "ordered", arrived: "arrived", filed: "filed", empty: "empty" };

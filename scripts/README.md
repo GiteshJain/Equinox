@@ -169,14 +169,79 @@ from a clone of the repository, with Node 22:
      7-day lines): the best 7-day rotating line for the routes (long ones and medium fillers), its legs by line day with
      flight numbers and service codes, the 7 aircraft cards with their weekday offsets (`best.cards`), the score
      (connections within 4 hours at the hubs first) and whether the search finished in the run-time cap ("best found
-     …, search not finished"); `--range` is the type's reach in km until `rules_input()` carries `range_km`
-     (`aircraft_types.range_km`, the A350-900's 14,200), `--used` the flight numbers plan cards hold. Save the cards as
+     …, search not finished"); the type's reach is `aircraft_types.range_km`, which `rules_input()` carries since 28 Oct
+     (`--range` overrides it), `--used` the flight numbers plan cards hold. Keep the line in the planner with the SQL
+     below (Lines in the planner). Save the cards as
      `{"line": {...}, "cards": [...]}` and `check-card line.json` checks them as a line: every flight daily once all 7
      exist, the days missing until then, each route both ways daily, and each card's own check with the maintenance
      spacing (`maintenance_max_gap_h`, 40 hours).
 
    Each answers in JSON. The weekly report runs `aircraft` (above), and the website's trip search uses the library's
    connection test from `web/assets/rules.js`, which the same build writes.
+
+## Lines in the planner (Scheduling chat)
+Since 28 Oct (spec `docs/specs/2026-10-27-long-haul-lines.md` §2; manual §4, long haul in lines) a 7-day line is a row of
+`plan_lines` with its legs in `plan_line_legs`, and each aircraft's plan card names its line and place
+(`plan_cards.line_id`, `line_day_offset` 0 to 6). The database keeps one card per line and offset among aircraft that
+aren't retired. The planner shows each line on Tails' deliveries board, with its slots and its check, and writes a
+line's next card (**Write the next card**); it doesn't add lines. The chat does, with plain SQL as postgres (manual §1).
+
+**Add a line from `optimise-line`'s answer.** Paste the whole answer (the JSON the command printed) between the
+`$answer$` marks, and name the line (unique within the airline). The answer is kept as `optimiser_answer`, the record
+of the run; its `best.legs` become the line's legs, each with its line day, flight number, airports, UTC departure,
+block and service code:
+
+```sql
+select set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'scheduling <date>', true);
+with a as (select $answer$<the optimise-line answer>$answer$::jsonb as j),
+line as (
+  insert into public.plan_lines (world_id, airline_id, aircraft_type_id, name, note, optimiser_answer)
+  select al.world_id, al.id, t.id, 'PA XLR line JFK 1', null, a.j
+    from a
+    join public.airlines al on al.id = (a.j ->> 'airline_id')::bigint
+    join public.aircraft_types t on t.world_id = al.world_id and t.name = a.j ->> 'type'
+  returning id, world_id)
+insert into public.plan_line_legs (world_id, line_id, position, line_day, flight_no, origin_code, dest_code, dep_utc_min, block_min, service_code)
+select line.world_id, line.id, (l ->> 'leg')::int, (l ->> 'line_day')::smallint, (l ->> 'flight_no')::int, l ->> 'from', l ->> 'to',
+       (l ->> 'dep_utc_min')::smallint, (l ->> 'block_min')::smallint, l ->> 'service_code'
+  from line, a, jsonb_array_elements(a.j -> 'best' -> 'legs') l
+returning line_id, position;
+```
+
+**Write the next card for an aircraft on order** (when logging an order, or any time; the same rows Tails' **Write the
+next card** writes): the aircraft by registration, of the line's airline and type, with no card yet. It takes the first
+place no aircraft holds, its base is the order's (else where the line starts), and each line leg goes on its weekday for
+that place: line day d on UTC weekday ((d + offset − 1) mod 7) + 1. Nothing is written when the aircraft doesn't fit or
+the line is full:
+
+```sql
+select set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'scheduling <date>', true);
+with s as (
+  select l.id as line_id, l.world_id, l.airline_id, l.name, a.id as aircraft_id,
+         coalesce(a.order_base_code, (select g.origin_code from public.plan_line_legs g where g.line_id = l.id order by g.position limit 1)) as base_code,
+         (select min(k) from generate_series(0, 6) k
+           where not exists (select 1 from public.plan_cards c join public.aircraft b on b.id = c.aircraft_id
+                              where c.line_id = l.id and c.line_day_offset = k and b.status <> 'retired')) as k
+    from public.plan_lines l
+    join public.aircraft a on a.world_id = l.world_id and a.registration = 'N351PA'
+                          and a.airline_id = l.airline_id and a.aircraft_type_id = l.aircraft_type_id
+   where l.name = 'PA XLR line JFK 1'
+     and not exists (select 1 from public.plan_cards c where c.aircraft_id = a.id)),
+card as (
+  insert into public.plan_cards (world_id, airline_id, aircraft_id, base_code, title, line_id, line_day_offset)
+  select s.world_id, s.airline_id, s.aircraft_id, s.base_code, s.name || ' · ' || (s.k + 1) || ' of 7', s.line_id, s.k
+    from s where s.k is not null
+  returning id, world_id, line_id, line_day_offset)
+insert into public.plan_card_legs (world_id, plan_card_id, position, flight_no, origin_code, dest_code, days_utc, dep_utc_min, block_min, service_code)
+select card.world_id, card.id, g.position, g.flight_no, g.origin_code, g.dest_code,
+       array[((g.line_day + card.line_day_offset - 1) % 7) + 1]::smallint[], g.dep_utc_min, g.block_min, g.service_code
+  from card join public.plan_line_legs g on g.line_id = card.line_id
+returning plan_card_id, position, days_utc;
+```
+
+The library gives the same legs (`card.fromLine(line, offset)`, `lib/rules/README.md`). To check the line as it stands,
+save its cards as `{"line": {...}, "cards": [...]}` and run `check-card rules.json line.json` (above); Tails shows the
+same check. A retired aircraft's card stays as the record and frees its place for the next card.
 
 ## The captured figures (any chat)
 The figures worked out from what the capture recorded live in the database (decision #19, design §8): the cash

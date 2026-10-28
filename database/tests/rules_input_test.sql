@@ -21,7 +21,8 @@
 --      (fare_plan_raise_pct) and service profiles (service_profiles, #18 build pull request 10, every row of the
 --      world's), and build pull request 12's settings (suggested_size, interline_rules) and each airport's region (its
 --      country's), and the cabins' new rule's (21 Oct, 20261021180000) setting (cabin_route_share_pct), each layout's
---      name (cabin_configs' cabin), each airline's is_lcc and each route's market_layout and cabin_choice:
+--      name (cabin_configs' cabin), each airline's is_lcc and each route's market_layout and cabin_choice, and each
+--      aircraft type's reach (range_km, 28 Oct, lines in the planner):
 --      in the document, then taken out before comparing, when the copy didn't have them; the two refit settings that
 --      rule removes (cabin_refit_cost, cabin_refit_share_pct) must be gone, and are taken out of the before; 'flown' holds every route with a rotation and no other, and exactly the airports a flown
 --      route, a leg, a base or an aircraft uses, each read back as 'all' has it; everything else in the document is the
@@ -174,6 +175,17 @@ begin
         'all: a route has no market_layout or cabin_choice';
       d_cmp := jsonb_set(d_cmp, '{routes}', (select coalesce(jsonb_agg(e - 'market_layout' - 'cabin_choice' order by i), '[]'::jsonb)
                                                from jsonb_array_elements(d_cmp -> 'routes') with ordinality as x(e, i)));
+      n_new := n_new + 1;
+    end if;
+    -- each type's reach (20261028180000, lines in the planner): range_km as the table has it, then taken out when the
+    -- copy's types didn't carry it
+    if d_cmp ? 'aircraft_types' and not exists (select 1 from jsonb_array_elements(d_before -> 'aircraft_types') e where e ? 'range_km') then
+      select string_agg(e ->> 'id', ', ') into bad from jsonb_array_elements(d_all -> 'aircraft_types') e
+       where not e ? 'range_km'
+          or (e ->> 'range_km')::int is distinct from (select t.range_km from public.aircraft_types t where t.id = (e ->> 'id')::bigint);
+      assert bad is null, 'all: these types don''t carry their range_km: ' || bad;
+      d_cmp := jsonb_set(d_cmp, '{aircraft_types}', (select coalesce(jsonb_agg(e - 'range_km' order by i), '[]'::jsonb)
+                                                       from jsonb_array_elements(d_cmp -> 'aircraft_types') with ordinality as x(e, i)));
       n_new := n_new + 1;
     end if;
   end if;

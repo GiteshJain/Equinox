@@ -1769,6 +1769,24 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .tdel .deltbl tbody tr:last-child td{border-bottom:0}
 .tdel .deltbl .dreg b{font-weight:800}
 .tdel .deltbl .dact{white-space:nowrap;text-align:right}
+.tdel .tlines{margin:4px 0 14px}
+.tdel .tlh{margin:0 0 8px;font-size:var(--t-small);font-weight:700}
+.tdel .tline{padding:10px 0;border-bottom:1px solid var(--line)}
+.tdel .tline:last-child{border-bottom:0}
+.tdel .tlhead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px;min-width:0}
+.tdel .tlhead .pill{margin:0}
+.tdel .tlslots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.tdel .tlslot{display:flex;flex-direction:column;gap:3px;padding:7px 9px;border-radius:var(--r-md);background:var(--group);min-width:0;overflow-wrap:anywhere}
+.tdel .tlslot.empty{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.tdel .tlslot.sel{background:var(--sel)}
+.tdel .tlslot .pill{margin:0;align-self:flex-start}
+.tdel .tlday{font-size:12px;color:var(--muted)}
+.tdel .tlreg{font-weight:700;text-align:left;padding:0}
+.tdel .tlprob{margin:8px 0 0;padding-left:18px;font-size:var(--t-small);color:var(--bad)}
+.tdel .tlfoot{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:var(--t-small)}
+.tdel .tlfoot select{max-width:100%}
+.pcline{margin:0 0 10px;font-size:var(--t-small);overflow-wrap:anywhere}
+.pcline .pill{margin:0}
 /* the plan card's window */
 .pcmodal .pch{padding-bottom:12px;border-bottom:1px solid var(--line)}
 .pcmodal .pch > b{font:800 var(--t-h3)/1.3 var(--font);color:var(--ink);overflow-wrap:anywhere;min-width:0}

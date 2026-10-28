@@ -27,7 +27,8 @@ the saves' names follow their screens, and Log an order as went with the order r
     action); change its departure; delete it; remove the route; change an airport's UTC offset; put it back.
   Tails: add a tail; change its maintenance gap; change its base; remove it; remove a delivery (one made for the test);
     file an arrived aircraft (made for the test) from its plan card with the game matching, then again with it
-    differing (File with the game's times).
+    differing (File with the game's times); since 28 Oct a line's next card (Write the next card, for an aircraft on order of a line
+    made for the test).
   Systems: cash and fixed costs; loads typed; loads pasted with the day marked complete. (Keep as is, Show again and
     Refitted to went with the Cabins board on 21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and Mark checked
     with the one-week checks on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md, and their recorded rows
@@ -557,6 +558,45 @@ async def tails(s, pl, al, tag, now):
         await s.act("tails: remove a delivery (on order, nothing pointing at it)", remove_delivery)
 
     await filing(s, pl, al, tag, now, t)
+    await line_card(s, pl, al, tag, now, t)
+
+
+async def line_card(s, pl, al, tag, now, t):
+    """A line's next card (28 Oct, spec docs/specs/2026-10-27-long-haul-lines.md §2): a line of the airline and an
+    aircraft of its type on order without a card, both made for the test; Tails' Write the next card writes the card at
+    offset 0 and its two legs as one action. Everything made is removed again afterwards, outside the change log."""
+    pg = pl.pg
+    code, aid = al["code"], int(al["id"])
+    r = one(f"""select json_build_object('hub', r.hub_code, 'dest', r.dest_code) from public.routes r
+                 where r.airline_id = {aid} and not r.removed order by r.id limit 1""")
+    if not t or not r:
+        s.not_tried(f"{code} has no route or no aircraft to copy", "tails: write a line's next card")
+        return
+    wreg, lname = "ZW" + tag[:4].upper(), "saves test line " + tag[:6]
+    as_test(f"""insert into public.plan_lines (world_id, airline_id, aircraft_type_id, name) values ({WORLD}, {aid}, {int(t['type'])}, :'n');
+                insert into public.plan_line_legs (world_id, line_id, position, line_day, flight_no, origin_code, dest_code, dep_utc_min, block_min, service_code)
+                select {WORLD}, l.id, x.p, x.d, null, x.o, x.k, x.dep, 120, null
+                  from public.plan_lines l cross join (values (1, 1, :'b', :'x', 360), (2, 2, :'x', :'b', 120)) as x(p, d, o, k, dep)
+                 where l.airline_id = {aid} and l.name = :'n';
+                insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, ordered_on, delivery_at, order_base_code, order_config_id, acquired)
+                select {WORLD}, {aid}, :'r', {int(t['type'])}, 'on_order', :'d'::date, :'m'::timestamptz + interval '5 days', :'b', {int(t['config'])}, 'new'""",
+            n=lname, b=r["hub"], x=r["dest"], r=wreg, d=now[:10], m=now)
+    lid = int(psql(f"select id from public.plan_lines where airline_id = {aid} and name = :'n'", n=lname).strip())
+    try:
+        await reload(pl)
+
+        async def write():
+            await to_screen(pl, "tails", "/tails?" + urlencode({"airline": code}))
+            sel = f"[data-figure='tails: lines'] [data-line-pick='{lid}']"
+            await pg.wait_for_selector(sel, timeout=30000)
+            await pg.select_option(sel, wreg)
+            await pg.click(f"[data-figure='tails: lines'] [data-line-write='{lid}']")
+        await s.act("tails: write a line's next card", write, rows=3)
+    finally:
+        quietly(f"""delete from public.plan_card_legs where plan_card_id in (select c.id from public.plan_cards c where c.line_id = {lid});
+                    delete from public.plan_cards where line_id = {lid};
+                    delete from public.aircraft where world_id = {WORLD} and registration = :'r';
+                    delete from public.plan_lines where id = {lid};""", r=wreg)
 
 
 def card_flights(card_id, code):

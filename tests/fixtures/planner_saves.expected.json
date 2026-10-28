@@ -517,6 +517,19 @@
     "aircraft update retired_on,status": 1
    }
   },
+  "tails: write a line's next card": {
+   "logged": [
+    "planner tab"
+   ],
+   "sent": {
+    "planner_save plan_card_legs insert block_min,days_utc,dep_utc_min,dest_code,flight_no,origin_code,plan_card_id,position,service_code,world_id": 2,
+    "planner_save plan_cards insert aircraft_id,airline_id,base_code,line_day_offset,line_id,title,world_id": 1
+   },
+   "written": {
+    "plan_card_legs insert": 2,
+    "plan_cards insert": 1
+   }
+  },
   "today: add a to-do with two steps": {
    "logged": [
     "planner tab"

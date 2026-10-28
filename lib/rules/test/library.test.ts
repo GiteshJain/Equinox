@@ -84,6 +84,42 @@ describe("a plan card checked against every rule", () => {
   });
 });
 
+describe("a card written from a line (28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §2)", () => {
+  const legs = [
+    { line_day: 1, flight_no: 1001, origin_code: "HUB", dest_code: "BBB", dep_utc_min: 600, block_min: 425, service_code: "S3" },
+    { line_day: 2, flight_no: 1002, origin_code: "BBB", dest_code: "HUB", dep_utc_min: 60, block_min: 425, service_code: "S3" },
+    { line_day: 7, flight_no: 1003, origin_code: "HUB", dest_code: "CCC", dep_utc_min: 1380, block_min: null },
+  ];
+  it("each leg on the weekday the offset gives: aircraft k = offset + 1 flies line day d on ((d + k − 2) mod 7) + 1", () => {
+    expect(card.fromLine({ legs }, 0).map((l) => l.days_utc)).toEqual([[1], [2], [7]]);
+    expect(card.fromLine({ legs }, 3).map((l) => l.days_utc)).toEqual([[4], [5], [3]]);
+    expect(card.fromLine({ legs }, 6).map((l) => l.days_utc)).toEqual([[7], [1], [6]]);
+    expect(card.fromLine({ legs }, 1)[0]).toEqual({ flight_no: 1001, origin_code: "HUB", dest_code: "BBB", days_utc: [2], dep_utc_min: 600, block_min: 425, service_code: "S3" });
+    expect(card.fromLine({ legs }, 1)[2]).toMatchObject({ block_min: null, service_code: null });
+    expect([0, 1, 2, 3, 4, 5, 6].map((k) => card.lineWeekday(7, k))).toEqual([7, 1, 2, 3, 4, 5, 6]);
+  });
+  it("refuses an offset outside 0 to 6, a line day outside 1 to 7 and a line with no legs", () => {
+    expect(() => card.fromLine({ legs }, 7)).toThrow(/offset is 0 to 6, not 7/);
+    expect(() => card.fromLine({ legs }, -1)).toThrow(/offset is 0 to 6/);
+    expect(() => card.fromLine({ legs: [{ ...legs[0]!, line_day: 8 }] }, 0)).toThrow(/line day 8 isn't 1 to 7/);
+    expect(() => card.fromLine({ legs: [] }, 0)).toThrow(/no legs/);
+  });
+  it("the line check doesn't count a filed aircraft's own flights against the other cards (no false clash)", () => {
+    const two = [{ line_day: 1, flight_no: 1001, origin_code: "HUB", dest_code: "BBB", dep_utc_min: 0, block_min: 425, service_code: "S3" },
+      { line_day: 1, flight_no: 1002, origin_code: "BBB", dest_code: "HUB", dep_utc_min: 600, block_min: 425, service_code: "S3" }];
+    // T-001 is filed: its offset-0 card's legs are already its flight_legs; T-002's card is at offset 1
+    const filed = card.fromLine({ legs: two }, 0).map((l, i) => leg(50 + i, l.origin_code, l.dest_code, l.dep_utc_min ?? 0, l.block_min ?? null,
+      { flight_no: l.flight_no, days_utc: l.days_utc, aircraft_id: 1 }));
+    const r = buildRules(world({ flight_legs: filed }));
+    const a = card.checkLine(r, { line: { airline: 1, type: "A321 NEO LIGHT" }, cards: [
+      { aircraft: "T-001", line_day_offset: 0, legs: card.fromLine({ legs: two }, 0) },
+      { aircraft: "T-002", line_day_offset: 1, legs: card.fromLine({ legs: two }, 1) }] });
+    expect(a.problems.filter((p) => /clash|used twice|same local weekday/.test(p))).toEqual([]);
+    expect(a.flights.map((f) => [f.flight_no, f.days])).toEqual([[1001, [1, 2]], [1002, [1, 2]]]);
+    expect(a.missing_days).toEqual([3, 4, 5, 6, 7]);
+  });
+});
+
 describe("the command (node lib/rules/dist/cli.js)", () => {
   const input = file("input.json", world({ flight_legs: [leg(1, "HUB", "AAA", 360, 75), leg(2, "AAA", "HUB", 510, 75), leg(3, "BBB", "HUB", 0, 300, { aircraft_id: 2 })] }));
   it("block <origin> <dest> <type>", () => {
@@ -144,6 +180,10 @@ describe("the command (node lib/rules/dist/cli.js)", () => {
     // each card is the line shifted a day: aircraft k flies line day d on weekday ((d + k − 2) mod 7) + 1
     const d0 = a.best.cards[0]?.legs.map((l) => l.days_utc[0] ?? 0) ?? [];
     a.best.cards.forEach((c, k) => expect(c.legs.map((l) => l.days_utc[0])).toEqual(d0.map((d) => ((d + k - 1) % 7) + 1)));
+    // card.fromLine (28 Oct, the planner's Write the next card) gives each card's legs from the line's legs and the offset
+    const lineLegs = (a.best as unknown as { legs: { line_day: number; flight_no: number; from: string; to: string; dep_utc_min: number; block_min: number; service_code: string | null }[] }).legs
+      .map((l) => ({ line_day: l.line_day, flight_no: l.flight_no, origin_code: l.from, dest_code: l.to, dep_utc_min: l.dep_utc_min, block_min: l.block_min, service_code: l.service_code }));
+    a.best.cards.forEach((c, k) => expect(card.fromLine({ legs: lineLegs }, k)).toEqual(c.legs));
     expect(() => run(["optimise-line", withGap, "--airline", "1", "--type", "A321 NEO LIGHT", "--hubs", "HUB", "--routes", "HUB-BBB", "--range", "5000", "--work", "5"])).toThrow(/beyond the A321 NEO LIGHT's reach of 5,000 km/);
     expect(() => run(["optimise-line", withGap, "--airline", "1", "--type", "A321 NEO LIGHT", "--hubs", "HUB"])).toThrow(/optimise-line --airline/);
   });
