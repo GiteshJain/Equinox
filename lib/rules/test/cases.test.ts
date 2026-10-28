@@ -27,8 +27,9 @@ interface CaseFile {
 
 const dir = new URL("../cases/", import.meta.url);
 const fixtures = new URL("../../../tests/fixtures/", import.meta.url);
-/** Case files made from the test sample (game data), kept in tests/fixtures/: the optimiser against plan.py's saved answer (spec §4). */
-const FIXTURE_CASES = ["optimiser_kul_2026-10-10.json"];
+/** Case files made from the test sample (game data), kept in tests/fixtures/: the optimiser against plan.py's saved answer (spec §4), and
+ *  since 28 Oct the line optimiser's Pan Am A350 sample line and its line card check (spec docs/specs/2026-10-27-long-haul-lines.md §6). */
+const FIXTURE_CASES = ["optimiser_kul_2026-10-10.json", "line_a350_2026-10-12.json"];
 const base = JSON.parse(readFileSync(new URL("_base.json", dir), "utf8")) as { input: RulesInput };
 const files: { label: string; url: URL }[] = [
   ...readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).sort().map((f) => ({ label: f, url: new URL(f, dir) })),
@@ -38,7 +39,7 @@ const files: { label: string; url: URL }[] = [
 describe("hand-made cases (lib/rules/cases)", () => {
   it("has cases for every part", () => {
     const parts = new Set(files.map((f) => (JSON.parse(readFileSync(f.url, "utf8")) as CaseFile).part));
-    for (const p of ["time", "block", "turns", "connections", "banks", "maintenance", "aircraftWeek", "schedule", "positions", "summary", "optimiser", "frequency", "service", "tails", "game", "cabinFor", "cardFares", "loadReport", "growth"]) {
+    for (const p of ["time", "block", "turns", "connections", "banks", "maintenance", "aircraftWeek", "schedule", "positions", "summary", "optimiser", "frequency", "service", "tails", "game", "cabinFor", "cardFares", "loadReport", "growth", "lineOptimiser"]) {
       expect(parts, `no case file for ${p}`).toContain(p);
     }
   });
@@ -46,7 +47,8 @@ describe("hand-made cases (lib/rules/cases)", () => {
     const file = JSON.parse(readFileSync(f.url, "utf8")) as CaseFile;
     describe(`${f.label} (${file.part})`, () => {
       for (const c of file.cases) {
-        it(c.name, () => {
+        // the line optimiser's sample runs for a few seconds (its work budget), so its cases get longer
+        it(c.name, { timeout: c.ask.what === "optimise_line" ? 60_000 : 5_000 }, () => {
           const input = mergeInput(base.input, file.input, c.input);
           const want = c.answer as { error?: string } | null;
           if (want && typeof want === "object" && "error" in want && Object.keys(want).length === 1) {

@@ -104,10 +104,11 @@ describe("the list", () => {
       { kind: "maintenance", level: "bad", pct: 92, min_pct: 100, target_pct: 105 }, { kind: "maintenance", level: "warn", pct: 103, min_pct: 100, target_pct: 105 },
       { kind: "tight_turns", count: 2, margin_min: 10 }, { kind: "positions", count: 1 }, { kind: "longest_gap", gap_min: 150, target_h: 4 },
       { kind: "off_wave", count: 1, rotation_ids: [9] },
+      { kind: "maintenance_gap", max_gap_h: 78, limit_h: 40, counting_stops: 4 }, { kind: "maintenance_gap", max_gap_h: null, limit_h: 40, counting_stops: 0 },
     ] as TailIssue[]).map(issueWords);
     expect(words).toEqual(["flies 8.0 h a day — under the 10 h target", "1 short turn a week", "7 short turns a week", "maintenance ≈92% — under 100%, condition will fall",
       "maintenance ≈103% — little headroom", "2 turns a week under the 10-min margin", "1 leg start where the aircraft isn't", "longest gap 2:30 — under the 4 h target",
-      "1 rotation off wave"]);
+      "1 rotation off wave", "no maintenance stop for 78 h, over 40", "no maintenance stop all week, over 40 h"]);
   });
 });
 

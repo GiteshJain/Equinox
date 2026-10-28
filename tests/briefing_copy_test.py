@@ -161,8 +161,9 @@ def guide_rows():
 
 
 def card_file(path):
-    """A plan card from the copy for check-card: the newest card with legs, else an aircraft in service's legs; and beside
-    it fare_ladder.json, fare_ladder() for the card's airline (check-card --fares, since 21 Oct)."""
+    """A plan card from the copy for check-card: the newest card with legs, else an aircraft in service's legs; beside it
+    fare_ladder.json, fare_ladder() for the card's airline (check-card --fares, since 21 Oct), and line.json, the same card
+    as a line of one (check-card on a line file, since 28 Oct)."""
     c = one("""select json_build_object('aircraft', c.aircraft_id, 'legs', (select json_agg(json_build_object(
                  'flight_no', l.flight_no, 'origin_code', l.origin_code, 'dest_code', l.dest_code, 'days_utc', l.days_utc,
                  'dep_utc_min', l.dep_utc_min, 'block_min', l.block_min, 'service_code', l.service_code) order by l.position)
@@ -176,6 +177,8 @@ def card_file(path):
                    from public.aircraft a join public.flight_legs l on l.aircraft_id = a.id
                   where a.status = 'active' group by a.id, a.registration order by a.id limit 1""")
     path.write_text(json.dumps(c))
+    # and line.json beside it: the same card as a line of one (check-card on a line file, since 28 Oct)
+    (path.parent / "line.json").write_text(json.dumps({"line": {"name": "a line of one card"}, "cards": [c]}))
     airline = one(f"""select a.airline_id from public.aircraft a
                       where a.id::text = '{c["aircraft"]}' or a.registration = '{c["aircraft"]}' limit 1""") if c else None
     (path.parent / "fare_ladder.json").write_text(json.dumps(one(f"select public.fare_ladder({int(airline)})") if airline else {"routes": []}))

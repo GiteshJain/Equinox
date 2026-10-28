@@ -16,7 +16,7 @@ import { sequenceWeek, weekLegsOf } from "./aircraftWeek.js";
 import { inNightBan } from "./airport.js";
 import { baseAt } from "./banks.js";
 import { blockFor, timedLegs } from "./block.js";
-import { connectionLimits, link, planTargetH, targetLimits } from "./connections.js";
+import { connectionLimits, link, planTargetH, targetLimits, type ConnectionLimits } from "./connections.js";
 import { RulesError, findType, settingNumber, worldRuleNumber } from "./input.js";
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
 import { closestDepartures } from "./schedule.js";
@@ -93,6 +93,32 @@ export function permutations<T>(items: readonly T[]): T[][] {
 
 const EPS = 1e-9;
 
+/** The connections a plan's new legs make at the hubs with the existing legs and with each other (the old plan.py's
+ *  conns): every arrival and departure pair that connects on at least one day (all), and those whose tightest
+ *  connection, on any of its days, is within the planning target (within; the short limits). A departure back to where
+ *  the arrival came from doesn't count. Shared with the line optimiser (lineOptimiser, since 28 Oct), so a line and a
+ *  day's schedule are scored the same way. */
+export function countConnections(rules: Rules, hubs: readonly string[], limits: ReadonlyMap<string, ConnectionLimits>,
+  short: ReadonlyMap<string, ConnectionLimits>, legs: readonly TimedLeg[], existing: readonly TimedLeg[]): { all: number; within: number } {
+  let c = 0, s = 0;
+  for (const h of hubs) {
+    const lim = limits.get(h), lims = short.get(h);
+    if (!lim || !lims) continue;
+    const newArr = legs.filter((l) => l.dest === h), newDep = legs.filter((l) => l.origin === h);
+    const oldArr = existing.filter((l) => l.dest === h), oldDep = existing.filter((l) => l.origin === h);
+    const count = (i: TimedLeg, o: TimedLeg) => {
+      if (o.dest === i.origin) return;
+      const k = link(rules, i, o, lim);
+      if (!k) return;
+      c++;
+      if (k.gap_min <= lims.max_min) s++;
+    };
+    for (const i of newArr) for (const o of [...oldDep, ...newDep]) count(i, o);
+    for (const i of oldArr) for (const o of newDep) count(i, o);
+  }
+  return { all: c, within: s };
+}
+
 /** The best day's schedule; see the top of this file. */
 export function optimise(rules: Rules, opts: OptimiseOptions, existing: readonly TimedLeg[] = timedLegs(rules)): OptimiseAnswer {
   const type = findType(rules, opts.type);
@@ -157,24 +183,7 @@ export function optimise(rules: Rules, opts: OptimiseOptions, existing: readonly
         continue;
       }
       answer.feasible++;
-      // every connection (c), and those within the planning target (s): a pair connects within it when its tightest
-      // connection, on any of its days, is no longer than plan_connection_target_h
-      let c = 0, s = 0;
-      for (const h of hubs) {
-        const lim = limits.get(h), lims = short.get(h);
-        if (!lim || !lims) continue;
-        const newArr = legs.filter((l) => l.dest === h), newDep = legs.filter((l) => l.origin === h);
-        const oldArr = existing.filter((l) => l.dest === h), oldDep = existing.filter((l) => l.origin === h);
-        const count = (i: TimedLeg, o: TimedLeg) => {
-          if (o.dest === i.origin) return;
-          const k = link(rules, i, o, lim);
-          if (!k) return;
-          c++;
-          if (k.gap_min <= lims.max_min) s++;
-        };
-        for (const i of newArr) for (const o of [...oldDep, ...newDep]) count(i, o);
-        for (const i of oldArr) for (const o of newDep) count(i, o);
-      }
+      const { all: c, within: s } = countConnections(rules, hubs, limits, short, legs, existing);
       if (bestKey === null || s > bestKey.s || (s === bestKey.s && (c > bestKey.c || (c === bestKey.c && m.ratio > bestKey.m + EPS)))) {
         bestKey = { s, c, m: m.ratio };
         answer.best = {

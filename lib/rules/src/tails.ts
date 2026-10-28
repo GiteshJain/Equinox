@@ -7,6 +7,8 @@
 //   - tight turns a week (under the turnaround plus turn_margin_min);
 //   - legs a week that start where the aircraft isn't;
 //   - its longest ground gap under the type's target maintenance gap (gap_target_h), when it flies;
+//   - since 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §3) a stretch without a counting maintenance stop
+//     longer than maintenance_max_gap_h (maintenance.spacing; an input without the setting isn't checked);
 //   - rotations off wave: an arrival that feeds no bank at either end (banks.wave's level bad).
 // The old code it follows: the old planner's tailIssues(). Its numbers there (10 h, 1 and 1.05) are settings here.
 import { forAircraft as weekOf, type AircraftWeek } from "./aircraftWeek.js";
@@ -24,6 +26,9 @@ export type TailIssue =
   | { kind: "tight_turns"; count: number; margin_min: number }
   | { kind: "positions"; count: number }
   | { kind: "longest_gap"; gap_min: number; target_h: number }
+  /** No maintenance stop that counts for max_gap_h hours, over the limit (maintenance_max_gap_h); max_gap_h null when no
+   *  stop counts in the whole week. */
+  | { kind: "maintenance_gap"; max_gap_h: number | null; limit_h: number; counting_stops: number }
   | { kind: "off_wave"; count: number; rotation_ids: number[] };
 
 /** The rotations an aircraft flies (its outbound's aircraft, else its return's, as the old planner's frequency's tail)
@@ -80,6 +85,9 @@ export function issues(rules: Rules, aircraft: number | string | AircraftRow, le
   if (type?.gap_target_h != null && w.legs.length) {
     const longest = Math.max(0, ...w.legs.map((l) => l.ground_min ?? 0));
     if (longest < Number(type.gap_target_h) * 60) out.push({ kind: "longest_gap", gap_min: longest, target_h: Number(type.gap_target_h) });
+  }
+  if (m && m.ratio != null && "max_gap_ok" in m && m.max_gap_ok === false && m.max_gap_limit_h != null) {
+    out.push({ kind: "maintenance_gap", max_gap_h: m.max_gap_h, limit_h: m.max_gap_limit_h, counting_stops: m.counting_stops });
   }
   const off = offWave(rules, a.id);
   if (off.length) out.push({ kind: "off_wave", count: off.length, rotation_ids: off });

@@ -1,9 +1,9 @@
 // The questions a case can ask, each answered by the library. Kept apart from the runner so the cases stay plain JSON
 // that another home (pull request 3's database tests) can answer the same way.
 import {
-  aircraftWeek, airport, banks, block, buildRules, card, connections, frequency, game, growth, loadReport, maintenance, optimiser, positions, schedule,
-  service, summary, tails, time, turns, findType,
-  type Card, type FareLadder, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LocalTimes, type LoggedMove,
+  aircraftWeek, airport, banks, block, buildRules, card, connections, frequency, game, growth, lineOptimiser, loadReport, maintenance, optimiser, positions,
+  schedule, service, summary, tails, time, turns, findType,
+  type Card, type FareLadder, type FrequencyEnds, type GameFix, type GameFlight, type Json, type LegToCheck, type LineFile, type LocalTimes, type LoggedMove,
   type MoveFacts, type Move, type PlannedCardLeg, type Rules, type RulesInput, type ServiceProfile, type StoredLeg,
 } from "../src/index.js";
 
@@ -147,6 +147,20 @@ export function ask(input: RulesInput, q: Ask): unknown {
     }
     case "check_card":
       return card.checkCard(rules, q.card as unknown as Card);
+    // a line of up to 7 cards (spec docs/specs/2026-10-27-long-haul-lines.md §3): each card, and the line as a whole
+    case "check_line": {
+      const a = card.checkLine(rules, q.line as unknown as LineFile);
+      return { ...a, card_checks: a.card_checks.map((c) => ({ ok: c.ok, problems: c.problems, legs_week: c.legs_week, block_hours_day: c.block_hours_day, maintenance: c.maintenance, connections: c.connections })) };
+    }
+    // the 7-day line (spec §1), with an iteration cap so the answer is the same on every machine
+    case "optimise_line": {
+      const pairs = (x: Json | undefined): [string, string][] => ((x ?? []) as string[]).map((r) => { const [a, b] = r.split("-", 2); return [a ?? "", b ?? ""]; });
+      return lineOptimiser.optimiseLine(rules, {
+        airlineId: num(q.airline_id, "airline_id"), type: q.type as string | number, hubs: q.hubs as string[], routes: pairs(q.routes), fixed: pairs(q.fixed),
+        step: num(q.step, "step"), budget: { work: (q.work as number | undefined) ?? null }, usedFlightNumbers: (q.used as number[] | undefined) ?? [],
+        rangeKm: (q.range_km as number | undefined) ?? null, beam: (q.beam as number | undefined) ?? undefined,
+      });
+    }
     // each route's fare level on a plan card (spec docs/specs/2026-10-21-frequencies-and-fares.md §2): cardFares, and the
     // card check's fares when handed the same ladder
     case "card_fares": {

@@ -134,6 +134,30 @@ describe("the command (node lib/rules/dist/cli.js)", () => {
     expect(a.considered).toBe(3);
     expect(a.best.order).toEqual(["DDD"]);
   });
+  it("optimise-line --airline --type --hubs --routes [--fixed] [--step] [--work] [--range]: the best 7-day line and its 7 cards (28 Oct)", () => {
+    const withGap = file("gap.json", world({ settings: { maintenance_max_gap_h: 40 } }));
+    const a = run(["optimise-line", withGap, "--airline", "1", "--type", "A321 NEO LIGHT", "--hubs", "HUB", "--routes", "HUB-BBB,HUB-CCC", "--step", "60", "--work", "40", "--range", "7000", "--seconds", "0"]) as
+      { search: { finished: boolean; work: number }; best: { legs: { flight_no: number }[]; cards: { line_day_offset: number; legs: { days_utc: number[] }[] }[] } };
+    expect(a.search.work).toBe(40);
+    expect(a.best.legs.map((l) => l.flight_no)).toEqual([1001, 1002, 1003, 1004]);
+    expect(a.best.cards.map((c) => c.line_day_offset)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    // each card is the line shifted a day: aircraft k flies line day d on weekday ((d + k − 2) mod 7) + 1
+    const d0 = a.best.cards[0]?.legs.map((l) => l.days_utc[0] ?? 0) ?? [];
+    a.best.cards.forEach((c, k) => expect(c.legs.map((l) => l.days_utc[0])).toEqual(d0.map((d) => ((d + k - 1) % 7) + 1)));
+    expect(() => run(["optimise-line", withGap, "--airline", "1", "--type", "A321 NEO LIGHT", "--hubs", "HUB", "--routes", "HUB-BBB", "--range", "5000", "--work", "5"])).toThrow(/beyond the A321 NEO LIGHT's reach of 5,000 km/);
+    expect(() => run(["optimise-line", withGap, "--airline", "1", "--type", "A321 NEO LIGHT", "--hubs", "HUB"])).toThrow(/optimise-line --airline/);
+  });
+  it("check-card <line.json>: a line file of cards is checked as a line, a card as a card (28 Oct)", () => {
+    const legs = (day: number) => [{ flight_no: 1001, origin_code: "HUB", dest_code: "BBB", days_utc: [day], dep_utc_min: 0, block_min: 425, service_code: "S3" },
+      { flight_no: 1002, origin_code: "BBB", dest_code: "HUB", days_utc: [day], dep_utc_min: 600, block_min: 425, service_code: "S3" }];
+    const line = file("line.json", { line: { airline: 1, type: "A321 NEO LIGHT" }, cards: [1, 2, 3].map((d) => ({ legs: legs(d) })) });
+    const plain = file("plain.json", world());
+    const a = run(["check-card", plain, line]) as { cards: number; complete: boolean; ok: boolean; missing_days: number[]; flights: { flight_no: number; days: number[] }[] };
+    expect(a).toMatchObject({ cards: 3, complete: false, ok: true, missing_days: [4, 5, 6, 7] });
+    expect(a.flights.map((f) => [f.flight_no, f.days])).toEqual([[1001, [1, 2, 3]], [1002, [1, 2, 3]]]);
+    const one = run(["check-card", plain, file("one.json", { airline: 1, type: "A321 NEO LIGHT", legs: legs(1) })]) as { ok: boolean; legs_week: number; maintenance: { max_gap_h: number | null; max_gap_ok: boolean | null } };
+    expect(one).toMatchObject({ ok: true, legs_week: 2, maintenance: { max_gap_ok: null } });
+  });
   it("answers an unknown command, a missing argument or an unknown airport with an error", () => {
     expect(() => run(["nonsense", input])).toThrow(/unknown command/);
     expect(() => run(["block", input, "HUB"])).toThrow(/block <origin> <dest> <type>/);

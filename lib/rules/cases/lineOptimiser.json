@@ -1,0 +1,894 @@
+{
+  "part": "lineOptimiser",
+  "note": "The 7-day line on the base world (spec docs/specs/2026-10-27-long-haul-lines.md §1): Test Air's A321neo (turn 76 minutes, 72 kept at each end, 120 minutes more for a stop to count) over HUB's routes, with maintenance_max_gap_h 40 and the reach given in the question (the base's types carry no range_km). The base world's routes are too short to fill a week, so these lines sit idle for days: they show the mechanics (the closed walk, the line days, the cards' offsets, the flight numbers, what is refused), not a line worth flying. The search is capped by work (chains started plus lines evaluated), so the answer is the same on every machine. The Pan Am A350 sample, a real line, is tests/fixtures/line_a350_2026-10-12.json.",
+  "input": {
+    "settings": {
+      "maintenance_max_gap_h": 40
+    }
+  },
+  "cases": [
+    {
+      "name": "three routes from HUB: one closed walk out and back on each, 6 legs over 4 line days, each stop counting; the numbers 1001 to 1006 from HUB's block; the 7 cards a day apart",
+      "rule": "spec §1: each route flown both ways the same number of times, the line closing on itself; aircraft k flies line day d on weekday ((d + k − 2) mod 7) + 1",
+      "ask": {
+        "what": "optimise_line",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT",
+        "hubs": [
+          "HUB"
+        ],
+        "step": 30,
+        "range_km": 7000,
+        "routes": [
+          "HUB-BBB",
+          "HUB-CCC",
+          "HUB-NBN"
+        ],
+        "work": 120
+      },
+      "answer": {
+        "turn_min": 76,
+        "range_km": 7000,
+        "maintenance_max_gap_h": 40,
+        "search": {
+          "work": 120,
+          "finished": false
+        },
+        "best": {
+          "routes": [
+            "HUB–BBB",
+            "HUB–CCC",
+            "HUB–NBN"
+          ],
+          "start_hub": "HUB",
+          "legs": [
+            {
+              "leg": 1,
+              "line_day": 1,
+              "flight_no": 1001,
+              "from": "HUB",
+              "to": "BBB",
+              "dep_utc_min": 840,
+              "dep_local": "14:00",
+              "arr_local": "16:05",
+              "ground_min": 530,
+              "maintenance_stop": true
+            },
+            {
+              "leg": 2,
+              "line_day": 2,
+              "flight_no": 1002,
+              "from": "BBB",
+              "to": "HUB",
+              "dep_utc_min": 355,
+              "dep_local": "00:55",
+              "arr_local": "13:00",
+              "ground_min": 192,
+              "maintenance_stop": true
+            },
+            {
+              "leg": 3,
+              "line_day": 2,
+              "flight_no": 1003,
+              "from": "HUB",
+              "to": "CCC",
+              "dep_utc_min": 972
+            },
+            {
+              "leg": 4,
+              "line_day": 3,
+              "flight_no": 1004,
+              "from": "CCC",
+              "to": "HUB",
+              "dep_utc_min": 229
+            },
+            {
+              "leg": 5,
+              "line_day": 3,
+              "flight_no": 1005,
+              "from": "HUB",
+              "to": "NBN",
+              "dep_utc_min": 926
+            },
+            {
+              "leg": 6,
+              "line_day": 4,
+              "flight_no": 1006,
+              "from": "NBN",
+              "to": "HUB",
+              "dep_utc_min": 725,
+              "ground_min": 5820
+            }
+          ],
+          "days": [
+            {
+              "day": 1,
+              "starts_at": "HUB",
+              "ends_at": "BBB",
+              "legs": [
+                1
+              ]
+            },
+            {
+              "day": 2,
+              "starts_at": "BBB",
+              "ends_at": "CCC",
+              "legs": [
+                2,
+                3
+              ]
+            },
+            {
+              "day": 3,
+              "starts_at": "CCC",
+              "ends_at": "NBN",
+              "legs": [
+                4,
+                5
+              ]
+            },
+            {
+              "day": 4,
+              "starts_at": "NBN",
+              "ends_at": "HUB",
+              "legs": [
+                6
+              ]
+            },
+            {
+              "day": 5,
+              "legs": []
+            },
+            {
+              "day": 6,
+              "legs": []
+            },
+            {
+              "day": 7,
+              "legs": []
+            }
+          ],
+          "score": {
+            "connections_within_target": 6,
+            "connections": 6,
+            "routes": 3,
+            "block_hours_week": 32.833333333333336
+          },
+          "maintenance": {
+            "counting_stops": 6,
+            "max_gap_h": 8.4,
+            "max_gap_ok": true
+          },
+          "flight_numbers": {
+            "base": "HUB",
+            "from": 1001,
+            "to": 1999,
+            "used": [
+              1001,
+              1002,
+              1003,
+              1004,
+              1005,
+              1006
+            ]
+          },
+          "cards": [
+            {
+              "line_day_offset": 0,
+              "legs": [
+                {
+                  "days_utc": [
+                    1
+                  ]
+                },
+                {
+                  "days_utc": [
+                    2
+                  ]
+                },
+                {
+                  "days_utc": [
+                    2
+                  ]
+                },
+                {
+                  "days_utc": [
+                    3
+                  ]
+                },
+                {
+                  "days_utc": [
+                    3
+                  ]
+                },
+                {
+                  "days_utc": [
+                    4
+                  ]
+                }
+              ]
+            },
+            {
+              "line_day_offset": 1,
+              "legs": [
+                {
+                  "days_utc": [
+                    2
+                  ]
+                },
+                {
+                  "days_utc": [
+                    3
+                  ]
+                },
+                {
+                  "days_utc": [
+                    3
+                  ]
+                },
+                {
+                  "days_utc": [
+                    4
+                  ]
+                },
+                {
+                  "days_utc": [
+                    4
+                  ]
+                },
+                {
+                  "days_utc": [
+                    5
+                  ]
+                }
+              ]
+            },
+            {
+              "line_day_offset": 2
+            },
+            {
+              "line_day_offset": 3
+            },
+            {
+              "line_day_offset": 4
+            },
+            {
+              "line_day_offset": 5
+            },
+            {
+              "line_day_offset": 6,
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "days_utc": [
+                    7
+                  ]
+                },
+                {
+                  "flight_no": 1002,
+                  "days_utc": [
+                    1
+                  ]
+                },
+                {
+                  "days_utc": [
+                    1
+                  ]
+                },
+                {
+                  "days_utc": [
+                    2
+                  ]
+                },
+                {
+                  "days_utc": [
+                    2
+                  ]
+                },
+                {
+                  "days_utc": [
+                    3
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "with a flight already on HUB–BBB at 14:00 and the numbers 1003 and 1004 taken by a plan card: the line keeps the same-route gap (12 lines dropped for it) and takes 1005 to 1010",
+      "rule": "spec §1: the same-route gap (world_rules.same_route_gap_min) against the flights flying; flight numbers from the airline's pool, not clashing with flight_legs or plan_card_legs",
+      "input": {
+        "flight_legs": [
+          {
+            "id": 1,
+            "airline_id": 1,
+            "aircraft_id": 2,
+            "flight_no": 1001,
+            "origin_code": "HUB",
+            "dest_code": "BBB",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 840,
+            "block_min": 425
+          },
+          {
+            "id": 2,
+            "airline_id": 1,
+            "aircraft_id": 2,
+            "flight_no": 1002,
+            "origin_code": "BBB",
+            "dest_code": "HUB",
+            "days_utc": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "dep_utc_min": 1300,
+            "block_min": 425
+          }
+        ]
+      },
+      "ask": {
+        "what": "optimise_line",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT",
+        "hubs": [
+          "HUB"
+        ],
+        "step": 30,
+        "range_km": 7000,
+        "routes": [
+          "HUB-BBB",
+          "HUB-CCC",
+          "HUB-NBN"
+        ],
+        "work": 120,
+        "used": [
+          1003,
+          1004
+        ]
+      },
+      "answer": {
+        "rejected": {
+          "route_gap": 12
+        },
+        "best": {
+          "legs": [
+            {
+              "flight_no": 1005,
+              "from": "HUB",
+              "to": "BBB",
+              "dep_utc_min": 870
+            },
+            {
+              "flight_no": 1006
+            },
+            {
+              "flight_no": 1007
+            },
+            {
+              "flight_no": 1008
+            },
+            {
+              "flight_no": 1009
+            },
+            {
+              "flight_no": 1010
+            }
+          ],
+          "flight_numbers": {
+            "from": 1003,
+            "used": [
+              1005,
+              1006,
+              1007,
+              1008,
+              1009,
+              1010
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "a route the line can't reach from a hub (AAA–CCC touches no hub and no other route) is dropped: the set with it has no closed walk, and the line is HUB–BBB alone",
+      "rule": "spec §1: the line closes on itself from a hub; the route sets with one route dropped are tried only when nothing feasible was found with them all",
+      "ask": {
+        "what": "optimise_line",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT",
+        "hubs": [
+          "HUB"
+        ],
+        "step": 30,
+        "range_km": 7000,
+        "routes": [
+          "HUB-BBB",
+          "AAA-CCC"
+        ],
+        "work": 50
+      },
+      "answer": {
+        "search": {
+          "route_sets": 3
+        },
+        "rejected": {
+          "not_connected": 2
+        },
+        "best": {
+          "routes": [
+            "HUB–BBB"
+          ],
+          "legs": [
+            {
+              "from": "HUB",
+              "to": "BBB"
+            },
+            {
+              "from": "BBB",
+              "to": "HUB"
+            }
+          ],
+          "score": {
+            "routes": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "a fixed route not among the candidates is on the line first, and is never dropped",
+      "rule": "spec §1: optionally fixed routes that must be on it",
+      "ask": {
+        "what": "optimise_line",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT",
+        "hubs": [
+          "HUB"
+        ],
+        "step": 30,
+        "range_km": 7000,
+        "routes": [
+          "HUB-BBB",
+          "HUB-CCC",
+          "HUB-NBN"
+        ],
+        "fixed": [
+          "HUB-DDD"
+        ],
+        "work": 50
+      },
+      "answer": {
+        "routes": [
+          "HUB–DDD",
+          "HUB–BBB",
+          "HUB–CCC",
+          "HUB–NBN"
+        ],
+        "fixed": [
+          "HUB–DDD"
+        ],
+        "best": {
+          "routes": [
+            "HUB–DDD",
+            "HUB–BBB",
+            "HUB–CCC",
+            "HUB–NBN"
+          ],
+          "legs": [
+            {
+              "from": "HUB",
+              "to": "DDD"
+            },
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ],
+          "score": {
+            "routes": 4
+          }
+        }
+      }
+    },
+    {
+      "name": "a type whose reach the input doesn't carry is refused, naming range_km",
+      "rule": "spec §1: every route within the type's reach (aircraft_types.range_km); a missing number is an error, never a guess",
+      "ask": {
+        "what": "optimise_line",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT",
+        "hubs": [
+          "HUB"
+        ],
+        "routes": [
+          "HUB-BBB",
+          "HUB-CCC"
+        ],
+        "step": 30,
+        "work": 10
+      },
+      "answer": {
+        "error": "aircraft_types.range_km is missing for the A321 NEO LIGHT"
+      }
+    },
+    {
+      "name": "a route beyond the reach given is refused with its distance",
+      "rule": "spec §1: a route beyond the type's reach is refused with the reason; asking first is the Scheduling chat's job",
+      "ask": {
+        "what": "optimise_line",
+        "airline_id": 1,
+        "type": "A321 NEO LIGHT",
+        "hubs": [
+          "HUB"
+        ],
+        "step": 30,
+        "range_km": 6000,
+        "routes": [
+          "HUB-BBB",
+          "HUB-CCC"
+        ],
+        "work": 10
+      },
+      "answer": {
+        "error": "HUB–CCC is 6,720 km, beyond the A321 NEO LIGHT's reach of 6,000 km"
+      }
+    },
+    {
+      "name": "a line of two cards with the same flight on the same local weekday is a clash across the line; the return on different days of the two cards is not",
+      "rule": "spec §3: the same flight number on different days of different cards is not a clash",
+      "ask": {
+        "what": "check_line",
+        "line": {
+          "line": {
+            "airline": 1,
+            "type": "A321 NEO LIGHT"
+          },
+          "cards": [
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    1
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    1
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    1
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    2
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "answer": {
+        "cards": 2,
+        "complete": false,
+        "ok": false,
+        "problems": [
+          "card 1: HUB–BBB: 0 min from another flight on the route (at least 5, same_route_gap_min)",
+          "card 1: flight 1001 is used twice on day(s) 1",
+          "card 2: HUB–BBB: 0 min from another flight on the route (at least 5, same_route_gap_min)",
+          "card 2: flight 1001 is used twice on day(s) 1",
+          "flight 1001 is on card 2 and card 1 on the same local weekday 1"
+        ],
+        "flights": [
+          {
+            "flight_no": 1001,
+            "days": [
+              1
+            ],
+            "missing": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "daily": false,
+            "cards": [
+              1
+            ]
+          },
+          {
+            "flight_no": 1002,
+            "days": [
+              1,
+              2
+            ],
+            "missing": [
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "daily": false,
+            "cards": [
+              1,
+              2
+            ]
+          }
+        ],
+        "routes": [
+          {
+            "route": "HUB–BBB",
+            "out_days": [
+              1
+            ],
+            "back_days": [
+              1,
+              2
+            ],
+            "both_ways_daily": false
+          }
+        ],
+        "missing_days": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    {
+      "name": "a line with every card but a route not flown back on one day is a problem; a flight missing a day too (card 4, one leg alone, also has no ground time: its own problems first)",
+      "rule": "spec §3: every leg operates daily once all 7 cards exist; each route flown both ways every day",
+      "ask": {
+        "what": "check_line",
+        "line": {
+          "line": {
+            "airline": 1,
+            "type": "A321 NEO LIGHT"
+          },
+          "cards": [
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    1
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    1
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    2
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    2
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    3
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    3
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    4
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    5
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    5
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    6
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    6
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            },
+            {
+              "legs": [
+                {
+                  "flight_no": 1001,
+                  "origin_code": "HUB",
+                  "dest_code": "BBB",
+                  "days_utc": [
+                    7
+                  ],
+                  "dep_utc_min": 0,
+                  "block_min": 425
+                },
+                {
+                  "flight_no": 1002,
+                  "origin_code": "BBB",
+                  "dest_code": "HUB",
+                  "days_utc": [
+                    7
+                  ],
+                  "dep_utc_min": 600,
+                  "block_min": 425
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "answer": {
+        "cards": 7,
+        "complete": true,
+        "ok": false,
+        "problems": [
+          "card 4: maintenance 0%, under 100%",
+          "card 4: no maintenance stop all week, over 40 h",
+          "flight 1002 doesn't operate on weekday(s) 4 across the 7 cards",
+          "HUB–BBB isn't flown both ways every day (out on 1, 2, 3, 4, 5, 6, 7, back on 1, 2, 3, 5, 6, 7)"
+        ],
+        "flights": [
+          {
+            "flight_no": 1001,
+            "daily": true
+          },
+          {
+            "flight_no": 1002,
+            "daily": false,
+            "missing": [
+              4
+            ]
+          }
+        ],
+        "routes": [
+          {
+            "route": "HUB–BBB",
+            "both_ways_daily": false
+          }
+        ],
+        "missing_days": [
+          4
+        ]
+      }
+    }
+  ]
+}
