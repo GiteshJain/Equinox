@@ -90,7 +90,13 @@ in the game), then the line as a whole: each flight's local weekdays across the 
 `daily`, which cards), `missing_days` until all 7 cards exist, each route's days out and back (`routes`,
 `both_ways_daily`), and `complete` with 7 cards; with every card, a flight missing a day or a route not flown back daily
 is a problem, with fewer cards the missing days are reported and not. The same flight number on different days of
-different cards is never a clash. `airport` gives an airport's minimum connection time
+different cards is never a clash, and since 28 Oct an aircraft of the line that already flies (filed) isn't counted
+twice: its card stands for its flights, so they are left out of the network the other cards are checked against.
+`card.fromLine(line, offset)` (since 28 Oct, spec §2) gives the card of the aircraft at an offset (0 to 6) on a line
+from the line's legs as `plan_line_legs` keeps them (`line_day`, `flight_no`, `origin_code`, `dest_code`,
+`dep_utc_min`, `block_min`, `service_code`): every leg, in the line's order, each on UTC weekday
+`card.lineWeekday(line_day, offset)` = ((d + offset − 1) mod 7) + 1. The optimiser's 7 cards are made the same way, and
+the planner's Write the next card uses it. `airport` gives an airport's minimum connection time
 and night ban.
 
 **Stations** (since 22 Oct, manual §2; spec `docs/specs/2026-10-22-station-role.md`): an `airline_bases` row with role
@@ -115,7 +121,7 @@ node lib/rules/dist/cli.js check-card  rules.json card.json [--fares ladder.json
 node lib/rules/dist/cli.js optimise    rules.json KUL KCH,PQC,PEN --type "A321 NEO LIGHT" --start 05:00-11:00 --hubs DEL
 node lib/rules/dist/cli.js optimise-line rules.json --airline 1 --type A350-900 --hubs SFO,LGW,SEA,LAX,PVG,PKX \
      --routes SFO-LGW,LGW-SEA,SEA-PKX,LGW-LAX,SFO-PVG,PVG-LAX [--fixed SFO-LGW] [--step 15] [--seconds 60] [--work 1200] \
-     [--range 14200] [--used 5001,5002]
+     [--range 14200] [--used 5001,5002]   # --range only to override aircraft_types.range_km
 ```
 
 It answers in JSON; an error goes to standard error with a non-zero exit. A card is
@@ -139,7 +145,8 @@ used (`turn_min`, `connection_target_h`, `maintenance_max_gap_h`, `range_km`), `
 why lines were dropped. `--seconds` is the run-time cap (60 by default, the one clock the command reads; 0 for none),
 `--work` a cap on chains and lines evaluated instead (the same answer on every machine; the tests use it), `--step` the
 minutes between the candidate times on each hub's bank ladder (15), `--range` the type's reach in km when the input
-doesn't carry `range_km` (`rules_input()` doesn't yet; without either the command refuses, naming it), `--fixed` routes
+doesn't carry `range_km` or to override it (`rules_input()` carries `aircraft_types.range_km` since 28 Oct; without
+either the command refuses, naming it), `--fixed` routes
 that must be on the line, `--used` flight numbers already taken by plan cards. Save `best.cards` as
 `{"line": {...}, "cards": [...]}` and `check-card` checks the line.
 **`check-card` on a line file** (a document with `cards`, up to 7, each a card as above, and optionally `line` with the

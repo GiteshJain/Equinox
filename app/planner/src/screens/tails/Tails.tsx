@@ -6,7 +6,8 @@
 //   - the deliveries board (Deliveries.tsx): aircraft on order, arrived or flying, each with its plan card (since 21 Oct
 //     with the cabin its routes call for and Use the suggestion, and the fare level of each route it flies, from
 //     fare_ladder() for the card's airline, read while a card is open), and filing an arrived one into the planner after
-//     checking it against the game (Filing.tsx).
+//     checking it against the game (Filing.tsx); since 28 Oct the airline's 7-day lines over it (Lines.tsx: each line's
+//     slots, its check across the cards and Write the next card, spec docs/specs/2026-10-27-long-haul-lines.md §2).
 // Since 23 Oct (spec docs/specs/2026-10-23-planner-look-tails.md) in the new look, as Today, Routes, Systems and
 // Performance: the answer is the title ("N aircraft need a look", from the Needs a look filter's count over the airline's
 // fleet, or "All N aircraft flying well") with the fleet's size and block hours a day as a muted pill; count tiles for
@@ -38,14 +39,15 @@ import { useFleetChecks } from "../systems/reads";
 import { useAirlineRoutes, useAirports, useMarkets } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
+import type { LineView } from "./Lines";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
   addTailChanges, basesOf, deliveryCounts, routeNames, routesCell, tailCounts, tailsAnswer, cardCabin, cardCabinChange, cardFareLevels, fareCells, stationsOf, cardLegs, cardServiceIssues, chips, configsFor, deleteTailChanges, deliveryRows, editTailChange, filtersQuery, flyingIds, parseFilters, removeDeliveryChanges, removeTailChanges,
-  issuesShown, rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type ShownIssue, type Filters, type PlanCardRow, type PlanLegRow,
+  issuesShown, lineCandidates, lineCardChanges, typeName, lineCheck, lineSize, lineSlots, nextFreeOffset, rulesLegs, shownDeliveries, tailRows, tailsOf, typesFor, withAirports, withRoutes, type CardLeg, type DeliveryRow, type ShownIssue, type Filters, type PlanCardRow, type PlanLegRow,
   type TailAircraft, type TailAirline, type TailField,
 } from "./model";
 import {
-  readRotationsWithLegs, removalFacts, useBuyTypes, useConfigs, useGameHost, useLowCost, usePlanCards, usePlanLegs, useTailsAircraft,
+  readRotationsWithLegs, removalFacts, useBuyTypes, useConfigs, useGameHost, useLowCost, usePlanCards, usePlanLegs, usePlanLineLegs, usePlanLines, useTailsAircraft,
 } from "./reads";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
@@ -69,6 +71,9 @@ export function Tails() {
   const buyQ = useBuyTypes(w);
   const cardsQ = usePlanCards(w);
   const planLegsQ = usePlanLegs(w);
+  // the 7-day lines and their legs (since 28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §2)
+  const linesQ = usePlanLines(w);
+  const lineLegsQ = usePlanLineLegs(w);
   const hostQ = useGameHost(w);
   // the game's maintenance from the latest night's fleet pages (fleet_checks(), the read the pop-up shares): the board
   // and the issues show it for an aircraft the game flies (since 23 Oct); until it's read, or if it can't be, the estimate
@@ -90,7 +95,7 @@ export function Tails() {
   const startRules = rulesQ.data?.rules;
   const configs = useMemo(() => new Map((configsQ.data ?? []).map((c) => [c.id, c])), [configsQ.data]);
   // the plan cards' airports, which the start may not carry (a new destination), for their local times
-  const cardCodes = useMemo(() => [...new Set((planLegsQ.data ?? []).flatMap((l) => [l.origin_code, l.dest_code]))], [planLegsQ.data]);
+  const cardCodes = useMemo(() => [...new Set([...(planLegsQ.data ?? []), ...(lineLegsQ.data ?? [])].flatMap((l) => [l.origin_code, l.dest_code]))], [planLegsQ.data, lineLegsQ.data]);
   const airportsQ = useAirports(w, cardCodes);
   const rules = useMemo(() => (startRules ? withAirports(startRules, airportsQ.data ?? []) : undefined), [startRules, airportsQ.data]);
 
@@ -131,6 +136,20 @@ export function Tails() {
     (serviceRules ? fareCells(legs, cardFareLevels(serviceRules, card, legsByCard.get(card.id) ?? [], ladderQ.data)) : new Map<number, string>()),
   [serviceRules, legsByCard, ladderQ.data]);
 
+  // the airline's lines: each with its slots, its check across the cards that exist, the next free offset and the aircraft
+  // that can take it (on order, of the line's type, without a card)
+  const lineViews: LineView[] = useMemo(() => {
+    if (!rules || !airline || !cardsQ.data) return [];
+    const size = lineSize(rules, airline.id);
+    return (linesQ.data ?? []).filter((l) => l.airline_id === airline.id).map((line): LineView => {
+      const slots = lineSlots(line, cardsQ.data ?? [], all, flying, now.getTime(), size);
+      return {
+        line, type: typeName(rules, line.aircraft_type_id), legs: (lineLegsQ.data ?? []).filter((x) => x.line_id === line.id).length, slots,
+        check: lineCheck(rules, line, slots, (id) => legsByCard.get(id) ?? []), next: nextFreeOffset(slots), candidates: lineCandidates(line, all, cardsQ.data ?? []),
+      };
+    });
+  }, [rules, airline, cardsQ.data, linesQ.data, lineLegsQ.data, all, flying, now, legsByCard]);
+
   const openRow = useMemo(() => (rules && open ? tailRows([open], { base: "", type: "", status: "" }, rules, configs, gameMaint)[0] : undefined), [rules, open, configs, gameMaint]);
   const fig = openRow?.fig;
   const issues: ShownIssue[] = useMemo(() => (rules && open && fig?.week
@@ -142,9 +161,9 @@ export function Tails() {
     return [...ids];
   }, [rules, open]);
 
-  const ready = !!(rules && aircraftQ.data && configsQ.data && buyQ.data && cardsQ.data && planLegsQ.data && airlinesQ.data && lowCostQ.data
+  const ready = !!(rules && aircraftQ.data && configsQ.data && buyQ.data && cardsQ.data && planLegsQ.data && linesQ.data && lineLegsQ.data && airlinesQ.data && lowCostQ.data
     && (!cardCodes.length || airportsQ.data));
-  const loadError = firstError(world, airlinesQ, lowCostQ, rulesQ, aircraftQ, configsQ, buyQ, cardsQ, planLegsQ, airportsQ);
+  const loadError = firstError(world, airlinesQ, lowCostQ, rulesQ, aircraftQ, configsQ, buyQ, cardsQ, planLegsQ, linesQ, lineLegsQ, airportsQ);
 
   // ---------- addresses
   const here = (f: Filters, path = reg ? `/tails/${encodeURIComponent(reg)}` : "/tails") => path + filtersQuery(f);
@@ -169,6 +188,14 @@ export function Tails() {
     if (!r.card) return;
     const cfg = code ? (configsQ.data ?? []).find((c) => c.code === code) : undefined;
     await save(cardCabinChange(r.card, cfg?.id ?? null));
+  }
+  // a line's next card (since 28 Oct): the aircraft picked, at the next free offset, its legs from the line; one action
+  async function onWriteLine(v: LineView, a: TailAircraft) {
+    if (w === undefined || v.next == null) return;
+    const res = lineCardChanges({ worldId: w, line: v.line, legs: (lineLegsQ.data ?? []).filter((x) => x.line_id === v.line.id), aircraft: a, offset: v.next, size: v.slots.length });
+    if ("error" in res) { showMessage(res.error); return; }
+    const x = await save(res.changes);
+    if (x.status === "saved") showMessage(`${a.registration} has its card on ${v.line.name}: day ${v.next + 1} of ${v.slots.length}.`);
   }
   // remove a delivery (the old data-deldel): what the old adapter looked at, read now, then one action
   async function onRemoveDelivery(r: DeliveryRow) {
@@ -359,7 +386,8 @@ export function Tails() {
         onStatus={(s) => keep({ ...filters, del: s })} onCard={(r) => keep({ ...filters, card: filters.card === r ? "" : r })} onFile={onFileDelivery}
         onRemove={(r) => void onRemoveDelivery(r)}
         cabinsFor={(r) => cfgList(r.type)} cabinCode={(c) => (c.config_id == null ? "" : configs.get(c.config_id)?.code ?? "")}
-        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} suggestionOf={suggestionOf} faresOf={faresOf} />
+        onCabin={(r, code) => void onCardCabin(r, code)} stations={stations} suggestionOf={suggestionOf} faresOf={faresOf}
+        lines={lineViews} onWriteLine={(v, a) => void onWriteLine(v, a)} />
       {filing.state ? <FileCheckModal state={filing.state} busy={busy || filing.filing} onFile={(g) => void filing.file(g)} onClose={filing.close} /> : null}
     </main>
   );

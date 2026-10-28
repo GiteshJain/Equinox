@@ -14,7 +14,8 @@ import {
   addTailChanges, cabinDiffers, cardCabin, cardCabinChange, cardFareLevels, cardLegs, checkSummary, fareCells, compareCard, configsFor, deleteTailChanges, deliveryRows, editTailChange, fileKey, filingCabin,
   filingChanges, maintPill, stationsOf, filtersQuery, gameLink, issueWords, pairLegs, parseFilters, removeDeliveryChanges, removeTailChanges, shownDeliveries,
   acquiredWords, deliveryCounts, headerPills, routesCell, headerWords, issuesShown, routeNames, tailCounts, tailsAnswer, shownMaint, shownPill, suggestionWords, tailRows, tailsOf, typesFor, weekStrip, withRoutes,
-  type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft, type TailAirline,
+  lineCandidates, lineCardChanges, lineCheck, lineCheckWords, lineSize, lineSlots, nextFreeOffset, slotState,
+  type ConfigRow, type FilingInput, type GameFlight, type PlanCardRow, type PlanLegRow, type PlanLineLegRow, type PlanLineRow, type TailAircraft, type TailAirline,
 } from "./model";
 
 const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
@@ -551,5 +552,69 @@ describe("removing a delivery", () => {
     expect(deliveryRows([retired], [], buildRules(base), new Map(), [], NOW, TODAY)).toEqual([]);
     expect(deliveryRows([fleet[3] as TailAircraft, fleet[2] as TailAircraft], [], buildRules(base), new Map(), [], NOW, TODAY).map((r) => r.a.registration))
       .toEqual(["T-005", "T-006"]);
+  });
+});
+
+describe("7-day lines on the deliveries board (28 Oct, spec docs/specs/2026-10-27-long-haul-lines.md §2)", () => {
+  const line: PlanLineRow = { id: 40, airline_id: 1, aircraft_type_id: 1, name: "TA line 1", note: null, updated_at: T0 };
+  const lineLegs: PlanLineLegRow[] = [
+    { id: 401, line_id: 40, position: 1, line_day: 1, flight_no: 1201, origin_code: "HUB", dest_code: "BBB", dep_utc_min: 0, block_min: 425, service_code: "S3", updated_at: T0 },
+    { id: 402, line_id: 40, position: 2, line_day: 1, flight_no: 1202, origin_code: "BBB", dest_code: "HUB", dep_utc_min: 600, block_min: 425, service_code: "S3", updated_at: T0 },
+  ];
+  const card = (id: number, aircraft: number, offset: number | null): PlanCardRow => ({
+    id, airline_id: 1, aircraft_id: aircraft, base_code: "HUB", title: null, note: null, config_id: null, line_id: offset == null ? null : 40, line_day_offset: offset, updated_at: T0 });
+  // T-005 (arrived) holds day 1, T-006 (on order) day 3; T-007 was retired from day 2; T-008 and T-009 are on order without a card
+  const lineFleet = [...fleet, ac(7, "T-007", { status: "retired" }), ac(8, "T-008", { status: "on_order", delivery_at: "2026-10-20T00:00:00+00:00", order_base_code: "FOC" }),
+    ac(9, "T-009", { status: "on_order", delivery_at: "2026-10-18T00:00:00+00:00" }), ac(10, "T-010", { status: "on_order", aircraft_type_id: 2 })];
+  const cards = [card(1, 5, 0), card(2, 6, 2), card(3, 7, 1), card(4, 1, null)];
+  const slots = lineSlots(line, cards, lineFleet, new Set([1]), NOW, 7);
+
+  it("each slot with the aircraft that holds it and its state; a retired aircraft's card frees its place", () => {
+    expect(slots.map((s) => [s.offset, s.aircraft?.registration ?? "", s.state])).toEqual([
+      [0, "T-005", "arrived"], [1, "", "empty"], [2, "T-006", "ordered"], [3, "", "empty"], [4, "", "empty"], [5, "", "empty"], [6, "", "empty"]]);
+    expect(slots[1]?.retired).toEqual(["T-007"]);
+    expect(nextFreeOffset(slots)).toBe(1);
+    expect(slotState(ac(1, "T-001"), new Set(), NOW)).toBe("filed");
+    expect(slotState(ac(6, "T-006", { status: "on_order", delivery_at: "2026-10-12T00:00:00+00:00" }), new Set(), NOW)).toBe("arrived");
+    expect(nextFreeOffset(lineSlots(line, [0, 1, 2, 3, 4, 5, 6].map((k) => card(10 + k, k === 3 ? 5 : 100 + k, k)), [...lineFleet, ...[0, 1, 2, 4, 5, 6].map((k) => ac(100 + k, `L-${k}`))], new Set(), NOW))).toBeNull();
+  });
+  it("the size is settings.line_aircraft, 7 without it", () => {
+    expect(lineSize(rules)).toBe(7);
+    expect(lineSize(buildRules({ ...input, settings: { ...input.settings, line_aircraft: 7 } }))).toBe(7);
+  });
+  it("the aircraft that can take the next card: the line's airline and type, on order or arrived, no card, soonest first", () => {
+    expect(lineCandidates(line, lineFleet, cards).map((a) => a.registration)).toEqual(["T-009", "T-008"]);
+  });
+  it("Write the next card: the card on the line at the offset and its legs on their weekdays, as one action", () => {
+    const res = lineCardChanges({ worldId: 1, line, legs: lineLegs, aircraft: lineFleet.find((a) => a.id === 8) as TailAircraft, offset: 1, size: 7 });
+    expect("changes" in res && res.changes).toEqual([
+      { table: "plan_cards", op: "insert", as: "card", values: { world_id: 1, airline_id: 1, aircraft_id: 8, base_code: "FOC", title: "TA line 1 · 2 of 7", line_id: 40, line_day_offset: 1 } },
+      { table: "plan_card_legs", op: "insert", from: { plan_card_id: "card" }, values: { world_id: 1, position: 1, flight_no: 1201, origin_code: "HUB", dest_code: "BBB", days_utc: [2], dep_utc_min: 0, block_min: 425, service_code: "S3" } },
+      { table: "plan_card_legs", op: "insert", from: { plan_card_id: "card" }, values: { world_id: 1, position: 2, flight_no: 1202, origin_code: "BBB", dest_code: "HUB", days_utc: [2], dep_utc_min: 600, block_min: 425, service_code: "S3" } },
+    ] satisfies Change[]);
+    // the base falls back to where the line starts
+    const r2 = lineCardChanges({ worldId: 1, line, legs: lineLegs, aircraft: ac(9, "T-009", { status: "on_order" }), offset: 6, size: 7 });
+    expect("changes" in r2 && r2.changes[0]?.values).toMatchObject({ base_code: "HUB", line_day_offset: 6 });
+    expect("changes" in r2 && r2.changes[1]?.values).toMatchObject({ days_utc: [7] });
+    expect(lineCardChanges({ worldId: 1, line, legs: lineLegs, aircraft: lineFleet.find((a) => a.id === 10) as TailAircraft, offset: 1, size: 7 })).toEqual({ error: "T-010 isn't this line's airline and type." });
+    expect(lineCardChanges({ worldId: 1, line, legs: lineLegs, aircraft: ac(9, "T-009"), offset: 7, size: 7 })).toEqual({ error: "a line's offset is 0 to 6, not 7" });
+  });
+  it("the line's check across the cards that exist: the days missing until all 7, then complete", () => {
+    const legsFor = (offset: number, cardId: number): PlanLegRow[] => lineLegs.map((l, i) => ({
+      id: cardId * 10 + i, plan_card_id: cardId, position: i + 1, flight_no: l.flight_no, origin_code: l.origin_code, dest_code: l.dest_code,
+      days_utc: [((l.line_day + offset - 1) % 7) + 1], dep_utc_min: l.dep_utc_min, block_min: l.block_min, service_code: l.service_code, updated_at: T0 }));
+    const legsBy = new Map([[1, legsFor(0, 1)], [2, legsFor(2, 2)]]);
+    const c = lineCheck(rules, line, slots, (id) => legsBy.get(id) ?? []);
+    expect(c && !("error" in c) && [c.cards, c.complete, c.missing_days]).toEqual([2, false, [2, 4, 5, 6, 7]]);
+    expect(lineCheckWords(c)).toMatchObject({ text: "2 of 7 cards · missing Tue Thu Fri Sat Sun", level: "warn" });
+    expect(lineCheck(rules, line, slots.map((s) => ({ ...s, card: null, aircraft: null, state: "empty" as const })), () => [])).toBeNull();
+    expect(lineCheckWords(null)).toMatchObject({ text: "no cards yet" });
+    // all 7: complete, every flight daily
+    const all = [0, 1, 2, 3, 4, 5, 6].map((k) => ac(200 + k, `L-${k}`, { status: "on_order" }));
+    const allCards = all.map((a, k) => card(300 + k, a.id, k));
+    const allLegs = new Map(allCards.map((c2, k) => [c2.id, legsFor(k, c2.id)]));
+    const r7 = buildRules({ ...input, aircraft: [...input.aircraft, ...all.map((a) => ({ id: a.id, registration: a.registration, airline_id: 1, aircraft_type_id: 1, base_code: null, status: "on_order" }))] });
+    const full = lineCheck(r7, line, lineSlots(line, allCards, all, new Set(), NOW), (id) => allLegs.get(id) ?? []);
+    expect(lineCheckWords(full)).toMatchObject({ text: "complete: every flight daily, each route both ways", level: "ok" });
   });
 });

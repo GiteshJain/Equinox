@@ -49,6 +49,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    on 20 Oct (/planner/hubs, /planner/check, /planner/review); and one airline's Performance page the same way, and
    (22 Oct) the route pages of a busy legacy route and a busy Ryanair route (every event shown, then cut again); a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
+   Since 28 Oct a sample 7-day line (made for the test on the airline Tails opens on, removed after) is on Tails'
+   deliveries board with its slots at both widths.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1281,6 +1283,44 @@ def first_airline():
     return code or "VS"
 
 
+def sample_line(code):
+    """A sample 7-day line for the screens (28 Oct, spec docs/specs/2026-10-27-long-haul-lines.md §2): on the airline whose
+    Tails opens first, a line of the type of its first aircraft, two legs on its first route, and an aircraft on order made
+    for the test holding offset 0 with its card, so Tails' deliveries board shows a line with its slots at both widths.
+    Made outside the change log and removed again by the function it returns; nothing when the airline has no route or
+    aircraft."""
+    tag = secrets.token_hex(3).upper()
+    reg, name = "ZN" + tag[:4], "screens sample line " + tag
+    x = one(f"""select json_build_object('airline', a.id, 'type', t.aircraft_type_id, 'hub', r.hub_code, 'dest', r.dest_code)
+                  from public.airlines a
+                  join lateral (select x.aircraft_type_id from public.aircraft x where x.airline_id = a.id and x.aircraft_type_id is not null order by x.id limit 1) t on true
+                  join lateral (select y.hub_code, y.dest_code from public.routes y where y.airline_id = a.id and not y.removed order by y.id limit 1) r on true
+                 where a.world_id = {WORLD} and a.iata_code = :'c'""", c=code)
+    if not x:
+        return lambda: None
+    psql(f"""set equinox.change_log = 'off';
+             insert into public.plan_lines (world_id, airline_id, aircraft_type_id, name) values ({WORLD}, {int(x['airline'])}, {int(x['type'])}, :'n');
+             insert into public.plan_line_legs (world_id, line_id, position, line_day, flight_no, origin_code, dest_code, dep_utc_min, block_min)
+             select l.world_id, l.id, v.p, v.d, null, v.o, v.k, v.dep, 120 from public.plan_lines l
+              cross join (values (1, 1, :'h', :'k', 360), (2, 2, :'k', :'h', 120)) as v(p, d, o, k, dep) where l.name = :'n';
+             insert into public.aircraft (world_id, airline_id, registration, aircraft_type_id, status, delivery_at, order_base_code, acquired)
+             values ({WORLD}, {int(x['airline'])}, :'r', {int(x['type'])}, 'on_order', now() + interval '20 days', :'h', 'new');
+             insert into public.plan_cards (world_id, airline_id, aircraft_id, base_code, title, line_id, line_day_offset)
+             select a.world_id, a.airline_id, a.id, :'h', :'n' || ' · 1 of 7', l.id, 0 from public.aircraft a, public.plan_lines l where a.registration = :'r' and l.name = :'n';
+             insert into public.plan_card_legs (world_id, plan_card_id, position, origin_code, dest_code, days_utc, dep_utc_min, block_min)
+             select c.world_id, c.id, g.position, g.origin_code, g.dest_code, array[g.line_day]::smallint[], g.dep_utc_min, g.block_min
+               from public.plan_cards c join public.plan_line_legs g on g.line_id = c.line_id join public.aircraft a on a.id = c.aircraft_id where a.registration = :'r';""",
+         n=name, h=x["hub"], k=x["dest"], r=reg)
+
+    def remove():
+        psql("""set equinox.change_log = 'off';
+                delete from public.plan_card_legs where plan_card_id in (select c.id from public.plan_cards c join public.aircraft a on a.id = c.aircraft_id where a.registration = :'r');
+                delete from public.plan_cards where aircraft_id in (select a.id from public.aircraft a where a.registration = :'r');
+                delete from public.aircraft where registration = :'r';
+                delete from public.plan_lines where name = :'n';""", n=name, r=reg)
+    return remove
+
+
 async def screens(p, port, env, facts, staff, seen, moment):
     """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
     staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Systems with every
@@ -1295,140 +1335,149 @@ async def screens(p, port, env, facts, staff, seen, moment):
     # the route page (22 Oct): a busy legacy route (any of our airlines but Ryanair) and a busy Ryanair route, each the one
     # with the most days with flights, so the since-launch chart is drawn where any route has 14
     route_pages = [r for r in (busiest_route(not_code="FR"), busiest_route(code="FR")) if r]
+    # a sample line on the airline Tails opens on (28 Oct), so the deliveries board's line and its slots are looked at too
+    tails_code = psql(f"""select coalesce((select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                       where g.kind = 'ours' and a.world_id = {WORLD} and a.active order by a.position nulls last, a.id limit 1), '')""").strip()
+    remove_line = sample_line(tails_code) if tails_code else (lambda: None)
     if SCREENS_DIR:
         Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
-    for width, height in ((1280, 900), (380, 800)):
-        ph = Planner(p, port, env, facts, width=width, height=height)
-        seen.append(ph)
-        try:
-            await ph.open(moment=moment)
-            await ph.pg.emulate_media(reduced_motion="reduce")   # the globe holds still, so two screenshots of a moment are the same
-            await ph.sign_in(*staff)
-            if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
-                problems.append(f"{width} px: the planner's clock isn't frozen at the moment")
-
-            async def look(sid, name):
-                nonlocal links, shots
-                if sid == "systems":
-                    await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
-                    await settle(ph.pg, 300)
-                if sid == "performance" and not name.startswith("route-"):
-                    # 22 Oct: every row and (on an airline's page since 26 Oct) its fare ladder card's changes open, the widest
-                    # the page gets
-                    await ph.pg.evaluate("""(() => { const b = document.querySelector('main[data-screen=performance] #rev-expall'); if (b) b.click();
-                        document.querySelectorAll('main[data-screen=performance] [data-ladder-open][aria-expanded=false]').forEach(x => x.click()); })()""")
-                    await settle(ph.pg, 400)
-                if sid == "reference":
-                    await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
-                    await settle(ph.pg, 400)
-                over = await ph.pg.evaluate(scroll)
-                if over > 0:
-                    problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")
-                if name.startswith("route-"):
-                    # the route page's events (22 Oct): every one shown, then cut to 10 again
-                    more = "main[data-route-page] [data-list-more]"
-                    if await ph.pg.evaluate(f"(() => {{ const b = document.querySelector({json.dumps(more)}); if (b) b.click(); return !!b; }})()"):
-                        await settle(ph.pg, 300)
-                        over = await ph.pg.evaluate(scroll)
-                        if over > 0:
-                            problems.append(f"{name}: with every event shown, the page scrolls sideways by {over} px at {width} px wide")
-                        await ph.pg.evaluate(f"document.querySelector({json.dumps(more)}).click()")
-                        await settle(ph.pg, 200)
-                if name == "competition-airline":
-                    # the openings (21 Oct): opened in full, the widest the page gets, then cut again
-                    more = "main[data-screen=competition] [data-list-more]"
-                    if await ph.pg.evaluate(f"(() => {{ const b = document.querySelector({json.dumps(more)}); if (b) b.click(); return !!b; }})()"):
-                        await settle(ph.pg, 300)
-                        over = await ph.pg.evaluate(scroll)
-                        if over > 0:
-                            problems.append(f"competition: with every opening shown, the page scrolls sideways by {over} px at {width} px wide")
-                if name == "performance-airline":
-                    # the fare ladder (21 Oct; on the airline's page since 26 Oct): there, and its lists (game actions,
-                    # routes) opened in full, then cut again
-                    more = "main[data-screen=performance] [data-figure='performance: fare ladder'] [data-list] > [data-list-more]"
-                    if not await ph.pg.evaluate("""!!document.querySelector('main[data-screen=performance] [data-figure="performance: fare ladder"]')"""):
-                        problems.append(f"performance/{code} at {width} px: no fare ladder board")
-                    n_open = await ph.pg.evaluate(f"(() => {{ const b = [...document.querySelectorAll({json.dumps(more)})]; b.forEach(x => x.click()); return b.length; }})()")
-                    if n_open:
-                        await settle(ph.pg, 300)
-                        over = await ph.pg.evaluate(scroll)
-                        if over > 0:
-                            problems.append(f"performance: with the fare ladder's lists open, the page scrolls sideways by {over} px at {width} px wide")
-                        await ph.pg.evaluate(f"document.querySelectorAll({json.dumps(more)}).forEach(x => x.click())")
-                        await settle(ph.pg, 200)
-                hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
-                links += len(hrefs)
-                problems.extend(f"{name}: a link to {h}" for h in hrefs if OLD_LINK.match(h or ""))
-                if SCREENS_DIR:
-                    await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-{width}.png"), full_page=True, timeout=90000)
-                    shots += 1
-
-            for sid, href in SCREENS:
-                e0 = len(ph.errors)
-                await open_screen(ph.pg, sid)
-                await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
-                path = await ph.pg.evaluate("location.pathname")
-                if path != href:
-                    problems.append(f"{sid}: its address is {path}, expected {href}")
-                try:
-                    await ph.pg.wait_for_selector(READY[sid], timeout=90000)
-                    await settle(ph.pg, 400)
-                except Exception:
-                    problems.append(f"{sid}: it isn't ready at {width} px wide")
-                await look(sid, sid)
-                problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
-            # one airline's Performance page, opened directly by its address
-            e0 = len(ph.errors)
-            await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/performance/{code}")
+    try:
+        for width, height in ((1280, 900), (380, 800)):
+            ph = Planner(p, port, env, facts, width=width, height=height)
+            seen.append(ph)
             try:
-                await ph.pg.wait_for_selector(READY["performance"], timeout=90000)
-                await settle(ph.pg, 400)
-                if await ph.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline") != code:
-                    problems.append(f"/planner/performance/{code} doesn't open {code}'s page")
-            except Exception:
-                problems.append(f"performance/{code}: it isn't ready at {width} px wide")
-            await look("performance", "performance-airline")
-            problems += [f"performance/{code} at {width} px: {e}" for e in ph.errors[e0:]]
-            # one airline's Competition page (21 Oct), opened directly by its address, its openings shown in full
-            e0 = len(ph.errors)
-            await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/competition/{code}")
-            try:
-                await ph.pg.wait_for_selector(f"main[data-screen=competition][data-airline='{code}'][data-competition-ready=yes]", timeout=90000)
-                await settle(ph.pg, 400)
-            except Exception:
-                problems.append(f"competition/{code}: it isn't ready at {width} px wide")
-            await look("competition", "competition-airline")
-            problems += [f"competition/{code} at {width} px: {e}" for e in ph.errors[e0:]]
-            # a route open on Routes (22 Oct, spec docs/specs/2026-10-22-planner-look-routes.md): the busy legacy route, opened
-            # by its address, its detail beside the list (on a phone, full screen)
-            for r in route_pages[:1]:
+                await ph.open(moment=moment)
+                await ph.pg.emulate_media(reduced_motion="reduce")   # the globe holds still, so two screenshots of a moment are the same
+                await ph.sign_in(*staff)
+                if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
+                    problems.append(f"{width} px: the planner's clock isn't frozen at the moment")
+
+                async def look(sid, name):
+                    nonlocal links, shots
+                    if sid == "systems":
+                        await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
+                        await settle(ph.pg, 300)
+                    if sid == "performance" and not name.startswith("route-"):
+                        # 22 Oct: every row and (on an airline's page since 26 Oct) its fare ladder card's changes open, the widest
+                        # the page gets
+                        await ph.pg.evaluate("""(() => { const b = document.querySelector('main[data-screen=performance] #rev-expall'); if (b) b.click();
+                            document.querySelectorAll('main[data-screen=performance] [data-ladder-open][aria-expanded=false]').forEach(x => x.click()); })()""")
+                        await settle(ph.pg, 400)
+                    if sid == "reference":
+                        await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
+                        await settle(ph.pg, 400)
+                    if sid == "tails" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"tails: lines\"] [data-line-slot]')"):
+                        problems.append(f"tails at {width} px: the sample line's slots aren't on the deliveries board")
+                    over = await ph.pg.evaluate(scroll)
+                    if over > 0:
+                        problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")
+                    if name.startswith("route-"):
+                        # the route page's events (22 Oct): every one shown, then cut to 10 again
+                        more = "main[data-route-page] [data-list-more]"
+                        if await ph.pg.evaluate(f"(() => {{ const b = document.querySelector({json.dumps(more)}); if (b) b.click(); return !!b; }})()"):
+                            await settle(ph.pg, 300)
+                            over = await ph.pg.evaluate(scroll)
+                            if over > 0:
+                                problems.append(f"{name}: with every event shown, the page scrolls sideways by {over} px at {width} px wide")
+                            await ph.pg.evaluate(f"document.querySelector({json.dumps(more)}).click()")
+                            await settle(ph.pg, 200)
+                    if name == "competition-airline":
+                        # the openings (21 Oct): opened in full, the widest the page gets, then cut again
+                        more = "main[data-screen=competition] [data-list-more]"
+                        if await ph.pg.evaluate(f"(() => {{ const b = document.querySelector({json.dumps(more)}); if (b) b.click(); return !!b; }})()"):
+                            await settle(ph.pg, 300)
+                            over = await ph.pg.evaluate(scroll)
+                            if over > 0:
+                                problems.append(f"competition: with every opening shown, the page scrolls sideways by {over} px at {width} px wide")
+                    if name == "performance-airline":
+                        # the fare ladder (21 Oct; on the airline's page since 26 Oct): there, and its lists (game actions,
+                        # routes) opened in full, then cut again
+                        more = "main[data-screen=performance] [data-figure='performance: fare ladder'] [data-list] > [data-list-more]"
+                        if not await ph.pg.evaluate("""!!document.querySelector('main[data-screen=performance] [data-figure="performance: fare ladder"]')"""):
+                            problems.append(f"performance/{code} at {width} px: no fare ladder board")
+                        n_open = await ph.pg.evaluate(f"(() => {{ const b = [...document.querySelectorAll({json.dumps(more)})]; b.forEach(x => x.click()); return b.length; }})()")
+                        if n_open:
+                            await settle(ph.pg, 300)
+                            over = await ph.pg.evaluate(scroll)
+                            if over > 0:
+                                problems.append(f"performance: with the fare ladder's lists open, the page scrolls sideways by {over} px at {width} px wide")
+                            await ph.pg.evaluate(f"document.querySelectorAll({json.dumps(more)}).forEach(x => x.click())")
+                            await settle(ph.pg, 200)
+                    hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
+                    links += len(hrefs)
+                    problems.extend(f"{name}: a link to {h}" for h in hrefs if OLD_LINK.match(h or ""))
+                    if SCREENS_DIR:
+                        await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-{width}.png"), full_page=True, timeout=90000)
+                        shots += 1
+
+                for sid, href in SCREENS:
+                    e0 = len(ph.errors)
+                    await open_screen(ph.pg, sid)
+                    await ph.pg.wait_for_selector(f"main[data-screen={sid}]", timeout=15000)
+                    path = await ph.pg.evaluate("location.pathname")
+                    if path != href:
+                        problems.append(f"{sid}: its address is {path}, expected {href}")
+                    try:
+                        await ph.pg.wait_for_selector(READY[sid], timeout=90000)
+                        await settle(ph.pg, 400)
+                    except Exception:
+                        problems.append(f"{sid}: it isn't ready at {width} px wide")
+                    await look(sid, sid)
+                    problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
+                # one airline's Performance page, opened directly by its address
                 e0 = len(ph.errors)
-                addr = f"/planner/routes/{r['code']}/{r['hub']}-{r['dest']}"
-                await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/performance/{code}")
                 try:
-                    await ph.pg.wait_for_selector(f"{READY['routes']} [data-route-detail='{r['hub']}-{r['dest']}']", timeout=90000)
+                    await ph.pg.wait_for_selector(READY["performance"], timeout=90000)
+                    await settle(ph.pg, 400)
+                    if await ph.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline") != code:
+                        problems.append(f"/planner/performance/{code} doesn't open {code}'s page")
+                except Exception:
+                    problems.append(f"performance/{code}: it isn't ready at {width} px wide")
+                await look("performance", "performance-airline")
+                problems += [f"performance/{code} at {width} px: {e}" for e in ph.errors[e0:]]
+                # one airline's Competition page (21 Oct), opened directly by its address, its openings shown in full
+                e0 = len(ph.errors)
+                await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/competition/{code}")
+                try:
+                    await ph.pg.wait_for_selector(f"main[data-screen=competition][data-airline='{code}'][data-competition-ready=yes]", timeout=90000)
                     await settle(ph.pg, 400)
                 except Exception:
-                    problems.append(f"{addr}: its route isn't open at {width} px wide")
-                await look("routes", "routes-detail")
-                problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
-            # the route page (22 Oct), opened directly by its address: a busy legacy route and a Ryanair route
-            for r in route_pages:
-                e0 = len(ph.errors)
-                addr = f"/planner/performance/{r['code']}/{r['hub']}-{r['dest']}"
-                await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
-                try:
-                    await ph.pg.wait_for_selector("main[data-route-page][data-performance-ready=yes]", timeout=90000)
-                    await settle(ph.pg, 400)
-                    if not await ph.pg.evaluate("!!document.querySelector('main[data-route-page] .rphead')"):
-                        problems.append(f"{addr} at {width} px: no route page header")
-                except Exception:
-                    problems.append(f"{addr}: it isn't ready at {width} px wide")
-                await look("performance", f"route-{r['code']}")
-                problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
-            problems += [e for e in ph.errors if not any(e in x for x in problems)]
-        finally:
-            await ph.close()
+                    problems.append(f"competition/{code}: it isn't ready at {width} px wide")
+                await look("competition", "competition-airline")
+                problems += [f"competition/{code} at {width} px: {e}" for e in ph.errors[e0:]]
+                # a route open on Routes (22 Oct, spec docs/specs/2026-10-22-planner-look-routes.md): the busy legacy route, opened
+                # by its address, its detail beside the list (on a phone, full screen)
+                for r in route_pages[:1]:
+                    e0 = len(ph.errors)
+                    addr = f"/planner/routes/{r['code']}/{r['hub']}-{r['dest']}"
+                    await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                    try:
+                        await ph.pg.wait_for_selector(f"{READY['routes']} [data-route-detail='{r['hub']}-{r['dest']}']", timeout=90000)
+                        await settle(ph.pg, 400)
+                    except Exception:
+                        problems.append(f"{addr}: its route isn't open at {width} px wide")
+                    await look("routes", "routes-detail")
+                    problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
+                # the route page (22 Oct), opened directly by its address: a busy legacy route and a Ryanair route
+                for r in route_pages:
+                    e0 = len(ph.errors)
+                    addr = f"/planner/performance/{r['code']}/{r['hub']}-{r['dest']}"
+                    await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                    try:
+                        await ph.pg.wait_for_selector("main[data-route-page][data-performance-ready=yes]", timeout=90000)
+                        await settle(ph.pg, 400)
+                        if not await ph.pg.evaluate("!!document.querySelector('main[data-route-page] .rphead')"):
+                            problems.append(f"{addr} at {width} px: no route page header")
+                    except Exception:
+                        problems.append(f"{addr}: it isn't ready at {width} px wide")
+                    await look("performance", f"route-{r['code']}")
+                    problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
+                problems += [e for e in ph.errors if not any(e in x for x in problems)]
+            finally:
+                await ph.close()
+    finally:
+        remove_line()
     routes_words = " and ".join(f"{r['code']} {r['hub']}–{r['dest']}" for r in route_pages) or "no route with flights"
     return (f"every screen ({len(SCREENS)}), {code}'s Performance and Competition pages and the route pages of {routes_words} open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
             f"ready, no errors, no sideways scroll (Systems with every board open, Reference with every section open), and none of their {links} "

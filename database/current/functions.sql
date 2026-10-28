@@ -777,8 +777,9 @@ CREATE OR REPLACE FUNCTION public.planner_save(p_changes jsonb, p_client text)
  SET search_path TO ''
 AS $function$
 declare
-  -- the 33 planner tables, each with the change-log trigger (migration 20261009210000_planner_tables.sql, §4; the 33rd,
-  -- airline_order_cabins, 20261015220000_last_leftovers.sql)
+  -- the 35 planner tables, each with the change-log trigger (migration 20261009210000_planner_tables.sql, §4; the 33rd,
+  -- airline_order_cabins, 20261015220000_last_leftovers.sql; the 34th and 35th, plan_lines and plan_line_legs,
+  -- 20261028180000_plan_lines.sql)
   v_tables constant text[] := array[
     'worlds', 'groups', 'airlines', 'airline_bases', 'airline_aircraft_types',
     'countries', 'airports', 'world_airports',
@@ -787,7 +788,7 @@ declare
     'plan_cards', 'plan_card_legs',
     'todos', 'todo_items', 'growth_log', 'spending_log', 'fare_plan', 'interline_agreements', 'monthly_checks',
     'dismissals', 'cash_entries', 'load_entries', 'load_days',
-    'settings', 'world_rules', 'airline_order_cabins'];
+    'settings', 'world_rules', 'airline_order_cabins', 'plan_lines', 'plan_line_legs'];
   v_actor text := current_setting('equinox.actor', true);
   v_detail text := current_setting('equinox.actor_detail', true);
   w bigint;
@@ -830,7 +831,7 @@ begin
     v_table := c ->> 'table';
     v_op := c ->> 'op';
     if v_table is null or not (v_table = any (v_tables)) then
-      raise exception 'planner_save: change %: % isn''t one of the planner''s tables (only the 33 the change log covers)',
+      raise exception 'planner_save: change %: % isn''t one of the planner''s tables (only the 35 the change log covers)',
         i, coalesce(v_table, 'no table') using errcode = '22023';
     end if;
     if v_op is null or v_op not in ('insert', 'update', 'delete') then
@@ -6782,6 +6783,49 @@ $function$
 
 ;
 
+-- private.plan_line_slot()
+CREATE OR REPLACE FUNCTION private.plan_line_slot()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_line bigint;
+  v_offset smallint;
+  v_card bigint;
+  v_reg text;
+  v_other text;
+begin
+  if tg_table_name = 'plan_cards' then
+    if new.line_id is null then return new; end if;
+    v_line := new.line_id;
+    v_offset := new.line_day_offset;
+    v_card := new.id;
+    -- a retired aircraft's card is the record of what it flew: it holds no place
+    select a.registration into v_reg from public.aircraft a where a.id = new.aircraft_id and a.status <> 'retired';
+    if not found then return new; end if;
+  else
+    -- an aircraft back from retired takes its card's place again, if it's free
+    select c.line_id, c.line_day_offset, c.id into v_line, v_offset, v_card
+      from public.plan_cards c where c.aircraft_id = new.id and c.line_id is not null;
+    if not found then return new; end if;
+    v_reg := new.registration;
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('equinox plan line', v_line));
+  select a.registration into v_other
+    from public.plan_cards c join public.aircraft a on a.id = c.aircraft_id
+   where c.line_id = v_line and c.line_day_offset = v_offset and c.id <> v_card and a.status <> 'retired'
+   limit 1;
+  if found then
+    raise exception 'line % already has aircraft % at offset %, so % can''t take it', v_line, v_other, v_offset, v_reg
+      using errcode = 'unique_violation';
+  end if;
+  return new;
+end
+$function$
+
+;
+
 -- private.research_apply(p_world_id bigint, p_doc jsonb)
 CREATE OR REPLACE FUNCTION private.research_apply(p_world_id bigint, p_doc jsonb)
  RETURNS jsonb
@@ -7030,10 +7074,11 @@ begin
                      from public.settings s where s.world_id = w and s.airline_id is null),
       'world_rules', (select coalesce(jsonb_object_agg(r.key, r.value order by r.key), '{}'::jsonb)
                         from public.world_rules r where r.world_id = w),
+      -- each type with its reach, range_km since 28 Oct (the line optimiser's reach check, spec 2026-10-27 long-haul lines §2)
       'aircraft_types', (select coalesce(jsonb_agg(jsonb_build_object(
                             'id', t.id, 'name', t.name, 'family_no', t.family_no, 'seats_max', t.seats_max, 'cruise_kmh', t.cruise_kmh,
                             'min_turn_min', t.min_turn_min, 'gap_target_h', t.gap_target_h, 'maint_per_cycle', t.maint_per_cycle,
-                            'maint_per_hour', t.maint_per_hour, 'ground_keep_min', t.ground_keep_min) order by t.id), '[]'::jsonb)
+                            'maint_per_hour', t.maint_per_hour, 'ground_keep_min', t.ground_keep_min, 'range_km', t.range_km) order by t.id), '[]'::jsonb)
                            from public.aircraft_types t where t.world_id = w),
       -- each layout with its name (cabin: Standard, Leisure, Leisure Plus or Comfort; since 21 Oct, for the plan card's cabin)
       'cabin_configs', (select coalesce(jsonb_agg(jsonb_build_object(

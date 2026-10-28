@@ -290,6 +290,20 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   −15%). In the game, set each new flight's fare to it (Ticket price adjustment, default price), or leave it to the
   fares userscript's next run, which sets back a route whose fares are off its level. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
   points at it, goes; one that has flown or been paid for is retired; one in service just leaves the list.
+- **Lines** (since 28 Oct, manual §4, long haul in lines; spec docs/specs/2026-10-27-long-haul-lines.md §2): above the
+  deliveries, each 7-day line of the airline, with its type, how many of its 7 places have an aircraft, its check and
+  its flights a week. A line is 7 aircraft of one type flying one weekly pattern, each a day apart, so every flight on
+  it flies daily. Its **slots** are its places, **Day 1** to **Day 7** (offset 0 to 6: the day of the line the aircraft
+  starts its week on), each with the aircraft holding it (tap it to open its card) and **ordered**, **arrived**,
+  **filed** or **empty**; a retired aircraft's card stays as the record and frees its place. The **check** runs the
+  library's line check across the cards that exist: "3 of 7 cards · missing Thu Fri Sat Sun" until all 7 exist, then
+  "complete: every flight daily, each route both ways", or the problems in red (the same flight number on different
+  days of different cards is never a clash). **Write the next card**: pick an aircraft of the line's airline and type
+  on order (or arrived) that has no card yet, and its card is written at the next empty place, each flight of the line
+  on its own weekday, its base the order's (else where the line starts), titled "<line> · 3 of 7", in one save. A card
+  on a line says which line, its place and its slot, and its flights show their days. Lines themselves are added by the
+  Scheduling chat from the line optimiser's answer (the SQL is in `scripts/README.md`); the planner doesn't add or
+  change them. Filing a line's aircraft day by day comes with the next build (until then file it with Claude).
 - **File into planner** (on an arrived aircraft's plan card, or from Today's Aircraft to file): the planner reads the
   airline's schedule from the game and compares each flight on the card. When every one is the same, it files at once.
   Otherwise it shows each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with **the

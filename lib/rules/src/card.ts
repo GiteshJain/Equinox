@@ -22,7 +22,7 @@ import { RulesError, buildRules, findAircraft, findType, pairKey, setting, setti
 import { ofWeek as maintenanceOfWeek } from "./maintenance.js";
 import { departuresPerAirport, flightNumberClashes, nightBanHits, routeGapHits } from "./schedule.js";
 import { checkLegs as serviceCheck, issueWords as serviceWords } from "./service.js";
-import { DAY, clock, fromLocal, localDays, parseClock, toLocal } from "./time.js";
+import { DAY, clock, fromLocal, localDays, mod, parseClock, toLocal } from "./time.js";
 import type { AircraftRow, AircraftTypeRow, CabinConfigRow, LegRow, Rules, TimedLeg } from "./types.js";
 
 export interface CardLeg {
@@ -468,6 +468,39 @@ export function checkCard(rules: Rules, card: Card, options: { fares?: FareLadde
   };
 }
 
+// ---------- a card written from a line (since 28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §2)
+/** One leg of a line as plan_line_legs keeps it (the optimiser's legs, from/to, are given the same way by lineCards). */
+export interface LineCardLeg {
+  /** The line day it departs on, 1 to 7: the UTC weekday on the card of the aircraft at offset 0. */
+  line_day: number;
+  flight_no?: number | null;
+  origin_code: string;
+  dest_code: string;
+  dep_utc_min: number;
+  block_min?: number | null;
+  service_code?: string | null;
+}
+
+/** The UTC weekday the aircraft at an offset flies a line day on (the spec's formula, aircraft k = offset + 1:
+ *  ((d + k − 2) mod 7) + 1). */
+export function lineWeekday(lineDay: number, offset: number): number {
+  return mod(lineDay + offset - 1, 7) + 1;
+}
+
+/** The legs of the card of the aircraft at an offset (0 to 6) on a line: every leg of the line, in the line's order, each
+ *  on its own UTC weekday (lineWeekday), as the line optimiser writes its 7 cards. */
+export function fromLine(line: { legs: readonly LineCardLeg[] }, offset: number): CardLeg[] {
+  if (!Number.isInteger(offset) || offset < 0 || offset > 6) throw new RulesError(`a line's offset is 0 to 6, not ${offset}`);
+  if (!line?.legs?.length) throw new RulesError("the line has no legs");
+  return line.legs.map((l, i) => {
+    if (!Number.isInteger(l.line_day) || l.line_day < 1 || l.line_day > 7) throw new RulesError(`leg ${i + 1}: line day ${l.line_day} isn't 1 to 7`);
+    return {
+      flight_no: l.flight_no ?? null, origin_code: l.origin_code, dest_code: l.dest_code, days_utc: [lineWeekday(l.line_day, offset)], dep_utc_min: l.dep_utc_min,
+      block_min: l.block_min ?? null, service_code: l.service_code ?? null,
+    };
+  });
+}
+
 // ---------- a line of cards (since 28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §3): up to 7 cards of one
 // 7-day rotating line, each checked as today, and across them whether every leg operates daily once all 7 exist
 /** A line file for check-card: its cards (1 to 7), each as a card is given. */
@@ -530,10 +563,14 @@ export function checkLine(rules: Rules, line: LineFile, options: { fares?: FareL
       };
     });
   });
+  // an aircraft of the line already flying (filed) has its flight_legs in the input: its card stands for them, so they're
+  // left out, or each of its flights would clash with itself on the other cards' checks
+  const lineAircraft = new Set(cards.map((c) => (c.aircraft == null ? undefined : findAircraft(rules, c.aircraft)?.id)).filter((x): x is number => x != null));
+  const network = lineAircraft.size ? rules.input.flight_legs.filter((l) => l.aircraft_id == null || !lineAircraft.has(l.aircraft_id)) : rules.input.flight_legs;
   const checks = cards.map((c, i) => {
     const others = extra.filter((_, k) => k !== i).flat();
     // the other cards' legs laid into the input, each on its own stand-in aircraft (one not in the input is -1001, -1002…)
-    const laid = buildRules({ ...rules.input, flight_legs: [...rules.input.flight_legs, ...others],
+    const laid = buildRules({ ...rules.input, flight_legs: [...network, ...others],
       aircraft: [...rules.input.aircraft, ...cards.flatMap((x, k) => (k === i || (x.aircraft != null && findAircraft(rules, x.aircraft)) ? []
         : [{ id: -(1000 + k), registration: `(line card ${k + 1})`, airline_id: basics[k]?.airlineId ?? 0, aircraft_type_id: basics[k]?.type.id ?? null, status: "active" }]))] });
     return checkCard(laid, c, options);

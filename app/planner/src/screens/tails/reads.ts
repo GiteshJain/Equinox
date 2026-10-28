@@ -2,6 +2,7 @@
 // - every aircraft of the world (any status: the list is the active ones, the deliveries those with a delivery), with
 //   each row's updated_at, the base for changing it;
 // - the cabin layouts (code, cabin, cost), the types each airline may have, and the plan cards with their legs;
+// - since 28 Oct the 7-day lines (plan_lines) and their legs (plan_line_legs), and each card's line and offset;
 // - the rotations' launch days (useLaunches: Performance's Flights by day; Tails and its aircraft pop-up read them for
 //   the one-week check until it went on 22 Oct, spec docs/specs/2026-10-22-remove-aircraft-checks.md);
 // - and, when filing, fresh from the tables: the aircraft, its card's legs, the airline's routes, markets and service
@@ -17,7 +18,8 @@ import { supabase } from "../../data/supabase";
 import { MARKET_ROW_COLUMNS, ROUTE_COLUMNS, type MarketRow, type RouteRow } from "../routes/model";
 import type { ServiceRow } from "../routes/reads";
 import {
-  AIRCRAFT_COLUMNS, PLAN_CARD_COLUMNS, PLAN_LEG_COLUMNS, type BuyTypeRow, type ConfigRow, type GameFlight, type PlanCardRow, type PlanLegRow, type TailAircraft,
+  AIRCRAFT_COLUMNS, PLAN_CARD_COLUMNS, PLAN_LEG_COLUMNS, PLAN_LINE_COLUMNS, PLAN_LINE_LEG_COLUMNS, type BuyTypeRow, type ConfigRow, type GameFlight, type PlanCardRow,
+  type PlanLegRow, type PlanLineLegRow, type PlanLineRow, type TailAircraft,
 } from "./model";
 
 const fail = (what: string, message: string): never => {
@@ -71,6 +73,23 @@ export function usePlanLegs(worldId: number | undefined) {
     enabled: worldId !== undefined,
     queryFn: () => rows<PlanLegRow>("the plan cards' legs", supabase.from("plan_card_legs").select(PLAN_LEG_COLUMNS).eq("world_id", worldId ?? 0)
       .order("plan_card_id").order("position") as unknown as Answer<PlanLegRow[]>),
+  });
+}
+
+/** The 7-day lines (plan_lines) and their legs (plan_line_legs), since 28 Oct: the deliveries board's lines. */
+export function usePlanLines(worldId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("plan_lines", "tails", worldId),
+    enabled: worldId !== undefined,
+    queryFn: () => rows<PlanLineRow>("the lines", supabase.from("plan_lines").select(PLAN_LINE_COLUMNS).eq("world_id", worldId ?? 0).order("id") as unknown as Answer<PlanLineRow[]>),
+  });
+}
+export function usePlanLineLegs(worldId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("plan_line_legs", "tails", worldId),
+    enabled: worldId !== undefined,
+    queryFn: () => rows<PlanLineLegRow>("the lines' legs", supabase.from("plan_line_legs").select(PLAN_LINE_LEG_COLUMNS).eq("world_id", worldId ?? 0)
+      .order("line_id").order("position") as unknown as Answer<PlanLineLegRow[]>),
   });
 }
 
