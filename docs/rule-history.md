@@ -607,6 +607,16 @@ The Systems board, at the top of Systems (#23; of Check until 20 Oct). The world
 
 ### 9. Game rules and mechanics (Gander)
 
+#### Everything Gitesh chooses to do in Gander is allowed
+*Since 27 Oct (Gitesh, Building chat: "agreed on 9, all things I want to do are allowed"), with the aircraft
+evaluation script (spec `docs/specs/2026-10-27-aircraft-evaluation-script.md`).* The list of allowed scripts became a
+general permission, so a new script needs no rule change. The §9 wording before: "That's why the interlines between our
+six airlines, the capture, the salary script, the fares script and the world scanner are fine here (#12; the
+`permission` rows `interline_own_airlines`, `capture_salary_step`, `world_scanner`, `schedule_check`; the fares script
+has no row of its own, its permission is this sentence and §5)." §5's before: "the capture, the salary script, the
+fares script and the scanner are allowed there; no need to ask the owner." · why: Gander is an exclusive world whose
+owner sets the rules, and Gitesh says everything he wants to do there is allowed.
+
 #### The fares script's permission is text only
 *Since 26 Oct (Gitesh, Building chat, option B of two: A add a `world_rules` permission row `fares_script`, B leave it
 as text).* The document audit found every script allowed in Gander has a `permission` row except the fares script. The

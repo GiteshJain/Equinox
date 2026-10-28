@@ -504,7 +504,7 @@ Details and open points: `docs/decisions.md`.
   for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. The
   simulogics terms (§5.3) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
-  the capture, the salary script, the fares script and the scanner are allowed there; no need to ask the owner.
+  every script Gitesh chooses to use is allowed there; no need to ask the owner.
   Fare moves never appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and the hold
   after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; per direction since 26 Oct, brief
   `docs/briefs/2026-10-26-fare-ladder-per-direction.md`; history: rule-history.md)*
@@ -681,10 +681,12 @@ be copied from the game's settings page)
 - The game runs standard time all year: JFK −5, London 0, Paris and Amsterdam +1, Delhi +5:30.
 - Subsidiaries don't work with the game's demand model, so we don't use them.
 - **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
-  game. That's why the interlines between our six airlines, the capture, the salary script, the fares script and the world
-  scanner are fine here (#12; the `permission` rows `interline_own_airlines`, `capture_salary_step`, `world_scanner`,
-  `schedule_check`; the fares script has no row of its own, its permission is this sentence and §5). In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings,
-  and terms §5.3 forbids automated use. Read #12's brief before copying any of this to another world.
+  game. **Everything Gitesh chooses to do there is allowed** (since 27 Oct): the interlines between our six airlines and
+  every script he uses, today the capture, the salary script, the fares script, the world scanner and the aircraft
+  evaluation script; a new script needs no rule change (#12; the `permission` rows `interline_own_airlines`,
+  `capture_salary_step`, `world_scanner`, `schedule_check` are kept, and the scripts since have no row of their own).
+  In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings, and terms §5.3
+  forbids automated use. Read #12's brief before copying any of this to another world.
 
 ---
 
