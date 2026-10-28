@@ -61,3 +61,6 @@ time to about two hours more (1.3 to 3.5 hours), so 4 hours is "in a bank, or cl
 - The connecting passengers on our long connections turn out to sell well: A.
 - The retime pass finds that most flights can't move into their banks (aircraft days too full): keep 4 h for new
   cards only, and move the rest as aircraft are replaced.
+
+## Outcome
+**B, planning only (Gitesh, 27 Oct):** a planning target of 4 hours (`settings.plan_connection_target_h`) that the optimiser scores by; `connection_max_wait_h` stays 8 for everything else (Routes, rivals, the website, the reports). The audit's retime limit goes to 30 minutes. Built by the book, as one pull request with the manual change, before anything else: spec `docs/specs/2026-10-27-planning-connection-target.md`. Then the retime pass, Gatwick first.
