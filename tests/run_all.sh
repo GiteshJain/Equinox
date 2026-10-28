@@ -26,6 +26,7 @@ new_planner() {
 run "No keys or passwords" python3 tests/check_secrets.py
 run "Schedule check" node tests/schedule_test.mjs
 run "Fares userscript: the game's fares form and answer, on dated samples" node tests/fares_userscript_test.mjs
+run "Aircraft evaluation userscript: the tool's saved pages read, whole runs against a stand-in for the game" node tests/aircraft_eval_userscript_test.mjs
 run "Capture's world scan: the same rows as gscan.py from the same saved pages" node tests/capture_scan_test.mjs
 run "Capture's fleet pages: a saved fleet page read as the database keeps it" node tests/capture_fleet_test.mjs
 run "Planner and planning library: types, lint, unit tests and cases, build" new_planner

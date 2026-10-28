@@ -100,7 +100,8 @@ begin
                              'fare_under_launch_load_pct', 'fare_under_launch_levels', 'fare_under_launch_days',
                              'fare_under_launch_min_flights', 'fare_under_launch_decide_load_pct',
                              'rival_orders_flag_pct', 'rival_orders_flag_min', 'rival_connection_detour_max',
-                             'cabin_leisure_max_km', 'cabin_leisure_plus_max_km', 'fare_ladder_up_hold_weeks'] loop
+                             'cabin_leisure_max_km', 'cabin_leisure_plus_max_km', 'fare_ladder_up_hold_weeks',
+                             'aircraft_eval_types'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
