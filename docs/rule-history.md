@@ -47,6 +47,9 @@ hand.*
 
 ### Decided, not yet built
 
+#### The default line's reach in the openings: built 28 Oct (#116)
+The item as it stood, word for word: "- **The default line's reach in the openings** (§3, since 27 Oct): `competition()` reads each variant's reach from `aircraft_types.range_km` (updated 27 Oct) and the types each airline may buy, but its -900/-1000 cut-over is still fixed at 15,000 km in its code (now 14,200), and its note "or the E190-E2 if thin" on a 1-star city still names a type that's off the line. Until it's built, the Scheduling chat applies 14,200 km and ignores that note. *(since 27 Oct; history: rule-history.md)*" Built 28 Oct (pull request #116, to-do 178): the cut-over is the setting `a350_1000_from_km`, and the E190-E2 note is gone from `competition()`, the Competition screen and the briefing. The §3 sentence before: "The cut-over between the -900 and the -1000 is fixed in `competition()` (not yet a setting)."
+
 #### Report PDFs stay in the database until a trigger
 *Since 12 Oct · why (Gitesh): 1.5 MB today and about 50 MB a year; moving them now needs two new programs in Supabase and the backup copying private files, for no gain yet.*
 

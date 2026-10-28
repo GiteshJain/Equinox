@@ -26,11 +26,6 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **The default line's reach in the openings** (§3, since 27 Oct): `competition()` reads each variant's reach from
-  `aircraft_types.range_km` (updated 27 Oct) and the types each airline may buy, but its -900/-1000 cut-over is still
-  fixed at 15,000 km in its code (now 14,200), and its note "or the E190-E2 if thin" on a 1-star city still names a
-  type that's off the line. Until it's built, the Scheduling chat applies 14,200 km and ignores that note.
-  *(since 27 Oct; history: rule-history.md)*
 - **Long haul in 7-day lines** (§4, decided 27 Oct): routes beyond about 7,750 km, whose round trip doesn't fit in a
   day (nearly every A321XLR route and every A350 route), fly in 7-day rotating lines of 7 aircraft of one type at one
   airline, each a day apart, so every route on the line flies daily at the same time. XLR lines first; A350 lines wait
@@ -257,7 +252,7 @@ Details and open points: `docs/decisions.md`.
   5,000 km), the A321neo (80 km more than the LIGHT and lower earnings at every distance), the A350-900ULR (keeps more
   seats only beyond about 16,500 km, longer than any route on our lists), the A319neo, the A321neo Medium and Heavy, and
   the A321XLR LIGHT and Heavy. Still three families: the A320 family, the E-jet E2 and the A350. The cut-over between
-  the -900 and the -1000 is fixed in `competition()` (not yet a setting). *(since 18 Oct; the A350 rows since 21 Oct;
+  the -900 and the -1000 is `settings.a350_1000_from_km` (14,200 km), which `competition()` reads (since 28 Oct, #116). *(since 18 Oct; the A350 rows since 21 Oct;
   reach from the evaluation since 27 Oct, brief `docs/briefs/2026-10-27-real-aircraft-reach.md`; history:
   rule-history.md)*
   - **Turnaround of a new variant:** the game shows none, so a new variant takes its family's (A320 family 66 minutes,
