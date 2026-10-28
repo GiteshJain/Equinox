@@ -82,7 +82,8 @@ begin
   -- the two 20261026180000 (the cabin by distance: cabin_leisure_max_km, cabin_leisure_plus_max_km) adds and the one
   -- 20261027000000 (the fare ladder's hold after a step up: fare_ladder_up_hold_weeks) adds, the one 20261027210000
   -- (the aircraft evaluation script: aircraft_eval_types) adds and the one 20261027230000 (the planning target for
-  -- connections: plan_connection_target_h) adds, which
+  -- connections: plan_connection_target_h) adds and the one 20261027220000 (the openings' A350 cut-over:
+  -- a350_1000_from_km) adds, which
   -- are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
@@ -103,7 +104,7 @@ begin
                              'fare_under_launch_min_flights', 'fare_under_launch_decide_load_pct',
                              'rival_orders_flag_pct', 'rival_orders_flag_min', 'rival_connection_detour_max',
                              'cabin_leisure_max_km', 'cabin_leisure_plus_max_km', 'fare_ladder_up_hold_weeks',
-                             'aircraft_eval_types', 'plan_connection_target_h'] loop
+                             'aircraft_eval_types', 'plan_connection_target_h', 'a350_1000_from_km'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
