@@ -127,6 +127,13 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   short name once ("Safe now: A321neo, E195 · from Thu, Oct 22: XLR, A320neo"). On a phone each airline is one compact
   row with its order status on the right; tap it to see its lines. (Check → Growth's can order and order queues until
   20 Oct.)
+- **Lines,** under the Orders table (since 28 Oct): each 7-day line that still has a place without an aircraft, as
+  "**XLR line, Pan Am: 3 of 7 ordered (2 arrived)**" (ordered: a plan card on the line, on an aircraft that isn't
+  retired; arrived: delivered or filed, as Tails' slots say), its type, and when its next aircraft can be ordered by
+  the cash forecast for that type, priced with its order cabin: **Next can be ordered now** in amber, **from** a day,
+  **not safe to order within 14 days**, or that the forecast can't say yet. **<line> on Tails ›** opens the airline's
+  deliveries board at the line. A line with all 7 isn't listed; the line size is *line_aircraft*. It doesn't add to the
+  count at the top: an airline that can order is counted there already.
 - **Counts, then detail:** a tile for **Aircraft to file** and one for each kind in needs attention (routes to fix,
   rival moves and the rest, the most serious first), three a row (two on a phone): the number, the kind and how serious
   its items are ("1 urgent · 2 to look at"). Tap a tile to open its list right below the tiles; tap it again to close
@@ -309,7 +316,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   on its own weekday, its base the order's (else where the line starts), titled "<line> · 3 of 7", in one save. A card
   on a line says which line, its place and its slot, and its flights show their days. Lines themselves are added by the
   Scheduling chat from the line optimiser's answer (the SQL is in `scripts/README.md`); the planner doesn't add or
-  change them. A line's aircraft is filed like any other (**File into planner**, below), day by day.
+  change them. A line's aircraft is filed like any other (**File into planner**, below), day by day. Today's Orders links to
+  each open line here (`/tails?airline=PA#line-<id>`), scrolled to it.
 - **File into planner** (on an arrived aircraft's plan card, or from Today's Aircraft to file): the planner reads the
   airline's schedule from the game and compares each flight on the card. When every one is the same, it files at once.
   Otherwise it shows each flight, the card's times and the game's, **same**, **different** or **not in the game**, and you file with **the

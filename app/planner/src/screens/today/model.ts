@@ -13,6 +13,7 @@ import { itemRoute } from "../screens";
 import { attKind, groupAttention, type AttClass, type AttItem } from "../../ui/attention";
 import { niceDate } from "../../ui/dates";
 import { CAPTURE_BAD_H, CAPTURE_LATE_H } from "./attention";
+import { lineSlots, type PlanCardRow, type PlanLineRow, type TailAircraft } from "../tails/model";
 
 export type Mark = "ok" | "warn" | "bad";
 
@@ -168,6 +169,73 @@ export function deliveryLines(cells: readonly QueueCell[], types?: readonly Fore
       ? { family: c.family, safe, text: `${c.count} on order · runs dry ${runsDryWords(c.last_ms)} UTC`, warn: c.warn, soon: c.warn && c.hours != null ? soonWords(c.hours) : null }
       : { family: c.family, safe, text: "empty: nothing on order", warn: false, soon: null };
   });
+}
+
+// ---------- each open 7-day line (since 28 Oct; spec docs/specs/2026-10-27-long-haul-lines.md §5): how many of its places
+// have an aircraft ordered and how many of those have arrived, and when its next aircraft can be ordered by the cash
+// forecast. The slots are Tails' (lineSlots: a card on an aircraft that isn't retired holds a place) and the size its
+// (lineSize: settings.line_aircraft); a line with every place held isn't listed.
+export interface OpenLine {
+  key: string;
+  airline: OurAirline;
+  lineId: number;
+  name: string;
+  /** The line's type, as the planner names it ("A321XLR"). */
+  type: string;
+  /** "XLR line, Pan Am: 3 of 7 ordered (2 arrived)". */
+  heading: string;
+  ordered: number;
+  arrived: number;
+  size: number;
+  /** When the line's type is safe to order (cash_forecast()'s entry for it, priced with its order cabin), or null when
+   *  the forecast has no entry for it. */
+  next: LineSafe | null;
+  /** "Next can be ordered now", "… from Thu, Oct 22", "Next not safe to order within 14 days", or "Next: the cash forecast can't say yet". */
+  nextText: string;
+  /** The line on Tails: the airline's deliveries board, at the line (/tails?airline=PA#line-12). */
+  href: string;
+}
+
+export interface OpenLinesInput {
+  airlines: readonly OurAirline[];
+  lines: readonly Pick<PlanLineRow, "id" | "airline_id" | "aircraft_type_id" | "name">[];
+  cards: readonly PlanCardRow[];
+  aircraft: readonly TailAircraft[];
+  /** The aircraft that fly (Tails' flyingIds): filed. */
+  flying: ReadonlySet<number>;
+  now: number;
+  /** settings.line_aircraft for the airline (Tails' lineSize). */
+  sizeOf: (airlineId: number) => number;
+  typeOf: (typeId: number) => string;
+  /** cash_forecast()'s types for the airline, undefined when there's no forecast. */
+  forecastOf: (airlineId: number) => readonly ForecastType[] | undefined;
+}
+
+/** A line's anchor on Tails' deliveries board. */
+export const lineAnchor = (lineId: number): string => "line-" + lineId;
+
+/** Each open line of our airlines, in our airlines' order and then the order the lines were made. */
+export function openLines(x: OpenLinesInput): OpenLine[] {
+  const out: OpenLine[] = [];
+  for (const a of x.airlines) {
+    for (const line of [...x.lines].filter((l) => l.airline_id === a.id).sort((p, q) => p.id - q.id)) {
+      const size = x.sizeOf(a.id);
+      const slots = lineSlots(line, x.cards, x.aircraft, x.flying, x.now, size);
+      const ordered = slots.filter((s) => s.state !== "empty").length;
+      if (ordered >= size) continue;
+      const arrived = slots.filter((s) => s.state === "arrived" || s.state === "filed").length;
+      const type = x.typeOf(line.aircraft_type_id);
+      const next = lineSafe(String(line.aircraft_type_id), x.forecastOf(a.id), (t) => String(t.aircraft_type_id));
+      const nextText = !next ? "Next: the cash forecast can't say yet" : next.now ? "Next can be ordered now"
+        : next.text.startsWith("safe from ") ? "Next can be ordered " + next.text.slice(5) : "Next not safe to order within 14 days";
+      out.push({
+        key: "line|" + line.id, airline: a, lineId: line.id, name: line.name, type, ordered, arrived, size, next, nextText,
+        heading: `${shortType(type)} line, ${a.name}: ${ordered} of ${size} ordered (${arrived} arrived)`,
+        href: "/tails?" + new URLSearchParams(a.code ? { airline: a.code } : {}).toString() + "#" + lineAnchor(line.id),
+      });
+    }
+  }
+  return out;
 }
 
 // ---------- aircraft to file: arrived with a plan card (Home's Aircraft on order, whose File into planner moved here)

@@ -14,12 +14,13 @@ import { attKind, dismissKey, groupAttention, withoutDismissed, type AttItem } f
 import { onOrder, type OnOrderGroup } from "./onOrder";
 import type { AircraftRow, HomeAirline, TodoItemRow, TodoRow } from "../home/reads";
 import type { RouteRow } from "../routes/model";
-import type { TailAircraft } from "../tails/model";
+import type { PlanCardRow, PlanLineRow, TailAircraft } from "../tails/model";
+import type { OurAirline } from "../../data/airlines";
 import type { FleetChecks } from "../systems/model";
 import { homeAttention, type AttentionInput } from "./attention";
 import { comingUp, UP_FILTERS } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
-import { attentionAnchor, captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, orderStatus, runsDryWords, safeTypes, soonWords, tileForHash, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
+import { attentionAnchor, captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, openLines, orderStatus, runsDryWords, safeTypes, soonWords, tileForHash, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
 import type { LegNow } from "./reads";
 import { addChanges, deleteChanges, dismissChanges, showAgainChanges, sortTodos, tickChanges, todoBoard, todoViews } from "./todos";
 
@@ -713,5 +714,57 @@ describe("the new look (spec docs/specs/2026-10-22-planner-look-today.md): cards
     // every tile Today shows has a section Home's buttons can open, and back
     const tiles = countTiles(1, [item({ key: "route|a", cls: "warn", text: "A–B: fix or reduce — y" }), item({ key: "threat|PA|x", cls: "warn", screen: "competition", text: "x" })]);
     expect(tiles.map((t) => tileForHash("#" + attentionAnchor(t.key)))).toEqual(tiles.map((t) => t.key));
+  });
+});
+
+describe("Orders: each open 7-day line (spec docs/specs/2026-10-27-long-haul-lines.md §5)", () => {
+  const NOW = Date.parse("2026-10-20T12:00:00Z");
+  const ours: OurAirline[] = [{ id: 1, code: "PA", name: "Pan Am", color: "#123456", game_id: 1 }, { id: 2, code: "VS", name: "Virgin", color: "#654321", game_id: 2 }];
+  const XLR = 7, A350 = 8;
+  const types: Record<number, string> = { [XLR]: "A321XLR", [A350]: "A350-900" };
+  const ac = (id: number, x: Partial<TailAircraft> = {}): TailAircraft => ({
+    id, registration: "N" + id, airline_id: 1, aircraft_type_id: XLR, cabin_config_id: null, base_code: "JFK", status: "on_order", ordered_on: null,
+    delivery_at: "2026-11-01T00:00:00+00:00", order_base_code: null, order_config_id: null, order_note: null, checked_on: null, schedule_changed_on: null,
+    maintenance_note: null, retired_on: null, extra: {}, updated_at: T0, ...x,
+  });
+  const card = (id: number, aircraft: number, line: number, offset: number): PlanCardRow => ({
+    id, airline_id: 1, aircraft_id: aircraft, base_code: "JFK", title: null, note: null, config_id: null, line_id: line, line_day_offset: offset, updated_at: T0 });
+  const lines: Pick<PlanLineRow, "id" | "airline_id" | "aircraft_type_id" | "name">[] = [
+    { id: 11, airline_id: 1, aircraft_type_id: XLR, name: "PA XLR line 1" }, { id: 12, airline_id: 1, aircraft_type_id: A350, name: "PA A350 line 1" }];
+  // XLR line: N1 flies (filed), N2 has arrived, N3 on order, N4 retired (its card frees its place): 3 of 7 ordered, 2 arrived.
+  // A350 line: every place held, so it isn't listed.
+  const aircraft = [ac(1, { status: "active" }), ac(2, { delivery_at: "2026-10-19T00:00:00+00:00" }), ac(3), ac(4, { status: "retired" }),
+    ...[0, 1, 2, 3, 4, 5, 6].map((k) => ac(20 + k, { aircraft_type_id: A350 }))];
+  const cards = [card(1, 1, 11, 0), card(2, 2, 11, 1), card(3, 3, 11, 4), card(4, 4, 11, 2), ...[0, 1, 2, 3, 4, 5, 6].map((k) => card(20 + k, 20 + k, 12, k))];
+  const ft = (aircraft_type_id: number, safe_day: number | null, safe_from: string | null) =>
+    ({ aircraft_type_id, type: types[aircraft_type_id] ?? "?", price_with_cabin: 60, lease_week: 0.8, lease_seen: true, safe_day, safe_from, count_today: 1 });
+  const input = (forecast: ReturnType<typeof ft>[] | undefined) => ({
+    airlines: ours, lines, cards, aircraft, flying: new Set([1]), now: NOW, sizeOf: () => 7, typeOf: (id: number) => types[id] ?? "?", forecastOf: (id: number) => (id === 1 ? forecast : undefined),
+  });
+
+  it("an open line with 3 of 7 ordered, 2 arrived: its words, its type and its link to the line on Tails", () => {
+    const got = openLines(input([ft(XLR, 0, null)]));
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ lineId: 11, name: "PA XLR line 1", type: "A321XLR", ordered: 3, arrived: 2, size: 7,
+      heading: "XLR line, Pan Am: 3 of 7 ordered (2 arrived)", next: { now: true }, nextText: "Next can be ordered now", href: "/tails?airline=PA#line-11" });
+  });
+  it("a full line isn't listed, and nor is one once every place has an aircraft", () => {
+    expect(openLines(input(undefined)).map((l) => l.lineId)).toEqual([11]);
+    const full = [...cards, ...[3, 5, 6].map((k) => card(40 + k, 40 + k, 11, k)), card(50, 50, 11, 2)];
+    const more = [...aircraft, ...[3, 5, 6, 10].map((k) => ac(40 + k))];
+    expect(openLines({ ...input(undefined), cards: full, aircraft: more })).toEqual([]);
+  });
+  it("when the next can be ordered, by the cash forecast's entry for the line's type: from when, not within 14 days, or can't say", () => {
+    // the A320neo is safe now, but the XLR (the line's type, priced with its order cabin) only from Thursday
+    const later = openLines(input([ft(1, 0, null), ft(XLR, 2, "2026-10-22T06:00:00Z")]))[0];
+    expect(later?.next).toEqual({ now: false, text: "safe from Thu, Oct 22" });
+    expect(later?.nextText).toBe("Next can be ordered from Thu, Oct 22");
+    expect(openLines(input([ft(XLR, null, null)]))[0]?.nextText).toBe("Next not safe to order within 14 days");
+    expect(openLines(input([ft(1, 0, null)]))[0]).toMatchObject({ next: null, nextText: "Next: the cash forecast can't say yet" });
+    expect(openLines(input(undefined))[0]?.next).toBeNull();
+  });
+  it("the size is the line_aircraft setting's: places 0 to size − 1", () => {
+    expect(openLines({ ...input(undefined), sizeOf: () => 3 }).map((l) => l.heading)).toEqual(["XLR line, Pan Am: 2 of 3 ordered (2 arrived)"]);
+    expect(openLines({ ...input(undefined), sizeOf: () => 2 })).toEqual([]);
   });
 });

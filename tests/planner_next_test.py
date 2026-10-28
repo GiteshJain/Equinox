@@ -50,7 +50,7 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    (22 Oct) the route pages of a busy legacy route and a busy Ryanair route (every event shown, then cut again); a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
    Since 28 Oct a sample 7-day line (made for the test on the airline Tails opens on, removed after) is on Tails'
-   deliveries board with its slots at both widths.
+   deliveries board with its slots at both widths, and among Today's Orders' open lines (1 of 7) with its link to Tails.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1368,6 +1368,8 @@ async def screens(p, port, env, facts, staff, seen, moment):
                         await settle(ph.pg, 400)
                     if sid == "tails" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"tails: lines\"] [data-line-slot]')"):
                         problems.append(f"tails at {width} px: the sample line's slots aren't on the deliveries board")
+                    if sid == "today" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"today: open lines\"] [data-open-line] a[data-line-link]')"):
+                        problems.append(f"today at {width} px: the sample line (1 of 7) isn't among Orders' open lines")
                     over = await ph.pg.evaluate(scroll)
                     if over > 0:
                         problems.append(f"{name}: the page scrolls sideways by {over} px at {width} px wide")

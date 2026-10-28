@@ -223,6 +223,15 @@ export function Tails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.file, ready]);
 
+  // a line's address from Today's Orders (/tails?airline=PA#line-12, since 28 Oct): scroll to it once everything is read
+  const atLine = useRef("");
+  useEffect(() => {
+    const id = loc.hash.slice(1);
+    if (!ready || !id.startsWith("line-") || atLine.current === id) return;
+    atLine.current = id;
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
+  }, [ready, loc.hash]);
+
   const onEdit = (field: TailField, value: string) => {
     if (!open || !rules || !airline) return;
     const res = editTailChange(open, field, value, { rules, configs: configsQ.data ?? [], aircraft: all, airline });
