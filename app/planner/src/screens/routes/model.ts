@@ -3,7 +3,7 @@
 // library sees it, the figures the screen words, and every action as one planner_save() call. No screen code, so the
 // unit tests run it. Every rule is the library's (lib/rules: frequency, banks, schedule, service); this file only joins
 // the tables' rows to it and words what it answers.
-import { banks, block, buildRules, card, frequency, game, schedule, service, setting, time, type FrequencyEnds, type FrequencyView, type LocalTimes, type Rules,
+import { aircraftWeek, banks, block, buildRules, card, frequency, game, schedule, service, setting, time, type FrequencyEnds, type FrequencyView, type LocalTimes, type Rules,
   type ServiceProfile, type StoredLeg, type Wave } from "@rules";
 import type { Change, Values } from "../../data/save";
 import type { Json } from "../../db/types";
@@ -100,7 +100,11 @@ export interface AirportInfo {
 }
 
 /** A plan card's leg leaving an airport, for an offset change (its departure is kept local, as the old planner keeps it). */
-export interface PlanLegRow { id: number; plan_card_id: number; position: number; flight_no: number | null; origin_code: string; dest_code: string; dep_utc_min: number | null; updated_at: string }
+/** A plan card's leg as an offset change reads it; days_utc since 28 Oct (a line card's leg, on one weekday, moves its day
+ *  with its departure). */
+export interface PlanLegRow { id: number; plan_card_id: number; position: number; flight_no: number | null; origin_code: string; dest_code: string; dep_utc_min: number | null; days_utc?: number[] | null; updated_at: string }
+/** A 7-day line's leg as an offset change reads it (plan_line_legs, since 28 Oct): its line day moves with its departure. */
+export interface LineLegRow { id: number; line_id: number; position: number; line_day: number; flight_no: number | null; origin_code: string; dest_code: string; dep_utc_min: number; updated_at: string }
 
 /** One of our airlines, as the screen names it. */
 export interface Airline { id: number; code: string | null; name: string; color: string | null }
@@ -503,9 +507,25 @@ function legUpdate(leg: LegRow | undefined, want: Partial<StoredLeg> & { aircraf
   return Object.keys(values).length ? [{ table: "flight_legs", op: "update", key: { id: leg.id }, base: leg.updated_at, values }] : [];
 }
 
-/** A frequency's legs as its local times say, with its aircraft (for the estimate and the return's day). */
-function legsFor(rules: Rules, f: Freq, local: LocalTimes, ends: FrequencyEnds = f.ends): Change[] {
-  const { leg1, leg2 } = frequency.toLegs(rules, ends, local);
+/** Whether a rotation keeps its return on its own days when re-timed (since 28 Oct, spec
+ *  docs/specs/2026-10-27-long-haul-lines.md §4): flown by a 7-day line's aircraft (aircraftWeek.linePattern on its flight
+ *  legs), or its return stored on days of its own (frequency.returnOnOwnDays). A plain frequency doesn't. */
+export function ownDaysRotation(rules: Rules, ends: FrequencyEnds, leg1: LegRow | undefined, leg2: LegRow | undefined): boolean {
+  if (!leg1 || !leg2 || leg1.dep_utc_min == null || leg2.dep_utc_min == null) return false;
+  const ac = leg1.aircraft_id ?? leg2.aircraft_id;
+  if (ac != null && aircraftWeek.linePattern(rules.legs.filter((l) => l.aircraft_id === ac))) return true;
+  try {
+    return frequency.returnOnOwnDays(rules, ends, stored(leg1), stored(leg2));
+  } catch {
+    return false;
+  }
+}
+
+/** A frequency's legs as its local times say, with its aircraft (for the estimate and the return's day). A line's
+ *  rotation (ownDaysRotation) keeps its return on its own local weekdays when only a time changes. */
+function legsFor(rules: Rules, f: Freq, local: LocalTimes, ends: FrequencyEnds = f.ends, keepDays = true): Change[] {
+  const back = keepDays && ownDaysRotation(rules, f.ends, f.leg1, f.leg2) && f.leg2 ? frequency.ownBackDays(rules, f.ends, stored(f.leg2)) : null;
+  const { leg1, leg2 } = frequency.toLegs(rules, ends, local, back);
   return [...legUpdate(f.leg1, leg1), ...legUpdate(f.leg2, leg2)];
 }
 
@@ -526,13 +546,14 @@ export function changeFrequency(rules: Rules, f: Freq, field: FreqField, typed: 
     out.push(...legsFor(rules, f, { ...f.local, [tf]: m }));
   } else if (field === "days") {
     const days = frequency.weekdays(v.replace(/[^1-7]/g, ""));
-    out.push(...legsFor(rules, f, { ...f.local, days }));
+    out.push(...legsFor(rules, f, { ...f.local, days }, f.ends, false));
   } else if (field === "tail") {
     const ac = v ? ctx.byRegistration.get(v) : undefined;
     if (v && !ac) return { error: `No aircraft ${v}` };
     const id = ac?.id ?? null;
     const ends = endsOf(rules, ctx.route, ac);
-    const { leg1, leg2 } = frequency.toLegs(rules, ends, f.local);
+    const back = ownDaysRotation(rules, f.ends, f.leg1, f.leg2) && f.leg2 ? frequency.ownBackDays(rules, f.ends, stored(f.leg2)) : null;
+    const { leg1, leg2 } = frequency.toLegs(rules, ends, f.local, back);
     out.push(...legUpdate(f.leg1, { ...leg1, aircraft_id: id }), ...legUpdate(f.leg2, { ...leg2, aircraft_id: id }));
     return { changes: out };
   } else if (field === "noOut" || field === "noBack") {
@@ -621,8 +642,8 @@ export function removeRoutesChanges(routes: readonly Route[], note: string): Cha
 
 // ---------- a UTC offset: the world's correction, every leg touching the airport re-timed to keep its local times
 export interface OffsetMove {
-  leg: LegRow | PlanLegRow;
-  kind: "flight" | "plan card";
+  leg: LegRow | PlanLegRow | LineLegRow;
+  kind: "flight" | "plan card" | "line";
   airline_id: number | null;
   flight_no: number | null;
   origin: string;
@@ -634,10 +655,14 @@ export interface OffsetMove {
 /** The legs that move when an airport's offset becomes the hours given (correction: the world's correction to store, or
  *  null to clear it and use the game's), and the one action that sets it: the world's row for the airport and every
  *  leg touching it, each rotation re-timed in local time (frequency.retime) so its local times stay; a plan card's legs
- *  leaving the airport keep their local departure. */
+ *  leaving the airport keep their local departure. Since 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §4) a 7-day
+ *  line's too: its rotations keep each return on its own day (ownDaysRotation), a plan card's leg on one weekday moves
+ *  its day when its UTC departure crosses midnight (a daily one has no day to move), and the lines' own legs
+ *  (plan_line_legs) leaving the airport keep their local departure, their line day moving with it. */
 export function offsetChanges(rules: Rules, worldId: number, airport: AirportInfo, correction: number | null, flights: {
   rotations: readonly { rotation_id: number; ends: FrequencyEnds; leg1: LegRow | undefined; leg2: LegRow | undefined }[];
   planLegs: readonly PlanLegRow[];
+  lineLegs?: readonly LineLegRow[];
 }): { moves: OffsetMove[]; changes: Change[] } {
   const hours = correction ?? airport.utc_offset;
   const after = frequency.withOffset(rules, airport.code, hours, correction);
@@ -648,7 +673,7 @@ export function offsetChanges(rules: Rules, worldId: number, airport: AirportInf
     : { table: "world_airports", op: "insert", key: { world_id: worldId, airport_code: airport.code }, values: { utc_offset_override: correction } };
   changes.push(world);
   for (const r of flights.rotations) {
-    const res = frequency.retime(rules, after, r.ends, stored(r.leg1), stored(r.leg2));
+    const res = frequency.retime(rules, after, r.ends, stored(r.leg1), stored(r.leg2), ownDaysRotation(rules, r.ends, r.leg1, r.leg2));
     for (const [leg, want] of [[r.leg1, res.leg1], [r.leg2, res.leg2]] as const) {
       const c = legUpdate(leg, want);
       if (!leg || !c.length) continue;
@@ -660,8 +685,24 @@ export function offsetChanges(rules: Rules, worldId: number, airport: AirportInf
     if (p.dep_utc_min == null || p.origin_code !== airport.code) continue;
     const dep = frequency.retimeDeparture(rules, after, airport.code, p.dep_utc_min);
     if (dep === p.dep_utc_min) continue;
-    changes.push({ table: "plan_card_legs", op: "update", key: { id: p.id }, base: p.updated_at, values: { dep_utc_min: dep } });
+    const values: Values = { dep_utc_min: dep };
+    // a leg on some weekdays only (a line card's, one) moves its days with it; a daily one (or none: every day) can't
+    const days = [...new Set(p.days_utc ?? [])].sort((a, b) => a - b);
+    const shift = frequency.retimeDayShift(rules, after, airport.code, p.dep_utc_min);
+    if (shift && days.length && days.length < 7) values.days_utc = frequency.shiftDays(days, shift);
+    changes.push({ table: "plan_card_legs", op: "update", key: { id: p.id }, base: p.updated_at, values });
     moves.push({ leg: p, kind: "plan card", airline_id: null, flight_no: p.flight_no, origin: p.origin_code, dest: p.dest_code,
+      before: { days_utc: [], dep_utc_min: p.dep_utc_min, block_min: null }, after: { days_utc: [], dep_utc_min: dep, block_min: null } });
+  }
+  for (const p of flights.lineLegs ?? []) {
+    if (p.origin_code !== airport.code) continue;
+    const dep = frequency.retimeDeparture(rules, after, airport.code, p.dep_utc_min);
+    if (dep === p.dep_utc_min) continue;
+    const values: Values = { dep_utc_min: dep };
+    const shift = frequency.retimeDayShift(rules, after, airport.code, p.dep_utc_min);
+    if (shift) values.line_day = ((p.line_day - 1 + shift) % 7 + 7) % 7 + 1;
+    changes.push({ table: "plan_line_legs", op: "update", key: { id: p.id }, base: p.updated_at, values });
+    moves.push({ leg: p, kind: "line", airline_id: null, flight_no: p.flight_no, origin: p.origin_code, dest: p.dest_code,
       before: { days_utc: [], dep_utc_min: p.dep_utc_min, block_min: null }, after: { days_utc: [], dep_utc_min: dep, block_min: null } });
   }
   return { moves, changes };
@@ -684,7 +725,7 @@ export function moveWords(m: OffsetMove, code: string | null): string {
     parts.push(`on ${m.after.days_utc.map((d) => DAYS[d - 1]).join(" ")} (UTC) instead of ${m.before.days_utc.map((d) => DAYS[d - 1]).join(" ")}`);
   }
   if (m.before.block_min !== m.after.block_min) parts.push(`block ${hhmm(m.after.block_min)} instead of ${hhmm(m.before.block_min)}`);
-  const name = m.kind === "plan card" ? "plan card" : [code, m.flight_no].filter((x) => x != null && x !== "").join(" ");
+  const name = m.kind === "plan card" ? "plan card" : m.kind === "line" ? `line ${m.flight_no ?? ""}`.trim() : [code, m.flight_no].filter((x) => x != null && x !== "").join(" ");
   return `${name} ${m.origin}–${m.dest}: ${parts.join(", ")}`;
 }
 

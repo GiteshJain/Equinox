@@ -553,6 +553,28 @@ describe("Game check (Check's until 20 Oct)", () => {
       ]);
       expect(fixChanges(rules, 1, [c.issues[0] as (typeof c.issues)[number]], now)).toHaveLength(1);
     });
+    // 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §4): a 7-day line's aircraft, each leg on its own weekday
+    it("a line aircraft: its return days after its outbound isn't a difference, a time fix keeps its days, a days difference isn't fixed", () => {
+      const lineInput: RulesInput = { ...input, aircraft: [...input.aircraft, { id: 7, registration: "L-007", airline_id: 1, aircraft_type_id: 1, base_code: "HUB", status: "active" }],
+        rotations: [...input.rotations, { id: 7, airline_id: 1, route_id: 4 }, { id: 8, airline_id: 1, route_id: 1 }],
+        flight_legs: [...input.flight_legs, leg(7, 7, 1, "HUB", "DDD", 7, [1], 1200, 150, 3001), leg(8, 7, 2, "DDD", "HUB", 7, [4], 60, 160, 3002),
+          leg(9, 8, 1, "HUB", "AAA", 7, [5], 360, 75, 3003), leg(10, 8, 2, "AAA", "HUB", 7, [5], 510, 75, 3004)] };
+      const lr = buildRules(lineInput);
+      const lp = game.plannerFlights(lr, 1);
+      expect(lp.get("3002")?.map((e) => e.days)).toEqual(["4"]);
+      const lf = [...flights, ...[...lp].filter(([no]) => Number(no) >= 3001).map(([no, e]) => g(no, e[0]?.from ?? "", e[0]?.to ?? "", e[0]?.dep ?? "", e[0]?.arr ?? "", e[0]?.days))];
+      expect(game.compare(lr, 1, lf).issues.filter((i) => Number(i.no) >= 3001)).toEqual([]);
+      const moved = lf.map((x) => (x.no === "3002" ? { ...x, dep: "07:00" } : x.no === "3003" ? { ...x, days: "15" } : x));
+      const c = game.compare(lr, 1, moved);
+      expect(c.issues.filter((i) => Number(i.no) >= 3001).map((i) => [i.no, i.text, !!i.fix])).toEqual([["3002", "Different: departure", true], ["3003", "Different: days", false]]);
+      const now: LegNow[] = lineInput.flight_legs.filter((l) => l.rotation_id === 7)
+        .map((l) => ({ id: l.id, rotation_id: l.rotation_id as number, leg_no: l.leg_no as number, days_utc: l.days_utc, dep_utc_min: l.dep_utc_min, block_min: l.block_min, updated_at: T0 }));
+      // 07:00 at DDD (+5:30) is 01:30 UTC, still on the Thursday, landing at the same time: the departure and block change,
+      // not the day (the old rule would have moved it to the Tuesday after the landing)
+      expect(fixChanges(lr, 1, c.issues.filter((i) => i.no === "3002"), now)).toEqual([
+        { table: "flight_legs", op: "update", key: { id: 8 }, base: T0, values: { dep_utc_min: 90, block_min: 130 } },
+      ]);
+    });
     it("adds a round trip from the game as one action: its route added, a rotation launched today and its two legs on the aircraft chosen", () => {
       const cand = game.importCandidates(rules, 1, flights)[0] as ReturnType<typeof game.importCandidates>[number];
       const route = (id: number, hub: string, dest: string): RouteRow => ({ id, airline_id: 1, hub_code: hub, dest_code: dest, city: dest, country_label: null, distance_km: 700,

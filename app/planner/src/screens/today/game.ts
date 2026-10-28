@@ -38,12 +38,14 @@ function legUpdate(leg: LegNow | undefined, want: { days_utc: number[]; dep_utc_
 
 /** Use the game's times (one difference) or Fix all from the game (every one that's only a time or a day change), as
  *  one action (the old applyGameFix, one after another): each frequency they change, its two legs stored again in UTC
- *  from its local times. legs: those frequencies' legs as they are now. A rotation with no aircraft estimates its block on
+ *  from its local times (a 7-day line's rotation on its own days: its days stay, since 28 Oct). legs: those frequencies'
+ *  legs as they are now. A rotation with no aircraft estimates its block on
  *  the airline's most-flown type (the library's; its market's aircraft until 21 Oct). */
 export function fixChanges(rules: Rules, airlineId: number, issues: readonly GameIssue[], legs: readonly LegNow[]): Change[] {
   const out: Change[] = [];
   for (const [rotationId, x] of game.fixTimes(rules, airlineId, issues)) {
-    const { leg1, leg2 } = frequency.toLegs(rules, x.freq.ends, x.local);
+    // a line's rotation keeps its return on its own day (spec docs/specs/2026-10-27-long-haul-lines.md §4)
+    const { leg1, leg2 } = frequency.toLegs(rules, x.freq.ends, x.local, x.freq.own_days ? x.freq.back_days : null);
     out.push(...legUpdate(legs.find((l) => l.rotation_id === rotationId && l.leg_no === 1), leg1),
       ...legUpdate(legs.find((l) => l.rotation_id === rotationId && l.leg_no === 2), leg2));
   }

@@ -1,14 +1,15 @@
 // loadReport: the day's departures for the Check screen's daily load report (#18 build pull request 9, spec
 // docs/specs/2026-10-13-check.md). A day is a local date at departure, as the game's loads page lists flights:
 //   - each frequency's outbound departs on its local weekdays at the hub, when it has a number;
-//   - its return departs on the day it leaves (the outbound's day moved by the return's day, frequency.view), with its own
-//     number or the outbound's less one, when it has a departure;
+//   - its return departs on the day it leaves, with its own number or the outbound's less one, when it has a departure:
+//     since 28 Oct its own row's local weekdays (game.Frequency.back_days, as private.fig_flights_on reads them), so a
+//     7-day line's return, days after its outbound, is on its day (spec docs/specs/2026-10-27-long-haul-lines.md §4);
 //   - a departure in its frequency's first load_leeway_days (from the rotation's launch day) is "in its first week".
 // In order of airline (airlines' position), then departure time as the old planner sorted its "HH:MM" text.
 // The old code it follows: the old planner's flightsOn. The database's own copy of the same rule (private.fig_flights_on)
 // feeds its load figures; this one gives the screen each flight's airports and time.
 import { frequencies } from "./game.js";
-import { shiftDays, view } from "./frequency.js";
+import { view } from "./frequency.js";
 import { settingNumber } from "./input.js";
 import { clock } from "./time.js";
 import type { Rules } from "./types.js";
@@ -58,8 +59,7 @@ export function flightsOn(rules: Rules, day: string, launches: readonly { id: nu
       out.push({ ...base, no: noOut, from: f.hub, to: f.dest, dep: f.local.dep_hub == null ? "" : clock(f.local.dep_hub), way: "out" });
     }
     if (v.back && noBack) {
-      const backDays = shiftDays(f.local.days, v.back.dep_day);
-      if (backDays.includes(wd)) out.push({ ...base, no: noBack, from: f.dest, to: f.hub, dep: f.local.dep_dest == null ? "" : clock(f.local.dep_dest), way: "back" });
+      if (f.back_days.includes(wd)) out.push({ ...base, no: noBack, from: f.dest, to: f.hub, dep: f.local.dep_dest == null ? "" : clock(f.local.dep_dest), way: "back" });
     }
   }
   return out.map((x, i) => ({ x, i }))

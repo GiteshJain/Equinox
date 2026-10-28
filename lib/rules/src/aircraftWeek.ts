@@ -5,7 +5,7 @@ import { timedLegs } from "./block.js";
 import { findAircraft, typeOfAircraft } from "./input.js";
 import { WEEK, dayOf, mod, toLocal, weekMinute } from "./time.js";
 import { checkTurn, type TurnCheck } from "./turns.js";
-import type { AircraftRow, AircraftTypeRow, Rules, TimedLeg } from "./types.js";
+import type { AircraftRow, AircraftTypeRow, LegRow, Rules, TimedLeg } from "./types.js";
 
 /** One departure of a leg in the week. */
 export interface WeekLeg {
@@ -97,4 +97,19 @@ export function forAircraft(rules: Rules, aircraft: number | string | AircraftRo
     gaps_at_target: target == null ? null : week.filter((l) => l.ground_min != null && l.ground_min >= target).length,
     estimated_legs: week.filter((l) => l.block_source === "estimate").length,
   };
+}
+
+/** Whether legs fly as a 7-day line's aircraft does (spec docs/specs/2026-10-27-long-haul-lines.md, since 28 Oct): each leg
+ *  on one weekday, the legs on more than one, so the aircraft's week doesn't repeat one day (a plain aircraft's legs fly
+ *  several weekdays each). The same test for a plan card's legs and an aircraft's flight legs. */
+export function linePattern(legs: readonly { days_utc: readonly number[] | null | undefined }[]): boolean {
+  if (legs.length < 2 || !legs.every((l) => new Set(l.days_utc ?? []).size === 1)) return false;
+  return new Set(legs.map((l) => (l.days_utc as readonly number[])[0])).size > 1;
+}
+
+/** The aircraft that fly as a line's (linePattern on each aircraft's flight legs in the input), by id. */
+export function lineAircraft(rules: Rules): Set<number> {
+  const by = new Map<number, LegRow[]>();
+  for (const l of rules.legs) if (l.aircraft_id != null) by.set(l.aircraft_id, [...(by.get(l.aircraft_id) ?? []), l]);
+  return new Set([...by].filter(([, legs]) => linePattern(legs)).map(([id]) => id));
 }

@@ -10,7 +10,7 @@ import type { Change } from "../../data/save";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { readAirports } from "../routes/reads";
 import {
-  cardLegs, checkSummary, compareCard, daysSuffix, filingCabin, filingChanges, gameLink, withAirports, type CardCheck, type ConfigRow, type TailAircraft, type TailAirline,
+  cardLegs, checkSummary, compareCard, daysSuffix, filingCabin, filingChanges, gameLink, isLineCard, withAirports, type CardCheck, type ConfigRow, type TailAircraft, type TailAirline,
 } from "./model";
 import {
   cabinLogged, readAircraft, readAirlineRoutes, readCard, readCardLegs, readGameSchedule, readMarkets, readProfiles,
@@ -101,7 +101,8 @@ export function useFiling(opts: {
     if (!p.card) { setState(null); return; }
     const link = gameLink(opts.host, airline?.game_id);
     const answer = link ? await readGameSchedule(link) : { error: "no game link saved for " + (airline?.name ?? "the airline") };
-    const check = compareCard(cardLegs(p.rules, p.legs), "flights" in answer ? answer.flights : null, "error" in answer ? answer.error : "");
+    // a line's card day by day (spec docs/specs/2026-10-27-long-haul-lines.md §4)
+    const check = compareCard(cardLegs(p.rules, p.legs), "flights" in answer ? answer.flights : null, "error" in answer ? answer.error : "", isLineCard(p.card, p.legs));
     const next: FileState = { reg: a.registration, airline, running: false, check, ctx: { rules: p.rules, aircraftId: a.id, cardId: p.card.id } };
     if (check.allSame) {
       setState(null);

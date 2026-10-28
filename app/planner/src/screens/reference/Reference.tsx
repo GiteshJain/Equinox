@@ -175,7 +175,7 @@ export function Reference() {
     const before = a.correction ?? a.utc_offset ?? 0;
     const hours = v ?? a.utc_offset ?? 0;
     if (v === a.correction && hours === before) return;
-    const { legs, planLegs } = await legsAt(w, code);
+    const { legs, planLegs, lineLegs } = await legsAt(w, code);
     const rots = [...new Set(legs.map((l) => l.rotation_id))].map((id) => {
       const l1 = legs.find((l) => l.rotation_id === id && l.leg_no === 1), l2 = legs.find((l) => l.rotation_id === id && l.leg_no === 2);
       const rot = rules.rotations.get(id), rr = rot ? rules.routes.get(rot.route_id) : undefined;
@@ -187,7 +187,7 @@ export function Reference() {
         ends: { airline_id: airlineId, hub: l1?.origin_code ?? l2?.dest_code ?? "", dest: l1?.dest_code ?? l2?.origin_code ?? "",
           distance_km: rr?.distance_km ?? null, type_id: type ?? game.mostFlownType(rules, airlineId) } };
     });
-    const plan = offsetChanges(rules, w, a, v, { rotations: rots, planLegs });
+    const plan = offsetChanges(rules, w, a, v, { rotations: rots, planLegs, lineLegs });
     const n = plan.moves.length;
     setOffset({
       code, moves: plan.moves,

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import {
   addFrequencyChanges, addRouteChanges, alt, bankWords, baseLabel, changeFrequency, isTrunk, listBases, nextPair, nextPairWords, pairForNew, pickerBases, deleteFrequencyChanges, disp, editRouteChange, endsOf, filtersQuery, freqOf, fromInput, layoutWords, listRows,
-  liveRules, marketChips, moveWords, countWords, filtersOn, baseWords, rowCode, routeName, tailName, newLegacyKey, offsetChanges, parseFilters, parseOffset, priceFor, removeRoutesChanges, routeOf, summaryOf, tailsWords,
+  liveRules, marketChips, moveWords, countWords, filtersOn, baseWords, rowCode, routeName, tailName, newLegacyKey, offsetChanges, ownDaysRotation, parseFilters, parseOffset, priceFor, removeRoutesChanges, routeOf, summaryOf, tailsWords,
   type AircraftRow, type AirportInfo, type Filters, type LegRow, type MarketRow, type RotationRow, type Route, type RouteRow, type RouteSummary,
 } from "./model";
 
@@ -181,6 +181,36 @@ describe("an offset change keeps the local times", () => {
       [{ ...legs[0], block_min: 450 } as LegRow, { ...legs[1], dep_utc_min: 420, block_min: 570 } as LegRow]);
     expect(freqOf(after, ccc, rot(1, 3), after.legs.map((l) => ({ ...l, updated_at: T0 })) as LegRow[], aircraft).local).toEqual(f.local);
     expect(moveWords(plan.moves[1] as never, "TA")).toBe("TA 1002 CCC–HUB: leaves 07:00 UTC instead of 07:30, block 9:30 instead of 9:00");
+  });
+  // 28 Oct (spec docs/specs/2026-10-27-long-haul-lines.md §4; flagged in build pull request 2 of the lines)
+  it("keeps a 7-day line's return on its own day, moves a one-day card leg's day, and re-times the lines' own legs", () => {
+    const lineLegs: LegRow[] = [leg(5, 5, 1, "HUB", "CCC", [1], 1320, 480, { aircraft_id: 2 }), leg(6, 5, 2, "CCC", "HUB", [4], 450, 540, { aircraft_id: 2 })];
+    const lr = liveRules(buildRules(base), 1, routes, [rot(5, 3)], lineLegs);
+    const lf = freqOf(lr, ccc, rot(5, 3), lineLegs, aircraft);
+    expect(ownDaysRotation(lr, lf.ends, lineLegs[0], lineLegs[1])).toBe(true);
+    expect(ownDaysRotation(rules, f.ends, legs[0], legs[1])).toBe(false);
+    const plan = offsetChanges(lr, 1, info, 6, {
+      rotations: [{ rotation_id: 5, ends: lf.ends, leg1: lineLegs[0], leg2: lineLegs[1] }],
+      planLegs: [{ id: 9, plan_card_id: 2, position: 1, flight_no: 9001, origin_code: "CCC", dest_code: "HUB", days_utc: [3], dep_utc_min: 10, updated_at: T0 },
+        { id: 10, plan_card_id: 3, position: 1, flight_no: 9003, origin_code: "CCC", dest_code: "HUB", days_utc: [1, 2, 3, 4, 5, 6, 7], dep_utc_min: 10, updated_at: T0 }],
+      lineLegs: [{ id: 11, line_id: 40, position: 2, line_day: 3, flight_no: 9001, origin_code: "CCC", dest_code: "HUB", dep_utc_min: 10, updated_at: T0 },
+        { id: 12, line_id: 40, position: 1, line_day: 1, flight_no: 9005, origin_code: "CCC", dest_code: "HUB", dep_utc_min: 15, updated_at: T0 },
+        { id: 13, line_id: 40, position: 3, line_day: 4, flight_no: 9007, origin_code: "CCC", dest_code: "HUB", dep_utc_min: 600, updated_at: T0 },
+        { id: 14, line_id: 40, position: 4, line_day: 4, flight_no: 9008, origin_code: "HUB", dest_code: "CCC", dep_utc_min: 700, updated_at: T0 }],
+    });
+    expect(plan.changes.slice(1)).toEqual([
+      // the return still leaves CCC 13:00 local on Thursday, not the Tuesday after the landing the old rule would give it
+      { table: "flight_legs", op: "update", key: { id: 5 }, base: T0, values: { block_min: 450 } },
+      { table: "flight_legs", op: "update", key: { id: 6 }, base: T0, values: { dep_utc_min: 420, block_min: 570 } },
+      // 05:40 local Wednesday at CCC is now 23:40 UTC Tuesday; a daily leg has no day to move
+      { table: "plan_card_legs", op: "update", key: { id: 9 }, base: T0, values: { dep_utc_min: 1420, days_utc: [2] } },
+      { table: "plan_card_legs", op: "update", key: { id: 10 }, base: T0, values: { dep_utc_min: 1420 } },
+      // the lines' legs leaving CCC: their line day moves with them (day 1 wraps to day 7); one leaving HUB doesn't move
+      { table: "plan_line_legs", op: "update", key: { id: 11 }, base: T0, values: { dep_utc_min: 1420, line_day: 2 } },
+      { table: "plan_line_legs", op: "update", key: { id: 12 }, base: T0, values: { dep_utc_min: 1425, line_day: 7 } },
+      { table: "plan_line_legs", op: "update", key: { id: 13 }, base: T0, values: { dep_utc_min: 570 } },
+    ]);
+    expect(moveWords(plan.moves.at(-1) as never, "TA")).toBe("line 9007 CCC–HUB: leaves 09:30 UTC instead of 10:00");
   });
   it("updates the world's row when it has one; an empty box clears the correction", () => {
     const plan = offsetChanges(rules, 1, { ...info, correction: 6, world_row: { updated_at: T0 } }, null, { rotations: [], planLegs: [] });
