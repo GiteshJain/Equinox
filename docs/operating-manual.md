@@ -206,7 +206,7 @@ Details and open points: `docs/decisions.md`.
 
 ## 3. Fleet and orders
 - **Fleet types, as the route needs:** every airline may fly any of our types where a route calls for it, sized by the
-  city's stars and picked from the default line (both below), and the A350 where range demands it or, per the default line, on trunks where the A350-900 sells out. Ryanair flies
+  city's stars and picked from the default line (both below), and the A350 where range demands it or, per the default line, on trunks where the A350-900 sells out, once the airline passes long haul's cash test (below). Ryanair flies
   the A320 family and the E195, no A350. The three families (A320 family, E195, A350) are the most any airline has; no
   787, CRJ or A319. Each family is its own delivery line (the order queues, below). *(since 17 Oct; history:
   rule-history.md)*
@@ -271,6 +271,15 @@ Details and open points: `docs/decisions.md`.
   before, by the game's age. *(since 22 Oct; history: rule-history.md)*
 - **Reach first:** new aircraft go into the short and medium-haul narrowbody network; long-haul comes later.
   *(since 28 Sep; history: rule-history.md)*
+- **Long haul waits for cash:** an airline starts a long-haul line (routes flown in 7-day lines, §4: the A321XLR and
+  the A350) only once its net cash a day covers one deposit of that type. Net cash a day is the 7-day average of flight
+  profit less leases and salaries, the weekly report's figure (`airline_days`); the deposit is the type's price paid up
+  front at order (`aircraft_types.price`: A321XLR 2.86M, A350-900 7.01M, A350-1000 7.85M on 28 Oct). Once a line's
+  first aircraft is ordered, its other six follow as the cash forecast allows, even if net cash later dips under the
+  test, so no day of the line goes unflown. The cash forecast's cushion still applies to every order. The long-haul
+  fleet already flying stays as it is, and the A321LR (routes under 7,750 km, in the normal day) isn't long haul for
+  this rule. The Scheduling chat checks the test in each evening's proposal. *(since 28 Oct, brief
+  `docs/briefs/2026-10-28-long-haul-cash-trigger.md`; history: rule-history.md)*
 - **Route first, then the airline, then the aircraft.** The Scheduling chat picks the routes the group should open
   next, then the airline that flies them (hubs first and one airline per city pair, below and §2), then the variant
   that seats the market and reaches the city (the default line, above) and its cabin. That is what gets ordered: the
@@ -326,8 +335,9 @@ Details and open points: `docs/decisions.md`.
   screen shows them with the market share and the rivals' moves, and `select public.competition(<airline id>);` gives
   them all (`p_limit`). One airline per city pair (§2) still decides between airlines (an opening says which other
   airlines of ours have the pair on their list). **In November** (`settings.trunk_month_from` to `trunk_month_to`, 1 to
-  30 Nov, §4) the trunks come first, shortest first, marked, with hubs first not applied to them and no distance
-  leaving one out (the A350s beyond the A321XLR); the other openings follow as always. The list marks trunks; whether
+  30 Nov, §4) the trunks come first, shortest first, marked, with hubs first not applied to them; only trunks within
+  the A321LR's reach (7,700 km) count that month (§4), and the list still shows the longer ones, which the Scheduling
+  chat skips; the other openings follow as always. The list marks trunks; whether
   each makes sense stays the Scheduling chat's judgment. Freighters are no one's rivals: market share, threats and the
   openings' rivals count passenger flights only, by the weekly report's rule.
   **Rivals' connections are shown, never counted** (since 23 Oct): when the evening's scan finishes, the database works
@@ -388,24 +398,25 @@ Details and open points: `docs/decisions.md`.
   plan cards. *(since Sep)*
 - **From 1 to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
   bases (hubs and focus cities, any of our airlines). Orders that month add flights on trunk routes we fly, and open
-  trunk routes we don't, until each is fortified. *(from 1 Nov to 30 Nov; history: rule-history.md)*
+  trunk routes we don't, until each is fortified. *(from 1 Nov to 30 Nov; within the A321LR's reach since 28 Oct; history:
+  rule-history.md)*
   - **Fortified** means it no longer sells out: flights are added while a trunk runs at 95% or more
     (`settings.growth_ready_full_share`), and stop once its loads fall below that.
-  - **Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within reach of
-    the default line, §3) are chosen together, by profit per aircraft hour where flown and by market size where not.
+  - **Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within the
+    A321LR's reach, below) are chosen together, by profit per aircraft hour where flown and by market size where not.
   - **Hubs first is suspended for trunks in November:** any base can take an aircraft for a trunk route. One airline per
     city pair (§2) still applies, and so does the cash forecast's cushion.
   - **Only trunks that make sense:** a pair is opened only where the market is there and the route makes business sense
-    (no Kolkata–US direct, say), within reach of the default line. Munich, Milan Malpensa, Mumbai, Los Angeles
+    (no Kolkata–US direct, say), within the A321LR's reach (below). Munich, Milan Malpensa, Mumbai, Los Angeles
     and Dallas count as bases; no base is on hold.
-  - **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where
-    beyond the A321XLR. For November's trunks this sets aside reach first (§3) and Malaysia's feeder-first order
-    (§2).
+  - **Only trunks the A321LR or smaller can fly:** November covers trunks within the A321LR's reach (7,700 km, the
+    default line, §3). A longer trunk (A321XLR or A350 distance) isn't part of the month; it waits for long haul's cash
+    test (§3) like any long-haul route. For November's trunks within that reach, reach first (§3) and Malaysia's
+    feeder-first order (§2) are set aside.
   - **Shortest to longest:** new trunks open in order of distance, shortest first, while keeping every delivery line
-    filled (an idle line takes the shortest trunk its family can fly). This puts the narrowbody trunks first and the
-    A350 trunks last. `competition()` lists them so from 1 to 30 Nov (`settings.trunk_month_from`, `trunk_month_to`).
-  - **Narrowbody trunks first:** each evening's orders fill the short and medium trunks first (more departures per
-    dollar); A350 trunks follow. The plan: `docs/briefs/2026-10-20-november-trunks.md`.
+    filled (an idle line takes the shortest trunk its family can fly). `competition()` lists them so from 1 to 30 Nov
+    (`settings.trunk_month_from`, `trunk_month_to`), the trunks beyond the A321LR's reach included, which the
+    Scheduling chat skips. The plan: `docs/briefs/2026-10-20-november-trunks.md` (its A350 trunks set aside 28 Oct).
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,
   0). Plans and retimes aim for connections within 4 hours of the arrival (`settings.plan_connection_target_h`): the
@@ -423,11 +434,11 @@ Details and open points: `docs/decisions.md`.
 - **Long haul flies in 7-day lines:** routes at or beyond 7,750 km (`settings.line_min_km`), whose round trip with
   turns and a maintenance stop doesn't fit in a day (nearly every A321XLR route and every A350 route), fly in 7-day
   rotating lines of 7 aircraft (`settings.line_aircraft`) of one type at one airline, each a day apart, so every route
-  on the line flies daily at the same time. Shorter routes keep the 24-hour day. XLR lines first; A350 lines wait for
-  the narrowbody-against-A350 question. The Scheduling chat plans a line with the planning library's `optimise-line`
+  on the line flies daily at the same time. Shorter routes keep the 24-hour day. An airline starts a line only once it
+  passes long haul's cash test for the line's type (§3). The Scheduling chat plans a line with the planning library's `optimise-line`
   and adds it to the planner (`plan_lines`, `scripts/README.md`); each of its aircraft is ordered as any order (§3),
   with its plan card written from the line at the next free place, and Gitesh sets it up in the game with the schedule
-  editor's copy and offset. *(decided 27 Oct, built 28 Oct, #118 to #121; brief
+  editor's copy and offset. *(decided 27 Oct, built 28 Oct, #118 to #121; the cash test since 28 Oct; brief
   `docs/briefs/2026-10-27-long-haul-lines.md`; history: rule-history.md)*
 - **Turns:** the game's turnaround plus a 10–15 minute margin (`settings.turn_margin_min`, 10); 5 minutes is tolerated
   only on the busiest aircraft where 15 won't fit. *(since 25 Sep; history: rule-history.md)*

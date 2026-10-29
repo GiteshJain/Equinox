@@ -206,6 +206,21 @@ from 22 Oct (AirAsia's network in the Airbus world), never a plan.
 
 ### 3. Fleet and orders
 
+#### Long haul waits for cash
+*Since 28 Oct (Gitesh, Scheduling chat, brief `docs/briefs/2026-10-28-long-haul-cash-trigger.md`, option B with its
+four details).* An airline starts a long-haul line (A321XLR or A350) only once its net cash a day, 7-day average,
+covers one deposit of that type; a started line is finished · why (Gitesh): start long haul only once an airline makes
+enough money to cover that aircraft's deposit in a day. A line commits 7 aircraft (an XLR line about 20M of deposits,
+an A350 line about 49M), XLRs take A320-family delivery slots, and narrowbodies earn about 3 times as much per unit of
+lease; at the test a day's earnings pay a day's line aircraft. On 28 Oct the best airline earned 1.77M a day (62% of
+the XLR test, 25% of the A350-900's). It also answers the narrowbody-against-A350 question the A350 lines waited for.
+Wording changed with it:
+- §3 fleet types: "and the A350 where range demands it or, per the default line, on trunks where the A350-900 sells
+  out." gained ", once the airline passes long haul's cash test (below)".
+- §3 openings, November: "with hubs first not applied to them and no distance leaving one out (the A350s beyond the
+  A321XLR)" became: only trunks within the A321LR's reach count that month; `competition()` still lists the longer
+  ones, and the Scheduling chat skips them (no tool change asked).
+
 #### Kingfisher's A350s handed back
 *Since 23 Oct (Gitesh, review chat, brief `docs/briefs/2026-10-23-kingfisher-a350s.md`, option C).* Earlier wording:
 "Kingfisher's two Delhi–JFK A350s stay as they are." · why: Delhi–JFK earned about its two leases (1.45M of flight profit
@@ -356,6 +371,19 @@ Mumbai's openings itself, by the openings' order, ignoring that mark." Before, t
 reference · why: an exception for eight aircraft over two evenings isn't worth a build.
 
 ### 4. Scheduling
+
+#### November's trunks: the A321LR's reach
+*Since 28 Oct (Gitesh, Scheduling chat, with long haul's cash test).* November covers only trunks the A321LR or a
+smaller type can fly (7,700 km); longer trunks wait for the cash test like any long-haul route · why (Gitesh): "Under
+Nov time we will only consider the trunks which can be covered by LR and lower." Earlier wording: "(within reach of the
+default line, §3)" in flown and unflown trunks, and "within reach of the default line" in only trunks that make sense,
+both now the A321LR's reach; "This puts the narrowbody trunks first and the A350 trunks last." taken out of shortest to
+longest; and the two bullets in Retired rules (28 Oct).
+
+#### Long haul in 7-day lines: which line first
+*Since 28 Oct.* "XLR lines first; A350 lines wait for the narrowbody-against-A350 question." became "An airline starts a
+line only once it passes long haul's cash test for the line's type (§3)." · why: the cash test (§3) decides when each
+type starts, by each airline's earnings.
 
 #### How it runs: every evening, from the order queues
 The cabin charge check: Systems → Cabin charges, with one item on Today when one doesn't match, since 22 Oct.
@@ -743,6 +771,9 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 28 Oct | **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where beyond the A321XLR. For November's trunks this sets aside reach first (§3) and Malaysia's feeder-first order (§2) | Only trunks the A321LR or smaller can fly (7,700 km) are part of November; longer ones wait for long haul's cash test (§3, §4). Why: Gitesh, with the cash test; brief `docs/briefs/2026-10-28-long-haul-cash-trigger.md` |
+| 28 Oct | **Narrowbody trunks first:** each evening's orders fill the short and medium trunks first (more departures per dollar); A350 trunks follow | Nothing: every November trunk is a narrowbody trunk now (§4). Why: as above |
+| 28 Oct | XLR lines first; A350 lines wait for the narrowbody-against-A350 question | Each line starts once its airline passes long haul's cash test for its type (§3, §4). Why: as above |
 | 27 Oct | Departures leave within 8 hours of the arrivals they collect (`connection_max_wait_h`), every connection up to 8 hours scored alike by the optimiser | Plans and retimes aim for connections within 4 hours (`plan_connection_target_h`), which the optimiser counts first and the card check reports; a connection still counts up to 8 hours everywhere (§4). Why: 58% of our connections waited over 4 hours, and long waits lose bookings; brief `docs/briefs/2026-10-27-connection-waits.md` |
 | 27 Oct | The connection audit's retimes of 10 minutes or less | Retimes of 30 minutes or less (§7). Why: small moves rarely pull a flight into its bank; brief `docs/briefs/2026-10-27-connection-waits.md` |
 | 27 Oct | The default line's reach was each variant's range with a full load, from the game's aircraft pages (18 Oct): E195-E2 3,542 km, E190-E2 4,065 (3,542–4,065 km, or the thinnest 1-star city), A320neo SHARP 3,355, A320neo LIGHT 3,690, A320neo 4,045, A320neo Heavy 4,708, A321neo LIGHT 4,192, A321neo 4,742, A321LR 5,809, A321XLR 6,939, A350-900 to about 15,000 km, A350-1000 beyond 15,000; a route past a variant's full-load range asked first | Reach is the full-cabin distance in our seat type for the distance, from the game's evaluation tool: E195 5,700, SHARP 4,100, LIGHT 5,200, Heavy 6,750, A321neo LIGHT 5,250, LR 7,700, XLR 8,600, A350-900 14,200, A350-1000 15,200; the E190-E2, A320neo and A321neo off the line (§3). Why: our cabins carry 19–41% fewer seats than the full load, and the game cuts seats gradually instead of stopping at a range (9M-AAY (KUL), a 147-seat LIGHT, flew KUL–Beijing, 4,414 km, full); the evaluation of 675 routes, two route sets that agree within about 100 km and 9 hand checks by Gitesh, all matching (brief `docs/briefs/2026-10-27-real-aircraft-reach.md`) |

@@ -101,6 +101,7 @@ The strategy is all in the manual. What each rule covers:
 - **Order every evening the forecast allows:** each evening's proposal, one airline at a time.
 - **The order queues:** one delivery line per family, and when each aircraft arrives.
 - **Reach first:** short and medium haul before long haul.
+- **Long haul waits for cash:** when an airline may start an XLR or A350 line.
 - **Route first, then the airline, then the aircraft:** the order of choosing.
 - **Market share first, profit second:** what route choices lead with, and what still has to hold.
 - **The openings, ranked:** where the next routes come from.

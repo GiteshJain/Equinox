@@ -72,4 +72,7 @@ The cash forecast's 0.5M cushion still applies to every order.
 - Evidence that a long-haul line earns as much per unit of lease as narrowbodies (the 3× gap closing).
 
 ## Outcome
-*(to be filled when Gitesh decides)*
+**28 Oct 2026 (Gitesh): B, with the four details.** And November covers only trunks the A321LR or smaller can fly
+(7,700 km); longer trunks wait for the cash test. Manual §3 (long haul waits for cash; fleet types; the openings in
+November) and §4 (November's trunks; long haul in 7-day lines) changed the same night; old wording in
+`rule-history.md`.
