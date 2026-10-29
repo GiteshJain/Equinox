@@ -109,7 +109,7 @@ The strategy is all in the manual. What each rule covers:
 
 ### Scheduling (manual §4)
 - **Every aircraft is named by its tail number and base**, in every chat.
-- **From 1 to 30 November, every new order fortifies the trunk routes**
+- **From 29 October to 30 November, every new order fortifies the trunk routes**
   (the plan: `docs/briefs/2026-10-20-november-trunks.md`).
 - **New airlines launch short-haul.**
 - **Ryanair stays inside the game's EU zone.**
@@ -218,8 +218,8 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
   Since 26 Oct `acquired` has no default: logging any aircraft without `new` or `used` is refused.
 - **The routes come from the top of the openings** (since 21 Oct): Competition → the airline → **Openings**, or the
   airline briefing, or `select public.competition(<airline id>);` for the rest (rule: manual §3, the openings, ranked).
-  In November the trunks are listed first and marked; whether each makes sense stays the Scheduling chat's call (rule:
-  manual §4, from 1 to 30 November).
+  In the trunk month (29 Oct to 30 Nov) the trunks are listed first and marked; whether each makes sense stays the Scheduling chat's call (rule:
+  manual §4, from 29 October to 30 November).
 - **You order in the game** and tell the Scheduling chat (rule: manual §3, who orders). Claude logs it, with
   `acquired` `new` (or `used` from the market), and writes the **plan card** with those routes and that cabin (Tails → Deliveries → **card**), following step 4.
 - **A line's aircraft** (since 28 Oct): the Scheduling chat plans the line once with `optimise-line` and adds it to

@@ -189,7 +189,7 @@ Details and open points: `docs/decisions.md`.
 | Airline | Hubs | Focus cities | Next |
 |---|---|---|---|
 | Pan Am | JFK, Los Angeles, Dallas | ORD, SFO, SEA | — (LAX and Dallas off hold 20 Oct; they open with November's trunks) |
-| Kingfisher | Delhi, Mumbai (its network starts with the eight deposit aircraft, §3 hubs first) | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | — |
+| Kingfisher | Delhi, Mumbai (its network starts with the six deposit aircraft, §3 hubs first) | Hyderabad, Bengaluru, Chennai, Kolkata (all four wait for Delhi's 750 under hubs first, §3) | — |
 | Ryanair | — (all bases are equal focus cities, point to point) | Paris CDG, Amsterdam, Barcelona, Milan Malpensa, Munich | — (no eastern base for now) |
 | Virgin Atlantic | Gatwick, Manchester | Edinburgh | — |
 | China Eastern | Shanghai PVG, Xi'an, Kunming | Beijing Daxing, Shenzhen | — |
@@ -334,8 +334,8 @@ Details and open points: `docs/decisions.md`.
   (§4) takes its routes from the top of this list: the airline briefing carries the top 20, the planner's Competition
   screen shows them with the market share and the rivals' moves, and `select public.competition(<airline id>);` gives
   them all (`p_limit`). One airline per city pair (§2) still decides between airlines (an opening says which other
-  airlines of ours have the pair on their list). **In November** (`settings.trunk_month_from` to `trunk_month_to`, 1 to
-  30 Nov, §4) the trunks come first, shortest first, marked, with hubs first not applied to them; only trunks within
+  airlines of ours have the pair on their list). **In the trunk month** (`settings.trunk_month_from` to `trunk_month_to`, 29 Oct
+  to 30 Nov, §4) the trunks come first, shortest first, marked, with hubs first not applied to them; only trunks within
   the A321LR's reach (7,700 km) count that month (§4), and the list still shows the longer ones, which the Scheduling
   chat skips; the other openings follow as always. The list marks trunks; whether
   each makes sense stays the Scheduling chat's judgment. Freighters are no one's rivals: market share, threats and the
@@ -364,11 +364,12 @@ Details and open points: `docs/decisions.md`.
   contested routes: a rival with over 250 departures a week at that base, or over 2 a day on the route itself. A base
   that is contested for one route (Manchester for Amsterdam, say) doesn't open its other routes. **Stations open
   nothing** until the main hub reaches the 750, contested or not (since 22 Oct). Ryanair is exempt. **One exception:
-  Kingfisher's eight aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, to be ordered 28–29 Oct)
-  go to Mumbai, on any route, contested or not; Kingfisher's other orders still go to Delhi until it reaches the 750
-  (since 26 Oct, brief `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`). `competition()` doesn't know this
-  exception: it marks Mumbai's openings "hubs first" and lists them after the rest, so for these eight aircraft the
-  Scheduling chat ranks Mumbai's openings itself, by the openings' order, ignoring that mark.
+  Kingfisher's six aircraft paid for by the A350 deposits** (three A320neo SHARPs, an A320neo LIGHT for Hong Kong and two
+  E195-E2s, ordered 29 Oct) go to Mumbai, on any route, contested or not; the rest of the deposits and Kingfisher's
+  other orders go to Delhi until it reaches the 750 (since 26 Oct, six since 29 Oct; briefs
+  `docs/briefs/2026-10-26-kingfisher-deposits-new-base.md`, `docs/briefs/2026-10-29-trunk-month-today.md`).
+  `competition()` doesn't know this exception: it marks Mumbai's openings "hubs first" and lists them after the rest,
+  so for these six aircraft the Scheduling chat ranks Mumbai's openings itself, by the openings' order, ignoring that mark.
   Which bases and routes are contested is worked out from the latest world scan (`hub_progress()`, `competition()`).
   The numbers are `settings.hub_first_departures` (750),
   `contested_rival_weekly` (250), `contested_rival_daily` (2) and Ryanair's `hub_first_exempt`; the growth signals'
@@ -396,10 +397,10 @@ Details and open points: `docs/decisions.md`.
   *(since 19 Oct; history: rule-history.md)*
 - **The planner mirrors the game.** Routes and aircraft enter the planner only once they're in the game; plans live on
   plan cards. *(since Sep)*
-- **From 1 to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
+- **From 29 October to 30 November, every new order fortifies the trunk routes:** a trunk route is any route between two of our
   bases (hubs and focus cities, any of our airlines). Orders that month add flights on trunk routes we fly, and open
-  trunk routes we don't, until each is fortified. *(from 1 Nov to 30 Nov; within the A321LR's reach since 28 Oct; history:
-  rule-history.md)*
+  trunk routes we don't, until each is fortified. *(from 29 Oct to 30 Nov, started early on 29 Oct; within the A321LR's reach since 28 Oct;
+  brief `docs/briefs/2026-10-29-trunk-month-today.md`; history: rule-history.md)*
   - **Fortified** means it no longer sells out: flights are added while a trunk runs at 95% or more
     (`settings.growth_ready_full_share`), and stop once its loads fall below that.
   - **Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within the
@@ -414,8 +415,8 @@ Details and open points: `docs/decisions.md`.
     test (§3) like any long-haul route. For November's trunks within that reach, reach first (§3) and Malaysia's
     feeder-first order (§2) are set aside.
   - **Shortest to longest:** new trunks open in order of distance, shortest first, while keeping every delivery line
-    filled (an idle line takes the shortest trunk its family can fly). `competition()` lists them so from 1 to 30 Nov
-    (`settings.trunk_month_from`, `trunk_month_to`), the trunks beyond the A321LR's reach included, which the
+    filled (an idle line takes the shortest trunk its family can fly). `competition()` lists them so from 29 Oct to
+    30 Nov (`settings.trunk_month_from`, `trunk_month_to`), the trunks beyond the A321LR's reach included, which the
     Scheduling chat skips. The plan: `docs/briefs/2026-10-20-november-trunks.md` (its A350 trunks set aside 28 Oct).
 - **Maximise connections at both ends:** an arrival lands at least the airport's minimum connection time
   (`world_airports.mct_min`) before the departures it feeds, with no extra margin (`settings.connection_buffer_min`,

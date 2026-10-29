@@ -206,6 +206,14 @@ from 22 Oct (AirAsia's network in the Airbus world), never a plan.
 
 ### 3. Fleet and orders
 
+#### Kingfisher's deposits: six for Mumbai, the rest to Delhi
+*Since 29 Oct (Gitesh, with the trunk month's early start).* Earlier wording: "**One exception: Kingfisher's eight
+aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, to be ordered 28–29 Oct) go to Mumbai,
+on any route, contested or not; Kingfisher's other orders still go to Delhi until it reaches the 750", and the bases
+table's "starts with the eight deposit aircraft" · why (Gitesh): "Mumbai gets 6 aircraft and Delhi gets remaining
+cash". The six are the top six of the eight proposed 29 Oct (Hong Kong's on an A320neo LIGHT, the default line for
+4,272 km); the two lowest-ranked E195s (Colombo and Tehran; Kathmandu and Almaty) were dropped.
+
 #### Long haul waits for cash
 *Since 28 Oct (Gitesh, Scheduling chat, brief `docs/briefs/2026-10-28-long-haul-cash-trigger.md`, option B with its
 four details).* An airline starts a long-haul line (A321XLR or A350) only once its net cash a day, 7-day average,
@@ -371,6 +379,12 @@ Mumbai's openings itself, by the openings' order, ignoring that mark." Before, t
 reference · why: an exception for eight aircraft over two evenings isn't worth a build.
 
 ### 4. Scheduling
+
+#### The trunk month starts 29 Oct
+*Since 29 Oct (Gitesh, Scheduling chat, brief `docs/briefs/2026-10-29-trunk-month-today.md`, option C with six for
+Mumbai).* Earlier wording: "**From 1 to 30 November, every new order fortifies the trunk routes:** … *(from 1 Nov to 30
+Nov …)*", `settings.trunk_month_from` 2026-11-01, and in §3's openings "**In November** (… 1 to 30 Nov, §4)" · why
+(Gitesh): start the trunks now for every airline instead of three more evenings on other openings. The end stays 30 Nov.
 
 #### November's trunks: the A321LR's reach
 *Since 28 Oct (Gitesh, Scheduling chat, with long haul's cash test).* November covers only trunks the A321LR or a
@@ -771,6 +785,8 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 29 Oct | The trunk month from 1 to 30 November (`trunk_month_from` 2026-11-01) | From 29 Oct to 30 Nov (§4). Why: Gitesh, start the trunks now; brief `docs/briefs/2026-10-29-trunk-month-today.md` |
+| 29 Oct | Kingfisher's eight deposit aircraft (four SHARPs, four E195-E2s) go to Mumbai | Six go to Mumbai, the rest of the deposits to Delhi (§3). Why: Gitesh, with the trunk month's early start |
 | 28 Oct | **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where beyond the A321XLR. For November's trunks this sets aside reach first (§3) and Malaysia's feeder-first order (§2) | Only trunks the A321LR or smaller can fly (7,700 km) are part of November; longer ones wait for long haul's cash test (§3, §4). Why: Gitesh, with the cash test; brief `docs/briefs/2026-10-28-long-haul-cash-trigger.md` |
 | 28 Oct | **Narrowbody trunks first:** each evening's orders fill the short and medium trunks first (more departures per dollar); A350 trunks follow | Nothing: every November trunk is a narrowbody trunk now (§4). Why: as above |
 | 28 Oct | XLR lines first; A350 lines wait for the narrowbody-against-A350 question | Each line starts once its airline passes long haul's cash test for its type (§3, §4). Why: as above |
