@@ -407,11 +407,14 @@ Details and open points: `docs/decisions.md`.
     A321LR's reach, below) are chosen together, by profit per aircraft hour where flown and by market size where not.
   - **Hubs first is suspended for trunks in the trunk month:** any base can take an aircraft for a trunk route. The aim
     is to connect every pair of our bases and fortify them first, before other players take these strongest routes.
-    **Fillers:** where a trunk aircraft's day needs more to make sense (hours, maintenance), it may also fly filler
-    routes from the same base to cities that aren't our bases, contested or not; hubs first doesn't apply to them. A
-    base doesn't open non-trunk routes on their own: a filler only rides on a trunk aircraft's day, taken from the
-    base's openings in their order. One airline per city pair (§2) still applies, and so does the cash forecast's
-    cushion. *(fillers since 29 Oct)*
+    **Fillers:** where a trunk aircraft's day needs more to make sense (hours, maintenance), it may also fly fillers
+    from the same base, contested or not; hubs first doesn't apply to them. A filler can be anything that isn't a
+    trunk: an added flight on a route we fly, or a new route to a city that isn't our base. The Scheduling chat takes
+    fillers from the **filler list** first (non-trunk routes that sell out, each with any condition, kept as a to-do on
+    the planner's board and added to at each review), then from the base's openings in their order. A base doesn't add
+    non-trunk flights or routes on their own: a filler only rides on a trunk aircraft's day. One airline per city pair
+    (§2) still applies, and so does the cash forecast's cushion. *(fillers since 29 Oct; added flights and the filler
+    list since 29 Oct)*
   - **Only trunks that make sense:** a pair is opened only where the market is there and the route makes business sense
     (no Kolkata–US direct, say), within the A321LR's reach (below). Munich, Milan Malpensa, Mumbai, Los Angeles
     and Dallas count as bases; no base is on hold.

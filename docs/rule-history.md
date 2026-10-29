@@ -380,6 +380,16 @@ reference · why: an exception for eight aircraft over two evenings isn't worth 
 
 ### 4. Scheduling
 
+#### Trunk month: a filler can be anything, the filler list first
+*Since 29 Oct (Gitesh, Review chat, going through Needs attention).* Earlier wording: "**Fillers:** where a trunk
+aircraft's day needs more to make sense (hours, maintenance), it may also fly filler routes from the same base to
+cities that aren't our bases, contested or not; hubs first doesn't apply to them. A base doesn't open non-trunk routes
+on their own: a filler only rides on a trunk aircraft's day, taken from the base's openings in their order. One airline
+per city pair (§2) still applies, and so does the cash forecast's cushion. *(fillers since 29 Oct)*" · why (Gitesh):
+"filler can be anything"; keep a list of sold-out routes we can add as fillers "so scheduling chat prioritizes those
+whenever it needs a feeder". Raised by the 29 Oct rival moves on sold-out non-trunk routes (ORD–EWR, EDI–ZRH, JFK–IAH,
+JFK–MCO); the list starts with those four, JFK–IAH and JFK–MCO only once their loads hold after the new rivals.
+
 #### Trunk month: fillers on a trunk aircraft's day
 *Since 29 Oct (Gitesh, Scheduling chat).* Earlier wording: "**Hubs first is suspended for trunks in November:** any
 base can take an aircraft for a trunk route. One airline per city pair (§2) still applies, and so does the cash
