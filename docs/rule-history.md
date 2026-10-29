@@ -380,6 +380,15 @@ reference · why: an exception for eight aircraft over two evenings isn't worth 
 
 ### 4. Scheduling
 
+#### Trunk month: fillers on a trunk aircraft's day
+*Since 29 Oct (Gitesh, Scheduling chat).* Earlier wording: "**Hubs first is suspended for trunks in November:** any
+base can take an aircraft for a trunk route. One airline per city pair (§2) still applies, and so does the cash
+forecast's cushion." · why (Gitesh): "what the rule for Nov is, is that we want to connect all the hubs and focus cities
+and fortify them. Reason for this is that they are the most enticing high powered routes probably for most players, so
+if we fortify them now we will have control. In order to do that, if some routes need to have filler routes (which are
+not to another hub) in addition to those to make sense, that's ok." Raised by China Eastern's Daxing aircraft, whose two
+trunks gave only 11.1 hours.
+
 #### The trunk month starts 29 Oct
 *Since 29 Oct (Gitesh, Scheduling chat, brief `docs/briefs/2026-10-29-trunk-month-today.md`, option C with six for
 Mumbai).* Earlier wording: "**From 1 to 30 November, every new order fortifies the trunk routes:** … *(from 1 Nov to 30
