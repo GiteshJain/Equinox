@@ -38,8 +38,8 @@ the saves' names follow their screens, and Log an order as went with the order r
     one row per route and cabin it marks,
     since 26 Oct per direction, each row written with its direction, out or back,
     how many depending on the night). Since 23 Oct, when the copy has a jump under launch to put on the fare plan, that
-    airline's Put on the fare plan is recorded as its own save instead, with each jump written as ladder_move jump at its
-    level (spec docs/specs/2026-10-23-fare-ladder-under-launch.md §5); the other is then not tried, and the other way round.
+    airline's Put on the fare plan is recorded as its own save instead, with each jump it marked to put there (to_plan before
+    the save; one already planned this week isn't the save's) written as ladder_move jump at its level (spec docs/specs/2026-10-23-fare-ladder-under-launch.md §5); the other is then not tried, and the other way round.
   Interline: a status; a note.
   Reference: a bank time; a constant; a type's minimum turn; a type's order cabin; an airline's own order cabin added,
     changed and removed (since 15 Oct); Add config; a night ban; a removed route restored; a time zone.
@@ -962,14 +962,24 @@ async def fare_ladder(s, pl):
     else:
         s.not_tried("the airline with a jump under launch is put on the fare plan instead", "performance: put the fare ladder on the fare plan")
 
+        # the jumps this save is to write: those the ladder marks to put on the fare plan before it (to_plan), read now. A
+        # jump the ladder shows as planned already (a fare_plan row for that direction this week, written before the save:
+        # the copy of 30 Oct had one on route 16 economy out) isn't this save's to write, and the planner rightly leaves it
+        jumps_marked = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', (x ->> 'route_id')::bigint, 'cabin', x ->> 'cabin',
+                                               'direction', x ->> 'direction', 'level', (x ->> 'new_level')::numeric)), '[]')
+                                            from jsonb_array_elements(private.fig_fare_ladder(:'a'::bigint, :'m'::timestamptz) -> 'routes') x
+                                           where x ->> 'ladder_kind' = 'jump' and (x ->> 'to_plan')::boolean""", a=jumper["id"], m=COPY["moment"]).strip())
+
         def jumps_written():
-            # every jump the ladder marked, now on the fare plan, has its row written with ladder_move jump at its level
-            # (spec §3). The answer is true, or the rows that aren't (how many jumps there are depends on the night).
-            # Levels are compared as numbers: fare_plan.level_pct is numeric(5,1) (80.0), fare_ladder() trims it (80)
-            want = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', (x ->> 'route_id')::bigint, 'cabin', x ->> 'cabin',
-                                           'direction', x ->> 'direction', 'level', (x ->> 'new_level')::numeric)), '[]')
-                                        from jsonb_array_elements(private.fig_fare_ladder(:'a'::bigint, :'m'::timestamptz) -> 'routes') x
-                                       where x ->> 'ladder_kind' = 'jump' and (x ->> 'planned')::boolean""", a=jumper["id"], m=COPY["moment"]).strip())
+            # every jump the ladder marked to put on the fare plan before the save has its row written by it, with
+            # ladder_move jump at its level (spec §3), and the ladder shows it planned after. The answer is true, or the
+            # rows that aren't (how many jumps there are depends on the night). Levels are compared as numbers:
+            # fare_plan.level_pct is numeric(5,1) (80.0), fare_ladder() trims it (80)
+            planned = {(x["route_id"], x["cabin"], x["direction"]) for x in json.loads(psql("""select coalesce(json_agg(json_build_object(
+                                     'route_id', (x ->> 'route_id')::bigint, 'cabin', x ->> 'cabin', 'direction', x ->> 'direction')), '[]')
+                                   from jsonb_array_elements(private.fig_fare_ladder(:'a'::bigint, :'m'::timestamptz) -> 'routes') x
+                                  where x ->> 'ladder_kind' = 'jump' and (x ->> 'planned')::boolean""", a=jumper["id"], m=COPY["moment"]).strip())}
+            want = jumps_marked
             got = json.loads(psql("""select coalesce(json_agg(json_build_object('route_id', route_id, 'cabin', cabin_class, 'direction', direction,
                                           'level', level_pct, 'move', ladder_move)), '[]')
                                        from public.fare_plan where id > :'n'::bigint and airline_id = :'a'::bigint""", n=since, a=jumper["id"]).strip())
@@ -981,8 +991,10 @@ async def fare_ladder(s, pl):
                     bad.append(f"route {j['route_id']} {j['cabin']} {j['direction']}: no row written")
                 elif g["move"] != "jump" or float(g["level"]) != float(j["level"]):
                     bad.append(f"route {j['route_id']} {j['cabin']} {j['direction']}: written {g['move']} at {g['level']}, the ladder's jump to {j['level']}")
+                if (j["route_id"], j["cabin"], j["direction"]) not in planned:
+                    bad.append(f"route {j['route_id']} {j['cabin']} {j['direction']}: not shown planned after the save")
             if not want:
-                bad.append("the ladder shows no jump on the fare plan after the save")
+                bad.append("the ladder marked no jump to put on the fare plan")
             return {"jumps_written_as_jump": True if not bad else bad, **directions_written()}
         await s.act("performance: put the fare ladder on the fare plan, with a jump under launch", lambda: pg.click(f"[data-ladder-plan={json.dumps(code)}]"),
                     variable=("planner_save fare_plan insert", "fare_plan insert"), extra=jumps_written)

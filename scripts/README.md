@@ -25,8 +25,10 @@ python3 scripts/briefing/brief.py KF                     # IATA code, planner na
 python3 scripts/briefing/brief.py "Malaysia Airlines" --as-of 2026-10-15T08:00:00Z --out ~/briefings
 ```
 
-It prints a short briefing, about one screen, and writes the full JSON beside it, `briefing_<code>.json` (in `--out`,
-else the current folder). It only gathers: each figure comes from its one home (#19), through `export_for_report()`.
+It prints a short briefing, about one screen (at most 60 lines however big the airline: since 31 Oct the deliveries
+show three, one line each with its first plan card, those needing a look first, and the rest as a count; hubs four bases,
+rivals one airport), and writes the full JSON beside it, `briefing_<code>.json` (in `--out`, else the current folder),
+which keeps everything. It only gathers: each figure comes from its one home (#19), through `export_for_report()`.
 
 | Section | What it holds | Where it comes from |
 |---|---|---|

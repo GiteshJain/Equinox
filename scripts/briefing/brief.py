@@ -385,6 +385,11 @@ def competition_line(C):
             + (f", top {min(3, len(C.get('openings') or []))} (20 in the JSON):" if C.get("openings") else ""))
 
 
+# the printout's caps (the briefing stays within 60 lines however big an airline grows; tests/briefing_test.py's big
+# airline): the busiest sections show their first lines and say how many more are in the JSON, which keeps everything
+DELIVERY_LINES = 3
+
+
 def render(b):
     A, L = b["airline"], []
     put = L.append
@@ -443,27 +448,42 @@ def render(b):
             put(f"Hubs: {h.get('main_hub') or 'no main hub'} {h.get('departures')} of {h.get('target')} departures a week "
                 f"({pct(h.get('percent'))}), {h.get('planned') or 0} more on plan cards")
         bs = h.get("bases") or []
-        for s in bs[:5]:
+        for s in bs[:4]:
             tr = s.get("top_rival") or {}
             put(f"  {s.get('code')} ({s.get('role')}): " + ("contested" if s.get("contested") else "not contested")
                 + (f", busiest rival {tr.get('name')} {tr.get('weekly')} a week" if tr else ""))
-        if len(bs) > 5:
-            put(f"  … {len(bs) - 5} more bases in the JSON")
+        if len(bs) > 4:
+            put(f"  … {len(bs) - 4} more bases in the JSON")
     else:
         put("Hubs: none in hub_progress()")
 
     D = b["deliveries"]
     put("")
     put(f"Deliveries ({len(D)})" + ("" if D else ": none on order or waiting"))
-    for d in D:
+    # one line a delivery, its first plan card on it, at most DELIVERY_LINES of them (31 Oct: an airline with eight
+    # deliveries on order, each with its card, ran the briefing past its 60 lines); the ones needing a look first (no plan
+    # card, a card whose check failed), then those arrived, then by arrival. The JSON keeps every delivery and card.
+    def needs_look(d):
+        return not d["plan_cards"] or any((pc.get("check") or {}).get("ok") is False for pc in d["plan_cards"])
+    for d in sorted(D, key=lambda d: (not needs_look(d), not d.get("arrived"), d.get("delivery_at") or ""))[:DELIVERY_LINES]:
         st = "arrived, not yet flying" if d.get("arrived") else f"on order, arrives {when(d.get('delivery_at'))}"
         what = " ".join(x for x in (d.get("registration") or f"aircraft {d['aircraft_id']}", d.get("type"), d.get("order_cabin") or d.get("cabin")) if x)
-        put(f"  {what} at {d.get('order_base_code') or d.get('base_code') or '—'}: {st}" + ("" if d["plan_cards"] else " · no plan card yet"))
-        for pc in d["plan_cards"]:
+        line = f"  {what} at {d.get('order_base_code') or d.get('base_code') or '—'}: {st}"
+        if not d["plan_cards"]:
+            line += " · no plan card yet"
+        else:
+            pc = sorted(d["plan_cards"], key=lambda pc: (pc.get("check") or {}).get("ok") is not False)[0]   # a failed check first
             ck = pc.get("check")
             res = "no legs" if ck is None else "check ok" if ck.get("ok") else f"{len(ck.get('problems') or [])} problem(s): {(ck.get('problems') or ['?'])[0]}"
             fw = fare_words((ck or {}).get("fares"))
-            put(f"    card \"{pc.get('title') or pc['id']}\", {len(pc.get('legs') or [])} legs: {res}" + (f" · fares: {fw}" if fw else ""))
+            line += f" · card \"{pc.get('title') or pc['id']}\", {len(pc.get('legs') or [])} legs: {res}" + (f" · fares: {fw}" if fw else "")
+            if len(d["plan_cards"]) > 1:
+                line += f" · +{len(d['plan_cards']) - 1} more card(s) in the JSON"
+        put(line)
+    if len(D) > DELIVERY_LINES:
+        rest = sorted(D, key=lambda d: (not needs_look(d), not d.get("arrived"), d.get("delivery_at") or ""))[DELIVERY_LINES:]
+        put(f"  … {len(rest)} more deliveries ({sum(len(d['plan_cards']) for d in rest)} plan cards"
+            + (f", {sum(1 for d in rest if needs_look(d))} needing a look" if any(needs_look(d) for d in rest) else "") + ") in the JSON")
 
     T = b["todos"]
     put("")
@@ -506,7 +526,7 @@ def render(b):
             + ("" if V.get("in_scan") else " · " + V["note"]))
         for r in shared[:3]:
             put(f"  {r['pair']}: ours {r['ours_weekly']} a week; " + ", ".join(f"{n} {w}" for n, w in r["rivals"][:3]))
-        for ap in [x for x in V["airports"] if x["rivals_weekly"]][:2]:
+        for ap in [x for x in V["airports"] if x["rivals_weekly"]][:1]:
             put(f"  at {ap['code']}: ours {ap['ours_weekly']} departures a week; " + ", ".join(f"{n} {w}" for n, w in ap["top_rivals"][:3]))
     return "\n".join(L)
 
