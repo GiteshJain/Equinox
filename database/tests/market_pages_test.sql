@@ -7,7 +7,8 @@
 --      an empty search path and a 30-second limit, described, not open to public; capture_airlines() and system_status()
 --      called as before; the four internal functions closed, described; market_every_days 7 in every world, described.
 --   2. On the copy: Gander's capture_airlines() with a key of its own, signed out: the market part as the copy's routes and
---      the setting say (counts only).
+--      the setting say (counts only), whether or not the copy holds an open run: every page but those the open run read ok,
+--      its failed pages listed again (since 31 Oct).
 --   3. A world of its own with its own key: our Ryanair (game id 112, FR) flying DUB–AMS and DUB–BCN (with rotations),
 --      a route without rotations and a removed one (not listed), our second airline on AMS–DUB too (listed once, under
 --      the first); a finished world scan whose schedules give KL to one airline and EI to two. No finished run: due, the
@@ -15,7 +16,7 @@
 --   4. A run, signed out: start; a second start carried on; the saved page's figures (DUB→AMS, 30 Oct, as
 --      tests/capture_market_test.mjs makes them) give the expected read (week 2026-44, service R 318), fares (KL by the
 --      scan, FR by the share list's airline with that code, EI unmatched with its prefix kept), shares (KLM and Aer Lingus
---      added to airlines, logged as capture) and weeks; a failed page; the open run's pages left out of capture_airlines();
+--      added to airlines, logged as capture) and weeks; a failed page; the open run's page read ok left out of capture_airlines(), its failed page listed again (since 31 Oct);
 --      finish refused at 50% failed; the failed page sent again ok replaces it; finish. Refused, writing nothing: a wrong
 --      key, a bad kind, a run of another world, an airline that isn't ours, figures that don't read, a page after the finish.
 --   5. Due and not due by market_every_days (7, 1, 0 and none) as the run ages by capture days; a later read of a week wins
@@ -105,6 +106,7 @@ $test$;
 reset role;
 do $test$
 declare r jsonb := (select v from t_mk where k = 'gander'); dw bigint := (select id from public.worlds where is_default); n_pairs int; n_pages int; bad text;
+  n_done int := 0;
 begin
   assert r ->> 'ok' = 'true' and r ? 'scan_due' and r ? 'market_due', 'Gander''s capture_airlines() lacks its scan or market part: ' || left(r::text, 300);
   assert (r ->> 'market_every_days')::int = 7, 'Gander''s market_every_days isn''t 7';
@@ -115,8 +117,30 @@ begin
      where rt.world_id = dw and a.active and g.kind = 'ours' and not rt.removed and rt.hub_code <> rt.dest_code
        and exists (select 1 from public.rotations x where x.route_id = rt.id)) p;
   assert (r ->> 'market_total')::int = 2 * n_pairs, format('Gander: market_total %s, but our airlines fly %s pairs', r ->> 'market_total', n_pairs);
+  -- whether or not the copy holds an open run (the capture of the evening before may have left one, as run 1 of 30 Oct):
+  -- every page but those the open run read ok (since 31 Oct, migration 20261031120000); market_done counts those
+  if r ->> 'market_open' is not null then
+    select count(*) into n_done from public.market_reads m where m.run_id = (r ->> 'market_open')::bigint and m.ok;
+  end if;
+  assert (r ->> 'market_done')::int = n_done, format('Gander: market_done %s, but the open run read %s pages ok', r ->> 'market_done', n_done);
   select count(*) into n_pages from jsonb_array_elements(r -> 'market_pages') a cross join jsonb_array_elements(a -> 'pages') pg;
-  assert n_pages = 2 * n_pairs, format('Gander: %s pages listed, %s pairs flown', n_pages, n_pairs);
+  assert n_pages = 2 * n_pairs - (select count(*) from public.market_reads m
+                                   where m.run_id = (r ->> 'market_open')::bigint and m.ok
+                                     and exists (select 1 from public.routes rt join public.airlines a on a.id = rt.airline_id
+                                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                                  where rt.world_id = dw and a.active and g.kind = 'ours' and not rt.removed
+                                                    and exists (select 1 from public.rotations x where x.route_id = rt.id)
+                                                    and ((rt.hub_code = m.origin and rt.dest_code = m.dest) or (rt.hub_code = m.dest and rt.dest_code = m.origin)))),
+    format('Gander: %s pages listed, %s pairs flown, open run %s with %s pages read ok', n_pages, n_pairs, coalesce(r ->> 'market_open', 'none'), n_done);
+  -- the open run's failed pages are listed again
+  select string_agg(m.origin || m.dest, ', ') into bad from public.market_reads m
+   where m.run_id = (r ->> 'market_open')::bigint and not m.ok
+     and not exists (select 1 from jsonb_array_elements(r -> 'market_pages') a cross join jsonb_array_elements(a -> 'pages') pg
+                      where pg ->> 0 = m.origin and pg ->> 1 = m.dest)
+     and exists (select 1 from public.routes rt join public.airlines a on a.id = rt.airline_id join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                  where rt.world_id = dw and a.active and g.kind = 'ours' and not rt.removed and exists (select 1 from public.rotations x where x.route_id = rt.id)
+                    and ((rt.hub_code = m.origin and rt.dest_code = m.dest) or (rt.hub_code = m.dest and rt.dest_code = m.origin)));
+  assert bad is null, 'Gander: the open run''s failed pages aren''t listed again: ' || bad;
   select string_agg(a ->> 'game_id', ', ') into bad from jsonb_array_elements(r -> 'market_pages') a
    where not exists (select 1 from jsonb_array_elements(r -> 'airlines') o where o ->> 'game_id' = a ->> 'game_id');
   assert bad is null, 'market pages listed under airlines the capture doesn''t capture: ' || bad;
@@ -223,11 +247,12 @@ begin
   assert r ->> 'ok' = 'false' and r ->> 'error' like 'shares that don''t read%', 'a share that doesn''t read wasn''t refused: ' || r::text;
   r := public.capture_market(v_key, 'page', '"just text"'::jsonb);
   assert r ->> 'ok' = 'false', 'a payload that isn''t an object wasn''t refused';
-  -- the open run: its pages read are left out of capture_airlines()
+  -- the open run: its page read ok is left out of capture_airlines(), the failed one listed again (since 31 Oct, migration
+  -- 20261031120000), and market_done counts the ok one
   r := public.capture_airlines(v_key);
-  assert (r ->> 'market_open')::bigint = run and (r ->> 'market_done')::int = 2 and (r ->> 'market_total')::int = 4
-         and r -> 'market_pages' -> 0 -> 'pages' = '[["DUB", "BCN"], ["BCN", "DUB"]]'::jsonb,
-    'the open run''s pages aren''t left out: ' || (r - 'airlines' - 'scan_airports')::text;
+  assert (r ->> 'market_open')::bigint = run and (r ->> 'market_done')::int = 1 and (r ->> 'market_total')::int = 4
+         and r -> 'market_pages' -> 0 -> 'pages' = '[["AMS", "DUB"], ["DUB", "BCN"], ["BCN", "DUB"]]'::jsonb,
+    'the open run''s page read ok isn''t left out, or its failed page isn''t listed again: ' || (r - 'airlines' - 'scan_airports')::text;
   -- finish refused at 50% failed; the failed page sent again ok replaces it; then finish
   r := public.capture_market(v_key, 'finish', jsonb_build_object('run_id', run));
   assert r ->> 'ok' = 'false' and r ->> 'error' like 'not finished: 1 of 2 pages failed%', 'a run with half its pages failed was finished: ' || r::text;

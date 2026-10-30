@@ -6,7 +6,8 @@ each airline's briefing rows), as the rehearsal's copy of a nightly backup gave 
 (tests/fixtures/briefing_sample.py; tests/README.md, "The briefing sample"). Nothing reaches the network: the home folder
 holds no keys and $EQUINOX_API_URL points nowhere, so a briefing that tried to download would fail. Checks, for every
 one of our airlines in the sample:
-  - it prints a short briefing (every heading, at most 60 lines) and writes briefing_<code>.json with every section;
+  - it prints a short briefing (every heading, at most 60 lines, a big airline's too: twelve deliveries with their cards,
+    twelve to-dos) and writes briefing_<code>.json with every section;
   - each section is that airline's, as the sample gives it: the card and cash forecast (airline_cards(),
     cash_forecast()); the fleet (every aircraft in service, its profit aircraft_profit()'s); the routes (each route its
     own: its route profit, loads and growth marks, never another airline's); hubs first; the deliveries, to-dos and fare
@@ -230,6 +231,38 @@ def main():
             ck = (b or {"deliveries": [{"plan_cards": [{}]}]})["deliveries"][0]["plan_cards"][0].get("check") or {}
             check(r.returncode == 0 and ck.get("ok") is False and any("S9" in p for p in ck.get("problems") or []),
                   "a card with a wrong service code (S9) fails its check, naming the code", (ck.get("problems") or r.stderr)[:3])
+
+        # a big airline (31 Oct: Kingfisher's eight deliveries on order, each with its plan card, and Ryanair's long fare
+        # lines took the briefing past its 60 lines on the copy): twelve deliveries, two cards each, one with no card, one
+        # whose card fails its check; twelve to-dos; ten fare plan changes. Still every heading within 60 lines, the
+        # deliveries needing a look first and the rest counted; the JSON keeps every delivery and card
+        if pick is not None:
+            x, ac = pick
+            T = copy.deepcopy(S)
+            B = T["briefings"][str(x["id"])]
+            base = B["deliveries"][0] if B["deliveries"] else {"type": "test", "cabin": None, "status": "on_order", "type_id": None,
+                                                               "base_code": None, "order_cabin": None, "order_base_code": None}
+            bad_leg = dict(legs[0], service_code="S9")
+            B["deliveries"] = [dict(base, aircraft_id=-100 - i, registration=f"BIG-{i:02d}", arrived=False, status="on_order",
+                                    delivery_at=f"2026-11-{i + 1:02d}T06:00:00.000Z",
+                                    plan_cards=[] if i == 7 else [{"id": -1000 - 2 * i, "title": f"big card {i}a", "legs": [bad_leg] if i == 9 else []},
+                                                                  {"id": -1001 - 2 * i, "title": f"big card {i}b", "legs": []}])
+                               for i in range(12)]
+            B["todos"] = [dict((B["todos"] or [{}])[0], id=-200 - i, title=f"big to-do {i}", group=False, due_on=None) for i in range(12)]
+            B["fare_plan"] = dict(B["fare_plan"] or {}, plan=[{"hub": "AAA", "dest": f"B{i:02d}", "cabin_class": "economy", "change_pct": 5, "applied": False}
+                                                               for i in range(10)])
+            r, b = run(T, x["iata_code"])
+            lines = r.stdout.strip().splitlines()
+            missing = [h for h in HEADINGS if not any(l.startswith(h) for l in lines)]
+            shown = [l for l in lines if l.startswith("  BIG-")]
+            check(r.returncode == 0 and not missing and len(lines) <= 60 and len(b["deliveries"]) == 12
+                  and sum(len(d["plan_cards"]) for d in b["deliveries"]) == 22 and len(b["todos"]) == 12
+                  and len(shown) == 3 and shown[0].startswith("  BIG-07") and "no plan card yet" in shown[0]
+                  and shown[1].startswith("  BIG-09") and "problem(s)" in shown[1] and "+1 more card(s) in the JSON" in shown[1]
+                  and "  … 9 more deliveries (18 plan cards) in the JSON" in lines,
+                  f"a big airline (12 deliveries, 22 plan cards, 12 to-dos, 10 fare changes): {len(lines)} lines, every heading, "
+                  "the deliveries needing a look first, the rest counted, the JSON keeping all of them",
+                  (r.stderr or "\n".join(lines))[-1500:] + (f" missing {missing}" if missing else ""))
 
         # competition analysis (since 21 Oct; spec docs/specs/2026-10-21-competition-analysis.md §4): the briefing kind's
         # competition, its threats and top openings printed under its heading; a sample made before it says so

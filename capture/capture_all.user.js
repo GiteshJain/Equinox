@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.9
+// @version      1.10
 // @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
@@ -27,12 +27,18 @@
 // (start, page, finish). When the page's listing filters differ from the saved setup it sets them through their own four
 // listing calls, the only posts it makes to the game; it never sends the Pricing or settings forms.
 // tests/capture_market_test.mjs reads the saved page (tests/fixtures/market_DUBAMS_2026-10-30.html) and runs whole runs
-// against a stand-in for the game.
+// against a stand-in for the game. Since 1.10 (the first live run, 30 Oct: every page of the four airlines whose Group by
+// flight was off failed as "no Current Availability table", because the game then shows its flat list and the page was
+// judged before its filters were set) each page is checked in this order: the airline open (on the first page after a
+// switch, and on any page without its table), the filters (set when they differ), then the page read; a page that still
+// doesn't read says what the game served (title, heading, address, the airline open, Group by flight). Our own flights
+// alone are a normal page (tests/fixtures/market_DELBOM_2026-10-30.html, Kingfisher). The service code sent is the
+// profile's leading token ("S2 (min 800km)" → "S2"), as the planner writes it.
 (function (root) {
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.9";                                      // the @version above, in the scan's notes
+  const VERSION = "1.10";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -427,7 +433,8 @@
     const sp = html.match(/<select\b[^>]*name="serviceProfile-group:[^"]*:serviceProfile"[^>]*>([\s\S]*?)<\/select>/);
     const opt = sp ? [...sp[1].matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/g)].find(o => /\bselected\b/i.test(o[1])) : null;
     const spValue = opt ? attrOf("<x" + opt[1] + ">", "value") : null;
-    const service = opt && spValue && /^\d+$/.test(spValue) ? { code: text(opt[2]), game_id: Number(spValue) } : null;
+    // 1.10: the code is the option's leading token: the game names its profiles "S2 (min 800km)", the planner "S2"
+    const service = opt && spValue && /^\d+$/.test(spValue) ? { code: serviceToken(text(opt[2])), game_id: Number(spValue) } : null;
     // Historic Capacities and Prices: the two setData([...]) calls, joined by period; weeks with figures only
     const series = {};
     for (const m of html.matchAll(/\.setData\((\[[\s\S]*?\])\);/g)) {
@@ -442,6 +449,22 @@
     return { from: h2 ? h2[1] : null, to: h2 ? h2[2] : null, filters, flights,
              shares: { week: lab("current"), previous: lab("previous"), passengers: shareTable("Passengers"), cargo: shareTable("Cargo") },
              service, weeks };
+  }
+  // 1.10: a service profile's code as the planner writes it: the name's leading token before " (" ("S2 (min 800km)" → "S2")
+  const serviceToken = name => { const t = String(name || "").split(" (")[0].trim(); return t || null; };
+  // 1.10: whether the page has the grouped Current Availability table (Group by flight on)
+  const hasGroupedTable = html => /<table[^>]*id="inventory-grouped-table"/.test(String(html));
+  // 1.10: what a page that didn't read was, for its error: the title, the first heading after the menus, the address it
+  // came from (without the game's host), the airline open and the Group by flight box
+  function pageWhat(html, url) {
+    html = String(html);
+    const t = html.match(/<title>([\s\S]*?)<\/title>/), body = html.slice(Math.max(0, html.search(/<div class="bootstrap container-fluid">/)));
+    const hd = body.match(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/), o = openAirlineOf(html), f = readMarketFilters(html);
+    let at = String(url || ""); try { const u = new URL(at, "https://gander.airlinesim.aero/"); at = u.pathname + u.search; } catch (e) { /* as given */ }
+    return [`title "${t ? text(t[1]) : ""}"`, `heading "${hd ? text(hd[1]).slice(0, 80) : ""}"`, `at ${at}`,
+            `open ${o.id != null ? o.id : "?"}${o.name ? " " + o.name : ""}`,
+            `Group by flight ${f.display === true ? "on" : f.display === false ? "off" : "not on the page"}`,
+            /listing-flat~view/.test(html) && !hasGroupedTable(html) ? "the flat list shown" : null].filter(Boolean).join(", ");
   }
   // the fares as the database keeps them: per flight prefix and class, flights seen, lowest, average and highest price,
   // flights finished and finished with no seat left (sold out); nothing per flight
@@ -524,37 +547,43 @@
         if (g.ok && !path.startsWith("/app/com/markets/")) return { words: `Market pages stopped on ${pairWords(from, to)}: the game sent it to ${path}; the session may have been lost.` };
         if (!g.ok) err = "the game answered HTTP " + g.status;
         else {
-          // the airline that's open: checked on the first page after each switch (stop if it isn't ours)
-          if (!st.checked) {
-            const why = openProblem(openAirlineOf(g.html), al);
+          // 1.10: the airline that's open, on the first page after each switch and on any page without its table (a page
+          // for another airline is never read as a failed page: the run stops, as spec'd)
+          const noTable = !hasGroupedTable(g.html), open = openAirlineOf(g.html);
+          if (!st.checked || (noTable && (open.id != null || open.name))) {
+            const why = openProblem(open, al);
             if (why) return { words: `Market pages stopped on ${pairWords(from, to)}: ${why}: the switch didn't take.` };
-            st.checked = true; io.save(st);
+            if (!st.checked) { st.checked = true; io.save(st); }
           }
-          let probs = filterProblems(readMarketFilters(g.html));
-          const first = readMarketPage(g.html);
-          if (first.error) err = first.error;   // not a market page as we know it: a failed page, skipped
-          else if (probs.length) {
-            {
-              // set each filter that differs through its own listing call, then read the page again
-              const calls = filterCalls(g.html, g.url || url), f = readMarketFilters(g.html), base = wicketBase(g.html);
-              for (const name of [...new Set(probs.map(p => p.filter))]) {
-                const p = probs.find(x => x.filter === name);
-                if (p.want === "on the page" || !calls[name]) return { words: `Market pages: couldn't set ${filterWords(p).replace(/^tick |^untick /, "")} on ${pairWords(from, to)}${calls[name] ? "" : " (its listing call isn't on the page)"}. Stopped.` };
-                let r;
-                try { r = await post(calls[name], filterBody(name, f), base); } catch (e) { return { words: `Market pages stopped on ${pairWords(from, to)}: setting ${FILTER_LABEL[name]} failed (${e.message}).` }; }
-                if (!r || !r.ok) return { words: `Market pages stopped on ${pairWords(from, to)}: setting ${FILTER_LABEL[name]} failed (the game answered HTTP ${r ? r.status : "nothing"}).` };
-                for (const q of probs.filter(x => x.filter === name)) io.log(`Market pages: set the filter, ${filterWords(q)} (on ${pairWords(from, to)}).`);
-                await io.sleep(MARKET_PACE);
-              }
-              try { g = await io.get(url); } catch (e) { return { words: `Market pages stopped on ${pairWords(from, to)}: the game didn't answer (${e.message}); the session may have been lost.` }; }
-              probs = g.ok ? filterProblems(readMarketFilters(g.html)) : probs;
-              if (!g.ok || probs.length) {
-                const p = probs[0];
-                return { words: `Market pages: couldn't set ${p.label ? `'${p.label}'` : "the boxes"} under ${p.where} on ${pairWords(from, to)}. Stopped; set it on the page by hand, then press Capture again.` };
-              }
+          // 1.10: then the listing's filters, before the page is read: with Group by flight off the game shows its flat
+          // list, which has no grouped table (the first live run, 30 Oct: every page of the four airlines whose Group by
+          // flight was off failed as "no Current Availability table", the filter never set)
+          let f = readMarketFilters(g.html), probs = filterProblems(f);
+          const missing = probs.filter(p => p.want === "on the page").length;   // all four controls missing: not a market page
+          if (probs.length && missing < 4) {
+            // set each filter that differs through its own listing call, then read the page again
+            const calls = filterCalls(g.html, g.url || url), base = wicketBase(g.html);
+            for (const name of [...new Set(probs.map(p => p.filter))]) {
+              const p = probs.find(x => x.filter === name);
+              if (p.want === "on the page" || !calls[name]) return { words: `Market pages: couldn't set ${filterWords(p).replace(/^tick |^untick /, "")} on ${pairWords(from, to)}${calls[name] ? "" : " (its listing call isn't on the page)"}. Stopped.` };
+              let r;
+              try { r = await post(calls[name], filterBody(name, f), base); } catch (e) { return { words: `Market pages stopped on ${pairWords(from, to)}: setting ${FILTER_LABEL[name]} failed (${e.message}).` }; }
+              if (!r || !r.ok) return { words: `Market pages stopped on ${pairWords(from, to)}: setting ${FILTER_LABEL[name]} failed (the game answered HTTP ${r ? r.status : "nothing"}).` };
+              for (const q of probs.filter(x => x.filter === name)) io.log(`Market pages: set the filter, ${filterWords(q)} (on ${pairWords(from, to)}).`);
+              await io.sleep(MARKET_PACE);
+            }
+            try { g = await io.get(url); } catch (e) { return { words: `Market pages stopped on ${pairWords(from, to)}: the game didn't answer (${e.message}); the session may have been lost.` }; }
+            f = g.ok ? readMarketFilters(g.html) : f;
+            probs = g.ok ? filterProblems(f) : probs;
+            if (!g.ok || probs.length) {
+              const p = probs[0];
+              return { words: `Market pages: couldn't set ${p.label ? `'${p.label}'` : "the boxes"} under ${p.where} on ${pairWords(from, to)}. Stopped; set it on the page by hand, then press Capture again.` };
             }
           }
-          if (!err) { read = readMarketPage(g.html); if (read.error) err = read.error; }
+          read = readMarketPage(g.html);
+          // 1.10: a page that still doesn't read says what the game served: its title and heading, its address, the
+          // airline open and the Group by flight box
+          if (read.error) { err = read.error + " (" + pageWhat(g.html, g.url || url) + ")"; read = null; }
         }
         const r = await io.send("page", marketPagePayload(st.run_id, al, from, to, read, err));
         if (err || !r || r.ok !== true) {
@@ -580,7 +609,7 @@
                 progressWords, VERSION, FLEET_PACE, fleetListUrl, fleetUrl, readFleetPage, fleetsToRead, fleetPayload, fleetProgress, fleetWords,
                 fleetOk, fleetSummary, MARKET_PACE, marketUrl, FILTER_CALLS, readMarketFilters, filterProblems, filterWords, filterCalls, isFilterCall,
                 filterBody, wicketBase, openAirlineOf, openProblem, readMarketPage, fareSummary, marketPagePayload, marketPlanOf, noMarketWords,
-                marketProgress, runMarkets, marketState };
+                marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
 
   // ---------------------------------------------------------------- in the game: the capture, as in 1.4, and the fleets (1.6)

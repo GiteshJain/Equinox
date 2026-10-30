@@ -1,4 +1,4 @@
-// The market pages in the capture (capture/capture_all.user.js 1.9; spec docs/specs/2026-10-30-market-pages.md), with no
+// The market pages in the capture (capture/capture_all.user.js 1.9, now 1.10; spec docs/specs/2026-10-30-market-pages.md), with no
 // browser and no game: the script's own file runs in Node, where (with no page) it only hands over its logic (eqScan), as
 // tests/capture_scan_test.mjs runs it. The sample is the game's Market Analysis page, DUB to AMS with Ryanair open, as
 // Gitesh saved it on 30 Oct 04:51 UTC (tests/fixtures/market_DUBAMS_2026-10-30.html), with the account menu, the holdings
@@ -13,7 +13,13 @@
 //      off set right through their calls and then read, each noted; a filter that won't take stops the run, named; the
 //      wrong airline open stops it; a page that doesn't read is sent as failed and skipped; more than 10% failed isn't
 //      finished; the session lost stops it; Stop stops it; a run carried on.
-//   5. The file and the sample: version 1.9, capture_market() with the key, the only POST to the game through the filter
+//   4b. (1.10, the first live run of 30 Oct) The game shows its flat list, with no grouped table, while Group by flight
+//      is off: the filter is set before the page is read, so an airline whose Group by flight was off reads every page; a
+//      page that still doesn't read says what the game served (title, heading, address, the airline open, Group by
+//      flight); the wrong airline open on a page without its table stops the run. Kingfisher's DEL→BOM, saved the same day
+//      (tests/fixtures/market_DELBOM_2026-10-30.html): our own flights only, no rival, is a normal page. The service code
+//      is the profile's leading token ("S2 (min 800km)" → S2).
+//   5. The file and the sample: version 1.10, capture_market() with the key, the only POST to the game through the filter
 //      check; the sample holds nothing of the account.
 // Usage: node tests/capture_market_test.mjs
 import { readFileSync } from "node:fs";
@@ -24,6 +30,7 @@ const here = new URL(".", import.meta.url);
 const read = p => readFileSync(new URL(p, here), "utf8");
 const source = read("../capture/capture_all.user.js");
 const saved = read("fixtures/market_DUBAMS_2026-10-30.html");
+const kingfisher = read("fixtures/market_DELBOM_2026-10-30.html");
 
 const sandbox = { URL };
 vm.createContext(sandbox);
@@ -186,10 +193,12 @@ await check("nothing else on the page passes the check every post goes through: 
 // The stand-in: an open airline (changed only by switchTo), the listing's filters (kept between visits, as the game keeps
 // them; changed only by a post to their call, unless that filter is stuck), and the saved page served for every pair,
 // with its pair, open airline and filters as they are. Everything sent to the game and to the database is recorded.
+// the game's flat list while Group by flight is off (1.10): no grouped table
+const flatWhenOff = (html, f) => f.display ? html : html.replace('id="inventory-grouped-table"', 'id="inventory-flat-table"');
 const ALL = { serviceClasses: { 0: true, 1: true, 2: true, 3: true }, flightStati: { 0: true, 1: true, 2: true, 3: true }, ignoreCarriers: false, display: true };
 function standIn({ filters = ALL, stuck = [], open = 112, ignoreSwitch = false, badPages = [], lostAt = null, stopAfter = null, sendFails = [] } = {}) {
   const g = { open, filters: JSON.parse(JSON.stringify(filters)), gets: [], posts: [], switches: [], sends: [], logs: [], sleeps: [], state: null };
-  const pageFor = (from, to) => withFilters(saved, g.filters)
+  const pageFor = (from, to) => flatWhenOff(withFilters(saved, g.filters), g.filters)
     .replace('"fixedEnterpriseId":112', `"fixedEnterpriseId":${g.open}`)
     .replace(/\(<a href="\.\.\/\.\.\/info\/airports\/1317">DUB<\/a>\)/, `(<a href="../../info/airports/1">${from}</a>)`)
     .replace(/\(<a href="\.\.\/\.\.\/info\/airports\/2245">AMS<\/a>\)/, `(<a href="../../info/airports/2">${to}</a>)`)
@@ -242,7 +251,7 @@ await check("a whole run, filters right: only GETs of market pages, one switch p
   assert.deepEqual(plain(g.sends.filter(s => s.kind === "page").map(s => [s.payload.run_id, s.payload.airline, s.payload.origin, s.payload.dest, s.payload.ok])),
     [[41, 112, "DUB", "AMS", true], [41, 112, "AMS", "DUB", true], [41, 112, "DUB", "BCN", true], [41, 114, "JFK", "LHR", true], [41, 114, "LHR", "JFK", true]]);
   assert.ok(g.sends.every(s => !/[<>]/.test(JSON.stringify(s.payload))), "HTML sent to the database");
-  assert.deepEqual(plain(g.sends[0].payload), { version: "1.9", total: 5, note: "Capture all airlines 1.9" });
+  assert.deepEqual(plain(g.sends[0].payload), { version: "1.10", total: 5, note: "Capture all airlines 1.10" });
   assert.equal(g.sends[6].payload.run_id, 41);
   assert.ok(g.sleeps.length === 4 && g.sleeps.every(ms => ms === 500), "not half a second between pages: " + g.sleeps);
   assert.ok(g.logs.includes("· Market pages: 0 of 5 (Ryanair)…") && g.logs.includes("· Market pages: 3 of 5 (Pan Am)…"), g.logs.join("\n"));
@@ -284,8 +293,9 @@ await check("a page that doesn't read is sent as failed with its error and skipp
   const res = plain(await S.runMarkets(S.marketState(many), g.io));
   assert.equal(res.words, "Market pages done: 10, 1 failed.");
   const bad = g.sends.find(s => s.kind === "page" && s.payload.dest === "CCC").payload;
-  assert.deepEqual(plain(bad), { run_id: 41, airline: 112, origin: "DUB", dest: "CCC", ok: false, error: "no Current Availability table on the page" });
-  assert.ok(g.logs.some(l => /Ryanair DUB→CCC failed \(no Current Availability table on the page\); skipped/.test(l)));
+  assert.deepEqual(plain(bad), { run_id: 41, airline: 112, origin: "DUB", dest: "CCC", ok: false,
+    error: 'no Current Availability table on the page (title "", heading "", at /app/com/markets/DUBCCC?12, open ?, Group by flight not on the page)' });
+  assert.ok(g.logs.some(l => /Ryanair DUB→CCC failed \(no Current Availability table on the page \(title "", .*\)\); skipped/.test(l)));
   // two of ten: not finished, no finish sent
   const h = standIn({ badPages: ["DUBCCC"], sendFails: ["DUBDDD"] });
   const r2 = plain(await S.runMarkets(S.marketState(many), h.io));
@@ -319,10 +329,63 @@ await check("in the game the switch leaves the page: the run says so, and carrie
   assert.equal(g.sends.filter(s => s.kind === "start").length, 1);
 });
 
+// ---------------------------------------------------------------- 4b. 1.10: the first live run's failures
+await check("1.10: an airline whose Group by flight is off (the game's flat list, no grouped table) is read: the filter set first, every page read", async () => {
+  const g = standIn({ filters: { ...ALL, display: false } });
+  const res = plain(await S.runMarkets(S.marketState(PLAN), g.io));
+  assert.equal(res.words, "Market pages done: 5, 0 failed.");
+  assert.deepEqual(g.posts.map(p => p.url.replace(/^.*-listing-filters-/, "")), ["display"]);
+  assert.deepEqual(g.logs.filter(l => /set the filter/.test(l)), ["Market pages: set the filter, tick 'Group by flight' under Settings (on DUB→AMS)."]);
+  assert.ok(g.sends.filter(s => s.kind === "page").every(s => s.payload.ok), "a page failed");
+});
+await check("1.10: a page that still has no table says what the game served: title, heading, address, the airline open, Group by flight", async () => {
+  const flat = withFilters(saved, { display: false }).replace('id="inventory-grouped-table"', 'id="inventory-flat-table"');
+  assert.equal(S.hasGroupedTable(saved), true); assert.equal(S.hasGroupedTable(flat), false);
+  assert.equal(S.pageWhat(flat, "https://gander.airlinesim.aero/app/com/markets/DUBAMS?11"),
+    'title "Market Analysis | Gander | AirlineSim", heading "Market Analysis", at /app/com/markets/DUBAMS?11, open 112 Ryanair, Group by flight off');
+  assert.equal(S.pageWhat("<html><head><title>Dashboard | Gander</title></head><body><div class=\"bootstrap container-fluid\"><h1>Overview</h1></div></body></html>", "/app/enterprise/dashboard"),
+    'title "Dashboard | Gander", heading "Overview", at /app/enterprise/dashboard, open ?, Group by flight not on the page');
+  // the right airline open, the filters right, still no table (the page changed): a failed page saying so, the run going on
+  const g = standIn();
+  const io = { ...g.io, get: async url => { const r = await g.io.get(url); return url.endsWith("AMSDUB") ? { ...r, html: r.html.replace('id="inventory-grouped-table"', 'id="something-else"') } : r; } };
+  const res = plain(await S.runMarkets(S.marketState(PLAN), io));
+  assert.equal(res.words, "Market pages not finished: 1 of 5 pages failed, more than 10%. The Systems board keeps the last finished run.");
+  const bad = g.sends.find(s => s.kind === "page" && s.payload.origin === "AMS").payload;
+  assert.equal(bad.error, 'no Current Availability table on the page (title "Market Analysis | Gander | AirlineSim", heading "Market Analysis", at /app/com/markets/AMSDUB?11, open 112 Ryanair, Group by flight on)');
+});
+await check("1.10: the wrong airline open on a later page without its table stops the run, as on the first page", async () => {
+  const g = standIn();
+  const io = { ...g.io, get: async url => { const r = await g.io.get(url); return url.endsWith("AMSDUB")
+    ? { ...r, html: r.html.replace('"fixedEnterpriseId":112', '"fixedEnterpriseId":107').replace('id="inventory-grouped-table"', 'id="x"') } : r; } };
+  const res = plain(await S.runMarkets(S.marketState(PLAN), io));
+  assert.match(res.words, /^Market pages stopped on AMS→DUB: the game has airline 107 \(Ryanair\) open, not Ryanair \(112\): the switch didn't take\.$/);
+  assert.equal(g.sends.filter(s => s.kind === "page").length, 1, "the page for another airline was sent");
+});
+await check("1.10: Kingfisher's DEL→BOM (our own flights only, no rival) is a normal page: 10 flights, KF only, 100% share, S2 (308)", () => {
+  const p = plain(S.readMarketPage(kingfisher));
+  assert.equal(p.error, undefined); assert.equal(p.from, "DEL"); assert.equal(p.to, "BOM");
+  assert.equal(p.flights.length, 10); assert.deepEqual([...new Set(p.flights.map(f => f.code))], ["KF"]);
+  assert.deepEqual(p.flights[0], { flight: "KF 1009", code: "KF", aircraft: "32Q", date: "2026-10-29", dep: "04:01", arr: "05:47", status: "finished",
+    classes: [{ cls: "Y", seats: 0, price: 143 }, { cls: "C", seats: 0, price: 307 }, { cls: "Cargo", seats: 0, price: 104 }] });
+  assert.deepEqual(p.shares.passengers, [{ enterprise_id: 113, name: "Kingfisher Airlines", share: 100, change: 0 }]);
+  assert.deepEqual(p.service, { code: "S2", game_id: 308 });
+  assert.deepEqual(plain(S.filterProblems(p.filters)), []);
+  assert.deepEqual(plain(S.openAirlineOf(kingfisher)), { id: 113, name: "Kingfisher Airlines" });
+  const pay = plain(S.marketPagePayload(1, { game_id: 113 }, "DEL", "BOM", S.readMarketPage(kingfisher), null));
+  assert.equal(pay.ok, true);
+  assert.deepEqual(pay.fares.map(f => [f.code, f.cls, f.flights, f.low, f.high]), [["KF", "Y", 10, 143, 150], ["KF", "C", 10, 307, 322], ["KF", "Cargo", 10, 104, 104]]);
+  for (const bad of ["DevilsVengeance", "user?id=", "Your Holdings", "828,976", "Credits", "UserScript", "eyJ", "eq-uw", "const KEY", "shadowrootmode"])
+    assert.ok(!kingfisher.includes(bad), "the Kingfisher sample still holds " + bad);
+});
+await check("1.10: the service code is the profile's leading token, as the planner writes it", () => {
+  assert.equal(S.serviceToken("S2 (min 800km)"), "S2"); assert.equal(S.serviceToken("S3 (min 1500km)"), "S3");
+  assert.equal(S.serviceToken("R"), "R"); assert.equal(S.serviceToken(" S1 "), "S1"); assert.equal(S.serviceToken(""), null);
+});
+
 // ---------------------------------------------------------------- 5. the file and the sample
-await check("the file: version 1.9, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
-  assert.match(source, /^\/\/ @version\s+1\.9$/m);
-  assert.equal(S.VERSION, "1.9");
+await check("the file: version 1.10, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
+  assert.match(source, /^\/\/ @version\s+1\.10$/m);
+  assert.equal(S.VERSION, "1.10");
   assert.match(source, /RPC \+ "capture_market"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /switchTo: id => \{ location\.href = "\/app\/enterprise\/dashboard\?select=" \+ encodeURIComponent\(id\); return "away"; \}/);
   const posts = [...source.matchAll(/method: "POST"/g)].length;
