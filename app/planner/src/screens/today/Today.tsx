@@ -13,6 +13,9 @@
 // places are ordered and arrived (Tails' slots, from plan_lines and the plan cards), when its next aircraft can be ordered
 // by the cash forecast, and a link to the line on Tails. It adds nothing to the answer's count: an airline that can
 // order is counted there already.
+// Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C) Orders opens as a timeline (OrdersChart.tsx): a row
+// per airline and delivery line, each queued aircraft's arrival until it runs dry, now, and when its first type is safe
+// to order; the table stays one tap away ("show as table"). The open lines' list stays under it.
 // Address: /planner/today, the aircraft pop-up (?aircraft=REG, Tails' AircraftPopup, as Home's needs attention opened it).
 // An old load-report address (/planner/check?day=…, which web/_redirects sends here) goes on to Performance's Flights by
 // day with its day. Every action is one planner_save() call.
@@ -52,6 +55,8 @@ import { ComingUp } from "./ComingUp";
 import { comingUp } from "./comingUp";
 import { checkedAtWords, fixChanges, fixRotations, importChanges, noLinkWords, type GameResult } from "./game";
 import { GameLines, GameModal, type GameLine, type TailChoice } from "./GameCheck";
+import { ChartOrTable } from "../../ui/charts";
+import { OrdersChart } from "./OrdersChart";
 import { attentionAnchor, captureLine, countTiles, lineCell, lineColumns, openLines, tileForHash, waitingWords } from "./model";
 import { readLegs } from "./reads";
 import { TodoBoard } from "./TodoBoard";
@@ -221,6 +226,7 @@ export function Today() {
         note="Safe means the cushion stays in hand at the cash forecast's lowest point. Each line: when its first type is safe, what's on order and when it runs dry (UTC).">
         {!orders ? <div className="loading">Loading…</div> : (
           <div className="ordwrap">
+            <ChartOrTable k="today-orders" chart={<OrdersChart orders={orders} now={now.getTime()} />} table={
             <table className="tbl ordtbl">
               <thead><tr><th>Airline</th>{columns.map((f) => <th key={f}>{f}</th>)}<th className="ordx"><span className="sr">Cash and safe types</span></th></tr></thead>
               <tbody>
@@ -264,7 +270,7 @@ export function Today() {
                   );
                 })}
               </tbody>
-            </table>
+            </table>} />
             {lines?.length ? (
               <div className="ordlines" data-figure="today: open lines">
                 <h4 className="ordlh">Lines <span className="note">7 aircraft of one type, each a day apart · next by the cash forecast, the type with its order cabin</span></h4>

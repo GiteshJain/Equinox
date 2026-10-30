@@ -533,9 +533,15 @@ async def tails(s, pl, al, tag, now):
 
     async def remove():
         await to_screen(pl, "tails", "/tails?" + urlencode({"airline": code}))
+        # since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C) the list's table (with remove) is behind its
+        # chart's "show as table"; the chart goes back only after the clicks
+        await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=false]').forEach(b => b.click())")
+        await pg.wait_for_timeout(300)
         await pg.click(f"[data-deltail={json.dumps(reg)}]")
         await pg.click(".qpanel [data-confirm-yes]")
     await s.act("tails: remove it (the page asks itself)", remove)
+    await pg.wait_for_timeout(300)
+    await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=true]').forEach(b => b.click())")
 
     # a delivery made for the test: on order, nothing points at it, last on the old list of deliveries
     dreg = "ZD" + tag[:4].upper()

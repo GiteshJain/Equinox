@@ -133,3 +133,13 @@ describe("labels kept to their room (part B)", () => {
     expect(g.R).toBe(150);
   });
 });
+
+describe("more reference lines on horizontal bars (part C)", () => {
+  it("each mark a line with its label, inside the scale", () => {
+    const g = hbarLayout([{ key: "a", label: "A", value: 8, tip: "a" }], { fmt: String, marks: [{ value: 10, label: "10 h target" }, { value: 12, label: "12 h" }], W: 400, L: 50, R: 50 });
+    // 0 to 12 over 300 px from 50: 10 at 300, 12 at 350; a line over the bars for their labels
+    expect(g.marks).toEqual([{ x: 300, label: "10 h target" }, { x: 350, label: "12 h" }]);
+    expect(g.T).toBe(16);
+    expect(hbarLayout([{ key: "a", label: "A", value: 8, tip: "a" }], { fmt: String }).marks).toEqual([]);
+  });
+});

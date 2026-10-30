@@ -45,7 +45,7 @@ import {
   captureStatus, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, nightWords, pctWords, replaceAtWords, seatWords, signedAsd, yearsWords, type BoardKey,
   type CabinCharges, type CabinProblem, type FleetChecks,
 } from "./model";
-import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useServiceChecks, useSystemStatus } from "./reads";
+import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useServiceChecks, useSystemStatus, useCaptureHistory } from "./reads";
 import { SystemsBoard } from "./SystemsBoard";
 import { boardSummary, boardTitle, systemLines } from "./systems";
 
@@ -79,6 +79,8 @@ export function Systems() {
   const airlinesQ = useOurAirlines(w);
   const rulesQ = useRules(w);
   const systemQ = useSystemStatus(w);
+  // each airline's capture verdicts over the last 14 nights, for the board's history (since 30 Oct)
+  const historyQ = useCaptureHistory(w);
   const captureQ = useCapture(w);
   const backupsQ = useBackupLine();
   const logQ = useCashLog(w);
@@ -152,7 +154,7 @@ export function Systems() {
       </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
-      {sysLines && systemQ.data ? <SystemsBoard lines={sysLines} captures={systemQ.data.capture} now={now} /> : null}
+      {sysLines && systemQ.data ? <SystemsBoard lines={sysLines} captures={systemQ.data.capture} now={now} usage={systemQ.data.usage} history={historyQ.data} /> : null}
       <section className="sysrows" aria-labelledby="sysrows-h">
         <div className="sysrowsh">
           <h2 className="tph" id="sysrows-h">The details</h2>

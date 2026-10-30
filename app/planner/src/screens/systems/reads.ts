@@ -23,6 +23,7 @@ import type { Json } from "../../db/types";
 import type { ServiceChecks } from "../performance/model";
 import type { CabinCharges, CashLog, FleetChecks, LoadsDay } from "./model";
 import type { SystemStatus } from "./systems";
+import type { CaptureAt } from "./charts";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -152,5 +153,29 @@ export function useLoadsDay(worldId: number | undefined, day: string) {
     queryKey: tableKey("load_entries", "loads_by_day", worldId, day),
     enabled: worldId !== undefined,
     queryFn: async () => (await readLoadsDays(worldId ?? 0, day, day))[day] ?? null,
+  });
+}
+
+/** Each airline's capture verdicts over the last 14 nights (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md,
+ *  part C): capture_status() asked as of now and as of each of the 13 days before (the read Home and the board already
+ *  make, at 14 moments), newest first; Systems' history (charts.ts' verdictHistory) takes each capture day's newest
+ *  answer. Read only, with GET, cached like the board's figures. */
+export function useCaptureHistory(worldId: number | undefined) {
+  return useQuery({
+    queryKey: ["figures", "capture_history", worldId],
+    enabled: worldId !== undefined,
+    queryFn: async (): Promise<{ today: string; answers: CaptureAt[][] }> => {
+      const now = Date.now();
+      const res = await Promise.all(Array.from({ length: 14 }, (_, k) =>
+        supabase.rpc("capture_status", { p_world_id: worldId ?? 0, p_as_of: new Date(now - k * 86_400_000).toISOString() }, { get: true })));
+      const bad = res.find((r) => r.error);
+      if (bad?.error) return fail("the capture history", bad.error.message);
+      return {
+        today: new Date(now).toISOString().slice(0, 10),
+        answers: res.map((r) => ((r.data as { airlines?: CaptureAt[] } | null)?.airlines ?? []).map((a) => ({
+          airline_id: a.airline_id, code: a.code ?? null, name: a.name ?? null, verdict: a.verdict ?? null, verdict_words: a.verdict_words ?? null, verdict_day: a.verdict_day ?? null,
+        }))),
+      };
+    },
   });
 }

@@ -23,7 +23,7 @@ import { useBuyTypes } from "../tails/reads";
 import { useLatestThreats } from "../competition/reads";
 import { useCabinCharges, useFleetChecks, useServiceChecks } from "../systems/reads";
 import { homeAttention, type HomeAirline } from "./attention";
-import { attentionHref, deliveryLines, orderStatus, safeTypes, toFile, type OrderRow } from "./model";
+import { attentionHref, deliveryLines, lineQueues, orderStatus, safeTypes, toFile, type OrderRow } from "./model";
 import { onOrder } from "./onOrder";
 import { dismissChanges, showAgainChanges } from "./todos";
 
@@ -92,10 +92,11 @@ export function useAttention(now: Date, today: string) {
     return ordering.map((a, i) => {
       const card = cardsQ.data.airlines.find((c) => c.airline_id === a.id);
       const allowed = new Set(buyQ.data.filter((b) => b.airline_id === a.id).map((b) => family(b.aircraft_type_id)));
-      const cells = growth.orderQueues(rules, a.id, families, allowed,
-        unfiled.filter((x) => x.airline_id === a.id && x.delivery_at).map((x) => ({ family: family(x.aircraft_type_id), delivery_ms: toMinute(x.delivery_at as string) })), now.getTime());
+      const deliveries = unfiled.filter((x) => x.airline_id === a.id && x.delivery_at).map((x) => ({ family: family(x.aircraft_type_id), delivery_ms: toMinute(x.delivery_at as string) }));
+      const cells = growth.orderQueues(rules, a.id, families, allowed, deliveries, now.getTime());
       const types = forecastsQ[i]?.data?.types;
-      return { airline: a, status: orderStatus(card?.next_order, card?.can_order_now), types: safeTypes(types), lines: deliveryLines(cells, types, (t) => family(t.aircraft_type_id)) };
+      return { airline: a, status: orderStatus(card?.next_order, card?.can_order_now), types: safeTypes(types), lines: deliveryLines(cells, types, (t) => family(t.aircraft_type_id)),
+        queues: lineQueues(cells, deliveries, now.getTime(), types, (t) => family(t.aircraft_type_id)) };
     });
   }, [rules, cardsQ.data, buyQ.data, aircraftQ.data, forecastsQ, airlines, ordering, now]);
 

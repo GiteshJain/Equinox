@@ -19,9 +19,13 @@
 // Addresses: /planner/tails (filters in the address: ?airline=PA&base=JFK&type=...&status=warn&del=on+order&card=REG)
 // and /planner/tails/<registration>. Home's "File into planner" opens ?file=<registration>, which starts filing at
 // once, as the old Home's button did. Each action is one planner_save() call; the start's rules are read again after it.
+// Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C) the list opens as bars (TailsChart.tsx): block hours
+// a day per aircraft against the 10- and 12-hour marks, coloured by maintenance, a chart per base; tap a bar for the
+// aircraft. The table (with remove and the rows that unfold) stays one tap away ("show as table"); Add a tail stays under
+// both. The aircraft page's legs stay a table.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { tails as tailRules } from "@rules";
+import { settingNumber, tails as tailRules } from "@rules";
 import { useNow } from "../../data/clock";
 import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
@@ -29,6 +33,7 @@ import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
 import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
+import { ChartOrTable } from "../../ui/charts";
 import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
@@ -39,6 +44,7 @@ import { useFleetChecks } from "../systems/reads";
 import { useAirlineRoutes, useAirports, useMarkets } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
+import { TailsChart } from "./TailsChart";
 import type { LineView } from "./Lines";
 import { FileCheckModal, useFiling } from "./Filing";
 import {
@@ -329,6 +335,7 @@ export function Tails() {
       ) : null}
       <div className="split">
         <div className="list" id="taillist">
+          <ChartOrTable k="tails-list" chart={rules && airline ? <TailsChart rows={rows} target={settingNumber(rules, "aircraft_block_target_h", airline.id)} onPick={toTail} /> : null} table={<>
           <table className="tbl tlist" data-figure="tails: list">
             <tbody>
               <tr><th>Tail</th><th>Type</th><th>Cabin</th><th className="num">Legs/wk</th><th className="num">Block h/day</th><th>Maint.</th><th>Routes</th><th></th></tr>
@@ -358,6 +365,7 @@ export function Tails() {
             </tbody>
           </table>
           {!rows.length ? <div className="empty">{ready ? "No tails match. Clear a filter." : "Loading…"}</div> : null}
+          </>} />
           <div className="addform" data-add-tail>
             <b>Add a tail</b>
             <input id="t-id" placeholder="Registration e.g. N015AW" value={form.id} onChange={(e) => setForm({ ...form, id: e.currentTarget.value })} />

@@ -394,6 +394,12 @@ async def today_opens(pl):
     await open_screen(pl.pg, 'today')
     await pl.pg.wait_for_selector("main[data-screen=today][data-today-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
+    # since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C) Orders opens as a timeline, its table one tap
+    # away: the chart first, then the table is read (nothing in it is clicked), then the chart again
+    chart = await pl.pg.evaluate("""({ shown: """ + TABLES_SHOWN_JS + """, chart: !!document.querySelector('[data-figure="today: orders chart"]'),
+        rows: document.querySelectorAll('[data-figure="today: orders timeline"] [data-time-row]').length })""")
+    await pl.pg.evaluate(SHOW_TABLES_JS)
+    await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({
         answer: (document.querySelector('[data-figure="today: answer"]') || {dataset: {}}).dataset.allClear || '',
         title: (document.querySelector('[data-figure="today: answer"] .ansh') || {}).textContent || '',
@@ -409,7 +415,14 @@ async def today_opens(pl):
         attention: !!document.querySelector('main[data-screen=today] #attention'), game: !!document.querySelector('main[data-screen=today] [data-board="Game check"] #gcheck'),
         folded: document.querySelectorAll('main[data-screen=today] .board.rcol').length, collapse: !!document.querySelector('main[data-screen=today] #rev-colall'),
         threats: [...document.querySelectorAll('main[data-screen=today] [data-att-item][data-att-kind=threat]')].map(li => li.querySelector('a').getAttribute('href')) })""")
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
     problems = []
+    if chart["shown"]:
+        problems.append(f"Today opens {chart['shown']} as tables, not charts")
+    if not chart["chart"]:
+        problems.append("Today's orders have no timeline")
+    elif got["lines"] and chart["rows"] != got["lines"]:
+        problems.append(f"Today's orders timeline has {chart['rows']} rows, the table {got['lines']} delivery lines")
     # the rivals' moves the latest scan showed (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): as many as
     # competition() gives with latest true, none dismissed on the copy, each linking to its airline's Competition page
     latest = int(psql(f"""select coalesce(sum((select count(*) from jsonb_array_elements(public.competition(al.airline_id) -> 'threats') t
@@ -441,7 +454,7 @@ async def today_opens(pl):
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Today opens with its answer ({got['title'] or '?'}), the capture line ({got['capture']}) linking to Systems, and every board open: "
-            f"orders for the copy's {len(got['orders'])} airlines ({got['lines']} delivery lines, all safe types folded on {got['allSafe']} cards), "
+            f"orders for the copy's {len(got['orders'])} airlines ({got['lines']} delivery lines, as a timeline with the table one tap away, all safe types folded on {got['allSafe']} cards), "
             f"aircraft to file, needs attention ({len(got['threats'])} rival moves from the latest scan), Game check, the to-do board and coming up"), problems
 
 
@@ -603,11 +616,35 @@ async def tails_opens(pl):
     await open_screen(pl.pg, 'tails')
     await pl.pg.wait_for_selector("main[data-screen=tails][data-tails-ready=yes]", timeout=60000)
     await settle(pl.pg, 300)
+    # since 30 Oct (part C) the list opens as bars of block hours by base (tap one for the aircraft), its table one tap away:
+    # the bars first, then the table is counted (nothing in it clicked), then the bars again
+    bars = await pl.pg.evaluate("""({ shown: """ + TABLES_SHOWN_JS + """, bars: document.querySelectorAll('[data-figure="tails: block hours"] [data-bar]').length })""")
+    await pl.pg.evaluate(SHOW_TABLES_JS)
+    await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=tails] [data-not-built]'),
         airlines: [...document.querySelectorAll('.toolbar .seg [data-al]')].map(b => b.dataset.al),
         rows: document.querySelectorAll('#taillist tr[data-tail]').length, count: (document.querySelector('.toolbar .count') || {}).textContent || '',
         board: !!document.querySelector('[data-figure="tails: deliveries"]') })""")
     problems = []
+    if bars["shown"]:
+        problems.append(f"Tails opens {bars['shown']} as tables, not charts")
+    if bars["bars"] != got["rows"]:
+        problems.append(f"Tails' chart has {bars['bars']} bars, its list {got['rows']} aircraft")
+    if got["rows"]:
+        # a bar opens its aircraft (the chart again first)
+        await pl.pg.evaluate(SHOW_CHARTS_JS)
+        await settle(pl.pg, 300)
+        # the first aircraft with a bar to tap (one flying no hours has none)
+        reg = await pl.pg.evaluate("""(() => { const g = [...document.querySelectorAll('[data-figure="tails: block hours"] [data-bar]')]
+            .find(x => +(x.querySelector('rect') || {getAttribute: () => 0}).getAttribute('width') > 2); return g ? g.dataset.bar : ''; })()""")
+    if got["rows"] and reg:
+        await pl.pg.click(f"[data-figure='tails: block hours'] [data-bar={json.dumps(reg)}] rect.kpick")
+        try:
+            await pl.pg.wait_for_selector(f"main[data-screen=tails][data-tail-open={json.dumps(reg)}]", timeout=30000)
+        except Exception:
+            problems.append(f"tapping {reg}'s bar on Tails doesn't open it")
+    elif not got["rows"]:
+        await pl.pg.evaluate(SHOW_CHARTS_JS)
     if got["notBuilt"]:
         problems.append("Tails still shows the placeholder's line to the old planner")
     if got["airlines"] != want:
@@ -618,7 +655,8 @@ async def tails_opens(pl):
         problems.append("Tails shows no deliveries board")
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}) and the deliveries, with the copy's {len(want)} airlines on its buttons", problems
+    return (f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}, as bars of block hours by base, a bar opening its aircraft, the table "
+            f"one tap away) and the deliveries, with the copy's {len(want)} airlines on its buttons"), problems
 
 
 async def plan_card_cabins(pl):
@@ -1458,6 +1496,15 @@ async def screens(p, port, env, facts, staff, seen, moment):
                     nonlocal links, shots
                     if sid == "systems":
                         await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
+                        await settle(ph.pg, 300)
+                    if sid in ("today", "tails", "home", "systems"):
+                        # part C (30 Oct): every board whose chart replaced a table opens as the chart; the charts readable and
+                        # the first opening full size; then the tables, the widest the page gets
+                        shown = await ph.pg.evaluate(TABLES_SHOWN_JS)
+                        if shown:
+                            problems.append(f"{name} at {width} px: {shown} open as tables, not charts")
+                        problems.extend(f"{name} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, "main"))
+                        await ph.pg.evaluate(SHOW_TABLES_JS)
                         await settle(ph.pg, 300)
                     if sid in ("performance", "competition"):
                         # part B (30 Oct): every board whose chart replaced a table opens as the chart

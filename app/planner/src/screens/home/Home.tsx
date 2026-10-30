@@ -32,6 +32,8 @@ import { useFleetChecks } from "../systems/reads";
 import { AircraftPopup } from "../tails/AircraftPopup";
 import type { HomeAirline } from "./reads";
 import { AirlineCards } from "./AirlineCards";
+import { useProfits } from "../performance/reads";
+import type { ProfitDay } from "../performance/model";
 import { greeting, heroFigures, keyFigureTiles } from "./figures";
 import { Hero } from "./Hero";
 import type { HeroPlane, HeroRoute, LatLon } from "./heroScene";
@@ -51,6 +53,14 @@ export function Home() {
   const aircraftQ = useHomeAircraft(w);
   const cardsQ = useAirlineCards(w);
   const photosQ = useSitePhotos();
+  // each airline's reported profit (airline_profit(), Performance's read) for the cards' 14-day sparkline (since 30 Oct)
+  const profitsQ = useProfits((airlinesQ.data ?? []).filter((a) => a.active !== false).map((a) => a.id));
+  const profitOf = useMemo(() => {
+    const ids = (airlinesQ.data ?? []).filter((a) => a.active !== false).map((a) => a.id);
+    const m = new Map<number, ProfitDay[]>();
+    profitsQ.forEach((q, i) => { const id = ids[i]; if (id != null && q.data) m.set(id, q.data.days); });
+    return m;
+  }, [profitsQ, airlinesQ.data]);
   // the game's maintenance from the latest night's fleet pages (fleet_checks(), the read Tails and its pop-up share): the
   // airline cards' lowest maintenance uses it where it has a figure (since 23 Oct); until it's read, the estimate
   const fleetQ = useFleetChecks(w);
@@ -127,7 +137,7 @@ export function Home() {
         {popup != null && rules ? <RoutePopup routeId={popup} rules={rules} airlines={airlines} onClose={() => setPopup(null)} /> : null}
         {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
 
-        {cards && rules ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} rules={rules} game={gameMaint} /> : null}
+        {cards && rules ? <AirlineCards cards={cards} airlines={airlines} photos={photosQ.data} rules={rules} game={gameMaint} profitOf={profitsQ.length && profitsQ.every((q) => !q.isPending) ? profitOf : undefined} /> : null}
       </main>
     </>
   );
