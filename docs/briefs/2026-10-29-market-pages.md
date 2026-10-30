@@ -29,7 +29,7 @@ moving to every evening (B) later is a data-only change. Two pull requests, abou
 | Current Availability | Every airline's flights on the pair, finished (yesterday), booked and in flight (to about 3 days ahead): flight, aircraft, date, times, each class's price and seats left | KLM economy 120 AS$, business 245; Aer Lingus 156, 319, first 457; Ryanair 102 |
 | Market Shares | Each airline's share of the pair's passengers (and cargo), this calendar week against last | KLM 68.46% (−10.32 pts), Aer Lingus 24.61% (+11.37), Ryanair 6.94% (−1.05) |
 | Historic Capacities and Prices | The pair's seats offered and price per unit by calendar week, from week 20 (in the page's script, as data) | week 43: 9,616 seats, 122 AS$; week 44 so far: 6,268, 125 AS$ |
-| Pricing and settings | Our own prices and the default price for the pair | economy 102 against a default of 120 |
+| Pricing and settings | Our own prices, the default price and our on-board service profile for the pair | economy 102 against a default of 120; service R |
 
 **What's new to us:**
 - **Rivals' fares,** by flight and class, in the same direction as the fare ladder (§5).
@@ -78,7 +78,9 @@ it wouldn't be (terms §5.3).
    **Rival fares** (each airline's economy and business fare each way against ours and our ladder level), **Market
    share** (the game's passenger share, this week against last), **Rivals over time** (each rival's departures a week at
    each scan, and the share at each read), **Load by direction** and **Loads by flight**. Competition's market cards show
-   the game's passenger share next to the scan's. The weekly report's competition section shows rivals' fares.
+   the game's passenger share next to the scan's. The pair's service profile in the game is checked against the
+   planner's legs and the code its distance calls for (§4), and a pair set differently is an item to fix (Gitesh,
+   30 Oct). The weekly report's competition section shows rivals' fares.
 4. **Not changed:** the fare ladder's rules, the openings' order and the contested test. Using rivals' fares in the
    ladder (holding when a rival is cheaper, say) would be a rule change, a separate decision once a few weeks of
    figures are in.
