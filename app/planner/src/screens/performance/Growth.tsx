@@ -6,6 +6,8 @@
 // move and its Log an order as went (spec decision 2). The planning parts are the library's (growth, the suggested
 // aircraft size after a route too, growth.suggestedSize); the captured figures the database's. Since 21 Oct each list
 // shows its first 10 rows, in its own order, with "show all N" under it (model.ts's listCut); its count stays in its heading.
+// Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part A) a stacked bar per airline by kind above the
+// lists, each segment opening its list (PerfCharts.tsx's GrowthStack).
 import { useState } from "react";
 import { Link } from "react-router";
 import type { GrowthRoute, ReadinessRow, Rules } from "@rules";
@@ -15,6 +17,7 @@ import { loadClass, loadTip, type Load } from "../routes/model";
 import { itemRoute } from "../screens";
 import { H, hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords } from "./growth";
 import { listCut } from "./model";
+import { GrowthStack } from "./PerfCharts";
 import type { GrowthRead, HubProgressAirline, Pattern, SignalAircraft, SignalRoute } from "./reads";
 
 export interface ReadyRow { route: GrowthRoute & { airline_id: number; round_trips_day: number }; load: Load & { average: number }; flyingOn: string; size: string | null }
@@ -57,6 +60,7 @@ function Table<T>({ rows, cols, list }: { rows: readonly T[]; cols: readonly [st
 export function GrowthSignals({ rules, signals, ready, airlines }: { rules: Rules; signals: GrowthRead; ready: readonly ReadyRow[]; airlines: readonly OurAirline[] }) {
   return (
     <div data-figure="performance: growth lists">
+      <GrowthStack s={signals} airlines={airlines} ready={ready} />
       {signals.profit_captured ? <Signals rules={rules} s={signals} airlines={airlines} /> : <FromLoads ready={ready} patterns={signals.load_patterns} airlines={airlines} rules={rules} />}
     </div>
   );

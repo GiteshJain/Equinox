@@ -265,6 +265,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   the rivals on the pair and the connections. At 1,600 px and wider it is a third column with its own scroll; from 1,100
   to 1,600 px it sits under the frequencies; on a phone (under 1,100 px) it isn't shown, and **The route's story ›**
   opens the route page as before. A route not flown yet says "Not flown yet".
+  Since 30 Oct, above 1,600 px a route's detail uses the whole window (up to 2,560 px): the list 320–380 px, the story
+  about 55% of the rest. The other screens keep their 1,440 px width.
 
 ## Tails
 *Every aircraft: what it flies each week and how hard it works.* Laid out since 23 Oct short and answer-first, as Today
@@ -489,6 +491,23 @@ fold them, and a row's title opens or closes it.
 - **Flights by day** (Check's daily load report, renamed): **‹** and **›** move a day, and the day is in the address
   (/planner/performance?day=2026-10-12). Every departure by airline, with its loads by class from the capture (the last
   9 days), or the day's summary from loads typed by hand.
+- **Charts** (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md, part A): the boards are drawn as charts,
+  with the table each replaced one tap away. On the group page: **The last 14 days** under the scorecards, a small
+  panel per airline with its profit a day, average load and fleet; the growth signals as a bar per airline by kind
+  (tap a segment for its list below); Flights by day as a strip of each airline's departures by hour, coloured by
+  their average economy load (95%+, 85–94%, 70–84%, under 70%, not captured). On an airline's page: Route profit as a
+  bar per route of its profit an aircraft hour, coloured by its signal, the airline's middle route as a dashed line
+  (the 1/3/7-day switch stays); Cash, next 14 days as a step line with the 0.5M cushion, each lease and week-end
+  closing as a dot and the lowest point circled; this Saturday's moves on the fare ladder as a bar per cabin and
+  direction (up, hold, down, jump, decide, set back), above its list; the profit chart as bars; the fare plan as a
+  timeline of when each change was planned and when the captures saw it. The game changes list stays a table.
+  - **Show as table** over a chart swaps it for its table (and **show as chart** back); each board remembers which
+    in this browser.
+  - **Full size:** click or tap any chart in the planner (Enter from the keyboard) and it opens over the page, most of
+    the window (the whole screen on a phone), drawn again at that size with its tips (tap for them) and **show as
+    table**. Esc, the **×** or a click outside closes it. Tapping a growth segment opens its list instead.
+  - **Hover** (or, full size, tap) anything on a chart for its exact figure. Chart text is never smaller than 11 px:
+    on a narrow screen some axis labels are left out instead.
 - **The airline's page:** its name as the title with **‹ All airlines**, the airline switch (one segmented control, as
   on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
   return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load

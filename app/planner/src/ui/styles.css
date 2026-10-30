@@ -2011,3 +2011,80 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   .acfoot .acf .pill{white-space:normal}
   .eqh-tiles{gap:8px}
 }
+
+/* the chart kit (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md; src/ui/charts): every chart's frame, its
+   SVG text and lines in the planner's tokens, and "show as table" */
+.kc{min-width:0;margin:6px 0 12px}
+.kct{font-size:13px;font-weight:700;margin:0 0 6px;overflow-wrap:anywhere} .kct .dim{font-weight:500}
+.kce{font-size:13px;padding:6px 0}
+.kcl{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.kcl li i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:0 solid}
+.kcl li i.dash{height:0;width:14px;border-radius:0;border-top-width:2px;border-top-style:dashed;vertical-align:3px}
+.kchart{width:100%;height:auto;display:block;overflow:visible}
+.kchart text{font:500 11px/1 var(--font);fill:#8C94AD}
+.kchart .klab{fill:var(--ink);font-weight:600} .kchart .kval{fill:#3B4566} .kchart .kax{fill:#5B647E}
+.kchart .grid{stroke:#EDEDF0} .kchart .zero{stroke:#B8C3D3}
+.kchart rect[data-tip],.kchart circle[data-tip],.kchart path[data-tip]{cursor:default}
+.kref line{stroke:var(--ink);stroke-dasharray:4 3;stroke-width:1.2} .kref text{fill:var(--ink);font-weight:600}
+.kref.cushion line{stroke:var(--bad)} .kref.cushion text{fill:var(--bad)}
+.kpick{cursor:pointer} .kpick:hover{opacity:.82}
+.kstep .kline{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.kstep .kmark{fill:var(--violet);stroke:#fff;stroke-width:1.5} .kstep .kmark.closing{fill:#E39B21} .kstep .kmark.expected{fill:#fff;stroke:var(--violet)}
+.kstep .klow circle{fill:none;stroke:var(--ink);stroke-width:2} .kstep .klow text{fill:var(--ink);font-weight:700}
+.kstep .klow.bad circle{stroke:var(--bad)} .kstep .klow.bad text{fill:var(--bad)}
+.ktime .kspan{stroke:#C2C8D7;stroke-width:2} .ktime .know{stroke:var(--ink);stroke-dasharray:3 3}
+.ktime .kmark{stroke:#fff;stroke-width:1.5;fill:var(--muted)} .ktime .kmark.planned{fill:var(--violet)} .ktime .kmark.seen{fill:var(--ok)}
+.ktime .kmark.waiting{fill:#fff;stroke:#E39B21;stroke-width:2}
+.kscatter circle{fill-opacity:.8;stroke:#fff;stroke-width:1} .kscatter circle.kring{stroke:var(--ink);stroke-width:2}
+.kdonutw{display:inline-block} .kdonut .kmid,.kgauge .kmid{font:700 16px/1 var(--font);fill:var(--ink)}
+.kgauge{display:inline-flex;flex-direction:column;align-items:center;min-width:0;max-width:160px}
+.kgauge svg{width:100%;height:auto} .kgauge .ktrack{fill:none;stroke:var(--mute-soft);stroke-width:12;stroke-linecap:round}
+.kgauge .karc{fill:none;stroke-width:12;stroke-linecap:round} .kgauge .karc.ok{stroke:var(--ok)} .kgauge .karc.warn{stroke:#E39B21} .kgauge .karc.bad{stroke:var(--bad)}
+.kgauge .kgl{font-size:12px;text-align:center;color:var(--muted)}
+.kheat .kcell0{fill:transparent}
+.kspark{width:100%;max-width:140px;height:34px;display:block}
+.kspark path{fill:none;stroke:var(--ink);stroke-width:1.6} .kspark rect.pos{fill:#1E9E6A} .kspark rect.neg{fill:var(--bad)} .kspark .zero{stroke:#D3D8E3}
+.kmults{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;min-width:0}
+.kmult{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-md);padding:12px 14px;min-width:0;font-size:13px}
+.kmh{display:flex;align-items:center;gap:6px;margin:0 0 6px}
+.kmr{display:grid;grid-template-columns:86px minmax(0,1fr) auto;align-items:center;gap:8px;margin:2px 0}
+.kmr b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.perfmult{margin:4px 0 18px}
+.kcot{min-width:0} .kcotb{display:flex;justify-content:flex-end;margin:0 0 2px}
+
+/* readable where it sits (since 30 Oct): a chart's text is 11 px on screen however small the chart is drawn (the kit sets
+   --kfs to 11 px over the chart's scale, src/ui/charts/Charts.tsx readable()); labels that would collide are hidden */
+.lchart,.kchart{overflow:visible}
+.lchart text,.kchart text{font-size:var(--kfs,11px)}
+.ksized{width:100%;min-width:0}
+.chartwrap.kopen{cursor:zoom-in;border-radius:8px}
+.chartwrap.kopen:focus-visible{outline:2px solid var(--violet);outline-offset:3px}
+.chartwrap.kmultw{margin:0}
+/* full size: a chart opens in an overlay on a click or tap (most of the window; the whole screen on a phone) */
+.kbig{position:fixed;inset:0;z-index:80;background:rgba(10,18,48,.42);display:flex;align-items:center;justify-content:center;padding:3vh 3vw}
+.kbigp{background:var(--paper,#fff);border-radius:var(--r-lg,16px);box-shadow:0 24px 64px rgba(10,18,48,.32);width:min(1800px,94vw);max-height:94vh;
+  display:flex;flex-direction:column;outline:none;min-width:0}
+.kbigh{display:flex;align-items:center;gap:14px;padding:14px 18px 10px;border-bottom:1px solid var(--line-2)}
+.kbigh b{flex:1;font-size:15px;min-width:0;overflow-wrap:anywhere}
+.kbigx{flex:none;width:40px;height:40px;border-radius:999px;border:0;background:var(--group,#F2F3F7);font:600 22px/1 var(--font);color:var(--ink);cursor:pointer}
+.kbigx:hover{background:var(--line-2)}
+.kbigb{padding:16px 20px 20px;overflow:auto;min-height:0;min-width:0}
+.kbig .chartwrap{margin:0}
+.kbig .lchart{max-height:calc(94vh - 110px)}
+.kbig .kmults{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.kbig .kspark{max-width:none;height:56px}
+.kbig .kmr{grid-template-columns:100px minmax(0,1fr) auto}
+@media (max-width:640px){
+  .kbig{padding:0}
+  .kbigp{width:100%;height:100%;max-height:none;border-radius:0}
+  .kbigb{padding:12px}
+  .kbig .lchart{max-height:none}
+}
+
+/* wide screens (since 30 Oct): above 1,600 px Routes' route detail uses the full width up to 2,560 px, the list 320-380 px
+   and the story about 55% of the rest. The other screens keep the 1,440 px cap (--maxw): their grids fill it */
+@media (min-width:1600px){
+  .view.routes.has-detail{max-width:2560px}
+  .view.routes > .rwrap.has-story{grid-template-columns:minmax(320px,380px) minmax(0,45fr) minmax(0,55fr)}
+}
+.chartwrap.rpwrap{margin:0}
