@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { FoldBoard } from "../../ui/FoldBoard";
 import {
-  NO_MARKET_READ, ROUTE_BOARDS, dirChartLayout, fareWords, flightLoads, historyLayout, marketShareView, ptsChange, rivalFares, serviceHeader, vsCheapestWords, weeksLayout,
+  NO_MARKET_READ, ROUTE_BOARDS, dirChartLayout, fareWords, shareDonut, flightLoads, historyLayout, marketShareView, ptsChange, rivalFares, serviceHeader, vsCheapestWords, weeksLayout,
   type ServiceChecks, type StoryMarket,
   barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyLayout, storyWeekOnWeek, weekBars,
   type RouteStory, type StoryDay, type StoryEvent, type StoryWeek,
@@ -408,6 +408,13 @@ describe("Load by direction (30 Oct)", () => {
     expect(levelSteps(s, "economy", days, "back")?.slice(9, 11)).toEqual([100, 95]);
     expect(g?.cols[0]?.tip).toBe("2026-10-02 · JFK → ORD 89.3% · ORD → JFK 71.4% · fare level 100% out");
   });
+  it("draws a lone day as a dot, since a line can't show one point (JFK–YYZ, 8 Oct)", () => {
+    const rows = dirDays(20).filter((r) => !(r.direction === "out" && (r.day === dayAt(2) || r.day === dayAt(4))));
+    const g = dirChartLayout(story({ days_by_direction: rows }), nice);
+    expect(g?.dots.map((d) => d.direction)).toEqual(["out"]);
+    expect(g?.dots[0]?.x).toBeCloseTo(46 + 3.5 * ((1120 - 46 - 52) / 20), 1);
+    expect(dirChartLayout(story({ days_by_direction: dirDays(20) }), nice)?.dots).toEqual([]);
+  });
   it("says so under 14 days, and with no direction's days (an answer from before 30 Oct)", () => {
     expect(dirChartLayout(story({ days_by_direction: dirDays(5), days: story().days.slice(0, 5) }), nice)).toBeNull();
     expect(dirChartLayout(story(), nice)).toBeNull();
@@ -478,6 +485,13 @@ describe("Market share (30 Oct)", () => {
     expect(d?.rows.map((r) => `${r.name} ${r.share} ${r.change}`)).toEqual(["Air China 55% ▲ 5 pts", "Pan Am 30% ▼ 2 pts", "United 8% ", "Delta 4% ▲ 1 pt", "Spirit 3% = no change"]);
     expect(ptsChange(1.25)).toBe("▲ 1.3 pts");
   });
+  it("each direction as a donut: ours in the airline's colour, the top rivals in the kit's colours, the rest grey", () => {
+    const d = marketShareView(story({ market: market() })).dirs[0]!;
+    expect(shareDonut(d, "#123456").map((p) => [p.key, p.label, p.value, p.color])).toEqual([
+      ["ours", "Pan Am", 30, "#123456"], ["r1", "Air China", 55, "#E86A92"], ["r2", "United", 8, "#1A7F55"], ["r3", "Delta", 4, "#E39B21"],
+      ["others", "others", 3, "#C9CEDB"]]);
+    expect(shareDonut(d)[0]?.color).toBe("#4B3BA8");
+  });
 });
 
 describe("Rivals over time (30 Oct)", () => {
@@ -543,6 +557,12 @@ describe("the page with the market boards (30 Oct)", () => {
     expect(html).toContain('data-fare-airline="Pan Am" data-ours="yes"');
     expect(html).toContain("we&#x27;re 11% under ZZ");
     expect(html).toContain('data-share-direction="out"');
+    expect(html).toContain('data-share-donut="out"');
+    expect(html).toContain('data-figure="performance route: market share donut"');
+    expect(html).not.toContain('class="cpbar"');
+    // the back direction's line and fare level: never the class "back", which the back-button style hides (30 Oct)
+    expect(html).toMatch(/<path d="M[^"]+" class="dback"/);
+    expect(html).not.toMatch(/<path[^>]* class="(lvl )?back"/);
     expect(html).toContain('data-figure="performance route: seats and price by week"');
     expect(html).toContain('data-flight="101"');
     expect(html).toContain('data-service="ok"');

@@ -584,7 +584,8 @@ fold them, and a row's title opens or closes it.
     event. Point at a day for its figures and events. Under 14 days of flights it says so instead.
   - **Load by direction** (since 30 Oct): the economy load each day since launch, out from the hub and back to it as two
     lines, on the Since launch chart's days, with each direction's fare level as a dashed step on the right (the ladder's
-    rows for that direction, and those for both). Under 14 days of flights it says so.
+    rows for that direction, and those for both). A day with flights one way but none that way the day before or after
+    shows as a dot. Under 14 days of flights it says so.
   - **Loads by flight** (since 30 Oct): each flight number on the route over the last 7 days, out first, then back, by its
     local departure: its way, departure, average economy load (a bar), flights, and how many were 95% or more (the
     loads figure has no exactly-sold-out count; a flight with no load captured counts as full, as Routes counts it).
@@ -594,8 +595,9 @@ fold them, and a row's title opens or closes it.
     and marked, then the rivals cheapest first, with its economy and business fares (the average, and lowest–highest
     when they differ), the flights the page showed, and its economy flights sold out of those finished (a finished
     flight with no seat left). Under each table, ours against the cheapest rival's economy fare ("we're 15% under KLM").
-  - **Market share** (since 30 Oct): the game's own share of the pair's passengers this calendar week, each way, as a bar
-    (ours dark, the top 3 rivals, the rest as others), with our change in points against last week and the top 5 listed.
+  - **Market share** (since 30 Oct): the game's own share of the pair's passengers this calendar week, each way, as a donut
+    (since 30 Oct evening, as Competition's: ours in the airline's colour with our share in the middle, the top 3 rivals,
+    the rest grey), with our change in points against last week and the top 5 listed beside it, each with its colour.
     Under it, for comparison, the scan's departures share (Rivals on the pair's): the game counts passengers, the scan
     flights.
   - **Events,** newest first, 10 shown with **show all**: launched; a frequency added or removed, an aircraft changed or

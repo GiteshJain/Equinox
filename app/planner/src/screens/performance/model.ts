@@ -11,6 +11,7 @@
 import { block, card, connections, setting, time, type Rules, type TimedLeg } from "@rules";
 import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
+import { SERIES, TONE, type DonutPart } from "../../ui/charts";
 
 // ---------- the database's answers
 export interface NextOrder { when: "needs" | "now" | "later" | "not within 14 days"; missing?: string; types?: string[]; type?: string; safe_from?: string; up_to?: number | string | null }
@@ -1346,6 +1347,8 @@ export interface DirChartLayout {
   grid: { y: number; label: string }[];
   rgrid: { y: number; label: string }[];
   out: string; back: string; levelOut: string | null; levelBack: string | null;
+  /** A day with flights that way and none the day before or after: a line can't show it, so it's a dot (30 Oct). */
+  dots: { x: number; y: number; direction: LadderDirection }[];
   xLabels: { x: number; label: string }[];
   cols: { x: number; w: number; tip: string }[];
 }
@@ -1361,11 +1364,14 @@ export function dirChartLayout(s: RouteStory, nice: (day: string) => string): Di
   const cw = (W - L - R) / n, X = (i: number) => L + (i + 0.5) * cw;
   const Y = (v: number) => T + (100 - Math.max(0, Math.min(100, v))) / 100 * (H - T - B);
   const by = new Map(rows.map((r) => [`${r.day}|${r.direction}`, r]));
+  const dots: DirChartLayout["dots"] = [];
   const path = (dir: LadderDirection): string => {
     let out = "", open = false;
-    days.forEach((day, i) => {
-      const v = by.get(`${day}|${dir}`)?.eco_load_pct ?? null;
+    const at = (i: number) => (i < 0 || i >= n ? null : by.get(`${days[i]}|${dir}`)?.eco_load_pct ?? null);
+    days.forEach((_, i) => {
+      const v = at(i);
       if (v == null) { open = false; return; }
+      if (at(i - 1) == null && at(i + 1) == null) dots.push({ x: X(i), y: Y(v), direction: dir });
       out += `${open ? " L" : out ? " M" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`;
       open = true;
     });
@@ -1394,7 +1400,7 @@ export function dirChartLayout(s: RouteStory, nice: (day: string) => string): Di
     W, H, L, R, T, B, days,
     grid: [0, 25, 50, 75, 100].map((v) => ({ y: Y(v), label: `${v}%` })),
     rgrid: all.length ? [lo, (lo + hi) / 2, hi].map((v) => ({ y: RY(v), label: `${Math.round(v * 10) / 10}%` })) : [],
-    out: path("out"), back: path("back"), levelOut: step(lo0), levelBack: step(lb0),
+    out: path("out"), back: path("back"), dots, levelOut: step(lo0), levelBack: step(lb0),
     xLabels: days.flatMap((d, i) => (i % every === 0 || i === n - 1 ? [{ x: X(i), label: `${d.slice(8)}/${d.slice(5, 7)}` }] : [])),
     cols: days.map((d, i) => {
       const o = by.get(`${d}|out`), b = by.get(`${d}|back`), parts = [nice(d)];
@@ -1526,6 +1532,17 @@ export function marketShareView(s: RouteStory): { none: string | null; dirs: Sha
     }];
   });
   return { none: null, dirs, scan };
+}
+
+/** A direction's share as a donut (since 30 Oct, as Competition's): ours in the airline's colour, the top 3 rivals in the
+ *  chart kit's series colours, the rest grey, each part's share of the game's passengers that way. */
+export function shareDonut(d: ShareDir, ours: string = TONE.violet): (DonutPart & { pct: number })[] {
+  let k = 0;
+  return d.bar.map((p, i) => {
+    const others = p.label === "others" && i === d.bar.length - 1;
+    const color = p.ours ? ours : others ? "#C9CEDB" : (SERIES.slice(1)[k++ % (SERIES.length - 1)] as string);
+    return { key: p.ours ? "ours" : others ? "others" : `r${i}`, label: p.label, value: p.pct, pct: p.pct, color };
+  });
 }
 
 export interface HistorySeries { key: string; name: string; ours: boolean; path: string; dots: { x: number; y: number; tip: string }[] }

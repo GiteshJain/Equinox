@@ -215,7 +215,9 @@ export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
 }
 
 /** Load by direction (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §1): economy load each day, out and
- *  back as two lines, each direction's fare level as a step line on the right axis (dirChartLayout() in model.ts). */
+ *  back as two lines, each direction's fare level as a step line on the right axis (dirChartLayout() in model.ts). The
+ *  back line's class is `dback`, never `back`: the planner's back-button style (`.back{display:none}`) hid it (30 Oct). A
+ *  lone day (no flight that way the day before or after) is a dot, since a line can't show one point. */
 export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; back: string }) {
   return (
     <ChartWrap label="load by direction">
@@ -229,9 +231,10 @@ export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; bac
         ))}
         {g.rgrid.map((l, i) => <text key={"r" + i} x={g.W - g.R + 6} y={(l.y + 4).toFixed(1)} className="lvt">{l.label}</text>)}
         {g.levelOut ? <path d={g.levelOut} className="lvl" /> : null}
-        {g.levelBack ? <path d={g.levelBack} className="lvl back" /> : null}
+        {g.levelBack ? <path d={g.levelBack} className="lvl dback" /> : null}
         <path d={g.out} className="eco" />
-        <path d={g.back} className="back" />
+        <path d={g.back} className="dback" />
+        {g.dots.map((d, i) => <circle key={"d" + i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r={3} className={"dot " + (d.direction === "out" ? "eco" : "dback")} />)}
         {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 28} textAnchor="middle">{l.label}</text>)}
         {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
       </svg>

@@ -147,7 +147,7 @@ export function Routes() {
   // the route's story (since 30 Oct): a third column at 1,600 px and wider, under the frequencies from 1,100 px, none below
   const wide = useMinWidth(1600), mid = useMinWidth(1100);
   const story: ReactNode = route && airline && live && mid ? (
-    <RouteStoryPanel key={route.id} routeId={route.id} flown={routeFreqs.length > 0} code={airline.code} rules={live} loads={loadsQ.data?.flights} />
+    <RouteStoryPanel key={route.id} routeId={route.id} flown={routeFreqs.length > 0} code={airline.code} rules={live} loads={loadsQ.data?.flights} color={airline.color} />
   ) : null;
   const storyCol = !!story && wide, storyBelow = !!story && !wide;
   const checks = useMemo(() => {

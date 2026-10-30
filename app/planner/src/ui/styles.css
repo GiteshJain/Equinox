@@ -974,8 +974,9 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
   .rpboards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
   .rpboards > .board.rcol{align-self:start}
 }
-.dirchart path.back,.dirchart .lgd line.back{stroke:#D9752B;stroke-width:2}
-.dirchart path.lvl.back{stroke:#E8A26B}
+.dirchart path.dback{stroke:#D9752B;stroke-width:2}
+.dirchart path.lvl.dback{stroke:#E8A26B}
+.dirchart circle.dot.eco{fill:var(--ink)} .dirchart circle.dot.dback{fill:#D9752B}
 .rpsvc{white-space:nowrap} .rpsvc.off{color:#9A5B00;background:#FFF4DE;border-radius:6px;padding:0 5px;font-weight:600}
 .rpbar{display:inline-block;vertical-align:middle;width:90px;height:8px;border-radius:4px;background:var(--mute-soft);overflow:hidden}
 .rpbar i{display:block;height:100%;background:var(--ink)}
