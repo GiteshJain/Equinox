@@ -221,17 +221,20 @@ for a in AL:
 story.append(table(ops, [1.05 * inch, 0.52 * inch, 0.5 * inch, 0.5 * inch, 0.55 * inch, 0.6 * inch, 0.62 * inch, 0.62 * inch, 1.99 * inch]))
 story.append(P("From each airline's flight legs as stored, through the planning library (the Tails screen's figures): legs flown a week ÷ 7, "
                "seats from each aircraft's cabin, block hours from the game's times.", "tiny"))
+# route profit's marks in words (since 31 Oct, spec docs/specs/2026-10-30-route-profit-sold-out.md: sold_out, raise until then)
+MARK_WORDS = {"add": "add a flight", "sold_out": "sold out · fares climbing", "raise": "sold out · fares climbing", "fix": "fix or reduce",
+              "losing": "losing money", "hold": "hold"}
 rp = [["Airline", "Route", "Flights", "Profit a week", "Profit a flight", "Economy load", "Read"]]
 for a in AL:
     for kind, rows in (("best", a["routes"]["best"]), ("weak", a["routes"]["weak"])):
         for x in rows:
             rp.append([esc(a["name"]), f"{esc(x['hub'])}–{esc(x['dest'])}", str(x.get("flights") or 0), signed(x.get("profit_week")), signed(x.get("profit_per_flight")),
-                       pct(x.get("economy")), esc(x.get("mark") or "") + (f": {esc(x['why'])}" if x.get("why") else "")])
+                       pct(x.get("economy")), esc(MARK_WORDS.get(x.get("mark") or "", x.get("mark") or "")) + (f": {esc(x['why'])}" if x.get("why") else "")])
 if len(rp) > 1:
     days = next((a["routes"]["days"] for a in AL if a["routes"].get("days")), 7)
     story += [P(f"Route profit, last {days} days: each airline's best and weakest routes", "h2"), table(rp, [0.95 * inch, 0.75 * inch, 0.5 * inch, 0.7 * inch, 0.7 * inch, 0.6 * inch, 2.75 * inch])]
 G = R.get("growth") or {}
-for key, title in (("ready_for_another_flight", "Ready for another flight"), ("raise_fares", "Raise fares"), ("fix_or_reduce", "Fix or reduce")):
+for key, title in (("ready_for_another_flight", "Ready for another flight"), ("sold_out", "Sold out · fares climbing"), ("fix_or_reduce", "Fix or reduce")):
     if G.get(key):
         story.append(P(f"Growth signals: {title.lower()} (last {G.get('days') or 7} days)", "h2"))
         story.append(table([["Airline", "Route", "Flights", "Profit a week", "Economy load", "Why"]] + [

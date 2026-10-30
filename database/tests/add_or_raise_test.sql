@@ -1,5 +1,8 @@
 -- Add a flight or raise fares, by profit per aircraft hour (manual §3; migration
--- 20261017180000_add_or_raise_aircraft_hour.sql; brief docs/briefs/2026-10-17-add-or-raise.md). Run by
+-- 20261017180000_add_or_raise_aircraft_hour.sql; brief docs/briefs/2026-10-17-add-or-raise.md). Since 31 Oct (migration
+-- 20261031140000_route_profit_sold_out.sql, spec docs/specs/2026-10-30-route-profit-sold-out.md) the routes that were
+-- marked raise are marked sold_out ("sold out · fares climbing"): the fare ladder raises them each Saturday; no raise is
+-- left in route_profit()'s answer or growth_signals()'s (5.). Run by
 -- database/rehearse.sh on the copy of last night's backup, after the new migrations, inside a transaction that is rolled
 -- back. A failed check stops with an error that says which (names, hours and marks of the hand-made routes only).
 -- Everything is made in a world of its own, so nothing on the copy is touched.
@@ -13,11 +16,13 @@
 --     ZZ5    120 / untimed       untimed = 25 + 1000 km ÷ 800 = 100, so (110+70)/60 = 3.00   12k   4.0k
 --     ZZ6    no legs on record   none                    25k               none
 --   1. The hours and the profit an aircraft hour are as above.
---   2. The marks: the middle route by the hour is ZZ2 (4.6k), so ZZ2 and ZZ4 add, ZZ3 and ZZ5 raise; ZZ6, with no hours,
+--   2. The marks: the middle route by the hour is ZZ2 (4.6k), so ZZ2 and ZZ4 add, ZZ3 and ZZ5 sold_out (raise until 31 Oct); ZZ6, with no hours,
 --      is compared by profit a flight (middle 20k), so add. By profit a flight alone ZZ2 would raise and ZZ3 add.
 --   3. The why says which: an aircraft hour for ZZ2, a flight for ZZ6.
 --   4. The turn margin is read for the airline: at 70 minutes the hours grow (ZZ2 3.17, ZZ3 9.17, ZZ4 5.17, ZZ5 4.00),
---      the middle route becomes ZZ3 (3.3k), and ZZ2 now raises while ZZ3 adds.
+--      the middle route becomes ZZ3 (3.3k), and ZZ2 is now sold_out while ZZ3 adds.
+--   5. No raise anywhere: route_profit()'s routes carry no mark raise and no word "raise fares"; growth_signals() lists ZZ2
+--      and ZZ5 under sold_out, by flights, and has no raise_fares.
 
 do $test$
 declare
@@ -82,14 +87,14 @@ begin
 
   -- ---------------------------------------------------------------- 2. the marks
   select string_agg(x ->> 'dest' || '=' || (x ->> 'mark'), ' ' order by x ->> 'dest') into marks from jsonb_array_elements(r -> 'routes') x;
-  assert marks = 'ZZ2=add ZZ3=raise ZZ4=add ZZ5=raise ZZ6=add', 'the marks are ' || marks || ', not ZZ2=add ZZ3=raise ZZ4=add ZZ5=raise ZZ6=add';
+  assert marks = 'ZZ2=add ZZ3=sold_out ZZ4=add ZZ5=sold_out ZZ6=add', 'the marks are ' || marks || ', not ZZ2=add ZZ3=sold_out ZZ4=add ZZ5=sold_out ZZ6=add';
 
   -- ---------------------------------------------------------------- 3. the why
   assert (select x ->> 'why' from jsonb_array_elements(r -> 'routes') x where x ->> 'dest' = 'ZZ2')
          = 'sold out on 6 of 6 departures, profit an aircraft hour at or above the airline''s middle route',
     'ZZ2''s why: ' || (select x ->> 'why' from jsonb_array_elements(r -> 'routes') x where x ->> 'dest' = 'ZZ2');
   assert (select x ->> 'why' from jsonb_array_elements(r -> 'routes') x where x ->> 'dest' = 'ZZ3')
-         = 'sold out on 6 of 6 departures, profit an aircraft hour below the airline''s middle route',
+         = 'sold out · fares climbing (the fare ladder raises it each Saturday)',
     'ZZ3''s why: ' || (select x ->> 'why' from jsonb_array_elements(r -> 'routes') x where x ->> 'dest' = 'ZZ3');
   assert (select x ->> 'why' from jsonb_array_elements(r -> 'routes') x where x ->> 'dest' = 'ZZ6')
          = 'sold out on 6 of 6 departures, profit a flight at or above the airline''s middle route',
@@ -103,8 +108,18 @@ begin
     from jsonb_array_elements(r -> 'routes') x;
   assert hours = 'ZZ2=3.17 ZZ3=9.17 ZZ4=5.17 ZZ5=4.00 ZZ6=none', 'with a 70-minute margin the aircraft hours are ' || hours;
   select string_agg(x ->> 'dest' || '=' || (x ->> 'mark'), ' ' order by x ->> 'dest') into marks from jsonb_array_elements(r -> 'routes') x;
-  assert marks = 'ZZ2=raise ZZ3=add ZZ4=add ZZ5=raise ZZ6=add', 'with a 70-minute margin the marks are ' || marks;
+  assert marks = 'ZZ2=sold_out ZZ3=add ZZ4=add ZZ5=sold_out ZZ6=add', 'with a 70-minute margin the marks are ' || marks;
 
-  raise notice 'add or raise: aircraft hours are block + turnaround + margin (an untimed leg estimated), profit an aircraft hour against the airline''s middle route marks add and raise, a route with no legs falls back to profit a flight, and the airline''s own margin is read';
+  -- ---------------------------------------------------------------- 5. no raise left anywhere
+  assert not exists (select 1 from jsonb_array_elements(r -> 'routes') x where x ->> 'mark' = 'raise' or x ->> 'why' ilike '%raise fares%'),
+    'route_profit() still marks a route raise: ' || (r -> 'routes')::text;
+  assert private.fig_route_profit(a1, 1, t + interval '1 hour')::text not like '%"raise"%', 'route_profit() over 1 day still has a raise';
+  r := private.fig_growth_signals(w, t + interval '1 hour');
+  assert not (r ? 'raise_fares'), 'growth_signals() still has raise_fares: ' || r::text;
+  select string_agg(x ->> 'dest', ' ' order by n) into marks from jsonb_array_elements(r -> 'sold_out') with ordinality e(x, n);
+  assert marks in ('ZZ2 ZZ5', 'ZZ5 ZZ2'), 'growth_signals()''s sold_out lists ' || coalesce(marks, 'nothing') || ', not ZZ2 and ZZ5';
+  assert (select count(*) from jsonb_array_elements(r -> 'ready_for_another_flight')) = 3, 'growth_signals() should still list ZZ3, ZZ4 and ZZ6 ready for another flight';
+
+  raise notice 'add or sold out: aircraft hours are block + turnaround + margin (an untimed leg estimated), profit an aircraft hour against the airline''s middle route marks add and sold_out (raise until 31 Oct), a route with no legs falls back to profit a flight, the airline''s own margin is read, and no raise is left in route_profit() or growth_signals()';
 end
 $test$;

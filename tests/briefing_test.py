@@ -117,7 +117,9 @@ def check_airline(S, a, r, b):
     check(not foreign and not wrong and own <= {x["route_id"] for x in routes},
           f"{code}: {len(routes)} routes, each the airline's own with its own profit and loads",
           f"not the airline's: {foreign[:8]}; another route's figures: {wrong[:8]}; left out: {sorted(own - {x['route_id'] for x in routes})[:8]}")
-    marks = {(x.get("route_id"), k) for k in ("ready_for_another_flight", "raise_fares", "fix_or_reduce") for x in F["growth_signals"].get(k) or []
+    # the sample's figures are from before 31 Oct: its raise_fares list is the briefing's sold_out
+    marks = {(x.get("route_id"), k) for k in ("ready_for_another_flight", "sold_out", "fix_or_reduce")
+             for x in F["growth_signals"].get(k) or (F["growth_signals"].get("raise_fares") if k == "sold_out" else None) or []
              if x.get("airline_id") == aid}
     check({(x["route_id"], k) for x in routes for k in x["growth_lists"]} == marks, f"{code}: the growth lists name its routes ({len(marks)} marks)")
     # hubs first, deliveries, to-dos, fare plan and capture, as the sample gives them

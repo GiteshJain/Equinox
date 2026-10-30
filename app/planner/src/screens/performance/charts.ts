@@ -17,10 +17,11 @@ import type { CapturedLoad, GrowthRead, Pattern } from "./reads";
 /** Thousands of AS$ an hour, signed: "+12.3k". */
 export const kHour = (v: number): string => `${v < 0 ? "−" : "+"}${(Math.round(Math.abs(v) * 10000) / 10).toFixed(1)}k`;
 /** The bars: each route with its profit an aircraft hour (route_profit()'s, the figure sold-out routes are marked add or
- *  raise by), highest first, coloured by its mark; the reference line is the airline's middle route by that figure, as
+ *  sold out by; raise until 31 Oct), highest first, coloured by its mark; the reference line is the airline's middle route by that figure, as
  *  route_profit() picks it (the middle of every route with hours, sorted); `without` counts the routes with no hours
- *  (no legs on record), which aren't drawn. The mark picked on the board filters the bars, never the middle route. */
-export function routeHourBars(routes: readonly RouteRow[], mark: string = ""): { items: HBarItem[]; ref: { value: number; label: string } | null; without: number } {
+ *  (no legs on record), which aren't drawn. The mark picked on the board filters the bars, never the middle route. A
+ *  sold-out route's tip has the fare ladder's move beside its mark (moveOf, since 31 Oct). */
+export function routeHourBars(routes: readonly RouteRow[], mark: string = "", moveOf?: (r: RouteRow) => string): { items: HBarItem[]; ref: { value: number; label: string } | null; without: number } {
   const withH = routes.filter((r) => r.profit_per_aircraft_hour != null);
   const sorted = withH.map((r) => Number(r.profit_per_aircraft_hour)).sort((a, b) => a - b);
   const mid = sorted.length ? sorted[Math.floor(sorted.length / 2)] as number : null;
@@ -29,7 +30,7 @@ export function routeHourBars(routes: readonly RouteRow[], mark: string = ""): {
   return {
     items: shown.map((r) => ({
       key: `${r.hub}-${r.dest}`, label: `${r.hub}–${r.dest}`, value: Number(r.profit_per_aircraft_hour), color: MARKS[r.mark].color,
-      tip: `${r.hub}–${r.dest} · ${kHour(Number(r.profit_per_aircraft_hour))} an aircraft hour · ${MARKS[r.mark].label} · ${r.flights} flight${r.flights === 1 ? "" : "s"}, ${kHour(r.profit_per_flight)} a flight`,
+      tip: `${r.hub}–${r.dest} · ${kHour(Number(r.profit_per_aircraft_hour))} an aircraft hour · ${MARKS[r.mark].label}${r.mark === "sold_out" && moveOf?.(r) ? ` (the ladder: ${moveOf(r)})` : ""} · ${r.flights} flight${r.flights === 1 ? "" : "s"}, ${kHour(r.profit_per_flight)} a flight`,
     })),
     ref: mid == null ? null : { value: mid, label: `middle route ${kHour(mid)}` },
     without: routes.filter((r) => !mark || r.mark === mark).length - shown.length,
@@ -142,7 +143,7 @@ export function scoreMultiples(airlines: readonly { airline_id: number; name: st
 
 // ---------- growth signals: a stacked bar per airline
 export const GROWTH_SERIES: readonly StackSeries[] = [
-  { key: "ready", label: "ready for another flight", color: TONE.ok }, { key: "raise", label: "raise fares", color: "#3B3FD8" },
+  { key: "ready", label: "ready for another flight", color: TONE.ok }, { key: "sold_out", label: "sold out · fares climbing", color: "#3B3FD8" },
   { key: "fix", label: "fix or reduce", color: TONE.warn }, { key: "losing", label: "aircraft losing after lease", color: TONE.bad },
 ];
 /** Each airline's growth signals by kind: from the capture (growth_signals()'s four lists), or without profit captured,
@@ -154,7 +155,7 @@ export function growthStack(s: GrowthRead, airlines: readonly Pick<OurAirline, "
   return airlines.map((a) => ({
     key: String(a.id), label: a.name,
     parts: s.profit_captured
-      ? { ready: count(s.ready_for_another_flight, a.id), raise: count(s.raise_fares, a.id), fix: count(s.fix_or_reduce, a.id), losing: count(s.aircraft_losing_after_lease, a.id) }
+      ? { ready: count(s.ready_for_another_flight, a.id), sold_out: count(s.sold_out, a.id), fix: count(s.fix_or_reduce, a.id), losing: count(s.aircraft_losing_after_lease, a.id) }
       : { ready: readyFromLoads.filter((r) => r.route.airline_id === a.id).length, fix: count(cut, a.id) },
     tip: (x: StackSeries, n: number) => `${a.name} · ${x.label}: ${n} · tap to open the list`,
   }));

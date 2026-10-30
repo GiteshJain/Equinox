@@ -17,15 +17,18 @@ const route = (hub: string, dest: string, x: Partial<RouteRow> = {}): RouteRow =
 });
 
 describe("Route profit: profit an aircraft hour by route", () => {
-  const rs = [route("HUB", "AAA", { mark: "add", profit_per_aircraft_hour: 0.012 }), route("HUB", "BBB", { mark: "raise", profit_per_aircraft_hour: 0.004 }),
+  const rs = [route("HUB", "AAA", { mark: "add", profit_per_aircraft_hour: 0.012 }), route("HUB", "BBB", { mark: "sold_out", profit_per_aircraft_hour: 0.004 }),
     route("HUB", "CCC", { mark: "losing", profit_per_aircraft_hour: -0.002, profit_per_flight: -0.01 }), route("FOC", "AAA", { mark: "hold", profit_per_aircraft_hour: null })];
   it("highest first, each its mark's colour, the middle route as route_profit() picks it, the routes with no hours counted", () => {
     const b = routeHourBars(rs);
-    expect(b.items.map((x) => [x.label, x.value, x.color])).toEqual([["HUB–AAA", 0.012, MARKS.add.color], ["HUB–BBB", 0.004, MARKS.raise.color], ["HUB–CCC", -0.002, MARKS.losing.color]]);
+    expect(b.items.map((x) => [x.label, x.value, x.color])).toEqual([["HUB–AAA", 0.012, MARKS.add.color], ["HUB–BBB", 0.004, MARKS.sold_out.color], ["HUB–CCC", -0.002, MARKS.losing.color]]);
     // sorted −0.002, 0.004, 0.012: the middle is the second
     expect(b.ref).toEqual({ value: 0.004, label: "middle route +4.0k" });
     expect(b.without).toBe(1);
     expect(b.items[2]?.tip).toBe("HUB–CCC · −2.0k an aircraft hour · losing money · 7 flights, −10.0k a flight");
+  });
+  it("a sold-out route's tip has the fare ladder's move beside its mark (31 Oct)", () => {
+    expect(routeHourBars(rs, "", (r) => (r.dest === "BBB" ? "up to 110%" : "")).items[1]?.tip).toBe("HUB–BBB · +4.0k an aircraft hour · sold out · fares climbing (the ladder: up to 110%) · 7 flights, +20.0k a flight");
   });
   it("the mark picked filters the bars, never the middle route; the layout puts the losing route left of zero", () => {
     expect(routeHourBars(rs, "add").items.map((x) => x.label)).toEqual(["HUB–AAA"]);
@@ -112,11 +115,11 @@ describe("the group's small multiples", () => {
 
 describe("growth signals by airline", () => {
   const sr = (airline_id: number) => ({ airline_id, route_id: 1, hub: "A", dest: "B", flights: 7, profit_per_flight: 0.01, profit_week: 0.1, economy: 90, economy_fare: 300, sold_out: 7, with_loads: 7, mark: "add", why: "" });
-  const s: GrowthRead = { days: 7, profit_captured: true, ready_for_another_flight: [sr(1), sr(1)], raise_fares: [sr(2)], fix_or_reduce: [sr(1)],
+  const s: GrowthRead = { days: 7, profit_captured: true, ready_for_another_flight: [sr(1), sr(1)], sold_out: [sr(2)], fix_or_reduce: [sr(1)],
     aircraft_losing_after_lease: [{ airline_id: 2, registration: "X", type: "t", net_day: -0.01, routes: [] }], load_patterns: [] };
   it("each airline's four lists counted, each segment naming the list it opens", () => {
     const rows = growthStack(s, [{ id: 1, name: "Pan Am" }, { id: 2, name: "Kingfisher" }]);
-    expect(rows.map((r) => r.parts)).toEqual([{ ready: 2, raise: 0, fix: 1, losing: 0 }, { ready: 0, raise: 1, fix: 0, losing: 1 }]);
+    expect(rows.map((r) => r.parts)).toEqual([{ ready: 2, sold_out: 0, fix: 1, losing: 0 }, { ready: 0, sold_out: 1, fix: 0, losing: 1 }]);
     expect(stackLayout(rows, GROWTH_SERIES).rows[0]?.segs[0]?.tip).toBe("Pan Am · ready for another flight: 2 · tap to open the list");
     expect([growthList("losing", true), growthList("fix", false), growthList("ready", false)]).toEqual(["losing", "reduce", "ready"]);
   });

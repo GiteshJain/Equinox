@@ -134,7 +134,7 @@ button.
 | **Today** | What to do now. At the top **All clear**, or what's waiting, and the capture in one line. Then **Orders** (who can order now or from when, the safe types, each delivery line), **Aircraft to file** (with **File into planner**), **Needs attention**, **Game check** (planner against the game), the **To-do** board and **Coming up** | Every evening after the capture |
 | **Routes** | Every route by airline: stars, market, distance, load, round trips. Open a route to see or edit its frequencies, with every check (night bans, banks, turns, position, second-daily gap, connections at both ends) | When planning or retiming |
 | **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards, the service check and the cabin the rule calls for (**Use the suggestion**). Filing happens here | When an aircraft arrives; when something needs a look |
-| **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, raise fares, fix or reduce, losing after lease), **Main hubs**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, **The fare ladder** (since 26 Oct; the group page's fare ladder links to each airline's), the fare plan; a route's name there opens its **route page**, its story since launch (since 22 Oct) | Before every order; on Saturdays |
+| **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, sold out · fares climbing, fix or reduce, losing after lease), **Main hubs**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, **The fare ladder** (since 26 Oct; the group page's fare ladder links to each airline's), the fare plan; a route's name there opens its **route page**, its story since launch (since 22 Oct) | Before every order; on Saturdays |
 | **Competition** | Who we're up against and where to open next (since 21 Oct). The scans' dates and the group line on top; for each airline its **Market share** by market (our share, its arrow, the top rivals as a bar), **Threats** (rivals who started on or grew on our pairs), **Openings** ranked (stars, rivals, distance; variant and hubs first) and **Rival profiles** | Each evening before an order; on Saturdays |
 | **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and each airline's skip list | When a route opens a new country; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
@@ -199,7 +199,7 @@ This is the heart of the game. It runs whenever an airline can afford an aircraf
 ### Step 2: What and where?
 - **Hubs first:** Performance → **Main hubs** shows each main hub's progress, with its readiness (the cities feeding
   each bank) folded into its line, and each opening says whether hubs first allows it (rule: manual §3, hubs first).
-- **Growth signals** (Performance → Growth signals): **Ready for another flight**, **Raise fares**, **Fix or reduce**
+- **Growth signals** (Performance → Growth signals): **Ready for another flight**, **Sold out · fares climbing**, **Fix or reduce**
   and **Aircraft losing money after their lease** (rules: manual §3, add a flight or raise fares; new routes aren't
   judged for a week). How long each delivery line has left is on Today → **Orders**.
 - **Type:** the one the route needs (rules: manual §3, fleet types; size by city stars; the default line).
@@ -326,7 +326,7 @@ as normal on Friday evening first.
      section also lists each airline's contested pairs with our economy fare against the cheapest rival's and the game's
      passenger share each way, from the latest weekly market read; a route's page has the same under **Rival fares** and
      **Market share**.
-   - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
+   - **Route profit:** routes marked **add a flight**, **sold out · fares climbing** (with the fare ladder's move beside it) or **hold** (Performance → the airline); anything
      under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **A route we're unsure about** (since 22 Oct): open its route page (Performance → the airline → the route's name,
      or `/planner/performance/<code>/<route>`; in this chat `select public.route_story(<route id>);`). It tells the

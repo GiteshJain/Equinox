@@ -300,8 +300,14 @@ def order_flags():
 
 G = FIG.get("growth_signals") or {}
 growth = {k: [dict({kk: x.get(kk) for kk in ("hub", "dest", "flights", "profit_week", "profit_per_flight", "economy", "mark", "why", "registration", "type", "net_day")},
-                   airline=NAME.get(x.get("airline_id"), str(x.get("airline_id")))) for x in (G.get(k) or [])[:6]]
-          for k in ("ready_for_another_flight", "raise_fares", "fix_or_reduce", "aircraft_losing_after_lease")}
+                   airline=NAME.get(x.get("airline_id"), str(x.get("airline_id")))) for x in (G.get(k) or (G.get("raise_fares") if k == "sold_out" else None) or [])[:6]]
+          for k in ("ready_for_another_flight", "sold_out", "fix_or_reduce", "aircraft_losing_after_lease")}
+# since 31 Oct (spec docs/specs/2026-10-30-route-profit-sold-out.md) growth_signals() lists route profit's sold_out routes
+# as sold_out, not raise_fares (read above for figures from before); a mark raise from before reads sold_out
+for k in ("ready_for_another_flight", "sold_out", "fix_or_reduce"):
+    for x in growth[k]:
+        if x.get("mark") == "raise":
+            x["mark"] = "sold_out"
 growth["days"] = G.get("days")
 
 airlines = []

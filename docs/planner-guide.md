@@ -483,7 +483,8 @@ fold them, and a row's title opens or closes it.
     much an aircraft hour as the airline's middle route. An aircraft hour is the flight's block time plus the type's
     turnaround and the 10-minute turn margin: the time the aircraft can't fly anything else. **An aircraft hour** is
     its own column, beside profit a flight.
-  - **Raise fares:** sold out, but earning less an aircraft hour than the middle route.
+  - **Sold out · fares climbing** (since 31 Oct; **Raise fares** until then): sold out, but earning less an aircraft hour
+    than the middle route. Nothing to do on price: the fare ladder raises each sold-out direction every Saturday.
   - **Fix or reduce:** losing money, economy under 75%, or a thin margin. A route isn't listed until it has been
     flying for 7 days (the setting `growth_new_route_days`); a new route that sells out is still listed above.
   - **Aircraft losing money after their lease.**
@@ -540,9 +541,10 @@ fold them, and a row's title opens or closes it.
     air-traffic fees, maintenance), from the bank statement, for the last day, 3 days or 7 days, with the filters,
     both charts and the table. **Load against profit** zooms its load axis to the routes shown (from the lowest load,
     rounded down to 5%, never below 40%, to 100%) and labels only the five routes with the most profit a week and the
-    ones marked fix, raise fares or add a flight, each beside its dot where it overlaps no other label (else none).
+    ones marked fix, sold out · fares climbing or add a flight, each beside its dot where it overlaps no other label (else none).
     **An average flight** (its profit and margin, income and costs as two bars, each part's amount) sits beside it at
-    the same height, or under it on a narrower screen. Each route is marked **add a flight**, **raise fares** or **hold**. **+ fare plan** plans
+    the same height, or under it on a narrower screen. Each route is marked **add a flight**, **sold out · fares climbing** (since 31 Oct; **raise fares** until then; the
+    fare ladder's move for each direction beside it, "up to 110%" or "out up to 110% · back hold") or **hold**. **+ fare plan** plans
     a 5% economy rise (the setting *fare_plan_raise_pct*) from the route's latest captured fare. Since 21 Oct each route
     also has its **fare index** (each flight of the latest captured day against the route's fare on 21 Oct, when every
     route was at its launch level, or its first fare for a route launched later, times the launch level: a route still

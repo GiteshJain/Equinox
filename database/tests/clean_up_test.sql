@@ -111,6 +111,17 @@ begin
   if (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def') not like '%aircraft_hours%' then
     execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def');
   end if;
+  -- route profit's sold_out (20261031140000) marks the sold-out routes below the middle sold_out instead of raise, with
+  -- new words, and growth_signals() lists them as sold_out instead of raise_fares, on purpose (add_or_raise_test.sql
+  -- checks it): while it is pending (route profit's definition before has no "fares climbing"), both definitions before
+  -- are put back here (rolled back with the test), so everything else must still be exactly as before. Once it is live,
+  -- the definitions before carry it too and nothing is changed here.
+  if (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def') not like '%fares climbing%' then
+    execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'route_profit_def');
+    if (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'growth_signals_def') is not null then
+      execute (select value #>> '{}' from rehearsal_before.clean_up_outputs where name = 'growth_signals_def');
+    end if;
+  end if;
   -- profit without reinvestment (20261026160000) takes the order payments from the bank statement on purpose, moving
   -- profit (profit_without_reinvestment_test.sql checks it): while it is pending (the definition before reads only the
   -- spending log), that definition is put back here (rolled back with the test), so everything else must still be
