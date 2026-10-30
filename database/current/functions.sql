@@ -314,6 +314,7 @@ CREATE OR REPLACE FUNCTION public.capture_market(p_key text, p_kind text, p_payl
  SECURITY DEFINER
  SET search_path TO ''
  SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare v_world bigint; v_run bigint; v_res jsonb;
   v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);

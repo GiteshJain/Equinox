@@ -61,7 +61,7 @@ begin
   end loop;
   -- capture_market(): signed out (the capture) and signed in, as owner, empty search path, 30 seconds
   assert (select p2.prosecdef and p2.provolatile = 'v' and coalesce('search_path=""' = any (p2.proconfig), false)
-                 and coalesce('statement_timeout=30s' = any (p2.proconfig), false) from pg_proc p2 where p2.oid = f::regprocedure),
+                 and coalesce('statement_timeout=30s' = any (p2.proconfig), false) and coalesce('plan_cache_mode=force_custom_plan' = any (p2.proconfig), false) from pg_proc p2 where p2.oid = f::regprocedure),
     f || ' doesn''t run as owner with an empty search path and a 30-second limit';
   assert has_function_privilege('anon', f, 'execute') and has_function_privilege('authenticated', f, 'execute'), f || ' can''t be called by the capture';
   assert not exists (select 1 from pg_proc p2 cross join aclexplode(coalesce(p2.proacl, acldefault('f', p2.proowner))) a
