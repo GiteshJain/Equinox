@@ -1,15 +1,19 @@
 // Performance → Flights by day (Check's daily load report until 20 Oct, renamed): one day at a time (‹ ›, the day in the
 // address, ?day=), every departure of the day by airline (the library's loadReport.flightsOn) with its captured loads by
 // class (game_loads), and the day's summary: from the captured loads, else from loads typed by hand once the day was
-// marked complete.
+// marked complete. Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part A) the day's departures as a heat
+// strip by local hour and airline, coloured by their average economy load (PerfCharts.tsx's FlightsHeat), the flight list
+// behind "show as table".
 import { useEffect, useState } from "react";
 import type { DayFlight } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
+import { ChartOrTable } from "../../ui/charts";
 import { niceDate } from "../../ui/dates";
 import { loadLogos } from "../../ui/siteFiles";
 import type { OurAirline } from "../../data/airlines";
 import { airlineDay, capLine, summaryWords, type DaySummary } from "./flights";
 import { pctWords } from "./growth";
+import { FlightsHeat } from "./PerfCharts";
 import type { CapturedLoad } from "./reads";
 
 export function FlightsByDay({ day, flights, summary, airlines, loadOf, onDay, loading }: {
@@ -39,6 +43,7 @@ export function FlightsByDay({ day, flights, summary, airlines, loadOf, onDay, l
           ? <>{summary.departures} departures · {summary.captured} captured · economy {pctWords(summary.economy)} · business {pctWords(summary.business)} · cargo {pctWords(summary.cargo)} · <b>{summary.soldOut}</b> sold out · {summary.under85} under 85%</>
           : summaryWords(summary)}</span>
       </div>
+      <ChartOrTable k="flights-by-day" chart={<FlightsHeat flights={flights} loadOf={loadOf} airlines={airlines} />} table={<>
       {!byAl.length ? <div className="empty">No flights scheduled that day.</div> : null}
       {byAl.map(({ a, list }) => {
         const s = airlineDay(list, loadOf);
@@ -68,6 +73,7 @@ export function FlightsByDay({ day, flights, summary, airlines, loadOf, onDay, l
           </div>
         );
       })}
+      </>} />
     </>
   );
 }

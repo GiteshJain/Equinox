@@ -103,6 +103,10 @@ export interface RouteRow {
   with_loads: number;
   mark: Mark;
   why: string;
+  /** Hours a flight ties up the aircraft, and profit a flight ÷ them (since 17 Oct; null with no legs on record): the
+   *  Route profit chart's bars since 30 Oct. */
+  aircraft_hours?: number | null;
+  profit_per_aircraft_hour?: number | null;
 }
 export interface AverageFlight {
   passengers: number; cargo: number; fuel: number; handling: number; onboard: number; landing: number; air_traffic: number; maintenance: number;
@@ -279,34 +283,6 @@ export function sparkBars(days: readonly ProfitDay[]): { x: number; y: number; w
 
 // ---------- the cash forecast (forecastBoard)
 export const DAY_MS = 86_400_000;
-export interface ForecastLayout {
-  W: number; H: number; pad: number;
-  days: { x: number; label: string | null }[];
-  cushionY: number; zeroY: number | null; path: string;
-  pays: { x: number; y2: number; repeat: boolean; title: string }[];
-  low: { x: number; y: number; bad: boolean; textX: number; text: string };
-  start: { x: number; y: number; text: string };
-}
-/** The old forecast chart's layout: 900 × 190, the 14 days, the cushion, the balance, each payment and the lowest point. */
-export function forecastLayout(fc: Forecast, cushion: number): ForecastLayout | null {
-  if (fc.status !== "ok" || !fc.points?.length || !fc.cash_at || !fc.lowest) return null;
-  const t0 = ms(fc.cash_at), W = 900, H = 190, pad = 34, t1 = t0 + 14 * DAY_MS;
-  const pts = fc.points.map((p) => ({ t: ms(p.at), v: p.balance }));
-  const vs = pts.map((p) => p.v), lo = Math.min(0, ...vs, cushion), hi = Math.max(...vs) * 1.08 + 0.01;
-  const X = (t: number) => pad + (t - t0) / (t1 - t0) * (W - pad * 2), Y = (v: number) => H - 22 - (v - lo) / (hi - lo) * (H - 44);
-  let path = "";
-  pts.forEach((p, i) => { path += (i ? " L" : "M") + X(p.t).toFixed(1) + "," + Y(p.v).toFixed(1); });
-  const low = { t: ms(fc.lowest.at), v: fc.lowest.balance };
-  return {
-    W, H, pad,
-    days: Array.from({ length: 15 }, (_, i) => t0 + i * DAY_MS).map((t, i) => ({ x: X(t), label: i % 2 === 0 ? fcDay(t).replace(/,.*/, "") : null })),
-    cushionY: Y(cushion), zeroY: lo < 0 ? Y(0) : null, path,
-    pays: (fc.payments ?? []).map((p) => ({ x: X(ms(p.at)), y2: H - 28 - Math.min(14, p.amount * 12), repeat: p.repeat,
-      title: `${fcDay(p.at)} · ${p.amount.toFixed(2)}M · ${fcWhat(p.what)}${p.repeat ? " (expected, weekly)" : ""}` })),
-    low: { x: X(low.t), y: Y(low.v), bad: low.v < cushion, textX: Math.min(W - pad - 60, X(low.t) + 8), text: `low ${low.v.toFixed(2)}M` },
-    start: { x: X(t0) + 4, y: Y(fc.cash ?? 0) - 7, text: `${(fc.cash ?? 0).toFixed(2)}M` },
-  };
-}
 /** "Safe to order": each type with its price (cabin included), its lease, and when; in the database's order (by type). */
 export function safeWords(t: ForecastType): { kind: "ok" | "mute" | "warn"; text: string } {
   const d = t.safe_day, n = t.count_today ?? 1;

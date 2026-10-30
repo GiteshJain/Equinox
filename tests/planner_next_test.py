@@ -828,6 +828,12 @@ async def performance_opens(pl):
     one["open"] = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=performance] .board:not(.rcol) > h3.rh')].map(h => h.dataset.rkey)")
     if one["boards"] != ["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]:
         problems.append(f"the airline's page has the boards {one['boards']}")
+    # since 30 Oct the route profit table is behind its chart's "show as table"; the chart is checked first
+    chart = await pl.pg.evaluate("!!document.querySelector('main[data-screen=performance] [data-figure=\"performance: route profit chart\"]')")
+    if not chart and await pl.pg.evaluate("!!document.querySelector('main[data-screen=performance] [data-chart-or-table=\"route-profit\"]')"):
+        problems.append("the route profit board has no chart")
+    await pl.pg.evaluate(SHOW_TABLES_JS)
+    await settle(pl.pg, 300)
     cols = await pl.pg.evaluate("""(() => { const t = document.querySelector('main[data-screen=performance] [data-figure="performance: route profit table"]');
         return t ? { head: [...t.querySelectorAll('tr:first-child th')].map(h => h.textContent), sparks: t.querySelectorAll('svg.lspark').length,
                      rows: t.querySelectorAll('tr[data-rprow]').length } : null; })()""")
@@ -966,6 +972,9 @@ def busiest_route(code=None, not_code=None):
 
 # the route page's boards in their order (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §1: ten, paired in
 # two columns at 1100 px and wider)
+# the charts' "show as table" (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md): every table a chart stands in
+# front of on the screen shown, so the checks that read a table (the route profit table, its links) find it
+SHOW_TABLES_JS = "document.querySelectorAll('main [data-table-toggle][aria-pressed=false]').forEach(b => b.click())"
 ROUTE_BOARDS = ["Since launch", "Load by direction", "Loads by flight", "Profit an aircraft hour", "Rival fares", "Market share",
                 "Rivals on the pair", "Rivals over time", "Events", "Connections"]
 # the boards Routes' route detail shows of a route's story (since 30 Oct, spec docs/specs/2026-10-30-route-story-on-routes.md)
@@ -1004,6 +1013,8 @@ async def route_page_opens(pl):
     await pl.pg.click("main[data-screen=performance] [data-figure='performance: scorecards'] .fcard")
     await pl.pg.wait_for_function("() => !!(document.querySelector('main[data-screen=performance]') || {dataset: {}}).dataset.airline", timeout=30000)
     await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]", timeout=90000)
+    await pl.pg.evaluate(SHOW_TABLES_JS)   # the route profit table, behind its chart since 30 Oct
+    await settle(pl.pg, 300)
     link = await pl.pg.evaluate("(document.querySelector('[data-figure=\"performance: route profit table\"] a[data-route-link]') || {getAttribute: () => ''}).getAttribute('href')")
     code = await pl.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline")
     if link:
@@ -1335,6 +1346,37 @@ def sample_line(code):
     return remove
 
 
+# Charts readable where they sit, and full size on a click (spec docs/specs/2026-10-30-charts-everywhere.md, since 30 Oct):
+# every shown label of each chart inside `where` is at least 11 px on screen (its font size times the chart's scale); the
+# first chart opens in the large view, which has the chart drawn again, and Esc closes it.
+CHARTS_READABLE_JS = """(where) => { const out = []; for (const svg of document.querySelectorAll(where + ' svg.lchart, ' + where + ' svg.kchart')) {
+  const vb = svg.viewBox && svg.viewBox.baseVal, shown = svg.getBoundingClientRect().width; if (!vb || !vb.width || !shown) continue;
+  for (const t of svg.querySelectorAll('text')) { const cs = getComputedStyle(t); if (cs.visibility === 'hidden' || cs.display === 'none' || !t.textContent.trim()) continue;
+    const px = parseFloat(cs.fontSize) * shown / vb.width; if (px < 10.9) { out.push((svg.getAttribute('data-figure') || svg.getAttribute('class')) + ': "' + t.textContent + '" at ' + px.toFixed(1) + ' px'); break; } } }
+  return out; }"""
+
+
+async def charts_readable_and_open(pg, where):
+    problems = [f"a chart's text is too small: {x}" for x in await pg.evaluate(CHARTS_READABLE_JS, where)]
+    if not await pg.evaluate(f"!!document.querySelector({json.dumps(where + ' [data-chart-open]')})"):
+        return problems
+    await pg.evaluate(f"document.querySelector({json.dumps(where + ' [data-chart-open]')}).click()")
+    try:
+        await pg.wait_for_selector("[data-chart-big] svg", timeout=10000)
+    except Exception:
+        return problems + ["a chart doesn't open full size on a click"]
+    big = await pg.evaluate("(() => { const p = document.querySelector('[data-chart-big] [role=dialog]'); const r = p.getBoundingClientRect();"
+                            " return { w: r.width, vw: innerWidth, close: !!p.querySelector('[data-big-close]') }; })()")
+    if big["w"] < big["vw"] * 0.85 or not big["close"]:
+        problems.append(f"the chart's large view isn't most of the window with its X ({big})")
+    problems += [f"in the large view, {x}" for x in await pg.evaluate(CHARTS_READABLE_JS, "[data-chart-big]")]
+    await pg.keyboard.press("Escape")
+    await settle(pg, 200)
+    if await pg.evaluate("!!document.querySelector('[data-chart-big]')"):
+        problems.append("Esc doesn't close a chart's large view")
+    return problems
+
+
 async def screens(p, port, env, facts, staff, seen, moment):
     """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
     staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Systems with every
@@ -1357,9 +1399,10 @@ async def screens(p, port, env, facts, staff, seen, moment):
         Path(SCREENS_DIR).mkdir(parents=True, exist_ok=True)
     try:
         # since 30 Oct (spec docs/specs/2026-10-30-route-story-on-routes.md) also 1700 px, for Routes' route detail only: the
-        # route's story in a third column from 1,600 px
-        for width, height in ((1280, 900), (380, 800), (1700, 1000)):
-            only_routes = width == 1700
+        # route's story in a third column from 1,600 px; and 2000 px (spec docs/specs/2026-10-30-charts-everywhere.md, wide
+        # screens): the route detail uses the full width, the story about 55% of what the list leaves
+        for width, height in ((1280, 900), (380, 800), (1700, 1000), (2000, 1100)):
+            only_routes = width >= 1700
             ph = Planner(p, port, env, facts, width=width, height=height)
             seen.append(ph)
             try:
@@ -1374,9 +1417,14 @@ async def screens(p, port, env, facts, staff, seen, moment):
                     if sid == "systems":
                         await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
                         await settle(ph.pg, 300)
+                    if sid == "performance":
+                        # 30 Oct: the charts readable where they sit, and the first opens full size
+                        problems.extend(f"{name} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, "main"))
                     if sid == "performance" and not name.startswith("route-"):
                         # 22 Oct: every row and (on an airline's page since 26 Oct) its fare ladder card's changes open, the widest
                         # the page gets
+                        await ph.pg.evaluate(SHOW_TABLES_JS)   # (30 Oct) a look at the charts first, then the tables they stand in front of
+                        await settle(ph.pg, 200)
                         await ph.pg.evaluate("""(() => { const b = document.querySelector('main[data-screen=performance] #rev-expall'); if (b) b.click();
                             document.querySelectorAll('main[data-screen=performance] [data-ladder-open][aria-expanded=false]').forEach(x => x.click()); })()""")
                         await settle(ph.pg, 400)
@@ -1493,6 +1541,15 @@ async def screens(p, port, env, facts, staff, seen, moment):
                             problems.append(f"{addr} at {width} px: no route's story {'beside the route' if width >= 1600 else 'under the frequencies'}")
                     elif await ph.pg.evaluate("!!document.querySelector('[data-route-story], [data-story-column], [data-story-below]')"):
                         problems.append(f"{addr} at {width} px: the route's story shows under 1,100 px")
+                    if where:
+                        problems += [f"{addr} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, where)]
+                    if width >= 2000:
+                        # wide screens (30 Oct): the whole width, the list 320-380 px, the story wider than the detail
+                        wd = await ph.pg.evaluate("""(() => { const w = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().width : 0; };
+                            const list = document.querySelector('.view.routes > .rwrap > *'); return { view: w('main.view.routes'),
+                            list: list ? list.getBoundingClientRect().width : 0, story: w('[data-story-column]'), detail: w('.view.routes .rdetail') }; })()""")
+                        if wd["view"] < width - 40 or not 320 <= wd["list"] <= 381 or (wd["story"] and wd["story"] <= wd["detail"]):
+                            problems.append(f"{addr} at {width} px: the route detail doesn't use the wide screen ({wd})")
                     await look("routes", "routes-detail")
                     problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
                 # the route page (22 Oct), opened directly by its address: a busy legacy route and a Ryanair route
@@ -1515,8 +1572,8 @@ async def screens(p, port, env, facts, staff, seen, moment):
     finally:
         remove_line()
     routes_words = " and ".join(f"{r['code']} {r['hub']}–{r['dest']}" for r in route_pages) or "no route with flights"
-    return (f"every screen ({len(SCREENS)}), {code}'s Performance and Competition pages and the route pages of {routes_words} open on the copy at the moment ({moment}), at 1280 and 380 px wide (and Routes' route detail at 1700, with the route's story in its third column): "
-            f"ready, no errors, no sideways scroll (Systems with every board open, Reference with every section open), and none of their {links} "
+    return (f"every screen ({len(SCREENS)}), {code}'s Performance and Competition pages and the route pages of {routes_words} open on the copy at the moment ({moment}), at 1280 and 380 px wide (and Routes' route detail at 1700 and 2000, with the route's story in its third column, at 2000 using the "
+            f"whole width): ready, no errors, no sideways scroll, every chart's text 11 px or more and a chart opening full size (Systems with every board open, Reference with every section open), and none of their {links} "
             f"links goes into the old planner, to /planner/next/ or to Hubs, Check or Review" + (f"; {shots} screenshots kept" if shots else "")), problems
 
 

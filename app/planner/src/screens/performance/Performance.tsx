@@ -26,6 +26,10 @@
 // the fare ladder one card per airline (on each airline's own page since 26 Oct), and the other boards rows that open, all closed on arrival; an airline's page
 // has its name as the title with four big numbers and the airline switch under it, its boards rows that open with
 // Route profit open on arrival (Aircraft and Fare changes rows of their own).
+// Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part A) charts where it had tables or text (PerfCharts.tsx,
+// with the chart kit in src/ui/charts): Route profit's profit an aircraft hour by route, Cash's step line, the fare
+// ladder's week, the fare plan's timeline, the group's small multiples, the growth signals by airline and Flights by
+// day's loads by hour; each replaced table one tap away ("show as table", remembered per board in this browser).
 // Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
 // planner_save() call each.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -48,7 +52,9 @@ import { useAirports, useAllRoutes, useLoads, useMarkets } from "../routes/reads
 import { itemRoute } from "../screens";
 import { rulesLegs, typeName, type PlanLegRow } from "../tails/model";
 import { useLaunches, usePlanCards, usePlanLegs, useTailsAircraft } from "../tails/reads";
-import { BarChart, CostChart, ForecastChart, GroupChart, LoadSpark, Scatter, Spark, TailChart } from "./Charts";
+import { ChartOrTable } from "../../ui/charts";
+import { BarChart, CostChart, GroupChart, LoadSpark, Scatter, Spark, TailChart } from "./Charts";
+import { CashSteps, Multiples, PlanTimeline, RouteHourChart } from "./PerfCharts";
 import { FareLadderBoard } from "./FareLadder";
 import { daySummary, loadKey, loadsByFlight, moveDay, parseDay, utcToday } from "./flights";
 import { FlightsByDay } from "./FlightsByDay";
@@ -359,13 +365,16 @@ function PerformanceScreen() {
             figure: `performance ${sel.name}: Aircraft`,
             aside: tailsAside ? <>{tailsAside.text}{tailsAside.losing ? <span className="pill warn sm">{tailsAside.losing} losing after its lease</span> : null}</> : null }) : null}
           {changesQ.data ? board("Fare changes", <FareChangesBody changes={changesQ.data} />, { figure: `performance ${sel.name}: Fare changes`, aside: changesRowWords(changesQ.data.length) }) : null}
-          {planQ.data ? board("Fare plan", <FarePlanBody airline={sel.name} plan={planQ.data} busy={busy} onDrop={(p) => void save([farePlanDrop(p)])} />,
+          {planQ.data ? board("Fare plan", <FarePlanBody airline={sel.name} plan={planQ.data} busy={busy} today={utcDay} onDrop={(p) => void save([farePlanDrop(p)])} />,
             { figure: `performance ${sel.name}: Fare plan`, aside: planRowWords(planQ.data.plan.length) }) : null}
         </>
         )}
       </>) : !isAirline ? (
         <>
           <div className="fgrid" data-figure="performance: scorecards">{cards.map((c) => card(c))}</div>
+          <section className="perfsec perfmult" aria-label="The last 14 days">
+            <Multiples airlines={cards.map((c) => ({ airline_id: c.airline_id, name: c.name, color: colorOf(c.airline_id) }))} profitOf={profitOf} days={daysQ.data ?? []} today={utcDay} />
+          </section>
           <section className="perfsec" data-board="Fare ladder" data-figure="performance: fare ladder links" aria-labelledby="perf-ladder-h">
             <h2 className="perfh" id="perf-ladder-h">The fare ladder</h2>
             <p className="note perflead">{LADDER_LINKS_NOTE}</p>
@@ -473,8 +482,8 @@ function ProfitBody({ p }: { p: ProfitAnswer }) {
   const iv = p.days;
   return (
     <>
-      <BarChart pts={chartIntervals(iv).map((x) => ({ x: x.date, y: x.profit_day, tip: barTip(x, (d) => niceDate(d)) }))} avg={p.profit_day} figure="performance: profit chart" />
-      {iv.length ? (
+      <ChartOrTable k="profit" chart={<BarChart pts={chartIntervals(iv).map((x) => ({ x: x.date, y: x.profit_day, tip: barTip(x, (d) => niceDate(d)) }))} avg={p.profit_day} figure="performance: profit chart" />}
+        table={iv.length ? (
         <div className="tscroll">
           <table className="tbl ftbl" data-figure="performance: profit by day">
             <tbody>
@@ -495,7 +504,7 @@ function ProfitBody({ p }: { p: ProfitAnswer }) {
             </tbody>
           </table>
         </div>
-      ) : null}
+      ) : <div className="dim">No reported days yet.</div>} />
     </>
   );
 }
@@ -507,7 +516,7 @@ function ForecastBody({ fc, cushion, airline }: { fc: Forecast; cushion: number;
   const t0 = ms(fc.cash_at ?? ""), ops = fc.flight_profit_day ?? 0, low = fc.lowest;
   return (
     <>
-      <ForecastChart fc={fc} cushion={cushion} airline={airline} />
+      <CashSteps fc={fc} cushion={cushion} />
       <div className="fcfacts" data-figure="performance: forecast facts">
         <span>Cash at capture <b>{(fc.cash ?? 0).toFixed(2)}M</b> <span className="dim">({fcDay(t0)} {new Date(t0).toISOString().slice(11, 16)} UTC)</span></span>
         <span>Flight profit <b>{ops >= 0 ? "+" : "−"}{Math.abs(ops).toFixed(2)}M a day</b> <span className="dim">before leases · {Math.round((fc.profit_per_flight ?? 0) * 1000)}k a flight × {(fc.flights_per_day ?? 0).toFixed(0)} flights</span></span>
@@ -572,6 +581,7 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
         <div className="rpc rpscatter"><div className="rpct">Load against profit <span className="dim">· bubble size = flights a week · colour = signal</span></div><Scatter routes={r.routes} /></div>
         <div className="rpc rpcost"><div className="rpct">An average flight <span className="dim">· income and where it goes</span></div><CostChart avg={r.average_flight} /></div>
       </div>
+      <ChartOrTable k="route-profit" chart={<RouteHourChart routes={r.routes} mark={mark} />} table={<>
       <div className="tscroll">
         <table className="tbl rptbl" id="rp-table" data-figure="performance: route profit table">
           <tbody>
@@ -604,6 +614,7 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
         </table>
       </div>
       {shown.length ? null : <div className="dim">No routes with that signal.</div>}
+      </>} />
     </>
   );
 }
@@ -660,11 +671,12 @@ function FareChangesBody({ changes }: { changes: FareChange[] }) {
 }
 
 /** The fare plan: each change still planned, whether the captures show it yet, and remove. */
-function FarePlanBody({ airline, plan, busy, onDrop }: { airline: string; plan: FarePlanAnswer; busy: boolean; onDrop: (p: FarePlanAnswer["plan"][number]) => void }) {
+function FarePlanBody({ airline, plan, busy, today, onDrop }: { airline: string; plan: FarePlanAnswer; busy: boolean; today: string; onDrop: (p: FarePlanAnswer["plan"][number]) => void }) {
   if (!plan.plan.length) {
     return <div className="dim">Nothing planned for {airline}. Add a route with “+ fare plan” in the route profit table above (on routes that sell out), or ask Claude to propose changes.</div>;
   }
   return (
+    <ChartOrTable k="fare-plan" chart={<PlanTimeline plan={plan.plan} today={today} />} table={
     <div className="tscroll">
       <table className="tbl rptbl" data-figure="performance: fare plan table">
         <tbody>
@@ -681,6 +693,6 @@ function FarePlanBody({ airline, plan, busy, onDrop }: { airline: string; plan: 
           })}
         </tbody>
       </table>
-    </div>
+    </div>} />
   );
 }

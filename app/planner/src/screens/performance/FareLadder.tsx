@@ -21,6 +21,9 @@
 // the counts, the game actions (one per direction) and Put on the fare plan (with each row's direction) follow.
 // Since 26 Oct (spec docs/specs/2026-10-26-fare-ladder-one-airline.md) the board is on each airline's page, for that
 // airline only, under its scorecard (the group page has a link to each): all six at once timed out together.
+// Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part A) a stacked bar per cabin and direction of this
+// Saturday's moves sits above the card (PerfCharts.tsx's LadderWeek); the game changes list stays a table: it's copied
+// into the game.
 import { useState } from "react";
 import { Link } from "react-router";
 import type { OurAirline } from "../../data/airlines";
@@ -28,6 +31,7 @@ import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
 import { showMessage } from "../../ui/messages";
 import { itemRoute } from "../screens";
+import { LadderWeek } from "./PerfCharts";
 import {
   LADDER_SORTS, changesWords, decideWords, directionWords, ladderKey, ladderRows, levelWords, listCut, loadWords, moveWords, offLevelWords, planButton,
   plannedWords, soldWords, splitActions, underLaunchLine,
@@ -49,6 +53,7 @@ export function FareLadderBoard({ airlines, ladders, busy, onPlan }: {
   const notes = ladders.get(shown[0]?.id ?? -1)?.notes ?? [];
   return (
     <div data-figure="performance: fare ladder">
+      {shown.length === 1 ? <LadderWeek routes={(ladders.get(shown[0]?.id ?? -1) as LadderAnswer).routes} /> : null}
       <div className="flgrid">
         {shown.map((a) => <Airline key={a.id} airline={a} ladder={ladders.get(a.id) as LadderAnswer} busy={busy} onPlan={() => onPlan(a, ladders.get(a.id) as LadderAnswer)} />)}
       </div>

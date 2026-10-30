@@ -1,34 +1,18 @@
 // Review's charts, drawn as the old Review draws them (web/planner/index.html: barChart, spark, forecastBoard's chart,
 // rpScatter, rpCost, rpTailChart and groupOverviewHtml's chart), from the layouts in model.ts. A tip follows the pointer
-// over anything with a data-tip, as the old .maptip does.
-import { useRef, type MouseEvent as RMouseEvent, type ReactNode } from "react";
+// over anything with a data-tip, as the old .maptip does. Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md)
+// the tip is the chart kit's (src/ui/charts), where the new charts are drawn: so a click opens each chart full size, and
+// its text stays 11 px on screen however small the chart is drawn. The route charts' legends are in the page's type
+// (Legend), under the chart, so they're never scaled down with it.
+import { ChartTip, Legend } from "../../ui/charts";
 import {
-  barLayout, costParts, forecastLayout, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type BarUnit, type Forecast,
+  barLayout, costParts, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type BarUnit,
   type DirChartLayout, type GroupRow, type HistoryLayout, type ProfitDay, type RouteRow, type StoryChartLayout, type WeeksLayout,
 } from "./model";
 
-/** A chart with the old planner's pointer tip. */
-function ChartWrap({ children, className = "chartwrap" }: { children: ReactNode; className?: string }) {
-  const wrap = useRef<HTMLDivElement>(null), tip = useRef<HTMLDivElement>(null);
-  const move = (e: RMouseEvent<HTMLDivElement>) => {
-    const t = tip.current, w = wrap.current;
-    if (!t || !w) return;
-    const el = (e.target as Element).closest?.("[data-tip]");
-    if (!el) { t.style.display = "none"; return; }
-    const r = w.getBoundingClientRect();
-    t.textContent = el.getAttribute("data-tip");
-    t.style.display = "block";
-    const x = e.clientX - r.left, y = e.clientY - r.top;
-    t.style.left = Math.max(0, Math.min(x + 14, r.width - t.offsetWidth - 6)) + "px";
-    t.style.top = (y + 16 + t.offsetHeight > r.height ? y - t.offsetHeight - 10 : y + 16) + "px";
-  };
-  return (
-    <div className={className} ref={wrap} onMouseMove={move} onMouseLeave={() => { if (tip.current) tip.current.style.display = "none"; }}>
-      {children}
-      <div className="maptip" ref={tip} />
-    </div>
-  );
-}
+/** A chart with the old planner's pointer tip: the chart kit's (src/ui/charts, since 30 Oct), which also opens it full
+ *  size on a click or tap. */
+const ChartWrap = ChartTip;
 
 /** The profit chart: a bar per interval, the zero line, the average. Since 22 Oct also the route page's profit an aircraft
  *  hour by week, in thousands (unit "k"). */
@@ -38,7 +22,7 @@ export function BarChart({ pts, avg, figure, unit = "M", empty = "Needs two nigh
   if (!pts.length) return <div className="empty">{empty}</div>;
   const g = barLayout(pts, avg, unit);
   return (
-    <ChartWrap>
+    <ChartWrap label={unit === "k" ? "profit an aircraft hour by week" : "profit by day"}>
       <svg className="lchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" data-figure={figure} data-bars={g.bars.length}>
         {g.grid.map((l, i) => (
           <g key={i}>
@@ -87,31 +71,6 @@ export function LoadSpark({ values }: { values: readonly (number | null)[] }) {
   );
 }
 
-/** Cash, next 14 days. */
-export function ForecastChart({ fc, cushion, airline }: { fc: Forecast; cushion: number; airline: string }) {
-  const g = forecastLayout(fc, cushion);
-  if (!g) return null;
-  return (
-    <svg className="fcchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={`Cash forecast for ${airline}`}>
-      {g.days.map((d, i) => (
-        <g key={i}>
-          <line x1={d.x} x2={d.x} y1="12" y2={g.H - 22} stroke="#E4E8F2" />
-          {d.label ? <text x={d.x} y={g.H - 6} fontSize="10.5" textAnchor="middle" fill="#8B96A8">{d.label}</text> : null}
-        </g>
-      ))}
-      <line x1={g.pad} x2={g.W - g.pad} y1={g.cushionY} y2={g.cushionY} stroke="#F6B44B" strokeDasharray="4 4" />
-      <text x={g.W - g.pad} y={g.cushionY - 4} fontSize="10.5" textAnchor="end" fill="#C98A1E">{cushion.toFixed(1)}M cushion</text>
-      {g.zeroY != null ? <line x1={g.pad} x2={g.W - g.pad} y1={g.zeroY} y2={g.zeroY} stroke="#B4234B" /> : null}
-      <path d={g.path} fill="none" stroke="#3B3FD8" strokeWidth="2.2" strokeLinejoin="round" />
-      {g.pays.map((p, i) => (
-        <line key={"p" + i} x1={p.x} x2={p.x} y1={g.H - 22} y2={p.y2} stroke={p.repeat ? "#C3C9D9" : "#8B96A8"} strokeWidth="2"><title>{p.title}</title></line>
-      ))}
-      <circle cx={g.low.x} cy={g.low.y} r="4.5" fill={g.low.bad ? "#B4234B" : "#3B3FD8"} />
-      <text x={g.low.textX} y={g.low.y + 15} fontSize="11" fill="#0A1230">{g.low.text}</text>
-      <text x={g.start.x} y={g.start.y} fontSize="11" fill="#0A1230">{g.start.text}</text>
-    </svg>
-  );
-}
 
 /** Load against profit: economy load against profit a flight, bubble size flights a week, colour the mark. Since 22 Oct
  *  the load axis is zoomed to the routes shown, the labels never overlap and the axis title sits inside (scatterLayout). */
@@ -119,6 +78,7 @@ export function Scatter({ routes }: { routes: readonly RouteRow[] }) {
   const g = scatterLayout(routes);
   if (!g) return <div className="dim">No loads matched yet.</div>;
   return (
+    <ChartWrap className="chartwrap rpwrap" label="load against profit">
     <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={`Economy load (${g.x0}% to ${g.x1}%) against profit a flight`}
       data-load-from={g.x0} data-labels={g.labels.length}>
       {g.yTicks.map((t, i) => (
@@ -135,6 +95,7 @@ export function Scatter({ routes }: { routes: readonly RouteRow[] }) {
       ))}
       {g.labels.map((l, i) => <text key={"l" + i} x={l.x.toFixed(1)} y={l.y.toFixed(1)} fontSize="10" fontWeight="600" textAnchor={l.anchor} fill="#0A1230" className="rplab">{l.text}</text>)}
     </svg>
+    </ChartWrap>
   );
 }
 
@@ -169,6 +130,7 @@ export function CostChart({ avg }: { avg: AverageFlight | null }) {
 export function TailChart({ rows }: { rows: readonly AircraftRow[] }) {
   const g = tailBars(rows);
   return (
+    <ChartWrap className="chartwrap rpwrap" label="profit a day after lease, by aircraft">
     <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Profit a day after lease, by aircraft">
       {g.bars.map((b, i) => (
         <g key={i}>
@@ -179,6 +141,7 @@ export function TailChart({ rows }: { rows: readonly AircraftRow[] }) {
       ))}
       {g.mid != null ? <line x1={g.mid} x2={g.mid} y1="0" y2={g.H - 2} stroke="#C3C9D9" /> : null}
     </svg>
+    </ChartWrap>
   );
 }
 
@@ -186,9 +149,8 @@ export function TailChart({ rows }: { rows: readonly AircraftRow[] }) {
  *  day, the fare level as a step line on its own scale (right), each event as a marker on the day axis, a tip for each
  *  day (storyChartLayout() in model.ts). */
 export function StoryChart({ g }: { g: StoryChartLayout }) {
-  const legendY = g.H - 8;
   return (
-    <ChartWrap>
+    <ChartWrap label="since launch">
       <svg className="lchart storychart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Loads by day since launch, the fare level and the events"
         data-figure="performance route: since launch" data-days={g.days.length} data-markers={g.markers.length}>
         {g.grid.map((l, i) => (
@@ -205,13 +167,13 @@ export function StoryChart({ g }: { g: StoryChartLayout }) {
         {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 28} textAnchor="middle">{l.label}</text>)}
         {g.markers.map((m, i) => <circle key={"m" + i} cx={m.x.toFixed(1)} cy={m.y.toFixed(1)} r="4.5" className={"mk " + m.kinds} data-tip={m.tip} />)}
         {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
-        <g className="lgd" transform={`translate(${g.L},${legendY})`}>
-          <line x1="0" x2="18" y1="-4" y2="-4" className="eco" /><text x="22" y="0">economy load</text>
-          {g.bus ? <><line x1="120" x2="138" y1="-4" y2="-4" className="bus" /><text x="142" y="0">business load</text></> : null}
-          {g.level ? <><line x1="250" x2="268" y1="-4" y2="-4" className="lvl" /><text x="272" y="0">fare level (right)</text></> : null}
-          {g.markers.length ? <><circle cx="400" cy="-4" r="4" className="mk" /><text x="408" y="0">an event</text></> : null}
-        </g>
       </svg>
+      <Legend items={[
+        { label: "economy load", color: "var(--ink)" },
+        ...(g.bus ? [{ label: "business load", color: "#8C94AD" }] : []),
+        ...(g.level ? [{ label: "fare level (right)", color: "#3B3FD8", dashed: true }] : []),
+        ...(g.markers.length ? [{ label: "an event", color: "var(--ink)" }] : []),
+      ]} />
     </ChartWrap>
   );
 }
@@ -219,7 +181,7 @@ export function StoryChart({ g }: { g: StoryChartLayout }) {
 /** Our share of the pair at each scan since launch, as a small line with a tip on each point. */
 export function ShareLine({ s }: { s: { W: number; H: number; path: string; dots: { x: number; y: number; tip: string }[] } }) {
   return (
-    <ChartWrap className="chartwrap sharewrap">
+    <ChartWrap className="chartwrap sharewrap" label="our share at each scan">
       <svg className="shareline" viewBox={`0 0 ${s.W} ${s.H}`} role="img" aria-label="Our share at each scan" data-figure="performance route: share at each scan">
         <line x1="0" x2={s.W} y1={s.H - 4} y2={s.H - 4} className="zero" />
         <path d={s.path} />
@@ -233,6 +195,7 @@ export function ShareLine({ s }: { s: { W: number; H: number; path: string; dots
 export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
   const g = groupLayout(rows);
   return (
+    <ChartWrap className="chartwrap rpwrap" label="the group today">
     <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Flight profit against leases, by airline" data-figure="performance: the group today">
       {g.rows.map((x) => (
         <g key={x.r.airline_id} data-group-row={x.r.code ?? x.r.name}>
@@ -247,15 +210,15 @@ export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
       <text x={g.c + 6} y={g.labelY} fontSize="10" fill="#8B96A8">flight profit →</text>
       <text x={g.W - 4} y={g.labelY} fontSize="10" textAnchor="end" fill="#8B96A8">net a day</text>
     </svg>
+    </ChartWrap>
   );
 }
 
 /** Load by direction (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §1): economy load each day, out and
  *  back as two lines, each direction's fare level as a step line on the right axis (dirChartLayout() in model.ts). */
 export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; back: string }) {
-  const legendY = g.H - 8;
   return (
-    <ChartWrap>
+    <ChartWrap label="load by direction">
       <svg className="lchart storychart dirchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Economy load by day, each direction, and each direction's fare level"
         data-figure="performance route: load by direction" data-days={g.days.length}>
         {g.grid.map((l, i) => (
@@ -271,12 +234,12 @@ export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; bac
         <path d={g.back} className="back" />
         {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 28} textAnchor="middle">{l.label}</text>)}
         {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
-        <g className="lgd" transform={`translate(${g.L},${legendY})`}>
-          <line x1="0" x2="18" y1="-4" y2="-4" className="eco" /><text x="22" y="0">{out}</text>
-          <line x1="140" x2="158" y1="-4" y2="-4" className="back" /><text x="162" y="0">{back}</text>
-          {g.levelOut || g.levelBack ? <><line x1="280" x2="298" y1="-4" y2="-4" className="lvl" /><text x="302" y="0">fare level (right)</text></> : null}
-        </g>
       </svg>
+      <Legend items={[
+        { label: out, color: "var(--ink)" },
+        { label: back, color: "#D9752B" },
+        ...(g.levelOut || g.levelBack ? [{ label: "fare level (right)", color: "#3B3FD8", dashed: true }] : []),
+      ]} />
     </ChartWrap>
   );
 }
@@ -284,7 +247,7 @@ export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; bac
 /** Rivals over time (since 30 Oct): each airline's direct departures a week at every scan since launch, ours bold. */
 export function HistoryChart({ g }: { g: HistoryLayout }) {
   return (
-    <ChartWrap>
+    <ChartWrap label="rivals over time">
       <svg className="lchart histchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Each airline's departures a week on the pair at each scan"
         data-figure="performance route: rivals over time" data-series={g.series.length}>
         {g.grid.map((l, i) => (
@@ -308,7 +271,7 @@ export function HistoryChart({ g }: { g: HistoryLayout }) {
 /** The pair's seats offered by calendar week (bars) and price per unit (a line, right axis), since 30 Oct. */
 export function WeeksChart({ g }: { g: WeeksLayout }) {
   return (
-    <ChartWrap>
+    <ChartWrap label="seats and price by week">
       <svg className="lchart weekschart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="The pair's seats offered and price per unit by week"
         data-figure="performance route: seats and price by week" data-weeks={g.bars.length}>
         {g.grid.map((l, i) => (

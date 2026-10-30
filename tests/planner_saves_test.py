@@ -891,6 +891,10 @@ async def review(s, pl, al, now):
     for a in COPY["airlines"]:
         await to_screen(pl, "performance", f"/performance/{a['code']}")
         await pg.click("#rev-expall")
+        # since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md) the route profit and fare plan tables are behind
+        # their charts' "show as table"
+        await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=false]').forEach(b => b.click())")
+        await pg.wait_for_timeout(300)
         key = await pg.evaluate("(document.querySelector('[data-fareadd]') || {dataset: {}}).dataset.fareadd || ''")
         if key:
             offer = (a, key)
@@ -902,6 +906,8 @@ async def review(s, pl, al, now):
     await s.act("performance: + fare plan", lambda: pg.click(f"[data-fareadd={json.dumps(key)}]"))
     fp = psql(f"select coalesce((select id::text from public.fare_plan where airline_id = {int(a['id'])} and status = 'planned' order by id desc limit 1), '')").strip()
     if fp:
+        await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=false]').forEach(b => b.click())")
+        await pg.wait_for_timeout(300)
         await s.act("performance: remove a planned fare change", lambda: pg.click(f"[data-faredel='{int(fp)}']"))
 
 
