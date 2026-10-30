@@ -15,6 +15,16 @@ C Today, Tails, Home and Systems.*
   series, a tip on hover or tap with the exact figure, colours from the planner's airline colours and its good/warn/bad
   tokens, and an empty state in words. Readable on a phone at 380 px (no sideways scroll; charts shrink or stack) and in
   dark mode if the planner has one.
+- **Every chart opens full size** (Gitesh, 30 Oct): clicking or tapping a chart opens it in a large overlay (most of
+  the window; full screen on a phone) drawn again at that size, with readable axis labels, the hover tips and its
+  "show as table" toggle; Esc, the X or a click outside closes it. In the chart kit, so every chart has it, the route
+  story's included. Keyboard reachable (the chart is a button with a label).
+- **Charts are readable where they sit:** axis labels and legends at least 11 px, never scaled down with the chart; a
+  chart too narrow for its labels drops some tick labels rather than shrinking text.
+- **Wide screens** (Gitesh, 30 Oct, on Routes at about 2,000 px): Routes' route detail uses the window's full width
+  above 1,600 px (no 1,100 px content cap there): the list 320–380 px, the route detail and the story sharing the rest,
+  the story the wider (about 55%), up to a sensible maximum (e.g. 2,560 px). Check the other screens' caps in the same
+  pass and widen any board grid that leaves half a wide screen empty, saying which in the PR.
 - **A table stays reachable:** where a table is replaced, a "show as table" toggle keeps the exact figures one tap away
   (remembered per board in the address or local storage, as the screens do now).
 - **Figures don't change:** the charts read the same model functions; unit tests check each chart's layout figures
