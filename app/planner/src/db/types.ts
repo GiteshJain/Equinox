@@ -1053,6 +1053,130 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"market_fares": {
+                  Row: {
+                    "airline_code": string,"airline_id": number | null,"finished": number,"flights": number,"price_avg": number | null,"price_high": number | null,"price_low": number | null,"read_id": number,"service_class": string,"sold_out": number,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_code": string,"airline_id"?: number | null,"finished": number,"flights": number,"price_avg"?: number | null,"price_high"?: number | null,"price_low"?: number | null,"read_id": number,"service_class": string,"sold_out": number,"world_id": number
+                  }
+                  Update: {
+                    "airline_code"?: string,"airline_id"?: number | null,"finished"?: number,"flights"?: number,"price_avg"?: number | null,"price_high"?: number | null,"price_low"?: number | null,"read_id"?: number,"service_class"?: string,"sold_out"?: number,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "market_fares_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "market_fares_read_world_fkey"
+      columns: ["read_id","world_id"]
+isOneToOne: false
+      referencedRelation: "market_reads"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
+                },"market_reads": {
+                  Row: {
+                    "airline_id": number,"dest": string,"error": string | null,"id": number,"ok": boolean,"origin": string,"read_at": string,"run_id": number,"service_code": string | null,"service_profile_game_id": number | null,"share_week": string | null,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"dest": string,"error"?: string | null,"id"?: never,"ok": boolean,"origin": string,"read_at"?: string,"run_id": number,"service_code"?: string | null,"service_profile_game_id"?: number | null,"share_week"?: string | null,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"dest"?: string,"error"?: string | null,"id"?: never,"ok"?: boolean,"origin"?: string,"read_at"?: string,"run_id"?: number,"service_code"?: string | null,"service_profile_game_id"?: number | null,"share_week"?: string | null,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "market_reads_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "market_reads_run_world_fkey"
+      columns: ["run_id","world_id"]
+isOneToOne: false
+      referencedRelation: "market_runs"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
+                },"market_runs": {
+                  Row: {
+                    "capture_version": string | null,"finished_at": string | null,"id": number,"note": string | null,"pages_expected": number | null,"pages_failed": number,"pages_read": number,"started_at": string,"status": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "capture_version"?: string | null,"finished_at"?: string | null,"id"?: never,"note"?: string | null,"pages_expected"?: number | null,"pages_failed"?: number,"pages_read"?: number,"started_at"?: string,"status"?: string,"world_id": number
+                  }
+                  Update: {
+                    "capture_version"?: string | null,"finished_at"?: string | null,"id"?: never,"note"?: string | null,"pages_expected"?: number | null,"pages_failed"?: number,"pages_read"?: number,"started_at"?: string,"status"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "market_runs_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"market_shares": {
+                  Row: {
+                    "airline_id": number,"change_pts": number | null,"kind": string,"read_id": number,"share_pct": number,"week": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"change_pts"?: number | null,"kind": string,"read_id": number,"share_pct": number,"week": string,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"change_pts"?: number | null,"kind"?: string,"read_id"?: number,"share_pct"?: number,"week"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "market_shares_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "market_shares_read_world_fkey"
+      columns: ["read_id","world_id"]
+isOneToOne: false
+      referencedRelation: "market_reads"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
+                },"market_weeks": {
+                  Row: {
+                    "dest": string,"origin": string,"price_per_unit": number | null,"read_at": string,"run_id": number,"seats": number | null,"week": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "dest": string,"origin": string,"price_per_unit"?: number | null,"read_at": string,"run_id": number,"seats"?: number | null,"week": string,"world_id": number
+                  }
+                  Update: {
+                    "dest"?: string,"origin"?: string,"price_per_unit"?: number | null,"read_at"?: string,"run_id"?: number,"seats"?: number | null,"week"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "market_weeks_run_world_fkey"
+      columns: ["run_id","world_id"]
+isOneToOne: false
+      referencedRelation: "market_runs"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "market_weeks_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"markets": {
                   Row: {
                     "airline_id": number,"created_at": string,"id": number,"layout": string,"name": string,"updated_at": string,"world_id": number
@@ -1996,6 +2120,9 @@ isOneToOne: false
                            },
 "capture_ingest":
 { Args: { "p_airline": string,"p_key": string,"p_kind": string,"p_page": string,"p_rows": Json }; Returns: Json
+                           },
+"capture_market":
+{ Args: { "p_key": string,"p_kind": string,"p_payload": Json }; Returns: Json
                            },
 "capture_scan":
 { Args: { "p_key": string,"p_kind": string,"p_payload": Json }; Returns: Json

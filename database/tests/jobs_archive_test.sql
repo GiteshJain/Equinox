@@ -6,7 +6,9 @@
 --      months back; change_log fourteen) are listed exactly; since 23 Oct scan_rival_connections (the rivals'
 --      connections, spec docs/specs/2026-10-23-rival-connections.md §2) goes with the scan schedules; scan_pair_airlines
 --      (each week's rivals by pair, kept for good, spec docs/specs/2026-10-23-rival-pairs-history.md §4) is left alone: never
---      listed or due, and the hand-made scan's kept rows stay through the delete.
+--      listed or due, and the hand-made scan's kept rows stay through the delete. Since 30 Oct the market pages' detail
+--      (market_reads, market_fares, market_shares; spec docs/specs/2026-10-30-market-pages.md) is listed too, one month
+--      kept; database/tests/market_pages_test.sql archives it.
 --   2. The manifest: the row count, the checksum (worked out here independently: md5 of every row as Postgres prints it,
 --      in UTC, joined by newlines, in primary-key order), the table's layout and the latest migration version; the
 --      export query gives exactly those rows.
@@ -27,7 +29,7 @@ declare
   m date; mc date; v_scan bigint; d date; bad text; n bigint; f1 bigint;
 begin
   assert (select string_agg(table_name || ':' || keep_months, ', ' order by table_name) from private.archive_tables())
-         = 'change_log:12, game_events:1, game_flights:1, game_scan_airports:1, game_scan_schedules:1, scan_rival_connections:1',
+         = 'change_log:12, game_events:1, game_flights:1, game_scan_airports:1, game_scan_schedules:1, market_fares:1, market_reads:1, market_shares:1, scan_rival_connections:1',
     'the archive''s tables aren''t design §7''s';
   -- left alone (since 23 Oct): the week's rivals by pair are kept for good
   assert not exists (select 1 from private.archive_tables() t where t.table_name = 'scan_pair_airlines')
