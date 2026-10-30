@@ -55,7 +55,11 @@ it wouldn't be (terms §5.3).
 ## What gets built (C), in the Building chat
 1. **Capture 1.9, the market pages:** when one is due (the Friday capture: `settings.market_read_weekday`, 5; 0 off),
    after the world scan, the userscript reads `/app/com/markets/<FROM><TO>` for both directions of each pair the
-   database lists (`capture_airlines()` says what's due, as for the scan), parses the four sections in the browser, and
+   database lists (`capture_airlines()` says what's due, as for the scan). The page belongs to the airline that is
+   open (its airport lists are that airline's stations and its pricing is that airline's), so the pairs come grouped by
+   the airline that flies them, and the userscript switches to each airline once
+   (`/app/enterprise/dashboard?select=<game id>`, as the fares userscript does) and checks the page shows that airline
+   before reading its pairs (one airline per pair, §2, so six switches). It parses the four sections in the browser, and
    sends the figures with the capture key to a new `capture_market()`. Its panel shows "Market pages: 120 of 686…",
    with Stop; a reload carries on; a failed page is logged and skipped, as the scan does. Tested on Gitesh's saved
    DUB→AMS page (a dated sample in `tests/fixtures/`).
