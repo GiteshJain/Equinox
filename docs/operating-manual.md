@@ -28,14 +28,6 @@ Until each is built and merged, the rules below stand as they are.
   rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **The market pages, once a week** (§7, decided 30 Oct): when the latest finished read is at least
-  `settings.market_every_days` (7) capture days old, the evening capture also reads the game's Market Analysis page for
-  both directions of every pair we fly (about 686 pages, 10 to 12 minutes), switching to each pair's airline first,
-  setting the page's listing filters to our setup when one differs (never the Pricing or settings forms); it keeps the figures only (each
-  airline's fares by class, the game's passenger share, the pair's weekly seats and price). The route page,
-  Competition and the weekly report show rivals' fares and that share. Nothing in the fare ladder or the openings uses
-  them. Until it's built, Competition's share stays the scan's. *(since 30 Oct, brief
-  `docs/briefs/2026-10-29-market-pages.md`; history: rule-history.md)*
 
 Details and open points: `docs/decisions.md`.
 
@@ -466,7 +458,9 @@ Details and open points: `docs/decisions.md`.
 - **Service codes by distance:** every leg carries the service profile its route's distance calls for: S1 under 800 km,
   S2 from 800 to 1,500 km, S3 over 1,500 km; Ryanair R on every route (`service_profiles`, Reference → service
   profiles). The plan card's service check marks a wrong code in red, and it's fixed before the card is filed.
-  *(since 10 Oct; written into the manual 21 Oct)*
+  Each weekly market read also checks the game: a pair whose service profile in the game differs from its distance's
+  code or from the planner's legs is an item on Today (Service in the game) until it's fixed in the game (since 30 Oct;
+  `market_service_checks()`). *(since 10 Oct; written into the manual 21 Oct)*
 - **Block time** = 25 minutes (`settings.block_allowance_min`) + distance ÷ speed: A320 family 840 km/h, E-jets 830,
   A350 910 (`aircraft_types.cruise_kmh`).
 - **Three banks per hub;** bank times are in `airline_bases.bank_times` (the planner's Reference → hubs), the bank
@@ -582,6 +576,16 @@ Details and open points: `docs/decisions.md`.
     failed that evening; a failed scan page is logged and skipped, and with more than 10% of the airlines failed the
     scan isn't finished, so the Systems board keeps the last finished one. Raise `scan_every_days` to 3 (about twice a
     week) if the evening gets long. *(since 21 Oct; history: rule-history.md)*
+  - **Then the market pages, once a week** (since 30 Oct, capture 1.9): after the world scan, when the latest finished
+    market run is at least `settings.market_every_days` (7) capture days old, the capture reads the game's Market
+    Analysis page for both directions of every pair we fly (about 686 pages, 10 to 12 minutes; keep the tab open),
+    switching to each pair's airline first. If a listing filter differs from our setup (every class and status, own
+    flights shown, grouped by flight) it sets it back; it never submits the Pricing or settings forms. It keeps the
+    figures only (`market_reads`, `market_fares`, `market_shares`, `market_weeks`: each airline's fares by class, the
+    game's passenger share, our service profile on the pair, the pair's weekly seats and price), and more than 10% of
+    pages failed leaves the run unfinished, as the scan. The route page, Competition (the game's share beside the
+    scan's), the weekly report and the Systems board's market line read them; nothing in the fare ladder or the openings
+    does. *(since 30 Oct, brief `docs/briefs/2026-10-29-market-pages.md`; history: rule-history.md)*
   - **Rivals' fleets, with every scan** (since 23 Oct, capture 1.8): after each airline's schedule the scan reads its
     overview page (its Fleet table and general figures; about 171 more pages, about 3 minutes) and keeps each rival's
     fleet and aircraft on order by type (`scan_airline_fleet`, `scan_airline_profile`, kept for good). A failed overview
