@@ -43,7 +43,9 @@ Every rule in force for the equinox. group, with the date it started and why. De
 when due rather than on a fixed weekday, as the world scan) · why: the fare ladder moved on our own loads with no view
 of rivals' fares, and Competition's share was worked out from the scan's departures; the game's Market Analysis page
 gives both per pair and direction. Once a week matches the Saturday fare moves; raw pages (about 290 KB each) aren't
-kept, to stay well under the 350 MB trigger.* New item in *Decided, not yet built*; no rule replaced.
+kept, to stay well under the 350 MB trigger.* New item in *Decided, not yet built*; no rule replaced. The same night
+(Gitesh): the capture sets the page's listing filters itself instead of stopping; the item said before "checking the
+page's filters (stopping if one differs) and never submitting a form".
 
 ### Long haul in 7-day lines: built 28 Oct (#118 to #121)
 *Decided 27 Oct (Gitesh, option B) · why: beyond about 7,750 km a round trip with turns and maintenance takes more than

@@ -31,7 +31,7 @@ Until each is built and merged, the rules below stand as they are.
 - **The market pages, once a week** (§7, decided 30 Oct): when the latest finished read is at least
   `settings.market_every_days` (7) capture days old, the evening capture also reads the game's Market Analysis page for
   both directions of every pair we fly (about 686 pages, 10 to 12 minutes), switching to each pair's airline first,
-  checking the page's filters (stopping if one differs) and never submitting a form; it keeps the figures only (each
+  setting the page's listing filters to our setup when one differs (never the Pricing or settings forms); it keeps the figures only (each
   airline's fares by class, the game's passenger share, the pair's weekly seats and price). The route page,
   Competition and the weekly report show rivals' fares and that share. Nothing in the fare ladder or the openings uses
   them. Until it's built, Competition's share stays the scan's. *(since 30 Oct, brief

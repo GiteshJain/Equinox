@@ -63,9 +63,9 @@ it wouldn't be (terms §5.3).
    before reading its pairs (one airline per pair, §2, so six switches). **The game keeps the page's filters between
    visits** (Gitesh, 30 Oct), and they are in each page's markup, so the userscript checks them on every page against
    the setup in the saved page: every service class and every flight status ticked, Ignore own flights off, Group by
-   flight on. If one differs it stops before reading and says which to set; it never changes a filter itself. **It
-   only reads:** the page also holds the Pricing and settings forms, which change our fares, and the userscript never
-   submits any form (its test checks that nothing is sent to the game). It parses the four sections in the browser, and
+   flight on. If one differs it sets it through that filter's own control and checks again (Gitesh, 30 Oct), stopping
+   only if it won't take. **The filters are the only thing it changes:** the page also holds the Pricing and settings
+   forms, which change our fares, and the userscript never submits them (its test checks it). It parses the four sections in the browser, and
    sends the figures with the capture key to a new `capture_market()`. Its panel shows "Market pages: 120 of 686…",
    with Stop; a reload carries on; a failed page is logged and skipped, as the scan does. Tested on Gitesh's saved
    DUB→AMS page (a dated sample in `tests/fixtures/`).
@@ -103,5 +103,5 @@ Two pull requests: capture and database first, then the planner and the report.
 
 ## Outcome
 **30 Oct 2026, Gitesh: C, once a week when due** (every 7 capture days, as the world scan runs, not on a fixed
-weekday): `settings.market_every_days`, 7. The capture checks the page's filters and never submits a form (above).
+weekday): `settings.market_every_days`, 7. The capture sets the page's filters to the saved setup itself and never submits the Pricing or settings forms (above).
 Manual: *Decided, not yet built* until the build merges, then §7.

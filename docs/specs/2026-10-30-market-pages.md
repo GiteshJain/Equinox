@@ -25,8 +25,11 @@ list, cash) cut out and the rest left as saved.
 What to read from it:
 1. **The filters** (in the markup, `pair:pair-panel:listing:filters:*`): every `serviceClasses` and every `flightStati`
    checkbox checked, `ignoreCarriers` unchecked, `display` (Group by flight) checked. The game keeps them between
-   visits. If any differs, the page is **not read**: the run stops and the panel says which filter to set ("Market
-   pages: on DUB→AMS, tick 'cancelled' under Flight status, then press Capture again").
+   visits. **If any differs, the userscript sets it** through that filter's own listing control only (the page's
+   Wicket calls `...-listing-filters-serviceClasses`, `-flightStati`, `-ignoreCarriers`, `-display`, as its load
+   script names them; the evaluation userscript shows how to post to a Wicket page), then fetches the page again and
+   checks. Only if a filter still differs does the run stop, naming it ("Market pages: couldn't set 'cancelled' under
+   Flight status on DUB→AMS"). The panel notes each filter it set (Gitesh, 30 Oct).
 2. **Current Availability** (`#inventory-grouped-table`): one `tbody` per flight: the flight (`KL 8`), the aircraft
    type, the date and times (each cell's title gives UTC), then a row per class (`Y`, `C`, `F`, `Cargo`) with seats left
    (shown at most 9 for passengers) and price (`120 AS$`), and the status (finished, booked, inflight, cancelled).
@@ -47,8 +50,8 @@ What to read from it:
 - **Switch airline** before each airline's pairs, as the fares userscript does
   (`/app/enterprise/dashboard?select=<game id>`), and check the first page shows that airline open (as the fares
   userscript checks; stop if not).
-- Each page by `fetch` with the session's cookies, **GET only, no form is ever submitted** (the page also holds the
-  Pricing and settings forms, which change our fares). Pace 500 ms between pages. A page that doesn't parse is sent as
+- Each page by `fetch` with the session's cookies. **The only posts allowed are the four listing filters above;** the
+  Pricing and settings forms on the same page change our fares and are never submitted. Pace 500 ms between pages. A page that doesn't parse is sent as
   failed with its error and skipped; a filter mismatch or the session lost stops the run.
 - Sends to a new `capture_market(p_key, p_kind, p_payload)` with the capture key: `start`, `page` (the parsed
   figures, never the HTML), `finish`. A run with more than 10% of pages failed isn't finished, as the scan's 10%.
@@ -81,7 +84,9 @@ What to read from it:
 - `tests/capture_market_test.mjs`: the parser on the saved page gives the filters as expected, every flight's classes
   and prices (KL 8: Y 120, C 245, Cargo 91; EI 506: F 457), the shares (KLM 68.46, −10.32; Aer Lingus 24.61; Ryanair
   6.94) and the historic weeks (week 43: 9,616 seats, 122 AS$); a page with one filter changed is refused and named;
-  a whole run against a stand-in for the game makes only GETs (no POST, no form) and switches airline once per airline.
+  a page with filters off is set right through the four filter calls and then read; a filter that won't take stops
+  the run, named; a whole run against a stand-in for the game posts only to the four filter calls (never the Pricing
+  or settings forms) and switches airline once per airline.
 - `database/tests/market_pages_test.sql`: `capture_market()` start, pages and finish on the saved page's figures
   give the expected rows; due and not due by `market_every_days`; an open run carried on; an unknown enterprise added;
   wrong key refused; staff can read, `anon` can't.
