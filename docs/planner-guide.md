@@ -182,6 +182,13 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
     age (3 years, now 3.0)"), and one marked new that is older in the game than its time with us ("N023AW (JFK): looks
     used (3.6 years in the game), marked new"). The ages are settings: *replace_new_years* (3), *replace_used_years*
     (10) and *replace_warn_days* (60).
+  - **Service in the game** (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md): the service check
+    (*market_service_checks()*) on the latest weekly market read: one amber item per pair and direction whose On-Board
+    Service in the game differs from the code its distance calls for (manual §4: S1 under 800 km, S2 to 1,500, S3
+    beyond, Ryanair R) — listed first, "AMS→DUB (FR): S1 in the game, its 750 km calls for R" — then those that match
+    the distance but not the planner's frequencies that way ("MAD→BCN (FR): R in the game, the planner has S1"). Each
+    opens the route's page. Fix it in the game (or on Routes); the next weekly read clears it. Dismissed, it comes back
+    if the next read finds it set differently again. Nothing until the first market read.
 
   **×** dismisses an item and **show again** (under the tiles) brings every dismissed item back. Fare-plan items aren't listed here;
   they're reviewed weekly. An aircraft's pop-up keeps its address (/planner/today?aircraft=N001AW).
@@ -518,15 +525,36 @@ fold them, and a row's title opens or closes it.
     Ryanair Standard; no market or route choice changes it), **launched** (the first frequency's launch day, and how many days ago), departures a week each way,
     the types flying it, and each cabin's fare level with this Saturday's move (since 26 Oct each direction's, "EDI → FRA
     economy 105% · up to 110%"; the Since launch chart's level line follows the out direction). **‹ <airline>** goes back to the
-    airline's page; **Schedule in Routes** opens the route on Routes.
+    airline's page; **Schedule in Routes** opens the route on Routes. Since 30 Oct (spec
+    docs/specs/2026-10-30-market-pages-planner.md) it also says the service set in the game, from the latest market read
+    ("service S2 in the game", or each way's when they differ), in amber when the service check finds this route set
+    differently from its distance's code or the planner's (Today's **Service in the game** says which).
+  - **The boards, since 30 Oct:** ten, paired in two columns on a wide screen (1100 px and wider; one column, in the
+    same order, on a narrower one): Since launch · Load by direction, Loads by flight · Profit an aircraft hour, Rival
+    fares · Market share, Rivals on the pair · Rivals over time, Events · Connections. Until the first market read lands
+    each market board says "No market read yet: the capture reads the market pages once a week".
   - **The last 7 days against the 7 before:** load, passengers, profit, profit an aircraft hour and the economy and
     business fares, each with its arrow (the week ending on the latest captured day; nothing to compare without a week
     before it).
   - **Since launch:** one chart: the economy and business loads a day, the fare level as a dashed step (its scale on the
     right: the launch level, then each level the fare ladder put on the fare plan), and a dot under each day with an
     event. Point at a day for its figures and events. Under 14 days of flights it says so instead.
+  - **Load by direction** (since 30 Oct): the economy load each day since launch, out from the hub and back to it as two
+    lines, on the Since launch chart's days, with each direction's fare level as a dashed step on the right (the ladder's
+    rows for that direction, and those for both). Under 14 days of flights it says so.
+  - **Loads by flight** (since 30 Oct): each flight number on the route over the last 7 days, out first, then back, by its
+    local departure: its way, departure, average economy load (a bar), flights, and how many were 95% or more (the
+    loads figure has no exactly-sold-out count; a flight with no load captured counts as full, as Routes counts it).
   - **Profit an aircraft hour:** a bar a week (profit ÷ the block hours flown), up to 13 weeks. The airline's average
     isn't drawn: route profit covers only the last few days.
+  - **Rival fares** (since 30 Oct): from the latest market read, a table each way: every airline on the pair, ours first
+    and marked, then the rivals cheapest first, with its economy and business fares (the average, and lowest–highest
+    when they differ), the flights the page showed, and its economy flights sold out of those finished (a finished
+    flight with no seat left). Under each table, ours against the cheapest rival's economy fare ("we're 15% under KLM").
+  - **Market share** (since 30 Oct): the game's own share of the pair's passengers this calendar week, each way, as a bar
+    (ours dark, the top 3 rivals, the rest as others), with our change in points against last week and the top 5 listed.
+    Under it, for comparison, the scan's departures share (Rivals on the pair's): the game counts passengers, the scan
+    flights.
   - **Events,** newest first, 10 shown with **show all**: launched; a frequency added or removed, an aircraft changed or
     a retime (each save on Routes, Tails or Today's Game check, from the change log; a data fix made by a migration isn't
     one); each fare plan row (a fare test, or the ladder's move, and whether it was dropped); and a rival who started
@@ -544,6 +572,10 @@ fold them, and a row's title opens or closes it.
     kept for good. When some points are weekly, a note under the line says how many and from when every scan is shown
     ("3 weekly points before Sat, Nov 1 (one scan a week, kept after the monthly archive); every scan from then").
     Connecting departures are shown only for scans that still have their full schedules.
+  - **Rivals over time** (since 30 Oct): each airline's direct departures a week on the pair at every world scan since
+    launch (one scan a week before the last month), as lines: ours bold, the top 5 rivals by their most at any scan, and
+    the rest as "other rivals"; point at a dot for its numbers. Under it, the pair's seats offered (bars, both ways
+    together) and price per unit (a line, right) by calendar week, from the market reads.
   - **Connections:** at each end, how many city pairs its flights connect to and the top 10 with how many times a week,
     onward (from the far end through this one) and feeding (into the far end), from the minimum connection time up to
     8 hours across all our airlines (the plan card's rule).
@@ -564,7 +596,8 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   against the latest one at least 6 days older, else the oldest there is). Under it, the group line: our airlines'
   departures a week against the world's, our share and its arrow (on an airline's page its own departures first).
 - **The group** (/planner/competition): a tile per airline (three a row, two in a narrow window, one on a phone) with
-  its share across its markets and its arrow, its threats in the last 7 days (amber) and its top opening in one line;
+  its share across its markets and its arrow (since 30 Oct, with the game's passenger share across its markets under it
+  where any has a market read), its threats in the last 7 days (amber) and its top opening in one line;
   tap one to open it. Under them, **Threats**: every airline's in one table (airline, rival, pair, the numbers, the day
   and until when the fares hold, and the link to the route's page), newest first; on a phone each is a compact row.
   Under it (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md), **Order books**: the rivals whose aircraft on
@@ -581,7 +614,11 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     arrow against the week-before scan, and the top rivals as a bar (ours dark, the rivals grey) and a list with their
     departures, share and change. Our own departures are the live schedule's; a week before, the scan's. Since 23 Oct a
     line under it gives the rivals' direct and connecting departures apart ("Rivals: 160 direct · 14 connecting"), with
-    the connecting airports; the share counts direct only.
+    the connecting airports; the share counts direct only. Since 30 Oct (spec
+    docs/specs/2026-10-30-market-pages-planner.md), where the market's pairs have market reads, a line with **the game's
+    passenger share**: our share of the passengers on the market's pairs read in the latest weekly read, each direction
+    weighted by the seats it offered that week, with its arrow against last week ("game share 38.0% (pairs read: 12 of
+    14)"). It sits beside the scan's departures share and never replaces it; nothing before the first read.
   - **Threats:** each rival who started on a pair the airline flies (none in the scan before) or added at least 7
     departures a week (*competition_threat_min_weekly*), with the numbers then and now, ours, the day and until when
     the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance; a table, newest first.
@@ -732,6 +769,10 @@ Each button is saved on its own, as one change.
     unfinished for over an hour is marked stopped when the next one starts, with a note of how far it got. Since 23 Oct
     it says how many fleet pages (each airline's overview page, its fleet and aircraft on order) the latest scan read,
     and how many failed ("171 fleet pages, 2 failed"); a failed fleet page never stops a scan.
+  - **Market pages** (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md): the latest finished weekly read
+    of the game's Market Analysis pages, its age, its pages and how many failed, and how many service mismatches the
+    service check found (Today's **Service in the game**); amber over 8 days, red over 15, as the world scan. Before
+    the first read it says "No market read yet: the capture reads the market pages once a week", in amber.
   - **Planner build:** when this planner was built and the change it came from. After a merge the time moves within
     minutes; if it doesn't, Cloudflare's build failed (its log is in Cloudflare's dashboard).
   - **Database size, Report PDFs, The website's data:** each against its trigger (350 MB, 50 MB, 500 KB; manual §1),

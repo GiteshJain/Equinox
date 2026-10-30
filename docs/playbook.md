@@ -322,7 +322,10 @@ as normal on Friday evening first.
      fares). Fare moves are only ever reviewed here, never as Needs attention.
    - **Competition** (since 21 Oct): each airline's market share against last week's scan, the threats of the week
      (Today listed each evening's), and the top openings the evening proposals are working down (Competition → the
-     airline). The weekly report's competition by market reads the same scans.
+     airline). The weekly report's competition by market reads the same scans. Since 30 Oct the report's competition
+     section also lists each airline's contested pairs with our economy fare against the cheapest rival's and the game's
+     passenger share each way, from the latest weekly market read; a route's page has the same under **Rival fares** and
+     **Market share**.
    - **Route profit:** routes marked **add a flight**, **raise fares** or **hold** (Performance → the airline); anything
      under **Fix or reduce** (Performance → Growth signals). The scorecards say how each airline moved since last week.
    - **A route we're unsure about** (since 22 Oct): open its route page (Performance → the airline → the route's name,

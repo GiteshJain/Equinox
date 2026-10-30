@@ -1,7 +1,8 @@
 // Systems (spec docs/specs/2026-10-20-today-performance-systems.md): the plumbing, rarely opened. At the top the Systems
 // board (decision #23, SystemsBoard.tsx), always open: one line each, green, amber or red, with when, for each airline's
 // evening capture (with #21's verdict), the daily snapshot, the nightly backup, the monthly archive, the clean-ups, the
-// world scan, the planner's own build and the usage the database can measure (system_status()). Then the boards that fold
+// world scan, since 30 Oct the market pages (with the service check's mismatches, market_service_checks()), the planner's
+// own build and the usage the database can measure (system_status()). Then the boards that fold
 // (all folded on arrival, Collapse all and Expand all), each moved here on 20 Oct as it was:
 //   - Capture: what the capture collected for each airline and when (capture_status()), with Reload, and the backup's
 //     line (Check's);
@@ -44,7 +45,7 @@ import {
   captureStatus, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, nightWords, pctWords, replaceAtWords, seatWords, signedAsd, yearsWords, type BoardKey,
   type CabinCharges, type CabinProblem, type FleetChecks,
 } from "./model";
-import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useSystemStatus } from "./reads";
+import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useServiceChecks, useSystemStatus } from "./reads";
 import { SystemsBoard } from "./SystemsBoard";
 import { boardSummary, boardTitle, systemLines } from "./systems";
 
@@ -83,6 +84,8 @@ export function Systems() {
   const logQ = useCashLog(w);
   const cabinsQ = useCabinCharges(w !== undefined);
   const fleetQ = useFleetChecks(w);
+  // the service check (since 30 Oct): its mismatches on the market pages' line
+  const checksQ = useServiceChecks(w !== undefined);
   // every board folded on arrival, but Cabin charges or Fleet open when Today's item sent you here
   const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS.filter((k) => !(k === "Cabin charges" && loc.hash === CABIN_HASH)
     && !(k === "Fleet" && loc.hash === FLEET_HASH))));
@@ -109,10 +112,11 @@ export function Systems() {
   }
 
   const scanEvery = rules ? Number(rules.input.settings.scan_every_days ?? NaN) : NaN;
-  const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now, Number.isFinite(scanEvery) ? scanEvery : null) : null),
-    [systemQ.data, now, scanEvery]);
-  const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && cabinsQ.data && fleetQ.data);
-  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, cabinsQ, fleetQ);
+  const mismatches = checksQ.data ? checksQ.data.mismatches.length : null;
+  const sysLines = useMemo(() => (systemQ.data ? systemLines(systemQ.data, buildStamp(), now, Number.isFinite(scanEvery) ? scanEvery : null, mismatches) : null),
+    [systemQ.data, now, scanEvery, mismatches]);
+  const ready = !!(sysLines && rules && airlinesQ.data && captureQ.data && backupsQ.isSuccess && logQ.data && cabinsQ.data && fleetQ.data && checksQ.data);
+  const loadError = firstError(world, systemQ, airlinesQ, rulesQ, captureQ, logQ, cabinsQ, fleetQ, checksQ);
   const toggle = (k: BoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const board = (k: BoardKey, children: ReactNode, aside?: ReactNode, id?: string, lead: ReactNode = NOTES[k]) => (
     <FoldBoard key={k} k={k} id={id} title={<span className="fbname">{k}</span>} note={SHORT[k]} aside={aside} folded={folded.has(k)}

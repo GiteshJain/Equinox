@@ -1011,10 +1011,40 @@ export interface RouteStory {
     /** Since 23 Oct: how many points are weekly (read from the kept rows), and the first point from full schedules
      *  (null when there is no weekly point, or when every point is weekly). */
     weekly_points?: number; daily_from?: string | null;
+    /** Since 30 Oct: each airline's direct departures a week at each scan in shares, ours included. */
+    history?: StoryHistory[];
   };
   scans: { latest: ScanRef | null; week_before: ScanRef | null; since_launch: ScanRef[] };
   notes: string[];
+  /** Since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §2): the days by direction, for Load by direction. */
+  days_by_direction?: StoryDirDay[];
+  /** Since 30 Oct: the market pages, each direction's latest read in a finished run; null when none. */
+  market?: StoryMarket | null;
 }
+
+// ---------- since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §2): route_story()'s new keys
+/** A UTC day of one direction (out from the hub, back to it): each cabin's passengers, seats and load. */
+export interface StoryDirDay {
+  day: string; direction: LadderDirection; flights: number;
+  eco_pax: number | null; eco_seats: number | null; eco_load_pct: number | null;
+  bus_pax: number | null; bus_seats: number | null; bus_load_pct: number | null;
+}
+/** Each airline's direct departures a week on the pair at one scan (ours true for this airline). */
+export interface StoryHistory { scan_id: number; taken_at: string; weekly: boolean; airlines: { airline_id: number; name: string; weekly: number; ours: boolean }[] }
+/** An airline's fares in one class on a page read (AS$). */
+export interface MarketFare {
+  airline_id: number | null; code: string; name: string; ours: boolean; class: "Y" | "C" | "F" | "Cargo";
+  flights: number; low: number | null; avg: number | null; high: number | null; finished: number; sold_out: number;
+}
+/** An airline's share of the pair's passengers this week (%), its change in points and last week's. */
+export interface MarketShare { airline_id: number; name: string; ours: boolean; share: number; change: number | null; before: number | null }
+export interface MarketDirection {
+  direction: LadderDirection; from: string; to: string; read_id: number; run_id: number; read_at: string; week: string | null;
+  service_code: string | null; service_profile_game_id?: number | null; read_by?: number;
+  fares: MarketFare[]; shares: MarketShare[];
+}
+export interface MarketWeek { direction: LadderDirection; week: string; seats: number | null; price_per_unit: number | null }
+export interface StoryMarket { run: { id: number; started_at: string; finished_at: string | null }; out: MarketDirection | null; back: MarketDirection | null; weeks: MarketWeek[] }
 
 const pct1 = (v: number | null | undefined): string => (v == null ? "—" : `${Math.round(v * 10) / 10}%`);
 const thousands = (v: number | null | undefined): string => (v == null ? "—" : `${v < 0 ? "−" : ""}${Math.round(Math.abs(v) * 1000)}k`);
@@ -1110,10 +1140,11 @@ export const eventWords = (e: Pick<StoryEvent, "kind" | "words">): string => {
 
 /** Each cabin's fare level on each day given: the launch level, then each of the ladder's fare plan rows (an event with a
  *  level, not dropped) from the day it was proposed. Null for business with no ladder row of its own. Since 26 Oct a row
- *  may be one direction's: the chart's line is the out direction's (from the hub), so a row for both or for out counts,
- *  one for back doesn't. */
-export function levelSteps(s: RouteStory, cabin: "economy" | "business", days: readonly string[]): (number | null)[] | null {
-  const rows = s.events.filter((e) => e.kind === "fare" && e.level != null && !e.dropped && (e.cabin ?? "economy") === cabin && e.direction !== "back")
+ *  may be one direction's: the since-launch chart's line is the out direction's (from the hub), so a row for both or for
+ *  out counts, one for back doesn't; since 30 Oct Load by direction asks for back too (a row for both or for back). */
+export function levelSteps(s: RouteStory, cabin: "economy" | "business", days: readonly string[], direction: LadderDirection = "out"): (number | null)[] | null {
+  const rows = s.events.filter((e) => e.kind === "fare" && e.level != null && !e.dropped && (e.cabin ?? "economy") === cabin
+      && (e.direction == null || e.direction === direction))
     .slice().sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   if (cabin === "business" && !rows.length) return null;
   return days.map((d) => {
@@ -1304,8 +1335,12 @@ export function routeConnections(rules: Rules, route: { id: number; hub: string;
   });
 }
 
-/** The route page's boards, top to bottom (the header and the week's comparison above them aren't boards). */
-export const ROUTE_BOARDS = ["Since launch", "Profit an aircraft hour", "Events", "Rivals on the pair", "Connections"] as const;
+/** The route page's boards in their order (the header and the week's comparison above them aren't boards). Since 30 Oct
+ *  (spec docs/specs/2026-10-30-market-pages-planner.md §1) ten, in pairs (left · right) on a wide screen: Since launch ·
+ *  Load by direction, Loads by flight · Profit an aircraft hour, Rival fares · Market share, Rivals on the pair · Rivals
+ *  over time, Events · Connections; one column, in this order, on a narrow one. */
+export const ROUTE_BOARDS = ["Since launch", "Load by direction", "Loads by flight", "Profit an aircraft hour", "Rival fares", "Market share",
+  "Rivals on the pair", "Rivals over time", "Events", "Connections"] as const;
 export type RouteBoardKey = (typeof ROUTE_BOARDS)[number];
 /** The route in the address, "JFK-ORD", as its two codes; null when it isn't two codes. */
 export function parseRouteKey(key: string | undefined): { hub: string; dest: string } | null {
@@ -1313,4 +1348,310 @@ export function parseRouteKey(key: string | undefined): { hub: string; dest: str
   try { k = decodeURIComponent(key ?? ""); } catch { return null; }
   const m = /^([A-Z0-9]{3,4})-([A-Z0-9]{3,4})$/.exec(k.toUpperCase());
   return m ? { hub: m[1] as string, dest: m[2] as string } : null;
+}
+
+// ---------- the market pages on the route page (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §1):
+// Load by direction, Loads by flight, Rival fares, Market share and Rivals over time, and the service in the header. Every
+// figure is route_story()'s (or route_loads()'s, and the service check's); here only worded and laid out.
+
+/** What every market board says until the first market read lands. */
+export const NO_MARKET_READ = "No market read yet: the capture reads the market pages once a week";
+
+const dayAxis = (s: RouteStory): string[] => {
+  const first = s.days[0]?.day ?? "";
+  const lastFlown = s.days[s.days.length - 1]?.day ?? first;
+  const lastDay = s.latest_day && s.latest_day > lastFlown ? s.latest_day : lastFlown;
+  const n = Math.round((Date.parse(lastDay + "T00:00:00Z") - Date.parse(first + "T00:00:00Z")) / 86_400_000) + 1;
+  return Array.from({ length: Math.max(0, n) }, (_, i) => dayMinus(first, -i));
+};
+
+export interface DirChartLayout {
+  W: number; H: number; L: number; R: number; T: number; B: number;
+  days: string[];
+  grid: { y: number; label: string }[];
+  rgrid: { y: number; label: string }[];
+  out: string; back: string; levelOut: string | null; levelBack: string | null;
+  xLabels: { x: number; label: string }[];
+  cols: { x: number; w: number; tip: string }[];
+}
+/** Load by direction (since 30 Oct): economy load each UTC day since launch, out (from the hub) and back as two lines, on the
+ *  since-launch chart's day axis and scale (1120 × 300); each direction's economy fare level as a step line on the right
+ *  axis (levelSteps, its own direction's ladder rows and those for both). Null under 14 days with flights, or with no
+ *  direction's days (an answer from before 30 Oct): the board says so. */
+export function dirChartLayout(s: RouteStory, nice: (day: string) => string): DirChartLayout | null {
+  const rows = s.days_by_direction ?? [];
+  if (s.days.length < STORY_MIN_DAYS || !rows.length) return null;
+  const days = dayAxis(s), n = days.length;
+  const W = 1120, H = 300, L = 46, R = 52, T = 14, B = 46;
+  const cw = (W - L - R) / n, X = (i: number) => L + (i + 0.5) * cw;
+  const Y = (v: number) => T + (100 - Math.max(0, Math.min(100, v))) / 100 * (H - T - B);
+  const by = new Map(rows.map((r) => [`${r.day}|${r.direction}`, r]));
+  const path = (dir: LadderDirection): string => {
+    let out = "", open = false;
+    days.forEach((day, i) => {
+      const v = by.get(`${day}|${dir}`)?.eco_load_pct ?? null;
+      if (v == null) { open = false; return; }
+      out += `${open ? " L" : out ? " M" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`;
+      open = true;
+    });
+    return out;
+  };
+  const lo0 = levelSteps(s, "economy", days, "out"), lb0 = levelSteps(s, "economy", days, "back");
+  const all = [...(lo0 ?? []), ...(lb0 ?? [])].filter((v): v is number => v != null);
+  const lo = all.length ? Math.floor((Math.min(...all) - 5) / 5) * 5 : 0, hi = all.length ? Math.ceil((Math.max(...all) + 5) / 5) * 5 : 1;
+  const RY = (v: number) => T + (hi - v) / (hi - lo || 1) * (H - T - B);
+  const step = (vals: (number | null)[] | null): string | null => {
+    if (!vals || !vals.some((v) => v != null)) return null;
+    let out = "", prev: number | null = null;
+    vals.forEach((v, i) => {
+      if (v == null) return;
+      const x0 = L + i * cw, x1 = L + (i + 1) * cw;
+      if (prev == null) out += `M${x0.toFixed(1)},${RY(v).toFixed(1)}`;
+      else if (prev !== v) out += ` L${x0.toFixed(1)},${RY(prev).toFixed(1)} L${x0.toFixed(1)},${RY(v).toFixed(1)}`;
+      out += ` L${x1.toFixed(1)},${RY(v).toFixed(1)}`;
+      prev = v;
+    });
+    return out;
+  };
+  const every = Math.max(1, Math.ceil(n / 12));
+  const r = s.route;
+  return {
+    W, H, L, R, T, B, days,
+    grid: [0, 25, 50, 75, 100].map((v) => ({ y: Y(v), label: `${v}%` })),
+    rgrid: all.length ? [lo, (lo + hi) / 2, hi].map((v) => ({ y: RY(v), label: `${Math.round(v * 10) / 10}%` })) : [],
+    out: path("out"), back: path("back"), levelOut: step(lo0), levelBack: step(lb0),
+    xLabels: days.flatMap((d, i) => (i % every === 0 || i === n - 1 ? [{ x: X(i), label: `${d.slice(8)}/${d.slice(5, 7)}` }] : [])),
+    cols: days.map((d, i) => {
+      const o = by.get(`${d}|out`), b = by.get(`${d}|back`), parts = [nice(d)];
+      parts.push(`${r.hub} → ${r.dest} ${o ? pct1(o.eco_load_pct) : "no flight"}`, `${r.dest} → ${r.hub} ${b ? pct1(b.eco_load_pct) : "no flight"}`);
+      const a = lo0?.[i], c = lb0?.[i];
+      if (a != null) parts.push(`fare level ${pts(a)}% out${c != null && c !== a ? `, ${pts(c)}% back` : ""}`);
+      return { x: L + i * cw, w: cw, tip: parts.join(" · ") };
+    }),
+  };
+}
+
+/** A flight number's loads over the last 7 days, as route_loads() gives them (its "flights"). */
+export interface FlightLoads { airline_id: number; flight_no: number; departures: number; average: number; full: number }
+export interface FlightLoadRow {
+  flight_no: number; direction: LadderDirection; from: string; to: string;
+  /** Its departure in the origin's local time ("06:00"), from the schedule the planner reads. */
+  dep_local: string | null;
+  /** Average economy load, %, and the bar's width (0–100). */
+  average: number; departures: number;
+  /** Departures at 95% or more (route_loads()' "full", as Routes' colours count it). */
+  full: number;
+}
+/** Loads by flight (since 30 Oct): each flight number on the route over the last 7 days, out first then back, each by its
+ *  local departure: its direction, departure, average load, departures and how many were full. The route's flight numbers
+ *  are its legs' in the schedule the planner reads; the loads are route_loads()' flights (no database change). */
+export function flightLoads(rules: Rules, routeId: number, airlineId: number, flights: readonly FlightLoads[]): FlightLoadRow[] {
+  const route = rules.routes.get(routeId);
+  if (!route) return [];
+  const seen = new Set<number>();
+  const rows: FlightLoadRow[] = [];
+  for (const l of rules.legs) {
+    const rot = l.rotation_id == null ? undefined : rules.rotations.get(l.rotation_id);
+    if (!rot || rot.route_id !== routeId || l.flight_no == null || seen.has(l.flight_no)) continue;
+    const f = flights.find((x) => x.airline_id === airlineId && Number(x.flight_no) === l.flight_no);
+    if (!f || !f.departures) continue;
+    seen.add(l.flight_no);
+    const dep = l.dep_utc_min == null ? null : time.clock(time.toLocal(rules, l.origin_code, l.dep_utc_min, time.DAY));
+    rows.push({
+      flight_no: l.flight_no, direction: l.origin_code === route.hub_code ? "out" : "back", from: l.origin_code, to: l.dest_code, dep_local: dep,
+      average: Math.round(Number(f.average) * 10) / 10, departures: Number(f.departures), full: Number(f.full ?? 0),
+    });
+  }
+  return rows.sort((a, b) => (a.direction === b.direction ? 0 : a.direction === "out" ? -1 : 1)
+    || (a.dep_local ?? "99").localeCompare(b.dep_local ?? "99") || a.flight_no - b.flight_no);
+}
+
+const fare = (v: number | null | undefined): string => (v == null ? "—" : `${Math.round(Number(v)).toLocaleString("en-GB")} AS$`);
+/** A class's fare: its average, with lowest–highest when they differ ("120 AS$ (110–130)"); "—" without one. */
+export function fareWords(f: Pick<MarketFare, "low" | "avg" | "high"> | undefined): string {
+  if (!f || f.avg == null) return "—";
+  const lo = f.low == null ? null : Math.round(Number(f.low)), hi = f.high == null ? null : Math.round(Number(f.high));
+  return fare(f.avg) + (lo != null && hi != null && lo !== hi ? ` (${lo.toLocaleString("en-GB")}–${hi.toLocaleString("en-GB")})` : "");
+}
+/** Ours against the cheapest rival's economy fare: "we're 15% under KLM", "8% over Aer Lingus", "level with KLM"; null
+ *  without both. */
+export function vsCheapestWords(ours: number | null | undefined, rival: { name: string; avg: number } | null): string | null {
+  if (ours == null || !rival || !(rival.avg > 0)) return null;
+  const p = Math.round((Number(ours) - rival.avg) / rival.avg * 100);
+  return p === 0 ? `we're level with ${rival.name}` : `we're ${Math.abs(p)}% ${p < 0 ? "under" : "over"} ${rival.name}`;
+}
+
+export interface FareRow { key: string; name: string; ours: boolean; eco: string; bus: string; flights: number; sold: string }
+export interface FareTable { direction: LadderDirection; label: string; read: string | null; rows: FareRow[]; vs: string | null }
+/** Rival fares (since 30 Oct): from the latest read of each direction, a table per direction (out, then back): each airline
+ *  on the pair (ours first, marked, then the rivals cheapest first), its economy and business fares, flights seen and
+ *  sold out of finished (economy), and ours against the cheapest rival's economy fare. none says so before the first read. */
+export function rivalFares(s: RouteStory, day: (iso: string) => string): { none: string | null; read: string | null; tables: FareTable[] } {
+  const m = s.market;
+  if (!m) return { none: NO_MARKET_READ, read: null, tables: [] };
+  const r = s.route;
+  const tables = (["out", "back"] as const).map((dir): FareTable => {
+    const d = m[dir];
+    const label = dir === "out" ? `${r.hub} → ${r.dest}` : `${r.dest} → ${r.hub}`;
+    if (!d) return { direction: dir, label, read: null, rows: [], vs: null };
+    const by = new Map<string, MarketFare[]>();
+    for (const f of d.fares) {
+      const k = f.airline_id != null ? `id${f.airline_id}` : `code${f.code}`;
+      by.set(k, [...(by.get(k) ?? []), f]);
+    }
+    const rows = [...by.entries()].map(([key, fs]) => {
+      const y = fs.find((f) => f.class === "Y"), c = fs.find((f) => f.class === "C");
+      const head = fs[0] as MarketFare;
+      const ref = y ?? head;
+      return { key, name: head.name || head.code, ours: fs.some((f) => f.ours), eco: fareWords(y), bus: fareWords(c), flights: Math.max(...fs.map((f) => Number(f.flights))),
+        sold: y ? `${y.sold_out} of ${y.finished}` : ref.finished ? `${ref.sold_out} of ${ref.finished}` : "—", yAvg: y?.avg == null ? null : Number(y.avg) };
+    }).sort((a, b) => Number(b.ours) - Number(a.ours) || (a.yAvg ?? Infinity) - (b.yAvg ?? Infinity) || a.name.localeCompare(b.name));
+    const ours = rows.find((x) => x.ours)?.yAvg ?? null;
+    const cheap = rows.filter((x) => !x.ours && x.yAvg != null)[0];
+    return { direction: dir, label, read: day(d.read_at), rows: rows.map((x) => ({ key: x.key, name: x.name, ours: x.ours, eco: x.eco, bus: x.bus, flights: x.flights, sold: x.sold })), vs: vsCheapestWords(ours, cheap ? { name: cheap.name, avg: cheap.yAvg as number } : null) };
+  });
+  return { none: null, read: day(m.run.started_at), tables };
+}
+
+/** A change in points with its arrow: "▲ 1.2 pts", "▼ 2 pts", "= no change"; "" without one. */
+export const ptsChange = (v: number | null | undefined): string =>
+  v == null ? "" : Math.abs(Number(v)) < 0.05 ? "= no change" : `${Number(v) > 0 ? "▲" : "▼"} ${pts(Math.abs(Number(v)))} pt${Math.abs(Number(v)) === 1 ? "" : "s"}`;
+
+export interface ShareDir {
+  direction: LadderDirection; label: string; week: string | null;
+  /** Ours, the top 3 rivals and the rest as "others", widths in percent. */
+  bar: { label: string; pct: number; ours: boolean }[];
+  ours: number | null; before: number | null; change: string;
+  rows: { name: string; ours: boolean; share: string; change: string }[];
+}
+/** Market share (since 30 Oct): the game's passenger share on the pair, this week against last, each direction: a bar of
+ *  ours and the top rivals (the rest grouped), our change in points; and beside it the scan's departures share for
+ *  comparison (rivals on the pair's). */
+export function marketShareView(s: RouteStory): { none: string | null; dirs: ShareDir[]; scan: string } {
+  const r = s.route, rv = s.rivals;
+  const scan = rv.share != null ? `the scan's departures share, for comparison: ${pct1(rv.share)} (ours ${rv.ours} of ${rv.ours + rv.rivals_weekly} a week, both ways)`
+    : "the scan's departures share, for comparison: no world scan yet";
+  const m = s.market;
+  if (!m) return { none: NO_MARKET_READ, dirs: [], scan };
+  const dirs = (["out", "back"] as const).flatMap((dir): ShareDir[] => {
+    const d = m[dir];
+    if (!d) return [];
+    const label = dir === "out" ? `${r.hub} → ${r.dest}` : `${r.dest} → ${r.hub}`;
+    const sh = [...d.shares].sort((a, b) => Number(b.share) - Number(a.share));
+    const mine = sh.find((x) => x.ours);
+    const rivals = sh.filter((x) => !x.ours);
+    const top = rivals.slice(0, 3), rest = rivals.slice(3).reduce((t, x) => t + Number(x.share), 0);
+    const bar = [...(mine ? [{ label: mine.name, pct: Number(mine.share), ours: true }] : []),
+      ...top.map((x) => ({ label: x.name, pct: Number(x.share), ours: false })),
+      ...(rest > 0 ? [{ label: "others", pct: Math.round(rest * 100) / 100, ours: false }] : [])].filter((x) => x.pct > 0);
+    return [{
+      direction: dir, label, week: d.week, bar, ours: mine ? Number(mine.share) : 0, before: mine?.before == null ? null : Number(mine.before),
+      change: mine ? ptsChange(mine.change) : "",
+      rows: sh.map((x) => ({ name: x.name, ours: x.ours, share: pct1(Number(x.share)), change: ptsChange(x.change) })),
+    }];
+  });
+  return { none: null, dirs, scan };
+}
+
+export interface HistorySeries { key: string; name: string; ours: boolean; path: string; dots: { x: number; y: number; tip: string }[] }
+export interface HistoryLayout {
+  W: number; H: number; L: number; R: number; T: number; B: number;
+  grid: { y: number; label: string }[];
+  xLabels: { x: number; label: string }[];
+  series: HistorySeries[];
+}
+/** Rivals over time (since 30 Oct): each airline's direct departures a week at every scan since launch (route_story()'s
+ *  rivals.history: weekly points before the latest month, every scan within it), as lines: ours, the top 5 rivals (by their
+ *  most at any scan) and the rest grouped as "other rivals"; x by each scan's time (560 × 220). Null with no scan. */
+export function historyLayout(s: RouteStory, day: (iso: string) => string): HistoryLayout | null {
+  const h = s.rivals.history ?? [];
+  if (!h.length) return null;
+  const W = 560, H = 220, L = 34, R = 40, T = 10, B = 30;
+  const t = h.map((x) => Date.parse(x.taken_at)), t0 = Math.min(...t), t1 = Math.max(...t);
+  const X = (i: number) => (t1 > t0 ? L + ((t[i] as number) - t0) / (t1 - t0) * (W - L - R) : (L + W - R) / 2);
+  const most = new Map<number, { name: string; max: number }>();
+  for (const x of h) for (const a of x.airlines) if (!a.ours) {
+    const m = most.get(a.airline_id);
+    most.set(a.airline_id, { name: a.name, max: Math.max(m?.max ?? 0, a.weekly) });
+  }
+  const top = [...most.entries()].sort((a, b) => b[1].max - a[1].max || a[1].name.localeCompare(b[1].name)).slice(0, 5).map(([id]) => id);
+  const vals = (pick: (x: StoryHistory) => number) => h.map(pick);
+  const lines: { key: string; name: string; ours: boolean; v: number[] }[] = [
+    { key: "ours", name: s.route.airline.name || "ours", ours: true, v: vals((x) => x.airlines.filter((a) => a.ours).reduce((n, a) => n + a.weekly, 0)) },
+    ...top.map((id) => ({ key: `r${id}`, name: most.get(id)?.name ?? String(id), ours: false, v: vals((x) => x.airlines.find((a) => a.airline_id === id)?.weekly ?? 0) })),
+  ];
+  const others = vals((x) => x.airlines.filter((a) => !a.ours && !top.includes(a.airline_id)).reduce((n, a) => n + a.weekly, 0));
+  if (others.some((v) => v > 0)) lines.push({ key: "others", name: "other rivals", ours: false, v: others });
+  const max = Math.max(7, ...lines.flatMap((l) => l.v));
+  const stepV = max <= 14 ? 7 : max <= 70 ? 14 : Math.ceil(max / 5 / 7) * 7;
+  const top1 = Math.ceil(max / stepV) * stepV;
+  const Y = (v: number) => T + (top1 - v) / top1 * (H - T - B);
+  const every = Math.max(1, Math.ceil(h.length / 6));
+  return {
+    W, H, L, R, T, B,
+    grid: Array.from({ length: Math.round(top1 / stepV) + 1 }, (_, i) => ({ y: Y(i * stepV), label: String(i * stepV) })),
+    xLabels: h.flatMap((x, i) => (i % every === 0 || i === h.length - 1 ? [{ x: X(i), label: day(x.taken_at) }] : [])),
+    series: lines.map((l) => ({
+      key: l.key, name: l.name, ours: l.ours,
+      path: l.v.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" "),
+      dots: l.v.map((v, i) => ({ x: X(i), y: Y(v), tip: `${day((h[i] as StoryHistory).taken_at)}${(h[i] as StoryHistory).weekly ? " (the week's kept scan)" : ""} · ${l.name} ${v} a week` })),
+    })),
+  };
+}
+
+export interface WeeksLayout {
+  W: number; H: number; L: number; R: number; T: number; B: number;
+  bars: { x: number; y: number; w: number; h: number; tip: string }[];
+  price: string | null;
+  grid: { y: number; label: string }[];
+  rgrid: { y: number; label: string }[];
+  xLabels: { x: number; label: string }[];
+}
+/** The pair's seats offered (both directions together, bars) and price per unit (the two directions' average, a line on
+ *  the right axis) by calendar week, from route_story()'s market.weeks (since 30 Oct; 560 × 160). Null with no week. */
+export function weeksLayout(s: RouteStory): WeeksLayout | null {
+  const ws = s.market?.weeks ?? [];
+  const weeks = [...new Set(ws.map((w) => w.week))].sort();
+  if (!weeks.length) return null;
+  const W = 560, H = 160, L = 46, R = 46, T = 10, B = 26;
+  const rows = weeks.map((wk) => {
+    const xs = ws.filter((w) => w.week === wk);
+    const seats = xs.reduce((n, w) => n + Number(w.seats ?? 0), 0);
+    const ps = xs.map((w) => w.price_per_unit).filter((v): v is number => v != null).map(Number);
+    return { wk, seats, price: ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : null };
+  });
+  const maxS = Math.max(1, ...rows.map((r) => r.seats));
+  const prices = rows.map((r) => r.price).filter((v): v is number => v != null);
+  const pLo = prices.length ? Math.floor(Math.min(...prices) * 0.95) : 0, pHi = prices.length ? Math.ceil(Math.max(...prices) * 1.05) : 1;
+  const cw = (W - L - R) / rows.length;
+  const Y = (v: number) => T + (1 - v / maxS) * (H - T - B), PY = (v: number) => T + (pHi - v) / (pHi - pLo || 1) * (H - T - B);
+  const every = Math.max(1, Math.ceil(rows.length / 8));
+  const wkLabel = (wk: string) => `wk ${Number(wk.slice(5))}`;
+  return {
+    W, H, L, R, T, B,
+    bars: rows.map((r, i) => ({ x: L + i * cw + cw * 0.15, y: Y(r.seats), w: cw * 0.7, h: H - B - Y(r.seats),
+      tip: `week ${Number(r.wk.slice(5))} of ${r.wk.slice(0, 4)} · ${r.seats.toLocaleString("en-GB")} seats both ways${r.price != null ? ` · ${Math.round(r.price)} AS$ a unit` : ""}` })),
+    price: prices.length ? rows.flatMap((r, i) => (r.price == null ? [] : [`${(L + (i + 0.5) * cw).toFixed(1)},${PY(r.price).toFixed(1)}`])).map((p, i) => `${i ? "L" : "M"}${p}`).join(" ") : null,
+    grid: [0, maxS / 2, maxS].map((v) => ({ y: Y(v), label: v >= 1000 ? `${Math.round(v / 100) / 10}k` : String(Math.round(v)) })),
+    rgrid: prices.length ? [pLo, pHi].map((v) => ({ y: PY(v), label: `${v}` })) : [],
+    xLabels: rows.flatMap((r, i) => (i % every === 0 || i === rows.length - 1 ? [{ x: L + (i + 0.5) * cw, label: wkLabel(r.wk) }] : [])),
+  };
+}
+
+/** A mismatch the service check found (market_service_checks(), since 30 Oct). */
+export interface ServiceMismatch {
+  route_id: number | null; airline_id: number; code: string | null; airline: string | null; pair: string; hub: string; dest: string;
+  from: string; to: string; direction: LadderDirection; game_code: string | null; distance_code: string | null; distance_km: number | null;
+  planner_codes: string[]; kind: "distance" | "planner"; off_distance: boolean; off_planner: boolean; read_at: string;
+}
+export interface ServiceChecks { run: { id: number; started_at: string; finished_at: string | null; age_days: number | null; pages_read: number; pages_failed: number } | null; checked: number; mismatches: ServiceMismatch[] }
+
+/** The header's service in the game (since 30 Oct): "service S2 in the game" (each direction's when they differ: "service S2
+ *  out, S1 back in the game"), amber (off) when the service check has a mismatch on this route; null before any read. */
+export function serviceHeader(s: RouteStory, checks: ServiceChecks | null | undefined): { text: string; off: boolean } | null {
+  const m = s.market;
+  if (!m || (!m.out && !m.back)) return null;
+  const o = m.out ? m.out.service_code ?? "none" : null, b = m.back ? m.back.service_code ?? "none" : null;
+  const text = o != null && b != null && o !== b ? `service ${o} out, ${b} back in the game` : `service ${o ?? b} in the game`;
+  return { text, off: !!checks?.mismatches.some((x) => x.route_id === s.route.id) };
 }

@@ -17,10 +17,11 @@ import type { RouteRow } from "../routes/model";
 import type { PlanCardRow, PlanLineRow, TailAircraft } from "../tails/model";
 import type { OurAirline } from "../../data/airlines";
 import type { FleetChecks } from "../systems/model";
-import { homeAttention, type AttentionInput } from "./attention";
+import { homeAttention, serviceAttention, serviceItemWords, type AttentionInput } from "./attention";
+import type { ServiceChecks, ServiceMismatch } from "../performance/model";
 import { comingUp, UP_FILTERS } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
-import { attentionAnchor, captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, openLines, orderStatus, runsDryWords, safeTypes, soonWords, tileForHash, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
+import { attentionAnchor, attentionHref, captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, openLines, orderStatus, runsDryWords, safeTypes, soonWords, tileForHash, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
 import type { LegNow } from "./reads";
 import { addChanges, deleteChanges, dismissChanges, showAgainChanges, sortTodos, tickChanges, todoBoard, todoViews } from "./todos";
 
@@ -447,6 +448,39 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
       "Test 1001 is used twice (HUB–AAA and HUB–NBN) on the same days",
     ]);
     expect(got[1]).toMatchObject({ screen: "routes", route: "Test Air|HUB|NBN" });
+  });
+});
+
+describe("needs attention: Service in the game (30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §3)", () => {
+  const mm = (x: Partial<ServiceMismatch> = {}): ServiceMismatch => ({
+    route_id: 1, airline_id: 1, code: "TA", airline: "Test Air", pair: "AAA-HUB", hub: "HUB", dest: "AAA", from: "AAA", to: "HUB", direction: "back",
+    game_code: "S1", distance_code: "S2", distance_km: 1000, planner_codes: ["S2"], kind: "distance", off_distance: true, off_planner: true,
+    read_at: "2026-10-30T21:05:00.000Z", ...x });
+  const checks = (...m: ServiceMismatch[]): ServiceChecks => ({ run: null, checked: 4, mismatches: m });
+  const now = new Date("2026-10-31T12:00:00Z");
+  const input = (x: Partial<AttentionInput> = {}): AttentionInput => ({
+    now, today: "2026-10-31", airlines, rules: buildRules(base), todos: [], capture: null, backups: null, jobs: null, cards: null,
+    growth: null, interlineOpen: null, locale: L, ...x,
+  });
+  it("one item per mismatch, worst first as the check lists them, each linking to the route's page; its group named", () => {
+    const items = homeAttention(input({ service: checks(mm(), mm({ from: "HUB", to: "CCC", hub: "HUB", dest: "CCC", direction: "out", game_code: "S1", distance_code: "S1",
+      planner_codes: ["S1", "S3"], kind: "planner", off_distance: false, distance_km: 500 })) }));
+    expect(items.map((a) => [a.key, a.cls, a.screen, a.route, a.text])).toEqual([
+      ["service|TA|AAA-HUB|S1", "warn", "performance", "Test Air|HUB|AAA", "AAA→HUB (TA): S1 in the game, its 1,000 km calls for S2; the planner has S2"],
+      ["service|TA|HUB-CCC|S1", "warn", "performance", "Test Air|HUB|CCC", "HUB→CCC (TA): S1 in the game, the planner has S1, S3"],
+    ]);
+    const g = groupAttention(items);
+    expect(g.map((x) => [x.kind, x.label, x.items.length])).toEqual([["service", "Service in the game", 2]]);
+    expect(attentionHref(items[0] as AttItem, [{ name: "Test Air", code: "TA" }])).toBe("/performance/TA/HUB-AAA");
+  });
+  it("nothing before the first read, or while the check is read", () => {
+    expect(serviceAttention(checks(), airlines)).toEqual([]);
+    expect(serviceAttention(null, airlines)).toEqual([]);
+    expect(homeAttention(input({ service: null }))).toEqual([]);
+  });
+  it("words a pair with no code in the game and a direction the planner doesn't fly", () => {
+    expect(serviceItemWords(mm({ game_code: null, off_planner: false }))).toBe("AAA→HUB (TA): no service in the game, its 1,000 km calls for S2");
+    expect(serviceItemWords(mm({ kind: "planner", planner_codes: [] }))).toBe("AAA→HUB (TA): S1 in the game, the planner has no flight that way");
   });
 });
 

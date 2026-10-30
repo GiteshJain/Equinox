@@ -974,6 +974,35 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .rpend{min-width:0}
 .rpendh{margin:0 0 6px;font-size:13.5px;overflow-wrap:anywhere}
 .rpmore{font-size:13px;margin-top:4px}
+.rpboards{display:grid;grid-template-columns:minmax(0,1fr);column-gap:var(--gap-card,18px);min-width:0}
+@media (min-width:1100px){
+  .rpboards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+  .rpboards > .board.rcol{align-self:start}
+}
+.dirchart path.back,.dirchart .lgd line.back{stroke:#D9752B;stroke-width:2}
+.dirchart path.lvl.back{stroke:#E8A26B}
+.rpsvc{white-space:nowrap} .rpsvc.off{color:#9A5B00;background:#FFF4DE;border-radius:6px;padding:0 5px;font-weight:600}
+.rpbar{display:inline-block;vertical-align:middle;width:90px;height:8px;border-radius:4px;background:var(--mute-soft);overflow:hidden}
+.rpbar i{display:block;height:100%;background:var(--ink)}
+.rpflights td{white-space:nowrap}
+.rpfares,.rpmshare,.rphist{display:grid;gap:10px;min-width:0;font-size:13px}
+.rpfdir,.rpmsd{min-width:0} .rptbl tr.ours td{font-weight:600} .rpvs{margin-top:4px;overflow-wrap:anywhere}
+.rpmsv{margin:0 0 6px;font-size:13.5px} .rpmsv b{font-size:18px}
+.rpmsl{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:3px}
+.histchart path{fill:none;stroke-width:1.6;stroke-linejoin:round} .histchart circle{cursor:default}
+.histchart .hs path{stroke:#A9B0C4} .histchart .hs circle{fill:#A9B0C4}
+.histchart .hs.ours path{stroke:var(--ink);stroke-width:2.4} .histchart .hs.ours circle{fill:var(--ink)}
+.histchart .hs.r1 path{stroke:#D9752B} .histchart .hs.r1 circle{fill:#D9752B}
+.histchart .hs.r2 path{stroke:#3B3FD8} .histchart .hs.r2 circle{fill:#3B3FD8}
+.histchart .hs.r3 path{stroke:#1E9E6A} .histchart .hs.r3 circle{fill:#1E9E6A}
+.histchart .hs.r4 path{stroke:#B4234B} .histchart .hs.r4 circle{fill:#B4234B}
+.histchart .hs.r5 path{stroke:#8C94AD} .histchart .hs.r5 circle{fill:#8C94AD}
+.rphkey{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px}
+.rphkey li i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle;background:#A9B0C4}
+.rphkey li.ours i{background:var(--ink)} .rphkey li.r1 i{background:#D9752B} .rphkey li.r2 i{background:#3B3FD8} .rphkey li.r3 i{background:#1E9E6A}
+.rphkey li.r4 i{background:#B4234B} .rphkey li.r5 i{background:#8C94AD}
+.rpwks{display:grid;gap:4px;min-width:0}
+.weekschart .wbar{fill:#C2C8D7} .weekschart .wprice{fill:none;stroke:#3B3FD8;stroke-width:1.6} .weekschart .lvt{fill:#3B3FD8}
 
 /* ---------- the foundation (22 Oct, spec docs/specs/2026-10-22-planner-look-foundation.md): the website's look on the
    shared classes, last so it wins over the copied layers above. Shapes: cards 24px, inner blocks 16px, pills round;

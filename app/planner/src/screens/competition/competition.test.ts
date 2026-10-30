@@ -17,7 +17,7 @@ import {
   scansWords, shareBar, starsWords, threatKey, threatNumbers, threatWhen, threatsLine, trunkMonthWords, variantWords, type CompetitionAnswer,
   type Market, type Opening,
   type Threat, fleetWords, fleetTypesWords, orderBooks, orderBookWords, meetsWords, orderBooksRowWords, type Fleet, type OrderFlag,
-  connectingLine, connectingRivalsWords, directConnectingWords, viaWords,
+  connectingLine, connectingRivalsWords, directConnectingWords, viaWords, gameShareWords, overallGameShare, type GameShare,
 } from "./model";
 
 const scan = (id: number, at: string) => ({ id, taken_at: at });
@@ -79,6 +79,26 @@ describe("market share", () => {
     expect(overallShare(two)).toEqual({ ours: 50, total: 300, share: 16.7, before: 16, change: 0.7 });
     expect(overallShare([market({ ours_before: null, rivals_before: null })]).change).toBeNull();
     expect(overallShare([]).share).toBeNull();
+  });
+});
+
+describe("the game's passenger share (30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §4)", () => {
+  const gs = (x: Partial<GameShare> = {}): GameShare => ({ share: 38, share_before: 39.2, change: -1.2, pairs_read: 2, pairs: 3, seats: 2000, week: "2026-44",
+    run_id: 4, read_at: "2026-10-30T21:05:00.000Z", ...x });
+  it("beside the scan's share, with the pairs read; nothing with no read (null, or absent in an answer from before)", () => {
+    expect(gameShareWords(gs())).toBe("game share 38.0% (pairs read: 2 of 3)");
+    expect(gameShareWords(null)).toBeNull();
+    expect(gameShareWords(undefined)).toBeNull();
+    expect(gameShareWords(gs({ share: null }))).toBeNull();
+  });
+  it("across the airline's markets, each weighted by its seats, as competition() weights the pairs; null with no read", () => {
+    const two = [market({ game_share: gs() }), market({ market_id: 2, pairs: 4, game_share: gs({ share: 10, share_before: 12, pairs_read: 1, pairs: 4, seats: 6000 }) }),
+      market({ market_id: 3, pairs: 5, game_share: null })];
+    // (38 × 2,000 + 10 × 6,000) ÷ 8,000 = 17; last week (39.2 × 2,000 + 12 × 6,000) ÷ 8,000 = 18.8
+    expect(overallGameShare(two)).toEqual({ share: 17, before: 18.8, change: -1.8, pairs_read: 3, pairs: 21 });
+    expect(overallGameShare([market(), market({ game_share: null })])).toBeNull();
+    // no seats known: a plain average
+    expect(overallGameShare([market({ game_share: gs({ seats: null }) }), market({ game_share: gs({ share: 20, seats: null }) })])?.share).toBe(29);
   });
 });
 
