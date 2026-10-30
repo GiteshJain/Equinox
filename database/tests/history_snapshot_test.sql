@@ -10,7 +10,10 @@
 --      (cash: the evening's latest balance up to it), the flows of that UTC day and the two before recomputed, and one
 --      job_runs row.
 --   3. The same evening captured again (the same pages a minute after the last, with other cash): one more snapshot, at
---      its last page, which replaces the point-in-time figures (cash, its time, taken_at). A backfill or fallback
+--      its last page, which replaces the point-in-time figures (cash, its time, taken_at). Where the second capture's
+--      rounds complete is worked out by the database's rule (private.snapshot_due(): the pages after the day's last
+--      snapshot), so pages the first capture sent after its own last snapshot count in (30 Oct: the copy's evening of
+--      28 Oct ended with a partial round after the one that completed it, and the second capture completed earlier). A backfill or fallback
 --      afterwards replaces nothing. (Since 22 Oct the replay first takes out the balance and income rows of the
 --      evening's UTC dates written after its capture day ended: they are kept one row per UTC date, so a later capture
 --      day's page, section 1's included, would otherwise win over the replay's pages after midnight UTC.)
@@ -84,7 +87,7 @@ declare
   d date; v_from timestamptz; v_until timestamptz; v_ours bigint[]; pg record; r jsonb; v_expected bigint[] := '{}'; v_got bigint[] := '{}';
   v_seen text[] := '{}'; v_job bigint := coalesce((select max(id) from public.job_runs), 0); n int; bad text; v_t0 timestamptz;
   v_first_at timestamptz; v_second_at timestamptz; v_last_page timestamptz; v_pages int; v_rounds int; v_ms numeric; v_best numeric;
-  v_shift interval;
+  v_shift interval; v_expected2 bigint[] := '{}'; v_left int;
 begin
   select array_agg(a.id order by a.id) into v_ours
     from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
@@ -171,6 +174,27 @@ begin
   if v_last_page + interval '1 minute' + (select max(captured_at) - min(captured_at) from t_pages) >= v_until then
     v_shift := null;   -- no room left in the capture day: the pages go a second apart instead
   end if;
+  -- where its complete captures end, by the database's rule (private.snapshot_due()): every active airline of ours has all
+  -- five kinds among the pages captured after the day's last snapshot from a capture. All the second capture's pages come
+  -- after every first-capture page, so the pages the first capture sent after its own last snapshot (a partial round
+  -- after the round that completed it) count towards the second capture's first completion. On an evening whose last
+  -- page completes its capture there are none, and this is the first capture's list again.
+  v_seen := '{}';
+  for pg in select * from t_pages t where t.captured_at > v_first_at order by t.captured_at, t.id loop
+    if pg.airline_id = any (v_ours) and pg.kind in ('statement', 'events', 'pnl', 'balance', 'loads') then
+      v_seen := array(select distinct x from unnest(v_seen || (pg.airline_id || ':' || pg.kind)) x);
+    end if;
+  end loop;
+  v_left := cardinality(v_seen);
+  for pg in select * from t_pages order by captured_at, id loop
+    if pg.airline_id = any (v_ours) and pg.kind in ('statement', 'events', 'pnl', 'balance', 'loads') then
+      v_seen := array(select distinct x from unnest(v_seen || (pg.airline_id || ':' || pg.kind)) x);
+      if (select bool_and((select count(*) from unnest(v_seen) s where split_part(s, ':', 1) = o::text) = 5) from unnest(v_ours) o) then
+        v_expected2 := v_expected2 || pg.id; v_seen := '{}';
+      end if;
+    end if;
+  end loop;
+  assert cardinality(v_expected2) >= 1, 'the second capture has no complete round';
   v_got := '{}'; v_job := coalesce((select max(id) from public.job_runs), 0); n := 0;
   for pg in select t.*, row_number() over (order by t.captured_at, t.id) as o from t_pages t order by t.captured_at, t.id loop
     r := private.capture_store(w, pg.game_id::text, pg.kind, pg.page_url,
@@ -178,7 +202,8 @@ begin
                                coalesce(pg.captured_at + v_shift, v_last_page + make_interval(secs => pg.o)));
     if r ? 'snapshot' then v_got := v_got || pg.id; v_second_at := coalesce(pg.captured_at + v_shift, v_last_page + make_interval(secs => pg.o)); end if;
   end loop;
-  assert v_got = v_expected, format('the second capture took snapshots at pages %s, expected at %s', v_got::text, v_expected::text);
+  assert v_got = v_expected2, format('the second capture took snapshots at pages %s, expected at %s (%s kind(s) the first capture sent after its last snapshot counted in)',
+                                     v_got::text, v_expected2::text, v_left);
   select string_agg(al.planner_name, ', ') into bad
     from unnest(v_ours) o join public.airlines al on al.id = o
     left join public.airline_days x on x.airline_id = o and x.day = d
@@ -205,8 +230,8 @@ begin
     v_ms := extract(epoch from clock_timestamp() - v_t0) * 1000;
     v_best := least(coalesce(v_best, v_ms), v_ms);
   end loop;
-  raise notice 'a second complete capture of that evening (% pages): one more snapshot at its last page, replacing cash, its time and taken_at; a backfill or fallback after it replaces nothing. A snapshot takes % ms on the copy (best of 3)',
-    v_pages, round(v_best);
+  raise notice 'a second complete capture of that evening (% pages; % kind(s) the first sent after its last snapshot counted in, snapshots at pages %): one more snapshot at its last page, replacing cash, its time and taken_at; a backfill or fallback after it replaces nothing. A snapshot takes % ms on the copy (best of 3)',
+    v_pages, v_left, v_expected2::text, round(v_best);
 end
 $test$;
 

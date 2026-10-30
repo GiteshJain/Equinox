@@ -1,4 +1,4 @@
-// The world scan in the capture (capture/capture_all.user.js 1.5, now 1.8; spec docs/specs/2026-10-21-scan-in-capture.md §2, §3;
+// The world scan in the capture (capture/capture_all.user.js 1.5, now 1.9; spec docs/specs/2026-10-21-scan-in-capture.md §2, §3;
 // since 1.8 the overview pages, spec docs/specs/2026-10-23-rival-fleets.md §2, §6)
 // on the game's pages, with no browser and no game: the script's own file runs in Node, where (with no page) it only
 // hands over its logic (eqScan). On three saved samples:
@@ -12,7 +12,7 @@
 // unchanged, on the same pages (no network, no files) and the test compares what each would send: the airline list, the
 // airport ids, the airline's payload, the overview page's payload (kind fleet, since 1.8), the airport's payload and the
 // finish. Then: the airports to read in the migration are gscan.py's list; the scan's words, pace and 10% rule (a failed
-// overview page never counts); and the file: a userscript with version 1.8 (since the rivals' fleets, 23 Oct), the capture key a
+// overview page never counts); and the file: a userscript with version 1.9 (since the market pages, 30 Oct), the capture key a
 // placeholder, capture_scan() with it, no browser dialogs and only the game addresses it needs.
 // Usage: node tests/capture_scan_test.mjs
 import { readFileSync } from "node:fs";
@@ -174,8 +174,8 @@ await check("finish: gscan.py's note, with what the capture's scan adds", () => 
   const mine = plain(S.finishPayload(SCAN, Object.keys(ref.ents).length, hubs.length, 6, 50, 171, 2));
   assert.equal(mine.snapshot_id, theirs[0].snapshot_id);
   assert.ok(mine.note.startsWith(theirs[0].note + " "), `the note "${mine.note}" doesn't start with gscan.py's "${theirs[0].note}"`);
-  assert.match(mine.note, /\(Capture all airlines 1\.8; 6 airline pages failed, 50 airports without an id; 171 fleet pages, 2 failed\)$/);
-  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1, 1, 0)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.8; 1 airline page failed, 1 airport without an id; 1 fleet page, 0 failed\)$/);
+  assert.match(mine.note, /\(Capture all airlines 1\.9; 6 airline pages failed, 50 airports without an id; 171 fleet pages, 2 failed\)$/);
+  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1, 1, 0)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.9; 1 airline page failed, 1 airport without an id; 1 fleet page, 0 failed\)$/);
 });
 function gscanHubs() { const m = gscan.match(/^AP="([A-Z0-9 ]+)"\.split\(\)/m); assert.ok(m, "gscan.py's airport list (AP) not found"); return m[1].split(" "); }
 await check("the airports to read: the migration's big rival hubs are gscan.py's list, in its order", () => {
@@ -229,11 +229,11 @@ await check("html.unescape() as Python does it: numeric references, the usual na
 });
 
 // ---------------------------------------------------------------- the file itself
-await check("the file: a userscript for the game, version 1.8, the key a placeholder, the public key only, capture_scan() with the key", () => {
+await check("the file: a userscript for the game, version 1.9 (since the market pages, 30 Oct), the key a placeholder, the public key only, capture_scan() with the key", () => {
   assert.match(source, /^\/\/ ==UserScript==/);
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/\*$/m);
-  assert.match(source, /^\/\/ @version\s+1\.8$/m);
-  assert.equal(S.VERSION, "1.8", "the scan's notes name another version than @version");
+  assert.match(source, /^\/\/ @version\s+1\.9$/m);
+  assert.equal(S.VERSION, "1.9", "the scan's notes name another version than @version");
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
   assert.match(source, /RPC \+ "capture_scan"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /rpc\("capture_airlines", \{ p_key: KEY \}\)/);
@@ -244,10 +244,10 @@ await check("the panel (1.7, bug of 22 Oct: the log ran off the screen and hid \
   assert.match(source, /t\.className = "eq-cap-text"; t\.style\.cssText = "overflow-y:auto;flex:1 1 auto;min-height:0/);
   assert.match(source, /const show = t => \{[^\n]*if \(end\) e\.scrollTop = e\.scrollHeight;/);
 });
-await check("the file: no browser dialogs, no POST to the game, and only the game addresses it needs", () => {
+await check("the file: no browser dialogs, no POST to the game but the market pages' four listing filters (1.9, tests/capture_market_test.mjs), and only the game addresses it needs", () => {
   assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(source.replace(/^\s*\/\/.*$/gm, "")), "alert, confirm or prompt used");
   const paths = [...source.matchAll(/["'`](\/(?:app|action)\/[^"'`?$]*)/g)].map(m => m[1]);
-  assert.deepEqual([...new Set(paths)].sort(), ["/action/enterprise/schedule", "/app/com/loads", "/app/enterprise/dashboard", "/app/finance/accounting/0",
+  assert.deepEqual([...new Set(paths)].sort(), ["/action/enterprise/schedule", "/app/com/loads", "/app/com/markets/", "/app/enterprise/dashboard", "/app/finance/accounting/0",
     "/app/finance/accounting/1", "/app/finance/accounting/2", "/app/fleets", "/app/fleets/", "/app/info/airports/", "/app/info/enterprises", "/app/info/enterprises/"]);
   assert.ok(!/method:\s*["']POST["'][^}]*airlinesim/i.test(source), "a POST to the game");
 });

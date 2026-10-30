@@ -120,7 +120,9 @@ begin
                    from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                   where a.world_id = v_world and a.active and g.kind = 'ours'))
     -- the world scan (spec docs/specs/2026-10-21-scan-in-capture.md): whether one is due, the open one and the airports
-    || private.capture_scan_plan(v_world, now());
+    || private.capture_scan_plan(v_world, now())
+    -- the market pages (spec docs/specs/2026-10-30-market-pages.md): whether they're due, the open run and the pages
+    || private.capture_market_plan(v_world, now());
 end
 $function$
 
@@ -299,6 +301,52 @@ begin
   if p_kind = 'loads' and v_res ? 'airline_verdict' then
     v_res := v_res || jsonb_build_object('count', coalesce(v_res -> 'rows', '0'::jsonb), 'rows', private.capture_panel_words(v_res));
   end if;
+  return v_res;
+end
+$function$
+
+;
+
+-- capture_market(p_key text, p_kind text, p_payload jsonb)
+CREATE OR REPLACE FUNCTION public.capture_market(p_key text, p_kind text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+ SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
+AS $function$
+declare v_world bigint; v_run bigint; v_res jsonb;
+  v_actor text := current_setting('equinox.actor', true); v_detail text := current_setting('equinox.actor_detail', true);
+begin
+  v_world := private.capture_key_world(p_key);
+  if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  if p_kind is null or p_kind not in ('start', 'page', 'finish') then
+    return jsonb_build_object('ok', false, 'error', 'bad kind');
+  end if;
+  perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), 'capture'), true),
+          set_config('equinox.actor_detail', coalesce(nullif(v_detail, ''), 'capture_market'), true);
+  begin
+    if p_kind = 'start' then
+      -- one run at a time: a capture run twice within the hour carries on with the run it started; one left open longer
+      -- is stopped first
+      perform pg_advisory_xact_lock(hashtext('equinox.capture_market'), v_world::int);
+      perform private.market_stop_unfinished(v_world, now());
+      v_run := private.market_open(v_world, now());
+      if v_run is not null then
+        v_res := jsonb_build_object('ok', true, 'run_id', v_run, 'carried_on', true);
+      else
+        v_res := private.market_ingest(v_world, 'start', coalesce(p_payload, '{}'::jsonb)) || jsonb_build_object('ok', true, 'carried_on', false);
+      end if;
+    else
+      v_res := jsonb_build_object('ok', true) || private.market_ingest(v_world, p_kind, p_payload)
+               || jsonb_build_object('run_id', (p_payload ->> 'run_id')::bigint);
+    end if;
+  exception when others then
+    -- a payload that doesn't read is refused, writing nothing, and the run carries on with the next page
+    v_res := jsonb_build_object('ok', false, 'error', sqlerrm);
+  end;
+  perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
   return v_res;
 end
 $function$
@@ -1441,7 +1489,7 @@ CREATE OR REPLACE FUNCTION public.system_status(p_world_id bigint DEFAULT NULL::
  SET search_path TO ''
 AS $function$
 declare w bigint; v_at timestamptz := coalesce(p_as_of, now()); v_month timestamptz; v_snap jsonb; v_job jsonb; v_fb timestamptz;
-  v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_db bigint; v_pdf bigint; v_site bigint;
+  v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_market jsonb; v_db bigint; v_pdf bigint; v_site bigint;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the systems board' using errcode = '42501'; end if;
   w := private.fig_world(p_world_id);
@@ -1517,6 +1565,15 @@ begin
                                '-infinity'::timestamptz)
    order by s.taken_at desc, s.id desc limit 1;
 
+  -- the market pages (spec docs/specs/2026-10-30-market-pages.md): the latest finished run, its age, pages and failed
+  select jsonb_build_object('id', r.id, 'started_at', private.fig_ts(r.started_at), 'finished_at', private.fig_ts(r.finished_at),
+                            'age_days', round((extract(epoch from v_at - r.finished_at) / 86400)::numeric, 1),
+                            'pages_read', r.pages_read, 'pages_failed', r.pages_failed, 'note', left(r.note, 300))
+    into v_market
+    from public.market_runs r
+   where r.world_id = w and r.status = 'done' and r.started_at <= v_at
+   order by r.started_at desc, r.id desc limit 1;
+
   -- usage the database can measure, each against its trigger (manual §1; #16, #17, #20): now, whatever the moment
   v_db := pg_database_size(current_database());
   select coalesce(sum(octet_length(r.pdf_b64)), 0) * 3 / 4 into v_pdf from public.site_reports r where r.pdf_b64 is not null;
@@ -1531,6 +1588,7 @@ begin
     'cleanup', v_clean,
     'scan', v_scan,
     'scan_stopped', v_stopped,
+    'market', v_market,
     'usage', jsonb_build_array(
       jsonb_build_object('key', 'database', 'label', 'Database size', 'bytes', v_db, 'trigger_bytes', 350 * 1024 * 1024::bigint),
       jsonb_build_object('key', 'report_pdfs', 'label', 'Report PDFs', 'bytes', v_pdf, 'trigger_bytes', 50 * 1024 * 1024::bigint),
@@ -1650,6 +1708,15 @@ begin
       v_reasons := v_reasons || format('%s statement line(s) still point at these flights (the statement clean-up removes them after 14 days once it is switched on)', n);
     end if;
   end if;
+  if p_table = 'market_reads' then
+    -- the reads go last: their fares and shares point at them, and are archived first
+    execute format('select (select count(*) from public.market_fares f where f.read_id in (select x.id from public.market_reads x where %1$s))
+                         + (select count(*) from public.market_shares s where s.read_id in (select x.id from public.market_reads x where %1$s))',
+                   private.archive_where(p_month, p_table, 'x')) into n;
+    if n > 0 then
+      v_reasons := v_reasons || format('%s market_fares or market_shares row(s) still point at these reads (archive those tables'' month first)', n);
+    end if;
+  end if;
   if cardinality(v_reasons) > 0 then
     raise exception 'archive_delete refused %: %', v_label, array_to_string(v_reasons, '; ') using errcode = 'P0001';
   end if;
@@ -1713,11 +1780,27 @@ AS $function$
      where k.table_name = 'scan_rival_connections' and s.taken_at < k.kept_from::timestamp at time zone 'UTC'
      group by 2
     union all
+    select 'market_reads', date_trunc('month', m.read_at at time zone 'UTC')::date, count(*)
+      from public.market_reads m, k
+     where k.table_name = 'market_reads' and m.read_at < k.kept_from::timestamp at time zone 'UTC'
+     group by 2
+    union all
+    select 'market_fares', date_trunc('month', m.read_at at time zone 'UTC')::date, count(*)
+      from public.market_fares x join public.market_reads m on m.id = x.read_id, k
+     where k.table_name = 'market_fares' and m.read_at < k.kept_from::timestamp at time zone 'UTC'
+     group by 2
+    union all
+    select 'market_shares', date_trunc('month', m.read_at at time zone 'UTC')::date, count(*)
+      from public.market_shares x join public.market_reads m on m.id = x.read_id, k
+     where k.table_name = 'market_shares' and m.read_at < k.kept_from::timestamp at time zone 'UTC'
+     group by 2
+    union all
     select 'change_log', date_trunc('month', c.changed_at at time zone 'UTC')::date, count(*)
       from public.change_log c, k
      where k.table_name = 'change_log' and c.changed_at < k.kept_from::timestamp at time zone 'UTC'
      group by 2) x
-   order by x.month, x.table_name
+   -- within a month the market reads come after their fares and shares, which point at them
+   order by x.month, x.table_name = 'market_reads', x.table_name
 $function$
 
 ;
@@ -1788,6 +1871,9 @@ begin
     when 'game_scan_schedules' then format('%1$s.scan_id, %1$s.airline_id', a)
     when 'game_scan_airports' then format('%1$s.scan_id, %1$s.airport_code collate "C"', a)
     when 'scan_rival_connections' then format('%1$s.scan_id, %1$s.airline_id, %1$s.origin collate "C", %1$s.dest collate "C", %1$s.via collate "C"', a)
+    when 'market_reads' then format('%1$s.id', a)
+    when 'market_fares' then format('%1$s.read_id, %1$s.airline_code collate "C", %1$s.service_class collate "C"', a)
+    when 'market_shares' then format('%1$s.read_id, %1$s.kind collate "C", %1$s.airline_id', a)
     when 'change_log' then format('%1$s.id', a)
   end;
 end
@@ -1823,6 +1909,9 @@ AS $function$
                         ('game_scan_schedules', 'the scan''s time (game_scans.taken_at, UTC)', 1),
                         ('game_scan_airports', 'the scan''s time (game_scans.taken_at, UTC)', 1),
                         ('scan_rival_connections', 'the scan''s time (game_scans.taken_at, UTC)', 1),
+                        ('market_reads', 'read_at (UTC)', 1),
+                        ('market_fares', 'its read''s time (market_reads.read_at, UTC)', 1),
+                        ('market_shares', 'its read''s time (market_reads.read_at, UTC)', 1),
                         ('change_log', 'changed_at (UTC)', 12)) v(table_name, month_of, keep_months)
 $function$
 
@@ -1849,6 +1938,9 @@ begin
     when 'game_scan_schedules' then format('exists (select 1 from public.game_scans s where s.id = %1$s.scan_id and s.taken_at >= %2$s and s.taken_at < %3$s)', a, f, t)
     when 'game_scan_airports' then format('exists (select 1 from public.game_scans s where s.id = %1$s.scan_id and s.taken_at >= %2$s and s.taken_at < %3$s)', a, f, t)
     when 'scan_rival_connections' then format('exists (select 1 from public.game_scans s where s.id = %1$s.scan_id and s.taken_at >= %2$s and s.taken_at < %3$s)', a, f, t)
+    when 'market_reads' then format('(%1$s.read_at >= %2$s and %1$s.read_at < %3$s)', a, f, t)
+    when 'market_fares' then format('exists (select 1 from public.market_reads m where m.id = %1$s.read_id and m.read_at >= %2$s and m.read_at < %3$s)', a, f, t)
+    when 'market_shares' then format('exists (select 1 from public.market_reads m where m.id = %1$s.read_id and m.read_at >= %2$s and m.read_at < %3$s)', a, f, t)
     when 'change_log' then format('(%1$s.changed_at >= %2$s and %1$s.changed_at < %3$s)', a, f, t)
   end;
 end
@@ -2403,6 +2495,70 @@ AS $function$
    where p_key is not null and extensions.crypt(p_key, k.key_hash) = k.key_hash
    order by k.id
    limit 1
+$function$
+
+;
+
+-- private.capture_market_plan(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.capture_market_plan(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare v_every int; v_latest bigint; v_latest_at timestamptz; v_due boolean; v_open bigint; v_pages jsonb; v_total int; v_done int;
+begin
+  select (s.value #>> '{}')::numeric::int into v_every from public.settings s
+   where s.world_id = p_world_id and s.airline_id is null and s.key = 'market_every_days';
+  -- the latest finished run by the moment (by when it started, as the world scan goes by its taken_at)
+  select r.id, r.started_at into v_latest, v_latest_at from public.market_runs r
+   where r.world_id = p_world_id and r.status = 'done' and r.started_at <= p_as_of
+   order by r.started_at desc, r.id desc limit 1;
+  -- due by capture day, as the world scan; 0 or no setting: never
+  v_due := coalesce(v_every, 0) > 0
+           and (v_latest is null or private.capture_day(p_world_id, p_as_of) - private.capture_day(p_world_id, v_latest_at) >= v_every);
+  v_open := private.market_open(p_world_id, p_as_of);
+  -- the pages: for each of our active airlines (display order), both directions of each pair it flies (a route with
+  -- rotations, not removed), the pair's way out first; a pair two of our airlines fly is read once, under the first
+  with ours as (
+    select a.id, a.game_id, a.iata_code, a.planner_name, a.game_name, a.position from public.airlines a
+      join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours' and a.game_id is not null),
+  flown as (
+    select distinct on (least(r.hub_code, r.dest_code), greatest(r.hub_code, r.dest_code))
+           o.id as airline_id, o.position, r.hub_code as a, r.dest_code as b
+      from public.routes r join ours o on o.id = r.airline_id
+     where r.world_id = p_world_id and not r.removed and r.hub_code ~ '^[A-Z0-9]{3}$' and r.dest_code ~ '^[A-Z0-9]{3}$'
+       and r.hub_code <> r.dest_code
+       and exists (select 1 from public.rotations x where x.route_id = r.id)
+     order by least(r.hub_code, r.dest_code), greatest(r.hub_code, r.dest_code), o.position nulls last, o.id, r.id),
+  pages as (
+    select f.airline_id, f.position, f.a as origin, f.b as dest, 1 as dir from flown f
+    union all
+    select f.airline_id, f.position, f.b, f.a, 2 from flown f),
+  todo as (
+    select p.* from pages p
+     where v_open is null
+        or not exists (select 1 from public.market_reads m where m.run_id = v_open and m.origin = p.origin and m.dest = p.dest))
+  select (select count(*) from pages)::int, coalesce((
+           select jsonb_agg(jsonb_build_object('game_id', o.game_id, 'code', o.iata_code, 'name', o.planner_name, 'game_name', o.game_name,
+                                               'pages', (select jsonb_agg(jsonb_build_array(t.origin, t.dest)
+                                                                          order by least(t.origin, t.dest), greatest(t.origin, t.dest), t.dir)
+                                                           from todo t where t.airline_id = o.id))
+                            order by o.position nulls last, o.id)
+             from ours o where exists (select 1 from todo t where t.airline_id = o.id)), '[]'::jsonb)
+    into v_total, v_pages;
+  v_done := case when v_open is null then 0 else (select count(*) from public.market_reads m where m.run_id = v_open)::int end;
+  return jsonb_build_object(
+    'market_every_days', v_every,
+    'market_due', v_due,
+    'market_open', v_open,
+    'market_latest', case when v_latest is not null then jsonb_build_object('id', v_latest, 'started_at', private.fig_ts(v_latest_at),
+                                                                            'finished_at', (select private.fig_ts(r.finished_at) from public.market_runs r where r.id = v_latest)) end,
+    'market_total', v_total,
+    'market_done', v_done,
+    'market_pages', v_pages);
+end
 $function$
 
 ;
@@ -6625,6 +6781,191 @@ begin
   insert into public.change_log (world_id, table_name, row_key, op, old_values, new_values, actor, actor_detail, db_role, txid)
   values (v_world, tg_table_name, v_key, lower(tg_op), v_old, v_new, v_actor, v_detail, v_role, pg_catalog.txid_current());
   return null;
+end
+$function$
+
+;
+
+-- private.market_ingest(p_world_id bigint, p_kind text, p_payload jsonb)
+CREATE OR REPLACE FUNCTION private.market_ingest(p_world_id bigint, p_kind text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_run record; v_al bigint; v_read bigint; v_origin text; v_dest text; v_scan bigint; v_at timestamptz;
+  n_fares int := 0; n_shares int := 0; n_weeks int := 0; v_bad text; v_read_n int; v_failed_n int;
+begin
+  if p_kind is null or p_kind not in ('start', 'page', 'finish') then raise exception 'unknown kind'; end if;
+  if p_payload is null or jsonb_typeof(p_payload) <> 'object' then raise exception 'the payload isn''t an object'; end if;
+  if p_kind = 'start' then
+    insert into public.market_runs (world_id, note, capture_version, pages_expected)
+    values (p_world_id, nullif(btrim(p_payload ->> 'note'), ''), nullif(btrim(p_payload ->> 'version'), ''),
+            case when (p_payload ->> 'total') ~ '^\d{1,6}$' then (p_payload ->> 'total')::int end)
+    returning id into v_read;
+    return jsonb_build_object('run_id', v_read);
+  end if;
+
+  -- page and finish: a run of this world that is still open
+  select r.* into v_run from public.market_runs r where r.id = (p_payload ->> 'run_id')::bigint and r.world_id = p_world_id;
+  if not found then raise exception 'no such market run in this capture key''s world: %', coalesce(p_payload ->> 'run_id', '(none)'); end if;
+  if v_run.status <> 'open' then raise exception 'market run % is %, not open', v_run.id, v_run.status; end if;
+
+  if p_kind = 'finish' then
+    -- more than 10% of the pages failed (or none were read): not finished, as the world scan
+    if v_run.pages_read + v_run.pages_failed = 0 or v_run.pages_failed > 0.1 * (v_run.pages_read + v_run.pages_failed) then
+      raise exception 'not finished: % of % pages failed, more than 10%%', v_run.pages_failed, v_run.pages_read + v_run.pages_failed;
+    end if;
+    update public.market_runs set status = 'done', finished_at = clock_timestamp(),
+           note = coalesce(nullif(btrim(p_payload ->> 'note'), ''), note)
+     where id = v_run.id;
+    return jsonb_build_object('pages_read', v_run.pages_read, 'pages_failed', v_run.pages_failed);
+  end if;
+
+  -- page: our airline, the pair, ok or failed
+  select a.id into v_al from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+   where a.world_id = p_world_id and g.kind = 'ours' and a.game_id = (p_payload ->> 'airline')::int;
+  if v_al is null then raise exception 'airline % isn''t one of ours in this world', coalesce(p_payload ->> 'airline', '(none)'); end if;
+  v_origin := p_payload ->> 'origin'; v_dest := p_payload ->> 'dest';
+  if coalesce(v_origin, '') !~ '^[A-Z0-9]{3}$' or coalesce(v_dest, '') !~ '^[A-Z0-9]{3}$' or v_origin = v_dest then
+    raise exception 'origin and dest must be two airport codes, not % and %', coalesce(v_origin, '(none)'), coalesce(v_dest, '(none)');
+  end if;
+  if jsonb_typeof(p_payload -> 'ok') is distinct from 'boolean' then raise exception 'ok must be true or false'; end if;
+
+  -- the same page sent again replaces what it gave
+  select m.id into v_read from public.market_reads m where m.run_id = v_run.id and m.origin = v_origin and m.dest = v_dest;
+  if v_read is not null then
+    delete from public.market_fares where read_id = v_read;
+    delete from public.market_shares where read_id = v_read;
+    delete from public.market_reads where id = v_read;
+  end if;
+
+  if not (p_payload ->> 'ok')::boolean then
+    insert into public.market_reads (run_id, world_id, airline_id, origin, dest, ok, error)
+    values (v_run.id, p_world_id, v_al, v_origin, v_dest, false, coalesce(nullif(btrim(p_payload ->> 'error'), ''), 'no reason given'))
+    returning id into v_read;
+  else
+    -- the lists, checked before anything is written
+    if jsonb_typeof(coalesce(p_payload -> 'fares', '[]')) <> 'array' or jsonb_typeof(coalesce(p_payload -> 'shares', '[]')) <> 'array'
+       or jsonb_typeof(coalesce(p_payload -> 'weeks', '[]')) <> 'array' then
+      raise exception 'fares, shares and weeks must be lists';
+    end if;
+    select string_agg(coalesce(f ->> 'code', '?') || ' ' || coalesce(f ->> 'cls', '?'), ', ') into v_bad
+      from jsonb_array_elements(coalesce(p_payload -> 'fares', '[]')) f
+     where coalesce(f ->> 'code', '') !~ '^[A-Z0-9]{2,3}$' or coalesce(f ->> 'cls', '') not in ('Y', 'C', 'F', 'Cargo')
+        or coalesce(f ->> 'flights', '') !~ '^[1-9]\d{0,5}$';
+    if v_bad is not null then raise exception 'fares that don''t read: %', v_bad; end if;
+    select string_agg(coalesce(s ->> 'enterprise_id', '?'), ', ') into v_bad
+      from jsonb_array_elements(coalesce(p_payload -> 'shares', '[]')) s
+     where coalesce(s ->> 'enterprise_id', '') !~ '^\d{1,9}$' or coalesce(s ->> 'kind', '') not in ('passengers', 'cargo')
+        or jsonb_typeof(s -> 'share') is distinct from 'number';
+    if v_bad is not null then raise exception 'shares that don''t read: %', v_bad; end if;
+    if jsonb_array_length(coalesce(p_payload -> 'shares', '[]')) > 0 and coalesce(p_payload ->> 'week', '') !~ '^\d{4}-\d{2}$' then
+      raise exception 'shares without their week (2026-44)';
+    end if;
+
+    insert into public.market_reads (run_id, world_id, airline_id, origin, dest, ok, share_week, service_code, service_profile_game_id)
+    values (v_run.id, p_world_id, v_al, v_origin, v_dest, true, nullif(p_payload ->> 'week', ''),
+            nullif(btrim(p_payload -> 'service' ->> 'code'), ''),
+            case when (p_payload -> 'service' ->> 'game_id') ~ '^\d{1,9}$' then (p_payload -> 'service' ->> 'game_id')::int end)
+    returning id, read_at into v_read, v_at;
+
+    -- the shares: each enterprise by its game id; one the database doesn't know gets an airlines row, as the scan does
+    insert into public.market_shares (read_id, world_id, kind, airline_id, week, share_pct, change_pts)
+    select v_read, p_world_id, s ->> 'kind', private.scan_airline(p_world_id, (s ->> 'enterprise_id')::int, s ->> 'name'),
+           p_payload ->> 'week', (s ->> 'share')::numeric,
+           case when jsonb_typeof(s -> 'change') = 'number' then (s ->> 'change')::numeric end
+      from jsonb_array_elements(coalesce(p_payload -> 'shares', '[]')) s;
+    get diagnostics n_shares = row_count;
+
+    -- the fares: the airline by the flight prefix, where the latest finished world scan's schedules give one airline that
+    -- prefix; else an airline on the page's share list with that code; else none (the prefix kept)
+    select s.id into v_scan from public.game_scans s
+     where s.world_id = p_world_id and s.status = 'done' and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
+     order by s.taken_at desc, s.id desc limit 1;
+    with codes as (
+      select distinct f ->> 'code' as code from jsonb_array_elements(coalesce(p_payload -> 'fares', '[]')) f),
+    by_scan as (
+      select c.code, min(x.airline_id) as airline_id from codes c
+        join public.game_scan_schedules x on x.scan_id = v_scan
+       cross join lateral jsonb_array_elements(case when jsonb_typeof(x.flights) = 'array' then x.flights else '[]'::jsonb end) e
+       where e ->> 0 = c.code
+       group by c.code having count(distinct x.airline_id) = 1),
+    by_share as (
+      select c.code, min(a.id) as airline_id from codes c
+        join public.airlines a on a.world_id = p_world_id and a.iata_code = c.code
+       where a.game_id in (select (s ->> 'enterprise_id')::int from jsonb_array_elements(coalesce(p_payload -> 'shares', '[]')) s)
+       group by c.code having count(*) = 1)
+    insert into public.market_fares (read_id, world_id, airline_code, service_class, airline_id, flights, price_low, price_avg, price_high,
+                                     finished, sold_out)
+    select v_read, p_world_id, f ->> 'code', f ->> 'cls', coalesce(bs.airline_id, bh.airline_id), (f ->> 'flights')::int,
+           (f ->> 'low')::numeric, round((f ->> 'avg')::numeric, 2), (f ->> 'high')::numeric,
+           coalesce((f ->> 'finished')::int, 0), coalesce((f ->> 'sold_out')::int, 0)
+      from jsonb_array_elements(coalesce(p_payload -> 'fares', '[]')) f
+      left join by_scan bs on bs.code = f ->> 'code'
+      left join by_share bh on bh.code = f ->> 'code';
+    get diagnostics n_fares = row_count;
+
+    -- the pair's weeks with figures: seats offered and price per unit, the latest read winning, kept for good
+    insert into public.market_weeks as k (world_id, origin, dest, week, seats, price_per_unit, run_id, read_at)
+    select p_world_id, v_origin, v_dest, w ->> 'week',
+           case when jsonb_typeof(w -> 'seats') = 'number' then (w ->> 'seats')::numeric::int end,
+           case when jsonb_typeof(w -> 'price') = 'number' then (w ->> 'price')::numeric end, v_run.id, v_at
+      from jsonb_array_elements(coalesce(p_payload -> 'weeks', '[]')) w
+     where coalesce(w ->> 'week', '') ~ '^\d{4}-\d{2}$'
+       and (coalesce((w ->> 'seats')::numeric, 0) <> 0 or coalesce((w ->> 'price')::numeric, 0) <> 0)
+    on conflict (world_id, origin, dest, week) do update
+       set seats = excluded.seats, price_per_unit = excluded.price_per_unit, run_id = excluded.run_id, read_at = excluded.read_at
+     where k.read_at <= excluded.read_at;
+    get diagnostics n_weeks = row_count;
+  end if;
+
+  -- the run's counts, from its reads
+  select count(*) filter (where m.ok), count(*) filter (where not m.ok) into v_read_n, v_failed_n
+    from public.market_reads m where m.run_id = v_run.id;
+  update public.market_runs set pages_read = v_read_n, pages_failed = v_failed_n where id = v_run.id;
+  return jsonb_build_object('read_id', v_read, 'fares', n_fares, 'shares', n_shares, 'weeks', n_weeks,
+                            'pages_read', v_read_n, 'pages_failed', v_failed_n);
+end
+$function$
+
+;
+
+-- private.market_open(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.market_open(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS bigint
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select r.id from public.market_runs r
+   where r.world_id = p_world_id and r.status = 'open'
+     and r.started_at > p_as_of - interval '1 hour' and r.started_at <= p_as_of
+   order by r.started_at desc, r.id desc
+   limit 1
+$function$
+
+;
+
+-- private.market_stop_unfinished(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.market_stop_unfinished(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare n int;
+begin
+  -- a run the capture started and never finished, more than an hour before: nothing carries it on any more
+  -- (private.market_open() looks back an hour), so it's stopped, and its note says how far it got
+  update public.market_runs r
+     set status = 'stopped',
+         note = format('stopped part-way after %s%s pages, %s failed (marked %s UTC)',
+                       r.pages_read + r.pages_failed, coalesce(' of ' || r.pages_expected, ''), r.pages_failed,
+                       to_char(p_as_of at time zone 'UTC', 'DD Mon HH24:MI'))
+                || coalesce(' · ' || nullif(r.note, ''), '')
+   where r.world_id = p_world_id and r.status = 'open' and r.started_at <= p_as_of - interval '1 hour';
+  get diagnostics n = row_count;
+  return n;
 end
 $function$
 
