@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<!-- The game's Market Analysis page, DEL to BOM, Kingfisher open, as Gitesh saved it on 30 Oct 2026 after the first live market run (spec docs/specs/2026-10-30-market-pages.md): Kingfisher's own flights only, no rival on the pair. Saved after Group by flight was ticked on the page (its load script still holds the flat view's calls). Cut out: the account menu (player name, profile, log-out), the holdings list (the enterprises to switch to), the cash, the footer's credits and the userscripts the browser had injected (they held the capture key). The rest is as saved. --><html xmlns="http://www.w3.org/1999/xhtml" data-generation="gen2" data-theme="light"><head><script type="text/javascript" src="../../wicket/resource/org.apache.wicket.resource.JQueryResourceReference/jquery/jquery-3.7.1-ver-962A4A135B116C30221466C5E4F0E7A1.js"></script>
+<script type="text/javascript" src="../../wicket/resource/org.apache.wicket.ajax.AbstractDefaultAjaxBehavior/res/js/wicket-ajax-jquery-ver-EF5CE716023AC851E8B721946431BE44.js"></script>
+<script type="text/javascript" id="wicket-ajax-base-url">
+/*<![CDATA[*/
+Wicket.Ajax.baseUrl="com/markets/DELBOM?1332";
+/*]]>*/
+</script>
+
+
+	<script src="../../../assets/js/d3.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="../../../assets/js/chart.line.js" type="text/javascript" charset="utf-8"></script>
+	
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AirlineSim - the online airline management simulation game for pros.">
+    <meta name="author" content="simulogics GmbH">
+
+    <link rel="shortcut icon" href="../../../favicon.ico">
+    <link rel="search" type="application/opensearchdescription+xml" title="AirlineSim Search" href="../../openSearchDescription.xml">
+
+    <title>Market Analysis | Gander | AirlineSim</title>
+
+    <link rel="stylesheet" type="text/css" href="../../../assets/css/jquery-ui.theme.min.css">
+
+<script type="text/javascript" src="../../../assets/js/alerts.js"></script>
+<script type="text/javascript" src="../../../assets/js/jquery-ui.min.js"></script>
+<script type="text/javascript" src="../../../assets/js/jquery-checkboxes.js"></script>
+<script type="text/javascript" src="../../../assets/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="../../../assets/js/select2/select2.min.js"></script>
+<script type="module" id="frontend-settings">
+/*<![CDATA[*/
+window.frontendSettings = {"hub":{"hubUrl":"https://airlinesim.aero/account","loginUrlTemplate":"https://airlinesim.aero/auth/login?od=RETURN_URL","logoutUrl":"https://airlinesim.aero/auth/logout?url=https://gander.airlinesim.aero"},"server":{"name":"gander","time":"2026-10-30T14:06:54.523Z","end":null},"sessionCookieName":"as-sid","selectedEnterpriseCookieName":"airlinesim-selectedEnterpriseId-gander","impersonatedUserIdCookieName":"impersonated-user-id","theme":"light","currentVersionNumber":"6.13.20","versionCookieDomain":"airlinesim.aero","versionCookieName":"seen-version","language":{"currentLanguageTag":"en","officialLanguageTags":["de","en"],"communityLanguageTags":["es","fr","hu","nl","pl","zh-TW","ja"],"languageCookieName":"GAME_LOCALE"},"themeCssPaths":{"classic":"/dist/assets/theme-classic-D9Z4Zyv1.css","light":"/dist/assets/theme-light-mSvOuXvf.css","dark":"/dist/assets/theme-dark-CTDzM9kR.css"},"features":["distribution_system","return_traffic_distribution","ground_networks"],"distribution":{"flightInstancingWindowHours":72,"maxStops":2},"fixedEnterpriseId":113};
+
+/*]]>*/
+</script>
+<script type="module" id="main-js" src="/dist/assets/index-01wM-ZaF.js"></script>
+<link rel="stylesheet" type="text/css" href="/dist/assets/vendor-CKRTiAqP.css">
+<link rel="stylesheet" type="text/css" href="/dist/assets/PathsMap-DqxhmqBv.css">
+<link rel="stylesheet" type="text/css" href="/dist/assets/index-DqEWMDjf.css">
+<link rel="stylesheet" type="text/css" href="/dist/assets/theme-light-mSvOuXvf.css" id="theme-css">
+<script type="text/javascript">
+/*<![CDATA[*/
+Wicket.Event.add(window, "domready", function(event) { 
+Wicket.Event.add('id927b', 'change', function(event) { if (event.target.name !== 'origin-select') return; window.location.href='./DELBOM?1332-1.0-origin~select&origin-select=' + this.options[this.selectedIndex].value;;});;
+(function($) { (function($) { $('#id927b').select2(); })(jQuery); })(jQuery);;
+Wicket.Event.add('id927c', 'change', function(event) { if (event.target.name !== 'destinations:choice') return; window.location.href='./DELBOM?1332-1.0-destinations-choice&destinations:choice=' + this.options[this.selectedIndex].value;;});;
+(function($) { (function($) { $('#id927c').select2(); })(jQuery); })(jQuery);;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~code","c":"id927d","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~departure","c":"id927e","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~arrival","c":"id927f","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~serviceClass","c":"id9280","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~available","c":"id9281","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~price","c":"id9282","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-flat~view-sort~status","c":"id9283","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-filters-serviceClasses","m":"POST","c":"id9284","sr":true,"i":"id9284--ajax-indicator","pre":[function(attrs){return attrs.event.target.name === 'pair:pair-panel:listing:filters:serviceClasses'}],"e":"change"});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-filters-flightStati","m":"POST","c":"id9285","sr":true,"i":"id9285--ajax-indicator","pre":[function(attrs){return attrs.event.target.name === 'pair:pair-panel:listing:filters:flightStati'}],"e":"change"});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-filters-ignoreCarriers","m":"POST","c":"id9286","i":"id9286--ajax-indicator","e":"click"});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-listing-filters-display","m":"POST","c":"id9287","e":"click"});;
+$(function() { $("#id9288").slider({ range: "min", value:  150, min: 1, max: 286, slide: function(event, ui) { $("#id9289").val(ui.value); } }); });
+
+$('#id9289').keyup(function(event) {
+var typed = $(this).val();
+$("#id9288").slider('option', 'value', typed);
+})
+;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-settings-settings~form-classes-prices-0-reset","c":"id928a","e":"click","pd":true});;
+$(function() { $("#id928b").slider({ range: "min", value:  322, min: 1, max: 614, slide: function(event, ui) { $("#id928c").val(ui.value); } }); });
+
+$('#id928c').keyup(function(event) {
+var typed = $(this).val();
+$("#id928b").slider('option', 'value', typed);
+})
+;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-settings-settings~form-classes-prices-1-reset","c":"id928d","e":"click","pd":true});;
+$(function() { $("#id928e").slider({ range: "min", value:  539, min: 1, max: 1078, slide: function(event, ui) { $("#id928f").val(ui.value); } }); });
+
+$('#id928f').keyup(function(event) {
+var typed = $(this).val();
+$("#id928e").slider('option', 'value', typed);
+})
+;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-settings-settings~form-classes-prices-2-reset","c":"id9290","e":"click","pd":true});;
+$(function() { $("#id9291").slider({ range: "min", value:  104, min: 1, max: 208, slide: function(event, ui) { $("#id9292").val(ui.value); } }); });
+
+$('#id9292').keyup(function(event) {
+var typed = $(this).val();
+$("#id9291").slider('option', 'value', typed);
+})
+;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-settings-settings~form-classes-prices-3-reset","c":"id9293","e":"click","pd":true});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-settings-settings~form-originTerminal~group-originTerminal~group_body-originTerminal","m":"POST","c":"id9276","e":"change"});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-settings-settings~form-destinationTerminal~group-destinationTerminal~group_body-destinationTerminal","m":"POST","c":"id9277","e":"change"});;
+Wicket.Ajax.ajax({"u":"./DELBOM?1332-1.0-pair-pair~panel-load~chart-payload","m":"POST","c":"id9294","e":"change"});;
+Wicket.Event.publish(Wicket.Event.Topic.AJAX_HANDLERS_BOUND);
+;});
+/*]]>*/
+</script>
+<script type="text/javascript">
+/*<![CDATA[*/
+Wicket.Event.add(window, "load", function(event) { 
+var id9295Chart = lineChart("#id9295");
+id9295Chart.init({"yLabel":"Offered seats","xLabel":"Calendar week"});
+id9295Chart.setData([{"period":202620,"capacities":0},{"period":202621,"capacities":0},{"period":202622,"capacities":0},{"period":202623,"capacities":0},{"period":202624,"capacities":0},{"period":202625,"capacities":0},{"period":202626,"capacities":0},{"period":202627,"capacities":0},{"period":202628,"capacities":0},{"period":202629,"capacities":0},{"period":202630,"capacities":0},{"period":202631,"capacities":0},{"period":202632,"capacities":0},{"period":202633,"capacities":0},{"period":202634,"capacities":0},{"period":202635,"capacities":0},{"period":202636,"capacities":0},{"period":202637,"capacities":0},{"period":202638,"capacities":0},{"period":202639,"capacities":0},{"period":202640,"capacities":2184},{"period":202641,"capacities":2184},{"period":202642,"capacities":2208},{"period":202643,"capacities":2520},{"period":202644,"capacities":1800}]);
+var id9296Chart = lineChart("#id9296");
+id9296Chart.init({"yLabel":"Price in AS$ per unit","xLabel":"Calendar week"});
+id9296Chart.setData([{"period":202620,"prices":0},{"period":202621,"prices":0},{"period":202622,"prices":0},{"period":202623,"prices":0},{"period":202624,"prices":0},{"period":202625,"prices":0},{"period":202626,"prices":0},{"period":202627,"prices":0},{"period":202628,"prices":0},{"period":202629,"prices":0},{"period":202630,"prices":0},{"period":202631,"prices":0},{"period":202632,"prices":0},{"period":202633,"prices":0},{"period":202634,"prices":0},{"period":202635,"prices":0},{"period":202636,"prices":0},{"period":202637,"prices":0},{"period":202638,"prices":0},{"period":202639,"prices":0},{"period":202640,"prices":143},{"period":202641,"prices":143},{"period":202642,"prices":143},{"period":202643,"prices":143},{"period":202644,"prices":144}]);
+;});
+/*]]>*/
+</script>
+</head>
+<body>
+
+<div class="root">
+
+    
+
+    
+    <nav class="bootstrap navbar navbar-default as-navbar-meta" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#as-navbar-meta-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="fa fa-cog"></span>
+                </button>
+                <a class="navbar-brand" href="../../../action/portal/index">AirlineSim</a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="as-navbar-meta-collapse">
+                
+                <form class="navbar-form navbar-left" role="search" id="id9297" method="post" action="./DELBOM?1332-1.-base.header.gen2-base.search"><div id="id9297_hf_0" hidden="" class="hidden-fields"></div>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="Search" value="" name="searchQuery">
+                            <span class="input-group-btn">
+                            <button type="submit" class="btn btn-default">
+                                <span class="fa fa-search"></span>
+                            </button>
+                        </span>
+                        </div>
+                    </div>
+                </form>
+                <ul class="nav navbar-nav navbar-right">
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Database">
+                            <span class="fa fa-database fa-lg"></span>
+                            <span class="as-icon-label">Database</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="dropdown-header">
+                                Directories
+                            </li>
+                            <li><a href="../../../action/info/countries">
+                                Countries
+                            </a></li>
+                            <li><a href="../../info/enterprises">
+                                Enterprises
+                            </a></li>
+                            <li><a href="../../info/alliances">
+                                Alliances
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Other Resources
+                            </li>
+                            <li><a href="../../../action/info/fleets">
+                                Fleet Lists
+                            </a></li>
+                            <li><a href="../../../action/info/stats">
+                                Statistics
+                            </a></li>
+                            <li><a href="../../info/ors">
+                                Online Reservation System
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Help">
+                            <span class="fa fa-lightbulb-o fa-lg"></span>
+                            <span class="as-icon-label">Help</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a target="_blank" href="https://handbook.airlinesim.aero/">
+                                    <span class="fa fa-external-link"></span>
+                                    Handbook
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../portal/support">
+                                    <span class="fa fa-question"></span>
+                                    Support
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../info/about">
+                                    <span class="fa fa-info"></span>
+                                    About AirlineSim
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../info/status">
+                                    <span class="fa fa-heartbeat"></span>
+                                    Simulation Status
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Game Rules
+                            </li>
+                            <li><a href="../../info/rules/general">
+                                General Rules
+                            </a></li>
+                            <li><a href="../../info/rules/naming">
+                                Naming Rules
+                            </a></li>
+                            <li><a href="../../info/rules/routes">
+                                Forbidden Routes
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Legal
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/terms/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Terms &amp; Conditions
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/privacy/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Privacy Statement
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/impressum/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Impressum
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="" data-toggle="dropdown" title="Community">
+                            <span class="fa fa-users"></span>
+                            <span class="as-icon-label">Community</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a target="_blank" href="https://www.airlinesim.aero/blog/">
+                                    <span class="fa fa-external-link"></span>
+                                    Blog
+                                </a>
+                            </li>
+                            <li>
+                                <a target="_blank" href="https://forums.airlinesim.aero">
+                                    <span class="fa fa-external-link"></span>
+                                    Forums
+                                </a>
+                            </li>
+                            <li>
+                                <a target="_blank" href="https://discord.gg/5K2Axks">
+                                    <span class="fa fa-external-link"></span>
+                                    Discord Chat
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Follow AirlineSim
+                            </li>
+                            <li>
+                                <a href="https://facebook.com/airlinesim" target="_blank">
+                                    <span class="fa fa-fw fa-facebook"></span>
+                                    Facebook
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://twitter.com/airlinesim" target="_blank">
+                                    <span class="fa fa-fw fa-twitter"></span>
+                                    Twitter
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://youtube.com/airlinesimofficial" target="_blank">
+                                    <span class="fa fa-fw fa-youtube"></span>
+                                    YouTube
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                More simulogics games
+                            </li>
+                            <li>
+                                <a href="https://prosperousuniverse.com/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Prosperous Universe
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="../../user/mail" title="Private Messages">
+                            <span class="fa fa-envelope fa-lg"></span>
+                            <span class="as-icon-label">Private Messages</span>
+                            <span id="newmessages" hidden="" data-wicket-placeholder=""></span>
+                        </a>
+                    </li>
+
+                    
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container-fluid -->
+    </nav>
+
+    <nav class="bootstrap navbar navbar-default as-navbar-main" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#as-navbar-main-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="as-navbar-main-collapse">
+                <ul class="nav navbar-nav">
+                    <li class="dropdown">
+                        <a class="name" data-toggle="dropdown" href="../../enterprise/dashboard">
+                            <span>Kingfisher Airlines</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li><a href="../../enterprise/dashboard">
+                                Overview
+                            </a></li>
+                            <li><a href="../../enterprise/settings">
+                                Settings
+                            </a></li>
+                            <li><a href="../../enterprise/delete">
+                                Liquidation/Reset
+                            </a></li>
+                            
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                New Enterprise
+                            </li>
+                            <li><a href="../../enterprise/new">
+                                Create new Enterprise
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            Commercial
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="dropdown-header">
+                                Network Planning
+                            </li>
+                            <li><a href="../scheduling">
+                                Scheduling
+                            </a></li>
+                            <li><a href="../numbers">
+                                Flight Numbers
+                            </a></li>
+                            <li><a href="../routes/evaluation">
+                                Route Evaluation
+                            </a></li>
+                            <li><a href="../markets">
+                                Market Analysis
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Sales &amp; Distribution
+                            </li>
+                            <li><a href="../../../action/enterprise/flightsPrices">
+                                Pricing
+                            </a></li>
+                            <li><a href="../inventory">
+                                Inventory
+                            </a></li>
+                            <li><a href="../loads">
+                                Load Monitoring
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Product &amp; Customer Service
+                            </li>
+                            <li><a href="../../seating">
+                                Cabin Configurations
+                            </a></li>
+                            <li><a href="../../../action/enterprise/serviceProfiles">
+                                Service Profiles
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Business Development
+                            </li>
+                            <li><a href="../../../action/enterprise/interlining">
+                                Interlining
+                            </a></li>
+                            
+                                <li><a href="../../alliance">
+                                    Alliance
+                                </a></li>
+                                <li><a href="../../alliance/admin">
+                                    Alliance Administration
+                                </a></li>
+                            
+                            
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            Operations
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="dropdown-header">
+                                Flight Operations
+                            </li>
+                            <li><a href="../../fleets">
+                                Fleet Management
+                            </a></li>
+                            <li><a href="../../aircraft/evaluation">
+                                Aircraft Type Evaluation
+                            </a></li>
+                            <li><a href="../../../action/enterprise/maintenance">
+                                Maintenance
+                            </a></li>
+                            <li><a href="../../../action/enterprise/operationsControl">
+                                Operations Control
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Ground Operations
+                            </li>
+                            <li><a href="../../ops/stations">
+                                Stations
+                            </a></li>
+                            <li><a href="../../../action/enterprise/buildings">
+                                Facilities
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                            Management
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="dropdown-header">
+                                Procurement
+                            </li>
+                            <li><a href="../../aircraft/manufacturers">
+                                Aircraft Manufacturers
+                            </a></li>
+                            <li><a href="../../aircraft/market">
+                                Aircraft Market
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Human Resources
+                            </li>
+                            <li><a href="../../../action/enterprise/staffOverview">
+                                Personnel Management
+                            </a></li>
+                            <li><a href="../../../action/enterprise/staffPilots">
+                                Crew Management
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Investments
+                            </li>
+                            <li><a href="../../../action/holding/stockexchanges">
+                                Markets &amp; Exchanges
+                            </a></li>
+                            <li><a href="../../enterprise/shares">
+                                Subsidiaries &amp; Portfolio
+                            </a></li>
+                            <li><a href="../../../action/holding/orders">
+                                Order List
+                            </a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">
+                                Finance
+                            </li>
+                            <li><a href="../../finance/capital">
+                                Corporate Finance
+                            </a></li>
+                            <li><a href="../../finance/accounting">
+                                Accounting
+                            </a></li>
+                            <li><a href="../../../action/enterprise/schedule">
+                                Cash Flow
+                            </a></li>
+                            <li><a href="../../finance/assets">
+                                Asset Management
+                            </a></li>
+                            <li><a href="../../finance/leasing">
+                                Leasing
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container-fluid -->
+    </nav>
+
+    
+
+    <div class="bootstrap container-fluid">
+
+        
+  
+
+
+        
+
+        
+
+        
+
+        
+
+    <h1>
+    <span>Market Analysis</span>
+    <a href="../../docs-render?article=MarketAnalysis" class="help-link" title="Market Analysis"><span class="fa fa-question-circle"></span></a>
+</h1>
+
+    <ul class="as-panel as-action-bar">
+        <li>
+            <form class="form-inline" role="form" id="id9298" method="post" action="./DELBOM?1332-1.-pair~form"><div id="id9298_hf_0" hidden="" class="hidden-fields"></div>
+                <div class="form-group">
+                    <label class="sr-only" for="pair-form-code">
+                        Quick Airport Pair Selection
+                    </label>
+                    <input type="text" class="form-control" id="pair-form-code" value="" name="code" placeholder="Airport Pair">
+                </div>
+                <button type="submit" class="btn btn-default">
+                    select
+                </button>
+            </form>
+        </li>
+    </ul>
+
+    <div class="row">
+        <div class="col-md-2">
+            <h3>Airport Pair</h3>
+            <div class="as-panel">
+
+                <div class="as-fieldset">
+                    <span class="legend">Origin</span>
+                    <div class="select2-container form-control" id="s2id_id927b"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-1">Delhi (DEL)</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><label for="s2id_autogen1" class="select2-offscreen"></label><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" role="button" aria-labelledby="select2-chosen-1" id="s2id_autogen1"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen1_search" class="select2-offscreen"></label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-1" id="s2id_autogen1_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" id="select2-results-1">   </ul></div></div><select class="form-control select2-offscreen" name="origin-select" id="id927b" tabindex="-1" title="">
+<option value="3768">Abu Dhabi (AUH)</option>
+<option value="1126">Ahmedabad (AMD)</option>
+<option value="1770">Almaty (ALA)</option>
+<option value="2245">Amsterdam Schiphol (AMS)</option>
+<option value="2937">Bangkok Suvarnabhumi (BKK)</option>
+<option value="1132">Bengaluru Kempegowda (BLR)</option>
+<option value="1135">Bhopal (BHO)</option>
+<option value="1136">Bhubaneswar (BBI)</option>
+<option value="1172">Chennai International (MAA)</option>
+<option value="2832">Colombo Bandaranaike (CMB)</option>
+<option selected="selected" value="1143">Delhi (DEL)</option>
+<option value="350">Dhaka (DAC)</option>
+<option value="2544">Doha Hamad International (DOH)</option>
+<option value="3771">Dubai (DXB)</option>
+<option value="1149">Goa Dabolim (GOI)</option>
+<option value="1151">Guwahati (GAU)</option>
+<option value="1154">Hyderabad Rajiv Gandhi (HYD)</option>
+<option value="1156">Indore (IDR)</option>
+<option value="1158">Jaipur (JAI)</option>
+<option value="2200">Kathmandu (KTM)</option>
+<option value="1140">Kochi (COK)</option>
+<option value="1164">Kolkata (CCU)</option>
+<option value="1053">London Gatwick (LGW)</option>
+<option value="1054">London Heathrow (LHR)</option>
+<option value="1171">Lucknow (LKO)</option>
+<option value="1138">Mumbai (BOM)</option>
+<option value="2329">Muskat (MCT)</option>
+<option value="3551">New York John F. Kennedy (JFK)</option>
+<option value="878">Paris Charles de Gaulle (CDG)</option>
+<option value="1177">Patna (PAT)</option>
+<option value="1180">Pune (PNQ)</option>
+<option value="3773">Sharjah (SHJ)</option>
+<option value="2776">Singapore Changi (SIN)</option>
+<option value="1187">Srinagar (SXR)</option>
+<option value="1195">Varanasi (VNS)</option>
+</select>
+                </div>
+
+                <div class="as-fieldset">
+                    <span class="legend">Destination</span>
+
+                    <div>
+                        <div class="select2-container form-control" id="s2id_id927c"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-2">Mumbai (BOM)</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><label for="s2id_autogen2" class="select2-offscreen"></label><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" role="button" aria-labelledby="select2-chosen-2" id="s2id_autogen2"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen2_search" class="select2-offscreen"></label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-2" id="s2id_autogen2_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" id="select2-results-2">   </ul></div></div><select class="form-control select2-offscreen" name="destinations:choice" id="id927c" tabindex="-1" title="">
+<option value="3768">Abu Dhabi (AUH)</option>
+<option value="1126">Ahmedabad (AMD)</option>
+<option value="1770">Almaty (ALA)</option>
+<option value="2245">Amsterdam Schiphol (AMS)</option>
+<option value="2937">Bangkok Suvarnabhumi (BKK)</option>
+<option value="1132">Bengaluru Kempegowda (BLR)</option>
+<option value="1135">Bhopal (BHO)</option>
+<option value="1136">Bhubaneswar (BBI)</option>
+<option value="1172">Chennai International (MAA)</option>
+<option value="2832">Colombo Bandaranaike (CMB)</option>
+<option value="350">Dhaka (DAC)</option>
+<option value="2544">Doha Hamad International (DOH)</option>
+<option value="3771">Dubai (DXB)</option>
+<option value="1149">Goa Dabolim (GOI)</option>
+<option value="1151">Guwahati (GAU)</option>
+<option value="1154">Hyderabad Rajiv Gandhi (HYD)</option>
+<option value="1156">Indore (IDR)</option>
+<option value="1158">Jaipur (JAI)</option>
+<option value="2200">Kathmandu (KTM)</option>
+<option value="1140">Kochi (COK)</option>
+<option value="1164">Kolkata (CCU)</option>
+<option value="1053">London Gatwick (LGW)</option>
+<option value="1054">London Heathrow (LHR)</option>
+<option value="1171">Lucknow (LKO)</option>
+<option selected="selected" value="1138">Mumbai (BOM)</option>
+<option value="2329">Muskat (MCT)</option>
+<option value="3551">New York John F. Kennedy (JFK)</option>
+<option value="878">Paris Charles de Gaulle (CDG)</option>
+<option value="1177">Patna (PAT)</option>
+<option value="1180">Pune (PNQ)</option>
+<option value="3773">Sharjah (SHJ)</option>
+<option value="2776">Singapore Changi (SIN)</option>
+<option value="1187">Srinagar (SXR)</option>
+<option value="1195">Varanasi (VNS)</option>
+</select>
+
+                        <div class="as-table-well hidden-xs hidden-sm">
+                            <table class="table">
+                                <thead>
+                                <tr>
+                                    <th>Airport</th>
+                                    <th class="number">Flts</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>
+                                        
+                                        <a href="./DELAMD"><span>Ahmedabad</span></a>
+                                        (<span>AMD</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELALA"><span>Almaty</span></a>
+                                        (<span>ALA</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELBKK"><span>Bangkok</span></a>
+                                        (<span>BKK</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELBLR"><span>Bengaluru</span></a>
+                                        (<span>BLR</span>)
+                                        
+                                    </td>
+                                    <td class="number">2</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELBHO"><span>Bhopal</span></a>
+                                        (<span>BHO</span>)
+                                        
+                                    </td>
+                                    <td class="number">2</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELBBI"><span>Bhubaneswar</span></a>
+                                        (<span>BBI</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELMAA"><span>Chennai</span></a>
+                                        (<span>MAA</span>)
+                                        
+                                    </td>
+                                    <td class="number">3</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELCMB"><span>Colombo Bandaranaike</span></a>
+                                        (<span>CMB</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELDAC"><span>Dhaka</span></a>
+                                        (<span>DAC</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELDOH"><span>Doha</span></a>
+                                        (<span>DOH</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELDXB"><span>Dubai</span></a>
+                                        (<span>DXB</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELGOI"><span>Goa</span></a>
+                                        (<span>GOI</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELGAU"><span>Guwahati</span></a>
+                                        (<span>GAU</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELHYD"><span>Hyderabad</span></a>
+                                        (<span>HYD</span>)
+                                        
+                                    </td>
+                                    <td class="number">2</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELIDR"><span>Indore</span></a>
+                                        (<span>IDR</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELJAI"><span>Jaipur</span></a>
+                                        (<span>JAI</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELKTM"><span>Kathmandu</span></a>
+                                        (<span>KTM</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELCOK"><span>Kochi</span></a>
+                                        (<span>COK</span>)
+                                        
+                                    </td>
+                                    <td class="number">2</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELCCU"><span>Kolkata</span></a>
+                                        (<span>CCU</span>)
+                                        
+                                    </td>
+                                    <td class="number">2</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELLGW"><span>London Gatwick</span></a>
+                                        (<span>LGW</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELLHR"><span>London Heathrow</span></a>
+                                        (<span>LHR</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELLKO"><span>Lucknow</span></a>
+                                        (<span>LKO</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        <span class="fa fa-play"></span>
+                                        <a href="./DELBOM"><span>Mumbai</span></a>
+                                        (<span>BOM</span>)
+                                        
+                                    </td>
+                                    <td class="number">2</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELMCT"><span>Muskat</span></a>
+                                        (<span>MCT</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELJFK"><span>New York</span></a>
+                                        (<span>JFK</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELCDG"><span>Paris</span></a>
+                                        (<span>CDG</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELPAT"><span>Patna</span></a>
+                                        (<span>PAT</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELPNQ"><span>Pune</span></a>
+                                        (<span>PNQ</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELSHJ"><span>Sharjah</span></a>
+                                        (<span>SHJ</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELSIN"><span>Singapore</span></a>
+                                        (<span>SIN</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELSXR"><span>Srinagar</span></a>
+                                        (<span>SXR</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELVNS"><span>Varanasi</span></a>
+                                        (<span>VNS</span>)
+                                        
+                                    </td>
+                                    <td class="number">1</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELAUH"><span>Abu Dhabi</span></a>
+                                        (<span>AUH</span>)
+                                        
+                                    </td>
+                                    <td class="number">0</td>
+                                </tr><tr>
+                                    <td>
+                                        
+                                        <a href="./DELAMS"><span>Amsterdam</span></a>
+                                        (<span>AMS</span>)
+                                        
+                                    </td>
+                                    <td class="number">0</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        <div class="col-md-10">
+            <h2>
+                <span>
+                    <span>Delhi</span>
+                    (<a href="../../info/airports/1143">DEL</a>)
+                </span> -
+                <span>
+                    <span>Mumbai</span>
+                    (<a href="../../info/airports/1138">BOM</a>)
+                </span>
+                <small>1,138 km</small>
+            </h2>
+
+            <ul class="as-panel as-action-bar">
+                
+    <li>
+        <a class="btn btn-default" href="../scheduling/DELBOM">view in scheduling</a>
+        <a class="btn btn-default" href="../inventory/DELBOM">view in inventory</a>
+    </li>
+
+                <li>
+                    <a class="btn btn-default" href="../../ops/stations/DEL">
+                        <span>DEL</span> Station
+                    </a>
+                    <a class="btn btn-default" href="../../ops/stations/BOM">
+                        <span>BOM</span> Station
+                    </a>
+                    
+                </li>
+                <li>
+                    <a class="btn btn-default" href="./DELLKO">
+                        <span class="fa fa-backward"></span>
+                        previous
+                    </a>
+                    <a class="btn btn-default" href="./BOMDEL">
+                        reverse
+                    </a>
+                    <a class="btn btn-default" href="./DELMCT">
+                        next
+                        <span class="fa fa-forward"></span>
+                    </a>
+                </li>
+            </ul>
+            <div id="id9299">
+
+    <h3>Current Availability</h3>
+    <div class="as-panel" id="id929a">
+    <div class="layout-row">
+        <div class="layout-col-md-9">
+            <div class="as-table-well">
+                
+
+                <table class="table table-bordered table-body-striped table-hover" id="inventory-grouped-table">
+                    <thead>
+                    <tr>
+                        <th><a id="id92b2" href="./DELBOM?1332-1.-pair-pair~panel-listing-grouped~view-sort~code" class="wicket_orderNone">Flight</a></th>
+                        <th colspan="2"><a id="id92b3" href="./DELBOM?1332-1.-pair-pair~panel-listing-grouped~view-sort~departure" class="wicket_orderUp">Dep</a></th>
+                        <th class="number"><a id="id92b4" href="./DELBOM?1332-1.-pair-pair~panel-listing-grouped~view-sort~arrival" class="wicket_orderNone">Arr</a></th>
+                        <th>SC</th>
+                        <th class="number">Availability</th>
+                        <th class="number">Price</th>
+                        <th><a id="id92b5" href="./DELBOM?1332-1.-pair-pair~panel-listing-grouped~view-sort~status" class="wicket_orderNone">Status</a></th>
+                        <th>&nbsp;</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14873">KF 1009</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-10-29 UTC / 2026-10-29 HT / 2026-10-29 LT" rowspan="3">2026-10-29</td>
+                            <td class="number" title="04:01 UTC / 09:31 HT / 09:31 LT" rowspan="3">09:31</td>
+                            <td class="number" title="05:47 UTC / 11:17 HT / 11:17 LT" rowspan="3">11:17</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">143 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>finished</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=631054" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">307 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14875">KF 1011</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-10-29 UTC / 2026-10-29 HT / 2026-10-29 LT" rowspan="3">2026-10-29</td>
+                            <td class="number" title="12:00 UTC / 17:30 HT / 17:30 LT" rowspan="3">17:30</td>
+                            <td class="number" title="13:46 UTC / 19:16 HT / 19:16 LT" rowspan="3">19:16</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">143 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>finished</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=636658" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">307 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14873">KF 1009</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-10-30 UTC / 2026-10-30 HT / 2026-10-30 LT" rowspan="3">2026-10-30</td>
+                            <td class="number" title="04:01 UTC / 09:31 HT / 09:31 LT" rowspan="3">09:31</td>
+                            <td class="number" title="05:47 UTC / 11:17 HT / 11:17 LT" rowspan="3">11:17</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>finished</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=648103" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14875">KF 1011</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-10-30 UTC / 2026-10-30 HT / 2026-10-30 LT" rowspan="3">2026-10-30</td>
+                            <td class="number" title="12:00 UTC / 17:30 HT / 17:30 LT" rowspan="3">17:30</td>
+                            <td class="number" title="13:46 UTC / 19:16 HT / 19:16 LT" rowspan="3">19:16</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>finished</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=653841" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14873">KF 1009</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-10-31 UTC / 2026-10-31 HT / 2026-10-31 LT" rowspan="3">2026-10-31</td>
+                            <td class="number" title="04:01 UTC / 09:31 HT / 09:31 LT" rowspan="3">09:31</td>
+                            <td class="number" title="05:47 UTC / 11:17 HT / 11:17 LT" rowspan="3">11:17</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>booked</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=665347" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14875">KF 1011</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-10-31 UTC / 2026-10-31 HT / 2026-10-31 LT" rowspan="3">2026-10-31</td>
+                            <td class="number" title="12:00 UTC / 17:30 HT / 17:30 LT" rowspan="3">17:30</td>
+                            <td class="number" title="13:46 UTC / 19:16 HT / 19:16 LT" rowspan="3">19:16</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>booked</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=671072" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14873">KF 1009</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-11-01 UTC / 2026-11-01 HT / 2026-11-01 LT" rowspan="3">2026-11-01</td>
+                            <td class="number" title="04:01 UTC / 09:31 HT / 09:31 LT" rowspan="3">09:31</td>
+                            <td class="number" title="05:47 UTC / 11:17 HT / 11:17 LT" rowspan="3">11:17</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>booked</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=682622" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14875">KF 1011</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-11-01 UTC / 2026-11-01 HT / 2026-11-01 LT" rowspan="3">2026-11-01</td>
+                            <td class="number" title="12:00 UTC / 17:30 HT / 17:30 LT" rowspan="3">17:30</td>
+                            <td class="number" title="13:46 UTC / 19:16 HT / 19:16 LT" rowspan="3">19:16</td>
+                        
+                        <td>Y</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>booked</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=688556" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14873">KF 1009</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-11-02 UTC / 2026-11-02 HT / 2026-11-02 LT" rowspan="3">2026-11-02</td>
+                            <td class="number" title="04:01 UTC / 09:31 HT / 09:31 LT" rowspan="3">09:31</td>
+                            <td class="number" title="05:47 UTC / 11:17 HT / 11:17 LT" rowspan="3">11:17</td>
+                        
+                        <td>Y</td>
+                        <td><div class="good text-right">20</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>booked</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=700451" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="warning text-right">1</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody><tbody>
+                    <tr>
+                        
+                            <td rowspan="3">
+                                <a href="../numbers/14875">KF 1011</a>
+                                <div>
+                                    <small>
+                                        
+                                            <a href="../../fleets/aircraft/2093">VT-AAF</a> /
+                                        
+                                        <a href="../../../action/enterprise/aircraftsType?id=3155">32Q</a>
+                                    </small>
+                                </div>
+                            </td>
+                            <td title="2026-11-02 UTC / 2026-11-02 HT / 2026-11-02 LT" rowspan="3">2026-11-02</td>
+                            <td class="number" title="12:00 UTC / 17:30 HT / 17:30 LT" rowspan="3">17:30</td>
+                            <td class="number" title="13:46 UTC / 19:16 HT / 19:16 LT" rowspan="3">19:16</td>
+                        
+                        <td>Y</td>
+                        <td><div class="good text-right">132</div></td>
+                        <td class="number">150 AS$</td>
+                        
+                            <td class="flightStatusPanel" rowspan="3">
+
+	<span>booked</span>
+    
+</td>
+                            <td class="text-center" rowspan="3">
+                                <a href="../../../action/info/flight?id=706402" title="View Flight"><span class="fa fa-play"></span></a>
+                            </td>
+                        
+                    </tr><tr>
+                        
+                        <td>C</td>
+                        <td><div class="bad text-right">0</div></td>
+                        <td class="number">322 AS$</td>
+                        
+                    </tr><tr>
+                        
+                        <td>Cargo</td>
+                        <td><div class="good text-right">25</div></td>
+                        <td class="number">104 AS$</td>
+                        
+                    </tr>
+                    </tbody>
+                    <tbody>
+                    
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="layout-col-md-3">
+            <fieldset>
+                <legend>Service Classes</legend>
+                <div id="id9284"><label class="checkbox-inline"><input name="pair:pair-panel:listing:filters:serviceClasses" type="checkbox" checked="checked" value="0" id="id9284-pair:pair-panel:listing:filters:serviceClasses_0">Y</label><label class="checkbox-inline"><input name="pair:pair-panel:listing:filters:serviceClasses" type="checkbox" checked="checked" value="1" id="id9284-pair:pair-panel:listing:filters:serviceClasses_1">C</label><label class="checkbox-inline"><input name="pair:pair-panel:listing:filters:serviceClasses" type="checkbox" checked="checked" value="2" id="id9284-pair:pair-panel:listing:filters:serviceClasses_2">F</label><label class="checkbox-inline"><input name="pair:pair-panel:listing:filters:serviceClasses" type="checkbox" checked="checked" value="3" id="id9284-pair:pair-panel:listing:filters:serviceClasses_3">Cargo</label>
+</div><span hidden="" class="wicket-ajax-indicator" id="id9284--ajax-indicator"><img src="../../wicket/resource/org.apache.wicket.ajax.AbstractDefaultAjaxBehavior/indicator-ver-03CE3DCC84AF110E9DA8699A841E5200.gif" alt=""></span>
+            </fieldset>
+            <fieldset>
+                <legend>Flight Status</legend>
+                <div id="id9285"><div class="checkbox"><label><input name="pair:pair-panel:listing:filters:flightStati" type="checkbox" checked="checked" value="0" id="id9285-pair:pair-panel:listing:filters:flightStati_0">booked</label></div><div class="checkbox"><label><input name="pair:pair-panel:listing:filters:flightStati" type="checkbox" checked="checked" value="1" id="id9285-pair:pair-panel:listing:filters:flightStati_1">inflight</label></div><div class="checkbox"><label><input name="pair:pair-panel:listing:filters:flightStati" type="checkbox" checked="checked" value="2" id="id9285-pair:pair-panel:listing:filters:flightStati_2">finished</label></div><div class="checkbox"><label><input name="pair:pair-panel:listing:filters:flightStati" type="checkbox" checked="checked" value="3" id="id9285-pair:pair-panel:listing:filters:flightStati_3">cancelled</label></div>
+</div><span hidden="" class="wicket-ajax-indicator" id="id9285--ajax-indicator"><img src="../../wicket/resource/org.apache.wicket.ajax.AbstractDefaultAjaxBehavior/indicator-ver-03CE3DCC84AF110E9DA8699A841E5200.gif" alt=""></span>
+            </fieldset>
+            <fieldset>
+                <legend>Settings</legend>
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox" name="pair:pair-panel:listing:filters:ignoreCarriers" id="id9286"><span hidden="" class="wicket-ajax-indicator" id="id9286--ajax-indicator" showincrementallycount="0" style="display: none;"><img src="../../wicket/resource/org.apache.wicket.ajax.AbstractDefaultAjaxBehavior/indicator-ver-03CE3DCC84AF110E9DA8699A841E5200.gif" alt=""></span>
+                        Ignore own flights
+                    </label>
+                </div>
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox" checked="checked" name="pair:pair-panel:listing:filters:display" id="id9287">
+                        Group by flight
+                    </label>
+                </div>
+            </fieldset>
+        </div>
+    </div>
+</div>
+
+    <h3>Airport Pair Settings</h3>
+    
+    <form role="form" id="id929b" method="post" action="./DELBOM?1332-1.-pair-pair~panel-settings-settings~form"><div id="id929b_hf_0" hidden="" class="hidden-fields"></div>
+        <ul class="as-action-bar as-panel">
+            <li>
+                <button type="submit" class="btn btn-default" name="p::submit" id="id929c">
+                    apply prices and settings
+                </button>
+                <button type="submit" class="btn btn-default" name="submit-prices" id="id929d">
+                    apply prices only
+                </button>
+                <button type="submit" class="btn btn-default" name="submit-settings" id="id929e">
+                    apply settings only
+                </button>
+            </li>
+        </ul>
+        <div class="as-panel">
+            <div class="layout-row">
+                <div class="layout-col-md-7">
+                    <fieldset>
+                        <legend>Pricing</legend>
+                        <div class="pricing">
+    <div class="as-table-well">
+        <table class="table table-bordered table-striped">
+            <thead>
+            <tr>
+                <th>Srv Cls</th>
+                <th>Current Price</th>
+                <th colspan="2">New Price</th>
+                <th>Default Price</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>Y</td>
+                <td class="number">150 AS$</td>
+                <td class="input-cell number">
+                    <input type="text" class="number" value="150" name="classes:prices:0:newPrice" id="id92c3">
+                </td>
+                <td class="slider-cell">
+                    <div class="slider ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all" id="id92c2"><div class="ui-slider-range ui-widget-header ui-corner-all ui-slider-range-min" style="width: 52.280702%;"></div><span class="ui-slider-handle ui-state-default ui-corner-all" tabindex="0" style="left: 52.280702%;"></span></div>
+                </td>
+                <td class="number">
+                    <span>143 AS$</span>
+                    <a id="id92c4" href="./DELBOM?1332-1.-pair-pair~panel-settings-settings~form-classes-prices-0-reset"><span class="fa fa-check"></span></a>
+                </td>
+            </tr><tr>
+                <td>C</td>
+                <td class="number">322 AS$</td>
+                <td class="input-cell number">
+                    <input type="text" class="number" value="322" name="classes:prices:1:newPrice" id="id92c6">
+                </td>
+                <td class="slider-cell">
+                    <div class="slider ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all" id="id92c5"><div class="ui-slider-range ui-widget-header ui-corner-all ui-slider-range-min" style="width: 52.365416%;"></div><span class="ui-slider-handle ui-state-default ui-corner-all" tabindex="0" style="left: 52.365416%;"></span></div>
+                </td>
+                <td class="number">
+                    <span>307 AS$</span>
+                    <a id="id92c7" href="./DELBOM?1332-1.-pair-pair~panel-settings-settings~form-classes-prices-1-reset"><span class="fa fa-check"></span></a>
+                </td>
+            </tr><tr>
+                <td>F</td>
+                <td class="number">539 AS$</td>
+                <td class="input-cell number">
+                    <input type="text" class="number" value="539" name="classes:prices:2:newPrice" id="id92c9">
+                </td>
+                <td class="slider-cell">
+                    <div class="slider ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all" id="id92c8"><div class="ui-slider-range ui-widget-header ui-corner-all ui-slider-range-min" style="width: 49.953575%;"></div><span class="ui-slider-handle ui-state-default ui-corner-all" tabindex="0" style="left: 49.953575%;"></span></div>
+                </td>
+                <td class="number">
+                    <span>539 AS$</span>
+                    <a id="id92ca" href="./DELBOM?1332-1.-pair-pair~panel-settings-settings~form-classes-prices-2-reset"><span class="fa fa-check"></span></a>
+                </td>
+            </tr><tr>
+                <td>Cargo</td>
+                <td class="number">104 AS$</td>
+                <td class="input-cell number">
+                    <input type="text" class="number" value="104" name="classes:prices:3:newPrice" id="id92cc">
+                </td>
+                <td class="slider-cell">
+                    <div class="slider ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all" id="id92cb"><div class="ui-slider-range ui-widget-header ui-corner-all ui-slider-range-min" style="width: 49.758454%;"></div><span class="ui-slider-handle ui-state-default ui-corner-all" tabindex="0" style="left: 49.758454%;"></span></div>
+                </td>
+                <td class="number">
+                    <span>104 AS$</span>
+                    <a id="id92cd" href="./DELBOM?1332-1.-pair-pair~panel-settings-settings~form-classes-prices-3-reset"><span class="fa fa-check"></span></a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+                    </fieldset>
+                </div>
+                <div class="layout-col-md-3">
+                    <fieldset>
+                        <legend>General Settings</legend>
+                        <div id="id929f" class="form-group">
+    <label class="control-label">
+        <span for="id9276">Origin Terminal</span>
+        <a>
+</a>
+    </label>
+
+    
+                            <select class="form-control input-sm" name="originTerminal-group:originTerminal-group_body:originTerminal" id="id9276">
+<option selected="selected" value="">T1</option>
+</select>
+                        
+
+    
+    
+</div>
+                        <div id="id92a0" class="form-group">
+    <label class="control-label">
+        <span for="id9277">Destination Terminal</span>
+        <a>
+</a>
+    </label>
+
+    
+                            <select class="form-control input-sm" name="destinationTerminal-group:destinationTerminal-group_body:destinationTerminal" id="id9277">
+<option selected="selected" value="">T1</option>
+</select>
+                        
+
+    
+    
+</div>
+                        <div id="id92a1" class="form-group">
+    <label class="control-label">
+        <span for="id9278">On-Board Service</span>
+        <a>
+</a>
+    </label>
+
+    
+                            <select class="form-control input-sm" name="serviceProfile-group:serviceProfile-group_body:serviceProfile" id="id9278">
+<option value="">no service profile</option>
+<option value="307">S1</option>
+<option selected="selected" value="308">S2 (min 800km)</option>
+</select>
+                        
+
+    
+    
+</div>
+                        <div id="id92a2" class="form-group">
+    <label class="control-label">
+        <span for="id9279">Boarding/Disembark Method</span>
+        <a href="../../docs-render?article=BoardingPreference" class="help-link" title="Boarding/Disembark Method"><span class="fa fa-question-circle"></span></a>
+    </label>
+
+    
+                            <select class="form-control input-sm" name="boardingPreference-group:boardingPreference-group_body:boardingPreference" id="id9279">
+<option selected="selected" value="DEFAULT">based on airport/terminal</option>
+<option value="NO_BRIDGES">use remote stand</option>
+</select>
+                        
+
+    
+    
+</div>
+                        <div id="id92a3" class="form-group">
+    <label class="control-label">
+        <span for="id927a">Cargo/Baggage Settings</span>
+        <a href="../../docs-render?article=CargoPreference" class="help-link" title="Cargo and Baggage Settings"><span class="fa fa-question-circle"></span></a>
+    </label>
+
+    
+                            <select class="form-control input-sm" name="cargoPreference-group:cargoPreference-group_body:cargoPreference" id="id927a">
+<option selected="selected" value="DEFAULT">default</option>
+<option value="NO_BULK">avoid bulk</option>
+<option value="NO_CARGO">no cargo</option>
+<option value="NO_CARGO_NO_BULK">no cargo and avoid bulk</option>
+</select>
+                        
+
+    
+    
+</div>
+                    </fieldset>
+                </div>
+                <div class="layout-col-md-2">
+                    <fieldset>
+                        <legend>Apply settings to</legend>
+                        <div class="checkbox">
+                            <label>
+                                <input type="checkbox" checked="checked" name="settings:airportPair"> Airport Pair
+                            </label>
+                        </div>
+                        <div class="checkbox">
+                            <label>
+                                <input type="checkbox" checked="checked" name="settings:flightNumbers"> Flight Numbers
+                            </label>
+                        </div>
+                        <div class="checkbox">
+                            <label>
+                                <input type="checkbox" name="settings:returnAirportPair"> Return Airport Pair
+                            </label>
+                        </div>
+                        <div class="checkbox">
+                            <label>
+                                <input type="checkbox" name="settings:returnFlightNumbers"> Return Flight Numbers
+                            </label>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+        </div>
+    </form>
+
+
+    <h3>Historic Capacities and Prices</h3>
+    <div class="as-panel">
+
+    <div class="layout-row">
+        <div class="layout-col-md-9">
+            <div id="id92a4">
+	
+	<div id="id9295" class="chart chart-line"><svg width="1058" height="250"><g transform="translate(10,10)"><g class="grid grid-x" transform="translate(0,200)"><g class="tick" transform="translate(0,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(41.583333333333336,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(83.16666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(124.75,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(166.33333333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(207.91666666666669,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(249.5,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(291.08333333333337,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(332.6666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(374.25,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(415.83333333333337,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(457.4166666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(499,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(540.5833333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(582.1666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(623.75,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(665.3333333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(706.9166666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(748.5,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(790.0833333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(831.6666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(873.25,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(914.8333333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(956.4166666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(998,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><path class="domain" d="M0,0V0H998V0"></path></g><g class="grid grid-y"><g class="tick" transform="translate(0,200)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><g class="tick" transform="translate(0,127.84992784992785)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><g class="tick" transform="translate(0,55.6998556998557)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><path class="domain" d="M0,0H0V200H0"></path></g><g class="axis axis-x" transform="translate(0,200)"><g class="tick" transform="translate(0,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">20</text></g><g class="tick" transform="translate(41.583333333333336,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">21</text></g><g class="tick" transform="translate(83.16666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">22</text></g><g class="tick" transform="translate(124.75,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">23</text></g><g class="tick" transform="translate(166.33333333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">24</text></g><g class="tick" transform="translate(207.91666666666669,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">25</text></g><g class="tick" transform="translate(249.5,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">26</text></g><g class="tick" transform="translate(291.08333333333337,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">27</text></g><g class="tick" transform="translate(332.6666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">28</text></g><g class="tick" transform="translate(374.25,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">29</text></g><g class="tick" transform="translate(415.83333333333337,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">30</text></g><g class="tick" transform="translate(457.4166666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">31</text></g><g class="tick" transform="translate(499,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">32</text></g><g class="tick" transform="translate(540.5833333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">33</text></g><g class="tick" transform="translate(582.1666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">34</text></g><g class="tick" transform="translate(623.75,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">35</text></g><g class="tick" transform="translate(665.3333333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">36</text></g><g class="tick" transform="translate(706.9166666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">37</text></g><g class="tick" transform="translate(748.5,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">38</text></g><g class="tick" transform="translate(790.0833333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">39</text></g><g class="tick" transform="translate(831.6666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">40</text></g><g class="tick" transform="translate(873.25,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">41</text></g><g class="tick" transform="translate(914.8333333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">42</text></g><g class="tick" transform="translate(956.4166666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">43</text></g><g class="tick" transform="translate(998,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">44</text></g><path class="domain" d="M0,6V0H998V6"></path></g><g class="axis axis-y" transform="translate(998,0)"><g class="tick" transform="translate(0,200)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">0</text></g><g class="tick" transform="translate(0,127.84992784992785)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">1000</text></g><g class="tick" transform="translate(0,55.6998556998557)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">2000</text></g><path class="domain" d="M6,0H0V200H6"></path></g><text class="axis-label axis-label-x" x="509" y="230" style="text-anchor: middle;">Calendar week</text><text class="axis-label axis-label-y" transform="rotate(-90)" y="1045" x="-3" style="text-anchor: end;">Offered seats</text><g class="series capacities"><path class="area capacities" d="M0,200L41.583333333333336,200L83.16666666666667,200L124.75,200L166.33333333333334,200L207.91666666666669,200L249.5,200L291.08333333333337,200L332.6666666666667,200L374.25,200L415.83333333333337,200L457.4166666666667,200L499,200L540.5833333333334,200L582.1666666666667,200L623.75,200L665.3333333333334,200L706.9166666666667,200L748.5,200L790.0833333333334,200L831.6666666666667,42.424242424242436L873.25,42.424242424242436L914.8333333333334,40.69264069264068L956.4166666666667,18.181818181818187L998,70.12987012987014L998,200L956.4166666666667,200L914.8333333333334,200L873.25,200L831.6666666666667,200L790.0833333333334,200L748.5,200L706.9166666666667,200L665.3333333333334,200L623.75,200L582.1666666666667,200L540.5833333333334,200L499,200L457.4166666666667,200L415.83333333333337,200L374.25,200L332.6666666666667,200L291.08333333333337,200L249.5,200L207.91666666666669,200L166.33333333333334,200L124.75,200L83.16666666666667,200L41.583333333333336,200L0,200Z"></path><path class="line capacities" d="M0,200L41.583333333333336,200L83.16666666666667,200L124.75,200L166.33333333333334,200L207.91666666666669,200L249.5,200L291.08333333333337,200L332.6666666666667,200L374.25,200L415.83333333333337,200L457.4166666666667,200L499,200L540.5833333333334,200L582.1666666666667,200L623.75,200L665.3333333333334,200L706.9166666666667,200L748.5,200L790.0833333333334,200L831.6666666666667,42.424242424242436L873.25,42.424242424242436L914.8333333333334,40.69264069264068L956.4166666666667,18.181818181818187L998,70.12987012987014"></path></g></g></svg></div>
+	
+</div>
+            <div id="id92a5">
+	
+	<div id="id9296" class="chart chart-line"><svg width="1058" height="250"><g transform="translate(10,10)"><g class="grid grid-x" transform="translate(0,200)"><g class="tick" transform="translate(0,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(41.583333333333336,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(83.16666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(124.75,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(166.33333333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(207.91666666666669,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(249.5,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(291.08333333333337,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(332.6666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(374.25,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(415.83333333333337,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(457.4166666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(499,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(540.5833333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(582.1666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(623.75,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(665.3333333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(706.9166666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(748.5,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(790.0833333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(831.6666666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(873.25,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(914.8333333333334,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(956.4166666666667,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><g class="tick" transform="translate(998,0)" style="opacity: 1;"><line y2="-200" x2="0"></line><text y="3" x="0" dy=".71em" style="text-anchor: middle;"></text></g><path class="domain" d="M0,0V0H998V0"></path></g><g class="grid grid-y"><g class="tick" transform="translate(0,200)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><g class="tick" transform="translate(0,136.86868686868686)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><g class="tick" transform="translate(0,73.73737373737374)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><g class="tick" transform="translate(0,10.606060606060623)" style="opacity: 1;"><line x2="998" y2="0"></line><text x="-3" y="0" dy=".32em" style="text-anchor: end;"></text></g><path class="domain" d="M0,0H0V200H0"></path></g><g class="axis axis-x" transform="translate(0,200)"><g class="tick" transform="translate(0,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">20</text></g><g class="tick" transform="translate(41.583333333333336,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">21</text></g><g class="tick" transform="translate(83.16666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">22</text></g><g class="tick" transform="translate(124.75,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">23</text></g><g class="tick" transform="translate(166.33333333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">24</text></g><g class="tick" transform="translate(207.91666666666669,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">25</text></g><g class="tick" transform="translate(249.5,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">26</text></g><g class="tick" transform="translate(291.08333333333337,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">27</text></g><g class="tick" transform="translate(332.6666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">28</text></g><g class="tick" transform="translate(374.25,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">29</text></g><g class="tick" transform="translate(415.83333333333337,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">30</text></g><g class="tick" transform="translate(457.4166666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">31</text></g><g class="tick" transform="translate(499,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">32</text></g><g class="tick" transform="translate(540.5833333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">33</text></g><g class="tick" transform="translate(582.1666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">34</text></g><g class="tick" transform="translate(623.75,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">35</text></g><g class="tick" transform="translate(665.3333333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">36</text></g><g class="tick" transform="translate(706.9166666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">37</text></g><g class="tick" transform="translate(748.5,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">38</text></g><g class="tick" transform="translate(790.0833333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">39</text></g><g class="tick" transform="translate(831.6666666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">40</text></g><g class="tick" transform="translate(873.25,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">41</text></g><g class="tick" transform="translate(914.8333333333334,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">42</text></g><g class="tick" transform="translate(956.4166666666667,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">43</text></g><g class="tick" transform="translate(998,0)" style="opacity: 1;"><line y2="6" x2="0"></line><text y="9" x="0" dy=".71em" style="text-anchor: middle;">44</text></g><path class="domain" d="M0,6V0H998V6"></path></g><g class="axis axis-y" transform="translate(998,0)"><g class="tick" transform="translate(0,200)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">0</text></g><g class="tick" transform="translate(0,136.86868686868686)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">50</text></g><g class="tick" transform="translate(0,73.73737373737374)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">100</text></g><g class="tick" transform="translate(0,10.606060606060623)" style="opacity: 1;"><line x2="6" y2="0"></line><text x="9" y="0" dy=".32em" style="text-anchor: start;">150</text></g><path class="domain" d="M6,0H0V200H6"></path></g><text class="axis-label axis-label-x" x="509" y="230" style="text-anchor: middle;">Calendar week</text><text class="axis-label axis-label-y" transform="rotate(-90)" y="1045" x="-3" style="text-anchor: end;">Price in AS$ per unit</text><g class="series prices"><path class="area prices" d="M0,200L41.583333333333336,200L83.16666666666667,200L124.75,200L166.33333333333334,200L207.91666666666669,200L249.5,200L291.08333333333337,200L332.6666666666667,200L374.25,200L415.83333333333337,200L457.4166666666667,200L499,200L540.5833333333334,200L582.1666666666667,200L623.75,200L665.3333333333334,200L706.9166666666667,200L748.5,200L790.0833333333334,200L831.6666666666667,19.44444444444443L873.25,19.44444444444443L914.8333333333334,19.44444444444443L956.4166666666667,19.44444444444443L998,18.181818181818187L998,200L956.4166666666667,200L914.8333333333334,200L873.25,200L831.6666666666667,200L790.0833333333334,200L748.5,200L706.9166666666667,200L665.3333333333334,200L623.75,200L582.1666666666667,200L540.5833333333334,200L499,200L457.4166666666667,200L415.83333333333337,200L374.25,200L332.6666666666667,200L291.08333333333337,200L249.5,200L207.91666666666669,200L166.33333333333334,200L124.75,200L83.16666666666667,200L41.583333333333336,200L0,200Z"></path><path class="line prices" d="M0,200L41.583333333333336,200L83.16666666666667,200L124.75,200L166.33333333333334,200L207.91666666666669,200L249.5,200L291.08333333333337,200L332.6666666666667,200L374.25,200L415.83333333333337,200L457.4166666666667,200L499,200L540.5833333333334,200L582.1666666666667,200L623.75,200L665.3333333333334,200L706.9166666666667,200L748.5,200L790.0833333333334,200L831.6666666666667,19.44444444444443L873.25,19.44444444444443L914.8333333333334,19.44444444444443L956.4166666666667,19.44444444444443L998,18.181818181818187"></path></g></g></svg></div>
+	
+</div>
+        </div>
+        <div class="layout-col-md-3">
+            <select class="form-control" name="pair:pair-panel:load-chart:payload" id="id9294">
+<option value="PAX">Passengers</option>
+<option selected="selected" value="ECONOMY">Economy</option>
+<option value="BUSINESS">Business</option>
+<option value="FIRST">First</option>
+<option value="FREIGHT">Freight</option>
+</select>
+        </div>
+    </div>
+
+</div>
+
+    <h3>Market Shares</h3>
+    <div>
+
+	<div class="as-panel">
+
+	<div class="row periodSelection">
+		<div class="col-xs-4 text-center previous"><a href="./DELBOM?1332-1.-pair-pair~panel-market~share-periodSelection-week.previous"><span>43/2026</span></a></div>
+		<div class="col-xs-4 text-center current"><span>44/2026</span></div>
+		<div class="col-xs-4 text-center next"></div>
+	</div>
+
+</div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="paxData">
+	
+	<div class="marketShareData">
+		<h4>Passengers</h4>
+        <div class="as-panel">
+            <div class="as-table-well">
+                <table class="table table-bordered table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th scope="col">&nbsp;</th>
+                            <th scope="col">Enterprise</th>
+                            
+                            <th scope="col">Market share</th>
+                            <th scope="col">Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    
+                        <tr>
+                            <td rowspan="2">
+                                <span>1</span>
+                                
+                                
+                            </td>
+                            <td>
+                                <a href="../../info/enterprises/113">Kingfisher Airlines</a>
+                                
+                            </td>
+                            
+                            <td class="number">100.00%</td>
+                            <td class="number">
+                                <span>0.00</span>
+                                (<span class="zero">0.00%</span>)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="3">
+                                <div class="progress" style="margin-bottom: 0;">
+                                    <div class="progress-bar progress-bar-success" style="width:100.0%;">&nbsp;</div>
+                                </div>
+                            </td>
+                        </tr>
+                    
+                    </tbody>
+                </table>
+            </div>
+        </div>
+	</div>
+	
+	
+
+</div>
+        </div>
+        <div class="col-md-6">
+            <div class="paxData">
+	
+	<div class="marketShareData">
+		<h4>Cargo</h4>
+        <div class="as-panel">
+            <div class="as-table-well">
+                <table class="table table-bordered table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th scope="col">&nbsp;</th>
+                            <th scope="col">Enterprise</th>
+                            
+                            <th scope="col">Market share</th>
+                            <th scope="col">Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    
+                        <tr>
+                            <td rowspan="2">
+                                <span>1</span>
+                                
+                                
+                            </td>
+                            <td>
+                                <a href="../../info/enterprises/113">Kingfisher Airlines</a>
+                                
+                            </td>
+                            
+                            <td class="number">100.00%</td>
+                            <td class="number">
+                                <span>0.00</span>
+                                (<span class="zero">0.00%</span>)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="3">
+                                <div class="progress" style="margin-bottom: 0;">
+                                    <div class="progress-bar progress-bar-success" style="width:100.0%;">&nbsp;</div>
+                                </div>
+                            </td>
+                        </tr>
+                    
+                    </tbody>
+                </table>
+            </div>
+        </div>
+	</div>
+	
+	
+
+</div>
+        </div>
+    </div>
+
+</div>
+
+</div>
+        </div>
+        
+    </div>
+
+
+
+    </div>
+
+    <nav id="footer" class="bootstrap navbar navbar-default navbar-fixed-bottom as-navbar-bottom" role="navigation"><div class="as-footer-line"><div class="as-footer-line-element _root_4gs7n_1"><a class="_badge_4gs7n_5" data-new="true">v6.13.20</a></div><span class="as-footer-line-element as-game-world"><span class="fa fa-globe"></span>&nbsp;<a href="#">gander</a></span><div class="as-footer-line-element"><button type="button" tabindex="0" aria-haspopup="menu" aria-expanded="false" id="base-ui-_r_4_" class="_trigger_kh1ry_2"><span class="_caret_kh1ry_25" aria-hidden="true"></span><img class="_flag_kh1ry_138" alt="en" src="/assets/img/langs/en.png">English</button></div><span class="as-footer-line-element"><span class="fa fa-clock-o"></span>&nbsp;2026-10-30&nbsp;14:07 UTC</span></div></nav>
+</div>
+
+<script type="application/javascript">
+    function stc(e){var n="_sl_";function t(t,o){return!(!o||function(e){return document.cookie.split(";").some(function(t){return 0===t.trim().indexOf(n+e+"=")})}(t))&&(function(t,o){var i=new Date;i.setTime(Date.now()+62208e6),document.cookie=n+t+"="+encodeURIComponent(o)+"; expires="+i.toUTCString()+"; path=/; domain="+e+"; SameSite=Lax"}(t,o),!0)}t("lp",document.location)&&t("ref",document.referrer)}
+</script>
+<script type="application/javascript">
+    stc('airlinesim.aero');
+</script>
+
+
+
+
+<span role="status" aria-live="polite" class="select2-hidden-accessible"></span><span role="status" aria-live="polite" class="select2-hidden-accessible"></span></body></html>

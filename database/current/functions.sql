@@ -5429,7 +5429,7 @@ begin
    order by r.started_at desc, r.id desc limit 1;
   if v_run.id is not null then
     with rd as (
-      select m.id, m.airline_id, m.origin, m.dest, m.read_at, nullif(btrim(m.service_code), '') as game_code
+      select m.id, m.airline_id, m.origin, m.dest, m.read_at, private.market_service_token(m.service_code) as game_code
         from public.market_reads m
        where m.run_id = v_run.id and m.ok and (p_airline_id is null or m.airline_id = p_airline_id)),
     -- the read airline's route on the pair (not removed; one with rotations first, then the oldest)
@@ -7138,7 +7138,7 @@ begin
 
     insert into public.market_reads (run_id, world_id, airline_id, origin, dest, ok, share_week, service_code, service_profile_game_id)
     values (v_run.id, p_world_id, v_al, v_origin, v_dest, true, nullif(p_payload ->> 'week', ''),
-            nullif(btrim(p_payload -> 'service' ->> 'code'), ''),
+            private.market_service_token(p_payload -> 'service' ->> 'code'),
             case when (p_payload -> 'service' ->> 'game_id') ~ '^\d{1,9}$' then (p_payload -> 'service' ->> 'game_id')::int end)
     returning id, read_at into v_read, v_at;
 
@@ -7215,6 +7215,18 @@ AS $function$
      and r.started_at > p_as_of - interval '1 hour' and r.started_at <= p_as_of
    order by r.started_at desc, r.id desc
    limit 1
+$function$
+
+;
+
+-- private.market_service_token(p text)
+CREATE OR REPLACE FUNCTION private.market_service_token(p text)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select nullif(btrim(split_part(btrim(coalesce(p, '')), ' (', 1)), '')
 $function$
 
 ;
