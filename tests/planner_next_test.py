@@ -461,6 +461,20 @@ async def competition_opens(pl):
     await open_screen(pl.pg, 'competition')
     await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
+    # since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part B) the threats and the order books open as charts,
+    # their tables one tap away: the charts first, then the tables are counted
+    charts = await pl.pg.evaluate("""({ shown: """ + TABLES_SHOWN_JS + """,
+        threats: !!document.querySelector('[data-figure="competition: threats chart"]'), books: !!document.querySelector('[data-figure="competition: order books chart"]'),
+        toggles: [...document.querySelectorAll('main [data-chart-or-table]')].map(e => e.dataset.chartOrTable) })""")
+    problems = []
+    if charts["shown"]:
+        problems.append(f"Competition opens {charts['shown']} as tables, not charts")
+    if "cp-threats" in charts["toggles"] and not charts["threats"]:
+        problems.append("Competition's threats have no chart")
+    if "cp-order-books" in charts["toggles"] and not charts["books"]:
+        problems.append("Competition's order books have no chart")
+    await pl.pg.evaluate(SHOW_TABLES_JS)
+    await settle(pl.pg, 300)
     group = await pl.pg.evaluate("""({
         scans: (document.querySelector('[data-scans]') || {}).textContent || '',
         line: (document.querySelector('[data-figure="competition: group line"]') || {}).textContent || '',
@@ -468,7 +482,7 @@ async def competition_opens(pl):
         threats: !!document.querySelector('[data-figure="competition: threats"]'),
         books: !!document.querySelector('[data-figure="competition: order books"]'),
         bookRows: [...document.querySelectorAll('[data-order-book]')].map(r => r.dataset.orderBook) })""")
-    problems = []
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
     if not group["books"]:
         problems.append("Competition has no Order books board")
     books = json.loads(psql(f"""select coalesce(json_agg(distinct f ->> 'airline_id'), '[]') from public.airlines a
@@ -487,6 +501,17 @@ async def competition_opens(pl):
     await pl.pg.click(f"[data-competition-card='{code}']")
     await pl.pg.wait_for_selector(f"main[data-screen=competition][data-airline='{code}'][data-competition-ready=yes]", timeout=90000)
     await settle(pl.pg, 300)
+    # the airline's charts (30 Oct): a donut on every market with departures, the openings' scatter over the ranked list,
+    # the threats as a timeline (their table one tap away)
+    ch = await pl.pg.evaluate("""({ shown: """ + TABLES_SHOWN_JS + """, donuts: document.querySelectorAll('[data-market] [data-figure="competition: market donut"]').length,
+        withShare: [...document.querySelectorAll('[data-market]')].length, scatter: !!document.querySelector('[data-figure="competition: openings scatter"]'),
+        openings: document.querySelectorAll('[data-opening]').length })""")
+    if ch["shown"]:
+        problems.append(f"{code}'s Competition page opens {ch['shown']} as tables, not charts")
+    if ch["openings"] and not ch["scatter"]:
+        problems.append(f"{code}'s openings have no scatter over the list")
+    await pl.pg.evaluate(SHOW_TABLES_JS)
+    await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({
         boards: [...document.querySelectorAll('main[data-screen=competition] .board')].map(b => b.dataset.board),
         markets: document.querySelectorAll('[data-market]').length, threats: document.querySelectorAll('main[data-screen=competition] [data-threat]').length,
@@ -497,6 +522,7 @@ async def competition_opens(pl):
         pconn: document.querySelectorAll('[data-profile] [data-connecting]').length,
         oconn: [...document.querySelectorAll('[data-opening]')].slice(0, 10).map(r => { const c = r.querySelector('[data-connecting]'); return c ? +c.dataset.connecting : null; }),
         first: [...document.querySelectorAll('[data-opening]')].slice(0, 5).map(r => r.dataset.opening) })""")
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
     if got["boards"] != ["Market share", "Threats", "Openings", "Rival profiles"]:
         problems.append(f"{code}'s Competition boards are {got['boards']}")
     aid = psql(f"select id from public.airlines where world_id = {WORLD} and iata_code = :'code'", code=code).strip()
@@ -535,7 +561,8 @@ async def competition_opens(pl):
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Competition opens with {group['scans'] or 'no scans line'!r}, a card for each of the copy's {len(group['cards'])} airlines and "
-            f"{len(group['bookRows'])} order books; {code}'s page has "
+            f"{len(group['bookRows'])} order books, the threats and order books as charts with their tables one tap away; {code}'s page has "
+            f"{ch['donuts']} market donuts, the openings' scatter, "
             f"{got['markets']} markets, {got['threats']} threats, {db['count']} openings ({got['rows']} shown, top: {', '.join(got['first'])}) and "
             f"{got['profiles']} rival profiles, each with its fleet line, and connecting departures beside direct on {len(got['mconn'])} markets "
             f"({sum(got['mconn'])} a week) and {got['pconn']} profiles, as competition() gives them"), problems
@@ -839,6 +866,8 @@ async def performance_opens(pl):
                      rows: t.querySelectorAll('tr[data-rprow]').length } : null; })()""")
     if cols and ("Fare index" not in cols["head"] or "14 days" not in cols["head"] or cols["sparks"] != cols["rows"]):
         problems.append(f"the route profit table's columns are {cols['head']}, with {cols['sparks']} sparklines for {cols['rows']} routes")
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
+    await settle(pl.pg, 200)
     if one["open"] != ["Route profit"]:
         problems.append(f"the airline's page opens with {one['open']} open, not Route profit alone")
     if want and one["name"] != want[0]:
@@ -975,6 +1004,12 @@ def busiest_route(code=None, not_code=None):
 # the charts' "show as table" (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md): every table a chart stands in
 # front of on the screen shown, so the checks that read a table (the route profit table, its links) find it
 SHOW_TABLES_JS = "document.querySelectorAll('main [data-table-toggle][aria-pressed=false]').forEach(b => b.click())"
+# ... and back (charts are the default, remembered per board in this browser: a check that shows a table puts the chart
+# back, so the next page, test and screenshot open as a viewer who never chose the table would see them)
+SHOW_CHARTS_JS = "document.querySelectorAll('main [data-table-toggle][aria-pressed=true]').forEach(b => b.click())"
+# every board whose chart replaced a table opens as the chart (part B, 30 Oct: the airline page's profit board opened as
+# its table on the 1280 screenshot)
+TABLES_SHOWN_JS = "[...document.querySelectorAll('main [data-chart-or-table][data-showing=table]')].map(e => e.dataset.chartOrTable)"
 ROUTE_BOARDS = ["Since launch", "Load by direction", "Loads by flight", "Profit an aircraft hour", "Rival fares", "Market share",
                 "Rivals on the pair", "Rivals over time", "Events", "Connections"]
 # the boards Routes' route detail shows of a route's story (since 30 Oct, spec docs/specs/2026-10-30-route-story-on-routes.md)
@@ -1016,6 +1051,7 @@ async def route_page_opens(pl):
     await pl.pg.evaluate(SHOW_TABLES_JS)   # the route profit table, behind its chart since 30 Oct
     await settle(pl.pg, 300)
     link = await pl.pg.evaluate("(document.querySelector('[data-figure=\"performance: route profit table\"] a[data-route-link]') || {getAttribute: () => ''}).getAttribute('href')")
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
     code = await pl.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline")
     if link:
         await pl.pg.click("[data-figure='performance: route profit table'] a[data-route-link]")
@@ -1089,8 +1125,11 @@ async def route_page_opens(pl):
     # Competition's threats: each links to its route's page
     await open_screen(pl.pg, 'competition')
     await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
+    await pl.pg.evaluate(SHOW_TABLES_JS)   # the threats' table, behind their timeline since 30 Oct
+    await settle(pl.pg, 300)
     threats = await pl.pg.evaluate("""({ n: document.querySelectorAll('[data-threat]').length,
         links: [...document.querySelectorAll('[data-threat] a[data-route-page-link]')].map(a => a.getAttribute('href')) })""")
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
     if len(threats["links"]) != threats["n"] or any(not re.fullmatch(r"/planner/performance/[A-Z0-9]+/[A-Z0-9]{3,4}-[A-Z0-9]{3,4}", h or "") for h in threats["links"]):
         problems.append(f"{threats['n']} threats on Competition, {len(threats['links'])} linking to a route page")
     await open_screen(pl.pg, 'home')
@@ -1417,6 +1456,15 @@ async def screens(p, port, env, facts, staff, seen, moment):
                     if sid == "systems":
                         await ph.pg.click("#rev-expall")   # every board open: the widest the screen gets
                         await settle(ph.pg, 300)
+                    if sid in ("performance", "competition"):
+                        # part B (30 Oct): every board whose chart replaced a table opens as the chart
+                        shown = await ph.pg.evaluate(TABLES_SHOWN_JS)
+                        if shown:
+                            problems.append(f"{name} at {width} px: {shown} open as tables, not charts")
+                    if sid == "competition":
+                        problems.extend(f"{name} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, "main"))
+                        await ph.pg.evaluate(SHOW_TABLES_JS)   # the widest the page gets
+                        await settle(ph.pg, 300)
                     if sid == "performance":
                         # 30 Oct: the charts readable where they sit, and the first opens full size
                         problems.extend(f"{name} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, "main"))
@@ -1473,6 +1521,9 @@ async def screens(p, port, env, facts, staff, seen, moment):
                     hrefs = await ph.pg.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))")
                     links += len(hrefs)
                     problems.extend(f"{name}: a link to {h}" for h in hrefs if OLD_LINK.match(h or ""))
+                    if await ph.pg.evaluate(SHOW_CHARTS_JS.replace("forEach(b => b.click())", "length")):
+                        await ph.pg.evaluate(SHOW_CHARTS_JS)   # the charts again, as a viewer sees them, for the screenshot and the next page
+                        await settle(ph.pg, 300)
                     if SCREENS_DIR:
                         await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-{width}.png"), full_page=True, timeout=90000)
                         shots += 1

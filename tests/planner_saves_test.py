@@ -899,6 +899,8 @@ async def review(s, pl, al, now):
         if key:
             offer = (a, key)
             break
+        # charts are the default (part B, 30 Oct): the tables shown for the look go back behind their charts
+        await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=true]').forEach(b => b.click())")
     if not offer:
         s.not_tried("no route offers a fare plan on this copy", "performance: + fare plan", "performance: remove a planned fare change")
         return
@@ -909,6 +911,7 @@ async def review(s, pl, al, now):
         await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=false]').forEach(b => b.click())")
         await pg.wait_for_timeout(300)
         await s.act("performance: remove a planned fare change", lambda: pg.click(f"[data-faredel='{int(fp)}']"))
+    await pg.evaluate("document.querySelectorAll('main [data-table-toggle][aria-pressed=true]').forEach(b => b.click())")
 
 
 # ---------- Performance → the fare ladder (21 Oct, spec docs/specs/2026-10-21-fare-ladder.md)

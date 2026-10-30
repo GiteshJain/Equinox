@@ -9,7 +9,7 @@ import { SERIES, TONE, type HBarItem, type HeatRow, type StackRow, type StackSer
 import type { OurAirline } from "../../data/airlines";
 import {
   MARKS, chartIntervals, fcDay, fcWhat, ms, sg, DAY_MS,
-  type DayRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow,
+  type AircraftRow, type DayRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow,
 } from "./model";
 import type { CapturedLoad, GrowthRead, Pattern } from "./reads";
 
@@ -192,3 +192,13 @@ export function flightsHeat(flights: readonly DayFlight[], loadOf: (f: DayFlight
 
 /** A colour for an airline, its own or one from the kit's run. */
 export const colorFor = (color: string | null | undefined, i: number): string => color || (SERIES[i % SERIES.length] as string);
+
+/** Aircraft (since 30 Oct drawn with the kit, as the old rpTailChart's figures): each aircraft's profit a day after its
+ *  lease (before, without one), in thousands, green or red. */
+export function tailItems(rows: readonly AircraftRow[]): HBarItem[] {
+  return rows.map((t) => {
+    const k = (t.net_day != null ? t.net_day : t.flight_profit_day) * 1000;
+    return { key: t.registration, label: t.registration, value: k, color: k >= 0 ? "#1E9E6A" : "#B4234B",
+      text: (k >= 0 ? "+" : "−") + Math.abs(Math.round(k)) + "k", tip: `${t.registration}: ${Math.round(k)}k a day${t.net_day != null ? " after lease" : ""}` };
+  });
+}

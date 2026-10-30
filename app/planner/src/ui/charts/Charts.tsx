@@ -82,6 +82,13 @@ export function readable(box: HTMLElement) {
   }
 }
 
+/** A row label cut to the room it has (at 11 px, about 6.4 px a character), with "…" when cut; the tips keep the
+ *  whole name. */
+export function fitText(text: string, px: number): string {
+  const n = Math.max(3, Math.floor(px / 6.4));
+  return text.length <= n ? text : text.slice(0, n - 1).trimEnd() + "…";
+}
+
 /** The table a chart stands in front of (from ChartOrTable), for the large view's "show as table". */
 const TableCtx = createContext<ReactNode | null>(null);
 
@@ -203,7 +210,7 @@ export function HBars({ layout, figure, label = "bar chart" }: { layout: (W: num
             <line x1={g.zeroX} x2={g.zeroX} y1={g.T} y2={g.H - 18} className="zero" />
             {g.bars.map((b) => (
               <g key={b.key} data-bar={b.key}>
-                <text x={g.L - 6} y={b.y + b.h / 2 + 4} textAnchor="end" className="klab">{b.label}</text>
+                <text x={g.L - 6} y={b.y + b.h / 2 + 4} textAnchor="end" className="klab">{fitText(b.label, g.L - 10)}</text>
                 <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" fill={b.color} data-tip={b.tip} />
                 <text x={b.textX} y={b.y + b.h / 2 + 4} textAnchor={b.neg ? "end" : "start"} className="kval">{b.text}</text>
               </g>
@@ -227,7 +234,7 @@ export function StackedBars({ layout, figure, onPick, label = "bar chart" }: { l
           <svg className="kchart kstack" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={label} data-figure={figure} data-rows={g.rows.length}>
             {g.rows.map((r) => (
               <g key={r.key} data-stack-row={r.key}>
-                <text x={g.L - 6} y={r.y + r.h / 2 + 4} textAnchor="end" className="klab">{r.label}</text>
+                <text x={g.L - 6} y={r.y + r.h / 2 + 4} textAnchor="end" className="klab">{fitText(r.label, g.L - 10)}</text>
                 {r.segs.map((s) => (
                   <rect key={s.key} x={s.x} y={r.y} width={s.w} height={r.h} fill={s.color} data-tip={s.tip} data-seg={`${r.key}|${s.key}`}
                     className={onPick ? "kpick" : undefined} onClick={onPick ? () => onPick(r.key, s.key) : undefined} />
@@ -287,7 +294,7 @@ function lowLabel(g: StepLayout): { x: number; y: number; style?: { textAnchor: 
 }
 
 /** A timeline: a row per thing, each mark at its moment; kinds are classes (styled in styles.css). */
-export function Timeline({ layout, figure, label = "timeline" }: { layout: (W: number) => TimelineLayout; figure?: string; label?: string }) {
+export function Timeline({ layout, figure, label = "timeline", onPick }: { layout: (W: number) => TimelineLayout; figure?: string; label?: string; onPick?: (href: string) => void }) {
   return (
     <ChartTip label={label}>
       <Sized>{(w) => {
@@ -298,9 +305,10 @@ export function Timeline({ layout, figure, label = "timeline" }: { layout: (W: n
             {g.now != null ? <line x1={g.now} x2={g.now} y1={0} y2={g.H - 20} className="know" /> : null}
             {g.rows.map((r) => (
               <g key={r.key} data-time-row={r.key}>
-                <text x={g.L - 6} y={r.y + 4} textAnchor="end" className="klab">{r.label}</text>
+                <text x={g.L - 6} y={r.y + 4} textAnchor="end" className="klab">{fitText(r.label, g.L - 10)}</text>
                 {r.span ? <line x1={r.span.x0} x2={r.span.x1} y1={r.y} y2={r.y} className="kspan" /> : null}
-                {r.marks.map((m, i) => <circle key={i} cx={m.x} cy={r.y} r="5.5" className={"kmark " + m.kind} data-tip={m.tip} data-mark={m.kind} />)}
+                {r.marks.map((m, i) => <circle key={i} cx={m.x} cy={r.y} r="5.5" className={"kmark " + m.kind + (m.href && onPick ? " kpick" : "")} data-tip={m.tip} data-mark={m.kind}
+                  data-href={m.href} onClick={m.href && onPick ? () => onPick(m.href as string) : undefined} />)}
               </g>
             ))}
           </svg>
@@ -355,7 +363,7 @@ export function HeatStrip({ layout, figure, label = "heat strip" }: { layout: (W
           <svg className="kchart kheat" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={label} data-figure={figure} data-rows={g.rows.length}>
             {g.rows.map((r) => (
               <g key={r.key} data-heat-row={r.key}>
-                <text x={g.L - 6} y={r.y + g.row / 2 + 4} textAnchor="end" className="klab">{r.label}</text>
+                <text x={g.L - 6} y={r.y + g.row / 2 + 4} textAnchor="end" className="klab">{fitText(r.label, g.L - 10)}</text>
                 {r.cells.map((c, i) => (c.empty ? <rect key={i} x={c.x + 1} y={r.y + 2} width={Math.max(0, g.cw - 2)} height={g.row - 4} className="kcell0" />
                   : <rect key={i} x={c.x + 1} y={r.y + 2} width={Math.max(0, g.cw - 2)} height={g.row - 4} rx="2" fill={c.fill} data-tip={c.tip} />))}
               </g>

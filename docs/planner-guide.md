@@ -266,7 +266,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   to 1,600 px it sits under the frequencies; on a phone (under 1,100 px) it isn't shown, and **The route's story ›**
   opens the route page as before. A route not flown yet says "Not flown yet".
   Since 30 Oct, above 1,600 px a route's detail uses the whole window (up to 2,560 px): the list 320–380 px, the story
-  about 55% of the rest. The other screens keep their 1,440 px width.
+  about 55% of the rest. Tails does the same (its list and detail up to 2,560 px). The other screens keep their 1,440 px
+  width.
 
 ## Tails
 *Every aircraft: what it flies each week and how hard it works.* Laid out since 23 Oct short and answer-first, as Today
@@ -508,6 +509,8 @@ fold them, and a row's title opens or closes it.
     table**. Esc, the **×** or a click outside closes it. Tapping a growth segment opens its list instead.
   - **Hover** (or, full size, tap) anything on a chart for its exact figure. Chart text is never smaller than 11 px:
     on a narrow screen some axis labels are left out instead.
+  - A board opens as its chart unless you chose its table in this browser. Load against profit, Aircraft and The group
+    today are drawn the same way, so their text stays readable on a phone.
 - **The airline's page:** its name as the title with **‹ All airlines**, the airline switch (one segmented control, as
   on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
   return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load
@@ -625,21 +628,28 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
 - **The group** (/planner/competition): a tile per airline (three a row, two in a narrow window, one on a phone) with
   its share across its markets and its arrow (since 30 Oct, with the game's passenger share across its markets under it
   where any has a market read), its threats in the last 7 days (amber) and its top opening in one line;
-  tap one to open it. Under them, **Threats**: every airline's in one table (airline, rival, pair, the numbers, the day
-  and until when the fares hold, and the link to the route's page), newest first; on a phone each is a compact row.
+  tap one to open it. Under them, **Threats**: since 30 Oct a timeline by scan day, a row per airline of ours, each
+  threat a dot (red: a rival started on the pair; amber: added a daily flight or more) with its words on hover or tap;
+  tapping a dot opens its route's page. **Show as table** gives every airline's in one table (airline, rival, pair, the
+  numbers, the day and until when the fares hold, and the link to the route's page), newest first; on a phone each is a
+  compact row.
   Under it (since 23 Oct, spec docs/specs/2026-10-23-rival-fleets.md), **Order books**: the rivals whose aircraft on
   order, on their overview page in the latest scan, are a quarter of their fleet or more and at least 5
   (*rival_orders_flag_pct* 25, *rival_orders_flag_min* 5), and those with aircraft on order and no flights yet
   (**starting**), biggest share first. Each with its order book ("44 on order, 44.4% of 99 aircraft"), the change in
   aircraft on order since the week-before scan, and the airlines of ours it meets (it flies one of their city pairs or
   from one of their bases; amber), else "meets none of our airlines". Our own airlines and freighter-only airlines are
-  never listed. The list feeds nothing else: no opening, contested base or fare pause.
+  never listed. The list feeds nothing else: no opening, contested base or fare pause. Since 30 Oct it's a chart: a bar
+  per rival of its aircraft on order as a share of its fleet, red when it meets our airlines, grey when it doesn't, a
+  starting rival drawn full ("12 on order, no flights yet"), and the flag (*rival_orders_flag_pct*) as a dashed line;
+  **show as table** for the list.
 - **An airline** (/planner/competition/MU), with the airline switch under the title and **‹ All airlines**. Its four
   sections are rows that open, each with its count (**Expand all** and **Collapse all** open or close every one);
   **Openings** is open on arrival:
   - **Market share:** a tile per market (the airline's routes, flown or not, either direction): our share with its
-    arrow against the week-before scan, and the top rivals as a bar (ours dark, the rivals grey) and a list with their
-    departures, share and change. Our own departures are the live schedule's; a week before, the scan's. Since 23 Oct a
+    arrow against the week-before scan, and since 30 Oct a donut of the market's departures (ours in the airline's
+    colour, each top rival, the other rivals in grey; our share in the middle, each part's figure on hover or tap)
+    beside the list of top rivals, each with its colour, departures, share and change. Our own departures are the live schedule's; a week before, the scan's. Since 23 Oct a
     line under it gives the rivals' direct and connecting departures apart ("Rivals: 160 direct · 14 connecting"), with
     the connecting airports; the share counts direct only. Since 30 Oct (spec
     docs/specs/2026-10-30-market-pages-planner.md), where the market's pairs have market reads, a line with **the game's
@@ -648,8 +658,13 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
     14)"). It sits beside the scan's departures share and never replaces it; nothing before the first read.
   - **Threats:** each rival who started on a pair the airline flies (none in the scan before) or added at least 7
     departures a week (*competition_threat_min_weekly*), with the numbers then and now, ours, the day and until when
-    the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance; a table, newest first.
-  - **Openings:** the pairs on its list no airline of ours flies, ranked: stars, then the rivals' departures a week on
+    the route's fares hold (7 days on), and since 22 Oct a link to the route's page on Performance. Since 30 Oct a
+    timeline by scan day, a row per rival (tap a dot for the route's page), with **show as table** for the table, newest
+    first.
+  - **Openings:** since 30 Oct a chart over the list: each opening shown as a bubble, its stars up the side and the
+    rivals' departures a week along the bottom, its size the distance, its colour the variant's family (737, A320,
+    A350…), ringed when hubs first allows it now. The list below is unchanged. The pairs on its list no airline of ours
+    flies, ranked: stars, then the rivals' departures a week on
     the pair, then the shorter distance, then the pair's code. Each with its stars, distance, the rivals and their
     departures, the **variant** from the default line (manual §3: the smallest size the stars allow, bigger only "for
     reach", the cheapest per seat whose range covers it, among the types the airline may buy; beyond every
@@ -668,7 +683,8 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   - **Rival profiles:** the 10 rivals who fly most of its city pairs: their size and growth since the week-before
     scan, airports, the pairs shared (theirs and ours a week) and their biggest airports. Since 23 Oct each also shows
     its **fleet** from its overview page in the latest scan ("99 aircraft, 44 on order, +6 on order this week"; "fleet
-    not read in the latest scan" when the scan didn't read it) and its five biggest types with what's on order. Since
+    not read in the latest scan" when the scan didn't read it) and its five biggest types with what's on order, since
+    30 Oct as a bar per type (in its fleet, then on order). Since
     23 Oct a line **On our pairs** gives its direct and connecting departures a week on the airline's pairs apart ("21
     direct · 14 connecting"), with its connecting airports; a profile is still chosen by the pairs it flies direct.
 - **Connecting departures** (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md; manual §3, rivals' connections are

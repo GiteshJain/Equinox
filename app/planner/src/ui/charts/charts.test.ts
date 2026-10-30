@@ -6,6 +6,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ChartFrame, ChartOrTable, donutLayout, gaugeLayout, hbarLayout, heatLayout, loadFill, niceCeil, sizedScatterLayout, sparkLayout, stackLayout, stepLayout, ticks, timelineLayout,
+  fitText,
 } from "./index";
 
 describe("the scale", () => {
@@ -117,5 +118,18 @@ describe("the frame and show as table", () => {
     expect(html).not.toContain('id="t"');
     expect(html).toContain("show as table");
     expect(html).toContain('data-table-toggle="test"');
+  });
+});
+
+describe("labels kept to their room (part B)", () => {
+  it("a row label longer than its column is cut with an ellipsis, a short one kept", () => {
+    // 100 px at 6.4 px a character: 15 characters, the last the ellipsis
+    expect(fitText("Lufthansa Cargo International", 100)).toBe("Lufthansa Carg…");
+    expect(fitText("ANA", 100)).toBe("ANA");
+  });
+  it("a bar's own words replace its value where given", () => {
+    const g = hbarLayout([{ key: "a", label: "A", value: 10, tip: "a", text: "12 on order, no flights yet" }, { key: "b", label: "B", value: 5, tip: "b" }], { fmt: (v) => `${v}%`, W: 400, R: 150 });
+    expect(g.bars.map((b) => b.text)).toEqual(["12 on order, no flights yet", "5%"]);
+    expect(g.R).toBe(150);
   });
 });

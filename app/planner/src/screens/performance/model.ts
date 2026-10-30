@@ -358,16 +358,17 @@ export function loadAxisFrom(loads: readonly number[]): number {
  *  (spec docs/specs/2026-10-22-planner-look-performance.md) the load axis is zoomed to the routes shown (loadAxisFrom; a
  *  load under 40% sits on the axis's left edge), and only the five routes with the most profit a week and the ones off
  *  the pattern (fix, raise fares, add a flight) are labelled, each placed beside its dot where it overlaps no label
- *  already placed and stays inside the plot, else dropped. */
-export function scatterLayout(routes: readonly RouteRow[]): ScatterLayout | null {
+ *  already placed and stays inside the plot, else dropped. Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md)
+ *  laid out at the width it's shown (W), its labels at 11 px (charW), so its text never shrinks on a phone. */
+export function scatterLayout(routes: readonly RouteRow[], opts: { W?: number; H?: number; charW?: number } = {}): ScatterLayout | null {
   const pts = routes.filter((r) => r.economy != null);
   if (!pts.length) return null;
-  const W = 460, H = 250, pl = 48, pr = 14, pt = 12, pb = 44, ys = pts.map((r) => r.profit_per_flight * 1000);
+  const W = opts.W ?? 460, H = opts.H ?? 250, charW = opts.charW ?? SCATTER_CHAR_W, pl = 48, pr = 14, pt = 12, pb = 44, ys = pts.map((r) => r.profit_per_flight * 1000);
   const x0 = loadAxisFrom(pts.map((r) => r.economy as number)), x1 = 100;
   const y0 = Math.min(0, Math.min(...ys)), y1 = Math.max(1, Math.max(...ys) * 1.12);
   const X = (v: number) => pl + (Math.max(x0, Math.min(x1, v)) - x0) / (x1 - x0) * (W - pl - pr), Y = (v: number) => H - pb - (v - y0) / (y1 - y0) * (H - pt - pb);
   const maxW = Math.max(1, ...pts.map((r) => r.flights_week || 1));
-  const step = x1 - x0 <= 30 ? 5 : 10;
+  const step = x1 - x0 <= 30 && W >= 400 ? 5 : 10;   // (30 Oct) 10% steps on a narrow chart, so its 11 px labels fit
   const tx: number[] = [];
   for (let v = x0; v <= x1; v += step) tx.push(v);
   const key = (r: RouteRow) => `${r.hub}–${r.dest}`;
@@ -381,7 +382,7 @@ export function scatterLayout(routes: readonly RouteRow[]): ScatterLayout | null
   for (const r of [...top, ...off]) {
     const d = dots.find((x) => x.r === r);
     if (!d) continue;
-    const text = key(r), w = text.length * SCATTER_CHAR_W, h = 11, gap = d.rad * 0.7 + 3;
+    const text = key(r), w = text.length * charW, h = 11, gap = d.rad * 0.7 + 3;
     const tries: { x: number; y: number; anchor: "start" | "end" }[] = [
       { x: d.x - gap, y: d.y - gap, anchor: "end" }, { x: d.x + gap, y: d.y - gap, anchor: "start" },
       { x: d.x - gap, y: d.y + gap + h - 2, anchor: "end" }, { x: d.x + gap, y: d.y + gap + h - 2, anchor: "start" },
@@ -422,32 +423,16 @@ export function costParts(a: AverageFlight | null): { income: CostPart[]; costs:
   };
 }
 
-/** The old rpTailChart: each aircraft's profit a day after its lease (or before, without one), a bar each. */
-export function tailBars(rows: readonly AircraftRow[]): { W: number; H: number; mid: number | null; bars: { y: number; x: number; w: number; pos: boolean; label: string; labelX: number; title: string; reg: string }[] } {
-  const v = (t: AircraftRow) => (t.net_day != null ? t.net_day : t.flight_profit_day);
-  const W = 900, rh = 22, x0 = 110;
-  const mx = Math.max(0.001, ...rows.map((t) => Math.abs(v(t)) * 1000));
-  const anyNeg = Math.min(...rows.map(v)) < 0;
-  const mid = x0 + (W - x0 - 60) * (anyNeg ? 0.3 : 0), span = W - mid - 60;
-  const sc = (x: number) => x / mx * (anyNeg ? span : W - x0 - 60);
-  return {
-    W, H: rows.length * rh + 6, mid: anyNeg ? mid : null,
-    bars: rows.map((t, i) => {
-      const k = v(t) * 1000, w = Math.abs(sc(k)), x = k >= 0 ? mid : mid - w;
-      return { y: i * rh, x, w, pos: k >= 0, label: (k >= 0 ? "+" : "−") + Math.abs(Math.round(k)) + "k", labelX: k >= 0 ? x + w + 5 : x - 5,
-        title: `${t.registration}: ${Math.round(k)}k a day${t.net_day != null ? " after lease" : ""}`, reg: t.registration };
-    }),
-  };
-}
-
 // ---------- the group today (groupOverviewHtml's rows; its group totals left out, manual §5)
-/** Each airline's row: flight profit to the right, leases and the week-end closing to the left, net at the end. */
-export function groupLayout(rows: readonly GroupRow[]) {
-  const W = 900, rh = 30, x0 = 140;
+/** Each airline's row: flight profit to the right, leases and the week-end closing to the left, net at the end. Since 30
+ *  Oct laid out at the width it's shown (W), its text at 11 px: under 560 px the names' column is narrower and "net a day"
+ *  sits on a line of its own under the other two. */
+export function groupLayout(rows: readonly GroupRow[], W = 900) {
+  const narrow = W < 560, rh = 30, x0 = narrow ? 112 : 140;
   const mx = Math.max(0.01, ...rows.map((r) => Math.max(r.flight_profit_day ?? 0, r.leases_and_closing_day)));
   const sc = (v: number) => v / mx * (W - x0 - 70) / 2, c = x0 + (W - x0 - 70) / 2;
   return {
-    W, H: rows.length * rh + 24, c, axisY: rows.length * rh + 4, labelY: rows.length * rh + 18,
+    W, H: rows.length * rh + (narrow ? 38 : 24), c, x0, axisY: rows.length * rh + 4, labelY: rows.length * rh + 18, netY: rows.length * rh + (narrow ? 33 : 18),
     rows: rows.map((r, i) => ({
       r, y: i * rh + 4, profitW: sc(r.flight_profit_day ?? 0), leaseW: sc(r.leases_and_closing_day),
       profitTitle: `Flight profit ${sg(r.flight_profit_day ?? 0)} a day`, leaseTitle: `Leases and week-end closing −${r.leases_and_closing_day.toFixed(2)}M a day`,
