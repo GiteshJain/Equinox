@@ -67,3 +67,4 @@ by adding flights, which the capacity hold already protects.
 sold-out route. Manual §3's sentence replaced; rule history logged. One pull request with a small migration.
 
 ## Outcome
+**30 Oct 2026, Gitesh: B.** Manual: *Decided, not yet built* until the pull request merges, then §3's sentence is replaced.

@@ -38,6 +38,14 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### Route profit's sold-out marks and the fare ladder: decided 30 Oct
+*Gitesh, 30 Oct (Building chat, brief `docs/briefs/2026-10-30-route-profit-and-fare-ladder.md`, option B) · why: since
+21 Oct the fare ladder raises every sold-out direction each Saturday, so route profit's "raise fares" repeated it and
+"add a flight" read as "don't raise", two answers on price where the ladder gives the only one acted on. 315 of 344
+routes sold out on 30 Oct. Holding fares on add-a-flight routes (option C) was set aside: about −5.5M a week per step
+not taken on 164 routes waiting for aircraft.* New item in *Decided, not yet built*; §3's sentence is replaced when it's
+built.
+
 ### The market pages, once a week: decided 30 Oct
 *Gitesh, 30 Oct (Building chat, brief `docs/briefs/2026-10-29-market-pages.md`, option C, run every 7 capture days
 when due rather than on a fixed weekday, as the world scan) · why: the fare ladder moved on our own loads with no view

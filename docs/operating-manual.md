@@ -29,6 +29,12 @@ Until each is built and merged, the rules below stand as they are.
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
+- **Route profit shows the ladder's move, not its own "raise fares"** (§3, decided 30 Oct): a sold-out route below its
+  airline's middle route per aircraft hour is marked **sold out · fares climbing**, with the fare ladder's move for each
+  direction beside it, instead of **raise fares**; **add a flight** stays as it is. The fare ladder (§5) doesn't change.
+  Until it's built, read route profit's "raise fares" as the ladder's job. *(since 30 Oct, brief
+  `docs/briefs/2026-10-30-route-profit-and-fare-ladder.md`; history: rule-history.md)*
+
 Details and open points: `docs/decisions.md`.
 
 ## 1. How we work
