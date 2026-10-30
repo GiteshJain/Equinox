@@ -18,6 +18,8 @@
 --      re-sort named (20261015200000) given their kinds from before back, since moving those figures is its purpose
 --      (pilot_training_test.sql checks it; the rehearsal's figures-moved artifact says by how much). With a correction
 --      put on an airline's home airport here, each of its payments moves by exactly that much (private.fig_events()).
+--      Keys a pending migration adds on purpose are set aside while the figures before lack them (each block below says
+--      which; since 30 Oct the market pages' contested and market_run on each airline, 20261030180000).
 --   4. Loads by hand: loads_by_day() gives each day of the last two weeks as the old planner read it
 --      (planner_loads_get(), saved before): the same loads, complete marks, capture marks and saved times.
 --   5. The archive: archive_due() runs, and every archived table's manifest for last month has the same layout, rows
@@ -179,6 +181,14 @@ begin
   -- out here, so the rest must still be exactly as before. Once it is live, the figures before carry it too.
   if b::text not like '%"up_to"%' then
     a := pg_temp.without_up_to(a);
+  end if;
+  -- the market pages, part 2 (20261030180000) add each airline's contested and market_run to the figures on purpose
+  -- (market_pages_planner_test.sql checks them; competition()'s game_share stays on its markets, which the figures don't
+  -- carry): while it is pending (no airline in the figures before has contested), exactly those two are left out here, so
+  -- the rest must still be exactly as before. Once it is live, the figures before carry them too and nothing is left out.
+  if not exists (select 1 from jsonb_array_elements(b -> 'airlines') x where x ? 'contested') then
+    a := jsonb_set(a, '{airlines}', coalesce((select jsonb_agg(x - array['contested', 'market_run'] order by i)
+                                              from jsonb_array_elements(a -> 'airlines') with ordinality e(x, i)), '[]'::jsonb));
   end if;
   -- the fare ladder's hold after a step up (20261027000000) adds settings.up_hold_weeks and the held_up reason to
   -- fare_ladder() only: private.fig_export() doesn't read the fare ladder, so no new field reaches
