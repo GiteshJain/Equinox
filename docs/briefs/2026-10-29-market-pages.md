@@ -59,7 +59,12 @@ it wouldn't be (terms §5.3).
    open (its airport lists are that airline's stations and its pricing is that airline's), so the pairs come grouped by
    the airline that flies them, and the userscript switches to each airline once
    (`/app/enterprise/dashboard?select=<game id>`, as the fares userscript does) and checks the page shows that airline
-   before reading its pairs (one airline per pair, §2, so six switches). It parses the four sections in the browser, and
+   before reading its pairs (one airline per pair, §2, so six switches). **The game keeps the page's filters between
+   visits** (Gitesh, 30 Oct), and they are in each page's markup, so the userscript checks them on every page against
+   the setup in the saved page: every service class and every flight status ticked, Ignore own flights off, Group by
+   flight on. If one differs it stops before reading and says which to set; it never changes a filter itself. **It
+   only reads:** the page also holds the Pricing and settings forms, which change our fares, and the userscript never
+   submits any form (its test checks that nothing is sent to the game). It parses the four sections in the browser, and
    sends the figures with the capture key to a new `capture_market()`. Its panel shows "Market pages: 120 of 686…",
    with Stop; a reload carries on; a failed page is logged and skipped, as the scan does. Tested on Gitesh's saved
    DUB→AMS page (a dated sample in `tests/fixtures/`).
