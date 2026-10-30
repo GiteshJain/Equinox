@@ -29,11 +29,6 @@ Until each is built and merged, the rules below stand as they are.
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
-- **Route profit shows the ladder's move, not its own "raise fares"** (§3, decided 30 Oct): a sold-out route below its
-  airline's middle route per aircraft hour is marked **sold out · fares climbing**, with the fare ladder's move for each
-  direction beside it, instead of **raise fares**; **add a flight** stays as it is. The fare ladder (§5) doesn't change.
-  Until it's built, read route profit's "raise fares" as the ladder's job. *(since 30 Oct, brief
-  `docs/briefs/2026-10-30-route-profit-and-fare-ladder.md`; history: rule-history.md)*
 
 Details and open points: `docs/decisions.md`.
 
@@ -353,17 +348,19 @@ Details and open points: `docs/decisions.md`.
   page and the weekly report show them beside direct departures, never added; the openings, the contested test, hubs
   first, the three biggest competitors and the fare pause read direct departures only. *(since 21 Oct; history:
   rule-history.md)*
-- **Add a flight or raise fares, by profit per aircraft hour:** a sold-out route is marked **add a flight** when its
-  profit per aircraft hour is at or above its airline's middle route, and **raise fares** when it's below. An aircraft
-  hour is the flight's block time plus the type's turnaround (`aircraft_types.min_turn_min`) and the turn margin
-  (`settings.turn_margin_min`, 10 minutes): the hours the aircraft can't fly anything else. A route with no legs on
-  record has no aircraft hours and is still compared by profit per flight. The fix, losing-money and cash rules don't
-  change. Worked out by `route_profit()`, which gives each route's `aircraft_hours` and `profit_per_aircraft_hour`.
-  *(since 17 Oct; history: rule-history.md)*
+- **Add a flight, or sold out with fares climbing, by profit per aircraft hour:** a sold-out route is marked **add a
+  flight** when its profit per aircraft hour is at or above its airline's middle route, and **sold out · fares climbing**
+  when it's below: its price is the fare ladder's (§5), and the airline's page shows the ladder's move for each direction
+  beside it. An aircraft hour is the flight's block time plus the type's turnaround (`aircraft_types.min_turn_min`) and
+  the turn margin (`settings.turn_margin_min`, 10 minutes): the hours the aircraft can't fly anything else. A route with
+  no legs on record has no aircraft hours and is still compared by profit per flight. The fix, losing-money and cash
+  rules don't change. Worked out by `route_profit()`, which gives each route's `aircraft_hours` and
+  `profit_per_aircraft_hour`. *(since 17 Oct; sold out · fares climbing since 30 Oct, brief
+  `docs/briefs/2026-10-30-route-profit-and-fare-ladder.md`; history: rule-history.md)*
 - **New routes aren't judged for a week:** a route launched fewer than **7 days** ago gets none of the problem marks
   (losing, fix or reduce), so Today's routes to fix and Performance's Fix or reduce skip it. Its launch day is its
-  earliest rotation's (a second daily added later doesn't make an old route new). Sold-out marks (add a flight, raise
-  fares) apply at any age. The number is `settings.growth_new_route_days` (7). *(since 16 Oct; history:
+  earliest rotation's (a second daily added later doesn't make an old route new). Sold-out marks (add a flight, sold out
+  · fares climbing) apply at any age. The number is `settings.growth_new_route_days` (7). *(since 16 Oct; history:
   rule-history.md)*
 - **Hubs first:** until an airline's main hub reaches **750 weekly departures**, every new aircraft goes to the main hub.
   Any other base, whether new or already open (second hubs and focus cities alike), gets an aircraft only to fly
