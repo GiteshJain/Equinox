@@ -1,7 +1,8 @@
 // Competition's logic (spec docs/specs/2026-10-21-competition-analysis.md §3): the words for the scans, the group line,
 // each market's share with its arrow and its top rivals as a bar, the threats, the openings table and the rival profiles,
 // and Today's threat items; since 23 Oct (spec docs/specs/2026-10-23-rival-fleets.md §5) each rival's fleet and the
-// order books, and (spec docs/specs/2026-10-23-rival-connections.md §4) the rivals' connecting departures beside direct.
+// order books, and (spec docs/specs/2026-10-23-rival-connections.md §4) the rivals' connecting departures beside direct;
+// since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §4) each market's game share beside the scan's.
 // Every figure is competition()'s (the database's, private.fig_competition()): this file only words and orders them.
 
 // ---------- competition()'s answer
@@ -25,6 +26,13 @@ export interface Market {
   share: number | null; share_before: number | null; share_change: number | null;
   top: MarketRival[];
   connecting_weekly?: number; connecting_via?: Via[];
+  /** Since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §4): the game's own passenger share over the market's
+   *  pairs read, weighted by seats; null when none has been read (absent in an answer from before). */
+  game_share?: GameShare | null;
+}
+export interface GameShare {
+  share: number | null; share_before: number | null; change: number | null; pairs_read: number; pairs: number; seats: number | null;
+  week: string | null; run_id: number | null; read_at: string | null;
 }
 export interface Threat {
   rival_id: number; rival: string; pair: string; route: string; hub: string; dest: string; kind: "started" | "added";
@@ -89,6 +97,9 @@ export interface CompetitionAnswer {
   /** Since 23 Oct: the world's big order books and starting airlines (absent in an answer from before). */
   order_flags?: OrderFlag[];
   pairs_flown: number; pairs_listed: number;
+  /** Since 30 Oct: the latest finished market run (null with none) and the contested pairs (the weekly report's). */
+  market_run?: { id: number; started_at: string; finished_at: string | null } | null;
+  contested?: unknown[];
   notes: string[];
 }
 
@@ -154,6 +165,31 @@ export function overallShare(markets: readonly Market[]): { ours: number; total:
   const share = total ? Math.round((ours / total) * 1000) / 10 : null;
   const before = comparable && totalB ? Math.round((oursB / totalB) * 1000) / 10 : null;
   return { ours, total, share, before, change: share != null && before != null ? Math.round((share - before) * 10) / 10 : null };
+}
+
+/** A market's game share in words, beside the scan's (since 30 Oct): "game share 38.0% (pairs read: 2 of 3)"; null with
+ *  no read (the card says nothing then). */
+export function gameShareWords(g: GameShare | null | undefined): string | null {
+  if (!g || g.share == null) return null;
+  return `game share ${pctWords(g.share)} (pairs read: ${g.pairs_read} of ${g.pairs})`;
+}
+
+/** The airline's game share across its markets (since 30 Oct): each market's weighted by its seats, as competition()
+ *  weights the pairs; last week's the same way; null when no market has been read. */
+export function overallGameShare(markets: readonly Market[]): { share: number | null; before: number | null; change: number | null; pairs_read: number; pairs: number } | null {
+  const read = markets.map((m) => m.game_share).filter((g): g is GameShare => !!g && g.share != null);
+  if (!read.length) return null;
+  const w = (g: GameShare) => Number(g.seats ?? 0);
+  const avg = (pick: (g: GameShare) => number | null) => {
+    const xs = read.filter((g) => pick(g) != null);
+    if (!xs.length) return null;
+    const tw = xs.reduce((t, g) => t + w(g), 0);
+    const v = tw > 0 ? xs.reduce((t, g) => t + Number(pick(g)) * w(g), 0) / tw : xs.reduce((t, g) => t + Number(pick(g)), 0) / xs.length;
+    return Math.round(v * 10) / 10;
+  };
+  const share = avg((g) => g.share), before = avg((g) => g.share_before);
+  return { share, before, change: share != null && before != null ? Math.round((share - before) * 10) / 10 : null,
+    pairs_read: read.reduce((t, g) => t + g.pairs_read, 0), pairs: markets.reduce((t, m) => t + m.pairs, 0) };
 }
 
 /** A threat's own numbers beside its words (which say the rival's then and now): "ours 14 a week". */

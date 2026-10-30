@@ -361,6 +361,42 @@ def connecting_cell(x):
     return f"{n:,}" + (f'<br/><font size="7">via {via}</font>' if n and via else "")
 
 
+def contested_part(a):
+    """The airline's contested pairs with rivals' fares (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §5):
+    each way, our economy fare against the cheapest rival's and the game's passenger share this week against last, from the
+    latest market read; a line saying so before the first read; nothing from figures that predate them."""
+    c = a.get("contested")
+    if c is None:
+        return []
+    head = P(f"{esc(a['name'])}: rival fares on its contested pairs", "h2")
+    if not c.get("run"):
+        return [head, P("No market read yet: the capture reads the market pages once a week.", "body")]
+    if not c["pairs"]:
+        return [head, P("No contested pair: no rival has as many departures a week as ours on any of its city pairs.", "body")]
+    rows = [["City pair", "Way", "Our economy", "Cheapest rival", "Ours against it", "Our passenger share (last week)"]]
+    for p in c["pairs"]:
+        name = f"<b>{esc(p['hub'])}–{esc(p['dest'])}</b><br/>" + f'<font size="7">{esc(p["rival"])} {num(p.get("rival_weekly"))} a week, ours {num(p.get("ours"))}</font>'
+        m = p.get("market") or {}
+        for d in ("out", "back"):
+            x = m.get(d)
+            way = f"{esc(p['hub'])} to {esc(p['dest'])}" if d == "out" else f"{esc(p['dest'])} to {esc(p['hub'])}"
+            if not x:
+                rows.append([name, way, "not read", "—", "—", "—"])
+            else:
+                cr = x.get("cheapest_rival") or {}
+                fare = lambda v: "—" if v is None else f"{v:,.0f} AS$"   # noqa: E731
+                vs = x.get("vs_cheapest_pct")
+                before = x.get("share_before")
+                rows.append([name, way, fare(x.get("ours_eco")), (f"{esc(cr.get('name'))} {fare(cr.get('eco'))}" if cr else "none"),
+                             "—" if vs is None else f"{vs:+.0f}%",
+                             f"{(x.get('share') or 0):.1f}%" + (f" ({before:.1f}%)" if before is not None else " (—)")])
+            name = ""
+    return [head, table(rows, [1.6 * inch, 1.05 * inch, 0.85 * inch, 1.45 * inch, 0.85 * inch, 1.15 * inch]),
+            P(f"From the game's Market Analysis pages read on {day(c['run'])}: a contested pair has a rival with at least as many "
+              "departures a week as ours in the latest world scan. Fares are each airline's average economy fare on the page; "
+              "the share is ours of the pair's passengers, that way, this calendar week against last.", "tiny")]
+
+
 section("COMPETITION — AGAINST OUR RIVALS", "competitors", "Each airline against its three biggest competitors.")
 CP = next((a["competitors"] for a in AL if a.get("competitors")), None)
 story.append(P("For each airline, the three outside airlines with the most departures a week on its own city pairs in the "
@@ -398,6 +434,10 @@ for a in AL:
                       else [1.9 * inch, 1.05 * inch, 0.8 * inch, 1.05 * inch, 0.65 * inch, 1.55 * inch])
         part += [table(rows, widths), Spacer(1, 2), P(against_words(a, cp), "body")]
     story.append(KeepTogether(part))
+    # since 30 Oct: its contested pairs with rivals' fares and the game's share, from the market pages
+    extra = contested_part(a)
+    if extra:
+        story.append(KeepTogether(extra))
 story.append(PageBreak())
 
 # ---------------- competition: rivals' moves (notes) and where each airline ranks (the scan)

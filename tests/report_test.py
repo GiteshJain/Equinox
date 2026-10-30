@@ -20,6 +20,12 @@ runs with --no-send and a home folder with no keys in it. Checks:
     competitors in its figures: the test's copy gets a small synthetic block (synthetic_competitors(), never the dated
     fixture), one airline left without it, covering growth, a fall, held steady, a rival new since the week-before scan,
     no rival on its pairs and no earlier scan.
+  - since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §5) each airline's rival fares on its contested pairs:
+    each way our economy fare against the cheapest rival's and our passenger share this week against last, from the latest
+    market read; "not read" for a direction the read missed; a line saying there's no read yet before the first, and that
+    there's no contested pair; nothing for an airline whose figures predate them. The sample predates the market pages, so
+    the test's copy gets a small synthetic block (synthetic_contested(), never the dated fixture): with a read, before the
+    first read and with no contested pair, the other airlines without the key.
 The PDF is kept in $REPORT_TEST_OUT when it is set (the checks keep it as the run's weekly-report artifact).
 
 Usage: python3 tests/report_test.py   (after npm run build, for the planning library's command)
@@ -125,6 +131,36 @@ def synthetic_competitors(F):
     return want
 
 
+def synthetic_contested(F):
+    """A small made-up block of competition()'s contested and market_run (since 30 Oct) for a sample made before them: the
+    test's copy only. The first airline has a read and two contested pairs (one read both ways, one not read); the second
+    contested pairs but no read yet; the third a read and no contested pair; the rest none (as older figures). Answers what
+    each airline's part must say, by airline id."""
+    airlines = F.get("airlines") or []
+    run = {"id": 7, "started_at": "2026-10-30T21:00:00.000Z", "finished_at": "2026-10-30T21:12:00.000Z"}
+    way = lambda f, t, ours, rival, eco, vs, share, before: {"direction": "out", "from": f, "to": t, "read_at": "2026-10-30T21:05:00.000Z", "week": "2026-44",   # noqa: E731
+                                                          "ours_eco": ours, "cheapest_rival": {"airline_id": 9101, "code": "TR", "name": rival, "eco": eco},
+                                                          "vs_cheapest_pct": vs, "share": share, "share_before": before, "change": None}
+    want = {}
+    if len(airlines) > 0:
+        airlines[0].update(market_run=run, contested=[
+            {"pair": "TQA-TQB", "route_id": 1, "hub": "TQA", "dest": "TQB", "ours": 14, "rival_id": 9101, "rival": "Test Rival Atlas", "rival_weekly": 21,
+             "market": {"out": way("TQA", "TQB", 102, "Test Rival Atlas", 115, -11.3, 30, 32), "back": way("TQB", "TQA", 125, "Test Rival Borealis", 120, 4.2, 45.5, None)}},
+            {"pair": "TQA-TQC", "route_id": 2, "hub": "TQA", "dest": "TQC", "ours": 7, "rival_id": 9102, "rival": "Test Rival Borealis", "rival_weekly": 7,
+             "market": None}])
+        want[airlines[0]["airline_id"]] = ["rival fares on its contested pairs", "TQA to TQB 102 AS$ Test Rival Atlas 115 AS$ -11% 30.0% (32.0%)",
+                                           "TQB to TQA 125 AS$ Test Rival Borealis 120 AS$ +4% 45.5% (—)", "TQA to TQC not read — — —",
+                                           "TQC to TQA not read — — —", "From the game's Market Analysis pages read on 30 Oct"]
+    if len(airlines) > 1:
+        airlines[1].update(market_run=None, contested=[{"pair": "TQA-TQD", "route_id": 3, "hub": "TQA", "dest": "TQD", "ours": 7, "rival_id": 9101,
+                                                        "rival": "Test Rival Atlas", "rival_weekly": 14, "market": None}])
+        want[airlines[1]["airline_id"]] = ["rival fares on its contested pairs", "No market read yet: the capture reads the market pages once a week."]
+    if len(airlines) > 2:
+        airlines[2].update(market_run=run, contested=[])
+        want[airlines[2]["airline_id"]] = ["rival fares on its contested pairs", "No contested pair: no rival has as many departures a week as ours"]
+    return want
+
+
 def run(step, args, cwd, env):
     r = subprocess.run([sys.executable, *args], cwd=cwd, env=env, capture_output=True, text=True, timeout=600)
     check(r.returncode == 0, f"{step} runs", (r.stderr or r.stdout).strip()[-1200:])
@@ -141,6 +177,10 @@ def main():
     # competition()'s competitors are in the figures since 22 Oct; an older sample gets a synthetic block in this copy
     synthetic = not any("competitors" in a for a in F.get("airlines") or [])
     words = synthetic_competitors(F) if synthetic else {}
+    # competition()'s contested pairs with the market pages' fares are in the figures since 30 Oct; an older sample gets a
+    # synthetic block in this copy, with and without a read
+    synthetic_market = not any("contested" in a for a in F.get("airlines") or [])
+    market_words = synthetic_contested(F) if synthetic_market else {}
     ours = sorted((a for a in R["airlines"] if a.get("ours") and a.get("active") is not False),
                   key=lambda a: (a.get("position") is None, a.get("position") or 0, a["id"]))
     names = [a.get("public_name") or a.get("planner_name") or a.get("game_name") for a in ours]
@@ -271,6 +311,21 @@ def main():
                 check(words[a["id"]](name) in seg, f"{name}: the line {words[a['id']](name)!r}", seg[-400:])
             if conns:
                 check("Connecting a week (not added)" in seg, f"{name}: the connecting column is headed as never added to direct", seg[:300])
+        # since 30 Oct: each airline's rival fares on its contested pairs, with and without a market read
+        for a, name, h in heads:
+            if h < 0:
+                continue
+            f = fa.get(a["id"]) or {}
+            nxt = min([h2 for _, _, h2 in heads if h2 > h] + [len(part_text)])
+            seg = part_text[h:nxt]
+            if a["id"] in market_words:
+                for w in market_words[a["id"]]:
+                    check(w in seg, f"{name}: rival fares on its contested pairs show {w!r}", seg[-900:])
+            elif "contested" not in f:
+                check("rival fares on its contested pairs" not in seg, f"{name}: no rival fares part from figures that predate them", seg[-300:])
+            else:   # a real sample: each contested pair's route is listed
+                for c in f["contested"] if f.get("market_run") else []:
+                    check(f"{c['hub']}–{c['dest']}" in seg, f"{name}: its contested pair {c['hub']}–{c['dest']} is listed", seg[-600:])
         # the rivals' order books in the risks (since 23 Oct): each flagged rival once, with whom it meets
         flags = {x["airline_id"]: x for a in F.get("airlines") or [] for x in a.get("order_flags") or []}
         if flags:
@@ -288,6 +343,8 @@ def main():
                 check(want in seg, f"the order books: {want!r}", seg[:500])
         if synthetic:
             print("      (the sample predates competition()'s competitors in the figures: the test's copy has a synthetic block)", flush=True)
+        if synthetic_market:
+            print("      (the sample predates the market pages' contested pairs in the figures: the test's copy has a synthetic block)", flush=True)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print(f"\n{len(failures)} report check(s) failed" if failures else "\nweekly report: all passed", flush=True)

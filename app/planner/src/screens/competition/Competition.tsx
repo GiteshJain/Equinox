@@ -10,6 +10,9 @@
 //     page on Performance), newest first; on a phone each threat is a compact row. Since 23 Oct (spec
 //     docs/specs/2026-10-23-rival-fleets.md §5) the board Order books under it: the rivals with a big order book or
 //     starting with orders (competition()'s order_flags), biggest share first, each marked with the airlines it meets.
+//   - Since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §4) each market card, and each airline's tile on the
+//     group page, shows the game's passenger share where its pairs have market reads ("game share 38.0% (pairs read: 2
+//     of 3)"), beside the scan's departures share, never replacing it.
 //   - An airline (/planner/competition/<code>): the title is its share across its markets with its arrow, the scans'
 //     pill beside it, the airline switch (the segmented control Performance uses) under it. Then the sections as rows
 //     that open (FoldBoard, as on Systems and Performance), each with its count: Market share (a tile per market: our
@@ -31,7 +34,7 @@ import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { listCut } from "../performance/model";
 import { itemRoute } from "../screens";
 import {
-  airlineHeadline, allowedWords, changeWords, connectingLine, connectingRivalsWords, dayWords, directConnectingWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
+  airlineHeadline, allowedWords, changeWords, gameShareWords, overallGameShare, connectingLine, connectingRivalsWords, dayWords, directConnectingWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
   openingsLine, orderBookWords, orderBooks, orderBooksRowWords, otherListsWords, overallShare, pctWords, profileWords, profilesRowWords, rivalsWords, scansWords, shareBar, starsWords, threatMoveWords, threatNumbers, threatWhen, threatsLine,
   threatsNewestFirst, threatsRowWords, topOpeningWords, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening,
   type Profile, type Threat,
@@ -139,12 +142,14 @@ function Group({ airlines, answers, onPick }: { airlines: readonly OurAirline[];
           const a = answers.get(al.id);
           if (!a) return null;
           const s = overallShare(a.markets);
+          const gs = overallGameShare(a.markets);
           return (
             <button type="button" key={al.id} className="fcard cpcard" data-competition-card={al.code ?? ""} onClick={() => onPick(al)}>
               <div className="fchead">
                 <div className="fch"><AirlineMark color={al.color} /><b>{al.name}</b></div>
                 <div className="fbig">{pctWords(s.share)}<span className="fu"> of its markets</span></div>
                 <div className="fsub"><Change v={s.change} points k={"share " + (al.code ?? "")} /> · {n0(s.ours)} of {n0(s.total)} departures a week</div>
+                {gs ? <div className="fsub" data-game-share={gs.share ?? ""}>game share {pctWords(gs.share)} (pairs read: {gs.pairs_read} of {gs.pairs})</div> : null}
               </div>
               <div className="cptile">
                 <span className="ffl">Threats</span>
@@ -242,6 +247,12 @@ function MarketCard({ m }: { m: Market }) {
       <div className="cpmh"><b>{m.name}</b> <span className="dim">{m.flown} of {m.pairs} pair{m.pairs === 1 ? "" : "s"} flown</span></div>
       <div className="cpmv"><b className="cpbig">{pctWords(m.share)}</b> <Change v={m.share_change} points k={"market " + m.name} />
         <span className="dim"> · ours {n0(m.ours)} of {n0(m.total)} a week</span></div>
+      {gameShareWords(m.game_share) ? (
+        <div className="cpline cpgame" data-game-share={m.game_share?.share ?? ""}>
+          {gameShareWords(m.game_share)} <Change v={m.game_share?.change ?? null} points k={"game " + m.name} />
+          <span className="dim"> · the game's own passenger share, beside the scan's departures share</span>
+        </div>
+      ) : null}
       {m.connecting_weekly != null ? (
         <div className="cpline cpconn" data-connecting={m.connecting_weekly}>
           <span className="dim">Rivals:</span> {directConnectingWords(m.rivals, m)}

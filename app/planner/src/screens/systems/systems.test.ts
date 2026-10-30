@@ -4,7 +4,7 @@
 // and the planner's build stamp.
 import { describe, expect, it } from "vitest";
 import {
-  ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, fleetPagesWords, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
+  ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, fleetPagesWords, marketLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
   usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
 } from "./systems";
 
@@ -156,14 +156,37 @@ describe("the planner's build and the usage", () => {
       backup: { last: { ran_at: ago(5), ok: true, kind: "nightly", note: null }, last_good: { ran_at: ago(5), bytes: 1, tables: 1, rows: 1, files: 1 } },
       archive: { last_at: ago(80), month: "2026-10-01", runs_this_month: 1, ok_this_month: 1, rows_this_month: 1, failed: [] },
       cleanup: { at: ago(2), status: "ok", note: null }, scan: { taken_at: ago(24), week: "41", status: "done" },
+      market: { id: 3, started_at: ago(30), finished_at: ago(29), age_days: 1.2, pages_read: 686, pages_failed: 2, note: null },
       usage: [{ key: "database", label: "Database size", bytes: 1, trigger_bytes: 10 }],
     };
-    const lines = systemLines(s, { at: ago(3), commit: "abc1234", subject: "" }, now);
+    const lines = systemLines(s, { at: ago(3), commit: "abc1234", subject: "" }, now, null, 0);
     expect(lines.map((l) => [l.key, l.mark])).toEqual([
-      ["capture|1", "ok"], ["capture|2", "warn"], ["snapshot", "ok"], ["backup", "ok"], ["archive", "ok"], ["cleanup", "ok"], ["scan", "ok"], ["build", "ok"], ["usage|database", "ok"],
+      ["capture|1", "ok"], ["capture|2", "warn"], ["snapshot", "ok"], ["backup", "ok"], ["archive", "ok"], ["cleanup", "ok"], ["scan", "ok"], ["market", "ok"], ["build", "ok"],
+      ["usage|database", "ok"],
     ]);
     expect(boardSummary(lines)).toEqual({ mark: "warn", text: "1 amber" });
     expect(boardSummary(lines.filter((l) => l.mark === "ok"))).toEqual({ mark: "ok", text: "all good" });
+  });
+});
+
+describe("the market pages' line (30 Oct)", () => {
+  const run = (finishedHoursAgo: number, failed = 0) => ({ id: 3, started_at: ago(finishedHoursAgo + 0.2), finished_at: ago(finishedHoursAgo), age_days: null,
+    pages_read: 686, pages_failed: failed, note: null });
+  it("says so plainly before the first read, in amber, and nothing errors", () => {
+    expect(marketLine(null, now, null)).toEqual({ key: "market", label: "Market pages", mark: "warn", when: null,
+      text: "No market read yet: the capture reads the market pages once a week" });
+    expect(marketLine(undefined, now).mark).toBe("warn");
+  });
+  it("the latest finished read, its age, pages and failed, and the service mismatches; amber over 8 days, red over 15, as the scan", () => {
+    const l = marketLine(run(26, 2), now, 3);
+    expect(l.mark).toBe("ok");
+    expect(l.text).toBe("26 hours ago · 686 pages, 2 failed · 3 service mismatches (Today, Service in the game) · read with the evening capture once a week (market_every_days)");
+    expect(marketLine(run(26), now, 0).text).toContain("686 pages · no service mismatch ·");
+    expect(marketLine(run(26), now, 1).text).toContain("1 service mismatch (Today");
+    expect(marketLine(run(26), now, null).text).toContain("the service check not read yet");
+    expect(marketLine(run(8 * 24 + 2), now, 0).mark).toBe("warn");
+    expect(marketLine(run(16 * 24), now, 0)).toMatchObject({ mark: "bad" });
+    expect(marketLine(run(16 * 24), now, 0).text).toContain("; capture again while it's due");
   });
 });
 

@@ -21,7 +21,7 @@ import { useForecasts, useReviewCards } from "../performance/reads";
 import { typeName } from "../tails/model";
 import { useBuyTypes } from "../tails/reads";
 import { useLatestThreats } from "../competition/reads";
-import { useCabinCharges, useFleetChecks } from "../systems/reads";
+import { useCabinCharges, useFleetChecks, useServiceChecks } from "../systems/reads";
 import { homeAttention, type HomeAirline } from "./attention";
 import { attentionHref, deliveryLines, orderStatus, safeTypes, toFile, type OrderRow } from "./model";
 import { onOrder } from "./onOrder";
@@ -61,6 +61,8 @@ export function useAttention(now: Date, today: string) {
   const cabinsQ = useCabinCharges(w !== undefined);
   // the fleet checks (fleet_checks(), since 22 Oct), for needs attention's Fleet group
   const fleetQ = useFleetChecks(w);
+  // the service check (market_service_checks(), since 30 Oct), for needs attention's Service in the game
+  const serviceQ = useServiceChecks(w !== undefined);
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
 
@@ -75,9 +77,9 @@ export function useAttention(now: Date, today: string) {
   const attention = useMemo(() => (rules && todosQ.data ? homeAttention({
     now, today, airlines: homeAirlines, rules, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
     jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen, threats, cabins: cabinsQ.data ?? null,
-    fleet: fleetQ.data ?? null,
+    fleet: fleetQ.data ?? null, service: serviceQ.data ?? null,
   }) : null), [now, today, homeAirlines, rules, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats,
-    cabinsQ.data, fleetQ.data]);
+    cabinsQ.data, fleetQ.data, serviceQ.data]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
   const attShown = useMemo(() => (attention ? withoutDismissed(attention, dismissed) : null), [attention, dismissed]);
 
@@ -124,9 +126,9 @@ export function useAttention(now: Date, today: string) {
 
   const ready = !!(rules && todosQ.data && dismissalsQ.data && backupsQ.data && jobsQ.data && captureQ.data && cardsQ.data && growthQ.data
     && aircraftQ.data && planCardsQ.data && airlinesQ.data && interlineOpen !== null && orders && filing && threats && cabinsQ.data && fleetQ.data
-    && attShown);
+    && serviceQ.data && attShown);
   const loadError = first(world, airlinesQ, rulesQ, aircraftQ, planCardsQ, todosQ, itemsQ, dismissalsQ, backupsQ, jobsQ, captureQ, cardsQ, growthQ,
-    buyQ, ...forecastsQ, competition, cabinsQ, fleetQ);
+    buyQ, ...forecastsQ, competition, cabinsQ, fleetQ, serviceQ);
 
   return {
     w, world, airlines, airlinesQ, rules, rulesQ, todosQ, itemsQ, captureQ, aircraftQ, dismissalsQ,

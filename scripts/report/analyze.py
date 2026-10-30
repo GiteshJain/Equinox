@@ -8,7 +8,8 @@ Reads, from the current folder, what pull.py downloaded:
 - figures.json (the captured figures, #19): all the money. Cash, profit a day, flight profit a day, the lowest point in
   the next 14 days and when, the next order, route profit, the growth signals and hubs first, each airline on its own:
   no surplus figure and no group totals (manual §1, §3); and since 22 Oct each airline against its three biggest
-  competitors (competition()'s competitors, self and scans; manual §7), since 23 Oct each with its fleet, aircraft on
+  competitors (competition()'s competitors, self and scans; manual §7), since 30 Oct each airline's contested pairs with
+  rivals' fares and the game's passenger share from the market pages (competition()'s contested and market_run), since 23 Oct each with its fleet, aircraft on
   order and the week's change, and the world's flagged order books (order_flags; spec docs/specs/2026-10-23-rival-fleets.md),
   and each one's connecting departures on the airline's pairs beside direct (spec docs/specs/2026-10-23-rival-connections.md);
 - airlines.json, airports.json, scan.json (the world scan) and airports_oa.csv (OurAirports' public airport list): the
@@ -261,6 +262,24 @@ def competitors_of(airline_id):
             "connecting": any("connecting_weekly" in c for c in (f.get("competitors") or []))}
 
 
+def contested_of(airline_id):
+    """The airline's contested pairs with rivals' fares and the game's share (since 30 Oct, spec
+    docs/specs/2026-10-30-market-pages-planner.md §5), as competition() gives them in figures.json: each city pair it flies
+    where a rival has at least as many departures a week as ours in the latest scan, and each way, from the latest market
+    read, our economy fare against the cheapest rival's and our share of the pair's passengers this week and last. None
+    when the figures predate them; "run" None before the first market read."""
+    f = FA.get(airline_id) or {}
+    if "contested" not in f:
+        return None
+    run = f.get("market_run") or None
+    keep = ("from", "to", "read_at", "week", "ours_eco", "cheapest_rival", "vs_cheapest_pct", "share", "share_before", "change")
+    return {"run": (run or {}).get("started_at") if run else None,
+            "pairs": [{k: c.get(k) for k in ("pair", "hub", "dest", "ours", "rival", "rival_weekly")}
+                      | {"market": None if not c.get("market") else {d: ({k: (c["market"].get(d) or {}).get(k) for k in keep} if c["market"].get(d) else None)
+                                                                    for d in ("out", "back")}}
+                      for c in f.get("contested") or []]}
+
+
 def order_flags():
     """The world's flagged order books (competition()'s order_flags, since 23 Oct; spec docs/specs/2026-10-23-rival-fleets.md
     §5), the same in every airline's figures: each with the codes of our airlines it meets. None when the figures predate
@@ -292,6 +311,7 @@ for i, a in enumerate(OURS_ROWS):
                      "bases": [b["airport_code"] for b in BASES if b["airline_id"] == a["id"]],
                      "main_hub": next((b["airport_code"] for b in BASES if b["airline_id"] == a["id"] and b.get("is_main")), None),
                      "ops": ops_of(a["id"]), "finance": finance_of(a["id"]), "routes": routes_of(a["id"]), "competitors": competitors_of(a["id"]),
+                     "contested": contested_of(a["id"]),
                      "hubs_first": {k: hp.get(k) for k in ("main_hub", "departures", "planned", "target", "percent", "exempt")} | {
                          "bases": [{"code": b.get("code"), "role": b.get("role"), "contested": b.get("contested"),
                                     "top_rival": b.get("top_rival"), "contested_routes": len(b.get("contested_routes") or [])} for b in hp.get("bases") or []]}})

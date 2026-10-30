@@ -13,7 +13,10 @@
 // cabin_charges(), linking to Systems' Cabin charges; and since 22 Oct (spec docs/specs/2026-10-22-fleet-capture.md §3)
 // the Fleet group, one item per problem fleet_checks() finds on the latest night's fleet pages (the game's maintenance under
 // maintenance_min_pct, no pilots, seats against the planner's cabin, an aircraft in one and not the other), worst first;
-// since 23 Oct the estimate's "maintenance ≈P%" item only for an aircraft without the game's figure.
+// since 23 Oct the estimate's "maintenance ≈P%" item only for an aircraft without the game's figure; and since 30 Oct
+// (spec docs/specs/2026-10-30-market-pages-planner.md §3) the group Service in the game, one item per mismatch the
+// service check (market_service_checks()) finds on the latest market read, worst first (the game against the distance's
+// code, then against the planner's), each linking to the route's page.
 // This file only words them. Monthly checks have none since 8 Oct, as
 // in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
@@ -22,6 +25,7 @@ import { shortType } from "../../ui/aircraftNames";
 import { niceDate, utcClock, utcDay } from "../../ui/dates";
 import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAirline, JobRun, JobsRead, TodoRow } from "../home/reads";
 import { threatItemWords, threatKey, type ThreatItem } from "../competition/model";
+import type { ServiceChecks, ServiceMismatch } from "../performance/model";
 import { cabinAttention, fleetAttention, gameMaintenance, type CabinCharges, type FleetChecks } from "../systems/model";
 
 /** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
@@ -48,6 +52,8 @@ export interface AttentionInput {
   cabins?: CabinCharges | null;
   /** The fleet checks (fleet_checks(), since 22 Oct), or null until read. */
   fleet?: FleetChecks | null;
+  /** The service check (market_service_checks(), since 30 Oct), or null until read. */
+  service?: ServiceChecks | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -82,6 +88,28 @@ export function routeKey(rules: Rules, airlines: readonly HomeAirline[], routeId
   const r = routeId == null ? undefined : rules.routes.get(routeId);
   if (!r) return undefined;
   return `${airlines.find((a) => a.id === r.airline_id)?.name ?? ""}|${r.hub_code}|${r.dest_code}`;
+}
+
+const km = (v: number | null): string => (v == null ? "its distance" : `its ${Math.round(v).toLocaleString("en-US")} km`);
+/** A service mismatch in words (since 30 Oct): "DUB→AMS (FR): S1 in the game, its 750 km calls for R" (and "; the planner
+ *  has S2" when that differs too), or "MAD→BCN (FR): R in the game, the planner has S1". */
+export function serviceItemWords(m: Pick<ServiceMismatch, "from" | "to" | "code" | "game_code" | "distance_code" | "distance_km" | "planner_codes" | "kind" | "off_planner">): string {
+  const head = `${m.from}→${m.to}${m.code ? ` (${m.code})` : ""}: ${m.game_code ?? "no service"} in the game`;
+  const planner = m.planner_codes.length ? `the planner has ${m.planner_codes.join(", ")}` : "the planner has no flight that way";
+  return m.kind === "distance"
+    ? `${head}, ${km(m.distance_km)} calls for ${m.distance_code}${m.off_planner ? `; ${planner}` : ""}`
+    : `${head}, ${planner}`;
+}
+
+/** Needs attention's Service in the game (since 30 Oct): one item per mismatch, in the check's order (the game against the
+ *  distance's code first), each linking to the route's page on Performance; its key names the pair, direction and the
+ *  game's code, so it comes back if the next read finds it set differently again. */
+export function serviceAttention(c: ServiceChecks | null | undefined, airlines: readonly HomeAirline[]): AttItem[] {
+  return (c?.mismatches ?? []).map((m) => {
+    const name = airlines.find((a) => a.id === m.airline_id)?.name ?? m.airline ?? "";
+    return { key: `service|${m.code ?? m.airline_id}|${m.from}-${m.to}|${m.game_code ?? "none"}`, cls: "warn" as const, screen: "performance" as const,
+      route: `${name}|${m.hub}|${m.dest}`, text: serviceItemWords(m) };
+  });
 }
 
 export function homeAttention(x: AttentionInput): AttItem[] {
@@ -185,6 +213,9 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       items.push({ key: `capture|verdict|${name(v.airline_id)}|${v.at}`, cls: v.verdict === "broken" ? "bad" : "warn", screen: "systems", text: words });
     }
   }
+
+  // the service check (since 30 Oct): each pair and direction whose service profile in the game differs
+  items.push(...serviceAttention(x.service, airlines));
 
   // the cabin charge check (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): one item when any first fit doesn't
   // match the game's charge, linking to Systems' Cabin charges board

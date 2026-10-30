@@ -4,7 +4,7 @@
 import { useRef, type MouseEvent as RMouseEvent, type ReactNode } from "react";
 import {
   barLayout, costParts, forecastLayout, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type BarUnit, type Forecast,
-  type GroupRow, type ProfitDay, type RouteRow, type StoryChartLayout,
+  type DirChartLayout, type GroupRow, type HistoryLayout, type ProfitDay, type RouteRow, type StoryChartLayout, type WeeksLayout,
 } from "./model";
 
 /** A chart with the old planner's pointer tip. */
@@ -247,5 +247,81 @@ export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
       <text x={g.c + 6} y={g.labelY} fontSize="10" fill="#8B96A8">flight profit →</text>
       <text x={g.W - 4} y={g.labelY} fontSize="10" textAnchor="end" fill="#8B96A8">net a day</text>
     </svg>
+  );
+}
+
+/** Load by direction (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §1): economy load each day, out and
+ *  back as two lines, each direction's fare level as a step line on the right axis (dirChartLayout() in model.ts). */
+export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; back: string }) {
+  const legendY = g.H - 8;
+  return (
+    <ChartWrap>
+      <svg className="lchart storychart dirchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Economy load by day, each direction, and each direction's fare level"
+        data-figure="performance route: load by direction" data-days={g.days.length}>
+        {g.grid.map((l, i) => (
+          <g key={"g" + i}>
+            <line x1={g.L} x2={g.W - g.R} y1={l.y.toFixed(1)} y2={l.y.toFixed(1)} className={i === 0 ? "zero" : "grid"} />
+            <text x={g.L - 6} y={(l.y + 4).toFixed(1)} textAnchor="end">{l.label}</text>
+          </g>
+        ))}
+        {g.rgrid.map((l, i) => <text key={"r" + i} x={g.W - g.R + 6} y={(l.y + 4).toFixed(1)} className="lvt">{l.label}</text>)}
+        {g.levelOut ? <path d={g.levelOut} className="lvl" /> : null}
+        {g.levelBack ? <path d={g.levelBack} className="lvl back" /> : null}
+        <path d={g.out} className="eco" />
+        <path d={g.back} className="back" />
+        {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 28} textAnchor="middle">{l.label}</text>)}
+        {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
+        <g className="lgd" transform={`translate(${g.L},${legendY})`}>
+          <line x1="0" x2="18" y1="-4" y2="-4" className="eco" /><text x="22" y="0">{out}</text>
+          <line x1="140" x2="158" y1="-4" y2="-4" className="back" /><text x="162" y="0">{back}</text>
+          {g.levelOut || g.levelBack ? <><line x1="280" x2="298" y1="-4" y2="-4" className="lvl" /><text x="302" y="0">fare level (right)</text></> : null}
+        </g>
+      </svg>
+    </ChartWrap>
+  );
+}
+
+/** Rivals over time (since 30 Oct): each airline's direct departures a week at every scan since launch, ours bold. */
+export function HistoryChart({ g }: { g: HistoryLayout }) {
+  return (
+    <ChartWrap>
+      <svg className="lchart histchart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Each airline's departures a week on the pair at each scan"
+        data-figure="performance route: rivals over time" data-series={g.series.length}>
+        {g.grid.map((l, i) => (
+          <g key={"g" + i}>
+            <line x1={g.L} x2={g.W - g.R} y1={l.y.toFixed(1)} y2={l.y.toFixed(1)} className={i === 0 ? "zero" : "grid"} />
+            <text x={g.L - 6} y={(l.y + 4).toFixed(1)} textAnchor="end">{l.label}</text>
+          </g>
+        ))}
+        {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 18} textAnchor="middle">{l.label}</text>)}
+        {g.series.map((x, i) => (
+          <g key={x.key} className={"hs " + (x.ours ? "ours" : `r${Math.min(i, 6)}`)} data-series={x.key}>
+            <path d={x.path} />
+            {x.dots.map((d, j) => <circle key={j} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r="3" data-tip={d.tip} />)}
+          </g>
+        ))}
+      </svg>
+    </ChartWrap>
+  );
+}
+
+/** The pair's seats offered by calendar week (bars) and price per unit (a line, right axis), since 30 Oct. */
+export function WeeksChart({ g }: { g: WeeksLayout }) {
+  return (
+    <ChartWrap>
+      <svg className="lchart weekschart" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="The pair's seats offered and price per unit by week"
+        data-figure="performance route: seats and price by week" data-weeks={g.bars.length}>
+        {g.grid.map((l, i) => (
+          <g key={"g" + i}>
+            <line x1={g.L} x2={g.W - g.R} y1={l.y.toFixed(1)} y2={l.y.toFixed(1)} className={i === 0 ? "zero" : "grid"} />
+            <text x={g.L - 6} y={(l.y + 4).toFixed(1)} textAnchor="end">{l.label}</text>
+          </g>
+        ))}
+        {g.rgrid.map((l, i) => <text key={"r" + i} x={g.W - g.R + 6} y={(l.y + 4).toFixed(1)} className="lvt">{l.label}</text>)}
+        {g.bars.map((b, i) => <rect key={i} x={b.x.toFixed(1)} y={b.y.toFixed(1)} width={b.w.toFixed(1)} height={Math.max(0, b.h).toFixed(1)} rx="2" className="wbar" data-tip={b.tip} />)}
+        {g.price ? <path d={g.price} className="wprice" /> : null}
+        {g.xLabels.map((l, i) => <text key={"x" + i} x={l.x.toFixed(1)} y={g.H - g.B + 16} textAnchor="middle">{l.label}</text>)}
+      </svg>
+    </ChartWrap>
   );
 }

@@ -964,6 +964,10 @@ def busiest_route(code=None, not_code=None):
     return {"code": c, "id": int(rid), "hub": hub, "dest": dest}
 
 
+# the route page's boards in their order (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §1: ten, paired in
+# two columns at 1100 px and wider)
+ROUTE_BOARDS = ["Since launch", "Load by direction", "Loads by flight", "Profit an aircraft hour", "Rival fares", "Market share",
+                "Rivals on the pair", "Rivals over time", "Events", "Connections"]
 ROUTE_PAGE_JS = """(() => { const m = document.querySelector('main[data-route-page]'); if (!m) return null;
     const q = (s) => m.querySelector(s);
     return { path: location.pathname, route: m.dataset.routePage, airline: m.dataset.airline,
@@ -975,7 +979,8 @@ ROUTE_PAGE_JS = """(() => { const m = document.querySelector('main[data-route-pa
       shown: m.querySelectorAll('[data-list="route events"] li').length,
       rivals: m.querySelectorAll('[data-rival]').length, conly: m.querySelectorAll('[data-connecting-rival]').length,
       cconn: m.querySelectorAll('[data-figure="performance route: rivals"] td[data-connecting]').length, ends: [...m.querySelectorAll('[data-end]')].map(e => e.dataset.end),
-      conns: m.querySelectorAll('[data-conn]').length,
+      conns: m.querySelectorAll('[data-conn]').length, nomarket: m.querySelectorAll('[data-no-market]').length,
+      fareTables: m.querySelectorAll('[data-fares-direction]').length,
       back: (q('[data-back]') || {}).getAttribute ? q('[data-back]').getAttribute('href') : '',
       schedule: (q('[data-schedule]') || {}).getAttribute ? q('[data-schedule]').getAttribute('href') : '' }; })()"""
 
@@ -983,8 +988,9 @@ ROUTE_PAGE_JS = """(() => { const m = document.querySelector('main[data-route-pa
 async def route_page_opens(pl):
     """The route page (22 Oct, spec docs/specs/2026-10-21-route-page.md §3): from the first airline's route profit table, its
     first route's name opens /planner/performance/<code>/<route>: the header (the route, its fare levels), the last 7 days
-    against the 7 before (a tile for load, passengers, profit, profit an aircraft hour and the fares), and its five boards
-    open (Since launch, Profit an aircraft hour, Events, Rivals on the pair, Connections), the chart there from 14 days
+    against the 7 before (a tile for load, passengers, profit, profit an aircraft hour and the fares), and its boards open
+    (since 30 Oct ten, ROUTE_BOARDS: the five market-page boards with the five before; spec
+    docs/specs/2026-10-30-market-pages-planner.md §1; each market board saying so while there is no read), the chart there from 14 days
     with flights and a line saying so before, as many events and rivals as route_story() gives on the copy, 10 events
     shown at most, the connections at both ends; since 23 Oct (spec docs/specs/2026-10-23-rival-connections.md §5) Rivals on
     the pair's connecting column on every row and the rivals that only connect, as route_story() gives them. Its links: "Schedule in Routes" opens the route on Routes, whose header
@@ -1020,7 +1026,7 @@ async def route_page_opens(pl):
     doc = one(f"select public.route_story({int(rid)})") if rid else None
     if not doc:
         return "the route page", [f"no route {acode} {key} on the copy"]
-    if got["boards"] != ["Since launch", "Profit an aircraft hour", "Events", "Rivals on the pair", "Connections"] or got["folded"]:
+    if got["boards"] != ROUTE_BOARDS or got["folded"]:
         problems.append(f"the route page's boards are {got['boards']} ({got['folded']} folded)")
     if not got["title"].startswith(f"{hub}–{dest}"):
         problems.append(f"the route page's title is {got['title']!r}")
@@ -1040,6 +1046,12 @@ async def route_page_opens(pl):
     if got["conly"] != conn_only or got["cconn"] != ((got["rivals"] + conn_only) if has_conn else 0):
         problems.append(f"the page shows {got['conly']} connecting-only rivals and {got['cconn']} connecting cells; route_story() gives {conn_only} "
                         f"(connections {'worked out' if has_conn else 'not worked out'})")
+    # since 30 Oct: with no market read every market board says so (Rival fares, Market share, the weeks under Rivals over
+    # time); with one, a fares table each way
+    if doc.get("market") is None and got["nomarket"] != 3:
+        problems.append(f"route_story() has no market read, but {got['nomarket']} boards say so (3 expected)")
+    if doc.get("market") is not None and got["fareTables"] != 2:
+        problems.append(f"route_story() has a market read, but the page shows {got['fareTables']} fares tables (2 expected)")
     if got["ends"] != [hub, dest]:
         problems.append(f"the connections are at {got['ends']}, not {hub} and {dest}")
     if got["back"] != f"/planner/performance/{acode}" or got["schedule"] != f"/planner/routes/{acode}/{key}":
@@ -1071,7 +1083,7 @@ async def route_page_opens(pl):
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"the route page: {acode} {key} opens from the route profit table with its header, {got['tiles']} tiles for the last 7 days "
-            f"({'compared' if got['compared'] == 'yes' else 'nothing to compare'}), its five boards open, "
+            f"({'compared' if got['compared'] == 'yes' else 'nothing to compare'}), its {len(got['boards'])} boards open, "
             f"{'the since-launch chart (' + str(got['markers']) + ' event markers)' if got['chart'] else 'the chart waiting for 14 days'}, "
             f"{got['events']} events ({got['shown']} shown), {got['rivals']} rivals and {got['conns']} city pairs shown at its two ends, as route_story() "
             f"gives them; Schedule in Routes and back ({'The route' + chr(39) + 's story ›' if back else 'not flown: no link back'}), ‹ airline to its page; "
@@ -1487,7 +1499,7 @@ async def screens(p, port, env, facts, staff, seen, moment):
 
 
 # ---------- 6b. the Systems board, and a short page on Today (decisions #21, #23) ----------
-SYS_FIXED = ["snapshot", "backup", "archive", "cleanup", "scan", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
+SYS_FIXED = ["snapshot", "backup", "archive", "cleanup", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
 SYS_LINES = """[...document.querySelectorAll('[data-figure="systems: board"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
     label: (li.querySelector('.syslabel') || {}).textContent || '', when: (li.querySelector('.syswhen') || {}).textContent || '',
     text: (li.querySelector('.systext') || {}).textContent || '', dot: !!li.querySelector('.sysmark.' + li.dataset.mark) }))"""
@@ -1502,8 +1514,8 @@ async def open_systems(ph):
 
 async def systems_board(p, port, env, facts, staff, seen, moment):
     """The Systems board (#23) on the copy at the frozen moment: at the top of Systems, open, one line for each of our
-    airlines' evening capture and one each for the snapshot, the backup, the archive, the clean-ups, the world scan, the
-    planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
+    airlines' evening capture and one each for the snapshot, the backup, the archive, the clean-ups, the world scan, (since
+    30 Oct) the market pages, the planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
     lines and their marks are printed (names, marks, dates and sizes only). Since 22 Oct the fixed lines are tiles, worst
     first, and the captures a table under them."""
     problems = []

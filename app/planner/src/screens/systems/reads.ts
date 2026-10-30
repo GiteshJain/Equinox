@@ -9,7 +9,10 @@
 //   hand saves through planner_save() since the clean-up, build pull request 14);
 // - Cabin charges (since 22 Oct): cabin_charges(), each first cabin fit logged against the game's charge;
 // - Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): fleet_checks(), the latest night's fleet as the
-//   game showed it and its problems, which Today's needs attention and the Tails pop-up read too.
+//   game showed it and its problems, which Today's needs attention and the Tails pop-up read too;
+// - the service check (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §3): market_service_checks(), the
+//   pairs whose service profile in the game differs from the distance's code or the planner's, which the Systems board's
+//   market line, Today's needs attention and the route page's header read.
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview (decision #8) reads them too.
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +20,7 @@ import { limited } from "../../data/limit";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
+import type { ServiceChecks } from "../performance/model";
 import type { CabinCharges, CashLog, FleetChecks, LoadsDay } from "./model";
 import type { SystemStatus } from "./systems";
 
@@ -73,7 +77,7 @@ export function useSystemStatus(worldId: number | undefined) {
       const d = data as unknown as Partial<SystemStatus>;
       return {
         as_of: String(d.as_of ?? ""), capture: d.capture ?? [], snapshot: d.snapshot ?? {}, backup: d.backup ?? { last: null, last_good: null },
-        archive: d.archive ?? null, cleanup: d.cleanup ?? null, scan: d.scan ?? null, scan_stopped: d.scan_stopped ?? null, usage: d.usage ?? [],
+        archive: d.archive ?? null, cleanup: d.cleanup ?? null, scan: d.scan ?? null, scan_stopped: d.scan_stopped ?? null, market: d.market ?? null, usage: d.usage ?? [],
       };
     },
   });
@@ -96,6 +100,18 @@ export function useFleetChecks(worldId: number | undefined) {
     queryKey: ["figures", "fleet_checks", worldId],
     enabled: worldId !== undefined,
     queryFn: () => rpc<FleetChecks>("the fleet checks", "fleet_checks", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
+  });
+}
+
+/** The service check (since 30 Oct): market_service_checks() for every airline of the default world, at the moment. */
+export function useServiceChecks(enabled = true) {
+  return useQuery({
+    queryKey: ["figures", "market_service_checks"],
+    enabled,
+    queryFn: async (): Promise<ServiceChecks> => {
+      const d = await rpc<Partial<ServiceChecks>>("the service check", "market_service_checks", { p_as_of: asOf() });
+      return { run: d.run ?? null, checked: Number(d.checked ?? 0), mismatches: d.mismatches ?? [] };
+    },
   });
 }
 

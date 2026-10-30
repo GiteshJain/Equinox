@@ -3,7 +3,9 @@
 // event a marker with its words in the tip), profit an aircraft hour by week, the events cut to 10, the rivals and our
 // share at each scan, the address's route, and the connections at both ends by the planning library's rule. Every figure
 // is route_story()'s, tested in database/tests/route_story_test.sql; these test only how the page words and lays them out.
-// Last, the page itself renders from a story with every board (and from a short one), with its links.
+// Last, the page itself renders from a story with every board (and from a short one), with its links. Since 30 Oct (spec
+// docs/specs/2026-10-30-market-pages-planner.md §1) the five new boards, with and without a market read: Load by direction,
+// Loads by flight, Rival fares, Market share and Rivals over time, and the header's service in the game.
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
@@ -12,6 +14,8 @@ import { describe, expect, it } from "vitest";
 import { buildRules, type RulesInput } from "@rules";
 import { FoldBoard } from "../../ui/FoldBoard";
 import {
+  NO_MARKET_READ, ROUTE_BOARDS, dirChartLayout, fareWords, flightLoads, historyLayout, marketShareView, ptsChange, rivalFares, serviceHeader, vsCheapestWords, weeksLayout,
+  type ServiceChecks, type StoryMarket,
   barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyLayout, storyWeekOnWeek, weekBars,
   type RouteStory, type StoryDay, type StoryEvent, type StoryWeek,
 } from "./model";
@@ -328,7 +332,7 @@ describe("the page", () => {
     expect(html).toContain("JFK–ORD");
     expect(html).toContain("US domestic · layout Leisure (under 3,500 km)");
     expect(html).toContain('href="/routes/PA/JFK-ORD"');
-    for (const k of ["Since launch", "Profit an aircraft hour", "Events", "Rivals on the pair", "Connections"]) expect(html).toContain(`data-rkey="${k}"`);
+    for (const k of ROUTE_BOARDS) expect(html).toContain(`data-rkey="${k}"`);
     expect(html).toContain('data-figure="performance route: since launch"');
     expect(html).toContain("Air China");
     expect(html).toContain("ORD–LHR");
@@ -349,5 +353,195 @@ describe("the page", () => {
       shares: [{ ...s.rivals.shares[0]!, weekly: true }, s.rivals.shares[1]!] } });
     expect(html).toContain("data-weekly-note");
     expect(html).toMatch(/1 weekly point before [^<]*18[^<]* \(one scan a week, kept after the monthly archive\); every scan from then/);
+  });
+});
+
+// ---------- since 30 Oct: the market pages on the route page
+const market = (): StoryMarket => ({
+  run: { id: 4, started_at: "2026-10-30T21:00:00.000Z", finished_at: "2026-10-30T21:12:00.000Z" },
+  out: {
+    direction: "out", from: "JFK", to: "ORD", read_id: 11, run_id: 4, read_at: "2026-10-30T21:05:00.000Z", week: "2026-44", service_code: "S2",
+    fares: [
+      { airline_id: 1, code: "PA", name: "Pan Am", ours: true, class: "Y", flights: 14, low: 102, avg: 102, high: 102, finished: 4, sold_out: 3 },
+      { airline_id: 50, code: "CA", name: "Air China", ours: false, class: "Y", flights: 14, low: 110, avg: 120, high: 130, finished: 4, sold_out: 4 },
+      { airline_id: 50, code: "CA", name: "Air China", ours: false, class: "C", flights: 14, low: 300, avg: 300, high: 300, finished: 4, sold_out: 0 },
+      { airline_id: null, code: "ZZ", name: "ZZ", ours: false, class: "Y", flights: 7, low: 115, avg: 115, high: 115, finished: 2, sold_out: 0 },
+    ],
+    shares: [
+      { airline_id: 50, name: "Air China", ours: false, share: 55, change: 5, before: 50 },
+      { airline_id: 1, name: "Pan Am", ours: true, share: 30, change: -2, before: 32 },
+      { airline_id: 51, name: "United", ours: false, share: 8, change: null, before: null },
+      { airline_id: 52, name: "Delta", ours: false, share: 4, change: 1, before: 3 },
+      { airline_id: 53, name: "Spirit", ours: false, share: 3, change: 0, before: 3 },
+    ],
+  },
+  back: null,
+  weeks: [
+    { direction: "out", week: "2026-43", seats: 9000, price_per_unit: 120 }, { direction: "back", week: "2026-43", seats: 8000, price_per_unit: 124 },
+    { direction: "out", week: "2026-44", seats: 6000, price_per_unit: 125 },
+  ],
+});
+const dirDays = (n: number) => Array.from({ length: n }, (_, i) => i).flatMap((i) => [
+  { day: dayAt(i), direction: "out" as const, flights: 1, eco_pax: 150, eco_seats: 168, eco_load_pct: 89.3, bus_pax: 10, bus_seats: 12, bus_load_pct: 83.3 },
+  { day: dayAt(i), direction: "back" as const, flights: 1, eco_pax: 120, eco_seats: 168, eco_load_pct: 71.4, bus_pax: 6, bus_seats: 12, bus_load_pct: 50 },
+]);
+
+describe("Load by direction (30 Oct)", () => {
+  it("lays out both directions' economy loads on the since-launch axis, each direction's level from its own ladder rows", () => {
+    const s = story({ days_by_direction: dirDays(20), events: [
+      { day: "2026-10-10", kind: "fare", words: "out: economy up to 105%", cabin: "economy", level: 105, move: "up", dropped: false, direction: "out" },
+      { day: "2026-10-12", kind: "fare", words: "back: economy down to 95%", cabin: "economy", level: 95, move: "down", dropped: false, direction: "back" },
+    ] });
+    const g = dirChartLayout(s, nice);
+    expect(g).not.toBeNull();
+    expect(g?.days.length).toBe(20);
+    expect(g?.out.startsWith("M")).toBe(true);
+    expect(g?.back.startsWith("M")).toBe(true);
+    expect(g?.levelOut).toBeTruthy();
+    expect(g?.levelBack).toBeTruthy();
+    const days = s.days.map((d) => d.day);
+    expect(levelSteps(s, "economy", days, "out")?.slice(7, 10)).toEqual([100, 105, 105]);
+    expect(levelSteps(s, "economy", days, "back")?.slice(9, 11)).toEqual([100, 95]);
+    expect(g?.cols[0]?.tip).toBe("2026-10-02 · JFK → ORD 89.3% · ORD → JFK 71.4% · fare level 100% out");
+  });
+  it("says so under 14 days, and with no direction's days (an answer from before 30 Oct)", () => {
+    expect(dirChartLayout(story({ days_by_direction: dirDays(5), days: story().days.slice(0, 5) }), nice)).toBeNull();
+    expect(dirChartLayout(story(), nice)).toBeNull();
+  });
+});
+
+describe("Loads by flight (30 Oct)", () => {
+  const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
+  const leg = (id: number, rot: number, no: number, from: string, to: string, dep: number, flight: number) =>
+    ({ id, airline_id: 1, rotation_id: rot, leg_no: no, flight_no: flight, origin_code: from, dest_code: to, aircraft_id: null, days_utc: [1, 2, 3, 4, 5, 6, 7], dep_utc_min: dep, block_min: 75 });
+  const rules = buildRules({ ...base, rotations: [{ id: 1, airline_id: 1, route_id: 1 }, { id: 2, airline_id: 1, route_id: 1 }, { id: 3, airline_id: 1, route_id: 2 }],
+    flight_legs: [leg(1, 1, 1, "HUB", "AAA", 420, 101), leg(2, 1, 2, "AAA", "HUB", 540, 102), leg(3, 2, 1, "HUB", "AAA", 300, 103), leg(4, 2, 2, "AAA", "HUB", 1200, 104),
+      leg(5, 3, 1, "HUB", "BBB", 600, 105)] });
+  const fl = (no: number, average: number, departures = 7, full = 0) => ({ airline_id: 1, flight_no: no, departures, average, full, sum: average * departures });
+  it("each flight number on the route with loads: out first, then back, by local departure, with its load and full departures", () => {
+    const rows = flightLoads(rules, 1, 1, [fl(101, 96.43, 7, 5), fl(102, 80), fl(103, 70.5), fl(104, 88, 6, 1), fl(105, 99)]);
+    expect(rows.map((r) => [r.flight_no, r.direction, r.from, r.to, r.dep_local, r.average, r.departures, r.full])).toEqual([
+      [103, "out", "HUB", "AAA", "05:00", 70.5, 7, 0], [101, "out", "HUB", "AAA", "07:00", 96.4, 7, 5],
+      [102, "back", "AAA", "HUB", "10:00", 80, 7, 0], [104, "back", "AAA", "HUB", "21:00", 88, 6, 1],
+    ]);
+  });
+  it("leaves out flights with no loads, another airline's and a route it doesn't know", () => {
+    expect(flightLoads(rules, 1, 1, [fl(101, 90, 0), { ...fl(102, 80), airline_id: 2 }])).toEqual([]);
+    expect(flightLoads(rules, 99, 1, [fl(101, 90)])).toEqual([]);
+  });
+});
+
+describe("Rival fares (30 Oct)", () => {
+  it("says so plainly before the first market read", () => {
+    expect(rivalFares(story(), nice)).toEqual({ none: NO_MARKET_READ, read: null, tables: [] });
+    expect(rivalFares(story({ market: null }), nice).none).toBe(NO_MARKET_READ);
+  });
+  it("a table each way: ours first and marked, then the rivals cheapest first, with both classes, flights, sold out, and ours against the cheapest", () => {
+    const f = rivalFares(story({ market: market() }), nice);
+    expect(f.none).toBeNull();
+    expect(f.read).toBe("2026-10-30T21:00:00.000Z");
+    const [out, back] = f.tables;
+    expect(out?.label).toBe("JFK → ORD");
+    expect(out?.rows.map((r) => [r.name, r.ours, r.eco, r.bus, r.flights, r.sold])).toEqual([
+      ["Pan Am", true, "102 AS$", "—", 14, "3 of 4"], ["ZZ", false, "115 AS$", "—", 7, "0 of 2"], ["Air China", false, "120 AS$ (110–130)", "300 AS$", 14, "4 of 4"],
+    ]);
+    expect(out?.vs).toBe("we're 11% under ZZ");
+    expect(back).toMatchObject({ label: "ORD → JFK", read: null, rows: [], vs: null });
+  });
+  it("words a fare and ours against the cheapest", () => {
+    expect(fareWords(undefined)).toBe("—");
+    expect(fareWords({ low: 1200, avg: 1250.5, high: 1300 })).toBe("1,251 AS$ (1,200–1,300)");
+    expect(vsCheapestWords(120, { name: "KLM", avg: 120 })).toBe("we're level with KLM");
+    expect(vsCheapestWords(138, { name: "KLM", avg: 120 })).toBe("we're 15% over KLM");
+    expect(vsCheapestWords(null, { name: "KLM", avg: 120 })).toBeNull();
+  });
+});
+
+describe("Market share (30 Oct)", () => {
+  it("says so before the first read, with the scan's share for comparison", () => {
+    const v = marketShareView(story());
+    expect(v.none).toBe(NO_MARKET_READ);
+    expect(v.scan).toBe("the scan's departures share, for comparison: 66.7% (ours 28 of 42 a week, both ways)");
+  });
+  it("each direction read: ours and the top 3 rivals as a bar, the rest as others, our change in points", () => {
+    const v = marketShareView(story({ market: market() }));
+    expect(v.dirs.length).toBe(1);
+    const d = v.dirs[0];
+    expect(d?.label).toBe("JFK → ORD");
+    expect(d?.bar).toEqual([{ label: "Pan Am", pct: 30, ours: true }, { label: "Air China", pct: 55, ours: false }, { label: "United", pct: 8, ours: false },
+      { label: "Delta", pct: 4, ours: false }, { label: "others", pct: 3, ours: false }]);
+    expect([d?.ours, d?.before, d?.change]).toEqual([30, 32, "▼ 2 pts"]);
+    expect(d?.rows.map((r) => `${r.name} ${r.share} ${r.change}`)).toEqual(["Air China 55% ▲ 5 pts", "Pan Am 30% ▼ 2 pts", "United 8% ", "Delta 4% ▲ 1 pt", "Spirit 3% = no change"]);
+    expect(ptsChange(1.25)).toBe("▲ 1.3 pts");
+  });
+});
+
+describe("Rivals over time (30 Oct)", () => {
+  const hist = (taken: string, xs: [number, string, number, boolean][], weekly = false) =>
+    ({ scan_id: Date.parse(taken), taken_at: taken, weekly, airlines: xs.map(([airline_id, name, w, ours]) => ({ airline_id, name, weekly: w, ours })) });
+  it("a line for ours, the top 5 rivals by their most at any scan, and the rest grouped; x by each scan's time", () => {
+    const s = story({ rivals: { ...story().rivals, history: [
+      hist("2026-10-01T08:00:00.000Z", [[1, "Pan Am", 14, true], [50, "Air China", 7, false], [51, "A", 2, false], [52, "B", 3, false]], true),
+      hist("2026-10-08T08:00:00.000Z", [[1, "Pan Am", 14, true], [50, "Air China", 14, false], [53, "C", 4, false], [54, "D", 5, false], [55, "E", 6, false], [56, "F", 1, false]]),
+      hist("2026-10-22T08:00:00.000Z", [[1, "Pan Am", 28, true], [50, "Air China", 21, false]]),
+    ] } });
+    const g = historyLayout(s, nice);
+    expect(g?.series.map((x) => x.name)).toEqual(["Pan Am", "Air China", "E", "D", "C", "B", "other rivals"]);
+    expect(g?.series[0]?.dots.map((d) => d.tip)).toEqual(["2026-10-01T08:00:00.000Z (the week's kept scan) · Pan Am 14 a week",
+      "2026-10-08T08:00:00.000Z · Pan Am 14 a week", "2026-10-22T08:00:00.000Z · Pan Am 28 a week"]);
+    expect(g?.series[6]?.dots.map((d) => d.tip.split(" · ")[1])).toEqual(["other rivals 2 a week", "other rivals 1 a week", "other rivals 0 a week"]);
+    // the third point a fortnight after the second: twice as far along
+    const xs = g?.series[0]?.dots.map((d) => d.x) ?? [];
+    expect(Math.round(((xs[2] ?? 0) - (xs[1] ?? 0)) / ((xs[1] ?? 0) - (xs[0] ?? 1)))).toBe(2);
+  });
+  it("none with no scan; the seats and price by week from the market reads, both directions together", () => {
+    expect(historyLayout(story(), nice)).toBeNull();
+    expect(weeksLayout(story())).toBeNull();
+    const w = weeksLayout(story({ market: market() }));
+    expect(w?.bars.map((b) => b.tip)).toEqual(["week 43 of 2026 · 17,000 seats both ways · 122 AS$ a unit", "week 44 of 2026 · 6,000 seats both ways · 125 AS$ a unit"]);
+    expect(w?.price?.split(" ").length).toBe(2);
+  });
+});
+
+describe("the header's service in the game (30 Oct)", () => {
+  const checks = (routeId: number | null): ServiceChecks => ({ run: null, checked: 2, mismatches: routeId == null ? [] : [{
+    route_id: routeId, airline_id: 1, code: "PA", airline: "Pan Am", pair: "JFK-ORD", hub: "JFK", dest: "ORD", from: "ORD", to: "JFK", direction: "back",
+    game_code: "S1", distance_code: "S2", distance_km: 1185, planner_codes: ["S2"], kind: "distance", off_distance: true, off_planner: true, read_at: "2026-10-30T21:05:00.000Z" }] });
+  it("none before a read; the game's code, each direction's when they differ; amber when the check finds the route set differently", () => {
+    expect(serviceHeader(story(), checks(null))).toBeNull();
+    expect(serviceHeader(story({ market: market() }), checks(null))).toEqual({ text: "service S2 in the game", off: false });
+    const m = market();
+    const both = { ...m, back: { ...(m.out as NonNullable<StoryMarket["out"]>), direction: "back" as const, from: "ORD", to: "JFK", service_code: "S1" } };
+    expect(serviceHeader(story({ market: both }), checks(7))).toEqual({ text: "service S2 out, S1 back in the game", off: true });
+    expect(serviceHeader(story({ market: both }), checks(8))?.off).toBe(false);
+  });
+});
+
+describe("the page with the market boards (30 Oct)", () => {
+  const render = (s: RouteStory, extra: Record<string, unknown> = {}) => renderToString(createElement(MemoryRouter, null, createElement(RouteStoryView, {
+    s, code: "PA", back: null, layout: "layout Leisure (under 3,500 km)", conns: [],
+    board: (k, children, figure) => createElement(FoldBoard, { key: k, k, folded: false, onToggle: () => undefined, figure }, children),
+    onCollapse: () => undefined, onExpand: () => undefined, ...extra,
+  })));
+  it("before the first read every market board says so, and nothing errors", () => {
+    const html = render(story({ days_by_direction: dirDays(20), market: null }), { flights: [] });
+    expect((html.match(/data-no-market/g) ?? []).length).toBe(3);
+    expect(html).toContain(NO_MARKET_READ);
+    expect(html).toContain('data-figure="performance route: load by direction"');
+    expect(html).toContain("No flight on it with loads in the last 7 days.");
+    expect(html).not.toContain("data-service=");
+  });
+  it("with a read: the fares, the shares, the weeks, the flights and the header's service", () => {
+    const html = render(story({ days_by_direction: dirDays(20), market: market() }), {
+      flights: [{ flight_no: 101, direction: "out", from: "JFK", to: "ORD", dep_local: "07:00", average: 96.4, departures: 7, full: 5 }],
+      checks: { run: null, checked: 1, mismatches: [] },
+    });
+    expect(html).toContain('data-fare-airline="Pan Am" data-ours="yes"');
+    expect(html).toContain("we&#x27;re 11% under ZZ");
+    expect(html).toContain('data-share-direction="out"');
+    expect(html).toContain('data-figure="performance route: seats and price by week"');
+    expect(html).toContain('data-flight="101"');
+    expect(html).toContain('data-service="ok"');
+    expect(html).toContain("service S2 in the game");
   });
 });

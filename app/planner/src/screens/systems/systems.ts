@@ -5,7 +5,9 @@
 // and the build's stamp; this file only marks and words them, so the unit tests can try every limit. The limits are
 // Home's (manual §7): capture 26 and 48 hours, backup and snapshot 30 hours (red at 54, as Home), the archive by the 3rd,
 // a job whose last run failed; the world scan amber over 8 days and red over 15, and amber when a scan stopped part-way
-// with none finished after it (22 Oct); usage amber from 70% and red at the trigger. Home keeps flagging problems; the
+// with none finished after it (22 Oct); since 30 Oct the market pages (spec docs/specs/2026-10-30-market-pages-planner.md
+// §3) as the scan, amber over 8 days and red over 15, with the service check's mismatches; usage amber from 70% and red
+// at the trigger. Home keeps flagging problems; the
 // board is where "all good" shows.
 import type { BuildStamp } from "../../data/build";
 import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H } from "../today/attention";
@@ -67,8 +69,11 @@ export interface SystemStatus {
   /** A scan that stopped part-way since the latest finished one (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md
    *  §1): marked stopped when the next scan started, or left unfinished over an hour; null when there's none. */
   scan_stopped?: ScanStopped | null;
+  /** The latest finished market run (since 30 Oct, spec docs/specs/2026-10-30-market-pages.md): null until the first. */
+  market?: SysMarket | null;
   usage: { key: string; label: string; bytes: number; trigger_bytes: number }[];
 }
+export interface SysMarket { id: number; started_at: string; finished_at: string | null; age_days: number | null; pages_read: number; pages_failed: number; note: string | null }
 /** A stopped scan as system_status() gives it: how far it got against the finished scan before it (private.scan_progress()). */
 export interface ScanStopped {
   id: number;
@@ -258,6 +263,24 @@ export function scanLine(s: SystemStatus["scan"], now: Date, everyDays?: number 
   return { key: "scan", label: "World scan", mark: stopped ? worse(age, "warn") : age, when: whenWords(s?.taken_at), text };
 }
 
+/** The market pages (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §3): the latest finished read, its
+ *  age, pages and failed, as the world scan's, amber over 8 days and red over 15; and the service check's mismatches (the
+ *  pairs whose service profile in the game differs, on Today), or "not checked" while they're read. Before the first read
+ *  it says so in amber: the capture reads the pages the first evening they're due. */
+export function marketLine(m: SysMarket | null | undefined, now: Date, mismatches?: number | null): SysLine {
+  if (!m) return { key: "market", label: "Market pages", mark: "warn", when: null, text: "No market read yet: the capture reads the market pages once a week" };
+  const at = m.finished_at ?? m.started_at;
+  const h = hoursSince(at, now);
+  const d = h == null ? null : h / 24;
+  const mark: Mark = d == null || d > SCAN_BAD_D ? "bad" : d > SCAN_LATE_D ? "warn" : "ok";
+  const n = (v: number) => Number(v).toLocaleString("en-US");
+  const pages = `${n(m.pages_read)} page${Number(m.pages_read) === 1 ? "" : "s"}${m.pages_failed ? `, ${n(m.pages_failed)} failed` : ""}`;
+  const svc = mismatches == null ? "the service check not read yet"
+    : mismatches ? `${mismatches} service mismatch${mismatches === 1 ? "" : "es"} (Today, Service in the game)` : "no service mismatch";
+  return { key: "market", label: "Market pages", mark, when: whenWords(at),
+    text: `${agoWords(h)} · ${pages} · ${svc} · read with the evening capture once a week (market_every_days)` + (mark === "ok" ? "" : "; capture again while it's due") };
+}
+
 /** The planner's own build: when and from which change (after a merge, a time that hasn't moved means the deploy failed). */
 export function buildLine(b: BuildStamp | null): SysLine {
   if (!b) return { key: "build", label: "Planner build", mark: "warn", when: null, text: "this planner carries no build stamp (built without vite.config.ts's stamp)" };
@@ -274,8 +297,9 @@ export function usageLine(u: SystemStatus["usage"][number]): SysLine {
     text: `${sizeWords(bytes)} of ${sizeWords(trigger)} (${pct}%)${bytes >= trigger ? " · the trigger is reached: a brief at the next weekly review" : ""}` };
 }
 
-/** Every line of the board, in its order (the scan's with how often the capture takes one, scan_every_days). */
-export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date, scanEveryDays?: number | null): SysLine[] {
+/** Every line of the board, in its order (the scan's with how often the capture takes one, scan_every_days; since 30 Oct
+ *  the market pages' with the service check's mismatches). */
+export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date, scanEveryDays?: number | null, serviceMismatches?: number | null): SysLine[] {
   return [
     ...s.capture.map((c) => captureLine(c, now)),
     snapshotLine(s.snapshot ?? {}, now),
@@ -283,6 +307,7 @@ export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date
     archiveLine(s.archive, now),
     cleanupLine(s.cleanup, now),
     scanLine(s.scan, now, scanEveryDays, s.scan_stopped),
+    marketLine(s.market, now, serviceMismatches),
     buildLine(build),
     ...(s.usage ?? []).map(usageLine),
   ];

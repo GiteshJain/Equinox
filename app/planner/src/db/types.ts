@@ -2175,6 +2175,9 @@ isOneToOne: false
 "loads_by_day":
 { Args: { "p_from": string,"p_to": string,"p_world_id": number }; Returns: Json
                            },
+"market_service_checks":
+{ Args: { "p_airline_id"?: number,"p_as_of"?: string }; Returns: Json
+                           },
 "order_cabin":
 { Args: { "p_airline_id": number,"p_type_id": number }; Returns: Json
                            },
