@@ -38,6 +38,13 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The market pages, once a week: decided 30 Oct
+*Gitesh, 30 Oct (Building chat, brief `docs/briefs/2026-10-29-market-pages.md`, option C, run every 7 capture days
+when due rather than on a fixed weekday, as the world scan) · why: the fare ladder moved on our own loads with no view
+of rivals' fares, and Competition's share was worked out from the scan's departures; the game's Market Analysis page
+gives both per pair and direction. Once a week matches the Saturday fare moves; raw pages (about 290 KB each) aren't
+kept, to stay well under the 350 MB trigger.* New item in *Decided, not yet built*; no rule replaced.
+
 ### Long haul in 7-day lines: built 28 Oct (#118 to #121)
 *Decided 27 Oct (Gitesh, option B) · why: beyond about 7,750 km a round trip with turns and maintenance takes more than
 24 hours, so one aircraft can't fly the route daily and a pair gives only 6 a week; a 7-aircraft rotating line flies
