@@ -98,7 +98,9 @@ colours, the cards as Today's were, the map in a card, and the airline cards in 
   (since 23 Oct the game's figure from the latest night's fleet pages, "lowest maintenance 98%", for each aircraft the
   game flies; the planner's estimate, with ≈, only for one not on them), short and tight turns (or **clean**: flying,
   no short or tight turns and that lowest maintenance at 105% or more), and **Open fleet ›**, which opens the airline on
-  Tails. The photo's city is the airline's own (*airlines.photo_city*).
+  Tails. The photo's city is the airline's own (*airlines.photo_city*). Since 30 Oct a row **Profit, 14 reports**: the
+  airline's profit a day over its last 14 reports as small bars (green or red, as Performance's scorecard), with the
+  first and last on hover or tap; tap it to see it full size.
 
 ## Today
 *What do I do now?* The evening after a capture, or whenever one lands (since 20 Oct). Laid out since 22 Oct as the
@@ -115,6 +117,11 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   captured, all good, 17:08 UTC**", or what's missing (an airline not captured for over a day; red after 48 hours),
   short (amber) or broken (red), with what came in ("short: Kingfisher (loads 12 of 78 flights)"). **Systems ›** has
   each page.
+- **Orders** (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md, part C) opens as a timeline: a row per
+  airline and delivery line, a dot for each aircraft on order on the day it arrives (the last, when the line runs dry,
+  in violet, or amber when that's within *order_queue_warn_h*), a green ring when the line's first type is safe to order
+  by the cash forecast, a grey dot at now for a line with nothing on order, and the dashed line now (UTC). Hover or tap a
+  dot for its words. **Show as table** gives the table below; the lines' list stays under both.
 - **Orders, as one table:** a row per airline (its colour and name, **Can order now** in amber or **Safe from** a day,
   **Needs a capture** or **Not within 14 days**, from the cash forecast: *cash_forecast()*, through *airline_cards()*),
   a column per delivery line (A320 family, E195, A350; "—" where the airline has no such line). Each cell: when the
@@ -277,7 +284,11 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **Counts first:** tiles for **Flying**, **No flights** and **Needs a look**, each applying that filter (tap it again to
   clear it; the filter stays in the address), and **Deliveries** (on order, arrived, to file), which takes you to the
   board below. The tiles count the base and type picked.
-- **The list is one table:** registration and base, type, cabin, legs a week, block hours a day, maintenance and the
+- **The list opens as bars** (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md, part C): a chart per base,
+  a bar per aircraft of its block hours a day, against the airline's target (*aircraft_block_target_h*) and 12 hours as
+  dashed lines, coloured by its maintenance (fine, little headroom, under the minimum, or grey with no figure). Tap a bar
+  to open the aircraft. **Show as table** gives the table, with **remove**; **Add a tail** stays under both.
+- **The list as a table:** registration and base, type, cabin, legs a week, block hours a day, maintenance and the
   routes it flies (cut short; the full list on hover). On a phone each aircraft is a compact row (registration and
   base, block hours, maintenance); the arrow opens the rest and **remove**.
 - **Deliveries:** tap a row to open its plan card (or **card**). The card's head shows the type, cabin and number of
@@ -786,7 +797,11 @@ out since 22 Oct short and answer-first, as Today (spec docs/specs/2026-10-22-pl
   green: each with its mark as a dot and a word (**good**, **check**, **problem**), its name, its words and when.
 - **The evening capture as one table:** a row per airline with its mark, when its latest page came, and its verdict
   (**all good**, **short**, **broken**, **not checked**) with what came in short or broken; since 22 Oct its fleet pages
-  too ("fleet 3 pages, 21 aircraft", or the fleet page that came in short or broken).
+  too ("fleet 3 pages, 21 aircraft", or the fleet page that came in short or broken). Since 30 Oct, under it, **The last
+  14 nights**: a square per airline per night, green all good, amber short, red broken, grey not checked, pale with no
+  capture, each with its words on hover or tap.
+- **Usage against the triggers** (since 30 Oct): the database's size, the report PDFs and the website's data as gauges,
+  each its share of its trigger, amber from 70% and red at it.
 - **The details** under them, as large rows: Capture, Fleet, Cabin charges and Manual entry, each with a one-line note and
   its count or state ("all 6 complete", "27 fits, no problems", "2 to look at"). Tap a
   row to open its board right below it; all start closed, except Cabin charges or Fleet when Today's item sent you

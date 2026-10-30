@@ -2099,3 +2099,17 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .kbig .kdonutw{display:block}
 .kchart .rplab{fill:#0A1230;font-weight:600}
 @media (max-width:420px){ .cpdonut{grid-template-columns:96px minmax(0,1fr);gap:10px} }
+
+/* part C's charts (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md): Today's delivery lines (each aircraft,
+   the last when the line runs dry, when it's safe to order), Tails' block hours by base, Home's profit sparkline,
+   Systems' usage gauges */
+.ktime .kmark.arrive{fill:var(--ink)} .ktime .kmark.dry{fill:var(--violet)} .ktime .kmark.dry.warn{fill:#E39B21}
+.ktime .kmark.safe{fill:#fff;stroke:var(--ok);stroke-width:2.5} .ktime .kmark.empty{fill:#9AA4C4}
+.tchart{min-width:0;padding:4px 2px 0} .tchartn{margin:0 0 4px}
+.tchart .kc{margin:8px 0 4px}
+.kref.kmk1 line{stroke:var(--bad)} .kref.kmk1 text{fill:var(--bad)}
+.acspark{min-width:0} .acsparkw{margin:0;max-width:140px}
+.acspark .kspark{height:26px}
+.kgauges{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;justify-items:center;min-width:0}
+.kgauges .kgauge{max-width:150px}
+.kbig .kgauges{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))} .kbig .kgauges .kgauge{max-width:260px}

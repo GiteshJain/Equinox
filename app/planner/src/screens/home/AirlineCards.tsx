@@ -10,19 +10,25 @@
 // the logo on it. "Open fleet ›" opens the airline on Tails (build pull request 7).
 // Since 23 Oct (spec docs/specs/2026-10-23-planner-look-home.md) the cards wear Performance's scorecard style: the band,
 // then the colour dot and name as the head with the flying pill, then label/value rows that start at the top of the card
-// and keep a readable label column, then the pills and "Open fleet ›" as the footer.
+// and keep a readable label column, then the pills and "Open fleet ›" as the footer. Since 30 Oct (spec
+// docs/specs/2026-10-30-charts-everywhere.md, part C) a row with the airline's profit over its last 14 reports as a
+// sparkline (airline_profit(), as Performance's scorecard).
 import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import type { AirlineCard, Rules } from "@rules";
 import type { GameMaintFigure } from "../tails/model";
 import { Pill } from "../../ui/Pill";
 import { loadLogos } from "../../ui/siteFiles";
-import { cardClean, lowestMaintenance, lowestWords } from "./figures";
+import { cardClean, lowestMaintenance, lowestWords, profitSpark } from "./figures";
+import { ChartTip, Spark, sparkLayout } from "../../ui/charts";
+import type { ProfitDay } from "../performance/model";
 import type { HomeAirline } from "./reads";
 
-export function AirlineCards({ cards, airlines, photos, rules, game }: {
+export function AirlineCards({ cards, airlines, photos, rules, game, profitOf }: {
   cards: readonly AirlineCard[]; airlines: readonly HomeAirline[]; photos: Record<string, { url: string }> | undefined;
   rules: Rules; game: ReadonlyMap<number, GameMaintFigure> | undefined;
+  /** Each airline's reported profit days (airline_profit()), for the 14-day sparkline (since 30 Oct); absent until read. */
+  profitOf?: ReadonlyMap<number, readonly ProfitDay[]>;
 }) {
   const [logos, setLogos] = useState<Record<string, string> | null>(null);
   useEffect(() => {
@@ -61,6 +67,7 @@ export function AirlineCards({ cards, airlines, photos, rules, game }: {
               <dt>Routes</dt><dd>{c.routes}</dd>
               <dt>Flights a day</dt><dd>{Math.round(c.flights_day)}</dd>
               <dt>Block hours a day</dt><dd>{c.block_hours_day.toFixed(0)}</dd>
+              {profitOf ? <ProfitRow name={a.name} days={profitOf.get(a.id)} /> : null}
             </dl>
             <div className="ffoot acfoot">
               <div className="acf">
@@ -75,5 +82,20 @@ export function AirlineCards({ cards, airlines, photos, rules, game }: {
         );
       })}
     </div>
+  );
+}
+
+/** The card's profit over the last 14 reports, as Performance's scorecard draws it: a bar a report, green or red; opens
+ *  full size like every chart (the chart kit). */
+function ProfitRow({ name, days }: { name: string; days: readonly ProfitDay[] | undefined }) {
+  const p = profitSpark(name, days ?? []);
+  return (
+    <>
+      <dt>Profit, 14 reports</dt>
+      <dd className="acspark" data-profit-spark={p.values.length}>
+        {p.values.length ? <ChartTip className="chartwrap kmultw acsparkw" label={`${name}: profit a day`}><Spark g={sparkLayout(p.values, "bar")} tip={p.tip} label={p.tip} /></ChartTip>
+          : <span className="dim">none reported yet</span>}
+      </dd>
+    </>
   );
 }

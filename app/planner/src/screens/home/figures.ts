@@ -6,6 +6,7 @@
 import { aircraftWeek, block, maintenance, type AirlineCard, type KeyFigures, type NowFigures, type Rules, type TimedLeg } from "@rules";
 import { shownMaint, type GameMaintFigure, type ShownMaint } from "../tails/model";
 import type { CardsRead } from "./reads";
+import { chartIntervals, sg, type ProfitDay } from "../performance/model";
 
 export interface Tile {
   value: string;
@@ -83,3 +84,13 @@ export const cardClean = (c: Pick<AirlineCard, "flying" | "short_turns" | "tight
   c.flying && !c.short_turns && !c.tight_turns && lowest?.level === "ok";
 /** The card's pill words: "lowest maintenance 98%" from the game, "lowest maintenance ≈98%" from the estimate. */
 export const lowestWords = (m: Pick<ShownMaint, "from" | "pct">): string => `lowest maintenance ${m.from === "game" ? "" : "≈"}${m.pct}%`;
+
+// ---------- the airline card's profit sparkline (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md, part C)
+/** An airline's profit a day for each of its last 14 reported intervals (airline_profit()'s, as Performance's scorecard
+ *  and small multiples draw them), and the tip: "Pan Am: profit a day, last 14 reports · +0.12M → +0.20M"; none yet. */
+export function profitSpark(name: string, days: readonly ProfitDay[]): { values: number[]; tip: string } {
+  const iv = chartIntervals(days);
+  const values = iv.map((d) => d.profit_day);
+  return { values, tip: values.length ? `${name}: profit a day, last ${values.length} report${values.length === 1 ? "" : "s"} · ${sg(values[0] as number)} → ${sg(values[values.length - 1] as number)}`
+    : `${name}: no profit reported yet` };
+}

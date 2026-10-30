@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { buildRules, summary, type RulesInput } from "@rules";
 import { addDays, dayDiff, dueWords, inDays, niceDate, untilText } from "../../ui/dates";
 import { AirlineCards } from "./AirlineCards";
-import { cardClean, greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords } from "./figures";
+import { cardClean, greeting, heroFigures, keyFigureTiles, loadTile, lowestMaintenance, lowestWords, profitSpark } from "./figures";
 import { arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, zoomView } from "./map";
 import { attentionAnchor, attentionHref, countTiles, tileForHash, waitingCards, type CardsInput } from "../today/model";
 import { groupAttention, withoutDismissed, type AttItem } from "../../ui/attention";
@@ -255,5 +255,16 @@ describe("needs attention's summary cards on Home (23 Oct, spec docs/specs/2026-
     expect(src).toContain('id={attentionAnchor("to-file")}');
     expect(src).toContain("onDismiss");
     expect(src).toContain("data-show-again");
+  });
+});
+
+describe("the airline card's profit sparkline (part C, 30 Oct)", () => {
+  it("profit a day for the last 14 reports, with its tip; none yet", () => {
+    const day = (i: number, p: number) => ({ date: `2026-10-${String(i).padStart(2, "0")}`, cash: 0, change: 0, order_payments: 0, days: 1, profit_day: p, aircraft: 0, flights: 0 }) as never;
+    const s = profitSpark("Pan Am", Array.from({ length: 16 }, (_, i) => day(i + 1, (i - 3) / 10)));
+    expect(s.values.length).toBe(14);
+    expect(s.values[0]).toBeCloseTo(-0.1);
+    expect(s.tip).toBe("Pan Am: profit a day, last 14 reports · −0.10M → +1.20M");
+    expect(profitSpark("Pan Am", [])).toEqual({ values: [], tip: "Pan Am: no profit reported yet" });
   });
 });

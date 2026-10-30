@@ -113,7 +113,14 @@ export interface OrderRow {
   /** Each delivery line the airline may have, read once: when its first type is safe to order (null when the forecast
    *  has no type of that line), how many are on order and when it runs dry, or empty. */
   lines: { family: string; safe: LineSafe | null; text: string; warn: boolean; soon: string | null }[];
+  /** Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C): each delivery line's queue for the timeline
+   *  (lineQueues): when each of its queued aircraft arrives and when its first type is safe to order. */
+  queues?: LineQueue[];
 }
+/** A delivery line on the orders' timeline: each queued aircraft's arrival (ms, in order; the last is when it runs dry),
+ *  when its first type is safe to order (ms; now when it is; null when the forecast can't say), and whether it runs dry
+ *  within order_queue_warn_h. */
+export interface LineQueue { family: string; arrivals: number[]; safe_ms: number | null; safe_now: boolean; warn: boolean }
 /** When a delivery line's first type is safe to order: "safe now", "safe from Wed, Oct 21" or "not safe within 14 days". */
 export interface LineSafe { now: boolean; text: string }
 
@@ -168,6 +175,22 @@ export function deliveryLines(cells: readonly QueueCell[], types?: readonly Fore
     return c.count && c.last_ms != null
       ? { family: c.family, safe, text: `${c.count} on order · runs dry ${runsDryWords(c.last_ms)} UTC`, warn: c.warn, soon: c.warn && c.hours != null ? soonWords(c.hours) : null }
       : { family: c.family, safe, text: "empty: nothing on order", warn: false, soon: null };
+  });
+}
+
+/** Each delivery line's queue (since 30 Oct, for Today's timeline): the same lines as deliveryLines (the families not in
+ *  the fleet left out), each with its queued aircraft's arrivals (the last `count` of the family's deliveries: the queue
+ *  is every one after now less the grace, so the latest ones) and when its first type is safe (lineSafe's day; now when
+ *  it's safe now). */
+export function lineQueues(cells: readonly QueueCell[], deliveries: readonly { family: string; delivery_ms: number | null }[], nowMs: number,
+  types?: readonly ForecastType[], familyOfType?: (t: ForecastType) => string): LineQueue[] {
+  return cells.filter((c) => c.in_fleet).map((c) => {
+    const mine = deliveries.filter((d) => d.family === c.family && d.delivery_ms != null).map((d) => d.delivery_ms as number).sort((a, b) => a - b);
+    const arrivals = c.count ? mine.slice(-c.count) : [];
+    const safe = (types ?? []).filter((t) => familyOfType?.(t) === c.family && (t.safe_day === 0 || (t.safe_day != null && t.safe_from)));
+    const first = safe.length ? safe.reduce((a, b) => ((b.safe_day as number) < (a.safe_day as number) ? b : a)) : null;
+    const safe_ms = !first ? null : first.safe_day === 0 ? nowMs : Date.parse(first.safe_from as string);
+    return { family: c.family, arrivals, safe_ms: Number.isFinite(safe_ms) ? safe_ms : null, safe_now: first?.safe_day === 0, warn: c.warn };
   });
 }
 

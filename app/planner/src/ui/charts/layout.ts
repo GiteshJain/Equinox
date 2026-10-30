@@ -34,15 +34,19 @@ export interface HBarLayout {
   zeroX: number;
   bars: { key: string; label: string; y: number; h: number; x: number; w: number; color: string; tip: string; text: string; textX: number; neg: boolean }[];
   ref: { x: number; label: string } | null;
+  /** More reference lines (the 10- and 12-hour marks, say), each with its label. */
+  marks: { x: number; label: string }[];
   ticks: { x: number; label: string }[];
 }
 /** One row per item in the order given, a bar from zero to its value (left of zero when negative), its value at its end,
  *  the reference line (the airline's middle route, say) across every row; a tick axis along the bottom. */
-export function hbarLayout(items: readonly HBarItem[], opts: { fmt: (v: number) => string; ref?: { value: number; label: string } | null; W?: number; row?: number; L?: number; R?: number }): HBarLayout {
+export function hbarLayout(items: readonly HBarItem[], opts: {
+  fmt: (v: number) => string; ref?: { value: number; label: string } | null; marks?: readonly { value: number; label: string }[]; W?: number; row?: number; L?: number; R?: number;
+}): HBarLayout {
   // T leaves the reference line's label a line of its own over the bars; a losing bar's value is written left of it, so
   // the bars start that much right of the labels
-  const W = opts.W ?? 560, row = opts.row ?? 22, L = opts.L ?? 96, R = opts.R ?? 52, T = opts.ref ? 16 : 6, B = 22;
-  const vals = items.map((x) => x.value).concat(opts.ref ? [opts.ref.value] : []);
+  const W = opts.W ?? 560, row = opts.row ?? 22, L = opts.L ?? 96, R = opts.R ?? 52, T = opts.ref || opts.marks?.length ? 16 : 6, B = 22;
+  const vals = items.map((x) => x.value).concat(opts.ref ? [opts.ref.value] : [], (opts.marks ?? []).map((m) => m.value));
   const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
   const span = hi - lo || 1, x0 = L + (items.some((x) => x.value < 0) ? 46 : 0);
   const X = (v: number) => x0 + (v - lo) / span * (W - x0 - R);
@@ -55,6 +59,7 @@ export function hbarLayout(items: readonly HBarItem[], opts: { fmt: (v: number) 
         tip: x.tip, text: x.text ?? opts.fmt(x.value), textX: f1(neg ? a - 4 : b + 4), neg };
     }),
     ref: opts.ref ? { x: f1(X(opts.ref.value)), label: opts.ref.label } : null,
+    marks: (opts.marks ?? []).map((m) => ({ x: f1(X(m.value)), label: m.label })),
     ticks: ticks(lo, hi, 4).map((v) => ({ x: f1(X(v)), label: opts.fmt(v) })),
   };
 }

@@ -158,7 +158,7 @@ function BigView({ label, onClose, children }: { label: string; onClose: () => v
     return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = was; };
   }, [onClose]);
   const view = (
-    <div className="kbig" data-chart-big={label} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="kbig" data-chart-big={label} onClick={(e) => { if (e.target === e.currentTarget || (e.target as Element).closest?.(".kpick")) onClose(); }}>
       <div className="kbigp" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} ref={panel}>
         <div className="kbigh">
           <b>{label.charAt(0).toUpperCase() + label.slice(1)}</b>
@@ -199,7 +199,7 @@ export function ChartFrame({ title, note, legend, empty, figure, children }: {
 }
 
 /** Horizontal bars, with the reference line and its label, laid out at the width shown. */
-export function HBars({ layout, figure, label = "bar chart" }: { layout: (W: number) => HBarLayout; figure?: string; label?: string }) {
+export function HBars({ layout, figure, label = "bar chart", onPick }: { layout: (W: number) => HBarLayout; figure?: string; label?: string; onPick?: (key: string) => void }) {
   return (
     <ChartTip label={label}>
       <Sized>{(w) => {
@@ -211,12 +211,17 @@ export function HBars({ layout, figure, label = "bar chart" }: { layout: (W: num
             {g.bars.map((b) => (
               <g key={b.key} data-bar={b.key}>
                 <text x={g.L - 6} y={b.y + b.h / 2 + 4} textAnchor="end" className="klab">{fitText(b.label, g.L - 10)}</text>
-                <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" fill={b.color} data-tip={b.tip} />
+                <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" fill={b.color} data-tip={b.tip}
+                  className={onPick ? "kpick" : undefined} onClick={onPick ? () => onPick(b.key) : undefined} />
                 <text x={b.textX} y={b.y + b.h / 2 + 4} textAnchor={b.neg ? "end" : "start"} className="kval">{b.text}</text>
               </g>
             ))}
             {g.ref ? <g className="kref"><line x1={g.ref.x} x2={g.ref.x} y1={0} y2={g.H - 18} />
               {g.ref.x > g.W * 0.6 ? <text x={g.ref.x - 4} y={10} style={{ textAnchor: "end" }}>{g.ref.label}</text> : <text x={g.ref.x + 4} y={10}>{g.ref.label}</text>}</g> : null}
+            {g.marks.map((m, i) => (
+              <g key={"m" + i} className={"kref kmk" + i}><line x1={m.x} x2={m.x} y1={g.T - 4} y2={g.H - 18} />
+                {i % 2 === 0 ? <text x={m.x - 4} y={10} style={{ textAnchor: "end" }}>{m.label}</text> : <text x={m.x + 4} y={10}>{m.label}</text>}</g>
+            ))}
           </svg>
         );
       }}</Sized>

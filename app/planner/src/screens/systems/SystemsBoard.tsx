@@ -2,13 +2,21 @@
 // open (it doesn't fold): one look says whether everything worked. Its marks and words are systems.ts's. Since 22 Oct
 // (spec docs/specs/2026-10-22-planner-look-systems.md) its answer is the screen's title (Systems.tsx); here the lines are
 // tiles, red first, then amber, then green, and each airline's evening capture is one row of a table. Every line keeps
-// its data-sys and data-mark.
-import { MARK_TILE_WORDS, captureVerdict, worstFirst, type Mark, type SysCapture, type SysLine } from "./systems";
+// its data-sys and data-mark. Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C) the capture table has
+// each airline's verdicts over the last 14 nights under it, and the usage figures are gauges under the tiles too.
+import { MARK_TILE_WORDS, captureVerdict, worstFirst, type Mark, type SysCapture, type SysLine, type SystemStatus } from "./systems";
+import type { CaptureAt } from "./charts";
+import { CaptureHistory, UsageGauges } from "./SystemsCharts";
 
 const MARK_WORDS: Record<Mark, string> = { ok: "green", warn: "amber", bad: "red" };
 const Dot = ({ mark }: { mark: Mark }) => <span className={"sysmark " + mark} role="img" aria-label={MARK_WORDS[mark]} title={MARK_WORDS[mark]} />;
 
-export function SystemsBoard({ lines, captures, now }: { lines: readonly SysLine[]; captures: readonly SysCapture[]; now: Date }) {
+export function SystemsBoard({ lines, captures, now, usage, history }: {
+  lines: readonly SysLine[]; captures: readonly SysCapture[]; now: Date;
+  /** Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part C): the usage figures for their gauges, and the
+   *  capture history for the last 14 nights (SystemsCharts.tsx). */
+  usage?: SystemStatus["usage"]; history?: { today: string; answers: CaptureAt[][] } | undefined;
+}) {
   const capKey = (c: SysCapture) => `capture|${c.airline_id}`;
   const byKey = new Map(captures.map((c) => [capKey(c), c]));
   const capLines = lines.filter((l) => byKey.has(l.key));
@@ -44,8 +52,10 @@ export function SystemsBoard({ lines, captures, now }: { lines: readonly SysLine
               })}
             </tbody>
           </table>
+          <CaptureHistory history={history} />
         </div>
       ) : null}
+      {usage?.length ? <UsageGauges usage={usage} /> : null}
     </section>
   );
 }
