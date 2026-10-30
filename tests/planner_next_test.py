@@ -1051,7 +1051,6 @@ async def route_page_opens(pl):
     await pl.pg.evaluate(SHOW_TABLES_JS)   # the route profit table, behind its chart since 30 Oct
     await settle(pl.pg, 300)
     link = await pl.pg.evaluate("(document.querySelector('[data-figure=\"performance: route profit table\"] a[data-route-link]') || {getAttribute: () => ''}).getAttribute('href')")
-    await pl.pg.evaluate(SHOW_CHARTS_JS)
     code = await pl.pg.evaluate("document.querySelector('main[data-screen=performance]').dataset.airline")
     if link:
         await pl.pg.click("[data-figure='performance: route profit table'] a[data-route-link]")
@@ -1122,6 +1121,10 @@ async def route_page_opens(pl):
     await pl.pg.click("main[data-route-page] [data-back]")
     await pl.pg.wait_for_function(f"() => location.pathname === '/planner/performance/{acode}'", timeout=30000)
     await pl.pg.wait_for_selector("main[data-screen=performance][data-performance-ready=yes]:not([data-route-page])", timeout=90000)
+    # back on the airline's page: its charts again (the route profit table was shown to click a route's name above;
+    # charts are the default, remembered per board in this browser)
+    await pl.pg.evaluate(SHOW_CHARTS_JS)
+    await settle(pl.pg, 200)
     # Competition's threats: each links to its route's page
     await open_screen(pl.pg, 'competition')
     await pl.pg.wait_for_selector("main[data-screen=competition][data-competition-ready=yes]", timeout=90000)
