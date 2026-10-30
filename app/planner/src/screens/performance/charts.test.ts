@@ -6,9 +6,9 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildRules, loadReport, type DayFlight, type RulesInput } from "@rules";
 import { hbarLayout, stackLayout, timelineLayout } from "../../ui/charts";
-import { GROWTH_SERIES, WEEK_SERIES, flightsHeat, forecastSteps, growthList, growthStack, kHour, ladderWeek, planTimeline, routeHourBars, scoreMultiples, weekKind } from "./charts";
+import { GROWTH_SERIES, WEEK_SERIES, tailItems, flightsHeat, forecastSteps, growthList, growthStack, kHour, ladderWeek, planTimeline, routeHourBars, scoreMultiples, weekKind } from "./charts";
 import { CashSteps, RouteHourChart } from "./PerfCharts";
-import { MARKS, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow } from "./model";
+import { MARKS, groupLayout, scatterLayout, type AircraftRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow } from "./model";
 import type { CapturedLoad, GrowthRead } from "./reads";
 
 const route = (hub: string, dest: string, x: Partial<RouteRow> = {}): RouteRow => ({
@@ -143,5 +143,26 @@ describe("Flights by day: loads by hour", () => {
     expect(cells.flatMap((c, i) => (c ? [[i, c.value]] : []))).toEqual([[6, 96], [9, null]]);
     expect(cells[6]?.tip).toBe("Test Air · 06:00–06:59 local · 1 departure (1001) · economy 96% over 1 captured");
     expect(cells[9]?.tip).toContain("not captured");
+  });
+});
+
+describe("the older charts drawn with the kit (part B): Aircraft, Load against profit, The group today", () => {
+  it("Aircraft: each one's profit a day after lease (before, without one) in thousands, green or red", () => {
+    const rows = [{ registration: "N001", net_day: 0.012, flight_profit_day: 0.03 }, { registration: "N002", net_day: null, flight_profit_day: -0.004 }] as unknown as AircraftRow[];
+    expect(tailItems(rows).map((x) => [x.label, x.value, x.text, x.color, x.tip])).toEqual([
+      ["N001", 12, "+12k", "#1E9E6A", "N001: 12k a day after lease"], ["N002", -4, "−4k", "#B4234B", "N002: -4k a day"]]);
+  });
+  it("Load against profit is laid out at the width shown, its labels kept apart at 11 px", () => {
+    const rs = [route("HUB", "AAA", { economy: 92, profit_week: 3 }), route("HUB", "BBB", { economy: 81, profit_week: 2 })];
+    const a = scatterLayout(rs), b = scatterLayout(rs, { W: 320, charW: 6.6 });
+    expect([a?.W, b?.W, b?.x0]).toEqual([460, 320, a?.x0]);
+    expect(b?.dots.map((d) => d.title)).toEqual(a?.dots.map((d) => d.title));
+    expect(Math.max(...(b?.dots ?? []).map((d) => d.x))).toBeLessThanOrEqual(320 - 14);
+  });
+  it("The group today: narrower names and \"net a day\" on its own line under 560 px", () => {
+    const rows = [{ airline_id: 1, code: "PA", name: "Pan Am", flight_profit_day: 0.5, leases_and_closing_day: 0.3, net_day: 0.2 }] as never[];
+    const wide = groupLayout(rows), narrow = groupLayout(rows, 340);
+    expect([wide.W, wide.x0, wide.netY === wide.labelY]).toEqual([900, 140, true]);
+    expect([narrow.W, narrow.x0, narrow.netY - narrow.labelY, narrow.H - wide.H]).toEqual([340, 112, 15, 14]);
   });
 });

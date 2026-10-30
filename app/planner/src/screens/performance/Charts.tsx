@@ -4,9 +4,10 @@
 // the tip is the chart kit's (src/ui/charts), where the new charts are drawn: so a click opens each chart full size, and
 // its text stays 11 px on screen however small the chart is drawn. The route charts' legends are in the page's type
 // (Legend), under the chart, so they're never scaled down with it.
-import { ChartTip, Legend } from "../../ui/charts";
+import { ChartTip, HBars, Legend, Sized, fitText, hbarLayout } from "../../ui/charts";
+import { tailItems } from "./charts";
 import {
-  barLayout, costParts, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, tailBars, type AircraftRow, type AverageFlight, type BarUnit,
+  barLayout, costParts, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, type AircraftRow, type AverageFlight, type BarUnit,
   type DirChartLayout, type GroupRow, type HistoryLayout, type ProfitDay, type RouteRow, type StoryChartLayout, type WeeksLayout,
 } from "./model";
 
@@ -73,28 +74,34 @@ export function LoadSpark({ values }: { values: readonly (number | null)[] }) {
 
 
 /** Load against profit: economy load against profit a flight, bubble size flights a week, colour the mark. Since 22 Oct
- *  the load axis is zoomed to the routes shown, the labels never overlap and the axis title sits inside (scatterLayout). */
+ *  the load axis is zoomed to the routes shown, the labels never overlap and the axis title sits inside (scatterLayout).
+ *  Since 30 Oct laid out at the width it's shown (the kit's Sized), its text at 11 px, so it's readable on a phone. */
 export function Scatter({ routes }: { routes: readonly RouteRow[] }) {
-  const g = scatterLayout(routes);
-  if (!g) return <div className="dim">No loads matched yet.</div>;
+  if (!scatterLayout(routes)) return <div className="dim">No loads matched yet.</div>;
   return (
     <ChartWrap className="chartwrap rpwrap" label="load against profit">
-    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={`Economy load (${g.x0}% to ${g.x1}%) against profit a flight`}
-      data-load-from={g.x0} data-labels={g.labels.length}>
-      {g.yTicks.map((t, i) => (
-        <g key={i}>
-          <line x1={g.pl} x2={g.W - g.pr} y1={t.y} y2={t.y} stroke="#EEF1F7" />
-          <text x={g.pl - 6} y={t.y + 4} fontSize="10" textAnchor="end" fill="#5D6785">{t.label}</text>
-        </g>
-      ))}
-      {g.xTicks.map((t, i) => <text key={"x" + i} x={t.x} y={g.H - g.pb + 16} fontSize="10" textAnchor={i === g.xTicks.length - 1 ? "end" : "middle"} fill="#5D6785">{t.label}</text>)}
-      {g.zeroY != null ? <line x1={g.pl} x2={g.W - g.pr} y1={g.zeroY} y2={g.zeroY} stroke="#B4234B" strokeDasharray="3 3" /> : null}
-      <text x={g.xTitle.x} y={g.xTitle.y} fontSize="10" textAnchor="end" fill="#5D6785">{g.xTitle.text}</text>
-      {g.dots.map((d, i) => (
-        <circle key={"d" + i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r={d.r.toFixed(1)} fill={d.color} fillOpacity=".55" stroke={d.color}><title>{d.title}</title></circle>
-      ))}
-      {g.labels.map((l, i) => <text key={"l" + i} x={l.x.toFixed(1)} y={l.y.toFixed(1)} fontSize="10" fontWeight="600" textAnchor={l.anchor} fill="#0A1230" className="rplab">{l.text}</text>)}
-    </svg>
+      <Sized fallback={460} min={280}>{(w) => {
+        const g = scatterLayout(routes, { W: w, charW: 6.6 });
+        if (!g) return null;
+        return (
+          <svg className="kchart rpscat" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label={`Economy load (${g.x0}% to ${g.x1}%) against profit a flight`}
+            data-load-from={g.x0} data-labels={g.labels.length}>
+            {g.yTicks.map((t, i) => (
+              <g key={i}>
+                <line x1={g.pl} x2={g.W - g.pr} y1={t.y} y2={t.y} className="grid" />
+                <text x={g.pl - 6} y={t.y + 4} textAnchor="end">{t.label}</text>
+              </g>
+            ))}
+            {g.xTicks.map((t, i) => <text key={"x" + i} x={t.x} y={g.H - g.pb + 16} textAnchor={i === g.xTicks.length - 1 ? "end" : "middle"}>{t.label}</text>)}
+            {g.zeroY != null ? <line x1={g.pl} x2={g.W - g.pr} y1={g.zeroY} y2={g.zeroY} stroke="#B4234B" strokeDasharray="3 3" /> : null}
+            <text x={g.xTitle.x} y={g.xTitle.y} style={{ textAnchor: "end" }} className="kax">{g.xTitle.text}</text>
+            {g.dots.map((d, i) => (
+              <circle key={"d" + i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r={d.r.toFixed(1)} fill={d.color} fillOpacity=".55" stroke={d.color} data-tip={d.title} />
+            ))}
+            {g.labels.map((l, i) => <text key={"l" + i} x={l.x.toFixed(1)} y={l.y.toFixed(1)} style={{ textAnchor: l.anchor }} className="rplab">{l.text}</text>)}
+          </svg>
+        );
+      }}</Sized>
     </ChartWrap>
   );
 }
@@ -126,23 +133,11 @@ export function CostChart({ avg }: { avg: AverageFlight | null }) {
   );
 }
 
-/** Each aircraft's profit a day after its lease. */
+/** Each aircraft's profit a day after its lease: since 30 Oct the kit's horizontal bars (tailItems), at the width shown. */
 export function TailChart({ rows }: { rows: readonly AircraftRow[] }) {
-  const g = tailBars(rows);
-  return (
-    <ChartWrap className="chartwrap rpwrap" label="profit a day after lease, by aircraft">
-    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Profit a day after lease, by aircraft">
-      {g.bars.map((b, i) => (
-        <g key={i}>
-          <text x="0" y={b.y + 15} fontSize="11" fill="#0A1230">{b.reg}</text>
-          <rect x={b.x.toFixed(1)} y={b.y + 4} width={b.w.toFixed(1)} height="14" rx="3" fill={b.pos ? "#1E9E6A" : "#B4234B"}><title>{b.title}</title></rect>
-          <text x={b.labelX.toFixed(1)} y={b.y + 15} fontSize="10.5" textAnchor={b.pos ? "start" : "end"} fill="#3B4566">{b.label}</text>
-        </g>
-      ))}
-      {g.mid != null ? <line x1={g.mid} x2={g.mid} y1="0" y2={g.H - 2} stroke="#C3C9D9" /> : null}
-    </svg>
-    </ChartWrap>
-  );
+  const items = tailItems(rows);
+  return <HBars layout={(W) => hbarLayout(items, { fmt: (v) => `${Math.round(v)}k`, W, L: 84, R: 56, row: 22 })} label="profit a day after lease, by aircraft"
+    figure="performance: aircraft chart" />;
 }
 
 /** The route page's since-launch chart (spec docs/specs/2026-10-21-route-page.md §3.3): economy and business loads by
@@ -191,25 +186,30 @@ export function ShareLine({ s }: { s: { W: number; H: number; path: string; dots
   );
 }
 
-/** The group today: one row per airline, flight profit against leases and the week-end closing, net at the end. */
+/** The group today: one row per airline, flight profit against leases and the week-end closing, net at the end. Since
+ *  30 Oct laid out at the width it's shown (groupLayout's W), its text at 11 px. */
 export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
-  const g = groupLayout(rows);
   return (
     <ChartWrap className="chartwrap rpwrap" label="the group today">
-    <svg className="rpsvg" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Flight profit against leases, by airline" data-figure="performance: the group today">
-      {g.rows.map((x) => (
-        <g key={x.r.airline_id} data-group-row={x.r.code ?? x.r.name}>
-          <text x="0" y={x.y + 16} fontSize="11.5" fill="#0A1230">{x.r.name}</text>
-          <rect x={g.c} y={x.y + 3} width={x.profitW.toFixed(1)} height="16" rx="3" fill="#1E9E6A"><title>{x.profitTitle}</title></rect>
-          <rect x={(g.c - x.leaseW).toFixed(1)} y={x.y + 3} width={x.leaseW.toFixed(1)} height="16" rx="3" fill="#E0557A"><title>{x.leaseTitle}</title></rect>
-          <text x={g.W - 4} y={x.y + 16} fontSize="11.5" textAnchor="end" fill={x.neg ? "#B4234B" : "#0A1230"} fontWeight="700">{x.net}</text>
-        </g>
-      ))}
-      <line x1={g.c} x2={g.c} y1="0" y2={g.axisY} stroke="#C3C9D9" />
-      <text x={g.c - 6} y={g.labelY} fontSize="10" textAnchor="end" fill="#8B96A8">← leases and closing</text>
-      <text x={g.c + 6} y={g.labelY} fontSize="10" fill="#8B96A8">flight profit →</text>
-      <text x={g.W - 4} y={g.labelY} fontSize="10" textAnchor="end" fill="#8B96A8">net a day</text>
-    </svg>
+      <Sized fallback={900} min={300}>{(w) => {
+        const g = groupLayout(rows, w);
+        return (
+          <svg className="kchart rpgroup" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Flight profit against leases, by airline" data-figure="performance: the group today">
+            {g.rows.map((x) => (
+              <g key={x.r.airline_id} data-group-row={x.r.code ?? x.r.name}>
+                <text x="0" y={x.y + 16} className="klab">{fitText(x.r.name, g.x0 - 8)}</text>
+                <rect x={g.c} y={x.y + 3} width={x.profitW.toFixed(1)} height="16" rx="3" fill="#1E9E6A" data-tip={x.profitTitle} />
+                <rect x={(g.c - x.leaseW).toFixed(1)} y={x.y + 3} width={x.leaseW.toFixed(1)} height="16" rx="3" fill="#E0557A" data-tip={x.leaseTitle} />
+                <text x={g.W - 4} y={x.y + 16} style={{ textAnchor: "end", fill: x.neg ? "#B4234B" : "#0A1230", fontWeight: 700 }}>{x.net}</text>
+              </g>
+            ))}
+            <line x1={g.c} x2={g.c} y1="0" y2={g.axisY} stroke="#C3C9D9" />
+            <text x={g.c - 6} y={g.labelY} style={{ textAnchor: "end" }} className="kax">← leases and closing</text>
+            <text x={g.c + 6} y={g.labelY} className="kax">flight profit →</text>
+            <text x={g.W - 4} y={g.netY} style={{ textAnchor: "end" }} className="kax">net a day</text>
+          </svg>
+        );
+      }}</Sized>
     </ChartWrap>
   );
 }

@@ -27,7 +27,8 @@ export function ticks(lo: number, hi: number, n = 4): number[] {
 const f1 = (v: number) => Number(v.toFixed(1));
 
 // ---------- horizontal bars, with an optional reference line
-export interface HBarItem { key: string; label: string; value: number; color?: string; tip: string }
+/** `text` replaces the value written at the bar's end (a rival with no fleet yet, say). */
+export interface HBarItem { key: string; label: string; value: number; color?: string; tip: string; text?: string }
 export interface HBarLayout {
   W: number; H: number; L: number; R: number; T: number;
   zeroX: number;
@@ -37,10 +38,10 @@ export interface HBarLayout {
 }
 /** One row per item in the order given, a bar from zero to its value (left of zero when negative), its value at its end,
  *  the reference line (the airline's middle route, say) across every row; a tick axis along the bottom. */
-export function hbarLayout(items: readonly HBarItem[], opts: { fmt: (v: number) => string; ref?: { value: number; label: string } | null; W?: number; row?: number; L?: number }): HBarLayout {
+export function hbarLayout(items: readonly HBarItem[], opts: { fmt: (v: number) => string; ref?: { value: number; label: string } | null; W?: number; row?: number; L?: number; R?: number }): HBarLayout {
   // T leaves the reference line's label a line of its own over the bars; a losing bar's value is written left of it, so
   // the bars start that much right of the labels
-  const W = opts.W ?? 560, row = opts.row ?? 22, L = opts.L ?? 96, R = 52, T = opts.ref ? 16 : 6, B = 22;
+  const W = opts.W ?? 560, row = opts.row ?? 22, L = opts.L ?? 96, R = opts.R ?? 52, T = opts.ref ? 16 : 6, B = 22;
   const vals = items.map((x) => x.value).concat(opts.ref ? [opts.ref.value] : []);
   const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
   const span = hi - lo || 1, x0 = L + (items.some((x) => x.value < 0) ? 46 : 0);
@@ -51,7 +52,7 @@ export function hbarLayout(items: readonly HBarItem[], opts: { fmt: (v: number) 
     bars: items.map((x, i) => {
       const a = X(Math.min(0, x.value)), b = X(Math.max(0, x.value)), neg = x.value < 0;
       return { key: x.key, label: x.label, y: T + i * row + 3, h: row - 6, x: f1(a), w: f1(Math.max(b - a, x.value === 0 ? 0 : 1)), color: x.color ?? TONE.violet,
-        tip: x.tip, text: opts.fmt(x.value), textX: f1(neg ? a - 4 : b + 4), neg };
+        tip: x.tip, text: x.text ?? opts.fmt(x.value), textX: f1(neg ? a - 4 : b + 4), neg };
     }),
     ref: opts.ref ? { x: f1(X(opts.ref.value)), label: opts.ref.label } : null,
     ticks: ticks(lo, hi, 4).map((v) => ({ x: f1(X(v)), label: opts.fmt(v) })),
@@ -159,11 +160,12 @@ export function stepLayout(points: readonly StepPoint[], opts: {
 }
 
 // ---------- a timeline: one row per thing, a marker at each of its moments
-export interface TimelineMark { t: number; kind: string; tip: string }
+/** `href`: where tapping the mark goes (a threat's route page, say). */
+export interface TimelineMark { t: number; kind: string; tip: string; href?: string }
 export interface TimelineRow { key: string; label: string; marks: readonly TimelineMark[] }
 export interface TimelineLayout {
   W: number; H: number; L: number; R: number;
-  rows: { key: string; label: string; y: number; marks: { x: number; kind: string; tip: string }[]; span: { x0: number; x1: number } | null }[];
+  rows: { key: string; label: string; y: number; marks: { x: number; kind: string; tip: string; href?: string }[]; span: { x0: number; x1: number } | null }[];
   ticks: { x: number; label: string }[];
   now: number | null;
 }
@@ -176,7 +178,7 @@ export function timelineLayout(rows: readonly TimelineRow[], opts: { t0: number;
     W, H: rows.length * row + 24, L, R,
     rows: rows.map((r, i) => {
       const xs = r.marks.map((m) => X(m.t));
-      return { key: r.key, label: r.label, y: i * row + row / 2, marks: r.marks.map((m, j) => ({ x: xs[j] as number, kind: m.kind, tip: m.tip })),
+      return { key: r.key, label: r.label, y: i * row + row / 2, marks: r.marks.map((m, j) => ({ x: xs[j] as number, kind: m.kind, tip: m.tip, ...(m.href ? { href: m.href } : {}) })),
         span: xs.length > 1 ? { x0: Math.min(...xs), x1: Math.max(...xs) } : null };
     }),
     ticks: (opts.ticks ?? []).map((x) => ({ x: X(x.t), label: x.label })),
@@ -192,10 +194,15 @@ export interface SizedScatterLayout {
   xTicks: { x: number; label: string }[]; yTicks: { y: number; label: string }[];
 }
 /** Each point at its x and y, its area by its size (radius 3 to 14 px), the larger drawn first so the small stay on top. */
-export function sizedScatterLayout(points: readonly SizedPoint[], opts: { fmtX?: (v: number) => string; fmtY?: (v: number) => string; W?: number; H?: number } = {}): SizedScatterLayout {
+export function sizedScatterLayout(points: readonly SizedPoint[], opts: {
+  fmtX?: (v: number) => string; fmtY?: (v: number) => string; W?: number; H?: number;
+  /** A fixed y scale and its ticks (stars, 1 to 5, say), instead of 0 to the highest point. */
+  y?: { lo: number; hi: number; ticks: number[] };
+} = {}): SizedScatterLayout {
   const W = opts.W ?? 560, H = opts.H ?? 260, L = 44, R = 16, T = 12, B = 30;
   const xs = points.map((p) => p.x), ys = points.map((p) => p.y), ss = points.map((p) => p.size);
-  const x0 = Math.min(0, ...xs), x1 = Math.max(1, ...xs) * 1.05, y0 = Math.min(0, ...ys), y1 = Math.max(1, ...ys) * 1.08;
+  const x0 = Math.min(0, ...xs), x1 = Math.max(1, ...xs) * 1.05;
+  const y0 = opts.y ? opts.y.lo : Math.min(0, ...ys), y1 = opts.y ? opts.y.hi : Math.max(1, ...ys) * 1.08;
   const smax = Math.max(1, ...ss);
   const X = (v: number) => L + (v - x0) / (x1 - x0) * (W - L - R), Y = (v: number) => T + (y1 - v) / (y1 - y0) * (H - T - B);
   return {
@@ -203,7 +210,7 @@ export function sizedScatterLayout(points: readonly SizedPoint[], opts: { fmtX?:
     points: points.map((p) => ({ key: p.key, cx: f1(X(p.x)), cy: f1(Y(p.y)), r: f1(3 + 11 * Math.sqrt(Math.max(0, p.size) / smax)), color: p.color, tip: p.tip, ring: !!p.ring }))
       .sort((a, b) => b.r - a.r),
     xTicks: ticks(x0, x1, 4).map((v) => ({ x: f1(X(v)), label: (opts.fmtX ?? String)(v) })),
-    yTicks: ticks(y0, y1, 4).map((v) => ({ y: f1(Y(v)), label: (opts.fmtY ?? String)(v) })),
+    yTicks: (opts.y ? opts.y.ticks : ticks(y0, y1, 4)).map((v) => ({ y: f1(Y(v)), label: (opts.fmtY ?? String)(v) })),
   };
 }
 

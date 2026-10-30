@@ -23,6 +23,11 @@
 //     §4) the rivals' connecting departures sit beside direct, never added: each market card's rivals "160 direct · 14
 //     connecting" with the connecting airports, the openings' rivals column "3 direct · 14 connecting", and each rival
 //     profile's connecting line.
+//   - Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md, part B; CompCharts.tsx) charts: each market's share as
+//     a donut (ours in the airline's colour, the rivals' list beside it its legend), the threats as a timeline by scan day
+//     (a tap opens the threat's route page) with their table one tap away, the openings as a scatter over the ranked list,
+//     each rival's fleet and orders by type, and the order books as bars against the flag (rival_orders_flag_pct) with
+//     their table one tap away. Every chart opens full size (the chart kit).
 // Read only: nothing here saves. Phone first: tiles stack, the openings table scrolls inside its own box.
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -30,16 +35,28 @@ import { ourAirlines, type OurAirline } from "../../data/airlines";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { ErrorBox } from "../../ui/ErrorBox";
+import { ChartOrTable } from "../../ui/charts";
 import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
+import { useSettings } from "../reference/reads";
 import { listCut } from "../performance/model";
 import { itemRoute } from "../screens";
 import {
-  airlineHeadline, allowedWords, changeWords, gameShareWords, overallGameShare, connectingLine, connectingRivalsWords, dayWords, directConnectingWords, fleetTypesWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
+  airlineHeadline, allowedWords, changeWords, gameShareWords, overallGameShare, connectingLine, connectingRivalsWords, dayWords, directConnectingWords, fleetWords, groupHeadline, groupWords, kmWords, marketsRowWords, meetsWords, n0,
   openingsLine, orderBookWords, orderBooks, orderBooksRowWords, otherListsWords, overallShare, pctWords, profileWords, profilesRowWords, rivalsWords, scansWords, shareBar, starsWords, threatMoveWords, threatNumbers, threatWhen, threatsLine,
   threatsNewestFirst, threatsRowWords, topOpeningWords, trunkMonthWords, variantWords, type CompetitionAnswer, type Market, type Opening,
   type Profile, type Threat,
 } from "./model";
 import { useCompetition, useCompetitions } from "./reads";
+import { FleetChart, MarketDonut, OpeningsChart, OrderBooksChart, ThreatsChart, donutColors } from "./CompCharts";
+
+/** The order books' flag (the setting rival_orders_flag_pct; 25 until the settings are read). */
+const flagPctOf = (rows: readonly { key: string; value: unknown }[] | undefined): number => {
+  const v = Number(rows?.find((r) => r.key === "rival_orders_flag_pct")?.value);
+  return Number.isFinite(v) && v > 0 ? v : 25;
+};
+/** A threat's route page (where its row's link and its mark on the timeline go). */
+const threatHref = (t: Threat, code: string | null | undefined): string | null =>
+  (code ? itemRoute("performance", { airline: code, hub: t.hub, dest: t.dest }) : null);
 
 const first = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -66,6 +83,7 @@ export function Competition() {
   const world = useWorld();
   const w = world.data?.id;
   const airlinesQ = useOurAirlines(w);
+  const settingsQ = useSettings(w);
   const airlines: OurAirline[] = useMemo(() => ourAirlines((airlinesQ.data ?? []).filter((a) => a.active !== false)), [airlinesQ.data]);
   const [code] = (params["*"] ?? "").split("/").filter(Boolean);
   const sel = code ? airlines.find((a) => a.code === code) : undefined;
@@ -112,7 +130,7 @@ export function Competition() {
       {loadError ? <ErrorBox error={loadError} /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
       {isAirline && airlinesQ.data && !sel ? <div className="empty">There's no airline {code} in the planner. <Link className="link" to="/competition">All airlines</Link></div> : null}
-      {!isAirline && ready ? <Group airlines={airlines} answers={answers} onPick={pick} /> : null}
+      {!isAirline && ready ? <Group airlines={airlines} answers={answers} onPick={pick} flagPct={flagPctOf(settingsQ.data)} today={top?.as_of?.slice(0, 10)} /> : null}
       {isAirline && sel && oneQ.data ? <AirlinePage key={sel.id} airline={sel} a={oneQ.data} /> : null}
     </main>
   );
@@ -132,7 +150,9 @@ function GroupLine({ a, share }: { a: CompetitionAnswer; share: ReturnType<typeo
 }
 
 /** The group page: one tile per airline, then every airline's threats as one table, newest first, then the order books. */
-function Group({ airlines, answers, onPick }: { airlines: readonly OurAirline[]; answers: ReadonlyMap<number, CompetitionAnswer>; onPick: (a: OurAirline) => void }) {
+function Group({ airlines, answers, onPick, flagPct, today }: {
+  airlines: readonly OurAirline[]; answers: ReadonlyMap<number, CompetitionAnswer>; onPick: (a: OurAirline) => void; flagPct: number; today?: string;
+}) {
   const threats = threatsNewestFirst(airlines.flatMap((al) => (answers.get(al.id)?.threats ?? []).map((t) => ({ ...t, al }))));
   const books = orderBooks(airlines.map((al) => answers.get(al.id)));
   return (
@@ -167,14 +187,15 @@ function Group({ airlines, answers, onPick }: { airlines: readonly OurAirline[];
         <h2 className="perfh" id="cp-threats-h">Threats</h2>
         <p className="note perflead">Rivals who started on, or added a daily flight or more to, one of our city pairs since the scan before · each pauses the route's fares for a week (manual §5) · newest first.</p>
         <div className="cpcardbox">
-          {threats.length ? <ThreatTable items={threats} /> : <div className="dim">No rival moves on our routes in the last 7 days.</div>}
+          {threats.length ? <ChartOrTable k="cp-threats" chart={<ThreatsChart items={threats} by="airline" href={(t) => threatHref(t, t.al?.code)} today={today} />}
+            table={<ThreatTable items={threats} />} /> : <div className="dim">No rival moves on our routes in the last 7 days.</div>}
         </div>
       </section>
       <section className="perfsec cpsec" data-figure="competition: order books" data-board="Order books" aria-labelledby="cp-books-h">
         <h2 className="perfh" id="cp-books-h">Order books <span className="dim cpcount">{orderBooksRowWords(books.length)}</span></h2>
         <p className="note perflead">Rivals with aircraft on order of a quarter of their fleet or more (at least 5), or on order with no flights yet, from their overview pages in the latest scan · biggest share first · each marked with our airlines it meets on their city pairs or at their bases.</p>
         <div className="cpcardbox">
-          {books.length ? (
+          {books.length ? <ChartOrTable k="cp-order-books" chart={<OrderBooksChart books={books} flagPct={flagPct} />} table={
             <div className="tblwrap">
               <table className="tbl cpbooks">
                 <thead><tr><th>Rival</th><th>Order book</th><th>This week</th><th>Meets</th></tr></thead>
@@ -189,8 +210,7 @@ function Group({ airlines, answers, onPick }: { airlines: readonly OurAirline[];
                   ))}
                 </tbody>
               </table>
-            </div>
-          ) : <div className="dim">No rival has a big order book or orders without flights in the latest scan.</div>}
+            </div>} /> : <div className="dim">No rival has a big order book or orders without flights in the latest scan.</div>}
         </div>
       </section>
     </>
@@ -217,16 +237,18 @@ function AirlinePage({ airline, a }: { airline: OurAirline; a: CompetitionAnswer
         marketsRowWords(a.markets.length),
         a.markets.length ? (
           <div className="cpmk" data-figure="competition: markets">
-            {a.markets.map((m) => <MarketCard key={m.market_id ?? "none"} m={m} />)}
+            {a.markets.map((m) => <MarketCard key={m.market_id ?? "none"} m={m} color={airline.color} />)}
           </div>
         ) : <div className="dim">No routes on the list yet.</div>)}
       {row("Threats", "rivals who started on, or added a daily flight or more to, a pair it flies since the scan before · listed for 7 days; the route's fares hold until then (manual §5)",
         threatsAside,
-        a.threats.length ? <ThreatTable items={threatsNewestFirst(a.threats)} code={airline.code} /> : <div className="dim">No rival moves on its routes in the last 7 days.</div>)}
+        a.threats.length ? <ChartOrTable k="cp-threats-airline" chart={<ThreatsChart items={threatsNewestFirst(a.threats)} by="rival" href={(t) => threatHref(t, airline.code)} today={a.as_of?.slice(0, 10)} />}
+          table={<ThreatTable items={threatsNewestFirst(a.threats)} code={airline.code} />} /> : <div className="dim">No rival moves on its routes in the last 7 days.</div>)}
       {row("Openings", `the pairs on its list no airline of ours flies, ranked: stars, then rivals' departures a week, then the shorter distance (manual §3) · ${openingsLine(a)}`,
         `${n0(a.openings_count)} · ${n0(a.openings_allowed)} allowed`,
         <>
           {trunkMonthWords(a) ? <div className="cptrunks" data-trunk-month>{trunkMonthWords(a)}</div> : null}
+          {a.openings.length ? <OpeningsChart openings={a.openings} /> : null}
           <Openings code={airline.code ?? String(airline.id)} openings={a.openings} total={a.openings_count} />
         </>)}
       {row("Rival profiles", "the rivals who fly most of its city pairs, from the latest scan", profilesRowWords(a.profiles.length),
@@ -239,9 +261,11 @@ function AirlinePage({ airline, a }: { airline: OurAirline; a: CompetitionAnswer
   );
 }
 
-/** A market's tile: our share with its arrow, the top rivals as a bar and a list. */
-function MarketCard({ m }: { m: Market }) {
+/** A market's tile: our share with its arrow, the top rivals as a donut (since 30 Oct; a bar until then) and a list, each
+ *  rival with its colour in the donut. */
+function MarketCard({ m, color }: { m: Market; color?: string | null }) {
   const bar = shareBar(m);
+  const colors = donutColors(m, color);
   return (
     <div className="cpm" data-market={m.name}>
       <div className="cpmh"><b>{m.name}</b> <span className="dim">{m.flown} of {m.pairs} pair{m.pairs === 1 ? "" : "s"} flown</span></div>
@@ -259,19 +283,18 @@ function MarketCard({ m }: { m: Market }) {
           {connectingLine(m) ? <span className="dim"> · {connectingLine(m)}, never counted in the share</span> : null}
         </div>
       ) : null}
-      {bar.length ? (
-        <div className="cpbar" role="img" aria-label={bar.map((p) => `${p.label} ${p.pct.toFixed(0)}%`).join(", ")}>
-          {bar.map((p, i) => <i key={i} className={p.ours ? "ours" : `r${Math.min(i, 6)}`} style={{ width: `${p.pct}%` }} title={`${p.label} ${p.pct.toFixed(1)}%`} />)}
-        </div>
-      ) : null}
-      {m.top.length ? (
-        <ol className="cprv">
-          {m.top.map((r) => (
-            <li key={r.airline_id}><span className="cpname">{r.name}</span> <span className="num">{n0(r.weekly)}</span> <span className="dim">{pctWords(r.share)}</span>{" "}
-              <Change v={r.change} k={"rival " + r.name} /></li>
-          ))}
-        </ol>
-      ) : <div className="dim cpnone">No rival on its pairs.</div>}
+      <div className={"cpdonut" + (bar.length ? "" : " none")}>
+        {bar.length ? <MarketDonut m={m} color={color} /> : null}
+        {m.top.length ? (
+          <ol className="cprv">
+            {m.top.map((r) => (
+              <li key={r.airline_id}><i className="cpdot" style={{ background: colors.get(r.name) ?? "#C9CEDB" }} /><span className="cpname">{r.name}</span> <span className="num">{n0(r.weekly)}</span> <span className="dim">{pctWords(r.share)}</span>{" "}
+                <Change v={r.change} k={"rival " + r.name} /></li>
+            ))}
+            {colors.has("others") ? <li className="dim"><i className="cpdot" style={{ background: colors.get("others") }} />the other rivals</li> : null}
+          </ol>
+        ) : <div className="dim cpnone">No rival on its pairs.</div>}
+      </div>
     </div>
   );
 }
@@ -351,7 +374,8 @@ function ProfileCard({ p, before }: { p: Profile; before: string }) {
       <div className="cpmh"><b>{p.name}</b> <span className="dim">on {p.pairs_shared} of our pair{p.pairs_shared === 1 ? "" : "s"}</span></div>
       <div className="cpmv">{profileWords(p, before)}</div>
       {p.fleet !== undefined ? <div className="cpline" data-fleet><span className="dim">Fleet:</span> {fleetWords(p.fleet)}</div> : null}
-      {fleetTypesWords(p.fleet) ? <div className="cpline cpcity" data-fleet-types>{fleetTypesWords(p.fleet)}</div> : null}
+      {p.fleet?.types.length ? <FleetChart f={p.fleet} name={p.name} /> : null}
+      {p.fleet && p.fleet.types_count > p.fleet.types.length ? <div className="cpline cpcity dim">its {p.fleet.types.length} biggest of {p.fleet.types_count} types</div> : null}
       {p.connecting_weekly != null ? (
         <div className="cpline" data-connecting={p.connecting_weekly}><span className="dim">On our pairs:</span> {directConnectingWords(p.weekly_on_pairs, p)}
           {connectingLine(p) ? <span className="dim"> · {connectingLine(p)}</span> : null}</div>

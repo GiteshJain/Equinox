@@ -916,11 +916,6 @@ button.link.gmore{display:inline-block;margin:6px 0 2px}
 .cpmh{overflow-wrap:anywhere}
 .cpmv{overflow-wrap:anywhere;font-size:13px}
 .cpbig{font-size:20px}
-.cpbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--mute-soft)}
-.cpbar i{display:block;height:100%;min-width:2px}
-.cpbar i.ours{background:var(--ink)}
-.cpbar i.r1{background:#8C94AD} .cpbar i.r2{background:#A9B0C4} .cpbar i.r3{background:#C2C8D7} .cpbar i.r4{background:#D3D8E3}
-.cpbar i.r5{background:#E0E4EC} .cpbar i.r6{background:#ECEFF4}
 .cprv{margin:0;padding-left:20px;font-size:13px;display:grid;gap:2px}
 .cprv li{overflow-wrap:anywhere}
 .cprv .num{font-variant-numeric:tabular-nums}
@@ -2082,9 +2077,25 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 }
 
 /* wide screens (since 30 Oct): above 1,600 px Routes' route detail uses the full width up to 2,560 px, the list 320-380 px
-   and the story about 55% of the rest. The other screens keep the 1,440 px cap (--maxw): their grids fill it */
+   and the story about 55% of the rest; since part B (30 Oct) Tails' list and detail likewise, up to 2,560 px. The other
+   screens keep the 1,440 px cap (--maxw): their grids fill it */
 @media (min-width:1600px){
-  .view.routes.has-detail{max-width:2560px}
+  .view.routes.has-detail,.view.tails{max-width:2560px}
   .view.routes > .rwrap.has-story{grid-template-columns:minmax(320px,380px) minmax(0,45fr) minmax(0,55fr)}
 }
 .chartwrap.rpwrap{margin:0}
+
+/* Competition's charts (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md, part B): a market's donut beside its
+   rivals (each with its colour in the donut), the threats' marks by kind, a rival's fleet by type */
+.cpdonut{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;align-items:center}
+.cpdonut.none{grid-template-columns:minmax(0,1fr)}
+.cpdonut .chartwrap{margin:0}
+.cprv .cpdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:0}
+.cpdonut .cprv{padding-left:0;list-style:none}
+.ktime .kmark.started{fill:var(--bad)} .ktime .kmark.added{fill:#E39B21}
+.cpfleet{min-width:0}
+.cpfleet .chartwrap{margin:2px 0 0}
+.kbig .kdonut{max-width:min(70vh,100%) !important;margin:0 auto}
+.kbig .kdonutw{display:block}
+.kchart .rplab{fill:#0A1230;font-weight:600}
+@media (max-width:420px){ .cpdonut{grid-template-columns:96px minmax(0,1fr);gap:10px} }
