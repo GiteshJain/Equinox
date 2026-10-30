@@ -1,5 +1,5 @@
 // Performance → Growth signals and Main hubs towards 750 (Check → Growth until 20 Oct, the old growthBoard): the growth
-// lists from the capture (growth_signals(): ready for another flight, raise fares, fix or reduce, aircraft losing money
+// lists from the capture (growth_signals(): ready for another flight, sold out · fares climbing (raise fares until 31 Oct), fix or reduce, aircraft losing money
 // after their lease; from the load reports and load patterns when no profit was captured), and one bar per main hub
 // towards its weekly target (hub_progress()) with hub readiness (how many cities feed each bank, the library's
 // growth.hubReadiness) folded into its line. Can order and the order queues moved to Today; the order rotation's next
@@ -135,8 +135,8 @@ function Signals({ rules, s, airlines }: { rules: Rules; s: GrowthRead; airlines
         ["An aircraft hour", (r) => (r.profit_per_aircraft_hour == null ? "—" : kWords(r.profit_per_aircraft_hour)), true],
         ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true], ["A week", (r) => weekWords(r.profit_week ?? 0), true]]} />
         : <div className="dim">Nothing yet. A route needs at least {setting("growth_sold_out_min_departures")} captured departures, most of them sold out.</div>}
-      <h4 className="gh">Raise fares <span className="note">sold out, but less profit an aircraft hour than the airline's middle route: a higher fare earns more from the same seats · {s.raise_fares.length}</span></h4>
-      {s.raise_fares.length ? <Table list="raise" rows={s.raise_fares} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
+      <h4 className="gh">Sold out · fares climbing <span className="note">sold out, with less profit an aircraft hour than the airline's middle route: the fare ladder raises each sold-out direction every Saturday · {s.sold_out.length}</span></h4>
+      {s.sold_out.length ? <Table list="sold_out" rows={s.sold_out} cols={[["Route", rl], AL, ["Departures", (r) => r.flights, true], ["Sold out", (r) => `${r.sold_out}/${r.with_loads}`, true],
         ["An aircraft hour", (r) => (r.profit_per_aircraft_hour == null ? "—" : kWords(r.profit_per_aircraft_hour)), true],
         ["Profit a flight", (r) => kWords(r.profit_per_flight ?? 0), true], ["Economy fare", (r) => (r.economy_fare == null ? "—" : Math.round(r.economy_fare)), true]]} />
         : <div className="dim">Nothing yet.</div>}

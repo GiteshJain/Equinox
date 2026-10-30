@@ -5150,8 +5150,8 @@ begin
       'world_id', p_world_id, 'as_of', private.fig_ts(p_as_of), 'days', v_days, 'profit_captured', v_profit,
       'ready_for_another_flight', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', r.airline_id) || r.x
                                      order by (r.x ->> 'profit_week')::numeric desc, r.ord, r.i), '[]'::jsonb) from r where r.x ->> 'mark' = 'add'),
-      'raise_fares', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', r.airline_id) || r.x
-                        order by (r.x ->> 'flights')::int desc, r.ord, r.i), '[]'::jsonb) from r where r.x ->> 'mark' = 'raise'),
+      'sold_out', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', r.airline_id) || r.x
+                     order by (r.x ->> 'flights')::int desc, r.ord, r.i), '[]'::jsonb) from r where r.x ->> 'mark' = 'sold_out'),
       'fix_or_reduce', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', r.airline_id) || r.x
                           order by (r.x ->> 'profit_per_flight')::numeric, r.ord, r.i), '[]'::jsonb) from r where r.x ->> 'mark' in ('losing', 'fix')),
       'aircraft_losing_after_lease', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', t.airline_id) || t.x
@@ -5816,10 +5816,11 @@ begin
                  coalesce(cardinality(pp.a), 0) as len from pp),
     mk as (select r.*, case when r.ppf < 0 and r.n >= v_losing and not r.young then 'losing'
                             when r.sold_share is not null and r.sold_share >= v_sold_share and r.n >= v_sold_min
-                              -- add at or above the middle route's profit an aircraft hour, raise below; a route with no
+                              -- add at or above the middle route's profit an aircraft hour, sold_out below (since 31 Oct, was
+                              -- raise: the fare ladder raises a sold-out direction each Saturday by itself); a route with no
                               -- aircraft hours (no legs on record) is compared by profit a flight, as before 17 Oct
-                              then case when r.pph is not null and q.med_h is not null then case when r.pph >= q.med_h then 'add' else 'raise' end
-                                        when r.ppf >= q.med then 'add' else 'raise' end
+                              then case when r.pph is not null and q.med_h is not null then case when r.pph >= q.med_h then 'add' else 'sold_out' end
+                                        when r.ppf >= q.med then 'add' else 'sold_out' end
                             when r.n >= v_fix_min and not r.young and r.eco_a is not null and r.eco_a < v_fix_eco then 'fix'
                             when r.n >= v_fix_min and not r.young and q.len >= v_fix_routes and r.ppf <= q.q25 and r.margin is not null and r.margin < v_fix_margin then 'fix-margin'
                             else 'hold' end as k, q.med, q.med_h
@@ -5834,8 +5835,7 @@ begin
                  'why', case mk.k when 'losing' then 'its average flight loses money'
                                   when 'add' then format('sold out on %s of %s departures, profit %s at or above the airline''s middle route', mk.sold, mk.eco_n,
                                                          case when mk.pph is not null and mk.med_h is not null then 'an aircraft hour' else 'a flight' end)
-                                  when 'raise' then format('sold out on %s of %s departures, profit %s below the airline''s middle route', mk.sold, mk.eco_n,
-                                                           case when mk.pph is not null and mk.med_h is not null then 'an aircraft hour' else 'a flight' end)
+                                  when 'sold_out' then 'sold out · fares climbing (the fare ladder raises it each Saturday)'
                                   when 'fix' then format('economy averaging %s%%', floor(mk.eco_a + 0.5))
                                   when 'fix-margin' then format('bottom-quarter profit a flight on a margin under %s%%', floor(v_fix_margin * 100 + 0.5))
                                   else '' end)

@@ -32,7 +32,10 @@ begin
     ('route_profit_def', to_jsonb(pg_get_functiondef('private.fig_route_profit(bigint, integer, timestamp with time zone)'::regprocedure))),
     -- the reinvestment profit adds back, before the pending changes (20261026160000, from the bank statement, moves
     -- profit on purpose): the clean-up test puts it back to compare the rest
-    ('capex_def', to_jsonb(pg_get_functiondef('private.fig_capex(bigint, date, date)'::regprocedure)));
+    ('capex_def', to_jsonb(pg_get_functiondef('private.fig_capex(bigint, date, date)'::regprocedure))),
+    -- growth signals' definition before the pending changes (20261031140000, route profit's sold_out, renames its
+    -- raise_fares list on purpose): the clean-up test puts it back with route profit's to compare the rest
+    ('growth_signals_def', to_jsonb(pg_get_functiondef('private.fig_growth_signals(bigint, timestamp with time zone)'::regprocedure)));
   if to_regprocedure('public.planner_loads_get(bigint)') is not null then
     execute $q$
       insert into rehearsal_before.clean_up_outputs (name, value)

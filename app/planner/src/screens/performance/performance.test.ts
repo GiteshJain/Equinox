@@ -14,7 +14,7 @@ import type { RouteRow as TableRoute } from "../routes/model";
 import { airlineDay, capLine, daySummary, loadKey, loadsByFlight, moveDay, parseDay, summaryWords } from "./flights";
 import { hubRows, kWords, pctWords, perDayWords, readinessOf, weekWords as growthWeekWords } from "./growth";
 import {
-  BOARDS, BOARDS_FOLDED, GROUP_BOARDS, foldsFor, foldsOnArrival, SCATTER_CHAR_W, aircraftRowWords, cashRowWords, changesRowWords, groupTodayWords, growthWords, hubsWords, loadAxisFrom,
+  BOARDS, BOARDS_FOLDED, MARKS, MARK_ORDER, ladderMoveWords, markOf, GROUP_BOARDS, foldsFor, foldsOnArrival, SCATTER_CHAR_W, aircraftRowWords, cashRowWords, changesRowWords, groupTodayWords, growthWords, hubsWords, loadAxisFrom,
   planRowWords, profitAnswer, profitRowWords, routeRowWords, scatterLayout,
   CHART_INTERVALS, LADDER_SORTS, LIST_TOP, SPARK_DAYS, barLayout, barTip, capturedLine, cardWords, changesWords, chartIntervals, costParts, dd, farePlanAdd, farePlanDrop, fcDay,
   fcWhat, historyFrom, indexWords, kk, ladderLine, ladderPlanChanges, ladderRows, levelWords, listCut, loadSparkBars, loads14, markCounts, moveWords, nextOrderWords,
@@ -134,10 +134,10 @@ const route = (hub: string, dest: string, x: Partial<RouteRow> = {}): RouteRow =
 });
 
 describe("route profit", () => {
-  const rs = [route("HUB", "AAA", { mark: "add", profit_week: 1 }), route("HUB", "BBB", { mark: "raise", profit_week: 0.5, margin: null, profit_per_flight: 0.05 }),
+  const rs = [route("HUB", "AAA", { mark: "add", profit_week: 1 }), route("HUB", "BBB", { mark: "sold_out", profit_week: 0.5, margin: null, profit_per_flight: 0.05 }),
     route("HUB", "CCC", { mark: "losing", profit_week: -0.2, economy: null }), route("FOC", "AAA", { mark: "add", profit_week: 0.1, margin: 0.6 })];
   it("counts the marks, and filters and sorts as the old buttons do", () => {
-    expect(markCounts(rs)).toEqual({ add: 2, raise: 1, losing: 1 });
+    expect(markCounts(rs)).toEqual({ add: 2, sold_out: 1, losing: 1 });
     expect(shownRoutes(rs, "add", "pwk").map((r) => r.dest)).toEqual(["AAA", "AAA"]);
     expect(shownRoutes(rs, "", "margin").map((r) => r.hub + r.dest)).toEqual(["FOCAAA", "HUBAAA", "HUBCCC", "HUBBBB"]);
     expect(shownRoutes(rs, "", "eco").map((r) => r.dest).slice(-1)).toEqual(["CCC"]);
@@ -531,8 +531,8 @@ describe("Performance's new look", () => {
   it("each row's count or state", () => {
     expect(groupTodayWords([{ net_day: 0.2 }, { net_day: -0.1 }, { net_day: null }])).toBe("1 of 2 airlines ahead after leases");
     expect(groupTodayWords([])).toBe("nothing captured yet");
-    expect(growthWords({ profit_captured: true, ready: 3, raise: 2, fix: 1, aircraft: 1 })).toBe("3 ready for a flight · 2 raise fares · 1 fix or reduce · 1 aircraft losing");
-    expect(growthWords({ profit_captured: false, ready: 4, raise: 0, fix: 0, aircraft: 0 })).toBe("4 ready for another flight, from the load reports");
+    expect(growthWords({ profit_captured: true, ready: 3, sold_out: 2, fix: 1, aircraft: 1 })).toBe("3 ready for a flight · 2 sold out · fares climbing · 1 fix or reduce · 1 aircraft losing");
+    expect(growthWords({ profit_captured: false, ready: 4, sold_out: 0, fix: 0, aircraft: 0 })).toBe("4 ready for another flight, from the load reports");
     expect(hubsWords([{ main_hub: "JFK", exempt: false, departures: 760, target: 750 }, { main_hub: "LHR", exempt: false, departures: 500, target: 750 },
       { main_hub: "PVG", exempt: true, departures: 100, target: 750 }])).toBe("1 of 2 main hubs at the target");
     expect(hubsWords([])).toBe("no main hub yet");
@@ -557,7 +557,7 @@ describe("Performance's new look", () => {
   it("load against profit: the axis zoomed to the routes, every dot inside it, five top routes and the off-pattern ones labelled, none overlapping", () => {
     const rs = Array.from({ length: 24 }, (_, i) => route("JFK", `D${String(i).padStart(2, "0")}`, {
       economy: 86 + (i % 8) * 2, profit_per_flight: 0.01 + (i % 5) * 0.002, profit_week: 1 - i * 0.02, flights_week: 7 + i,
-      mark: i === 20 ? "fix" : i === 21 ? "raise" : i === 22 ? "add" : i === 23 ? "losing" : "hold",
+      mark: i === 20 ? "fix" : i === 21 ? "sold_out" : i === 22 ? "add" : i === 23 ? "losing" : "hold",
     }));
     const g = scatterLayout(rs);
     if (!g) throw new Error("no layout");
@@ -565,7 +565,7 @@ describe("Performance's new look", () => {
     expect(g.xTicks.map((t) => t.label)).toEqual(["85%", "90%", "95%", "100%"]);
     for (const d of g.dots) expect(d.x).toBeGreaterThanOrEqual(g.pl);
     for (const d of g.dots) expect(d.x).toBeLessThanOrEqual(g.W - g.pr);
-    // only the top five and fix, raise, add are candidates; the losing route isn't labelled for its mark alone
+    // only the top five and fix, sold out, add are candidates; the losing route isn't labelled for its mark alone
     const allowed = new Set(["JFK–D00", "JFK–D01", "JFK–D02", "JFK–D03", "JFK–D04", "JFK–D20", "JFK–D21", "JFK–D22"]);
     expect(g.labels.length).toBeGreaterThan(0);
     for (const l of g.labels) expect(allowed.has(l.text)).toBe(true);
@@ -589,5 +589,24 @@ describe("Performance's new look", () => {
     const g = scatterLayout(rs);
     expect(g?.labels.length).toBeLessThan(5);
     expect(new Set(g?.labels.map((l) => `${l.x}|${l.y}|${l.anchor}`)).size).toBe(g?.labels.length);
+  });
+});
+
+describe("route profit's sold_out (31 Oct, spec docs/specs/2026-10-30-route-profit-sold-out.md)", () => {
+  it("raise from a database before the change reads as sold_out; sold_out is labelled with the ladder's words", () => {
+    expect([markOf("raise"), markOf("sold_out"), markOf("add")]).toEqual(["sold_out", "sold_out", "add"]);
+    expect(MARKS.sold_out.label).toBe("sold out · fares climbing");
+    expect(MARK_ORDER).toEqual(["add", "sold_out", "fix", "losing", "hold"]);
+    expect(Object.keys(MARKS)).not.toContain("raise");
+  });
+  it("the fare ladder's move beside a sold-out route: one when both ways agree, else each direction", () => {
+    const l = (direction: "out" | "back", move: "up" | "hold" | "down", new_level: number) => ({ direction, move, new_level });
+    expect(ladderMoveWords([l("back", "up", 110), l("out", "up", 110)])).toBe("up to 110%");
+    expect(ladderMoveWords([l("back", "hold", 105), l("out", "up", 110)])).toBe("out up to 110% · back hold");
+    expect(ladderMoveWords([])).toBe("");
+    expect(ladderMoveWords(undefined)).toBe("");
+  });
+  it("a sold-out route still offers + fare plan, as raise fares did", () => {
+    expect(offersFarePlan(route("HUB", "AAA", { mark: "sold_out", route_id: 9 }), [])).toBe(true);
   });
 });

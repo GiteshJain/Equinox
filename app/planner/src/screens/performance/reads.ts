@@ -21,7 +21,7 @@ import { limited } from "../../data/limit";
 import { queryClient, tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import type { AircraftRow, CardsAnswer, DayRow, FareChange, FarePlanAnswer, Forecast, LadderAnswer, ProfitAnswer, RouteDayRow, RouteProfitAnswer, RouteStory } from "./model";
+import { markOf, type AircraftRow, type CardsAnswer, type DayRow, type FareChange, type FarePlanAnswer, type Forecast, type LadderAnswer, type ProfitAnswer, type RouteDayRow, type RouteProfitAnswer, type RouteStory } from "./model";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -95,7 +95,11 @@ export function useRouteProfit(airlineId: number | undefined, days: number) {
   return useQuery({
     queryKey: ["figures", "route_profit", airlineId, days],
     enabled: airlineId !== undefined,
-    queryFn: () => rpc<RouteProfitAnswer>("the route profit", "route_profit", { p_airline_id: airlineId ?? 0, p_days: days, p_as_of: asOf() }),
+    // each route's mark as the planner reads it (markOf: raise from a database before 31 Oct's change reads sold_out)
+    queryFn: async () => {
+      const r = await rpc<RouteProfitAnswer>("the route profit", "route_profit", { p_airline_id: airlineId ?? 0, p_days: days, p_as_of: asOf() });
+      return { ...r, routes: (r.routes ?? []).map((x) => ({ ...x, mark: markOf(x.mark) })) };
+    },
   });
 }
 
@@ -207,7 +211,7 @@ export interface SignalRoute {
   profit_per_flight: number | null;
   /** Hours a flight ties up the aircraft: block time plus the type's turnaround and the turn margin (since 17 Oct). */
   aircraft_hours?: number | null;
-  /** Profit a flight ÷ its aircraft hours, what sold-out routes are marked add or raise by (manual §3, 17 Oct). */
+  /** Profit a flight ÷ its aircraft hours, what sold-out routes are marked add or sold out by (manual §3, 17 Oct; raise until 31 Oct). */
   profit_per_aircraft_hour?: number | null;
   profit_week: number | null;
   economy: number | null;
@@ -234,14 +238,15 @@ export interface GrowthRead {
   days: number;
   profit_captured: boolean;
   ready_for_another_flight: SignalRoute[];
-  raise_fares: SignalRoute[];
+  /** Sold out · fares climbing (since 31 Oct; raise_fares until then): route profit's sold_out routes, by flights. */
+  sold_out: SignalRoute[];
   fix_or_reduce: SignalRoute[];
   aircraft_losing_after_lease: SignalAircraft[];
   load_patterns: Pattern[];
 }
 
 const signal = (r: SignalRoute): SignalRoute => ({
-  ...r, profit_per_flight: num(r.profit_per_flight as Json), profit_week: num(r.profit_week as Json), economy: num(r.economy as Json),
+  ...r, mark: markOf(r.mark), profit_per_flight: num(r.profit_per_flight as Json), profit_week: num(r.profit_week as Json), economy: num(r.economy as Json),
   economy_fare: num(r.economy_fare as Json), flights: Number(r.flights), sold_out: Number(r.sold_out ?? 0), with_loads: Number(r.with_loads ?? 0),
 });
 
@@ -256,7 +261,9 @@ export function useGrowthSignals(worldId: number | undefined) {
       const d = data as unknown as Partial<GrowthRead>;
       return {
         days: Number(d.days ?? 0), profit_captured: d.profit_captured ?? true,
-        ready_for_another_flight: (d.ready_for_another_flight ?? []).map(signal), raise_fares: (d.raise_fares ?? []).map(signal),
+        ready_for_another_flight: (d.ready_for_another_flight ?? []).map(signal),
+        // raise_fares: a database from before 31 Oct's change
+        sold_out: (d.sold_out ?? (d as { raise_fares?: SignalRoute[] }).raise_fares ?? []).map(signal),
         fix_or_reduce: (d.fix_or_reduce ?? []).map(signal),
         aircraft_losing_after_lease: (d.aircraft_losing_after_lease ?? []).map((a) => ({ ...a, net_day: num(a.net_day as Json), routes: a.routes ?? [] })),
         load_patterns: (d.load_patterns ?? []).map((p) => ({ ...p, departures: Number(p.departures), full: Number(p.full) })),

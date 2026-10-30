@@ -85,7 +85,11 @@ export interface Forecast {
   lowest?: { at: string; balance: number; payment: Payment | null };
   types?: ForecastType[];
 }
-export type Mark = "add" | "raise" | "fix" | "losing" | "hold";
+/** Route profit's mark. Since 31 Oct (spec docs/specs/2026-10-30-route-profit-sold-out.md) a sold-out route below the
+ *  airline's middle route is sold_out ("sold out · fares climbing": the fare ladder raises it each Saturday), not raise. */
+export type Mark = "add" | "sold_out" | "fix" | "losing" | "hold";
+/** A mark as the planner reads it: raise (a database from before 31 Oct's change) reads as sold_out. */
+export const markOf = (m: string): Mark => (m === "raise" ? "sold_out" : (m as Mark));
 export interface RouteRow {
   route_id: number | null;
   hub: string;
@@ -296,12 +300,12 @@ export function safeWords(t: ForecastType): { kind: "ok" | "mute" | "warn"; text
 // ---------- route profit (routeProfitBoard, rpScatter, rpCost, rpTailChart)
 export const MARKS: Record<Mark, { label: string; cls: "ok" | "warn" | "bad" | "mute"; color: string }> = {
   add: { label: "add a flight", cls: "ok", color: "#1E9E6A" },
-  raise: { label: "raise fares", cls: "ok", color: "#3B3FD8" },
+  sold_out: { label: "sold out · fares climbing", cls: "ok", color: "#3B3FD8" },
   fix: { label: "fix or reduce", cls: "warn", color: "#E39B21" },
   losing: { label: "losing money", cls: "bad", color: "#B4234B" },
   hold: { label: "hold", cls: "mute", color: "#9AA4C4" },
 };
-export const MARK_ORDER: readonly Mark[] = ["add", "raise", "fix", "losing", "hold"];
+export const MARK_ORDER: readonly Mark[] = ["add", "sold_out", "fix", "losing", "hold"];
 export type RouteSort = "pwk" | "ppf" | "margin" | "eco";
 export const SORTS: readonly [RouteSort, string][] = [["pwk", "a week"], ["ppf", "a flight"], ["margin", "margin"], ["eco", "economy"]];
 export const PERIODS: readonly number[] = [1, 3, 7];
@@ -348,7 +352,7 @@ export interface ScatterLayout {
 /** How far a 10px label runs, a character at a time (Manrope's average), for keeping labels apart. */
 export const SCATTER_CHAR_W = 6;
 /** The marks off the pattern, labelled whatever their profit (spec docs/specs/2026-10-22-planner-look-performance.md). */
-const OFF_PATTERN: readonly Mark[] = ["fix", "raise", "add"];
+const OFF_PATTERN: readonly Mark[] = ["fix", "sold_out", "add"];
 /** The load axis's start: the lowest load rounded down to the next 5%, never below 40%, and at least 5% short of 100%. */
 export function loadAxisFrom(loads: readonly number[]): number {
   if (!loads.length) return 40;
@@ -357,7 +361,7 @@ export function loadAxisFrom(loads: readonly number[]): number {
 /** Economy load against profit a flight, bubble size flights a week, colour the mark; null without loads. Since 22 Oct
  *  (spec docs/specs/2026-10-22-planner-look-performance.md) the load axis is zoomed to the routes shown (loadAxisFrom; a
  *  load under 40% sits on the axis's left edge), and only the five routes with the most profit a week and the ones off
- *  the pattern (fix, raise fares, add a flight) are labelled, each placed beside its dot where it overlaps no label
+ *  the pattern (fix, sold out · fares climbing (raise fares until 31 Oct), add a flight) are labelled, each placed beside its dot where it overlaps no label
  *  already placed and stays inside the plot, else dropped. Since 30 Oct (spec docs/specs/2026-10-30-charts-everywhere.md)
  *  laid out at the width it's shown (W), its labels at 11 px (charW), so its text never shrinks on a phone. */
 export function scatterLayout(routes: readonly RouteRow[], opts: { W?: number; H?: number; charW?: number } = {}): ScatterLayout | null {
@@ -467,9 +471,9 @@ export function planWords(p: PlanRow, nice: (day: string) => string) {
     why: p.reason ?? "",
   };
 }
-/** Whether a route's row offers "+ fare plan": marked raise fares or add a flight, with no change already planned. */
+/** Whether a route's row offers "+ fare plan": marked sold out (raise fares until 31 Oct) or add a flight, with no change already planned. */
 export const offersFarePlan = (r: RouteRow, plan: readonly PlanRow[]): boolean =>
-  (r.mark === "raise" || r.mark === "add") && !plan.some((p) => p.route_id != null && p.route_id === r.route_id && p.status === "planned");
+  (r.mark === "sold_out" || r.mark === "add") && !plan.some((p) => p.route_id != null && p.route_id === r.route_id && p.status === "planned");
 /** "+ fare plan" as one insert, the row the old planner's adapter writes: the economy fare rise from the latest captured
  *  fare, rounded, proposed today, "sells out". Null when the route has no captured fare. */
 export function farePlanAdd(x: { worldId: number; airlineId: number; routeId: number; fare: number | null | undefined; pct: number; today: string; nowMs: number }): Change | null {
@@ -756,6 +760,16 @@ export function ladderPlanChanges(x: { worldId: number; airlineId: number; route
 /** A cut-or-keep decision for Gitesh (since 23 Oct): the marker beside its reason, "" for any other row. Never in
  *  Needs attention (manual §5: fare moves never are). */
 export const decideWords = (r: Pick<LadderRoute, "decide">): string => (r.decide ? "cut or keep?" : "");
+/** The fare ladder's move for a sold-out route's economy, each direction (since 31 Oct, spec
+ *  docs/specs/2026-10-30-route-profit-sold-out.md): "up to 110%" when both ways agree, else "out up to 110% · back hold";
+ *  empty without the ladder's rows for the route. */
+export function ladderMoveWords(rows: readonly (Pick<LadderRoute, "move" | "new_level" | "direction"> & Partial<Pick<LadderRoute, "ladder_kind" | "under_launch">>)[] | undefined): string {
+  const list = (rows ?? []).slice().sort((a, b) => Number(a.direction === "back") - Number(b.direction === "back"));
+  if (!list.length) return "";
+  const words = list.map((r) => moveWords(r).text);
+  if (new Set(words).size === 1) return words[0] as string;
+  return list.map((r, i) => `${r.direction ?? ""} ${words[i]}`.trim()).join(" · ");
+}
 /** The fare index for the route profit table, from the ladder's economy rows: "105", flagged when the level recorded
  *  differs from it by more than a point. Since 26 Oct a row per direction: one figure when both directions agree, else
  *  "105 · 100" (out · back), the flag naming each direction off its level ("out: level 110%"). */
@@ -847,9 +861,9 @@ export function groupTodayWords(rows: readonly Pick<GroupRow, "net_day">[]): str
   return `${read.filter((r) => (r.net_day as number) > 0).length} of ${plural(read.length, "airline")} ahead after leases`;
 }
 /** Growth signals' row: each list's count. */
-export function growthWords(x: { profit_captured: boolean; ready: number; raise: number; fix: number; aircraft: number }): string {
+export function growthWords(x: { profit_captured: boolean; ready: number; sold_out: number; fix: number; aircraft: number }): string {
   if (!x.profit_captured) return `${x.ready} ready for another flight, from the load reports`;
-  return `${x.ready} ready for a flight · ${x.raise} raise fares · ${x.fix} fix or reduce · ${plural(x.aircraft, "aircraft", "aircraft")} losing`;
+  return `${x.ready} ready for a flight · ${x.sold_out} sold out · fares climbing · ${x.fix} fix or reduce · ${plural(x.aircraft, "aircraft", "aircraft")} losing`;
 }
 /** Main hubs' row: how many main hubs have reached their weekly target. */
 export function hubsWords(progress: readonly { main_hub: string | null; exempt: boolean; departures: number | null; target: number }[]): string {

@@ -8,7 +8,7 @@
 //     26 Oct (spec docs/specs/2026-10-26-fare-ladder-one-airline.md) only a link per airline to its page's fare ladder
 //     (/performance/<code>#fare-ladder), so the group page calls fare_ladder() not at all; then the group today (each
 //     airline's flight profit, leases and week-end closing, net; no group totals, manual §5), the growth signals (ready
-//     for another flight, raise fares, fix or reduce, aircraft losing money after their lease: growth_signals()), the
+//     for another flight, sold out · fares climbing (raise fares until 31 Oct), fix or reduce, aircraft losing money after their lease: growth_signals()), the
 //     main hubs towards 750 (hub_progress(), with hub readiness, the library's growth.hubReadiness, folded into each line)
 //     and Flights by day (Check's daily load report, renamed; its day in the address, ?day=).
 //   - The airline (/planner/performance/<code>): its scorecard, then (since 26 Oct) its fare ladder (FareLadder.tsx, from
@@ -62,7 +62,7 @@ import { GrowthSignals, MainHubs, type ReadyRow } from "./Growth";
 import { RoutePage } from "./RoutePage";
 import {
   BOARDS, GROUP_BOARDS, foldsFor, foldsOnArrival, type FoldState, MARKS, MARK_ORDER, PERIODS, SORTS, aircraftRowWords, barTip, capturedLine, cardWords, cashRowWords, changesRowWords, chartIntervals,
-  farePlanAdd, farePlanDrop, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
+  farePlanAdd, farePlanDrop, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderMoveWords, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
   offersFarePlan, pc, planRowWords, planWords, profitAnswer, profitRowWords, routeRowWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
   type BoardKey, type Card, type CardWords, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
   type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
@@ -284,7 +284,7 @@ function PerformanceScreen() {
   // each row's count or state
   const signals = signalsQ.data;
   const growthAside = signals ? growthWords({ profit_captured: signals.profit_captured, ready: signals.profit_captured ? signals.ready_for_another_flight.length : growthParts?.ready.length ?? 0,
-    raise: signals.raise_fares.length, fix: signals.fix_or_reduce.length, aircraft: signals.aircraft_losing_after_lease.length }) : null;
+    sold_out: signals.sold_out.length, fix: signals.fix_or_reduce.length, aircraft: signals.aircraft_losing_after_lease.length }) : null;
   const daysAside = !dayReady ? "Loading…" : `${niceDate(day)} · ${summary.departures} departure${summary.departures === 1 ? "" : "s"}`
     + (summary.kind === "captured" ? ` · ${summary.soldOut} sold out` : summary.kind === "hand" ? " · by hand" : "");
   const cashAside = forecastQ.data ? cashRowWords(forecastQ.data, cushion(forecastQ.data)) : null;
@@ -558,8 +558,9 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
   const query = q.trim().toLowerCase();
   const k = (v: number) => (v >= 0 ? "+" : "−") + Math.round(Math.abs(v) * 1000) + "k";
   // the route's economy rows, out and back since 26 Oct (one figure when both directions agree, else "out · back")
-  const indexOf = (x: { route_id: number | null; hub: string; dest: string }) => indexWords(ladder?.routes.filter((l) => l.cabin === "economy"
-    && (x.route_id != null ? l.route_id === x.route_id : (l.hub === x.hub && l.dest === x.dest) || (l.hub === x.dest && l.dest === x.hub))));
+  const ladderRows = (x: { route_id: number | null; hub: string; dest: string }) => ladder?.routes.filter((l) => l.cabin === "economy"
+    && (x.route_id != null ? l.route_id === x.route_id : (l.hub === x.hub && l.dest === x.dest) || (l.hub === x.dest && l.dest === x.hub)));
+  const indexOf = (x: { route_id: number | null; hub: string; dest: string }) => indexWords(ladderRows(x));
   return (
     <>
       <div className="rpf">
@@ -581,7 +582,7 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
         <div className="rpc rpscatter"><div className="rpct">Load against profit <span className="dim">· bubble size = flights a week · colour = signal</span></div><Scatter routes={r.routes} /></div>
         <div className="rpc rpcost"><div className="rpct">An average flight <span className="dim">· income and where it goes</span></div><CostChart avg={r.average_flight} /></div>
       </div>
-      <ChartOrTable k="route-profit" chart={<RouteHourChart routes={r.routes} mark={mark} />} table={<>
+      <ChartOrTable k="route-profit" chart={<RouteHourChart routes={r.routes} mark={mark} moveOf={(x) => ladderMoveWords(ladderRows(x))} />} table={<>
       <div className="tscroll">
         <table className="tbl rptbl" id="rp-table" data-figure="performance: route profit table">
           <tbody>
@@ -604,6 +605,7 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
                   <td><LoadSpark values={loads14(routeDays, x, today)} /></td>
                   <td>
                     <span className={`pill ${MARKS[x.mark].cls} sm`} title={x.why}>{MARKS[x.mark].label}</span>
+                    {x.mark === "sold_out" && ladderMoveWords(ladderRows(x)) ? <span className="dim rpmove" data-ladder-move={ladderMoveWords(ladderRows(x))}> · {ladderMoveWords(ladderRows(x))}</span> : null}
                     {offersFarePlan(x, plan.plan) ? <> <button type="button" className="link sm" data-fareadd={`${x.hub}-${x.dest}`} disabled={busy}
                       title={`Plan a ${raisePct}% economy fare rise for this route`} onClick={() => onAdd(x)}>+ fare plan</button></> : null}
                   </td>

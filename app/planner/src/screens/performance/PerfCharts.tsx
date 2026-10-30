@@ -16,8 +16,8 @@ import { MARKS, MARK_ORDER, sg, type DayRow, type Forecast, type LadderRoute, ty
 import type { CapturedLoad, GrowthRead } from "./reads";
 
 /** Route profit: each route's profit an aircraft hour as a bar, coloured by its mark, the middle route as a line. */
-export function RouteHourChart({ routes, mark }: { routes: readonly RouteRow[]; mark: string }) {
-  const b = routeHourBars(routes, mark);
+export function RouteHourChart({ routes, mark, moveOf }: { routes: readonly RouteRow[]; mark: string; moveOf?: (r: RouteRow) => string }) {
+  const b = routeHourBars(routes, mark, moveOf);
   const marks = MARK_ORDER.filter((m) => b.items.some((x) => x.color === MARKS[m].color));
   return (
     <ChartFrame title="Profit an aircraft hour" note={`each route, highest first, coloured by its signal · the line is the airline's middle route${b.without ? ` · ${b.without} route${b.without === 1 ? "" : "s"} with no aircraft hours not drawn` : ""}`}

@@ -31,7 +31,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 LIVE = "https://ulecwsyedvwcxgdzmhoq.supabase.co"
 SECTIONS = ("airline", "card", "fleet", "routes", "hubs", "deliveries", "todos", "fare_plan", "rivals", "competition", "capture")
-GROWTH_LISTS = ("ready_for_another_flight", "raise_fares", "fix_or_reduce")
+# the growth lists a route can be on; since 31 Oct (spec docs/specs/2026-10-30-route-profit-sold-out.md) sold_out, which
+# figures from before call raise_fares (read as sold_out)
+GROWTH_LISTS = ("ready_for_another_flight", "sold_out", "fix_or_reduce")
 
 
 class Refused(Exception):
@@ -212,7 +214,7 @@ def gather(inp, ident, workdir):
     G = F.get("growth_signals") or {}
     lists = collections.defaultdict(list)
     for k in GROWTH_LISTS:
-        for x in G.get(k) or []:
+        for x in G.get(k) or (G.get("raise_fares") if k == "sold_out" else None) or []:
             if x.get("airline_id") == aid:
                 lists[x.get("route_id")].append(k)
     pattern = {x.get("route_id"): x for x in G.get("load_patterns") or [] if x.get("airline_id") == aid}
@@ -229,7 +231,7 @@ def gather(inp, ident, workdir):
         routes.append({"route_id": rid, "hub": src.get("hub") or rr.get("hub_code"), "dest": src.get("dest") or rr.get("dest_code"),
                        "load": {k: L.get(k) for k in ("average", "departures", "days", "full", "under_95", "under_85", "under_70")} if L else None,
                        "profit": {k: p.get(k) for k in ("flights", "flights_week", "profit", "profit_week", "profit_per_flight", "economy", "economy_fare", "sold_out_share")} if p else None,
-                       "mark": p.get("mark") if p else None, "why": p.get("why") if p else None,
+                       "mark": ("sold_out" if p.get("mark") == "raise" else p.get("mark")) if p else None, "why": p.get("why") if p else None,
                        "growth_lists": lists.get(rid, []),
                        "pattern": {"mark": pt.get("mark"), "why": pt.get("why")} if pt else None})
     out["routes"] = {"days": rp.get("days"), "since": rp.get("since"), "loads_from": (B.get("route_loads") or {}).get("from"),
