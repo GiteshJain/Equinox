@@ -6,11 +6,14 @@
 -- sends the code alone; the 262 reads already stored keep the game's name, so the check compares on the code's leading
 -- token, and capture_market() keeps only the token from now on, whatever a capture sends.
 --
--- Adds one function and replaces two with the same arguments; changes, drops and renames nothing else, so it can be
+-- Adds one function and replaces three with the same arguments; changes, drops and renames nothing else, so it can be
 -- applied from the chat:
 --   - private.market_service_token(p text): the leading token before " (", trimmed; null when empty.
 --   - private.fig_market_service_checks(): game_code is the token of market_reads.service_code (was the whole text).
 --   - private.market_ingest(): stores the token as market_reads.service_code.
+--   - private.capture_market_plan(): a run carried on reads its failed pages again. The first live run (30 Oct) failed 424
+--     of its 686 pages, and a capture within the hour would have carried it on and listed none of them; the pages left
+--     out are now only those read ok, and market_done counts those. market_ingest() already replaces a page sent again.
 
 select set_config('equinox.actor', 'migration', true),
        set_config('equinox.actor_detail', '20261031120000_market_service_token', true);
@@ -251,6 +254,71 @@ $function$
 
 ;
 
+-- a run carried on reads its failed pages again (since 31 Oct): the open run's pages left out are only those read ok
+CREATE OR REPLACE FUNCTION private.capture_market_plan(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare v_every int; v_latest bigint; v_latest_at timestamptz; v_due boolean; v_open bigint; v_pages jsonb; v_total int; v_done int;
+begin
+  select (s.value #>> '{}')::numeric::int into v_every from public.settings s
+   where s.world_id = p_world_id and s.airline_id is null and s.key = 'market_every_days';
+  -- the latest finished run by the moment (by when it started, as the world scan goes by its taken_at)
+  select r.id, r.started_at into v_latest, v_latest_at from public.market_runs r
+   where r.world_id = p_world_id and r.status = 'done' and r.started_at <= p_as_of
+   order by r.started_at desc, r.id desc limit 1;
+  -- due by capture day, as the world scan; 0 or no setting: never
+  v_due := coalesce(v_every, 0) > 0
+           and (v_latest is null or private.capture_day(p_world_id, p_as_of) - private.capture_day(p_world_id, v_latest_at) >= v_every);
+  v_open := private.market_open(p_world_id, p_as_of);
+  -- the pages: for each of our active airlines (display order), both directions of each pair it flies (a route with
+  -- rotations, not removed), the pair's way out first; a pair two of our airlines fly is read once, under the first
+  with ours as (
+    select a.id, a.game_id, a.iata_code, a.planner_name, a.game_name, a.position from public.airlines a
+      join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours' and a.game_id is not null),
+  flown as (
+    select distinct on (least(r.hub_code, r.dest_code), greatest(r.hub_code, r.dest_code))
+           o.id as airline_id, o.position, r.hub_code as a, r.dest_code as b
+      from public.routes r join ours o on o.id = r.airline_id
+     where r.world_id = p_world_id and not r.removed and r.hub_code ~ '^[A-Z0-9]{3}$' and r.dest_code ~ '^[A-Z0-9]{3}$'
+       and r.hub_code <> r.dest_code
+       and exists (select 1 from public.rotations x where x.route_id = r.id)
+     order by least(r.hub_code, r.dest_code), greatest(r.hub_code, r.dest_code), o.position nulls last, o.id, r.id),
+  pages as (
+    select f.airline_id, f.position, f.a as origin, f.b as dest, 1 as dir from flown f
+    union all
+    select f.airline_id, f.position, f.b, f.a, 2 from flown f),
+  -- the open run's pages read ok are left out; a page that failed is read again (since 31 Oct)
+  todo as (
+    select p.* from pages p
+     where v_open is null
+        or not exists (select 1 from public.market_reads m where m.run_id = v_open and m.ok and m.origin = p.origin and m.dest = p.dest))
+  select (select count(*) from pages)::int, coalesce((
+           select jsonb_agg(jsonb_build_object('game_id', o.game_id, 'code', o.iata_code, 'name', o.planner_name, 'game_name', o.game_name,
+                                               'pages', (select jsonb_agg(jsonb_build_array(t.origin, t.dest)
+                                                                          order by least(t.origin, t.dest), greatest(t.origin, t.dest), t.dir)
+                                                           from todo t where t.airline_id = o.id))
+                            order by o.position nulls last, o.id)
+             from ours o where exists (select 1 from todo t where t.airline_id = o.id)), '[]'::jsonb)
+    into v_total, v_pages;
+  v_done := case when v_open is null then 0 else (select count(*) from public.market_reads m where m.run_id = v_open and m.ok)::int end;
+  return jsonb_build_object(
+    'market_every_days', v_every,
+    'market_due', v_due,
+    'market_open', v_open,
+    'market_latest', case when v_latest is not null then jsonb_build_object('id', v_latest, 'started_at', private.fig_ts(v_latest_at),
+                                                                            'finished_at', (select private.fig_ts(r.finished_at) from public.market_runs r where r.id = v_latest)) end,
+    'market_total', v_total,
+    'market_done', v_done,
+    'market_pages', v_pages);
+end
+$function$
+
+;
+
 revoke all on function private.market_service_token(text) from public, anon, authenticated, service_role;
 
 comment on function private.market_service_token(text) is 'A service profile''s code as the planner and service_profiles write it (since 31 Oct): the game''s name up to " (", trimmed ("S2 (min 800km)" → S2, "R" → R); null when empty. Used by private.market_ingest() (market_reads.service_code) and private.fig_market_service_checks() (game_code), so the reads stored before capture 1.10 check right.';
@@ -262,6 +330,7 @@ begin
   for x in select * from (values
       ('private.fig_market_service_checks(bigint, bigint, timestamptz)', 'leading token (since 31 Oct', ' game_code is the code''s leading token (since 31 Oct, private.market_service_token(): the game names its profiles "S2 (min 800km)", the planner S2), so reads stored with the game''s whole name check right.'),
       ('public.market_service_checks(bigint, timestamptz)', 'leading token (since 31 Oct', ' The game''s code is compared by its leading token (since 31 Oct: "S2 (min 800km)" is S2).'),
+      ('private.capture_market_plan(bigint, timestamptz)', 'read ok (since 31 Oct', ' The open run''s pages left out are those read ok (since 31 Oct): a page that failed is listed again, and market_done counts the pages read ok.'),
       ('private.market_ingest(bigint, text, jsonb)', 'leading token (since 31 Oct', ' The service code is stored as its leading token (since 31 Oct, private.market_service_token(): "S2 (min 800km)" → S2).')
     ) v(f, mark, more) loop
     d := obj_description(x.f::regprocedure, 'pg_proc');

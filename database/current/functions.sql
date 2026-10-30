@@ -2554,10 +2554,11 @@ begin
     select f.airline_id, f.position, f.a as origin, f.b as dest, 1 as dir from flown f
     union all
     select f.airline_id, f.position, f.b, f.a, 2 from flown f),
+  -- the open run's pages read ok are left out; a page that failed is read again (since 31 Oct)
   todo as (
     select p.* from pages p
      where v_open is null
-        or not exists (select 1 from public.market_reads m where m.run_id = v_open and m.origin = p.origin and m.dest = p.dest))
+        or not exists (select 1 from public.market_reads m where m.run_id = v_open and m.ok and m.origin = p.origin and m.dest = p.dest))
   select (select count(*) from pages)::int, coalesce((
            select jsonb_agg(jsonb_build_object('game_id', o.game_id, 'code', o.iata_code, 'name', o.planner_name, 'game_name', o.game_name,
                                                'pages', (select jsonb_agg(jsonb_build_array(t.origin, t.dest)
@@ -2566,7 +2567,7 @@ begin
                             order by o.position nulls last, o.id)
              from ours o where exists (select 1 from todo t where t.airline_id = o.id)), '[]'::jsonb)
     into v_total, v_pages;
-  v_done := case when v_open is null then 0 else (select count(*) from public.market_reads m where m.run_id = v_open)::int end;
+  v_done := case when v_open is null then 0 else (select count(*) from public.market_reads m where m.run_id = v_open and m.ok)::int end;
   return jsonb_build_object(
     'market_every_days', v_every,
     'market_due', v_due,

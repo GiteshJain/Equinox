@@ -35,10 +35,11 @@
 --   6. Rival profiles: by pairs shared, then their departures on them; each one's size, change, airports and biggest airports.
 --   7. One scan, and none: no comparison, no threats, nothing contested; signed out and an account that isn't staff are
 --      refused; staff get what postgres gets.
---   8. November's trunks (manual §4; trunk_month_from and trunk_month_to, 1 to 30 Nov 2026, in every world, described):
---      on 10 Nov 2026 the trunks (pairs between two of our bases, any airline's) come first, shortest first, allowed
+--   8. November's trunks (manual §4; trunk_month_from and trunk_month_to in every world, described dates, from on or
+--      before to; checked by shape, since the Scheduling chat moves them: 29 Oct to 30 Nov since 29 Oct): inside the
+--      month (its middle day, the dates taken from the settings) the trunks (pairs between two of our bases, any airline's) come first, shortest first, allowed
 --      (hubs first suspended), a long one not left out for reach (C2 takes the world's A350); the other openings after as
---      always; on 31 Oct and 1 Dec nothing changes.
+--      always; the evening before the month and the night after it nothing changes.
 --   9. The A350 cut-over (migration 20261027220000; spec docs/specs/2026-10-27-competition-a350-cutover.md):
 --      settings.a350_1000_from_km 14200 km in every world, described; an opening just under it (14,100 km) and at it
 --      (14,200) on the A350-900, one just past it (14,300) on the -1000, wide_full_cabin_km the setting's; the setting
@@ -99,13 +100,17 @@ $test$;
 -- Each of our airlines' answer now, and how long it took (signed in, staff have 8 s); the pull request's numbers (spec
 -- §Checks): the group's share, each airline's top 5 openings, and the threats the latest scan showed against the one before
 -- it (read an hour after the latest scan, so they're in their 7 days whenever this runs); the types of the flights airlines
--- named Cargo fly on our pairs; and November's list (as of 10 Nov 2026: each airline's trunks and its first 5). Five
+-- named Cargo fly on our pairs; and November's list (as of the middle of the trunk month the settings hold: each airline's trunks and its first 5). Five
 -- notices, first after the setting's, since the rehearsal prints a passing test's first six.
 do $test$
 declare r record; d jsonb; t0 timestamptz; ms int; worst int := 0; w bigint := (select id from public.worlds where is_default);
   v_scan timestamptz := (select max(s.taken_at) from public.game_scans s where s.world_id = (select id from public.worlds where is_default) and s.status = 'done');
   first_doc jsonb; th jsonb; counts text[] := '{}'; tops text[] := '{}'; threats text[] := '{}'; nov text[] := '{}'; dn jsonb;
   wide text[] := '{}'; v_wide text; v_alt int;
+  -- the middle of the world's trunk month at noon UTC (the dates as the settings hold them; the Scheduling chat moves them)
+  v_tm timestamptz := (select (f.value #>> '{}')::date + ((t.value #>> '{}')::date - (f.value #>> '{}')::date) / 2 + time '12:00' at time zone 'UTC'
+                         from public.settings f join public.settings t on t.world_id = f.world_id and t.airline_id is null and t.key = 'trunk_month_to'
+                        where f.world_id = (select id from public.worlds where is_default) and f.airline_id is null and f.key = 'trunk_month_from');
 begin
   for r in select al.airline_id, al.iata_code from private.fig_airlines(w) al order by al.ord loop
     t0 := clock_timestamp();
@@ -139,7 +144,7 @@ begin
     end if;
     -- November (manual §4): the trunks first, shortest first
     t0 := clock_timestamp();
-    dn := private.fig_competition(r.airline_id, '2026-11-10 12:00+00'::timestamptz, 5);
+    dn := private.fig_competition(r.airline_id, coalesce(v_tm, '2026-11-10 12:00+00'::timestamptz), 5);
     ms := round(extract(epoch from clock_timestamp() - t0) * 1000);
     worst := greatest(worst, ms);
     nov := nov || format('%s %s trunks of %s openings, %s ms: %s', r.iata_code, dn ->> 'openings_trunks', dn ->> 'openings_count', ms,
@@ -172,7 +177,7 @@ begin
                and jsonb_typeof(f) = 'array'
                and exists (select 1 from fp where fp.a = least(f ->> 2, f ->> 3) and fp.b = greatest(f ->> 2, f ->> 3))
              group by 1, 2, 3) x), 'none');
-  raise notice '%', 'on the copy in November (as of 10 Nov 2026), each airline''s trunks and its first 5 openings: ' || array_to_string(nov, ' | ');
+  raise notice '%', 'on the copy in the trunk month (as of ' || coalesce(to_char(v_tm at time zone 'UTC', 'DD Mon YYYY'), '10 Nov 2026') || '), each airline''s trunks and its first 5 openings: ' || array_to_string(nov, ' | ');
 end
 $test$;
 
@@ -528,11 +533,26 @@ do $test$
 declare c1 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c1'); c2 bigint := (select (v #>> '{}')::bigint from t_cp where k = 'c2');
   w bigint := (select (v #>> '{}')::bigint from t_cp where k = 'w'); d jsonb; got text; want text;
   n_worlds int := (select count(*) from public.worlds x where x.id <> (select (v #>> '{}')::bigint from t_cp where k = 'w'));
+  v_from date; v_to date; v_in timestamptz; bad text;
 begin
-  -- every world but this test's own (which copied the default world's rows without their date and reason)
-  assert (select count(*) from public.settings s where s.airline_id is null and s.world_id <> w and s.unit = 'date' and length(coalesce(s.description, '')) > 60 and s.reason is not null
-            and ((s.key = 'trunk_month_from' and s.value = '"2026-11-01"'::jsonb) or (s.key = 'trunk_month_to' and s.value = '"2026-11-30"'::jsonb))) = 2 * n_worlds,
-    'trunk_month_from and trunk_month_to aren''t 1 and 30 Nov 2026 in every world, described';
+  -- every world but this test's own (which copied the default world's rows without their date and reason): both settings,
+  -- each a date, from on or before to, described. Checked by shape, not figures: the Scheduling chat moves the dates
+  -- (29 Oct: from 29 Oct, manual §3, §4), so the behaviour below takes them from the test world's copy of the settings
+  select string_agg(x.id::text, ', ') into bad from public.worlds x
+   where x.id <> w and not exists (
+     select 1 from public.settings f join public.settings t on t.world_id = f.world_id and t.airline_id is null and t.key = 'trunk_month_to'
+      where f.world_id = x.id and f.airline_id is null and f.key = 'trunk_month_from'
+        and f.unit = 'date' and t.unit = 'date' and length(coalesce(f.description, '')) > 60 and length(coalesce(t.description, '')) > 60
+        and f.reason is not null and t.reason is not null
+        and jsonb_typeof(f.value) = 'string' and jsonb_typeof(t.value) = 'string'
+        and (f.value #>> '{}') ~ '^\d{4}-\d{2}-\d{2}$' and (t.value #>> '{}') ~ '^\d{4}-\d{2}-\d{2}$'
+        and (f.value #>> '{}')::date <= (t.value #>> '{}')::date);
+  assert bad is null and n_worlds > 0, 'trunk_month_from and trunk_month_to aren''t two described dates, from on or before to, in these worlds: ' || coalesce(bad, 'none');
+  select (s.value #>> '{}')::date into v_from from public.settings s where s.world_id = w and s.airline_id is null and s.key = 'trunk_month_from';
+  select (s.value #>> '{}')::date into v_to from public.settings s where s.world_id = w and s.airline_id is null and s.key = 'trunk_month_to';
+  assert v_from is not null and v_to is not null, 'the test world has no trunk month';
+  -- a moment inside the trunk month: its middle day, at noon UTC
+  v_in := (v_from + (v_to - v_from) / 2) + time '12:00' at time zone 'UTC';
   perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'competition test', true);
   -- trunks: YA1–YA3 (C1's main hub and focus city, 900 km), YA2–YB1 (C1's hub and C2's, 7,500 km, on C2's list too) and
   -- C2's YB1–YA3 (8,000 km: no type C2 may buy reaches it)
@@ -541,8 +561,8 @@ begin
   perform pg_temp.cp_route(w, c2, 'YB1', 'YA2', 1, 7500, null, false, null, 0);
   perform pg_temp.cp_route(w, c2, 'YB1', 'YA3', 3, 8000, null, false, null, 0);
 
-  -- 10 Nov 2026 (no scan by then): the trunks first, shortest first, allowed; then the rest as always
-  d := private.fig_competition(c1, timestamptz '2026-11-10 12:00:00+00');
+  -- inside the trunk month (no scan by then): the trunks first, shortest first, allowed; then the rest as always
+  d := private.fig_competition(c1, v_in);
   select string_agg((x ->> 'rank') || '. ' || (x ->> 'route') || case when (x ->> 'trunk')::boolean then ' trunk' else '' end || ' ' || coalesce(x ->> 'allowed_by', 'NOT')
                     || ' ' || (x #>> '{variant,type}') || case when jsonb_array_length(x -> 'other_lists') > 0 then ' also ' || (x ->> 'other_lists') else '' end,
                     '; ' order by (x ->> 'rank')::int) into got
@@ -551,18 +571,19 @@ begin
        || '3. YA1–YC1 main hub CT A320 SHARP; 4. YA1–YC2 main hub CT A320 SHARP; 5. YA1–YC3 main hub CT E195; 6. YA1–YC4 main hub CT E190; '
        || '7. YA1–YC6 main hub CT A350-900; 8. YA1–YC7 main hub CT A350-1000; 9. YA1–YC5 main hub CT A321XLR; '
        || '10. YA2–YC8 NOT CT A320 SHARP; 11. YA2–YC9 NOT CT E195; 12. YA3–YCA NOT CT E195';
-  assert got = want, 'C1''s openings on 10 Nov are ' || coalesce(got, 'none');
-  assert d #> '{trunk_month}' = '{"on": true, "from": "2026-11-01", "to": "2026-11-30"}'::jsonb and (d ->> 'openings_trunks')::int = 2,
-    'the trunk month isn''t on, 1 to 30 Nov, with 2 trunks: ' || jsonb_build_object('m', d -> 'trunk_month', 'n', d -> 'openings_trunks')::text;
+  assert got = want, 'C1''s openings on ' || v_in || ' are ' || coalesce(got, 'none');
+  assert d #> '{trunk_month}' = jsonb_build_object('on', true, 'from', to_char(v_from, 'YYYY-MM-DD'), 'to', to_char(v_to, 'YYYY-MM-DD')) and (d ->> 'openings_trunks')::int = 2,
+    'the trunk month isn''t on, from and to as the settings say, with 2 trunks: ' || jsonb_build_object('m', d -> 'trunk_month', 'n', d -> 'openings_trunks')::text;
   -- C2: its 7,500 and 8,000 km trunks not left out (the world's A350, not one it may buy); its 8,000 km non-trunk still is
-  d := private.fig_competition(c2, timestamptz '2026-11-10 12:00:00+00');
+  d := private.fig_competition(c2, v_in);
   select string_agg((x ->> 'route') || ' ' || (x #>> '{variant,type}') || ' ' || (x #>> '{variant,own}'), '; ' order by (x ->> 'rank')::int) into got
     from jsonb_array_elements(d -> 'openings') x;
   assert got = 'YB1–YA2 CT A350-900 false; YB1–YA3 CT A350-900 false; YB1–YD1 CT E195 true' and (d ->> 'openings_left_out')::int = 1,
-    'C2''s openings on 10 Nov are ' || coalesce(got, 'none') || ', left out ' || (d ->> 'openings_left_out');
+    'C2''s openings on ' || v_in || ' are ' || coalesce(got, 'none') || ', left out ' || (d ->> 'openings_left_out');
 
-  -- 31 Oct and 1 Dec: nothing changes (no trunk marks; hubs first as always; the long trunk left out for C2)
-  foreach got in array array['2026-10-31 23:00:00+00', '2026-12-01 01:00:00+00'] loop
+  -- the evening before the trunk month and the night after it: nothing changes (no trunk marks; hubs first as always;
+  -- the long trunk left out for C2)
+  foreach got in array array[to_char((v_from - 1) + time '23:00', 'YYYY-MM-DD HH24:MI:SS') || '+00', to_char((v_to + 1) + time '01:00', 'YYYY-MM-DD HH24:MI:SS') || '+00'] loop
     d := private.fig_competition(c1, got::timestamptz);
     assert not exists (select 1 from jsonb_array_elements(d -> 'openings') x where (x ->> 'trunk')::boolean or x ->> 'allowed_by' = 'November trunk')
        and d #>> '{trunk_month,on}' = 'false' and (d ->> 'openings_trunks')::int = 0
@@ -573,7 +594,7 @@ begin
     assert (private.fig_competition(c2, got::timestamptz) ->> 'openings_left_out')::int = 3, 'on ' || got || ' C2''s long trunks aren''t left out for reach as always';
   end loop;
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
-  raise notice 'November''s trunks: trunk_month_from and trunk_month_to (1 and 30 Nov 2026) in every world; on 10 Nov the trunks first, shortest first (YA1–YA3 900 km, then YA2–YB1 7,500 km, on C2''s list too), allowed with hubs first suspended, C2''s 7,500 and 8,000 km trunks on the world''s A350 rather than left out; then the rest as always; on 31 Oct and 1 Dec nothing changes';
+  raise notice 'November''s trunks: trunk_month_from and trunk_month_to (% to %) in every world, described dates; on % the trunks first, shortest first (YA1–YA3 900 km, then YA2–YB1 7,500 km, on C2''s list too), allowed with hubs first suspended, C2''s 7,500 and 8,000 km trunks on the world''s A350 rather than left out; then the rest as always; the evening before and the night after nothing changes', v_from, v_to, v_in;
 end
 $test$;
 
