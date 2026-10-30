@@ -257,6 +257,14 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   type's speed, manual §4) is used, so it can differ by a few minutes from the old planner's, which it fitted to the
   times typed in. A frequency with no aircraft is estimated on the airline's most-flown type (its market's aircraft
   until 21 Oct). A new frequency's price is the airline's launch fare (*fare_launch_pct*: 100%, Ryanair 85%): a record only, nothing calculates from it; the fare charged is the route's level (manual §5).
+- **The route's story** (since 30 Oct, spec docs/specs/2026-10-30-route-story-on-routes.md): on a wide screen a flown
+  route's story sits beside its detail, so you don't have to open the route page: the last 7 days against the 7 before,
+  then **Since launch**, **Load by direction**, **Rival fares**, **Market share**, **Rivals over time**, **Loads by
+  flight** and **Profit an aircraft hour**, each open and exactly as on Performance's route page (the same boards, the
+  same figures; see Performance, a route's page). **Full story ›** at the top opens the route page, with the Events,
+  the rivals on the pair and the connections. At 1,600 px and wider it is a third column with its own scroll; from 1,100
+  to 1,600 px it sits under the frequencies; on a phone (under 1,100 px) it isn't shown, and **The route's story ›**
+  opens the route page as before. A route not flown yet says "Not flown yet".
 
 ## Tails
 *Every aircraft: what it flies each week and how hard it works.* Laid out since 23 Oct short and answer-first, as Today

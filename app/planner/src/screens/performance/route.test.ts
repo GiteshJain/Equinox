@@ -5,7 +5,9 @@
 // is route_story()'s, tested in database/tests/route_story_test.sql; these test only how the page words and lays them out.
 // Last, the page itself renders from a story with every board (and from a short one), with its links. Since 30 Oct (spec
 // docs/specs/2026-10-30-market-pages-planner.md §1) the five new boards, with and without a market read: Load by direction,
-// Loads by flight, Rival fares, Market share and Rivals over time, and the header's service in the game.
+// Loads by flight, Rival fares, Market share and Rivals over time, and the header's service in the game. Since 30 Oct too
+// (spec docs/specs/2026-10-30-route-story-on-routes.md) the boards are RouteStory.tsx's, shared with Routes' route detail:
+// the route page still shows all ten, and Routes' story its seven with the tiles and "Full story ›".
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
@@ -20,6 +22,8 @@ import {
   type RouteStory, type StoryDay, type StoryEvent, type StoryWeek,
 } from "./model";
 import { RouteStoryView } from "./RoutePage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ROUTES_STORY_BOARDS, RouteStoryBoards, RouteStoryPanel } from "./RouteStory";
 
 const nice = (d: string) => d;   // the days as they are, so the words are fixed
 const dayAt = (i: number) => new Date(Date.UTC(2026, 9, 2 + i)).toISOString().slice(0, 10);   // 2 Oct + i
@@ -543,5 +547,40 @@ describe("the page with the market boards (30 Oct)", () => {
     expect(html).toContain('data-flight="101"');
     expect(html).toContain('data-service="ok"');
     expect(html).toContain("service S2 in the game");
+  });
+});
+
+describe("the route's story on Routes (30 Oct, spec docs/specs/2026-10-30-route-story-on-routes.md)", () => {
+  const render = (s: RouteStory, flights: Parameters<typeof RouteStoryBoards>[0]["flights"] = null) =>
+    renderToString(createElement(MemoryRouter, null, createElement(RouteStoryBoards, { s, code: "PA", flights })));
+  it("the tiles, then its seven boards in Routes' order, the same boards as the route page's, with Full story › to it", () => {
+    expect([...ROUTES_STORY_BOARDS]).toEqual(["Since launch", "Load by direction", "Rival fares", "Market share", "Rivals over time", "Loads by flight", "Profit an aircraft hour"]);
+    const html = render(story({ days_by_direction: dirDays(20), market: market() }),
+      [{ flight_no: 101, direction: "out", from: "JFK", to: "ORD", dep_local: "07:00", average: 96.4, departures: 7, full: 5 }]);
+    const keys = [...html.matchAll(/data-rkey="([^"]+)"/g)].map((m) => m[1]);
+    expect(keys).toEqual([...ROUTES_STORY_BOARDS]);
+    for (const k of ["Events", "Rivals on the pair", "Connections"]) expect(html).not.toContain(`data-rkey="${k}"`);
+    expect((html.match(/data-wk=/g) ?? []).length).toBe(6);
+    expect(html).toMatch(/<a [^>]*data-full-story[^>]*href="\/performance\/PA\/JFK-ORD"[^>]*>Full story ›<\/a>/);
+    expect(html).toContain('data-fare-airline="Pan Am" data-ours="yes"');
+    expect(html).toContain('data-flight="101"');
+    expect(html).toContain('data-figure="performance route: load by direction"');
+    expect(html.indexOf("data-wk=")).toBeLessThan(html.indexOf('data-rkey="Since launch"'));
+  });
+  it("every board says so with no data, as on the route page", () => {
+    const s = story();
+    const html = render({ ...s, days: s.days.slice(0, 5), market: null, rivals: { ...s.rivals, history: [] } }, []);
+    expect((html.match(/data-no-market/g) ?? []).length).toBe(3);
+    expect(html).toContain("5 days with flights so far");
+    expect(html).toContain("No world scan since launch yet.");
+    expect(html).toContain("No flight on it with loads in the last 7 days.");
+  });
+  it("a route not flown yet: \"Not flown yet\", and nothing read", () => {
+    const client = new QueryClient();
+    const html = renderToString(createElement(QueryClientProvider, { client }, createElement(MemoryRouter, null, createElement(RouteStoryPanel, {
+      routeId: 9, flown: false, code: "PA", rules: buildRules((JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input),
+      loads: [] }))));
+    expect(html).toContain("Not flown yet.");
+    expect(client.getQueryCache().getAll().filter((q) => q.state.fetchStatus !== "idle").length).toBe(0);
   });
 });
