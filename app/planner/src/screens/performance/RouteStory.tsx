@@ -10,9 +10,10 @@ import type { Rules } from "@rules";
 import { niceDate } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { itemRoute } from "../screens";
+import { Donut, donutLayout } from "../../ui/charts";
 import { BarChart, DirChart, HistoryChart, ShareLine, StoryChart, WeeksChart } from "./Charts";
 import {
-  NO_MARKET_READ, STORY_MIN_DAYS, dirChartLayout, eventWords, flightLoads, historyLayout, listCut, marketShareView, rivalFares, rivalLines,
+  NO_MARKET_READ, STORY_MIN_DAYS, dirChartLayout, eventWords, shareDonut, flightLoads, historyLayout, listCut, marketShareView, rivalFares, rivalLines,
   shareLine, shareWeeklyNote, storyChartLayout, storyWeekOnWeek, weekBars, weeksLayout,
   type FlightLoadRow, type FlightLoads, type RouteBoardKey, type RouteEnd, type RouteStory,
 } from "./model";
@@ -49,8 +50,8 @@ export function WeekTiles({ s }: { s: RouteStory }) {
 }
 
 /** Every board's content and its figure's name, from one story: the route page's ten, of which Routes shows some. */
-export function useStoryBoards(s: RouteStory, x: { flights?: readonly FlightLoadRow[] | null; conns?: readonly RouteEnd[] | null }): Record<RouteBoardKey, { figure: string; content: ReactNode }> {
-  const flights = x.flights ?? null, conns = x.conns ?? null;
+export function useStoryBoards(s: RouteStory, x: { flights?: readonly FlightLoadRow[] | null; conns?: readonly RouteEnd[] | null; color?: string | null }): Record<RouteBoardKey, { figure: string; content: ReactNode }> {
+  const flights = x.flights ?? null, conns = x.conns ?? null, color = x.color ?? undefined;
   const chart = storyChartLayout(s, (d) => niceDate(d));
   const bars = weekBars(s, (d) => niceDate(d));
   const rv = rivalLines(s, dayOf);
@@ -134,14 +135,21 @@ export function useStoryBoards(s: RouteStory, x: { flights?: readonly FlightLoad
                     <div className="rpendh"><b>{d.label}</b> <span className="dim">{d.week ? `week ${Number(d.week.slice(5))}` : ""}</span></div>
                     <div className="rpmsv"><b>{d.ours == null ? "—" : `${Math.round(d.ours * 10) / 10}%`}</b> <span className="dim">ours</span>{d.change ? <> <span className="wow">{d.change}</span></> : null}
                       {d.before != null ? <span className="dim">{` (from ${Math.round(d.before * 10) / 10}%)`}</span> : null}</div>
-                    {d.bar.length ? (
-                      <div className="cpbar" role="img" aria-label={d.bar.map((p) => `${p.label} ${p.pct.toFixed(0)}%`).join(", ")}>
-                        {d.bar.map((p, i) => <i key={i} className={p.ours ? "ours" : `r${Math.min(i + (d.bar[0]?.ours ? 0 : 1), 6)}`} style={{ width: `${p.pct}%` }} title={`${p.label} ${p.pct.toFixed(1)}%`} />)}
-                      </div>
-                    ) : null}
-                    <ul className="rpmsl">
-                      {d.rows.slice(0, 5).map((r) => <li key={r.name}>{r.ours ? <b>{r.name}</b> : r.name} <span className="num">{r.share}</span> <span className="dim">{r.change}</span></li>)}
-                    </ul>
+                    {(() => {
+                      const parts = shareDonut(d, color), dot = new Map(parts.map((p) => [p.label, p.color]));
+                      const grey = dot.get("others") ?? "#C9CEDB";
+                      return (
+                        <div className={"cpdonut" + (parts.length ? "" : " none")} data-share-donut={d.direction}>
+                          {parts.length ? <Donut g={donutLayout(parts, { size: 120, ring: 20, fmt: (v) => `${Math.round(v * 10) / 10}% of passengers` })}
+                            middle={d.ours == null ? "—" : `${Math.round(d.ours)}%`} label={`${d.label}: the game's passenger share`} figure="performance route: market share donut" /> : null}
+                          <ul className="cprv rpmsl">
+                            {d.rows.slice(0, 5).map((r) => (
+                              <li key={r.name}><i className="cpdot" style={{ background: dot.get(r.name) ?? grey }} />{r.ours ? <b>{r.name}</b> : r.name} <span className="num">{r.share}</span> <span className="dim">{r.change}</span></li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
                 <div className="dim" data-scan-share>{shares.scan}</div>
@@ -238,8 +246,8 @@ function OpenBoard({ k, figure, children }: { k: string; figure: string; childre
 }
 
 /** The story's boards on Routes, below its reads (exported for its render test). */
-export function RouteStoryBoards({ s, code, flights }: { s: RouteStory; code: string | null; flights: readonly FlightLoadRow[] | null }) {
-  const boards = useStoryBoards(s, { flights });
+export function RouteStoryBoards({ s, code, flights, color }: { s: RouteStory; code: string | null; flights: readonly FlightLoadRow[] | null; color?: string | null }) {
+  const boards = useStoryBoards(s, { flights, color });
   return (
     <div className="rstoryin" data-route-story={`${s.route.hub}-${s.route.dest}`}>
       <div className="rsth">
@@ -255,8 +263,10 @@ export function RouteStoryBoards({ s, code, flights }: { s: RouteStory; code: st
 /** Routes' story column (since 30 Oct): reads route_story() for the open route only, cached as the route page's (the same
  *  query), and its loads by flight from route_loads()' flights Routes reads already. A route not flown yet shows "Not
  *  flown yet" and reads nothing. */
-export function RouteStoryPanel({ routeId, flown, code, rules, loads }: {
+export function RouteStoryPanel({ routeId, flown, code, rules, loads, color }: {
   routeId: number; flown: boolean; code: string | null; rules: Rules;
+  /** The airline's colour, for our share in the market share donuts. */
+  color?: string | null;
   /** route_loads()' flights, as Routes reads them (undefined while they're read). */
   loads: readonly FlightLoads[] | undefined;
 }) {
@@ -266,5 +276,5 @@ export function RouteStoryPanel({ routeId, flown, code, rules, loads }: {
   if (!flown) return <div className="rstoryin empty" data-route-story-none>Not flown yet.</div>;
   if (q.error) return <ErrorBox error={q.error} />;
   if (!s) return <div className="rstoryin empty">Reading the route's story…</div>;
-  return <RouteStoryBoards s={s} code={code} flights={flights} />;
+  return <RouteStoryBoards s={s} code={code} flights={flights} color={color} />;
 }

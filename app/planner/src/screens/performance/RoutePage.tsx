@@ -86,7 +86,7 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
         <div className="empty">{airline?.name ?? code} has no route {routeKey}. {back}</div>
       ) : null}
       {s && airline && rules ? <RouteStoryView s={{ ...s, route: { ...s.route, airline: { ...s.route.airline, name: airline.name } } }} code={code} back={back} conns={conns} board={board}
-        flights={flights} checks={checksQ.data ?? null}
+        flights={flights} checks={checksQ.data ?? null} color={airline.color}
         layout={storyLayout(rules, s.route)}
         onCollapse={() => setFolded(new Set(ROUTE_BOARDS))} onExpand={() => setFolded(new Set())} /> : null}
     </main>
@@ -94,8 +94,10 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
 }
 
 /** The route page below its reads: the header, the week's comparison and the boards (exported for its render test). */
-export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse, onExpand, flights = null, checks = null }: {
+export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse, onExpand, flights = null, checks = null, color = null }: {
   s: RouteStory;
+  /** The airline's colour, for our share in the market share donuts. */
+  color?: string | null;
   /** Loads by flight's rows (flightLoads()), or null while the loads are read. */
   flights?: readonly FlightLoadRow[] | null;
   /** The service check (market_service_checks()), for the header's service in the game. */
@@ -110,7 +112,7 @@ export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse
   onExpand: () => void;
 }) {
   const h = storyHeader(s, (d) => niceDate(d), layout);
-  const boards = useStoryBoards(s, { flights, conns });
+  const boards = useStoryBoards(s, { flights, conns, color });
   const svc = serviceHeader(s, checks);
   return (
     <>
