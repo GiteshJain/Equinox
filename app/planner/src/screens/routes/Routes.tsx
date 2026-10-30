@@ -10,8 +10,12 @@
 // the tables to it and words what it answers. Since 22 Oct (the new look, spec docs/specs/2026-10-22-planner-look-routes.md)
 // the layout is the approved mockup's: the airline switch beside the title, the list beside its detail (each scrolling in
 // its own panel), one row of tools (search, the base picker, Filters with the rest), slim rows; on a phone the list, then
-// the route full screen. What it shows, saves and reads is as before.
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+// the route full screen. What it shows, saves and reads is as before. Since 30 Oct (spec
+// docs/specs/2026-10-30-route-story-on-routes.md) a flown route's story beside it (performance/RouteStory.tsx, the route
+// page's own boards): a third column at 1,600 px and wider, under the frequencies from 1,100 to 1,600 px, none under
+// 1,100 px (The route's story › opens the route page there). It reads only while a route is open and the screen is wide
+// enough.
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { block, frequency, game, type FrequencyChecks } from "@rules";
 import { useNow } from "../../data/clock";
@@ -38,10 +42,21 @@ import {
 } from "./reads";
 import { RouteDetail } from "./RouteDetail";
 import { AircraftPopup } from "../tails/AircraftPopup";
+import { RouteStoryPanel } from "../performance/RouteStory";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 /** A phone (under 760 px, spec docs/specs/2026-10-22-planner-look-routes.md §6): the list, then a route full screen. */
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 759px)").matches;
+
+/** Whether the window is at least this wide, kept up to date as it's resized. */
+function useMinWidth(px: number): boolean {
+  const q = `(min-width: ${px}px)`;
+  return useSyncExternalStore(
+    (on) => { const m = typeof window !== "undefined" ? window.matchMedia?.(q) : undefined; m?.addEventListener("change", on); return () => m?.removeEventListener("change", on); },
+    () => typeof window !== "undefined" && !!window.matchMedia?.(q).matches,
+    () => false,
+  );
+}
 
 export function Routes() {
   const params = useParams();
@@ -129,6 +144,12 @@ export function Routes() {
 
   // the open route's frequencies and every check on them, against the whole schedule
   const routeFreqs = route ? freqsByRoute.get(route.id) ?? [] : [];
+  // the route's story (since 30 Oct): a third column at 1,600 px and wider, under the frequencies from 1,100 px, none below
+  const wide = useMinWidth(1600), mid = useMinWidth(1100);
+  const story: ReactNode = route && airline && live && mid ? (
+    <RouteStoryPanel key={route.id} routeId={route.id} flown={routeFreqs.length > 0} code={airline.code} rules={live} loads={loadsQ.data?.flights} />
+  ) : null;
+  const storyCol = !!story && wide, storyBelow = !!story && !wide;
   const checks = useMemo(() => {
     const m = new Map<number, FrequencyChecks>();
     if (!live || !route) return m;
@@ -302,7 +323,7 @@ export function Routes() {
       </div>
       {loadError ? <ErrorBox error={loadError} /> : null}
       {airlinesQ.data && !airline ? <ErrorBox error={`There's no airline ${codePart || filters.airline} among ours.`} /> : null}
-      <div className="rwrap">
+      <div className={"rwrap" + (storyCol ? " has-story" : "")}>
         <section className="rlist" aria-label="Routes">
           <div className="rtools">
             <input id="f-q" type="search" placeholder="Find a destination" aria-label="Find a destination" value={filters.q}
@@ -415,6 +436,7 @@ export function Routes() {
         <section className="rdetail" id="detail" ref={detailBox} aria-label="Route">
           {route && airline && live ? (
             <RouteDetail route={route} airline={airline} airlines={airlines} freqs={routeFreqs} checks={checks} rules={live} mode={mode}
+              story={storyBelow ? story : null}
               routeLoad={routeLoads.get(route.id)} flightLoad={(no) => (no == null ? undefined : flightLoads.get(`${route.airline_id}|${no}`))}
               airlineMarkets={airlineMarkets} profiles={profilesQ.data ?? []} tails={tails as AircraftRow[]} airports={airports} busy={busy}
               onBack={() => toList({ ...filters, bases: filters.bases ?? picked })} onFrequency={onFrequency}
@@ -426,6 +448,7 @@ export function Routes() {
             <div className="empty rpick"><b>Pick a route</b>Its frequencies, checks and loads open here.</div>
           )}
         </section>
+        {storyCol ? <section className="rstorycol" aria-label="The route's story" data-story-column>{story}</section> : null}
       </div>
       {tailPopup && rules ? <AircraftPopup registration={tailPopup} rules={rules} onClose={() => setTailPopup(null)} /> : null}
     </main>

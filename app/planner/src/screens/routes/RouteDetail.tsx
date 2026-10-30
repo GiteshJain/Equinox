@@ -7,8 +7,9 @@
 // docs/specs/2026-10-21-route-page.md §3) a flown route links to its route page on Performance. Since the new look (22 Oct,
 // spec docs/specs/2026-10-22-planner-look-routes.md §5): the route's name ("New York → Atlanta") with its codes, a muted
 // line (airline, distance, stars, market), the figures as big numbers, then the frequencies, the loads and "The route's
-// story ›".
-import { useState, type FocusEvent, type KeyboardEvent } from "react";
+// story ›". Since 30 Oct (spec docs/specs/2026-10-30-route-story-on-routes.md) the route's story under it from 1,100 to
+// 1,600 px wide (Routes.tsx decides; a third column beside it from 1,600).
+import { useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import { block, findType, game, type FrequencyChecks, type Rules } from "@rules";
 import { ConfirmPanel } from "../../ui/Confirm";
@@ -45,6 +46,8 @@ export interface DetailProps {
   onRemove: () => void;
   /** Opens a frequency's aircraft in its pop-up. */
   onOpenTail?: (registration: string) => void;
+  /** The route's story under the frequencies (since 30 Oct, 1,100 to 1,600 px wide), or null. */
+  story?: ReactNode;
   /** An offset typed: what it would move, worked out from the copy's legs, to ask about first. */
   onOffset: (code: string, typed: string) => Promise<{ question: string; moves: OffsetMove[]; apply: () => Promise<void> } | null>;
 }
@@ -171,6 +174,7 @@ export function RouteDetail(p: DetailProps) {
         <Link className="rstory" to={itemRoute("performance", { airline: p.airline.code, hub: r.hub, dest: r.dest })} data-route-page-link
           title="its story since launch, on Performance">The route's story ›</Link>
       ) : null}
+      {p.story ? <div className="rstorybelow" data-story-below>{p.story}</div> : null}
     </div>
   );
 }
