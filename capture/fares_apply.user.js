@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. apply fare plan
 // @namespace    equinox
-// @version      1.2
-// @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, capture_fare_actions), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
+// @version      1.3
+// @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, one airline at a time since 1.3: capture_fare_actions_by_airline), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
@@ -146,6 +146,28 @@
              fixes: airlines.reduce((n, al) => n + al.fixes, 0), problems };
   }
 
+  // the fare plan read one airline at a time (since 1.3, 2 Nov): every airline in one call took about 70 s, past its 30 s
+  // limit and the API's 60 s. First the list (no fare ladder worked out), then each airline in a call of its own (10 to
+  // 15 s each on 2 Nov), put together as capture_fare_actions() answered: one document for planOf(). call(fn, body) is
+  // the database call; progress(name, i, n) is told before each airline. The first answer that isn't ok is the answer,
+  // with the airline it was for.
+  async function readPlan(call, key, progress) {
+    const FN = "capture_fare_actions_by_airline";
+    const list = await call(FN, { p_key: key, p_game_id: null });
+    if (!list || list.ok !== true || !Array.isArray(list.airlines)) return list;
+    const doc = { ok: true, world: list.world, week_of: null, as_of: list.as_of, airlines: [], actions: [] };
+    for (let i = 0; i < list.airlines.length; i++) {
+      const al = list.airlines[i], name = al.name || al.game_name || String(al.game_id);
+      if (progress) progress(name, i + 1, list.airlines.length);
+      const one = await call(FN, { p_key: key, p_game_id: Number(al.game_id) });
+      if (!one || one.ok !== true || !Array.isArray(one.airlines) || !Array.isArray(one.actions))
+        return { ok: false, error: `${name}: ` + ((one && (one.error || one.message || one.hint)) || "no answer") };
+      doc.week_of = doc.week_of || one.week_of || null;
+      doc.airlines.push(...one.airlines); doc.actions.push(...one.actions);
+    }
+    return doc;
+  }
+
   // a change in words; a set-back change (fix) says so first
   const changeWords = a => (a.fix === true ? "set back: " : "")
     + (a.text || `From ${a.from} to ${a.to}: ${a.sign === "-" ? "−" : "+"}${a.pct}% of the default price, ${a.classes.join(" and ")}`);
@@ -154,7 +176,7 @@
   const progressWords = (name, done, total) => `${name}: ${done} of ${total}`;
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
-  const lib = { FORM, PAUSE_MS, selectOptions, airportsOf, actionProblem, idsFor, changeUrl, changedPairs, checkAnswer, planOf, changeWords, countWords, progressWords };
+  const lib = { FORM, PAUSE_MS, selectOptions, airportsOf, actionProblem, idsFor, changeUrl, changedPairs, checkAnswer, planOf, readPlan, changeWords, countWords, progressWords };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqFares = lib; return; }
 
   // ---------------------------------------------------------------- in the game
@@ -274,7 +296,7 @@
     if (s) { show(lines(s), [stopButton]); return; }
     btn.disabled = true; show("equinox. fares: reading this week's fare plan…");
     let plan;
-    try { plan = planOf(await rpc("capture_fare_actions", { p_key: KEY })); } catch (e) { plan = { error: e.message }; }
+    try { plan = planOf(await readPlan(rpc, KEY, (name, i, n) => show(`equinox. fares: reading this week's fare plan… ${name} (${i} of ${n})`))); } catch (e) { plan = { error: e.message }; }
     btn.disabled = false;
     if (plan.error) return show("equinox. fares: couldn't read the fare plan (" + plan.error + "). Check the capture key.", [["Close", close, true]]);
     if (plan.problems.length) {

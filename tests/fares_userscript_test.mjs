@@ -6,7 +6,8 @@
 // cells the first real run couldn't read ("New York (<a>JFK</a>)" reads "New York ( JFK )").
 // Checks: the airport map read from the form; the GET address for a + and a − change, with one class and with both; the
 // answer read, the right rows found and a missing row caught; a change that can't be made refused before anything is
-// sent; capture_fare_actions()'s answer grouped by airline; a set-back change (fix, spec
+// sent; capture_fare_actions()'s answer grouped by airline; since 1.3 the fare plan read one airline at a time
+// (capture_fare_actions_by_airline: the list, then each airline, put together as one answer); a set-back change (fix, spec
 // docs/specs/2026-10-21-frequencies-and-fares.md §3) built as the same GET as any other, with no fare plan rows, counted
 // and said "set back" in the panel; and the file's header, key placeholder, pause and no dialogs.
 // Usage: node tests/fares_userscript_test.mjs
@@ -174,6 +175,29 @@ await check("capture_fare_actions()'s answer grouped by airline, in its order, w
   const odd = plain(F.planOf({ ...doc, actions: [...doc.actions, action("JFK", "LHR", "+", 7.5, ["economy"])] }));
   assert.equal(odd.problems.length, 1); assert.match(odd.problems[0].why, /whole percent/);
 });
+await check("the fare plan read one airline at a time (1.3): the list, then each airline, put together as one answer", async () => {
+  const calls = [], told = [];
+  const answers = {
+    "null": { ok: true, world: "Gander", as_of: "2026-11-02T22:00:00.000Z", airlines: [{ game_id: 112, name: "Pan Am" }, { game_id: 113, name: "Kingfisher" }, { game_id: 114, name: "Ryanair" }] },
+    "112": { ok: true, world: "Gander", week_of: "2026-10-31", airlines: [{ game_id: 112, name: "Pan Am", count: 2, fixes: 0 }], actions: [action("JFK", "LHR", "+", 5, ["economy"]), action("LHR", "JFK", "+", 5, ["economy"])] },
+    "113": { ok: true, world: "Gander", week_of: "2026-10-31", airlines: [{ game_id: 113, name: "Kingfisher", count: 0, fixes: 0 }], actions: [] },
+    "114": { ok: true, world: "Gander", week_of: "2026-10-31", airlines: [{ game_id: 114, name: "Ryanair", count: 1, fixes: 0 }], actions: [action("CDG", "DUB", "-", 10, ["economy"], { game_id: 114, airline: "Ryanair" })] },
+  };
+  const call = async (fn, body) => { calls.push([fn, body.p_key, body.p_game_id]); return answers[String(body.p_game_id)]; };
+  const doc = await F.readPlan(call, "k", (name, i, n) => told.push(`${name} ${i}/${n}`));
+  assert.deepEqual(plain(calls), [["capture_fare_actions_by_airline", "k", null], ["capture_fare_actions_by_airline", "k", 112],
+    ["capture_fare_actions_by_airline", "k", 113], ["capture_fare_actions_by_airline", "k", 114]]);
+  assert.deepEqual(plain(told), ["Pan Am 1/3", "Kingfisher 2/3", "Ryanair 3/3"]);
+  const p = plain(F.planOf(doc));
+  assert.equal(p.total, 3); assert.equal(p.week_of, "2026-10-31"); assert.deepEqual(p.problems, []);
+  assert.deepEqual(p.airlines.map(a => [a.game_id, a.name, a.actions.length]), [["112", "Pan Am", 2], ["113", "Kingfisher", 0], ["114", "Ryanair", 1]]);
+  // a bad key: the list's own answer; an airline that times out: its name and the error, and no airline after it is asked
+  assert.equal(plain(F.planOf(await F.readPlan(async () => ({ ok: false, error: "bad key" }), "k"))).error, "bad key");
+  const asked = [];
+  const slow = async (fn, body) => { asked.push(body.p_game_id); return body.p_game_id === 113 ? { code: "57014", message: "canceling statement due to statement timeout" } : answers[String(body.p_game_id)]; };
+  assert.equal(plain(F.planOf(await F.readPlan(slow, "k"))).error, "Kingfisher: canceling statement due to statement timeout");
+  assert.deepEqual(plain(asked), [null, 112, 113]);
+});
 await check("the panel's words: progress, and a change in words", () => {
   assert.equal(F.progressWords("Pan Am", 12, 50), "Pan Am: 12 of 50");
   assert.equal(F.changeWords(action("LHR", "JFK", "-", 5, ["economy", "business"])), "From LHR to JFK: −5% of the default price, economy and business");
@@ -215,7 +239,8 @@ await check("the file: a userscript for the game with a version, the key a place
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/\*$/m);
   assert.match(source, /^\/\/ @version\s+\d+\.\d+$/m);
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
-  assert.match(source, /rpc\("capture_fare_actions", \{ p_key: KEY \}\)/);
+  assert.match(source, /readPlan\(rpc, KEY,/);
+  assert.match(source, /^\/\/ @version\s+1\.(?:[3-9]|\d\d)$/m);
 });
 await check("the file: 2 seconds between changes, no browser dialogs, prices only", () => {
   assert.equal(F.PAUSE_MS, 2000);

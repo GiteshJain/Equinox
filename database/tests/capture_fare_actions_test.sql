@@ -25,9 +25,15 @@
 --      (ZGB: fix, its reason, no plan rows); the seen, the unplanned and the half-planned left out, though fare_ladder()
 --      lists them.
 --   4. World 2's key: only its own airline; world 1's airlines left out.
---   5. On the copy: Gander with a key of its own, signed out, as the userscript calls it: every active airline of ours
---      listed, each action a whole percent with its sign and classes, and each of its plan rows on this week's fare plan
---      for that airline (a set-back change has none); how long it took (counts and milliseconds only).
+--   4b. capture_fare_actions_by_airline() (since 2 Nov, migration 20261102230000): with no game ID, world 1's three
+--      active airlines in order and no actions; each airline's answer, put together, is exactly the one-call answer
+--      (airlines with their counts, and actions in order); a bad key, the inactive airline (F4), the rival and world 2's
+--      airline with world 1's key are refused.
+--   5. On the copy: Gander with a key of its own, signed out, as the userscript (1.3) calls it: the list, then each
+--      airline in a call of its own, each under its own 30 s limit: every active airline of ours listed, each action a
+--      whole percent with its sign and classes, and each of its plan rows on this week's fare plan for that airline (a
+--      set-back change has none); how long each took (counts and milliseconds only). The one call for every airline is no
+--      longer made on the copy: on 2 Nov it took about 70 s, past its limit.
 
 create temporary table t_fa (k text primary key, v jsonb) on commit drop;
 grant select, insert on t_fa to anon, authenticated;
@@ -88,7 +94,23 @@ begin
   assert (select not p.prosecdef and p.provolatile = 's' and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = g::regprocedure),
     g || ' runs as owner, isn''t stable or has no empty search path';
   assert obj_description(g::regprocedure, 'pg_proc') is not null, g || ' has no description';
-  raise notice 'capture_fare_actions(): signed out and signed in, stable, as owner with an empty search path and a 30 s limit, described; its builder internal';
+  -- since 2 Nov: one airline at a time
+  f := 'public.capture_fare_actions_by_airline(text, integer)'; g := 'private.capture_fare_actions_doc(bigint, timestamptz, integer)';
+  assert (select p.prosecdef and p.provolatile = 's' and coalesce('search_path=""' = any (p.proconfig), false)
+                 and coalesce('statement_timeout=30s' = any (p.proconfig), false) from pg_proc p where p.oid = f::regprocedure),
+    f || ' isn''t stable, run as owner with an empty search path and its own 30 s statement limit';
+  assert has_function_privilege('anon', f, 'execute') and has_function_privilege('authenticated', f, 'execute'), f || ' can''t be called signed out and signed in';
+  assert not exists (select 1 from pg_proc p cross join aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                      where p.oid = f::regprocedure and a.grantee = 0), f || ' is open to public';
+  assert length(coalesce(obj_description(f::regprocedure, 'pg_proc'), '')) > 200, f || ' has no description';
+  assert not has_function_privilege('anon', g, 'execute') and not has_function_privilege('authenticated', g, 'execute'), g || ' can be called from outside';
+  assert (select not p.prosecdef and p.provolatile = 's' and coalesce('search_path=""' = any (p.proconfig), false) from pg_proc p where p.oid = g::regprocedure),
+    g || ' runs as owner, isn''t stable or has no empty search path';
+  assert obj_description(g::regprocedure, 'pg_proc') is not null, g || ' has no description';
+  assert position('(since 2 Nov' in obj_description('public.capture_fare_actions(text)'::regprocedure, 'pg_proc')) > 0
+     and position('For the fares userscript' in obj_description('public.capture_fare_actions(text)'::regprocedure, 'pg_proc')) > 0,
+    'capture_fare_actions()''s description lost its words or doesn''t point to the one-airline call';
+  raise notice 'capture_fare_actions() and capture_fare_actions_by_airline(): signed out and signed in, stable, as owner with an empty search path and a 30 s limit, described; their builders internal';
 end
 $test$;
 
@@ -258,6 +280,35 @@ begin
   insert into t_fa values ('w2', r);
 end
 $test$;
+
+-- 4b. one airline at a time (since 2 Nov), signed out
+do $test$
+declare l jsonb; one jsonb; r jsonb := (select v from t_fa where k = 'w1'); al jsonb; got_airlines jsonb := '[]'; got_actions jsonb := '[]'; e jsonb;
+begin
+  assert public.capture_fare_actions_by_airline('not the key') = '{"ok": false, "error": "bad key"}'::jsonb
+     and public.capture_fare_actions_by_airline('not the key', 990501) = '{"ok": false, "error": "bad key"}'::jsonb
+     and public.capture_fare_actions_by_airline(null, 990501) = '{"ok": false, "error": "bad key"}'::jsonb, 'a bad key wasn''t refused by the one-airline call';
+  l := public.capture_fare_actions_by_airline('fare-actions-test-key-1');
+  assert l ->> 'ok' = 'true' and l ->> 'world' = 'fare actions test' and not l ? 'actions'
+     and (select string_agg((a ->> 'game_id') || ' ' || (a ->> 'name') || ' ' || (a ->> 'code'), ' | ' order by i) from jsonb_array_elements(l -> 'airlines') with ordinality as t(a, i))
+         = '990501 Fares One F1 | 990502 Fares Two Planner F2 | 990503 Fares Three F3',
+    'the list isn''t world 1''s three active airlines in order, without actions: ' || l::text;
+  for al in select a from jsonb_array_elements(l -> 'airlines') a loop
+    one := public.capture_fare_actions_by_airline('fare-actions-test-key-1', (al ->> 'game_id')::int);
+    assert one ->> 'ok' = 'true' and one ->> 'world' = 'fare actions test' and one ->> 'week_of' = r ->> 'week_of'
+       and jsonb_array_length(one -> 'airlines') = 1 and one -> 'airlines' -> 0 ->> 'game_id' = al ->> 'game_id',
+      'airline ' || (al ->> 'game_id') || '''s answer isn''t its own: ' || jsonb_build_object('ok', one -> 'ok', 'airlines', one -> 'airlines', 'error', one -> 'error')::text;
+    got_airlines := got_airlines || (one -> 'airlines');
+    got_actions := got_actions || (one -> 'actions');
+  end loop;
+  assert got_airlines = r -> 'airlines', 'the airlines one at a time aren''t the one-call answer''s: ' || got_airlines::text;
+  assert got_actions = r -> 'actions', 'the actions one at a time aren''t the one-call answer''s';
+  for e in select x from (values (990504), (990601), (123456789)) v(id) cross join lateral (select public.capture_fare_actions_by_airline('fare-actions-test-key-1', v.id) as x) z loop
+    assert e ->> 'ok' = 'false' and e ->> 'error' like 'no such airline of ours: %', 'an airline not active and ours in the key''s world wasn''t refused: ' || e::text;
+  end loop;
+  raise notice 'one airline at a time: the list (3 airlines, no actions), then each airline, put together, exactly the one-call answer; a bad key, the inactive airline, another world''s and an unknown one refused';
+end
+$test$;
 reset role;
 
 -- each kept action's plan rows: one per class, in the class order, the rows of this week's fare plan
@@ -286,16 +337,26 @@ $setup$;
 
 set local role anon;
 do $test$
-declare t0 timestamptz := clock_timestamp(); r jsonb;
+declare t0 timestamptz; l jsonb; one jsonb; al jsonb; r jsonb; airlines jsonb := '[]'; actions jsonb := '[]'; ms jsonb := '[]';
 begin
-  r := public.capture_fare_actions('fare-actions-gander-key');
-  insert into t_fa values ('gander', r), ('gander_ms', to_jsonb(round(extract(epoch from clock_timestamp() - t0) * 1000)));
+  -- as the userscript (1.3) reads it: the list, then each airline in a call of its own (each under its own 30 s limit)
+  l := public.capture_fare_actions_by_airline('fare-actions-gander-key');
+  assert l ->> 'ok' = 'true', 'Gander''s list didn''t answer: ' || coalesce(l ->> 'error', 'no error');
+  for al in select a from jsonb_array_elements(l -> 'airlines') a loop
+    t0 := clock_timestamp();
+    one := public.capture_fare_actions_by_airline('fare-actions-gander-key', (al ->> 'game_id')::int);
+    assert one ->> 'ok' = 'true', 'Gander airline ' || (al ->> 'game_id') || ' didn''t answer: ' || coalesce(one ->> 'error', 'no error');
+    ms := ms || to_jsonb((al ->> 'code') || ' ' || round(extract(epoch from clock_timestamp() - t0) * 1000) || ' ms');
+    airlines := airlines || (one -> 'airlines'); actions := actions || (one -> 'actions');
+  end loop;
+  r := jsonb_build_object('ok', true, 'world', l -> 'world', 'airlines', airlines, 'actions', actions);
+  insert into t_fa values ('gander', r), ('gander_ms', ms);
 end
 $test$;
 reset role;
 
 do $test$
-declare r jsonb := (select v from t_fa where k = 'gander'); ms numeric := (select (v #>> '{}')::numeric from t_fa where k = 'gander_ms');
+declare r jsonb := (select v from t_fa where k = 'gander'); ms text := (select string_agg(x, ', ') from t_fa, jsonb_array_elements_text(v) x where k = 'gander_ms');
   dw bigint := (select id from public.worlds where is_default); bad text; n_ours int;
   v_today date := (now() at time zone 'UTC')::date; v_week date;
 begin
@@ -322,7 +383,7 @@ begin
                       where fp.id = (x -> 'plan_ids' ->> (c.k::int - 1))::bigint and a.world_id = dw and a.game_id = (x ->> 'game_id')::int
                         and fp.status = 'planned' and fp.level_pct is not null and fp.proposed_on >= v_week and coalesce(fp.cabin_class, 'economy') = c.cabin);
   assert bad is null, 'actions whose plan rows aren''t this week''s for that airline and class (game ID and n): ' || bad;
-  raise notice 'on the copy, signed out: % airlines, % changes still to make this week (% of them set-back changes), in % ms (the call''s own limit is 30 s; signed out the role''s is 3 s)',
+  raise notice 'on the copy, signed out, one airline at a time: % airlines, % changes still to make this week (% of them set-back changes), each call: % (each call''s own limit is 30 s; signed out the role''s is 3 s)',
     jsonb_array_length(r -> 'airlines'), jsonb_array_length(r -> 'actions'),
     (select count(*) from jsonb_array_elements(r -> 'actions') x where (x ->> 'fix')::boolean), ms;
 end
