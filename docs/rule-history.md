@@ -235,6 +235,13 @@ from 22 Oct (AirAsia's network in the Airbus world), never a plan.
 
 ### 3. Fleet and orders
 
+#### The E195 at a 5-star city when nothing else fits
+*Since 2 Nov (Gitesh, Scheduling chat).* Earlier wording: "5-star the A320neo, A321neo, LR or XLR (the LR and XLR
+beyond the A321neo LIGHT's reach)", with no E195 at 5-star cities · why (Gitesh): "e195 then allowed if no other fit".
+Found replanning China Eastern's E195: in the trunk month its only E195 trunks were Kolkata's (KMG–CCU, PKX–CCU; of our
+bases only Kolkata and Edinburgh are 4-star, and Edinburgh is Virgin's pair), and China Eastern's PVG–CCU ran at 24%
+load and 0.9k an aircraft hour, so its E-jet line would have stood idle until December.
+
 #### Kingfisher's deposits: six for Mumbai, the rest to Delhi
 *Since 29 Oct (Gitesh, with the trunk month's early start).* Earlier wording: "**One exception: Kingfisher's eight
 aircraft paid for by the A350 deposits** (four A320neo SHARPs and four E195-E2s, to be ordered 28–29 Oct) go to Mumbai,

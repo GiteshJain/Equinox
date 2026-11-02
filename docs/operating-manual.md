@@ -216,11 +216,13 @@ Details and open points: `docs/decisions.md`.
     stars override, with the research's rating kept underneath, and read for every new airport when it joins a list.
     *(since 22 Oct; history: rule-history.md)*
   - **Size by city stars:** 1- and 2-star cities get the E195; 3-star the E195 or the A320neo; 4-star any of the
-    E195, A320neo and A321neo; 5-star the A320neo, A321neo, LR or XLR (the LR and XLR beyond the A321neo LIGHT's reach). Within a band,
+    E195, A320neo and A321neo; 5-star the A320neo, A321neo, LR or XLR (the LR and XLR beyond the A321neo LIGHT's reach),
+    or the E195 only when the airline has no route its stars allow for an E195, so its E-jet line would otherwise stand
+    idle (`competition()` doesn't know this: the Scheduling chat picks the 5-star route for it). Within a band,
     the smaller type wins, heavy routes included: a busy pair gets more flights on more aircraft, not a bigger
     aircraft. A bigger variant only where the route needs its reach. The A320neo shares the A320-family line, the E195
     has its own. A cabin layout takes a couple of minutes to set up in the game, so a missing layout is never a reason
-    to pick a type. *(since 18 Oct; history: rule-history.md)*
+    to pick a type. *(since 18 Oct; the E195 at 5-star cities since 2 Nov; history: rule-history.md)*
 - **The default line: the cheapest variant that seats the market and reaches the city.** Stars set the size (above),
   smaller wins within the band, and distance picks the variant. List prices; reach is the distance each variant keeps
   its full cabin in the seat type the cabin rule gives that distance (§5: Leisure under 3,500 km, Leisure Plus to
