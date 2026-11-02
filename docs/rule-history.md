@@ -409,6 +409,11 @@ reference · why: an exception for eight aircraft over two evenings isn't worth 
 
 ### 4. Scheduling
 
+#### Flight numbers ascend through the aircraft's day
+*Since 2 Nov (Gitesh, Scheduling chat).* New rule, no earlier wording · why (Gitesh): "on plan cards make sure flight
+numbers are always in ascending order". Raised by the three cards retimed on 28 Oct (VT-ABH, 9M-ABB, G-AAFL), which
+kept their numbers in a new order; they were already filed, so they keep them.
+
 #### Trunk month: a filler can be anything, the filler list first
 *Since 29 Oct (Gitesh, Review chat, going through Needs attention).* Earlier wording: "**Fillers:** where a trunk
 aircraft's day needs more to make sense (hours, maintenance), it may also fly filler routes from the same base to

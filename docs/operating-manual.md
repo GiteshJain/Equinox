@@ -394,6 +394,10 @@ Details and open points: `docs/decisions.md`.
 - **Fly each aircraft as much as it fits:** the Saturday review lists every aircraft under **12 block hours a day** and
   whether one more short rotation fits it, Ryanair's and Virgin's first. Tails' own flag stays at
   `settings.aircraft_block_target_h` (10). *(since 18 Oct; history: rule-history.md)*
+- **Flight numbers ascend through the aircraft's day:** on every plan card the first departure of the day (local time at
+  the base) takes the lowest number, and each later flight the next, the way out odd and the way back the next even.
+  A card that is retimed is renumbered to keep that order if it isn't filed yet; filed aircraft keep their numbers.
+  *(since 2 Nov, Gitesh)*
 - **Every aircraft is named by its tail number and base:** whenever any chat mentions an aircraft or one of its
   flights (an order, a plan card, an arrival, a retime, the connection audit, a proposal), it gives the registration and
   the base it flies from, e.g. "N019AW (JFK)". For an order not yet registered, the airline, variant and base.
