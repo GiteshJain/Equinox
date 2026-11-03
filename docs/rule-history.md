@@ -710,6 +710,19 @@ carriers. "Our hubs come first" came from the same evening: Thai (Bangkok) and Q
 Kingfisher's passengers round KUL, which §2 reserves for India–Oceania, though neither is Kingfisher's own top-3
 competitor; Thai and Qantas were declined and the old Virgin Australia contract terminated.
 
+#### Places counted beyond signed partners; hub carrier judged from the scan; two-week check on requests
+*Since 3 Nov (Gitesh, Scheduling chat, during the country-by-country rollout).* Earlier wording the day before:
+- "that adds the most onward places it doesn't fly from there, at least 3" · why (Gitesh, on China Airlines for China
+  Eastern: "regional japan is covered by ANA?"): its six "new" places were all reached via ANA from Tokyo at higher
+  frequency, so the count must leave out what a signed partner already gives.
+- "none of the hub carriers (Emirates, Qatar Airways, Etihad, Turkish Airlines, Singapore Airlines, Cathay Pacific,
+  Asiana, Korean Air, Oman Air, Saudia, Riyadh Air)" · why (Gitesh: "why is aer lingus not a hub carrier?"): the fixed
+  list missed Aer Lingus, which already sells Dublin connections on Virgin's Atlantic pairs; a hub carrier is one whose
+  hub takes our transfers, read from the scan's connections. Aer Lingus deferred for Virgin, kept for Pan Am (Dublin
+  feed, no Atlantic overlap with Pan Am's New York flights).
+- No two-week check before · why: Air Canada's player showed no change in four weeks; a request left hanging blocks
+  the airport's next-best partner.
+
 #### Gulf hub carriers are rivals
 *Since 5 Oct · why: they would carry our passengers through Dubai against Kingfisher and Malaysia.*
 

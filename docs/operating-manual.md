@@ -574,14 +574,18 @@ Details and open points: `docs/decisions.md`.
 - **Our airlines interline with each other.**
 - **One outside partner per foreign airport, the one that feeds us most:** at every airport an airline of ours flies to
   outside our base countries (the countries of our hubs and focus cities), that airline signs the one local airline
-  that adds the most onward places it doesn't fly from there, at least 3, in the latest world scan. Any country, Europe
-  and the Americas included, and Ryanair too. A country can have more than one partner when they serve different
-  airports. *(since 2 Nov, brief `docs/briefs/2026-11-02-interline-rules.md`; history: rule-history.md)*
+  that adds the most onward places, at least 3, in the latest world scan. A place counts only if neither that airline
+  nor one of its signed partners already reaches it (regional Japan is ANA's, so it doesn't count for China Airlines).
+  Any country, Europe and the Americas included, and Ryanair too. A country can have more than one partner when they
+  serve different airports. *(since 2 Nov, brief `docs/briefs/2026-11-02-interline-rules.md`; places beyond signed
+  partners since 3 Nov; history: rule-history.md)*
 - **Never a competitor or a hub carrier:** no partner that is one of that airline's three biggest competitors (the
-  weekly report's, `competition()`); none of the hub carriers (Emirates, Qatar Airways, Etihad, Turkish Airlines,
-  Singapore Airlines, Cathay Pacific, Asiana, Korean Air, Oman Air, Saudia, Riyadh Air); and none based in one of our
-  base countries, where the partner is our own airline. Their requests are declined. *(the Gulf carriers since 5 Oct;
-  the rest since 2 Nov; history: rule-history.md)*
+  weekly report's, `competition()`); none whose hub would take our transfer passengers, that is, one that already sells
+  connections over its hub between our airports or on our long-haul flows (the Gulf and Turkish carriers, Singapore
+  Airlines, Cathay Pacific, Asiana and Korean Air today; Aer Lingus at Dublin for Virgin's Atlantic flows; judged from
+  the scan's connections, `scan_rival_connections`, not a fixed list); and none based in one of our base countries,
+  where the partner is our own airline. Their requests are declined. *(the Gulf carriers since 5 Oct; the rest since
+  2 Nov; hub carrier judged from the scan since 3 Nov; history: rule-history.md)*
 - **Incoming requests are accepted unless the airline works against us:** a hub carrier, a top-3 competitor of one of
   our airlines, one based in our base countries, or one whose contract would route our passengers round one of our
   hubs (an Australian carrier for Kingfisher, say: India–Oceania goes via KUL, §2). A harmless request is accepted
@@ -593,9 +597,11 @@ Details and open points: `docs/decisions.md`.
 - **The partner follows the network:** the plan card that opens a foreign airport names its partner, Gitesh sends the
   request when he sets the aircraft up, and the Scheduling chat records it on the Interline screen. The Saturday review
   lists partners that have become a top-3 competitor or a hub carrier (cancelled: the contract ends with that
-  accounting week) and airports still without one. Results are reviewed at the 5 Dec monthly session: routes to
-  partnered airports should climb the fare ladder faster; if not, keep only partners adding 10 or more places.
-  *(since 2 Nov)*
+  accounting week), airports still without one, and requests unanswered for two weeks (the player may be inactive:
+  withdraw and ask the next-best airline at that airport, or leave it if there is none). Results are reviewed at the
+  5 Dec monthly session: routes to partnered airports should climb the fare ladder faster; if not, keep only partners
+  adding 10 or more places. Deferred to that session: SWISS (Ryanair, Virgin), Aer Lingus (Virgin), Garuda (Malaysia's
+  #3 competitor, signed). *(since 2 Nov; two-week check since 3 Nov)*
 
 ## 7. Recurring work
 - **Every evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments straight
