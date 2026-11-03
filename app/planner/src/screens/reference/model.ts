@@ -157,6 +157,8 @@ export const CONSTANTS: readonly [string, string, string][] = [
   ["depCap", "Departures cap per airport per week", "departures_per_airport_week"],
   // since 21 Oct (spec docs/specs/2026-10-21-competition-analysis.md §3): how often the evening capture scans the world
   ["scanEvery", "World scan every (capture days; 1 = every evening)", "scan_every_days"],
+  // since 3 Nov (spec docs/specs/2026-11-03-interline-replies.md; manual §6): how long an interline request may wait for a reply
+  ["ilReplyWait", "Interline reply wait (days; 14 = two weeks)", "interline_reply_wait_days"],
 ];
 export interface SettingRow { id: number; key: string; value: Json; updated_at: string }
 export interface WorldRuleRow { id: number; key: string; value: Json; updated_at: string }

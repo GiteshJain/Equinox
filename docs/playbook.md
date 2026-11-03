@@ -273,8 +273,9 @@ File it as soon as it arrives (rule: manual §4, how it runs).
 ### Step 7: Interline, if the route opens a new foreign airport
 - The plan card names the airport's partner, picked by the rules (manual §6: one outside partner per foreign airport;
   never a competitor or a hub carrier).
-- Send the request in the game when you set up the aircraft; the Scheduling chat records it on the Interline screen and
-  sets it to signed when the partner accepts. When another airline asks us, accept or decline by the same rules
+- Send the request in the game when you set up the aircraft; the Scheduling chat records it on the Interline screen (set
+  to requested, which fills **requested on** with today; correct the day if the request went earlier) and sets it to
+  signed when the partner accepts. When another airline asks us, accept or decline by the same rules
   (manual §6, incoming requests).
 
 ### Step 8: Confirm it flies
@@ -339,7 +340,8 @@ as normal on Friday evening first.
      step 1), not in a Saturday batch.
    - **Hubs first:** each main hub's progress (Performance → **Main hubs**).
    - **Interline partners:** any that became a top-3 competitor or hub carrier, and airports without one (rule: manual
-     §6, the partner follows the network).
+     §6, the partner follows the network). Requests unanswered: Interline → **Waiting for a reply**, the amber rows
+     (what to do: manual §6).
    - **To-dos:** go through the board (Today).
    - **Triggers:** anything that needs a decision brief (Supabase's plan, a new base; manual §1, Supabase stays on the
      free plan).

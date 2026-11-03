@@ -16,7 +16,7 @@
     "planner tab"
    ],
    "sent": {
-    "planner_save interline_agreements insert airline_id,country_code,decided_on,note,partner,status,world_id": 1
+    "planner_save interline_agreements insert airline_id,country_code,decided_on,note,partner,requested_on,status,world_id": 1
    },
    "written": {
     "interline_agreements insert": 1

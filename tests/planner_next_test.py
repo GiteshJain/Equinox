@@ -30,7 +30,7 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    its lists opened with See the changes, its moves in one line, its count of changes in the game matching its game
    actions (route by route since 21 Oct), its game actions and its routes table each cut to 10 rows with "show all N"; Systems, the Systems board first, then its four boards folded (Capture with the copy's
    airlines, Fleet and Cabin charges since 22 Oct, Manual entry; Cabins went on 21 Oct, Aircraft checks with the one-week checks
-   on 22 Oct); Interline with its agreements and the interline countries, Photos with a logo for each
+   on 22 Oct); Interline with its agreements, the interline countries and (since 3 Nov) Waiting for a reply as its first board, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
    pull request 14; tests/planner_saves_test.py now checks every kind of save against recorded rows.)
@@ -1204,10 +1204,17 @@ async def last_screens_open(pl):
     await open_screen(pl.pg, 'interline')
     await pl.pg.wait_for_selector("main[data-screen=interline][data-interline-ready=yes]", timeout=60000)
     il = await pl.pg.evaluate("""({ boards: !!document.querySelector('[data-figure="interline: agreements"]') && !!document.querySelector('[data-figure="interline: countries"]'),
-        countries: document.querySelectorAll('[data-figure="interline: countries"] tr').length - 1 })""")
+        countries: document.querySelectorAll('[data-figure="interline: countries"] tr').length - 1,
+        waiting: (() => { const b = document.querySelector('[data-figure="interline: waiting"]');
+          return b ? { n: Number(b.dataset.waiting), over: Number(b.dataset.overdue), rows: b.querySelectorAll('[data-il-wait]').length,
+                       first: !!b.parentElement && b.parentElement.querySelector('section.board') === b } : null; })() })""")
     if not il["boards"] or il["countries"] < 1:
         problems.append(f"Interline has no agreements board or interline countries ({il})")
-    seen.append(f"Interline with {il['countries']} interline countries")
+    # Waiting for a reply (3 Nov, spec docs/specs/2026-11-03-interline-replies.md): the first board, one line per request
+    w = il["waiting"]
+    if not w or not w["first"] or w["rows"] != w["n"]:
+        problems.append(f"Interline's Waiting for a reply board is missing, not the first board, or its lines don't match its count ({w})")
+    seen.append(f"Interline with {il['countries']} interline countries, {w['n'] if w else '?'} requests waiting ({w['over'] if w else '?'} past the mark)")
     await open_screen(pl.pg, 'photos')
     await pl.pg.wait_for_selector("main[data-screen=photos][data-photos-ready=yes]", timeout=60000)
     logos = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=photos] [data-lg]')].map(c => c.dataset.lg)")

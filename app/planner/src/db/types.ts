@@ -951,14 +951,14 @@ isOneToOne: false
                   ]
                 },"interline_agreements": {
                   Row: {
-                    "airline_id": number,"country_code": string,"created_at": string,"decided_on": string | null,"id": number,"note": string | null,"partner": string | null,"partner_airline_id": number | null,"status": string | null,"updated_at": string,"world_id": number
+                    "airline_id": number,"country_code": string,"created_at": string,"decided_on": string | null,"id": number,"note": string | null,"partner": string | null,"partner_airline_id": number | null,"requested_on": string | null,"status": string | null,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "airline_id": number,"country_code": string,"created_at"?: string,"decided_on"?: string | null,"id"?: never,"note"?: string | null,"partner"?: string | null,"partner_airline_id"?: number | null,"status"?: string | null,"updated_at"?: string,"world_id": number
+                    "airline_id": number,"country_code": string,"created_at"?: string,"decided_on"?: string | null,"id"?: never,"note"?: string | null,"partner"?: string | null,"partner_airline_id"?: number | null,"requested_on"?: string | null,"status"?: string | null,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "airline_id"?: number,"country_code"?: string,"created_at"?: string,"decided_on"?: string | null,"id"?: never,"note"?: string | null,"partner"?: string | null,"partner_airline_id"?: number | null,"status"?: string | null,"updated_at"?: string,"world_id"?: number
+                    "airline_id"?: number,"country_code"?: string,"created_at"?: string,"decided_on"?: string | null,"id"?: never,"note"?: string | null,"partner"?: string | null,"partner_airline_id"?: number | null,"requested_on"?: string | null,"status"?: string | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
