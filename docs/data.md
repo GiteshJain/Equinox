@@ -1032,6 +1032,7 @@ Never leaves the database: left out of the nightly backup on purpose.
 | `note` | text |  |
 | `created_at` | timestamp with time zone |  |
 | `updated_at` | timestamp with time zone |  |
+| `requested_on` | date | The day we sent the request; set while the row waits on the other airline (status to_sign). The planner sets it to the UTC date when a row becomes to_sign without one, and it can be changed by hand. Kept as history when the status moves on. Interline's Waiting for a reply board counts the days from it against settings.interline_reply_wait_days (manual §6). Filled for the rows waiting on 3 Nov 2026 from their notes (migration 20261103010000). |
 
 **Access:** staff add: insert for authenticated; staff change: update for authenticated; staff read: select for authenticated; staff remove: delete for authenticated.
 
