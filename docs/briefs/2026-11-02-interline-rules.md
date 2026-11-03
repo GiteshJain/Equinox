@@ -58,6 +58,48 @@ Signed today: ANA (China Eastern, Malaysia), Qantas and Garuda (Malaysia). The P
 both China Eastern and Malaysia, but Cebu Pacific now flies 23 places from Manila: that row is out of date whatever is
 decided.
 
+## What each option looks like (added 2 Nov, Gitesh asked for detail)
+Counts from world scan 18. A contract is one of our airlines with one partner airline, covering both whole networks.
+"Onward places" means places the partner flies from that airport that our airline doesn't.
+
+**A: keep today's rules.**
+- §6 unchanged.
+- Contracts: 5 signed (China Eastern–ANA; Malaysia–ANA, Qantas/QantasLink, Garuda) plus Virgin–Aeroflot group,
+  requested 2 Nov.
+- Nothing more to request now. The Manila row stays "no partner".
+
+**B: feed first. About 32 contracts; 26 new requests.**
+
+| Airline | Requests | Already signed or requested |
+|---|---|---|
+| Pan Am | Aeromexico Connect (Mexico City, 45), Aer Lingus (Dublin, 40), Air Canada (Toronto, 10) | — |
+| Kingfisher | Thai (Bangkok, 33), VietJet (Ho Chi Minh City, 21) | — |
+| Ryanair | TAP (Lisbon, 49), Norra (Helsinki, 36), Icelandair (Keflavík, 27), Braathens (Stockholm, 20), SWISS (Zurich, 14), SAS (Copenhagen, 11) | — |
+| Virgin | TAP (40), Norra (36), Icelandair (24), Aer Lingus (Dublin, 20), Braathens (18), SWISS (11), SAS (7) | Aeroflot group (St Petersburg, Rossiya 23) |
+| China Eastern | Cebu Pacific (Manila, 23), Thai (22), VietJet (18), China Airlines (Taipei, 10) | ANA (Haneda 51, Narita 13) |
+| Malaysia | Cebu Pacific (19), Thai (14), VietJet (13), China Airlines (9) | ANA (53), Garuda (Jakarta 47), Qantas/QantasLink (Sydney 28) |
+
+- 14 partner airlines to approach, beyond the three already signed.
+- Airports where no airline adds 3 or more onward places get no partner (most of Ryanair's and Virgin's smaller
+  European airports, Malaysia's secondary Indonesian and Indochinese ones).
+- **Declined under B:**
+  - the 11 hub carriers (Emirates, Qatar, Etihad, Turkish, Singapore Airlines, Cathay Pacific, Asiana, Korean Air,
+    Oman Air, Saudia, Riyadh Air);
+  - airlines based in our own airlines' countries (British Airways, British Caledonian, Air France, KLM, Lufthansa,
+    Iberia, Alitalia, Air China, China Southern, the US majors): there the partner is our own airline.
+
+**C: everyone but the hub carriers. About 228 contracts.**
+- Pan Am 53, Kingfisher 41, Ryanair 36, Virgin 36, China Eastern 29, Malaysia 33.
+- It includes partners that compete with our own airlines at home. Examples:
+  - Malaysia with Air China at Beijing (159 Chinese places), against China Eastern;
+  - Pan Am and Kingfisher with British Caledonian at Heathrow (29 and 41), against Virgin;
+  - Ryanair and Virgin with Alitalia at Rome (33 and 35) and Iberia at Madrid.
+- Most contracts add 0 to 2 onward places.
+
+**D: everyone. About 285 contracts.** C plus 57 contracts with the 11 hub carriers. Examples: Asiana at Seoul (46
+places for Malaysia), Cathay Pacific at Hong Kong (38), Singapore Airlines at Singapore (21 for Kingfisher), Emirates
+at Dubai (21 for Malaysia).
+
 ## Scenarios and the risk of waiting
 - **If we wait:** every week our flights to those ~75 airports carry only local passengers. Most of our routes already
   sell out, so the loss is mainly fare level (the ladder climbs on demand), and on the routes still filling, load.
