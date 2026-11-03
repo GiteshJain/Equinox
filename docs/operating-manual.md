@@ -26,9 +26,11 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
-- **The Interline screen still works from the old country list** (`settings.interline_rules`: countries, skip lists,
-  rivals): until it's rebuilt for §6's partner per airport, the Scheduling chat picks partners from the world scan by §6
-  and records them on the screen. *(since 2 Nov)*
+- **The Interline screen still works by country:** only the countries in `settings.interline_rules.countries` get rows
+  (since 2 Nov every country where §6 gives a partner; the Europe zone, the skip lists and Ryanair's group-only emptied;
+  the hub-rival countries kept). Until it's rebuilt for §6 (a row per airport so a country can have several partners,
+  each airport's pick from the world scan, top-3 competitors and hub carriers flagged), the Scheduling chat picks
+  partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
