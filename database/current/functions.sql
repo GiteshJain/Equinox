@@ -4450,6 +4450,12 @@ begin
            from lc join jl on jl.route_id = lc.route_id and jl.cabin = lc.cabin and jl.dir = lc.dir
           where lc.at >= jl.jumped_on::timestamp at time zone 'UTC' and lc.at < p_as_of
           group by 1, 2, 3),
+  -- the window a cabin due at a jump level is judged on (since 2 Nov, manual §5): the fare_under_launch_days before the
+  -- moment, none before the jump took effect; under fare_under_launch_load_pct full it may jump again
+  ujw as (select lc.route_id, lc.cabin, lc.dir, count(*)::int as n, avg(lc.pct) as load
+            from lc join jl on jl.route_id = lc.route_id and jl.cabin = lc.cabin and jl.dir = lc.dir
+           where lc.at >= greatest(jl.jumped_on::timestamp at time zone 'UTC', p_as_of - make_interval(days => v_ul_days::int)) and lc.at < p_as_of
+           group by 1, 2, 3),
   -- whether the captures show this week's move yet (fare_plan_status()'s rule)
   seen as (select (e ->> 'id')::bigint as id, (e ->> 'applied')::boolean as applied, (e ->> 'seen_on')::date as seen_on
              from jsonb_array_elements(case when exists (select 1 from wk) then private.fig_fare_plan(p_airline_id, p_as_of) -> 'plan' else '[]'::jsonb end) e),
@@ -4490,7 +4496,8 @@ begin
                 th.rival as rv_name, th.kind as rv_kind, th.added_weekly as rv_added, th.scan_at as rv_on, th.until as rv_until,
                 jl.jumped_on, ud.route_id is not null as ul_done, um.route_id is not null as ul_marked, lch.changed_on,
                 coalesce(uw.n, 0) as w_n, uw.load as w_load,
-                coalesce(uj.n, 0) as j_n, uj.load as j_load
+                coalesce(uj.n, 0) as j_n, uj.load as j_load,
+                coalesce(ujw.n, 0) as jw_n, ujw.load as jw_load
            from rc join ro on ro.id = rc.route_id
            left join thr th on th.a = least(ro.hub_code, ro.dest_code) and th.b = greatest(ro.hub_code, ro.dest_code)
            left join st on st.route_id = rc.route_id and st.cabin = rc.cabin and st.dir = rc.dir
@@ -4508,7 +4515,8 @@ begin
            left join um on um.route_id = rc.route_id and um.cabin = rc.cabin and um.dir = rc.dir
            left join lch on lch.route_id = rc.route_id and lch.cabin = rc.cabin and lch.dir = rc.dir
            left join uw on uw.route_id = rc.route_id and uw.cabin = rc.cabin and uw.dir = rc.dir
-           left join uj on uj.route_id = rc.route_id and uj.cabin = rc.cabin and uj.dir = rc.dir),
+           left join uj on uj.route_id = rc.route_id and uj.cabin = rc.cabin and uj.dir = rc.dir
+           left join ujw on ujw.route_id = rc.route_id and ujw.cabin = rc.cabin and ujw.dir = rc.dir),
   mv0 as (select lv.*,
                 case when lv.n > 0 then lv.sold * 100.0 / lv.n end as share,
                 v_launch + v_cap as cap_pct,
@@ -4539,7 +4547,10 @@ begin
   -- the under-launch kind (spec §2), worked out before this week's plan so a move put on the plan this week keeps it.
   -- Since 26 Oct (spec docs/specs/2026-10-26-under-launch-by-loads.md) a cabin due is judged on the week's loads as any
   -- direction: sold out it steps up and 90–99% sold out it holds (the normal ladder's own kinds); under 90% sold out, with
-  -- the minimum departures, it jumps to the next level, or at the last level holds there marked cut or keep?
+  -- the minimum departures, it jumps to the next level, or at the last level holds there marked cut or keep? Since 2 Nov
+  -- (manual §5) the next jump also needs the cabin under fare_under_launch_load_pct full over its last fare_under_launch_days
+  -- since the jump (ujw), as the first jump does; 80% full or more (or no flights in that window) it holds at its level
+  -- (ul_full) and is judged again the next Saturday. The cut-or-keep test at the last level is unchanged.
   mv as (select mv0.*,
                 case
                   when mv0.ul_state = 'launch' then
@@ -4550,6 +4561,7 @@ begin
                   when mv0.ul_state = 'holding' then 'ul_hold'
                   when mv0.ul_state = 'due' then
                     case when mv0.n < v_min or mv0.share >= v_down then null
+                         when mv0.next_level is not null and (mv0.jw_load is null or mv0.jw_load >= v_ul_load) then 'ul_full'
                          when mv0.next_level is not null then 'ul_jump'
                          else 'ul_decide' end
                 end as uk
@@ -4566,7 +4578,7 @@ begin
                      -- under launch (since 23 Oct; spec §2): the jump at launch only where the ladder would hold at launch
                      -- (under fare_ladder_down_share sold out); the hold whatever it sells; once due (since 26 Oct) the next
                      -- jump or the cut-or-keep hold under fare_ladder_down_share sold out, else the normal ladder below
-                     when mv.uk in ('ul_hold', 'ul_decide') or (mv.uk = 'ul_jump' and mv.ul_state = 'due') then mv.uk
+                     when mv.uk in ('ul_hold', 'ul_decide', 'ul_full') or (mv.uk = 'ul_jump' and mv.ul_state = 'due') then mv.uk
                      when mv.uk in ('ul_jump', 'ul_few', 'ul_since') and mv.level <= mv.floor_pct then mv.uk
                      -- under launch, once jumped, the ladder only climbs or holds (never a 5-point step down)
                      when mv.level < v_launch and mv.share < v_down then 'ul_climb'
@@ -4621,6 +4633,11 @@ begin
                      then format('at %s%% since %s: sold out %s of %s: to %s%% for %s', trim_scale(fin.level), to_char(fin.jumped_on, 'FMDD Mon'),
                                  fin.sold, fin.n, trim_scale(fin.next_level), v_ul_span)
                      else format('%s%% full over %s days at launch: to %s%% for %s', round(fin.w_load), trim_scale(v_ul_days), trim_scale(fin.next_level), v_ul_span) end
+                   when 'ul_full' then case when fin.jw_load is null
+                     then format('at %s%% since %s: sold out %s of %s, no flights in the last %s days: holds at %s%%', trim_scale(fin.level),
+                                 to_char(fin.jumped_on, 'FMDD Mon'), fin.sold, fin.n, trim_scale(v_ul_days), trim_scale(fin.level))
+                     else format('at %s%% since %s: sold out %s of %s but %s%% full over %s days: holds at %s%%, judged again next Saturday', trim_scale(fin.level),
+                                 to_char(fin.jumped_on, 'FMDD Mon'), fin.sold, fin.n, round(fin.jw_load), trim_scale(v_ul_days), trim_scale(fin.level)) end
                    when 'ul_hold' then format('at %s%% since %s: judged on %s', trim_scale(fin.level), to_char(fin.jumped_on, 'FMDD Mon'), to_char(fin.judge_on, 'FMDD Mon'))
                    when 'ul_decide' then format('at %s%% since %s: sold out %s of %s: holds at %s%%; cut or keep? (Saturday review)',
                                                 trim_scale(fin.level), to_char(fin.jumped_on, 'FMDD Mon'), fin.sold, fin.n, trim_scale(fin.level))
@@ -4667,7 +4684,10 @@ begin
              'state', o.ul_state,
              'window_load', round(case when o.ul_state = 'launch' then o.w_load else o.j_load end, 1),
              'window_flights', case when o.ul_state = 'launch' then o.w_n else o.j_n end,
-             'jumped_on', o.jumped_on, 'judge_on', o.judge_on)) end,
+             'jumped_on', o.jumped_on, 'judge_on', o.judge_on,
+             -- since 2 Nov: the window a cabin due is judged on (the last fare_under_launch_days since the jump)
+             'judged_load', case when o.ul_state = 'due' then round(o.jw_load, 1) end,
+             'judged_flights', case when o.ul_state = 'due' then o.jw_n end)) end,
            'decide', o.decide,
            -- a change that sets it back to its level (manual §5, since 21 Oct)
            'fix', o.fix,

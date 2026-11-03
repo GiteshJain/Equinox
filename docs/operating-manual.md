@@ -28,13 +28,6 @@ Until each is built and merged, the rules below stand as they are.
   rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **The second jump under launch needs the same load cut-off as the first** (§5, decided 2 Nov, Gitesh): after its
-  2 weeks at 80% (Ryanair 75%), a cabin jumps to 60% only when it is under 90% sold out **and** averaging under 80% full
-  (`fare_under_launch_load_pct`) over the 14 days since the captures saw the jump; under 90% sold out but 80% full or
-  more, it holds at 80% and is judged again the next Saturday. At 60% the cut-or-keep test is unchanged. Until it's
-  built, the planner still jumps a cabin under 90% sold out to 60% whatever its loads: check each 80%-to-60% jump's
-  loads at the Saturday review and leave one 80% full or more off the fare plan. *(since 2 Nov; history:
-  rule-history.md)*
 
 
 Details and open points: `docs/decisions.md`.
@@ -539,7 +532,10 @@ Details and open points: `docs/decisions.md`.
   90% sold out), averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the
   default price (Ryanair, launching at 85%, to **75%**) and holds 2 weeks from the day the captures see it. Then the
   ladder judges it on its loads like any direction: sold out, it climbs a step (and holds the next Saturday), on through
-  launch to the cap; 90–99% sold out, it holds; under 90% sold out, it **jumps to 60%** and holds 2 weeks the same way.
+  launch to the cap; 90–99% sold out, it holds; under 90% sold out **and** averaging under 80% full
+  (`fare_under_launch_load_pct`) over the 14 days since the captures saw the jump, it **jumps to 60%** and holds 2 weeks
+  the same way; under 90% sold out but 80% full or more, it holds at 80% and is judged again the next Saturday (since
+  2 Nov).
   At 60% and still under 90% sold out, it holds there and is marked **cut or keep?** for Gitesh at the Saturday review
   (a route that isn't losing money is most likely kept), and it never jumps again. Under launch the ladder only climbs
   or holds (no 5-point cuts). The numbers are the `fare_under_launch_*` settings (Ryanair's levels its own row).
