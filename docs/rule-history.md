@@ -38,6 +38,16 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The second jump under launch needs the load cut-off: decided 2 Nov
+*Gitesh, 2 Nov (Review chat): "that should also have the 80% cut-off" · why: since 26 Oct the second jump (80% to 60%)
+reads only the sold-out share, so a cabin nearly full but not selling out every flight still drops to 60%. KUL–TRV's
+business cabin, 89–94% full at 80% but sold out on 4 of 6 and 5 of 7, would have jumped on 13 Nov. The first jump has
+always needed under 80% full; the 60% step now needs the same.* New item in *Decided, not yet built*; §5's sentence is
+replaced when it's built. The old load test for the step at 80%, `fare_under_launch_decide_load_pct` (60), has not been
+read since 26 Oct and is not what this decision brings back. §5's sentence as it stands, word for word: "Then the
+ladder judges it on its loads like any direction: sold out, it climbs a step (and holds the next Saturday), on through
+launch to the cap; 90–99% sold out, it holds; under 90% sold out, it **jumps to 60%** and holds 2 weeks the same way."
+
 ### Route profit's sold-out marks and the fare ladder: decided 30 Oct
 *Gitesh, 30 Oct (Building chat, brief `docs/briefs/2026-10-30-route-profit-and-fare-ladder.md`, option B) · why: since
 21 Oct the fare ladder raises every sold-out direction each Saturday, so route profit's "raise fares" repeated it and

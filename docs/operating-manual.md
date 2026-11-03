@@ -28,6 +28,13 @@ Until each is built and merged, the rules below stand as they are.
   rule-history.md)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
+- **The second jump under launch needs the same load cut-off as the first** (§5, decided 2 Nov, Gitesh): after its
+  2 weeks at 80% (Ryanair 75%), a cabin jumps to 60% only when it is under 90% sold out **and** averaging under 80% full
+  (`fare_under_launch_load_pct`) over the 14 days since the captures saw the jump; under 90% sold out but 80% full or
+  more, it holds at 80% and is judged again the next Saturday. At 60% the cut-or-keep test is unchanged. Until it's
+  built, the planner still jumps a cabin under 90% sold out to 60% whatever its loads: check each 80%-to-60% jump's
+  loads at the Saturday review and leave one 80% full or more off the fare plan. *(since 2 Nov; history:
+  rule-history.md)*
 
 
 Details and open points: `docs/decisions.md`.
