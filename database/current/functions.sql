@@ -280,6 +280,37 @@ $function$
 
 ;
 
+-- capture_fare_actions_by_airline(p_key text, p_game_id integer)
+CREATE OR REPLACE FUNCTION public.capture_fare_actions_by_airline(p_key text, p_game_id integer DEFAULT NULL::integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+ SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
+AS $function$
+declare v_world bigint; v_doc jsonb;
+begin
+  v_world := private.capture_key_world(p_key);
+  if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  if p_game_id is null then
+    -- the list: our active airlines of the world in display order, with no fare ladder worked out (it answers at once)
+    return jsonb_build_object('ok', true, 'world', (select w.name from public.worlds w where w.id = v_world),
+             'as_of', private.fig_ts(now()),
+             'airlines', coalesce((select jsonb_agg(jsonb_build_object('game_id', a.game_id, 'name', coalesce(a.public_name, a.planner_name, a.game_name),
+                                                                       'game_name', a.game_name, 'code', a.iata_code)
+                                                    order by a.position nulls last, a.id)
+                                     from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                    where a.world_id = v_world and a.active and g.kind = 'ours'), '[]'::jsonb));
+  end if;
+  v_doc := private.capture_fare_actions_doc(v_world, now(), p_game_id);
+  if jsonb_array_length(v_doc -> 'airlines') = 0 then return jsonb_build_object('ok', false, 'error', 'no such airline of ours: ' || p_game_id); end if;
+  return jsonb_build_object('ok', true, 'world', (select w.name from public.worlds w where w.id = v_world)) || v_doc;
+end
+$function$
+
+;
+
 -- capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)
 CREATE OR REPLACE FUNCTION public.capture_ingest(p_key text, p_airline text, p_kind text, p_page text, p_rows jsonb)
  RETURNS jsonb
@@ -2312,6 +2343,18 @@ $function$
 -- private.capture_fare_actions_doc(p_world_id bigint, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.capture_fare_actions_doc(p_world_id bigint, p_as_of timestamp with time zone)
  RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select private.capture_fare_actions_doc(p_world_id, p_as_of, null::integer)
+$function$
+
+;
+
+-- private.capture_fare_actions_doc(p_world_id bigint, p_as_of timestamp with time zone, p_game_id integer)
+CREATE OR REPLACE FUNCTION private.capture_fare_actions_doc(p_world_id bigint, p_as_of timestamp with time zone, p_game_id integer)
+ RETURNS jsonb
  LANGUAGE plpgsql
  STABLE
  SET search_path TO ''
@@ -2320,10 +2363,11 @@ declare
   v_al record; d jsonb; v_week text; v_keep jsonb;
   v_airlines jsonb := '[]'::jsonb; v_actions jsonb := '[]'::jsonb;
 begin
-  -- our active airlines of the world, as capture_airlines() lists them, in display order
+  -- our active airlines of the world, as capture_airlines() lists them, in display order (one, by its game ID, when
+  -- p_game_id is given: since 2 Nov the userscript asks one airline at a time)
   for v_al in select a.id, a.game_id, coalesce(a.public_name, a.planner_name, a.game_name) as name, a.game_name, a.iata_code
                 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
-               where a.world_id = p_world_id and a.active and g.kind = 'ours'
+               where a.world_id = p_world_id and a.active and g.kind = 'ours' and (p_game_id is null or a.game_id = p_game_id)
                order by a.position nulls last, a.id loop
     d := private.fig_fare_ladder(v_al.id, p_as_of);
     v_week := coalesce(v_week, d ->> 'week_of');

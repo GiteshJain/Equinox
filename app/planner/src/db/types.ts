@@ -2118,6 +2118,9 @@ isOneToOne: false
 "capture_fare_actions":
 { Args: { "p_key": string }; Returns: Json
                            },
+"capture_fare_actions_by_airline":
+{ Args: { "p_game_id"?: number,"p_key": string }; Returns: Json
+                           },
 "capture_ingest":
 { Args: { "p_airline": string,"p_key": string,"p_kind": string,"p_page": string,"p_rows": Json }; Returns: Json
                            },

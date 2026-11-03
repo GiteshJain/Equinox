@@ -553,7 +553,7 @@ Details and open points: `docs/decisions.md`.
   The fare plan records each with its direction and the next capture ticks each off by that direction's fares.
   **The fares userscript makes them** (`capture/fares_apply.user.js`): after **Put on the fare plan** in Performance,
   Gitesh presses **Apply fare plan** in the game and watches. It reads this week's planned changes the captures haven't
-  seen yet (`capture_fare_actions()`, with the capture key), shows each airline's count and asks once, then makes them
+  seen yet (`capture_fare_actions_by_airline()`, one airline at a time, with the capture key), shows each airline's count and asks once, then makes them
   for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. The
   simulogics terms (§5.3) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
