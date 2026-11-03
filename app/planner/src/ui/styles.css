@@ -1666,6 +1666,29 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .iltap .ilcty{font-weight:800}
 .iltap .ilal,.iltap .ilst,.iltap .chev{display:none}
 
+/* Waiting for a reply (3 Nov, spec docs/specs/2026-11-03-interline-replies.md): one line per request, the country,
+   airline and partner on the left, the day requested and days waiting on the right; amber at or over the setting. It
+   wraps instead of scrolling, so a phone at 380 px shows it whole. */
+.ilwait > h3.rh{display:flex;flex-direction:column;gap:4px}
+.ilwait > h3.rh .note{margin:0}
+.ilwait > h3.rh .note.ilwover{color:var(--warn);font-weight:600}
+.ilwlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ilw{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 16px;padding:10px 14px;border-radius:var(--r-md);
+  background:var(--porcelain);box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.ilw.over{background:var(--amber-soft);box-shadow:inset 0 0 0 1px var(--amber)}
+.ilwmain{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;min-width:0;flex:1 1 220px}
+.ilwcty{font-weight:800;overflow-wrap:anywhere}
+.ilwal{display:inline-flex;align-items:center;gap:8px;font:500 var(--t-small)/1.4 var(--font);color:var(--muted);overflow-wrap:anywhere;min-width:0}
+.ilwpartner{font:500 var(--t-small)/1.4 var(--font);overflow-wrap:anywhere;min-width:0}
+.ilwwhen{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 10px;font:500 var(--t-small)/1.4 var(--font);color:var(--muted);min-width:0}
+.ilwdays{color:var(--ink);font-variant-numeric:tabular-nums}
+.ilw.over .ilwdays{color:var(--warn)}
+.ilwmark{white-space:normal}
+@media (max-width:640px){
+  .ilwait{padding:20px 16px}
+  .ilwwhen{justify-content:flex-start}
+}
+
 .ilrows .ilguide,.ilrows .ilcovered{margin:0;max-width:110ch;color:var(--ink);font-size:var(--t-body);line-height:1.6;overflow-wrap:anywhere}
 
 @media (max-width:640px){

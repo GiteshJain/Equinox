@@ -721,12 +721,20 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
 - **The answer is the title:** how many agreements are still to sign ("5 agreements to set up"), or **All agreements in
   place**. The **Airline** and **Status** filters sit beside it as pills and are in the address
   (/planner/interline?airline=KF&status=open).
+- **Waiting for a reply** (since 3 Nov, the first board): every request we sent that waits on the other airline (status
+  requested, with a partner), oldest first: the airline (its colour dot), the country, the partner, the day requested
+  ("requested 2 Nov") and the days waiting. A request waiting as long as the setting *interline_reply_wait_days* or longer
+  is amber, marked **no reply in two weeks** (with 14; another number says "no reply in N days"). The board's line says how
+  many wait and how many are past the mark, or **No requests waiting**. This is the Saturday review's list of unanswered
+  requests (manual §6). It is not on Today.
 - **Tiles by status:** still to sign, not contacted, requested, signed, declined and no partner in Gander yet, each with
   its count (for the airline picked, or all). Tapping a tile shows only those rows (?status=none, requested, signed,
   declined, nopartner or open); tapping it again shows all.
 - **Interline agreements:** one table, grouped by airline under its colour dot and logo, one row per interline country
   it flies to or has planned (on a plan card not yet filed), with the airports, round trips a day (or **planned**), the
-  status, the partner in the game, since when and notes. Each saves as you change it (a box when you leave it). On a
+  status, the partner in the game, **requested on** (since 3 Nov), since when and notes. Each saves as you change it (a
+  box when you leave it). Setting a row to requested fills **requested on** with today's UTC date when it has none;
+  change it in its box if the request went earlier. Another status leaves the day as it was. On a
   phone each row is a compact card (country, airline, status pill) that opens to its fields. Today's needs attention
   counts the rows still without an agreement.
 - **The rules,** as rows that open (all closed on arrival; **Expand all** and **Collapse all**): **The interline
@@ -766,7 +774,8 @@ when you leave it, as one change.
   from the airline's station pool, or says the pool is full.
 - **Constants** are rule numbers (the settings, the departures cap in the world's rules): only numbers are taken, and a
   change to one goes in the operating manual too. Since 21 Oct **World scan every** (*scan_every_days*: 1 is every
-  evening, 3 about twice a week) is one of them.
+  evening, 3 about twice a week) is one of them, and since 3 Nov **Interline reply wait** (*interline_reply_wait_days*,
+  14: when Interline marks a request as having no reply).
 - **Aircraft** and **Configs:** block estimates are the block allowance plus the distance at the type's cruise speed
   (manual §4); seats per cabin config.
 - **Order cabin** (in Aircraft, since 15 Oct): the layout a new order of each type comes with, picked from the type's

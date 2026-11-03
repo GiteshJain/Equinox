@@ -15,8 +15,13 @@
 // do when another airline asks and the countries each airline covers as rows that open (FoldBoard), closed on arrival.
 // The rows and rules are model.ts's, on the start's rules input (rotations, routes, bases, the flown airports' countries),
 // the waiting plan cards and the setting interline_rules (manual §6), made in useRows.ts, which Home's interline line shares.
+// Since 3 Nov (spec docs/specs/2026-11-03-interline-replies.md; manual §6, requests unanswered for two weeks) a board at the
+// top, Waiting for a reply: every to_sign row of the world with a partner, oldest first, with the day requested
+// (interline_agreements.requested_on) and the days waiting, marked amber at or over the setting interline_reply_wait_days;
+// each row of the table has a Requested on box, and a row set to requested without a day gets today's UTC date in the save.
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useNow } from "../../data/clock";
 import { useWorld } from "../../data/reads";
 import { saver } from "../../data/saving";
 import { AirlineMark } from "../../ui/AirlineMark";
@@ -26,7 +31,8 @@ import { loadLogos } from "../../ui/siteFiles";
 import { useGameHost } from "../tails/reads";
 import {
   IL_STATUS, STATUS_WORDS, agreementChange, airportsOf, answerWords, byAirline, coveredWords, filterSearch, isOpen, parseFilters, type parseRules,
-  rtWords, shownRows, statusCounts, statusOf, type AgreementRow, type IlAirline, type IlField, type IlRow, type IlStatus, type StatusFilter,
+  dayWords, daysWords, rtWords, shownRows, statusCounts, statusOf, waitDaysOf, waitWords, waitingLine, waitingRows,
+  type AgreementRow, type IlAirline, type IlField, type IlRow, type IlStatus, type StatusFilter,
 } from "./model";
 import { useAgreements, useCountries } from "./reads";
 import { useInterlineRows } from "./useRows";
@@ -59,6 +65,8 @@ export function Interline() {
   const hostQ = useGameHost(w);
   const [logos, setLogos] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
+  const now = useNow();
+  const today = now.toISOString().slice(0, 10);
   useEffect(() => {
     let alive = true;
     loadLogos().then((l) => { if (alive) setLogos(l); }).catch(() => { if (alive) setLogos({}); });
@@ -76,7 +84,7 @@ export function Interline() {
 
   async function edit(r: IlRow, field: IlField, value: string) {
     if (w === undefined) return;
-    const ch = agreementChange(w, r.airline_id, r.cc, rec(r), field, value);
+    const ch = agreementChange(w, r.airline_id, r.cc, rec(r), field, value, new Date().toISOString().slice(0, 10));
     if (!ch) return;
     setBusy(true);
     try {
@@ -105,12 +113,58 @@ export function Interline() {
       {loadError ? <ErrorBox error={loadError} /> : null}
       {rules && !ilRules ? <ErrorBox error="The interline rules (settings.interline_rules) aren't in the database yet." /> : null}
       {!ready && !loadError ? <div className="empty">Loading…</div> : null}
+      {ready && rows ? (
+        <Waiting agreements={agreementsQ.data ?? []} today={today} waitDays={waitDaysOf(rules?.input.settings.interline_reply_wait_days)}
+          airlines={airlines} al={al} ctryName={ctryName} />
+      ) : null}
       {ready && rows && ilRules ? (
         <Agreements rows={rows} filters={filters} rules={ilRules} airlines={airlines} logos={logos ?? {}} host={host ?? null} busy={busy}
           countries={countriesQ.data ?? []} home={home} ctryName={ctryName} nameOf={nameOf} rec={rec} codeOf={codeOf} al={al}
           onFilter={setFilters} onEdit={(r, f, v) => void edit(r, f, v)} />
       ) : null}
     </main>
+  );
+}
+
+/** Waiting for a reply (3 Nov, manual §6): the requests we sent that wait on the other airline, oldest first, each with its
+ *  airline, country, partner, the day requested and the days waiting; amber at or over interline_reply_wait_days. A list,
+ *  not a table, so a phone shows it whole at 380 px. No chart (Gitesh, 3 Nov). */
+function Waiting({ agreements, today, waitDays, airlines, al, ctryName }: {
+  agreements: readonly AgreementRow[]; today: string; waitDays: number; airlines: readonly IlAirline[];
+  al: (id: number) => IlAirline | undefined; ctryName: (cc: string) => string;
+}) {
+  const rows = waitingRows(agreements, today, waitDays, airlines.map((a) => a.id));
+  const over = rows.filter((r) => r.overdue).length;
+  const mark = `no reply in ${waitWords(waitDays)}`;
+  return (
+    <section className="board ilwait" aria-labelledby="il-wait-h" data-figure="interline: waiting" data-waiting={rows.length} data-overdue={over}>
+      <h3 className="rh" id="il-wait-h">
+        <span className="rht">Waiting for a reply</span>
+        <span className={"note" + (over ? " ilwover" : "")}>{waitingLine(rows, waitDays)}</span>
+      </h3>
+      {rows.length ? (
+        <ul className="ilwlist">
+          {rows.map((x) => {
+            const a = al(x.row.airline_id);
+            return (
+              <li key={x.row.id} className={"ilw" + (x.overdue ? " over" : "")} data-il-wait={`${a?.code ?? x.row.airline_id}|${x.row.country_code}`}
+                data-days={x.days ?? ""} data-overdue={x.overdue ? "yes" : "no"}>
+                <span className="ilwmain">
+                  <b className="ilwcty">{ctryName(x.row.country_code)}</b>
+                  <span className="ilwal"><AirlineMark color={a?.color} />{a?.name ?? ""}</span>
+                  <span className="ilwpartner">{x.row.partner}</span>
+                </span>
+                <span className="ilwwhen">
+                  <span className="ilwday">{x.row.requested_on ? `requested ${dayWords(x.row.requested_on)}` : "no date requested"}</span>
+                  <b className="ilwdays">{daysWords(x.days)}</b>
+                  {x.overdue ? <span className="pill sm warn ilwmark">{mark}</span> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 
@@ -198,7 +252,7 @@ function Agreements(p: {
         {shown.length ? (
           <div className="tblwrap">
             <table className="tbl il">
-              <thead><tr><th>Country</th><th>Airports we fly there</th><th>Round trips/day</th><th>Status</th><th>Partner in the game</th><th>Since</th><th>Notes</th></tr></thead>
+              <thead><tr><th>Country</th><th>Airports we fly there</th><th>Round trips/day</th><th>Status</th><th>Partner in the game</th><th>Requested on</th><th>Since</th><th>Notes</th></tr></thead>
               {byAirline(shown).map((g) => {
                 const a = p.al(g.airline_id);
                 const logo = a ? p.logos[a.name] : undefined;
@@ -206,7 +260,7 @@ function Agreements(p: {
                 return (
                   <tbody key={g.airline_id} data-il-airline={a?.code ?? g.airline_id}>
                     <tr className="ilgrp">
-                      <th colSpan={7} scope="colgroup">
+                      <th colSpan={8} scope="colgroup">
                         <span className="ilgname">{mark(g.airline_id)}{logo ? <img className="alogo" src={logo} alt={a?.name ?? ""} style={{ height: 16 } as CSSProperties} /> : <b>{a?.name ?? ""}</b>}</span>
                         <span className="ilgnote">{g.rows.length} countr{g.rows.length === 1 ? "y" : "ies"}{gOpen ? ` · ${gOpen} still to sign` : " · all settled"}</span>
                       </th>
@@ -235,6 +289,8 @@ function Agreements(p: {
                           </td>
                           <td data-l="Partner in the game"><input key={`p|${v?.partner ?? ""}`} data-il={k} data-ilk="partner" defaultValue={v?.partner ?? ""} placeholder="airline name"
                             onBlur={(e) => { if (e.currentTarget.value !== (v?.partner ?? "")) p.onEdit(r, "partner", e.currentTarget.value); }} onKeyDown={enter} /></td>
+                          <td data-l="Requested on"><input key={`r|${v?.requested_on ?? ""}`} type="date" data-il={k} data-ilk="requested" defaultValue={v?.requested_on ?? ""}
+                            onBlur={(e) => { if (e.currentTarget.value !== (v?.requested_on ?? "")) p.onEdit(r, "requested", e.currentTarget.value); }} onKeyDown={enter} /></td>
                           <td data-l="Since"><input key={`d|${v?.decided_on ?? ""}`} type="date" data-il={k} data-ilk="date" defaultValue={v?.decided_on ?? ""}
                             onBlur={(e) => { if (e.currentTarget.value !== (v?.decided_on ?? "")) p.onEdit(r, "date", e.currentTarget.value); }} onKeyDown={enter} /></td>
                           <td data-l="Notes"><input key={`n|${v?.note ?? ""}`} data-il={k} data-ilk="notes" defaultValue={v?.note ?? ""}

@@ -115,12 +115,12 @@ export const IL_STATUS: readonly IlStatus[] = ["none", "requested", "signed", "d
 export const STATUS_WORDS: Record<IlStatus, string> = {
   none: "not contacted", requested: "requested", signed: "signed", declined: "declined", nopartner: "no partner in Gander yet",
 };
-/** An interline_agreements row as read. */
+/** An interline_agreements row as read (requested_on since 3 Nov: the day we sent the request). */
 export interface AgreementRow {
   id: number; world_id: number; airline_id: number; country_code: string; status: string | null; partner: string | null;
-  decided_on: string | null; note: string | null; updated_at: string;
+  decided_on: string | null; requested_on: string | null; note: string | null; updated_at: string;
 }
-export const AGREEMENT_COLUMNS = "id, world_id, airline_id, country_code, status, partner, decided_on, note, updated_at";
+export const AGREEMENT_COLUMNS = "id, world_id, airline_id, country_code, status, partner, decided_on, requested_on, note, updated_at";
 
 /** The row's status as the old screen showed it (to_sign is the old "requested"; none when there's no row or no status). */
 export function statusOf(a: AgreementRow | undefined): IlStatus {
@@ -131,27 +131,86 @@ export function statusOf(a: AgreementRow | undefined): IlStatus {
 /** Still to sign: not signed, declined or without a partner in the game. */
 export const isOpen = (s: IlStatus) => !["signed", "declined", "nopartner"].includes(s);
 
-export type IlField = "status" | "partner" | "date" | "notes";
-const COLUMN: Record<IlField, keyof AgreementRow> = { status: "status", partner: "partner", date: "decided_on", notes: "note" };
+export type IlField = "status" | "partner" | "date" | "requested" | "notes";
+const COLUMN: Record<IlField, keyof AgreementRow> = { status: "status", partner: "partner", date: "decided_on", requested: "requested_on", notes: "note" };
 
 /** The change one edit makes (the old change handler and the adapter's interline step): a value typed (none or empty takes
- *  it out) on the airline–country's row; a row left with nothing in it is removed; none when nothing changes. */
-export function agreementChange(worldId: number, airlineId: number, cc: string, row: AgreementRow | undefined, field: IlField, typed: string): Change | null {
+ *  it out) on the airline–country's row; a row left with nothing in it is removed (the day requested alone doesn't keep
+ *  it); none when nothing changes. Since 3 Nov (spec docs/specs/2026-11-03-interline-replies.md) a row whose status
+ *  becomes to_sign without a requested_on gets today's UTC date (today, YYYY-MM-DD) in the same change; any other status
+ *  leaves the day as it is (history). */
+export function agreementChange(worldId: number, airlineId: number, cc: string, row: AgreementRow | undefined, field: IlField, typed: string,
+  today: string): Change | null {
   const v = typed.trim();
   const keep = v && v !== "none" ? v : null;
   const db = field === "status" && keep ? (["signed", "declined", "nopartner"].includes(keep) ? keep : "to_sign") : keep;
   const col = COLUMN[field];
-  const now = { status: row?.status ?? null, partner: row?.partner ?? null, decided_on: row?.decided_on ?? null, note: row?.note ?? null };
+  const now = { status: row?.status ?? null, partner: row?.partner ?? null, decided_on: row?.decided_on ?? null, requested_on: row?.requested_on ?? null,
+    note: row?.note ?? null };
   const next = { ...now, [col]: db };
+  const stamp = field === "status" && db === "to_sign" && now.status !== "to_sign" && !now.requested_on;
+  if (stamp) next.requested_on = today;
   if (!next.status && !next.partner && !next.decided_on && !next.note) {
     return row ? { table: "interline_agreements", op: "delete", key: { id: row.id }, base: row.updated_at } : null;
   }
   if (row) {
     if ((now as Record<string, unknown>)[col] === db) return null;
-    return { table: "interline_agreements", op: "update", key: { id: row.id }, base: row.updated_at, values: { [col]: db } };
+    return { table: "interline_agreements", op: "update", key: { id: row.id }, base: row.updated_at, values: { [col]: db, ...(stamp ? { requested_on: today } : {}) } };
   }
   return { table: "interline_agreements", op: "insert", values: { world_id: worldId, airline_id: airlineId, country_code: cc, ...next } };
 }
+
+// ---------- waiting for a reply (since 3 Nov, spec docs/specs/2026-11-03-interline-replies.md; manual §6: the Saturday
+// review lists requests unanswered for two weeks)
+/** A request we sent that waits on the other airline: its row, the days since requested_on (none without one) and
+ *  whether it is at or over the setting interline_reply_wait_days. */
+export interface WaitingRow { row: AgreementRow; days: number | null; overdue: boolean }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** A day as words: "2 Nov" (none for none). */
+export function dayWords(day: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day ?? "");
+  if (!m) return "";
+  return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? ""}`;
+}
+/** Whole days from one YYYY-MM-DD day to another. */
+export function daysBetween(from: string, to: string): number {
+  const t = (s: string) => Date.parse(s.slice(0, 10) + "T00:00:00Z");
+  return Math.round((t(to) - t(from)) / 86_400_000);
+}
+/** The setting's wait as words: 14 is "two weeks", any other number "N days" ("1 day"). */
+export const waitWords = (days: number): string => (days === 14 ? "two weeks" : `${days} day${days === 1 ? "" : "s"}`);
+/** The setting interline_reply_wait_days from the start's settings; 14 (manual §6's two weeks) when it isn't a number. */
+export function waitDaysOf(v: Json | undefined): number {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 14;
+}
+
+/** The board's rows: every agreement with status to_sign and a partner, oldest request first (a row without requested_on
+ *  last), then the airlines' order and the country; each with its days waiting at today (UTC, YYYY-MM-DD) and whether
+ *  that is at or over waitDays. */
+export function waitingRows(rows: readonly AgreementRow[], today: string, waitDays: number, airlineOrder: readonly number[] = []): WaitingRow[] {
+  const order = (id: number) => { const i = airlineOrder.indexOf(id); return i < 0 ? airlineOrder.length : i; };
+  return rows
+    .filter((r) => r.status === "to_sign" && !!r.partner?.trim())
+    .map((r) => {
+      const days = r.requested_on ? Math.max(0, daysBetween(r.requested_on, today)) : null;
+      return { row: r, days, overdue: days != null && days >= waitDays };
+    })
+    .sort((a, b) => {
+      const x = a.row.requested_on, y = b.row.requested_on;
+      if (x !== y) return x == null ? 1 : y == null ? -1 : x < y ? -1 : 1;
+      return order(a.row.airline_id) - order(b.row.airline_id) || (a.row.country_code < b.row.country_code ? -1 : a.row.country_code > b.row.country_code ? 1 : 0);
+    });
+}
+/** The board's line: how many wait and how many are past the mark; "No requests waiting" with none. */
+export function waitingLine(rows: readonly WaitingRow[], waitDays: number): string {
+  if (!rows.length) return "No requests waiting";
+  const over = rows.filter((r) => r.overdue).length;
+  return `${rows.length} request${rows.length === 1 ? "" : "s"} waiting · ${over ? over : "none"} with no reply in ${waitWords(waitDays)}`;
+}
+/** Days waiting as words: "0 days", "1 day", "15 days"; "no date" without requested_on. */
+export const daysWords = (days: number | null): string => (days == null ? "no date" : `${days} day${days === 1 ? "" : "s"}`);
 
 // ---------- the filters, in the address (?airline=KF&status=open)
 /** Since 23 Oct (spec docs/specs/2026-10-23-planner-look-interline.md §2) each status's tile filters by it too, so the

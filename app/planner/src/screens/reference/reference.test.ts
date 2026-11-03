@@ -99,6 +99,12 @@ describe("constants, types, layouts, markets and service profiles", () => {
     expect(constantValue("scan_every_days", s, rules)).toBe("1");
     expect(constantChange("scan_every_days", "3", s, rules)).toEqual({ table: "settings", op: "update", key: { id: 9 }, base: "e", values: { value: 3 } });
   });
+  it("interline_reply_wait_days is a constant (3 Nov, spec docs/specs/2026-11-03-interline-replies.md): how long a request may wait for a reply", () => {
+    expect(CONSTANTS.find(([, , key]) => key === "interline_reply_wait_days")?.[0]).toBe("ilReplyWait");
+    const s = [...settings, { id: 10, key: "interline_reply_wait_days", value: 14, updated_at: "i" }];
+    expect(constantValue("interline_reply_wait_days", s, rules)).toBe("14");
+    expect(constantChange("interline_reply_wait_days", "10", s, rules)).toEqual({ table: "settings", op: "update", key: { id: 10 }, base: "i", values: { value: 10 } });
+  });
   it("a type's, a layout's, a market's and a profile's box: that column only", () => {
     const t = { id: 3, name: "E195-E2", family_no: 83, seats_max: 146, cruise_kmh: 831, min_turn_min: 67, gap_target_h: 3, order_config_id: null, updated_at: "y" };
     expect(typeChange(t, "cruise", "840")?.values).toEqual({ cruise_kmh: 840 });
