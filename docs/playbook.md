@@ -136,7 +136,7 @@ button.
 | **Tails** | Every aircraft: flights a week, block hours a day, maintenance, issues. **Deliveries** lists aircraft on order or arrived, with their plan cards, the service check and the cabin the rule calls for (**Use the suggestion**). Filing happens here | When an aircraft arrives; when something needs a look |
 | **Performance** | How each airline is doing, and why. The scorecards (each figure against the same day last week), **Growth signals** (sold out, sold out · fares climbing, fix or reduce, losing after lease), **Main hubs**, **Flights by day**. Tap a scorecard for the airline's page: profit, **Cash, next 14 days**, route profit with its aircraft and fare changes, **The fare ladder** (since 26 Oct; the group page's fare ladder links to each airline's), the fare plan; a route's name there opens its **route page**, its story since launch (since 22 Oct) | Before every order; on Saturdays |
 | **Competition** | Who we're up against and where to open next (since 21 Oct). The scans' dates and the group line on top; for each airline its **Market share** by market (our share, its arrow, the top rivals as a bar), **Threats** (rivals who started on or grew on our pairs), **Openings** ranked (stars, rivals, distance; variant and hubs first) and **Rival profiles** | Each evening before an order; on Saturdays |
-| **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner. The countries and each airline's skip list | When a route opens a new country; when an airline asks to interline |
+| **Interline** | One row per airline and foreign country it flies to: to sign, signed or declined, with the partner (it still works from the old country list: manual, *Decided, not yet built*) | When a route opens a new foreign airport; when an airline asks to interline |
 | **Photos** | Logos and destination photos for the website | When a new destination has no photo |
 | **Reference** | The rule numbers (Constants), aircraft types and cabins, order cabins, markets, service profiles, night bans, time zones, removed routes, exports | Rarely; a rule number changes here and in the manual together (manual §1, rule numbers have one source) |
 | **Systems** | The plumbing. The **Systems** board (is everything working?), then the capture's details, and **Manual entry** if a capture fails | When Today's capture line or needs attention points there |
@@ -270,12 +270,12 @@ File it as soon as it arrives (rule: manual §4, how it runs).
    cabin's price, and adds each flight with its return as a round trip, launched today. With no cabin on the card or the
    order it sets none and says so: choose it on the card (**Cabin**, or **Use the suggestion**) before filing.
 
-### Step 7: Interline, if the route opens a new country
-- Planner → **Interline** shows the new airline–country row as **to sign**.
-- Decide whether to sign, and with whom, by the interline rules (manual §6: our airlines interline with each other;
-  outside partners; where not to). Each airline's skip list is on the Interline screen.
-- Send the request in the game, then set the row to signed with the partner. When another airline asks us, accept or
-  decline by the same rules (manual §6, Gulf hub carriers are rivals).
+### Step 7: Interline, if the route opens a new foreign airport
+- The plan card names the airport's partner, picked by the rules (manual §6: one outside partner per foreign airport;
+  never a competitor or a hub carrier).
+- Send the request in the game when you set up the aircraft; the Scheduling chat records it on the Interline screen and
+  sets it to signed when the partner accepts. When another airline asks us, accept or decline by the same rules
+  (manual §6, incoming requests).
 
 ### Step 8: Confirm it flies
 - The next evening's capture should show the new flights. The loads check counts a new aircraft only once it has
@@ -338,6 +338,8 @@ as normal on Friday evening first.
    - **Orders:** each airline's cash forecast. Orders themselves go in every evening the forecast allows (section 6,
      step 1), not in a Saturday batch.
    - **Hubs first:** each main hub's progress (Performance → **Main hubs**).
+   - **Interline partners:** any that became a top-3 competitor or hub carrier, and airports without one (rule: manual
+     §6, the partner follows the network).
    - **To-dos:** go through the board (Today).
    - **Triggers:** anything that needs a decision brief (Supabase's plan, a new base; manual §1, Supabase stays on the
      free plan).

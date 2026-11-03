@@ -26,6 +26,9 @@ Until each is built and merged, the rules below stand as they are.
   Building chat when `site_public()` passes 500 KB (109 KB on 12 Oct), the website's calls pass 1,000 a day (about 40),
   or Supabase's egress passes 4 GB in a month with the website a large part of it. *(since 12 Oct; history:
   rule-history.md)*
+- **The Interline screen still works from the old country list** (`settings.interline_rules`: countries, skip lists,
+  rivals): until it's rebuilt for §6's partner per airport, the Scheduling chat picks partners from the world scan by §6
+  and records them on the screen. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
 
@@ -567,12 +570,24 @@ Details and open points: `docs/decisions.md`.
 
 ## 6. Interline
 - **Our airlines interline with each other.**
-- **Outside partners:** for each major airport the group flies to that isn't our base, an interline with that country's
-  major airline, but only in countries with a real domestic market or that are the gateway to a region we can't fly to
-  directly. *(since 25 and 28 Sep)*
-- **Where not to:** nowhere in Ryanair's Europe zone; for Pan Am, not in Canada, Mexico, the Caribbean or Central
-  America; each airline has its own skip list (in the planner's Interline tab). *(since 26 Sep)*
-- **Gulf hub carriers are rivals:** decline their requests. *(since 5 Oct; history: rule-history.md)*
+- **One outside partner per foreign airport, the one that feeds us most:** at every airport an airline of ours flies to
+  outside our base countries (the countries of our hubs and focus cities), that airline signs the one local airline
+  that adds the most onward places it doesn't fly from there, at least 3, in the latest world scan. Any country, Europe
+  and the Americas included, and Ryanair too. A country can have more than one partner when they serve different
+  airports. *(since 2 Nov, brief `docs/briefs/2026-11-02-interline-rules.md`; history: rule-history.md)*
+- **Never a competitor or a hub carrier:** no partner that is one of that airline's three biggest competitors (the
+  weekly report's, `competition()`); none of the hub carriers (Emirates, Qatar Airways, Etihad, Turkish Airlines,
+  Singapore Airlines, Cathay Pacific, Asiana, Korean Air, Oman Air, Saudia, Riyadh Air); and none based in one of our
+  base countries, where the partner is our own airline. Their requests are declined. *(the Gulf carriers since 5 Oct;
+  the rest since 2 Nov; history: rule-history.md)*
+- **Incoming requests** are accepted from an airline that adds 3 or more onward places at one of our airports and isn't
+  excluded above; the rest are declined. *(since 2 Nov)*
+- **The partner follows the network:** the plan card that opens a foreign airport names its partner, Gitesh sends the
+  request when he sets the aircraft up, and the Scheduling chat records it on the Interline screen. The Saturday review
+  lists partners that have become a top-3 competitor or a hub carrier (cancelled: the contract ends with that
+  accounting week) and airports still without one. Results are reviewed at the 5 Dec monthly session: routes to
+  partnered airports should climb the fare ladder faster; if not, keep only partners adding 10 or more places.
+  *(since 2 Nov)*
 
 ## 7. Recurring work
 - **Every evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments straight
@@ -650,7 +665,7 @@ Details and open points: `docs/decisions.md`.
     *since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`*);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
   - the weekly review together: the fare ladder's moves (§5), aircraft under 12 block hours a day (§4), orders and
-    hubs first.
+    hubs first, and interline partners (§6: any that became a top-3 competitor or hub carrier, airports without one).
 
   *(since 5–8 Oct)*
 - **Every night, after the capture:** an automatic backup copies the database and the site's files, restores the copy

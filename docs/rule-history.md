@@ -681,6 +681,25 @@ The entry retired with it: "- **The fare ladder's hold after a step up** (§5, s
 
 ### 6. Interline
 
+#### One outside partner per foreign airport, never a competitor
+*Since 2 Nov (Gitesh, Scheduling chat, brief `docs/briefs/2026-11-02-interline-rules.md`, option B with Ryanair in:
+"agreed with your recommendations").* Earlier wording, since 25, 26 and 28 Sep:
+- "**Outside partners:** for each major airport the group flies to that isn't our base, an interline with that
+  country's major airline, but only in countries with a real domestic market or that are the gateway to a region we
+  can't fly to directly."
+- "**Where not to:** nowhere in Ryanair's Europe zone; for Pan Am, not in Canada, Mexico, the Caribbean or Central
+  America; each airline has its own skip list (in the planner's Interline tab)."
+- "**Gulf hub carriers are rivals:** decline their requests." (kept, widened to the hub carriers)
+
+Why (Gitesh: "very strict right now"): the old rules allowed a partner at 16 of our ~115 foreign airports, so ~85
+carried local passengers only, while most routes sell out and the missing feed costs fare level. A connection always
+rates below a direct flight, so a partner never takes passengers off our own direct flights. But interlining is mutual,
+so partners are limited to non-competitors: signing with everyone (option C, ~228 contracts) would feed Air China
+against China Eastern, British Caledonian against Virgin, and Air France and KLM against Ryanair; adding the hub
+carriers (option D) would feed Dubai, Doha and Singapore against Kuala Lumpur and Delhi. Ryanair is included because
+Gander rewards connections and it gains the most. The 2 Nov requests to all three Aeroflot-group airlines for Virgin
+(Rossiya, Aeroflot, Pobeda) were sent before the rule and stand.
+
 #### Gulf hub carriers are rivals
 *Since 5 Oct · why: they would carry our passengers through Dubai against Kingfisher and Malaysia.*
 
