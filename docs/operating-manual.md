@@ -582,8 +582,14 @@ Details and open points: `docs/decisions.md`.
   Singapore Airlines, Cathay Pacific, Asiana, Korean Air, Oman Air, Saudia, Riyadh Air); and none based in one of our
   base countries, where the partner is our own airline. Their requests are declined. *(the Gulf carriers since 5 Oct;
   the rest since 2 Nov; history: rule-history.md)*
-- **Incoming requests** are accepted from an airline that adds 3 or more onward places at one of our airports and isn't
-  excluded above; the rest are declined. *(since 2 Nov)*
+- **Incoming requests are accepted unless the airline works against us:** a hub carrier, a top-3 competitor of one of
+  our airlines, one based in our base countries, or one whose contract would route our passengers round one of our
+  hubs (an Australian carrier for Kingfisher, say: India–Oceania goes via KUL, §2). A harmless request is accepted
+  even when it adds little, since a denial is remembered by the player and a contract costs a few staff. The 3-place
+  test applies only to the requests we send. *(since 2 Nov, Gitesh)*
+- **Our hubs come first:** no partner, requested or accepted, whose hub competes with another of our airlines' hubs
+  for the same flow (Bangkok or Singapore against KUL for India–Asia, say), even when it isn't that airline's own
+  competitor. *(since 2 Nov, Gitesh: Thai and Qantas declined for Kingfisher)*
 - **The partner follows the network:** the plan card that opens a foreign airport names its partner, Gitesh sends the
   request when he sets the aircraft up, and the Scheduling chat records it on the Interline screen. The Saturday review
   lists partners that have become a top-3 competitor or a hub carrier (cancelled: the contract ends with that

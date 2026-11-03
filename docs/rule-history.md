@@ -700,6 +700,16 @@ carriers (option D) would feed Dubai, Doha and Singapore against Kuala Lumpur an
 Gander rewards connections and it gains the most. The 2 Nov requests to all three Aeroflot-group airlines for Virgin
 (Rossiya, Aeroflot, Pobeda) were sent before the rule and stand.
 
+#### Incoming requests: accept unless it works against us; our hubs come first
+*Since 2 Nov (Gitesh, Scheduling chat, on Kingfisher's five waiting requests).* Earlier wording the same day:
+"Incoming requests are accepted from an airline that adds 3 or more onward places at one of our airports and isn't
+excluded above; the rest are declined." · why (Gitesh): "if we deny they might not want to sign with us in future.
+having something useless costs nothing in money almost. we should only deny if it works against us". So ANA (one
+Saigon–Tokyo link) and Etihad Cargo (freight only) were accepted; Asiana and Singapore Airlines denied as hub
+carriers. "Our hubs come first" came from the same evening: Thai (Bangkok) and Qantas (Singapore–Sydney) would carry
+Kingfisher's passengers round KUL, which §2 reserves for India–Oceania, though neither is Kingfisher's own top-3
+competitor; Thai and Qantas were declined and the old Virgin Australia contract terminated.
+
 #### Gulf hub carriers are rivals
 *Since 5 Oct · why: they would carry our passengers through Dubai against Kingfisher and Malaysia.*
 
