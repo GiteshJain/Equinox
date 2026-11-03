@@ -816,6 +816,10 @@ $test$;
 --     ZVC jumped on 22 Dec, stepped up to 85 on 14 Jan, sold out again: held after a step up (the next Saturday's hold);
 --     ZVD at 60 marked cut or keep? (a hold recorded on 12 Jan), sold out 7 of 7: up 60 → 65, the mark goes;
 --     ZVE jumped on 8 Dec, climbed back to launch on 5 Jan, sold out 7 of 7: up 100 → 105, on to the cap like any route.
+--     ZVF (since 2 Nov, migration 20261102240000) jumped on 5 Jan, 88% full, sold out 0 of 7: under 90% sold out but 80%
+--         full or more over its 14 days since the jump, so it holds at 80 ("at 80% since 5 Jan: sold out 0 of 7 but 88%
+--         full over 14 days: holds at 80%, judged again next Saturday"), nothing to put on the plan; ZV8 (40% full) still
+--         jumps to 60.
 --   L9 (launch 85%, as Ryanair, the world's levels): ZY1 41% full: jumps to 80.
 --   L10 (launch 85%, its own levels [75, 60], as Ryanair's row): ZX1 41% full: jumps to 75.
 -- Then: a jump and a cut-or-keep hold put on the fare plan this Saturday keep their kind and mark, and
@@ -844,7 +848,7 @@ begin
   select x.id into ty from public.aircraft_types x where x.world_id = w and x.name = 'LADDER TEST TYPE';
   select x.id into cy from public.cabin_configs x where x.world_id = w and x.code = 'LAD-Y';
   insert into public.airports (code, utc_offset)
-  select c, 0 from unnest(array['ZV0', 'ZV1', 'ZV2', 'ZV3', 'ZV4', 'ZV5', 'ZV6', 'ZV7', 'ZV8', 'ZV9', 'ZVA', 'ZVB', 'ZVC', 'ZVD', 'ZVE',
+  select c, 0 from unnest(array['ZV0', 'ZV1', 'ZV2', 'ZV3', 'ZV4', 'ZV5', 'ZV6', 'ZV7', 'ZV8', 'ZV9', 'ZVA', 'ZVB', 'ZVC', 'ZVD', 'ZVE', 'ZVF',
                                 'ZY0', 'ZY1', 'ZX0', 'ZX1']) c
   on conflict (code) do update set utc_offset = excluded.utc_offset;
   insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position) values
@@ -904,6 +908,11 @@ begin
   r := pg_temp.ladder_route(w, l8, 'ZV0', 'ZV8', 98, 0, 0, date '2029-11-01', ty, cy, with_base => false);
   perform pg_temp.ul_days(w, l8, 'ZV0', 'ZV8', 98, date '2029-12-22', date '2030-01-05', 40, 300);
   perform pg_temp.ul_days(w, l8, 'ZV0', 'ZV8', 98, date '2030-01-05', date '2030-01-19', 40, 240);
+  perform pg_temp.ladder_row(w, l8, r, 'economy', 80, 'jump', date '2030-01-05', 300, -20);
+  -- ZVF (since 2 Nov): jumped on 5 Jan, then 88% full at 80: under 90% sold out, but not under 80% full
+  r := pg_temp.ladder_route(w, l8, 'ZV0', 'ZVF', 107, 0, 0, date '2029-11-01', ty, cy, with_base => false);
+  perform pg_temp.ul_days(w, l8, 'ZV0', 'ZVF', 107, date '2029-12-22', date '2030-01-05', 40, 300);
+  perform pg_temp.ul_days(w, l8, 'ZV0', 'ZVF', 107, date '2030-01-05', date '2030-01-19', 88, 240);
   perform pg_temp.ladder_row(w, l8, r, 'economy', 80, 'jump', date '2030-01-05', 300, -20);
   -- ZV9 and ZVA: to 80 on 22 Dec, to 60 on 5 Jan; ZVA's cut-or-keep hold recorded on 12 Jan
   r := pg_temp.ladder_route(w, l8, 'ZV0', 'ZV9', 99, 0, 0, date '2029-11-01', ty, cy, with_base => false);
@@ -1023,9 +1032,10 @@ begin
        || 'ZVB down 105>100 (sold out 0 of 7, down to launch (100%)) down to_plan; '
        || 'ZVC hold 85>85 (held after a step up on 14 Jan) hold; '
        || 'ZVD up 60>65 (sold out 7 of 7) up to_plan; '
-       || 'ZVE up 100>105 (sold out 7 of 7) up to_plan';
+       || 'ZVE up 100>105 (sold out 7 of 7) up to_plan; '
+       || 'ZVF hold 80>80 (at 80% since 5 Jan: sold out 0 of 7 but 88% full over 14 days: holds at 80%, judged again next Saturday) hold';
   assert got = want, 'L8''s moves under launch are ' || got;
-  assert d -> 'moves' = '{"up": 6, "hold": 16, "down": 6, "jumps": 4, "decisions": 4}'::jsonb, 'L8''s moves (directions): ' || (d -> 'moves')::text;
+  assert d -> 'moves' = '{"up": 6, "hold": 18, "down": 6, "jumps": 4, "decisions": 4}'::jsonb, 'L8''s moves (directions): ' || (d -> 'moves')::text;
   -- no revert anywhere, and no revenue in any reason or figure
   assert not exists (select 1 from jsonb_array_elements(d -> 'routes') x
                       where x ->> 'ladder_kind' = 'revert' or x ->> 'reason' ~ 'revenue|back to launch|paid off'
@@ -1034,7 +1044,7 @@ begin
   -- the states and figures, each direction's
   select string_agg(x ->> 'dest' || ' ' || coalesce(x #>> '{under_launch,state}', '—'), ', ' order by x ->> 'dest') into got
     from jsonb_array_elements(d -> 'routes') x where x ->> 'direction' = 'back';
-  assert got = 'ZV1 launch, ZV2 launch, ZV3 launch, ZV4 holding, ZV5 due, ZV6 due, ZV7 done, ZV8 due, ZV9 due, ZVA due, ZVB —, ZVC done, ZVD due, ZVE done',
+  assert got = 'ZV1 launch, ZV2 launch, ZV3 launch, ZV4 holding, ZV5 due, ZV6 due, ZV7 done, ZV8 due, ZV9 due, ZVA due, ZVB —, ZVC done, ZVD due, ZVE done, ZVF due',
     'L8''s under-launch states are ' || got;
   select x -> 'under_launch' into e from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZV1' and x ->> 'direction' = 'out';
   assert e = '{"state": "launch", "window_load": 41.0, "window_flights": 14}'::jsonb, 'ZV1 out''s under_launch is ' || e::text;
@@ -1042,6 +1052,13 @@ begin
   assert e ->> 'jumped_on' = '2030-01-12' and e ->> 'judge_on' = '2030-01-26' and (e ->> 'window_flights')::int = 7, 'ZV4 back''s under_launch is ' || e::text;
   select x -> 'under_launch' into e from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZV9' and x ->> 'direction' = 'back';
   assert (e ->> 'window_load')::numeric = 38 and (e ->> 'window_flights')::int = 14 and e ->> 'jumped_on' = '2030-01-05', 'ZV9 back''s under_launch is ' || e::text;
+  -- the second jump's window (since 2 Nov): the 14 days since the jump, judged on; ZVF 88% full holds, ZV8 40% full jumps
+  select x -> 'under_launch' into e from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZVF' and x ->> 'direction' = 'back';
+  assert (e ->> 'judged_load')::numeric = 88 and (e ->> 'judged_flights')::int = 14 and e ->> 'state' = 'due', 'ZVF back''s under_launch is ' || e::text;
+  select x -> 'under_launch' into e from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZV8' and x ->> 'direction' = 'out';
+  assert (e ->> 'judged_load')::numeric = 40 and (e ->> 'judged_flights')::int = 14, 'ZV8 out''s under_launch is ' || e::text;
+  assert not exists (select 1 from jsonb_array_elements(d -> 'routes') x where x ->> 'dest' = 'ZVF' and ((x ->> 'to_plan')::boolean or (x ->> 'decide')::boolean)),
+    'ZVF''s hold at 80 is put on the fare plan or marked cut or keep';
   -- the game actions: a jump to 80 is −20%, to 60 −40%; a hold at 60 none
   select string_agg(x ->> 'text', ' | ' order by (x ->> 'n')::int) into got from jsonb_array_elements(d -> 'actions') x where x ->> 'from' = 'ZV0';
   assert got = 'From ZV0 to ZV1: −20% of the default price, economy | From ZV0 to ZV5: −15% of the default price, economy | '
@@ -1063,7 +1080,7 @@ begin
   d := private.fig_fare_ladder(l3, t);
   assert not exists (select 1 from jsonb_array_elements(d -> 'routes') x where x ? 'under_launch' and x -> 'under_launch' <> 'null'::jsonb or (x ->> 'decide')::boolean)
      and (d #>> '{moves,jumps}')::int = 0, 'L3 has something under launch: ' || (d -> 'routes')::text;
-  raise notice 'under launch, judged by loads: 41%% full for 14 days at launch jumps to 80 (−20%%); 85%% full or 9 flights doesn''t (waits, saying so); held 14 days from the day seen; then sold out it steps up (80 → 85, and holds the next Saturday after the step), 13 of 14 sold out it holds, 0 of 7 at 80 it jumps to 60 (−40%%), 0 of 7 at 60 it holds marked cut or keep? (recorded once, then marked until it climbs: 60 → 65 when it sells out); no revert, no revenue; back at launch it never jumps again and climbs on (100 → 105); at 105 a 5-point step stops at launch; at 85%% launch the world''s levels give 80, Ryanair''s own 75 (−25%%); a launch of 55%% has none';
+  raise notice 'under launch, judged by loads: 41%% full for 14 days at launch jumps to 80 (−20%%); 85%% full or 9 flights doesn''t (waits, saying so); held 14 days from the day seen; then sold out it steps up (80 → 85, and holds the next Saturday after the step), 13 of 14 sold out it holds, 0 of 7 at 80 and 40%% full it jumps to 60 (−40%%) but 88%% full it holds at 80 (since 2 Nov), 0 of 7 at 60 it holds marked cut or keep? (recorded once, then marked until it climbs: 60 → 65 when it sells out); no revert, no revenue; back at launch it never jumps again and climbs on (100 → 105); at 105 a 5-point step stops at launch; at 85%% launch the world''s levels give 80, Ryanair''s own 75 (−25%%); a launch of 55%% has none';
 end
 $test$;
 
