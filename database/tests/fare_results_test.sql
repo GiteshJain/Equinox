@@ -234,7 +234,7 @@ $test$;
 
 -- ---------------------------------------------------------------- 5. on the copy: speed, and the spec's hand-worked check
 do $test$
-declare a record; t0 timestamptz; ms int; d jsonb; n int; h record; f record; total_ms int := 0; slowest int := 0;
+declare a record; t0 timestamptz; ms int; d jsonb; n int; h record; f record; total_ms int := 0; slowest int := 0; lines text[] := '{}';
 begin
   for a in select al.airline_id, al.iata_code, al.name from private.fig_airlines(private.fig_world(null)) al order by al.ord loop
     t0 := clock_timestamp();
@@ -266,12 +266,13 @@ begin
                    and ((rd.day >= c.seen - 7 and rd.day < c.seen) or (rd.day >= c.seen and rd.day = any (cd.days))))
     select fn.n as fn_n, round(fn.b) as fn_b, round(fn.s) as fn_s, hw.n as hw_n, round(hw.b) as hw_b, round(hw.s) as hw_s, round(hw.lb, 1) as lb, round(hw.ls, 1) as ls
       into h from fn, hw;
-    raise notice '%: % ms, % repriced directions (profit a flight % → %, %, the rest %, % a week); the 26 Oct economy steps up seen 30–31 Oct: % directions, profit a flight % → % (by route_days directly: % directions, % → %, economy load % → %)',
+    lines := lines || format('%s: %s ms, %s repriced (profit a flight %s → %s, %s, the rest %s, %s a week); 26 Oct economy ups seen 30–31 Oct: %s, profit a flight %s → %s (route_days directly: %s, %s → %s, economy load %s → %s)',
       a.iata_code, ms, d #>> '{totals,directions}', coalesce(d #>> '{totals,before,profit_per_flight}', '—'), coalesce(d #>> '{totals,now,profit_per_flight}', '—'),
       coalesce((d #>> '{totals,profit_per_flight_pct}') || '%', '—'), coalesce((d #>> '{totals,baseline_profit_per_flight_pct}') || '%', '—'), d #>> '{totals,profit_week}',
       h.fn_n, coalesce(h.fn_b::text, '—'), coalesce(h.fn_s::text, '—'), h.hw_n, coalesce(h.hw_b::text, '—'), coalesce(h.hw_s::text, '—'),
-      coalesce(h.lb::text || '%', '—'), coalesce(h.ls::text || '%', '—');
+      coalesce(h.lb::text || '%', '—'), coalesce(h.ls::text || '%', '—'));
   end loop;
-  raise notice 'fare results on the copy: every airline of the default world, % ms in all, the slowest % ms', total_ms, slowest;
+  -- one notice (the rehearsal prints a test's first six)
+  raise notice 'fare results on the copy: every airline of the default world, % ms in all, the slowest % ms; %', total_ms, slowest, array_to_string(lines, '; ');
 end
 $test$;
