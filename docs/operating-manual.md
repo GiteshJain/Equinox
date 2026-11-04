@@ -417,8 +417,12 @@ Details and open points: `docs/decisions.md`.
   brief `docs/briefs/2026-10-29-trunk-month-today.md`; history: rule-history.md)*
   - **Fortified** means it no longer sells out: flights are added while a trunk runs at 95% or more
     (`settings.growth_ready_full_share`), and stop once its loads fall below that.
-  - **Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within the
-    A321LR's reach, below) are chosen together, by profit per aircraft hour where flown and by market size where not.
+  - **Short-haul trunks first, long-haul after:** domestic and in-region trunks (the shuttles between an airline's own
+    bases, and Europe's and China's short pairs) are fortified first, contested pairs against a top-3 competitor
+    ahead of the rest; long-haul trunks (transatlantic, India–Europe, India–China) wait until those no longer sell
+    out. Within each group, adding to the trunks we fly and opening those we don't (within the A321LR's reach, below)
+    are chosen together, by profit per aircraft hour where flown and by market size where not. *(short-haul first
+    since 4 Nov, Gitesh: "long haul is not yet that competitive"; history: rule-history.md)*
   - **Hubs first is suspended for trunks in the trunk month:** any base can take an aircraft for a trunk route. The aim
     is to connect every pair of our bases and fortify them first, before other players take these strongest routes.
     **Fillers:** where a trunk aircraft's day needs more to make sense (hours, maintenance), it may also fly fillers

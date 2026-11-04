@@ -495,6 +495,14 @@ Shanghai–Haneda (70 a week against our 14) and Air China is moving onto its do
 #### From 1 to 30 November, every new order fortifies the trunk routes
 *From 1 Nov to 30 Nov · why (Gitesh, 20 Oct): fortify the routes that connect our bases completely.*
 
+Short-haul trunks first: *since 4 Nov (Gitesh, Scheduling chat, on Kingfisher's and Pan Am's next orders: "Long haul is
+not yet that competitive. I think need to fortify the domestic shuttles first" / "Same for panam").* Earlier wording:
+"**Flown and unflown trunks weigh equally:** adding to the trunks we fly and opening those we don't (within the A321LR's
+reach, below) are chosen together, by profit per aircraft hour where flown and by market size where not." · why: on
+3 Nov 64 of 65 flown trunks were 95% or more full, the domestic shuttles contested by each airline's #1 competitor
+(AirAsia India on Delhi–Mumbai and Mumbai's spokes, United on JFK–Chicago), so the push goes there before opening
+transatlantic and India–Europe pairs.
+
 Only trunks that make sense: no base is on hold (Gitesh, 20 Oct).
 
 Long-haul trunks are in too: for November's trunks this sets aside reach first (below) and Malaysia's feeder-first order (§2). *Since 20 Oct (Gitesh): "for this plan, everything which makes sense."*
