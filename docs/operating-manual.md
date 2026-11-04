@@ -569,6 +569,9 @@ Details and open points: `docs/decisions.md`.
   Fare moves never appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and the hold
   after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; per direction since 26 Oct, brief
   `docs/briefs/2026-10-26-fare-ladder-per-direction.md`; history: rule-history.md)*
+  **What the ladder did:** Performance's Fare results board (each airline's page, under its fare ladder) and the weekly
+  report show each repriced direction's level now and its loads and profit a flight before and after, against the rest
+  of the airline. *(since 3 Nov, spec `docs/specs/2026-11-03-fare-results.md`)*
 
 ## 6. Interline
 - **Our airlines interline with each other.**
@@ -668,8 +671,9 @@ Details and open points: `docs/decisions.md`.
     first (the Saturday chat; about 5 to 10 minutes). *(since 21 Oct; history: rule-history.md)*
   - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
     group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
-    results, each airline's net cash a day (flight profit less leases and salaries) against the price of one aircraft,
-    the pace towards an aircraft a day per airline, and each of our airlines against its three biggest competitors: the
+    results (Performance's Fare results board, from `fare_results()`), each airline's net cash a day (flight profit
+    less leases and salaries) against the price of one aircraft, the pace towards an aircraft a day per airline, and
+    each of our airlines against its three biggest competitors: the
     three outside airlines with the most weekly departures on its own city pairs in the latest scan, each with its size
     and growth against the week-before scan beside our airline's, read from `competition()` (its `competitors` and
     `self`, in the figures the report pulls; the scans run every evening, so growth is against the week-before scan,

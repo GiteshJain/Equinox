@@ -7,12 +7,12 @@ import type { DayFlight } from "@rules";
 import type { OurAirline } from "../../data/airlines";
 import { AirlineMark } from "../../ui/AirlineMark";
 import {
-  ChartFrame, ChartTip, HBars, HeatStrip, Spark, StackedBars, StepLine, Timeline, hbarLayout, heatLayout, sparkLayout, stackLayout, stepLayout, timelineLayout,
+  ChartFrame, ChartTip, HBars, HeatStrip, Sized, Spark, StackedBars, StepLine, Timeline, hbarLayout, heatLayout, sparkLayout, stackLayout, stepLayout, timelineLayout,
 } from "../../ui/charts";
 import {
-  GROWTH_SERIES, WEEK_SERIES, flightsHeat, forecastSteps, growthList, growthStack, kHour, ladderWeek, planTimeline, routeHourBars, scoreMultiples, type Multiple,
+  GROWTH_SERIES, WEEK_SERIES, fareDotLayout, fareResultDots, flightsHeat, forecastSteps, growthList, growthStack, kHour, ladderWeek, planTimeline, routeHourBars, scoreMultiples, type Multiple,
 } from "./charts";
-import { MARKS, MARK_ORDER, sg, type DayRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow } from "./model";
+import { MARKS, MARK_ORDER, sg, type DayRow, type FareResultRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow } from "./model";
 import type { CapturedLoad, GrowthRead } from "./reads";
 
 /** Route profit: each route's profit an aircraft hour as a bar, coloured by its mark, the middle route as a line. */
@@ -121,6 +121,37 @@ export function FlightsHeat({ flights, loadOf, airlines }: { flights: readonly D
       legend={[{ label: "95%+", color: "#1E9E6A" }, { label: "85–94%", color: "#E3B341" }, { label: "70–84%", color: "#E3812B" }, { label: "under 70%", color: "#B4234B" }, { label: "not captured", color: "#D9DDE7" }]}
       figure="performance: flights heat" empty={h.rows.length ? null : "No flights scheduled that day."}>
       <HeatStrip layout={(W) => heatLayout(h.rows, h.cols, { L: 44, every: W < 520 ? 6 : 3, W })} figure="performance: loads by hour" label="loads by hour" />
+    </ChartFrame>
+  );
+}
+
+/** Fare results (since 3 Nov; spec docs/specs/2026-11-03-fare-results.md §2): a dot per repriced direction, its economy
+ *  level now across and its profit a flight change up, the rest of the airline's change as a line. A dot opens its route
+ *  page (onPick). */
+export function FareResultsChart({ rows, baselinePct, onPick }: { rows: readonly FareResultRow[]; baselinePct: number | null; onPick: (hub: string, dest: string) => void }) {
+  const dots = fareResultDots(rows);
+  const cut = dots.filter((d) => d.cut).length;
+  return (
+    <ChartFrame title="Level against profit" note={`each repriced direction: its economy level now across, its profit a flight against the week before its first change up · the line is the airline's other directions over the same days · tap a dot for its route${cut ? ` · ${cut} beyond ±100% drawn at the edge` : ""}`}
+      legend={[{ label: "repriced", color: "#4B3BA8" }, { label: "load fell", color: "#E39B21" }, { label: "too soon", color: "#9AA4C4" }, { label: "the rest", color: "#5B647E", dashed: true }]}
+      figure="performance: fare results chart" empty={dots.length ? null : "No direction to draw yet: each needs a level and a week either side of its first change."}>
+      <ChartTip label="economy level against profit a flight change">
+        <Sized>{(w) => {
+          const g = fareDotLayout(dots, baselinePct, { W: w });
+          return (
+            <svg className="kchart kscatter frdots" viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="economy level against profit a flight change" data-figure="performance: fare results dots" data-points={g.dots.length}>
+              {g.yTicks.map((t, i) => <g key={i}><line x1={g.L} x2={g.W - g.R} y1={t.y} y2={t.y} className="grid" /><text x={g.L - 6} y={t.y + 4} textAnchor="end">{t.label}</text></g>)}
+              {g.xTicks.map((t, i) => <text key={i} x={t.x} y={g.H - g.B + 16} textAnchor="middle">{t.label}</text>)}
+              <line x1={g.L} x2={g.W - g.R} y1={g.zeroY} y2={g.zeroY} className="zero" />
+              {g.ref ? <g data-fare-rest><line x1={g.L} x2={g.W - g.R} y1={g.ref.y} y2={g.ref.y} className="frrest" /><text x={g.W - g.R} y={g.ref.y - 4} style={{ textAnchor: "end" }} className="kax">{g.ref.label}</text></g> : null}
+              <text x={g.W - g.R} y={g.H - 2} style={{ textAnchor: "end" }} className="kax">economy level now</text>
+              <text x={4} y={10} className="kax">profit a flight</text>
+              {g.dots.map((d) => <circle key={d.key} cx={d.cx} cy={d.cy} r={5} fill={d.color} className="kpick" data-tip={d.tip} data-fare-dot={d.key}
+                onClick={() => onPick(d.hub, d.dest)} />)}
+            </svg>
+          );
+        }}</Sized>
+      </ChartTip>
     </ChartFrame>
   );
 }

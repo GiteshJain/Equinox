@@ -807,7 +807,11 @@ async def performance_opens(pl):
     the set-back changes, in their own list first with its heading "3 directions off their level" (directions since 26
     Oct), and the week's moves), Put on the fare plan, and its lists opened with See the changes, its game actions and
     routes table each cut to 10 rows (one of each kind opened and closed again). Each airline's moves and how many game
-    actions it has are printed (counts only)."""
+    actions it has are printed (counts only). Since 3 Nov (spec docs/specs/2026-11-03-fare-results.md §2) the group page
+    has a Fare results line per airline under the fare ladder's links, in the same order, each its title line (or "No fare
+    changes seen in the game yet") linking to /planner/performance/<code>#fare-results; the airline's page has Fare results
+    as its first row, closed on arrival; the first line opens that airline's page with it open, its title the line's
+    words. How many directions each airline has repriced is printed (counts only)."""
     want = [r for r in psql(f"""select coalesce(a.planner_name, a.public_name, a.game_name) from public.airlines a
                                 join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                 where g.kind = 'ours' and a.world_id = {WORLD} and a.active
@@ -860,6 +864,22 @@ async def performance_opens(pl):
                 problems.append(f"the fare ladder link for {x['code']} goes to {x['href']!r}")
         if [x["name"] for x in links["links"]] != [n for n, c in zip(got["cards"], got["codes"]) if c]:
             problems.append(f"the fare ladder links are named {[x['name'] for x in links['links']]}")
+    # 3 Nov: a Fare results line per airline under the fare ladder's links, each linking to its Fare results
+    fr_js = """[...document.querySelectorAll('main[data-screen=performance] [data-fare-results-lines] a[data-fare-results-link]')].map(a => ({
+        code: a.dataset.fareResultsLink, href: a.getAttribute('href'), words: (a.querySelector('[data-fare-results-words]') || {}).textContent || '' }))"""
+    try:
+        await pl.pg.wait_for_function("""() => { const w = [...document.querySelectorAll('main[data-screen=performance] [data-fare-results-words]')];
+            return w.length > 0 && w.every(x => x.textContent !== 'reading…'); }""", timeout=60000)
+    except Exception:
+        problems.append("the group page's Fare results lines didn't finish reading in 60 s")
+    fr_lines = await pl.pg.evaluate(fr_js)
+    if [x["code"] for x in fr_lines] != codes:
+        problems.append(f"the group page's Fare results lines are {[x['code'] for x in fr_lines]}, the scorecards' airlines {codes}")
+    for x in fr_lines:
+        if x["href"] != f"/planner/performance/{x['code']}#fare-results":
+            problems.append(f"the Fare results line for {x['code']} goes to {x['href']!r}")
+        if not re.fullmatch(r"Fares (up|down|changed) on \d+ directions?(, down on \d+)?: profit a flight (\S+( \(the rest \S+\))?|not compared yet), about \S+ a week|No fare changes seen in the game yet", x["words"]):
+            problems.append(f"the Fare results line for {x['code']} says {x['words'][:160]!r}")
     # 21 Oct: each growth list shows its first 10 rows with "show all N", which opens the rest in place and closes again
     await pl.pg.click("main[data-screen=performance] #rev-expall")   # 22 Oct: the rows open, so a growth list can be opened
     await settle(pl.pg, 300)
@@ -891,7 +911,7 @@ async def performance_opens(pl):
     one = await pl.pg.evaluate(page)
     one["name"] = await pl.pg.evaluate("(document.querySelector('main[data-screen=performance] h1[data-perf-name]') || {}).textContent || ''")
     one["open"] = await pl.pg.evaluate("[...document.querySelectorAll('main[data-screen=performance] .board:not(.rcol) > h3.rh')].map(h => h.dataset.rkey)")
-    if one["boards"] != ["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]:
+    if one["boards"] != ["Fare results", "Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]:
         problems.append(f"the airline's page has the boards {one['boards']}")
     # since 30 Oct the route profit table is behind its chart's "show as table"; the chart is checked first
     chart = await pl.pg.evaluate("!!document.querySelector('main[data-screen=performance] [data-figure=\"performance: route profit chart\"]')")
@@ -1002,6 +1022,30 @@ async def performance_opens(pl):
         ladder += here
     if codes and not ladder:
         problems.append("no airline's page has a fare ladder section")
+    # 3 Nov: the group page's first Fare results line opens that airline's page with its Fare results open, its title the
+    # line's words
+    fr_open = ""
+    if fr_lines:
+        x = fr_lines[0]
+        await pl.pg.evaluate("t => window.__eqPlanner.go(t)", "/performance")
+        await pl.pg.wait_for_selector("main[data-screen=performance][data-airline=''][data-performance-ready=yes]", timeout=90000)
+        await pl.pg.click(f"main[data-screen=performance] a[data-fare-results-link={json.dumps(x['code'])}]")
+        await pl.pg.wait_for_selector(f"main[data-screen=performance][data-airline={json.dumps(x['code'])}][data-performance-ready=yes]", timeout=90000)
+        await settle(pl.pg, 300)
+        fr = await pl.pg.evaluate("""(() => { const b = document.querySelector('main[data-screen=performance] #fare-results'); if (!b) return null;
+            return { open: !b.classList.contains('rcol'), board: b.dataset.board, title: (b.querySelector('[data-fare-results-title]') || {}).textContent || '',
+                     rows: +((b.querySelector('[data-figure="performance: fare results table"]') || { dataset: {} }).dataset.rows || 0),
+                     error: (b.querySelector('[data-error]') || {}).textContent || '' }; })()""")
+        if not fr:
+            problems.append(f"{x['code']}'s page has no Fare results (#fare-results)")
+        else:
+            if fr["board"] != "Fare results" or not fr["open"]:
+                problems.append(f"the Fare results line for {x['code']} opens its page with the row {fr['board']!r} {'open' if fr['open'] else 'closed'}")
+            if fr["title"] != x["words"]:
+                problems.append(f"{x['code']}'s Fare results title is {fr['title'][:120]!r}, the group page's line {x['words'][:120]!r}")
+            if fr["error"]:
+                problems.append(f"{x['code']}'s Fare results say {fr['error'][:120]!r}")
+            fr_open = f"; the first Fare results line opens {x['code']}'s Fare results ({fr['rows']} directions shown)"
     count = lambda x, kind: next((lst["rows"] for lst in x["lists"] if lst["list"].startswith(kind)), 0)
     ladder_words = ("; each airline's page its fare ladder: " + " · ".join(f"{x['code']} {x['moves']} ({count(x, 'fixes ')} set-back and {count(x, 'actions ')} other game actions, {count(x, 'ladder ')} directions and cabins)" for x in ladder)
                     + (f", {' and '.join(repr(n) for n in opened_lists)} opened and closed" if opened_lists else "")) if ladder else ""
@@ -1011,7 +1055,8 @@ async def performance_opens(pl):
             f"{len(links['links']) if links else 0} fare ladder links and no fare_ladder call, and the group's "
             f"{len(got['boards'])} rows closed{cut_words}; the first scorecard opens {one['path']} with its {len(one['boards'])} rows, Route profit open"
             + (f", its route profit table with the fare index and a 14-day sparkline on each of its {cols['rows']} routes" if cols else "")
-            + ladder_words), problems
+            + ladder_words
+            + (("; Fare results lines: " + " · ".join(f"{x['code']} {re.sub(r':.*', '', x['words'])}" for x in fr_lines)) if fr_lines else "") + fr_open), problems
 
 
 def busiest_route(code=None, not_code=None):

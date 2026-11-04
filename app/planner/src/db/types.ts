@@ -2160,6 +2160,9 @@ isOneToOne: false
 "fare_plan_status":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
                            },
+"fare_results":
+{ Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
+                           },
 "fleet_checks":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            },

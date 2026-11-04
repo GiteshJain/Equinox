@@ -9,6 +9,8 @@
 //   never for every airline at once, spec docs/specs/2026-10-26-fare-ladder-one-airline.md);
 // - the daily history by route, route_days (the route profit table's 14-day load sparkline; staff read it);
 // - since 22 Oct, the route page: the route the address names (routes) and its story, route_story();
+// - since 3 Nov, fare_results() (spec docs/specs/2026-11-03-fare-results.md): one airline's on its page (the Fare results
+//   row), and every airline's on the group page (a line each under the fare ladder's links), through the same queue;
 // - the daily history, airline_days (each airline's fleet, schedule and loads each evening: the scorecards' change
 //   against the same day last week; staff read it);
 // - for Flights by day, one day's captured loads (game_loads, the old planner's CAP.loads, which held the last 9 days)
@@ -21,7 +23,7 @@ import { limited } from "../../data/limit";
 import { queryClient, tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import { markOf, type AircraftRow, type CardsAnswer, type DayRow, type FareChange, type FarePlanAnswer, type Forecast, type LadderAnswer, type ProfitAnswer, type RouteDayRow, type RouteProfitAnswer, type RouteStory } from "./model";
+import { markOf, type AircraftRow, type CardsAnswer, type DayRow, type FareChange, type FarePlanAnswer, type FareResultsAnswer, type Forecast, type LadderAnswer, type ProfitAnswer, type RouteDayRow, type RouteProfitAnswer, type RouteStory } from "./model";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -140,6 +142,28 @@ export function useFareLadder(airlineId: number | undefined) {
     queryKey: tableKey("fare_plan", "ladder", airlineId),
     enabled: airlineId !== undefined,
     queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
+  });
+}
+
+/** One airline's fare results (fare_results(), since 3 Nov; spec docs/specs/2026-11-03-fare-results.md): each direction
+ *  the fare ladder repriced, its level now and its loads and profit a flight before and after, against the rest of the
+ *  airline. Keyed under the fare plan's table, which it reads, so a save there reads it again. */
+export function useFareResults(airlineId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("fare_plan", "results", airlineId),
+    enabled: airlineId !== undefined,
+    queryFn: () => rpc<FareResultsAnswer>("the fare results", "fare_results", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
+  });
+}
+
+/** Every airline's fare results, the same reads as useFareResults (the group page's line per airline; at most four at a
+ *  time through the queue, each a second or two). */
+export function useAllFareResults(airlineIds: readonly number[]) {
+  return useQueries({
+    queries: airlineIds.map((id) => ({
+      queryKey: tableKey("fare_plan", "results", id),
+      queryFn: () => rpc<FareResultsAnswer>("the fare results", "fare_results", { p_airline_id: id, p_as_of: asOf() }),
+    })),
   });
 }
 

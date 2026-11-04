@@ -26,6 +26,12 @@ runs with --no-send and a home folder with no keys in it. Checks:
     there's no contested pair; nothing for an airline whose figures predate them. The sample predates the market pages, so
     the test's copy gets a small synthetic block (synthetic_contested(), never the dated fixture): with a read, before the
     first read and with no contested pair, the other airlines without the key.
+  - since 3 Nov (spec docs/specs/2026-11-03-fare-results.md §3) the Fare results section: for each airline its part, in
+    order, with the title line worded as the planner's board words it, its top 5 directions by profit a week gained in
+    order, every direction whose load fell, and how many are at the cap; "No fare changes seen in the game yet" for an
+    airline with none and "No fare results read for it." for one missing from fare_results.json. The sample predates
+    fare_results(), so the test's copy gets a small synthetic
+    fare_results.json (synthetic_fare_results(), never the dated fixture).
 The PDF is kept in $REPORT_TEST_OUT when it is set (the checks keep it as the run's weekly-report artifact).
 
 Usage: python3 tests/report_test.py   (after npm run build, for the planning library's command)
@@ -161,6 +167,49 @@ def synthetic_contested(F):
     return want
 
 
+def synthetic_fare_results(ours):
+    """A small made-up fare_results.json (fare_results() by airline id, since 3 Nov) for a sample made before it: the test's
+    copy only. The first airline has 7 repriced directions (one with its load fallen, two at the cap, one with no profit
+    a week), the second none, the third isn't in the file; the rest one direction each. Answers what each airline's part
+    must say, by airline id: its words in order, and words it must not have."""
+    def row(i, frm, to, week, flags=(), level=110, ppf=(10000, 11000), load=(100.0, 99.7)):
+        return {"route_id": i, "hub": frm, "dest": to, "direction": "out", "from": frm, "to": to, "km": 1000, "economy_level": level, "business_level": None,
+                "at_cap": "at_cap" in flags, "at_floor": False, "moves": {"count": 1, "first_seen": "2026-10-30", "latest": None, "pending": None},
+                "before": {"economy_fare": 300, "economy_load": load[0], "profit_per_flight": ppf[0]},
+                "now": {"economy_fare": 330, "economy_load": load[1], "profit_per_flight": ppf[1]},
+                "change": {"profit_per_flight_pct": None if ppf[0] is None or ppf[1] is None else round((ppf[1] - ppf[0]) / abs(ppf[0]) * 100, 1)},
+                "profit_week": week, "flags": list(flags)}
+    doc, want = {}, {}
+    for i, a in enumerate(ours):
+        if i == 2:
+            want[a["id"]] = (["No fare results read for it."], ["The top 5"])
+            continue
+        if i == 1:
+            doc[str(a["id"])] = {"totals": {"directions": 0, "up": 0, "down": 0, "at_cap": 0, "load_fell": 0, "too_soon": 0, "profit_week": 0,
+                                            "profit_per_flight_pct": None, "baseline_profit_per_flight_pct": None},
+                                 "settings": {"cap_pct": 120}, "routes": []}
+            want[a["id"]] = (["No fare changes seen in the game yet"], ["The top 5", "at the cap"])
+            continue
+        if i == 0:
+            rows = [row(1, "TFA", "TFB", 42000, ("at_cap",), 120, (10000, 13000)), row(2, "TFA", "TFC", 7000), row(3, "TFA", "TFD", 31000),
+                    row(4, "TFA", "TFE", -21000, ("load_fell", "frequency_changed"), 105, (10000, 9000), (100.0, 90.0)), row(5, "TFA", "TFF", 15000, ("at_cap",), 120),
+                    row(6, "TFA", "TFG", 9000), row(7, "TFA", "TFH", None, ("too_soon",), 110, (10000, None))]
+            t = {"directions": 7, "up": 6, "down": 1, "at_cap": 2, "load_fell": 1, "too_soon": 1, "profit_week": 83000,
+                 "profit_per_flight_pct": 9.4, "baseline_profit_per_flight_pct": 0.6}
+            want[a["id"]] = (["Fares up on 6 directions, down on 1: profit a flight +9% (the rest +1%), about +83k a week",
+                              "The top 5 by profit a week gained", "TFA → TFB 120% 300 → 330 100.0% → 99.7% 10,000 → 13,000 (+30%) +42k at cap",
+                              "TFA → TFD", "TFA → TFF", "TFA → TFG", "TFA → TFC", "Load fell under 95% (1)",
+                              "TFA → TFE 105% 300 → 330 100.0% → 90.0% 10,000 → 9,000 (−10%) −21k load fell, frequency changed",
+                              "2 directions at the cap (120%); 1 seen too recently to judge."], ["TFA → TFH"])
+        else:
+            rows = [row(1, "TFA", "TFB", 1_440_000, (), 115, (20000, 21800))]
+            t = {"directions": 1, "up": 1, "down": 0, "at_cap": 0, "load_fell": 0, "too_soon": 0, "profit_week": 1_440_000,
+                 "profit_per_flight_pct": 9, "baseline_profit_per_flight_pct": None}
+            want[a["id"]] = (["Fares up on 1 direction: profit a flight +9%, about +1.4M a week", "0 directions at the cap (120%)"], ["Load fell under 95%"])
+        doc[str(a["id"])] = {"totals": t, "settings": {"cap_pct": 120}, "routes": rows}
+    return doc, want
+
+
 def run(step, args, cwd, env):
     r = subprocess.run([sys.executable, *args], cwd=cwd, env=env, capture_output=True, text=True, timeout=600)
     check(r.returncode == 0, f"{step} runs", (r.stderr or r.stdout).strip()[-1200:])
@@ -194,6 +243,8 @@ def main():
     try:
         files = {"figures.json": F, "rules.json": R, "airlines.json": scan["airlines"], "airports.json": scan["airports"],
                  "scan.json": {"id": scan.get("id"), "taken_at": scan.get("taken_at")}, "site_airlines.json": S.get("site_airlines") or []}
+        fr_doc, fr_want = synthetic_fare_results(ours)   # since 3 Nov: fare_results() by airline, which the sample predates
+        files["fare_results.json"] = fr_doc
         for name, doc in files.items():
             (work / name).write_text(json.dumps(doc))
         shutil.copy(FIX / "report_airports_oa.csv", work / "airports_oa.csv")
@@ -341,6 +392,22 @@ def main():
                 wk = "—" if x.get("on_order_change") is None else ("no change" if x["on_order_change"] == 0 else f"{x['on_order_change']:+,} on order")
                 want = f"{x['name']} {book} {wk} {', '.join(meets) if meets else 'none'}"
                 check(want in seg, f"the order books: {want!r}", seg[:500])
+        # since 3 Nov: the Fare results section, each airline's part in order, its words in order
+        f0, f1 = text.find("FARE RESULTS"), text.find("COMPETITION — MARKETS")
+        check(0 <= f0 < f1, "the Fare results section is there, before the markets", text[f0:f0 + 200] if f0 >= 0 else "")
+        fr_text = text[f0:f1] if 0 <= f0 < f1 else ""
+        fr_heads = [(a, name, fr_text.find(f"{name}: fare results")) for a, name in zip(ours, names)]
+        check(all(h >= 0 for _, _, h in fr_heads) and [h for _, _, h in fr_heads] == sorted(h for _, _, h in fr_heads),
+              f"the Fare results section has a part for each airline, in order ({len(names)})", [(n, h) for _, n, h in fr_heads])
+        for n, (a, name, h) in enumerate(fr_heads):
+            if h < 0:
+                continue
+            seg = fr_text[h:next((h2 for _, _, h2 in fr_heads[n + 1:] if h2 > h), len(fr_text))]
+            has, hasnt = fr_want.get(a["id"], ([], []))
+            at = [seg.find(w) for w in has]
+            check(all(i >= 0 for i in at) and at == sorted(at), f"{name}: its Fare results say {len(has)} things in order", f"want {has} in: {seg[:900]}")
+            stray = [w for w in hasnt if w in seg]
+            check(not stray, f"{name}: its Fare results leave out {hasnt}", f"has {stray}")
         if synthetic:
             print("      (the sample predates competition()'s competitors in the figures: the test's copy has a synthetic block)", flush=True)
         if synthetic_market:
