@@ -30,6 +30,9 @@
 // with the chart kit in src/ui/charts): Route profit's profit an aircraft hour by route, Cash's step line, the fare
 // ladder's week, the fare plan's timeline, the group's small multiples, the growth signals by airline and Flights by
 // day's loads by hour; each replaced table one tap away ("show as table", remembered per board in this browser).
+// Since 3 Nov (spec docs/specs/2026-11-03-fare-results.md §2) each airline's page has Fare results directly under its fare
+// ladder (FareResults.tsx, fare_results(); #fare-results, closed on arrival, its title line the answer), and the group page
+// a line per airline under the fare ladder's links with the same words, each opening that airline's Fare results.
 // Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
 // planner_save() call each.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -56,19 +59,20 @@ import { ChartOrTable } from "../../ui/charts";
 import { BarChart, CostChart, GroupChart, LoadSpark, Scatter, Spark, TailChart } from "./Charts";
 import { CashSteps, Multiples, PlanTimeline, RouteHourChart } from "./PerfCharts";
 import { FareLadderBoard } from "./FareLadder";
+import { FareResultsBody } from "./FareResults";
 import { daySummary, loadKey, loadsByFlight, moveDay, parseDay, utcToday } from "./flights";
 import { FlightsByDay } from "./FlightsByDay";
 import { GrowthSignals, MainHubs, type ReadyRow } from "./Growth";
 import { RoutePage } from "./RoutePage";
 import {
   BOARDS, GROUP_BOARDS, foldsFor, foldsOnArrival, type FoldState, MARKS, MARK_ORDER, PERIODS, SORTS, aircraftRowWords, barTip, capturedLine, cardWords, cashRowWords, changesRowWords, chartIntervals,
-  farePlanAdd, farePlanDrop, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderMoveWords, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
+  farePlanAdd, farePlanDrop, fareResultsAside, fareResultsTitle, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderMoveWords, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
   offersFarePlan, pc, planRowWords, planWords, profitAnswer, profitRowWords, routeRowWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
   type BoardKey, type Card, type CardWords, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
   type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
 } from "./model";
 import {
-  refreshFigures, useAircraftProfit, useAirlineDays, useDayLoads, useFareChanges, useFareLadder, useFarePlan, useForecast, useGrowthSignals, useHandLoads,
+  refreshFigures, useAircraftProfit, useAirlineDays, useAllFareResults, useDayLoads, useFareChanges, useFareLadder, useFarePlan, useFareResults, useForecast, useGrowthSignals, useHandLoads,
   useHubProgress, useProfits, useReviewCards, useRouteDays, useRouteProfit,
 } from "./reads";
 
@@ -78,6 +82,7 @@ const LADDER_LINKS_NOTE = "One airline at a time: open an airline for this Satur
 const LADDER_NOTE = "each route and cabin's level against the game's default price, and this Saturday's move from the week's captured flights: up a step when every flight sold out, hold at 90–99%, down under 90%; a cabin that doesn't fill at launch may jump under it, then is judged on its loads the same way (manual §5) · make the moves in the game with Ticket price adjustment, put them on the fare plan, and the next capture ticks each off";
 /** Each row's one-line note; the board's full words (NOTES) lead it once open. */
 const SHORT: Record<BoardKey | GroupBoardKey, string> = {
+  "Fare results": "What the fare ladder has done to each route",
   "The group today": "Each airline's flight profit against its leases, a day",
   "Growth signals": "Where each airline should grow next, and what to trim",
   "Main hubs": "Each main hub towards its weekly target",
@@ -90,6 +95,7 @@ const SHORT: Record<BoardKey | GroupBoardKey, string> = {
   "Fare plan": "Fare changes to make in the game",
 };
 const NOTES: Record<BoardKey | GroupBoardKey, string> = {
+  "Fare results": "each direction the fare ladder repriced: its level now, and its economy fare, load and profit a flight in the 7 days before its first change against the latest complete days since, beside the airline's other directions over the same days · money in AS$ a flight from the daily history, before leases",
   "The group today": "from last night's capture · flight profit is before leases; leases and the week-end closing are this week's scheduled payments, per day",
   "Growth signals": "where each airline should grow next, and what to trim · from the nightly capture",
   "Main hubs": "",
@@ -149,6 +155,7 @@ function PerformanceScreen() {
   const changesQ = useFareChanges(selId);
   const planQ = useFarePlan(selId);
   const ladderQ = useFareLadder(selId);
+  const resultsQ = useFareResults(selId);
   const routeDaysQ = useRouteDays(selId, moveDay(utcDay, -13), utcDay);
 
   // ---------- the group's boards
@@ -169,13 +176,15 @@ function PerformanceScreen() {
   const captured = Math.round((Date.parse(utcDay) - Date.parse(day)) / 86_400_000) <= 9;
   const dayLoadsQ = useDayLoads(group, day, captured);
   const handQ = useHandLoads(group, day);
+  // the group page's line per airline under the fare ladder's links (since 3 Nov): every airline's fare results
+  const groupResultsQ = useAllFareResults(!isAirline ? cards.map((c) => c.airline_id) : []);
 
   const allFolds: readonly (BoardKey | GroupBoardKey)[] = [...GROUP_BOARDS, ...BOARDS];
   // every row closed on arrival but the airline's Route profit, and Flights by day when the address names a day; each page
   // (the group, each airline) arrives that way whatever the page before had open (foldsFor)
   const foldView = "/performance" + (code ? "/" + code : "");
-  const [foldState, setFoldState] = useState<FoldState>(() => foldsOnArrival(foldView, loc.search));
-  const folded = foldsFor(foldState, foldView, loc.search);
+  const [foldState, setFoldState] = useState<FoldState>(() => foldsOnArrival(foldView, loc.search, loc.hash));
+  const folded = foldsFor(foldState, foldView, loc.search, loc.hash);
   const setFolded = (next: ReadonlySet<BoardKey | GroupBoardKey>) => setFoldState({ view: foldView, folded: next });
   const [busy, setBusy] = useState(false);
   const toggle = (k: BoardKey | GroupBoardKey) => { const n = new Set(folded); if (n.has(k)) n.delete(k); else n.add(k); setFolded(n); };
@@ -243,7 +252,7 @@ function PerformanceScreen() {
   const common = !!(cardsQ.data && airlinesQ.data && rules && profitsQ.every((q) => q.data) && daysQ.data);
   // the fare ladder's own error shows on its board, for that airline only (since 26 Oct), so the page is ready without it
   const airlineReady = !!(sel && selProfit && forecastQ.data && routeQ.data && !routeQ.isFetching && aircraftQ.data && !aircraftQ.isFetching && changesQ.data && planQ.data
-    && (ladderQ.data || ladderQ.error) && routeDaysQ.data);
+    && (ladderQ.data || ladderQ.error) && (resultsQ.data || resultsQ.error) && routeDaysQ.data);
   const groupReady = !!(signalsQ.data && progressQ.data && growthParts && (!cardCodes.length || airportsQ.data) && launchesQ.data && dayReady);
   const ready = common && (isAirline ? airlineReady : groupReady);
   const loadError = firstError(world, airlinesQ, rulesQ, cardsQ, daysQ, ...profitsQ,
@@ -260,8 +269,8 @@ function PerformanceScreen() {
     const id = decodeURIComponent(loc.hash.slice(1));
     requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
   }, [ready, isAirline, loc.pathname, loc.hash]);
-  const board = (k: BoardKey | GroupBoardKey, children: ReactNode, opts: { title?: ReactNode; lead?: ReactNode; figure?: string; aside?: ReactNode } = {}) => (
-    <FoldBoard key={k} k={k} title={<span className="fbname">{opts.title ?? k}</span>} note={SHORT[k]} aside={opts.aside} folded={folded.has(k)} onToggle={() => toggle(k)}
+  const board = (k: BoardKey | GroupBoardKey, children: ReactNode, opts: { title?: ReactNode; lead?: ReactNode; figure?: string; aside?: ReactNode; id?: string } = {}) => (
+    <FoldBoard key={k} k={k} id={opts.id} title={<span className="fbname">{opts.title ?? k}</span>} note={SHORT[k]} aside={opts.aside} folded={folded.has(k)} onToggle={() => toggle(k)}
       figure={opts.figure}>{(opts.lead ?? NOTES[k]) ? <div className="note fblead">{opts.lead ?? NOTES[k]}</div> : null}{children}</FoldBoard>
   );
   const rows = (children: ReactNode) => (
@@ -339,6 +348,15 @@ function PerformanceScreen() {
             : !ladderQ.data || !selAirline ? <div className="dim" data-ladder-loading>Loading {sel.name}'s fare ladder…</div>
             : <FareLadderBoard airlines={[selAirline]} ladders={new Map([[selAirline.id, ladderQ.data]])} busy={busy} onPlan={putOnPlan} />}
         </section>
+        <section className="sysrows perfres" aria-label="Fare results" data-fare-results={sel.code ?? ""}>
+          {board("Fare results", resultsQ.error ? <ErrorBox error={resultsQ.error} />
+            : !resultsQ.data ? <div className="dim" data-fare-results-loading>Loading {sel.name}'s fare results…</div>
+            : <FareResultsBody code={sel.code} airline={sel.name} answer={resultsQ.data} city={(c) => rules.airports.get(c)?.city ?? ""}
+                onRoute={(hub, dest) => navigate(itemRoute("performance", { airline: sel.code ?? String(sel.airline_id), hub, dest }))} />, {
+            id: "fare-results", figure: `performance ${sel.name}: Fare results`,
+            title: <span data-fare-results-title>{resultsQ.data ? fareResultsTitle(resultsQ.data.totals) : "Fare results"}</span>,
+            aside: resultsQ.data ? fareResultsAside(resultsQ.data.totals) : null })}
+        </section>
         {rows(
         <>
           {selProfit ? board("Profit", <ProfitBody p={selProfit} />, {
@@ -385,6 +403,22 @@ function PerformanceScreen() {
                   <li key={a.id}>
                     <Link className="fllink" to={itemRoute("performance", { airline: c }) + "#fare-ladder"} data-ladder-link={c}>
                       <AirlineMark color={a.color} />{a.name}<span className="fla" aria-hidden="true">›</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <h3 className="tph frh">Fare results</h3>
+            <ul className="frlines" data-fare-results-lines>
+              {ladderLinks.map((a) => {
+                const c = a.code ?? String(a.id);
+                const i = cards.findIndex((x) => x.airline_id === a.id);
+                const q = i >= 0 ? groupResultsQ[i] : undefined;
+                const words = q?.data ? fareResultsTitle(q.data.totals) : q?.error ? "couldn't read its fare results" : "reading…";
+                return (
+                  <li key={a.id}>
+                    <Link className="frline" to={itemRoute("performance", { airline: c }) + "#fare-results"} data-fare-results-link={c}>
+                      <AirlineMark color={a.color} /><b>{a.name}</b><span className={q?.data ? "" : "dim"} data-fare-results-words={c}>{words}</span>
                     </Link>
                   </li>
                 );

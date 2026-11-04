@@ -85,13 +85,15 @@ begin
   for r in select a from jsonb_array_elements(doc -> 'airlines') a where a ->> 'planner_name' <> 'Ryanair' and (a ->> 'ours')::boolean loop
     assert r.a -> 'settings' -> 'suggested_size' = v_world, 'rules_input() doesn''t give ' || (r.a ->> 'iata_code') || ' the world''s suggested_size';
   end loop;
+  -- since 2 Nov (manual, "Decided, not yet built") the Scheduling chat adds a country to interline_rules.countries when it
+  -- first gets a partner, and the other lists were emptied: the setting is checked for its countries and description,
+  -- no longer for the 17 countries of 14 Oct
   assert (select count(*) from public.settings s where s.key = 'interline_rules' and s.airline_id is null
-            and s.value ?& array['countries', 'europe_zone', 'rivals', 'covered', 'group_only', 'partners']
-            and (select count(*) from jsonb_object_keys(s.value -> 'countries')) = 17
-            and s.since = date '2026-10-14' and s.description like '%IL_YES%' and s.reason is not null) = n_worlds,
-    'interline_rules isn''t the old Interline screen''s lists (17 countries, since 14 Oct, described) in every world';
+            and jsonb_typeof(s.value -> 'countries') = 'object' and (select count(*) from jsonb_object_keys(s.value -> 'countries')) > 0
+            and s.description is not null) = n_worlds,
+    'interline_rules has no countries, or no description, in some world';
   assert doc -> 'settings' ? 'interline_rules', 'rules_input() doesn''t carry interline_rules';
-  raise notice 'suggested_size: the old sizes in each of the % world(s), Ryanair''s own (% airline(s)); rules_input() gives each airline its own; interline_rules: the 17 interline countries and the lists, in each world', n_worlds, n_fr;
+  raise notice 'suggested_size: the old sizes in each of the % world(s), Ryanair''s own (% airline(s)); rules_input() gives each airline its own; interline_rules: its countries, in each world', n_worlds, n_fr;
 end
 $test$;
 

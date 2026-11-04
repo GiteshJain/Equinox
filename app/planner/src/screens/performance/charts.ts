@@ -5,11 +5,11 @@
 // growth_signals()'s, and the flights of a day the planning library's with their captured loads. Here they're only put in
 // order, coloured and given their tips; the unit tests (charts.test.ts) check each layout's figures.
 import type { DayFlight } from "@rules";
-import { SERIES, TONE, type HBarItem, type HeatRow, type StackRow, type StackSeries, type StepMarker, type StepPoint, type TimelineRow } from "../../ui/charts";
+import { SERIES, TONE, ticks, type HBarItem, type HeatRow, type StackRow, type StackSeries, type StepMarker, type StepPoint, type TimelineRow } from "../../ui/charts";
 import type { OurAirline } from "../../data/airlines";
 import {
   MARKS, chartIntervals, fcDay, fcWhat, ms, sg, DAY_MS,
-  type AircraftRow, type DayRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow,
+  signedPct, type AircraftRow, type DayRow, type FareResultRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow,
 } from "./model";
 import type { CapturedLoad, GrowthRead, Pattern } from "./reads";
 
@@ -202,4 +202,51 @@ export function tailItems(rows: readonly AircraftRow[]): HBarItem[] {
     return { key: t.registration, label: t.registration, value: k, color: k >= 0 ? "#1E9E6A" : "#B4234B",
       text: (k >= 0 ? "+" : "−") + Math.abs(Math.round(k)) + "k", tip: `${t.registration}: ${Math.round(k)}k a day${t.net_day != null ? " after lease" : ""}` };
   });
+}
+
+// ---------- Fare results (since 3 Nov; spec docs/specs/2026-11-03-fare-results.md §2): a dot per repriced direction
+/** Where the drawing stops: a direction whose profit a flight changed by more than this (a small figure before) is drawn
+ *  at the edge, its tip keeping the real change. */
+export const FARE_DOT_CLAMP = 100;
+export interface FareDot { key: string; level: number; pct: number; color: string; tip: string; hub: string; dest: string; cut: boolean }
+/** One dot per repriced direction with a level and a profit a flight change: economy level now across, the change up;
+ *  amber where the load fell, grey where it's too soon to tell, violet otherwise. */
+export function fareResultDots(rows: readonly FareResultRow[]): FareDot[] {
+  return rows.flatMap((r) => {
+    const pct = r.change.profit_per_flight_pct, level = r.economy_level;
+    if (pct == null || level == null) return [];
+    const cut = Math.abs(pct) > FARE_DOT_CLAMP;
+    const color = r.flags.includes("load_fell") ? TONE.warn : r.flags.includes("too_soon") ? TONE.mute : TONE.violet;
+    const flags = r.flags.map((f) => f.replace("_", " ")).join(", ");
+    return [{
+      key: `${r.from}-${r.to}`, hub: r.hub, dest: r.dest, level, pct: Math.max(-FARE_DOT_CLAMP, Math.min(FARE_DOT_CLAMP, pct)), color, cut,
+      tip: `${r.from} → ${r.to} · economy at ${level}% · profit a flight ${signedPct(pct)}${r.profit_week != null ? ` · ${r.profit_week >= 0 ? "+" : "−"}${Math.abs(Math.round(r.profit_week)).toLocaleString("en-US")} AS$ a week` : ""}${flags ? ` · ${flags}` : ""}`,
+    }];
+  });
+}
+const f1 = (v: number) => Number(v.toFixed(1));
+export interface FareDotLayout {
+  W: number; H: number; L: number; R: number; T: number; B: number;
+  dots: { key: string; cx: number; cy: number; color: string; tip: string; hub: string; dest: string }[];
+  xTicks: { x: number; label: string }[]; yTicks: { y: number; label: string }[];
+  zeroY: number; ref: { y: number; label: string } | null;
+}
+/** The dots laid out at a width: the levels across (a little either side of the lowest and highest), the change up from
+ *  under the lowest to over the highest (zero always shown), the baseline's change as a line. */
+export function fareDotLayout(dots: readonly FareDot[], baselinePct: number | null, opts: { W?: number; H?: number } = {}): FareDotLayout {
+  const W = opts.W ?? 560, H = opts.H ?? 240, L = 44, R = 16, T = 12, B = 30;
+  const xs = dots.map((d) => d.level), ys = dots.map((d) => d.pct);
+  const ref = baselinePct == null ? null : Math.max(-FARE_DOT_CLAMP, Math.min(FARE_DOT_CLAMP, baselinePct));
+  const x0 = Math.floor((Math.min(100, ...xs) - 5) / 5) * 5, x1 = Math.ceil((Math.max(100, ...xs) + 5) / 5) * 5;
+  const yLo = Math.min(-10, ...ys, ref ?? 0), yHi = Math.max(10, ...ys, ref ?? 0);
+  const ys0 = Math.floor(yLo / 10) * 10, ys1 = Math.ceil(yHi / 10) * 10;
+  const X = (v: number) => L + (v - x0) / (x1 - x0) * (W - L - R), Y = (v: number) => T + (ys1 - v) / (ys1 - ys0) * (H - T - B);
+  return {
+    W, H, L, R, T, B,
+    dots: dots.map((d) => ({ key: d.key, cx: f1(X(d.level)), cy: f1(Y(d.pct)), color: d.color, tip: d.tip, hub: d.hub, dest: d.dest })),
+    xTicks: ticks(x0, x1, 5).filter((v) => v >= x0 && v <= x1).map((v) => ({ x: f1(X(v)), label: `${v}%` })),
+    yTicks: ticks(ys0, ys1, 4).filter((v) => v >= ys0 && v <= ys1).map((v) => ({ y: f1(Y(v)), label: signedPct(v) })),
+    zeroY: f1(Y(0)),
+    ref: ref == null ? null : { y: f1(Y(ref)), label: `the rest ${signedPct(baselinePct)}` },
+  };
 }

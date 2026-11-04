@@ -3,7 +3,8 @@
 --   1. export_for_report carries its own statement limit of 30 seconds, and keeps its empty search_path.
 --   2. The planner's fourteen figure functions carry the same 30 second limit (migration 20261022050000: Performance reads
 --      about twenty at once and some crossed staff's 8 s; competition() since 20261024000000, Home reading six at once;
---      market_service_checks() since 20261030180000, the market pages' service check),
+--      market_service_checks() since 20261030180000, the market pages' service check; fare_results() since 20261103020000,
+--      the Fare results board, the group page reading six at once),
 --      and no other function in public carries a statement limit but
 --      capture_fare_actions() (the fares userscript's list, migration 20261021210000; its own test checks its 30 s),
 --      fleet_checks() (the fleet capture, migration 20261022070000; fleet_capture_test.sql checks its 30 s) and
@@ -24,7 +25,7 @@ begin
 
   select string_agg(f, ', ') into missing from unnest(array['airline_cards', 'airline_profit', 'cash_forecast', 'route_profit',
          'aircraft_profit', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'growth_signals', 'hub_progress', 'route_loads',
-         'route_story', 'competition', 'market_service_checks']) f
+         'route_story', 'competition', 'market_service_checks', 'fare_results']) f
    where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                       where n.nspname = 'public' and p.proname = f and p.proconfig @> array['statement_timeout=30s', 'search_path=""']);
   assert missing is null, 'figure functions without the 30 s limit (or without their empty search_path): ' || missing;
@@ -32,7 +33,7 @@ begin
   select string_agg(p.proname, ', ') into others from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname not in ('export_for_report', 'capture_fare_actions', 'capture_fare_actions_by_airline', 'fleet_checks', 'capture_market', 'airline_cards', 'airline_profit',
          'cash_forecast', 'route_profit', 'aircraft_profit', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'growth_signals',
-         'hub_progress', 'route_loads', 'route_story', 'competition', 'market_service_checks')
+         'hub_progress', 'route_loads', 'route_story', 'competition', 'market_service_checks', 'fare_results')
      and exists (select 1 from unnest(p.proconfig) c where c like 'statement_timeout=%');
   assert others is null, 'other functions carry a statement limit: ' || others;
 
@@ -48,7 +49,7 @@ begin
   assert v ? 'airlines', 'the figures came back without their airlines';
   assert clock_timestamp() - t0 < interval '30 seconds', 'the figures took 30 seconds or more on the copy';
 
-  raise notice 'figures timeout: export_for_report has its own 30 s limit (search_path kept), the fourteen figure functions (since 30 Oct market_service_checks too) have it too, no other function has one but capture_fare_actions (since 2 Nov capture_fare_actions_by_airline too), fleet_checks and (since 30 Oct, the market pages) capture_market, each plans its calls afresh, and the figures came back in % ms on the copy',
+  raise notice 'figures timeout: export_for_report has its own 30 s limit (search_path kept), the fourteen figure functions (since 30 Oct market_service_checks too, since 3 Nov fare_results) have it too, no other function has one but capture_fare_actions (since 2 Nov capture_fare_actions_by_airline too), fleet_checks and (since 30 Oct, the market pages) capture_market, each plans its calls afresh, and the figures came back in % ms on the copy',
     round(extract(epoch from clock_timestamp() - t0) * 1000);
 end
 $test$;

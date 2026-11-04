@@ -3,6 +3,8 @@
 - Every figure comes from results.json (analyze.py): no figure is typed in here. Money is each airline's own, from the
   database's captured figures; there is no surplus figure and no group row (manual §1, §3).
 - The week and the file name come from the figures' date (its ISO week): Equinox_Weekly_Briefing_<year>-W<week>.pdf.
+- Since 3 Nov the Fare results section comes from fare_results.json (pull.py: each airline's fare_results()), when the
+  folder has it (spec docs/specs/2026-11-03-fare-results.md §3).
 - The week's written text comes from notes.json, which the Saturday review writes (scripts/report/notes.example.json
   shows every part): the week in one line, what matters, decisions, each section's headline and notes, the rivals'
   reads, rivals' moves, risks, opportunities, the plan (done, coming up, watch list). A part with no notes is left out.
@@ -259,6 +261,87 @@ if os.path.exists("c_fleet.png"):
 if note("network", "notes"):
     story += [P("Operations notes", "h2")] + bullets(N["network"]["notes"])
 story.append(PageBreak())
+
+# ---------------- fare results: what the fare ladder has done to each airline's routes (since 3 Nov; spec
+# docs/specs/2026-11-03-fare-results.md §3; fare_results() in fare_results.json, which pull.py downloads; manual §7's
+# fare-plan results). Half a page an airline at most: the title line, the top 5 directions by profit a week gained, every
+# direction whose load fell, and how many are at the cap. Left out for a folder pulled before fare_results.json.
+FR = json.load(open("fare_results.json")) if os.path.exists("fare_results.json") else None
+
+
+def signed_pct(v):
+    """A whole percent with its sign, as the planner's board: "+9%", "−3%", "0%"."""
+    if v is None:
+        return "—"
+    r = round(v)
+    return "0%" if r == 0 else f"{'+' if r > 0 else '−'}{abs(r)}%"
+
+
+def week_money(v):
+    """AS$ a week, signed and short, as the planner's board: "+1.4M", "−21k", "+500"."""
+    s, a = ("−" if v < 0 else "+"), abs(v)
+    if a >= 1_000_000:
+        return f"{s}{round(a / 100_000) / 10:.1f}M"
+    if a >= 1_000:
+        return f"{s}{round(a / 1000)}k"
+    return f"{s}{round(a)}"
+
+
+def fare_title(t):
+    """The board's title line (the planner's fareResultsTitle): "Fares up on 214 directions: profit a flight +9% (the rest
+    +1%), about +1.4M a week", or "No fare changes seen in the game yet"."""
+    if not t or not t.get("directions"):
+        return "No fare changes seen in the game yet"
+    dirs = lambda n: f"{n} direction{'' if n == 1 else 's'}"   # noqa: E731
+    up, down = t.get("up") or 0, t.get("down") or 0
+    head = (f"Fares up on {dirs(up)}, down on {down}" if up and down else f"Fares up on {dirs(up)}" if up
+            else f"Fares down on {dirs(down)}" if down else f"Fares changed on {dirs(t['directions'])}")
+    p, b = t.get("profit_per_flight_pct"), t.get("baseline_profit_per_flight_pct")
+    profit = "profit a flight not compared yet" if p is None else f"profit a flight {signed_pct(p)}" + (f" (the rest {signed_pct(b)})" if b is not None else "")
+    return f"{head}: {profit}, about {week_money(t.get('profit_week') or 0)} a week"
+
+
+def fare_row(x):
+    b, n = x.get("before") or {}, x.get("now") or {}
+    lv = lambda v: "—" if v is None else f"{v:g}%"   # noqa: E731
+    return [f"{esc(x['from'])} → {esc(x['to'])}", lv(x.get("economy_level")),
+            f"{num(b.get('economy_fare'))} → {num(n.get('economy_fare'))}", f"{pct(b.get('economy_load'), 1)} → {pct(n.get('economy_load'), 1)}",
+            f"{num(b.get('profit_per_flight'))} → {num(n.get('profit_per_flight'))} ({signed_pct((x.get('change') or {}).get('profit_per_flight_pct'))})",
+            "—" if x.get("profit_week") is None else week_money(x["profit_week"]),
+            esc(", ".join(f.replace("_", " ") for f in x.get("flags") or []))]
+
+
+if FR is not None:
+    section("FARE RESULTS", "fare_results", "What the fare ladder has done to each airline's routes.")
+    story.append(P("Each direction the fare ladder repriced once the captures saw the change: its economy level now, and its economy fare, "
+                   "load and profit a flight in the 7 days before its first change against the latest complete days since, beside the "
+                   "airline's other directions over the same days (\"the rest\"). Profit a week gained: the change in profit a flight × "
+                   "flights a week now. AS$, from the daily history, before leases. From fare_results(), as Performance's Fare results board.", "small"))
+    head = ["Direction", "Economy level", "Economy fare", "Economy load", "Profit a flight (AS$)", "Profit a week", "Flags"]
+    widths = [0.9 * inch, 0.6 * inch, 0.8 * inch, 1.0 * inch, 1.6 * inch, 0.7 * inch, 1.35 * inch]
+    for a in AL:
+        d = FR.get(str(a["id"]))
+        part = [P(f"{esc(a['name'])}: fare results", "h2")]
+        if not d:
+            part.append(P("No fare results read for it.", "body"))
+            story.append(KeepTogether(part))
+            continue
+        t = d.get("totals") or {}
+        part.append(P(esc(fare_title(t)), "body"))
+        rows = d.get("routes") or []
+        top = sorted((x for x in rows if x.get("profit_week") is not None), key=lambda x: -x["profit_week"])[:5]
+        if top:
+            part += [Spacer(1, 3), P("The top 5 by profit a week gained", "small"), table([head] + [fare_row(x) for x in top], widths)]
+        fell = [x for x in rows if "load_fell" in (x.get("flags") or [])]
+        if fell:
+            part += [Spacer(1, 3), P(f"Load fell under 95% ({len(fell)})", "small"), table([head] + [fare_row(x) for x in fell], widths)]
+        if rows:
+            cap = (d.get("settings") or {}).get("cap_pct")
+            n_cap = t.get("at_cap") or 0
+            part.append(P(f"{n_cap} direction{'' if n_cap == 1 else 's'} at the cap" + (f" ({cap:g}%)" if cap is not None else "")
+                          + f"; {t.get('too_soon') or 0} seen too recently to judge.", "small"))
+        story.append(KeepTogether(part))
+    story.append(PageBreak())
 
 # ---------------- competition: markets (the world scan; the group's share and each airline's, manual §7)
 section("COMPETITION — MARKETS", "markets", "Where our airlines fly against the biggest rivals.")

@@ -5,7 +5,9 @@
 - rules.json: the planning library's input (kind rules): our airlines, their game IDs and bases, aircraft, every leg;
 - airlines.json, airports.json and scan.json: the latest finished world scan (every airline with its schedule, the
   scanned airports, and which scan it is), for competition and markets;
-- site_airlines.json: the website's airlines (site_public()), for each airline's colour in the charts.
+- site_airlines.json: the website's airlines (site_public()), for each airline's colour in the charts;
+- fare_results.json: since 3 Nov (spec docs/specs/2026-11-03-fare-results.md §3) each of our airlines' fare_results(), by
+  its id (kind fare_results, one airline a call): the weekly report's Fare results section (manual §7's fare-plan results).
 Needs ~/.sb_anon (the public key) and ~/.ingest_secret.
 """
 import json, os, urllib.request
@@ -34,5 +36,9 @@ json.dump({"id": int(sid), "taken_at": next(s["taken_at"] for s in snaps if str(
 json.dump(ex("figures", "{}"), open("figures.json", "w"))   # as of now; {"as_of": "<moment>"} for another moment
 json.dump(ex("rules", ""), open("rules.json", "w"))
 json.dump(rpc("site_public", {}).get("airlines") or [], open("site_airlines.json", "w"))
-for f in ("airlines.json", "airports.json", "scan.json", "figures.json", "rules.json", "site_airlines.json"):
+# each of our active airlines' fare results (rules.json's, as analyze.py lists them), one call each
+rules = json.load(open("rules.json"))
+ours = [a for a in rules.get("airlines") or [] if a.get("ours") and a.get("active") is not False]
+json.dump({str(a["id"]): ex("fare_results", json.dumps({"airline": str(a["id"])})) for a in ours}, open("fare_results.json", "w"))
+for f in ("airlines.json", "airports.json", "scan.json", "figures.json", "rules.json", "site_airlines.json", "fare_results.json"):
     print(f, os.path.getsize(f))

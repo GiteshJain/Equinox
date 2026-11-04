@@ -383,7 +383,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 money figure is the database's. Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) it's laid out
 as the new Today, Routes and Systems: the group page's title is the answer, how many airlines are in profit ("Six
 airlines, all in profit", or "5 of 6 airlines in profit"; never a group total, manual §1); then the scorecards, the
-fare ladder's links (since 26 Oct; the board itself is on each airline's page), and **The details**: the other boards as rows that open, each with a one-line note and its count or
+fare ladder's links (since 26 Oct; the board itself is on each airline's page) with a Fare results line per airline under
+them (since 3 Nov), and **The details**: the other boards as rows that open, each with a one-line note and its count or
 state, all closed on arrival (Flights by day open when the address names a day). **Collapse all** and **Expand all**
 fold them, and a row's title opens or closes it.
 - **The address:** /planner/performance is the group; /planner/performance/VS one airline's page;
@@ -475,6 +476,23 @@ fold them, and a row's title opens or closes it.
   The card adds the week's jumps and decisions under its counts ("2 jumps, 1 decision"); **Put on the fare plan** writes
   a jump as `jump`, and the fares userscript makes it like any other change (a jump to 80% is "−20% of the default
   price").
+- **Fare results** (since 3 Nov, spec `docs/specs/2026-11-03-fare-results.md`; manual §5): what the fare ladder has done.
+  **On each airline's page** it is a row of its own right under the fare ladder (/planner/performance/VS#fare-results),
+  closed on arrival, its title the answer: "Fares up on 214 directions: profit a flight +9% (the rest +1%), about +1.4M a
+  week" (a direction stepped down counted apart, "down on 14"; "No fare changes seen in the game yet" before the first).
+  A direction counts once a capture sees a fare ladder change on it (up, down, a jump; either cabin), on the first day
+  its average fare that way is the new one; **before** is the 7 days before that day, **now** the latest complete days
+  since (so a change seen 3 days ago is judged on those 3). Open, it has a filter row (**All**, **Load fell**, **At
+  cap**, **Frequency changed**) with a search box like Route profit's, a dot per direction (its economy level now across,
+  its profit a flight change up, the rest of the airline's change as a dashed line; tap a dot for its route page), and
+  the table: the route (opening its route page, the direction beside it), economy and business level now, the moves
+  (how many and the latest's date, and any still to make in the game), economy fare, economy load and profit a flight
+  before → now, **profit a week** gained (the change in profit a flight × flights a week now), and the flags as small
+  pills: **load fell** (amber: economy under 95% now, 95% or more before), **frequency changed** (2 or more flights a
+  week apart: the money a flight isn't like for like), **too soon** (under 3 days since: its figures greyed) and **at
+  cap**. **The rest** is the airline's directions with no change over the same days, so fuel, fees and aircraft changes
+  don't pass for fare effects. **On the group page** a line per airline under the fare ladder's links says the same
+  title line and opens that airline's Fare results. In a chat, `select public.fare_results(<airline id>);` gives the same.
 - **The group today:** each airline's row, from last night's capture: flight profit a day (before leases), leases and
   the week-end closing a day (this week's scheduled payments), and net. No group totals: each airline is its own
   business (manual §1).

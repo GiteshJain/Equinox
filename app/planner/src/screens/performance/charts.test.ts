@@ -6,6 +6,9 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildRules, loadReport, type DayFlight, type RulesInput } from "@rules";
 import { hbarLayout, stackLayout, timelineLayout } from "../../ui/charts";
+import { FARE_DOT_CLAMP, fareDotLayout, fareResultDots } from "./charts";
+import { FareResultsChart } from "./PerfCharts";
+import type { FareResultRow } from "./model";
 import { GROWTH_SERIES, WEEK_SERIES, tailItems, flightsHeat, forecastSteps, growthList, growthStack, kHour, ladderWeek, planTimeline, routeHourBars, scoreMultiples, weekKind } from "./charts";
 import { CashSteps, RouteHourChart } from "./PerfCharts";
 import { MARKS, groupLayout, scatterLayout, type AircraftRow, type Forecast, type LadderRoute, type PlanRow, type ProfitDay, type RouteRow } from "./model";
@@ -167,5 +170,44 @@ describe("the older charts drawn with the kit (part B): Aircraft, Load against p
     const wide = groupLayout(rows), narrow = groupLayout(rows, 340);
     expect([wide.W, wide.x0, wide.netY === wide.labelY]).toEqual([900, 140, true]);
     expect([narrow.W, narrow.x0, narrow.netY - narrow.labelY, narrow.H - wide.H]).toEqual([340, 112, 15, 14]);
+  });
+});
+
+describe("Fare results: a dot per repriced direction", () => {
+  const side = { from: null, to: null, days: 7, flights: 14, flights_week: 14, economy_fare: 300, economy_load: 100, business_load: null, revenue_per_flight: null, profit_per_flight: 10000 };
+  const fr = (from: string, to: string, level: number | null, pct: number | null, flags: FareResultRow["flags"] = [], week: number | null = 1000): FareResultRow => ({
+    route_id: 1, hub: "HUB", dest: from === "HUB" ? to : from, direction: from === "HUB" ? "out" : "back", from, to, km: 900, economy_level: level, business_level: null,
+    at_cap: false, at_floor: false, moves: { count: 1, first_seen: "2026-10-30", latest: null, pending: null }, before: side, now: side,
+    change: { economy_fare_pct: null, economy_load_pts: null, business_load_pts: null, revenue_per_flight_pct: null, profit_per_flight_pct: pct, flights_week: 0 },
+    profit_week: week, flags });
+  const rows = [fr("HUB", "AAA", 110, 12, [], 42000), fr("AAA", "HUB", 105, -4, ["load_fell"]), fr("HUB", "BBB", 120, 300, ["at_cap", "too_soon"]), fr("HUB", "CCC", null, 5), fr("HUB", "DDD", 100, null)];
+  it("each direction with a level and a change, coloured by its flags, the far ones drawn at the edge", () => {
+    const d = fareResultDots(rows);
+    expect(d.map((x) => [x.key, x.level, x.pct, x.cut])).toEqual([["HUB-AAA", 110, 12, false], ["AAA-HUB", 105, -4, false], ["HUB-BBB", 120, FARE_DOT_CLAMP, true]]);
+    expect(d.map((x) => x.color)).toEqual(["#4B3BA8", "#E39B21", "#9AA4C4"]);
+    expect(d[0]?.tip).toBe("HUB → AAA · economy at 110% · profit a flight +12% · +42,000 AS$ a week");
+    expect(d[2]?.tip).toContain("profit a flight +300% · +1,000 AS$ a week · at cap, too soon");
+    expect([d[0]?.hub, d[0]?.dest, d[1]?.dest]).toEqual(["HUB", "AAA", "AAA"]);
+  });
+  it("the layout: levels across, the change up with zero and the baseline's line", () => {
+    const g = fareDotLayout(fareResultDots(rows), 1, { W: 560, H: 240 });
+    expect(g.dots).toHaveLength(3);
+    expect(g.xTicks.map((t) => t.label)).toEqual(["100%", "110%", "120%"]);
+    expect(g.dots.every((d) => d.cx > g.L && d.cx < g.W - g.R && d.cy >= g.T && d.cy <= g.H - g.B)).toBe(true);
+    const at = (k: string) => g.dots.find((x) => x.key === k) as { cx: number; cy: number };
+    expect(at("HUB-AAA").cx).toBeLessThan(at("HUB-BBB").cx);
+    expect(at("HUB-AAA").cy).toBeLessThan(g.zeroY);
+    expect(at("AAA-HUB").cy).toBeGreaterThan(g.zeroY);
+    expect(g.ref?.label).toBe("the rest +1%");
+    expect(g.ref && g.ref.y < g.zeroY).toBe(true);
+    expect(fareDotLayout([], null).ref).toBeNull();
+    expect(fareDotLayout([], null).dots).toEqual([]);
+  });
+  it("draws a dot per direction, each opening its route page, and never names a part back", () => {
+    const html = renderToString(createElement(FareResultsChart, { rows, baselinePct: 1, onPick: () => undefined }));
+    expect((html.match(/data-fare-dot=/g) ?? []).length).toBe(3);
+    expect(html).toContain("the rest +1%");
+    expect(html).not.toMatch(/class="[^"]*\bback\b/);
+    expect(renderToString(createElement(FareResultsChart, { rows: [], baselinePct: null, onPick: () => undefined }))).toContain("No direction to draw yet");
   });
 });

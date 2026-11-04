@@ -1488,6 +1488,21 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
   border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);font:700 var(--t-body)/1.3 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
 .fllink:hover,.fllink:focus-visible{box-shadow:0 0 0 2px var(--night),var(--shadow)}
 .fllink .fla{margin-left:auto;color:var(--muted)}
+/* Fare results (since 3 Nov; spec docs/specs/2026-11-03-fare-results.md §2): the airline page's row under the fare ladder,
+   and the group page's line per airline under the fare ladder's links */
+.perfres{margin-top:var(--gap-card)}
+.perfres > .board > h3.rch .fbname{white-space:normal}
+.frh{margin:18px 0 8px}
+.frlines{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.frline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-height:44px;padding:10px 16px;border-radius:var(--r-md);background:var(--paper);
+  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);font:500 var(--t-body)/1.4 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
+.frline:hover,.frline:focus-visible{box-shadow:0 0 0 2px var(--night),var(--shadow)}
+.frline b{font-weight:700}
+.frf{margin-bottom:10px}
+.frtbl td .pill{margin:0 4px 2px 0}
+.pill.plain{background:none;border:1px solid var(--line);color:var(--ink)}
+.frdots .frrest{stroke:#5B647E;stroke-dasharray:4 3}
+.frnotes{margin-top:10px;max-width:120ch}
 
 .perfrows{margin-top:var(--gap-sec)}
 .perfal + .perfrows,.perfal ~ .perfrows{margin-top:var(--gap-card)}

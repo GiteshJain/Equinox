@@ -821,7 +821,9 @@ export function sparkWords(values: readonly (number | null)[]): string {
 // Since 22 Oct (spec docs/specs/2026-10-22-planner-look-performance.md) each is a row that opens: the airline's page
 // with Route profit open on arrival (Aircraft and Fare changes, under it until then, are rows of their own); the
 // group's all closed (Flights by day open when the address names a day), the fare ladder's cards above them.
-export const BOARDS = ["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"] as const;
+/** The airline page's rows: since 3 Nov Fare results first, on its own under the fare ladder (spec
+ *  docs/specs/2026-11-03-fare-results.md §2), then the details. */
+export const BOARDS = ["Fare results", "Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"] as const;
 export type BoardKey = (typeof BOARDS)[number];
 /** The airline's page opens with these folded. */
 export const BOARDS_FOLDED: readonly BoardKey[] = BOARDS.filter((k) => k !== "Route profit");
@@ -832,15 +834,18 @@ export type FoldKey = BoardKey | GroupBoardKey;
  *  page keep their own, so what Expand all opened on one never carries to the next (22 Oct). */
 export interface FoldState { view: string; folded: ReadonlySet<FoldKey> }
 /** A page's rows on arrival: every row closed but the airline's Route profit, and the group's Flights by day when the
- *  address names a day (?day=). */
-export function foldsOnArrival(view: string, search: string): FoldState {
+ *  address names a day (?day=); since 3 Nov the airline's Fare results open when the address points at it
+ *  (#fare-results, the group page's line for that airline). */
+export function foldsOnArrival(view: string, search: string, hash = ""): FoldState {
   const airline = view !== "/performance";
   const day = new URLSearchParams(search).has("day");
-  return { view, folded: new Set<FoldKey>([...BOARDS_FOLDED, ...GROUP_BOARDS.filter((k) => airline || !(k === "Flights by day" && day))]) };
+  const results = airline && hash === "#fare-results";
+  return { view, folded: new Set<FoldKey>([...BOARDS_FOLDED.filter((k) => !(results && k === "Fare results")),
+    ...GROUP_BOARDS.filter((k) => airline || !(k === "Flights by day" && day))]) };
 }
 /** The rows closed on the page shown: as last left on that same page, else as on arrival. */
-export function foldsFor(state: FoldState, view: string, search: string): ReadonlySet<FoldKey> {
-  return state.view === view ? state.folded : foldsOnArrival(view, search).folded;
+export function foldsFor(state: FoldState, view: string, search: string, hash = ""): ReadonlySet<FoldKey> {
+  return state.view === view ? state.folded : foldsOnArrival(view, search, hash).folded;
 }
 
 // ---------- the answers the page heads and rows give (22 Oct)
@@ -1646,4 +1651,126 @@ export function serviceHeader(s: RouteStory, checks: ServiceChecks | null | unde
   const o = m.out ? m.out.service_code ?? "none" : null, b = m.back ? m.back.service_code ?? "none" : null;
   const text = o != null && b != null && o !== b ? `service ${o} out, ${b} back in the game` : `service ${o ?? b} in the game`;
   return { text, off: !!checks?.mismatches.some((x) => x.route_id === s.route.id) };
+}
+
+// ---------- Fare results (since 3 Nov; spec docs/specs/2026-11-03-fare-results.md §2): fare_results()'s answer worded
+/** A flag fare_results() puts on a direction (each a word on its row). */
+export type FareResultFlag = "load_fell" | "frequency_changed" | "too_soon" | "at_cap";
+/** One side of a direction's comparison: before (the 7 days before the first seen change) or now (the latest complete
+ *  days on or after it). Money in AS$ a flight. */
+export interface FareResultSide {
+  from: string | null; to: string | null; days: number; flights: number; flights_week: number | null;
+  economy_fare: number | null; economy_load: number | null; business_load: number | null;
+  revenue_per_flight: number | null; profit_per_flight: number | null;
+}
+export interface FareResultMove { id?: number; proposed_on: string; seen_on?: string | null; move: string | null; level: number | null; cabin: string }
+/** A repriced direction (fare_results()'s routes). */
+export interface FareResultRow {
+  route_id: number; hub: string; dest: string; direction: LadderDirection; from: string; to: string; km: number | null;
+  economy_level: number | null; business_level: number | null; at_cap: boolean; at_floor: boolean;
+  moves: { count: number; first_seen: string; latest: FareResultMove | null; pending: (FareResultMove & { count: number }) | null; changes?: FareResultMove[] | null };
+  before: FareResultSide; now: FareResultSide;
+  change: { economy_fare_pct: number | null; economy_load_pts: number | null; business_load_pts: number | null; revenue_per_flight_pct: number | null; profit_per_flight_pct: number | null; flights_week: number | null };
+  profit_week: number | null;
+  flags: FareResultFlag[];
+}
+export interface FareResultTotals {
+  directions: number; up: number; down: number; at_cap: number; load_fell: number; frequency_changed: number; too_soon: number;
+  before: { flights: number; profit_per_flight: number | null }; now: { flights: number; profit_per_flight: number | null };
+  profit_per_flight_pct: number | null; baseline_profit_per_flight_pct: number | null; profit_week: number;
+}
+export interface FareResultsAnswer {
+  airline_id: number; as_of: string; week_of: string;
+  days: { from: string | null; to: string | null; count: number };
+  totals: FareResultTotals | null;
+  baseline: { directions: number; profit_per_flight_pct: number | null; before: { profit_per_flight: number | null }; now: { profit_per_flight: number | null } } | null;
+  routes: FareResultRow[];
+  notes: string[];
+}
+
+/** A whole percent with its sign: "+9%", "−3%", "0%"; "—" without one. */
+export const signedPct = (v: number | null | undefined): string => {
+  if (v == null || !Number.isFinite(v)) return "—";
+  const r = Math.round(v);
+  return r === 0 ? "0%" : `${r > 0 ? "+" : "−"}${Math.abs(r)}%`;
+};
+/** AS$ a week, signed and short: "+1.4M", "−21k", "+500". */
+export function weekMoney(v: number): string {
+  const s = v < 0 ? "−" : "+", a = Math.abs(v);
+  if (a >= 1_000_000) return `${s}${(Math.round(a / 100_000) / 10).toFixed(1)}M`;
+  if (a >= 1_000) return `${s}${Math.round(a / 1_000)}k`;
+  return `${s}${Math.round(a)}`;
+}
+/** AS$ in full with thousands: "29,441". */
+const asd = (v: number | null | undefined): string => (v == null ? "—" : Math.round(v).toLocaleString("en-US"));
+
+/** The board's title line, which is the answer: "Fares up on 214 directions: profit a flight +9% (the rest +1%), about
+ *  +1.4M a week"; a direction stepped down is counted apart ("Fares up on 200 directions, down on 14: ..."). With nothing
+ *  seen: "No fare changes seen in the game yet". The group page's line per airline says the same. */
+export function fareResultsTitle(t: FareResultTotals | null | undefined): string {
+  if (!t || !t.directions) return "No fare changes seen in the game yet";
+  const dirs = (n: number) => `${n} direction${n === 1 ? "" : "s"}`;
+  const head = t.up && t.down ? `Fares up on ${dirs(t.up)}, down on ${t.down}`
+    : t.up ? `Fares up on ${dirs(t.up)}` : t.down ? `Fares down on ${dirs(t.down)}` : `Fares changed on ${dirs(t.directions)}`;
+  const profit = t.profit_per_flight_pct == null ? "profit a flight not compared yet"
+    : `profit a flight ${signedPct(t.profit_per_flight_pct)}${t.baseline_profit_per_flight_pct != null ? ` (the rest ${signedPct(t.baseline_profit_per_flight_pct)})` : ""}`;
+  return `${head}: ${profit}, about ${weekMoney(t.profit_week ?? 0)} a week`;
+}
+
+/** The filter row: All · Load fell · At cap · Frequency changed. */
+export const FARE_RESULT_FILTERS = [["all", "All"], ["load_fell", "Load fell"], ["at_cap", "At cap"], ["frequency_changed", "Frequency changed"]] as const;
+export type FareResultFilter = (typeof FARE_RESULT_FILTERS)[number][0];
+/** How many rows each filter shows. */
+export function fareResultCounts(rows: readonly FareResultRow[]): Record<FareResultFilter, number> {
+  return {
+    all: rows.length,
+    load_fell: rows.filter((r) => r.flags.includes("load_fell")).length,
+    at_cap: rows.filter((r) => r.flags.includes("at_cap")).length,
+    frequency_changed: rows.filter((r) => r.flags.includes("frequency_changed")).length,
+  };
+}
+/** The rows in the board's order: profit a week gained, largest first (none last), then the route and out before back. */
+export function fareResultOrder(rows: readonly FareResultRow[]): FareResultRow[] {
+  return rows.slice().sort((a, b) => (a.profit_week == null ? 1 : 0) - (b.profit_week == null ? 1 : 0)
+    || (b.profit_week ?? 0) - (a.profit_week ?? 0) || `${a.hub}${a.dest}`.localeCompare(`${b.hub}${b.dest}`)
+    || (a.direction === "back" ? 1 : 0) - (b.direction === "back" ? 1 : 0));
+}
+/** The text a row is searched by (as Route profit's): both airports and their cities. */
+export const fareResultSearchText = (r: Pick<FareResultRow, "from" | "to">, city: (code: string) => string): string =>
+  `${r.from} ${r.to} ${city(r.from)} ${city(r.to)}`.toLowerCase();
+/** The rows shown: the filter picked and the search box, in the board's order. */
+export function fareResultsShown(rows: readonly FareResultRow[], filter: FareResultFilter, query: string, city: (code: string) => string = () => ""): FareResultRow[] {
+  const q = query.trim().toLowerCase();
+  return fareResultOrder(rows).filter((r) => (filter === "all" || r.flags.includes(filter)) && (!q || fareResultSearchText(r, city).includes(q)));
+}
+/** A flag as a small pill: load fell amber, frequency changed and too soon dim (mute), at cap plain. */
+export function fareFlagWords(f: FareResultFlag): { text: string; cls: "warn" | "mute" | "plain" } {
+  switch (f) {
+    case "load_fell": return { text: "load fell", cls: "warn" };
+    case "frequency_changed": return { text: "frequency changed", cls: "mute" };
+    case "too_soon": return { text: "too soon", cls: "mute" };
+    default: return { text: "at cap", cls: "plain" };
+  }
+}
+/** A level now: "120%", "—" where the cabin isn't flown. */
+export const fareLevelWords = (v: number | null | undefined): string => (v == null ? "—" : `${Math.round(v * 10) / 10}%`);
+/** Moves: how many seen changes and the latest one's date, "2 · 26 Oct", with one still to make in the game after it. */
+export function fareMovesWords(r: FareResultRow, nice: (day: string) => string): string {
+  const latest = r.moves.latest ? ` · ${nice(r.moves.latest.proposed_on)}` : "";
+  const pending = r.moves.pending ? ` · ${r.moves.pending.count} to make` : "";
+  return `${r.moves.count}${latest}${pending}`;
+}
+/** Before → now: "300 → 360" (fares), "100% → 95%" (loads). */
+export const fareFareWords = (r: FareResultRow): string =>
+  `${r.before.economy_fare == null ? "—" : Math.round(r.before.economy_fare)} → ${r.now.economy_fare == null ? "—" : Math.round(r.now.economy_fare)}`;
+export const fareLoadWords = (r: FareResultRow): string => `${pc(r.before.economy_load)} → ${pc(r.now.economy_load)}`;
+/** Profit a flight before → now, with the change: "10,000 → 13,000 (+30%)". */
+export const fareProfitWords = (r: FareResultRow): string =>
+  `${asd(r.before.profit_per_flight)} → ${asd(r.now.profit_per_flight)}${r.change.profit_per_flight_pct != null ? ` (${signedPct(r.change.profit_per_flight_pct)})` : ""}`;
+/** Profit a week gained: "+42k", "—". */
+export const fareWeekWords = (r: Pick<FareResultRow, "profit_week">): string => (r.profit_week == null ? "—" : weekMoney(r.profit_week));
+/** The board's row in the details when closed: how many directions, at cap and with the load fallen. */
+export function fareResultsAside(t: FareResultTotals | null | undefined): string {
+  if (!t || !t.directions) return "";
+  return [`${t.directions} direction${t.directions === 1 ? "" : "s"}`, t.at_cap ? `${t.at_cap} at cap` : "", t.load_fell ? `${t.load_fell} load fell` : ""].filter(Boolean).join(" · ");
 }

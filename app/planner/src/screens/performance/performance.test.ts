@@ -23,6 +23,10 @@ import {
   type LadderAction, type LadderRoute, type PlanRow, type ProfitDay, type RouteDayRow, type RouteRow,
 } from "./model";
 import type { CapturedLoad, HandLoads } from "./reads";
+import {
+  FARE_RESULT_FILTERS, fareFareWords, fareFlagWords, fareLevelWords, fareLoadWords, fareMovesWords, fareProfitWords, fareResultCounts, fareResultOrder,
+  fareResultsAside, fareResultsShown, fareResultsTitle, fareWeekWords, signedPct, weekMoney, type FareResultRow, type FareResultTotals,
+} from "./model";
 
 // the planning library's small world (lib/rules/cases/_base.json), with the flights the load report lists
 const base = (JSON.parse(readFileSync(new URL("../../../../../lib/rules/cases/_base.json", import.meta.url), "utf8")) as { input: RulesInput }).input;
@@ -508,8 +512,9 @@ describe("Performance's new look", () => {
     expect(profitAnswer([])).toBe("Performance");
   });
   it("the rows: Route profit alone open on the airline's page, the fare ladder no longer a row", () => {
-    expect(BOARDS).toEqual(["Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]);
-    expect(BOARDS_FOLDED).toEqual(["Profit", "Cash, next 14 days", "Aircraft", "Fare changes", "Fare plan"]);
+    // since 3 Nov Fare results first, on its own under the fare ladder, closed on arrival
+    expect(BOARDS).toEqual(["Fare results", "Profit", "Cash, next 14 days", "Route profit", "Aircraft", "Fare changes", "Fare plan"]);
+    expect(BOARDS_FOLDED).toEqual(["Fare results", "Profit", "Cash, next 14 days", "Aircraft", "Fare changes", "Fare plan"]);
     expect(GROUP_BOARDS).toEqual(["The group today", "Growth signals", "Main hubs", "Flights by day"]);
   });
   it("each page arrives with its own rows: Expand all on the group page doesn't carry to an airline's, nor one airline's to another's", () => {
@@ -527,6 +532,12 @@ describe("Performance's new look", () => {
     expect(sorted(foldsFor({ view: "/performance/AW", folded: new Set<never>() }, "/performance/PA", ""))).toEqual(sorted(foldsOnArrival("/performance/PA", "").folded));
     // back on the group page with a day in the address: the group's arrival, Flights by day open
     expect([...GROUP_BOARDS].filter((k) => !foldsFor(expanded, "/performance/AW", "?day=x").has(k))).toEqual([]);
+    // since 3 Nov: the group page's Fare results line opens the airline's page with its Fare results open (#fare-results);
+    // the fare ladder's link (#fare-ladder) and the group page itself don't
+    expect(BOARDS.filter((k) => !foldsOnArrival("/performance/AW", "", "#fare-results").folded.has(k))).toEqual(["Fare results", "Route profit"]);
+    expect(BOARDS.filter((k) => !foldsFor(expanded, "/performance/AW", "", "#fare-results").has(k))).toEqual(["Fare results", "Route profit"]);
+    expect(BOARDS.filter((k) => !foldsOnArrival("/performance/AW", "", "#fare-ladder").folded.has(k))).toEqual(["Route profit"]);
+    expect(foldsOnArrival("/performance", "", "#fare-results").folded.has("Fare results")).toBe(true);
   });
   it("each row's count or state", () => {
     expect(groupTodayWords([{ net_day: 0.2 }, { net_day: -0.1 }, { net_day: null }])).toBe("1 of 2 airlines ahead after leases");
@@ -608,5 +619,70 @@ describe("route profit's sold_out (31 Oct, spec docs/specs/2026-10-30-route-prof
   });
   it("a sold-out route still offers + fare plan, as raise fares did", () => {
     expect(offersFarePlan(route("HUB", "AAA", { mark: "sold_out", route_id: 9 }), [])).toBe(true);
+  });
+});
+
+// ---------- Fare results (since 3 Nov; spec docs/specs/2026-11-03-fare-results.md §2): the title line, the order, the
+// filter and the flags' words. The figures themselves are fare_results()'s (database/tests/fare_results_test.sql).
+describe("Fare results", () => {
+  const side = (fare: number | null, load: number | null, ppf: number | null, fw = 14) => ({ from: "2030-01-01", to: "2030-01-07", days: 7, flights: fw, flights_week: fw,
+    economy_fare: fare, economy_load: load, business_load: null, revenue_per_flight: null, profit_per_flight: ppf });
+  const row = (from: string, to: string, week: number | null, flags: FareResultRow["flags"] = [], x: Partial<FareResultRow> = {}): FareResultRow => ({
+    route_id: 1, hub: from < to ? from : to, dest: from < to ? to : from, direction: from < to ? "out" : "back", from, to, km: 1000,
+    economy_level: 110, business_level: null, at_cap: flags.includes("at_cap"), at_floor: false,
+    moves: { count: 1, first_seen: "2026-10-30", latest: { proposed_on: "2026-10-26", seen_on: "2026-10-30", move: "up", level: 110, cabin: "economy" }, pending: null },
+    before: side(300, 100, 10000), now: side(330, 99.7, 11000),
+    change: { economy_fare_pct: 10, economy_load_pts: -0.3, business_load_pts: null, revenue_per_flight_pct: 5, profit_per_flight_pct: 10, flights_week: 0 },
+    profit_week: week, flags, ...x });
+  const totals = (x: Partial<FareResultTotals> = {}): FareResultTotals => ({
+    directions: 214, up: 214, down: 0, at_cap: 3, load_fell: 2, frequency_changed: 1, too_soon: 0,
+    before: { flights: 1000, profit_per_flight: 20000 }, now: { flights: 1000, profit_per_flight: 21800 },
+    profit_per_flight_pct: 9, baseline_profit_per_flight_pct: 1, profit_week: 1_400_000, ...x });
+
+  it("the title line is the answer, and says so when nothing is seen yet", () => {
+    expect(fareResultsTitle(totals())).toBe("Fares up on 214 directions: profit a flight +9% (the rest +1%), about +1.4M a week");
+    expect(fareResultsTitle(totals({ up: 200, down: 14 }))).toBe("Fares up on 200 directions, down on 14: profit a flight +9% (the rest +1%), about +1.4M a week");
+    expect(fareResultsTitle(totals({ directions: 1, up: 0, down: 1, profit_per_flight_pct: -3.4, baseline_profit_per_flight_pct: null, profit_week: -21000 })))
+      .toBe("Fares down on 1 direction: profit a flight −3%, about −21k a week");
+    expect(fareResultsTitle(totals({ profit_per_flight_pct: null, profit_week: 0 }))).toBe("Fares up on 214 directions: profit a flight not compared yet, about +0 a week");
+    expect(fareResultsTitle(totals({ directions: 0, up: 0 }))).toBe("No fare changes seen in the game yet");
+    expect(fareResultsTitle(null)).toBe("No fare changes seen in the game yet");
+    expect(fareResultsAside(totals())).toBe("214 directions · 3 at cap · 2 load fell");
+    expect(fareResultsAside(totals({ directions: 1, at_cap: 0, load_fell: 0 }))).toBe("1 direction");
+    expect(fareResultsAside(null)).toBe("");
+  });
+  it("money and percentages as the board words them", () => {
+    expect([signedPct(9.4), signedPct(-2.6), signedPct(0.4), signedPct(null)]).toEqual(["+9%", "−3%", "0%", "—"]);
+    expect([weekMoney(1_440_000), weekMoney(-21_000), weekMoney(500), weekMoney(-1_000_000)]).toEqual(["+1.4M", "−21k", "+500", "−1.0M"]);
+  });
+  it("the rows by profit a week gained, largest first, a row with none last, out before back", () => {
+    const rows = [row("AAA", "BBB", 5000), row("CCC", "AAA", null), row("AAA", "CCC", 42000), row("BBB", "AAA", 5000), row("AAA", "DDD", -21000)];
+    expect(fareResultOrder(rows).map((r) => `${r.from}>${r.to}`)).toEqual(["AAA>CCC", "AAA>BBB", "BBB>AAA", "AAA>DDD", "CCC>AAA"]);
+  });
+  it("the filter row and the search box", () => {
+    const rows = [row("AAA", "BBB", 100, ["at_cap"]), row("AAA", "CCC", 200, ["load_fell", "frequency_changed"]), row("CCC", "AAA", 50, ["too_soon"])];
+    expect(FARE_RESULT_FILTERS.map(([k]) => k)).toEqual(["all", "load_fell", "at_cap", "frequency_changed"]);
+    expect(fareResultCounts(rows)).toEqual({ all: 3, load_fell: 1, at_cap: 1, frequency_changed: 1 });
+    expect(fareResultsShown(rows, "all", "").map((r) => r.to)).toEqual(["CCC", "BBB", "AAA"]);
+    expect(fareResultsShown(rows, "load_fell", "").map((r) => r.to)).toEqual(["CCC"]);
+    expect(fareResultsShown(rows, "at_cap", "").map((r) => r.to)).toEqual(["BBB"]);
+    expect(fareResultsShown(rows, "frequency_changed", "").map((r) => r.to)).toEqual(["CCC"]);
+    expect(fareResultsShown(rows, "all", " ccc ").map((r) => `${r.from}>${r.to}`)).toEqual(["AAA>CCC", "CCC>AAA"]);
+    expect(fareResultsShown(rows, "all", "paris", (c) => (c === "BBB" ? "Paris" : "")).map((r) => r.to)).toEqual(["BBB"]);
+  });
+  it("the flags' words: load fell amber, frequency changed and too soon dim, at cap plain", () => {
+    expect((["load_fell", "frequency_changed", "too_soon", "at_cap"] as const).map(fareFlagWords)).toEqual([
+      { text: "load fell", cls: "warn" }, { text: "frequency changed", cls: "mute" }, { text: "too soon", cls: "mute" }, { text: "at cap", cls: "plain" }]);
+  });
+  it("each cell's words", () => {
+    const r = row("AAA", "BBB", 42000, [], { moves: { count: 2, first_seen: "2026-10-23", latest: { proposed_on: "2026-10-26", seen_on: "2026-10-30", move: "up", level: 110, cabin: "economy" },
+      pending: { proposed_on: "2026-11-02", move: "up", level: 115, cabin: "economy", count: 1 } } });
+    expect(fareMovesWords(r, (d) => d.slice(5))).toBe("2 · 10-26 · 1 to make");
+    expect(fareFareWords(r)).toBe("300 → 330");
+    expect(fareLoadWords(r)).toBe("100% → 100%");
+    expect(fareProfitWords(r)).toBe("10,000 → 11,000 (+10%)");
+    expect(fareWeekWords(r)).toBe("+42k");
+    expect(fareWeekWords({ profit_week: null })).toBe("—");
+    expect([fareLevelWords(120), fareLevelWords(null), fareLevelWords(102.5)]).toEqual(["120%", "—", "102.5%"]);
   });
 });
