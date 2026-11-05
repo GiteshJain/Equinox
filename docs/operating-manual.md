@@ -551,12 +551,17 @@ Details and open points: `docs/decisions.md`.
   extra seats cause; the rival pause (below); and whether another player flies the pair (the 60% floor). Each
   direction's level is its own latest fare plan row, or a row for both directions if that is later; the rows written
   before 26 Oct are for both, so each direction started from its route's level. Every plan card shows the fare level
-  of each route it flies, each leg its own direction's, so a new flight is priced like the rest of its route that way.
+  of each route it flies, each leg its own direction's, so a new flight is priced like the rest of its route that way;
+  in AS$ too where the market pages have read that direction's default price (since 4 Nov).
   **A direction whose captured fares don't match its level is set back to it:** when any flight of its latest captured
-  day that way is more than a point off (against that direction's fare on 21 Oct, when every route was at its launch
-  level), the planner lists a change for that direction at its level, first, and the fares userscript makes it with the
-  week's changes; not for a direction on the fare plan this week, a new route, or one not captured since its route's
-  newest flight launched.
+  day that way is more than a point off, the planner lists a change for that direction at its level, first, and the
+  fares userscript makes it with the week's changes; not for a direction on the fare plan this week, a new route, or one
+  not captured since its route's newest flight launched. **The level is measured against the game's default price**,
+  read each week from the Market Analysis page (§7): a flight's fare ÷ that direction's default price; where the market
+  pages haven't read the pair yet, against the direction's first captured fare as before (its fare on 21 Oct, when
+  every route was at its launch level, or a later route's first fare, taken as its launch level). The market page's
+  current price is only the highest of our flights, so each flight's fare still comes from the nightly capture. *(the
+  default price since 4 Nov, spec `docs/specs/2026-11-04-fare-default-from-market.md`; history: rule-history.md)*
   **Under launch, two jumps** (since 23 Oct; each direction on its own since 26 Oct: its window and its judgement from
   that direction's flights only; judged by loads since 26 Oct): a cabin at launch that the ladder would hold there (under
   90% sold out), averaging under 80% full over 14 days with at least 10 flights, all at launch, **jumps to 80%** of the
@@ -650,16 +655,19 @@ Details and open points: `docs/decisions.md`.
     failed that evening; a failed scan page is logged and skipped, and with more than 10% of the airlines failed the
     scan isn't finished, so the Systems board keeps the last finished one. Raise `scan_every_days` to 3 (about twice a
     week) if the evening gets long. *(since 21 Oct; history: rule-history.md)*
-  - **Then the market pages, once a week** (since 30 Oct, capture 1.9): after the world scan, when the latest finished
+  - **Then the market pages, once a week** (since 30 Oct, capture 1.9; the Pricing panel since 4 Nov, capture 1.11): after the world scan, when the latest finished
     market run is at least `settings.market_every_days` (7) capture days old, the capture reads the game's Market
     Analysis page for both directions of every pair we fly (about 686 pages, 10 to 12 minutes; keep the tab open),
     switching to each pair's airline first. If a listing filter differs from our setup (every class and status, own
     flights shown, grouped by flight) it sets it back; it never submits the Pricing or settings forms. It keeps the
-    figures only (`market_reads`, `market_fares`, `market_shares`, `market_weeks`: each airline's fares by class, the
-    game's passenger share, our service profile on the pair, the pair's weekly seats and price), and more than 10% of
+    figures only (`market_reads`, `market_fares`, `market_shares`, `market_weeks`, `market_prices`: each airline's fares
+    by class, the game's passenger share, our service profile on the pair, the pair's weekly seats and price, and since
+    4 Nov each class's default and current price from the page's Pricing panel, read only), and more than 10% of
     pages failed leaves the run unfinished, as the scan. The route page, Competition (the game's share beside the
-    scan's), the weekly report and the Systems board's market line read them; nothing in the fare ladder or the openings
-    does. *(since 30 Oct, brief `docs/briefs/2026-10-29-market-pages.md`; history: rule-history.md)*
+    scan's), the weekly report and the Systems board's market line read them, and since 4 Nov the fare ladder reads the
+    default price (§5); nothing in the openings does. *(since 30 Oct, brief `docs/briefs/2026-10-29-market-pages.md`;
+    the default and current price since 4 Nov, spec `docs/specs/2026-11-04-fare-default-from-market.md`; history:
+    rule-history.md)*
   - **Rivals' fleets, with every scan** (since 23 Oct, capture 1.8): after each airline's schedule the scan reads its
     overview page (its Fleet table and general figures; about 171 more pages, about 3 minutes) and keeps each rival's
     fleet and aircraft on order by type (`scan_airline_fleet`, `scan_airline_profile`, kept for good). A failed overview

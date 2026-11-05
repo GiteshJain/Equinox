@@ -329,7 +329,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   the card's **Fare level** column gives the fare level of each route it flies, from the fare ladder; since 26 Oct
   once per direction, on the first leg that way, each its own direction's level (out from the route's hub, back to it): "economy +10%, business +5% of the default price" for a route the airline flies (this week's new
   level once the move is on the fare plan), "launch (+0% of the default price)" for one it doesn't yet (Ryanair
-  −15%). In the game, set each new flight's fare to it (Ticket price adjustment, default price), or leave it to the
+  −15%). Since 4 Nov a cabin whose default price the market pages have read also shows its level in AS$: "economy +5%
+  (150 AS$) of the default price". In the game, set each new flight's fare to it (Ticket price adjustment, default price), or leave it to the
   fares userscript's next run, which sets back a route whose fares are off its level. **remove** takes an aircraft off the list of deliveries at once: one not yet in service, with nothing that
   points at it, goes; one that has flown or been paid for is retired; one in service just leaves the list.
 - **Lines** (since 28 Oct, manual §4, long haul in lines; spec docs/specs/2026-10-27-long-haul-lines.md §2): above the
@@ -430,7 +431,8 @@ fold them, and a row's title opens or closes it.
   card (**Hide the changes** closes them):
   - since 21 Oct, first, **the directions off their level** ("3 directions off their level", since 26 Oct), when there
     are any: a direction whose captured fares don't match its level (any flight of its latest captured day that way
-    more than a point off, against that direction's fare on 21 Oct, when every route was at its launch level) gets a
+    more than a point off: since 4 Nov against the game's default price where the market pages have read that
+    direction, else against that direction's fare on 21 Oct, when every route was at its launch level) gets a
     change that sets it back to its level, with why ("captured fare at 100%, level 110%") and **copy**. Not for a
     direction on the fare plan this week, a new route, or one not captured since its route's newest flight launched. They need no fare plan row: the fares userscript
     makes them on its next run, and the index matching again is the proof;

@@ -464,6 +464,12 @@ describe("filing", () => {
     expect(cardFareLevels(launch, card, planLegs, undefined)).toBeNull();
     expect(cardFareLevels(launch, { ...card, aircraft_id: 99 }, planLegs, ladder)).toBeNull();
     expect(fareCells(legs, null).size).toBe(0);
+    // since 4 Nov (spec docs/specs/2026-11-04-fare-default-from-market.md §3): the level in AS$ too where the market pages
+    // read the default (115% of 120 is 138 AS$ out); back, with no market read yet, as before
+    const read = { ...ladder, routes: ladder.routes.map((r) => (r.direction === "out" ? { ...r, default_source: "market", baseline_fare: r.cabin === "economy" ? 120 : 300 }
+      : { ...r, default_source: "inferred", baseline_fare: 150 })) };
+    expect([...fareCells(legs, cardFareLevels(launch, card, planLegs, read))].slice(2)).toEqual([
+      [73, "economy +15% (138 AS$), business +5% (315 AS$) of the default price"], [74, "economy +0%, business −5% of the default price"]]);
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");

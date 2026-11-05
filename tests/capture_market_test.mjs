@@ -1,4 +1,4 @@
-// The market pages in the capture (capture/capture_all.user.js 1.9, now 1.10; spec docs/specs/2026-10-30-market-pages.md), with no
+// The market pages in the capture (capture/capture_all.user.js 1.9, now 1.11; spec docs/specs/2026-10-30-market-pages.md), with no
 // browser and no game: the script's own file runs in Node, where (with no page) it only hands over its logic (eqScan), as
 // tests/capture_scan_test.mjs runs it. The sample is the game's Market Analysis page, DUB to AMS with Ryanair open, as
 // Gitesh saved it on 30 Oct 04:51 UTC (tests/fixtures/market_DUBAMS_2026-10-30.html), with the account menu, the holdings
@@ -19,7 +19,10 @@
 //      flight); the wrong airline open on a page without its table stops the run. Kingfisher's DEL→BOM, saved the same day
 //      (tests/fixtures/market_DELBOM_2026-10-30.html): our own flights only, no rival, is a normal page. The service code
 //      is the profile's leading token ("S2 (min 800km)" → S2).
-//   5. The file and the sample: version 1.10, capture_market() with the key, the only POST to the game through the filter
+//   4c. (1.11, spec docs/specs/2026-11-04-fare-default-from-market.md §1) The Pricing panel on both saved pages, read only:
+//      each class's Current Price and Default Price (DEL→BOM: Y 150/143, C 322/307, F 539/539, Cargo 104/104; DUB→AMS: Y
+//      102/120, C 245/245, F 415/415, Cargo 91/91), sent as pricing; a page without the panel sends none, with no error.
+//   5. The file and the sample: version 1.11, capture_market() with the key, the only POST to the game through the filter
 //      check; the sample holds nothing of the account.
 // Usage: node tests/capture_market_test.mjs
 import { readFileSync } from "node:fs";
@@ -103,7 +106,7 @@ await check("a page without Current Availability (signed out, or the page change
 // ---------------------------------------------------------------- 2. what goes to the database
 await check("the page's payload: fares by prefix and class (flights seen, lowest, average, highest, finished, sold out), shares, weeks, service; no HTML, nothing per flight", () => {
   const p = plain(S.marketPagePayload(7, { game_id: 112, name: "Ryanair" }, "DUB", "AMS", S.readMarketPage(saved), null));
-  assert.deepEqual(Object.keys(p).sort(), ["airline", "dest", "fares", "ok", "origin", "previous_week", "run_id", "service", "shares", "week", "weeks"]);
+  assert.deepEqual(Object.keys(p).sort(), ["airline", "dest", "fares", "ok", "origin", "previous_week", "pricing", "run_id", "service", "shares", "week", "weeks"]);
   assert.equal(p.ok, true); assert.equal(p.airline, 112); assert.equal(p.week, "2026-44"); assert.equal(p.previous_week, "2026-43");
   assert.deepEqual(p.service, { code: "R", game_id: 318 });
   const fare = (code, c) => p.fares.find(f => f.code === code && f.cls === c);
@@ -251,7 +254,7 @@ await check("a whole run, filters right: only GETs of market pages, one switch p
   assert.deepEqual(plain(g.sends.filter(s => s.kind === "page").map(s => [s.payload.run_id, s.payload.airline, s.payload.origin, s.payload.dest, s.payload.ok])),
     [[41, 112, "DUB", "AMS", true], [41, 112, "AMS", "DUB", true], [41, 112, "DUB", "BCN", true], [41, 114, "JFK", "LHR", true], [41, 114, "LHR", "JFK", true]]);
   assert.ok(g.sends.every(s => !/[<>]/.test(JSON.stringify(s.payload))), "HTML sent to the database");
-  assert.deepEqual(plain(g.sends[0].payload), { version: "1.10", total: 5, note: "Capture all airlines 1.10" });
+  assert.deepEqual(plain(g.sends[0].payload), { version: "1.11", total: 5, note: "Capture all airlines 1.11" });
   assert.equal(g.sends[6].payload.run_id, 41);
   assert.ok(g.sleeps.length === 4 && g.sleeps.every(ms => ms === 500), "not half a second between pages: " + g.sleeps);
   assert.ok(g.logs.includes("· Market pages: 0 of 5 (Ryanair)…") && g.logs.includes("· Market pages: 3 of 5 (Pan Am)…"), g.logs.join("\n"));
@@ -382,10 +385,40 @@ await check("1.10: the service code is the profile's leading token, as the plann
   assert.equal(S.serviceToken("R"), "R"); assert.equal(S.serviceToken(" S1 "), "S1"); assert.equal(S.serviceToken(""), null);
 });
 
+// ---------------------------------------------------------------- 4c. 1.11: the Pricing panel, each class's current and default price
+await check("1.11: Kingfisher's DEL→BOM Pricing panel: Y 150 / 143, C 322 / 307, F 539 / 539, Cargo 104 / 104 (current / default, AS$), sent as pricing", () => {
+  const want = [{ class: "Y", current: 150, default: 143 }, { class: "C", current: 322, default: 307 }, { class: "F", current: 539, default: 539 },
+                { class: "Cargo", current: 104, default: 104 }];
+  assert.deepEqual(plain(S.readMarketPage(kingfisher)).pricing, want);
+  assert.deepEqual(plain(S.marketPagePayload(1, { game_id: 113 }, "DEL", "BOM", S.readMarketPage(kingfisher), null)).pricing, want);
+});
+await check("1.11: Ryanair's DUB→AMS Pricing panel: Y 102 / 120 (85% of the default), C 245 / 245, F 415 / 415, Cargo 91 / 91, sent as pricing", () => {
+  const want = [{ class: "Y", current: 102, default: 120 }, { class: "C", current: 245, default: 245 }, { class: "F", current: 415, default: 415 },
+                { class: "Cargo", current: 91, default: 91 }];
+  assert.deepEqual(page.pricing, want);
+  const p = plain(S.marketPagePayload(7, { game_id: 112, name: "Ryanair" }, "DUB", "AMS", S.readMarketPage(saved), null));
+  assert.deepEqual(p.pricing, want);
+  // read only: the New Price inputs are never read as prices, and nothing of the form goes to the database
+  assert.ok(!/newPrice|reset/.test(JSON.stringify(p)), "the Pricing form's fields are in the payload");
+});
+await check("1.11: a page without the Pricing panel sends no pricing and no error; a row whose prices don't read is left out", () => {
+  const start = saved.indexOf("<legend>Pricing</legend>"), end = saved.indexOf("</fieldset>", start);
+  assert.ok(start > 0 && end > start, "the saved page has no Pricing panel to cut");
+  const without = saved.slice(0, start) + saved.slice(end);
+  const r = plain(S.readMarketPage(without));
+  assert.equal(r.error, undefined); assert.deepEqual(r.pricing, []);
+  const p = plain(S.marketPagePayload(7, { game_id: 112 }, "DUB", "AMS", S.readMarketPage(without), null));
+  assert.equal(p.ok, true); assert.ok(!("pricing" in p), "a page without the panel sent pricing");
+  const at = saved.indexOf('<td class="number">102 AS$</td>', start);
+  const broken = saved.slice(0, at) + '<td class="number">—</td>' + saved.slice(at + '<td class="number">102 AS$</td>'.length);
+  assert.deepEqual(plain(S.readMarketPage(broken)).pricing.map(x => x.class), ["C", "F", "Cargo"]);
+  assert.deepEqual(plain(S.readPricing("<html></html>")), []);
+});
+
 // ---------------------------------------------------------------- 5. the file and the sample
-await check("the file: version 1.10, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
-  assert.match(source, /^\/\/ @version\s+1\.10$/m);
-  assert.equal(S.VERSION, "1.10");
+await check("the file: version 1.11, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
+  assert.match(source, /^\/\/ @version\s+1\.11$/m);
+  assert.equal(S.VERSION, "1.11");
   assert.match(source, /RPC \+ "capture_market"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /switchTo: id => \{ location\.href = "\/app\/enterprise\/dashboard\?select=" \+ encodeURIComponent\(id\); return "away"; \}/);
   const posts = [...source.matchAll(/method: "POST"/g)].length;

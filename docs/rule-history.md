@@ -49,6 +49,18 @@ ladder judges it on its loads like any direction: sold out, it climbs a step (an
 launch to the cap; 90–99% sold out, it holds; under 90% sold out, it **jumps to 60%** and holds 2 weeks the same way."
 Built 2 Nov (#132, migration 20261102240000): `private.fig_fare_ladder()` judges a cabin due at a jump level on its last 14 days since the jump (`under_launch.judged_load`); 80% full or more holds ("... but 88% full over 14 days: holds at 80%, judged again next Saturday"). §5's sentence replaced. The item as it stood in *Decided, not yet built*: "- **The second jump under launch needs the same load cut-off as the first** (§5, decided 2 Nov, Gitesh): after its 2 weeks at 80% (Ryanair 75%), a cabin jumps to 60% only when it is under 90% sold out **and** averaging under 80% full (`fare_under_launch_load_pct`) over the 14 days since the captures saw the jump; under 90% sold out but 80% full or more, it holds at 80% and is judged again the next Saturday. At 60% the cut-or-keep test is unchanged. Until it's built, the planner still jumps a cabin under 90% sold out to 60% whatever its loads: check each 80%-to-60% jump's loads at the Saturday review and leave one 80% full or more off the fare plan. *(since 2 Nov; history: rule-history.md)*"
 
+### The fare ladder measured against the game's default price: decided 4 Nov
+*Gitesh, 4 Nov (Scheduling chat), spec `docs/specs/2026-11-04-fare-default-from-market.md` · why: see §5, "The fare
+ladder, every Saturday".* Built with the spec's pull request (capture 1.11, migration 20261104000000): the market pages
+also keep each class's default and current price (`market_prices`), `default_prices()` gives them by route, direction
+and cabin, and the fare ladder measures each direction against its default where read. §5's set-back sentence and §7's
+market-pages line replaced. §7's line before, word for word: "It keeps the figures only (`market_reads`,
+`market_fares`, `market_shares`, `market_weeks`: each airline's fares by class, the game's passenger share, our service
+profile on the pair, the pair's weekly seats and price), and more than 10% of pages failed leaves the run unfinished,
+as the scan. The route page, Competition (the game's share beside the scan's), the weekly report and the Systems
+board's market line read them; nothing in the fare ladder or the openings does." (its opening read "(since 30 Oct,
+capture 1.9)").
+
 ### Route profit's sold-out marks and the fare ladder: decided 30 Oct
 *Gitesh, 30 Oct (Building chat, brief `docs/briefs/2026-10-30-route-profit-and-fare-ladder.md`, option B) · why: since
 21 Oct the fare ladder raises every sold-out direction each Saturday, so route profit's "raise fares" repeated it and
@@ -594,6 +606,25 @@ step.
 *Since 20–21 Sep · why: every lane ran full at lower fares, and launching low then raising across 50 routes is too much work. The new flight's rule since 21 Oct (Gitesh).* As of 21 Oct every route is at its launch level: legacy airlines 100% of the default price, Ryanair 85% (Gitesh); the fare ladder's first moves start from there.
 
 #### The fare ladder, every Saturday
+*Measured against the game's default price since 4 Nov (Gitesh, Scheduling chat: "on the market analysis sheet, there
+is a market default rate and our highest current price for that route. we would still need to step back incorrect
+fares as this would only tell us the highest one for that route" — "do it"; built with spec
+`docs/specs/2026-11-04-fare-default-from-market.md`).* Why: the ladder never saw the game's default price. It took each
+direction's first captured fare (its fare on 21 Oct, or a later route's first fare) to be at the launch level, so a
+direction first captured at another price (a route opened mid-change, a new flight started at another price) had every
+level after it wrong, and the set-back check moved its fares towards the wrong number. On 4 Nov Ryanair's CDG–Hamburg
+economy, first fare 118 and today 100, read "captured fare at 72%, level 85%": if 118 was the default, the fare is
+exactly at its 85% level and the set-back would have raised it. The same pattern showed on CDG–Menorca, CDG–Thessaloniki,
+Seville–CDG, Malta–CDG and Budapest–Barcelona. Where the old reading held, the market page agreed (Kingfisher's DEL–BOM:
+default 143, current 150, 105%). The market page's current price is only the highest of our flights, so the per-flight
+check still uses the nightly capture. A direction the market pages haven't read yet is read as before. The levels and
+the moves didn't change. The wording replaced, word for word: "Every plan card shows the fare level of each route it
+flies, each leg its own direction's, so a new flight is priced like the rest of its route that way. **A direction whose
+captured fares don't match its level is set back to it:** when any flight of its latest captured day that way is more
+than a point off (against that direction's fare on 21 Oct, when every route was at its launch level), the planner lists
+a change for that direction at its level, first, and the fares userscript makes it with the week's changes; not for a
+direction on the fare plan this week, a new route, or one not captured since its route's newest flight launched."
+
 *Per direction since 26 Oct (Gitesh, option A of `docs/briefs/2026-10-26-fare-ladder-per-direction.md`; built with spec
 `docs/specs/2026-10-26-fare-ladder-per-direction.md`).* Why: passengers book each direction separately (§9) and the
 game's Ticket price adjustment already changes one direction at a time, but the ladder judged both directions' flights
@@ -926,6 +957,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 4 Nov | A direction's captured fares read against its fare on 21 Oct (or a later route's first fare), taken as its launch level, for the fare index and the set-back; the market pages read by nothing in the fare ladder | Against the game's default price where the market pages have read the direction (each week), the first captured fare only where they haven't yet; the levels and moves unchanged (§5, §7). Why: Gitesh, a direction first captured at another price had every level after it wrong (Ryanair's CDG–Hamburg read 72% against 85%); spec `docs/specs/2026-11-04-fare-default-from-market.md` |
 | 29 Oct | The trunk month from 1 to 30 November (`trunk_month_from` 2026-11-01) | From 29 Oct to 30 Nov (§4). Why: Gitesh, start the trunks now; brief `docs/briefs/2026-10-29-trunk-month-today.md` |
 | 29 Oct | Kingfisher's eight deposit aircraft (four SHARPs, four E195-E2s) go to Mumbai | Six go to Mumbai, the rest of the deposits to Delhi (§3). Why: Gitesh, with the trunk month's early start |
 | 28 Oct | **Long-haul trunks are in too:** any trunk that makes sense, at any distance, on the default line's A350s where beyond the A321XLR. For November's trunks this sets aside reach first (§3) and Malaysia's feeder-first order (§2) | Only trunks the A321LR or smaller can fly (7,700 km) are part of November; longer ones wait for long haul's cash test (§3, §4). Why: Gitesh, with the cash test; brief `docs/briefs/2026-10-28-long-haul-cash-trigger.md` |
