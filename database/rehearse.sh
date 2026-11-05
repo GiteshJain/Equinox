@@ -106,8 +106,11 @@ restore_copy() {
   grep -v 'cli_login_postgres' "$backup/db/roles.sql" > "$work/roles.sql" || true   # the CLI makes this role itself
   psql "$LOCAL" -X -q -b -f "$work/roles.sql" > /dev/null 2>&1 || true            # per-role settings need a superuser
   restore_defaults
+  # leave out the data of storage tables Supabase added on live that the local copy lacks (database/storage_data_filter.py)
+  psql "$LOCAL" -X -At -c "select tablename from pg_tables where schemaname = 'storage'" > "$work/storage_tables.txt"
+  python3 database/storage_data_filter.py "$backup/db/data.sql" "$work/storage_tables.txt" "$work/data.sql"
   psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 \
-    -f "$backup/db/schema.sql" -c 'SET session_replication_role = replica' -f "$backup/db/data.sql" > /dev/null
+    -f "$backup/db/schema.sql" -c 'SET session_replication_role = replica' -f "$work/data.sql" > /dev/null
   psql "$LOCAL" -X -q --single-transaction -v ON_ERROR_STOP=1 \
     -f "$backup/db/history_schema.sql" -f "$backup/db/history_data.sql" > /dev/null
 }
@@ -260,7 +263,7 @@ backup_restore() {
   echo "== the backup and its restore check, after the changes: the copy dumped as the nightly backup dumps live, and restored into an empty database"
   mkdir -p "$dump"
   IFS=',' read -ra secret <<< "$SECRET_TABLES"
-  for t in "${secret[@]}" storage.buckets_vectors storage.vector_indexes; do excl+=(-x "$t"); done
+  for t in "${secret[@]}" storage.buckets_vectors storage.vector_indexes storage.bucket_lifecycle_states; do excl+=(-x "$t"); done
   count > "$dump/counts.txt"
   psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/backup/permissions.sql > "$dump/permissions.txt"
   if ! { supabase db dump --local --workdir "$work" -f "$dump/roles.sql" --role-only \
