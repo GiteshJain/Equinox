@@ -33,11 +33,6 @@ Until each is built and merged, the rules below stand as they are.
   partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **Shared pairs (§2, decided 4 Nov):** two of our airlines on one base-to-base pair at the owner's price, Ryanair out.
-  Spec `docs/specs/2026-11-05-shared-pairs.md`, built after the default-price change
-  (`docs/specs/2026-11-04-fare-default-from-market.md`; both change the fare ladder). **Until it's merged, one airline
-  per city pair stands as before:** no joiner flies, and the openings, the trunk month and the ladder work per airline.
-  *(since 4 Nov)*
 - **Salaries inside the evening capture (§7, decided 4 Nov):** the capture checks each position of each airline against
   its country average every evening: at or above the average it is left alone; below it, set to 5% above the average
   (a setting). The "Salaries: this airline" button goes. Brief `docs/briefs/2026-11-04-salaries-in-capture.md`; built
@@ -185,14 +180,17 @@ Details and open points: `docs/decisions.md`.
   (Shanghai–Boston, Daxing–Vancouver) is on no list. China Eastern doesn't fly North America; Pan Am flies these later
   as stations (point-to-point, §2 Stations). *(since 23 and 26 Sep; the base exception since 21 Oct;
   US and Canada to China since 22 Oct; history: rule-history.md)*
-  - **Shared pairs, the exception** (decided 4 Nov, in force once built: *Decided, not yet built*; brief
-    `docs/briefs/2026-11-04-shared-pairs.md`, option B; spec `docs/specs/2026-11-05-shared-pairs.md`): a pair whose
+  - **Shared pairs, the exception** (since 5 Nov, decided 4 Nov; brief `docs/briefs/2026-11-04-shared-pairs.md`,
+    option B; spec `docs/specs/2026-11-05-shared-pairs.md`, built in #137 and #138): a pair whose
     two airports are bases (hub or focus city, never a station) of two different airlines of ours, neither Ryanair, may
     be flown by both. The airline the country rule gives it is the pair's **owner**; the other is the **joiner**. Every
     flight on the pair sells at the pair's one price, the owner's level (§5). A joiner adds a flight only while the pair
     sells out, and the next flight goes to the owner when it can fund it that evening, otherwise to the joiner (§3,
-    §4). Ryanair neither joins nor is joined: UK–Europe stays Virgin's, Ryanair's base pairs stay Ryanair's. For the
-    first two Saturdays after the build, at most 6 pairs have a joiner. Why: a consortium puts whichever partner's
+    §4). Ryanair neither joins nor is joined: UK–Europe stays Virgin's, Ryanair's base pairs stay Ryanair's
+    (`settings.shared_pairs_excluded_airlines`). For the first two Saturdays after the build, at most 6 pairs have a
+    joiner (`shared_pairs_limit` 6, for `shared_pairs_limit_days` 14 from `shared_pairs_from`, 5 Nov). A pair is joined
+    with **Join this pair** (Routes, or the owner's route page) or `join_pair()`, which writes the joiner's route
+    (`routes.shares_route_id`); the planner's `shared_pairs` view lists every pair. Why: a consortium puts whichever partner's
     aircraft is free on a shared trunk at one price; in the game which of our airlines flies a pair makes no difference
     to passengers (bookings split by flight, connections across our airlines rate as within one), and profit an
     aircraft hour is the same on a trunk as on a spoke, so a joiner loses nothing and the trunk gets both airlines'
@@ -363,8 +361,8 @@ Details and open points: `docs/decisions.md`.
   (§4) takes its routes from the top of this list: the airline briefing carries the top 20, the planner's Competition
   screen shows them with the market share and the rivals' moves, and `select public.competition(<airline id>);` gives
   them all (`p_limit`). One airline per city pair (§2) still decides between airlines (an opening says which other
-  airlines of ours have the pair on their list); on a shared pair, once built, the owner comes first and the joiner's
-  opening shows only when the owner can't order that evening (§2). **In the trunk month** (`settings.trunk_month_from` to `trunk_month_to`, 29 Oct
+  airlines of ours have the pair on their list); on a shared pair the owner comes first and the joiner's
+  opening shows only when the owner can't order that evening, marked "owner can't fund tonight" (§2). **In the trunk month** (`settings.trunk_month_from` to `trunk_month_to`, 29 Oct
   to 30 Nov, §4) the trunks come first, shortest first, marked, with hubs first not applied to them; only trunks within
   the A321LR's reach (7,700 km) count that month (§4), and the list still shows the longer ones, which the Scheduling
   chat skips; the other openings follow as always. The list marks trunks; whether
@@ -443,10 +441,10 @@ Details and open points: `docs/decisions.md`.
     bases, and Europe's and China's short pairs) are fortified first, contested pairs against a top-3 competitor
     ahead of the rest; long-haul trunks (transatlantic, India–Europe, India–China) wait until those no longer sell
     out. Within each group, adding to the trunks we fly and opening those we don't (within the A321LR's reach, below)
-    are chosen together, by profit per aircraft hour where flown and by market size where not. A trunk between two
-    airlines' bases is the owner's (§2's country rule) until shared pairs are built; then its next flight goes to the
-    owner when it can fund it that evening, otherwise to the joiner (§2). *(short-haul first since 4 Nov, Gitesh:
-    "long haul is not yet that competitive"; shared pairs decided 4 Nov; history: rule-history.md)*
+    are chosen together, by profit per aircraft hour where flown and by market size where not. On a trunk between two
+    airlines' bases (a shared pair, §2) the next flight goes to the owner when it can fund it that evening, otherwise
+    to the joiner. *(short-haul first since 4 Nov, Gitesh: "long haul is not yet that competitive"; shared pairs since
+    5 Nov; history: rule-history.md)*
   - **Hubs first is suspended for trunks in the trunk month:** any base can take an aircraft for a trunk route. The aim
     is to connect every pair of our bases and fortify them first, before other players take these strongest routes.
     **Fillers:** where a trunk aircraft's day needs more to make sense (hours, maintenance), it may also fly fillers
@@ -600,11 +598,11 @@ Details and open points: `docs/decisions.md`.
   change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. The
   simulogics terms (§5.3) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
   every script Gitesh chooses to use is allowed there; no need to ask the owner.
-  **Shared pairs have one ladder** (§2, once built): the owner's ladder judges each direction and cabin on both
+  **Shared pairs have one ladder** (§2): the owner's ladder judges each direction and cabin on both
   airlines' flights together, with the owner's step, cap and launch level, and a frequency added by either airline
   holds the pair for the week; the joiner's directions follow the owner's level and list only set-backs to it, applied
   by the fares script like any set-back, so the joiner's price follows the owner's plan within a day. The review
-  presses Put on the fare plan for the owner before the joiner. *(decided 4 Nov)*
+  presses Put on the fare plan for the owner before the joiner. *(since 5 Nov, decided 4 Nov)*
   Fare moves never appear in Needs attention. The numbers are settings (step, up, down, hold weeks, cap, and the hold
   after a new flight, `fare_ladder_capacity_hold_days`). *(since 21 Oct; per direction since 26 Oct, brief
   `docs/briefs/2026-10-26-fare-ladder-per-direction.md`; history: rule-history.md)*
@@ -725,8 +723,8 @@ Details and open points: `docs/decisions.md`.
     *since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`*);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
   - the weekly review together: the fare ladder's moves (§5), aircraft under 12 block hours a day (§4), orders and
-    hubs first, interline partners (§6: any that became a top-3 competitor or hub carrier, airports without one), and,
-    once built, the shared pairs (§2): both airlines' flights, loads and level together, and a joiner whose flights
+    hubs first, interline partners (§6: any that became a top-3 competitor or hub carrier, airports without one), and
+    the shared pairs (§2; Performance's Shared pairs row): both airlines' flights, loads and level together, and a joiner whose flights
     don't fill while the owner's do is a frequency to take away, not a price to cut.
 
   *(since 5–8 Oct)*

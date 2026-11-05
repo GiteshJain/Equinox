@@ -197,6 +197,15 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 
 ### 2. Group strategy
 
+#### Shared pairs in force
+*Since 5 Nov (built in #137 and #138, Building chat; decided 4 Nov, Gitesh).* Until then the manual listed them under
+*Decided, not yet built* ("**Until it's merged, one airline per city pair stands as before:** no joiner flies, and the
+openings, the trunk month and the ladder work per airline"), §2 said "in force once built", §3 "on a shared pair, once
+built, the owner comes first", §4 "A trunk between two airlines' bases is the owner's (§2's country rule) until shared
+pairs are built; then its next flight goes to the owner…", §5 "(§2, once built)" and §7 "once built, the shared
+pairs". Now in force with its settings, `join_pair()` and the Join this pair button. Why: the build merged and its
+database changes are live (migrations `20261105000000`, `20261105010000`).
+
 #### One airline per city pair
 *Shared pairs decided 4 Nov (Gitesh, Scheduling chat, brief `docs/briefs/2026-11-04-shared-pairs.md`, option B with
 Ryanair out: "I want b tomorrow i think. It seems like how a real consortium would operate"; in force once built, spec
