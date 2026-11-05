@@ -1473,7 +1473,10 @@ begin
     ('private.fig_fare_results(bigint, timestamptz)', ' Since 5 Nov a joiner''s directions take the owner''s fare plan rows (the pair''s moves), marked follows.'),
     ('public.route_story(bigint, timestamptz)', ' Shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): for a route on a joined shared pair, the owner''s and the joiner''s route give the same page (private.fig_pair_story()), from the side of the route asked for: days, weeks, days by direction, departures, rotations, types, the fare level and rivals'' ours combined; pair.airlines each airline''s own flights, revenue and profit; one timeline marked with each event''s airline; pair (role, follows, title, owner, joiner).')
   loop
-    execute format('comment on function %s is %L', f, coalesce(obj_description(f::regprocedure, 'pg_proc'), '') || add);
+    -- once only, should the file be run again
+    if position(add in coalesce(obj_description(f::regprocedure, 'pg_proc'), '')) = 0 then
+      execute format('comment on function %s is %L', f, coalesce(obj_description(f::regprocedure, 'pg_proc'), '') || add);
+    end if;
   end loop;
 end
 $d$;
