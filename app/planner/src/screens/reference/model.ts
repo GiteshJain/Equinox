@@ -159,6 +159,9 @@ export const CONSTANTS: readonly [string, string, string][] = [
   ["scanEvery", "World scan every (capture days; 1 = every evening)", "scan_every_days"],
   // since 3 Nov (spec docs/specs/2026-11-03-interline-replies.md; manual §6): how long an interline request may wait for a reply
   ["ilReplyWait", "Interline reply wait (days; 14 = two weeks)", "interline_reply_wait_days"],
+  // since 5 Nov (manual §7, brief docs/briefs/2026-11-04-salaries-in-capture.md): how far above the country average the
+  // evening capture sets a salary below it
+  ["salaryAbove", "Salary below the country average set to (% above it)", "salary_above_average_pct"],
 ];
 export interface SettingRow { id: number; key: string; value: Json; updated_at: string }
 export interface WorldRuleRow { id: number; key: string; value: Json; updated_at: string }

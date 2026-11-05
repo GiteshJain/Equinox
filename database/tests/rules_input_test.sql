@@ -111,7 +111,7 @@ begin
                              'aircraft_eval_types', 'plan_connection_target_h', 'a350_1000_from_km',
                              'line_min_km', 'maintenance_max_gap_h', 'line_aircraft', 'market_every_days',
                              'interline_reply_wait_days', 'shared_pairs_excluded_airlines', 'shared_pairs_from',
-                             'shared_pairs_limit', 'shared_pairs_limit_days'] loop
+                             'shared_pairs_limit', 'shared_pairs_limit_days', 'salary_above_average_pct'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

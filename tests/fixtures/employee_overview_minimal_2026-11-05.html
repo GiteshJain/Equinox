@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<!-- A minimal Employee overview page, built 5 Nov 2026 for tests/capture_salary_test.mjs (no saved copy of the game's
+     page exists in the repository). It is NOT a saved page: it is built from the selectors of the retired script
+     capture/salary_adjust.user.js, which worked on the live page from 10 Oct to 4 Nov: the heading "Employee overview",
+     "Country average" on the page, and each position a table row with a salary box (an input of type text), an "adjust"
+     control and, in a cell after it, the country average ("2,100 AS$"). The row layout, the field names and the figures
+     are made up. The first live run of capture 1.12 is the real test. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Employee overview - AirlineSim</title></head>
+<body>
+<div class="bootstrap container-fluid">
+  <div class="row">
+    <div class="col-md-12">
+      <h2>Employee overview</h2>
+      <form action="./employees?3-1.IFormSubmitListener-salaries" method="post" id="salaries1">
+        <table class="table table-striped">
+          <thead>
+            <tr><th>Position</th><th class="number">Employees</th><th>Salary</th><th></th><th class="number">Country average</th><th class="number">Weekly cost</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pilots</td><td class="number">412</td>
+              <td><input type="text" class="form-control" name="salaries:rows:0:salary" value="9,800" size="8"> AS$</td>
+              <td><a href="./employees?3-1.ILinkListener-salaries-rows-0-adjust" class="btn btn-default btn-xs">adjust</a></td>
+              <td class="number">10,000 AS$</td><td class="number">4,037,600 AS$</td>
+            </tr>
+            <tr>
+              <td>Flight attendants</td><td class="number">1,288</td>
+              <td><input type="text" class="form-control" name="salaries:rows:1:salary" value="2,100" size="8"> AS$</td>
+              <td><a href="./employees?3-1.ILinkListener-salaries-rows-1-adjust" class="btn btn-default btn-xs">adjust</a></td>
+              <td class="number">2,100 AS$</td><td class="number">2,704,800 AS$</td>
+            </tr>
+            <tr>
+              <td>Technicians</td><td class="number">96</td>
+              <td><input type="text" class="form-control" name="salaries:rows:2:salary" value="4,620" size="8"> AS$</td>
+              <td><a href="./employees?3-1.ILinkListener-salaries-rows-2-adjust" class="btn btn-default btn-xs">adjust</a></td>
+              <td class="number">4,200 AS$</td><td class="number">443,520 AS$</td>
+            </tr>
+            <tr>
+              <td>Ground staff</td><td class="number">530</td>
+              <td><input type="text" class="form-control" name="salaries:rows:3:salary" value="1,150" size="8"> AS$</td>
+              <td><button type="button" class="btn btn-default btn-xs" name="salaries:rows:3:adjust">adjust</button></td>
+              <td class="number">1,234 AS$</td><td class="number">609,500 AS$</td>
+            </tr>
+            <tr>
+              <td>Administration</td><td class="number">74</td>
+              <td><input type="text" class="form-control" name="salaries:rows:4:salary" value="3,000" size="8"> AS$</td>
+              <td><input type="submit" class="btn btn-default btn-xs" name="salaries:rows:4:adjust" value="adjust"></td>
+              <td class="number">3,010 AS$</td><td class="number">222,000 AS$</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr><td>Total</td><td class="number">2,400</td><td><input type="text" class="form-control" name="salaries:raise" value="" size="4"> %</td>
+              <td><a href="./employees?3-1.ILinkListener-salaries-adjustAll" class="btn btn-primary btn-xs">adjust all</a></td>
+              <td class="number"></td><td class="number">8,017,420 AS$</td></tr>
+          </tfoot>
+        </table>
+      </form>
+    </div>
+  </div>
+</div>
+</body>
+</html>

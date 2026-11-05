@@ -57,9 +57,8 @@ full stop; manual §8, brand). Website and planner: **equinox-alliance.com** (pl
 
 | Tool | What it's for | Where |
 |---|---|---|
-| **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries | gander.airlinesim.aero, one account with all six airlines |
-| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct); then, when a world scan is due, scans the world (every airline's schedule, its overview page and the airport pages; since 21 Oct); then, once a week, the market pages of every pair we fly (since 30 Oct; version 1.10, manual §7) | `capture/capture_all.user.js`, installed in the Userscripts app on the Mac or iPhone, with your capture key in place of `__CAPTURE_KEY__` |
-| **Salaries userscript** | One button sets every position of the airline you're on to the level the rule sets (rule: manual §7, salaries) | `capture/salary_adjust.user.js`, installed the same way |
+| **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries (the capture sets them, manual §7) | gander.airlinesim.aero, one account with all six airlines |
+| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct); then, when a world scan is due, scans the world (every airline's schedule, its overview page and the airport pages; since 21 Oct); then, once a week, the market pages of every pair we fly (since 30 Oct); each airline's salaries are checked with its pages and any below the country average raised (since 5 Nov; version 1.12, manual §7) | `capture/capture_all.user.js`, installed in the Userscripts app on the Mac or iPhone, with your capture key in place of `__CAPTURE_KEY__` |
 | **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one at a time, while you watch (section 7; rule: manual §5, the fare ladder) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
@@ -164,13 +163,17 @@ inside the database).
 1. Sign in to the game.
 2. Press **Capture all airlines** (the userscript's panel). It works through every airline in the world's list. Leave
    the tab open until it finishes. Since 22 Oct each airline ends with its fleet pages, one more page kind ("Pan Am:
-   fleet 2 of 3"), about a minute more in all (what they're checked for: manual §7). **When a world scan is due it then scans the world** (how often: manual §7, the
+   fleet 2 of 3"), about a minute more in all (what they're checked for: manual §7), then its salaries (since 5 Nov:
+   the rule is manual §7, salaries; the percentage is Reference → Constants, `salary_above_average_pct`). When one is
+   below the average the tab opens the game's Employee overview and presses adjust for it; let it work. **When a world scan is due it then scans the world** (how often: manual §7, the
    world scan; Reference → Constants, `scan_every_days`). It takes a few minutes longer, so **keep the page open**. The
    panel shows "World scan: 120 of 163 airlines…", then "World scan done"; **Stop** ends it early (the scan isn't
    finished, and the next evening's capture scans again). If the page reloads, it carries on where it was. No scan
    follows a capture page that failed: capture again, and the scan follows.
 3. **Read the panel.** Each airline ends with **all good**, or with what came in short or broken (for example "short:
-   loads 12 of 78 flights"). What counts as short or broken is in manual §7, each page is checked as it arrives. The
+   loads 12 of 78 flights"). What counts as short or broken is in manual §7, each page is checked as it arrives. Each
+   airline also has a salaries line ("salaries: all at or above the average", or how many were raised); a position
+   named as still below, or a salary page that didn't read, is worth a look on the game's Employee overview. The
    last line says whether the world scan ran ("World scan done"), wasn't due, or why it didn't finish.
 4. **If a page is short or broken, capture that airline again** the same evening, while the game still holds the loads
    (manual §7). If it keeps failing, enter that night's cash and loads by hand in Systems → **Manual entry** (or paste
@@ -183,7 +186,6 @@ inside the database).
 6. **Work down Today:** **Orders** (an airline that can order: the Scheduling chat proposes the aircraft and routes,
    section 6), **Aircraft to file** (**File into planner**), **Needs attention** (each item links to where it's fixed),
    **Game check** when something looks off, and the **To-do** board. When nothing is left, Today says **All clear**.
-7. **Optional:** run the salaries script for one airline when you choose (section 9).
 
 **Overnight, on its own:** the backup (copied, restored to prove it works, sent to R2), the snapshot fallback, the
 clean-ups and, on the first night of a month, the monthly archive (times: manual §7 and the map's *What runs when*).
@@ -371,8 +373,6 @@ one is **7 Nov 2026**.
 ---
 
 ## 9. Now and then
-- **Salaries:** go to the airline in the game and press the salaries script's button. It changes that airline only.
-  Run it when you choose, not every night (rule: manual §7, salaries).
 - **Retimes:** change times on Routes (local time at each end; each box saves when you leave it), make the same change in
   the game, and check both ends' connections (manual §4, maximise connections at both ends).
 - **Cutting a route:** remove its frequencies in the game and on Routes; an unflown route can be removed and restored

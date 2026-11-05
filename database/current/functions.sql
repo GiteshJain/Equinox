@@ -118,7 +118,10 @@ begin
                                                                'game_name', a.game_name, 'code', a.iata_code)
                                            order by a.position nulls last, a.id), '[]'::jsonb)
                    from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
-                  where a.world_id = v_world and a.active and g.kind = 'ours'))
+                  where a.world_id = v_world and a.active and g.kind = 'ours'),
+    -- salaries (since 5 Nov, manual §7): how far above the country average a salary below it is set; null: left alone
+    'salary_above_average_pct', (select s.value from public.settings s
+                                  where s.world_id = v_world and s.airline_id is null and s.key = 'salary_above_average_pct'))
     -- the world scan (spec docs/specs/2026-10-21-scan-in-capture.md): whether one is due, the open one and the airports
     || private.capture_scan_plan(v_world, now())
     -- the market pages (spec docs/specs/2026-10-30-market-pages.md): whether they're due, the open run and the pages
