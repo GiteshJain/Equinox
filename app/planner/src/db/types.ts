@@ -1521,14 +1521,14 @@ isOneToOne: false
                   ]
                 },"routes": {
                   Row: {
-                    "airline_id": number,"cabin_choice": string | null,"city": string | null,"city_override": string | null,"country_label": string | null,"created_at": string,"dest_code": string,"distance_km": number | null,"distance_override_km": number | null,"edit_kept": boolean,"hub_code": string,"id": number,"market_cleared": boolean,"market_id": number | null,"market_override_id": number | null,"removed": boolean,"removed_note": string | null,"source": string,"stars": number | null,"stars_override": number | null,"updated_at": string,"world_id": number
+                    "airline_id": number,"cabin_choice": string | null,"city": string | null,"city_override": string | null,"country_label": string | null,"created_at": string,"dest_code": string,"distance_km": number | null,"distance_override_km": number | null,"edit_kept": boolean,"hub_code": string,"id": number,"market_cleared": boolean,"market_id": number | null,"market_override_id": number | null,"removed": boolean,"removed_note": string | null,"shares_route_id": number | null,"source": string,"stars": number | null,"stars_override": number | null,"updated_at": string,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "airline_id": number,"cabin_choice"?: string | null,"city"?: string | null,"city_override"?: string | null,"country_label"?: string | null,"created_at"?: string,"dest_code": string,"distance_km"?: number | null,"distance_override_km"?: number | null,"edit_kept"?: boolean,"hub_code": string,"id"?: never,"market_cleared"?: boolean,"market_id"?: number | null,"market_override_id"?: number | null,"removed"?: boolean,"removed_note"?: string | null,"source": string,"stars"?: number | null,"stars_override"?: number | null,"updated_at"?: string,"world_id": number
+                    "airline_id": number,"cabin_choice"?: string | null,"city"?: string | null,"city_override"?: string | null,"country_label"?: string | null,"created_at"?: string,"dest_code": string,"distance_km"?: number | null,"distance_override_km"?: number | null,"edit_kept"?: boolean,"hub_code": string,"id"?: never,"market_cleared"?: boolean,"market_id"?: number | null,"market_override_id"?: number | null,"removed"?: boolean,"removed_note"?: string | null,"shares_route_id"?: number | null,"source": string,"stars"?: number | null,"stars_override"?: number | null,"updated_at"?: string,"world_id": number
                   }
                   Update: {
-                    "airline_id"?: number,"cabin_choice"?: string | null,"city"?: string | null,"city_override"?: string | null,"country_label"?: string | null,"created_at"?: string,"dest_code"?: string,"distance_km"?: number | null,"distance_override_km"?: number | null,"edit_kept"?: boolean,"hub_code"?: string,"id"?: never,"market_cleared"?: boolean,"market_id"?: number | null,"market_override_id"?: number | null,"removed"?: boolean,"removed_note"?: string | null,"source"?: string,"stars"?: number | null,"stars_override"?: number | null,"updated_at"?: string,"world_id"?: number
+                    "airline_id"?: number,"cabin_choice"?: string | null,"city"?: string | null,"city_override"?: string | null,"country_label"?: string | null,"created_at"?: string,"dest_code"?: string,"distance_km"?: number | null,"distance_override_km"?: number | null,"edit_kept"?: boolean,"hub_code"?: string,"id"?: never,"market_cleared"?: boolean,"market_id"?: number | null,"market_override_id"?: number | null,"removed"?: boolean,"removed_note"?: string | null,"shares_route_id"?: number | null,"source"?: string,"stars"?: number | null,"stars_override"?: number | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -1560,6 +1560,12 @@ isOneToOne: false
       columns: ["market_override_id","world_id"]
 isOneToOne: false
       referencedRelation: "markets"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "routes_shares_route_fkey"
+      columns: ["shares_route_id","world_id"]
+isOneToOne: false
+      referencedRelation: "routes"
       referencedColumns: ["id","world_id"]
     },{
       foreignKeyName: "routes_world_id_fkey"
@@ -2114,6 +2120,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"shared_pairs": {
+                  Row: {
+                    "joined_on": string | null,"joiner_airline_id": number | null,"joiner_base": string | null,"joiner_flights_week": number | null,"joiner_route_id": number | null,"owner_airline_id": number | null,"owner_base": string | null,"owner_flights_week": number | null,"owner_route_id": number | null,"world_id": number | null
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "airline_bases_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Functions: {
@@ -2206,6 +2226,9 @@ isOneToOne: false
                            },
 "is_planner_user":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"join_pair":
+{ Args: { "p_owner_route_id": number }; Returns: Json
                            },
 "loads_by_day":
 { Args: { "p_from": string,"p_to": string,"p_world_id": number }; Returns: Json
