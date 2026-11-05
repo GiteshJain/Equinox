@@ -4875,7 +4875,10 @@ begin
                          else 'ul_decide' end
                 end as uk
            from mv0),
-  dc as (select mv.*,
+  -- materialized (since 5 Nov): the steps after it name its kind (k) and the levels many times over, and inlined, each
+  -- name repeated the whole chain of expressions beneath it (fin, od, ix and fx made the builder seconds slower on the
+  -- copy); worked out once here, the rows and answers are the same
+  dc as materialized (select mv.*,
                 -- a joiner follows the pair's level and moves (since 5 Nov): never a move of its own
                 case when mv.role = 'joiner' then 'follows'
                      when mv.plan_id is not null then 'planned'
