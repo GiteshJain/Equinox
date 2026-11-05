@@ -132,3 +132,8 @@ it is the only thing that changes an airline's cash, and it was the answer for P
 Sources: AirlineSim handbook, Holdings vs. Subsidiaries (handbook.airlinesim.aero/en/docs/advanced/setup/holdings-vs-subsidiaries)
 and Interlining (handbook.airlinesim.aero/en/docs/advanced/alliances-and-interlining/interlining); `route_profit()`,
 `airline_days`, `flight_legs`, 4 Nov; manual §2, §3, §4, §5, §9; `rule-history.md` (21–22 Oct, the cap).
+
+## Outcome
+**4 Nov 2026 (Gitesh): A, as is.** "If you think not necessary let's leave as is." One airline per city pair (§2) stands;
+no shared pairs, no build, no manual change. The fare-ladder lever for a cash-poor airline (D) was not taken up; it can
+be raised at a Saturday review if an airline's cash falls behind.
