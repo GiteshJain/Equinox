@@ -33,10 +33,6 @@ Until each is built and merged, the rules below stand as they are.
   partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **Salaries inside the evening capture (§7, decided 4 Nov):** the capture checks each position of each airline against
-  its country average every evening: at or above the average it is left alone; below it, set to 5% above the average
-  (a setting). The "Salaries: this airline" button goes. Brief `docs/briefs/2026-11-04-salaries-in-capture.md`; built
-  after shared pairs. **Until then §7's salary script stands as it is.** *(since 4 Nov)*
 
 
 Details and open points: `docs/decisions.md`.
@@ -698,8 +694,13 @@ Details and open points: `docs/decisions.md`.
     older in the game than its time with us by more than 0.2 years (looks used). An aircraft not delivered yet (on order
     in the planner, or listed by the game at the factory with no seats and no pilots) is left out of these until its
     first fleet capture after it arrives. *(since 22 Oct; undelivered left out since 26 Oct)*
-- **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It changes only
-  the airline he's on, setting each position to 10% above the country average. *(since 10 Oct; history:
+- **Salaries, in the evening capture:** for each of our airlines, after its fleet pages, the capture (since 1.12) reads
+  the game's Employee overview page. A position at or above its country average is left alone; one below it is set to
+  the average plus `settings.salary_above_average_pct` (5%), rounded to a whole AS$, with the page's own adjust, one
+  position at a time. **A salary is never lowered.** The panel says per airline "salaries: 3 raised to 5% above the
+  country average" or "salaries: all at or above the average". A salary page that doesn't read is said in the panel and
+  skipped: it never stops the capture or counts as a failed page. Nothing about salaries is stored. There is no
+  separate salary script. *(since 5 Nov, brief `docs/briefs/2026-11-04-salaries-in-capture.md`; history:
   rule-history.md)*
 - **Every Saturday:**
   - first, the document check (about 5 minutes): the project's copies of the manual, playbook, map and decisions
@@ -824,9 +825,10 @@ be copied from the game's settings page)
 - Subsidiaries don't work with the game's demand model, so we don't use them.
 - **Gander is an exclusive world:** its owner sets the rules, and AirlineSim only enforces the limits built into the
   game. **Everything Gitesh chooses to do there is allowed** (since 27 Oct): the interlines between our six airlines and
-  every script he uses, today the capture, the salary script, the fares script, the world scanner and the aircraft
-  evaluation script; a new script needs no rule change (#12; the `permission` rows `interline_own_airlines`,
-  `capture_salary_step`, `world_scanner`, `schedule_check` are kept, and the scripts since have no row of their own).
+  every script he uses, today the capture (which also sets salaries, §7), the fares script, the world scanner and the
+  aircraft evaluation script; a new script needs no rule change (#12; the `permission` rows `interline_own_airlines`,
+  `capture_salary_step` (the capture's salary step again since 5 Nov), `world_scanner`, `schedule_check` are kept, and
+  the scripts since have no row of their own).
   In a public world they wouldn't be: rule 2.3 forbids co-operation between one player's holdings, and terms §5.3
   forbids automated use. Read #12's brief before copying any of this to another world.
 

@@ -819,7 +819,21 @@ built* entry, retired with the build: "- **To build: rivals' fleets in the world
 age (Retired rules, 26 Oct).*
 
 #### Salaries
-*Since 10 Oct · why: Gitesh suspects the nightly adjustment of all six airlines was inflating salaries.*
+*In the evening capture since 5 Nov (capture 1.12, migration 20261105020000) · why: Gitesh, 4 Nov, option A of
+`docs/briefs/2026-11-04-salaries-in-capture.md`: between presses of the separate script a position could sit below its
+country average unseen; a check every evening closes that, and raising only the ones below to 5% above (never lowering)
+saves up to about 4–5% of a position's pay against the script's 10% above for every position.* §7's line before, word
+for word: "- **Salaries:** a separate script, "Salaries: this airline", which Gitesh runs by hand when he chooses. It
+changes only the airline he's on, setting each position to 10% above the country average. *(since 10 Oct; history:
+rule-history.md)*" The *Decided, not yet built* entry, retired with the build: "- **Salaries inside the evening capture
+(§7, decided 4 Nov):** the capture checks each position of each airline against its country average every evening: at
+or above the average it is left alone; below it, set to 5% above the average (a setting). The "Salaries: this airline"
+button goes. Brief `docs/briefs/2026-11-04-salaries-in-capture.md`; built after shared pairs. **Until then §7's salary
+script stands as it is.** *(since 4 Nov)*" §9's list of scripts named "the salary script" until 5 Nov.
+
+*The separate script, 10 Oct to 5 Nov · why: Gitesh suspected the nightly adjustment of all six airlines was inflating
+salaries.* (That adjustment set every position to 10% above the average, lowering some; the capture's since 5 Nov never
+lowers.)
 
 #### Every Saturday: the world scan
 *Since 21 Oct (spec `docs/specs/2026-10-21-scan-in-capture.md`); a Saturday step since 14 Oct (#22) · why (Gitesh): only one scan had been taken by 14 Oct, because no step called for it; since 21 Oct the capture takes it.*
@@ -966,6 +980,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 5 Nov | A separate salary script, "Salaries: this airline" (`capture/salary_adjust.user.js`), run by hand on one airline at a time, setting every position to 10% above the country average | The evening capture checks every position of each airline: below its country average it is set to `salary_above_average_pct` (5%) above it, at or above it is left alone, never lowered (§7). Why: Gitesh, 4 Nov, positions could sit below the average between presses; brief `docs/briefs/2026-11-04-salaries-in-capture.md` |
 | 4 Nov | A direction's captured fares read against its fare on 21 Oct (or a later route's first fare), taken as its launch level, for the fare index and the set-back; the market pages read by nothing in the fare ladder | Against the game's default price where the market pages have read the direction (each week), the first captured fare only where they haven't yet; the levels and moves unchanged (§5, §7). Why: Gitesh, a direction first captured at another price had every level after it wrong (Ryanair's CDG–Hamburg read 72% against 85%); spec `docs/specs/2026-11-04-fare-default-from-market.md` |
 | 29 Oct | The trunk month from 1 to 30 November (`trunk_month_from` 2026-11-01) | From 29 Oct to 30 Nov (§4). Why: Gitesh, start the trunks now; brief `docs/briefs/2026-10-29-trunk-month-today.md` |
 | 29 Oct | Kingfisher's eight deposit aircraft (four SHARPs, four E195-E2s) go to Mumbai | Six go to Mumbai, the rest of the deposits to Delhi (§3). Why: Gitesh, with the trunk month's early start |

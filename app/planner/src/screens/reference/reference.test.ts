@@ -106,6 +106,12 @@ describe("constants, types, layouts, markets and service profiles", () => {
     expect(constantValue("interline_reply_wait_days", s, rules)).toBe("14");
     expect(constantChange("interline_reply_wait_days", "10", s, rules)).toEqual({ table: "settings", op: "update", key: { id: 10 }, base: "i", values: { value: 10 } });
   });
+  it("salary_above_average_pct is a constant (5 Nov, manual §7): how far above the country average the capture sets a salary below it", () => {
+    expect(CONSTANTS.find(([, , key]) => key === "salary_above_average_pct")?.[0]).toBe("salaryAbove");
+    const s = [...settings, { id: 11, key: "salary_above_average_pct", value: 5, updated_at: "p" }];
+    expect(constantValue("salary_above_average_pct", s, rules)).toBe("5");
+    expect(constantChange("salary_above_average_pct", "7", s, rules)).toEqual({ table: "settings", op: "update", key: { id: 11 }, base: "p", values: { value: 7 } });
+  });
   it("a type's, a layout's, a market's and a profile's box: that column only", () => {
     const t = { id: 3, name: "E195-E2", family_no: 83, seats_max: 146, cruise_kmh: 831, min_turn_min: 67, gap_target_h: 3, order_config_id: null, updated_at: "y" };
     expect(typeChange(t, "cruise", "840")?.values).toEqual({ cruise_kmh: 840 });
