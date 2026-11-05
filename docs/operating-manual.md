@@ -454,10 +454,11 @@ Details and open points: `docs/decisions.md`.
 - **Use each aircraft as much as possible.** No fixed floor on flying hours (the Saturday 12-hour list and Tails' 10-hour mark are flags, not floors); options show hours a day next to
   connections, and check whether one more short rotation fits. *(since 7 Oct)*
 - **Night slots are fine.** *(since 27 Sep; history: rule-history.md)*
-- **Maintenance at or above 100% is firm** (aim for 105%; `settings.maintenance_min_pct` and
-  `maintenance_target_pct`), **and no stretch longer than 40 hours** (`settings.maintenance_max_gap_h`) between two
-  ground stops that count for maintenance: the plan card's check and Tails flag a longer one. *(since 28 Sep; the
-  40 hours since 28 Oct; history: rule-history.md)*
+- **Maintenance at or above 100% is firm** (`settings.maintenance_min_pct`; `maintenance_target_pct` is also 100, so
+  nothing is flagged at 100% or more), **and no stretch longer than 40 hours** (`settings.maintenance_max_gap_h`)
+  between two ground stops that count for maintenance: the plan card's check and Tails flag a longer one. Gitesh checks
+  each aircraft's maintenance in the game when he files it. *(since 28 Sep; the 40 hours since 28 Oct; no 105% aim
+  since 4 Nov; history: rule-history.md)*
 - **Long haul flies in 7-day lines:** routes at or beyond 7,750 km (`settings.line_min_km`), whose round trip with
   turns and a maintenance stop doesn't fit in a day (nearly every A321XLR route and every A350 route), fly in 7-day
   rotating lines of 7 aircraft (`settings.line_aircraft`) of one type at one airline, each a day apart, so every route

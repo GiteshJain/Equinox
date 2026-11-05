@@ -427,6 +427,15 @@ reference · why: an exception for eight aircraft over two evenings isn't worth 
 
 ### 4. Scheduling
 
+#### Maintenance: no 105% aim
+*Since 4 Nov (Gitesh, Building chat).* The old wording: "**Maintenance at or above 100% is firm** (aim for 105%;
+`settings.maintenance_min_pct` and `maintenance_target_pct`), **and no stretch longer than 40 hours** …" ·
+`settings.maintenance_target_pct` 105 → 100 · why (Gitesh): "since now we check maintenance every day we only care about
+maintenance under 100"; he checks each aircraft's maintenance in the game when he files it. Since 23 Oct Tails, the
+pop-up and Today's Fleet group read the game's own figure each night; on 4 Nov 9 aircraft sat at 100–104% (none under
+100%), flagged for nothing, and the planner's estimate matched the game within 1–3 points for the main types (brief
+`docs/briefs/2026-11-04-maintenance-fit.md`).
+
 #### Flight numbers ascend through the aircraft's day
 *Since 2 Nov (Gitesh, Scheduling chat).* New rule, no earlier wording · why (Gitesh): "on plan cards make sure flight
 numbers are always in ascending order". Raised by the three cards retimed on 28 Oct (VT-ABH, 9M-ABB, G-AAFL), which

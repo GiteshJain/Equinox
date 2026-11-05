@@ -97,7 +97,7 @@ colours, the cards as Today's were, the map in a card, and the airline cards in 
   **block hours a day**; then, at the foot, its pills: lowest maintenance
   (since 23 Oct the game's figure from the latest night's fleet pages, "lowest maintenance 98%", for each aircraft the
   game flies; the planner's estimate, with ≈, only for one not on them), short and tight turns (or **clean**: flying,
-  no short or tight turns and that lowest maintenance at 105% or more), and **Open fleet ›**, which opens the airline on
+  no short or tight turns and that lowest maintenance at `maintenance_target_pct` (100%) or more), and **Open fleet ›**, which opens the airline on
   Tails. The photo's city is the airline's own (*airlines.photo_city*). Since 30 Oct a row **Profit, 14 reports**: the
   airline's profit a day over its last 14 reports as small bars (green or red, as Performance's scorecard), with the
   first and last on hover or tap; tap it to see it full size.
@@ -296,10 +296,10 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **An aircraft's page:** its registration as the title, its figures as pills, its fields in two groups (the aircraft;
   notes), then Issues, The week and Flights.
 - **The list:** one airline at a time; filters for **Base**, **Type** and **Flying**, **No flights** or **Needs a look**
-  (a short turn, a leg starting where the aircraft isn't, or maintenance under 105%), kept in the address. Each
+  (a short turn, a leg starting where the aircraft isn't, or maintenance under `maintenance_target_pct`, 100% since 4 Nov), kept in the address. Each
   aircraft's type, cabin, base, **Legs/wk** (flights a week), **Block h/day** (hours flown a day), **Maint.** (since
   23 Oct the game's own figure for an aircraft on the latest night's fleet pages, "106%" with no ≈, red under 100%,
-  amber under 105%, "In the game, last night's capture (22 Oct)" on hover; for any other aircraft, not on the fleet
+  amber under `maintenance_target_pct` (100% since 4 Nov), "In the game, last night's capture (22 Oct)" on hover; for any other aircraft, not on the fleet
   pages yet, the planner's estimate of usable ground time against the maintenance time it needs, "≈106%", 100% or more
   is enough, hover or tap for the hours) and
   **Routes**; a red dot marks a short turn or a leg starting elsewhere. **Add a tail** adds one by hand at the end of
