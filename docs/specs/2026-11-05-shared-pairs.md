@@ -74,8 +74,17 @@ first.
 ## 4. Views and the report
 - `route_profit()`: a shared pair's rows carry `pair`: the other airline's flights a week, loads and profit on the
   pair, and `shared_role` (owner / joiner). The airline's Performance page marks them ("shared with Kingfisher: 14 a
-  week, 100%"), and the route page shows both airlines' flights, loads and fare level together (one story, two
-  colours), with the joiner's page saying it follows the owner's ladder.
+  week, 100%").
+- **The route page is one page per pair** (Gitesh, 4 Nov: combined figures and story). The owner's and the joiner's
+  route addresses (`/performance/<code>/<route>`) open the same page, titled with both airlines. `route_story()` for a
+  shared pair returns the pair: **combined where the market is one** (flights a week, seats, load, sold-out share, the
+  fare level, both airlines' flights together, which is what the ladder judges), **separate where the money is** (each
+  airline's flights, revenue and profit on their own beside the pair's totals, since each keeps what it flies), and
+  **one timeline** of both airlines' events, each marked with its airline: schedule saves, fare moves, the day the
+  joiner came in, rivals arriving. The charts draw the two airlines in two colours on one axis. The joiner's view says
+  it follows the owner's ladder.
+- **The Routes screen** marks a shared pair on both airlines' rows with the other airline's flights a week and role,
+  so a joiner's 14 a week isn't read as the whole pair.
 - `fare_results()` (built 4 Nov): a joiner direction's "moves" are the pair's; its before/after figures are its own.
 - The weekly report (`scripts/report/build.py`): shared pairs listed once per pair in a "Shared pairs" line under the
   group, with both airlines' flights and loads; each airline's route profit table marks them.
