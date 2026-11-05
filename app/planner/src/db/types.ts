@@ -1079,6 +1079,32 @@ isOneToOne: false
       referencedColumns: ["id","world_id"]
     }
                   ]
+                },"market_prices": {
+                  Row: {
+                    "airline_id": number,"current_price": number,"default_price": number,"read_id": number,"service_class": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"current_price": number,"default_price": number,"read_id": number,"service_class": string,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"current_price"?: number,"default_price"?: number,"read_id"?: number,"service_class"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "market_prices_airline_fkey"
+      columns: ["airline_id","world_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id","world_id"]
+    },{
+      foreignKeyName: "market_prices_read_world_fkey"
+      columns: ["read_id","world_id"]
+isOneToOne: false
+      referencedRelation: "market_reads"
+      referencedColumns: ["id","world_id"]
+    }
+                  ]
                 },"market_reads": {
                   Row: {
                     "airline_id": number,"dest": string,"error": string | null,"id": number,"ok": boolean,"origin": string,"read_at": string,"run_id": number,"service_code": string | null,"service_profile_game_id": number | null,"share_week": string | null,"world_id": number
@@ -2141,6 +2167,9 @@ isOneToOne: false
                            },
 "competition":
 { Args: { "p_airline_id": number,"p_as_of"?: string,"p_limit"?: number }; Returns: Json
+                           },
+"default_prices":
+{ Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
                            },
 "export_capture":
 { Args: { "p_days"?: number,"p_secret": string }; Returns: Json
