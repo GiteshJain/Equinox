@@ -234,9 +234,33 @@ def routes_of(airline_id):
     rp = ((FA.get(airline_id) or {}).get("route_profit") or {}).get("7") or {}
     routes = rp.get("routes") or []
     keep = ("hub", "dest", "flights", "profit_week", "profit_per_flight", "economy", "mark", "why")
-    best = [{k: x.get(k) for k in keep} for x in routes[:3]]
+
+    def row(x):
+        r = {k: x.get(k) for k in keep}
+        # a joined shared pair (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): its role and the other airline
+        if x.get("shared_role"):
+            r |= {"shared_role": x["shared_role"], "shared_with": (x.get("pair") or {}).get("airline")}
+        return r
+    best = [row(x) for x in routes[:3]]
     weak = sorted((x for x in routes if x not in routes[:3]), key=lambda x: (x.get("profit_per_flight") is None, x.get("profit_per_flight") or 0))[:2]
-    return {"days": rp.get("days"), "since": rp.get("since"), "flights": rp.get("flights"), "best": best, "weak": [{k: x.get(k) for k in keep} for x in weak]}
+    return {"days": rp.get("days"), "since": rp.get("since"), "flights": rp.get("flights"), "best": best, "weak": [row(x) for x in weak]}
+
+
+def shared_pairs():
+    """The group's joined shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4), once each, from the
+    owner's route profit rows over 7 days: both airlines' flights, flights a week and economy loads. Empty when none is
+    joined (or the figures predate them)."""
+    out = []
+    for aid, f in FA.items():
+        for x in (((f.get("route_profit") or {}).get("7") or {}).get("routes") or []):
+            p = x.get("pair") or {}
+            if x.get("shared_role") != "owner":
+                continue
+            out.append({"owner": NAME.get(aid, str(aid)), "joiner": p.get("airline") or NAME.get(p.get("airline_id"), "?"), "hub": x.get("hub"), "dest": x.get("dest"),
+                        "owner_flights": x.get("flights"), "owner_week": x.get("flights_week"), "owner_economy": x.get("economy"),
+                        "joiner_flights": p.get("flights"), "joiner_week": p.get("flights_week"), "joiner_economy": p.get("economy"),
+                        "economy": (p.get("combined") or {}).get("economy"), "mark": x.get("mark")})
+    return sorted(out, key=lambda r: (r["owner"], r["hub"] or "", r["dest"] or ""))
 
 
 def competitors_of(airline_id):
@@ -322,7 +346,7 @@ for i, a in enumerate(OURS_ROWS):
                          "bases": [{"code": b.get("code"), "role": b.get("role"), "contested": b.get("contested"),
                                     "top_rival": b.get("top_rival"), "contested_routes": len(b.get("contested_routes") or [])} for b in hp.get("bases") or []]}})
 json.dump({"as_of": FIG.get("as_of"), "scan": {"id": SCAN.get("id"), "taken_at": SCAN.get("taken_at")},
-           "airlines": airlines, "growth": growth, "order_flags": order_flags(),
+           "airlines": airlines, "growth": growth, "order_flags": order_flags(), "shared_pairs": shared_pairs(),
            "mtab": mtab, "hubtab": hubtab, "h2h": h2h[:60], "ourpairs": ourpairs, "contested": contested,
            "rivals": {k: v.most_common(8) for k, v in riv.items()},
            "rank": rank[:30], "our_rank": [(i + 1, n, w) for i, (n, w, o) in enumerate(rank) if o],

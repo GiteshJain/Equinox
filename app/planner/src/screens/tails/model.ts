@@ -7,7 +7,7 @@
 // file joins the tables' rows to it and words what it answers, as the old planner words it.
 import {
   RulesError, aircraftWeek, banks, block, buildRules, card as cardRules, frequency, game, maintenance, service, setting, tails, time, type AircraftWeek, type AirportRow,
-  type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type FareLadder, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
+  type CabinSuggestion, type CardCheck as LibCardCheck, type CheckRow as LibCheckRow, type FareLadder, type SharedLadder, type GameFlight as LibGameFlight, type LocalTimes, type Maintenance,
   type NoMaintenance, type RouteFare, type Rules, type ServiceProfile, type TailIssue, type TimedLeg, type WeekLeg,
 } from "@rules";
 import type { Change, Values } from "../../data/save";
@@ -616,13 +616,14 @@ export function cardCabin(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | 
 // the card
 /** Each route the card flies with its fare level, once per direction (since 26 Oct, each direction its own level) in the
  *  order of its legs; null when it can't be worked out (no ladder yet, an aircraft without a type, a missing setting). */
-export function cardFareLevels(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | "config_id">, legs: readonly PlanLegRow[], ladder: FareLadder | null | undefined): RouteFare[] | null {
+export function cardFareLevels(rules: Rules, card: Pick<PlanCardRow, "aircraft_id" | "config_id">, legs: readonly PlanLegRow[], ladder: FareLadder | null | undefined,
+  shared: readonly SharedLadder[] = []): RouteFare[] | null {
   if (!ladder) return null;
   try {
     return cardRules.cardFares(rules, {
       aircraft: card.aircraft_id, config_id: card.config_id ?? null,
       legs: [...legs].sort((a, b) => a.position - b.position).map((l) => ({ flight_no: l.flight_no, origin_code: l.origin_code, dest_code: l.dest_code })),
-    }, ladder);
+    }, ladder, shared);
   } catch (e) {
     if (e instanceof RulesError) return null;
     throw e;

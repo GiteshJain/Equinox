@@ -2,6 +2,7 @@
 // planner_apply_tidy), and its addresses.
 import { describe, expect, it } from "vitest";
 import {
+  excludedChange, excludedValue,
   CONSTANTS, addOwnOrder, addService, addType, banOf, csvBanks, banSet, banText, bankBoxes, baseChange, canAddBan, clockOf, configChange, constantChange, constantValue, intOf, keyOrder,
   layoutsOf, mctChange, mctHours, numOf, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, restoreChange, roleOf, scheduleLink, sectionOf, serviceChange,
   typeChange, worldRowChange, type BaseRow, type RemovedRoute, type WorldAirportRow,
@@ -158,5 +159,20 @@ describe("removed routes and game schedules", () => {
     const link = scheduleLink("gander.airlinesim.aero", 113);
     expect(link).toBe("https://gander.airlinesim.aero/app/info/enterprises/113?tab=3");
     expect([pageId(link), pageId("208"), pageId("")]).toEqual(["113", "208", ""]);
+  });
+});
+
+// since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §1): the airlines left out of shared pairs, typed as codes
+describe("the shared pairs' excluded airlines", () => {
+  const airlines = [{ id: 1, code: "PA" }, { id: 3, code: "FR" }, { id: 4, code: "VS" }];
+  const settings = [{ id: 77, key: "shared_pairs_excluded_airlines", value: [3], updated_at: "T0" }];
+  it("shows the list as codes and saves the codes typed as ids", () => {
+    expect(excludedValue(settings, airlines)).toBe("FR");
+    expect(excludedValue([{ ...settings[0] as (typeof settings)[number], value: [3, 99] }], airlines)).toBe("FR, 99");
+    expect(excludedChange("fr, vs", settings, airlines)).toEqual({ table: "settings", op: "update", key: { id: 77 }, base: "T0", values: { value: [3, 4] } });
+    expect(excludedChange("", settings, airlines)).toEqual({ table: "settings", op: "update", key: { id: 77 }, base: "T0", values: { value: [] } });
+    expect(excludedChange(" FR ", settings, airlines)).toBeNull();
+    expect(excludedChange("FR XX", settings, airlines)).toEqual({ error: "XX isn't the code of our airlines; nothing was saved." });
+    expect(excludedChange("FR", [], airlines)).toEqual({ error: "The setting shared_pairs_excluded_airlines isn't there." });
   });
 });

@@ -18,7 +18,7 @@ import { FoldBoard } from "../../ui/FoldBoard";
 import {
   NO_MARKET_READ, ROUTE_BOARDS, dirChartLayout, fareWords, shareDonut, flightLoads, historyLayout, marketShareView, ptsChange, rivalFares, serviceHeader, vsCheapestWords, weeksLayout,
   type ServiceChecks, type StoryMarket,
-  barLayout, eventWords, levelSteps, listCut, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyLayout, storyWeekOnWeek, weekBars,
+  barLayout, eventWords, levelSteps, listCut, pairStoryView, parseRouteKey, rivalLines, routeConnections, shareLine, shareWeeklyNote, storyChartLayout, storyFareWords, storyHeader, storyLayout, storyWeekOnWeek, weekBars,
   type RouteStory, type StoryDay, type StoryEvent, type StoryWeek,
 } from "./model";
 import { RouteStoryView } from "./RoutePage";
@@ -602,5 +602,57 @@ describe("the route's story on Routes (30 Oct, spec docs/specs/2026-10-30-route-
       loads: [] }))));
     expect(html).toContain("Not flown yet.");
     expect(client.getQueryCache().getAll().filter((q) => q.state.fetchStatus !== "idle").length).toBe(0);
+  });
+});
+
+// ---------- since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §4): a shared pair's page, one for both airlines
+describe("a shared pair's page", () => {
+  const side = (role: "owner" | "joiner", id: number, code: string, airline: string, flights: number, profit: number) => ({
+    role, airline_id: id, code, airline, route_id: id * 10, hub: role === "owner" ? "JFK" : "ORD", dest: role === "owner" ? "ORD" : "JFK", departures: flights * 7,
+    days: Array.from({ length: 20 }, (_, i) => ({ day: dayAt(i), flights, seats: flights * 180, passengers: flights * 160, load_pct: 88.9, revenue: 0.05 * flights, costs: 0.03 * flights, profit: profit * flights })),
+    weeks: [],
+  });
+  const pair = (role: "owner" | "joiner"): NonNullable<RouteStory["pair"]> => ({
+    role, follows: role === "joiner", title: "Pan Am · Kingfisher",
+    owner: { airline_id: 1, code: "PA", airline: "Pan Am", route_id: 10, hub: "JFK", dest: "ORD" },
+    joiner: { airline_id: 2, code: "KF", airline: "Kingfisher", route_id: 20, hub: "ORD", dest: "JFK", joined_on: "2026-10-10" },
+    airlines: [side("owner", 1, "PA", "Pan Am", 2, 0.02), side("joiner", 2, "KF", "Kingfisher", 1, -0.01)],
+  });
+  const money = (v: number) => `${Math.round(v * 1000)}k`;
+  it("keeps each airline's money apart beside the pair's totals, and its flights by week for the chart", () => {
+    const v = pairStoryView(story({ pair: pair("owner") }), money);
+    expect(v?.title).toBe("Pan Am · Kingfisher");
+    // the last 7 days to 21 Oct (15 to 21 Oct): Pan Am 2 a day, Kingfisher 1, as each airline's days have them
+    expect(v?.rows.map((r) => [r.label, r.role, r.departures, r.flights, r.load, r.revenue, r.profit, r.perFlight])).toEqual([
+      ["Pan Am", "owner", 14, 14, "89%", "700k", "280k", "20k"],
+      ["Kingfisher", "joiner, follows", 7, 7, "89%", "350k", "-70k", "-10k"],
+      ["The pair", "together", 21, 21, "89%", "1050k", "210k", "10k"]]);
+    expect(v?.series.map((x) => x.label)).toEqual(["Pan Am", "Kingfisher"]);
+    expect(v?.weeks[0]).toEqual({ key: "2026-10-15", label: "10-15–10-21", parts: { "1": 14, "2": 7 } });
+    expect(v?.note).toContain("Kingfisher flies this pair too (joined 2026-10-10), at Pan Am's price");
+    expect(pairStoryView(story(), money)).toBeNull();
+  });
+  it("from the joiner's side says it follows the owner's ladder", () => {
+    expect(pairStoryView(story({ pair: pair("joiner") }), money)?.note).toContain("they follow Pan Am's fare ladder");
+  });
+  it("names the pair in the header and each event's airline in the timeline", () => {
+    expect(storyHeader(story({ pair: pair("owner") }), nice, "layout Leisure").line).toBe("Pan Am · Kingfisher (shared pair, Pan Am's price) · 1,185 km · US domestic · layout Leisure");
+    expect(eventWords({ kind: "joined", words: "Kingfisher joined the pair (Pan Am owns it)", airline: "KF" })).toBe("KF · joined · Kingfisher joined the pair (Pan Am owns it)");
+    expect(eventWords({ kind: "launched", words: "launched" })).toBe("launched");
+  });
+  it("renders the pair's board, two airlines in two colours on one axis, and no chart part classed back", () => {
+    const render = (s: RouteStory) => renderToString(createElement(MemoryRouter, null, createElement(RouteStoryView, {
+      s, code: "PA", back: null, layout: "layout Leisure", conns: [],
+      board: (k, children, figure) => createElement(FoldBoard, { key: k, k, folded: false, onToggle: () => undefined, figure }, children),
+      onCollapse: () => undefined, onExpand: () => undefined, pairColors: { "1": "#123456", "2": "#654321" },
+    })));
+    const html = render(story({ pair: pair("owner") }));
+    expect(html).toContain('data-figure="performance route: shared pair"');
+    expect(html).toContain("Shared pair · Pan Am · Kingfisher");
+    expect(html).toContain('fill="#123456"');
+    expect(html).toContain('fill="#654321"');
+    expect(html).toContain('data-pair-row="pair"');
+    expect(html).not.toMatch(/class="[^"]*\bback\b/);
+    expect(render(story())).not.toContain("performance route: shared pair");
   });
 });

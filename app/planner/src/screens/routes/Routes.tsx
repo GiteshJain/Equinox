@@ -33,12 +33,12 @@ import { showMessage } from "../../ui/messages";
 import {
   SORTS, addFrequencyChanges, baseWords, countWords, filtersOn, rowCode, addRouteChanges, changeFrequency, deleteFrequencyChanges, editRouteChange, filtersQuery, freqOf, isTrunk, listRows,
   baseLabel, listBases, liveRules, marketChips, newLegacyKey, nextPair, offsetChanges, pairForNew, parseFilters, pickerBases, parseOffset, perDay, priceFor, removeRoutesChanges, routeOf, serviceFor,
-  summaryOf, type AircraftRow, type Airline, type Filters, type Freq, type FreqField, type Load, type Route, type RouteField,
+  summaryOf, pairMarks, type AircraftRow, type PairMark, type Airline, type Filters, type Freq, type FreqField, type Load, type Route, type RouteField,
 } from "./model";
-import { LoadChip } from "./parts";
+import { JoinPair, LoadChip, PairPill } from "./parts";
 import {
   legsAt, readAirports, routeByAirports, useAirlineLegs, useAirlineRotations, useAirlineRoutes, useAirports, useLoads, useMarkets, useRoutesAircraft,
-  useServiceProfiles,
+  useServiceProfiles, useSharedPairs,
 } from "./reads";
 import { RouteDetail } from "./RouteDetail";
 import { AircraftPopup } from "../tails/AircraftPopup";
@@ -93,6 +93,8 @@ export function Routes() {
   const rotationsQ = useAirlineRotations(w, airline?.id);
   const legsQ = useAirlineLegs(w, airline?.id);
   const loadsQ = useLoads(w);
+  // shared pairs (since 5 Nov): the list's marks and the owner's Join this pair
+  const pairsQ = useSharedPairs(w);
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [removingShown, setRemovingShown] = useState(false);
@@ -105,6 +107,8 @@ export function Routes() {
   const markets = useMemo(() => new Map((marketsQ.data ?? []).map((m) => [m.id, m])), [marketsQ.data]);
   const routes = useMemo(() => (routesQ.data ?? []).map((r) => routeOf(r, markets)), [routesQ.data, markets]);
   const route = codePart ? routes.find((r) => r.hub === hubCode && r.dest === destCode) : undefined;
+  const marks = useMemo(() => (airline ? pairMarks(pairsQ.data ?? [], airline.id, airlines) : new Map<number, PairMark>()), [pairsQ.data, airline, airlines]);
+  const routeMark = route ? marks.get(route.id) : undefined;
   const airportsQ = useAirports(w, route ? [route.hub, route.dest] : []);
   const airports = useMemo(() => new Map((airportsQ.data ?? []).map((a) => [a.code, a])), [airportsQ.data]);
   const rules = rulesQ.data?.rules;
@@ -426,6 +430,7 @@ export function Routes() {
                     {s.count ? <span className={s.allOk === false ? "offbank" : undefined} title={s.allOk === false ? "a frequency is off the banks" : undefined}>{perDay(s.rtDay)} a day</span>
                       : <span className="dim">not flown</span>}
                     {isTrunk(r, ctx) ? <>{" "}<span className="pill trunk" title="trunk route between a focus city and a hub">trunk</span></> : null}
+                    {marks.get(r.id)?.text ? <>{" "}<PairPill mark={marks.get(r.id)} /></> : null}
                   </div>
                   <div className="rs">{s.count ? <LoadChip a={routeLoads.get(r.id)} small /> : null}</div>
                 </div>
@@ -434,6 +439,12 @@ export function Routes() {
           </div>
         </section>
         <section className="rdetail" id="detail" ref={detailBox} aria-label="Route">
+          {route && routeMark && (routeMark.text || routeMark.join) ? (
+            <div className="pairbar" data-pair-bar={routeMark.role}>
+              <PairPill mark={routeMark} />
+              {routeMark.join ? <><span className="dim">{routeMark.join.joiner} has a base at the other end: a shared pair.</span> <JoinPair mark={routeMark} /></> : null}
+            </div>
+          ) : null}
           {route && airline && live ? (
             <RouteDetail route={route} airline={airline} airlines={airlines} freqs={routeFreqs} checks={checks} rules={live} mode={mode}
               story={storyBelow ? story : null}

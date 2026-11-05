@@ -38,10 +38,10 @@ import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { showMessage } from "../../ui/messages";
-import { useFareLadder } from "../performance/reads";
+import { useFareLadder, useFareLadders } from "../performance/reads";
 import { gameMaintenance } from "../systems/model";
 import { useFleetChecks } from "../systems/reads";
-import { useAirlineRoutes, useAirports, useMarkets } from "../routes/reads";
+import { useAirlineRoutes, useAirports, useMarkets, useSharedPairs } from "../routes/reads";
 import { AircraftPage, MaintPill } from "./AircraftPage";
 import { Deliveries } from "./Deliveries";
 import { TailsChart } from "./TailsChart";
@@ -138,9 +138,20 @@ export function Tails() {
   // the fare level of each route the open card flies (manual §5, since 21 Oct; the library's card.cardFares), from
   // fare_ladder() for the airline, read only while a card is open
   const ladderQ = useFareLadder(filters.card && airline ? airline.id : undefined);
+  // since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §5): on a shared pair the airline has joined, the owner's
+  // ladder gives the pair's level where the airline's own has no rows yet (read only while a card is open)
+  const pairsQ = useSharedPairs(filters.card && airline ? w : undefined);
+  const owners = useMemo(() => [...new Set((pairsQ.data ?? []).filter((p) => airline && p.joiner_airline_id === airline.id && p.joiner_route_id != null && p.owner_airline_id != null)
+    .map((p) => p.owner_airline_id as number))], [pairsQ.data, airline]);
+  const ownerLadders = useFareLadders(owners);
+  const shared = useMemo(() => owners.flatMap((id, i) => {
+    const l = ownerLadders[i]?.data;
+    const name = (airlinesQ.data ?? []).find((a) => a.id === id);
+    return l ? [{ owner: name?.planner_name ?? name?.public_name ?? `airline ${id}`, ladder: l }] : [];
+  }), [owners, ownerLadders, airlinesQ.data]);
   const faresOf = useMemo(() => (card: PlanCardRow, legs: readonly CardLeg[]) =>
-    (serviceRules ? fareCells(legs, cardFareLevels(serviceRules, card, legsByCard.get(card.id) ?? [], ladderQ.data)) : new Map<number, string>()),
-  [serviceRules, legsByCard, ladderQ.data]);
+    (serviceRules ? fareCells(legs, cardFareLevels(serviceRules, card, legsByCard.get(card.id) ?? [], ladderQ.data, shared)) : new Map<number, string>()),
+  [serviceRules, legsByCard, ladderQ.data, shared]);
 
   // the airline's lines: each with its slots, its check across the cards that exist, the next free offset and the aircraft
   // that can take it (on order, of the line's type, without a card)

@@ -2152,3 +2152,15 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .kgauges{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;justify-items:center;min-width:0}
 .kgauges .kgauge{max-width:150px}
 .kbig .kgauges{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))} .kbig .kgauges .kgauge{max-width:260px}
+/* shared pairs (since 5 Nov): the row's pill, the detail's bar with Join this pair, the route page's pair board */
+.pill.shared{background:#EEEAFB;color:#4B3BA8;white-space:normal}
+.pill.shared.joiner{background:#FCE8EF;color:#9C2A55}
+.pairbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;font-size:13px}
+.pairbar .dim{min-width:0;overflow-wrap:anywhere}
+.joinpair{margin:0}
+.pairtable{width:100%;border-collapse:collapse;font-size:13px}
+.pairtable th,.pairtable td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line, #E3E7F0)}
+.pairtable th:first-child,.pairtable td:first-child{text-align:left}
+.pairwrap{overflow-x:auto;max-width:100%}
+.sharedpairs .sprow{display:flex;flex-wrap:wrap;gap:4px 10px;padding:6px 0;border-bottom:1px solid var(--line, #E3E7F0);font-size:13px}
+.sharedpairs .sprow b{min-width:0;overflow-wrap:anywhere}

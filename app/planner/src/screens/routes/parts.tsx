@@ -1,7 +1,13 @@
 // Routes' small parts, as the old planner draws them: a route's stars, a load's pill (lfChip), the loads over 7 days
 // (lfSummary) and a bank-fit pill (wavePill).
+import { useState } from "react";
 import type { Wave } from "@rules";
-import { loadAverage, loadClass, loadTip, starsText, type Load } from "./model";
+import { PREVIEW } from "../../data/preview";
+import { queryClient, tableKey } from "../../data/query";
+import { showMessage } from "../../ui/messages";
+import { PREVIEW_WORDS } from "../photos/model";
+import { joinPair } from "./reads";
+import { joinWords, loadAverage, loadClass, loadTip, pairTitle, starsText, type Load, type PairMark } from "./model";
 
 export function Stars({ n, title }: { n: number; title?: string }) {
   const s = starsText(n);
@@ -42,4 +48,39 @@ export function LoadSummary({ a }: { a: Load | null | undefined }) {
 export function WavePill({ w }: { w: Wave | null }) {
   if (!w) return null;
   return <span className={`pill ${w.level}`} data-wave>{w.text}</span>;
+}
+
+/** Join this pair (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §1): on an owner's route of a shared pair no one
+ *  has joined, the button naming the airline that would join; it calls join_pair() (the database checks the rest: the
+ *  first two Saturdays' 6-pair limit, an excluded airline, a joiner already there) and reads the routes again. Look-only
+ *  on a preview. */
+export function JoinPair({ mark }: { mark: PairMark }) {
+  const [busy, setBusy] = useState(false);
+  if (!mark.join) return null;
+  const join = mark.join;
+  async function go() {
+    if (PREVIEW) { showMessage(PREVIEW_WORDS); return; }
+    setBusy(true);
+    try {
+      const r = await joinPair(join.ownerRouteId);
+      showMessage(`${join.joiner} joined the pair: its route is on its list now (${r.joined} pair${r.joined === 1 ? "" : "s"} joined). Its fares follow this airline's ladder.`);
+      void queryClient.invalidateQueries({ queryKey: tableKey("routes") });
+      void queryClient.invalidateQueries({ queryKey: ["rules"] });
+      void queryClient.invalidateQueries({ queryKey: ["figures"] });
+    } catch (e) {
+      showMessage(`Couldn't join the pair: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button type="button" className="secondary joinpair" data-join-pair={join.ownerRouteId} disabled={busy} onClick={() => void go()}
+      title={`${join.joiner} may fly this pair too, at this airline's price (manual §2)`}>{joinWords(mark)}</button>
+  );
+}
+
+/** A shared pair's pill on a route's row: "shared with KF: 14 a week" or "follows MH: 21 a week". */
+export function PairPill({ mark }: { mark: PairMark | undefined }) {
+  if (!mark?.text) return null;
+  return <span className={"pill shared " + mark.role} data-shared={mark.role} title={pairTitle(mark)}>{mark.text}</span>;
 }

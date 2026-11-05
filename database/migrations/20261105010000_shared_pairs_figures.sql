@@ -1292,13 +1292,18 @@ begin
                              array_position(array['rival', 'fare', 'retimed', 'aircraft changed', 'frequency removed', 'frequency added', 'joined', 'launched'], z.e ->> 'kind'),
                              z.e ->> 'at' desc nulls last, z.e ->> 'words'), '[]'::jsonb)
     into v_events
-    from (select e || jsonb_build_object('airline', o #>> '{route,airline,code}', 'airline_id', (o #>> '{route,airline,id}')::bigint) as e
+    from (select e || jsonb_build_object('airline', o #>> '{route,airline,code}', 'airline_id', (o #>> '{route,airline,id}')::bigint)
+                   -- a fare event's direction from the named route's side (the other route's out is its back)
+                   || case when v_role = 'joiner' and e ->> 'direction' in ('out', 'back')
+                           then jsonb_build_object('direction', case e ->> 'direction' when 'out' then 'back' else 'out' end) else '{}'::jsonb end as e
             from jsonb_array_elements(coalesce(o -> 'events', '[]')) e
           union all
           select case when e ->> 'kind' = 'launched'
                       then e || jsonb_build_object('kind', 'joined', 'words', format('%s''s first flights on the pair', jn #>> '{route,airline,name}'))
                       else e end
                  || jsonb_build_object('airline', jn #>> '{route,airline,code}', 'airline_id', (jn #>> '{route,airline,id}')::bigint)
+                 || case when v_role = 'owner' and e ->> 'direction' in ('out', 'back')
+                         then jsonb_build_object('direction', case e ->> 'direction' when 'out' then 'back' else 'out' end) else '{}'::jsonb end
             from jsonb_array_elements(coalesce(jn -> 'events', '[]')) e where e ->> 'kind' <> 'rival'
           union all
           select jsonb_build_object('day', v_joined, 'kind', 'joined', 'words', format('%s joined the pair (%s owns it)', jn #>> '{route,airline,name}', o #>> '{route,airline,name}'),

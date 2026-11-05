@@ -39,7 +39,7 @@ which keeps everything. It only gathers: each figure comes from its one home (#1
 | `deliveries` | Aircraft on order, or arrived and not yet filed, each with its plan cards (with each one's cabin, `config_id`, since 21 Oct), their legs and each card's check at both ends, service codes and the cabin the rule calls for included, and each route's fare level (the check's `fares`, since 21 Oct: "economy +10%, business +5% of the default price", or launch for a route not flown yet; since 26 Oct once per direction, each its own direction's, printed under the card as "HUB → AAA economy +10%; AAA → HUB economy +5% of the default price") | Kind `briefing` (its `fare_ladder`, `fare_ladder()`'s levels); the library's `check-card --fares` |
 | `todos` | Open to-dos, the airline's and the group's, with their steps | Kind `briefing` |
 | `fare_plan` | Fare changes planned, and whether the captures show each | `fare_plan_status()` (kind `briefing`) |
-| `competition` | Since 21 Oct (manual §3): the scans used (latest, week before), the group line, hubs first, the threats (rivals who started on, or added a daily flight or more to, a pair it flies in the last 7 days) and the top 20 openings, ranked, each with its stars, distance, rivals (passenger flights only), variant and whether hubs first allows it, in November the trunks first (manual §4); the evening proposal takes its routes from the top. Printed: the counts, the threats in a line and the top 3 openings, a trunk marked "(November trunk)" | `competition()` (kind `briefing`, its `competition`; `select public.competition(<airline id>);` for all of them) |
+| `competition` | Since 21 Oct (manual §3): the scans used (latest, week before), the group line, hubs first, the threats (rivals who started on, or added a daily flight or more to, a pair it flies in the last 7 days) and the top 20 openings, ranked, each with its stars, distance, rivals (passenger flights only), variant and whether hubs first allows it, in November the trunks first (manual §4); the evening proposal takes its routes from the top. Printed: the counts, the threats in a line and the top 3 openings, a trunk marked "(November trunk)"; since 5 Nov a shared pair the airline would join (offered only while its owner can't fund it that evening) marked "(owner can't fund tonight: <owner> owns it)": the evening proposal offers a shared pair to the owner first | `competition()` (kind `briefing`, its `competition`; `select public.competition(<airline id>);` for all of them) |
 | `rivals` | From the latest finished world scan by the moment (its id, date and age): the routes it flies now and in the scan, with each rival's departures a week on the pair, and the busiest rivals at each of its airports | Kinds `snapshots` and `airlines`; passenger flights only, by the weekly report's rule (`report/analyze.py`'s market block) |
 | `capture` | Its latest capture, today's pages and #21's verdict | `capture_status()` |
 
@@ -62,7 +62,10 @@ captured figures (decision #19), each airline on its own. There is no surplus fi
 Our airlines, their game IDs, names and bases come from the database too (`rules.json`); nothing about them is typed into
 the scripts, and nothing assumes six airlines (#14). A station (since 22 Oct, manual §2: an airport flown point-to-point
 from, `airline_bases.role` station) is no base: the briefing's and the report's bases lists and charts leave it out, and
-its routes count under their airline like any other.
+its routes count under their airline like any other. Since 5 Nov (spec `docs/specs/2026-11-05-shared-pairs.md` §4) a joined shared pair is
+listed once in a "Shared pairs" table under Network and operations (both airlines' flights, flights a week and economy
+loads over 7 days, from the owner's route profit rows; `results.json`'s `shared_pairs`), and each airline's route profit
+rows mark it ("shared with Kingfisher" or "follows Malaysia"); nothing shows while no pair is joined.
 
 | Step | Script | What it does | Needs | Makes |
 |---|---|---|---|---|

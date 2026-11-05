@@ -2263,6 +2263,9 @@ isOneToOne: false
 "save_script":
 { Args: { "p_content": string,"p_name": string,"p_secret": string }; Returns: Json
                            },
+"shared_pairs_status":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
+                           },
 "site_admin":
 { Args: { "p_kind": string,"p_payload": Json,"p_secret": string }; Returns: Json
                            },

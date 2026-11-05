@@ -23,7 +23,7 @@ import { limited } from "../../data/limit";
 import { queryClient, tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
-import { markOf, type AircraftRow, type CardsAnswer, type DayRow, type FareChange, type FarePlanAnswer, type FareResultsAnswer, type Forecast, type LadderAnswer, type ProfitAnswer, type RouteDayRow, type RouteProfitAnswer, type RouteStory } from "./model";
+import { markOf, type AircraftRow, type CardsAnswer, type DayRow, type FareChange, type FarePlanAnswer, type FareResultsAnswer, type Forecast, type LadderAnswer, type ProfitAnswer, type RouteDayRow, type RouteProfitAnswer, type RouteStory, type SharedPairsAnswer } from "./model";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -142,6 +142,17 @@ export function useFareLadder(airlineId: number | undefined) {
     queryKey: tableKey("fare_plan", "ladder", airlineId),
     enabled: airlineId !== undefined,
     queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
+  });
+}
+
+/** Several airlines' fare ladders, the same reads as useFareLadder (since 5 Nov: Tails' plan cards on a joined shared pair
+ *  read the owner's). */
+export function useFareLadders(airlineIds: readonly number[]) {
+  return useQueries({
+    queries: airlineIds.map((id) => ({
+      queryKey: tableKey("fare_plan", "ladder", id),
+      queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: id, p_as_of: asOf() }),
+    })),
   });
 }
 
@@ -368,5 +379,15 @@ export function useHandLoads(worldId: number | undefined, day: string) {
       if (d.error) return fail("the day's flags", d.error.message);
       return { done: !!d.data?.done, values: (e.data ?? []).map((x) => ({ airline_id: x.airline_id, flight_no: x.flight_no, eco_pct: num(x.eco_pct as Json) })) };
     },
+  });
+}
+
+/** The group page's Shared pairs row (shared_pairs_status(), since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §4):
+ *  every joined pair, both airlines' flights a week, the pair's load and level, and the 6-pair limit while it applies. */
+export function useSharedPairsStatus(worldId: number | undefined) {
+  return useQuery({
+    queryKey: ["figures", "shared_pairs_status", worldId],
+    enabled: worldId !== undefined,
+    queryFn: () => rpc<SharedPairsAnswer>("the shared pairs", "shared_pairs_status", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
   });
 }

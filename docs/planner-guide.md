@@ -232,6 +232,13 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   frequency is off the banks) or "not flown", the **trunk** tag where it is one (never on a pair with a station end), and on the right its load over 7 days.
   **Add route** adds one by its destination code (city and distance from the airport list, or typed), from any of the
   airline's bases or stations. Removed routes can be restored from Reference.
+- **Shared pairs** (since 5 Nov, manual §2): a pair between this airline's base and another of our airlines' (Ryanair
+  out). Once joined, both airlines' rows carry a tag with the other airline's flights a week: "shared with KF: 7 a week"
+  on the owner's, "follows MH: 21 a week" on the joiner's, so a joiner's flights aren't read as the whole pair. Opening
+  the owner's route of a pair no one has joined shows **Join this pair: <airline>** above it: it adds the joining
+  airline's route (copying the owner's stars, market, distance and cabin) through *join_pair()*, which refuses a
+  seventh pair in the first two Saturdays, an airline left out (Reference → constants) and a second joiner, and says
+  why. A preview doesn't join.
 - **Stations** (since 22 Oct, manual §2): airports the airline flies point-to-point routes from without making them a
   base (Lucknow for Lucknow–Patna). A station route shows "station · no banks" where a hub's route shows its banks, its
   frequencies are never off wave, and its flight numbers come from the airline's one station pool, 3 digits from
@@ -407,6 +414,12 @@ fold them, and a row's title opens or closes it.
   its change); **Next order** is its footer: since 26 Oct how much the airline can spend on an order now, "up to 1.34M" (price and
   cabin, keeping 0.5M in hand at the lowest point of the next 14 days with the order's own lease), as a pill when that
   buys an aircraft.
+- **Shared pairs** (since 5 Nov, manual §2; the group page, under the fare ladder's links): every joined pair, a bar
+  each with both airlines' flights a week in their colours, and a line each: "MH 21 + KF 7 a week · 98% full · level
+  KUL→DEL 115%, DEL→KUL 110%" (the load both airlines' flights over 7 days, the level the owner's fare plan), with the
+  first two Saturdays' limit while it applies ("2 pairs joined · at most 6 until Nov 20, 4 left"). Each pair opens its
+  one route page. On an airline's page the route profit table tags a joined pair's row ("shared with Kingfisher: 14 a
+  week, 100%"); its signal is judged on both airlines' flights. *shared_pairs_status()* and *route_profit()*.
 - **The fare ladder** (since 21 Oct, manual §5): this Saturday's fare moves. **On the group page** (since 26 Oct, spec
   `docs/specs/2026-10-26-fare-ladder-one-airline.md`) it is only a link per airline, in our airlines' order, under the
   line "One airline at a time: open an airline for this Saturday's fare moves." Each opens that airline's page at its
@@ -647,6 +660,13 @@ fold them, and a row's title opens or closes it.
   - **Links to it:** each route's name in the route profit table, **The route's story ›** on a flown route on Routes,
     Today's routes to fix, and Competition's threats. In a chat, `select public.route_story(<route id>);` gives the
     same.
+  - **A shared pair** (since 5 Nov, manual §2): when two of our airlines fly the pair, the owner's and the joiner's
+    addresses open the same page, titled with both airlines. Its figures are both airlines' flights together (the
+    market is one); a **Shared pair** board under the tiles keeps the money apart: each week's flights by airline, two
+    colours on one bar, and each airline's own flights, load, revenue and profit over the last 7 days beside the pair's
+    totals. Events name their airline ("KF · joined · …"). From the joiner's side the board says its fares follow the
+    owner's ladder. On the owner's page of a pair no one has joined, **Join this pair: <airline>** adds the joiner's
+    route (as on Routes).
 
 ## Competition
 *Who are we up against, and where do we open next?* (Since 21 Oct, spec docs/specs/2026-10-21-competition-analysis.md;
@@ -796,6 +816,9 @@ when you leave it, as one change.
   change to one goes in the operating manual too. Since 21 Oct **World scan every** (*scan_every_days*: 1 is every
   evening, 3 about twice a week) is one of them, and since 3 Nov **Interline reply wait** (*interline_reply_wait_days*,
   14: when Interline marks a request as having no reply).
+  Since 5 Nov also **Shared pairs: airlines left out**: the codes of the airlines that neither join nor are joined on a
+  shared pair (FR, decided 4 Nov), saved as their ids in *settings.shared_pairs_excluded_airlines*; a code that isn't
+  one of ours isn't saved.
 - **Aircraft** and **Configs:** block estimates are the block allowance plus the distance at the type's cruise speed
   (manual §4); seats per cabin config.
 - **Order cabin** (in Aircraft, since 15 Oct): the layout a new order of each type comes with, picked from the type's

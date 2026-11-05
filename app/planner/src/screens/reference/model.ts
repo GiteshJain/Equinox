@@ -188,6 +188,29 @@ export function constantChange(key: string, typed: string, settings: readonly Se
   return { table: "settings", op: "update", key: { id: s.id }, base: s.updated_at, values: { value: n } };
 }
 
+// ---------- shared pairs' excluded airlines (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §1): a list of
+// airline ids in settings.shared_pairs_excluded_airlines (Ryanair, decided 4 Nov), shown and typed as codes
+export const EXCLUDED_KEY = "shared_pairs_excluded_airlines";
+/** The excluded airlines' box: their codes, "FR" ("" for none; an id no airline of ours has stays as its number). */
+export function excludedValue(settings: readonly SettingRow[], airlines: readonly { id: number; code: string | null }[]): string {
+  const v = settings.find((s) => s.key === EXCLUDED_KEY)?.value;
+  if (!Array.isArray(v)) return "";
+  return v.map((id) => airlines.find((a) => a.id === Number(id))?.code ?? String(id)).join(", ");
+}
+/** The excluded airlines changed: the codes typed (commas or spaces between), each one of our airlines, as a list of ids
+ *  in the setting's row; a code that isn't ours isn't saved. */
+export function excludedChange(typed: string, settings: readonly SettingRow[], airlines: readonly { id: number; code: string | null }[]): Change | { error: string } | null {
+  const s = settings.find((x) => x.key === EXCLUDED_KEY);
+  if (!s) return { error: `The setting ${EXCLUDED_KEY} isn't there.` };
+  const codes = typed.split(/[\s,]+/).map((c) => c.trim().toUpperCase()).filter(Boolean);
+  const unknown = codes.filter((c) => !airlines.some((a) => (a.code ?? "").toUpperCase() === c));
+  if (unknown.length) return { error: `${unknown.join(", ")} ${unknown.length === 1 ? "isn't the code" : "aren't the codes"} of our airlines; nothing was saved.` };
+  const ids = [...new Set(codes.map((c) => airlines.find((a) => (a.code ?? "").toUpperCase() === c)?.id as number))].sort((a, b) => a - b);
+  const now = Array.isArray(s.value) ? s.value.map(Number).sort((a, b) => a - b) : null;
+  if (now && now.length === ids.length && now.every((v, i) => v === ids[i])) return null;
+  return { table: "settings", op: "update", key: { id: s.id }, base: s.updated_at, values: { value: ids } };
+}
+
 // ---------- aircraft types, configs and service profiles
 export interface TypeRow {
   id: number; name: string; family_no: number | null; seats_max: number | null; cruise_kmh: number | null; min_turn_min: number | null;

@@ -470,6 +470,18 @@ describe("filing", () => {
       : { ...r, default_source: "inferred", baseline_fare: 150 })) };
     expect([...fareCells(legs, cardFareLevels(launch, card, planLegs, read))].slice(2)).toEqual([
       [73, "economy +15% (138 AS$), business +5% (315 AS$) of the default price"], [74, "economy +0%, business −5% of the default price"]]);
+    // since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §5): on a shared pair the airline has joined, its rows follow
+    // the owner's and the card names the owner; with no rows of its own yet, the owner's ladder gives the pair's level
+    const follows = { ...ladder, routes: ladder.routes.map((r) => ({ ...r, follows: { airline: "Malaysia", airline_id: 6 } })) };
+    expect([...fareCells(legs, cardFareLevels(launch, card, planLegs, follows))].slice(2)).toEqual([
+      [73, "economy +15%, business +5% of the default price (the pair's level, Malaysia's)"], [74, "economy +0%, business −5% of the default price (the pair's level, Malaysia's)"]]);
+    const owner = { routes: [{ route_id: 900, hub: "AAA", dest: "HUB", direction: "out", cabin: "economy", level: 110, new_level: 110, planned: false, shared_with: { airline: "Ours" } },
+      { route_id: 900, hub: "AAA", dest: "HUB", direction: "back", cabin: "economy", level: 104, new_level: 104, planned: false, shared_with: { airline: "Ours" } }] };
+    const joined = cardFareLevels(launch, card, planLegs, { routes: [] }, [{ owner: "Malaysia", ladder: owner }]);
+    expect(joined?.filter((f) => f.owner).map((f) => [f.from, f.to, f.words])).toEqual([
+      ["HUB", "AAA", "economy +4% of the default price (the pair's level, Malaysia's)"], ["AAA", "HUB", "economy +10% of the default price (the pair's level, Malaysia's)"]]);
+    // the airline's own rows win over the owner's
+    expect(cardFareLevels(launch, card, planLegs, ladder, [{ owner: "Malaysia", ladder: owner }])?.some((f) => f.owner)).toBe(false);
   });
   it("logs no second cabin fit and leaves an aircraft already in service as it is", () => {
     expect(filingChanges({ ...x, cabinLogged: true }).map((c) => c.table)).not.toContain("spending_log");

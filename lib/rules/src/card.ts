@@ -262,6 +262,18 @@ export interface FareLadderRow {
    *  game's default price for this direction (baseline_fare is then that default, AS$), inferred otherwise. */
   default_source?: "market" | "inferred" | string | null;
   baseline_fare?: number | string | null;
+  /** Since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §5): on a joiner's route of a shared pair, the owner whose
+   *  ladder the row follows (the row's level is the pair's). */
+  follows?: { airline?: string | null; airline_id?: number | null } | null;
+  /** Since 5 Nov: on an owner's route with a joiner, the joiner. */
+  shared_with?: { airline?: string | null; airline_id?: number | null } | null;
+}
+/** Since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §5): the owner's fare ladder on a shared pair the card's airline
+ *  has joined, for a pair the airline's own ladder has no rows for yet (its first flights start at the pair's level). */
+export interface SharedLadder {
+  /** The owner's name, as the card names it. */
+  owner: string;
+  ladder: FareLadder;
 }
 /** fare_ladder()'s answer for the card's airline (or the briefing's fare_ladder): its routes and cabins, and the launch
  *  level for a route the airline doesn't fly yet. */
@@ -296,6 +308,9 @@ export interface RouteFare {
   cabins: CabinFare[];
   /** settings.fare_launch_pct, the airline's own where it has one (Ryanair 85). */
   launch_pct: number;
+  /** Since 5 Nov: on a shared pair the airline has joined, the owner whose level (the pair's) the route sells at; null
+   *  otherwise. */
+  owner?: string | null;
   /** What to set in the game's Ticket price adjustment (baseline default price): "economy +10%, business +5% of the
    *  default price", or for a route not flown yet "launch (+0% of the default price)" ("launch (−15% …)" for Ryanair).
    *  Since 4 Nov a cabin whose default the market pages have read also gives its level in AS$: "economy +5% (150 AS$)". */
@@ -319,7 +334,7 @@ export function levelPrice(level: number, defaultPrice: number | null): number |
  *  level, the ladder's settings.launch_pct, else the airline's fare_launch_pct. Since 4 Nov (spec
  *  docs/specs/2026-11-04-fare-default-from-market.md §3) a cabin whose row has the market's default price (default_source
  *  market, baseline_fare) also gives its level in AS$; otherwise as before. Nothing is stored on the card. */
-export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFare[] {
+export function cardFares(rules: Rules, card: Card, ladder: FareLadder, shared: readonly SharedLadder[] = []): RouteFare[] {
   if (!card || !Array.isArray(card.legs)) throw new RulesError("the card has no list of legs");
   if (!ladder || !Array.isArray(ladder.routes)) throw new RulesError("the fare ladder has no list of routes (fare_ladder()'s answer for the card's airline)");
   const { airlineId } = cardBasics(rules, card);
@@ -328,6 +343,18 @@ export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFa
   for (const r of ladder.routes) {
     const k = pairKey(r.hub, r.dest);
     byPair.set(k, [...(byPair.get(k) ?? []), r]);
+  }
+  // a joined shared pair the airline's own ladder has no rows for: the owner's rows on it (since 5 Nov, spec
+  // docs/specs/2026-11-05-shared-pairs.md §5), each named by its owner
+  const ownerOf = new Map<string, string>();
+  for (const sh of shared) {
+    for (const r of sh.ladder?.routes ?? []) {
+      const k = pairKey(r.hub, r.dest);
+      if (byPair.has(k) && !ownerOf.has(k)) continue;
+      if (!ownerOf.has(k)) byPair.set(k, []);
+      ownerOf.set(k, sh.owner);
+      byPair.set(k, [...(byPair.get(k) ?? []), r]);
+    }
   }
   const out: RouteFare[] = [];
   const seen = new Set<string>();
@@ -354,14 +381,15 @@ export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFa
       })
       .sort((a, b) => Number(a.cabin === "business") - Number(b.cabin === "business") || a.cabin.localeCompare(b.cabin));
     const flown = cabins.length > 0;
+    const owner = ownerOf.get(pair) ?? rows.find((r) => r.follows?.airline)?.follows?.airline ?? null;
     out.push({
-      route_id: first?.route_id ?? route?.id ?? null,
+      route_id: (ownerOf.has(pair) ? route?.id : first?.route_id) ?? route?.id ?? null,
       route: first ? `${first.hub}–${first.dest}` : route ? `${route.hub_code}–${route.dest_code}` : named.get(pair) ?? `${l.origin_code}–${l.dest_code}`,
       direction, from: l.origin_code, to: l.dest_code,
-      flown, cabins, launch_pct: launch,
-      words: flown
+      flown, cabins, launch_pct: launch, owner,
+      words: (flown
         ? `${cabins.map((c) => `${c.cabin} ${levelPct(c.level)}${c.price != null ? ` (${c.price} AS$)` : ""}`).join(", ")} of the default price`
-        : `launch (${levelPct(launch)} of the default price)`,
+        : `launch (${levelPct(launch)} of the default price)`) + (owner ? ` (the pair's level, ${owner}'s)` : ""),
     });
   }
   return out;

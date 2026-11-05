@@ -231,10 +231,21 @@ for a in AL:
     for kind, rows in (("best", a["routes"]["best"]), ("weak", a["routes"]["weak"])):
         for x in rows:
             rp.append([esc(a["name"]), f"{esc(x['hub'])}–{esc(x['dest'])}", str(x.get("flights") or 0), signed(x.get("profit_week")), signed(x.get("profit_per_flight")),
-                       pct(x.get("economy")), esc(MARK_WORDS.get(x.get("mark") or "", x.get("mark") or "")) + (f": {esc(x['why'])}" if x.get("why") else "")])
+                       pct(x.get("economy")), esc(MARK_WORDS.get(x.get("mark") or "", x.get("mark") or "")) + (f": {esc(x['why'])}" if x.get("why") else "")
+                       # a joined shared pair (since 5 Nov): marked with its role and the other airline
+                       + (f" · <i>{'shared with' if x['shared_role'] == 'owner' else 'follows'} {esc(x.get('shared_with') or '?')}</i>" if x.get("shared_role") else "")])
 if len(rp) > 1:
     days = next((a["routes"]["days"] for a in AL if a["routes"].get("days")), 7)
     story += [P(f"Route profit, last {days} days: each airline's best and weakest routes", "h2"), table(rp, [0.95 * inch, 0.75 * inch, 0.5 * inch, 0.7 * inch, 0.7 * inch, 0.6 * inch, 2.75 * inch])]
+# the group's shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): each joined pair once, both
+# airlines' flights and loads; nothing when none is joined
+SP = R.get("shared_pairs") or []
+if SP:
+    story.append(P("Shared pairs: two of our airlines on one pair at the owner's price, last 7 days", "h2"))
+    story.append(table([["Pair", "Owner", "Flights (a week)", "Economy load", "Joiner", "Flights (a week)", "Economy load", "Together"]] + [
+        [f"{esc(x.get('hub'))}–{esc(x.get('dest'))}", esc(x["owner"]), f"{x.get('owner_flights') or 0} ({x.get('owner_week') or 0})", pct(x.get("owner_economy")),
+         esc(x["joiner"]), f"{x.get('joiner_flights') or 0} ({x.get('joiner_week') or 0})", pct(x.get("joiner_economy")), pct(x.get("economy"))]
+        for x in SP], [0.75 * inch, 0.95 * inch, 0.8 * inch, 0.7 * inch, 0.95 * inch, 0.8 * inch, 0.7 * inch, 1.3 * inch]))
 G = R.get("growth") or {}
 for key, title in (("ready_for_another_flight", "Ready for another flight"), ("sold_out", "Sold out · fares climbing"), ("fix_or_reduce", "Fix or reduce")):
     if G.get(key):

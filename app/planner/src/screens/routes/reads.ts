@@ -16,6 +16,7 @@ import { supabase } from "../../data/supabase";
 import {
   LEG_COLUMNS, MARKET_ROW_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS,
   type AircraftRow, type AirportInfo, type LegRow, type LineLegRow, type Load, type MarketRow, type PlanLegRow, type RotationRow, type RouteRow,
+  type SharedPairRow,
 } from "./model";
 
 const fail = (what: string, message: string): never => {
@@ -76,6 +77,29 @@ export function useAllRoutes(worldId: number | undefined) {
     queryFn: () => pages<AllRouteRow>("the routes", (from, to) => supabase.from("routes").select(ROUTE_COLUMNS)
       .eq("world_id", worldId ?? 0).eq("removed", false).order("id").range(from, to) as unknown as PromiseLike<{ data: AllRouteRow[] | null; error: { message: string } | null }>),
   });
+}
+
+/** The shared pairs of the world (the view shared_pairs, since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §1): each
+ *  base-to-base pair of two of our airlines, its owner and joiner and their flights a week. Keyed under routes, so a join
+ *  (a new routes row) reads it again. */
+export function useSharedPairs(worldId: number | undefined) {
+  return useQuery({
+    queryKey: tableKey("routes", "shared_pairs", worldId),
+    enabled: worldId !== undefined,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("shared_pairs").select("*").eq("world_id", worldId ?? 0);
+      if (error) return fail("the shared pairs", error.message);
+      return (data ?? []) as SharedPairRow[];
+    },
+  });
+}
+
+/** Joins a shared pair (join_pair(), manual §2): adds the joiner's route row. Refused by the database for a pair that isn't
+ *  shared, a second joiner, an excluded airline or past the first two Saturdays' limit; its words come back as the error. */
+export async function joinPair(ownerRouteId: number): Promise<{ route_id: number; joined: number }> {
+  const { data, error } = await limited(() => supabase.rpc("join_pair", { p_owner_route_id: ownerRouteId }));
+  if (error) throw new Error(error.message.replace(/^join_pair: /, ""));
+  return data as unknown as { route_id: number; joined: number };
 }
 
 /** Every airline's markets in the world: name and, since 21 Oct, only its layout (its default aircraft, cabin and fares

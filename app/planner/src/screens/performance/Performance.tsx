@@ -55,7 +55,8 @@ import { useAirports, useAllRoutes, useLoads, useMarkets } from "../routes/reads
 import { itemRoute } from "../screens";
 import { rulesLegs, typeName, type PlanLegRow } from "../tails/model";
 import { useLaunches, usePlanCards, usePlanLegs, useTailsAircraft } from "../tails/reads";
-import { ChartOrTable } from "../../ui/charts";
+import { ChartFrame, ChartOrTable, StackedBars, stackLayout } from "../../ui/charts";
+import { colorFor } from "./charts";
 import { BarChart, CostChart, GroupChart, LoadSpark, Scatter, Spark, TailChart } from "./Charts";
 import { CashSteps, Multiples, PlanTimeline, RouteHourChart } from "./PerfCharts";
 import { FareLadderBoard } from "./FareLadder";
@@ -67,12 +68,12 @@ import { RoutePage } from "./RoutePage";
 import {
   BOARDS, GROUP_BOARDS, foldsFor, foldsOnArrival, type FoldState, MARKS, MARK_ORDER, PERIODS, SORTS, aircraftRowWords, barTip, capturedLine, cardWords, cashRowWords, changesRowWords, chartIntervals,
   farePlanAdd, farePlanDrop, fareResultsAside, fareResultsTitle, fcDay, fcWhat, groupTodayWords, growthWords, historyFrom, hubsWords, indexWords, kk, ladderMoveWords, ladderLine, ladderPlanChanges, loads14, markCounts, ms,
-  offersFarePlan, pc, planRowWords, planWords, profitAnswer, profitRowWords, routeRowWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
+  offersFarePlan, pc, sharedPairsView, sharedRowWords, planRowWords, planWords, profitAnswer, profitRowWords, routeRowWords, routeSearchText, safeWords, sg, shownRoutes, weekOnWeek, weekWords, type AircraftRow,
   type BoardKey, type Card, type CardWords, type FareChange, type FarePlanAnswer, type Forecast, type GroupBoardKey, type LadderAnswer, type Mark, type ProfitAnswer, type RouteDayRow,
-  type RouteProfitAnswer, type RouteSort, type WeekKey, type WeekOnWeek,
+  type RouteProfitAnswer, type RouteSort, type SharedPairsAnswer, type WeekKey, type WeekOnWeek,
 } from "./model";
 import {
-  refreshFigures, useAircraftProfit, useAirlineDays, useAllFareResults, useDayLoads, useFareChanges, useFareLadder, useFarePlan, useFareResults, useForecast, useGrowthSignals, useHandLoads,
+  refreshFigures, useAircraftProfit, useAirlineDays, useAllFareResults, useSharedPairsStatus, useDayLoads, useFareChanges, useFareLadder, useFarePlan, useFareResults, useForecast, useGrowthSignals, useHandLoads,
   useHubProgress, useProfits, useReviewCards, useRouteDays, useRouteProfit,
 } from "./reads";
 
@@ -178,6 +179,8 @@ function PerformanceScreen() {
   const handQ = useHandLoads(group, day);
   // the group page's line per airline under the fare ladder's links (since 3 Nov): every airline's fare results
   const groupResultsQ = useAllFareResults(!isAirline ? cards.map((c) => c.airline_id) : []);
+  // the group page's Shared pairs row (since 5 Nov)
+  const sharedQ = useSharedPairsStatus(group);
 
   const allFolds: readonly (BoardKey | GroupBoardKey)[] = [...GROUP_BOARDS, ...BOARDS];
   // every row closed on arrival but the airline's Route profit, and Flights by day when the address names a day; each page
@@ -425,6 +428,7 @@ function PerformanceScreen() {
               })}
             </ul>
           </section>
+          {sharedQ.data ? <SharedPairsRow a={sharedQ.data} airlines={airlines} /> : null}
           {rows(<>
             {cardsQ.data.group_today_shown ? board("The group today", <GroupChart rows={groupRows} />, { figure: "performance: the group today", aside: groupTodayWords(groupRows) }) : null}
             {signalsQ.data && growthParts ? board("Growth signals", <GrowthSignals rules={rules} signals={signalsQ.data} ready={growthParts.ready} airlines={airlines} />,
@@ -639,6 +643,8 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
                   <td><LoadSpark values={loads14(routeDays, x, today)} /></td>
                   <td>
                     <span className={`pill ${MARKS[x.mark].cls} sm`} title={x.why}>{MARKS[x.mark].label}</span>
+                    {sharedRowWords(x) ? <> <span className={"pill shared sm " + (x.shared_role ?? "")} data-shared-row={x.shared_role}
+                      title="a shared pair: the signal is judged on both airlines' flights">{sharedRowWords(x)}</span></> : null}
                     {x.mark === "sold_out" && ladderMoveWords(ladderRows(x)) ? <span className="dim rpmove" data-ladder-move={ladderMoveWords(ladderRows(x))}> · {ladderMoveWords(ladderRows(x))}</span> : null}
                     {offersFarePlan(x, plan.plan) ? <> <button type="button" className="link sm" data-fareadd={`${x.hub}-${x.dest}`} disabled={busy}
                       title={`Plan a ${raisePct}% economy fare rise for this route`} onClick={() => onAdd(x)}>+ fare plan</button></> : null}
@@ -730,5 +736,34 @@ function FarePlanBody({ airline, plan, busy, today, onDrop }: { airline: string;
         </tbody>
       </table>
     </div>} />
+  );
+}
+
+/** The group page's Shared pairs row (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): every joined pair with
+ *  both airlines' flights a week (a bar each pair, an airline's colour each part), the pair's load and level, and the
+ *  6-pair limit while it applies. Each pair opens its route page (the one page both airlines' addresses give). */
+function SharedPairsRow({ a, airlines }: { a: SharedPairsAnswer; airlines: readonly OurAirline[] }) {
+  const v = sharedPairsView(a, (d) => niceDate(d));
+  const used = airlines.map((x, i) => ({ key: String(x.id), label: x.name, color: colorFor(x.color, i) }))
+    .filter((x) => v.rows.some((r) => (r.parts[x.key] ?? 0) > 0));
+  return (
+    <section className="perfsec sharedpairs" data-board="Shared pairs" data-figure="performance: shared pairs" aria-labelledby="perf-shared-h">
+      <h2 className="perfh" id="perf-shared-h">Shared pairs</h2>
+      <p className="note perflead" data-shared-head>{v.head}. Two of our airlines on one pair at the owner's price (manual §2): the load is both airlines' flights over 7 days, the level the owner's fare plan.</p>
+      {v.rows.length ? (
+        <>
+          <ChartFrame title="Flights a week on each pair" note="each airline's own, the owner first" legend={used.map((x) => ({ label: x.label, color: x.color }))} figure="performance: shared pairs chart">
+            <StackedBars layout={(W) => stackLayout(v.rows.map((r) => ({ key: r.key, label: r.title.split(" · ")[0] ?? r.key, parts: r.parts })), used, { W, L: 90 })}
+              figure="performance: shared pairs flights" label="flights a week on each shared pair" />
+          </ChartFrame>
+          {v.rows.map((r) => (
+            <div key={r.key} className="sprow" data-shared-pair={r.key}>
+              {r.href ? <Link className="link" to={itemRoute("performance", r.href)}><b>{r.title}</b></Link> : <b>{r.title}</b>}
+              <span className="dim">{r.words}</span>
+            </div>
+          ))}
+        </>
+      ) : null}
+    </section>
   );
 }

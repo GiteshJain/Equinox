@@ -729,4 +729,58 @@ export function moveWords(m: OffsetMove, code: string | null): string {
   return `${name} ${m.origin}–${m.dest}: ${parts.join(", ")}`;
 }
 
+// ---------- shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §1, §4): two of our airlines on one
+// base-to-base pair at the owner's price. The list marks a joined pair on both airlines' rows with the other airline's
+// flights a week and this airline's role, so a joiner's 14 a week isn't read as the whole pair; an owner's row whose pair
+// has no joiner yet offers Join this pair, naming the airline that would join (join_pair()).
+/** A row of the view shared_pairs. */
+export interface SharedPairRow {
+  world_id: number | null; owner_airline_id: number | null; joiner_airline_id: number | null; owner_route_id: number | null; joiner_route_id: number | null;
+  owner_base: string | null; joiner_base: string | null; owner_flights_week: number | null; joiner_flights_week: number | null; joined_on: string | null;
+}
+/** One route's place on a shared pair. */
+export interface PairMark {
+  role: "owner" | "joiner";
+  /** The other airline: its name and code, and its flights a week on the pair (0 for a joiner that hasn't joined). */
+  other: string; otherCode: string | null; otherWeek: number;
+  joined: boolean;
+  /** The row's pill, or null for an owner's pair no one has joined. */
+  text: string | null;
+  /** For an owner's pair with no joiner: the owner's route and the airline that would join. */
+  join: { ownerRouteId: number; joinerId: number; joiner: string } | null;
+}
+/** Each of one airline's routes on a shared pair, by route id: joined pairs on both sides (shared with / follows), an
+ *  owner's unjoined pair with its Join offer. */
+export function pairMarks(pairs: readonly SharedPairRow[], airlineId: number, airlines: readonly Pick<Airline, "id" | "code" | "name">[]): Map<number, PairMark> {
+  const name = (id: number | null) => airlines.find((a) => a.id === id);
+  const out = new Map<number, PairMark>();
+  for (const p of pairs) {
+    if (p.owner_route_id == null || p.owner_airline_id == null || p.joiner_airline_id == null) continue;
+    const joined = p.joiner_route_id != null;
+    if (p.owner_airline_id === airlineId) {
+      const j = name(p.joiner_airline_id), wk = p.joiner_flights_week ?? 0;
+      out.set(p.owner_route_id, {
+        role: "owner", other: j?.name ?? "the other airline", otherCode: j?.code ?? null, otherWeek: wk, joined,
+        text: joined ? `shared with ${j?.code ?? j?.name ?? "?"}: ${wk} a week` : null,
+        join: joined ? null : { ownerRouteId: p.owner_route_id, joinerId: p.joiner_airline_id, joiner: j?.name ?? "the other airline" },
+      });
+    } else if (p.joiner_airline_id === airlineId && joined && p.joiner_route_id != null) {
+      const o = name(p.owner_airline_id), wk = p.owner_flights_week ?? 0;
+      out.set(p.joiner_route_id, {
+        role: "joiner", other: o?.name ?? "the owner", otherCode: o?.code ?? null, otherWeek: wk, joined,
+        text: `follows ${o?.code ?? o?.name ?? "?"}: ${wk} a week`, join: null,
+      });
+    }
+  }
+  return out;
+}
+/** The Join button's words: "Join this pair: Kingfisher" (the airline that joins). */
+export const joinWords = (m: Pick<PairMark, "join">): string => `Join this pair: ${m.join?.joiner ?? "the other airline"}`;
+/** The pill's hover: who owns the pair and whose ladder sets its price. */
+export function pairTitle(m: PairMark): string {
+  return m.role === "owner"
+    ? `a shared pair: ${m.other} flies it too (${m.otherWeek} a week); every flight sells at this airline's level`
+    : `a shared pair owned by ${m.other} (${m.otherWeek} a week); this airline's fares follow ${m.other}'s ladder`;
+}
+
 export { block };

@@ -301,7 +301,11 @@ begin
   select count(*)::int into n from jsonb_array_elements(a -> 'events') e where e ->> 'kind' = 'joined' and e ->> 'airline' = 'JB' and e ->> 'day' = '2030-01-05';
   assert n = 1 and (select bool_and(e ? 'airline') from jsonb_array_elements(a -> 'events') e),
     'the timeline doesn''t have JB joining on 5 Jan with every event marked with its airline: ' || (a -> 'events')::text;
-  assert (a ->> 'events') = (select jsonb_agg(e)::text from jsonb_array_elements(b -> 'events') e), 'OA''s and JB''s pages don''t have one timeline';
+  -- one timeline: the same events on both pages, a fare event's direction from each page's side (OA's out is JB's back)
+  assert (select jsonb_agg(e - 'direction') from jsonb_array_elements(a -> 'events') e) = (select jsonb_agg(e - 'direction') from jsonb_array_elements(b -> 'events') e)
+     and exists (select 1 from jsonb_array_elements(a -> 'events') e where e ->> 'kind' = 'fare' and e ->> 'direction' = 'out' and (e ->> 'level')::numeric = 110)
+     and exists (select 1 from jsonb_array_elements(b -> 'events') e where e ->> 'kind' = 'fare' and e ->> 'direction' = 'back' and (e ->> 'level')::numeric = 110),
+    'OA''s and JB''s pages don''t have one timeline, each fare event from its own side';
   assert jsonb_array_length(a -> 'fares') is null and jsonb_array_length(a #> '{now,fares}') >= 0, 'the story lost its fares';
   raise notice 'route_story(): OA''s QA1–QB1 and JB''s QB1–QA1 one page, "OA · JB": 14 a week each way and 2 rotations together, from each route''s side; pair.airlines OA then JB with their own money; one timeline, every event marked, JB joined on 5 Jan; from JB''s side follows';
 end
