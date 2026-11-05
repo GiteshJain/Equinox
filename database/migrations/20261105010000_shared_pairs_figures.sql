@@ -228,8 +228,13 @@ begin
     -- a joined shared pair (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §3–§4): the other airline's side, and
     -- the pair's figures with both airlines' flights (sold out, ready for another flight, losing and fix are judged on
     -- them); a route on no joined pair keeps its own figures exactly
+    -- the airline's routes on a joined pair, found once (most routes are on none)
+    jr as materialized (select j.id from public.routes j where j.airline_id = p_airline_id and j.shares_route_id is not null and not j.removed
+                        union
+                        select j.shares_route_id from public.routes j join public.routes o on o.id = j.shares_route_id
+                         where o.airline_id = p_airline_id and not j.removed),
     sp as (select r.route_id, pr.role, x.d
-             from r cross join lateral private.fig_route_pair(r.route_id) pr
+             from r join jr on jr.id = r.route_id cross join lateral private.fig_route_pair(r.route_id) pr
              cross join lateral (select private.fig_pair_side(pr.other_route_id, p_days, p_as_of) as d offset 0) x
             where r.route_id is not null),
     rc as (select r.*, sp.role as shared_role, sp.d as pair,

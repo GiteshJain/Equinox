@@ -1314,6 +1314,10 @@ CREATE OR REPLACE FUNCTION public.route_story(p_route_id bigint, p_as_of timesta
 AS $function$
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  -- a route on a joined shared pair (since 5 Nov): the pair's one page
+  if exists (select 1 from private.fig_route_pair(p_route_id)) then
+    return private.fig_pair_story(p_route_id, coalesce(p_as_of, now()));
+  end if;
   return private.fig_route_story(p_route_id, coalesce(p_as_of, now()));
 end
 $function$
@@ -1350,6 +1354,61 @@ begin
   on conflict (name) do update set content = excluded.content, updated_at = now();
   return jsonb_build_object('ok', true, 'name', p_name, 'bytes', length(p_content));
 end $function$
+
+;
+
+-- shared_pairs_status(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.shared_pairs_status(p_world_id bigint DEFAULT NULL::bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+ SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
+AS $function$
+declare w bigint; v_as_of timestamptz := coalesce(p_as_of, now()); v_today date; v_from date; v_limit numeric; v_days numeric; v_n int; v_pairs jsonb;
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  w := private.fig_world(p_world_id);
+  v_today := (v_as_of at time zone 'UTC')::date;
+  select (s.value #>> '{}')::date into v_from from public.settings s
+   where s.world_id = w and s.airline_id is null and s.key = 'shared_pairs_from' and jsonb_typeof(s.value) = 'string';
+  v_limit := private.fig_num(w, null, 'shared_pairs_limit');
+  v_days := private.fig_num(w, null, 'shared_pairs_limit_days');
+  select count(*)::int into v_n from public.routes r where r.world_id = w and r.shares_route_id is not null and not r.removed;
+  with sp as (select sp.* from public.shared_pairs sp where sp.world_id = w and sp.joiner_route_id is not null),
+  s as (select sp.*, private.fig_pair_side(sp.owner_route_id, 7, v_as_of) as o, private.fig_pair_side(sp.joiner_route_id, 7, v_as_of) as j from sp),
+  -- the pair's level each way and cabin: the owner's latest fare plan row with a level by the moment, else its launch level
+  lv as (select distinct on (fp.route_id, coalesce(fp.direction, 'both'), coalesce(fp.cabin_class, 'economy'))
+                fp.route_id, coalesce(fp.direction, 'both') as dir, coalesce(fp.cabin_class, 'economy') as cabin, fp.level_pct
+           from public.fare_plan fp
+          where fp.route_id in (select sp.owner_route_id from sp) and fp.level_pct is not null and fp.status <> 'dropped' and fp.proposed_on <= v_today
+          order by fp.route_id, coalesce(fp.direction, 'both'), coalesce(fp.cabin_class, 'economy'), fp.proposed_on desc, fp.id desc)
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'owner_airline_id', s.owner_airline_id, 'owner', s.o ->> 'airline', 'owner_code', s.o ->> 'code', 'owner_route_id', s.owner_route_id,
+           'joiner_airline_id', s.joiner_airline_id, 'joiner', s.j ->> 'airline', 'joiner_code', s.j ->> 'code', 'joiner_route_id', s.joiner_route_id,
+           'owner_base', s.owner_base, 'joiner_base', s.joiner_base, 'joined_on', s.joined_on,
+           'owner_flights_week', s.owner_flights_week, 'joiner_flights_week', s.joiner_flights_week,
+           'owner_load', round((s.o ->> 'economy')::numeric, 1), 'joiner_load', round((s.j ->> 'economy')::numeric, 1),
+           'load', round(((coalesce((s.o ->> 'economy')::numeric, 0) * (s.o ->> 'with_loads')::int + coalesce((s.j ->> 'economy')::numeric, 0) * (s.j ->> 'with_loads')::int)
+                          / nullif((s.o ->> 'with_loads')::int + (s.j ->> 'with_loads')::int, 0)), 1),
+           'sold_out_share', round(((s.o ->> 'sold_out')::int + (s.j ->> 'sold_out')::int)::numeric / nullif((s.o ->> 'with_loads')::int + (s.j ->> 'with_loads')::int, 0), 3),
+           'levels', (select coalesce(jsonb_agg(jsonb_build_object('direction', l.dir, 'cabin', l.cabin, 'level', trim_scale(l.level_pct),
+                                                                    'from', case l.dir when 'back' then s.joiner_base else s.owner_base end,
+                                                                    'to', case l.dir when 'back' then s.owner_base else s.joiner_base end)
+                                               order by l.dir = 'back', l.cabin = 'business'), '[]'::jsonb)
+                        from lv l where l.route_id = s.owner_route_id),
+           'launch_pct', private.fig_num(w, s.owner_airline_id, 'fare_launch_pct'))
+           order by s.joined_on, s.owner_base, s.joiner_base), '[]'::jsonb)
+    into v_pairs from s;
+  return jsonb_build_object(
+    'world_id', w, 'as_of', private.fig_ts(v_as_of), 'joined', v_n,
+    'limit', case when v_from is null or v_today - v_from < v_days
+                  then jsonb_build_object('pairs', v_limit, 'from', v_from, 'until', v_from + v_days::int, 'left', greatest(v_limit - v_n, 0)) end,
+    'pairs', v_pairs,
+    'notes', jsonb_build_array('Every joined shared pair (manual §2, since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §4): both airlines'' flights a week (their legs), each airline''s and the pair''s economy load and sold-out share over the last 7 days of captured flights (private.fig_pair_side()), and the pair''s level each way and cabin: the owner''s latest fare plan row with a level (direction out from the owner''s base; launch_pct when it has none). limit: settings.shared_pairs_limit pairs until shared_pairs_from + shared_pairs_limit_days (null once it no longer applies), with how many are left.'));
+end
+$function$
 
 ;
 
@@ -3842,6 +3901,7 @@ declare
   v_threats jsonb; v_body jsonb; v_group jsonb; v_flags jsonb; v_conn_scan bigint;
   v_trunk_from date; v_trunk_to date; v_trunks boolean;
   v_mrun bigint; v_mrun_doc jsonb;
+  v_fund jsonb := '{}'::jsonb;
 begin
   select a.iata_code, coalesce(a.public_name, a.planner_name, a.game_name) into v_code, v_name from public.airlines a where a.id = p_airline_id;
   v_min := private.fig_num(w, p_airline_id, 'competition_threat_min_weekly');
@@ -3905,6 +3965,17 @@ begin
     from public.market_runs r
    where r.world_id = w and r.status = 'done' and r.started_at <= p_as_of
    order by r.started_at desc, r.id desc limit 1;
+
+  -- shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §3): the owner first. For each owner of a pair
+  -- this airline may join that neither flies, whether its cash forecast can order this evening (next_order when now);
+  -- only when openings are listed (p_limit above 0), otherwise a joiner's shared openings are left out
+  if v_limit > 0 then
+    select coalesce(jsonb_object_agg(x.owner_airline_id::text, private.fig_cash_forecast(x.owner_airline_id, '[]'::jsonb, p_as_of) #>> '{next_order,when}'), '{}'::jsonb)
+      into v_fund
+      from (select distinct sp.owner_airline_id from public.shared_pairs sp
+             where sp.world_id = w and sp.joiner_airline_id = p_airline_id and sp.owner_airline_id is not null
+               and sp.owner_flights_week = 0 and sp.joiner_flights_week = 0) x;
+  end if;
 
   -- the group line: our airlines' passenger departures a week against the world's, in the latest and week-before scans
   -- (each airline's schedule, freighters left out as the weekly report counts: private.scan_passenger())
@@ -4067,6 +4138,24 @@ begin
   ob as (select distinct b.airport_code from public.airline_bases b
            join public.airlines a on a.id = b.airline_id join public.groups g on g.id = a.group_id
           where b.world_id = w and g.kind = 'ours' and b.role <> 'station'),
+  -- shared pairs (since 5 Nov): each base-to-base pair of this airline and another of ours (not excluded), its role and
+  -- the other airline; and the pairs it would join that aren't on its list, as openings from its base (the owner's row's
+  -- stars, distance and market)
+  spx as (select least(sp.owner_base, sp.joiner_base) as a, greatest(sp.owner_base, sp.joiner_base) as b,
+                 case when sp.owner_airline_id = p_airline_id then 'owner' else 'joiner' end as role,
+                 case when sp.owner_airline_id = p_airline_id then sp.joiner_airline_id else sp.owner_airline_id end as other_id,
+                 sp.owner_airline_id, sp.owner_route_id, sp.joiner_route_id
+            from public.shared_pairs sp
+           where sp.world_id = w and p_airline_id in (sp.owner_airline_id, sp.joiner_airline_id)),
+  rox as (select r.id, sp.joiner_base as hub, sp.owner_base as dest, least(r.hub_code, r.dest_code) as a, greatest(r.hub_code, r.dest_code) as b,
+                 coalesce(ap.city, r.dest_code) as city, coalesce(r.stars_override, r.stars)::int as stars,
+                 coalesce(r.distance_override_km, r.distance_km) as dist,
+                 case when r.market_cleared then null else coalesce(r.market_override_id, r.market_id) end as market_id
+            from public.shared_pairs sp
+            join public.routes r on r.id = sp.owner_route_id
+            left join public.airports ap on ap.code = sp.owner_base
+           where sp.world_id = w and sp.joiner_airline_id = p_airline_id and sp.joiner_route_id is null
+             and not exists (select 1 from ro where ro.a = least(sp.owner_base, sp.joiner_base) and ro.b = greatest(sp.owner_base, sp.joiner_base))),
   -- the other airlines of ours that have the pair on their own list (one airline per city pair, manual §2, decides)
   ol as (select least(r.hub_code, r.dest_code) as a, greatest(r.hub_code, r.dest_code) as b, array_agg(distinct al.iata_code order by al.iata_code) as codes
            from public.routes r join public.airlines al on al.id = r.airline_id join public.groups g on g.id = al.group_id
@@ -4078,8 +4167,11 @@ begin
                  exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub and b.role = 'station') as at_station,
                  -- in the trunk month only (trunk_month_from to trunk_month_to)
                  v_trunks and ro.hub in (select ob.airport_code from ob) and ro.dest in (select ob.airport_code from ob) as trunk
-            from ro
+            from (select * from ro union all select * from rox) ro
            where not exists (select 1 from ourall o where o.a = ro.a and o.b = ro.b)
+             -- a pair this airline would join waits for its owner: an opening only while the owner can't order this evening
+             and not exists (select 1 from spx where spx.a = ro.a and spx.b = ro.b and spx.role = 'joiner'
+                               and coalesce(v_fund ->> spx.owner_airline_id::text, 'now') = 'now')
            order by ro.a, ro.b, (ro.hub = v_main) desc,
                     exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub and b.role <> 'station') desc,
                     exists (select 1 from public.airline_bases b where b.airline_id = p_airline_id and b.airport_code = ro.hub) desc, ro.id),
@@ -4157,15 +4249,27 @@ begin
              'variant', jsonb_build_object('type_id', o.type_id, 'type', o.type, 'seats', o.seats, 'range_km', o.range_km,
                                            'size', (array['small', 'mid', 'large', 'wide'])[o.size], 'for_reach', o.size > o.band_hi, 'own', o.own),
              'allowed', o.allowed, 'allowed_by', o.allowed_by, 'reason', o.reason,
-             'trunk', o.trunk, 'other_lists', coalesce(to_jsonb(l.codes), '[]'::jsonb))
+             'trunk', o.trunk, 'other_lists', coalesce(to_jsonb(l.codes), '[]'::jsonb),
+             -- a shared pair (since 5 Nov): this airline's role and the other airline; a joiner's carries the owner's cash
+             'shared', case when sx.role is not null then jsonb_build_object(
+                         'role', sx.role, 'airline_id', sx.other_id, 'code', sxa.iata_code,
+                         'airline', coalesce(sxa.public_name, sxa.planner_name, sxa.game_name), 'owner_route_id', sx.owner_route_id)
+                         || case when sx.role = 'joiner' then jsonb_build_object('owner_next_order', v_fund ->> sx.owner_airline_id::text,
+                                                                                  'mark', 'owner can''t fund tonight') else '{}'::jsonb end end)
              -- connecting (since 23 Oct): the rivals' one-stop departures on the pair, beside rivals_weekly, never in it
              || case when v_conn_scan is not null then jsonb_build_object(
                   'connecting_weekly', coalesce(oc.weekly, 0), 'connecting_via', coalesce(oc.via, '[]'::jsonb), 'connecting', coalesce(oc.rivals, '[]'::jsonb))
                 else '{}'::jsonb end
              order by o.rank) filter (where o.rank <= v_limit), '[]'::jsonb) as d,
            count(*)::int as n, (count(*) filter (where o.allowed))::int as n_allowed, (count(*) filter (where o.trunk))::int as n_trunks
-      from op4 o left join ol l on l.a = o.a and l.b = o.b left join cxp oc on oc.a = o.a and oc.b = o.b),
+      from op4 o left join ol l on l.a = o.a and l.b = o.b left join cxp oc on oc.a = o.a and oc.b = o.b
+      left join spx sx on sx.a = o.a and sx.b = o.b left join public.airlines sxa on sxa.id = sx.other_id),
   left_out as (select count(*)::int as n from op1 where op1.type_id is null),
+  -- the shared pairs this airline would join that wait for their owner tonight (since 5 Nov)
+  waiting as (select count(*)::int as n from (select * from ro union all select * from rox) ro
+               where not exists (select 1 from ourall o where o.a = ro.a and o.b = ro.b)
+                 and exists (select 1 from spx where spx.a = ro.a and spx.b = ro.b and spx.role = 'joiner'
+                              and coalesce(v_fund ->> spx.owner_airline_id::text, 'now') = 'now')),
 
   -- ---------- 1d. rival profiles: the rivals who fly most of the airline's city pairs (latest scan)
   shared as (select rv.airline_id, rv.name, rv.a, rv.b, rv.weekly, m.weekly as ours from rv join mine m on m.a = rv.a and m.b = rv.b
@@ -4281,6 +4385,7 @@ begin
            'markets', (select d from markets), 'openings', (select d from openings),
            'openings_count', (select n from openings), 'openings_allowed', (select n_allowed from openings),
            'openings_left_out', (select n from left_out), 'openings_trunks', (select n_trunks from openings), 'profiles', (select d from profiles),
+           'openings_owner_first', (select n from waiting),
            'pairs_flown', (select count(*) from mine), 'pairs_listed', (select count(distinct (ro.a, ro.b)) from ro),
            'competitors', (select d from competitors), 'self', (select d from self), 'contested', (select d from contested))
     into v_body;
@@ -4301,6 +4406,7 @@ begin
     'threats', v_threats,
     'openings', v_body -> 'openings', 'openings_count', v_body -> 'openings_count', 'openings_allowed', v_body -> 'openings_allowed',
     'openings_left_out', v_body -> 'openings_left_out', 'openings_trunks', v_body -> 'openings_trunks',
+    'openings_owner_first', v_body -> 'openings_owner_first',
     'profiles', v_body -> 'profiles',
     'pairs_flown', v_body -> 'pairs_flown', 'pairs_listed', v_body -> 'pairs_listed',
     -- the weekly report's three biggest competitors and the airline beside them (none without a scan)
@@ -4311,6 +4417,7 @@ begin
     'market_run', v_mrun_doc,
     'contested', case when v_latest is null then '[]'::jsonb else v_body -> 'contested' end,
     'notes', jsonb_build_array(
+      'Shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §3): a pair between this airline''s base and another of our airlines'' (neither excluded) carries shared (role owner or joiner, the other airline). A shared pair either airline flies is no opening for the other. A pair this airline would join (on its list or not, from its base) is an opening only while the owner''s cash forecast can''t order this evening (next_order not now), marked "owner can''t fund tonight" with owner_next_order; otherwise it waits for the owner and openings_owner_first counts it. With p_limit 0 the owner''s cash isn''t read and those wait too.',
       'Rivals are every airline in the scan that isn''t one of ours; departures a week count each flight''s days, as gscan.py counts them, passenger flights only (freighters left out, as the weekly report counts). Our own now are the airline''s live legs; before, its flights in the week-before scan.',
       'From trunk_month_from to trunk_month_to (November, manual §4) the trunks, pairs between two of our bases (any of our airlines''), come first, shortest first: hubs first isn''t applied to them and no distance leaves one out. Whether a trunk makes sense stays the Scheduling chat''s judgment.',
       'The variant is the default line''s (manual §3): the smallest size the city''s stars allow (1–2 stars small, 3 small or mid, 4 small to large, 5 mid or large), bigger only for reach, the cheapest per seat whose range with a full load covers the distance, among the types the airline may buy; beyond every narrowbody the A350 that is cheapest per seat, and beyond settings.a350_1000_from_km (wide_full_cabin_km under settings here) the one with the most seats.',
@@ -5214,17 +5321,30 @@ begin
            order by ad.day desc limit 7) x;
   -- the earliest day any change could be seen: the flights read for the day fares start there
   select min(fp.proposed_on) into v_from from public.fare_plan fp
-   where fp.airline_id = p_airline_id and fp.world_id = w and fp.level_pct is not null and fp.status <> 'dropped' and fp.route_id is not null
-     and fp.proposed_on <= v_today;
+   where fp.world_id = w and fp.level_pct is not null and fp.status <> 'dropped' and fp.route_id is not null and fp.proposed_on <= v_today
+     and (fp.airline_id = p_airline_id
+          or fp.route_id in (select j.shares_route_id from public.routes j where j.airline_id = p_airline_id and j.shares_route_id is not null and not j.removed));
 
   with
   -- the fare ladder's rows of the airline by the moment (holds included: they carry a level)
   ch as materialized (
     select fp.id, fp.route_id, coalesce(fp.cabin_class, 'economy') as cabin, fp.direction, coalesce(fp.direction, 'both') as dk,
-           fp.level_pct, fp.ladder_move, fp.proposed_on, fp.fare_from, fp.change_pct
+           fp.level_pct, fp.ladder_move, fp.proposed_on, fp.fare_from, fp.change_pct, null::bigint as owner_route
       from public.fare_plan fp
      where fp.airline_id = p_airline_id and fp.world_id = w and fp.level_pct is not null and fp.status <> 'dropped' and fp.route_id is not null
-       and fp.proposed_on <= v_today),
+       and fp.proposed_on <= v_today
+       and not exists (select 1 from public.routes j where j.id = fp.route_id and j.shares_route_id is not null)
+    union all
+    -- a joiner's route (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): its moves are the pair's, the owner's
+    -- fare plan rows, each direction the other way round (the joiner's route runs from the other base)
+    select fp.id, j.id, coalesce(fp.cabin_class, 'economy'),
+           case fp.direction when 'out' then 'back' when 'back' then 'out' end,
+           coalesce(case fp.direction when 'out' then 'back' when 'back' then 'out' end, 'both'),
+           fp.level_pct, fp.ladder_move, fp.proposed_on, fp.fare_from, fp.change_pct, fp.route_id
+      from public.routes j
+      join public.fare_plan fp on fp.route_id = j.shares_route_id
+     where j.airline_id = p_airline_id and j.world_id = w and not j.removed and j.shares_route_id is not null
+       and fp.level_pct is not null and fp.status <> 'dropped' and fp.proposed_on <= v_today),
   pr as (select ro.id as route_id, ro.hub_code as hub, ro.dest_code as dest, coalesce(ro.distance_override_km, ro.distance_km) as km
            from public.routes ro where ro.id in (select distinct ch.route_id from ch)),
   -- each captured flight since the first row was proposed, one per date and flight number (the latest), as
@@ -5364,6 +5484,10 @@ begin
              'profit_per_flight_pct', round((f.n_ppf - f.b_ppf) / nullif(abs(f.b_ppf), 0) * 100, 1),
              'flights_week', round(f.n_fw - f.b_fw, 1)),
            'profit_week', round(f.profit_week),
+           -- a joiner's direction (since 5 Nov): the pair's moves, the owner's airline and route
+           'follows', (select jsonb_build_object('airline_id', o.airline_id, 'airline', coalesce(a.public_name, a.planner_name, a.game_name), 'route_id', o.id)
+                         from public.routes j join public.routes o on o.id = j.shares_route_id join public.airlines a on a.id = o.airline_id
+                        where j.id = f.route_id),
            'flags', to_jsonb(array_remove(array[case when f.load_fell then 'load_fell' end, case when f.freq_changed then 'frequency_changed' end,
                                                 case when f.too_soon then 'too_soon' end, case when f.at_cap then 'at_cap' end], null)),
            -- the sums the totals add up (AS$ and flights with money), so a reader can weight them as the totals do
@@ -5430,6 +5554,7 @@ begin
     'settings', jsonb_build_object('launch_pct', v_launch, 'cap_pct', v_cap, 'floor_pct', v_floor, 'load_fell_pct', 95, 'frequency_changed_week', 2, 'too_soon_days', 3),
     'totals', v_totals, 'baseline', v_base, 'routes', v_rows,
     'notes', jsonb_build_array(
+      'Shared pairs (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): on a joiner''s route the moves are the pair''s, the owner''s fare plan rows (each direction the other way round, since the joiner''s route runs from the other base), seen on the joiner''s own captured fares; its before and after figures are its own flights''. Such a row carries follows (the owner''s airline and route).',
       'A direction is repriced once the captures see a fare ladder change on it (up, down, jump or revert, either cabin): the first day its average fare in that cabin and direction is the fare then times the change, within 1% (fare_plan_status()''s rule, over every day kept). Before is the 7 UTC days before that first day; now is the latest 7 complete days on or after it, so a change seen a few days ago is judged on those days only. Money is AS$ a flight from the daily history (route_days), before leases. The baseline is the airline''s other directions over the same days, so fuel, fees and aircraft changes don''t pass for fare effects.'));
 end
 $function$
@@ -5796,8 +5921,24 @@ begin
                        where a.world_id = p_world_id and p.paid_at >= (v_today - 8)::timestamp at time zone 'UTC' and p.created_at <= p_as_of
                          and coalesce(p.statement_blk::int, 1) > 0 and p.kind = 'other');
   return (
-    with r as (select (d ->> 'airline_id')::bigint as airline_id, (d ->> 'ord')::int as ord, e.x, e.i
-                 from jsonb_array_elements(v_docs) d cross join lateral jsonb_array_elements(d -> 'doc' -> 'routes') with ordinality as e(x, i)),
+    with r0 as (select (d ->> 'airline_id')::bigint as airline_id, (d ->> 'ord')::int as ord, e.x, e.i
+                  from jsonb_array_elements(v_docs) d cross join lateral jsonb_array_elements(d -> 'doc' -> 'routes') with ordinality as e(x, i)),
+    -- a joined shared pair (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §3) is judged on both airlines' flights
+    -- (route profit's mark) and listed once, under its owner with shared_with; the joiner's row, when the owner's is there,
+    -- goes to follows with the owner's mark
+    jn as (select j.airline_id, j.ord, j.x, j.i, o.x as ox
+             from r0 j join r0 o on (o.x ->> 'route_id') = (j.x #>> '{pair,route_id}') and o.x ->> 'shared_role' = 'owner'
+            where j.x ->> 'shared_role' = 'joiner'),
+    r as (select r0.airline_id, r0.ord,
+                 case when r0.x ->> 'shared_role' = 'owner'
+                      then r0.x || jsonb_build_object('shared_with', jsonb_build_object(
+                             'airline_id', (r0.x #>> '{pair,airline_id}')::bigint, 'code', r0.x #>> '{pair,code}', 'airline', r0.x #>> '{pair,airline}',
+                             'route_id', (r0.x #>> '{pair,route_id}')::bigint, 'flights', (r0.x #>> '{pair,flights}')::int,
+                             'flights_week', (r0.x #>> '{pair,flights_week}')::int,
+                             'flies', coalesce((r0.x #>> '{pair,flights}')::int, 0) > 0 or coalesce((r0.x #>> '{pair,flights_week}')::int, 0) > 0))
+                      else r0.x end as x, r0.i
+            from r0
+           where not exists (select 1 from jn where jn.airline_id = r0.airline_id and jn.i = r0.i)),
     t as (select (d ->> 'airline_id')::bigint as airline_id, (d ->> 'ord')::int as ord, e.x, e.i
             from jsonb_array_elements(v_docs) d cross join lateral jsonb_array_elements(d -> 'doc' -> 'aircraft') with ordinality as e(x, i))
     select jsonb_build_object(
@@ -5811,6 +5952,11 @@ begin
       'aircraft_losing_after_lease', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', t.airline_id) || t.x
                                         order by (t.x ->> 'net_day')::numeric, t.ord, t.i), '[]'::jsonb)
                                         from t where (t.x ->> 'net_day')::numeric < 0),
+      'follows', (select coalesce(jsonb_agg(jsonb_build_object('airline_id', jn.airline_id) || (jn.x - 'mark' - 'why')
+                       || jsonb_build_object('mark', jn.ox ->> 'mark', 'why', jn.ox ->> 'why',
+                                             'follows', jsonb_build_object('airline_id', (jn.x #>> '{pair,airline_id}')::bigint, 'code', jn.x #>> '{pair,code}',
+                                                                           'airline', jn.x #>> '{pair,airline}', 'route_id', (jn.x #>> '{pair,route_id}')::bigint))
+                       order by jn.ord, jn.i), '[]'::jsonb) from jn where jn.ox ->> 'mark' <> 'hold'),
       'load_patterns', private.fig_patterns(p_world_id, p_as_of)));
 end
 $function$
@@ -6217,6 +6363,217 @@ $function$
 
 ;
 
+-- private.fig_pair_side(p_route_id bigint, p_days integer, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_pair_side(p_route_id bigint, p_days integer, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare r record; v_today date := (p_as_of at time zone 'UTC')::date; v_since timestamptz;
+  v_n int; v_profit numeric; v_income numeric; v_eco numeric; v_sold int; v_eco_n int; v_week int; v_first date;
+begin
+  select ro.id, ro.airline_id, ro.hub_code, ro.dest_code, a.iata_code, coalesce(a.public_name, a.planner_name, a.game_name) as name
+    into r from public.routes ro join public.airlines a on a.id = ro.airline_id where ro.id = p_route_id;
+  if r.id is null then return null; end if;
+  -- route profit's window: since now − p_days, inside the 8 UTC days before
+  v_since := greatest(p_as_of - p_days * interval '24 hours', (v_today - 8)::timestamp at time zone 'UTC');
+  -- the statement blocks of one route on the pair, either way (one row each: game_flights_money_key)
+  select count(*)::int, sum(f.income_total - f.cost_total) / 1000000, sum(coalesce(f.pax_income, 0) + coalesce(f.cargo_income, 0)) / 1000000
+    into v_n, v_profit, v_income
+    from public.game_flights f
+   where f.airline_id = r.airline_id and f.posted_at >= v_since and coalesce(f.money_captured_at, f.posted_at) <= p_as_of
+     and f.statement_routes = 1
+     and ((f.origin_code = r.hub_code and f.dest_code = r.dest_code) or (f.origin_code = r.dest_code and f.dest_code = r.hub_code));
+  -- the captured loads of its flights on the pair in the same days (one per date and flight number, the latest)
+  select avg(x.eco), count(*) filter (where x.eco >= 100)::int, count(x.eco)::int into v_eco, v_sold, v_eco_n
+    from (select distinct on (f.game_date, f.flight_no) f.eco_pct as eco
+            from public.game_flights f
+           where f.airline_id = r.airline_id and f.flight_no is not null and f.loads_captured_at <= p_as_of
+             and f.game_date >= (v_since at time zone 'UTC')::date and f.game_date <= v_today
+             and ((f.origin_code = r.hub_code and f.dest_code = r.dest_code) or (f.origin_code = r.dest_code and f.dest_code = r.hub_code))
+           order by f.game_date, f.flight_no, f.id desc) x;
+  select coalesce(sum(coalesce(cardinality(l.days_utc), 7)), 0)::int, min(rt.launched_on) into v_week, v_first
+    from public.rotations rt left join public.flight_legs l on l.rotation_id = rt.id
+   where rt.route_id = r.id and rt.airline_id = r.airline_id;
+  return jsonb_build_object(
+    'airline_id', r.airline_id, 'code', r.iata_code, 'airline', r.name, 'route_id', r.id, 'hub', r.hub_code, 'dest', r.dest_code,
+    'flights', coalesce(v_n, 0), 'flights_week', coalesce(v_week, 0), 'profit', v_profit, 'income', v_income,
+    'profit_per_flight', case when v_n > 0 then v_profit / v_n end,
+    'economy', v_eco, 'sold_out', coalesce(v_sold, 0), 'with_loads', coalesce(v_eco_n, 0),
+    'sold_out_share', case when v_eco_n > 0 then v_sold::numeric / v_eco_n end, 'first_day', v_first);
+end
+$function$
+
+;
+
+-- private.fig_pair_story(p_route_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_pair_story(p_route_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare pr record; v jsonb; x jsonb; o jsonb; jn jsonb; v_role text; v_latest date; v_joined date;
+  v_days jsonb; v_weeks jsonb; v_dirdays jsonb; v_events jsonb; v_fares jsonb; v_side jsonb; v_rivals jsonb;
+begin
+  select * into pr from private.fig_route_pair(p_route_id) limit 1;
+  if pr.role is null then return private.fig_route_story(p_route_id, p_as_of); end if;
+  v_role := pr.role;
+  -- v: the story of the route the address names, x: the other airline's; the page is drawn from v's side (its hub, its
+  -- directions), the same pair either way
+  v := private.fig_route_story(p_route_id, p_as_of);
+  x := private.fig_route_story(pr.other_route_id, p_as_of);
+  o := case when v_role = 'owner' then v else x end;
+  jn := case when v_role = 'owner' then x else v end;
+  select (r.created_at at time zone 'UTC')::date into v_joined from public.routes r where r.id = pr.joiner_route_id;
+  v_latest := greatest((v ->> 'latest_day')::date, (x ->> 'latest_day')::date);
+
+  -- combined where the market is one: each day's flights, seats, passengers and loads of both airlines together, the
+  -- fare weighted by passengers, and the money added up (each airline's own is in pair.airlines)
+  with d as (select e from jsonb_array_elements(coalesce(v -> 'days', '[]')) e union all select e from jsonb_array_elements(coalesce(x -> 'days', '[]')) e),
+  g as (select (e ->> 'day')::date as day, sum((e ->> 'flights')::numeric) as flights, sum((e ->> 'passengers')::numeric) as pax,
+               sum((e ->> 'seats')::numeric) as seats, sum((e ->> 'load_pct')::numeric * (e ->> 'seats')::numeric / 100) as lpax,
+               sum((e ->> 'eco_pax')::numeric) as eco_pax, sum((e ->> 'eco_seats')::numeric) as eco_seats,
+               sum((e ->> 'bus_pax')::numeric) as bus_pax, sum((e ->> 'bus_seats')::numeric) as bus_seats,
+               sum((e ->> 'eco_fare')::numeric * (e ->> 'eco_pax')::numeric) filter (where (e ->> 'eco_pax')::numeric > 0) as eco_fx,
+               sum((e ->> 'eco_pax')::numeric) filter (where (e ->> 'eco_pax')::numeric > 0 and e ->> 'eco_fare' is not null) as eco_fn,
+               avg((e ->> 'eco_fare')::numeric) as eco_fa,
+               sum((e ->> 'bus_fare')::numeric * (e ->> 'bus_pax')::numeric) filter (where (e ->> 'bus_pax')::numeric > 0) as bus_fx,
+               sum((e ->> 'bus_pax')::numeric) filter (where (e ->> 'bus_pax')::numeric > 0 and e ->> 'bus_fare' is not null) as bus_fn,
+               avg((e ->> 'bus_fare')::numeric) as bus_fa,
+               sum((e ->> 'revenue')::numeric) as revenue, sum((e ->> 'costs')::numeric) as costs, sum((e ->> 'profit')::numeric) as profit,
+               sum((e ->> 'block_hours')::numeric) as block_hours
+          from d group by 1),
+  wk as (select (v_latest - g.day) / 7 as w, min(g.day) as d0, count(*)::int as n,
+                sum(g.flights) as flights, sum(g.pax) as pax, sum(g.seats) as seats, sum(g.lpax) as lpax, sum(g.eco_pax) as eco_pax,
+                sum(g.eco_seats) as eco_seats, sum(g.bus_pax) as bus_pax, sum(g.bus_seats) as bus_seats, sum(g.eco_fx) as eco_fx,
+                sum(g.eco_fn) as eco_fn, avg(g.eco_fa) as eco_fa, sum(g.bus_fx) as bus_fx, sum(g.bus_fn) as bus_fn, avg(g.bus_fa) as bus_fa,
+                sum(g.revenue) as revenue, sum(g.costs) as costs, sum(g.profit) as profit, sum(g.block_hours) as block_hours
+           from g where (v_latest - g.day) / 7 < 13 group by 1),
+  f as (select true as is_day, g.day as d0, g.day as d1, null::int as n, g.flights, g.pax, g.seats, g.lpax, g.eco_pax, g.eco_seats, g.bus_pax, g.bus_seats,
+               g.eco_fx, g.eco_fn, g.eco_fa, g.bus_fx, g.bus_fn, g.bus_fa, g.revenue, g.costs, g.profit, g.block_hours from g
+        union all
+        select false, v_latest - wk.w * 7 - 6, v_latest - wk.w * 7, wk.n, wk.flights, wk.pax, wk.seats, wk.lpax, wk.eco_pax, wk.eco_seats,
+               wk.bus_pax, wk.bus_seats, wk.eco_fx, wk.eco_fn, wk.eco_fa, wk.bus_fx, wk.bus_fn, wk.bus_fa, wk.revenue, wk.costs, wk.profit, wk.block_hours from wk),
+  j as (select f.is_day, f.d0, jsonb_build_object(
+               'flights', f.flights, 'passengers', f.pax, 'seats', f.seats, 'load_pct', round(100.0 * f.lpax / nullif(f.seats, 0), 1),
+               'eco_pax', f.eco_pax, 'eco_seats', f.eco_seats, 'eco_load_pct', round(100.0 * f.eco_pax / nullif(f.eco_seats, 0), 1),
+               'bus_pax', f.bus_pax, 'bus_seats', f.bus_seats, 'bus_load_pct', round(100.0 * f.bus_pax / nullif(f.bus_seats, 0), 1),
+               'eco_fare', round(coalesce(f.eco_fx / nullif(f.eco_fn, 0), f.eco_fa), 2), 'bus_fare', round(coalesce(f.bus_fx / nullif(f.bus_fn, 0), f.bus_fa), 2),
+               'revenue', round(f.revenue, 5), 'costs', round(f.costs, 5), 'profit', round(f.profit, 5), 'block_hours', round(f.block_hours, 2),
+               'profit_per_hour', case when f.block_hours > 0 then round(f.profit / f.block_hours, 5) end)
+               || case when f.is_day then jsonb_build_object('day', f.d0) else jsonb_build_object('from', f.d0, 'to', f.d1, 'days', f.n) end as e
+          from f)
+  select coalesce(jsonb_agg(j.e order by j.d0) filter (where j.is_day), '[]'::jsonb), coalesce(jsonb_agg(j.e order by j.d0 desc) filter (where not j.is_day), '[]'::jsonb)
+    into v_days, v_weeks from j;
+
+  -- by direction, from the named route's side: the other route's out is this one's back
+  with d as (select e ->> 'day' as day, e ->> 'direction' as dir, e from jsonb_array_elements(coalesce(v -> 'days_by_direction', '[]')) e
+             union all
+             select e ->> 'day', case e ->> 'direction' when 'out' then 'back' else 'out' end, e from jsonb_array_elements(coalesce(x -> 'days_by_direction', '[]')) e),
+  g as (select d.day, d.dir, sum((d.e ->> 'flights')::int)::int as flights, sum((d.e ->> 'eco_pax')::int)::int as eco_pax, sum((d.e ->> 'eco_seats')::int)::int as eco_seats,
+               sum((d.e ->> 'bus_pax')::int)::int as bus_pax, sum((d.e ->> 'bus_seats')::int)::int as bus_seats
+          from d group by 1, 2)
+  select coalesce(jsonb_agg(jsonb_build_object('day', g.day, 'direction', g.dir, 'flights', g.flights,
+                    'eco_pax', g.eco_pax, 'eco_seats', g.eco_seats, 'eco_load_pct', round(100.0 * g.eco_pax / nullif(g.eco_seats, 0), 1),
+                    'bus_pax', g.bus_pax, 'bus_seats', g.bus_seats, 'bus_load_pct', round(100.0 * g.bus_pax / nullif(g.bus_seats, 0), 1))
+                  order by g.day, g.dir = 'back'), '[]'::jsonb)
+    into v_dirdays from g;
+
+  -- one timeline: both airlines' events, each marked with its airline; the rivals once (the owner's story's); the joiner's
+  -- first flights, and the day its row was added, as the day it came in
+  select coalesce(jsonb_agg(z.e order by (z.e ->> 'day')::date desc,
+                             array_position(array['rival', 'fare', 'retimed', 'aircraft changed', 'frequency removed', 'frequency added', 'joined', 'launched'], z.e ->> 'kind'),
+                             z.e ->> 'at' desc nulls last, z.e ->> 'words'), '[]'::jsonb)
+    into v_events
+    from (select e || jsonb_build_object('airline', o #>> '{route,airline,code}', 'airline_id', (o #>> '{route,airline,id}')::bigint)
+                   -- a fare event's direction from the named route's side (the other route's out is its back)
+                   || case when v_role = 'joiner' and e ->> 'direction' in ('out', 'back')
+                           then jsonb_build_object('direction', case e ->> 'direction' when 'out' then 'back' else 'out' end) else '{}'::jsonb end as e
+            from jsonb_array_elements(coalesce(o -> 'events', '[]')) e
+          union all
+          select case when e ->> 'kind' = 'launched'
+                      then e || jsonb_build_object('kind', 'joined', 'words', format('%s''s first flights on the pair', jn #>> '{route,airline,name}'))
+                      else e end
+                 || jsonb_build_object('airline', jn #>> '{route,airline,code}', 'airline_id', (jn #>> '{route,airline,id}')::bigint)
+                 || case when v_role = 'owner' and e ->> 'direction' in ('out', 'back')
+                         then jsonb_build_object('direction', case e ->> 'direction' when 'out' then 'back' else 'out' end) else '{}'::jsonb end
+            from jsonb_array_elements(coalesce(jn -> 'events', '[]')) e where e ->> 'kind' <> 'rival'
+          union all
+          select jsonb_build_object('day', v_joined, 'kind', 'joined', 'words', format('%s joined the pair (%s owns it)', jn #>> '{route,airline,name}', o #>> '{route,airline,name}'),
+                                    'airline', jn #>> '{route,airline,code}', 'airline_id', (jn #>> '{route,airline,id}')::bigint)
+           where v_joined is not null and v_joined <= (p_as_of at time zone 'UTC')::date) z;
+
+  -- the fare level: the pair's, the owner's ladder; from the named route's side (a joiner's own rows follow it; with none
+  -- yet, the owner's rows the other way round)
+  v_fares := case when jsonb_array_length(coalesce(v #> '{now,fares}', '[]')) > 0 then v #> '{now,fares}'
+                  else (select coalesce(jsonb_agg(e || jsonb_build_object('direction', case e ->> 'direction' when 'out' then 'back' when 'back' then 'out' else e ->> 'direction' end)), '[]'::jsonb)
+                          from jsonb_array_elements(coalesce(x #> '{now,fares}', '[]')) e) end;
+
+  -- each airline's side, separate where the money is
+  select jsonb_agg(jsonb_build_object(
+           'role', s.role, 'airline_id', (s.d #>> '{route,airline,id}')::bigint, 'code', s.d #>> '{route,airline,code}', 'airline', s.d #>> '{route,airline,name}',
+           'route_id', (s.d #>> '{route,id}')::bigint, 'hub', s.d #>> '{route,hub}', 'dest', s.d #>> '{route,dest}',
+           'departures', (s.d #>> '{now,departures,out}')::int + (s.d #>> '{now,departures,back}')::int,
+           'types', s.d #> '{now,types}', 'launched', s.d #> '{route,launched}', 'latest_day', s.d -> 'latest_day',
+           'days', (select coalesce(jsonb_agg(jsonb_build_object('day', e -> 'day', 'flights', e -> 'flights', 'seats', e -> 'seats', 'passengers', e -> 'passengers',
+                                                                 'load_pct', e -> 'load_pct', 'revenue', e -> 'revenue', 'costs', e -> 'costs', 'profit', e -> 'profit')
+                                              order by e ->> 'day'), '[]'::jsonb)
+                      from jsonb_array_elements(coalesce(s.d -> 'days', '[]')) e),
+           'weeks', (select coalesce(jsonb_agg(jsonb_build_object('from', e -> 'from', 'to', e -> 'to', 'days', e -> 'days', 'flights', e -> 'flights',
+                                                                  'load_pct', e -> 'load_pct', 'revenue', e -> 'revenue', 'profit', e -> 'profit')
+                                               order by e ->> 'from' desc), '[]'::jsonb)
+                       from jsonb_array_elements(coalesce(s.d -> 'weeks', '[]')) e))
+           order by s.role = 'joiner')
+    into v_side
+    from (values ('owner', o), ('joiner', jn)) s (role, d);
+
+  -- rivals on the pair: the owner's story's (the same scans), with ours both airlines' departures and our share again
+  v_rivals := o -> 'rivals';
+  if jsonb_typeof(v_rivals) = 'object' then
+    v_rivals := v_rivals || jsonb_build_object(
+      'ours', coalesce((o #>> '{rivals,ours}')::int, 0) + coalesce((jn #>> '{rivals,ours}')::int, 0),
+      'share', case when v_rivals -> 'scan' is not null and jsonb_typeof(v_rivals -> 'scan') = 'object'
+                    then round(100.0 * (coalesce((o #>> '{rivals,ours}')::int, 0) + coalesce((jn #>> '{rivals,ours}')::int, 0))
+                               / nullif(coalesce((o #>> '{rivals,ours}')::int, 0) + coalesce((jn #>> '{rivals,ours}')::int, 0) + coalesce((v_rivals ->> 'rivals_weekly')::int, 0), 0), 1) end,
+      'shares', (select coalesce(jsonb_agg(e || jsonb_build_object(
+                          'ours', (e ->> 'ours')::int + coalesce(js.ours, 0),
+                          'share', round(100.0 * ((e ->> 'ours')::int + coalesce(js.ours, 0)) / nullif((e ->> 'ours')::int + coalesce(js.ours, 0) + (e ->> 'rivals')::int, 0), 1))
+                          order by e ->> 'taken_at', e ->> 'scan_id'), '[]'::jsonb)
+                   from jsonb_array_elements(coalesce(v_rivals -> 'shares', '[]')) e
+                   left join lateral (select (k ->> 'ours')::int as ours from jsonb_array_elements(coalesce(jn #> '{rivals,shares}', '[]')) k
+                                       where k ->> 'scan_id' = e ->> 'scan_id' limit 1) js on true));
+  end if;
+
+  return v || jsonb_build_object(
+    'latest_day', v_latest,
+    'now', (v -> 'now') || jsonb_build_object(
+      'departures', jsonb_build_object('out', (v #>> '{now,departures,out}')::int + (x #>> '{now,departures,back}')::int,
+                                       'back', (v #>> '{now,departures,back}')::int + (x #>> '{now,departures,out}')::int),
+      'rotations', (v #>> '{now,rotations}')::int + (x #>> '{now,rotations}')::int,
+      'types', (select coalesce(jsonb_agg(e order by (e ->> 'aircraft')::int desc, e ->> 'type'), '[]'::jsonb)
+                  from (select jsonb_build_object('type_id', t.type_id, 'type', t.type, 'aircraft', sum(t.n)::int) as e
+                          from (select (e ->> 'type_id')::bigint as type_id, e ->> 'type' as type, (e ->> 'aircraft')::int as n
+                                  from jsonb_array_elements(coalesce(v #> '{now,types}', '[]') || coalesce(x #> '{now,types}', '[]')) e) t
+                         group by t.type_id, t.type) y),
+      'fares', v_fares),
+    'days', v_days, 'days_by_direction', v_dirdays, 'weeks', v_weeks, 'events', v_events, 'rivals', v_rivals,
+    'pair', jsonb_build_object(
+      'role', v_role, 'follows', v_role = 'joiner',
+      'title', format('%s · %s', o #>> '{route,airline,name}', jn #>> '{route,airline,name}'),
+      'owner', jsonb_build_object('airline_id', (o #>> '{route,airline,id}')::bigint, 'code', o #>> '{route,airline,code}', 'airline', o #>> '{route,airline,name}',
+                                  'route_id', pr.owner_route_id, 'hub', o #>> '{route,hub}', 'dest', o #>> '{route,dest}'),
+      'joiner', jsonb_build_object('airline_id', (jn #>> '{route,airline,id}')::bigint, 'code', jn #>> '{route,airline,code}', 'airline', jn #>> '{route,airline,name}',
+                                   'route_id', pr.joiner_route_id, 'hub', jn #>> '{route,hub}', 'dest', jn #>> '{route,dest}', 'joined_on', v_joined),
+      'airlines', v_side),
+    'notes', (v -> 'notes') || jsonb_build_array(
+      'Shared pair (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): two of our airlines fly this pair at one price, the owner''s level. days, weeks, days_by_direction and now (departures, rotations, types) are both airlines'' flights together, from the route the address names (its hub, its directions); weeks are 7-day blocks of those days ending on the later latest_day. Money there is the pair''s total; each airline keeps what it flies, so pair.airlines gives each one''s own days, weeks, departures, revenue and profit. events is one timeline, each marked with its airline (rivals once, the joiner''s first flights and the day it joined as joined). rivals counts both airlines as ours. now.fares is the pair''s level: on the joiner''s side its rows follow the owner''s ladder.'));
+end
+$function$
+
+;
+
 -- private.fig_patterns(p_world_id bigint, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.fig_patterns(p_world_id bigint, p_as_of timestamp with time zone)
  RETURNS jsonb
@@ -6323,6 +6680,24 @@ AS $function$
         'under_70', f.b70, 'days', f.days)
         order by a.position nulls last, f.airline_id, f.flight_no)
       from f join public.airlines a on a.id = f.airline_id), '[]'::jsonb))
+$function$
+
+;
+
+-- private.fig_route_pair(p_route_id bigint)
+CREATE OR REPLACE FUNCTION private.fig_route_pair(p_route_id bigint)
+ RETURNS TABLE(role text, owner_route_id bigint, joiner_route_id bigint, other_route_id bigint, other_airline_id bigint)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select 'joiner'::text, o.id, j.id, o.id, o.airline_id
+    from public.routes j join public.routes o on o.id = j.shares_route_id
+   where j.id = p_route_id and not j.removed and not o.removed
+  union all
+  select 'owner'::text, o.id, j.id, j.id, j.airline_id
+    from public.routes o join public.routes j on j.shares_route_id = o.id and not j.removed
+   where o.id = p_route_id and not o.removed
 $function$
 
 ;
@@ -6463,22 +6838,50 @@ begin
                  hh.h as hours, case when hh.h > 0 then (g.profit / g.n) / hh.h end as pph
             from g left join wk on wk.route_id = g.route_id left join age ag on ag.route_id = g.route_id
             left join hrs hh on hh.route_id = g.route_id),
+    -- a joined shared pair (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §3–§4): the other airline's side, and
+    -- the pair's figures with both airlines' flights (sold out, ready for another flight, losing and fix are judged on
+    -- them); a route on no joined pair keeps its own figures exactly
+    -- the airline's routes on a joined pair, found once (most routes are on none)
+    jr as materialized (select j.id from public.routes j where j.airline_id = p_airline_id and j.shares_route_id is not null and not j.removed
+                        union
+                        select j.shares_route_id from public.routes j join public.routes o on o.id = j.shares_route_id
+                         where o.airline_id = p_airline_id and not j.removed),
+    sp as (select r.route_id, pr.role, x.d
+             from r join jr on jr.id = r.route_id cross join lateral private.fig_route_pair(r.route_id) pr
+             cross join lateral (select private.fig_pair_side(pr.other_route_id, p_days, p_as_of) as d offset 0) x
+            where r.route_id is not null),
+    rc as (select r.*, sp.role as shared_role, sp.d as pair,
+                  r.n + coalesce((sp.d ->> 'flights')::int, 0) as cn,
+                  r.sold + coalesce((sp.d ->> 'sold_out')::int, 0) as csold,
+                  r.eco_n + coalesce((sp.d ->> 'with_loads')::int, 0) as ceco_n,
+                  case when sp.role is null then r.profit else r.profit + coalesce((sp.d ->> 'profit')::numeric, 0) end as cprofit,
+                  case when sp.role is null then r.income else r.income + coalesce((sp.d ->> 'income')::numeric, 0) end as cincome,
+                  case when sp.role is null or coalesce((sp.d ->> 'with_loads')::int, 0) = 0 then r.eco_a
+                       when r.eco_n = 0 then (sp.d ->> 'economy')::numeric
+                       else (r.eco_a * r.eco_n + (sp.d ->> 'economy')::numeric * (sp.d ->> 'with_loads')::int) / (r.eco_n + (sp.d ->> 'with_loads')::int) end as ceco_a,
+                  -- the pair is young while both airlines' routes are (a joiner's first flights aren't a new route)
+                  case when sp.role is null or coalesce((sp.d ->> 'flights')::int, 0) = 0 then r.young
+                       else r.young and coalesce(v_today - (sp.d ->> 'first_day')::date < v_new_days, false) end as cyoung
+             from r left join sp on sp.route_id = r.route_id),
+    rcc as (select rc.*, rc.cprofit / rc.cn as cppf, case when rc.cincome > 0 then rc.cprofit / rc.cincome end as cmargin,
+                   case when rc.ceco_n > 0 then rc.csold::numeric / rc.ceco_n end as csold_share
+              from rc),
     pp as (select array_agg(r.ppf order by r.ppf) as a, array_agg(r.pph order by r.pph) filter (where r.pph is not null) as h from r),
     -- the middle route: by profit a flight, and by profit an aircraft hour among the routes with their hours
     q as (select pp.a[floor(cardinality(pp.a) / 2.0)::int + 1] as med, pp.a[floor(cardinality(pp.a) * 0.25)::int + 1] as q25,
                  pp.h[floor(cardinality(pp.h) / 2.0)::int + 1] as med_h,
                  coalesce(cardinality(pp.a), 0) as len from pp),
-    mk as (select r.*, case when r.ppf < 0 and r.n >= v_losing and not r.young then 'losing'
-                            when r.sold_share is not null and r.sold_share >= v_sold_share and r.n >= v_sold_min
+    mk as (select r.*, case when r.cppf < 0 and r.cn >= v_losing and not r.cyoung then 'losing'
+                            when r.csold_share is not null and r.csold_share >= v_sold_share and r.cn >= v_sold_min
                               -- add at or above the middle route's profit an aircraft hour, sold_out below (since 31 Oct, was
                               -- raise: the fare ladder raises a sold-out direction each Saturday by itself); a route with no
                               -- aircraft hours (no legs on record) is compared by profit a flight, as before 17 Oct
                               then case when r.pph is not null and q.med_h is not null then case when r.pph >= q.med_h then 'add' else 'sold_out' end
-                                        when r.ppf >= q.med then 'add' else 'sold_out' end
-                            when r.n >= v_fix_min and not r.young and r.eco_a is not null and r.eco_a < v_fix_eco then 'fix'
-                            when r.n >= v_fix_min and not r.young and q.len >= v_fix_routes and r.ppf <= q.q25 and r.margin is not null and r.margin < v_fix_margin then 'fix-margin'
+                                        when r.cppf >= q.med then 'add' else 'sold_out' end
+                            when r.cn >= v_fix_min and not r.cyoung and r.ceco_a is not null and r.ceco_a < v_fix_eco then 'fix'
+                            when r.cn >= v_fix_min and not r.cyoung and q.len >= v_fix_routes and r.cppf <= q.q25 and r.cmargin is not null and r.cmargin < v_fix_margin then 'fix-margin'
                             else 'hold' end as k, q.med, q.med_h
-             from r cross join q),
+             from rcc r cross join q),
     routes as (select coalesce(jsonb_agg(jsonb_build_object(
                  'route_id', mk.route_id, 'hub', mk.hub, 'dest', mk.dest, 'flights', mk.n, 'profit', mk.profit, 'income', mk.income,
                  'margin', mk.margin, 'profit_per_flight', mk.ppf, 'flights_week', mk.wk, 'profit_week', mk.pwk,
@@ -6486,13 +6889,21 @@ begin
                  'economy', mk.eco_a, 'business', mk.bus_a, 'cargo', mk.cargo_a, 'economy_fare', mk.fare_a,
                  'sold_out', mk.sold, 'with_loads', mk.eco_n, 'sold_out_share', mk.sold_share,
                  'mark', case when mk.k = 'fix-margin' then 'fix' else mk.k end,
-                 'why', case mk.k when 'losing' then 'its average flight loses money'
-                                  when 'add' then format('sold out on %s of %s departures, profit %s at or above the airline''s middle route', mk.sold, mk.eco_n,
+                 'why', case mk.k when 'losing' then case when mk.shared_role is null then 'its average flight loses money' else 'the pair''s average flight loses money' end
+                                  when 'add' then format('sold out on %s of %s departures, profit %s at or above the airline''s middle route', mk.csold, mk.ceco_n,
                                                          case when mk.pph is not null and mk.med_h is not null then 'an aircraft hour' else 'a flight' end)
                                   when 'sold_out' then 'sold out · fares climbing (the fare ladder raises it each Saturday)'
-                                  when 'fix' then format('economy averaging %s%%', floor(mk.eco_a + 0.5))
+                                  when 'fix' then format('economy averaging %s%%', floor(mk.ceco_a + 0.5))
                                   when 'fix-margin' then format('bottom-quarter profit a flight on a margin under %s%%', floor(v_fix_margin * 100 + 0.5))
-                                  else '' end)
+                                  else '' end
+                        || case when mk.shared_role is not null and mk.k <> 'hold' then format(' (both airlines'' flights, with %s''s)', mk.pair ->> 'airline') else '' end)
+                 -- a joined shared pair (since 5 Nov): this airline's role, and the other airline's side with the pair's figures
+                 || case when mk.shared_role is null then '{}'::jsonb else jsonb_build_object(
+                      'shared_role', mk.shared_role,
+                      'pair', mk.pair || jsonb_build_object('combined', jsonb_build_object(
+                                'flights', mk.cn, 'flights_week', mk.wk + coalesce((mk.pair ->> 'flights_week')::int, 0), 'profit', mk.cprofit,
+                                'income', mk.cincome, 'profit_per_flight', mk.cppf, 'economy', mk.ceco_a, 'sold_out', mk.csold,
+                                'with_loads', mk.ceco_n, 'sold_out_share', mk.csold_share))) end
                  order by mk.pwk desc, mk.ppf desc, mk.first_i), '[]'::jsonb) as v from mk),
     -- the aircraft: each one's average flight × its scheduled flights a day, plus its statement lines without a route
     -- spread over the days captured, less its lease a day (the last leasing payment the events list for it, ÷ 7)
