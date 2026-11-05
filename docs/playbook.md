@@ -18,7 +18,8 @@ order to flying, the Saturday and monthly work, every check and what to do when 
 1. **Capture every evening.** The game keeps a flight's loads only briefly, so a missed evening loses them for good
    (rule: manual §7, every evening). On 11 and 12 Oct about 780 flights' loads were lost that way.
 2. **Before opening a route, check no other airline of ours has the pair.** Competition's openings say which other
-   airlines of ours have it on their list (rule: manual §2, one airline per city pair).
+   airlines of ours have it on their list (rule: manual §2, one airline per city pair). Once shared pairs are built,
+   a pair between two airlines' bases may be flown by both, the owner first (rule: manual §2, shared pairs).
 3. **Order only when the cash forecast says it's safe:** Today → **Orders** (rule: manual §3, the cash forecast).
 4. **Send each new aircraft where hubs first allows.** The openings say whether it does, and why not (rule: manual §3,
    hubs first).
@@ -81,7 +82,8 @@ The strategy is all in the manual. What each rule covers:
 ### The shape of the group (manual §2)
 - **Roles:** which airline owns which region and which intercontinental flow, Oceania included.
 - **One airline per city pair:** who owns a pair, by country pair, and the exception where the rightful airline has
-  no base at either end. When adding routes from a list, add missing lanes only.
+  no base at either end. When adding routes from a list, add missing lanes only. **Shared pairs** (decided 4 Nov, once
+  built): a pair between two airlines' bases flown by both at the owner's price, Ryanair out.
 - **Destination shape:** where the network is heading in time, and at what pace.
 - **Scale models:** each airline's real-world model to copy.
 - **Malaysia:** Kuala Lumpur's role, and what gets built before long haul.

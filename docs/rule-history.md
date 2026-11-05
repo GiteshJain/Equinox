@@ -186,6 +186,17 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 ### 2. Group strategy
 
 #### One airline per city pair
+*Shared pairs decided 4 Nov (Gitesh, Scheduling chat, brief `docs/briefs/2026-11-04-shared-pairs.md`, option B with
+Ryanair out: "I want b tomorrow i think. It seems like how a real consortium would operate"; in force once built, spec
+`docs/specs/2026-11-05-shared-pairs.md`).* Earlier wording, unchanged until the build merges: "**One airline per city
+pair.** No two of our airlines fly the same pair." · why: a consortium puts whichever partner's aircraft is free on a
+shared trunk at one price. In the game which of our airlines flies a pair makes no difference to passengers (bookings
+split by flight, which Gitesh confirmed; the handbook says interline transfers follow the same rules as an airline's
+own), profit an aircraft hour was the same on cross trunks, own trunks and spokes (5–6.5k on 4 Nov), and cash can't
+move between our holdings, so sharing shares access, not profit: the gain is both airlines' cash on a trunk, and later
+somewhere to grow once a region stops selling out. Ryanair out (Gitesh: "Ryan will not fly virgins routes"): its
+product and ladder (85% launch, 105% cap) don't match a Virgin pair.
+
 *Since 21 Oct · why (Gitesh): applying the country rule literally removed 53 pairs no other airline could fly; they were restored the same night.* (On the base exception.)
 
 *Since 23 and 26 Sep · why: our airlines shouldn't compete with each other.*

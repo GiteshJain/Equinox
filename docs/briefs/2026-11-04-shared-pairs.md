@@ -134,6 +134,9 @@ and Interlining (handbook.airlinesim.aero/en/docs/advanced/alliances-and-interli
 `airline_days`, `flight_legs`, 4 Nov; manual §2, §3, §4, §5, §9; `rule-history.md` (21–22 Oct, the cap).
 
 ## Outcome
-**4 Nov 2026 (Gitesh): A, as is.** "If you think not necessary let's leave as is." One airline per city pair (§2) stands;
-no shared pairs, no build, no manual change. The fare-ladder lever for a cash-poor airline (D) was not taken up; it can
-be raised at a Saturday review if an airline's cash falls behind.
+**4 Nov 2026 (Gitesh): first A ("if you think not necessary let's leave as is"), then, after the risk review the same
+evening, B with Ryanair out:** "I want b tomorrow i think. It seems like how a real consortium would operate." Two facts
+settled on the way: the game shares a market by flight (Gitesh), so splitting our flights across two names costs no
+share; and "Ryan will not fly virgins routes". Decided, not yet built: manual §2 carries the rule, in force once the
+build merges; spec `docs/specs/2026-11-05-shared-pairs.md`, built after the default-price change. The fare-ladder lever
+for a cash-poor airline (D) was not taken up.
