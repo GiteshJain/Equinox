@@ -25,7 +25,7 @@ begin
 
   select string_agg(f, ', ') into missing from unnest(array['airline_cards', 'airline_profit', 'cash_forecast', 'route_profit',
          'aircraft_profit', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'growth_signals', 'hub_progress', 'route_loads',
-         'route_story', 'competition', 'market_service_checks', 'fare_results']) f
+         'route_story', 'competition', 'market_service_checks', 'fare_results', 'shared_pairs_status']) f
    where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                       where n.nspname = 'public' and p.proname = f and p.proconfig @> array['statement_timeout=30s', 'search_path=""']);
   assert missing is null, 'figure functions without the 30 s limit (or without their empty search_path): ' || missing;
@@ -33,7 +33,7 @@ begin
   select string_agg(p.proname, ', ') into others from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname not in ('export_for_report', 'capture_fare_actions', 'capture_fare_actions_by_airline', 'fleet_checks', 'capture_market', 'airline_cards', 'airline_profit',
          'cash_forecast', 'route_profit', 'aircraft_profit', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'growth_signals',
-         'hub_progress', 'route_loads', 'route_story', 'competition', 'market_service_checks', 'fare_results')
+         'hub_progress', 'route_loads', 'route_story', 'competition', 'market_service_checks', 'fare_results', 'shared_pairs_status')
      and exists (select 1 from unnest(p.proconfig) c where c like 'statement_timeout=%');
   assert others is null, 'other functions carry a statement limit: ' || others;
 

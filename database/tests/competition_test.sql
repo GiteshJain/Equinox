@@ -578,8 +578,10 @@ begin
   d := private.fig_competition(c2, v_in);
   select string_agg((x ->> 'route') || ' ' || (x #>> '{variant,type}') || ' ' || (x #>> '{variant,own}'), '; ' order by (x ->> 'rank')::int) into got
     from jsonb_array_elements(d -> 'openings') x;
-  assert got = 'YB1–YA2 CT A350-900 false; YB1–YA3 CT A350-900 false; YB1–YD1 CT E195 true' and (d ->> 'openings_left_out')::int = 1,
-    'C2''s openings on ' || v_in || ' are ' || coalesce(got, 'none') || ', left out ' || (d ->> 'openings_left_out');
+  -- since 5 Nov YA2–YB1 is a shared pair (C1's hub and C2's) whose owner is C1 (its row came first): C2 joins it only once
+  -- C1 can't order that evening, and C1's forecast says nothing here, so it waits for C1 (openings_owner_first)
+  assert got = 'YB1–YA3 CT A350-900 false; YB1–YD1 CT E195 true' and (d ->> 'openings_left_out')::int = 1 and (d ->> 'openings_owner_first')::int = 1,
+    'C2''s openings on ' || v_in || ' are ' || coalesce(got, 'none') || ', left out ' || (d ->> 'openings_left_out') || ', owner first ' || (d ->> 'openings_owner_first');
 
   -- the evening before the trunk month and the night after it: nothing changes (no trunk marks; hubs first as always;
   -- the long trunk left out for C2)
@@ -591,7 +593,8 @@ begin
            = 'YA1–YC1 main hub; YA1–YC2 main hub; YA1–YC3 main hub; YA1–YC4 main hub; YA1–YC6 main hub; YA1–YC7 main hub; YA1–YA3 main hub; YA1–YC5 main hub; '
           || 'YA2–YC8 NOT; YA2–YC9 NOT; YA3–YCA NOT; YA2–YB1 NOT',
       'on ' || got || ' the openings aren''t as always: ' || (d -> 'openings')::text;
-    assert (private.fig_competition(c2, got::timestamptz) ->> 'openings_left_out')::int = 3, 'on ' || got || ' C2''s long trunks aren''t left out for reach as always';
+    -- (since 5 Nov the shared YB1–YA2 waits for its owner, C1, rather than being left out for reach)
+    assert (private.fig_competition(c2, got::timestamptz) ->> 'openings_left_out')::int = 2, 'on ' || got || ' C2''s long trunks aren''t left out for reach as always';
   end loop;
   perform set_config('equinox.actor', '', true), set_config('equinox.actor_detail', '', true);
   raise notice 'November''s trunks: trunk_month_from and trunk_month_to (% to %) in every world, described dates; on % the trunks first, shortest first (YA1–YA3 900 km, then YA2–YB1 7,500 km, on C2''s list too), allowed with hubs first suspended, C2''s 7,500 and 8,000 km trunks on the world''s A350 rather than left out; then the rest as always; the evening before and the night after nothing changes', v_from, v_to, v_in;
