@@ -204,6 +204,12 @@ begin
   -- the fare ladder's hold after a step up (20261027000000) adds settings.up_hold_weeks and the held_up reason to
   -- fare_ladder() only: private.fig_export() doesn't read the fare ladder, so no new field reaches
   -- export_for_report('figures') and nothing is set aside here (the figures must still be exactly as before)
+  -- shared pairs' figures (20261105010000) add growth_signals' follows list on purpose (shared_pairs_figures_test.sql
+  -- checks it; on the copy no pair is joined, so it is empty and nothing else moves): while it is pending (the figures
+  -- before have none), exactly that key is left out here
+  if not coalesce(b -> 'growth_signals' ? 'follows', false) and a -> 'growth_signals' ? 'follows' then
+    a := jsonb_set(a, '{growth_signals}', (a -> 'growth_signals') - 'follows');
+  end if;
   if a is distinct from b then
     select string_agg(k, ', ' order by k) into bad
       from (select k from jsonb_object_keys(a) k union select k from jsonb_object_keys(b) k) x(k) where a -> k is distinct from b -> k;

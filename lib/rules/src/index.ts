@@ -43,7 +43,7 @@ export type { AirlineCard, CardBase, KeyFigures, NowFigures, SummaryFigures } fr
 export type { ZoneClock } from "./time.js";
 export type { OptimiseAnswer, OptimiseOptions, OptimisedPlan, PlannedLeg } from "./optimiser.js";
 export type { Line, LineAnswer, LineDay, LineLeg, LineOptions, LineScore, RoutePair } from "./lineOptimiser.js";
-export type { CabinFare, CabinRouteShare, CabinSuggestion, Card, CardLeg, FareLadder, FareLadderRow, LineFile, LineFlight, RouteFare } from "./card.js";
+export type { CabinFare, CabinRouteShare, CabinSuggestion, Card, CardLeg, FareLadder, FareLadderRow, LineFile, SharedLadder, LineFlight, RouteFare } from "./card.js";
 export type { Wave } from "./banks.js";
 export type { ConnectingFlight, FrequencyChecks, FrequencyEnds, FrequencyView, LocalTimes, OtherLeg, StoredLeg, Way } from "./frequency.js";
 export type { ServiceCheck, ServiceIssue, ServiceLeg, ServiceLegAnswer, ServiceProfile } from "./service.js";

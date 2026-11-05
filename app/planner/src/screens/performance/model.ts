@@ -112,6 +112,23 @@ export interface RouteRow {
    *  Route profit chart's bars since 30 Oct. */
   aircraft_hours?: number | null;
   profit_per_aircraft_hour?: number | null;
+  /** Since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §4): on a joined shared pair, this airline's role and the
+   *  other airline's side (its flights, loads and profit on the pair, and the pair's combined figures). */
+  shared_role?: "owner" | "joiner";
+  pair?: RoutePair;
+}
+/** The other airline's side of a joined shared pair, as route_profit() gives it. */
+export interface RoutePair {
+  airline_id: number; code: string | null; airline: string; route_id: number; flights: number; flights_week: number;
+  profit: number | null; economy: number | null; sold_out: number; with_loads: number; sold_out_share: number | null;
+  combined?: { flights: number; flights_week: number; economy: number | null; sold_out_share: number | null; profit: number | null };
+}
+/** A shared pair's mark on the route profit table (since 5 Nov): "shared with Kingfisher: 14 a week, 100%" on the owner's
+ *  row, "follows Malaysia: 21 a week, 98%" on the joiner's (the other airline's flights a week and economy load). */
+export function sharedRowWords(r: Pick<RouteRow, "shared_role" | "pair">): string | null {
+  if (!r.shared_role || !r.pair) return null;
+  const load = r.pair.economy == null ? "no loads" : `${Math.round(r.pair.economy)}%`;
+  return `${r.shared_role === "owner" ? "shared with" : "follows"} ${r.pair.airline}: ${r.pair.flights_week} a week, ${load}`;
 }
 export interface AverageFlight {
   passengers: number; cargo: number; fuel: number; handling: number; onboard: number; landing: number; air_traffic: number; maintenance: number;
@@ -925,7 +942,7 @@ export interface StoryFigures {
 export interface StoryDay extends StoryFigures { day: string }
 export interface StoryWeek extends StoryFigures { from: string; to: string; days: number }
 /** Since 26 Oct no "cabin" kind: a change to the route's own cabin choice is no event (distance alone decides, manual §5). */
-export type StoryKind = "launched" | "frequency added" | "frequency removed" | "aircraft changed" | "retimed" | "fare" | "rival";
+export type StoryKind = "launched" | "frequency added" | "frequency removed" | "aircraft changed" | "retimed" | "fare" | "rival" | "joined";
 export interface StoryEvent {
   day: string;
   kind: StoryKind;
@@ -945,6 +962,21 @@ export interface StoryEvent {
   change?: "started" | "added";
   then?: number;
   now?: number;
+  /** Since 5 Nov, on a shared pair's page: the airline the event is of. */
+  airline?: string | null;
+  airline_id?: number | null;
+}
+/** Since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §4): a joined shared pair's page, from route_story(). */
+export interface StoryPairSide {
+  role: "owner" | "joiner"; airline_id: number; code: string | null; airline: string; route_id: number; hub: string; dest: string; departures: number;
+  days: { day: string; flights: number; seats: number | null; passengers: number | null; load_pct: number | null; revenue: number | null; costs: number | null; profit: number | null }[];
+  weeks: { from: string; to: string; days: number; flights: number; load_pct: number | null; revenue: number | null; profit: number | null }[];
+}
+export interface StoryPair {
+  role: "owner" | "joiner"; follows: boolean; title: string;
+  owner: { airline_id: number; code: string | null; airline: string; route_id: number; hub: string; dest: string };
+  joiner: { airline_id: number; code: string | null; airline: string; route_id: number; hub: string; dest: string; joined_on: string | null };
+  airlines: StoryPairSide[];
 }
 export type StoryFare = Omit<LadderRoute, "route_id" | "hub" | "dest">;
 /** A connecting airport and the departures a week through it (since 23 Oct, spec docs/specs/2026-10-23-rival-connections.md). */
@@ -1001,6 +1033,8 @@ export interface RouteStory {
   days_by_direction?: StoryDirDay[];
   /** Since 30 Oct: the market pages, each direction's latest read in a finished run; null when none. */
   market?: StoryMarket | null;
+  /** Since 5 Nov: on a joined shared pair, the pair (the rest of the story is both airlines' together). */
+  pair?: StoryPair;
 }
 
 // ---------- since 30 Oct (spec docs/specs/2026-10-30-market-pages-planner.md §2): route_story()'s new keys
@@ -1061,7 +1095,7 @@ export function storyHeader(s: RouteStory, nice: (day: string) => string, layout
   return {
     title: `${r.hub}–${r.dest}`,
     city: r.city ?? "",
-    line: [r.airline.name, r.distance_km == null ? null : `${whole(r.distance_km)} km`, r.market?.name ?? "no market", layout].filter(Boolean).join(" · "),
+    line: [s.pair ? `${s.pair.title} (shared pair, ${s.pair.owner.airline}'s price)` : r.airline.name, r.distance_km == null ? null : `${whole(r.distance_km)} km`, r.market?.name ?? "no market", layout].filter(Boolean).join(" · "),
     launched,
     departures,
     types: s.now.types.map((t) => `${shortType(t.type)}${t.aircraft > 1 ? ` ×${t.aircraft}` : ""}`).join(", "),
@@ -1111,13 +1145,71 @@ export function storyWeekOnWeek(s: RouteStory): { from: string | null; to: strin
 export const STORY_MIN_DAYS = 14;
 const KIND_WORDS: Record<StoryKind, string> = {
   launched: "launched", "frequency added": "frequency added", "frequency removed": "frequency removed", "aircraft changed": "aircraft changed",
-  retimed: "retimed", fare: "fare", rival: "rival",
+  retimed: "retimed", fare: "fare", rival: "rival", joined: "joined",
 };
 /** An event as the list shows it: its kind and its words, "rival · Air China started here, 14 a week" ("launched" alone). */
-export const eventWords = (e: Pick<StoryEvent, "kind" | "words">): string => {
+export const eventWords = (e: Pick<StoryEvent, "kind" | "words"> & Partial<Pick<StoryEvent, "airline">>): string => {
   const k = KIND_WORDS[e.kind] ?? e.kind;
-  return e.words === k ? k : `${k} · ${e.words}`;
+  // on a shared pair's page (since 5 Nov) each event names its airline first: "KF · frequency added · KF 1201 added, daily"
+  const who = e.airline ? `${e.airline} · ` : "";
+  return who + (e.words === k ? k : `${k} · ${e.words}`);
 };
+
+// ---------- a shared pair's page (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): combined where the market
+// is one (the rest of the story), separate where the money is (this board)
+/** One airline's row of the pair's money table, or the pair's total. */
+export interface PairMoneyRow { key: string; label: string; role: string; departures: number; flights: number; load: string; revenue: string; profit: string; perFlight: string }
+/** The pair board's figures: each airline's own flights a week, its flights, load, revenue and profit over the last 7
+ *  days to the pair's latest day, and the pair's totals; the weeks' flights by airline for the chart (two colours, one
+ *  axis); the words for the joiner's side. */
+export function pairStoryView(s: RouteStory, money: (v: number) => string): {
+  title: string; note: string; rows: PairMoneyRow[]; weeks: { key: string; label: string; parts: Record<string, number> }[];
+  series: { key: string; label: string }[];
+} | null {
+  const p = s.pair;
+  if (!p) return null;
+  const latest = s.latest_day;
+  const from = latest ? new Date(Date.parse(latest + "T00:00:00Z") - 6 * 86400000).toISOString().slice(0, 10) : null;
+  const inWeek = (d: string) => (from && latest ? d >= from && d <= latest : false);
+  const sum = (xs: readonly (number | null)[]) => xs.reduce<number>((t, v) => t + (v ?? 0), 0);
+  const any = (xs: readonly (number | null)[]) => xs.some((v) => v != null);
+  const loadOf = (ds: StoryPairSide["days"]) => {
+    const seats = sum(ds.map((d) => (d.load_pct == null ? null : d.seats)));
+    return seats > 0 ? `${Math.round(sum(ds.map((d) => (d.load_pct == null || d.seats == null ? null : d.load_pct * d.seats / 100))) / seats * 100)}%` : "—";
+  };
+  const perFlight = (profit: number | null, n: number) => (profit == null || n === 0 ? "—" : money(profit / n));
+  const rows: PairMoneyRow[] = p.airlines.map((a) => {
+    const ds = a.days.filter((d) => inWeek(d.day));
+    const flights = sum(ds.map((d) => d.flights));
+    const profit = any(ds.map((d) => d.profit)) ? sum(ds.map((d) => d.profit)) : null;
+    return {
+      key: String(a.airline_id), label: a.airline, role: a.role === "owner" ? "owner" : "joiner, follows", departures: a.departures, flights,
+      load: loadOf(ds), revenue: any(ds.map((d) => d.revenue)) ? money(sum(ds.map((d) => d.revenue))) : "—",
+      profit: profit == null ? "—" : money(profit), perFlight: perFlight(profit, flights),
+    };
+  });
+  const all = p.airlines.flatMap((a) => a.days.filter((d) => inWeek(d.day)));
+  const tProfit = any(all.map((d) => d.profit)) ? sum(all.map((d) => d.profit)) : null;
+  const tFlights = sum(all.map((d) => d.flights));
+  rows.push({
+    key: "pair", label: "The pair", role: "together", departures: sum(p.airlines.map((a) => a.departures)), flights: tFlights, load: loadOf(all),
+    revenue: any(all.map((d) => d.revenue)) ? money(sum(all.map((d) => d.revenue))) : "—", profit: tProfit == null ? "—" : money(tProfit),
+    perFlight: perFlight(tProfit, tFlights),
+  });
+  // each week's flights by airline, newest first, the weeks of the combined story (7-day blocks to the pair's latest day)
+  const weeks = s.weeks.slice(0, 6).map((w) => ({
+    key: w.from, label: w.from === w.to ? w.from : `${w.from.slice(5)}–${w.to.slice(5)}`,
+    parts: Object.fromEntries(p.airlines.map((a) => [String(a.airline_id),
+      sum(a.days.filter((d) => d.day >= w.from && d.day <= w.to).map((d) => d.flights))])),
+  }));
+  return {
+    title: p.title,
+    note: p.follows
+      ? `${p.joiner.airline}'s flights here sell at the pair's one price: they follow ${p.owner.airline}'s fare ladder, which judges the pair on both airlines' flights. Each airline keeps what it flies.`
+      : `${p.joiner.airline} flies this pair too${p.joiner.joined_on ? ` (joined ${p.joiner.joined_on})` : ""}, at ${p.owner.airline}'s price: this airline's ladder judges the pair on both airlines' flights. Each airline keeps what it flies.`,
+    rows, weeks, series: p.airlines.map((a) => ({ key: String(a.airline_id), label: a.airline })),
+  };
+}
 
 /** Each cabin's fare level on each day given: the launch level, then each of the ladder's fare plan rows (an event with a
  *  level, not dropped) from the day it was proposed. Null for business with no ladder row of its own. Since 26 Oct a row
@@ -1773,4 +1865,38 @@ export const fareWeekWords = (r: Pick<FareResultRow, "profit_week">): string => 
 export function fareResultsAside(t: FareResultTotals | null | undefined): string {
   if (!t || !t.directions) return "";
   return [`${t.directions} direction${t.directions === 1 ? "" : "s"}`, t.at_cap ? `${t.at_cap} at cap` : "", t.load_fell ? `${t.load_fell} load fell` : ""].filter(Boolean).join(" · ");
+}
+
+// ---------- the group page's Shared pairs row (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4):
+// shared_pairs_status()'s answer
+export interface SharedPairStatus {
+  owner_airline_id: number; owner: string; owner_code: string | null; owner_route_id: number;
+  joiner_airline_id: number; joiner: string; joiner_code: string | null; joiner_route_id: number;
+  owner_base: string; joiner_base: string; joined_on: string | null; owner_flights_week: number; joiner_flights_week: number;
+  owner_load: number | null; joiner_load: number | null; load: number | null; sold_out_share: number | null;
+  levels: { direction: string; cabin: string; level: number; from: string; to: string }[]; launch_pct: number | null;
+}
+export interface SharedPairsAnswer { joined: number; limit: { pairs: number; from: string | null; until: string | null; left: number } | null; pairs: SharedPairStatus[] }
+/** The Shared pairs row's words: the head ("2 pairs joined · at most 6 until Nov 19, 4 left"), each pair's line and its
+ *  chart row (each airline's flights a week, the owner first). */
+export function sharedPairsView(a: SharedPairsAnswer, nice: (day: string) => string): {
+  head: string;
+  rows: { key: string; title: string; words: string; href: { airline: string; hub: string; dest: string } | null; parts: Record<string, number> }[];
+} {
+  const n = a.joined;
+  const head = `${n === 0 ? "No pair joined yet" : `${n} pair${n === 1 ? "" : "s"} joined`}`
+    + (a.limit ? ` · at most ${a.limit.pairs} until ${a.limit.until ? nice(a.limit.until) : "the limit's end"}, ${a.limit.left} left` : "");
+  const rows = a.pairs.map((p) => {
+    const eco = p.levels.filter((l) => l.cabin === "economy");
+    const level = eco.length ? eco.map((l) => `${l.from}→${l.to} ${pts(l.level)}%`).join(", ") : `launch ${p.launch_pct ?? "—"}%`;
+    const load = p.load == null ? "no loads yet" : `${Math.round(p.load)}% full`;
+    return {
+      key: `${p.owner_route_id}`,
+      title: `${p.owner_base}–${p.joiner_base} · ${p.owner} and ${p.joiner}`,
+      words: `${p.owner_code ?? p.owner} ${p.owner_flights_week} + ${p.joiner_code ?? p.joiner} ${p.joiner_flights_week} a week · ${load} · level ${level}`,
+      href: p.owner_code ? { airline: p.owner_code, hub: p.owner_base, dest: p.joiner_base } : null,
+      parts: { [String(p.owner_airline_id)]: p.owner_flights_week, [String(p.joiner_airline_id)]: p.joiner_flights_week },
+    };
+  });
+  return { head, rows };
 }

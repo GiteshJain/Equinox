@@ -516,7 +516,10 @@ def render(b):
         put("  top: " + "; ".join(f"{o.get('rank')}. {o.get('route')} {o.get('stars') or '?'}★ {o.get('distance_km') or '?'} km, rivals "
                                   f"{o.get('rivals_weekly')} a week, {(o.get('variant') or {}).get('type') or '—'}"
                                   + (" (November trunk)" if o.get("trunk") else "")
-                                  + ("" if o.get("allowed") else " (not yet: hubs first)") for o in C["openings"][:3]))
+                                  + ("" if o.get("allowed") else " (not yet: hubs first)")
+                                  # a shared pair this airline would join (since 5 Nov): offered only while its owner can't fund it tonight
+                                  + (f" ({o['shared']['mark']}: {o['shared'].get('airline') or 'the owner'} owns it)" if (o.get("shared") or {}).get("mark") else "")
+                                  for o in C["openings"][:3]))
 
     V = b["rivals"]
     put("")

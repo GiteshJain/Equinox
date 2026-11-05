@@ -36,7 +36,7 @@ import { useGameHost } from "../tails/reads";
 import { download, flightsCsv, tablesJson } from "./csv";
 import {
   CONSTANTS, SECTIONS, addConfig, addOwnOrder, addService, addType, banSet, banText, bankBoxes, baseChange, basesInOrder, canAddBan, configChange,
-  constantChange, constantValue, keyOrder, layoutsOf, mctChange, mctHours, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, removeRow,
+  constantChange, constantValue, excludedChange, excludedValue, keyOrder, layoutsOf, mctChange, mctHours, orderCabinChange, ownOrderChange, pageId, removeOwnOrder, removeRow,
   removedWords, restoreChange, scheduleLink, sectionOf, serviceChange, typeChange, worldRowChange, type BaseField, type BaseRow, type ConfigField,
   type ConfigRow, type SectionSlug, type ServiceField, type TypeField,
 } from "./model";
@@ -237,6 +237,10 @@ export function Reference() {
                   <label key={k}>{label}<Box data-ref={"consts." + k} value={constantValue(key, settingsQ.data ?? [], wrQ.data ?? [])} disabled={busy}
                     onSave={(v) => saveOne(constantChange(key, v, settingsQ.data ?? [], wrQ.data ?? []))} /></label>
                 ))}
+              </div>
+              <div className="fg" data-figure="reference: shared pairs excluded">
+                <label>Shared pairs: airlines left out (codes, e.g. FR)<Box data-ref="consts.sharedOut" value={excludedValue(settingsQ.data ?? [], airlines)} disabled={busy}
+                  onSave={(v) => saveOne(excludedChange(v, settingsQ.data ?? [], airlines))} /></label>
               </div>
               <div className="note">These are rule numbers: each is its row in settings (the departures cap in world_rules). Change the operating manual with them (manual §1: rule changes are agreed in chat and the manual updated).</div>
             </>

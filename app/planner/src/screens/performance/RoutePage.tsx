@@ -18,7 +18,11 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { ourAirlines } from "../../data/airlines";
 import { useOurAirlines, useWorld } from "../../data/reads";
-import { useLoads } from "../routes/reads";
+import { useLoads, useSharedPairs } from "../routes/reads";
+import { pairMarks, type PairMark } from "../routes/model";
+import { JoinPair, PairPill } from "../routes/parts";
+import { ChartFrame, StackedBars, stackLayout } from "../../ui/charts";
+import { colorFor } from "./charts";
 import { useServiceChecks } from "../systems/reads";
 import { useRules } from "../../data/rules";
 import { niceDate } from "../../ui/dates";
@@ -27,7 +31,7 @@ import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { Stars } from "../routes/parts";
 import { itemRoute } from "../screens";
 import {
-  ROUTE_BOARDS, flightLoads, parseRouteKey, routeConnections, serviceHeader, storyHeader, storyLayout,
+  ROUTE_BOARDS, flightLoads, pairStoryView, parseRouteKey, routeConnections, serviceHeader, storyHeader, storyLayout,
   type FlightLoadRow, type RouteBoardKey, type RouteStory, type ServiceChecks,
 } from "./model";
 import { WeekTiles, useStoryBoards } from "./RouteStory";
@@ -60,6 +64,11 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
   const rulesQ = useRules(w);
   const loadsQ = useLoads(w);
   const checksQ = useServiceChecks(w !== undefined);
+  // shared pairs (since 5 Nov): the owner's Join this pair, and the two airlines' colours for the pair's board
+  const pairsQ = useSharedPairs(w);
+  const mark = useMemo(() => (airline && routeQ.data ? pairMarks(pairsQ.data ?? [], airline.id, airlines.map((a) => ({ id: a.id, code: a.code, name: a.name }))).get(routeQ.data.id) : undefined),
+    [pairsQ.data, airline, airlines, routeQ.data]);
+  const pairColors = useMemo(() => Object.fromEntries(airlines.map((a, i) => [String(a.id), colorFor(a.color, i)])), [airlines]);
   const [folded, setFolded] = useState<ReadonlySet<RouteBoardKey>>(() => new Set());
   const toggle = (k: RouteBoardKey) => setFolded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const s = storyQ.data;
@@ -86,7 +95,7 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
         <div className="empty">{airline?.name ?? code} has no route {routeKey}. {back}</div>
       ) : null}
       {s && airline && rules ? <RouteStoryView s={{ ...s, route: { ...s.route, airline: { ...s.route.airline, name: airline.name } } }} code={code} back={back} conns={conns} board={board}
-        flights={flights} checks={checksQ.data ?? null} color={airline.color}
+        flights={flights} checks={checksQ.data ?? null} color={airline.color} pairMark={mark} pairColors={pairColors}
         layout={storyLayout(rules, s.route)}
         onCollapse={() => setFolded(new Set(ROUTE_BOARDS))} onExpand={() => setFolded(new Set())} /> : null}
     </main>
@@ -94,8 +103,11 @@ export function RoutePage({ code, routeKey }: { code: string; routeKey: string }
 }
 
 /** The route page below its reads: the header, the week's comparison and the boards (exported for its render test). */
-export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse, onExpand, flights = null, checks = null, color = null }: {
+export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse, onExpand, flights = null, checks = null, color = null, pairMark, pairColors = {} }: {
   s: RouteStory;
+  /** Since 5 Nov: the route's place on a shared pair (the owner's Join this pair), and each airline's colour by id. */
+  pairMark?: PairMark;
+  pairColors?: Record<string, string>;
   /** The airline's colour, for our share in the market share donuts. */
   color?: string | null;
   /** Loads by flight's rows (flightLoads()), or null while the loads are read. */
@@ -129,11 +141,43 @@ export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse
         <p className="rpline">{h.launched} · {h.departures}{h.types ? ` · ${h.types}` : ""}{s.route.removed ? " · removed from the list" : ""}</p>
         {h.fares.length ? <p className="rpline" data-fares>{h.fares.join("; ")}</p> : null}
       </div>
+      {pairMark && (pairMark.join || pairMark.text) ? (
+        <div className="pairbar" data-pair-bar={pairMark.role}><PairPill mark={pairMark} />{pairMark.join ? <JoinPair mark={pairMark} /> : null}</div>
+      ) : null}
       <WeekTiles s={s} />
+      {s.pair ? <PairBoard s={s} colors={pairColors} /> : null}
       <FoldTools onCollapse={onCollapse} onExpand={onExpand} />
       <div className="rpboards" data-route-boards>
       {ROUTE_BOARDS.map((k) => board(k, boards[k].content, boards[k].figure))}
       </div>
     </>
+  );
+}
+
+/** A shared pair's board (since 5 Nov, spec docs/specs/2026-11-05-shared-pairs.md §4): separate where the money is. Each
+ *  week's flights by airline, two colours on one axis, and each airline's own flights, load, revenue and profit over the
+ *  last 7 days beside the pair's totals; the joiner's side says it follows the owner's ladder. */
+export function PairBoard({ s, colors }: { s: RouteStory; colors: Record<string, string> }) {
+  const v = pairStoryView(s, (m) => `${m < 0 ? "−" : ""}${Math.abs(m) >= 1 ? Math.abs(m).toFixed(2) + "M" : Math.round(Math.abs(m) * 1000) + "k"}`);
+  if (!v) return null;
+  const series = v.series.map((x, i) => ({ key: x.key, label: x.label, color: colors[x.key] ?? (i ? "#E86A92" : "#4B3BA8") }));
+  return (
+    <section className="board pairboard" data-figure="performance route: shared pair" data-pair-role={s.pair?.role}>
+      <h2>{`Shared pair · ${v.title}`}</h2>
+      <p className="dim">{v.note}</p>
+      <ChartFrame title="Flights a week by airline" note="each 7-day block to the latest captured day, both airlines on one axis"
+        legend={series.map((x) => ({ label: x.label, color: x.color }))} figure="performance route: pair flights" empty={v.weeks.length ? null : "No flights captured yet."}>
+        <StackedBars layout={(W) => stackLayout(v.weeks, series, { W, L: 96 })} figure="performance route: pair flights by week" label="flights a week by airline" />
+      </ChartFrame>
+      <div className="pairwrap">
+        <table className="pairtable" data-pair-money>
+          <thead><tr><th>Last 7 days</th><th>A week</th><th>Flights</th><th>Load</th><th>Revenue</th><th>Profit</th><th>A flight</th></tr></thead>
+          <tbody>{v.rows.map((r) => (
+            <tr key={r.key} data-pair-row={r.key}><td><b>{r.label}</b> <span className="dim">{r.role}</span></td><td>{r.departures}</td><td>{r.flights}</td>
+              <td>{r.load}</td><td>{r.revenue}</td><td>{r.profit}</td><td>{r.perFlight}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </section>
   );
 }
