@@ -258,6 +258,10 @@ export interface FareLadderRow {
   /** This Saturday's new level, and whether it's on the fare plan already. */
   new_level?: number | string | null;
   planned?: boolean | null;
+  /** Since 4 Nov (spec docs/specs/2026-11-04-fare-default-from-market.md §3): market when the market pages have read the
+   *  game's default price for this direction (baseline_fare is then that default, AS$), inferred otherwise. */
+  default_source?: "market" | "inferred" | string | null;
+  baseline_fare?: number | string | null;
 }
 /** fare_ladder()'s answer for the card's airline (or the briefing's fare_ladder): its routes and cabins, and the launch
  *  level for a route the airline doesn't fly yet. */
@@ -271,6 +275,9 @@ export interface CabinFare {
   level: number;
   /** The level is this week's move, on the fare plan already. */
   planned: boolean;
+  /** Since 4 Nov: the level in AS$ (level × the game's default price, to the whole AS$) where the market pages have read
+   *  the default for this direction; null otherwise. */
+  price: number | null;
 }
 /** The fare level of one route the card flies, in one direction (since 26 Oct). */
 export interface RouteFare {
@@ -290,7 +297,8 @@ export interface RouteFare {
   /** settings.fare_launch_pct, the airline's own where it has one (Ryanair 85). */
   launch_pct: number;
   /** What to set in the game's Ticket price adjustment (baseline default price): "economy +10%, business +5% of the
-   *  default price", or for a route not flown yet "launch (+0% of the default price)" ("launch (−15% …)" for Ryanair). */
+   *  default price", or for a route not flown yet "launch (+0% of the default price)" ("launch (−15% …)" for Ryanair).
+   *  Since 4 Nov a cabin whose default the market pages have read also gives its level in AS$: "economy +5% (150 AS$)". */
   words: string;
 }
 const asNumber = (v: number | string | null | undefined): number | null => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -299,12 +307,18 @@ export function levelPct(level: number): string {
   const d = Math.round((level - 100) * 10) / 10;
   return `${d < 0 ? "−" : "+"}${Math.abs(d)}%`;
 }
+/** A level in AS$ against a default price: 105% of 143 → 150; null without a default. */
+export function levelPrice(level: number, defaultPrice: number | null): number | null {
+  return defaultPrice != null && defaultPrice > 0 ? Math.round(level * defaultPrice / 100) : null;
+}
 /** The fare level of each route the card flies in each direction it flies it, once per direction, in the order of its
  *  legs (manual §5, since 21 Oct; per direction since 26 Oct, spec docs/specs/2026-10-26-fare-ladder-per-direction.md):
  *  from fare_ladder()'s routes for the card's airline, the level in each cabin it has there for the leg's direction (out
  *  when the leg leaves the route's hub, else back; a row without a direction counts for both), this week's new level
  *  once the move is on the fare plan; a route not on the ladder (one the airline doesn't fly yet) launches at the launch
- *  level, the ladder's settings.launch_pct, else the airline's fare_launch_pct. Nothing is stored on the card. */
+ *  level, the ladder's settings.launch_pct, else the airline's fare_launch_pct. Since 4 Nov (spec
+ *  docs/specs/2026-11-04-fare-default-from-market.md §3) a cabin whose row has the market's default price (default_source
+ *  market, baseline_fare) also gives its level in AS$; otherwise as before. Nothing is stored on the card. */
 export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFare[] {
   if (!card || !Array.isArray(card.legs)) throw new RulesError("the card has no list of legs");
   if (!ladder || !Array.isArray(ladder.routes)) throw new RulesError("the fare ladder has no list of routes (fare_ladder()'s answer for the card's airline)");
@@ -335,7 +349,8 @@ export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFa
     const cabins: CabinFare[] = rows
       .map((r) => {
         const planned = !!r.planned && asNumber(r.new_level) != null;
-        return { cabin: r.cabin, level: (planned ? asNumber(r.new_level) : asNumber(r.level)) ?? launch, planned };
+        const level = (planned ? asNumber(r.new_level) : asNumber(r.level)) ?? launch;
+        return { cabin: r.cabin, level, planned, price: r.default_source === "market" ? levelPrice(level, asNumber(r.baseline_fare)) : null };
       })
       .sort((a, b) => Number(a.cabin === "business") - Number(b.cabin === "business") || a.cabin.localeCompare(b.cabin));
     const flown = cabins.length > 0;
@@ -344,7 +359,9 @@ export function cardFares(rules: Rules, card: Card, ladder: FareLadder): RouteFa
       route: first ? `${first.hub}–${first.dest}` : route ? `${route.hub_code}–${route.dest_code}` : named.get(pair) ?? `${l.origin_code}–${l.dest_code}`,
       direction, from: l.origin_code, to: l.dest_code,
       flown, cabins, launch_pct: launch,
-      words: flown ? `${cabins.map((c) => `${c.cabin} ${levelPct(c.level)}`).join(", ")} of the default price` : `launch (${levelPct(launch)} of the default price)`,
+      words: flown
+        ? `${cabins.map((c) => `${c.cabin} ${levelPct(c.level)}${c.price != null ? ` (${c.price} AS$)` : ""}`).join(", ")} of the default price`
+        : `launch (${levelPct(launch)} of the default price)`,
     });
   }
   return out;

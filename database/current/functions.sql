@@ -496,6 +496,31 @@ $function$
 
 ;
 
+-- default_prices(p_airline_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.default_prices(p_airline_id bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return jsonb_build_object(
+    'airline_id', p_airline_id, 'as_of', private.fig_ts(coalesce(p_as_of, now())),
+    'prices', (select coalesce(jsonb_agg(jsonb_build_object(
+                 'route_id', d.route_id, 'hub', d.hub, 'dest', d.dest, 'direction', d.direction, 'from', d.origin, 'to', d.destination,
+                 'cabin', d.cabin, 'default_price', d.default_price, 'current_price', d.current_price,
+                 'current_pct', round(d.current_price / d.default_price * 100, 1),
+                 'run_id', d.run_id, 'run_on', d.run_on, 'read_at', private.fig_ts(d.read_at),
+                 'previous_default', d.previous_default, 'previous_run_on', d.previous_run_on,
+                 'default_changed', d.previous_default is not null and d.previous_default <> d.default_price)
+                 order by d.hub, d.dest, d.direction = 'back', d.cabin desc), '[]'::jsonb)
+                 from private.fig_default_prices(p_airline_id, coalesce(p_as_of, now())) d));
+end
+$function$
+
+;
+
 -- export_capture(p_secret text, p_days integer)
 CREATE OR REPLACE FUNCTION public.export_capture(p_secret text, p_days integer DEFAULT 8)
  RETURNS jsonb
@@ -4207,6 +4232,39 @@ $function$
 
 ;
 
+-- private.fig_default_prices(p_airline_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_default_prices(p_airline_id bigint, p_as_of timestamp with time zone)
+ RETURNS TABLE(route_id bigint, hub text, dest text, direction text, origin text, destination text, cabin text, default_price numeric, current_price numeric, run_id bigint, run_on date, read_at timestamp with time zone, previous_default numeric, previous_run_on date)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with
+  ro as (select r.id, r.hub_code, r.dest_code from public.routes r
+          where r.airline_id = p_airline_id and r.world_id = (select a.world_id from public.airlines a where a.id = p_airline_id) and not r.removed),
+  -- the airline's pages read ok in runs finished by the moment
+  rd as (select m.id as read_id, m.origin, m.dest, m.read_at, r.id as run_id, r.started_at
+           from public.market_reads m
+           join public.market_runs r on r.id = m.run_id and r.world_id = m.world_id
+          where m.airline_id = p_airline_id and m.ok and r.status = 'done' and r.finished_at <= p_as_of),
+  -- each route, direction and cabin's prices, newest run first (economy Y, business C)
+  px as (select ro.id as route_id, ro.hub_code as hub, ro.dest_code as dest,
+                case when rd.origin = ro.hub_code then 'out' else 'back' end as direction, rd.origin, rd.dest as destination,
+                case p.service_class when 'Y' then 'economy' else 'business' end as cabin,
+                p.default_price, p.current_price, rd.run_id, (rd.started_at at time zone 'UTC')::date as run_on, rd.read_at,
+                row_number() over (partition by ro.id, rd.origin, p.service_class order by rd.started_at desc, rd.run_id desc) as n
+           from rd
+           join public.market_prices p on p.read_id = rd.read_id and p.service_class in ('Y', 'C')
+           join ro on (ro.hub_code = rd.origin and ro.dest_code = rd.dest) or (ro.hub_code = rd.dest and ro.dest_code = rd.origin))
+  select c.route_id, c.hub, c.dest, c.direction, c.origin, c.destination, c.cabin, c.default_price, c.current_price, c.run_id, c.run_on,
+         c.read_at, b.default_price, b.run_on
+    from px c
+    left join px b on b.route_id = c.route_id and b.origin = c.origin and b.cabin = c.cabin and b.n = 2
+   where c.n = 1
+$function$
+
+;
+
 -- private.fig_events(p_world_id bigint, p_as_of timestamp with time zone, p_airline_id bigint)
 CREATE OR REPLACE FUNCTION private.fig_events(p_world_id bigint, p_as_of timestamp with time zone, p_airline_id bigint DEFAULT NULL::bigint)
  RETURNS TABLE(airline_id bigint, at timestamp with time zone, amount numeric, descr text, event_date date, event_time text)
@@ -4406,14 +4464,30 @@ begin
   -- each direction's baseline (since 26 Oct a row each: out from the route's hub, back to it)
   bs as (select base.route_id, base.cabin, case when base.o = ro.hub_code then 'out' else 'back' end as dir, avg(base.fare) as fare, max(base.day) as day
            from base join ro on ro.id = base.route_id group by 1, 2, 3),
-  -- the latest captured day by cabin and direction: its average fare, and each flight's fare against the direction's
-  -- baseline
+  -- since 4 Nov (spec docs/specs/2026-11-04-fare-default-from-market.md §3): the game's default price for each direction
+  -- and cabin, from the latest finished market run that read it with our airline open (private.fig_default_prices():
+  -- economy Y, business C). Where there is one, a direction's captured fares are measured against it (×100); elsewhere
+  -- against the inferred baseline above, times the launch level, as before
+  dp as materialized (select d.route_id, d.cabin, d.direction as dir, d.default_price, d.run_on
+                        from private.fig_default_prices(p_airline_id, p_as_of) d),
+  eb as (select coalesce(dp.route_id, bs.route_id) as route_id, coalesce(dp.cabin, bs.cabin) as cabin, coalesce(dp.dir, bs.dir) as dir,
+                coalesce(dp.default_price, bs.fare) as fare,
+                case when dp.default_price is not null then 100 else v_launch end as scale,
+                case when dp.default_price is not null then 'market' else 'inferred' end as source,
+                case when dp.default_price is not null then dp.run_on else bs.day end as day,
+                dp.run_on as default_on
+           from dp full join bs on bs.route_id = dp.route_id and bs.cabin = dp.cabin and bs.dir = dp.dir),
+  -- the latest captured day by cabin and direction: its average fare, and each flight's fare as a % of the default price:
+  -- against the direction's default where the market pages read it, else against its inferred baseline times the launch
+  -- level (since 4 Nov); and, to compare, against the inferred baseline always (inf)
   lday as (select lc.route_id, lc.cabin, lc.dir, max(lc.game_date) as day from lc where lc.fare > 0 group by 1, 2, 3),
   latest as (select ld.route_id, ld.cabin, ld.dir, ld.day, avg(lc.fare) as fare,
-                    array_agg(lc.fare / b.fare order by lc.dep_at) filter (where b.fare > 0) as ratios
+                    array_agg(lc.fare / e.fare * e.scale order by lc.dep_at) filter (where e.fare > 0) as ratios,
+                    array_agg(lc.fare / b.fare * v_launch order by lc.dep_at) filter (where b.fare > 0) as inf
                from lday ld
                join lc on lc.route_id = ld.route_id and lc.cabin = ld.cabin and lc.dir = ld.dir and lc.game_date = ld.day and lc.fare > 0
-               left join base b on b.route_id = lc.route_id and b.cabin = lc.cabin and b.o = lc.o
+               left join eb e on e.route_id = lc.route_id and e.cabin = lc.cabin and e.dir = lc.dir
+               left join bs b on b.route_id = lc.route_id and b.cabin = lc.cabin and b.dir = lc.dir
               group by ld.route_id, ld.cabin, ld.dir, ld.day),
   -- the levels the fare plan recorded (manual §5): before this Saturday, the latest is the level; since it, this week's move.
   -- Since 26 Oct per direction: a row with a direction counts for that direction, a both-directions row (direction null,
@@ -4509,7 +4583,8 @@ begin
                 case rc.dir when 'out' then ro.hub_code else ro.dest_code end as dir_from,
                 case rc.dir when 'out' then ro.dest_code else ro.hub_code end as dir_to,
                 coalesce(st.n, 0) as n, coalesce(st.sold, 0) as sold, st.fare as fare_week, st.load as load_week,
-                lt.fare as latest_fare, lt.day as latest_on, lt.ratios, bs.fare as baseline_fare, bs.day as baseline_on,
+                lt.fare as latest_fare, lt.day as latest_on, lt.ratios, lt.inf, eb.fare as baseline_fare, eb.day as baseline_on,
+                coalesce(eb.source, 'inferred') as default_source, eb.default_on,
                 coalesce(pv.level_pct, v_launch) as level, pv.id is not null as recorded,
                 wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
                 coalesce(se.applied, false) as applied, se.seen_on, dn.down_on, upr.up_on, ag.first_day, ad.last_day,
@@ -4523,7 +4598,7 @@ begin
            left join thr th on th.a = least(ro.hub_code, ro.dest_code) and th.b = greatest(ro.hub_code, ro.dest_code)
            left join st on st.route_id = rc.route_id and st.cabin = rc.cabin and st.dir = rc.dir
            left join latest lt on lt.route_id = rc.route_id and lt.cabin = rc.cabin and lt.dir = rc.dir
-           left join bs on bs.route_id = rc.route_id and bs.cabin = rc.cabin and bs.dir = rc.dir
+           left join eb on eb.route_id = rc.route_id and eb.cabin = rc.cabin and eb.dir = rc.dir
            left join prev pv on pv.route_id = rc.route_id and pv.cabin = rc.cabin and pv.dir = rc.dir
            left join wk on wk.route_id = rc.route_id and wk.cabin = rc.cabin and wk.dir = rc.dir
            left join seen se on se.id = wk.id
@@ -4671,11 +4746,14 @@ begin
                  -- the level the game should show: this week's, once the captures see it
                  case when fin.plan_id is not null and fin.applied then fin.new_level else fin.level end as expect
             from fin),
-  -- the fare index: each flight of the latest captured day against its direction's baseline, times the launch level; the
-  -- day's average, and the flight furthest from the level the game should show
+  -- the fare index: each flight of the latest captured day as a % of the default price (against the market's default, or
+  -- the inferred baseline times the launch level: latest's ratios); the day's average to 0.1, and the flight furthest from
+  -- the level the game should show. inferred_index: the same day read the old way (against the inferred baseline), kept
+  -- to compare (spec §4)
   ix as (select od.*,
-                (select round(avg(r) * v_launch, 1) from unnest(od.ratios) r) as fare_index,
-                (select r * v_launch from unnest(od.ratios) r order by abs(r * v_launch - od.expect) desc limit 1) as worst
+                (select round(avg(r), 1) from unnest(od.ratios) r) as fare_index,
+                (select r from unnest(od.ratios) r order by abs(r - od.expect) desc limit 1) as worst,
+                (select round(avg(r), 1) from unnest(od.inf) r) as inferred_index
            from od),
   fx as (select ix.*,
                 case when ix.worst is not null then abs(ix.worst - ix.expect) <= 1 end as matches,
@@ -4690,6 +4768,9 @@ begin
            'departures', o.n, 'sold_out', o.sold, 'sold_out_share', round(o.share, 1), 'load', round(o.load_week, 1), 'average_fare', round(o.fare_week, 2),
            'baseline_fare', round(o.baseline_fare, 2), 'baseline_on', o.baseline_on, 'latest_fare', round(o.latest_fare, 2), 'latest_on', o.latest_on,
            'fare_index', o.fare_index, 'index_matches', o.matches,
+           -- since 4 Nov: market (baseline_fare is the game's default price, read on default_on) or inferred (no market read
+           -- of that direction yet: the first captured fare as before); the inferred index beside it, to compare
+           'default_source', o.default_source, 'default_on', o.default_on, 'inferred_index', o.inferred_index,
            'level', trim_scale(o.level), 'recorded', o.recorded, 'steps', trim_scale(round((o.level - v_launch) / v_step, 1)),
            'move', o.move, 'new_level', trim_scale(o.new_level), 'new_steps', trim_scale(round((o.new_level - v_launch) / v_step, 1)),
            'change_pct', case when o.level > 0 then trim_scale(round((o.new_level / o.level - 1) * 100, 1)) end,
@@ -4779,7 +4860,7 @@ begin
     'off_level', (select count(distinct (e ->> 'route_id') || ' ' || (e ->> 'direction')) from jsonb_array_elements(v_rows) e where (e ->> 'fix')::boolean),
     'routes', v_rows, 'actions', v_actions,
     'notes', jsonb_build_array(
-      'The fare index compares each flight of the latest captured day with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level. Since 26 Oct each direction has its own level, judged on its own flights: a direction more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, its route is new, or it isn''t captured since its route''s newest flight launched.'));
+      'Since 4 Nov the fare index measures each flight of the latest captured day against the game''s default price, read each week from the Market Analysis page (default_source market); where the market pages haven''t read a direction yet (default_source inferred), it compares each flight with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level, as before. Since 26 Oct each direction has its own level, judged on its own flights: a direction more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, its route is new, or it isn''t captured since its route''s newest flight launched.'));
 end
 $function$
 
@@ -7400,7 +7481,7 @@ CREATE OR REPLACE FUNCTION private.market_ingest(p_world_id bigint, p_kind text,
 AS $function$
 declare
   v_run record; v_al bigint; v_read bigint; v_origin text; v_dest text; v_scan bigint; v_at timestamptz;
-  n_fares int := 0; n_shares int := 0; n_weeks int := 0; v_bad text; v_read_n int; v_failed_n int;
+  n_fares int := 0; n_shares int := 0; n_weeks int := 0; n_prices int := 0; v_bad text; v_read_n int; v_failed_n int;
 begin
   if p_kind is null or p_kind not in ('start', 'page', 'finish') then raise exception 'unknown kind'; end if;
   if p_payload is null or jsonb_typeof(p_payload) <> 'object' then raise exception 'the payload isn''t an object'; end if;
@@ -7443,6 +7524,7 @@ begin
   if v_read is not null then
     delete from public.market_fares where read_id = v_read;
     delete from public.market_shares where read_id = v_read;
+    delete from public.market_prices where read_id = v_read;
     delete from public.market_reads where id = v_read;
   end if;
 
@@ -7453,8 +7535,8 @@ begin
   else
     -- the lists, checked before anything is written
     if jsonb_typeof(coalesce(p_payload -> 'fares', '[]')) <> 'array' or jsonb_typeof(coalesce(p_payload -> 'shares', '[]')) <> 'array'
-       or jsonb_typeof(coalesce(p_payload -> 'weeks', '[]')) <> 'array' then
-      raise exception 'fares, shares and weeks must be lists';
+       or jsonb_typeof(coalesce(p_payload -> 'weeks', '[]')) <> 'array' or jsonb_typeof(coalesce(p_payload -> 'pricing', '[]')) <> 'array' then
+      raise exception 'fares, shares, weeks and pricing must be lists';
     end if;
     select string_agg(coalesce(f ->> 'code', '?') || ' ' || coalesce(f ->> 'cls', '?'), ', ') into v_bad
       from jsonb_array_elements(coalesce(p_payload -> 'fares', '[]')) f
@@ -7469,6 +7551,17 @@ begin
     if jsonb_array_length(coalesce(p_payload -> 'shares', '[]')) > 0 and coalesce(p_payload ->> 'week', '') !~ '^\d{4}-\d{2}$' then
       raise exception 'shares without their week (2026-44)';
     end if;
+    -- since 4 Nov (capture 1.11): the Pricing panel, each class once with its current and default price above 0
+    select string_agg(coalesce(p ->> 'class', '?'), ', ') into v_bad
+      from jsonb_array_elements(coalesce(p_payload -> 'pricing', '[]')) p
+     where coalesce(p ->> 'class', '') not in ('Y', 'C', 'F', 'Cargo')
+        or jsonb_typeof(p -> 'current') is distinct from 'number' or jsonb_typeof(p -> 'default') is distinct from 'number'
+        or case when jsonb_typeof(p -> 'current') = 'number' then (p ->> 'current')::numeric end <= 0
+        or case when jsonb_typeof(p -> 'default') = 'number' then (p ->> 'default')::numeric end <= 0;
+    if v_bad is not null then raise exception 'pricing that doesn''t read: %', v_bad; end if;
+    select string_agg(x.cls, ', ') into v_bad
+      from (select p ->> 'class' as cls from jsonb_array_elements(coalesce(p_payload -> 'pricing', '[]')) p group by 1 having count(*) > 1) x;
+    if v_bad is not null then raise exception 'pricing with a class twice: %', v_bad; end if;
 
     insert into public.market_reads (run_id, world_id, airline_id, origin, dest, ok, share_week, service_code, service_profile_game_id)
     values (v_run.id, p_world_id, v_al, v_origin, v_dest, true, nullif(p_payload ->> 'week', ''),
@@ -7512,6 +7605,13 @@ begin
       left join by_share bh on bh.code = f ->> 'code';
     get diagnostics n_fares = row_count;
 
+    -- since 4 Nov (capture 1.11; spec docs/specs/2026-11-04-fare-default-from-market.md §2): our airline's current and
+    -- default price for each class, from the page's Pricing panel (read only in the game)
+    insert into public.market_prices (read_id, world_id, airline_id, service_class, current_price, default_price)
+    select v_read, p_world_id, v_al, p ->> 'class', (p ->> 'current')::numeric, (p ->> 'default')::numeric
+      from jsonb_array_elements(coalesce(p_payload -> 'pricing', '[]')) p;
+    get diagnostics n_prices = row_count;
+
     -- the pair's weeks with figures: seats offered and price per unit, the latest read winning, kept for good
     insert into public.market_weeks as k (world_id, origin, dest, week, seats, price_per_unit, run_id, read_at)
     select p_world_id, v_origin, v_dest, w ->> 'week',
@@ -7530,7 +7630,7 @@ begin
   select count(*) filter (where m.ok), count(*) filter (where not m.ok) into v_read_n, v_failed_n
     from public.market_reads m where m.run_id = v_run.id;
   update public.market_runs set pages_read = v_read_n, pages_failed = v_failed_n where id = v_run.id;
-  return jsonb_build_object('read_id', v_read, 'fares', n_fares, 'shares', n_shares, 'weeks', n_weeks,
+  return jsonb_build_object('read_id', v_read, 'fares', n_fares, 'shares', n_shares, 'weeks', n_weeks, 'prices', n_prices,
                             'pages_read', v_read_n, 'pages_failed', v_failed_n);
 end
 $function$

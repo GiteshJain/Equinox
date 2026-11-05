@@ -73,8 +73,11 @@ at launch ("launch (+0% of the default price)", Ryanair −15%); handed the same
 as `fares` (`cases/cardFares.json`). Since 26 Oct (spec `docs/specs/2026-10-26-fare-ladder-per-direction.md` §3) each
 direction has its own level: the answer has one entry per direction the card flies, in the order of its legs, each with
 `direction` (out from the route's hub, back to it; null for a pair the airline has no route for), `from` and `to`, and
-the levels of that direction's ladder rows (a row without a direction, from before then, counts for both). Nothing is
-stored on the card. Since 27 Oct (manual §4; spec `docs/specs/2026-10-27-planning-connection-target.md` §3) the check
+the levels of that direction's ladder rows (a row without a direction, from before then, counts for both). Since 4 Nov
+(spec `docs/specs/2026-11-04-fare-default-from-market.md` §3) a cabin whose row has the market's default price
+(`default_source` market, `baseline_fare`) also has its level in AS$ (`price`, to the whole AS$; `levelPrice()`), and the
+words give it: "economy +5% (150 AS$) of the default price"; otherwise `price` is null and the words are as before.
+Nothing is stored on the card. Since 27 Oct (manual §4; spec `docs/specs/2026-10-27-planning-connection-target.md` §3) the check
 also says how many of the connections fall within the planning target, `plan_connection_target_h` (4 hours;
 `connections.targetLimits`): each leg's `feeders_within_target`, `onward_within_target`, `within_target` and
 `within_target_share` (percent, one decimal; null with no connections) beside its `feeders` and `onward`, and the card's

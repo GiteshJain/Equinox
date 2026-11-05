@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.10
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
+// @version      1.11
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more. Salaries are a separate script (salary_adjust.user.js), run by hand on one airline.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
@@ -33,12 +33,15 @@
 // switch, and on any page without its table), the filters (set when they differ), then the page read; a page that still
 // doesn't read says what the game served (title, heading, address, the airline open, Group by flight). Our own flights
 // alone are a normal page (tests/fixtures/market_DELBOM_2026-10-30.html, Kingfisher). The service code sent is the
-// profile's leading token ("S2 (min 800km)" → "S2"), as the planner writes it.
+// profile's leading token ("S2 (min 800km)" → "S2"), as the planner writes it. Since 1.11 (spec
+// docs/specs/2026-11-04-fare-default-from-market.md §1) each page's Pricing panel is read too: for each class (Y, C, F,
+// Cargo) the Current Price and the Default Price in AS$, sent as pricing, so the fare ladder measures each direction's
+// level against the game's default price. Read only, as the service profile is: the Pricing form is never sent.
 (function (root) {
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.10";                                      // the @version above, in the scan's notes
+  const VERSION = "1.11";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -448,7 +451,28 @@
       .map(w => ({ week: String(w.period).slice(0, 4) + "-" + String(w.period).slice(4), seats: w.seats, price: w.price }));
     return { from: h2 ? h2[1] : null, to: h2 ? h2[2] : null, filters, flights,
              shares: { week: lab("current"), previous: lab("previous"), passengers: shareTable("Passengers"), cargo: shareTable("Cargo") },
-             service, weeks };
+             service, weeks, pricing: readPricing(html) };
+  }
+  // 1.11: the Pricing panel (the settings form's Srv Cls, Current Price, New Price, Default Price table), read only: for
+  // each class row its Current Price and Default Price in AS$. A page without the panel gives an empty list; a row whose
+  // prices don't read is left out. The form is never sent.
+  function readPricing(html) {
+    const m = String(html).match(/<legend>\s*Pricing\s*<\/legend>\s*<div class="pricing">[\s\S]*?<tbody[^>]*>([\s\S]*?)<\/tbody>/);
+    const out = [];
+    if (!m) return out;
+    for (const row of m[1].match(/<tr[\s\S]*?<\/tr>/g) || []) {
+      const c = [...row.matchAll(/<td([^>]*)>([\s\S]*?)<\/td>/g)];
+      if (c.length < 3) continue;
+      const cls = text(c[0][2]);
+      if (!/^(Y|C|F|Cargo)$/.test(cls)) continue;
+      // Current Price is the second cell; Default Price the last (its amount in a span, before the reset link)
+      const current = price(text(c[1][2])), last = c[c.length - 1][2], span = last.match(/<span>([^<]*AS\$[^<]*)<\/span>/);
+      const dflt = price(text(span ? span[1] : last.split(/<a\b/)[0]));
+      if (!Number.isFinite(current) || !Number.isFinite(dflt) || current <= 0 || dflt <= 0) continue;
+      if (out.some(p => p.class === cls)) continue;
+      out.push({ class: cls, current, default: dflt });
+    }
+    return out;
   }
   // 1.10: a service profile's code as the planner writes it: the name's leading token before " (" ("S2 (min 800km)" → "S2")
   const serviceToken = name => { const t = String(name || "").split(" (")[0].trim(); return t || null; };
@@ -491,7 +515,9 @@
     return { ...base, ok: true, week: weekLabel(sh.week), previous_week: weekLabel(sh.previous),
              service: read.service || null, fares: fareSummary(read.flights),
              shares: [...(sh.passengers || []).map(s => ({ kind: "passengers", ...s })), ...(sh.cargo || []).map(s => ({ kind: "cargo", ...s }))],
-             weeks: read.weeks || [] };
+             weeks: read.weeks || [],
+             // 1.11: each class's current and default price from the Pricing panel; none when the page has no panel
+             ...(read.pricing && read.pricing.length ? { pricing: read.pricing } : {}) };
   }
   // capture_airlines()'s market pages, as the capture needs them
   const marketPlanOf = r => ({ due: !!(r && r.market_due === true), open: r && r.market_open != null ? Number(r.market_open) : null,
@@ -609,7 +635,7 @@
                 progressWords, VERSION, FLEET_PACE, fleetListUrl, fleetUrl, readFleetPage, fleetsToRead, fleetPayload, fleetProgress, fleetWords,
                 fleetOk, fleetSummary, MARKET_PACE, marketUrl, FILTER_CALLS, readMarketFilters, filterProblems, filterWords, filterCalls, isFilterCall,
                 filterBody, wicketBase, openAirlineOf, openProblem, readMarketPage, fareSummary, marketPagePayload, marketPlanOf, noMarketWords,
-                marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken };
+                marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken, readPricing };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
 
   // ---------------------------------------------------------------- in the game: the capture, as in 1.4, and the fleets (1.6)
