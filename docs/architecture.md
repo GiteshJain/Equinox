@@ -237,7 +237,7 @@ flowchart LR
    takes the snapshot of the capture day just ended if no complete capture took it (source fallback, marked incomplete,
    cash from the latest balance), and of any earlier day that has none; at 10:20 UTC `private.job_cleanup()` deletes
    raw pages older than 14 days, and statement lines older than 14 days once each is in `game_flights` or
-   `game_payments`, while `settings.statement_cleanup_enabled` is true (it ships off). One `job_runs` row a run. The
+   `game_payments`, while `settings.statement_cleanup_enabled` is true (on since 5 Nov). One `job_runs` row a run. The
    planner's Home warns from `job_runs` and `backup_runs`: no good backup for 30 hours or its last run failed, no
    snapshot for 30 hours, the 10:00 UTC job not run for 30 hours, the month's archive not run by the 3rd, or any job's
    last run failed.

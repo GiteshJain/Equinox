@@ -742,8 +742,8 @@ Details and open points: `docs/decisions.md`.
     since the history began that has none.
   - **10:20 UTC, the clean-ups:** raw capture pages older than 14 days are deleted. Statement lines older than 14 days
     are deleted only while `settings.statement_cleanup_enabled` is true, and only once every one is in `game_flights`
-    or `game_payments`. It ships switched off; the Building chat switches it on after checking the per-flight backfill
-    on live.
+    or `game_payments`. Switched on 5 Nov, after the Building chat checked the per-flight backfill on live (every line
+    older than 14 days was in one of them).
 - **Every night, after the backup: the monthly archive.** Detail more than one full calendar month old (each flight,
   payments ahead, world-scan schedules and airport pages; the change log after 12 months) is exported to R2 and to
   that month's release in `equinox-backups`, both copies are read back and checked, and only then deleted, through a
