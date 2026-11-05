@@ -38,6 +38,10 @@ Until each is built and merged, the rules below stand as they are.
   (`docs/specs/2026-11-04-fare-default-from-market.md`; both change the fare ladder). **Until it's merged, one airline
   per city pair stands as before:** no joiner flies, and the openings, the trunk month and the ladder work per airline.
   *(since 4 Nov)*
+- **Salaries inside the evening capture (§7, decided 4 Nov):** the capture checks each position of each airline against
+  its country average every evening: at or above the average it is left alone; below it, set to 5% above the average
+  (a setting). The "Salaries: this airline" button goes. Brief `docs/briefs/2026-11-04-salaries-in-capture.md`; built
+  after shared pairs. **Until then §7's salary script stands as it is.** *(since 4 Nov)*
 
 
 Details and open points: `docs/decisions.md`.
