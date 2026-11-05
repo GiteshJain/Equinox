@@ -788,6 +788,104 @@ $function$
 
 ;
 
+-- join_pair(p_owner_route_id bigint)
+CREATE OR REPLACE FUNCTION public.join_pair(p_owner_route_id bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_actor text := current_setting('equinox.actor', true);
+  v_detail text := current_setting('equinox.actor_detail', true);
+  o record; j record;
+  v_joiner bigint; v_joiner_base text; v_owner_base text; v_ex jsonb; v_names text;
+  v_from date; v_limit numeric; v_days numeric; v_joined int; v_id bigint; v_reused boolean := false;
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can join a pair' using errcode = '42501'; end if;
+  select r.* into o from public.routes r where r.id = p_owner_route_id;
+  if not found then raise exception 'join_pair: there is no route %', coalesce(p_owner_route_id::text, 'null') using errcode = '22023'; end if;
+  -- saves of the planner take the same lock (planner_save()), so two joins can't both pass the limit
+  perform pg_advisory_xact_lock(hashtextextended('equinox planner world', o.world_id));
+  if o.removed then raise exception 'join_pair: route % (%–%) is removed', o.id, o.hub_code, o.dest_code using errcode = '22023'; end if;
+  if o.shares_route_id is not null then
+    raise exception 'join_pair: route % (%–%) is a joiner''s route; join the owner''s, route %', o.id, o.hub_code, o.dest_code, o.shares_route_id using errcode = '22023';
+  end if;
+  -- a shared pair (manual §2): the route's airline has a hub or focus city at one end and another active airline of ours
+  -- at the other (a station is never a base)
+  select b.airline_id, b.airport_code into v_joiner, v_joiner_base
+    from public.airline_bases b
+    join public.airlines a on a.id = b.airline_id and a.world_id = b.world_id and a.active
+    join public.groups g on g.id = a.group_id and g.world_id = a.world_id and g.kind = 'ours'
+   where b.world_id = o.world_id and b.role in ('hub', 'focus') and b.airport_code in (o.hub_code, o.dest_code) and b.airline_id <> o.airline_id
+   order by b.airport_code = o.dest_code desc, b.airline_id
+   limit 1;
+  if v_joiner is null then
+    raise exception 'join_pair: %–% isn''t a shared pair: neither airport is a hub or focus city of another of our airlines', o.hub_code, o.dest_code
+      using errcode = '22023';
+  end if;
+  v_owner_base := case when v_joiner_base = o.dest_code then o.hub_code else o.dest_code end;
+  if not exists (select 1 from public.airline_bases b where b.world_id = o.world_id and b.airline_id = o.airline_id
+                    and b.airport_code = v_owner_base and b.role in ('hub', 'focus')) then
+    raise exception 'join_pair: %–% isn''t a shared pair: % isn''t a hub or focus city of the route''s airline', o.hub_code, o.dest_code, v_owner_base
+      using errcode = '22023';
+  end if;
+  select s.value into v_ex from public.settings s where s.world_id = o.world_id and s.airline_id is null and s.key = 'shared_pairs_excluded_airlines';
+  if jsonb_typeof(v_ex) = 'array' and (v_ex @> to_jsonb(o.airline_id) or v_ex @> to_jsonb(v_joiner)) then
+    select string_agg(coalesce(a.public_name, a.planner_name, a.game_name), ' and ' order by a.id) into v_names
+      from public.airlines a where a.id in (o.airline_id, v_joiner) and v_ex @> to_jsonb(a.id);
+    raise exception 'join_pair: % neither joins nor is joined on a shared pair (settings.shared_pairs_excluded_airlines)', v_names using errcode = '22023';
+  end if;
+  select r.id into v_id from public.routes r where r.shares_route_id = o.id;
+  if v_id is not null then
+    raise exception 'join_pair: %–% has a joiner already (route %)', o.hub_code, o.dest_code, v_id using errcode = '22023';
+  end if;
+  -- the first two Saturdays' limit (manual §2): shared_pairs_limit pairs while shared_pairs_limit_days haven't passed
+  -- since shared_pairs_from (with no date, the limit holds)
+  select (s.value #>> '{}')::date into v_from from public.settings s
+   where s.world_id = o.world_id and s.airline_id is null and s.key = 'shared_pairs_from' and jsonb_typeof(s.value) = 'string';
+  v_limit := private.fig_num(o.world_id, null, 'shared_pairs_limit');
+  v_days := private.fig_num(o.world_id, null, 'shared_pairs_limit_days');
+  select count(*)::int into v_joined from public.routes r where r.world_id = o.world_id and r.shares_route_id is not null and not r.removed;
+  if (v_from is null or current_date - v_from < v_days) and v_joined >= v_limit then
+    raise exception 'join_pair: % pairs are joined already, the most until %', v_joined,
+      coalesce(to_char(v_from + v_days::int, 'FMDD Mon YYYY'), 'shared_pairs_from is set') using errcode = '22023';
+  end if;
+  -- the joiner's own row for the pair, from its base, if it has one (its research list's): taken up rather than doubled.
+  -- One the other way round can't be
+  if exists (select 1 from public.routes r where r.airline_id = v_joiner and r.hub_code = v_owner_base and r.dest_code = v_joiner_base) then
+    raise exception 'join_pair: the joiner has %–% on its list the other way round; correct that row first', v_owner_base, v_joiner_base using errcode = '22023';
+  end if;
+  select r.* into j from public.routes r where r.airline_id = v_joiner and r.hub_code = v_joiner_base and r.dest_code = v_owner_base;
+
+  perform set_config('equinox.actor', coalesce(nullif(v_actor, ''), case when auth.uid() is not null then 'planner' else 'claude' end), true),
+          set_config('equinox.actor_detail', 'join_pair', true);
+  if j.id is not null then
+    update public.routes r
+       set shares_route_id = o.id, removed = false, removed_note = null,
+           stars = o.stars, stars_override = o.stars_override, market_id = o.market_id, market_override_id = o.market_override_id,
+           market_cleared = o.market_cleared, distance_km = o.distance_km, distance_override_km = o.distance_override_km, cabin_choice = o.cabin_choice
+     where r.id = j.id
+     returning r.id into v_id;
+    v_reused := true;
+  else
+    insert into public.routes (world_id, airline_id, hub_code, dest_code, city, country_label, distance_km, distance_override_km, market_id,
+                               market_override_id, market_cleared, stars, stars_override, cabin_choice, source, shares_route_id)
+    select o.world_id, v_joiner, v_joiner_base, v_owner_base, ap.city, ap.country_code, o.distance_km, o.distance_override_km, o.market_id,
+           o.market_override_id, o.market_cleared, o.stars, o.stars_override, o.cabin_choice, 'added', o.id
+      from (select 1) one left join public.airports ap on ap.code = v_owner_base
+    returning id into v_id;
+  end if;
+  perform set_config('equinox.actor', coalesce(v_actor, ''), true), set_config('equinox.actor_detail', coalesce(v_detail, ''), true);
+  return jsonb_build_object('ok', true, 'route_id', v_id, 'reused', v_reused, 'owner_route_id', o.id, 'owner_airline_id', o.airline_id,
+                            'joiner_airline_id', v_joiner, 'hub', v_joiner_base, 'dest', v_owner_base, 'joined', v_joined + 1,
+                            'limit', case when v_from is null or current_date - v_from < v_days
+                                          then jsonb_build_object('pairs', v_limit, 'until', v_from + v_days::int) end);
+end
+$function$
+
+;
+
 -- loads_by_day(p_world_id bigint, p_from date, p_to date)
 CREATE OR REPLACE FUNCTION public.loads_by_day(p_world_id bigint, p_from date, p_to date)
  RETURNS jsonb
@@ -3062,6 +3160,46 @@ $function$
 
 ;
 
+-- private.check_route_share()
+CREATE OR REPLACE FUNCTION private.check_route_share()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare o record; bad bigint;
+begin
+  if new.shares_route_id is not null then
+    select r.id, r.world_id, r.airline_id, r.hub_code, r.dest_code, r.shares_route_id into o from public.routes r where r.id = new.shares_route_id;
+    if not found or o.world_id <> new.world_id or o.airline_id = new.airline_id
+       or least(o.hub_code, o.dest_code) <> least(new.hub_code, new.dest_code)
+       or greatest(o.hub_code, o.dest_code) <> greatest(new.hub_code, new.dest_code) then
+      raise exception 'route %: shares_route_id must name another airline''s route on the same two airports in the same world', coalesce(new.id::text, 'new')
+        using errcode = 'check_violation';
+    end if;
+    if o.shares_route_id is not null then
+      raise exception 'route %: route % is a joiner''s route itself (one level of joining only)', coalesce(new.id::text, 'new'), o.id
+        using errcode = 'check_violation';
+    end if;
+    if tg_op = 'UPDATE' and exists (select 1 from public.routes j where j.shares_route_id = new.id) then
+      raise exception 'route % has a joiner of its own, so it can''t join another pair', new.id using errcode = 'check_violation';
+    end if;
+  end if;
+  if tg_op = 'UPDATE' then
+    select j.id into bad from public.routes j
+     where j.shares_route_id = new.id
+       and (j.airline_id = new.airline_id or least(j.hub_code, j.dest_code) <> least(new.hub_code, new.dest_code)
+            or greatest(j.hub_code, j.dest_code) <> greatest(new.hub_code, new.dest_code))
+     limit 1;
+    if bad is not null then
+      raise exception 'this change to route % would leave its joiner''s route % on another pair or airline', new.id, bad using errcode = 'check_violation';
+    end if;
+  end if;
+  return new;
+end
+$function$
+
+;
+
 -- private.competition_threats(p_airline_id bigint, p_as_of timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.competition_threats(p_airline_id bigint, p_as_of timestamp with time zone)
  RETURNS TABLE(a text, b text, rival_id bigint, rival text, kind text, then_weekly integer, added_weekly integer, now_weekly integer, ours_weekly integer, scan_id bigint, scan_at timestamp with time zone, previous_id bigint, previous_at timestamp with time zone, until timestamp with time zone)
@@ -4351,6 +4489,9 @@ declare
   -- the fare ladder under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md; judged by loads
   -- since 26 Oct, spec docs/specs/2026-10-26-under-launch-by-loads.md)
   v_ul_load numeric; v_ul_days numeric; v_ul_min numeric; v_ul_levels numeric[]; v_ul_below numeric[]; v_ul_j jsonb; v_ul_span text;
+  -- shared pairs (since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §2): the airlines whose captured flights this
+  -- ladder reads, the airline's own and, on a pair it owns with a joiner, the joiner's
+  v_ids bigint[];
 begin
   v_step := private.fig_num(w, p_airline_id, 'fare_ladder_step_pts');
   v_up := private.fig_num(w, p_airline_id, 'fare_ladder_up_share');
@@ -4389,18 +4530,42 @@ begin
   -- this week's (on the fare plan already); the levels before it are the ones the week's move starts from
   v_week := v_today - ((extract(isodow from v_today)::int + 1) % 7);
   -- the latest finished world scan by then with its schedules: who else flies each pair (the 60% floor)
+  -- the joiners of the airline's shared pairs (routes.shares_route_id naming one of its routes): the owner's ladder judges
+  -- each such pair on both airlines' captured flights (spec §2)
+  select array[p_airline_id] || coalesce(array_agg(distinct j.airline_id), '{}') into v_ids
+    from public.routes o join public.routes j on j.shares_route_id = o.id and j.world_id = o.world_id and not j.removed
+   where o.airline_id = p_airline_id and o.world_id = w and not o.removed;
   select s.id, s.taken_at into v_scan, v_scan_at from public.game_scans s
    where s.world_id = w and s.status = 'done' and s.taken_at <= p_as_of
      and exists (select 1 from public.game_scan_schedules x where x.scan_id = s.id)
    order by s.taken_at desc, s.id desc limit 1;
 
   with
-  ro as (select r.id, r.hub_code, r.dest_code from public.routes r where r.airline_id = p_airline_id and r.world_id = w and not r.removed),
+  ro as (select r.id, r.hub_code, r.dest_code, r.shares_route_id from public.routes r where r.airline_id = p_airline_id and r.world_id = w and not r.removed),
+  -- shared pairs (since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §2): each of the airline's routes on a joined pair
+  -- with the other airline's route and the airline's role on it. As owner: the joiner's route (shares_route_id naming
+  -- ours). As joiner: the owner's route, with the owner's launch level, step and cap (its settings rows), its name
+  pm as materialized (
+    select ro.id as route_id, 'owner'::text as role, j.id as p_route, j.airline_id as p_airline, j.hub_code as p_hub, j.dest_code as p_dest,
+           null::numeric as p_launch, null::numeric as p_step, null::numeric as p_cap,
+           coalesce(pa.public_name, pa.planner_name, pa.game_name) as p_name
+      from ro join public.routes j on j.shares_route_id = ro.id and j.world_id = w and not j.removed
+      join public.airlines pa on pa.id = j.airline_id
+    union all
+    select ro.id, 'joiner', o.id, o.airline_id, o.hub_code, o.dest_code,
+           private.fig_num(w, o.airline_id, 'fare_launch_pct'), private.fig_num(w, o.airline_id, 'fare_ladder_step_pts'),
+           private.fig_num(w, o.airline_id, 'fare_ladder_cap_pts'), coalesce(pa.public_name, pa.planner_name, pa.game_name)
+      from ro join public.routes o on o.id = ro.shares_route_id and o.world_id = w and not o.removed
+      join public.airlines pa on pa.id = o.airline_id),
   fq as materialized (select * from private.fig_freqs(w, p_airline_id)),
   -- a route's age: its earliest rotation's launch day, as route profit has it (growth_new_route_days)
   age as (select f.route_id, min(f.launched_on) as first_day from fq f group by f.route_id),
   -- its newest live rotation's launch day: a flight added to a route already flown (manual §5, since 21 Oct)
   added as (select f.route_id, max(f.launched_on) as last_day from fq f where f.live group by f.route_id),
+  -- on a pair the airline owns, the joiner's newest rotation: a frequency added by either airline holds the pair (spec §2)
+  padd as (select pm.route_id, max(rt.launched_on) as last_day
+             from pm join public.rotations rt on rt.route_id = pm.p_route and rt.airline_id = pm.p_airline
+            where pm.role = 'owner' group by pm.route_id),
   -- business seats on an aircraft flying one of the route's rotations
   biz as (select distinct f.route_id from fq f
             join public.flight_legs fl on fl.rotation_id = f.rotation_id
@@ -4409,24 +4574,29 @@ begin
            where f.live and coalesce(cc.business_seats, 0) > 0),
   -- every captured loads row of the airline by then (one per date and flight number, the latest), with its route as the
   -- airline's list has it, either way round (as route profit matches them: route_id is often empty), and since 26 Oct its
-  -- direction: out from the route's hub, back to it
+  -- direction: out from the route's hub, back to it. Since 5 Nov (spec docs/specs/2026-11-05-shared-pairs.md §2) also, on a
+  -- pair the airline owns with a joiner, the joiner's flights on it, matched to the owner's route by their airports (own
+  -- false): the week's departures, sold-out share and loads are the pair's; the fare index, the set-back and the baseline
+  -- stay the airline's own flights, since its fares script changes only its own
   lf as materialized (
-    select coalesce(r1.id, r2.id) as route_id, case when r1.id is not null then 'out' else 'back' end as dir, x.*
-      from (select distinct on (f.game_date, f.flight_no) f.game_date, f.origin_code as o, f.dest_code as d, f.dep_at,
+    select coalesce(r1.id, r2.id) as route_id, case when r1.id is not null then 'out' else 'back' end as dir, x.al = p_airline_id as own, x.*
+      from (select distinct on (f.airline_id, f.game_date, f.flight_no) f.airline_id as al, f.game_date, f.origin_code as o, f.dest_code as d, f.dep_at,
                    f.eco_pct, f.eco_fare, f.bus_pct, f.bus_seats, f.bus_fare
               from public.game_flights f
-             where f.airline_id = p_airline_id and f.flight_no is not null and f.loads_captured_at <= p_as_of and f.game_date <= v_today
-             order by f.game_date, f.flight_no, f.id desc) x
+             where f.airline_id = any (v_ids) and f.flight_no is not null and f.loads_captured_at <= p_as_of and f.game_date <= v_today
+             order by f.airline_id, f.game_date, f.flight_no, f.id desc) x
       left join ro r1 on r1.hub_code = x.o and r1.dest_code = x.d
+                     and (x.al = p_airline_id or exists (select 1 from pm where pm.route_id = r1.id and pm.role = 'owner' and pm.p_airline = x.al))
       left join ro r2 on r2.hub_code = x.d and r2.dest_code = x.o
+                     and (x.al = p_airline_id or exists (select 1 from pm where pm.route_id = r2.id and pm.role = 'owner' and pm.p_airline = x.al))
      where coalesce(r1.id, r2.id) is not null),
   -- by cabin: economy on every row with its load, business on flights with business seats; each with its direction (o)
   lc as materialized (
     select lf.route_id, 'economy'::text as cabin, lf.dir, lf.o, lf.game_date, lf.dep_at, lf.eco_pct as pct, lf.eco_fare as fare,
-           coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') as at from lf where lf.eco_pct is not null
+           coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') as at, lf.own from lf where lf.eco_pct is not null
     union all
     select lf.route_id, 'business', lf.dir, lf.o, lf.game_date, lf.dep_at, lf.bus_pct, lf.bus_fare,
-           coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC') from lf where lf.bus_pct is not null and coalesce(lf.bus_seats, 0) > 0),
+           coalesce(lf.dep_at, lf.game_date::timestamp at time zone 'UTC'), lf.own from lf where lf.bus_pct is not null and coalesce(lf.bus_seats, 0) > 0),
   -- the 7 days before the moment, by scheduled departure (the departure date where it isn't known), per direction since
   -- 26 Oct, with the direction's average load in the cabin
   st as (select lc.route_id, lc.cabin, lc.dir, count(*)::int as n, (count(*) filter (where lc.pct >= 100))::int as sold, avg(lc.fare) as fare,
@@ -4438,7 +4608,7 @@ begin
   -- lowest (one the game priced otherwise, as a new flight at the default price on a Ryanair route, sits above it), else
   -- the daily history's average fare in that cabin (route_days, kept for good once the flights are archived): economy's,
   -- and since 22 Oct business's, on a day with business passengers
-  dd as (select lc.route_id, lc.cabin, lc.o, lc.game_date as day, min(lc.fare) as fare from lc where lc.fare > 0 group by 1, 2, 3, 4),
+  dd as (select lc.route_id, lc.cabin, lc.o, lc.game_date as day, min(lc.fare) as fare from lc where lc.fare > 0 and lc.own group by 1, 2, 3, 4),
   hd as (select coalesce(r1.id, r2.id) as route_id, c.cabin, d.origin_code as o, d.day, avg(c.fare) as fare
            from public.route_days d
            left join ro r1 on r1.hub_code = d.origin_code and r1.dest_code = d.dest_code
@@ -4468,8 +4638,18 @@ begin
   -- and cabin, from the latest finished market run that read it with our airline open (private.fig_default_prices():
   -- economy Y, business C). Where there is one, a direction's captured fares are measured against it (×100); elsewhere
   -- against the inferred baseline above, times the launch level, as before
-  dp as materialized (select d.route_id, d.cabin, d.direction as dir, d.default_price, d.run_on
-                        from private.fig_default_prices(p_airline_id, p_as_of) d),
+  -- Since 5 Nov, on a shared pair, the other airline's reading too: the market pages read a pair two of our airlines fly
+  -- once, under one of them, and the game's default is the pair's, whoever flies it; the latest run's wins, ours on a tie
+  dpx as (select d.route_id, d.cabin, d.direction as dir, d.default_price, d.run_on, 0 as pri
+            from private.fig_default_prices(p_airline_id, p_as_of) d
+          union all
+          select pm.route_id, d.cabin, case when d.origin = ro.hub_code then 'out' else 'back' end, d.default_price, d.run_on, 1
+            from (select distinct pm.p_airline from pm) pa
+           cross join lateral private.fig_default_prices(pa.p_airline, p_as_of) d
+            join pm on pm.p_airline = pa.p_airline and pm.p_route = d.route_id
+            join ro on ro.id = pm.route_id),
+  dp as materialized (select distinct on (x.route_id, x.cabin, x.dir) x.route_id, x.cabin, x.dir, x.default_price, x.run_on
+                        from dpx x order by x.route_id, x.cabin, x.dir, x.run_on desc, x.pri),
   eb as (select coalesce(dp.route_id, bs.route_id) as route_id, coalesce(dp.cabin, bs.cabin) as cabin, coalesce(dp.dir, bs.dir) as dir,
                 coalesce(dp.default_price, bs.fare) as fare,
                 case when dp.default_price is not null then 100 else v_launch end as scale,
@@ -4480,12 +4660,12 @@ begin
   -- the latest captured day by cabin and direction: its average fare, and each flight's fare as a % of the default price:
   -- against the direction's default where the market pages read it, else against its inferred baseline times the launch
   -- level (since 4 Nov); and, to compare, against the inferred baseline always (inf)
-  lday as (select lc.route_id, lc.cabin, lc.dir, max(lc.game_date) as day from lc where lc.fare > 0 group by 1, 2, 3),
+  lday as (select lc.route_id, lc.cabin, lc.dir, max(lc.game_date) as day from lc where lc.fare > 0 and lc.own group by 1, 2, 3),
   latest as (select ld.route_id, ld.cabin, ld.dir, ld.day, avg(lc.fare) as fare,
                     array_agg(lc.fare / e.fare * e.scale order by lc.dep_at) filter (where e.fare > 0) as ratios,
                     array_agg(lc.fare / b.fare * v_launch order by lc.dep_at) filter (where b.fare > 0) as inf
                from lday ld
-               join lc on lc.route_id = ld.route_id and lc.cabin = ld.cabin and lc.dir = ld.dir and lc.game_date = ld.day and lc.fare > 0
+               join lc on lc.route_id = ld.route_id and lc.cabin = ld.cabin and lc.dir = ld.dir and lc.game_date = ld.day and lc.fare > 0 and lc.own
                left join eb e on e.route_id = lc.route_id and e.cabin = lc.cabin and e.dir = lc.dir
                left join bs b on b.route_id = lc.route_id and b.cabin = lc.cabin and b.dir = lc.dir
               group by ld.route_id, ld.cabin, ld.dir, ld.day),
@@ -4507,6 +4687,22 @@ begin
   -- the latest step up before this Saturday (since 26 Oct, manual §5), a both-directions row counting for both as above.
   -- Only up: a jump and a set-back never start this hold (nor a revert, recorded before 26 Oct)
   upr as (select r.route_id, r.cabin, r.dir, max(r.proposed_on) as up_on from rec r where r.ladder_move = 'up' and r.proposed_on < v_week group by 1, 2, 3),
+  -- shared pairs (since 5 Nov; spec §2): a joiner's directions follow the pair's level, the owner's, read from the owner's
+  -- fare plan rows as the owner's ladder reads its own (before this Saturday the latest; since it this week's move), each
+  -- in the joiner's own direction: the one leaving the same airport
+  orec as (select fp.id, pm.route_id, coalesce(fp.cabin_class, 'economy') as cabin,
+                  case when (case d.dir when 'out' then pm.p_hub else pm.p_dest end) = ro.hub_code then 'out' else 'back' end as dir,
+                  fp.level_pct, fp.ladder_move, fp.proposed_on
+             from pm
+             join ro on ro.id = pm.route_id
+             join public.fare_plan fp on fp.route_id = pm.p_route and fp.airline_id = pm.p_airline and fp.world_id = w
+            cross join (values ('out'), ('back')) d (dir)
+            where pm.role = 'joiner' and fp.level_pct is not null and fp.status <> 'dropped' and fp.proposed_on <= v_today
+              and (fp.direction is null or fp.direction = d.dir)),
+  oprev as (select distinct on (r.route_id, r.cabin, r.dir) r.* from orec r where r.proposed_on < v_week
+             order by r.route_id, r.cabin, r.dir, r.proposed_on desc, r.id desc),
+  owk as (select distinct on (r.route_id, r.cabin, r.dir) r.* from orec r where r.proposed_on >= v_week
+           order by r.route_id, r.cabin, r.dir, r.proposed_on desc, r.id desc),
   -- under launch (since 23 Oct; spec docs/specs/2026-10-23-fare-ladder-under-launch.md §2), per direction since 26 Oct,
   -- judged by loads since 26 Oct (spec docs/specs/2026-10-26-under-launch-by-loads.md). Each cabin's day by day fare, each
   -- direction's and both directions' together (dir 'both', for a both-directions row), and its jumps recorded before this
@@ -4515,7 +4711,7 @@ begin
   -- (fare_plan_status()'s rule, read over every captured day, so the day holds once the flights are older than its 10
   -- days), else the day proposed
   cday as materialized (select lc.route_id, lc.cabin, coalesce(lc.dir, 'both') as dir, lc.game_date as day, avg(lc.fare) as fare
-                          from lc where lc.fare > 0 group by grouping sets ((lc.route_id, lc.cabin, lc.dir, lc.game_date), (lc.route_id, lc.cabin, lc.game_date))),
+                          from lc where lc.fare > 0 and lc.own group by grouping sets ((lc.route_id, lc.cabin, lc.dir, lc.game_date), (lc.route_id, lc.cabin, lc.game_date))),
   jr as (select r.id, r.route_id, r.cabin, r.dir, r.level_pct, r.proposed_on,
                 coalesce((select min(c.day) from cday c
                            where c.route_id = r.route_id and c.cabin = r.cabin and c.dir = coalesce(r.direction, 'both') and c.day >= r.proposed_on and r.fare_from > 0
@@ -4585,8 +4781,17 @@ begin
                 coalesce(st.n, 0) as n, coalesce(st.sold, 0) as sold, st.fare as fare_week, st.load as load_week,
                 lt.fare as latest_fare, lt.day as latest_on, lt.ratios, lt.inf, eb.fare as baseline_fare, eb.day as baseline_on,
                 coalesce(eb.source, 'inferred') as default_source, eb.default_on,
-                coalesce(pv.level_pct, v_launch) as level, pv.id is not null as recorded,
-                wk.id as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
+                -- a joiner's level is the pair's: the owner's (since 5 Nov)
+                case when pm.role = 'joiner' then coalesce(op.level_pct, pm.p_launch) else coalesce(pv.level_pct, v_launch) end as level,
+                case when pm.role = 'joiner' then op.id is not null else pv.id is not null end as recorded,
+                case when pm.role = 'joiner' then null else wk.id end as plan_id, wk.level_pct as plan_level, wk.ladder_move as plan_move, wk.reason as plan_reason,
+                pm.role, pm.p_route, pm.p_airline, pm.p_name, pm.p_hub, pm.p_dest,
+                -- the owner's direction that leaves the same airport as this one
+                case when (ro.hub_code = pm.p_hub) = (rc.dir = 'out') then 'out' else 'back' end as pair_dir,
+                ow.level_pct as p_plan_level, ow.ladder_move as p_plan_move, pa.last_day as p_last_day,
+                case when pm.role = 'joiner' then pm.p_launch else v_launch end as l_launch,
+                case when pm.role = 'joiner' then pm.p_step else v_step end as l_step,
+                case when pm.role = 'joiner' then pm.p_cap else v_cap end as l_cap,
                 coalesce(se.applied, false) as applied, se.seen_on, dn.down_on, upr.up_on, ag.first_day, ad.last_day,
                 exists (select 1 from contested c where c.a = least(ro.hub_code, ro.dest_code) and c.b = greatest(ro.hub_code, ro.dest_code)) as contested,
                 th.rival as rv_name, th.kind as rv_kind, th.added_weekly as rv_added, th.scan_at as rv_on, th.until as rv_until,
@@ -4612,24 +4817,32 @@ begin
            left join lch on lch.route_id = rc.route_id and lch.cabin = rc.cabin and lch.dir = rc.dir
            left join uw on uw.route_id = rc.route_id and uw.cabin = rc.cabin and uw.dir = rc.dir
            left join uj on uj.route_id = rc.route_id and uj.cabin = rc.cabin and uj.dir = rc.dir
-           left join ujw on ujw.route_id = rc.route_id and ujw.cabin = rc.cabin and ujw.dir = rc.dir),
+           left join ujw on ujw.route_id = rc.route_id and ujw.cabin = rc.cabin and ujw.dir = rc.dir
+           left join pm on pm.route_id = rc.route_id
+           left join oprev op on op.route_id = rc.route_id and op.cabin = rc.cabin and op.dir = rc.dir
+           left join owk ow on ow.route_id = rc.route_id and ow.cabin = rc.cabin and ow.dir = rc.dir
+           left join padd pa on pa.route_id = rc.route_id),
   mv0 as (select lv.*,
                 case when lv.n > 0 then lv.sold * 100.0 / lv.n end as share,
-                v_launch + v_cap as cap_pct,
+                lv.l_launch + lv.l_cap as cap_pct,
                 -- never under launch, nor under the house floor where another player flies the pair
-                greatest(v_launch, case when lv.contested then v_floor end) as floor_pct,
-                coalesce(lv.first_day is not null and v_today - lv.first_day < v_new_days, false) as young,
+                greatest(lv.l_launch, case when lv.contested then v_floor end) as floor_pct,
+                -- a joiner's first flights aren't a new route: they start at the pair's level (since 5 Nov)
+                coalesce(lv.role is distinct from 'joiner' and lv.first_day is not null and v_today - lv.first_day < v_new_days, false) as young,
                 coalesce(lv.down_on is not null and v_week - lv.down_on < v_hold * 7, false) as held,
                 -- the hold after a step up (since 26 Oct): the next Saturday, fare_ladder_up_hold_weeks
                 coalesce(lv.up_on is not null and v_week - lv.up_on < v_up_hold * 7, false) as held_up,
-                -- a flight added in the last fare_ladder_capacity_hold_days, to a route older than that (manual §5, since 21 Oct)
-                coalesce(lv.last_day is not null and v_today - lv.last_day < v_added_days
+                -- a flight added in the last fare_ladder_capacity_hold_days, to a route older than that (manual §5, since 21 Oct);
+                -- on a pair the airline owns, by either airline (since 5 Nov)
+                greatest(lv.last_day, lv.p_last_day) as added_day,
+                coalesce(greatest(lv.last_day, lv.p_last_day) is not null and v_today - greatest(lv.last_day, lv.p_last_day) < v_added_days
                          and lv.first_day is not null and v_today - lv.first_day >= v_added_days, false) as added,
                 -- under launch (since 23 Oct): the cabin's state, from the fare plan's rows before this Saturday. launch: at
                 -- its launch level and never jumped; holding: its latest jump under fare_under_launch_days old, counted from
                 -- the day it took effect; due: the hold is over, still at the jump level, judged on its loads each Saturday
                 -- (since 26 Oct); done: it climbed after the jump, or is back at launch (a revert before 26 Oct)
-                case when lv.jumped_on is null then case when lv.level = v_launch and v_ul_below is not null then 'launch' end
+                case when lv.role = 'joiner' then null
+                     when lv.jumped_on is null then case when lv.level = v_launch and v_ul_below is not null then 'launch' end
                      when lv.ul_done or lv.level >= v_launch then 'done'
                      when v_today - lv.jumped_on < v_ul_days then 'holding'
                      else 'due' end as ul_state,
@@ -4662,8 +4875,13 @@ begin
                          else 'ul_decide' end
                 end as uk
            from mv0),
-  dc as (select mv.*,
-                case when mv.plan_id is not null then 'planned'
+  -- materialized (since 5 Nov): the steps after it name its kind (k) and the levels many times over, and inlined, each
+  -- name repeated the whole chain of expressions beneath it (fin, od, ix and fx made the builder seconds slower on the
+  -- copy); worked out once here, the rows and answers are the same
+  dc as materialized (select mv.*,
+                -- a joiner follows the pair's level and moves (since 5 Nov): never a move of its own
+                case when mv.role = 'joiner' then 'follows'
+                     when mv.plan_id is not null then 'planned'
                      when mv.young then 'young'
                      when mv.n < v_min then 'few'
                      -- a direction held both ways takes the more recent move's reason (the step down on the same day)
@@ -4687,10 +4905,12 @@ begin
                  -- a jump is a move down (since 23 Oct), so existing readers keep working; ladder_kind says which (a revert
                  -- on the fare plan, recorded before 26 Oct, is a move up)
                  case dc.k when 'planned' then case dc.plan_move when 'jump' then 'down' when 'revert' then 'up' else dc.plan_move end
+                           when 'follows' then case dc.p_plan_move when 'jump' then 'down' when 'revert' then 'up' when 'up' then 'up' when 'down' then 'down' else 'hold' end
                            when 'up' then 'up' when 'down' then 'down' when 'ul_jump' then 'down' else 'hold' end as move,
-                 case dc.k when 'planned' then dc.plan_move when 'up' then 'up' when 'down' then 'down' when 'ul_jump' then 'jump'
+                 case dc.k when 'planned' then dc.plan_move when 'follows' then coalesce(dc.p_plan_move, 'hold')
+                           when 'up' then 'up' when 'down' then 'down' when 'ul_jump' then 'jump'
                            else 'hold' end as ladder_kind,
-                 case dc.k when 'planned' then dc.plan_level
+                 case dc.k when 'planned' then dc.plan_level when 'follows' then coalesce(dc.p_plan_level, dc.level)
                            when 'up' then least(dc.level + v_step, dc.cap_pct)
                            when 'down' then greatest(dc.level - v_step, dc.floor_pct)
                            when 'ul_jump' then dc.next_level
@@ -4713,8 +4933,14 @@ begin
                                         else format('%s departure%s captured, needs %s', fin.n, case when fin.n = 1 then '' else 's' end, trim_scale(v_min)) end
                    when 'held' then format('held after a step down on %s', to_char(fin.down_on, 'FMDD Mon'))
                    when 'held_up' then format('held after a step up on %s', to_char(fin.up_on, 'FMDD Mon'))
-                   when 'added' then format('a flight added on %s: judged at its new size from %s', to_char(fin.last_day, 'FMDD Mon'),
-                                            to_char(fin.last_day + v_added_days::int, 'FMDD Mon'))
+                   when 'added' then format('a flight added on %s%s: judged at its new size from %s', to_char(fin.added_day, 'FMDD Mon'),
+                                            case when fin.role = 'owner' and fin.p_last_day is not distinct from fin.added_day
+                                                      and fin.last_day is distinct from fin.added_day then ' by ' || fin.p_name else '' end,
+                                            to_char(fin.added_day + v_added_days::int, 'FMDD Mon'))
+                   -- shared pairs (since 5 Nov)
+                   when 'follows' then format('follows %s''s ladder on %s–%s', fin.p_name, fin.p_hub, fin.p_dest)
+                                       || case when fin.p_plan_level is not null
+                                               then format(': on its fare plan this week at %s%%', trim_scale(fin.p_plan_level)) else '' end
                    when 'rival' then format('rival %s %s here on %s: paused until %s', fin.rv_name,
                                             case when fin.rv_kind = 'started' then 'started' else format('added %s a week', fin.rv_added) end,
                                             to_char(fin.rv_on at time zone 'UTC', 'FMDD Mon'), to_char(fin.rv_until at time zone 'UTC', 'FMDD Mon'))
@@ -4744,7 +4970,9 @@ begin
                    when 'ul_climb' then 'under launch: climbs or holds only'
                    else format('sold out %s of %s, at %s', fin.sold, fin.n, fin.floor_words) end as reason,
                  -- the level the game should show: this week's, once the captures see it
-                 case when fin.plan_id is not null and fin.applied then fin.new_level else fin.level end as expect
+                 -- a joiner's: the pair's, this week's move as soon as it is on the owner's fare plan (since 5 Nov), so its
+                 -- set-back goes with the owner's change
+                 case when fin.k = 'follows' then fin.new_level when fin.plan_id is not null and fin.applied then fin.new_level else fin.level end as expect
             from fin),
   -- the fare index: each flight of the latest captured day as a % of the default price (against the market's default, or
   -- the inferred baseline times the launch level: latest's ratios); the day's average to 0.1, and the flight furthest from
@@ -4759,7 +4987,8 @@ begin
                 case when ix.worst is not null then abs(ix.worst - ix.expect) <= 1 end as matches,
                 -- set back (manual §5, since 21 Oct): off its level, not on the fare plan this week, not new, and captured
                 -- since its newest rotation launched
-                coalesce(ix.worst is not null and abs(ix.worst - ix.expect) > 1 and ix.plan_id is null and not ix.young
+                -- since; a joiner's direction whatever its age, never on its own fare plan (since 5 Nov)
+                coalesce(ix.worst is not null and abs(ix.worst - ix.expect) > 1 and (ix.k = 'follows' or (ix.plan_id is null and not ix.young))
                          and (ix.last_day is null or ix.latest_on > ix.last_day), false) as fix
            from ix)
   select coalesce(jsonb_agg(jsonb_build_object(
@@ -4771,14 +5000,14 @@ begin
            -- since 4 Nov: market (baseline_fare is the game's default price, read on default_on) or inferred (no market read
            -- of that direction yet: the first captured fare as before); the inferred index beside it, to compare
            'default_source', o.default_source, 'default_on', o.default_on, 'inferred_index', o.inferred_index,
-           'level', trim_scale(o.level), 'recorded', o.recorded, 'steps', trim_scale(round((o.level - v_launch) / v_step, 1)),
-           'move', o.move, 'new_level', trim_scale(o.new_level), 'new_steps', trim_scale(round((o.new_level - v_launch) / v_step, 1)),
+           'level', trim_scale(o.level), 'recorded', o.recorded, 'steps', trim_scale(round((o.level - o.l_launch) / o.l_step, 1)),
+           'move', o.move, 'new_level', trim_scale(o.new_level), 'new_steps', trim_scale(round((o.new_level - o.l_launch) / o.l_step, 1)),
            'change_pct', case when o.level > 0 then trim_scale(round((o.new_level / o.level - 1) * 100, 1)) end,
            'reason', o.reason, 'contested', o.contested, 'floor', trim_scale(o.floor_pct), 'cap', trim_scale(o.cap_pct), 'new_route', o.young,
            'planned', o.plan_id is not null, 'plan_id', o.plan_id, 'applied', o.applied, 'seen_on', o.seen_on,
            -- what Put on the fare plan writes: every level that changes (jumps included), a hold that follows a step down,
            -- and since 26 Oct the first cut-or-keep hold under launch (so the mark stays)
-           'to_plan', o.plan_id is null and ((o.move in ('up', 'down') and o.new_level <> o.level) or o.k = 'held' or (o.k = 'ul_decide' and not o.ul_marked)),
+           'to_plan', o.k <> 'follows' and o.plan_id is null and ((o.move in ('up', 'down') and o.new_level <> o.level) or o.k = 'held' or (o.k = 'ul_decide' and not o.ul_marked)),
            -- under launch (since 23 Oct): what Put on the fare plan writes as ladder_move, the cabin's state with its
            -- figures, and whether it is a cut-or-keep decision for Gitesh
            'ladder_kind', o.ladder_kind,
@@ -4793,7 +5022,14 @@ begin
            'decide', o.decide,
            -- a change that sets it back to its level (manual §5, since 21 Oct)
            'fix', o.fix,
-           'fix_reason', case when o.fix then format('captured fare at %s%%, level %s%%', trim_scale(round(o.worst, 1)), trim_scale(o.expect)) end)
+           'fix_reason', case when o.fix then format('captured fare at %s%%, %slevel %s%%', trim_scale(round(o.worst, 1)),
+                                                    case when o.k = 'follows' then 'the pair''s ' else '' end, trim_scale(o.expect)) end,
+           -- shared pairs (since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §2): on a joiner's row the pair's owner,
+           -- whose level and move it shows (its direction, the one leaving the same airport); on an owner's row the joiner,
+           -- whose flights the row's departures, sold-out share and load count with the owner's
+           'follows', case when o.role = 'joiner' then jsonb_build_object('airline_id', o.p_airline, 'airline', o.p_name, 'route_id', o.p_route,
+                                                                          'hub', o.p_hub, 'dest', o.p_dest, 'direction', o.pair_dir) end,
+           'shared_with', case when o.role = 'owner' then jsonb_build_object('airline_id', o.p_airline, 'airline', o.p_name, 'route_id', o.p_route) end)
            order by o.hub, o.dest, o.dir = 'back', o.cabin desc), '[]'::jsonb)
     into v_rows from fx o;
 
@@ -4807,14 +5043,16 @@ begin
                     jsonb_agg(jsonb_build_object('cabin', x.cabin, 'level', x.level, 'reason', x.reason) order by x.cabin = 'business') as moves
                from (select true as fix, e ->> 'route_id' as route_id, e ->> 'hub' as hub, e ->> 'dest' as dest, e ->> 'direction' as dir,
                             e ->> 'from' as dir_from, e ->> 'to' as dir_to, e ->> 'cabin' as cabin,
-                            (e ->> 'level')::numeric as level, e ->> 'fix_reason' as reason
+                            -- a joiner's set-back goes to the pair's level, this week's once on the owner's plan (since 5 Nov)
+                            (case when e ->> 'follows' is not null then e ->> 'new_level' else e ->> 'level' end)::numeric as level,
+                            e ->> 'fix_reason' as reason
                        from jsonb_array_elements(v_rows) e
                       where (e ->> 'fix')::boolean
                      union all
                      select false, e ->> 'route_id', e ->> 'hub', e ->> 'dest', e ->> 'direction', e ->> 'from', e ->> 'to', e ->> 'cabin',
                             (e ->> 'new_level')::numeric, null
                        from jsonb_array_elements(v_rows) e
-                      where (e ->> 'new_level')::numeric <> (e ->> 'level')::numeric) x
+                      where (e ->> 'new_level')::numeric <> (e ->> 'level')::numeric and e ->> 'follows' is null) x
               group by x.fix, x.route_id, x.hub, x.dest, x.dir, x.dir_from, x.dir_to
               order by x.fix desc, x.hub, x.dest, x.dir = 'back' loop
     if jsonb_array_length(v_r.moves) = 2 and (v_r.moves #>> '{0,level}')::numeric = (v_r.moves #>> '{1,level}')::numeric then
@@ -4849,18 +5087,20 @@ begin
                                                                       'min_flights', v_ul_min)),
     'scan', case when v_scan is null then null else jsonb_build_object('id', v_scan, 'taken_at', private.fig_ts(v_scan_at)) end,
     'moves', jsonb_build_object(
-      'up', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'up'),
-      'hold', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'hold'),
-      'down', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'down'),
+      'up', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'up' and e ->> 'follows' is null),
+      'hold', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'hold' and e ->> 'follows' is null),
+      'down', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'move' = 'down' and e ->> 'follows' is null),
       'jumps', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'ladder_kind' = 'jump'),
       'decisions', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'decide')::boolean)),
     'to_plan', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'to_plan')::boolean),
     'planned', (select count(*) from jsonb_array_elements(v_rows) e where (e ->> 'planned')::boolean),
+    -- since 5 Nov: a joiner's directions, which follow the pair's owner (not counted in the moves)
+    'follows', (select count(*) from jsonb_array_elements(v_rows) e where e ->> 'follows' is not null),
     -- since 26 Oct the directions set back (a route and direction each)
     'off_level', (select count(distinct (e ->> 'route_id') || ' ' || (e ->> 'direction')) from jsonb_array_elements(v_rows) e where (e ->> 'fix')::boolean),
     'routes', v_rows, 'actions', v_actions,
     'notes', jsonb_build_array(
-      'Since 4 Nov the fare index measures each flight of the latest captured day against the game''s default price, read each week from the Market Analysis page (default_source market); where the market pages haven''t read a direction yet (default_source inferred), it compares each flight with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level, as before. Since 26 Oct each direction has its own level, judged on its own flights: a direction more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, its route is new, or it isn''t captured since its route''s newest flight launched.'));
+      'Since 4 Nov the fare index measures each flight of the latest captured day against the game''s default price, read each week from the Market Analysis page (default_source market); where the market pages haven''t read a direction yet (default_source inferred), it compares each flight with its direction''s fare on 21 Oct 2026, when every route was at its launch level (or its first captured fare, for a route launched later), times the launch level, as before. Since 26 Oct each direction has its own level, judged on its own flights: a direction more than 1 point off its level gets a change that sets it back, first in the list, unless it''s on the fare plan this week, its route is new, or it isn''t captured since its route''s newest flight launched. Since 5 Nov a shared pair (two of our airlines on one base-to-base pair, manual §2) has one ladder, the owner''s: its rows count the joiner''s flights that way with its own (departures, sold-out share, load), with its step, cap and launch level, and a flight added by either airline holds it; its fare index and set-backs stay its own flights. A joiner''s rows show the pair''s level and this week''s move on the owner''s fare plan (follows), never a move of their own, and list a set-back to the pair''s level for any direction off it.'));
 end
 $function$
 

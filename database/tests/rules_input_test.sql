@@ -85,7 +85,9 @@ begin
   -- (the aircraft evaluation script: aircraft_eval_types) adds and the one 20261027230000 (the planning target for
   -- connections: plan_connection_target_h) adds and the one 20261027220000 (the openings' A350 cut-over:
   -- a350_1000_from_km) adds and the three 20261028120000 (long haul in lines: line_min_km, maintenance_max_gap_h,
-  -- line_aircraft) adds and the one 20261103010000 (interline replies: interline_reply_wait_days) adds, which
+  -- line_aircraft) adds and the one 20261103010000 (interline replies: interline_reply_wait_days) adds and the four
+  -- 20261105000000 (shared pairs: shared_pairs_excluded_airlines, shared_pairs_from, shared_pairs_limit,
+  -- shared_pairs_limit_days) adds, which
   -- are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
@@ -108,7 +110,8 @@ begin
                              'cabin_leisure_max_km', 'cabin_leisure_plus_max_km', 'fare_ladder_up_hold_weeks',
                              'aircraft_eval_types', 'plan_connection_target_h', 'a350_1000_from_km',
                              'line_min_km', 'maintenance_max_gap_h', 'line_aircraft', 'market_every_days',
-                             'interline_reply_wait_days'] loop
+                             'interline_reply_wait_days', 'shared_pairs_excluded_airlines', 'shared_pairs_from',
+                             'shared_pairs_limit', 'shared_pairs_limit_days'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);
