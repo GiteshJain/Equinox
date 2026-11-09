@@ -12,8 +12,8 @@
 --   3. The 10:00 UTC fallback: a day with a snapshot is left alone; the day just ended without one, and a missed day
 --      before it, each get one (source fallback, complete as the capture was, at the end of the capture day, cash as
 --      design §7 says); every other day is untouched; one job_runs row a run.
---   4. The 10:20 UTC clean-ups: raw pages older than 14 days go and younger ones stay; with the statement clean-up off
---      (as it ships) no statement line goes; switched on, only lines older than 14 days that are in game_flights or
+--   4. The 10:20 UTC clean-ups: raw pages older than 14 days go and younger ones stay; the statement clean-up's setting is a
+--      boolean for every world (switched on since 5 Nov, manual §7); set off, no statement line goes; switched on, only lines older than 14 days that are in game_flights or
 --      game_payments go, and if any isn't, none does and the run fails; one job_runs row a run.
 
 -- ---------------------------------------------------------------- 1. the scheduler and the catalogue
@@ -271,9 +271,12 @@ begin
     from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
    where al.world_id = w and al.active and g.kind = 'ours' order by al.id limit 1;
   if a.id is null then raise notice 'clean-ups: the copy has no active airline of ours, nothing to check'; return; end if;
-  assert (select bool_and(s.value = 'false'::jsonb) and count(*) = (select count(*) from public.worlds)
+  -- The setting shipped switched off and was switched on deliberately on 5 Nov (manual §7), so the copy's value is
+  -- whatever live has now. What must hold whatever its value: every world has the setting, as a boolean. Its effect is
+  -- checked below by setting it explicitly inside this test's transaction, off and then on.
+  assert (select count(*) = (select count(*) from public.worlds) and bool_and(jsonb_typeof(s.value) = 'boolean')
             from public.settings s where s.key = 'statement_cleanup_enabled' and s.airline_id is null),
-    'statement_cleanup_enabled isn''t false for every world (it ships switched off)';
+    'statement_cleanup_enabled isn''t set, as true or false, for every world';
 
   -- raw pages: one 15 days old, one 13 days old
   insert into public.game_capture_raw (world_id, airline_id, airline, kind, page_url, rows, captured_at)
@@ -298,7 +301,8 @@ begin
   select count(*) into n_lines from public.game_statement where world_id = w;
   select count(*) into n_old from public.game_statement where world_id = w and ts < v_cut;
 
-  -- switched off, as it ships: raw pages go, statement lines stay
+  -- switched off (as it shipped): raw pages go, statement lines stay
+  update public.settings set value = 'false' where world_id = w and airline_id is null and key = 'statement_cleanup_enabled';
   select count(*) into v_runs from public.job_runs where job = 'cleanup';
   perform private.job_cleanup(v_at);
   assert (select count(*) from public.job_runs where job = 'cleanup') = v_runs + (select count(*) from public.worlds x
@@ -319,7 +323,7 @@ begin
   perform private.job_cleanup(v_at);
   select * into j from public.job_runs where job = 'cleanup' and world_id = w order by id desc limit 1;
   if (j.details ->> 'statement_old')::bigint = (j.details ->> 'statement_in_flights')::bigint + (j.details ->> 'statement_in_payments')::bigint then
-    assert j.status = 'ok' and (j.details ->> 'statement_deleted')::bigint = n_old, format('the clean-up, switched on: %s, %s', j.status, j.note);
+    assert j.status = 'ok' and (j.details ->> 'statement_enabled')::boolean and (j.details ->> 'statement_deleted')::bigint = n_old, format('the clean-up, switched on: %s, %s', j.status, j.note);
     assert not exists (select 1 from public.game_statement where world_id = w and ts < v_cut), 'a statement line older than 14 days is left';
     assert (select count(*) from public.game_statement where world_id = w) = n_lines - n_old, 'statement lines younger than 14 days went';
     assert exists (select 1 from public.game_flights where id = v_flight) and exists (select 1 from public.game_payments where descr = 'jobs-test payment'),
@@ -341,7 +345,7 @@ begin
   assert j.status = 'failed' and j.note like '%1 of the 2 older than 14 days aren''t in game_flights or game_payments, so none were deleted%'
      and (select count(*) from public.game_statement where world_id = w and ts < v_cut) = 2,
     format('a line in neither: %s, %s', j.status, j.note);
-  raise notice 'clean-ups: % raw page(s) older than 14 days deleted, one 13 days old kept; switched off (as it ships) no statement line goes; switched on the % older than 14 days go (in game_flights or game_payments) and younger ones stay; one older line in neither and none goes, the run failed and says so; one job_runs row per world a run',
+  raise notice 'clean-ups: % raw page(s) older than 14 days deleted, one 13 days old kept; the setting there as a boolean for every world; switched off no statement line goes; switched on the % older than 14 days go (in game_flights or game_payments) and younger ones stay; one older line in neither and none goes, the run failed and says so; one job_runs row per world a run',
     n_raw_old, n_old;
 end
 $test$;
