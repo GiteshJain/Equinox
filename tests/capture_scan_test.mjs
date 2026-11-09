@@ -174,8 +174,8 @@ await check("finish: gscan.py's note, with what the capture's scan adds", () => 
   const mine = plain(S.finishPayload(SCAN, Object.keys(ref.ents).length, hubs.length, 6, 50, 171, 2));
   assert.equal(mine.snapshot_id, theirs[0].snapshot_id);
   assert.ok(mine.note.startsWith(theirs[0].note + " "), `the note "${mine.note}" doesn't start with gscan.py's "${theirs[0].note}"`);
-  assert.match(mine.note, /\(Capture all airlines 1\.12; 6 airline pages failed, 50 airports without an id; 171 fleet pages, 2 failed\)$/);
-  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1, 1, 0)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.12; 1 airline page failed, 1 airport without an id; 1 fleet page, 0 failed\)$/);
+  assert.match(mine.note, /\(Capture all airlines 1\.13; 6 airline pages failed, 50 airports without an id; 171 fleet pages, 2 failed\)$/);
+  assert.match(plain(S.finishPayload(SCAN, 163, 77, 1, 1, 1, 0)).note, /^full scan: 163 enterprises, 77 airports \(Capture all airlines 1\.13; 1 airline page failed, 1 airport without an id; 1 fleet page, 0 failed\)$/);
 });
 function gscanHubs() { const m = gscan.match(/^AP="([A-Z0-9 ]+)"\.split\(\)/m); assert.ok(m, "gscan.py's airport list (AP) not found"); return m[1].split(" "); }
 await check("the airports to read: the migration's big rival hubs are gscan.py's list, in its order", () => {
@@ -232,8 +232,8 @@ await check("html.unescape() as Python does it: numeric references, the usual na
 await check("the file: a userscript for the game, version 1.12 (since salaries in the capture, 5 Nov), the key a placeholder, the public key only, capture_scan() with the key", () => {
   assert.match(source, /^\/\/ ==UserScript==/);
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/\*$/m);
-  assert.match(source, /^\/\/ @version\s+1\.12$/m);
-  assert.equal(S.VERSION, "1.12", "the scan's notes name another version than @version");
+  assert.match(source, /^\/\/ @version\s+1\.13$/m);
+  assert.equal(S.VERSION, "1.13", "the scan's notes name another version than @version");
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
   assert.match(source, /RPC \+ "capture_scan"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /rpc\("capture_airlines", \{ p_key: KEY \}\)/);
