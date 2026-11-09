@@ -1,4 +1,4 @@
-// The market pages in the capture (capture/capture_all.user.js 1.9, now 1.12; spec docs/specs/2026-10-30-market-pages.md), with no
+// The market pages in the capture (capture/capture_all.user.js 1.9, now 1.13; spec docs/specs/2026-10-30-market-pages.md), with no
 // browser and no game: the script's own file runs in Node, where (with no page) it only hands over its logic (eqScan), as
 // tests/capture_scan_test.mjs runs it. The sample is the game's Market Analysis page, DUB to AMS with Ryanair open, as
 // Gitesh saved it on 30 Oct 04:51 UTC (tests/fixtures/market_DUBAMS_2026-10-30.html), with the account menu, the holdings
@@ -22,7 +22,7 @@
 //   4c. (1.11, spec docs/specs/2026-11-04-fare-default-from-market.md §1) The Pricing panel on both saved pages, read only:
 //      each class's Current Price and Default Price (DEL→BOM: Y 150/143, C 322/307, F 539/539, Cargo 104/104; DUB→AMS: Y
 //      102/120, C 245/245, F 415/415, Cargo 91/91), sent as pricing; a page without the panel sends none, with no error.
-//   5. The file and the sample: version 1.12, capture_market() with the key, the only POST to the game through the filter
+//   5. The file and the sample: version 1.13, capture_market() with the key, the only POST to the game through the filter
 //      check; the sample holds nothing of the account.
 // Usage: node tests/capture_market_test.mjs
 import { readFileSync } from "node:fs";
@@ -254,7 +254,7 @@ await check("a whole run, filters right: only GETs of market pages, one switch p
   assert.deepEqual(plain(g.sends.filter(s => s.kind === "page").map(s => [s.payload.run_id, s.payload.airline, s.payload.origin, s.payload.dest, s.payload.ok])),
     [[41, 112, "DUB", "AMS", true], [41, 112, "AMS", "DUB", true], [41, 112, "DUB", "BCN", true], [41, 114, "JFK", "LHR", true], [41, 114, "LHR", "JFK", true]]);
   assert.ok(g.sends.every(s => !/[<>]/.test(JSON.stringify(s.payload))), "HTML sent to the database");
-  assert.deepEqual(plain(g.sends[0].payload), { version: "1.12", total: 5, note: "Capture all airlines 1.12" });
+  assert.deepEqual(plain(g.sends[0].payload), { version: "1.13", total: 5, note: "Capture all airlines 1.13" });
   assert.equal(g.sends[6].payload.run_id, 41);
   assert.ok(g.sleeps.length === 4 && g.sleeps.every(ms => ms === 500), "not half a second between pages: " + g.sleeps);
   assert.ok(g.logs.includes("· Market pages: 0 of 5 (Ryanair)…") && g.logs.includes("· Market pages: 3 of 5 (Pan Am)…"), g.logs.join("\n"));
@@ -416,9 +416,9 @@ await check("1.11: a page without the Pricing panel sends no pricing and no erro
 });
 
 // ---------------------------------------------------------------- 5. the file and the sample
-await check("the file: version 1.12, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
-  assert.match(source, /^\/\/ @version\s+1\.12$/m);
-  assert.equal(S.VERSION, "1.12");
+await check("the file: version 1.13, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
+  assert.match(source, /^\/\/ @version\s+1\.13$/m);
+  assert.equal(S.VERSION, "1.13");
   assert.match(source, /RPC \+ "capture_market"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /switchTo: id => \{ location\.href = "\/app\/enterprise\/dashboard\?select=" \+ encodeURIComponent\(id\); return "away"; \}/);
   const posts = [...source.matchAll(/method: "POST"/g)].length;

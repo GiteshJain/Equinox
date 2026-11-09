@@ -1,4 +1,4 @@
-// Salaries in the capture (capture/capture_all.user.js 1.12; manual §7; brief docs/briefs/2026-11-04-salaries-in-capture.md,
+// Salaries in the capture (capture/capture_all.user.js 1.12, 1.13; manual §7; brief docs/briefs/2026-11-04-salaries-in-capture.md,
 // option A, Gitesh 4 Nov), with no browser and no game: the script's own file runs in Node, where (with no page) it only
 // hands over its logic (eqScan), as tests/capture_scan_test.mjs runs it. There is no saved Employee overview page in the
 // repository, so the sample (tests/fixtures/employee_overview_minimal_2026-11-05.html) is a minimal page built from the
@@ -15,7 +15,7 @@
 //      its target; the panel's line ("3 raised to 5% above the country average", "all at or above the average"); a run
 //      carried on after a reload (the positions already adjusted not pressed again); an adjust that doesn't take is
 //      named, not pressed again; a page that doesn't read is said and skipped; the final count from the page fetched again.
-//   4. The file: version 1.12; the setting from capture_airlines(); salaries after the fleet pages; nothing about salaries
+//   4. The file: version 1.13; the setting from capture_airlines(); salaries after the fleet pages; nothing about salaries
 //      sent to the database; a salary page that doesn't read never calls failed(); the old salary script is gone.
 // Usage: node tests/capture_salary_test.mjs
 import { readFileSync, existsSync } from "node:fs";
@@ -89,13 +89,14 @@ await check("the setting as capture_airlines() answers it: a number from 0 to 50
 // ---------------------------------------------------------------- 3. whole runs against a stand-in
 // The stand-in holds the page's salaries; adjust sets one (or, with "sticky", leaves some as they were) and rebuilds the
 // page's HTML with the new value, as the reloaded page would show it.
-function standIn(html, { sticky = [], reloadAfter = null } = {}) {
+function standIn(html, { sticky = [], reloadAfter = null, lostFirst = [] } = {}) {
   const g = { html, adjusts: [], saves: [], checks: 0 };
   g.io = {
     read: () => g.html,
     adjust: async (row, target) => {
       g.adjusts.push([row.key, row.current, target]);
-      if (!sticky.includes(row.key)) g.html = g.html.replace(new RegExp(`(name="${row.input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}" value=")[^"]*"`), `$1${target.toLocaleString("en-US")}"`);
+      const lost = lostFirst.includes(row.key) && g.adjusts.filter(a => a[0] === row.key).length === 1;   // 1.13: the first press lost, as on 9 Nov
+      if (!sticky.includes(row.key) && !lost) g.html = g.html.replace(new RegExp(`(name="${row.input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}" value=")[^"]*"`), `$1${target.toLocaleString("en-US")}"`);
       if (reloadAfter && g.adjusts.length === reloadAfter) throw new Error("reloaded");
     },
     save: st => g.saves.push(plain(st)),
@@ -132,11 +133,19 @@ await check("a run carried on after a reload: the positions already adjusted are
   assert.deepEqual(g2.adjusts, [["Ground staff", 1150, 1296], ["Administration", 3000, 3161]]);
   assert.equal(res.words, "Ryanair · salaries: 3 raised to 5% above the country average");
 });
-await check("an adjust that doesn't take is pressed once, named in the panel, and the rest still raised", async () => {
+await check("an adjust that never takes is pressed 3 times (SALARY_TRIES), named in the panel, and the rest still raised", async () => {
   const g = standIn(sample, { sticky: ["Ground staff"] });
   const res = await S.runSalaries({ name: "Kingfisher", pct: 5 }, g.io);
-  assert.deepEqual(g.adjusts.map(a => a[0]), ["Pilots", "Ground staff", "Administration"]);
+  assert.equal(S.SALARY_TRIES, 3);
+  assert.deepEqual(g.adjusts.map(a => a[0]), ["Pilots", "Ground staff", "Ground staff", "Ground staff", "Administration"]);
   assert.equal(res.words, "Kingfisher · salaries: 2 raised to 5% above the country average; 1 still below after adjust (Ground staff): check them on the Employee overview page");
+});
+await check("1.13: a press lost while the page reloads (9 Nov) is pressed again and counts as raised", async () => {
+  const g = standIn(sample, { lostFirst: ["Ground staff", "Administration"] }), st = { name: "Pan Am", pct: 5, tried: {} };
+  const res = await S.runSalaries(st, g.io);
+  assert.deepEqual(g.adjusts.map(a => a[0]), ["Pilots", "Ground staff", "Ground staff", "Administration", "Administration"]);
+  assert.equal(res.words, "Pan Am · salaries: 3 raised to 5% above the country average");
+  assert.deepEqual(plain(st.tries), { Pilots: 1, "Ground staff": 2, Administration: 2 });
 });
 await check("a page that doesn't read is said and skipped: nothing pressed", async () => {
   const g = standIn("<html><body><h2>Sign in</h2></body></html>");
@@ -153,9 +162,9 @@ await check("another percentage is the setting's: 10 gives the old script's figu
 });
 
 // ---------------------------------------------------------------- 4. the file
-await check("the file: version 1.12, the setting from capture_airlines(), salaries after each airline's pages and fleets", () => {
-  assert.match(source, /^\/\/ @version\s+1\.12$/m);
-  assert.equal(S.VERSION, "1.12");
+await check("the file: version 1.13, the setting from capture_airlines(), salaries after each airline's pages and fleets", () => {
+  assert.match(source, /^\/\/ @version\s+1\.13$/m);
+  assert.equal(S.VERSION, "1.13");
   assert.match(source, /salaryPct: salaryPctOf\(r\)/);
   assert.match(source, /await captureCurrent\(id, name\); \} catch \(e\) \{ log\(name \+ " · problem: " \+ e\.message\); failed\(\); \}\n\s*return salaries\(id, name\); \}/);
   assert.match(source, /send\(id, "loads"[^\n]*\n\s*await captureFleets\(id, name\);/, "the fleets aren't read after the loads page any more");

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.12
+// @version      1.13
 // @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
@@ -37,6 +37,9 @@
 // docs/specs/2026-11-04-fare-default-from-market.md §1) each page's Pricing panel is read too: for each class (Y, C, F,
 // Cargo) the Current Price and the Default Price in AS$, sent as pricing, so the fare ladder measures each direction's
 // level against the game's default price. Read only, as the service profile is: the Pricing form is never sent. Since
+// 1.13 (9 Nov): a salary still below after its adjust is pressed again, up to 3 times, and each adjust waits for the page
+// to reload or redraw before the next: on the first live run (9 Nov) two positions (A320 pilots and flight attendants) stayed below because their
+// presses were made while the page was still reloading after the one before.
 // 1.12 (manual §7, brief docs/briefs/2026-11-04-salaries-in-capture.md, option A) each airline's capture ends, after
 // its fleet pages, with its salaries: the Employee overview page read by fetch, and when a position is below its
 // country average the tab opens that page and presses the position's adjust with the average plus
@@ -49,7 +52,7 @@
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.12";                                      // the @version above, in the scan's notes
+  const VERSION = "1.13";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -651,6 +654,7 @@
   // tests/capture_salary_test.mjs reads a minimal page built from those selectors and runs whole runs against a stand-in.
   const SALARY_PACE = 2500;                                    // ms after each adjust, the old script's wait
   const SALARY_MAX_CHANGES = 40;                               // the old script's guard
+  const SALARY_TRIES = 3;                                      // 1.13: presses per position while it stays below (the old script kept pressing)
   const SALARY_URL_KEY = "eq_salary_url";                      // the old script's remembered Employee overview address
   // capture_airlines()'s salary_above_average_pct, or null when it isn't a usable percentage (salaries left alone)
   const salaryPctOf = r => { const v = r ? r.salary_above_average_pct : null; const n = v == null || v === "" ? NaN : Number(v); return Number.isFinite(n) && n >= 0 && n <= 50 ? n : null; };
@@ -714,12 +718,15 @@
     for (;;) {
       read = readSalaryPage(io.read());
       if (read.error) return { words: `${st.name} · salaries: the Employee overview page didn't read (${read.error}); skipped`, error: true };
-      const next = salariesBelow(read.rows).find(r => !Object.prototype.hasOwnProperty.call(st.tried, r.key));
+      // 1.13: a position still below after its adjust is pressed again, up to SALARY_TRIES times (9 Nov: two positions'
+      // presses were lost while the page reloaded after the one before, and 1.12 pressed each only once)
+      st.tries = st.tries || {};
+      const next = salariesBelow(read.rows).find(r => (st.tries[r.key] || 0) < SALARY_TRIES);
       if (!next) break;
-      if (Object.keys(st.tried).length >= SALARY_MAX_CHANGES) { st.capped = true; break; }
+      if (Object.values(st.tries).reduce((a, b) => a + b, 0) >= SALARY_MAX_CHANGES) { st.capped = true; break; }
       const target = salaryTarget(next.avg, st.pct);
       if (!(target > next.current)) break;   // never lowers: below the average, the target is always above the salary
-      st.tried[next.key] = target; io.save(st);
+      st.tried[next.key] = target; st.tries[next.key] = (st.tries[next.key] || 0) + 1; io.save(st);
       await io.adjust(next, target);
     }
     // the count from the page as the game serves it again (by fetch) when it can be read, else from the page as it stands
@@ -737,7 +744,7 @@
                 fleetOk, fleetSummary, MARKET_PACE, marketUrl, FILTER_CALLS, readMarketFilters, filterProblems, filterWords, filterCalls, isFilterCall,
                 filterBody, wicketBase, openAirlineOf, openProblem, readMarketPage, fareSummary, marketPagePayload, marketPlanOf, noMarketWords,
                 marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken, readPricing,
-                SALARY_PACE, SALARY_MAX_CHANGES, salaryPctOf, salaryTarget, isSalaryPage, salaryLinkOf, readSalaryPage, salariesBelow, salaryWords, runSalaries };
+                SALARY_PACE, SALARY_MAX_CHANGES, SALARY_TRIES, salaryPctOf, salaryTarget, isSalaryPage, salaryLinkOf, readSalaryPage, salariesBelow, salaryWords, runSalaries };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
 
   // ---------------------------------------------------------------- in the game: the capture, as in 1.4, and the fleets (1.6)
@@ -863,6 +870,7 @@
     }
     return out;
   }
+  let leaving = false; addEventListener("beforeunload", () => { leaving = true; }); addEventListener("pagehide", () => { leaving = true; });
   async function adjustRow(name, row, target) {
     const all = salaryControls();
     const c = (row.input && all.find(x => x.input.getAttribute("name") === row.input)) || all[row.n];
@@ -871,7 +879,12 @@
     c.input.focus(); c.input.value = String(target);
     c.input.dispatchEvent(new Event("input", { bubbles: true })); c.input.dispatchEvent(new Event("change", { bubbles: true }));
     c.btn.click();
-    await sleep(SALARY_PACE);   // the old script's wait; if the page reloads, the run carries on from the new page
+    // 1.13: wait until the adjust has landed before pressing the next one. If the page is leaving (a full reload), wait
+    // for it: the run carries on from the new page. If the game redraws the table in place, its old box goes; go on then.
+    // 1.12 waited a fixed 2.5 s, and a reload slower than that lost the next presses (9 Nov).
+    await sleep(SALARY_PACE);
+    for (let w = 0; w < 30 && !leaving && document.contains(c.input); w++) await sleep(250);
+    if (leaving) await new Promise(() => {});   // the page goes away; salaryPage() carries on after the reload
   }
   async function salaries(id, name) {
     try {
