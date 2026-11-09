@@ -6,9 +6,20 @@
 -- capture tables. The result must equal what was there: game_flights (its loads side and its money side),
 -- game_payments, game_events, game_balance, game_pnl and the statement lines. Twice: with the airline named as today's
 -- userscript names it, then by its game ID as the new userscript sends it.
--- Two allowances, both because the replay can only rebuild what the kept pages hold:
+-- Three allowances, all because the replay can only rebuild what the kept pages hold:
 --   - Rows from before the oldest kept page of their kind (for that airline) aren't compared once older pages have
 --     rolled off. On the night this pull request was rehearsed, nothing had: every row is compared.
+--   - The statement, the flights' money and the payments are compared only from the statement clean-up's last cut on
+--     (settings.statement_cleanup_enabled, on since 5 Nov, manual §7). Each run deletes every statement line older than
+--     now less 14 days and, with the same cut, every raw page older. The oldest page kept was captured after the cut,
+--     but a statement page lists lines from before it was captured, so its replay brings back lines from before the
+--     cut that the copy no longer has (5,157 on 9 Nov). And since every line the copy still has does come back, the
+--     first allowance stopped applying, so game_flights' money and game_payments, which the clean-up never touches,
+--     were compared back to 7 Oct against a replay that can't reach that far (8,745 and 465 rows). So once the clean-up
+--     has a cut, these three are compared from the airline's oldest kept statement page on, as the first allowance does
+--     when older pages have rolled off (the page is always after the cut, since raw pages go with the same cut): every
+--     line from there on is still kept and is on a kept page, so a parser, fold or match that goes wrong still shows on
+--     the last 14 days of every airline's statement, money and payments.
 --   - A capture time is compared only where it is a kept page's time. Two fixes re-read pages after they arrived (the
 --     statement blocks on 8 Oct re-read every statement page; the full loads columns on 7 Oct re-read one loads page),
 --     so those rows carry the re-read's time, which no page has. Everything else about them must match.
@@ -34,6 +45,14 @@ create temporary table t_was_statement on commit drop as
 create temporary table t_was_events on commit drop as select * from public.game_events;
 create temporary table t_was_balance on commit drop as select * from public.game_balance;
 create temporary table t_was_pnl on commit drop as select * from public.game_pnl;
+-- the statement clean-up's last cut, by world (#140's rehearsal, 9 Nov): since 6 Nov every run switched on deletes the
+-- statement lines older than its cut (now less 14 days) and leaves none of them, so every line from the latest such
+-- run's cut on is still kept, and lines before it are gone (a run with the clean-up off, or one that failed, deletes none)
+create temporary table t_stmt_cut on commit drop as
+  select j.world_id, max((j.details ->> 'before')::timestamptz) as cut
+    from public.job_runs j
+   where j.job = 'cleanup' and j.status = 'ok' and coalesce((j.details ->> 'statement_enabled')::boolean, false)
+   group by j.world_id;
 -- the pages to replay, oldest first, and from when each airline's pages of each kind are kept
 create temporary table t_pages on commit drop as
   select r.id, r.world_id, r.airline_id, r.airline, a.game_id, r.kind, r.page_url, r.rows, r.captured_at
@@ -75,14 +94,20 @@ begin
       from public.game_flights where flight_no is not null;
 
   -- from when the statement can be rebuilt: everything, for an airline whose lines all came back; otherwise from its
-  -- oldest kept page
+  -- oldest kept page. Once the statement clean-up has run (see the header), always from the oldest kept page, which is
+  -- after its last cut: lines older than the cut are gone from the copy, while that page still holds some of them, and
+  -- game_flights and game_payments keep theirs, so "every line came back" no longer means the replay reaches back.
   create temporary table t_stmt_since on commit drop as
     select k.airline_id,
-           case when not exists (select airline_id, ts, descr, amount, occ from t_was_statement w where w.airline_id = k.airline_id
-                                 except
-                                 select airline_id, ts, descr, amount, occ from t_now_statement s where s.airline_id = k.airline_id)
-                then '-infinity'::timestamptz else k.since end as since
-      from t_kept k where k.kind = 'statement';
+           greatest(case when not exists (select airline_id, ts, descr, amount, occ from t_was_statement w where w.airline_id = k.airline_id
+                                          except
+                                          select airline_id, ts, descr, amount, occ from t_now_statement s where s.airline_id = k.airline_id)
+                         then '-infinity'::timestamptz else k.since end,
+                    case when c.cut is not null then greatest(c.cut, k.since) else '-infinity'::timestamptz end) as since
+      from t_kept k
+      join public.airlines a on a.id = k.airline_id
+      left join t_stmt_cut c on c.world_id = a.world_id
+     where k.kind = 'statement';
 
   -- statement lines: every column but the capture time
   insert into t_report select p_pass, 'statement lines', count(*) from (
@@ -209,6 +234,9 @@ begin
   raise notice 'replay: % pages, by name and by game ID, gave the same rows as the backfill (% flights'' money, % loads rows, % payments, % statement lines compared)',
     v_pages, (select count(*) from t_was_money), (select count(*) from t_was_loads), (select count(*) from t_was_payments),
     (select count(*) from t_was_statement);
+  raise notice 'replay: statement, flights'' money and payments compared from each airline''s oldest kept statement page, after the statement clean-up''s last cut: %',
+    coalesce((select string_agg(format('world %s from %s', c.world_id, to_char(c.cut at time zone 'UTC', 'DD Mon HH24:MI "UTC"')), ', ' order by c.world_id) from t_stmt_cut c),
+             'no cut yet, from the oldest kept page');
   if v_reread is not null then
     raise notice 'replay: capture times from a later re-read, which no page has, not compared: %', v_reread;
   end if;

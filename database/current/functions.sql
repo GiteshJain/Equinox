@@ -320,6 +320,8 @@ CREATE OR REPLACE FUNCTION public.capture_ingest(p_key text, p_airline text, p_k
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
+ SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
 declare v_world bigint; v_res jsonb;
 begin
