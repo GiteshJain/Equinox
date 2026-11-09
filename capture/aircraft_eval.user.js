@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. aircraft evaluation
 // @namespace    equinox
-// @version      1.0
+// @version      1.1
 // @description  One button on the game's aircraft evaluation tool, Aircraft evaluation: runs the tool over every route on the run list the database keeps (capture_eval_runs) that has no result yet, one route after another, and saves what the tool shows for each aircraft type (capture_eval_result). It only reads the tool: it sends nothing but the tool's own three forms (the route, add aircraft and settings), never opens another page and changes nothing in the game. 2 seconds between runs, while you watch; it stops at the first problem. Install it as the capture script, with your capture key in place of the placeholder.
 // @match        https://gander.airlinesim.aero/app/aircraft/evaluation*
 // @grant        none
@@ -396,7 +396,7 @@
   function addButton() {
     if (document.getElementById("eq-eval-btn")) return;
     const b = document.createElement("button"); b.id = "eq-eval-btn"; b.textContent = "Aircraft evaluation";
-    b.style.cssText = "position:fixed;bottom:64px;left:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
+    b.style.cssText = "position:fixed;bottom:112px;left:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
     b.onclick = () => begin(b);
     document.body.appendChild(b);
   }

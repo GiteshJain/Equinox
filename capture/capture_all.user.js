@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.13
+// @version      1.14
 // @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
@@ -37,6 +37,7 @@
 // docs/specs/2026-11-04-fare-default-from-market.md §1) each page's Pricing panel is read too: for each class (Y, C, F,
 // Cargo) the Current Price and the Default Price in AS$, sent as pricing, so the fare ladder measures each direction's
 // level against the game's default price. Read only, as the service profile is: the Pricing form is never sent. Since
+// 1.14 (9 Nov): the button moves to the bottom left (Gitesh), with Apply fare plan and Aircraft evaluation above it.
 // 1.13 (9 Nov): a salary still below after its adjust is pressed again, up to 3 times, and each adjust waits for the page
 // to reload or redraw before the next: on the first live run (9 Nov) two positions (A320 pilots and flight attendants) stayed below because their
 // presses were made while the page was still reloading after the one before.
@@ -52,7 +53,7 @@
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.13";                                      // the @version above, in the scan's notes
+  const VERSION = "1.14";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -1081,7 +1082,7 @@
   }
 
   function addButton() {
-    if (document.getElementById("eq-cap-btn")) return; const b = document.createElement("button"); b.id = "eq-cap-btn"; b.textContent = "Capture all airlines"; b.style.cssText = "position:fixed;bottom:16px;right:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
+    if (document.getElementById("eq-cap-btn")) return; const b = document.createElement("button"); b.id = "eq-cap-btn"; b.textContent = "Capture all airlines"; b.style.cssText = "position:fixed;bottom:16px;left:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
     b.onclick = async () => { b.disabled = true; let got;
       try { got = await loadAirlines(); } catch (e) { show("equinox. capture: couldn't get the airlines to capture (" + e.message + "). Check the capture key."); b.disabled = false; return; }
       const list = got.list, start = (await currentId(list)) || list[0][0];

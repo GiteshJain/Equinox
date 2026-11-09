@@ -162,9 +162,9 @@ await check("another percentage is the setting's: 10 gives the old script's figu
 });
 
 // ---------------------------------------------------------------- 4. the file
-await check("the file: version 1.13, the setting from capture_airlines(), salaries after each airline's pages and fleets", () => {
-  assert.match(source, /^\/\/ @version\s+1\.13$/m);
-  assert.equal(S.VERSION, "1.13");
+await check("the file: version 1.14, the setting from capture_airlines(), salaries after each airline's pages and fleets", () => {
+  assert.match(source, /^\/\/ @version\s+1\.14$/m);
+  assert.equal(S.VERSION, "1.14");
   assert.match(source, /salaryPct: salaryPctOf\(r\)/);
   assert.match(source, /await captureCurrent\(id, name\); \} catch \(e\) \{ log\(name \+ " · problem: " \+ e\.message\); failed\(\); \}\n\s*return salaries\(id, name\); \}/);
   assert.match(source, /send\(id, "loads"[^\n]*\n\s*await captureFleets\(id, name\);/, "the fleets aren't read after the loads page any more");

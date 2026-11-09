@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         equinox. apply fare plan
 // @namespace    equinox
-// @version      1.3
+// @version      1.4
 // @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, one airline at a time since 1.3: capture_fare_actions_by_airline), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
@@ -317,7 +317,7 @@
   function addButton() {
     if (document.getElementById("eq-fares-btn")) return;
     const b = document.createElement("button"); b.id = "eq-fares-btn"; b.textContent = "Apply fare plan";
-    b.style.cssText = "position:fixed;bottom:64px;right:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
+    b.style.cssText = "position:fixed;bottom:64px;left:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
     b.onclick = () => begin(b);
     document.body.appendChild(b);
   }

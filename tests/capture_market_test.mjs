@@ -254,7 +254,7 @@ await check("a whole run, filters right: only GETs of market pages, one switch p
   assert.deepEqual(plain(g.sends.filter(s => s.kind === "page").map(s => [s.payload.run_id, s.payload.airline, s.payload.origin, s.payload.dest, s.payload.ok])),
     [[41, 112, "DUB", "AMS", true], [41, 112, "AMS", "DUB", true], [41, 112, "DUB", "BCN", true], [41, 114, "JFK", "LHR", true], [41, 114, "LHR", "JFK", true]]);
   assert.ok(g.sends.every(s => !/[<>]/.test(JSON.stringify(s.payload))), "HTML sent to the database");
-  assert.deepEqual(plain(g.sends[0].payload), { version: "1.13", total: 5, note: "Capture all airlines 1.13" });
+  assert.deepEqual(plain(g.sends[0].payload), { version: "1.14", total: 5, note: "Capture all airlines 1.14" });
   assert.equal(g.sends[6].payload.run_id, 41);
   assert.ok(g.sleeps.length === 4 && g.sleeps.every(ms => ms === 500), "not half a second between pages: " + g.sleeps);
   assert.ok(g.logs.includes("· Market pages: 0 of 5 (Ryanair)…") && g.logs.includes("· Market pages: 3 of 5 (Pan Am)…"), g.logs.join("\n"));
@@ -416,9 +416,9 @@ await check("1.11: a page without the Pricing panel sends no pricing and no erro
 });
 
 // ---------------------------------------------------------------- 5. the file and the sample
-await check("the file: version 1.13, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
-  assert.match(source, /^\/\/ @version\s+1\.13$/m);
-  assert.equal(S.VERSION, "1.13");
+await check("the file: version 1.14, capture_market() with the key, switching by the dashboard, the only POST to the game through the filter check", () => {
+  assert.match(source, /^\/\/ @version\s+1\.14$/m);
+  assert.equal(S.VERSION, "1.14");
   assert.match(source, /RPC \+ "capture_market"[\s\S]{0,300}p_key: KEY, p_kind: kind, p_payload: payload/);
   assert.match(source, /switchTo: id => \{ location\.href = "\/app\/enterprise\/dashboard\?select=" \+ encodeURIComponent\(id\); return "away"; \}/);
   const posts = [...source.matchAll(/method: "POST"/g)].length;
