@@ -173,7 +173,7 @@ $test$;
 
 -- ---------------------------------------------------------------- 4. the refused functions
 do $test$
-declare k text := (select v #>> '{}' from t_un where k = 'key_unattended'); n text := (select v #>> '{}' from t_un where k = 'key_normal');
+declare k text := (select t.v #>> '{}' from t_un t where t.k = 'key_unattended'); n text := (select t.v #>> '{}' from t_un t where t.k = 'key_normal');
         refused constant jsonb := '{"ok": false, "error": "bad key"}'; r jsonb;
 begin
   assert public.capture_fare_actions(k) = refused, 'capture_fare_actions() doesn''t refuse the unattended key';
