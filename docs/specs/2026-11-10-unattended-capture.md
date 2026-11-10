@@ -56,10 +56,15 @@ them, and his press is the only one that sets salaries.
   1. Takes `capture/capture_all.user.js` from the `Equinox` repository at `main` (public; a plain download of the raw
      file), puts the key in place of `__CAPTURE_KEY__`, and checks its `@version` is 1.16 or later.
   2. Signs in through the real sign-in page, as a person does: opens `https://airlinesim.aero/auth/login`, fills the
-     form and clicks **Log in**; the site then shows a list of game worlds (Gitesh, 10 Nov), where it clicks the one
-     whose text says Gander and waits for `https://gander.airlinesim.aero` (stopping with "sign-in: no Gander on the
-     world list" after 30 s); then it opens `https://gander.airlinesim.aero/app/enterprise/dashboard`. The world list is
-     behind sign-in, so it has no saved copy: the tests use a stand-in, and the first watched run proves it. Stops with
+     form and clicks **Log in**; the site then shows **Game worlds**, a grid of cards (Gitesh's screenshot, 10 Nov):
+     each card has a label, the world's name as its heading, and one button with a note under it. Gander's card is
+     EXCLUSIVE, "Activated", button **Play**, note "no credits are charged"; others say "Play for 4 credits/day" or
+     "Play for free", which can spend credits or join a world. The job clicks only the button whose text is exactly
+     "Play" in the card whose heading is exactly "Gander", and refuses (stopping with "sign-in: Gander's Play button
+     not found as expected") when that button mentions credits or the card's note doesn't say "no credits are
+     charged". It never clicks anything else on that page. Then it waits for `https://gander.airlinesim.aero` and
+     opens `/app/enterprise/dashboard`. The page is behind sign-in, so the tests use a stand-in with decoy cards, and
+     the first watched run proves it. Stops with
      "sign-in failed" (and the page's title, nothing else) if the dashboard doesn't open. What the page is (read in the
      built-in browser on 10 Nov, signed out; Safari's Page Source holds only the site's shell, as the form is drawn by
      JavaScript): one form, `method="POST"` with no action, fields `login` (text, "Email Address"), `password`,
