@@ -55,9 +55,18 @@ them, and his press is the only one that sets salaries.
 - **The script** (`capture/run.mjs`, Playwright on the runner's Chromium, Node 22):
   1. Takes `capture/capture_all.user.js` from the `Equinox` repository at `main` (public; a plain download of the raw
      file), puts the key in place of `__CAPTURE_KEY__`, and checks its `@version` is 1.16 or later.
-  2. Signs in to the game the way the sign-in page's form posts (built and tested against the page Gitesh saves, below;
-     never a made-up page). Stops with "sign-in failed" (and the page's title, nothing else) if the dashboard doesn't
-     open.
+  2. Signs in through the real sign-in page, as a person does: opens `https://airlinesim.aero/auth/login`, fills the
+     form and clicks **Log in**, then opens `https://gander.airlinesim.aero/app/enterprise/dashboard`. Stops with
+     "sign-in failed" (and the page's title, nothing else) if the dashboard doesn't open. What the page is (read in the
+     built-in browser on 10 Nov, signed out; Safari's Page Source holds only the site's shell, as the form is drawn by
+     JavaScript): one form, `method="POST"` with no action, fields `login` (text, "Email Address"), `password`,
+     `persistent` (checkbox, "keep me logged in": left unticked) and a submit button "Log in". The page's script posts
+     `{login, password, persistent, method: "password", brand, metadata}` as JSON to
+     `https://sar.simulogics.games/api/sessions` and keeps the session in the cookie `as-sid`; signing out is
+     `DELETE /api/sessions/<its id>`, the one session only. Fill and click; don't call the API directly, so a change in
+     its body doesn't break the job. The same API has a `confirm_code` method (an emailed code): Gitesh checked on
+     10 Nov that his sign-in asks for none, and a page asking for one stops the run with "sign-in asks for a code".
+     The tests use this form as `tests/fixtures/game_login_form_2026-11-10.html` (the form's own markup, as read).
   3. Injects the script on every page of `gander.airlinesim.aero` as the Userscripts app does (after the page loads),
      opens the dashboard and clicks `#eq-cap-btn`.
   4. Waits for the capture's last line, up to 40 minutes: "Done:" on an evening with nothing more, else the scan's and
@@ -71,7 +80,9 @@ them, and his press is the only one that sets salaries.
      12 min 40 s" or which airline, scan or market run came in short, broken or unfinished and why (the database's
      words); exits non-zero when failed.
   7. Prints only those words: no page content, no cookies, no game figures.
-- **Signs out at the end**, in case the game keeps one session per account.
+- **Signs out at the end** (the site's own log out, which deletes this session only), so no session is left on GitHub's
+  machine. Each sign-in is a session of its own with its own id, so the job's shouldn't sign Gitesh out; the first
+  watched run checks it.
 
 ## 3. The planner
 - **Today's needs attention:** "Unattended capture: last good run 15 hours ago" when the latest ok `capture_unattended`
@@ -106,7 +117,7 @@ them, and his press is the only one that sets salaries.
 2. `equinox-backups`: the job and its script.
 
 ## 7. Gitesh's steps, one at a time, when asked
-1. **Before the build:** save the game's sign-in page (Safari → File → Save As → Page Source) and attach it here.
+1. Done 10 Nov: the sign-in page was read in the built-in browser (above).
 2. After the merges: run `select private.capture_key_issue(1, 'unattended (GitHub)', true);` in the SQL editor and add
    the answer as the `CAPTURE_KEY_UNATTENDED` secret in `equinox-backups`, then `GAME_USERNAME` and `GAME_PASSWORD`.
 3. Make a fine-grained GitHub token with only *Actions: read and write* on `equinox-backups`, and add it to the vault in
