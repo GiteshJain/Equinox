@@ -11,7 +11,7 @@
 //      amount, nothing else sent (9 Nov: 1.12–1.14 found the first box for every position, because every box is named
 //      "amount", and set the E-jet pilots' salary three times); the count from the page read again; a form the game
 //      refuses is named; a page that doesn't read is said and skipped.
-//   4. The file: version 1.15; no clicking, no page opened; nothing about salaries sent to the database; never failed().
+//   4. The file: version 1.16; no clicking, no page opened; nothing about salaries sent to the database; never failed().
 // Usage: node tests/capture_salary_test.mjs
 import { readFileSync, existsSync } from "node:fs";
 import vm from "node:vm";
@@ -131,9 +131,9 @@ await check("a page that doesn't read is said and skipped: nothing sent", async 
 });
 
 // ---------------------------------------------------------------- 4. the file
-await check("the file: version 1.15, the setting from capture_airlines(), salaries after each airline's pages and fleets", () => {
-  assert.match(source, /^\/\/ @version\s+1\.15$/m);
-  assert.equal(S.VERSION, "1.15");
+await check("the file: version 1.16, the setting from capture_airlines(), salaries after each airline's pages and fleets", () => {
+  assert.match(source, /^\/\/ @version\s+1\.16$/m);
+  assert.equal(S.VERSION, "1.16");
   assert.match(source, /salaryPct: salaryPctOf\(r\)/);
   assert.match(source, /await captureCurrent\(id, name\); \} catch \(e\) \{ log\(name \+ " · problem: " \+ e\.message\); failed\(\); \}\n\s*return salaries\(id, name\); \}/);
 });

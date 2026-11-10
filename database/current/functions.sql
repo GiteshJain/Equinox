@@ -2404,12 +2404,71 @@ CREATE OR REPLACE FUNCTION private.capture_check(p_raw_id bigint, p_parse jsonb,
  SET search_path TO ''
 AS $function$
 declare r record; v_err text; v_read int; v_cash boolean; v_exp jsonb; v_j jsonb; v_lmin numeric; v_smin numeric;
+  v_run jsonb; v_part int; v_parts int; v_total int; v_missing jsonb; v_unread jsonb; v_first timestamptz;
+  v_oldest timestamptz; v_prev timestamptz;
 begin
-  select x.id, x.world_id, x.airline_id, x.kind, x.rows, x.captured_at into r from public.game_capture_raw x where x.id = p_raw_id;
+  select x.id, x.world_id, x.airline_id, x.kind, x.rows, x.page_url, x.captured_at into r from public.game_capture_raw x where x.id = p_raw_id;
   if not found or r.kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet') then return null; end if;
   v_err := case when coalesce((p_parse ->> 'ok')::boolean, false) then null else coalesce(p_parse ->> 'error', 'no answer from the reader') end;
   v_read := case when jsonb_typeof(p_parse -> 'rows') = 'number' then (p_parse ->> 'rows')::int end;
-  v_exp := coalesce(p_expect, private.capture_expect(p_raw_id));
+  -- since 10 Nov (capture 1.16): a statement sent in parts names its run and part in its address
+  if r.kind = 'statement' then
+    v_run := private.statement_run(r.page_url);
+    v_part := (v_run ->> 'part')::int; v_parts := (v_run ->> 'parts')::int;
+  end if;
+  if v_run is not null and v_part < v_parts then
+    -- parts 1 to n-1: judged ok as they arrive; the run is judged on its last part
+    v_exp := jsonb_build_object('part', v_part, 'parts', v_parts);
+  else
+    v_exp := coalesce(p_expect, private.capture_expect(p_raw_id));
+  end if;
+  if v_run is not null and v_part = v_parts then
+    -- the last part: the run's other parts (the latest page of each, as the replay test stores pages again), summed with
+    -- this one's lines; a part not there is missing, and one that didn't read is named
+    with run_pages as (
+      select distinct on ((private.statement_run(x.page_url) ->> 'part')::int)
+             x.id, x.rows, x.captured_at, x.verdict_facts, (private.statement_run(x.page_url) ->> 'part')::int as part
+        from public.game_capture_raw x
+       where x.airline_id = r.airline_id and x.kind = 'statement' and x.id <> p_raw_id
+         and x.page_url like '%#run=%'
+         and private.statement_run(x.page_url) ->> 'run' = v_run ->> 'run'
+         and (private.statement_run(x.page_url) ->> 'parts')::int = v_parts
+         and (private.statement_run(x.page_url) ->> 'part')::int < v_parts
+       order by (private.statement_run(x.page_url) ->> 'part')::int, x.captured_at desc, x.id desc),
+    lines as (
+      -- each line's time, as private.capture_page() reads it: its first filled cell, in the page's year (a date more than
+      -- 2 days after the page is the year before)
+      select case when t.ts > p.captured_at + interval '2 days' then t.ts - interval '1 year' else t.ts end as ts
+        from (select rp.rows, rp.captured_at from run_pages rp union all select r.rows, r.captured_at) p
+       cross join lateral jsonb_array_elements(case when jsonb_typeof(p.rows) = 'array' then p.rows else '[]'::jsonb end) e(row_)
+       cross join lateral (select c.x from jsonb_array_elements_text(case when jsonb_typeof(e.row_) = 'array' then e.row_ else '[]'::jsonb end)
+                                         with ordinality c(x, o) where c.x <> '' order by c.o limit 1) f(cell)
+       cross join lateral (select make_timestamptz(extract(year from p.captured_at at time zone 'UTC')::int, substr(f.cell, 4, 2)::int,
+                                                   substr(f.cell, 1, 2)::int, substr(f.cell, 8, 2)::int, substr(f.cell, 11, 2)::int, 0, 'UTC') as ts) t
+       where f.cell ~ '^\d{2}\.\d{2}\. \d{2}:\d{2}')
+    select coalesce(v_read, 0) + coalesce((select sum(coalesce(private.json_int(rp.verdict_facts -> 'read'), private.capture_statement_lines(rp.rows)))
+                                             from run_pages rp), 0)::int,
+           (select coalesce(jsonb_agg(k order by k), '[]'::jsonb) from generate_series(1, v_parts - 1) k
+             where not exists (select 1 from run_pages rp where rp.part = k)),
+           (select coalesce(jsonb_agg(rp.part order by rp.part), '[]'::jsonb) from run_pages rp where rp.verdict_facts ? 'error'),
+           least(r.captured_at, (select min(rp.captured_at) from run_pages rp)),
+           (select min(l.ts) from lines l)
+      into v_total, v_missing, v_unread, v_first, v_oldest;
+    -- the airline's previous statement capture: its latest page before the run that read (any run's part, or a page
+    -- without a run)
+    select max(x.captured_at) into v_prev
+      from public.game_capture_raw x
+     where x.airline_id = r.airline_id and x.kind = 'statement' and x.captured_at < v_first
+       and not coalesce(x.verdict_facts ? 'error', false)
+       and private.statement_run(x.page_url) ->> 'run' is distinct from v_run ->> 'run';
+    v_exp := v_exp || jsonb_build_object('part', v_part, 'parts', v_parts, 'part_read', v_read)
+             || case when jsonb_array_length(v_missing) > 0 then jsonb_build_object('missing', v_missing) else '{}'::jsonb end
+             || case when jsonb_array_length(v_unread) > 0 then jsonb_build_object('unread', v_unread) else '{}'::jsonb end
+             -- reaches back to the last capture (to-do 203): said when the oldest line is more than 15 minutes after it
+             || case when v_prev is not null and v_oldest > v_prev + interval '15 minutes'
+                     then jsonb_build_object('gap_from', private.fig_ts(v_prev), 'gap_to', private.fig_ts(v_oldest)) else '{}'::jsonb end;
+    if v_err is null then v_read := v_total; end if;
+  end if;
   if r.kind = 'balance' then
     -- the cash account as the reader takes it: account 2800 in a row's first or fourth cell, with a figure beside it
     v_cash := exists (select 1 from jsonb_array_elements(case when jsonb_typeof(r.rows) = 'array' then r.rows else '[]'::jsonb end) e(row_)
@@ -2519,13 +2578,23 @@ begin
     return jsonb_build_object('scheduled', n, 'window_from', private.fig_ts(v_from), 'window_to', private.fig_ts(r.captured_at));
   elsif r.kind = 'statement' then
     v_day := private.capture_day(r.world_id, r.captured_at);
-    with nights as (
-      select distinct on (private.capture_day(p.world_id, p.captured_at)) private.capture_day(p.world_id, p.captured_at) as day,
-             private.capture_statement_lines(p.rows) as lines
-        from public.game_capture_raw p
-       where p.airline_id = r.airline_id and p.kind = 'statement' and p.captured_at < r.captured_at
-         and private.capture_day(p.world_id, p.captured_at) < v_day
-       order by private.capture_day(p.world_id, p.captured_at) desc, p.captured_at desc, p.id desc),
+    -- each earlier capture day's latest statement: a page without a run alone, as before; since 10 Nov (capture 1.16) a
+    -- run's parts together (the latest page of each part, summed)
+    with pages as (
+      select distinct on (u.unit, u.part) u.unit, u.day, u.captured_at, u.id, u.lines
+        from (select coalesce('run ' || (private.statement_run(p.page_url) ->> 'run'), 'page ' || p.id) as unit,
+                     coalesce((private.statement_run(p.page_url) ->> 'part')::int, 1) as part,
+                     private.capture_day(p.world_id, p.captured_at) as day, p.captured_at, p.id,
+                     private.capture_statement_lines(p.rows) as lines
+                from public.game_capture_raw p
+               where p.airline_id = r.airline_id and p.kind = 'statement' and p.captured_at < r.captured_at
+                 and private.capture_day(p.world_id, p.captured_at) < v_day) u
+       order by u.unit, u.part, u.captured_at desc, u.id desc),
+    units as (
+      select max(g.day) as day, max(g.captured_at) as at, max(g.id) as id, sum(g.lines) as lines
+        from pages g group by g.unit),
+    nights as (
+      select distinct on (u.day) u.day, u.lines from units u order by u.day desc, u.at desc, u.id desc),
     recent as (select n.lines from nights n order by n.day desc limit 7)
     select percentile_cont(0.5) within group (order by x.lines)::numeric, count(*)::int into v_med, v_nights from recent x;
     return jsonb_build_object('median_lines', round(v_med, 1), 'nights', v_nights);
@@ -2699,11 +2768,18 @@ CREATE OR REPLACE FUNCTION private.capture_judge(p_kind text, p_read integer, p_
  IMMUTABLE
  SET search_path TO ''
 AS $function$
-declare v text := 'ok'; v_note text; v_exp numeric; v_label text; v_facts jsonb;
+declare v text := 'ok'; v_note text; v_exp numeric; v_label text; v_facts jsonb; v_part int; v_parts int; v_in text := '';
+  v_list jsonb; v_gap numeric; v_to timestamptz;
 begin
   if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet') then return null; end if;
+  -- a statement sent in parts (since 10 Nov, capture 1.16): which part of how many
+  if p_kind = 'statement' and jsonb_typeof(p_expect -> 'parts') = 'number' then
+    v_part := (p_expect ->> 'part')::int; v_parts := (p_expect ->> 'parts')::int;
+  end if;
   v_label := case p_kind when 'pnl' then 'income statement' when 'balance' then 'balance sheet'
-                         when 'fleet' then 'fleet ' || coalesce(nullif(btrim(p_expect ->> 'fleet'), ''), 'list') else p_kind end;
+                         when 'fleet' then 'fleet ' || coalesce(nullif(btrim(p_expect ->> 'fleet'), ''), 'list')
+                         when 'statement' then 'statement' || case when v_parts > 1 then format(' part %s of %s', v_part, v_parts) else '' end
+                         else p_kind end;
   v_facts := coalesce(p_expect, '{}'::jsonb) || jsonb_build_object('read', p_read);
   if p_error is not null then
     return jsonb_build_object('verdict', 'broken', 'note', v_label || ' didn''t read (' || left(p_error, 160) || ')',
@@ -2717,15 +2793,39 @@ begin
     v_note := case when v_exp is null then format('loads %s flights', coalesce(p_read, 0))
                    when v_exp = 0 then format('loads %s flights, none scheduled', coalesce(p_read, 0))
                    else format('loads %s of %s flights', coalesce(p_read, 0), v_exp) end;
+  elsif p_kind = 'statement' and v_part < v_parts then
+    -- parts 1 to n-1: ok as they arrive; the last part judges the run
+    return jsonb_build_object('verdict', 'ok', 'note', format('statement part %s of %s', v_part, v_parts),
+                              'facts', jsonb_build_object('part', v_part, 'parts', v_parts, 'read', p_read));
   elsif p_kind = 'statement' then
     v_exp := (p_expect ->> 'median_lines')::numeric;
     v_facts := v_facts || jsonb_build_object('min_share', p_statement_min);
-    if coalesce(p_read, 0) = 0 then
+    v_in := case when v_parts > 1 then format(' in %s parts', v_parts) else '' end;
+    v_list := case when jsonb_array_length(coalesce(p_expect -> 'missing', '[]'::jsonb)) > 0 then p_expect -> 'missing'
+                   when jsonb_array_length(coalesce(p_expect -> 'unread', '[]'::jsonb)) > 0 then p_expect -> 'unread' end;
+    if v_list is not null then
+      -- the run is judged on all its parts: one missing (or one that didn't read) leaves lines out
+      v := 'broken';
+      v_note := format('statement: %s %s of %s %s',
+                       case when jsonb_array_length(v_list) = 1 then 'part' else 'parts' end,
+                       (select string_agg(e #>> '{}', ', ' order by o) from jsonb_array_elements(v_list) with ordinality x(e, o)), v_parts,
+                       case when p_expect ? 'missing' then 'missing' else 'didn''t read' end);
+    elsif coalesce(p_read, 0) = 0 then
       v := 'short'; v_note := 'statement: no lines';
     elsif v_exp > 0 and p_read < p_statement_min * v_exp then
-      v := 'short'; v_note := format('statement %s line%s, usually about %s', p_read, case when p_read = 1 then '' else 's' end, round(v_exp));
+      v := 'short'; v_note := format('statement %s line%s%s, usually about %s', p_read, case when p_read = 1 then '' else 's' end, v_in, round(v_exp));
     else
-      v_note := format('statement %s line%s', p_read, case when p_read = 1 then '' else 's' end) || case when v_exp > 0 then format(' (usually about %s)', round(v_exp)) else '' end;
+      v_note := format('statement %s line%s%s', p_read, case when p_read = 1 then '' else 's' end, v_in) || case when v_exp > 0 then format(' (usually about %s)', round(v_exp)) else '' end;
+    end if;
+    -- the hours before the run's oldest line that no capture read (to-do 203); the verdict is unchanged by them
+    if p_expect ? 'gap_from' and p_expect ? 'gap_to' then
+      v_to := (p_expect ->> 'gap_to')::timestamptz;
+      v_gap := extract(epoch from v_to - (p_expect ->> 'gap_from')::timestamptz);
+      v_note := v_note || format('; the %s before %s weren''t captured',
+                                 case when v_gap < 5400 then round(v_gap / 60) || ' minutes'
+                                      when round(v_gap / 3600) = 1 then 'hour'
+                                      else round(v_gap / 3600) || ' hours' end,
+                                 to_char(v_to at time zone 'UTC', 'HH24:MI FMDD Mon'));
     end if;
   elsif p_kind = 'fleet' then
     -- a fleet page (since 22 Oct): short with no aircraft rows
@@ -9583,6 +9683,20 @@ AS $function$
     when p_descr like 'Air traffic control fee%' then 'atc'
     when p_descr like 'Maintenance of%' then 'maintenance'
     else 'other' end
+$function$
+
+;
+
+-- private.statement_run(p_page text)
+CREATE OR REPLACE FUNCTION private.statement_run(p_page text)
+ RETURNS jsonb
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select case when x.m is not null and x.m[2]::int between 1 and x.m[3]::int
+              then jsonb_build_object('run', x.m[1], 'part', x.m[2]::int, 'parts', x.m[3]::int) end
+    from (select regexp_match(coalesce(p_page, ''), '#run=([^&#]+)&part=([0-9]{1,4})/([0-9]{1,4})$') as m) x
 $function$
 
 ;

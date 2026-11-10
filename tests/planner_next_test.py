@@ -736,7 +736,9 @@ async def plan_card_cabins(pl):
         fares = await pl.pg.evaluate("sel => [...document.querySelectorAll(sel + ' [data-card-fare]')].map(td => [td.dataset.cardFare, td.textContent])", card)
         print(f"      on Tails, {c['registration']}'s fare levels ({len(fares)} of its {len(pairs)} directions): "
               + ("; ".join(f"{k} {t}" for k, t in fares) or "none"), flush=True)
-        if any(not re.fullmatch(r"(economy|business) [+−]\d+(\.\d)?%(, (economy|business) [+−]\d+(\.\d)?%)* of the default price|launch \([+−]\d+(\.\d)?% of the default price\)", t)
+        # since 4 Nov (spec docs/specs/2026-11-04-fare-default-from-market.md) each level may carry its price in AS$ where
+        # the market pages have read that direction's default price: "economy +5% (148 AS$)"
+        if any(not re.fullmatch(r"(economy|business) [+−]\d+(\.\d)?%( \([\d,]+(\.\d+)? AS\$\))?(, (economy|business) [+−]\d+(\.\d)?%( \([\d,]+(\.\d+)? AS\$\))?)* of the default price|launch \([+−]\d+(\.\d)?% of the default price\)", t)
                for _, t in fares):
             problems.append(f"{c['registration']}'s fare levels aren't in the game's words: {fares}")
         await pl.pg.goto(f"http://{LIVE_HOST}:{pl.port}{NEW_PLANNER}")

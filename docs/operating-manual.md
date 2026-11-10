@@ -682,14 +682,17 @@ Details and open points: `docs/decisions.md`.
   - **Each page is checked as it arrives** (#21): ok, short or broken. Loads are short below 90% of the airline's
     flights scheduled in the page's window (the 24 hours before the capture, a new rotation counting from the day after
     it launched, and a new aircraft only once a capture has shown it flying; setting `capture_loads_min_share`); a bank
-    statement is short with no lines, or below half the median of the airline's recent nights
-    (`capture_statement_min_share`); events or an income statement with no rows are short; a balance sheet without the
-    cash account (2800), or a page that doesn't read, is broken. The capture's panel ends each airline with "all good"
+    statement (the game's whole last 24 hours, sent in parts of at most 500 lines since capture 1.16) is judged once, on
+    all its parts together: short with no lines, or below half the median of the airline's recent nights
+    (`capture_statement_min_share`), and broken when a part is missing; when its oldest line is more than 15 minutes after
+    the airline's previous statement capture, the note says which hours no capture read, and the verdict is unchanged;
+    events or an income statement with no rows are short; a balance sheet without the cash account (2800), or a page that
+    doesn't read, is broken. The capture's panel ends each airline with "all good"
     or what came in short or broken ("loads 12 of 78 flights"); Today's capture line and needs attention show a short or
     broken page the same night, and the Systems board shows each airline's verdict. **If a page comes in short or
     broken, capture that airline again** while the game's last 24 hours still hold the loads. A saved evening of each
     page kind is tested on every pull request. No alert outside the planner: a missed evening still shows on Today after
-    26 hours. *(since 14 Oct; history: rule-history.md)*
+    26 hours. *(since 14 Oct; the statement in parts since 10 Nov; history: rule-history.md)*
   - **The fleet pages:** after each airline's other pages, the capture reads every fleet of the airline (the fleet list
     and each fleet with aircraft) and checks each page as it arrives: short with no aircraft rows, broken when it
     doesn't read; Today's Fleet group then lists the game's maintenance under `settings.maintenance_min_pct`, no
