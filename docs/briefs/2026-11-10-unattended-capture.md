@@ -109,5 +109,7 @@ file, and the database's scheduler.
   https://devactivity.com/insights/github-actions-cron-schedules-a-hidden-free-tier-hurdle-impacting-developer-productivity/
 
 ## Outcome
-*Open.* Gitesh, 10 Nov: "I love C", and asked for a deeper look at why scheduled jobs run late; that look is the
-section above, and it changed how C's runs are started.
+**C, with its runs started by the database's scheduler** (Gitesh, 10 Nov: "I love C", then, after the look at why
+scheduled jobs run late, "Yes"). Not yet built: the manual lists it under *Decided, not yet built*, and §7's every
+evening stands until the build merges. `decisions.md` notes the change to #21 and #22, and `rule-history.md` the why.
+The build is the Building chat's (to-do on the planner's board).

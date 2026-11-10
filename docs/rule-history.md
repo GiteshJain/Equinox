@@ -38,6 +38,22 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The unattended capture: decided 10 Nov
+*Gitesh, 10 Nov (Audit chat, brief `docs/briefs/2026-11-10-unattended-capture.md`, option C): "I love C. But i think it
+deserves a deeper look into why scheduled jobs are running late", then "Yes" to C with its runs started by the
+database's scheduler · why: the game keeps the loads and the bank statement for 24 hours only (#21's brief assumed 3
+days for the money), and the statement stops at 1,500 lines, which Ryanair fills in 16 hours, so one capture a day
+can't be complete. 5 to 7 Nov went uncaptured (about 2,700 flights with no loads and no money), and from 27 Oct to
+8 Nov 362 captured flights have loads but no money, 267 of them Ryanair's. GitHub's own timer started the nightly
+backup 4.3 to 10.2 hours late on every one of 32 nights since 9 Oct (its run history), while runs started any other
+way began at once and the database's scheduler was never more than a quarter of a second late, so the database
+starts the runs.* New item in *Decided, not yet built*; §7's sentence is replaced when it's built. It changes two
+foundation decisions (`decisions.md`): #21's "no alert outside the planner" (GitHub emails a failed run) and #22's
+"nothing new on a schedule". §7's sentence as it stands, word for word: "**Every evening:** Gitesh presses "Capture all
+airlines" in the game. It captures loads, finances and payments straight into the tables, then runs the world scan
+when one is due (below) (`game_flights` and the rest); a day's loads count as complete once every active airline has
+been captured for it."
+
 ### The second jump under launch needs the load cut-off: decided 2 Nov
 *Gitesh, 2 Nov (Review chat): "that should also have the 80% cut-off" · why: since 26 Oct the second jump (80% to 60%)
 reads only the sold-out share, so a cabin nearly full but not selling out every flight still drops to 60%. KUL–TRV's

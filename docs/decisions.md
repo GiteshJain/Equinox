@@ -352,6 +352,11 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   flown by that evening's capture).
   *Since 20 Oct:* Home's warnings moved to Today, and the Systems board to the Systems screen; Check went. (Home's
   attention cards came back 23 Oct as summary cards.)
+  *Changed 10 Nov (Gitesh, Audit chat; decided, not yet built):* an unattended capture runs every 6 hours as a GitHub
+  job, and GitHub's email on a failed run is the first alert outside the planner. Why: the game keeps the loads and
+  the bank statement for 24 hours only (this entry's brief assumed 3 days for the money) and stops the statement at
+  1,500 lines, which Ryanair fills in 16 hours; 5 to 7 Nov went uncaptured, about 2,700 flights.
+  Brief: `docs/briefs/2026-11-10-unattended-capture.md`.
 - **14 Oct 2026 · #22 Scheduled jobs.** Option A, with a rule: nothing new on a schedule. The backups, the archive and
   the two database jobs already run on their own (#6, #13, #16). The world scan stays a chat task, now a standing first
   step of the Saturday review, so every weekly report and gander monthly reads a fresh scan (manual §7). Report drafts
@@ -359,6 +364,9 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   (6 Oct) because it wasn't anyone's step. Brief: `docs/briefs/2026-10-14-scheduled-jobs.md`.
   *Changed 21 Oct:* the world scan runs with the evening capture when one is due (manual §7); `gscan.py` by hand only
   when the Systems board shows it old.
+  *Changed 10 Nov (Gitesh, Audit chat; decided, not yet built):* the capture goes on a schedule, every 6 hours (#21,
+  above). The database's scheduler starts each run, because GitHub's own timer has started the nightly backup 4 to 10
+  hours late every night since 9 Oct. Brief: `docs/briefs/2026-11-10-unattended-capture.md`.
 - **14 Oct 2026 · #23 Monitoring.** Option B: a "Systems" board at the top of the planner's Check screen, one line each
   with a green, amber or red mark: the evening capture (each airline, with #21's verdict), the daily snapshot, the
   nightly backup and its restore check, the monthly archive, the clean-ups, the world scan's age, the planner's last
