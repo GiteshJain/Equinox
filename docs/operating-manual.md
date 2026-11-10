@@ -33,11 +33,14 @@ Until each is built and merged, the rules below stand as they are.
   partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **The unattended capture (§7, decided 10 Nov):** a GitHub job in `equinox-backups` runs the capture every 6 hours
-  with its own capture key, reading only (no salaries, no world scan, no market pages), each run started by the
-  database's scheduler and not by GitHub's timer. Brief `docs/briefs/2026-11-10-unattended-capture.md`, option C.
+- **The unattended capture (§7, decided 10 Nov):** a GitHub job in `equinox-backups` runs the capture twice a day
+  (09:30 and 21:30 UTC) with its own capture key, each run started by the database's scheduler and not by GitHub's
+  timer. It reads our airlines' pages and fleets, and the world scan and the market pages when they're due; it never
+  sets salaries (a setting) and never changes fares. Briefs `docs/briefs/2026-11-10-unattended-capture.md`, option C,
+  and `docs/briefs/2026-11-10-unattended-capture-scope.md`, option B; spec `docs/specs/2026-11-10-unattended-capture.md`.
   **Until it's built, Gitesh's own press is the only capture and §7's every evening stands as it is.** Once built, his
-  press stays for the world scan, the market pages and the salaries. *(since 10 Nov; history: rule-history.md)*
+  press stays for the salaries. *(since 10 Nov; twice a day with the scan and market since the same evening; history:
+  rule-history.md)*
 
 
 Details and open points: `docs/decisions.md`.

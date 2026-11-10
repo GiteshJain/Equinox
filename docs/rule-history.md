@@ -52,6 +52,20 @@ spec's pull request (capture 1.16, migration 20261110010000). §7's page-check s
 before, word for word: "a bank statement is short with no lines, or below half the median of the airline's recent
 nights (`capture_statement_min_share`);"
 
+### The unattended capture twice a day, with the world scan and the market pages: decided 10 Nov
+*Gitesh, 10 Nov evening (Building chat, on the spec `docs/specs/2026-11-10-unattended-capture.md`): "Why cant this one do
+the scan and market pages alteast? I think twice a day is ok", then "b" (brief
+`docs/briefs/2026-11-10-unattended-capture-scope.md`) · why: the first brief kept the unattended run to our own pages
+only to keep it small, not because the job couldn't do more. Twice a day still leaves 12 hours to capture again after a
+failed run, the scan and market pages read no page his press doesn't read now, and the job's GitHub minutes stay about
+550 of the private repository's 2,000. Salaries stay with his press (a setting) until the salary step has been seen
+working.* The *Decided, not yet built* entry as it stood, word for word: "**The unattended capture (§7, decided
+10 Nov):** a GitHub job in `equinox-backups` runs the capture every 6 hours with its own capture key, reading only (no
+salaries, no world scan, no market pages), each run started by the database's scheduler and not by GitHub's timer.
+Brief `docs/briefs/2026-11-10-unattended-capture.md`, option C. **Until it's built, Gitesh's own press is the only
+capture and §7's every evening stands as it is.** Once built, his press stays for the world scan, the market pages and
+the salaries."
+
 ### The unattended capture: decided 10 Nov
 *Gitesh, 10 Nov (Audit chat, brief `docs/briefs/2026-11-10-unattended-capture.md`, option C): "I love C. But i think it
 deserves a deeper look into why scheduled jobs are running late", then "Yes" to C with its runs started by the
