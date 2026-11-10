@@ -56,7 +56,10 @@ them, and his press is the only one that sets salaries.
   1. Takes `capture/capture_all.user.js` from the `Equinox` repository at `main` (public; a plain download of the raw
      file), puts the key in place of `__CAPTURE_KEY__`, and checks its `@version` is 1.16 or later.
   2. Signs in through the real sign-in page, as a person does: opens `https://airlinesim.aero/auth/login`, fills the
-     form and clicks **Log in**, then opens `https://gander.airlinesim.aero/app/enterprise/dashboard`. Stops with
+     form and clicks **Log in**; the site then shows a list of game worlds (Gitesh, 10 Nov), where it clicks the one
+     whose text says Gander and waits for `https://gander.airlinesim.aero` (stopping with "sign-in: no Gander on the
+     world list" after 30 s); then it opens `https://gander.airlinesim.aero/app/enterprise/dashboard`. The world list is
+     behind sign-in, so it has no saved copy: the tests use a stand-in, and the first watched run proves it. Stops with
      "sign-in failed" (and the page's title, nothing else) if the dashboard doesn't open. What the page is (read in the
      built-in browser on 10 Nov, signed out; Safari's Page Source holds only the site's shell, as the form is drawn by
      JavaScript): one form, `method="POST"` with no action, fields `login` (text, "Email Address"), `password`,
