@@ -6,8 +6,10 @@ Written in the Audit chat (Audit · 10 Nov), after its review of the whole syste
 
 **Recommendation:** C. A GitHub job runs the same capture script every 6 hours, reading only, started by the
 database's scheduler and not by GitHub's own timer (see *Why GitHub's timer runs late*, added the same day).
-- The game keeps both the loads and the bank statement for 24 hours, and the statement stops at 1,500 lines. Ryanair
-  fills that in 16 hours, so one capture a day can't be complete however reliably it's pressed.
+- The game keeps both the loads and the bank statement for 24 hours only, so one capture a day has no slack: pressed
+  an hour late, an hour of flights is gone for good. *(Corrected 10 Nov, after the decision: this said the statement
+  stops at 1,500 lines and that Ryanair fills them in 16 hours. That stop is the capture script's own, not the game's;
+  see* The 1,500 *under Background. It is lifted in the same build.)*
 - 5 to 7 Nov went uncaptured: about 2,700 flights have no loads and no money, for good. On the captured days from
   27 Oct to 8 Nov, 362 flights have loads but no money, 267 of them Ryanair's (12% of its flights).
 - It reuses the script you press now, costs $0, and GitHub can email you when a run fails.
@@ -48,6 +50,11 @@ Live database and repository `main`, 10 Nov.
 - **The 1,500:** on 4 Nov Ryanair posted 2,204 lines, China Eastern 1,674 and Virgin 1,641; Pan Am, Kingfisher and
   Malaysia 1,100 to 1,220 (`game_statement`). The script also stops at 15 pages (`capture/capture_all.user.js`), so the
   data can't show whether the game does too. Gitesh, 10 Nov: he thinks it's the game's limit.
+  **Corrected 10 Nov, after the decision:** Gitesh looked in the game. Page 15 has the ">" link, and Ryanair's
+  statement ran to page 24. So the game shows the whole 24 hours, and the 1,500 is the script's stop at 15 pages
+  (`pages < 15`). The build lifts it: the statement is read to its last page and sent in parts, so no call comes near
+  its 30-second limit. That alone ends the short money on a day with one capture (the 362 flights above). The 24 hours
+  with no slack and the missed evenings remain the case for C.
 - **Why it mostly worked until now:** from 27 Oct to 4 Nov you captured 24 times in 9 days, 2 to 5 a day. On 8 and
   9 Nov, once a day.
 - **What a missed day leaves:** `airline_days` has 119 flights for 5 Nov and none for 6 and 7 Nov, against about
@@ -88,13 +95,13 @@ file, and the database's scheduler.
 - **It works:** complete data from the first day, and your evening press becomes optional on days you don't play.
 - **The sign-in is refused, or a run disturbs your own session:** switch the job off; nothing is worse than today.
   Then D, or B.
-- **Waiting:** every aircraft added shortens the reach. At 3,000 lines a day Ryanair's is 12 hours. Virgin and China
-  Eastern are already past 1,500 a day; Pan Am, Kingfisher and Malaysia pass it after about a quarter more flying, and
-  from then one capture a day loses money on all six.
+- **Waiting:** until the script's stop is lifted, every aircraft added shortens the reach. At 3,000 lines a day
+  Ryanair's is 12 hours. Virgin and China Eastern are already past 1,500 a day; Pan Am, Kingfisher and Malaysia pass it
+  after about a quarter more flying, and from then one capture a day loses money on all six.
 
 ## What would change the recommendation
 - Page 15 of Ryanair's statement has a ">" link: the 1,500 is the script's, and its limit is raised as well. The
-  24 hours still call for more than one capture a day.
+  24 hours still call for more than one capture a day. **This is the case (Gitesh, 10 Nov), so the build does both.**
 - Runs started by the database also begin late in the trial, or GitHub starts refusing them: D.
 - You'd rather have no unattended sign-in on the account: B.
 
@@ -113,3 +120,5 @@ file, and the database's scheduler.
 scheduled jobs run late, "Yes"). Not yet built: the manual lists it under *Decided, not yet built*, and §7's every
 evening stands until the build merges. `decisions.md` notes the change to #21 and #22, and `rule-history.md` the why.
 The build is the Building chat's (to-do on the planner's board).
+Added the same day: the 1,500 lines turned out to be the script's stop, not the game's (above), so the same build
+lifts it. C stands, as *What would change the recommendation* said it would.

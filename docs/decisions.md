@@ -354,8 +354,10 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   attention cards came back 23 Oct as summary cards.)
   *Changed 10 Nov (Gitesh, Audit chat; decided, not yet built):* an unattended capture runs every 6 hours as a GitHub
   job, and GitHub's email on a failed run is the first alert outside the planner. Why: the game keeps the loads and
-  the bank statement for 24 hours only (this entry's brief assumed 3 days for the money) and stops the statement at
-  1,500 lines, which Ryanair fills in 16 hours; 5 to 7 Nov went uncaptured, about 2,700 flights.
+  the bank statement for 24 hours only (this entry's brief assumed 3 days for the money), so a late or missed press
+  loses flights for good; 5 to 7 Nov went uncaptured, about 2,700 flights. The same build lifts the capture script's
+  own stop at 15 pages of the statement (1,500 lines; the game shows the whole 24 hours, 24 pages for Ryanair on
+  10 Nov), which had left Ryanair's, Virgin's and China Eastern's money short on days with one capture.
   Brief: `docs/briefs/2026-11-10-unattended-capture.md`.
 - **14 Oct 2026 · #22 Scheduled jobs.** Option A, with a rule: nothing new on a schedule. The backups, the archive and
   the two database jobs already run on their own (#6, #13, #16). The world scan stays a chat task, now a standing first

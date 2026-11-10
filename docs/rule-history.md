@@ -42,8 +42,9 @@ Every rule in force for the equinox. group, with the date it started and why. De
 *Gitesh, 10 Nov (Audit chat, brief `docs/briefs/2026-11-10-unattended-capture.md`, option C): "I love C. But i think it
 deserves a deeper look into why scheduled jobs are running late", then "Yes" to C with its runs started by the
 database's scheduler · why: the game keeps the loads and the bank statement for 24 hours only (#21's brief assumed 3
-days for the money), and the statement stops at 1,500 lines, which Ryanair fills in 16 hours, so one capture a day
-can't be complete. 5 to 7 Nov went uncaptured (about 2,700 flights with no loads and no money), and from 27 Oct to
+days for the money), so one capture a day has no slack. (The capture script also stopped at 15 pages of the statement, 1,500
+lines, which Ryanair fills in 16 hours; first taken for the game's limit, it is the script's own: Gitesh checked on
+10 Nov that Ryanair's statement runs to page 24. The same build lifts it.) 5 to 7 Nov went uncaptured (about 2,700 flights with no loads and no money), and from 27 Oct to
 8 Nov 362 captured flights have loads but no money, 267 of them Ryanair's. GitHub's own timer started the nightly
 backup 4.3 to 10.2 hours late on every one of 32 nights since 9 Oct (its run history), while runs started any other
 way began at once and the database's scheduler was never more than a quarter of a second late, so the database
