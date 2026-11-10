@@ -52,11 +52,16 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    Since 28 Oct a sample 7-day line (made for the test on the airline Tails opens on, removed after) is on Tails'
    deliveries board with its slots at both widths, and among Today's Orders' open lines (1 of 7) with its link to Tails.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
-   capture and one each for the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
+   capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
    an airline's latest loads page, stored just after the latest capture and judged short, is listed on Today's needs
    attention in the Capture group linking to Systems, Today's capture line says it came in short, and the board marks
    that airline amber; then it is deleted.
+6c. The unattended capture (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3, §5) on Today and Systems at
+   the frozen moment, with the copy's own unattended rows parked for the step: no row (nothing on Today, the board's line
+   amber, no run yet), an ok row 15 hours old (Today's Capture group says "Unattended capture: last good run 15 hours ago",
+   amber, linking to Systems; the line amber) and a failed row an hour old after it (Today lists the failed run in red with
+   the nightly jobs; the line red with its note); then the rows go and the parked ones come back.
 7. The addresses (the switch, build pull request 13, the clean-up, 14, and 20 Oct), as tests/harness.py serves them from
    web/_redirects the way Cloudflare does: /planner and /planner/ open the planner, and so does a deep address
    (/planner/performance/VS); /planner/check answers 301 to /planner/today (the query kept), /planner/review/... to the
@@ -1733,7 +1738,7 @@ async def screens(p, port, env, facts, staff, seen, moment):
 
 
 # ---------- 6b. the Systems board, and a short page on Today (decisions #21, #23) ----------
-SYS_FIXED = ["snapshot", "backup", "archive", "cleanup", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
+SYS_FIXED = ["unattended", "snapshot", "backup", "archive", "cleanup", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
 SYS_LINES = """[...document.querySelectorAll('[data-figure="systems: board"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
     label: (li.querySelector('.syslabel') || {}).textContent || '', when: (li.querySelector('.syswhen') || {}).textContent || '',
     text: (li.querySelector('.systext') || {}).textContent || '', dot: !!li.querySelector('.sysmark.' + li.dataset.mark) }))"""
@@ -1748,7 +1753,7 @@ async def open_systems(ph):
 
 async def systems_board(p, port, env, facts, staff, seen, moment):
     """The Systems board (#23) on the copy at the frozen moment: at the top of Systems, open, one line for each of our
-    airlines' evening capture and one each for the snapshot, the backup, the archive, the clean-ups, the world scan, (since
+    airlines' evening capture and one each for (since 10 Nov) the unattended capture, the snapshot, the backup, the archive, the clean-ups, the world scan, (since
     30 Oct) the market pages, the planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
     lines and their marks are printed (names, marks, dates and sizes only). Since 22 Oct the fixed lines are tiles, worst
     first, and the captures a table under them."""
@@ -1848,6 +1853,87 @@ async def short_page(p, port, env, facts, staff, seen, moment):
     return (f"a short page made on purpose: half of {made['airline'] if made else '?'}'s latest loads page ({made['read'] if made else '?'} flights) "
             f"is judged short ({(verdict or {}).get('note', '?')}), Today lists it in the Capture group linking to Systems and its capture line "
             f"says {cap.get('state', '?')}, the Systems board marks that airline amber; then put back"), problems
+
+
+# ---------- 6c. the unattended capture on Today and Systems (spec docs/specs/2026-11-10-unattended-capture.md §3, §5) ----------
+TODAY_ITEMS = """[...document.querySelectorAll('[data-figure="today: needs attention"] [data-att-item]')]
+    .map(li => ({ kind: li.dataset.attKind, cls: li.dataset.cls, screen: li.dataset.screen, key: li.dataset.attKey,
+                  text: li.textContent, href: (li.querySelector('a') || {}).getAttribute ? li.querySelector('a').getAttribute('href') : '' }))"""
+
+
+async def unattended_capture(p, port, env, facts, staff, seen, moment):
+    """The unattended capture on Today and Systems at the frozen moment, with no row, an old ok row and a failed row
+    (job_runs, capture_unattended). The copy's own unattended rows (and the dispatch's) are parked under another job name
+    for the step and put back after, and the rows made here are deleted, so the copy's job_runs are as they were. No row:
+    Today lists nothing about it, and the board's line says no run yet, in amber. An ok row 15 hours old: Today's Capture
+    group says "Unattended capture: last good run 15 hours ago" (amber, linking to Systems) and the line is amber. A failed
+    row an hour old after it: Today lists the failed run with the nightly jobs (red) and the line is red with its note."""
+    problems, cases = [], []
+    parked = []
+    made = []
+    before = psql("select count(*) from public.job_runs").strip()
+
+    async def look(name):
+        ph = Planner(p, port, env, facts)
+        seen.append(ph)
+        try:
+            await ph.open(moment=moment)
+            await ph.sign_in(*staff)
+            await open_screen(ph.pg, 'today')
+            await ph.pg.wait_for_selector(READY["today"], timeout=90000)
+            await settle(ph.pg, 400)
+            await ph.pg.evaluate("document.querySelectorAll('#attention details').forEach(d => d.open = true)")
+            items = [i for i in await ph.pg.evaluate(TODAY_ITEMS) if "Unattended capture" in (i["text"] or "")]
+            lines = await open_systems(ph)
+            line = next((l for l in lines if l["key"] == "unattended"), None)
+            problems.extend(f"{name}: {e}" for e in ph.errors)
+            return items, line
+        finally:
+            await ph.close()
+
+    try:
+        # the copy's own rows, each with its job, parked under a job nothing reads (put back by id below)
+        parked = [(int(i), j) for i, j in (r.split("|") for r in psql(
+            "select id || '|' || job from public.job_runs where job in ('capture_unattended', 'capture_dispatch')").split() if r)]
+        if parked:
+            psql(f"update public.job_runs set job = 'adapter_check' where id in ({', '.join(str(i) for i, _ in parked)})")
+        # no row
+        items, line = await look("no row")
+        if items:
+            problems.append(f"no row: Today lists the unattended capture: {[i['text'] for i in items]}")
+        if not line or line["mark"] != "warn" or "no unattended run yet" not in line["text"]:
+            problems.append(f"no row: the board's line isn't amber 'no unattended run yet': {line}")
+        cases.append(f"no row: Today nothing, the line {(line or {}).get('mark')}")
+        # an ok row 15 hours old
+        made.append(int(psql(f"select private.job_run_add('capture_unattended', {WORLD}, timestamptz '{moment}' - interval '15 hours', 'ok', "
+                             "'6 airlines all good · 3 min 10 s (rehearsal)', null)").strip()))
+        items, line = await look("an old ok row")
+        hit = [i for i in items if "last good run 15 hours ago" in i["text"]]
+        if not hit or hit[0]["kind"] != "capture" or hit[0]["cls"] != "warn" or hit[0]["screen"] != "systems" or "/systems" not in (hit[0]["href"] or ""):
+            problems.append(f"an old ok row: Today doesn't say 'last good run 15 hours ago' in amber in the Capture group, linking to Systems: {items}")
+        if not line or line["mark"] != "warn" or "last good run 15 hours ago" not in line["text"]:
+            problems.append(f"an old ok row: the board's line isn't amber with its age: {line}")
+        cases.append(f"an ok row 15 hours old: Today '{hit[0]['text'] if hit else '?'}', the line {(line or {}).get('mark')}")
+        # a failed row an hour old, after it
+        made.append(int(psql(f"select private.job_run_add('capture_unattended', {WORLD}, timestamptz '{moment}' - interval '1 hour', 'failed', "
+                             "'Pan Am: loads 12 of 78 flights (rehearsal)', null)").strip()))
+        items, line = await look("a failed row")
+        hit = [i for i in items if "the last run failed" in i["text"] and "loads 12 of 78 flights" in i["text"]]
+        if not hit or hit[0]["kind"] != "jobs" or hit[0]["cls"] != "bad":
+            problems.append(f"a failed row: Today doesn't list the failed run in red with the nightly jobs: {items}")
+        if not line or line["mark"] != "bad" or "the last run failed: Pan Am: loads 12 of 78 flights" not in line["text"]:
+            problems.append(f"a failed row: the board's line isn't red with its note: {line}")
+        cases.append(f"a failed row: Today '{hit[0]['text'][:60] if hit else '?'}…', the line {(line or {}).get('mark')}")
+    except Exception as e:
+        problems.append(why(e))
+    finally:
+        if made:
+            psql(f"delete from public.job_runs where id in ({', '.join(str(i) for i in made)})")
+        for job in sorted({j for _, j in parked}):
+            psql(f"update public.job_runs set job = '{job}' where id in ({', '.join(str(i) for i, j in parked if j == job)})")
+        if psql("select count(*) from public.job_runs").strip() != before:
+            problems.append("the copy's job_runs weren't put back as they were")
+    return ("the unattended capture on Today and Systems (" + "; ".join(cases) + f"; {len(parked)} of the copy's own rows parked and put back)"), problems
 
 
 # ---------- 7. the addresses (the switch, the clean-up and 20 Oct) ----------
@@ -1997,9 +2083,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, screens, systems_board, short_page, addresses):
+            for check in (two_tabs, preview, screens, systems_board, short_page, unattended_capture, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (screens, systems_board, short_page) else []))
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (screens, systems_board, short_page, unattended_capture) else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)

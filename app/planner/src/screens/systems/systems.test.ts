@@ -1,11 +1,11 @@
 // The Systems board's marks at each limit (decision #23, spec part 2 and "Checks"): the capture at 26 and 48 hours and
 // with #21's verdicts, the snapshot and backup at 30 hours (red at 54, as Home), the archive by the 3rd, a failed run,
 // the world scan at 8 and 15 days (and amber for a scan that stopped part-way, 22 Oct), usage at 70% and at the trigger,
-// and the planner's build stamp.
+// the planner's build stamp, and since 10 Nov the unattended capture with no row, an old ok row and a failed row.
 import { describe, expect, it } from "vitest";
 import {
   ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, fleetPagesWords, marketLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
-  usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
+  unattendedLine, usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
 } from "./systems";
 
 const now = new Date("2026-10-15T12:00:00Z");
@@ -157,11 +157,12 @@ describe("the planner's build and the usage", () => {
       archive: { last_at: ago(80), month: "2026-10-01", runs_this_month: 1, ok_this_month: 1, rows_this_month: 1, failed: [] },
       cleanup: { at: ago(2), status: "ok", note: null }, scan: { taken_at: ago(24), week: "41", status: "done" },
       market: { id: 3, started_at: ago(30), finished_at: ago(29), age_days: 1.2, pages_read: 686, pages_failed: 2, note: null },
+      unattended: { warn_h: 14, last: { at: ago(4), status: "ok", note: "6 airlines all good" }, last_ok: { at: ago(4), status: "ok", note: "6 airlines all good" }, dispatch: null },
       usage: [{ key: "database", label: "Database size", bytes: 1, trigger_bytes: 10 }],
     };
     const lines = systemLines(s, { at: ago(3), commit: "abc1234", subject: "" }, now, null, 0);
     expect(lines.map((l) => [l.key, l.mark])).toEqual([
-      ["capture|1", "ok"], ["capture|2", "warn"], ["snapshot", "ok"], ["backup", "ok"], ["archive", "ok"], ["cleanup", "ok"], ["scan", "ok"], ["market", "ok"], ["build", "ok"],
+      ["capture|1", "ok"], ["capture|2", "warn"], ["unattended", "ok"], ["snapshot", "ok"], ["backup", "ok"], ["archive", "ok"], ["cleanup", "ok"], ["scan", "ok"], ["market", "ok"], ["build", "ok"],
       ["usage|database", "ok"],
     ]);
     expect(boardSummary(lines)).toEqual({ mark: "warn", text: "1 amber" });
@@ -218,5 +219,37 @@ describe("the board laid out (22 Oct)", () => {
       fleet: { ...fleet, verdict: "broken", note: "fleet ORD didn't read (parse: HTTP 502)", ok: 2 } }), now))
       .toEqual({ word: "broken", cls: "bad", detail: "fleet ORD didn't read (parse: HTTP 502)" });
     expect(captureVerdict(cap({ fleet: null }), now).detail).toBe("");
+  });
+});
+
+describe("the unattended capture's line (10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3)", () => {
+  const ok = (h: number, note = "6 airlines all good · world scan done · 12 min 40 s") => ({ at: ago(h), status: "ok", note });
+  const failed = (h: number, note = "Pan Am: loads 12 of 78 flights") => ({ at: ago(h), status: "failed", note });
+  it("no row: amber, saying the database starts it, with the start's failure when there is one", () => {
+    expect(unattendedLine(undefined, now)).toEqual({ key: "unattended", label: "Unattended capture", mark: "warn", when: null,
+      text: "no unattended run yet: the database starts it at 09:30 and 21:30 UTC" });
+    expect(unattendedLine({ warn_h: 14, last: null, last_ok: null, dispatch: { at: ago(2.5), status: "failed", note: "no GitHub token in the vault" } }, now))
+      .toEqual({ key: "unattended", label: "Unattended capture", mark: "warn", when: "15 Oct 09:30 UTC",
+        text: "no unattended run yet: the database starts it at 09:30 and 21:30 UTC · the start at 15 Oct 09:30 UTC failed: no GitHub token in the vault" });
+  });
+  it("an ok row: green under 14 hours, amber to 26, red beyond (the setting moves the first)", () => {
+    expect(unattendedLine({ warn_h: 14, last: ok(2.5), last_ok: ok(2.5) }, now))
+      .toEqual({ key: "unattended", label: "Unattended capture", mark: "ok", when: "15 Oct 09:30 UTC",
+        text: "6 airlines all good · world scan done · 12 min 40 s · last good run 3 hours ago" });
+    expect(unattendedLine({ warn_h: 14, last: ok(14), last_ok: ok(14) }, now).mark).toBe("ok");
+    expect(unattendedLine({ warn_h: 14, last: ok(15), last_ok: ok(15) }, now)).toMatchObject({ mark: "warn", text: "6 airlines all good · world scan done · 12 min 40 s · last good run 15 hours ago" });
+    expect(unattendedLine({ warn_h: 14, last: ok(26.5), last_ok: ok(26.5) }, now).mark).toBe("bad");
+    expect(unattendedLine({ warn_h: 20, last: ok(15), last_ok: ok(15) }, now).mark).toBe("ok");
+    expect(unattendedLine({ warn_h: null, last: ok(15), last_ok: ok(15) }, now).mark).toBe("warn");
+  });
+  it("a failed row: red with its note, the last good run kept", () => {
+    expect(unattendedLine({ warn_h: 14, last: failed(1), last_ok: ok(13) }, now))
+      .toEqual({ key: "unattended", label: "Unattended capture", mark: "bad", when: "15 Oct 11:00 UTC",
+        text: "the last run failed: Pan Am: loads 12 of 78 flights · last good run 13 hours ago" });
+    expect(unattendedLine({ warn_h: 14, last: failed(1), last_ok: null }, now)).toMatchObject({ mark: "bad", text: "the last run failed: Pan Am: loads 12 of 78 flights · no good run yet" });
+  });
+  it("a failed start adds amber to a good run", () => {
+    expect(unattendedLine({ warn_h: 14, last: ok(3), last_ok: ok(3), dispatch: { at: ago(0.5), status: "failed", note: "GitHub answered 401: Bad credentials" } }, now))
+      .toMatchObject({ mark: "warn", text: "6 airlines all good · world scan done · 12 min 40 s · last good run 3 hours ago · the start at 15 Oct 11:30 UTC failed: GitHub answered 401: Bad credentials" });
   });
 });

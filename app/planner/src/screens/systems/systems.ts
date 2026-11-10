@@ -7,10 +7,12 @@
 // a job whose last run failed; the world scan amber over 8 days and red over 15, and amber when a scan stopped part-way
 // with none finished after it (22 Oct); since 30 Oct the market pages (spec docs/specs/2026-10-30-market-pages-planner.md
 // §3) as the scan, amber over 8 days and red over 15, with the service check's mismatches; usage amber from 70% and red
-// at the trigger. Home keeps flagging problems; the
+// at the trigger; since 10 Nov (spec docs/specs/2026-11-10-unattended-capture.md §3) the unattended capture, green under
+// settings.capture_unattended_warn_h (14) hours since its last good run, amber to 26, red beyond or when its last run
+// failed. Home keeps flagging problems; the
 // board is where "all good" shows.
 import type { BuildStamp } from "../../data/build";
-import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H } from "../today/attention";
+import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H, unattendedWarnH } from "../today/attention";
 
 export type Mark = "ok" | "warn" | "bad";
 
@@ -71,8 +73,15 @@ export interface SystemStatus {
   scan_stopped?: ScanStopped | null;
   /** The latest finished market run (since 30 Oct, spec docs/specs/2026-10-30-market-pages.md): null until the first. */
   market?: SysMarket | null;
+  /** The unattended capture (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3): absent from an older
+   *  database. */
+  unattended?: SysUnattended | null;
   usage: { key: string; label: string; bytes: number; trigger_bytes: number }[];
 }
+/** The unattended capture as system_status() gives it: Today's setting (settings.capture_unattended_warn_h), its last run
+ *  and last good run (job_runs, capture_unattended, written by the GitHub job) and the database's last start of it
+ *  (capture_dispatch); each null when there's none. */
+export interface SysUnattended { warn_h?: number | string | null; last: SysJob | null; last_ok: SysJob | null; dispatch?: SysJob | null }
 export interface SysMarket { id: number; started_at: string; finished_at: string | null; age_days: number | null; pages_read: number; pages_failed: number; note: string | null }
 /** A stopped scan as system_status() gives it: how far it got against the finished scan before it (private.scan_progress()). */
 export interface ScanStopped {
@@ -151,6 +160,36 @@ export function captureLine(c: SysCapture, now: Date): SysLine {
     : c.verdict_words || (c.verdict === "ok" ? "all good" : c.verdict);
   const late = h != null && h > CAPTURE_LATE_H ? ` · ${agoWords(h)}: press Capture all airlines in the game` : "";
   return { key: `capture|${c.airline_id}`, label: `Evening capture · ${c.name ?? c.code ?? "airline " + c.airline_id}`, mark, when: whenWords(c.last_at), text: words + late };
+}
+
+/** The unattended capture (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3): its last run, ok or failed
+ *  with its note, and its last good run: green under settings.capture_unattended_warn_h (14) hours, amber to 26, red beyond
+ *  or when the last run failed; a failed start (the database asking GitHub) adds amber. Before its first run it says so in
+ *  amber, with the start's words when that failed (the token not in the vault yet). */
+export function unattendedLine(u: SysUnattended | null | undefined, now: Date): SysLine {
+  const warnH = unattendedWarnH(u?.warn_h);
+  const d = u?.dispatch ?? null;
+  const start = d && d.status === "failed" ? `the start at ${whenWords(d.at)} failed: ${d.note ?? "no note"}` : "";
+  const label = "Unattended capture";
+  if (!u?.last && !u?.last_ok) {
+    return { key: "unattended", label, mark: "warn", when: whenWords(d?.at),
+      text: ["no unattended run yet: the database starts it at 09:30 and 21:30 UTC", start].filter(Boolean).join(" · ") };
+  }
+  const h = hoursSince(u.last_ok?.at, now);
+  let mark: Mark = h == null || h > CAPTURE_LATE_H ? "bad" : h > warnH ? "warn" : "ok";
+  const parts: string[] = [];
+  if (u.last?.status === "failed") {
+    mark = "bad";
+    parts.push(`the last run failed: ${u.last.note ?? "no note"}`);
+  } else if (u.last) {
+    parts.push(u.last.note || "ok");
+  }
+  parts.push(h == null ? "no good run yet" : `last good run ${agoWords(h)}`);
+  if (start) {
+    mark = worse(mark, "warn");
+    parts.push(start);
+  }
+  return { key: "unattended", label, mark, when: whenWords(u.last?.at ?? u.last_ok?.at), text: parts.join(" · ") };
 }
 
 /** The daily snapshot: taken by the capture (green), or by the 10:00 UTC fallback and so incomplete (amber). */
@@ -298,10 +337,11 @@ export function usageLine(u: SystemStatus["usage"][number]): SysLine {
 }
 
 /** Every line of the board, in its order (the scan's with how often the capture takes one, scan_every_days; since 30 Oct
- *  the market pages' with the service check's mismatches). */
+ *  the market pages' with the service check's mismatches; since 10 Nov the unattended capture's after the airlines'). */
 export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date, scanEveryDays?: number | null, serviceMismatches?: number | null): SysLine[] {
   return [
     ...s.capture.map((c) => captureLine(c, now)),
+    unattendedLine(s.unattended, now),
     snapshotLine(s.snapshot ?? {}, now),
     backupLine(s.backup ?? { last: null, last_good: null }, now),
     archiveLine(s.archive, now),

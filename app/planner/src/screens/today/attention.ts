@@ -16,7 +16,10 @@
 // since 23 Oct the estimate's "maintenance ≈P%" item only for an aircraft without the game's figure; and since 30 Oct
 // (spec docs/specs/2026-10-30-market-pages-planner.md §3) the group Service in the game, one item per mismatch the
 // service check (market_service_checks()) finds on the latest market read, worst first (the game against the distance's
-// code, then against the planner's), each linking to the route's page.
+// code, then against the planner's), each linking to the route's page; and since 10 Nov (spec
+// docs/specs/2026-11-10-unattended-capture.md §3) the unattended capture: its last good run more than
+// settings.capture_unattended_warn_h (14) hours old, in the Capture group (nothing before its first good run, so nothing
+// nags while it's set up), and its failed run or failed start with the other jobs (the start's only once it has run well).
 // This file only words them. Monthly checks have none since 8 Oct, as
 // in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
@@ -66,6 +69,13 @@ export const BACKUP_BAD_H = 54;
 export const SNAPSHOT_LATE_H = 30;
 export const SNAPSHOT_BAD_H = 54;
 export const SCHEDULER_LATE_H = 30;
+/** The unattended capture's warning when settings.capture_unattended_warn_h is missing, in hours (since 10 Nov). */
+export const UNATTENDED_WARN_H = 14;
+/** The unattended capture's warning: settings.capture_unattended_warn_h, or 14 without a usable one. */
+export function unattendedWarnH(value: unknown): number {
+  const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  return typeof n === "number" && Number.isFinite(n) && n > 0 ? n : UNATTENDED_WARN_H;
+}
 /** The day of the month by which the archive should have run. */
 export const ARCHIVE_BY_DAY = 3;
 /** A route-profit mark as the old planner words it (RP_SIG). */
@@ -73,6 +83,7 @@ export const MARK_WORDS: Record<FixRoute["mark"], string> = { losing: "losing mo
 
 const JOB_NAME: Record<string, string> = {
   snapshot: "Daily snapshot", snapshot_fallback: "10:00 UTC snapshot job", cleanup: "Clean-up (10:20 UTC)", archive: "Monthly archive",
+  capture_unattended: "Unattended capture", capture_dispatch: "Unattended capture's start (09:30 and 21:30 UTC)",
 };
 
 /** Needs attention's words for an airline's capture judged short or broken (#21): what came in short, from the database's
@@ -259,6 +270,13 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       items.push({ key: "jobs|archive|" + m0.slice(0, 7), cls: "warn", screen: "systems",
         text: `Monthly archive: hasn't run this month (the nightly backup runs it from the 1st; last ran ${when(arch.started_at)})` });
     }
+    // the unattended capture (since 10 Nov): its last good run too old; nothing before the first
+    const unattendedOk = J.find((j) => j.job === "capture_unattended" && j.status === "ok");
+    if (unattendedOk && ago(unattendedOk.started_at) > unattendedWarnH(x.rules.input.settings.capture_unattended_warn_h)) {
+      const h = ago(unattendedOk.started_at);
+      items.push({ key: "capture|unattended|" + today, cls: h > CAPTURE_LATE_H ? "bad" : "warn", screen: "systems",
+        text: `Unattended capture: last good run ${Math.round(h)} hours ago` });
+    }
     const last = new Map<string, JobRun>();   // each job's last run; the archive's per table and month
     for (const j of J) {
       const k = j.job === "archive" ? `archive|${j.details?.table ?? ""}|${j.for_month ?? ""}` : j.job;
@@ -266,6 +284,8 @@ export function homeAttention(x: AttentionInput): AttItem[] {
     }
     for (const j of last.values()) {
       if (j.status !== "failed") continue;
+      // the unattended capture's start fails twice a day until the token is in the vault: said only once it has run well
+      if (j.job === "capture_dispatch" && !unattendedOk) continue;
       const table = j.job === "archive" && j.details?.table ? ` (${j.details.table} ${String(j.for_month ?? "").slice(0, 7)})` : "";
       items.push({ key: `jobs|failed|${j.job}|${j.started_at}`, cls: "bad", screen: "systems",
         text: `${JOB_NAME[j.job] ?? j.job}${table}: the last run failed (${when(j.started_at)}): ${String(j.note || "no note").slice(0, 200)}` });
