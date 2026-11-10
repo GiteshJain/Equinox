@@ -373,14 +373,14 @@ isOneToOne: false
                   ]
                 },"capture_keys": {
                   Row: {
-                    "created_at": string | null,"id": number,"key_hash": string,"label": string | null,"world_id": number
+                    "created_at": string | null,"id": number,"key_hash": string,"label": string | null,"unattended": boolean,"world_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string | null,"id"?: number,"key_hash": string,"label"?: string | null,"world_id": number
+                    "created_at"?: string | null,"id"?: number,"key_hash": string,"label"?: string | null,"unattended"?: boolean,"world_id": number
                   }
                   Update: {
-                    "created_at"?: string | null,"id"?: number,"key_hash"?: string,"label"?: string | null,"world_id"?: number
+                    "created_at"?: string | null,"id"?: number,"key_hash"?: string,"label"?: string | null,"unattended"?: boolean,"world_id"?: number
                   }
                   Relationships: [
                     {

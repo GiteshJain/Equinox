@@ -1,8 +1,9 @@
 // Systems (spec docs/specs/2026-10-20-today-performance-systems.md): the plumbing, rarely opened. At the top the Systems
 // board (decision #23, SystemsBoard.tsx), always open: one line each, green, amber or red, with when, for each airline's
 // evening capture (with #21's verdict), the daily snapshot, the nightly backup, the monthly archive, the clean-ups, the
-// world scan, since 30 Oct the market pages (with the service check's mismatches, market_service_checks()), the planner's
-// own build and the usage the database can measure (system_status()). Then the boards that fold
+// world scan, since 30 Oct the market pages (with the service check's mismatches, market_service_checks()), since 10 Nov
+// the unattended capture (its last run and last good run), the planner's own build and the usage the database can measure
+// (system_status()). Then the boards that fold
 // (all folded on arrival, Collapse all and Expand all), each moved here on 20 Oct as it was:
 //   - Capture: what the capture collected for each airline and when (capture_status()), with Reload, and the backup's
 //     line (Check's);

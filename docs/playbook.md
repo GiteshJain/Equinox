@@ -389,7 +389,7 @@ one is **7 Nov 2026**.
 |---|---|---|---|
 | Every evening | The capture panel | Every airline "all good" | Capture that airline again tonight; Manual entry if it keeps failing |
 | Every evening | Today | **All clear**, and the capture line "all good" | Work down Today; each item links to where it's fixed |
-| Every evening | Systems → the Systems board | "all good": capture, snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
+| Every evening | Systems → the Systems board | "all good": capture, unattended capture (once it's set up), snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
 | After filing an aircraft | The filing comparison | Every flight **same** | Fix the game or file with the game's times |
 | The evening after filing | The capture | The new flights appear | Today → Game check |
 | After a merge | Systems → the Systems board → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |
@@ -410,6 +410,7 @@ one is **7 Nov 2026**.
 | An airline's capture came in short or broken | Capture it again the same evening. If every evening comes in short the same way, a game page may have changed: tell the Building chat (the raw page is kept for a while: manual §7, the clean-ups) |
 | The capture line on Today or the Systems board is amber or red (no recent capture; limits: manual §7) | Capture now. Loads the game no longer holds are gone; enter what you can in Manual entry |
 | Today warns the daily snapshot is late, or the 10:00 UTC job hasn't run (limits: manual §7, every job writes a row) | The database's scheduler may have stopped. Ask the Building chat; it can take the snapshot by hand and restart the jobs |
+| The unattended capture amber or red on the Systems board, or on Today (its last good run too old, its last run failed, or its start failed; the limits are on the map, `docs/architecture.md`) | Press **Capture all airlines** yourself while the game still holds the loads, then ask the Building chat. The line and Today give the reason: an airline that came in short or broken, the GitHub token or the project's address missing from the vault, or GitHub refusing the start. Before it's set up the line is amber, "no unattended run yet" |
 | Backup red on the Systems board (no recent good copy, or the last run failed) | Ask the Building chat. GitHub sometimes starts the job hours late; one late night isn't a failure |
 | Planner build time didn't move after a merge | Cloudflare's build failed; the last good version stays live. The build log is in Cloudflare's dashboard; the Building chat fixes it |
 | The site or planner broke after a change | Revert that pull request on GitHub; Cloudflare republishes the previous version within minutes |

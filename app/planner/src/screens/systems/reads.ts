@@ -79,6 +79,9 @@ export function useSystemStatus(worldId: number | undefined) {
       return {
         as_of: String(d.as_of ?? ""), capture: d.capture ?? [], snapshot: d.snapshot ?? {}, backup: d.backup ?? { last: null, last_good: null },
         archive: d.archive ?? null, cleanup: d.cleanup ?? null, scan: d.scan ?? null, scan_stopped: d.scan_stopped ?? null, market: d.market ?? null, usage: d.usage ?? [],
+        // since 10 Nov (spec docs/specs/2026-11-10-unattended-capture.md §3); left out until 11 Nov, so the board always
+        // said "no unattended run yet" (found by the rehearsal's planner step)
+        unattended: d.unattended ?? null,
       };
     },
   });

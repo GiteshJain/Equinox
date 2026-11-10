@@ -4,7 +4,8 @@
 --   1. The scheduler: pg_cron is on, and the night the jobs' migration is applied the copy has the two jobs as it left
 --      them (rehearse.sh pauses them for the tests and keeps that state in rehearsal_before.cron_jobs; a backup never
 --      carries schedules, so on later nights there are none). Every night: private.schedule_jobs() makes exactly the
---      two, active, at 10:00 and 10:20 UTC, run as postgres, and again changes nothing. The new functions are
+--      two, active, at 10:00 and 10:20 UTC, and since 10 Nov the unattended capture's start (09:30 and 21:30 UTC) and its
+--      answer (09:40 and 21:40 UTC), run as postgres, and again changes nothing. The new functions are
 --      postgres's only, run as the caller with an empty search path; capture_ingest() no longer deletes raw pages.
 --   2. backup_runs reads exactly as before (every column but id), the night it becomes a view and after; an insert as
 --      the backup job makes it lands in job_runs and reads back the same; what the old table refused is refused; only
@@ -46,9 +47,10 @@ begin
   perform cron.unschedule(j.jobname) from cron.job j where j.jobname like 'equinox-%';
   v_jobs := private.schedule_jobs();
   v_again := private.schedule_jobs();
-  assert v_jobs = '[{"job": "equinox-cleanup", "active": true, "command": "select private.job_cleanup()", "schedule": "20 10 * * *"}, {"job": "equinox-snapshot-fallback", "active": true, "command": "select private.job_snapshot_fallback()", "schedule": "0 10 * * *"}]'::jsonb,
+  -- since 10 Nov also the unattended capture's start and its answer (spec docs/specs/2026-11-10-unattended-capture.md §1)
+  assert v_jobs = '[{"job": "equinox-capture-dispatch", "active": true, "command": "select private.capture_dispatch()", "schedule": "30 9,21 * * *"}, {"job": "equinox-capture-dispatch-answer", "active": true, "command": "select private.capture_dispatch_answer()", "schedule": "40 9,21 * * *"}, {"job": "equinox-cleanup", "active": true, "command": "select private.job_cleanup()", "schedule": "20 10 * * *"}, {"job": "equinox-snapshot-fallback", "active": true, "command": "select private.job_snapshot_fallback()", "schedule": "0 10 * * *"}]'::jsonb,
     'private.schedule_jobs() made: ' || v_jobs::text;
-  assert v_again = v_jobs and (select count(*) from cron.job where jobname like 'equinox-%') = 2, 'private.schedule_jobs() a second time changed the jobs';
+  assert v_again = v_jobs and (select count(*) from cron.job where jobname like 'equinox-%') = 4, 'private.schedule_jobs() a second time changed the jobs';
   assert (select bool_and(username = 'postgres' and database = current_database()) from cron.job where jobname like 'equinox-%'),
     'the jobs don''t run as postgres in this database';
 

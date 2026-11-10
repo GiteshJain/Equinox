@@ -156,9 +156,14 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   - **a capture page that came in short or broken** (#21), the same night: "Kingfisher's capture came in short: loads
     12 of 78 flights", in the Capture group, linking to Systems. Capture that airline again; the line goes once its
     pages are all good;
+  - **the unattended capture** (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3): "Unattended
+    capture: last good run 15 hours ago" in the Capture group when its last good run is more than 14 hours old (the
+    setting *capture_unattended_warn_h*; red after 26), linking to Systems. Nothing before its first good run, so
+    nothing nags while it's set up;
   - **Nightly jobs** (#13): the daily snapshot more than 30 hours old, the 10:00 UTC job not run for 30 hours (the
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
-    with its note;
+    with its note; since 10 Nov that includes the unattended capture's run, and its start (the database asking GitHub)
+    once it has run well;
   - to-dos due or overdue (the one-week aircraft checks went on 22 Oct: manual §1 has none since 15 Oct);
   - maintenance, turns and positions, night bans, flight numbers used twice. Since 23 Oct maintenance follows the same
     source as Tails and Home's airline cards: an aircraft on last night's fleet pages is judged on the game's figure, so
@@ -868,6 +873,12 @@ Each button is saved on its own, as one change.
   - **Evening capture**, one row per airline: when its latest page came, and its pages' verdict (#21): "all good", or
     what came in short or broken ("short loads 12 of 78 flights"). Amber after 26 hours or when a page was short, red
     after 48 hours or when a page was broken. Pages stored before 14 Oct's checks say "not checked".
+  - **Unattended capture** (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3): its last run, ok with
+    its note ("6 airlines all good · world scan done · 12 min 40 s") or failed with what went wrong, and its last good
+    run; green under 14 hours (the setting *capture_unattended_warn_h*), amber to 26, red beyond or when its last run
+    failed; a failed start (the database asking GitHub at 09:30 and 21:30 UTC) adds its words, in amber. Before its first
+    run it says "no unattended run yet", in amber, with the start's words when that failed (the token not in the vault
+    yet).
   - **Daily snapshot:** the latest day in the daily history, taken by the capture (green) or by the 10:00 UTC fallback
     and so incomplete (amber); amber after 30 hours, red after 54 or when its last run failed; amber too when the 10:00
     UTC job hasn't run for 30 hours (the database's scheduler may have stopped).

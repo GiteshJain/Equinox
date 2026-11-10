@@ -401,6 +401,31 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(got[2]?.text).toBe("Monthly archive: hasn't run this month (the nightly backup runs it from the 1st; last ran Wed, Sep 2 07:30 UTC)");
     expect(got[4]?.text).toBe("Monthly archive (game_flights 2026-08): the last run failed (Sun, Oct 11 20:00 UTC): the copy didn't check out");
   });
+  it("the unattended capture (10 Nov): no row, nothing; an old ok row, its age; a failed row, the failed-job item; its start only once it has run well", () => {
+    const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+    const run = (job: string, status: string, h: number, note: string | null = null) => ({ job, status, started_at: at(h), for_month: null, note, details: null });
+    const jobs = (...runs: ReturnType<typeof run>[]) => ({ archiveLast: { started_at: "2026-10-01T07:30:00Z" }, runs: [...runs, run("snapshot_fallback", "ok", 2)] });
+    // no row: nothing, even with its start failing (the token isn't in the vault yet)
+    expect(homeAttention(input({ jobs: jobs(run("capture_dispatch", "failed", 2.5, "no GitHub token in the vault")) }))).toEqual([]);
+    // a recent ok row: nothing; an old one: its age, amber to 26 hours, red beyond, in the Capture group
+    expect(homeAttention(input({ jobs: jobs(run("capture_unattended", "ok", 3)) }))).toEqual([]);
+    const old = homeAttention(input({ jobs: jobs(run("capture_unattended", "ok", 15)) }));
+    expect(old).toEqual([{ key: "capture|unattended|2026-10-13", cls: "warn", screen: "systems", text: "Unattended capture: last good run 15 hours ago" }]);
+    expect(attKind(old[0] as AttItem)).toBe("capture");
+    expect(homeAttention(input({ jobs: jobs(run("capture_unattended", "ok", 30)) }))[0]).toMatchObject({ cls: "bad", text: "Unattended capture: last good run 30 hours ago" });
+    // the setting moves the warning
+    const rules = buildRules({ ...base, settings: { ...base.settings, capture_unattended_warn_h: 20 } });
+    expect(homeAttention(input({ rules, jobs: jobs(run("capture_unattended", "ok", 15)) }))).toEqual([]);
+    // a failed row after a good one: the failed-job item; and a failed start, once it has run well
+    const got = homeAttention(input({ jobs: jobs(run("capture_dispatch", "failed", 0.5, "GitHub answered 401: Bad credentials"),
+      run("capture_unattended", "failed", 1, "Pan Am: loads 12 of 78 flights"), run("capture_unattended", "ok", 13)) }));
+    expect(got).toEqual([
+      { key: `jobs|failed|capture_dispatch|${at(0.5)}`, cls: "bad", screen: "systems",
+        text: "Unattended capture's start (09:30 and 21:30 UTC): the last run failed (Tue, Oct 13 11:30 UTC): GitHub answered 401: Bad credentials" },
+      { key: `jobs|failed|capture_unattended|${at(1)}`, cls: "bad", screen: "systems",
+        text: "Unattended capture: the last run failed (Tue, Oct 13 11:00 UTC): Pan Am: loads 12 of 78 flights" },
+    ]);
+  });
   const patterns = [
     { airline_id: 1, route_id: 3, hub: "HUB", dest: "CCC", mark: "cut" as const, why: "under 85% on most departures — reduce frequency or downgauge" },
     { airline_id: 1, route_id: 1, hub: "HUB", dest: "AAA", mark: "watch" as const, why: "a third of departures under 85%" },

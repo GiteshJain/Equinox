@@ -155,15 +155,16 @@ export interface JobRun {
 }
 export interface JobsRead { runs: JobRun[]; archiveLast: { started_at: string } | null }
 
-/** The automatic jobs' runs of the last 40 days (snapshot, the 10:00 UTC fallback, clean-up, archive) and the archive's
- * latest run, as the old planner reads them for Home's warnings. */
+/** The automatic jobs' runs of the last 40 days (snapshot, the 10:00 UTC fallback, clean-up, archive, and since 10 Nov the
+ * unattended capture and its start, spec docs/specs/2026-11-10-unattended-capture.md §3) and the archive's latest run, as the
+ * old planner reads them for Home's warnings. */
 export function useJobs() {
   return useQuery({
     queryKey: tableKey("job_runs", "home"),
     queryFn: async (): Promise<JobsRead> => {
       const [j, a] = await Promise.all([
         supabase.from("job_runs").select("job, status, started_at, for_month, note, details")
-          .in("job", ["snapshot", "snapshot_fallback", "cleanup", "archive"]).gte("started_at", asOf(40 * 86_400_000))
+          .in("job", ["snapshot", "snapshot_fallback", "cleanup", "archive", "capture_unattended", "capture_dispatch"]).gte("started_at", asOf(40 * 86_400_000))
           .order("started_at", { ascending: false }).limit(500),
         supabase.from("job_runs").select("started_at").eq("job", "archive").order("started_at", { ascending: false }).limit(1),
       ]);

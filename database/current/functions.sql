@@ -107,11 +107,13 @@ CREATE OR REPLACE FUNCTION public.capture_airlines(p_key text)
  STABLE SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-declare v_world bigint;
+declare v_world bigint; v_unattended boolean; v_doc jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
-  return jsonb_build_object(
+  -- the unattended capture's key (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1)
+  v_unattended := private.capture_key_unattended(p_key);
+  v_doc := jsonb_build_object(
     'ok', true,
     'world', (select w.name from public.worlds w where w.id = v_world),
     'airlines', (select coalesce(jsonb_agg(jsonb_build_object('game_id', a.game_id, 'name', a.planner_name,
@@ -120,12 +122,25 @@ begin
                    from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                   where a.world_id = v_world and a.active and g.kind = 'ours'),
     -- salaries (since 5 Nov, manual §7): how far above the country average a salary below it is set; null: left alone
-    'salary_above_average_pct', (select s.value from public.settings s
-                                  where s.world_id = v_world and s.airline_id is null and s.key = 'salary_above_average_pct'))
+    -- (and null for the unattended key while unattended_salaries is false)
+    'salary_above_average_pct', case when v_unattended and not private.capture_unattended_allows(v_world, 'salaries') then null
+                                     else (select s.value from public.settings s
+                                            where s.world_id = v_world and s.airline_id is null and s.key = 'salary_above_average_pct') end)
     -- the world scan (spec docs/specs/2026-10-21-scan-in-capture.md): whether one is due, the open one and the airports
     || private.capture_scan_plan(v_world, now())
     -- the market pages (spec docs/specs/2026-10-30-market-pages.md): whether they're due, the open run and the pages
     || private.capture_market_plan(v_world, now());
+  if v_unattended then
+    -- the scan and the market pages: as for a normal key, unless the world's setting keeps them from the unattended key
+    if not private.capture_unattended_allows(v_world, 'scan') then
+      v_doc := v_doc || jsonb_build_object('scan_due', false, 'scan_open', null);
+    end if;
+    if not private.capture_unattended_allows(v_world, 'market') then
+      v_doc := v_doc || jsonb_build_object('market_due', false, 'market_open', null, 'market_pages', '[]'::jsonb);
+    end if;
+    v_doc := v_doc || jsonb_build_object('unattended', true);
+  end if;
+  return v_doc;
 end
 $function$
 
@@ -147,6 +162,9 @@ declare
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  -- the unattended capture's key reads only (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): the aircraft
+  -- evaluation is run by hand, so it is refused as a wrong key is
+  if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
   select r.seat into v_seat from public.aircraft_eval_runs r where r.id = p_run and r.world_id = v_world;
   if not found then
     return jsonb_build_object('ok', false, 'error', 'run ' || coalesce(p_run::text, '(none)') || ' isn''t on this world''s run list');
@@ -244,6 +262,9 @@ declare v_world bigint; v_types jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  -- the unattended capture's key reads only (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): the aircraft
+  -- evaluation is run by hand, so it is refused as a wrong key is
+  if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
   select s.value into v_types from public.settings s
    where s.world_id = v_world and s.airline_id is null and s.key = 'aircraft_eval_types';
   if v_types is null or jsonb_typeof(v_types) <> 'array' or jsonb_array_length(v_types) = 0 then
@@ -276,6 +297,9 @@ declare v_world bigint;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  -- the unattended capture's key reads only (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): fares are
+  -- never changed on a schedule (manual §5), so it is refused as a wrong key is
+  if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
   return jsonb_build_object('ok', true, 'world', (select w.name from public.worlds w where w.id = v_world))
          || private.capture_fare_actions_doc(v_world, now());
 end
@@ -296,6 +320,9 @@ declare v_world bigint; v_doc jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  -- the unattended capture's key reads only (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): fares are
+  -- never changed on a schedule (manual §5), so it is refused as a wrong key is
+  if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
   if p_game_id is null then
     -- the list: our active airlines of the world in display order, with no fare ladder worked out (it answers at once)
     return jsonb_build_object('ok', true, 'world', (select w.name from public.worlds w where w.id = v_world),
@@ -357,6 +384,11 @@ declare v_world bigint; v_run bigint; v_res jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  -- the unattended capture's key (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): refused as a wrong key
+  -- is while the world's unattended_market is false
+  if not private.capture_unattended_allows(v_world, 'market') then
+    if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  end if;
   if p_kind is null or p_kind not in ('start', 'page', 'finish') then
     return jsonb_build_object('ok', false, 'error', 'bad kind');
   end if;
@@ -403,6 +435,11 @@ declare v_world bigint; v_scan bigint; v_res jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  -- the unattended capture's key (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): refused as a wrong key
+  -- is while the world's unattended_scan is false
+  if not private.capture_unattended_allows(v_world, 'scan') then
+    if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
+  end if;
   if p_kind is null or p_kind not in ('start', 'airline', 'airport', 'finish', 'fleet') then
     return jsonb_build_object('ok', false, 'error', 'bad kind');
   end if;
@@ -1748,7 +1785,7 @@ CREATE OR REPLACE FUNCTION public.system_status(p_world_id bigint DEFAULT NULL::
  SET search_path TO ''
 AS $function$
 declare w bigint; v_at timestamptz := coalesce(p_as_of, now()); v_month timestamptz; v_snap jsonb; v_job jsonb; v_fb timestamptz;
-  v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_market jsonb; v_db bigint; v_pdf bigint; v_site bigint;
+  v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_market jsonb; v_un jsonb; v_db bigint; v_pdf bigint; v_site bigint;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the systems board' using errcode = '42501'; end if;
   w := private.fig_world(p_world_id);
@@ -1833,6 +1870,24 @@ begin
    where r.world_id = w and r.status = 'done' and r.started_at <= v_at
    order by r.started_at desc, r.id desc limit 1;
 
+  -- the unattended capture (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3): Today's setting, its last
+  -- run and last good run (job_runs, capture_unattended, written by the GitHub job) and the database's last start of it
+  select jsonb_build_object(
+           'warn_h', (select s.value from public.settings s where s.world_id = w and s.airline_id is null and s.key = 'capture_unattended_warn_h'),
+           'last', (select jsonb_build_object('at', private.fig_ts(j.started_at), 'status', j.status, 'note', left(j.note, 300))
+                      from public.job_runs j
+                     where j.job = 'capture_unattended' and (j.world_id = w or j.world_id is null) and j.started_at <= v_at and j.status <> 'running'
+                     order by j.started_at desc, j.id desc limit 1),
+           'last_ok', (select jsonb_build_object('at', private.fig_ts(j.started_at), 'status', j.status, 'note', left(j.note, 300))
+                         from public.job_runs j
+                        where j.job = 'capture_unattended' and (j.world_id = w or j.world_id is null) and j.started_at <= v_at and j.status = 'ok'
+                        order by j.started_at desc, j.id desc limit 1),
+           'dispatch', (select jsonb_build_object('at', private.fig_ts(j.started_at), 'status', j.status, 'note', left(j.note, 300))
+                          from public.job_runs j
+                         where j.job = 'capture_dispatch' and (j.world_id = w or j.world_id is null) and j.started_at <= v_at and j.status <> 'running'
+                         order by j.started_at desc, j.id desc limit 1))
+    into v_un;
+
   -- usage the database can measure, each against its trigger (manual §1; #16, #17, #20): now, whatever the moment
   v_db := pg_database_size(current_database());
   select coalesce(sum(octet_length(r.pdf_b64)), 0) * 3 / 4 into v_pdf from public.site_reports r where r.pdf_b64 is not null;
@@ -1848,6 +1903,7 @@ begin
     'scan', v_scan,
     'scan_stopped', v_stopped,
     'market', v_market,
+    'unattended', v_un,
     'usage', jsonb_build_array(
       jsonb_build_object('key', 'database', 'label', 'Database size', 'bytes', v_db, 'trigger_bytes', 350 * 1024 * 1024::bigint),
       jsonb_build_object('key', 'report_pdfs', 'label', 'Report PDFs', 'bytes', v_pdf, 'trigger_bytes', 50 * 1024 * 1024::bigint),
@@ -2543,6 +2599,124 @@ $function$
 
 ;
 
+-- private.capture_dispatch(p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.capture_dispatch(p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  -- GitHub's address for starting the job, and this project's own address: the dispatch posts only from the live project
+  c_url constant text := 'https://api.github.com/repos/GiteshJain/equinox-backups/actions/workflows/capture.yml/dispatches';
+  c_project constant text := 'https://ulecwsyedvwcxgdzmhoq.supabase.co';
+  v_at timestamptz := coalesce(p_at, now());
+  w bigint; v_token text; v_project text; v_last timestamptz; v_scan timestamptz; v_req bigint;
+  v_status text; v_note text; v_details jsonb; v_answers jsonb;
+begin
+  select x.id into w from public.worlds x where x.is_default order by x.id limit 1;
+  begin
+    -- the last dispatch's answer, if it hasn't been noted yet
+    v_answers := private.capture_dispatch_answer();
+    select s.decrypted_secret into v_token from vault.decrypted_secrets s
+     where s.name = 'github_dispatch_token' order by s.created_at desc limit 1;
+    select s.decrypted_secret into v_project from vault.decrypted_secrets s
+     where s.name = 'project_url' order by s.created_at desc limit 1;
+    -- the latest capture page (raw pages and market pages), and a world scan still open within the hour
+    select max(t) into v_last
+      from (select max(r.captured_at) as t from public.game_capture_raw r where r.world_id = w and r.captured_at <= v_at
+            union all
+            select max(m.read_at) from public.market_reads m where m.world_id = w and m.read_at <= v_at) x;
+    select max(s.taken_at) into v_scan from public.game_scans s
+     where s.world_id = w and s.status not in ('done', 'stopped') and s.taken_at <= v_at and s.taken_at > v_at - interval '1 hour';
+    if coalesce(btrim(v_token), '') = '' then
+      v_status := 'failed'; v_note := 'no GitHub token in the vault';
+    elsif rtrim(btrim(coalesce(v_project, '')), '/') <> c_project then
+      v_status := 'failed';
+      v_note := 'not the live project: the vault''s project_url is ' || coalesce(nullif(btrim(v_project), ''), 'missing') || ', not ' || c_project
+                || '; nothing posted';
+    elsif v_last > v_at - interval '20 minutes' or v_scan is not null then
+      v_status := 'ok';
+      v_note := 'skipped: a capture is running (' || case when v_scan is not null and (v_last is null or v_last <= v_at - interval '20 minutes')
+                                                          then 'a world scan open since ' || to_char(v_scan at time zone 'UTC', 'HH24:MI') || ' UTC'
+                                                          else 'a page at ' || to_char(v_last at time zone 'UTC', 'HH24:MI') || ' UTC' end || ')';
+      v_details := jsonb_build_object('skipped', true, 'last_page_at', private.fig_ts(v_last), 'scan_open_since', private.fig_ts(v_scan));
+    else
+      v_req := net.http_post(
+        url := c_url,
+        body := jsonb_build_object('ref', 'main'),
+        params := '{}'::jsonb,
+        headers := jsonb_build_object('Accept', 'application/vnd.github+json', 'Authorization', 'Bearer ' || btrim(v_token),
+                                      'X-GitHub-Api-Version', '2022-11-28', 'User-Agent', 'equinox-capture-dispatch',
+                                      'Content-Type', 'application/json'),
+        timeout_milliseconds := 10000);
+      v_status := 'ok';
+      v_note := 'asked GitHub to start the unattended capture (request ' || v_req || '); its answer is noted at :40';
+      v_details := jsonb_build_object('request_id', v_req);
+    end if;
+  exception when others then
+    v_status := 'failed'; v_note := 'the dispatch failed: ' || sqlerrm; v_details := null;
+  end;
+  perform private.job_run_add('capture_dispatch', w, v_at, v_status, v_note,
+                              coalesce(v_details, '{}'::jsonb) || jsonb_build_object('answers_noted', v_answers -> 'noted'));
+  return jsonb_build_object('status', v_status, 'note', v_note, 'request_id', v_req);
+end
+$function$
+
+;
+
+-- private.capture_dispatch_answer()
+CREATE OR REPLACE FUNCTION private.capture_dispatch_answer()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare r record; v_resp record; v_noted int := 0; v_waiting int := 0; v_words text;
+begin
+  -- each dispatch of the last two days that posted and has no answer noted yet
+  for r in select j.id, (j.details ->> 'request_id')::bigint as request_id, j.started_at, j.note
+             from public.job_runs j
+            where j.job = 'capture_dispatch' and j.details ? 'request_id' and not j.details ? 'answer'
+              and j.started_at > now() - interval '2 days'
+            order by j.started_at, j.id
+  loop
+    select x.status_code, x.content, x.timed_out, x.error_msg into v_resp
+      from net._http_response x where x.id = r.request_id;
+    if not found then
+      -- pg_net keeps an answer 6 hours: older than that, it's gone; younger, it hasn't come yet
+      if r.started_at < now() - interval '6 hours' then
+        update public.job_runs j
+           set note = coalesce(r.note, '') || ' · GitHub''s answer was no longer kept (pg_net keeps 6 hours)',
+               details = j.details || jsonb_build_object('answer', null)
+         where j.id = r.id;
+        v_noted := v_noted + 1;
+      else
+        v_waiting := v_waiting + 1;
+      end if;
+      continue;
+    end if;
+    if v_resp.status_code = 204 then
+      update public.job_runs j
+         set note = 'GitHub started the unattended capture (204; request ' || r.request_id || ')',
+             details = j.details || jsonb_build_object('answer', 204)
+       where j.id = r.id;
+    else
+      v_words := case when v_resp.status_code is not null
+                      then 'GitHub answered ' || v_resp.status_code || ': ' || left(coalesce(v_resp.content, ''), 200)
+                      when coalesce(v_resp.timed_out, false) then 'GitHub didn''t answer in time: ' || left(coalesce(v_resp.error_msg, 'timed out'), 200)
+                      else 'GitHub couldn''t be reached: ' || left(coalesce(v_resp.error_msg, 'no answer'), 200) end;
+      update public.job_runs j
+         set status = 'failed', note = v_words,
+             details = j.details || jsonb_build_object('answer', v_resp.status_code, 'timed_out', v_resp.timed_out)
+       where j.id = r.id;
+    end if;
+    v_noted := v_noted + 1;
+  end loop;
+  return jsonb_build_object('noted', v_noted, 'waiting', v_waiting);
+end
+$function$
+
+;
+
 -- private.capture_expect(p_raw_id bigint)
 CREATE OR REPLACE FUNCTION private.capture_expect(p_raw_id bigint)
  RETURNS jsonb
@@ -2852,6 +3026,45 @@ begin
   end if;
   return jsonb_build_object('verdict', v, 'note', v_note, 'facts', v_facts);
 end
+$function$
+
+;
+
+-- private.capture_key_issue(p_world bigint, p_label text, p_unattended boolean)
+CREATE OR REPLACE FUNCTION private.capture_key_issue(p_world bigint, p_label text, p_unattended boolean)
+ RETURNS text
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_key text;
+begin
+  if p_world is null or not exists (select 1 from public.worlds w where w.id = p_world) then
+    raise exception 'no world %: name the world the key captures (public.worlds.id)', coalesce(p_world::text, 'null') using errcode = '22023';
+  end if;
+  if coalesce(btrim(p_label), '') = '' then
+    raise exception 'name the key: a label says where it lives (e.g. ''unattended (GitHub)'')' using errcode = '22023';
+  end if;
+  v_key := encode(extensions.gen_random_bytes(32), 'hex');
+  -- only the hash is kept, as private.capture_key_world() checks it
+  insert into public.capture_keys (label, key_hash, world_id, unattended)
+  values (btrim(p_label), extensions.crypt(v_key, extensions.gen_salt('bf')), p_world, coalesce(p_unattended, false));
+  return v_key;
+end
+$function$
+
+;
+
+-- private.capture_key_unattended(p_key text)
+CREATE OR REPLACE FUNCTION private.capture_key_unattended(p_key text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select coalesce((select k.unattended from public.capture_keys k
+                    where p_key is not null and extensions.crypt(p_key, k.key_hash) = k.key_hash
+                    order by k.id
+                    limit 1), false)
 $function$
 
 ;
@@ -3270,6 +3483,19 @@ begin
   return v_res || jsonb_build_object('capture_day', v_day, 'day_complete', v_complete)
          || case when v_snap is null then '{}'::jsonb else jsonb_build_object('snapshot', v_snap) end;
 end
+$function$
+
+;
+
+-- private.capture_unattended_allows(p_world_id bigint, p_what text)
+CREATE OR REPLACE FUNCTION private.capture_unattended_allows(p_world_id bigint, p_what text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select coalesce((select s.value = 'true'::jsonb from public.settings s
+                    where s.world_id = p_world_id and s.airline_id is null and s.key = 'unattended_' || p_what), false)
 $function$
 
 ;
@@ -9575,6 +9801,10 @@ AS $function$
 begin
   perform cron.schedule('equinox-snapshot-fallback', '0 10 * * *', 'select private.job_snapshot_fallback()');
   perform cron.schedule('equinox-cleanup', '20 10 * * *', 'select private.job_cleanup()');
+  -- the unattended capture (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §1): the start at 09:30 and
+  -- 21:30 UTC, and GitHub's answer noted ten minutes later
+  perform cron.schedule('equinox-capture-dispatch', '30 9,21 * * *', 'select private.capture_dispatch()');
+  perform cron.schedule('equinox-capture-dispatch-answer', '40 9,21 * * *', 'select private.capture_dispatch_answer()');
   return (select jsonb_agg(jsonb_build_object('job', j.jobname, 'schedule', j.schedule, 'command', j.command, 'active', j.active)
                            order by j.jobname)
             from cron.job j where j.jobname like 'equinox-%');
