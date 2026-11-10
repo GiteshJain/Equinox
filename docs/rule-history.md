@@ -38,6 +38,20 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The whole bank statement, judged on its parts together: built 10 Nov
+*Gitesh, 10 Nov (Audit chat, part 1 of to-do 203; brief `docs/briefs/2026-11-10-unattended-capture.md`, "The 1,500"),
+spec `docs/specs/2026-11-10-whole-statement.md` · why: the game shows the bank statement's whole last 24 hours (Ryanair's
+ran to page 24 on 10 Nov), but the capture stopped at 15 pages, 1,500 lines. On 9 Nov Ryanair, Virgin and China Eastern
+all stopped at exactly 1,500, so their oldest hours never reached the database: from 27 Oct to 8 Nov, 362 flights have
+loads but no money (Ryanair 267, Virgin 45, China Eastern 39). One `capture_ingest()` call for 2,400 lines would come
+near its 30 s limit, and the statement grows with every aircraft, so it goes in parts of at most 500 lines, cut between
+minutes, and the database judges the run once, on its last part. The note says when the run's oldest line is more than
+15 minutes after the airline's previous capture, because those hours can't be captured again; the verdict stays as it
+is, since capturing again can't bring them back and Today already says when an evening is missed.* Built with the
+spec's pull request (capture 1.16, migration 20261110010000). §7's page-check sentence replaced. Its statement part
+before, word for word: "a bank statement is short with no lines, or below half the median of the airline's recent
+nights (`capture_statement_min_share`);"
+
 ### The unattended capture: decided 10 Nov
 *Gitesh, 10 Nov (Audit chat, brief `docs/briefs/2026-11-10-unattended-capture.md`, option C): "I love C. But i think it
 deserves a deeper look into why scheduled jobs are running late", then "Yes" to C with its runs started by the

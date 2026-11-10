@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.15
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
+// @version      1.16
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Since 1.16 it reads the whole bank statement (every page of the game's last 24 hours) and sends it in parts of at most 500 lines. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
 // @match        https://gander.airlinesim.aero/*
 // @grant        none
 // ==/UserScript==
@@ -41,6 +41,12 @@
 // no clicking: every salary box on the game's page is named "amount", so 1.12–1.14 found the first row's box for every
 // position and set the E-jet pilots' salary three times while the two positions below (A320 pilots, flight attendants)
 // were never touched. Tested on the real page Gitesh saved (tests/fixtures/employee_overview_KF_2026-11-09.html).
+// 1.16 (10 Nov, spec docs/specs/2026-11-10-whole-statement.md): the bank statement is read to its last page (the date stop
+// at 26 hours before the capture, was 3 days; a safety stop at 60 pages, said in the panel), where 1.4 to 1.15 stopped at
+// 15 pages, 1,500 lines (Ryanair's runs to page 24). It is sent in parts of at most 500 lines, a part ending only between
+// two minutes (the database numbers a minute's identical lines and groups its flights one page at a time), each as page
+// /app/finance/accounting/2#run=<the run's ISO time>&part=<k>/<n>, in order; the database judges the run on its last part.
+// The panel's line: "Ryanair · statement 2,412 lines, 24 pages, 5 parts". tests/capture_statement_test.mjs.
 // 1.14 (9 Nov): the button moves to the bottom left (Gitesh), with Apply fare plan and Aircraft evaluation above it.
 // 1.13 (9 Nov): a salary still below after its adjust is pressed again, up to 3 times, and each adjust waits for the page
 // to reload or redraw before the next: on the first live run (9 Nov) two positions (A320 pilots and flight attendants) stayed below because their
@@ -57,7 +63,7 @@
   "use strict";
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.15";                                      // the @version above, in the scan's notes
+  const VERSION = "1.16";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -735,13 +741,57 @@
     return { words: salaryWords(st.name, st.pct, raised, stuck, below.length > SALARY_MAX_CHANGES), raised, stuck };
   }
 
+  // ---------------------------------------------------------------- the bank statement's logic, without the page (1.16)
+  // Spec docs/specs/2026-11-10-whole-statement.md §1: every page of the statement, to the date stop (26 hours before the
+  // capture) or the safety stop (60 pages), then sent in parts of at most STATEMENT_PART_LINES lines. A part ends only where
+  // the next line's "dd.mm. hh:mm" differs from the line before: the database numbers identical lines within one minute
+  // (occ) and groups a minute's lines into flights (blk) one page at a time, so a minute cut across two parts would be
+  // numbered twice and lose or misgroup lines. A single minute over the limit stays whole in one part. Lines keep the
+  // game's order (newest first). tests/capture_statement_test.mjs.
+  const STATEMENT_URL = "/app/finance/accounting/2";
+  const STATEMENT_PART_LINES = 500;                            // lines in a part at most (a minute is never split)
+  const STATEMENT_MAX_PAGES = 60;                              // the safety stop
+  const STATEMENT_HOURS = 26;                                  // the date stop: lines older than this before the capture
+  // a statement line's minute, "dd.mm. hh:mm", from its first filled cell (null when it has none)
+  const minuteOf = row => { const c = (Array.isArray(row) ? row : []).find(x => String(x == null ? "" : x).trim() !== ""); const m = String(c == null ? "" : c).match(/^\d\d\.\d\d\. \d\d:\d\d/); return m ? m[0] : null; };
+  // the statement's lines in parts of at most max lines, cut only between two minutes, every line kept in order; one
+  // (empty) part when there are no lines, so the page is still sent and judged
+  function statementParts(rows, max = STATEMENT_PART_LINES) {
+    const list = Array.isArray(rows) ? rows : [], limit = Math.max(1, Math.floor(Number(max)) || STATEMENT_PART_LINES);
+    const parts = []; let cur = [];
+    for (let i = 0; i < list.length;) {
+      const m = minuteOf(list[i]); let j = i + 1;
+      while (j < list.length && minuteOf(list[j]) === m) j++;   // the minute's lines, together
+      if (cur.length && cur.length + (j - i) > limit) { parts.push(cur); cur = []; }
+      for (let k = i; k < j; k++) cur.push(list[k]);
+      i = j;
+    }
+    if (cur.length || !parts.length) parts.push(cur);
+    return parts;
+  }
+  // the page a part is sent as: the statement's address with the run (its ISO time, taken once) and the part
+  const statementPage = (run, k, n) => STATEMENT_URL + "#run=" + run + "&part=" + k + "/" + n;
+  const thousands = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  // the panel's line for an airline's statement once its parts are sent: the lines the database read, the pages and the
+  // parts, or the error of the first part that failed
+  function statementWords(name, replies, pages) {
+    const list = replies || [], n = list.length, bad = list.findIndex(r => !r || r.ok !== true);
+    const lines = list.reduce((t, r) => t + (r && r.ok === true ? Number(r.rows) || 0 : 0), 0);
+    const head = bad >= 0 ? `part ${bad + 1} of ${n} not stored (${(list[bad] && (list[bad].error || list[bad].message)) || "no answer"})`
+      : `${thousands(lines)} ${lines === 1 ? "line" : "lines"}`;
+    return `${name} · statement ${head}, ${plural(pages, "page", "pages")}, ${plural(n, "part", "parts")}`;
+  }
+  // the panel's line when the safety stop is hit (the statement is still sent)
+  const statementStopWords = (name, pages, lines) => `${name} · statement: stopped at ${pages} pages, ${thousands(lines)} lines`;
+
   const lib = { LETTERS, PACE, MAX_FAILED_SHARE, letterUrl, airlineUrl, airportUrl, overviewUrl, unescape, text, readLetterPage, addAirlines, airlineList,
                 readSchedulePage, airlinePayload, readAirportPage, airportPayload, readOverviewPage, fleetScanPayload, finishPayload, tooManyFailed, isoWeek, planOf, noScanWords,
                 progressWords, VERSION, FLEET_PACE, fleetListUrl, fleetUrl, readFleetPage, fleetsToRead, fleetPayload, fleetProgress, fleetWords,
                 fleetOk, fleetSummary, MARKET_PACE, marketUrl, FILTER_CALLS, readMarketFilters, filterProblems, filterWords, filterCalls, isFilterCall,
                 filterBody, wicketBase, openAirlineOf, openProblem, readMarketPage, fareSummary, marketPagePayload, marketPlanOf, noMarketWords,
                 marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken, readPricing,
-                SALARY_PACE, SALARY_MAX_CHANGES, salaryPctOf, salaryFormBody, salaryFormUrl, salaryTarget, isSalaryPage, salaryLinkOf, readSalaryPage, salariesBelow, salaryWords, runSalaries };
+                SALARY_PACE, SALARY_MAX_CHANGES, salaryPctOf, salaryFormBody, salaryFormUrl, salaryTarget, isSalaryPage, salaryLinkOf, readSalaryPage, salariesBelow, salaryWords, runSalaries,
+                STATEMENT_URL, STATEMENT_PART_LINES, STATEMENT_MAX_PAGES, STATEMENT_HOURS, statementParts, statementPage, statementWords, statementStopWords };
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
 
   // ---------------------------------------------------------------- in the game: the capture, as in 1.4, and the fleets (1.6)
@@ -768,11 +818,24 @@
   const currentId = async list => { const d = await fetchDoc("/action/enterprise/schedule"); const t = d.body.textContent, i = t.indexOf("Events overview for "); const n = i >= 0 ? t.slice(i + 20, i + 60).trim() : ""; const hit = list.find(a => n.startsWith(a[2]) || n.startsWith(a[1])); return hit ? hit[0] : null; };
   async function captureCurrent(id, name) {
     let r = await send(id, "events", rowsOf(await fetchDoc("/action/enterprise/schedule")), "/action/enterprise/schedule"); log(name + " · events " + (r.rows ?? r.error));
-    let url = "/app/finance/accounting/2", all = [], pages = 0; const since = Date.now() - 3 * 864e5;
-    while (url && pages < 15) { const doc = await fetchDoc(url); const rows = rowsOf(doc).filter(x => /^\d\d\.\d\d\. \d\d:\d\d/.test(x[0])); all.push(...rows); pages++;
+    // 1.16: the whole statement, to its last page (the date stop 26 hours back, the safety stop 60 pages), then in parts
+    const run = new Date().toISOString(), since = Date.now() - STATEMENT_HOURS * 36e5;
+    let url = STATEMENT_URL, all = [], pages = 0, capped = false;
+    while (url) {
+      if (pages >= STATEMENT_MAX_PAGES) { capped = true; break; }
+      const doc = await fetchDoc(url); const rows = rowsOf(doc).filter(x => /^\d\d\.\d\d\. \d\d:\d\d/.test(x[0])); all.push(...rows); pages++;
       const last = rows[rows.length - 1]; if (last) { const d = last[0]; if (Date.UTC(new Date().getUTCFullYear(), +d.slice(3, 5) - 1, +d.slice(0, 2), +d.slice(7, 9), +d.slice(10, 12)) < since) break; }
       const next = [...doc.querySelectorAll("a")].find(a => a.textContent.trim() === ">"); url = next ? new URL(next.getAttribute("href"), new URL(url, location.origin)).href : null; }
-    r = await send(id, "statement", all, "/app/finance/accounting/2"); log(name + " · statement " + (r.rows ?? r.error) + " lines, " + pages + " pages");
+    if (capped) log(statementStopWords(name, pages, all.length));
+    // each part in order, 1 to n; one the database refuses counts as a failed page (send), and the rest are still sent so
+    // the last part can judge the run
+    const parts = statementParts(all, STATEMENT_PART_LINES), replies = [];
+    for (let k = 1; k <= parts.length; k++) {
+      progress(`${name}: statement, part ${k} of ${parts.length}…`);
+      try { replies.push(await send(id, "statement", parts[k - 1], statementPage(run, k, parts.length))); }
+      catch (e) { failed(); replies.push({ ok: false, error: e.message }); }
+    }
+    progress(null); log(statementWords(name, replies, pages));
     r = await send(id, "pnl", rowsOf(await fetchDoc("/app/finance/accounting/0")), "/app/finance/accounting/0"); log(name + " · income statement " + (r.rows ?? r.error));
     r = await send(id, "balance", rowsOf(await fetchDoc("/app/finance/accounting/1")), "/app/finance/accounting/1"); log(name + " · balance sheet " + (r.rows ?? r.error));
     r = await send(id, "loads", rowsOf(document), location.pathname); log(name + " · loads " + (r.rows ?? r.error) + " flights");

@@ -18,6 +18,11 @@
 --      short page arrives (Home lists it the same night).
 --   5. system_status() on the copy: each part there, the usage figures measured as the board shows them against their
 --      triggers, and refused to anyone but staff.
+--   6. A statement sent in parts (since 10 Nov, capture 1.16; spec docs/specs/2026-11-10-whole-statement.md §4): the saved
+--      sample's statement sent as three parts, cut between minutes, gives exactly the rows the single page gives, parts 1
+--      and 2 ok and part 3 judged on the total; a run with part 2 missing is broken; a run whose oldest line is 3 hours
+--      after the airline's previous capture says the gap, and one 10 minutes after says nothing; the median counts each
+--      night's latest run with its parts summed (a part stored twice counted once). Pages with no run are sections 2 to 4.
 
 -- the newest saved sample, read as the test starts (null when there is none)
 \set capture_sample `f=$(ls tests/fixtures/capture_pages_*.json.gz 2>/dev/null | sort | tail -n 1); if [ -n "$f" ]; then gzip -dc "$f"; else echo null; fi`
@@ -391,5 +396,140 @@ begin
     jsonb_array_length(d -> 'capture'), coalesce((d #>> '{snapshot,day}') || ' (' || (d #>> '{snapshot,source}') || ')', 'none'),
     coalesce(d #>> '{backup,last_good,ran_at}', 'none'), coalesce(d #>> '{cleanup,at}', 'none'), coalesce(d #>> '{scan,taken_at}', 'none'),
     round((d #>> '{usage,0,bytes}')::numeric / 1048576, 1), round((d #>> '{usage,1,bytes}')::numeric / 1048576, 1), round((d #>> '{usage,2,bytes}')::numeric / 1024);
+end
+$test$;
+
+-- ---------------------------------------------------------------- 6. a statement sent in parts (capture 1.16)
+do $test$
+declare s jsonb := (select doc from t_cs); w bigint; al bigint; nm text; p jsonb; q record; rid bigint; v jsonb; g jsonb; k text;
+  bad text := ''; n_diff int; st jsonb; n int; run text; parts text := ''; last_v jsonb;
+begin
+  -- pages without a run are as before
+  assert private.statement_run('/app/finance/accounting/2') is null and private.statement_run(null) is null
+     and private.statement_run('/app/finance/accounting/2#run=x&part=4/3') is null,
+    'a page without a run (or with a part outside 1 to n) names one';
+  assert private.statement_run('/app/finance/accounting/2#run=2026-11-10T19:02:03.123Z&part=2/5')
+         = '{"run": "2026-11-10T19:02:03.123Z", "part": 2, "parts": 5}'::jsonb,
+    'statement_run() doesn''t read the run and part: ' || coalesce(private.statement_run('/app/finance/accounting/2#run=2026-11-10T19:02:03.123Z&part=2/5')::text, 'null');
+  assert obj_description('private.statement_run(text)'::regprocedure, 'pg_proc') is not null, 'private.statement_run(text) has no description';
+  assert not has_function_privilege('anon', 'private.statement_run(text)', 'execute')
+     and not has_function_privilege('authenticated', 'private.statement_run(text)', 'execute'),
+    'private.statement_run(text) is open to the data API''s roles';
+
+  -- the saved evening again, its statement as three parts cut between minutes, into emptied capture tables
+  select a.id, a.world_id, a.planner_name into al, w, nm
+    from public.airlines a join public.worlds x on x.id = a.world_id and x.is_default where a.game_id = (s ->> 'game_id')::int;
+  delete from public.game_statement where airline_id = al;
+  delete from public.game_flights where airline_id = al;
+  delete from public.game_payments where airline_id = al;
+  delete from public.game_events where airline_id = al;
+  delete from public.game_balance where airline_id = al;
+  delete from public.game_pnl where airline_id = al;
+  for p in select e from jsonb_array_elements(s -> 'pages') with ordinality x(e, o) order by o loop
+    if p ->> 'kind' <> 'statement' then
+      rid := pg_temp.cs_raw(w, al, nm, p ->> 'kind', p ->> 'page_url', p -> 'rows', (p ->> 'captured_at')::timestamptz);
+      v := pg_temp.cs_judge(rid, s -> 'expect' -> (p ->> 'kind'));
+      continue;
+    end if;
+    st := p; n := jsonb_array_length(p -> 'rows');
+    run := private.fig_ts((p ->> 'captured_at')::timestamptz);
+    for q in
+      with r as (select e, o, substring(e ->> 0 from '^\d{2}\.\d{2}\. \d{2}:\d{2}') as m from jsonb_array_elements(p -> 'rows') with ordinality x(e, o)),
+      c as (select r.o, r.m is distinct from lag(r.m) over (order by r.o) as starts from r),
+      cuts as (select (select min(c.o) from c where c.starts and c.o > i * n / 3) as at from generate_series(1, 2) i),
+      pr as (select r.e, r.o, r.m, 1 + (select count(*) from cuts where cuts.at <= r.o)::int as part from r)
+      select pr.part, jsonb_agg(pr.e order by pr.o) as rows_, count(*)::int as lines,
+             (select count(*) from pr p2 where p2.part <> pr.part and p2.m = any (array_agg(pr.m)))::int as shared
+        from pr group by pr.part order by pr.part
+    loop
+      assert q.shared = 0, format('part %s shares a minute with another part', q.part);
+      rid := pg_temp.cs_raw(w, al, nm, 'statement', '/app/finance/accounting/2#run=' || run || '&part=' || q.part || '/3', q.rows_,
+                            (p ->> 'captured_at')::timestamptz + make_interval(secs => q.part / 1000.0));
+      v := pg_temp.cs_judge(rid, s -> 'expect' -> 'statement');
+      parts := parts || format('part %s: %s lines, %s (%s); ', q.part, q.lines, v ->> 'verdict', v ->> 'note');
+      if q.part < 3 then
+        assert v ->> 'verdict' = 'ok' and v ->> 'note' = format('statement part %s of 3', q.part) and (v ->> 'read')::int = q.lines,
+          format('part %s of 3 isn''t ok as "statement part %s of 3" with its %s lines: %s', q.part, q.part, q.lines, v::text);
+      end if;
+      last_v := v;
+    end loop;
+  end loop;
+  assert (select count(*) from public.game_capture_raw where airline_id = al and page_url like '%#run=' || run || '&part=%') = 3,
+    'the saved statement wasn''t sent as three parts';
+  assert last_v ->> 'verdict' = 'ok' and (last_v ->> 'read')::int = (s -> 'read' ->> 'statement')::int
+     and last_v ->> 'note' like format('statement %s lines in 3 parts', s -> 'read' ->> 'statement') || '%',
+    format('part 3 of 3 isn''t judged ok on the run''s %s lines: %s', s -> 'read' ->> 'statement', last_v::text);
+  g := pg_temp.cs_gives(al);
+  for k in select jsonb_object_keys(s -> 'gives') loop
+    if g -> k is distinct from s -> 'gives' -> k then
+      select count(*) into n_diff from (
+        (select e from jsonb_array_elements(g -> k) e except all select e from jsonb_array_elements(s -> 'gives' -> k) e)
+        union all
+        (select e from jsonb_array_elements(s -> 'gives' -> k) e except all select e from jsonb_array_elements(g -> k) e)) x;
+      bad := bad || format(' %s: %s rows differ from the single page''s;', k, n_diff);
+    end if;
+  end loop;
+  assert bad = '', format('the saved statement in three parts (%s, %s):%s', s ->> 'airline', s ->> 'capture_day', bad);
+  raise notice 'the saved statement (% lines) in three parts cut between minutes: %; the same rows as the single page (% statement lines, % flights'' money, % payments)',
+    s -> 'read' ->> 'statement', rtrim(parts, '; '), jsonb_array_length(g -> 'statement'), jsonb_array_length(g -> 'money'), jsonb_array_length(g -> 'payments');
+end
+$test$;
+
+do $test$
+declare w bigint := (select v::bigint from t_cc where k = 'w'); a3 bigint := (select v::bigint from t_cc where k = 'a3'); a4 bigint; a5 bigint;
+  grp bigint; v jsonb; rid bigint; e jsonb; t timestamptz := '2030-03-10 05:00+00';
+  line constant text := 'Passenger transport income';
+begin
+  perform set_config('equinox.actor', 'claude', true), set_config('equinox.actor_detail', 'capture checks test', true);
+  select group_id into grp from public.airlines where id = a3;
+  insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position)
+  values (w, grp, 990304, 'Verdict Four', 'Four', 'VD', 'ZY1', true, 4) returning id into a4;
+  insert into public.airlines (world_id, group_id, game_id, planner_name, public_name, iata_code, home_airport_code, active, position)
+  values (w, grp, 990305, 'Verdict Five', 'Five', 'VE', 'ZY1', true, 5) returning id into a5;
+
+  -- the gap: the previous capture at 05:00 on 10 Mar, the next run's oldest line at 08:00: 3 hours no capture read
+  perform pg_temp.cs_judge(pg_temp.cs_raw(w, a4, 'Verdict Four', 'statement', '/app/finance/accounting/2',
+                                          '[["10.03. 04:00", "Passenger transport income", "100 AS$ C"]]', t), '{}');
+  rid := pg_temp.cs_raw(w, a4, 'Verdict Four', 'statement', '/app/finance/accounting/2#run=2030-03-11T05:00:00.000Z&part=1/1',
+                        jsonb_build_array(jsonb_build_array('11.03. 01:00', line, '200 AS$ C'), jsonb_build_array('10.03. 08:00', line, '300 AS$ C')),
+                        t + interval '1 day');
+  v := pg_temp.cs_judge(rid, '{}');
+  assert v ->> 'verdict' = 'ok' and v ->> 'note' = 'statement 2 lines; the 3 hours before 08:00 10 Mar weren''t captured'
+     and v ->> 'gap_from' = private.fig_ts(t) and v ->> 'gap_to' = private.fig_ts(t + interval '3 hours'),
+    'a run starting 3 hours after the previous capture doesn''t say the gap (ok, gap_from, gap_to): ' || v::text;
+  -- 10 minutes after the previous capture: nothing said
+  rid := pg_temp.cs_raw(w, a4, 'Verdict Four', 'statement', '/app/finance/accounting/2#run=2030-03-11T06:00:00.000Z&part=1/1',
+                        '[["11.03. 05:10", "Passenger transport income", "400 AS$ C"]]', t + interval '1 day 1 hour');
+  v := pg_temp.cs_judge(rid, '{}');
+  assert v ->> 'verdict' = 'ok' and v ->> 'note' = 'statement 1 line' and not (v ? 'gap_from'),
+    'a run starting 10 minutes after the previous capture says a gap: ' || v::text;
+
+  -- a run with part 2 missing when its last part arrives: broken
+  perform pg_temp.cs_judge(pg_temp.cs_raw(w, a4, 'Verdict Four', 'statement', '/app/finance/accounting/2#run=2030-03-12T05:00:00.000Z&part=1/3',
+                                          '[["12.03. 04:00", "Passenger transport income", "500 AS$ C"]]', t + interval '2 days'), '{}');
+  rid := pg_temp.cs_raw(w, a4, 'Verdict Four', 'statement', '/app/finance/accounting/2#run=2030-03-12T05:00:00.000Z&part=3/3',
+                        '[["11.03. 06:00", "Passenger transport income", "600 AS$ C"]]', t + interval '2 days 2 seconds');
+  v := pg_temp.cs_judge(rid, '{}');
+  assert v ->> 'verdict' = 'broken' and v ->> 'note' like 'statement: part 2 of 3 missing%' and v -> 'missing' = '[2]'::jsonb,
+    'a run with part 2 missing isn''t broken as "statement: part 2 of 3 missing": ' || v::text;
+  -- the airline's verdict reads the last part: broken
+  assert private.capture_airline_verdict(a4, t + interval '2 days 3 seconds') #>> '{pages,statement,verdict}' = 'broken',
+    'the airline''s statement verdict isn''t the run''s: ' || (private.capture_airline_verdict(a4, t + interval '2 days 3 seconds') -> 'pages')::text;
+
+  -- the median by run: 100 lines alone, then a run of 60 + 60, then one of 50 + 50 + 40 (its first part stored twice, as
+  -- the replay stores pages again): 100, 120 and 140, median 120 (by latest page it would be 100, 60 and 40)
+  perform pg_temp.cs_raw(w, a5, 'Verdict Five', 'statement', '/app/finance/accounting/2',
+    (select jsonb_agg(jsonb_build_array('05.03. 08:00', 'line', '1 AS$ C')) from generate_series(1, 100)), '2030-03-03 20:00+00');
+  perform pg_temp.cs_raw(w, a5, 'Verdict Five', 'statement', '/app/finance/accounting/2#run=A&part=' || x.k || '/2',
+    (select jsonb_agg(jsonb_build_array('05.03. 08:00', 'line', '1 AS$ C')) from generate_series(1, 60)), '2030-03-04 20:00+00'::timestamptz + make_interval(secs => x.k))
+    from generate_series(1, 2) x(k);
+  perform pg_temp.cs_raw(w, a5, 'Verdict Five', 'statement', '/app/finance/accounting/2#run=B&part=' || x.k || '/3',
+    (select jsonb_agg(jsonb_build_array('05.03. 08:00', 'line', '1 AS$ C')) from generate_series(1, x.n)), '2030-03-05 20:00+00'::timestamptz + make_interval(secs => x.s))
+    from (values (1, 50, 1), (1, 50, 1), (2, 50, 2), (3, 40, 3)) x(k, n, s);
+  rid := pg_temp.cs_raw(w, a5, 'Verdict Five', 'statement', '/app/finance/accounting/2', '[]', '2030-03-06 20:00+00');
+  e := private.capture_expect(rid);
+  assert (e ->> 'median_lines')::numeric = 120 and (e ->> 'nights')::int = 3,
+    'the median should count each night''s latest run with its parts summed: 3 nights, 120 lines, not ' || e::text;
+  raise notice 'a statement in parts: a run 3 hours after the previous capture says "the 3 hours before 08:00 10 Mar weren''t captured" (ok), 10 minutes after says nothing; part 2 of 3 missing is broken, and the airline''s verdict with it; the median of nights 100, 60 + 60 and 50 + 50 + 40 is 120';
 end
 $test$;
