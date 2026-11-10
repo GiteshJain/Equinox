@@ -112,9 +112,14 @@ begin
   -- earlier one. An evening captured after midnight UTC shares its date with the next capture day, so a page from that
   -- day (section 1's, taken now, or a later real capture on the copy) would win over the replay's, which is earlier.
   -- The replay is the evening as if nothing came after it: those later rows go (the transaction is rolled back).
-  delete from public.game_balance b where b.world_id = w and b.captured_at >= v_until
+  -- The evening's own rows go too (since 10 Nov): the replay writes them again page by page. Otherwise, when a later
+  -- capture the same evening replaced a row after the page that completed the capture (9 Nov: the 03:00 capture missed
+  -- Ryanair's statement, the 07:50 one completed it at Ryanair's statement, and the four airlines after it replaced their
+  -- balance sheets), the replay's earlier page is a page sent late, which changes nothing, and the snapshot can't find
+  -- the balance it took on the copy.
+  delete from public.game_balance b where b.world_id = w and b.captured_at >= v_from
      and b.captured_on in (select distinct (t.captured_at at time zone 'UTC')::date from t_pages t);
-  delete from public.game_pnl p where p.world_id = w and p.captured_at >= v_until
+  delete from public.game_pnl p where p.world_id = w and p.captured_at >= v_from
      and p.captured_on in (select distinct (t.captured_at at time zone 'UTC')::date from t_pages t);
 
   -- where each complete capture ends, worked out here: the page at which every active airline of ours has all five
