@@ -135,12 +135,19 @@ begin
   v_rounds := cardinality(v_expected);
   assert v_rounds >= 1, 'the evening has no complete capture';
 
-  -- 2. the replay, page by page at its own time
+  -- 2. the replay, page by page at its own time. The cash accounts are kept as they stood at each snapshot (since
+  -- 10 Nov): a later page the same UTC date replaces a balance row, so read afterwards the table no longer shows the
+  -- cash the snapshot took (9 Nov: four airlines' balance sheets replaced a minute after the completing page)
+  create temporary table t_bal on commit drop as
+    select b.airline_id, b.capture_day, b.account, b.amount, b.captured_at from public.game_balance b where false;
   for pg in select * from t_pages order by captured_at, id loop
     r := private.capture_store(w, pg.game_id::text, pg.kind, pg.page_url, pg.rows, pg.captured_at);
     if r ? 'snapshot' then
       assert r #>> '{snapshot,ok}' is null, 'the snapshot failed: ' || (r -> 'snapshot')::text;
       v_got := v_got || pg.id;
+      truncate t_bal;
+      insert into t_bal select b.airline_id, b.capture_day, b.account, b.amount, b.captured_at
+        from public.game_balance b where b.world_id = w and b.account like '2800%';
     end if;
   end loop;
   assert v_got = v_expected,
@@ -154,12 +161,23 @@ begin
     left join public.airline_days x on x.airline_id = o and x.day = d
    where x.airline_id is null or x.source <> 'capture' or not x.complete or x.taken_at <> v_first_at
       or (x.cash, x.cash_at) is distinct from
-         (select row(b.amount, b.captured_at) from public.game_balance b
+         (select row(b.amount, b.captured_at) from t_bal b
            where b.airline_id = o and b.capture_day = d and b.account like '2800%' and b.amount is not null and b.captured_at <= v_first_at
            order by b.captured_at desc limit 1)
       or (x.aircraft_total, x.on_order) is distinct from (select row(f.aircraft_total, f.on_order) from private.history_fleet(w, v_first_at) f where f.airline_id = o)
       or x.weekly_departures is distinct from (select s.weekly_departures from private.history_schedule(w, d) s where s.airline_id = o);
-  assert bad is null, 'the snapshot''s day isn''t from the complete capture, as at its last page, for: ' || bad;
+  assert bad is null, 'the snapshot''s day isn''t from the complete capture, as at its last page, for: ' || bad
+    || format(' (completing page at %s; the rows: %s)', v_first_at,
+              (select string_agg(format('%s %s complete %s taken %s cash %s at %s (expected %s at %s) fleet %s/%s (expected %s/%s) departures %s (expected %s)',
+                                        o, x.source, x.complete, x.taken_at, x.cash, x.cash_at, e.amount, e.captured_at,
+                                        x.aircraft_total, x.on_order, f.aircraft_total, f.on_order,
+                                        x.weekly_departures, (select s.weekly_departures from private.history_schedule(w, d) s where s.airline_id = o)), '; ')
+                 from unnest(v_ours) o
+                 left join public.airline_days x on x.airline_id = o and x.day = d
+                 left join lateral (select b.amount, b.captured_at from t_bal b
+                                     where b.airline_id = o and b.capture_day = d and b.amount is not null and b.captured_at <= v_first_at
+                                     order by b.captured_at desc limit 1) e on true
+                 left join lateral (select h.aircraft_total, h.on_order from private.history_fleet(w, v_first_at) h where h.airline_id = o) f on true));
   -- the flows of that UTC day and the two before, recomputed
   select string_agg(format('%s %s', x.airline_id, x.day), ', ') into bad
     from public.airline_days x
