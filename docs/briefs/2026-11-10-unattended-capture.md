@@ -1,0 +1,82 @@
+# Unattended capture — 10 Nov 2026 (reopens #21 and #22)
+
+Written in the Audit chat (Audit · 10 Nov), after its review of the whole system.
+
+**Decision:** whether the capture runs on its own several times a day, without your laptop, and where.
+
+**Recommendation:** C. A GitHub job runs the same capture script every 6 hours, reading only.
+- The game keeps both the loads and the bank statement for 24 hours, and the statement stops at 1,500 lines. Ryanair
+  fills that in 16 hours, so one capture a day can't be complete however reliably it's pressed.
+- 5 to 7 Nov went uncaptured: about 2,700 flights have no loads and no money, for good. On the captured days from
+  27 Oct to 8 Nov, 362 flights have loads but no money, 267 of them Ryanair's (12% of its flights).
+- It reuses the script you press now, costs $0, and GitHub can email you when a run fails.
+
+One migration, one job, about 3 to 4 hours of building. $0 a month.
+
+*Columns adapted for a non-game decision.*
+
+| Option | What changes | Gain | Risk | Cost · undo |
+|---|---|---|---|---|
+| A. Keep as is | You press it, as now | None | Every missed evening is lost; Ryanair's money is short on any day with one capture | $0 |
+| B. Keep pressing, add an alert | #21's option C: GitHub tells your phone when a capture is late. The iPhone's script brought up to date | Fewer missed evenings | Still needs you twice a day, every day; travel and sleep still cost data | $0 · one setting |
+| **C. GitHub runs it every 6 hours** | **A hidden browser signs in, presses Capture all airlines with its own key, and checks every airline says "all good"** | **Complete loads and money without you; no evening capture to remember** | **The first script that runs unwatched; GitHub's timer can run late; the sign-in could be refused one day** | **$0 · switch the job off** |
+| D. The same on a small cloud server | As C, on an always-on machine with its own timer | As C, on time, from one steady address | A server to keep patched, with your sign-in on it | $5–12 a month · delete the server |
+
+## How C would work
+- **Its own capture key,** marked unattended. For that key the database answers "no salaries, no world scan, no market
+  pages", so a run reads only our airlines' pages and fleets: about 140 pages in about 3 minutes. Your own press keeps
+  doing the scan, the market pages and the salaries. The script itself doesn't change.
+- **The job lives in `equinox-backups`:** private, so its logs are too, and it already holds the database's address.
+  About 600 of the month's 2,000 free minutes, beside the backup's. It prints nothing from the game.
+- **You add the game sign-in as two GitHub secrets yourself.** It never passes through a chat.
+- **Every run writes a `job_runs` row,** so Today and the Systems board show the last unattended capture like any job.
+  A run where any airline isn't "all good" fails, and GitHub emails you.
+- **The first runs are watched,** to check three things: the sign-in works from GitHub; it doesn't sign you out
+  elsewhere; and it doesn't change the airline open in your own browser.
+
+## Background
+Live database and repository `main`, 10 Nov.
+- **The 24 hours:** every statement capture under 1,500 lines ends about 24 hours back (Pan Am, 9 Nov: 07:45 back to
+  08:00 on 8 Nov), in every capture checked from 2 to 9 Nov (`game_capture_raw`). #21's brief assumed 3 days, and the
+  map still says so.
+- **The 1,500:** on 4 Nov Ryanair posted 2,204 lines, China Eastern 1,674 and Virgin 1,641; Pan Am, Kingfisher and
+  Malaysia 1,100 to 1,220 (`game_statement`). The script also stops at 15 pages (`capture/capture_all.user.js`), so the
+  data can't show whether the game does too. Gitesh, 10 Nov: he thinks it's the game's limit.
+- **Why it mostly worked until now:** from 27 Oct to 4 Nov you captured 24 times in 9 days, 2 to 5 a day. On 8 and
+  9 Nov, once a day.
+- **What a missed day leaves:** `airline_days` has 119 flights for 5 Nov and none for 6 and 7 Nov, against about
+  1,000 a day. #21's brief counted about 780 flights lost on 11 and 12 Oct.
+- **What reads this data:** the cash forecast behind every order, the fare ladder (5 captured departures a direction),
+  route profit, long haul's cash test and the weekly report.
+- **The rules:** terms §5.3 forbids automated use, and #12 decided that Gander's owner allows your scripts. The manual
+  says the fares script never runs on a schedule or unwatched; this would be the first script that does, and penalties
+  (rule 1.2) can fall on the whole account. Four runs read about 560 pages a day, about what your own two to five
+  captures a day read now, and change nothing. A one-line OK from Gander's owner would settle it.
+- **GitHub's timer:** scheduled runs usually start 5 to 30 minutes late, with no guarantee, and only from the main
+  branch. Your nightly backup starts 5 to 10 hours after its set time (`job_runs`), which can't be explained from the
+  Equinox repository: its job is in the private one. Every 6 hours leaves 10 hours of slack against Ryanair's 16.
+- **Prices:** GitHub's standard runners are free for public repositories; a private one has 2,000 minutes a month
+  (#1, 14 Oct). A 1 GB cloud server was $5 a month in June 2026, and a browser wants about 2 GB.
+
+## Scenarios and the risk of waiting
+- **It works:** complete data from the first day, and your evening press becomes optional on days you don't play.
+- **The sign-in is refused, or a run disturbs your own session:** switch the job off; nothing is worse than today.
+  Then D, or B.
+- **Waiting:** every aircraft added shortens the reach. At 3,000 lines a day Ryanair's is 12 hours. Virgin and China
+  Eastern are already past 1,500 a day; Pan Am, Kingfisher and Malaysia pass it after about a quarter more flying, and
+  from then one capture a day loses money on all six.
+
+## What would change the recommendation
+- Page 15 of Ryanair's statement has a ">" link: the 1,500 is the script's, and its limit is raised as well. The
+  24 hours still call for more than one capture a day.
+- GitHub's runs start hours late in the trial: start them from the database's scheduler or Cloudflare's timer
+  instead, or take D.
+- You'd rather have no unattended sign-in on the account: B.
+
+## Sources
+- GitHub, billing and usage for Actions: https://docs.github.com/en/actions/concepts/billing-and-usage
+- GitHub's scheduled workflows, their delays and limits: https://cronuru.com/guides/github-actions-scheduled-workflows
+- Small cloud servers' prices, June 2026: https://cloud-cost-557.pages.dev/compute-vps/
+
+## Outcome
+*Open.*
