@@ -1054,6 +1054,61 @@ $function$
 
 ;
 
+-- planner_figures_status(p_world bigint)
+CREATE OR REPLACE FUNCTION public.planner_figures_status(p_world bigint DEFAULT NULL::bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint; v_now timestamptz := now(); st public.planner_figures_state%rowtype; v_run jsonb; v_src jsonb;
+  v_moved text[]; v_due boolean := false; v_reason text; v_wait timestamptz; v_pid integer; v_since timestamptz;
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the stored figures'' status' using errcode = '42501'; end if;
+  w := private.fig_world(p_world);
+  select * into st from public.planner_figures_state s where s.world_id = w;
+  -- light: a few indexed reads; no figure is worked out here
+  v_run := private.figures_capture_running(w, v_now);
+  v_src := private.figures_sources(w);
+  if st.world_id is null or st.generation = 0 then
+    v_due := true; v_reason := 'first set';
+  else
+    v_moved := array_remove(array[
+      case when v_src -> 'capture_at' is distinct from st.sources -> 'capture_at' then 'capture' end,
+      case when v_src -> 'scan_id' is distinct from st.sources -> 'scan_id' then 'world scan' end,
+      case when v_src -> 'market_id' is distinct from st.sources -> 'market_id' then 'market pages' end], null);
+    if cardinality(v_moved) > 0 then
+      v_due := true; v_reason := 'new ' || array_to_string(v_moved, ', ');
+    elsif v_src -> 'change_id' is distinct from st.sources -> 'change_id' then
+      v_due := true; v_reason := 'planner saves';
+      v_wait := (v_src ->> 'change_at')::timestamptz + interval '1 minute';
+      if v_wait <= v_now then v_wait := null; end if;
+    end if;
+  end if;
+  -- a refresh under way holds its lock until it ends (its writes can't be seen before then)
+  select l.pid, a.xact_start into v_pid, v_since
+    from pg_catalog.pg_locks l left join pg_catalog.pg_stat_activity a on a.pid = l.pid
+   where l.locktype = 'advisory' and l.classid = 20261111 and l.objid = 224 and l.objsubid = 2 and l.granted
+   limit 1;
+  return jsonb_build_object(
+    'world_id', w,
+    'at', private.fig_ts(v_now),
+    'generation', coalesce(st.generation, 0),
+    'ready_at', private.fig_ts(st.ready_at),
+    'set_as_of', st.sources -> 'as_of',
+    'capture', v_run,
+    'refresh', jsonb_build_object('due', v_due, 'reason', v_reason, 'waiting_until', private.fig_ts(v_wait),
+                                  'running', v_pid is not null, 'running_since', private.fig_ts(v_since)),
+    'routes', jsonb_build_object('done', coalesce(st.routes_done, 0), 'total', coalesce(st.routes_total, 0)),
+    'last_error', st.last_error,
+    'last_error_at', private.fig_ts(st.last_error_at),
+    'landing_max_min', (select s.value from public.settings s where s.world_id = w and s.airline_id is null and s.key = 'figures_landing_max_min'));
+end
+$function$
+
+;
+
 -- planner_save(p_changes jsonb, p_client text)
 CREATE OR REPLACE FUNCTION public.planner_save(p_changes jsonb, p_client text)
  RETURNS jsonb
@@ -1786,6 +1841,7 @@ CREATE OR REPLACE FUNCTION public.system_status(p_world_id bigint DEFAULT NULL::
 AS $function$
 declare w bigint; v_at timestamptz := coalesce(p_as_of, now()); v_month timestamptz; v_snap jsonb; v_job jsonb; v_fb timestamptz;
   v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_market jsonb; v_un jsonb; v_db bigint; v_pdf bigint; v_site bigint;
+  v_figs bigint;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the systems board' using errcode = '42501'; end if;
   w := private.fig_world(p_world_id);
@@ -1892,6 +1948,9 @@ begin
   v_db := pg_database_size(current_database());
   select coalesce(sum(octet_length(r.pdf_b64)), 0) * 3 / 4 into v_pdf from public.site_reports r where r.pdf_b64 is not null;
   v_site := octet_length(public.site_public()::text);
+  -- the stored figures (since 11 Nov, spec docs/specs/2026-11-11-stored-figures.md §1): the table with its indexes and TOAST,
+  -- amber from 50 MB (the board marks amber at 70% of the trigger)
+  v_figs := pg_total_relation_size('public.planner_figures'::regclass);
 
   return jsonb_build_object(
     'world_id', w, 'as_of', private.fig_ts(v_at),
@@ -1907,7 +1966,9 @@ begin
     'usage', jsonb_build_array(
       jsonb_build_object('key', 'database', 'label', 'Database size', 'bytes', v_db, 'trigger_bytes', 350 * 1024 * 1024::bigint),
       jsonb_build_object('key', 'report_pdfs', 'label', 'Report PDFs', 'bytes', v_pdf, 'trigger_bytes', 50 * 1024 * 1024::bigint),
-      jsonb_build_object('key', 'site_public', 'label', 'The website''s data', 'bytes', v_site, 'trigger_bytes', 500 * 1024::bigint)));
+      jsonb_build_object('key', 'site_public', 'label', 'The website''s data', 'bytes', v_site, 'trigger_bytes', 500 * 1024::bigint),
+      jsonb_build_object('key', 'planner_figures', 'label', 'Stored planner figures', 'bytes', v_figs,
+                         'trigger_bytes', 50 * 1024 * 1024 * 10 / 7::bigint)));
 end
 $function$
 
@@ -7798,6 +7859,394 @@ $function$
 
 ;
 
+-- private.figures_capture_running(p_world bigint, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.figures_capture_running(p_world bigint, p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare
+  w bigint := private.fig_world(p_world);
+  v_at timestamptz := coalesce(p_at, now());
+  v_quiet interval;
+  v_last_at timestamptz; v_last_airline bigint; v_last_name text; v_last_kind text;
+  v_burst timestamptz; v_done int; v_total int;
+  v_scan_id bigint; v_scan_at timestamptz;
+  v_market_id bigint; v_market_at timestamptz; v_market_read int; v_market_failed int; v_market_expected int;
+  v_pages boolean; v_what text; v_stage timestamptz; v_since timestamptz;
+begin
+  v_quiet := coalesce((select (s.value #>> '{}')::numeric from public.settings s
+                        where s.world_id = w and s.airline_id is null and s.key = 'figures_capture_quiet_min'), 5) * interval '1 minute';
+
+  -- the latest capture page, and where its run of pages began (the first page after a gap longer than the quiet window)
+  select r.captured_at, r.airline_id, r.airline, r.kind into v_last_at, v_last_airline, v_last_name, v_last_kind
+    from public.game_capture_raw r
+   where r.world_id = w and r.captured_at <= v_at
+   order by r.captured_at desc, r.id desc limit 1;
+  if v_last_at > v_at - interval '1 hour' then
+    select max(x.t) into v_burst
+      from (select r.captured_at as t, lag(r.captured_at) over (order by r.captured_at) as prev
+              from public.game_capture_raw r
+             where r.world_id = w and r.captured_at <= v_at and r.captured_at > v_at - interval '6 hours') x
+     where x.prev is null or x.t - x.prev > v_quiet;
+    select count(distinct r.airline_id) into v_done from public.game_capture_raw r
+     where r.world_id = w and r.captured_at >= v_burst and r.captured_at <= v_at;
+    select count(*) into v_total from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = w and a.active and g.kind = 'ours';
+    select coalesce(a.public_name, a.planner_name, a.game_name, v_last_name) into v_last_name from public.airlines a where a.id = v_last_airline;
+  end if;
+  v_pages := v_last_at > v_at - v_quiet;
+
+  -- a world scan started within the hour that is neither done nor stopped, and a market run started within the hour that is open
+  select s.id, s.taken_at into v_scan_id, v_scan_at from public.game_scans s
+   where s.world_id = w and s.status not in ('done', 'stopped') and s.taken_at <= v_at and s.taken_at > v_at - interval '1 hour'
+   order by s.taken_at desc, s.id desc limit 1;
+  select m.id, m.started_at, m.pages_read, m.pages_failed, m.pages_expected
+    into v_market_id, v_market_at, v_market_read, v_market_failed, v_market_expected
+    from public.market_runs m
+   where m.world_id = w and m.status = 'open' and m.started_at <= v_at and m.started_at > v_at - interval '1 hour'
+   order by m.started_at desc, m.id desc limit 1;
+
+  -- what is running: the latest stage (the market pages follow the scan, which follows the airlines' pages)
+  v_what := case when v_market_id is not null then 'market pages' when v_scan_id is not null then 'world scan'
+                 when coalesce(v_pages, false) then 'capture' end;
+  v_stage := case v_what when 'market pages' then v_market_at when 'world scan' then v_scan_at when 'capture' then v_burst end;
+  -- since when the whole capture has been running: its pages' start when they came within the hour
+  v_since := case when v_what is not null then least(v_burst, v_scan_at, v_market_at) end;
+
+  return jsonb_build_object(
+    'running', v_what is not null,
+    'what', v_what,
+    'since', private.fig_ts(v_since),
+    'stage_since', private.fig_ts(v_stage),
+    'last_page_at', private.fig_ts(v_last_at),
+    'quiet_min', round(extract(epoch from v_quiet) / 60, 1),
+    'capture', case when v_burst is not null and v_what is not null then
+                 jsonb_build_object('airlines_done', v_done, 'airlines_total', v_total, 'airline', v_last_name, 'kind', v_last_kind,
+                                    'since', private.fig_ts(v_burst)) end,
+    'scan', case when v_scan_id is not null then
+              jsonb_build_object('id', v_scan_id, 'since', private.fig_ts(v_scan_at)) || private.scan_progress(v_scan_id) end,
+    'market', case when v_market_id is not null then
+                jsonb_build_object('id', v_market_id, 'since', private.fig_ts(v_market_at), 'pages_read', v_market_read,
+                                   'pages_failed', v_market_failed, 'pages_expected', v_market_expected) end);
+end
+$function$
+
+;
+
+-- private.figures_refresh(p_world bigint, p_at timestamp with time zone, p_fail text)
+CREATE OR REPLACE FUNCTION private.figures_refresh(p_world bigint DEFAULT NULL::bigint, p_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_fail text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+ SET statement_timeout TO '5min'
+AS $function$
+declare
+  v_at timestamptz := coalesce(p_at, now());
+  w bigint; st public.planner_figures_state%rowtype; v_run jsonb; v_src jsonb; v_reason text; v_why text; v_moved text[];
+  v_default boolean; v_gen bigint; v_keys text[]; v_failed jsonb; n_all int; n_ok int; n_done int; n_total int;
+  f record; v_answer jsonb; t0 timestamptz; t1 timestamptz; v_routes_from text; v_err text; v_note text;
+  v_main boolean := false; v_rest bigint[] := '{}'; v_out jsonb := '[]'::jsonb;
+begin
+  -- one run at a time: a run that finds another still under way skips (pg_cron starts one every minute)
+  if not pg_try_advisory_xact_lock(20261111, 223) then
+    return jsonb_build_object('skipped', 'another run of the stored figures is under way');
+  end if;
+  for w in select x.id from public.worlds x
+            where (p_world is not null and x.id = p_world)
+               or (p_world is null and exists (select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                                 where a.world_id = x.id and a.active and g.kind = 'ours'))
+            order by x.id loop
+    -- 1. a capture running: nothing (planner_figures_status() says so)
+    v_run := private.figures_capture_running(w, v_at);
+    if (v_run ->> 'running')::boolean then
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'nothing', 'why', 'a capture is running (' || (v_run ->> 'what') || ')');
+      continue;
+    end if;
+
+    -- 2. is a new set due? The capture, scan or market stamps moved, or only the planner tables did and the last save is
+    --    more than a minute old
+    v_src := private.figures_sources(w);
+    select * into st from public.planner_figures_state s where s.world_id = w;
+    v_reason := null; v_why := 'up to date';
+    if st.world_id is null or st.generation = 0 then
+      v_reason := 'first set';
+    else
+      v_moved := array_remove(array[
+        case when v_src -> 'capture_at' is distinct from st.sources -> 'capture_at' then 'capture' end,
+        case when v_src -> 'scan_id' is distinct from st.sources -> 'scan_id' then 'world scan' end,
+        case when v_src -> 'market_id' is distinct from st.sources -> 'market_id' then 'market pages' end], null);
+      if cardinality(v_moved) > 0 then
+        v_reason := 'new ' || array_to_string(v_moved, ', ');
+      elsif v_src -> 'change_id' is distinct from st.sources -> 'change_id' then
+        if (v_src ->> 'change_at')::timestamptz <= v_at - interval '1 minute' then
+          v_reason := 'planner saves';
+        else
+          v_why := 'a planner save under a minute old: waiting';
+        end if;
+      end if;
+    end if;
+    if v_reason is null then
+      v_rest := v_rest || w;
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'nothing', 'why', v_why);
+      continue;
+    end if;
+
+    -- 3. the whole set at one moment (v_at), each figure on its own; then generation, ready_at and sources together. All in
+    --    this one transaction, so the planner never sees half a set
+    t0 := clock_timestamp();
+    perform pg_advisory_xact_lock(20261111, 224);   -- planner_figures_status() sees a refresh under way by this lock
+    begin
+      v_gen := coalesce(st.generation, 0) + 1;
+      v_default := exists (select 1 from public.worlds x where x.id = w and x.is_default);
+      v_keys := '{}'; v_failed := '[]'::jsonb; n_all := 0; n_ok := 0;
+      for f in
+        select x.kind, x.key, x.airline_id, x.days
+          from (-- each world: its figures; cabin_charges() and market_service_checks() take no world (the default world's)
+                select k.kind, ''::text as key, null::bigint as airline_id, null::integer as days, 0::bigint as a_pos, k.n as k_pos
+                  from unnest(array['airline_cards', 'growth_signals', 'hub_progress', 'route_loads', 'fleet_checks', 'cash_log',
+                                    'shared_pairs_status']) with ordinality as k(kind, n)
+                union all
+                select k.kind, '', null, null, 0, 10 + k.n
+                  from unnest(array['cabin_charges', 'market_service_checks']) with ordinality as k(kind, n)
+                 where v_default
+                union all
+                -- each of our active airlines: its figures, then route and aircraft profit for 1, 3 and 7 days
+                select k.kind, a.id::text, a.id, null, a.pos, 100 + k.n
+                  from (select al.id, row_number() over (order by al.position nulls last, al.id) as pos
+                          from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
+                         where al.world_id = w and al.active and g.kind = 'ours') a
+                 cross join unnest(array['airline_profit', 'cash_forecast', 'fare_changes', 'fare_plan_status', 'fare_ladder',
+                                         'fare_results', 'competition']) with ordinality as k(kind, n)
+                union all
+                select k.kind, a.id::text || ':' || d.d::text, a.id, d.d, a.pos, 200 + k.n * 10 + d.n
+                  from (select al.id, row_number() over (order by al.position nulls last, al.id) as pos
+                          from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
+                         where al.world_id = w and al.active and g.kind = 'ours') a
+                 cross join unnest(array['route_profit', 'aircraft_profit']) with ordinality as k(kind, n)
+                 cross join unnest(array[1, 3, 7]) with ordinality as d(d, n)) x
+         order by x.a_pos, x.k_pos
+      loop
+        n_all := n_all + 1;
+        v_keys := v_keys || (f.kind || '|' || f.key);
+        begin
+          t1 := clock_timestamp();
+          if f.kind = p_fail then
+            raise exception 'failed on purpose (p_fail, for the checks)';
+          end if;
+          -- each with the arguments the planner passes (spec §1, "What is stored")
+          v_answer := case f.kind
+            when 'airline_cards' then public.airline_cards(w, v_at)
+            when 'growth_signals' then public.growth_signals(w, v_at)
+            when 'hub_progress' then public.hub_progress(w, v_at)
+            when 'route_loads' then public.route_loads(w, v_at)
+            when 'fleet_checks' then public.fleet_checks(w, v_at)
+            when 'cash_log' then public.cash_log(w, v_at)
+            when 'shared_pairs_status' then public.shared_pairs_status(w, v_at)
+            when 'cabin_charges' then public.cabin_charges(v_at)
+            when 'market_service_checks' then public.market_service_checks(null::bigint, v_at)
+            when 'airline_profit' then public.airline_profit(f.airline_id, v_at)
+            when 'cash_forecast' then public.cash_forecast(f.airline_id, '[]'::jsonb, v_at)
+            when 'fare_changes' then public.fare_changes(f.airline_id, v_at)
+            when 'fare_plan_status' then public.fare_plan_status(f.airline_id, v_at)
+            when 'fare_ladder' then public.fare_ladder(f.airline_id, v_at)
+            when 'fare_results' then public.fare_results(f.airline_id, v_at)
+            when 'competition' then public.competition(f.airline_id, v_at)
+            when 'route_profit' then public.route_profit(f.airline_id, f.days, v_at)
+            when 'aircraft_profit' then public.aircraft_profit(f.airline_id, f.days, v_at) end;
+          if v_answer is null then
+            raise exception '% gave no answer', f.kind;
+          end if;
+          insert into public.planner_figures as x (world_id, kind, key, answer, as_of, generation, worked_ms)
+          values (w, f.kind, f.key, v_answer, v_at, v_gen, round(extract(epoch from clock_timestamp() - t1) * 1000)::int)
+          on conflict (world_id, kind, key) do update
+            set answer = excluded.answer, as_of = excluded.as_of, generation = excluded.generation, worked_ms = excluded.worked_ms;
+          n_ok := n_ok + 1;
+        exception when others then
+          -- this figure keeps its previous answer; the rest go on
+          v_failed := v_failed || jsonb_build_object('kind', f.kind, 'key', f.key, 'error', left(sqlerrm, 300));
+        end;
+      end loop;
+
+      -- only the latest set is kept: an answer no longer in the list (an airline no longer active) goes
+      delete from public.planner_figures x
+       where x.world_id = w and x.kind <> 'route_story' and not ((x.kind || '|' || x.key) = any (v_keys));
+
+      -- route pages worked out before this set are redone when a capture, scan or market run caused it (or it is the
+      -- first); a save alone never redoes them
+      v_routes_from := case when v_reason = 'planner saves' and st.sources ? 'routes_from' then st.sources ->> 'routes_from'
+                            else private.fig_ts(v_at) end;
+      select count(*), count(*) filter (where x.as_of >= v_routes_from::timestamptz) into n_total, n_done
+        from public.routes ro
+        left join public.planner_figures x on x.world_id = w and x.kind = 'route_story' and x.key = ro.id::text
+       where ro.world_id = w and not ro.removed and exists (select 1 from public.rotations rt where rt.route_id = ro.id);
+
+      v_err := case when jsonb_array_length(v_failed) > 0 then
+                 left(format('%s of %s figures failed and kept their previous answer: %s', jsonb_array_length(v_failed), n_all,
+                             (select string_agg((e ->> 'kind') || coalesce(' ' || nullif(e ->> 'key', ''), '') || ': ' || (e ->> 'error'), '; ' order by i)
+                                from jsonb_array_elements(v_failed) with ordinality as x(e, i))), 2000) end;
+      insert into public.planner_figures_state as s (world_id, generation, ready_at, sources, refreshing_since, routes_done, routes_total,
+                                                     last_error, last_error_at)
+      values (w, v_gen, clock_timestamp(), v_src || jsonb_build_object('as_of', private.fig_ts(v_at), 'routes_from', v_routes_from), t0,
+              n_done, n_total, v_err, case when v_err is not null then clock_timestamp() end)
+      on conflict (world_id) do update
+        set generation = excluded.generation, ready_at = excluded.ready_at, sources = excluded.sources,
+            refreshing_since = excluded.refreshing_since, routes_done = excluded.routes_done, routes_total = excluded.routes_total,
+            last_error = excluded.last_error, last_error_at = excluded.last_error_at;
+
+      v_note := format('generation %s (%s): %s of %s figures in %s s', v_gen, v_reason, n_ok, n_all,
+                       round(extract(epoch from clock_timestamp() - t0)::numeric, 1))
+                || case when v_err is not null then '; ' || v_err else '' end;
+      perform private.job_run_add('figures', w, t0, case when v_err is null then 'ok' else 'failed' end, left(v_note, 2000),
+                                  jsonb_build_object('reason', v_reason, 'as_of', private.fig_ts(v_at), 'generation', v_gen,
+                                                     'figures', n_all, 'worked', n_ok, 'failed', v_failed,
+                                                     'worked_ms', round(extract(epoch from clock_timestamp() - t0) * 1000)::int));
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'set', 'reason', v_reason, 'generation', v_gen, 'figures', n_all,
+                                           'worked', n_ok, 'failed', v_failed,
+                                           'worked_ms', round(extract(epoch from clock_timestamp() - t0) * 1000)::int);
+    exception when others or query_canceled then
+      -- the refresh failed as a whole: nothing of it is stored, the sources stay, and the next minute's run tries again
+      v_err := left('the refresh failed: ' || sqlerrm, 2000);
+      insert into public.planner_figures_state as s (world_id, last_error, last_error_at)
+      values (w, v_err, clock_timestamp())
+      on conflict (world_id) do update set last_error = excluded.last_error, last_error_at = excluded.last_error_at;
+      perform private.job_run_add('figures', w, t0, 'failed', v_err,
+                                  jsonb_build_object('reason', v_reason, 'as_of', private.fig_ts(v_at),
+                                                     'worked_ms', round(extract(epoch from clock_timestamp() - t0) * 1000)::int));
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'failed', 'reason', v_reason, 'error', v_err);
+    end;
+    v_main := true;
+  end loop;
+
+  -- 4. the route pages, never in a run that stored a set: that set is visible as soon as this run ends
+  if not v_main then
+    foreach w in array v_rest loop
+      v_out := v_out || (private.figures_routes(w, v_at) -> 'worlds');
+    end loop;
+  end if;
+  return jsonb_build_object('as_of', private.fig_ts(v_at), 'worlds', v_out);
+end
+$function$
+
+;
+
+-- private.figures_routes(p_world bigint, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.figures_routes(p_world bigint DEFAULT NULL::bigint, p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_at timestamptz := coalesce(p_at, now());
+  w bigint; st public.planner_figures_state%rowtype; v_src jsonb; v_run jsonb; v_from timestamptz; v_budget interval;
+  t0 timestamptz; t1 timestamptz; r record; v_answer jsonb; n_worked int; n_done int; n_total int; v_failed jsonb;
+  v_out jsonb := '[]'::jsonb;
+begin
+  -- one run at a time (the same guard as private.figures_refresh(), which calls this holding it)
+  if not pg_try_advisory_xact_lock(20261111, 223) then
+    return jsonb_build_object('skipped', 'another run of the stored figures is under way');
+  end if;
+  for w in select x.id from public.worlds x
+            where (p_world is not null and x.id = p_world)
+               or (p_world is null and exists (select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                                                 where a.world_id = x.id and a.active and g.kind = 'ours'))
+            order by x.id loop
+    v_run := private.figures_capture_running(w, v_at);
+    if (v_run ->> 'running')::boolean then
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'nothing', 'why', 'a capture is running (' || (v_run ->> 'what') || ')');
+      continue;
+    end if;
+    select * into st from public.planner_figures_state s where s.world_id = w;
+    if st.world_id is null or st.generation = 0 then
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'nothing', 'why', 'no stored set yet');
+      continue;
+    end if;
+    v_src := private.figures_sources(w);
+    if v_src -> 'capture_at' is distinct from st.sources -> 'capture_at' or v_src -> 'scan_id' is distinct from st.sources -> 'scan_id'
+       or v_src -> 'market_id' is distinct from st.sources -> 'market_id' then
+      v_out := v_out || jsonb_build_object('world_id', w, 'did', 'nothing', 'why', 'a new set is due first');
+      continue;
+    end if;
+    v_from := (st.sources ->> 'routes_from')::timestamptz;
+    v_budget := coalesce((select (s.value #>> '{}')::numeric from public.settings s
+                           where s.world_id = w and s.airline_id is null and s.key = 'figures_route_budget_s'), 40) * interval '1 second';
+    t0 := clock_timestamp(); n_worked := 0; v_failed := '[]'::jsonb;
+
+    -- a route no longer flown keeps no page
+    delete from public.planner_figures x
+     where x.world_id = w and x.kind = 'route_story'
+       and not exists (select 1 from public.routes ro
+                        where ro.world_id = w and ro.id::text = x.key and not ro.removed
+                          and exists (select 1 from public.rotations rt where rt.route_id = ro.id));
+
+    -- the flown routes whose page is older than the set's capture, scan or market stamps (or not stored), oldest first
+    for r in select ro.id from public.routes ro
+               left join public.planner_figures x on x.world_id = w and x.kind = 'route_story' and x.key = ro.id::text
+              where ro.world_id = w and not ro.removed and exists (select 1 from public.rotations rt where rt.route_id = ro.id)
+                and (x.as_of is null or v_from is null or x.as_of < v_from)
+              order by x.as_of nulls first, ro.id loop
+      exit when clock_timestamp() - t0 >= v_budget;
+      begin
+        t1 := clock_timestamp();
+        v_answer := public.route_story(r.id, v_at);
+        insert into public.planner_figures as f (world_id, kind, key, answer, as_of, generation, worked_ms)
+        values (w, 'route_story', r.id::text, v_answer, v_at, st.generation, round(extract(epoch from clock_timestamp() - t1) * 1000)::int)
+        on conflict (world_id, kind, key) do update
+          set answer = excluded.answer, as_of = excluded.as_of, generation = excluded.generation, worked_ms = excluded.worked_ms;
+        n_worked := n_worked + 1;
+      exception when others then
+        v_failed := v_failed || jsonb_build_object('route_id', r.id, 'error', left(sqlerrm, 300));
+      end;
+    end loop;
+
+    select count(*), count(*) filter (where x.as_of >= v_from) into n_total, n_done
+      from public.routes ro
+      left join public.planner_figures x on x.world_id = w and x.kind = 'route_story' and x.key = ro.id::text
+     where ro.world_id = w and not ro.removed and exists (select 1 from public.rotations rt where rt.route_id = ro.id);
+    update public.planner_figures_state s
+       set routes_done = n_done, routes_total = n_total,
+           last_error = case when jsonb_array_length(v_failed) > 0
+                             then left(format('%s route page(s) failed and kept their previous page: %s', jsonb_array_length(v_failed),
+                                              (select string_agg('route ' || (e ->> 'route_id') || ': ' || (e ->> 'error'), '; ' order by i)
+                                                 from jsonb_array_elements(v_failed) with ordinality as x(e, i))), 2000)
+                             else s.last_error end,
+           last_error_at = case when jsonb_array_length(v_failed) > 0 then clock_timestamp() else s.last_error_at end
+     where s.world_id = w;
+    v_out := v_out || jsonb_build_object('world_id', w, 'did', 'route pages', 'worked', n_worked, 'failed', v_failed,
+                                         'routes_done', n_done, 'routes_total', n_total,
+                                         'worked_ms', round(extract(epoch from clock_timestamp() - t0) * 1000)::int);
+  end loop;
+  return jsonb_build_object('as_of', private.fig_ts(v_at), 'worlds', v_out);
+end
+$function$
+
+;
+
+-- private.figures_sources(p_world bigint)
+CREATE OR REPLACE FUNCTION private.figures_sources(p_world bigint)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
+declare w bigint := private.fig_world(p_world); v_change_id bigint; v_change_at timestamptz;
+begin
+  -- the planner tables: every change to them is a change_log row (with its world, or none for countries and airports)
+  select c.id, c.changed_at into v_change_id, v_change_at from public.change_log c
+   where c.world_id = w or c.world_id is null
+   order by c.id desc limit 1;
+  return jsonb_build_object(
+    'capture_at', private.fig_ts((select max(r.captured_at) from public.game_capture_raw r where r.world_id = w)),
+    'scan_id', (select s.id from public.game_scans s where s.world_id = w and s.status = 'done' order by s.taken_at desc, s.id desc limit 1),
+    'market_id', (select m.id from public.market_runs m where m.world_id = w and m.status = 'done' order by m.started_at desc, m.id desc limit 1),
+    'change_id', v_change_id,
+    'change_at', private.fig_ts(v_change_at));
+end
+$function$
+
+;
+
 -- private.fill_due_at(p_airline_id bigint)
 CREATE OR REPLACE FUNCTION private.fill_due_at(p_airline_id bigint)
  RETURNS integer
@@ -9822,6 +10271,9 @@ begin
   -- 21:30 UTC, and GitHub's answer noted ten minutes later
   perform cron.schedule('equinox-capture-dispatch', '30 9,21 * * *', 'select private.capture_dispatch()');
   perform cron.schedule('equinox-capture-dispatch-answer', '40 9,21 * * *', 'select private.capture_dispatch_answer()');
+  -- the planner's figures stored after every capture (since 11 Nov, spec docs/specs/2026-11-11-stored-figures.md §1):
+  -- every minute; most minutes it finds nothing to do
+  perform cron.schedule('equinox-figures', '* * * * *', 'select private.figures_refresh()');
   return (select jsonb_agg(jsonb_build_object('job', j.jobname, 'schedule', j.schedule, 'command', j.command, 'active', j.active)
                            order by j.jobname)
             from cron.job j where j.jobname like 'equinox-%');

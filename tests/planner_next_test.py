@@ -1738,7 +1738,7 @@ async def screens(p, port, env, facts, staff, seen, moment):
 
 
 # ---------- 6b. the Systems board, and a short page on Today (decisions #21, #23) ----------
-SYS_FIXED = ["unattended", "snapshot", "backup", "archive", "cleanup", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public"]
+SYS_FIXED = ["unattended", "snapshot", "backup", "archive", "cleanup", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public", "usage|planner_figures"]
 SYS_LINES = """[...document.querySelectorAll('[data-figure="systems: board"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
     label: (li.querySelector('.syslabel') || {}).textContent || '', when: (li.querySelector('.syswhen') || {}).textContent || '',
     text: (li.querySelector('.systext') || {}).textContent || '', dot: !!li.querySelector('.sysmark.' + li.dataset.mark) }))"""
