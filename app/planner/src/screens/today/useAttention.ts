@@ -23,7 +23,7 @@ import { useBuyTypes } from "../tails/reads";
 import { useLatestThreats } from "../competition/reads";
 import { useCabinCharges, useFleetChecks, useServiceChecks } from "../systems/reads";
 import { homeAttention, type HomeAirline } from "./attention";
-import { attentionHref, deliveryLines, lineQueues, orderStatus, safeTypes, toFile, type OrderRow } from "./model";
+import { attentionHref, deliveryLines, lineQueues, nextOrderAt, orderStatus, safeTypes, toFile, typesAt, type OrderRow } from "./model";
 import { onOrder } from "./onOrder";
 import { dismissChanges, showAgainChanges } from "./todos";
 
@@ -94,8 +94,9 @@ export function useAttention(now: Date, today: string) {
       const allowed = new Set(buyQ.data.filter((b) => b.airline_id === a.id).map((b) => family(b.aircraft_type_id)));
       const deliveries = unfiled.filter((x) => x.airline_id === a.id && x.delivery_at).map((x) => ({ family: family(x.aircraft_type_id), delivery_ms: toMinute(x.delivery_at as string) }));
       const cells = growth.orderQueues(rules, a.id, families, allowed, deliveries, now.getTime());
-      const types = forecastsQ[i]?.data?.types;
-      return { airline: a, status: orderStatus(card?.next_order, card?.can_order_now), types: safeTypes(types), lines: deliveryLines(cells, types, (t) => family(t.aircraft_type_id)),
+      // a stored forecast's "safe from" that has passed is now (since 11 Nov: the figures are worked out after each capture)
+      const types = typesAt(forecastsQ[i]?.data?.types, now.getTime());
+      return { airline: a, status: orderStatus(nextOrderAt(card?.next_order, now.getTime()), card?.can_order_now), types: safeTypes(types), lines: deliveryLines(cells, types, (t) => family(t.aircraft_type_id)),
         queues: lineQueues(cells, deliveries, now.getTime(), types, (t) => family(t.aircraft_type_id)) };
     });
   }, [rules, cardsQ.data, buyQ.data, aircraftQ.data, forecastsQ, airlines, ordering, now]);
@@ -103,9 +104,9 @@ export function useAttention(now: Date, today: string) {
   // each airline's cash_forecast() types (undefined until read, or for an airline the figures don't cover), for Today's
   // open lines (since 28 Oct): when a line's next aircraft can be ordered
   const forecastOf = useMemo(() => {
-    const by = new Map(ordering.map((a, i) => [a.id, forecastsQ[i]?.data?.types] as const));
+    const by = new Map(ordering.map((a, i) => [a.id, typesAt(forecastsQ[i]?.data?.types, now.getTime())] as const));
     return (airlineId: number) => by.get(airlineId);
-  }, [ordering, forecastsQ]);
+  }, [ordering, forecastsQ, now]);
 
   // ---------- aircraft to file: arrived with a plan card
   const filing = useMemo(() => (rules && aircraftQ.data && planCardsQ.data

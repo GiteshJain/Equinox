@@ -129,6 +129,18 @@ export const runsDryWords = (ms: number): string => new Date(ms).toISOString().s
 /** How soon: "now" once past, else "in 12 h". */
 export const soonWords = (hours: number): string => (hours < 0 ? "now" : "in " + Math.max(0, Math.round(hours)) + " h");
 
+/** The forecast's types against the clock (since 11 Nov): the figures are stored after each capture, so a type the stored
+ *  forecast says is safe from a moment that has passed is safe now. */
+export function typesAt(types: readonly ForecastType[] | undefined, nowMs: number): ForecastType[] | undefined {
+  if (!types) return undefined;
+  return types.map((t) => (t.safe_day !== 0 && t.safe_day != null && t.safe_from && Date.parse(t.safe_from) <= nowMs ? { ...t, safe_day: 0 } : t));
+}
+
+/** A card's next order against the clock (since 11 Nov): "safe from" a moment that has passed is now. */
+export function nextOrderAt(next: NextOrder | null | undefined, nowMs: number): NextOrder | null | undefined {
+  return next?.when === "later" && next.safe_from && Date.parse(next.safe_from) <= nowMs ? { ...next, when: "now" } : next;
+}
+
 /** An airline's order status, from its card's next order (airline_cards(), from cash_forecast()). */
 export function orderStatus(next: NextOrder | null | undefined, canNow: readonly string[] | null | undefined): OrderRow["status"] {
   if (canNow?.length) return { kind: "now", text: "Can order now" };

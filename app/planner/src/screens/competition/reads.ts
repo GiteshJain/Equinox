@@ -1,33 +1,34 @@
 // What Competition reads (spec docs/specs/2026-10-21-competition-analysis.md §3), through TanStack Query at the screen's
-// moment, through the figures' queue (data/limit.ts): competition() for each of our airlines (the group page, and Today's threats from the latest scan) or for one
+// moment, through data/storedFigures.ts (since 11 Nov: the stored set's answer, else the database's through the figures' queue, data/limit.ts): competition() for each of our airlines (the group page, and Today's threats from the latest scan) or for one
 // (its page), with GET, so a preview reads it too. The answer is the database's (private.fig_competition()).
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { limited } from "../../data/limit";
-import { supabase } from "../../data/supabase";
+import { readFigure, storedOptions } from "../../data/storedFigures";
 import { latestThreats, type CompetitionAnswer, type ThreatItem } from "./model";
 
 /** The moment a captured figure is asked for: now, to the millisecond, as the database takes it. */
 const asOf = () => new Date().toISOString();
 
-async function competition(airlineId: number): Promise<CompetitionAnswer> {
-  const { data, error } = await limited(() => supabase.rpc("competition", { p_airline_id: airlineId, p_as_of: asOf() }, { get: true }));
-  if (error) throw new Error(`Couldn't read the competition analysis: ${error.message}`);
-  return data as unknown as CompetitionAnswer;
-}
+const competition = (airlineId: number): Promise<CompetitionAnswer> =>
+  readFigure<CompetitionAnswer>("the competition analysis", "competition", { p_airline_id: airlineId, p_as_of: asOf() });
+const competitionQuery = (airlineId: number) => ({
+  queryKey: ["figures", "competition", airlineId] as const,
+  ...storedOptions("competition", { p_airline_id: airlineId }),
+  queryFn: () => competition(airlineId),
+});
 
 /** competition() for one airline: its market share, threats, openings (the top 50) and rival profiles. */
 export function useCompetition(airlineId: number | undefined) {
   return useQuery({
+    ...competitionQuery(airlineId ?? 0),
     queryKey: ["figures", "competition", airlineId],
     enabled: airlineId !== undefined,
-    queryFn: () => competition(airlineId ?? 0),
   });
 }
 
 /** competition() for each airline (the same reads as useCompetition): the group page. */
 export function useCompetitions(airlineIds: readonly number[]) {
   return useQueries({
-    queries: airlineIds.map((id) => ({ queryKey: ["figures", "competition", id], queryFn: () => competition(id) })),
+    queries: airlineIds.map(competitionQuery),
   });
 }
 
@@ -41,7 +42,7 @@ const combineThreats = (results: UseQueryResult<CompetitionAnswer>[]): { threats
  *  for Today's needs attention: the same reads as the Competition screen's. */
 export function useLatestThreats(airlineIds: readonly number[]) {
   return useQueries({
-    queries: airlineIds.map((id) => ({ queryKey: ["figures", "competition", id], queryFn: () => competition(id) })),
+    queries: airlineIds.map(competitionQuery),
     combine: combineThreats,
   });
 }

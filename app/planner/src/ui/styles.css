@@ -164,6 +164,19 @@ body{padding-top:0}
 .primary:hover{background:var(--violet)} .primary:disabled{opacity:.55;cursor:default}
 .gmsg{color:var(--muted);font-size:13.5px;min-height:20px}
 
+/* ---------- the landing page (11 Nov, spec docs/specs/2026-11-11-stored-figures.md §2): the sign-in's night and orb ---------- */
+.landing{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;
+  background:radial-gradient(120% 90% at 80% 10%,#1B2A66 0%,#0A1230 60%)}
+.landing-orb{position:absolute;width:62vh;height:62vh;right:-20vh;top:50%;transform:translateY(-50%);border-radius:50%;
+  background:linear-gradient(90deg,#0A1230 0%,#0A1230 49.6%,#F6B44B 49.6%,#FFD48A 50.4%,#EEF1F6 51%,#FFFFFF 100%);
+  box-shadow:0 40px 120px -30px rgba(246,180,75,.3)}
+.landing-in{position:relative;display:flex;flex-direction:column;gap:18px;padding:32px 26px;max-width:min(560px,100vw);box-sizing:border-box}
+.landing-line{margin:0;font:400 clamp(26px,4vw,40px)/1.15 var(--font-d);letter-spacing:-.04em;overflow-wrap:anywhere}
+.landing-detail{margin:0;color:#C9D1EA;font:600 14px/1.4 var(--font)}
+.stalefigs{margin:0;padding:10px 16px;background:var(--amber-soft);color:var(--amber-ink);border-bottom:1px solid #F3D9A8;
+  font:600 13.5px/1.45 var(--font);overflow-wrap:anywhere}
+.figasof{margin:6px 0 0;color:var(--muted);font:600 12.5px/1.4 var(--font)}
+
 /* ---------- the preview notice and messages ---------- */
 .eqpreview{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:40;background:#FFE7A8;color:#3A2A00;
   border:1px solid #E8B93B;padding:8px 12px;border-radius:10px;font:600 13px/1.35 var(--font);
@@ -370,6 +383,7 @@ svg.wmap .hub text,svg.wmap .al{font-family:var(--font);fill:#0E1630;stroke:rgba
 .eqh-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(10,18,48,.94) 0%,rgba(10,18,48,.6) 36%,rgba(10,18,48,0) 62%)}
 .eqh-in{position:absolute;left:clamp(22px,3vw,44px);bottom:clamp(22px,3vw,40px);right:40%;display:grid;gap:16px;pointer-events:none}
 .eqh-hi{margin:0;font:600 14px/1.3 var(--font);color:#C9D1EA}
+.eqh-asof{margin:6px 0 0;font:600 12.5px/1.3 var(--font);color:#C9D1EA;opacity:.85}
 .eqh-t{margin:0;font:400 clamp(30px,4vw,60px)/1 var(--font-d);letter-spacing:-.05em}
 .eqh-t span{color:#F6B44B}
 .eqh-line{display:block;width:min(360px,70%);height:2px;border-radius:2px;background:var(--twilight)}

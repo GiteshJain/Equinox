@@ -30,7 +30,6 @@ import { useLocation } from "react-router";
 import { ourAirlines, type OurAirline } from "../../data/airlines";
 import { buildStamp } from "../../data/build";
 import { useNow } from "../../data/clock";
-import { queryClient } from "../../data/query";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
@@ -39,6 +38,7 @@ import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
+import { refreshStored } from "../../data/storedFigures";
 import { refreshFigures } from "../performance/reads";
 import { ManualEntry } from "./ManualEntry";
 import {
@@ -106,7 +106,7 @@ export function Systems() {
       const res = await saver.save(changes);
       if (res.status === "saved") {
         refreshFigures();
-        if (changes.some((c) => c.table === "spending_log")) void queryClient.invalidateQueries({ queryKey: ["figures", "cabin_charges"] });
+        if (changes.some((c) => c.table === "spending_log")) refreshStored(["cabin_charges"]);
       }
       return res;
     } finally {

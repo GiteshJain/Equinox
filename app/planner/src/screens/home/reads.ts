@@ -12,9 +12,9 @@
 // The database functions that only read are called with GET, so a preview (decision #8), which refuses every other
 // call to the data API, reads them too. A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts
 // its answer into them and reads them again.
-import { useQuery } from "@tanstack/react-query";
-import { limited } from "../../data/limit";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
+import { airlineCardsQuery, growthSignalsQuery, routeLoadsQuery } from "../../data/sharedFigures";
 import { supabase } from "../../data/supabase";
 
 const fail = (what: string, message: string): never => {
@@ -49,8 +49,7 @@ export interface AircraftRow {
 }
 
 /** Our aircraft on order, arrived but not filed, and in service. */
-export function useHomeAircraft(worldId: number | undefined) {
-  return useQuery({
+export const homeAircraftQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("aircraft", "home", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -60,14 +59,15 @@ export function useHomeAircraft(worldId: number | undefined) {
       if (error) return fail("the aircraft", error.message);
       return data as AircraftRow[];
     },
-  });
+});
+export function useHomeAircraft(worldId: number | undefined) {
+  return useQuery(homeAircraftQuery(worldId));
 }
 
 export interface PlanCardRow { id: number; aircraft_id: number; title: string | null; updated_at: string }
 
 /** Which aircraft have a plan card, with its title (Today's Aircraft to file: "File into planner", and its Plan column). */
-export function usePlanCards(worldId: number | undefined) {
-  return useQuery({
+export const planCardsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("plan_cards", "home", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -75,7 +75,9 @@ export function usePlanCards(worldId: number | undefined) {
       if (error) return fail("the plan cards", error.message);
       return data as PlanCardRow[];
     },
-  });
+});
+export function usePlanCards(worldId: number | undefined) {
+  return useQuery(planCardsQuery(worldId));
 }
 
 export interface TodoRow {
@@ -91,8 +93,7 @@ export interface TodoRow {
 export interface TodoItemRow { id: number; todo_id: number; position: number; body: string; updated_at: string }
 
 /** The to-do board, in the order the old planner keeps it (the table's own order). */
-export function useTodos(worldId: number | undefined) {
-  return useQuery({
+export const todosQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("todos", "home", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -101,11 +102,12 @@ export function useTodos(worldId: number | undefined) {
       if (error) return fail("the to-dos", error.message);
       return data as TodoRow[];
     },
-  });
+});
+export function useTodos(worldId: number | undefined) {
+  return useQuery(todosQuery(worldId));
 }
 
-export function useTodoItems(worldId: number | undefined) {
-  return useQuery({
+export const todoItemsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("todo_items", "home", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -114,13 +116,14 @@ export function useTodoItems(worldId: number | undefined) {
       if (error) return fail("the to-dos' steps", error.message);
       return data as TodoItemRow[];
     },
-  });
+});
+export function useTodoItems(worldId: number | undefined) {
+  return useQuery(todoItemsQuery(worldId));
 }
 
 export interface DismissalRow { world_id: number; alert_key: string; dismissed_on: string | null; updated_at: string }
 
-export function useDismissals(worldId: number | undefined) {
-  return useQuery({
+export const dismissalsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("dismissals", "home", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -128,21 +131,24 @@ export function useDismissals(worldId: number | undefined) {
       if (error) return fail("the dismissed items", error.message);
       return data as DismissalRow[];
     },
-  });
+});
+export function useDismissals(worldId: number | undefined) {
+  return useQuery(dismissalsQuery(worldId));
 }
 
 export interface BackupRun { ran_at: string; kind: string | null; ok: boolean | null; note: string | null }
 
 /** The nightly backup's latest runs, as the old planner reads them (the latest 10). */
-export function useBackups() {
-  return useQuery({
+export const backupsQuery = () => queryOptions({
     queryKey: tableKey("backup_runs", "home"),
     queryFn: async () => {
       const { data, error } = await supabase.from("backup_runs").select("ran_at, kind, ok, note").order("ran_at", { ascending: false }).limit(10);
       if (error) return fail("the backups", error.message);
       return data as BackupRun[];
     },
-  });
+});
+export function useBackups() {
+  return useQuery(backupsQuery());
 }
 
 export interface JobRun {
@@ -158,8 +164,7 @@ export interface JobsRead { runs: JobRun[]; archiveLast: { started_at: string } 
 /** The automatic jobs' runs of the last 40 days (snapshot, the 10:00 UTC fallback, clean-up, archive, and since 10 Nov the
  * unattended capture and its start, spec docs/specs/2026-11-10-unattended-capture.md §3) and the archive's latest run, as the
  * old planner reads them for Home's warnings. */
-export function useJobs() {
-  return useQuery({
+export const jobsQuery = () => queryOptions({
     queryKey: tableKey("job_runs", "home"),
     queryFn: async (): Promise<JobsRead> => {
       const [j, a] = await Promise.all([
@@ -172,7 +177,9 @@ export function useJobs() {
       if (a.error) return fail("the nightly jobs", a.error.message);
       return { runs: j.data as JobRun[], archiveLast: (a.data[0] as { started_at: string } | undefined) ?? null };
     },
-  });
+});
+export function useJobs() {
+  return useQuery(jobsQuery());
 }
 
 export interface CaptureAirline {
@@ -237,21 +244,18 @@ export interface CardsRead {
   load_7_days_from: "captures" | "reports" | null;
 }
 
-/** Review's cards for our airlines at the moment: what each can order now (cash_forecast()), and the group's load. */
+function toCards(data: unknown): CardsRead {
+  const d = data as Partial<CardsRead>;
+  return {
+    airlines: d.airlines ?? [], load_7_days: d.load_7_days == null ? null : Number(d.load_7_days),
+    load_7_days_flights: Number(d.load_7_days_flights ?? 0), load_7_days_from: d.load_7_days_from ?? null,
+  };
+}
+
+/** Review's cards for our airlines at the moment: what each can order now (cash_forecast()), and the group's load
+ *  (airline_cards(): one read with Performance's scorecards since 11 Nov). */
 export function useAirlineCards(worldId: number | undefined) {
-  return useQuery({
-    queryKey: ["figures", "airline_cards", worldId],
-    enabled: worldId !== undefined,
-    queryFn: async (): Promise<CardsRead> => {
-      const { data, error } = await limited(() => supabase.rpc("airline_cards", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
-      if (error) return fail("the airlines' cards", error.message);
-      const d = data as Partial<CardsRead>;
-      return {
-        airlines: d.airlines ?? [], load_7_days: d.load_7_days == null ? null : Number(d.load_7_days),
-        load_7_days_flights: Number(d.load_7_days_flights ?? 0), load_7_days_from: d.load_7_days_from ?? null,
-      };
-    },
-  });
+  return useQuery({ ...airlineCardsQuery(worldId), select: toCards });
 }
 
 export interface FixRoute {
@@ -273,33 +277,25 @@ export interface GrowthRead {
   load_patterns: LoadPattern[];
 }
 
-/** The routes to fix or reduce across our airlines, and the load patterns to fall back on (growth_signals()). */
+function toGrowth(data: unknown): GrowthRead {
+  const d = data as Partial<GrowthRead>;
+  return { fix_or_reduce: d.fix_or_reduce ?? [], profit_captured: d.profit_captured ?? true, load_patterns: d.load_patterns ?? [] };
+}
+
+/** The routes to fix or reduce across our airlines, and the load patterns to fall back on (growth_signals(): one read with
+ *  Performance's and Routes' since 11 Nov). */
 export function useGrowth(worldId: number | undefined) {
-  return useQuery({
-    queryKey: ["figures", "growth_signals", worldId],
-    enabled: worldId !== undefined,
-    queryFn: async (): Promise<GrowthRead> => {
-      const { data, error } = await limited(() => supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
-      if (error) return fail("the growth signals", error.message);
-      const d = data as Partial<GrowthRead>;
-      return { fix_or_reduce: d.fix_or_reduce ?? [], profit_captured: d.profit_captured ?? true, load_patterns: d.load_patterns ?? [] };
-    },
-  });
+  return useQuery({ ...growthSignalsQuery(worldId), select: toGrowth });
 }
 
 export interface RouteLoad { airline_id: number; route_id: number; hub: string; dest: string; departures: number; average: number; days: number }
 
-/** Each route's economy loads over the last 7 days (route_loads()): the map colours one airline's routes by them. */
+const toRouteLoads = (data: unknown): RouteLoad[] => ((data as { routes?: RouteLoad[] }).routes ?? []).map((r) => ({ ...r, average: Number(r.average) }));
+
+/** Each route's economy loads over the last 7 days (route_loads(): one read with Routes' since 11 Nov): the map colours one
+ *  airline's routes by them. */
 export function useRouteLoads(worldId: number | undefined, enabled: boolean) {
-  return useQuery({
-    queryKey: ["figures", "route_loads", worldId],
-    enabled: worldId !== undefined && enabled,
-    queryFn: async (): Promise<RouteLoad[]> => {
-      const { data, error } = await limited(() => supabase.rpc("route_loads", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
-      if (error) return fail("the loads per route", error.message);
-      return ((data as { routes?: RouteLoad[] }).routes ?? []).map((r) => ({ ...r, average: Number(r.average) }));
-    },
-  });
+  return useQuery({ ...routeLoadsQuery(worldId, enabled), select: toRouteLoads });
 }
 
 /** The website's destination photos by city (site_public()'s media.photos), as the old Home's airline cards use them. */

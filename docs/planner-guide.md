@@ -50,6 +50,24 @@ as you make it. On a preview address the planner saves nothing and says **previe
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing.
 
+## The landing page (since 11 Nov)
+After every capture the database works out every figure the planner shows once and stores them. The planner loads that
+set when it opens, so moving between screens doesn't wait on the database.
+- **When it shows:** a full-window page with the brand and one line, instead of the screens:
+  - when you open the planner, while it loads the figures and the tables: **Loading… 18 of 41**;
+  - while a capture runs: **Capture running · Ryanair (3 of 6)**, **World scan · 120 of 163 airlines**, **Market pages ·
+    340 of 686**;
+  - after a capture, while its figures are worked out (**Working out the figures…**, usually a minute) and loaded.
+  A save of yours never brings it up. There's no button past it.
+- **It never stays for good.** After 30 minutes of capture (the setting `figures_landing_max_min`), 10 minutes after a
+  capture with no new figures, or when the planner can't ask where they stand three times in a row, it opens on the
+  last figures, with a line at the top of every screen: **Figures from the 21:30 UTC capture: the new ones aren't ready
+  because …**.
+- **Figures as of 11 Nov, 10:31 UTC** on Home and the Performance pages says when the loaded figures were worked out
+  (in local or UTC time, as the account menu says).
+- **After a save,** the boards it changes (cash, the fare plan, a cabin charge, a pair joined) read the database at once,
+  as before; the stored figures catch up within a few minutes.
+
 ## Home: Overview
 *The whole network at a glance, and what needs attention.* It looks and works as the old Home, without the boards that
 moved to Today on 20 Oct (needs attention's lists, coming up and the to-do board). Since 23 Oct (spec

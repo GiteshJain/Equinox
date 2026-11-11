@@ -21,7 +21,7 @@ import { homeAttention, serviceAttention, serviceItemWords, type AttentionInput 
 import type { ServiceChecks, ServiceMismatch } from "../performance/model";
 import { comingUp, UP_FILTERS } from "./comingUp";
 import { fixChanges, fixRotations, gameSummary, importChanges, noLinkWords } from "./game";
-import { attentionAnchor, attentionHref, captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, openLines, orderStatus, runsDryWords, safeTypes, soonWords, tileForHash, toFile, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
+import { attentionAnchor, attentionHref, captureLine, clockWords, countTiles, deliveryLines, lineCell, lineColumns, lineSafe, nextOrderAt, openLines, orderStatus, runsDryWords, safeTypes, soonWords, tileForHash, toFile, typesAt, waitingCards, waitingWords, type FileRow, type OrderRow } from "./model";
 import type { LegNow } from "./reads";
 import { addChanges, deleteChanges, dismissChanges, showAgainChanges, sortTodos, tickChanges, todoBoard, todoViews } from "./todos";
 
@@ -825,5 +825,22 @@ describe("Orders: each open 7-day line (spec docs/specs/2026-10-27-long-haul-lin
   it("the size is the line_aircraft setting's: places 0 to size − 1", () => {
     expect(openLines({ ...input(undefined), sizeOf: () => 3 }).map((l) => l.heading)).toEqual(["XLR line, Pan Am: 2 of 3 ordered (2 arrived)"]);
     expect(openLines({ ...input(undefined), sizeOf: () => 2 })).toEqual([]);
+  });
+});
+
+describe("stored order times against the clock (since 11 Nov: the figures are worked out after each capture)", () => {
+  const now = Date.parse("2026-11-11T15:00:00Z");
+  const t = (type: string, safe_day: number | null, safe_from: string | null) =>
+    ({ aircraft_type_id: 1, type, price_with_cabin: 1, lease_week: 1, lease_seen: true, safe_day, safe_from, count_today: null });
+  it("a type safe from a moment that has passed is safe now; one still ahead keeps its day", () => {
+    const types = typesAt([t("Airbus A320neo", 1, "2026-11-11T14:00:00Z"), t("Boeing 787-9", 2, "2026-11-12T14:00:00Z"), t("Airbus A350-900", null, null)], now);
+    expect(types?.map((x) => x.safe_day)).toEqual([0, 2, null]);
+    expect(safeTypes(types)).toEqual([{ when: "now", now: true, names: [shortType("Airbus A320neo")] }, { when: "from Thu, Nov 12", now: false, names: [shortType("Boeing 787-9")] }]);
+    expect(typesAt(undefined, now)).toBeUndefined();
+  });
+  it("a card's next order safe from a passed moment says Can order now", () => {
+    expect(orderStatus(nextOrderAt({ when: "later", safe_from: "2026-11-11T14:00:00Z" }, now), null)).toEqual({ kind: "now", text: "Can order now" });
+    expect(orderStatus(nextOrderAt({ when: "later", safe_from: "2026-11-12T14:00:00Z" }, now), null)).toEqual({ kind: "later", text: "Safe from Thu, Nov 12" });
+    expect(nextOrderAt(null, now)).toBeNull();
   });
 });

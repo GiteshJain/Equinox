@@ -1,11 +1,14 @@
 // The shell (decision #18, build pull request 1): sign-in and the staff check, then the header and the ten screens
 // (grouped by when they're used since 20 Oct: spec docs/specs/2026-10-20-today-performance-systems.md; Competition since
-// 21 Oct: spec docs/specs/2026-10-21-competition-analysis.md).
+// 21 Oct: spec docs/specs/2026-10-21-competition-analysis.md). Since 11 Nov (spec docs/specs/2026-11-11-stored-figures.md §2)
+// the landing page stands between the staff check and the screens while the stored figures and the opening's tables load,
+// while a capture runs and while its figures are worked out.
 import { useEffect, type ComponentType } from "react";
 import { Outlet, createBrowserRouter, useLocation, useNavigate } from "react-router";
 import { BASENAME } from "./data/config";
 import { PREVIEW } from "./data/preview";
 import { useAccess } from "./data/session";
+import { useStoredFigures } from "./data/useStoredFigures";
 import { Competition } from "./screens/competition/Competition";
 import { Home } from "./screens/home/Home";
 import { Interline } from "./screens/interline/Interline";
@@ -18,6 +21,7 @@ import { Systems } from "./screens/systems/Systems";
 import { Tails } from "./screens/tails/Tails";
 import { Today } from "./screens/today/Today";
 import { ErrorBox } from "./ui/ErrorBox";
+import { Landing, StaleFigures } from "./ui/landing/Landing";
 import { Header } from "./ui/Header";
 import { Messages } from "./ui/Messages";
 import { SignIn } from "./ui/SignIn";
@@ -48,9 +52,17 @@ function Shell() {
       </main>
     );
   }
+  return <Opened />;
+}
+
+/** Staff in: the landing page, or the screens (with the line at their top when they show the previous capture's figures). */
+function Opened() {
+  const figures = useStoredFigures();
+  if (figures.show) return <Landing line={figures.line} detail={figures.detail} />;
   return (
     <div data-shell>
       <Header />
+      {figures.note ? <StaleFigures note={figures.note} /> : null}
       <Outlet />
     </div>
   );

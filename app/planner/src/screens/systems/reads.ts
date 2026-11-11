@@ -15,9 +15,9 @@
 //   market line, Today's needs attention and the route page's header read.
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview (decision #8) reads them too.
-import { useQuery } from "@tanstack/react-query";
-import { limited } from "../../data/limit";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
+import { readFigure, storedOptions } from "../../data/storedFigures";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
 import type { ServiceChecks } from "../performance/model";
@@ -32,11 +32,10 @@ const num = (v: Json | undefined): number | null => (v == null ? null : Number(v
 /** The moment a captured figure is asked for: now, to the millisecond, as the database takes it. */
 const asOf = () => new Date().toISOString();
 
-async function rpc<T>(what: string, fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await limited(() => supabase.rpc(fn as never, args as never, { get: true }));
-  if (error) return fail(what, error.message);
-  return data as unknown as T;
-}
+/** Every figure through data/storedFigures.ts (since 11 Nov): the stored set's answer, else the database's through the
+ *  figures' queue. capture_status() and system_status() are light and say whether a capture is in, so they stay live and
+ *  unqueued, as before. */
+const rpc = readFigure;
 
 // ---------- the capture board
 export interface CapturePages { today: string | null; yesterday: string | null }
@@ -93,6 +92,7 @@ export function useCabinCharges(enabled = true) {
   return useQuery({
     queryKey: ["figures", "cabin_charges"],
     enabled,
+    ...storedOptions("cabin_charges", {}),
     queryFn: () => rpc<CabinCharges>("the cabin charges", "cabin_charges", { p_as_of: asOf() }),
   });
 }
@@ -103,6 +103,7 @@ export function useFleetChecks(worldId: number | undefined) {
   return useQuery({
     queryKey: ["figures", "fleet_checks", worldId],
     enabled: worldId !== undefined,
+    ...storedOptions("fleet_checks", { p_world_id: worldId ?? 0 }),
     queryFn: () => rpc<FleetChecks>("the fleet checks", "fleet_checks", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
   });
 }
@@ -112,6 +113,7 @@ export function useServiceChecks(enabled = true) {
   return useQuery({
     queryKey: ["figures", "market_service_checks"],
     enabled,
+    ...storedOptions("market_service_checks", {}),
     queryFn: async (): Promise<ServiceChecks> => {
       const d = await rpc<Partial<ServiceChecks>>("the service check", "market_service_checks", { p_as_of: asOf() });
       return { run: d.run ?? null, checked: Number(d.checked ?? 0), mismatches: d.mismatches ?? [] };
@@ -122,15 +124,16 @@ export function useServiceChecks(enabled = true) {
 export interface BackupRun { ran_at: string; kind: string | null; ok: boolean | null; tables: number | null; rows: number | null; files: number | null; note: string | null }
 
 /** The nightly backup's latest runs, as the old planner read them for the line under Capture (the latest 10). */
-export function useBackupLine() {
-  return useQuery({
+export const backupLineQuery = () => queryOptions({
     queryKey: tableKey("backup_runs", "check"),
     queryFn: async () => {
       const { data, error } = await supabase.from("backup_runs").select("ran_at, kind, ok, tables, rows, files, note").order("ran_at", { ascending: false }).limit(10);
       if (error) return fail("the backups", error.message);
       return (data as unknown as BackupRun[]).map((b) => ({ ...b, rows: num(b.rows as Json) }));
     },
-  });
+});
+export function useBackupLine() {
+  return useQuery(backupLineQuery());
 }
 
 // ---------- Manual entry
@@ -139,6 +142,7 @@ export function useCashLog(worldId: number | undefined) {
   return useQuery({
     queryKey: tableKey("cash_entries", "log", worldId),
     enabled: worldId !== undefined,
+    ...storedOptions("cash_log", { p_world_id: worldId ?? 0 }),
     queryFn: () => rpc<CashLog>("the nightly log", "cash_log", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
   });
 }

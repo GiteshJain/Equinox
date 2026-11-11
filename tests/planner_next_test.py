@@ -62,6 +62,13 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    amber, no run yet), an ok row 15 hours old (Today's Capture group says "Unattended capture: last good run 15 hours ago",
    amber, linking to Systems; the line amber) and a failed row an hour old after it (Today lists the failed run in red with
    the nightly jobs; the line red with its note); then the rows go and the parked ones come back.
+6d. The stored figures (since 11 Nov, spec docs/specs/2026-11-11-stored-figures.md §3): before the first sign-in, a set is
+   worked out on the copy at the frozen moment (private.figures_refresh(null, <moment>) as postgres; the copy's jobs are
+   paused, and its own set from the backup is set aside first), so every step reads it. Then, signed in at the moment, the
+   planner opens through its landing page (it showed, then went), holds the copy's generation, has "Figures as of" on Home
+   and an airline's Performance page, and every screen in turn and five screen changes (Home, Today, an airline's
+   Performance and Competition pages, Routes) call no stored figure's function through /rpc/ (only the status and the
+   figures that aren't stored). The first opening's time and each change's, click to ready, are printed.
 7. The addresses (the switch, build pull request 13, the clean-up, 14, and 20 Oct), as tests/harness.py serves them from
    web/_redirects the way Cloudflare does: /planner and /planner/ open the planner, and so does a deep address
    (/planner/performance/VS); /planner/check answers 301 to /planner/today (the query kept), /planner/review/... to the
@@ -138,6 +145,7 @@ class Planner:
         self.p, self.port, self.env, self.f, self.size = p, port, env, facts, {"width": width, "height": height}
         self.copy = 0          # requests for the live Supabase host, answered by the copy
         self.rpcs = []         # the functions it called on the copy, in order
+        self.rpc_args = []     # and each call's query (GET's arguments), in the same order
         self.local = 0         # requests to the local server
         self.stopped = set()   # hosts whose requests were stopped
         self.outside = []      # responses that came over the network from anywhere but the local server: must stay empty
@@ -148,14 +156,17 @@ class Planner:
         self.inflight = 0      # requests on their way through route()
         self.checks = []       # the address checks (where), awaited by close()
 
-    async def open(self, host=LIVE_HOST, path=NEW_PLANNER, moment=None):
-        """Opens the planner; with a moment (ISO), its clock stays at that moment (tests/home_side_by_side_test.py)."""
+    async def open(self, host=LIVE_HOST, path=NEW_PLANNER, moment=None, init=None):
+        """Opens the planner; with a moment (ISO), its clock stays at that moment (tests/home_side_by_side_test.py); with
+        init, a script run in the page before the planner's own."""
         rules = f"MAP {LIVE_HOST} 127.0.0.1:{self.port}, MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost"
         self.b = await self.p.chromium.launch(args=[f"--host-resolver-rules={rules}", "--no-proxy-server"])
         self.api = await self.p.request.new_context()
         self.ctx = await self.b.new_context(viewport=self.size, timezone_id="UTC", locale="en-US", service_workers="block")
         await self.ctx.route("**/*", self.route)
         await self.ctx.route_web_socket(re.compile(".*"), self.socket)
+        if init:
+            await self.ctx.add_init_script(init)
         self.ctx.on("response", lambda r: self.checks.append(asyncio.ensure_future(self.where(r))))
         self.pg = await self.ctx.new_page()
         if moment:
@@ -188,6 +199,7 @@ class Planner:
             m = re.match(r"^/rest/v1/rpc/([^/?]+)", u[len(live):])
             if m:
                 self.rpcs.append(m[1])
+                self.rpc_args.append(urlsplit(u).query)
             key, anon = self.f["live_key"], self.env["ANON_KEY"]
             headers = {k: v.replace(key, anon) for k, v in (await req.all_headers()).items()
                        if not k.startswith(":") and k.lower() not in ("host", "content-length", "connection", "accept-encoding", "cookie")}
@@ -1936,6 +1948,104 @@ async def unattended_capture(p, port, env, facts, staff, seen, moment):
     return ("the unattended capture on Today and Systems (" + "; ".join(cases) + f"; {len(parked)} of the copy's own rows parked and put back)"), problems
 
 
+# ---------- 6d. the stored figures (since 11 Nov, spec docs/specs/2026-11-11-stored-figures.md §3) ----------
+# What the database stores after each capture (planner_figures, kinds as the migration writes them); a route's page is read
+# from its own row, never through /rpc/, when it's stored
+STORED = {"airline_cards", "growth_signals", "hub_progress", "route_loads", "fleet_checks", "cash_log", "shared_pairs_status", "cabin_charges",
+          "market_service_checks", "airline_profit", "cash_forecast", "fare_changes", "fare_plan_status", "fare_ladder", "fare_results", "competition",
+          "route_profit", "aircraft_profit"}
+# Records every line the landing page shows, from before the planner starts (null when none shows)
+LANDING_LOG = """window.__eqLanding = [];
+new MutationObserver(() => {
+  const l = document.querySelector('[data-landing]'), v = l ? l.dataset.landing : null, a = window.__eqLanding;
+  if (!a.length ? v !== null : a[a.length - 1] !== v) a.push(v);
+}).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-landing'] });"""
+
+
+def store_figures(at):
+    """A stored set on the copy at the checks' frozen moment, as the job (paused on the copy) would store it after the
+    capture: private.figures_refresh(null, <moment>) as postgres. The copy's own set (from live's backup) is set aside first
+    (its capture stamp dropped), so the set is worked out at the moment whatever the backup held. Returns (label, problems)."""
+    psql("update public.planner_figures_state set sources = coalesce(sources, '{}'::jsonb) - 'capture_at'")
+    t0 = datetime.datetime.now()
+    out = one(f"select private.figures_refresh(null, timestamptz '{at}')")
+    took = (datetime.datetime.now() - t0).total_seconds()
+    worlds = (out or {}).get("worlds") or []
+    sets = [w for w in worlds if w.get("did") == "set"]
+    problems = [] if sets else [f"no set was stored: {json.dumps(out)[:300]}"]
+    for w in sets:
+        for f in w.get("failed") or []:
+            problems.append(f"{f.get('kind')} {f.get('key')}: failed ({str(f.get('error'))[:160]})")
+    words = "; ".join(f"world {w.get('world_id')}: generation {w.get('generation')}, {w.get('worked')} of {w.get('figures')} figures" for w in sets)
+    return f"the stored figures worked out on the copy at the moment ({at}) by private.figures_refresh(): {words or 'none'}, in {took:.1f} s", problems
+
+
+async def stored_figures(p, port, env, facts, staff, seen, moment):
+    """The planner on the stored set (spec docs/specs/2026-11-11-stored-figures.md §2, §3): signed in at the frozen moment,
+    it opens through the landing page (it showed, then went), with the copy's generation in memory and Home's as-of line;
+    then every screen in turn, and five screen changes (Home, Today, an airline's Performance and Competition pages,
+    Routes), make no /rpc/ call to a stored figure's function: only the status and the figures that aren't stored. Prints
+    the first opening's time to Home ready and each screen change's, click to ready."""
+    problems, times = [], []
+    ph = Planner(p, port, env, facts)
+    seen.append(ph)
+    code = first_airline()
+    gen = int(psql(f"select coalesce((select generation from public.planner_figures_state where world_id = {WORLD}), 0)").strip() or 0)
+    try:
+        await ph.open(moment=moment, init=LANDING_LOG)
+        await ph.fill_sign_in(*staff)
+        t0 = datetime.datetime.now()
+        await ph.pg.wait_for_selector("[data-shell] main[data-screen=home][data-home-ready=yes]", timeout=90000)
+        first = (datetime.datetime.now() - t0).total_seconds()
+        await ph.pg.wait_for_function("!!window.__eqPlanner && !!window.__eqPlanner.figures", timeout=30000)
+        await settle(ph.pg, 500)
+        lines = await ph.pg.evaluate("window.__eqLanding")
+        facts_now = await ph.pg.evaluate("window.__eqPlanner.figures()")
+        shown = [x for x in lines if x]
+        if not shown:
+            problems.append("the planner didn't open through its landing page")
+        if lines and lines[-1] is not None or await ph.pg.evaluate("!!document.querySelector('[data-landing]')"):
+            problems.append(f"the landing page is still there ({lines[-3:]})")
+        if facts_now.get("generation") != gen:
+            problems.append(f"the planner holds generation {facts_now.get('generation')}, the copy's is {gen}")
+        if not await ph.pg.evaluate("!!document.querySelector('[data-figures-as-of]')"):
+            problems.append("Home has no \"Figures as of\" line")
+        times.append(f"first opening, sign-in to Home ready {first:.2f} s (the planner's own opening {facts_now.get('openedMs') or 0:.0f} ms)")
+
+        r0 = len(ph.rpcs)
+        for sid, _ in SCREENS:
+            await open_screen(ph.pg, sid)
+            await ph.pg.wait_for_selector(READY[sid], timeout=90000)   # the screens step's own selectors (one READY for every step)
+            await settle(ph.pg, 200)
+        for name, to, sel in (("Home", "/", "main[data-screen=home][data-home-ready=yes]"),
+                              ("Today", "/today", "main[data-screen=today][data-today-ready=yes]"),
+                              (f"Performance ({code})", f"/performance/{code}", f"main[data-screen=performance][data-airline='{code}'][data-performance-ready=yes]"),
+                              (f"Competition ({code})", f"/competition/{code}", f"main[data-screen=competition][data-airline='{code}'][data-competition-ready=yes]"),
+                              ("Routes", "/routes", "main[data-screen=routes][data-routes-ready=yes]")):
+            t1 = datetime.datetime.now()
+            await ph.pg.evaluate("t => window.__eqPlanner.go(t)", to)
+            await ph.pg.wait_for_selector(sel, timeout=90000)
+            times.append(f"to {name} {(datetime.datetime.now() - t1).total_seconds():.2f} s")
+            if to.startswith("/performance/") and not await ph.pg.evaluate("!!document.querySelector('main[data-screen=performance] [data-figures-as-of]')"):
+                problems.append(f"{code}'s Performance page has no \"Figures as of\" line")
+            await settle(ph.pg, 200)
+        called = list(zip(ph.rpcs[r0:], ph.rpc_args[r0:]))
+        bad = [(f, a) for f, a in called if f in STORED]
+        for f, a in bad[:8]:
+            problems.append(f"{f} was asked of the database after the landing page ({a[:120]})")
+        problems += ph.errors
+        others = ", ".join(f"{f} ×{n}" for f, n in sorted({f: sum(1 for g, _ in called if g == f) for f, _ in called}.items())) or "none"
+    except Exception as e:
+        problems.append(why(e))
+        others = "?"
+    finally:
+        await ph.close()
+    for t in times:
+        print("      time: " + t, flush=True)
+    return (f"the planner opens through its landing page on the stored set (generation {gen}), and every screen in turn and five screen "
+            f"changes ask the database for no stored figure (asked: {others})"), problems
+
+
 # ---------- 7. the addresses (the switch, the clean-up and 20 Oct) ----------
 def answer(port, path):
     """What the local server (tests/harness.py, which follows web/_redirects as Cloudflare does) answers for an address,
@@ -2059,6 +2169,12 @@ async def main():
     step(not problems, "test users: one staff, one not, made through the copy's sign-in", problems)
     if problems:
         sys.exit(1)
+    # the stored figures (since 11 Nov): a set at the frozen moment before the planner first opens, so every step reads it
+    try:
+        label, problems = store_figures(moment())
+    except Exception as e:
+        label, problems = "the stored figures worked out on the copy at the moment", [why(e)]
+    step(not problems, label, problems)
 
     seen = []
     with serve() as port:
@@ -2083,9 +2199,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, screens, systems_board, short_page, unattended_capture, addresses):
+            for check in (two_tabs, preview, stored_figures, screens, systems_board, short_page, unattended_capture, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (screens, systems_board, short_page, unattended_capture) else []))
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (stored_figures, screens, systems_board, short_page, unattended_capture) else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)

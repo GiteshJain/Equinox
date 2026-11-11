@@ -11,6 +11,8 @@ export const STALE_MS = 60_000;
  * their limits while the morning's capture and scan were writing. A save that changes a figure still reads it again at
  * once (its screen invalidates it), and Reload reads the capture's state. The capture's and the systems' state stay at
  * a minute: they are light, and they say whether tonight's capture is in.
+ * Since 11 Nov this is only for a figure read live: one the stored set answers never goes stale until the next set loads
+ * (data/figures.ts' figureOptions; spec docs/specs/2026-11-11-stored-figures.md §2).
  */
 export const FIGURES_STALE_MS = 15 * 60_000;
 

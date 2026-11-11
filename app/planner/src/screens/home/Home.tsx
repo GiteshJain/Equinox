@@ -39,6 +39,7 @@ import { Hero } from "./Hero";
 import type { HeroPlane, HeroRoute, LatLon } from "./heroScene";
 import { NetworkMap } from "./NetworkMap";
 import { useAirlineCards, useHomeAircraft, useSitePhotos } from "./reads";
+import { useFiguresAsOfWords } from "../../ui/FiguresAsOf";
 import { waitingCards, type WaitCard } from "../today/model";
 import { opensAircraft, useAttention } from "../today/useAttention";
 
@@ -46,6 +47,7 @@ const first = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
 export function Home() {
   const now = useNow();
+  const asOfWords = useFiguresAsOfWords();
   const world = useWorld();
   const w = world.data?.id;
   const airlinesQ = useOurAirlines(w);
@@ -119,7 +121,7 @@ export function Home() {
   const loadError = first(world, airlinesQ, rulesQ, aircraftQ, cardsQ) ?? att.loadError;
   return (
     <>
-      <Hero figures={nowFigures ? heroFigures(nowFigures, cardsQ.data) : null} hello={greeting(now)} routes={heroRoutes} planes={planes} now={now} />
+      <Hero figures={nowFigures ? heroFigures(nowFigures, cardsQ.data) : null} hello={greeting(now)} routes={heroRoutes} planes={planes} now={now} asOf={asOfWords} />
       <main className="view home eq-enter" data-screen="home" data-home-ready={ready ? "yes" : "no"}>
         {loadError ? <ErrorBox error={loadError} /> : null}
 

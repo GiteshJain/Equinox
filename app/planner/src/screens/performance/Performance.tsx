@@ -36,6 +36,7 @@
 // Manual entry moved to Systems. The saves here, + fare plan, remove and Put on the fare plan (the fare ladder), are one
 // planner_save() call each.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { FiguresAsOf } from "../../ui/FiguresAsOf";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { game, growth, loadReport, setting } from "@rules";
 import { ourAirlines, type OurAirline } from "../../data/airlines";
@@ -330,6 +331,7 @@ function PerformanceScreen() {
             ))}
           </div>
           <HeadFigures c={sel} wow={wowOf.get(sel.airline_id)} />
+          <FiguresAsOf />
         </div>
       ) : (
         <div className="vh todayvh perfvh">
@@ -338,6 +340,7 @@ function PerformanceScreen() {
             <h1 className="ansh" data-perf-answer>{!isAirline && cardsQ.data ? profitAnswer(cards) : "Performance"}</h1>
           </div>
           <p className="ansp">How each airline is doing, and why: the scorecards against last week, this Saturday's fare ladder, the growth signals, the main hubs and the flights by day.</p>
+          <FiguresAsOf />
         </div>
       )}
       {loadError ? <ErrorBox error={loadError} /> : null}
