@@ -103,9 +103,8 @@ that. `system_status()` adds the table's size to the usage figures (amber from 5
   - the status fails three times in a row.
 
   With no stored set at all (the first time after the build), it reads live, as today.
-- **Open question for Gitesh, before the build:** should the landing page during a capture also have a small "Open
-  with the last answers" link, for when he needs the planner during a long market run? The spec builds it only if he
-  says yes.
+- **No "open anyway" link** (Gitesh, 11 Nov: "No"): during a capture the landing page has no way past it except the
+  time limits above.
 
 ### Reading
 - On opening (and on each new generation) the planner reads every stored row except the route pages in one paged read
@@ -161,4 +160,6 @@ that. `system_status()` adds the table's size to the usage figures (amber from 5
 2. **The planner:** the landing page, reading the stored set, one key per figure, the as-of line, the measurements.
 
 ## 6. Gitesh's steps
-None beyond "merge" twice, and the one answer above (the "Open with the last answers" link: yes or no).
+None. On 11 Nov he said: "Start building and merging when done. Don't disturb and complete." So the Building chat merges
+each pull request itself once every check is green and its review against this spec passes (never with a red check),
+applies the database change to live, and reports at the end.
