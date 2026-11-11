@@ -27,7 +27,7 @@ The mock-up: `project/Main.dc.html` (Home), `project/Performance.dc.html` (a tab
 | Status pills | the mock-up's: ok `#B9F7DB` on `rgba(143,240,196,.20)`, warn `#FFE0A6` on `rgba(246,180,75,.24)`, bad `#FFD0DD` on `rgba(232,106,146,.28)`, plain `#FFFFFF` on `rgba(255,255,255,.18)`, each subject to the contrast check below |
 | Lift | cards rise 4 px on hover (0.18 s); none when reduced motion is asked for |
 | Periods (the computer's own clock) | Day 07:00–16:59, Dusk 17:00–19:59 and 05:00–06:59, Night 20:00–04:59 |
-| Pictures | the mock-up's three (decision 3): Day 65,137 bytes, Dusk 82,138, Night 57,137 (JPEG; 204,412 in all, the mock-up's asset list, 11 Nov) |
+| Pictures | three drawn for this build in the mock-up's drawn style, one per period (decision 3 as amended by Gitesh, 11 Nov: no chat or worker can read the mock-up's originals). Drawn by code kept in the repository, `scripts/look/draw_backdrops.py`, so they can be redrawn; JPEG, about 100 KB or less each; their measured sizes in the build's pull request and in `docs/map/planner.md` |
 | Globe on Home | as it is today (`screens/home/Hero.tsx`, `heroScene.ts`): no change to the globe or its colours |
 
 ## The five decisions, as built requirements
@@ -35,7 +35,10 @@ The mock-up: `project/Main.dc.html` (Home), `project/Performance.dc.html` (a tab
    on. Six pull requests; the sixth makes glass the only look and removes the switch.
 2. **Day glass at 0.66** (cards; bars 0.74), Dusk and Night 0.52 (bars 0.60). Labels at 0.92 white. A new check measures
    text against the brightest part of each picture (step 1, *The checks*).
-3. **The mock-up's three pictures**, one file each, in `app/planner/src/ui/look/`. Swapping one later is a file change.
+3. **Three drawn pictures**, one file each, in `app/planner/src/ui/look/`, drawn for this build by
+   `scripts/look/draw_backdrops.py` in the mock-up's style (Gitesh, 11 Nov, Main chat: the originals can't be read, so the
+   step 1 worker draws new ones; he judges them on step 1's preview). Swapping one later is a file change. Day must look
+   like day: a picture is never darkened to make a check pass.
 4. **The rail picks the airline where a screen shows one airline at a time,** and that screen's own airline buttons go:
    Routes (`/routes/<code>`), Tails (`?airline=<code>`), Performance (`/performance/<code>`) and Competition
    (`/competition/<code>`). On Home, Today, Interline, Photos and Systems, "All" is lit and an airline opens its
@@ -121,11 +124,11 @@ New, in `app/planner/src/ui/look/`:
 - `AirlineRail.tsx`: All and the six airlines from `useOurAirlines()`, in their order; 44 px round buttons with the
   airline's code, `aria-label` its name, `aria-current` on the lit one; a vertical bar on the left, sticky under the
   header, from 761 px wide; a row above the screen at 760 px and under. Rendered only when the look is glass.
-- `backdrop-day.jpg`, `backdrop-dusk.jpg`, `backdrop-night.jpg`: the mock-up's three pictures, unchanged. Their sha256:
-  Day `4bf07ea3dc49d4d18488a44df84f8b929e67e9f9fee4a203db0d3efffa13c105`, Dusk
-  `16027a1107ad3f155820a6222d02c991a5ef554774ba61ede706e97d3b6d82e4`, Night
-  `e6b3262dfba4ce1a6fd4a1d066dc8bec2978a9a963cf623785d0913280725abb`. **The Main chat supplies them** (see *Before the
-  build*). Referenced from `styles.css` with `url()`, so Vite fingerprints them into `web/app/assets/`.
+- `backdrop-day.jpg`, `backdrop-dusk.jpg`, `backdrop-night.jpg`: three skies drawn by `scripts/look/draw_backdrops.py`
+  (Python with Pillow; no photographs, no downloaded or third-party images, nothing recognisable): Day a bright blue sky
+  with soft white cloud, Dusk a violet-rose-amber evening sky (the planner's own colours), Night a deep night sky with
+  faint stars. 1920 × 1200, about 100 KB or less each; running the script again gives the same files (fixed seed).
+  Referenced from `styles.css` with `url()`, so Vite fingerprints them into `web/app/assets/`.
 
 Changed:
 - `src/main.tsx`: sets `data-look` from `readLook()` on `<html>` before the first render, so the sign-in page and the
@@ -163,8 +166,8 @@ Changed:
   to see it) and sign-in (sign out to see it) in the glass look, at the period of the computer's clock; screenshots of
   Home at Day, Dusk and Night at 1280 px and at 380 px (from the rehearsal's screenshots, or forced with a test-only
   `?period=` that exists only in the unit tests, not in the build).
-- *Outside the spec*, the pictures' sizes as served (the built files in `web/app/assets/`) and whether any was
-  re-compressed (it shouldn't be), and the Day picture's brightest blurred patch as the contrast check found it.
+- The pictures' sizes as served (the built files in `web/app/assets/`) and the Day picture's brightest blurred patch as
+  the contrast check found it, with the chart colours' ratios on 0.66 glass by day (question 3).
 
 ### The checks
 1. **The usual checks,** `bash tests/run_all.sh`: type check, lint, unit tests (with `look.test.ts` and `rail.test.ts`),
@@ -215,9 +218,7 @@ new tests, `planner_next_test.py`, `run_all.sh` and four documents. Estimated ha
 plus the rehearsal.
 
 ### Before the build
-- **The pictures.** The mock-up's assets can't be read by the tools a worker has (`read_asset` refuses assets of an
-  artifact made from a type; the three are not on this machine). Whoever made the mock-up, or Gitesh, needs to save the
-  three files from it; the Main chat checks them against the sha256 above and gives them to the step 1 worker.
+- **The pictures** are drawn in step 1 (above); nothing to supply.
 - Questions 1 and 3 below (question 1 only touches step 5; question 3 touches Home's chart boards in step 1).
 
 ## Steps 2 to 6
