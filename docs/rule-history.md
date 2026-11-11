@@ -38,6 +38,17 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### One Main chat with workers: on trial from 11 Nov
+*Gitesh, 11 Nov (Audit chat): "Rather than me having separate conversations with 3 chats. I was thinking we have a
+main chat with fable and other chats which do the actual work on opus but so decision making stay with main."* Brief:
+`docs/briefs/2026-11-11-main-chat.md`, option B. Nothing in §1 is replaced yet: a dated trial line sits under *One chat
+per kind of work*, and "Opus for everything" and the three chats stand until the trial is judged on 18 Nov (to-do 229)
+· why: Gitesh carried things between the chats, each chat read the rulebook before it started, and the Building chat
+already gave its builds to helpers. On Fable: "We stopped using fable before because of usage because we were building
+everything fresh. I know we are still rebuilding again but i have s few resets now." If it is kept, §1's *One chat per
+kind of work* and *Opus for everything*, the project instructions and the handover notes are rewritten then, with
+their old wording logged here. If not, the trial line comes out.
+
 ### The fare plan first and on its own: decided 11 Nov
 *Gitesh, 11 Nov (Audit chat, on the Saturday routine: "Yes").* §7's Saturday list began, word for word: "first, the
 document check (about 5 minutes)", and its last bullet began: "the weekly review together: the fare ladder's moves

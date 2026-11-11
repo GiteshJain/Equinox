@@ -166,6 +166,12 @@ Details and open points: `docs/decisions.md`.
   | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
   | Saturday review | Every Saturday: the world scan's age (the scan runs with the evening capture; `gscan.py` by hand if it's old), weekly report, connection audit, the airlines' newsroom roundups, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
+
+  **On trial from 11 Nov, judged on 18 Nov** (brief `docs/briefs/2026-11-11-main-chat.md`; to-do 229): one **Main**
+  chat, on Fable, is the only chat Gitesh talks to. It holds the decisions, the To-do board, rule changes and "merge",
+  and gives each sizeable job to a worker on Opus with a written brief. A worker never decides and never talks to
+  Gitesh. While the trial runs, the Main chat answers any question itself or through a worker, and the three chats
+  above stay as they are for going back to.
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *(since early Oct)*
 
