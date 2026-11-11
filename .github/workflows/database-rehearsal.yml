@@ -3,11 +3,12 @@
 # compared with the committed ones, every screen opened at a frozen moment at 1280 and 380 px, every kind of save made
 # through its own controls and checked against the recorded rows, and the addresses web/_redirects gives; then, when
 # there were changes, the copy is backed up and restored as the nightly job does (database/rehearse.sh says each step).
-# Runs when a pull request adds or changes a migration or a database test, changes the planner (a planner change can
-# break saving) or its addresses (web/_redirects), the planning library (lib/) or their tests, the airline briefing
-# (scripts/briefing/, and the market block it reads in scripts/report/analyze.py) or the map whose guide it runs
-# (docs/architecture.md, #24), or the database's reference file (database/current/, which it checks against the copy), or
-# changes this check. The copy comes from Cloudflare R2, read with a read-only
+# On a pull request it runs only the parts the change can affect (to-do 233; brief docs/briefs/2026-11-11-faster-checks.md,
+# option E; spec docs/specs/2026-11-11-faster-checks.md): the first job, parts, reads the paths the pull request changes
+# and database/rehearsal_parts.py names the parts (a path on no list starts every part; documents start none, and then
+# the rehearsal doesn't run at all). Every night on main (08:43 UTC, after the nightly backup at 07:17) it runs every
+# part. GitHub emails the person who last changed the schedule below when a nightly run fails.
+# The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
 # result is posted on the pull request; Claude applies a change to the live database only after it passes here and
 # Gitesh says "merge".
@@ -15,54 +16,54 @@ name: Database rehearsal
 
 on:
   pull_request:
-    paths:
-      - "database/migrations/**"
-      - "database/tests/**"
-      - "database/rehearse.sh"
-      - "database/storage_data_filter.py"
-      - "database/backup/**"
-      - "database/describe.*"
-      - "database/reference.*"
-      - "database/figures_moved.*"
-      - "database/current/**"
-      - "docs/data.md"
-      - "web/_redirects"
-      - "app/**"
-      - "lib/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".nvmrc"
-      - "tests/planner_next_test.py"
-      - "tests/fixtures/load_table_sample.tsv"
-      - "tests/planner_saves_test.py"
-      - "tests/planner_flights.mjs"
-      - "tests/local_copy.py"
-      - "tests/fixtures/planner_saves.expected.json"
-      - "tests/harness.py"
-      - "tests/fixtures/make_sample.sh"
-      - "tests/fixtures/sample.sql"
-      - "tests/fixtures/report_sample.sql"
-      - "tests/fixtures/report_sample.py"
-      - "tests/fixtures/capture_sample.sql"
-      - "tests/fixtures/capture_pages_*.json.gz"
-      - "tests/fixtures/briefing_sample.sql"
-      - "tests/fixtures/briefing_sample.py"
-      - "tests/briefing_copy_test.py"
-      - "scripts/briefing/**"
-      - "scripts/report/analyze.py"
-      - "docs/architecture.md"
-      - ".github/workflows/database-rehearsal.yml"
+  schedule:
+    - cron: "43 8 * * *"   # every night on main, after the nightly backup (07:17 UTC, which GitHub can start late)
+  workflow_dispatch:       # the nightly run, started by hand from GitHub's Actions page
 
 permissions:
   contents: read
   pull-requests: write   # posts the result on the pull request
 
 concurrency:
-  group: rehearsal-${{ github.event.pull_request.number }}
+  group: rehearsal-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Which parts this run needs: on a pull request, from the paths it changes since its base; otherwise (the nightly run)
+  # every part. The reasons, one line per path, go to the run's summary.
+  parts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      parts: ${{ steps.parts.outputs.parts }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # to compare with the base branch
+
+      - name: Choose the parts this change can affect
+        id: parts
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            python3 database/rehearsal_parts.py --base "origin/${{ github.base_ref }}" > "$RUNNER_TEMP/parts.txt"
+          else
+            echo "the nightly run on main: every part" > "$RUNNER_TEMP/parts.txt"
+            echo "parts=all" >> "$RUNNER_TEMP/parts.txt"
+          fi
+          cat "$RUNNER_TEMP/parts.txt"
+          tail -n 1 "$RUNNER_TEMP/parts.txt" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Database rehearsal: the parts this change needs"
+            echo '```'
+            cat "$RUNNER_TEMP/parts.txt"
+            echo '```'
+            if [ "$(tail -n 1 "$RUNNER_TEMP/parts.txt")" = "parts=" ]; then echo "Nothing to rehearse: no changed path can affect what it checks."; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   rehearse:
+    needs: parts
+    if: needs.parts.outputs.parts != ''
     runs-on: ubuntu-latest
     # 45 since 26 Oct: runs take 15 to 27 minutes, and with several pull requests at once some passed 30 and were cancelled
     timeout-minutes: 45
@@ -71,6 +72,8 @@ jobs:
         shell: bash   # bash -eo pipefail: a failing script fails its step even though its output goes through tee
     env:
       LOG: ${{ github.workspace }}/../rehearsal.log
+      REHEARSE_PARTS: ${{ needs.parts.outputs.parts }}
+      REHEARSE_NIGHTLY: ${{ github.event_name == 'pull_request' && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -134,22 +137,23 @@ jobs:
           FIGURES_DIR: ${{ runner.temp }}/figures-moved   # every captured figure the changes moved, before and after (small fixes, 15 Oct)
           FUNCTIONS_DIR: ${{ runner.temp }}/current-functions   # every function as the copy defines it, in database/current/functions.sql's format
         run: |
-          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
+          # the samples are made only on a pull request that changes how they are made, never at night
+          if [ "${{ github.event_name }}" != pull_request ] || git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/make_sample.sh tests/fixtures/sample.sql; then
             unset SAMPLE_DIR
           else
             export SAMPLE_DIR="${{ runner.temp }}/sample"
           fi
-          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/report_sample.sql tests/fixtures/report_sample.py; then
+          if [ "${{ github.event_name }}" != pull_request ] || git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/report_sample.sql tests/fixtures/report_sample.py; then
             unset REPORT_SAMPLE_DIR
           else
             export REPORT_SAMPLE_DIR="${{ runner.temp }}/report-sample"
           fi
-          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/capture_sample.sql; then
+          if [ "${{ github.event_name }}" != pull_request ] || git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/capture_sample.sql; then
             unset CAPTURE_SAMPLE_DIR
           else
             export CAPTURE_SAMPLE_DIR="${{ runner.temp }}/capture-sample"
           fi
-          if git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/briefing_sample.sql tests/fixtures/briefing_sample.py; then
+          if [ "${{ github.event_name }}" != pull_request ] || git diff --quiet "origin/${{ github.base_ref }}"...HEAD -- tests/fixtures/briefing_sample.sql tests/fixtures/briefing_sample.py; then
             unset BRIEFING_SAMPLE_DIR
           else
             export BRIEFING_SAMPLE_DIR="${{ runner.temp }}/briefing-sample"
@@ -270,7 +274,7 @@ jobs:
           retention-days: 1
 
       - name: Post the result on the pull request
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}

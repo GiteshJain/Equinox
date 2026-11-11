@@ -2,8 +2,15 @@
 # Rehearses database changes on a copy of last night's backup before they reach the live database (decision #8).
 #
 # Usage: database/rehearse.sh <folder holding an unpacked backup: db/, and latest.json if present> [base branch]
-# Run by .github/workflows/database-rehearsal.yml on every pull request that touches database/migrations/ or the
-# planner. The workflow gets the folder from Cloudflare R2 with database/backup/download.sh (decision #16).
+# Run by .github/workflows/database-rehearsal.yml on a pull request that changes something it checks, and every night on
+# main. The workflow gets the folder from Cloudflare R2 with database/backup/download.sh (decision #16).
+#
+# Which parts run (to-do 233, spec docs/specs/2026-11-11-faster-checks.md): REHEARSE_PARTS, a comma list of db,
+# reference, types, planner, saves, briefing and samples, from database/rehearsal_parts.py for a pull request; unset or
+# "all" runs every part. The copy (1 to 4) is made whatever the parts: every migration live doesn't have yet is applied,
+# so the planner meets the database as live will have it. db is 2's outputs saved before, 5, the figures moved and 9;
+# reference is 6; types is 7's types; planner is the rest of 7; briefing is 7b; saves is 8. With REHEARSE_NIGHTLY=1 (the
+# nightly run on main) the figures moved and 9 run even with no changes to apply.
 #
 # 1. Restores the backup into an empty local Supabase (Docker): the database, the data API and sign-in, with nothing
 #    else started (#17). The database is restored the same way the nightly restore check does.
@@ -11,7 +18,9 @@
 #    the live database's record as of last night. Before applying them, runs database/tests/before/*.sql, which save
 #    chosen outputs into the schema rehearsal_before, so a test can compare them afterwards.
 # 3. Applies them in order, each in its own transaction, stopping at the first failure, then pauses any job they schedule
-#    on the copy (pg_cron), so none runs during the tests. With SAMPLE_DIR set, then makes a test sample from the copy
+#    on the copy (pg_cron), so none runs during the tests. Then, since 11 Nov, the checks that need only the copy as the
+#    changes left it: 6 (descriptions and reference file) and 7's types, so their red shows minutes in, not at the end.
+#    With SAMPLE_DIR set, then makes a test sample from the copy
 #    (tests/fixtures/sample.sql, at the backup's moment) into that folder. With REPORT_SAMPLE_DIR set, also the weekly
 #    report's sample (tests/fixtures/report_sample.sql, cut by tests/fixtures/report_sample.py, at the same moment). With
 #    CAPTURE_SAMPLE_DIR set, also the capture's saved pages (tests/fixtures/capture_sample.sql: one airline's five pages
@@ -34,9 +43,10 @@
 #    ignoring whitespace (database/reference.py; the definitions since spec 2026-10-15 last leftovers §4); with
 #    FUNCTIONS_DIR set, every definition as the copy gives it, in the file's format, goes there either way (the run's
 #    current-functions artifact).
-# 7. The planner (#18, design §10), only if 1 to 5 passed: its types are generated again from the copy (after every
-#    pending change) with the local Supabase CLI and must equal app/planner/src/db/types.ts; the generated file is kept
-#    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the planner is built (npm ci,
+# 7. The planner (#18, design §10): its types are generated again from the copy (after every pending change; run with 6,
+#    right after the changes) with the local Supabase CLI and must equal app/planner/src/db/types.ts; the generated file
+#    is kept in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then, only if 1 to 5 passed,
+#    the planner is built (npm ci,
 #    npm run build), and tests/planner_next_test.py opens it at its live address on the copy (/planner/), signs in, reads
 #    and saves through planner_save(), opens every screen at a frozen moment at 1280 and 380 px (screenshots in
 #    PLANNER_SCREENS_DIR, the run's planner-screens artifact) and checks the addresses web/_redirects gives. Since 11 Nov it
@@ -51,7 +61,8 @@
 #    tests/fixtures/planner_saves.expected.json (the answers found go to SAVES_OUT_DIR, the run's planner-saves
 #    artifact). Stopped after 10 minutes if it stops answering. Together, 7 and 8 replaced the side by sides with the
 #    old planner (the clean-up, build pull request 14; tests/README.md).
-# 9. The backup and its restore after the changes, only when there were changes to apply and 1 to 5 passed: the copy, as
+# 9. The backup and its restore after the changes, only when there were changes to apply (every night on main whatever
+#    there was) and 1 to 5 passed: the copy, as
 #    the changes left it, is dumped the way the nightly backup dumps live (equinox-backups' scripts/backup.sh), the copy
 #    is stopped, and the dump is restored into an empty database the way the nightly restore check does; every table
 #    must come back with its rows, and who may use what (database/backup/permissions.sql) must match line for line.
@@ -66,6 +77,13 @@ here=$(pwd)
 work=$(mktemp -d)
 fresh=$(mktemp -d)   # the empty database the backup is restored into at step 9
 source database/backup/config.sh   # SECRET_TABLES: never in the backup, so never counted
+
+# the parts to run (database/rehearsal_parts.py; see the top): all of them unless REHEARSE_PARTS names some
+ALL_PARTS="db,reference,types,planner,saves,briefing,samples"
+parts=${REHEARSE_PARTS:-all}
+[ "$parts" = all ] && parts=$ALL_PARTS
+nightly=${REHEARSE_NIGHTLY:-0}
+want() { [[ ",$parts," == *",$1,"* ]]; }
 
 # which night the copy is from: latest.json, saved beside the copy when it was downloaded from R2
 made="unknown date"; ran_at=""
@@ -179,8 +197,8 @@ reload_api() {
 # 7. The planner (#18): its types from the copy, then the planner built and opened on the copy. The local address and
 # keys go to the test in a file only this user can read; they are never printed.
 TYPES_FILE=app/planner/src/db/types.ts
-new_planner() {
-  local env="$work/local.env" gen="$work/types.ts" rc=0
+planner_types() {
+  local gen="$work/types.ts" rc=0
   echo "== the planner's types, generated from the copy (design §5)"
   if ! supabase gen types typescript --local --schema public --workdir "$work" > "$gen" 2> "$work/gen.log"; then
     echo "FAIL  supabase gen types couldn't read the copy"
@@ -195,13 +213,26 @@ new_planner() {
     diff -u "$TYPES_FILE" "$gen" | sed -n '3,40p' | sed 's/^/      /'
     rc=1
   fi
-  echo "== the planner, built and opened on the copy: every screen at a frozen moment, its saves and its addresses (#18)"
+  return $rc
+}
+
+# The planner and the planning library built once for 7, 7b and 8 (npm ci, npm run build): web/app/ and lib/rules/dist/.
+built=no
+build_once() {
+  [ "$built" = yes ] && return 0
   if ! (npm ci --no-audit --no-fund > "$work/npm.log" 2>&1 && npm run build >> "$work/npm.log" 2>&1); then
-    echo "FAIL  the planner didn't build"
+    echo "FAIL  the planner and the planning library didn't build"
     tail -n 15 "$work/npm.log" | sed 's/^/      /'
     return 1
   fi
+  built=yes
   echo "built: web/app/ ($(find web/app -type f | wc -l) files)"
+}
+
+new_planner() {
+  local env="$work/local.env" rc=0
+  echo "== the planner, built and opened on the copy: every screen at a frozen moment, its saves and its addresses (#18)"
+  build_once || return 1
   (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
     || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   if reload_api "$env"; then
@@ -214,16 +245,12 @@ new_planner() {
   return $rc
 }
 
-# 7b. The airline briefing and the map's guide on the copy (#24), read only: needs the planning library built (step 7
-# builds it). The local address and keys as for 7; never printed.
+# 7b. The airline briefing and the map's guide on the copy (#24), read only: needs the planning library built. The local
+# address and keys as for 7; never printed.
 briefing_copy() {
   local env="$work/local.env" rc=0
   echo "== the airline briefing for every airline, and the map's guide, on the copy (#24)"
-  if [ ! -f lib/rules/dist/cli.js ] && ! (npm ci --no-audit --no-fund > "$work/npm.log" 2>&1 && npm run build >> "$work/npm.log" 2>&1); then
-    echo "FAIL  the planning library didn't build"
-    tail -n 15 "$work/npm.log" | sed 's/^/      /'
-    return 1
-  fi
+  build_once || return 1
   (umask 077 && supabase status -o env --workdir "$work" > "$env" 2> /dev/null) \
     || { echo "FAIL  couldn't read the local copy's address and keys"; rm -f "$env"; return 1; }
   if reload_api "$env"; then
@@ -311,6 +338,8 @@ backup_restore() {
 }
 
 status=0
+skipped=$(tr ',' '\n' <<< "$ALL_PARTS" | while read -r p; do want "$p" || echo "$p"; done | paste -sd, -)
+echo "== parts: ${parts}${skipped:+ (not run: $skipped)}$([ "$nightly" = 1 ] && echo ", the nightly run on main")"
 echo "== restoring last night's backup ($made)"
 restore_copy || exit 1
 count > "$work/before.txt"
@@ -329,9 +358,12 @@ fi
 
 # Outputs saved before the changes (database/tests/before/*.sql), so a test can compare them afterwards: for example, a
 # view rebuilt on new tables must return the same rows as before. Each file runs in its own transaction and writes only
-# into the schema rehearsal_before, which the data API, the row counts and the table guide don't look at.
+# into the schema rehearsal_before, which the data API, the row counts and the table guide don't look at. Only with the
+# database tests (part db): nothing else reads them.
+# sound: the copy is as the changes left it and fit for the steps after (1 to 5 passed, as far as they ran)
+sound=yes
 saved=(database/tests/before/*.sql)
-if [ -e "${saved[0]}" ]; then
+if want db && [ -e "${saved[0]}" ]; then
   echo "== saving outputs before the changes (into rehearsal_before)"
   psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c 'drop schema if exists rehearsal_before cascade' \
     -c 'create schema rehearsal_before' > /dev/null
@@ -341,79 +373,101 @@ if [ -e "${saved[0]}" ]; then
     else
       echo "FAIL  $(basename "$f")"
       echo "$out" | grep -E 'ERROR|DETAIL|CONTEXT' | sed 's/^/      /' | head -n 6
-      status=1
+      status=1; sound=no
     fi
   done
 fi
 
-if [ $status -ne 0 ]; then pending=(); echo "== the outputs couldn't be saved, so the changes weren't tried"
+if [ "$sound" = no ]; then pending=(); echo "== the outputs couldn't be saved, so the changes weren't tried"
 elif [ ${#pending[@]} -eq 0 ]; then echo "== no new database changes: nothing to rehearse"
 else echo "== applying ${#pending[@]} new change(s) to the copy"; fi
-if [ $status -eq 0 ] && [ ${#pending[@]} -gt 0 ]; then apply_files "${pending[@]}" && pause_jobs || status=1; fi
+if [ "$sound" = yes ] && [ ${#pending[@]} -gt 0 ]; then apply_files "${pending[@]}" && pause_jobs || { status=1; sound=no; }; fi
 
-if [ $status -eq 0 ] && [ ${#pending[@]} -gt 0 ]; then
+if [ "$sound" = yes ] && [ ${#pending[@]} -gt 0 ]; then
   count > "$work/after.txt"
   echo "== row counts that changed (table: before -> after)"
   join -a1 -a2 -e '-' -o '0,1.2,2.2' "$work/before.txt" "$work/after.txt" \
     | awk '$2 != $3 { printf "%s: %s -> %s\n", $1, ($2 == "-" ? "new table" : $2), ($3 == "-" ? "removed" : $3); n++ }
            END { if (!n) print "none: every table has the same rows as before" }'
   echo "== rehearsal passed: the change(s) apply cleanly to last night's data"
-elif [ $status -ne 0 ]; then
+elif [ "$sound" = no ]; then
   echo "== rehearsal FAILED: fix the change before it goes to live"
 fi
 
+# The checks that need only the copy as the changes left it, run straight after them (since 11 Nov, to-do 233): they
+# were the most common red and used to show only after the database tests. A failure here fails the run but stops
+# nothing after it: a guide, reference or types file that only needs committing from the run's artifact shouldn't hide
+# what the tests and the planner do.
+if [ "$sound" = yes ] && want reference; then
+  echo "== descriptions and the table guide (decision #10)"
+  flag=--check; [ "${WRITE_DOCS:-0}" = 1 ] && flag=
+  out_flag=(); if [ -n "${DOCS_DIR:-}" ]; then mkdir -p "$DOCS_DIR" && out_flag=(--out "$DOCS_DIR/data.md"); fi
+  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/describe.sql | python3 database/describe.py $flag "${out_flag[@]}" || status=1
+
+  # The reference file lists the copy's functions, no more and no fewer (spec 2026-10-15 small fixes §3: four were
+  # missing), each as the copy defines it, ignoring whitespace (spec 2026-10-15 last leftovers §4: five were a version
+  # behind or written differently)
+  echo "== database/current/functions.sql against the copy's functions, after the changes"
+  out_flag=(); if [ -n "${FUNCTIONS_DIR:-}" ]; then mkdir -p "$FUNCTIONS_DIR" && out_flag=(--out "$FUNCTIONS_DIR/functions.sql"); fi
+  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/reference.sql | python3 database/reference.py --check "${out_flag[@]}" || status=1
+fi
+
+if [ "$sound" = yes ] && want types; then
+  planner_types || status=1
+fi
+
 # a test sample from the copy (tests/README.md, "The sample"), at the backup's moment, before any test or save touches it
-if [ $status -eq 0 ] && [ -n "${SAMPLE_DIR:-}" ]; then
+if [ "$sound" = yes ] && want samples && [ -n "${SAMPLE_DIR:-}" ]; then
   at=$(date -u -d "${ran_at:-now}" +'%Y-%m-%dT%H:%M:00Z')
   mkdir -p "$SAMPLE_DIR"
   if psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -v at="$at" -f tests/fixtures/sample.sql | gzip -9n > "$SAMPLE_DIR/sample_${at:0:10}.json.gz"; then
     echo "== test sample made from the copy: sample_${at:0:10}.json.gz, as of $at ($(du -h "$SAMPLE_DIR/sample_${at:0:10}.json.gz" | cut -f1))"
   else
-    echo "FAIL  the test sample couldn't be made"; status=1
+    echo "FAIL  the test sample couldn't be made"; status=1; sound=no
   fi
 fi
 
 # the weekly report's sample (tests/README.md, "The report sample"): the figures, the planning library's input and the
 # latest scan through export_for_report(), at the backup's moment, before any test or save touches the copy
-if [ $status -eq 0 ] && [ -n "${REPORT_SAMPLE_DIR:-}" ]; then
+if [ "$sound" = yes ] && want samples && [ -n "${REPORT_SAMPLE_DIR:-}" ]; then
   at=$(date -u -d "${ran_at:-now}" +'%Y-%m-%dT%H:%M:00Z')
   mkdir -p "$REPORT_SAMPLE_DIR"
   if psql "$LOCAL" -X -q -At -v ON_ERROR_STOP=1 -v at="$at" -f tests/fixtures/report_sample.sql \
        | python3 tests/fixtures/report_sample.py "$REPORT_SAMPLE_DIR/report_${at:0:10}.json.gz"; then
     echo "== report sample made from the copy: report_${at:0:10}.json.gz, as of $at ($(du -h "$REPORT_SAMPLE_DIR/report_${at:0:10}.json.gz" | cut -f1))"
   else
-    echo "FAIL  the report sample couldn't be made"; status=1
+    echo "FAIL  the report sample couldn't be made"; status=1; sound=no
   fi
 fi
 
 # the airline briefing's sample (tests/README.md, "The briefing sample"; #24): what scripts/briefing/brief.py reads for
 # every one of our airlines through export_for_report(), at the backup's moment, before any test or save touches the copy
-if [ $status -eq 0 ] && [ -n "${BRIEFING_SAMPLE_DIR:-}" ]; then
+if [ "$sound" = yes ] && want samples && [ -n "${BRIEFING_SAMPLE_DIR:-}" ]; then
   at=$(date -u -d "${ran_at:-now}" +'%Y-%m-%dT%H:%M:00Z')
   mkdir -p "$BRIEFING_SAMPLE_DIR"
   if psql "$LOCAL" -X -q -At -v ON_ERROR_STOP=1 -v at="$at" -f tests/fixtures/briefing_sample.sql \
        | python3 tests/fixtures/briefing_sample.py "$BRIEFING_SAMPLE_DIR/briefing_${at:0:10}.json.gz"; then
     echo "== briefing sample made from the copy: briefing_${at:0:10}.json.gz, as of $at ($(du -h "$BRIEFING_SAMPLE_DIR/briefing_${at:0:10}.json.gz" | cut -f1))"
   else
-    echo "FAIL  the briefing sample couldn't be made"; status=1
+    echo "FAIL  the briefing sample couldn't be made"; status=1; sound=no
   fi
 fi
 
 # the capture's saved pages (tests/README.md, "The capture sample"; #21): one airline's five pages of its newest complete
 # evening, with what to expect of them and the rows they give, before any test or save touches the copy
-if [ $status -eq 0 ] && [ -n "${CAPTURE_SAMPLE_DIR:-}" ]; then
+if [ "$sound" = yes ] && want samples && [ -n "${CAPTURE_SAMPLE_DIR:-}" ]; then
   mkdir -p "$CAPTURE_SAMPLE_DIR"
   if psql "$LOCAL" -X -q -At -v ON_ERROR_STOP=1 -f tests/fixtures/capture_sample.sql > "$work/capture_sample.json" \
      && day=$(jq -r '.capture_day' "$work/capture_sample.json") && [ -n "$day" ] && [ "$day" != null ]; then
     gzip -9n < "$work/capture_sample.json" > "$CAPTURE_SAMPLE_DIR/capture_pages_${day}.json.gz"
     echo "== capture sample made from the copy: capture_pages_${day}.json.gz ($(du -h "$CAPTURE_SAMPLE_DIR/capture_pages_${day}.json.gz" | cut -f1))"
   else
-    echo "FAIL  the capture sample couldn't be made"; status=1
+    echo "FAIL  the capture sample couldn't be made"; status=1; sound=no
   fi
   rm -f "$work/capture_sample.json"
 fi
 
-if [ $status -eq 0 ]; then
+if [ "$sound" = yes ] && want db; then
   tests=(database/tests/*.sql)
   if [ -e "${tests[0]}" ]; then echo "== database tests (each rolled back afterwards)"; fi
   for t in "${tests[@]}"; do
@@ -425,19 +479,23 @@ if [ $status -eq 0 ]; then
     else
       echo "FAIL  $(basename "$t")"
       echo "$out" | grep -E 'ERROR|DETAIL|CONTEXT' | sed 's/^/      /' | head -n 6
-      status=1
+      status=1; sound=no
     fi
   done
 fi
 
 # From here on a failure fails the run but doesn't stop the steps after it, as long as the copy itself is sound (1 to 5
-# passed): a guide or types file that only needs committing from the run's artifact shouldn't hide what the planner does.
-copy_ok=$([ $status -eq 0 ] && echo yes || echo no)
+# passed, as far as they ran).
+copy_ok=$sound
+# the figures moved and the backup and restore: with the database tests, when there are changes to apply (every night on
+# main whatever there is)
+db_after=no
+if want db && { [ ${#pending[@]} -gt 0 ] || [ "$nightly" = 1 ]; }; then db_after=yes; fi
 
 # What the changes moved in the captured figures (spec 2026-10-15 small fixes §1), on the copy as the changes left it
 # (the tests above were rolled back): the amounts go to the artifact only, since this log is posted on the pull request.
 # It never fails the run: whether a figure was meant to move is for the tests and the pull request to say.
-if [ "$copy_ok" = yes ] && [ ${#pending[@]} -gt 0 ] && [ -n "${FIGURES_DIR:-}" ]; then
+if [ "$copy_ok" = yes ] && [ "$db_after" = yes ] && [ -n "${FIGURES_DIR:-}" ]; then
   echo "== the captured figures before and after the changes (the figures-moved artifact)"
   if [ "$(psql "$LOCAL" -X -At -c "select to_regclass('rehearsal_before.figures') is not null")" = t ]; then
     mkdir -p "$FIGURES_DIR"
@@ -449,35 +507,19 @@ if [ "$copy_ok" = yes ] && [ ${#pending[@]} -gt 0 ] && [ -n "${FIGURES_DIR:-}" ]
   fi
 fi
 
-if [ "$copy_ok" = yes ]; then
-  echo "== descriptions and the table guide (decision #10)"
-  flag=--check; [ "${WRITE_DOCS:-0}" = 1 ] && flag=
-  out_flag=(); if [ -n "${DOCS_DIR:-}" ]; then mkdir -p "$DOCS_DIR" && out_flag=(--out "$DOCS_DIR/data.md"); fi
-  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/describe.sql | python3 database/describe.py $flag "${out_flag[@]}" || status=1
-fi
-
-# The reference file lists the copy's functions, no more and no fewer (spec 2026-10-15 small fixes §3: four were missing),
-# each as the copy defines it, ignoring whitespace (spec 2026-10-15 last leftovers §4: five were a version behind or
-# written differently)
-if [ "$copy_ok" = yes ]; then
-  echo "== database/current/functions.sql against the copy's functions, after the changes"
-  out_flag=(); if [ -n "${FUNCTIONS_DIR:-}" ]; then mkdir -p "$FUNCTIONS_DIR" && out_flag=(--out "$FUNCTIONS_DIR/functions.sql"); fi
-  psql "$LOCAL" -X -At -v ON_ERROR_STOP=1 -f database/reference.sql | python3 database/reference.py --check "${out_flag[@]}" || status=1
-fi
-
-if [ "$copy_ok" = yes ]; then
+if [ "$copy_ok" = yes ] && want planner; then
   new_planner || status=1
 fi
 
-if [ "$copy_ok" = yes ]; then
+if [ "$copy_ok" = yes ] && want briefing; then
   briefing_copy || status=1   # read only: before the saves, which change the copy
 fi
 
-if [ "$copy_ok" = yes ]; then
+if [ "$copy_ok" = yes ] && want saves; then
   planner_saves || status=1   # last on the copy: its saves change it
 fi
 
-if [ "$copy_ok" = yes ] && [ ${#pending[@]} -gt 0 ]; then
+if [ "$copy_ok" = yes ] && [ "$db_after" = yes ]; then
   backup_restore || status=1   # stops the copy
 fi
 exit $status
