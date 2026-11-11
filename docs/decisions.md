@@ -75,6 +75,8 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   from then on, a new chat per kind of work: scheduling, the Saturday review, the monthly work, and building. The
   project's instructions are kept in `docs/project-instructions.md`.
   *Since 15 Oct:* three chats (Scheduling, Saturday review, Building); the review chat also does the monthly work.
+  *Since 11 Nov:* only the Building chat reads this log when it starts; the other chats open it when the reason behind
+  a decision matters. It saves each of them about 11,000 tokens of reading before the first reply (Audit chat).
 - **8 Oct 2026 · #4 Operating manual.** Every rule in force lives in one file, `docs/operating-manual.md`, with the
   date it started and the reason, plus a list of retired rules so they don't come back. A copy sits in the Equinox
   project's files so every chat reads it. Where the manual and memory disagree, the manual wins; memory is background

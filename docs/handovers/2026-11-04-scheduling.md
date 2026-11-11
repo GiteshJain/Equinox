@@ -1,6 +1,6 @@
 # Scheduling handover: 5 Nov 2026, 04:15 UTC (4 Nov 22:15 Chicago)
 
-Chat "Scheduling · 2 Nov", 2–4 Nov. To start, read the operating manual, `docs/decisions.md` and the playbook, then
+Chat "Scheduling · 2 Nov", 2–4 Nov. To start, read the operating manual and the playbook, then
 check the planner's live state. The manual changed in this chat:
 - §3: the E195 at 5-star cities only as a fallback (its line would otherwise stand idle).
 - §4: **the trunk month fortifies short-haul trunks first** (domestic and in-region, contested pairs against a top-3

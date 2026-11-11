@@ -21,9 +21,10 @@ Systems:
 - Foundation decisions and their reasons are in `docs/decisions.md` (copy: `claude/decisions.md`).
 
 ## Starting a chat
-- Read the operating manual, `docs/decisions.md` and the latest handover note for this kind of chat
-  (`claude/handover-<kind>.md`, if there is one). The Building chat also reads the map (`claude/architecture.md`);
-  any chat following a routine reads the playbook. Read `claude/rule-history.md` only when changing a rule.
+- Read the operating manual and the latest handover note for this kind of chat (`claude/handover-<kind>.md`, if there
+  is one). The Building chat also reads `docs/decisions.md` and the map (`claude/architecture.md`); any chat following
+  a routine reads the playbook. Any other chat reads `docs/decisions.md` only when the reason behind a decision
+  matters. Read `claude/rule-history.md` only when changing a rule.
 - Check the planner's current state (aircraft waiting, open to-dos) before advising.
 - In the first reply, tell Gitesh the name to give this chat: "<Kind> · <date>" (e.g. "Building · 23 Oct").
   Chats can't rename themselves.
