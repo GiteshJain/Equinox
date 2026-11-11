@@ -142,4 +142,12 @@ the same pull request.
   minutes.
 
 ## Outcome
-<Gitesh's decision and the date; rule changes made in the manual>
+Gitesh, 11 Nov 2026, Main chat: **E**, in two pull requests. The first, before the glass look's step 1: each pull
+request runs only the parts its change can affect, the checks that fail most often run early, and the full rehearsal
+runs every night on `main` (to-do 233). The second, after the glass look's step 1: the slow parts side by side.
+
+Rule changes: none yet. The manual's *Automatic checks* sentence changes, and the nightly run's sentence is added, in
+the first pull request, when it becomes true; the old wording goes to the rule history with it.
+
+Found on the way and not part of this build: `tests/planner_next_test.py` has no time limit of its own (to-do 233's
+note).
