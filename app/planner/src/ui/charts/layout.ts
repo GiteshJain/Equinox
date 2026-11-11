@@ -19,8 +19,10 @@ const CHART_VAR: ReadonlyMap<string, string> = (() => {
   return m;
 })();
 /** A chart colour as CSS: its named colour (with the colour itself as the fallback) when it's one of the kit's, else
- *  the colour as given (an airline's livery, a screen's own). */
-export function paint(color: string): string {
+ *  the colour as given (an airline's livery, a screen's own). A mark with no colour stays without one, as it was before
+ *  paint() (Competition's donut gives none to a rival that leads a market we don't fly; pull request 153's rehearsal, 11 Nov). */
+export function paint<C extends string | null | undefined>(color: C): C | string {
+  if (typeof color !== "string") return color;
   const v = CHART_VAR.get(color.toUpperCase());
   return v ? `var(${v}, ${color})` : color;
 }

@@ -6,8 +6,21 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ChartFrame, ChartOrTable, donutLayout, gaugeLayout, hbarLayout, heatLayout, loadFill, niceCeil, sizedScatterLayout, sparkLayout, stackLayout, stepLayout, ticks, timelineLayout,
-  fitText,
+  fitText, paint, SERIES, TONE,
 } from "./index";
+
+describe("paint(): the kit's colours as the look's named colours", () => {
+  it("names the kit's own colours, keeps the rest, and leaves a missing colour missing instead of throwing", () => {
+    expect(paint(TONE.ok)).toBe(`var(--chart-ok, ${TONE.ok})`);
+    expect(paint(TONE.violet)).toBe(`var(--chart-1, ${TONE.violet})`);
+    expect(paint(SERIES[1])).toBe(`var(--chart-2, ${SERIES[1]})`);
+    expect(paint(TONE.ok.toLowerCase())).toBe(`var(--chart-ok, ${TONE.ok.toLowerCase()})`);
+    expect(paint("#C8102E")).toBe("#C8102E");
+    expect(paint(undefined)).toBeUndefined();
+    expect(paint(null)).toBeNull();
+    expect(paint("")).toBe("");
+  });
+});
 
 describe("the scale", () => {
   it("rounds up to a nice number and ticks on its step", () => {
