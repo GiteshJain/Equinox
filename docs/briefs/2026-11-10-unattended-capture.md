@@ -89,7 +89,10 @@ file, and the database's scheduler.
   than a quarter of a second after the minute (`cron.job_run_details`).
 - **So:** the database starts the capture's runs (above). The same start would put the nightly backup back at 07:17,
   ahead of the 10:20 clean-ups and well inside Today's 30-hour warning, which the 9 Nov run came within 3 hours of. That
-  is a separate, small decision.
+  is a separate, small decision. **Asked 11 Nov (Audit chat): Gitesh leaves the backup on GitHub's timer.** No copy has
+  been missed in 33 nights and a late copy is as good as one on time. Looked at then: a start at 10:45 UTC, after the
+  09:30 capture, the 10:00 snapshot and the 10:20 clean-ups, with GitHub's timer as a backstop that skips when a copy
+  exists. Worth raising again only if a night is missed or the gap between copies passes Today's 30 hours.
 
 ## Scenarios and the risk of waiting
 - **It works:** complete data from the first day, and your evening press becomes optional on days you don't play.
