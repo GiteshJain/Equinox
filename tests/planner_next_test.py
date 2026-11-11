@@ -54,7 +54,9 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    Since 11 Nov (the glass look, step 1; spec docs/specs/2026-11-11-glass-look.md) the same again at 1280 and 380 px with
    the glass look's switch on (screens_glass): <html> has data-look glass and the period of the frozen moment's hour, the
    airline rail lists All and our airlines with the right one lit, and every screen's link is in the header once;
-   screenshots end in -glass.
+   screenshots end in -glass. Since 12 Nov (step 2) Tails' own airline buttons are hidden under glass and all shown with
+   the switch off, and the glass run also opens the first aircraft on Tails' list as its page and as Today's pop-up, and
+   a plan card when the deliveries have one (no errors, no sideways scroll, a screenshot of each).
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1551,6 +1553,10 @@ GLASS_JS = """(() => ({ look: document.documentElement.dataset.look || '', perio
     lit: (document.querySelector('nav.eq-rail [aria-current]') || { dataset: {} }).dataset.rail || '',
     links: [...document.querySelectorAll('header [data-screen-link]')].map(a => a.dataset.screenLink) }))()"""
 
+# Tails' own airline buttons (the toolbar's), how many there are and how many are shown (the glass look, step 2)
+TAILS_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=tails] > .toolbar [data-al]')];
+    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
+
 
 def period_of(hour):
     """The planner's periodOf (src/ui/look/look.ts): Day 07-16, Dusk 17-19 and 05-06, Night 20-04."""
@@ -1646,6 +1652,14 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                     if sid == "reference":
                         await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
                         await settle(ph.pg, 400)
+                    if sid == "tails":
+                        # the glass look, step 2 (decision 4): under glass the rail picks the airline and Tails' own airline
+                        # buttons are hidden; with the switch off they are shown, one per airline, as before
+                        own = await ph.pg.evaluate(TAILS_OWN_BUTTONS_JS)
+                        if glass and own["shown"]:
+                            problems.append(f"tails at {width} px (glass): {own['shown']} of Tails' own airline buttons are shown, expected none (the rail picks the airline)")
+                        if not glass and own["total"] and own["shown"] != own["total"]:
+                            problems.append(f"tails at {width} px: {own['shown']} of Tails' {own['total']} airline buttons are shown, expected all")
                     if sid == "tails" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"tails: lines\"] [data-line-slot]')"):
                         problems.append(f"tails at {width} px: the sample line's slots aren't on the deliveries board")
                     if sid == "today" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"today: open lines\"] [data-open-line] a[data-line-link]')"):
@@ -1724,6 +1738,44 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                         problems.append(f"{sid}: it isn't ready at {width} px wide")
                     await look(sid, sid)
                     problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
+                # the glass look, step 2: Today's and Tails' pop-ups and an aircraft's page under glass (the first aircraft
+                # on Tails' list: its page, the aircraft pop-up on Today, and a plan card when the deliveries have one),
+                # ready, no errors, no sideways scroll, a screenshot of each
+                if glass and not only_routes:
+                    e0 = len(ph.errors)
+                    await ph.pg.goto(f"http://{LIVE_HOST}:{port}/planner/tails")
+                    reg = ""
+                    try:
+                        await ph.pg.wait_for_selector(READY["tails"], timeout=90000)
+                        await ph.pg.evaluate(SHOW_TABLES_JS)
+                        await settle(ph.pg, 300)
+                        reg = await ph.pg.evaluate("(document.querySelector('main[data-screen=tails] tr[data-tail]') || { dataset: {} }).dataset.tail || ''")
+                        await ph.pg.evaluate(SHOW_CHARTS_JS)   # the list's choice is kept in the browser: back to the chart
+                        await settle(ph.pg, 200)
+                    except Exception:
+                        problems.append(f"tails at {width} px (glass): it isn't ready for its pop-ups")
+                    pops = []
+                    if reg:
+                        pops = [("tails-aircraft", f"/planner/tails/{reg}", f"main[data-screen=tails][data-tail-open={json.dumps(reg)}]"),
+                                ("today-aircraft", f"/planner/today?aircraft={reg}", f"main[data-screen=today] [data-aircraft-popup={json.dumps(reg)}]")]
+                    card = await ph.pg.evaluate("(document.querySelector('main[data-screen=tails] [data-plancard]') || { dataset: {} }).dataset.plancard || ''")
+                    if card:
+                        pops.append(("tails-plancard", f"/planner/tails?card={card}", "main[data-screen=tails] .pcmodal"))
+                    for pname, addr, sel in pops:
+                        await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                        try:
+                            await ph.pg.wait_for_selector(sel, timeout=90000)
+                            await settle(ph.pg, 400)
+                        except Exception:
+                            problems.append(f"{addr} at {width} px (glass): it doesn't open")
+                            continue
+                        over = await ph.pg.evaluate(scroll)
+                        if over > 0:
+                            problems.append(f"{pname} at {width} px (glass): the page scrolls sideways by {over} px")
+                        if SCREENS_DIR:
+                            await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{pname}-{width}{tag}.png"), timeout=90000)
+                            shots += 1
+                    problems += [f"tails' pop-ups at {width} px (glass): {e}" for e in ph.errors[e0:]]
                 # one airline's Performance page, opened directly by its address
                 if not only_routes:
                     e0 = len(ph.errors)

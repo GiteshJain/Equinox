@@ -1,6 +1,6 @@
 // The Tails list as bars (spec docs/specs/2026-10-30-charts-everywhere.md, part C; charts.ts), drawn with the chart kit, a
 // chart per base; tap a bar for the aircraft. Tails.tsx puts the table behind it ("show as table").
-import { ChartFrame, HBars, Legend, hbarLayout } from "../../ui/charts";
+import { ChartFrame, HBars, Legend, TONE, hbarLayout } from "../../ui/charts";
 import { blockBars, blockMarks } from "./charts";
 import type { TailRow } from "./model";
 
@@ -10,8 +10,8 @@ export function TailsChart({ rows, target, onPick }: { rows: readonly TailRow[];
   return (
     <div className="tchart" data-figure="tails: chart">
       <div className="note tchartn">Block hours a day, each aircraft · the dashed lines are {marks.map((m) => m.label).join(" and ")} · coloured by maintenance · tap a bar for the aircraft</div>
-      <Legend items={[{ label: "maintenance fine", color: "#1A7F55" }, { label: "little headroom", color: "#E39B21" }, { label: "under the minimum", color: "#B4234B" },
-        { label: "no figure", color: "#9AA4C4" }]} />
+      <Legend items={[{ label: "maintenance fine", color: TONE.ok }, { label: "little headroom", color: TONE.warn }, { label: "under the minimum", color: TONE.bad },
+        { label: "no figure", color: TONE.mute }]} />
       {!groups.length ? <div className="dim kce">No tails match. Clear a filter.</div> : null}
       {groups.map((g) => (
         <ChartFrame key={g.base} title={g.base} note={`${g.items.length} aircraft`} figure="tails: base chart">

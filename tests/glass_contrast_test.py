@@ -98,11 +98,49 @@ def behind(path, w, h):
     return brightest(soft), brightest(sharp)
 
 
+def step2_cases(t, s):
+    """Step 2 of the glass look (Today and Tails, spec docs/specs/2026-11-11-glass-look.md): (what, colour, surface, the
+    least ratio) for their tiles, rows, to-dos, an aircraft's week, the pop-ups and their marks. A board with a table or
+    a chart is on the panel, one without on the card glass, so where a part can be on either, both are checked. The
+    pop-ups are on the panel over a darker scrim, so the panel is the worst case for them too."""
+    panel, card = s["panel"], s["card"]
+    on = lambda name, under: over(t[name], under)
+    tile_board_card, tile_board_panel, tile_hover = on("--tile-bg", card), on("--tile-bg", panel), on("--tile-hover", card)
+    tile_on = on("--on-bg", card)
+    now_row, group_panel, group_card, sel_row = on("--now-row", panel), on("--row-group", panel), on("--tile-bg", card), on("--sel-bg", panel)
+    week_day, week_night = on("--week-day", panel), on("--week-night", panel)
+    out = []
+    for where, under in (("a tile on a board's glass", tile_board_card), ("a tile on a board's panel", tile_board_panel),
+                         ("a tile on the picture (Tails)", card), ("a tile under the pointer", tile_hover)):
+        out += [(f"{where}: its line", t["--text-2"], under, TEXT_MIN), (f"{where}: its name", t["--text"], under, TEXT_MIN)]
+        out += [(f"{where}: a {k} count", t[f"--count-{k}"], under, TEXT_MIN) for k in ("ok", "warn", "bad")]
+    out += [("the chosen tile: its count", t["--on-text"], tile_on, TEXT_MIN), ("the chosen tile: its line", t["--on-text-2"], tile_on, TEXT_MIN)]
+    out += [("Orders' row that can order now: text", t["--text"], now_row, TEXT_MIN), ("Orders' row that can order now: lesser text", t["--text-2"], now_row, TEXT_MIN),
+            ("Orders' row that can order now: its warn pill", t["--warn-text"], on("--warn-fill", now_row), TEXT_MIN),
+            ("a group row on the panel (Tails' fields, a line's slots)", t["--text-2"], group_panel, TEXT_MIN),
+            ("a group row on the glass (the game check)", t["--text-2"], group_card, TEXT_MIN),
+            ("a chosen row (Tails' list, the deliveries)", t["--text-2"], sel_row, TEXT_MIN),
+            ("a to-do due today", t["--due-text"], card, TEXT_MIN), ("a to-do that's late", t["--late-text"], card, TEXT_MIN),
+            ("Coming up's to-do event", t["--todo-text"], on("--todo-fill", panel), TEXT_MIN),
+            ("a line's problems, a remove question (on the panel)", t["--bad-text"], panel, TEXT_MIN),
+            ("a remove question (on the glass)", t["--late-text"], card, TEXT_MIN),
+            ("the capture pill's words", t["--text"], card, TEXT_MIN),
+            ("a leg's flight number", t["--leg-text"], on("--leg-bg", week_day), TEXT_MIN),
+            ("a bad leg's flight number", t["--leg-text"], on("--leg-bad-bg", week_day), TEXT_MIN),
+            ("mark: a leg against its day", t["--leg-bg"], week_day, MARK_MIN), ("mark: a leg against its night", t["--leg-bg"], week_night, MARK_MIN),
+            ("mark: a bad leg against its night", t["--leg-bad-bg"], week_night, MARK_MIN),
+            ("mark: the timeline's span", t["--chart-span"], panel, MARK_MIN),
+            ("mark: the chosen row's edge", t["--sel-mark"], sel_row, MARK_MIN),
+            ("mark: Tails' short-turn dot", t["--chart-bad"], panel, MARK_MIN)]
+    out += [(f"mark: the capture's {k} dot", t[f"--dot-{k}"], card, MARK_MIN) for k in ("ok", "warn", "bad")]
+    return out
+
+
 def main():
     css = SHEET.read_text(encoding="utf-8")
     base = block(css, ':root[data-look="glass"]')
     day = {**base, **block(css, ':root[data-look="glass"][data-period="day"]')}
-    problems, lines, q3 = [], [], []
+    problems, lines, q3, s2 = [], [], [], {}
     for period in PERIODS:
         t = day if period == "day" else base
         pic = LOOK / f"backdrop-{period}.jpg"
@@ -146,6 +184,12 @@ def main():
                 worst[("card", c)] = r
                 if period == "day":
                     q3.append((w, c, r))
+            # step 2 (Today and Tails): their own surfaces and colours, each case named
+            for label, fg, surface, need in step2_cases(t, surfaces):
+                r = ratio(over(fg, surface), surface)
+                s2.setdefault(period, []).append((r, label, w))
+                if r < need:
+                    problems.append(f"{where}: step 2, {label} {r:.2f}:1, under {need}")
             low = min(worst.items(), key=lambda kv: kv[1])
             lines.append(f"{where}: card text {worst[('card', 'text')]:.1f}, labels {worst[('card', 'lesser text')]:.1f}, "
                          f"pills {min(v for k, v in worst.items() if k[0] == 'card' and k[1].endswith('pill')):.1f}; "
@@ -153,6 +197,13 @@ def main():
                          f"lowest {low[0][1]} on the {low[0][0]} {low[1]:.2f}")
     for line in lines:
         print(line)
+    for period in PERIODS:
+        if s2.get(period):
+            r, label, w = min(s2[period])
+            texts = [x for x in s2[period] if not x[1].startswith("mark")]
+            rt, lt, wt = min(texts)
+            print(f"step 2 (Today and Tails), {period}: {len(s2[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
+                  f"lowest overall {label} {r:.2f} ({w} px)")
     if q3:
         print("question 3, the chart colours on the card glass by day (not required): " + "; ".join(
             f"{w} px " + ", ".join(f"{c[8:]} {r:.2f}" for ww, c, r in q3 if ww == w) for w in sorted({x[0] for x in q3})))

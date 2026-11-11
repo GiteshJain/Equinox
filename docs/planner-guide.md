@@ -56,9 +56,12 @@ The planner is getting a new look, one screen at a time (to-do 225, spec `docs/s
 every screen has it, it shows only when you turn it on: **account button → Glass look → On**. It's kept in this browser
 only (as Times in Local/UTC is), so another computer or a private window shows today's look. **Glass look → Off** goes
 back at once.
-- **Done so far (step 1 of 6):** the top bar, the airline rail, Home, the landing page, sign-in, and the charts' colours
-  everywhere. The other screens sit in the new frame with only their shared parts (cards, tables, pills, buttons) in the
-  new look until their own step.
+- **Done so far (step 2 of 6):** the top bar, the airline rail, Home, the landing page, sign-in and the charts' colours
+  everywhere (step 1); **Today** and **Tails**, with their tiles, lists, charts and pop-ups (the game check, an aircraft,
+  filing, a plan card), and a chart opened full size on any screen (step 2). The other screens sit in the new frame with
+  only their shared parts (cards, tables, pills, buttons) in the new look until their own step.
+- **On Tails** the rail picks the airline; Tails' own row of airline buttons is hidden while the glass look is on (with it
+  off, they're there as before).
 - **The picture behind** follows this computer's clock: **Day** 07:00–17:00, **Dusk** 17:00–20:00 and 05:00–07:00,
   **Night** 20:00–05:00. Cards are dark glass, a little thicker by day so the text stays readable; tables and charts sit
   on a nearly solid panel.
