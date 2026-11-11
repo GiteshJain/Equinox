@@ -38,6 +38,15 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The planner's figures stored after every capture: decided 11 Nov
+*Gitesh, 11 Nov (Building chat, brief `docs/briefs/2026-11-11-instant-planner.md`, option B of four: A the landing page
+only while the new answers load, B for the whole capture, C everything loaded live at opening, D only the duplicate
+fetches fixed) · why: "I just want it to be superfast when actually using it" (Audit chat, to-do 223). Every figure was
+worked out each time a screen asked, a screen sent 30 to 50 requests at once, and on 11 Nov 16 calls failed in one
+minute; a full refresh measured 30.1 s. B over the recommended A: the planner is shut while a capture reads, as he first
+asked ("a landing page after a capture while it's still reading / calculating").* New item in *Decided, not yet built*;
+no rule replaced.
+
 ### One Main chat with workers: on trial from 11 Nov
 *Gitesh, 11 Nov (Audit chat): "Rather than me having separate conversations with 3 chats. I was thinking we have a
 main chat with fable and other chats which do the actual work on opus but so decision making stay with main."* Brief:

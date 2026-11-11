@@ -90,4 +90,5 @@ instant, but it reverses that choice, so it isn't offered here.
   airline's figures as soon as it is captured, instead of all at the end.
 
 ## Outcome
-<Gitesh's decision and the date>
+**B**, Gitesh, 11 Nov (Building chat): the landing page for the whole capture, until the new answers are stored
+and loaded. Recorded in the manual's *Decided, not yet built*. The spec follows.

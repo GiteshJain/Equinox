@@ -33,6 +33,14 @@ Until each is built and merged, the rules below stand as they are.
   partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
+- **The planner's figures stored after every capture (decided 11 Nov, to-do 223):** after each capture (the unattended
+  runs and Gitesh's press) the database works every figure out once and stores it; opening the planner shows a landing
+  page while it loads them all, and then no screen asks the database to work anything out until the next capture.
+  **While a capture runs and until its new answers are stored and loaded, the planner shows the landing page** (about
+  3 minutes at the 09:30 UTC run, about 8 with the world scan, up to about 20 with the market pages), never for good:
+  a run that stalls or a refresh that fails lets the planner open on the last answers. A save that changes figures
+  still updates its board at once. Until it's built, the planner works its figures out on each screen as now. *(brief
+  `docs/briefs/2026-11-11-instant-planner.md`, option B; history: rule-history.md)*
 
 Details and open points: `docs/decisions.md`.
 
