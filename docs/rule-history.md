@@ -38,6 +38,25 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The weekly report written from scratch each week: decided 11 Nov
+*Gitesh, 11 Nov (Audit chat, on the Saturday routine): "In the reports they feel very mechanical right now due to
+everything being in the same format and same tables. I think you should just write one from scratch every week based
+on what's important for that week."* §7's bullet, word for word, was: "the weekly report: a PDF briefing written for a
+CEO, no fixed template. It covers competition by market (for the group and each airline), risks, opportunities, our
+plan and progress, route profit, growth signals and fare-plan results (Performance's Fare results board, from
+`fare_results()`), each airline's net cash a day (flight profit less leases and salaries) against the price of one
+aircraft, the pace towards an aircraft a day per airline, and each of our airlines against its three biggest
+competitors: the three outside airlines with the most weekly departures on its own city pairs in the latest scan, each
+with its size and growth against the week-before scan beside our airline's, read from `competition()` (its
+`competitors` and `self`, in the figures the report pulls; the scans run every evening, so growth is against the
+week-before scan, not the previous one). It is the only investor report: on the first Saturday of the month it adds a
+page on the month just ended (month-on-month figures and the month's decisions). *(since 5–8 Oct; history:
+rule-history.md)*" · why: the rule already said no fixed template, but its list of what the report covers had become
+the template. `scripts/report/build.py` lays out the same ten sections and tables every week and leaves slots for the
+week's words (`notes.json`). On 2 Nov Gitesh had called that report "ok for now but way too much tables and data". The
+list stays, as what a report may draw on. To-do 219 (offer a report with fewer tables) is replaced by to-do 226: what
+becomes of the builder.
+
 ### The To-do board as the one list of open work: decided 11 Nov
 *Gitesh, 11 Nov (Audit chat: the audit's "one backlog", option B of four).* §1's bullet, word for word, was:
 "**To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board (on Today); Claude marks it

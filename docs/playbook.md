@@ -308,9 +308,10 @@ as normal on Friday evening first.
 1. **World scan:** it runs with the evening capture (section 5), so there's nothing to run. Check its age on the
    Systems board: if it isn't green, the captures haven't scanned (the capture panel said why); run `gscan.py` by hand
    first then (5 to 10 minutes, the fallback; `scripts/README.md`). Everything after reads this week's rivals.
-2. **The weekly report:** a PDF written like a briefing for a CEO, with no fixed template; what it covers is in manual
-   §7. Claude pulls the figures from the database, you agree the week's words, and Claude publishes the PDF to the
-   investor library on the website. On the first Saturday of the month it adds a page on the month just ended.
+2. **The weekly report:** a PDF written like a briefing for a CEO, from scratch each week around what mattered that
+   week (the rule, and what it may draw on: manual §7, the weekly report). Claude reads the week's figures and writes
+   it, you agree the words, and Claude publishes the PDF to the investor library on the website. On the first
+   Saturday of the month it adds a page on the month just ended.
 3. **The connection audit** across all hubs: valid connections, near misses, and the small retimes that would make
    more connect (how small: manual §7).
 4. **The newsroom roundups:** one post per airline of its new routes and extra flights since the last one, written by

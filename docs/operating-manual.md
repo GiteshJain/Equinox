@@ -730,16 +730,18 @@ Details and open points: `docs/decisions.md`.
   - the world scan runs with the evening capture (`scan_every_days`, above), so the report and gander monthly read
     this week's rivals; if the Systems board shows it old (amber over 8 days), run `scripts/scanner/gscan.py` by hand
     first (the Saturday chat; about 5 to 10 minutes). *(since 21 Oct; history: rule-history.md)*
-  - the weekly report: a PDF briefing written for a CEO, no fixed template. It covers competition by market (for the
-    group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and fare-plan
-    results (Performance's Fare results board, from `fare_results()`), each airline's net cash a day (flight profit
-    less leases and salaries) against the price of one aircraft, the pace towards an aircraft a day per airline, and
-    each of our airlines against its three biggest competitors: the
-    three outside airlines with the most weekly departures on its own city pairs in the latest scan, each with its size
-    and growth against the week-before scan beside our airline's, read from `competition()` (its `competitors` and
-    `self`, in the figures the report pulls; the scans run every evening, so growth is against the week-before scan,
-    not the previous one). It is the only investor report: on the first Saturday of the month it adds a page on the
-    month just ended (month-on-month figures and the month's decisions). *(since 5–8 Oct; history: rule-history.md)*
+  - the weekly report: a PDF briefing written for a CEO, written from scratch each week around what mattered that
+    week. It has no fixed sections and no standing tables: Claude reads the week's figures first, picks the few things
+    a CEO should know, and writes the report around them, with a table or chart only where it makes one of those
+    points. Every figure comes from the database. It draws on whatever the week calls for: competition by market (for
+    the group and each airline), risks, opportunities, our plan and progress, route profit, growth signals and
+    fare-plan results (Performance's Fare results board, from `fare_results()`), each airline's net cash a day (flight
+    profit less leases and salaries) against the price of one aircraft, the pace towards an aircraft a day per
+    airline, and each of our airlines against its three biggest competitors (the three outside airlines with the most
+    weekly departures on its own city pairs in the latest scan, each with its size and growth against the week-before
+    scan beside our airline's, read from `competition()`: its `competitors` and `self`). It is the only investor
+    report: on the first Saturday of the month it adds a page on the month just ended (month-on-month figures and the
+    month's decisions). *(since 5–8 Oct; from scratch each week since 11 Nov; history: rule-history.md)*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 30 minutes or less;
     *since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`*);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
