@@ -107,6 +107,9 @@ flowchart LR
      `system_status()` give each airline's latest;
    - the bank statement's lines go to `game_statement`; each flight's lines (grouped by minute and block) become one
      `game_flights` row with its money, and every other line (leases, salaries, purchases, cabins, and since 15 Oct the pilot training an order brings, kind cabin) a `game_payments` row;
+     a line already kept is written again only when its block changed or its flight is deleted, loses its money or
+     changes, so a page read again writes only what is new or different, the rows the same as before (since 11 Nov,
+     to-do 204, spec `docs/specs/2026-11-11-statement-no-rewrite.md`);
    - **the cabin charge check** (since 22 Oct, spec `docs/specs/2026-10-21-tidy-ups.md` §3; manual §4): a cabin
      installation line ("Installation of cabin interior (9M-AAV)") names its registration and the airline's aircraft
      (`private.payment_registration()`, `private.payment_aircraft()`), and `cabin_charges()` (staff, read with GET; its
