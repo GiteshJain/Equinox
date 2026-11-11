@@ -125,8 +125,14 @@ Details and open points: `docs/decisions.md`.
   has one) and `world_rules` (Gander's house rules, game settings and #12's permissions). The figures in §3, §4, §5 and
   §9 name their row; a rule change updates the row and this manual together, and nothing else holds a copy (the
   planner and the library read the tables). *(since 10 Oct; history: rule-history.md)*
-- **To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board (on Today); Claude marks it
-  resolved when he reports back. *(since 30 Sep; on Today since 20 Oct)*
+- **To-do board, the one list of open work:** anything Gitesh needs to check or do goes on the planner's To-do board
+  (on Today); Claude marks it resolved when he reports back. Anything a chat leaves open goes there too, whichever chat
+  found it: a bug, something to watch, something to raise with Gitesh. Its title starts with the chat that owns it
+  ("Building chat:", "Scheduling chat:", "Review chat:"). It has a date only when it has a real one, and small ones
+  that wait on the same kind of trigger can share one to-do as its steps. A handover note says what the next chat does
+  first and names the open to-dos by number; it lists no open items of its own. Something to fix in a pull request's
+  "Outside the spec" note gets a to-do when the pull request merges. *(since 30 Sep; on Today since 20 Oct; the one
+  list since 11 Nov; history: rule-history.md)*
 - **No one-week aircraft checks.** A new schedule is checked once, when it's filed (the planner checks each card
   against the game, §4), and the capture's page checks show each night whether it flies (§7). *(since 15 Oct; history:
   rule-history.md)*

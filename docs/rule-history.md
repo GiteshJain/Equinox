@@ -38,6 +38,21 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The To-do board as the one list of open work: decided 11 Nov
+*Gitesh, 11 Nov (Audit chat: the audit's "one backlog", option B of four).* §1's bullet, word for word, was:
+"**To-do board:** anything Gitesh needs to check or do goes on the planner's To-do board (on Today); Claude marks it
+resolved when he reports back. *(since 30 Sep; on Today since 20 Oct)*" · why: open work sat in whichever handover note
+found it. On 11 Nov the board held 8 open to-dos, and the Building, Review and Scheduling notes held about 15 more open
+items with none. The Review chat noted the fare plan's double save on 2 Nov as "a planner fix for the Building chat",
+in a note the Building chat doesn't read; the audit found it again on 10 Nov. Four of the Building chat's items had
+been copied through five notes or more since 28 to 30 Oct. Every chat already reads the board when it starts.
+Set aside: an owner on each to-do, with the board folding the chats' items away (option C, a small build; worth raising
+only if the longer board bothers Gitesh), and a backlog file in the repository (option D: a second list, and more
+reading for every chat). Moved across the same day: to-dos 211 to 221, and the three current handover notes point to
+them. Dropped as settled: the Review note's database size (the statement table was rebuilt on 10 Nov) and its Ryanair
+set-backs (the default price, #135; to-do 211 checks what is left); the shared pairs' limit of 6, which ends by itself
+on 19 Nov (§2).
+
 ### The whole bank statement, judged on its parts together: built 10 Nov
 *Gitesh, 10 Nov (Audit chat, part 1 of to-do 203; brief `docs/briefs/2026-11-10-unattended-capture.md`, "The 1,500"),
 spec `docs/specs/2026-11-10-whole-statement.md` · why: the game shows the bank statement's whole last 24 hours (Ryanair's

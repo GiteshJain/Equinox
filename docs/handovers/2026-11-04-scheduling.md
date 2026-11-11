@@ -57,7 +57,7 @@ check the planner's live state. The manual changed in this chat:
   and Virgin. Requests out:
   Pan Am Aer Lingus, Air Canada (player looks inactive); Kingfisher VietJet; Ryanair Braathens; Virgin Braathens and
   the Aeroflot group (Rossiya, Aeroflot, Pobeda); China Eastern and Malaysia Cebu Pacific and VietJet. Aeromexico
-  Connect rejected (Mexico: no partner). Deferred to 5 Dec: SWISS, Aer Lingus for Virgin, Garuda.
+  Connect rejected (Mexico: no partner). Deferred to 5 Dec: SWISS, Aer Lingus for Virgin, Garuda (to-do 221).
 - **Players leaving next month** (Gitesh, 4 Nov; no to-do, it doesn't change strategy): CEODex (SWISS, Global,
   JetBlue, Cebu Pacific, LATAM, Riyadh Air), lunareunlar (China Airlines, Juneyao, VietJet), nikolai98 (Air Europa,
   Republic, Sichuan), builderwise (inactive). Their routes at our bases show up in the competition lists when they go.
@@ -66,9 +66,10 @@ check the planner's live state. The manual changed in this chat:
   85–90%" set-backs alone: the inferred baseline is probably wrong there. The Interline screen rebuild for §6 is still
   on the manual's *Decided, not yet built* list. Shared pairs follow the default-price build (see §2 above).
 - **Fare ladder:** the 26 Oct step-ups (+5–7%) kept loads at 99–100% and raised profit a flight 7–11% (Ryanair flat).
-  Gitesh may want a faster ladder: a Saturday review question.
-- **Open to-dos for this chat:** 184 and 193 (retime pass 2, 12 Nov), 196 (one more short rotation for aircraft under
-  10 h, 12 Nov), 195 (filler list).
+  Gitesh may want a faster ladder: a Saturday review question (to-do 220, the Review chat's).
+- **Open to-dos for this chat** (changed by the Audit chat on 11 Nov: open work is on the To-do board now, the one
+  list, manual §1): 184 and 193 (retime pass 2, 12 Nov), 195 (filler list), 221 (interline deferred to 5 Dec). 196 is
+  done.
 
 ## Lessons from this chat
 - **Check before recommending.** Every option goes through the optimiser and check-card first (Gitesh, after a G-AAGI
