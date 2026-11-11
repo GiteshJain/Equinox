@@ -91,7 +91,8 @@ Details and open points: `docs/decisions.md`.
   update them: `tests/README.md`. *(since 8 Oct; history: rule-history.md)*
 - **Documentation stays current:** every pull request that changes how something works updates the documents in the
   same pull request:
-  - the map, `docs/architecture.md` (and its project copy, `claude/architecture.md`);
+  - the map, `docs/architecture.md` (and its project copy, `claude/architecture.md`), with each part's detail and
+    dated notes in its own file, `docs/map/<part>.md`, never in the map, whose size a check caps;
   - the planner guide, `docs/planner-guide.md`;
   - the playbook, `docs/playbook.md` (and its project copy, `claude/playbook.md`), when a recurring step changes;
   - `scripts/README.md`;

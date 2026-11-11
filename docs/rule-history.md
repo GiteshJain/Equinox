@@ -217,6 +217,13 @@ The checks' dates: the fares userscript on the saved fares form and answer (sinc
 #### Documentation stays current
 *Since 8 Oct (#10) · why: nothing explained how the parts connect, so every new chat rediscovered it.*
 
+*Each part's detail in its own file since 11 Nov (to-do 209; Gitesh, Audit chat, the reading load, option C) · why:
+every Building chat and every build helper reads the map first, and it had grown to 155,000 characters (about 44,000
+tokens), 98,000 of them the parts table, the Planner row alone 46,000. Each part's detail moved word for word to
+`docs/map/<part>.md`, the map keeps a short row with a link, and `tests/map_size_test.py` caps it (70,000 characters,
+1,200 a row). The map's line in the list was:* "the map, `docs/architecture.md` (and its project copy,
+`claude/architecture.md`);"
+
 #### A new table grants its own access
 *Since 20 Oct · why (Gitesh, agreed): Supabase stops granting new tables to the Data API by default on 30 Oct; we already worked that way, but the rule wasn't written down.*
 
