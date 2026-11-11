@@ -38,6 +38,18 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The fare plan first and on its own: decided 11 Nov
+*Gitesh, 11 Nov (Audit chat, on the Saturday routine: "Yes").* §7's Saturday list began, word for word: "first, the
+document check (about 5 minutes)", and its last bullet began: "the weekly review together: the fare ladder's moves
+(§5), aircraft under 12 block hours a day (§4), orders and hubs first". The fare plan now leads the list as a step of
+its own, the document check follows it, and the weekly review no longer names it · why: the fare plan sat fifth in a
+morning's work, so it waited whenever the session slipped. In five weeks the Saturday work was done on a Saturday once.
+The plan was put on two days late on 26 Oct and on 2 Nov, and not at all for 7 Nov: on 11 Nov the ladder listed 157
+changes across the six airlines. Fares are the part that earns: the 26 Oct step-ups kept loads at 99 to 100% and
+raised profit a flight by 7 to 11%. Putting the plan on took 20 minutes on 2 Nov. Set aside: the report, newsroom and
+connection audit every two weeks (the audit's option C), because Gitesh wants the report weekly, written from scratch
+(below), and the newsroom roundups are on trial as a scheduled task (to-do 227).
+
 ### The weekly report written from scratch each week: decided 11 Nov
 *Gitesh, 11 Nov (Audit chat, on the Saturday routine): "In the reports they feel very mechanical right now due to
 everything being in the same format and same tables. I think you should just write one from scratch every week based

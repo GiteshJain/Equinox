@@ -299,8 +299,26 @@ File it as soon as it arrives (rule: manual §4, how it runs).
 ---
 
 ## 7. Every Saturday
-Run in the **Saturday review chat**, in this order (manual §7, every Saturday). It takes most of the morning. Capture
-as normal on Friday evening first.
+Run in the **Saturday review chat** (manual §7, every Saturday). The fare plan comes first and stands on its own: do
+it even in a week when the rest has to wait. The rest follows in this order and takes most of the morning. Capture as
+normal on Friday evening first.
+
+**First, on its own: the fare plan** (rules: manual §7, every Saturday, and §5, the fare ladder). Putting it on took
+20 minutes on 2 Nov; then the script runs in the game. Airline by airline: Performance → each airline's page →
+**The fare ladder** (the group page's **The fare ladder** links straight to it; since 26 Oct one airline at a time,
+so it doesn't time out) lists that airline's moves and the game actions that make them, in order, and first, since
+21 Oct, the directions off their level (since 26 Oct each direction has its own level) with the changes that set
+them back (in this chat, `select public.fare_ladder(<airline id>);` gives the same). Press **Put on the fare plan**
+on each airline's page, then in the game press **Apply fare plan** (the fares userscript) and watch it: it shows each
+airline's count (and how many set a route back) and asks once, then makes every planned change and every set-back
+for every airline (**Ticket price adjustment**, baseline **default price**, route by route, each direction on its
+own), one at a time. It stops at the first problem and says which change and why; what's done stays done, and
+pressing it again makes only what the captures haven't seen yet (a change made twice does no harm). The next
+capture ticks the changes off on the fare plan. A route a rival started on or grew on holds on its own, and the
+ladder says so ("rival Air China started here on 22 Oct: paused until 29 Oct"). Since 23 Oct the ladder may jump a
+cabin under launch, and lists the **cut-or-keep decisions** (the card's "1 decision", the row's **cut or keep?**):
+decide each one here, cut the route or keep it (rules: manual §5, the fare ladder; weak routes get cut, manual §5,
+fares). Fare moves are only ever reviewed here, never as Needs attention.
 
 0. **The document check** (about 5 minutes): the project's copies of the manual, playbook, map and decisions match the
    repository; no document states a retired rule; the playbook refers to rules rather than stating them; memory holds
@@ -317,22 +335,7 @@ as normal on Friday evening first.
 4. **The newsroom roundups:** one post per airline of its new routes and extra flights since the last one, written by
    the newsroom rules (manual §8, newsroom posts read like a real airline's; what the newsroom posts). No posts for new
    aircraft.
-5. **The weekly review together:**
-   - **The fare ladder** (rule: manual §5, the fare ladder), airline by airline: Performance → each airline's page →
-     **The fare ladder** (the group page's **The fare ladder** links straight to it; since 26 Oct one airline at a time,
-     so it doesn't time out) lists that airline's moves and the game actions that make them, in order, and first, since
-     21 Oct, the directions off their level (since 26 Oct each direction has its own level) with the changes that set
-     them back (in this chat, `select public.fare_ladder(<airline id>);` gives the same). Press **Put on the fare plan**
-     on each airline's page, then in the game press **Apply fare plan** (the fares userscript) and watch it: it shows each
-     airline's count (and how many set a route back) and asks once, then makes every planned change and every set-back
-     for every airline (**Ticket price adjustment**, baseline **default price**, route by route, each direction on its
-     own), one at a time. It stops at the first problem and says which change and why; what's done stays done, and
-     pressing it again makes only what the captures haven't seen yet (a change made twice does no harm). The next
-     capture ticks the changes off on the fare plan. A route a rival started on or grew on holds on its own, and the
-     ladder says so ("rival Air China started here on 22 Oct: paused until 29 Oct"). Since 23 Oct the ladder may jump a
-     cabin under launch, and lists the **cut-or-keep decisions** (the card's "1 decision", the row's **cut or keep?**):
-     decide each one here, cut the route or keep it (rules: manual §5, the fare ladder; weak routes get cut, manual §5,
-     fares). Fare moves are only ever reviewed here, never as Needs attention.
+5. **The weekly review together** (the fare plan is done already, above):
    - **Competition** (since 21 Oct): each airline's market share against last week's scan, the threats of the week
      (Today listed each evening's), and the top openings the evening proposals are working down (Competition → the
      airline). The weekly report's competition by market reads the same scans. Since 30 Oct the report's competition

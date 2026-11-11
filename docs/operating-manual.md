@@ -723,7 +723,11 @@ Details and open points: `docs/decisions.md`.
   separate salary script. *(since 5 Nov, brief `docs/briefs/2026-11-04-salaries-in-capture.md`; history:
   rule-history.md)*
 - **Every Saturday:**
-  - first, the document check (about 5 minutes): the project's copies of the manual, playbook, map and decisions
+  - first, and on its own, the fare plan: the week's moves on the fare ladder (§5), reviewed together and put on. It
+    never waits for the rest of this list. When the Saturday session slips, the fare plan is still done on Saturday or
+    as soon after as Gitesh can, because each day late is a day at last week's fares.
+    *(first and on its own since 11 Nov; history: rule-history.md)*
+  - then the document check (about 5 minutes): the project's copies of the manual, playbook, map and decisions
     match the repository; no document states a retired rule; the playbook refers to rules rather than stating them; and
     memory holds no game rules. Facts are fixed on the spot; anything needing a ruling goes to Gitesh one at a time.
     *(since 21 Oct; history: rule-history.md)*
@@ -745,7 +749,7 @@ Details and open points: `docs/decisions.md`.
   - the connection audit across all hubs (valid connections, near misses, and retimes of 30 minutes or less;
     *since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`*);
   - one newsroom roundup per airline of its new routes and extra flights (§8);
-  - the weekly review together: the fare ladder's moves (§5), aircraft under 12 block hours a day (§4), orders and
+  - the weekly review together: aircraft under 12 block hours a day (§4), orders and
     hubs first, interline partners (§6: any that became a top-3 competitor or hub carrier, airports without one), and
     the shared pairs (§2; Performance's Shared pairs row): both airlines' flights, loads and level together, and a joiner whose flights
     don't fill while the owner's do is a frequency to take away, not a price to cut.
