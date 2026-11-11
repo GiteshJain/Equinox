@@ -403,6 +403,17 @@ async def home_opens(pl):
             f"({boards['clocks']} time zones)"), problems
 
 
+def set_moment_sql():
+    """The stored set's own moment on the copy, as SQL: the as_of private.figures_refresh() wrote into
+    planner_figures_state.sources when store_figures() stored the set (now() when there is no set, as the screens then
+    read live). A screen that reads the stored set shows its figures as of that moment, so a check that compares it with a
+    database call must make the call at the same moment: competition()'s threats come from the scans of the 7 days before
+    it, and a call at now() drifts (pull request 153's rehearsal: a 4 Nov scan inside the window at the set's 11 Nov
+    10:32, outside it at 21:54)."""
+    return (f"coalesce((select (s.sources ->> 'as_of')::timestamptz from public.planner_figures_state s "
+            f"where s.world_id = {WORLD}), now())")
+
+
 async def today_opens(pl):
     """Today (20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md): its answer at the top (All clear or what's
     waiting) with the capture in one line linking to Systems; then every board open, in order: Orders with a card for each
@@ -446,7 +457,7 @@ async def today_opens(pl):
         problems.append(f"Today's orders timeline has {chart['rows']} rows, the table {got['lines']} delivery lines")
     # the rivals' moves the latest scan showed (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): as many as
     # competition() gives with latest true, none dismissed on the copy, each linking to its airline's Competition page
-    latest = int(psql(f"""select coalesce(sum((select count(*) from jsonb_array_elements(public.competition(al.airline_id) -> 'threats') t
+    latest = int(psql(f"""select coalesce(sum((select count(*) from jsonb_array_elements(public.competition(al.airline_id, {set_moment_sql()}) -> 'threats') t
                                                    where (t ->> 'latest')::boolean)), 0)
                           from private.fig_airlines({WORLD}) al""").strip() or 0)
     dismissed = int(psql("select count(*) from public.dismissals where alert_key like 'threat|%'").strip() or 0)
@@ -521,7 +532,7 @@ async def competition_opens(pl):
         problems.append("Competition has no Order books board")
     books = json.loads(psql(f"""select coalesce(json_agg(distinct f ->> 'airline_id'), '[]') from public.airlines a
                                   join public.groups g on g.id = a.group_id and g.world_id = a.world_id
-                                  cross join lateral jsonb_array_elements(coalesce(public.competition(a.id) -> 'order_flags', '[]')) f
+                                  cross join lateral jsonb_array_elements(coalesce(public.competition(a.id, {set_moment_sql()}) -> 'order_flags', '[]')) f
                                   where g.kind = 'ours' and a.world_id = {WORLD} and a.active""").strip())
     if len(group["bookRows"]) != len(books):
         problems.append(f"Competition's Order books show {len(group['bookRows'])} rivals; competition() flags {len(books)}")
@@ -569,7 +580,7 @@ async def competition_opens(pl):
                                  'pconn', (select count(*) from jsonb_array_elements(d -> 'profiles') p where p ? 'connecting_weekly'),
                                  'oconn', (select coalesce(json_agg((o ->> 'connecting_weekly')::int order by (o ->> 'rank')::int), '[]') from jsonb_array_elements(d -> 'openings') o
                                            where (o ->> 'rank')::int <= 10))
-                            from (select public.competition({int(aid)}) as d) x""").strip())
+                            from (select public.competition({int(aid)}, {set_moment_sql()}) as d) x""").strip())
     if got["markets"] != db["markets"] or got["threats"] != db["threats"] or got["profiles"] != db["profiles"]:
         problems.append(f"{code}: {got['markets']} markets, {got['threats']} threats and {got['profiles']} profiles shown; competition() gives "
                         f"{db['markets']}, {db['threats']} and {db['profiles']}")
