@@ -180,4 +180,15 @@ that. The contrast check above would be new.
 - If he'd rather wait a little longer and get charts at the same time: **5B**.
 
 ## Outcome
-<Gitesh's decisions and the date>
+Gitesh, 11 Nov 2026, Main chat. He took the recommendation on all five:
+1. **A, behind a switch.** Six pull requests; live keeps today's look until the last one, and he can turn the glass look
+   on for himself in the account menu from the first merge.
+2. **A, darker glass by day only** (about 66% from 07:00 to 17:00; 52% at Dusk and Night). Labels at about 92% white, and
+   a check measures text against the brightest part of each backdrop picture.
+3. **A, the mock-up's three drawn pictures for now.** Each is one file; step 1 measures their size.
+4. **A, the rail picks the airline where a screen has one** (Routes, Tails, Performance, Competition, Reference; their own
+   airline buttons go). On the other five screens "All" stays lit and an airline opens its Performance page.
+5. **A, the look only.** Tables into charts is its own to-do after the glass look (to-do 232). Existing charts are redrawn
+   in colours made for dark glass in each screen's step.
+
+Next: the spec, then step 1 (the frame, Home and the landing page).
