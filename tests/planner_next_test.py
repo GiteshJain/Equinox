@@ -1960,9 +1960,6 @@ new MutationObserver(() => {
   const l = document.querySelector('[data-landing]'), v = l ? l.dataset.landing : null, a = window.__eqLanding;
   if (!a.length ? v !== null : a[a.length - 1] !== v) a.push(v);
 }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-landing'] });"""
-READY = {"home": "data-home-ready", "today": "data-today-ready", "routes": "data-routes-ready", "tails": "data-tails-ready",
-         "performance": "data-performance-ready", "competition": "data-competition-ready", "interline": "data-interline-ready",
-         "photos": "data-photos-ready", "reference": "data-reference-ready", "systems": "data-systems-ready"}
 
 
 def store_figures(at):
@@ -2018,7 +2015,7 @@ async def stored_figures(p, port, env, facts, staff, seen, moment):
         r0 = len(ph.rpcs)
         for sid, _ in SCREENS:
             await open_screen(ph.pg, sid)
-            await ph.pg.wait_for_selector(f"main[data-screen={sid}][{READY[sid]}=yes]", timeout=90000)
+            await ph.pg.wait_for_selector(READY[sid], timeout=90000)   # the screens step's own selectors (one READY for every step)
             await settle(ph.pg, 200)
         for name, to, sel in (("Home", "/", "main[data-screen=home][data-home-ready=yes]"),
                               ("Today", "/today", "main[data-screen=today][data-today-ready=yes]"),
