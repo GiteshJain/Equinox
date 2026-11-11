@@ -15,8 +15,10 @@ order to flying, the Saturday and monthly work, every check and what to do when 
 ---
 
 ## 0. The five things that matter most
-1. **Capture every evening.** The game keeps a flight's loads only briefly, so a missed evening loses them for good
-   (rule: manual §7, every evening). On 11 and 12 Oct about 780 flights' loads were lost that way.
+1. **Keep the capture green.** It runs by itself twice a day, and the game keeps a flight's loads only briefly, so a
+   day without a good capture loses them for good (rule: manual §7, the capture). When Today says the unattended
+   capture is late or failed, press **Capture all airlines** yourself that day. On 11 and 12 Oct about 780 flights'
+   loads were lost that way.
 2. **Before opening a route, check no other airline of ours has the pair.** Competition's openings say which other
    airlines of ours have it on their list (rule: manual §2, one airline per city pair). Except on shared pairs:
    a pair between two airlines' bases may be flown by both, the owner first (rule: manual §2, shared pairs): a pair the
@@ -59,6 +61,7 @@ full stop; manual §8, brand). Website and planner: **equinox-alliance.com** (pl
 |---|---|---|
 | **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries (the capture sets them, manual §7) | gander.airlinesim.aero, one account with all six airlines |
 | **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct); then, when a world scan is due, scans the world (every airline's schedule, its overview page and the airport pages; since 21 Oct); then, once a week, the market pages of every pair we fly (since 30 Oct); each airline's salaries are checked with its pages and any below the country average raised (since 5 Nov; version 1.12, manual §7) | `capture/capture_all.user.js`, installed in the Userscripts app on the Mac or iPhone, with your capture key in place of `__CAPTURE_KEY__` |
+| **Unattended capture** | The same capture, run by itself twice a day: the database asks GitHub to start it, and a hidden browser signs in to the game and presses the button with its own key. It never sets salaries; only your own press does (manual §7, the capture) | The job is in `equinox-backups`; its line is on the Systems board and on Today |
 | **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one at a time, while you watch (section 7; rule: manual §5, the fare ladder) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
@@ -155,20 +158,21 @@ lead there. A frequency's bank fit and its connections at both ends are on Route
 
 ## 5. Every evening
 
-**When:** each evening, Chicago time, at about the same time each day. It must be done before 10:00 UTC (Chicago time changes with
-daylight saving), when the database takes the day's snapshot itself if no full capture has come in (manual §7, every day,
-inside the database).
+**When:** the capture runs by itself twice a day (when, and what it reads: manual §7, the capture), so the evening no
+longer depends on your press. Press **Capture all airlines** yourself for fresh figures before a decision, to set
+salaries (only your press does: manual §7, the capture, and salaries), and on any day Today shows the unattended
+capture late or failed (section 11). The steps below are for your own press.
 
 **Steps:**
 1. Sign in to the game.
 2. Press **Capture all airlines** (the userscript's panel). It works through every airline in the world's list. Leave
    the tab open until it finishes. Since 22 Oct each airline ends with its fleet pages, one more page kind ("Pan Am:
    fleet 2 of 3"), about a minute more in all (what they're checked for: manual §7), then its salaries (since 5 Nov:
-   the rule is manual §7, salaries; the percentage is Reference → Constants, `salary_above_average_pct`). When one is
-   below the average the tab opens the game's Employee overview and presses adjust for it; let it work. **When a world scan is due it then scans the world** (how often: manual §7, the
+   the rule is manual §7, salaries; the percentage is Reference → Constants, `salary_above_average_pct`). A position
+   below the average is raised in the background: no page opens and nothing is clicked. **When a world scan is due it then scans the world** (how often: manual §7, the
    world scan; Reference → Constants, `scan_every_days`). It takes a few minutes longer, so **keep the page open**. The
    panel shows "World scan: 120 of 163 airlines…", then "World scan done"; **Stop** ends it early (the scan isn't
-   finished, and the next evening's capture scans again). If the page reloads, it carries on where it was. No scan
+   finished, and the next capture scans again). If the page reloads, it carries on where it was. No scan
    follows a capture page that failed: capture again, and the scan follows.
 3. **Read the panel.** Each airline ends with **all good**, or with what came in short or broken (for example "short:
    loads 12 of 78 flights"). What counts as short or broken is in manual §7, each page is checked as it arrives. Each
@@ -356,8 +360,7 @@ as normal on Friday evening first.
 ---
 
 ## 8. First Saturday of the month (as well as Saturday's work)
-Run in the **Saturday review chat**, after the usual Saturday work (manual §7, first Saturday of the month). The next
-one is **7 Nov 2026**.
+Run in the **Saturday review chat**, after the usual Saturday work (manual §7, first Saturday of the month).
 
 1. **The month page** in that day's weekly report: month-on-month figures and the month's decisions. There is no separate
    monthly report; the weekly report is the only investor report.
@@ -389,7 +392,7 @@ one is **7 Nov 2026**.
 |---|---|---|---|
 | Every evening | The capture panel | Every airline "all good" | Capture that airline again tonight; Manual entry if it keeps failing |
 | Every evening | Today | **All clear**, and the capture line "all good" | Work down Today; each item links to where it's fixed |
-| Every evening | Systems → the Systems board | "all good": capture, unattended capture (once it's set up), snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
+| Every evening | Systems → the Systems board | "all good": capture, unattended capture, snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
 | After filing an aircraft | The filing comparison | Every flight **same** | Fix the game or file with the game's times |
 | The evening after filing | The capture | The new flights appear | Today → Game check |
 | After a merge | Systems → the Systems board → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |
