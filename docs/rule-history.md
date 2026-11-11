@@ -52,6 +52,15 @@ spec's pull request (capture 1.16, migration 20261110010000). §7's page-check s
 before, word for word: "a bank statement is short with no lines, or below half the median of the airline's recent
 nights (`capture_statement_min_share`);"
 
+### The unattended capture built and running: 11 Nov
+*Built in `Equinox` #146 and `equinox-backups` #8; set up by Gitesh on 11 Nov (its key, the game sign-in and the GitHub
+token); first run 05:54 UTC, 11 Nov: six airlines all good in 2 min 10 s, and Gitesh's Safari stayed signed in on the
+airline he had open.* The *Decided, not yet built* entry went, and §7's first bullet, word for word, was: "**Every
+evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments straight into the
+tables, then runs the world scan when one is due (below) (`game_flights` and the rest); a day's loads count as complete
+once every active airline has been captured for it. Loads are typed in by hand (Systems → Manual entry) only if a
+capture fails."
+
 ### The unattended capture twice a day, with the world scan and the market pages: decided 10 Nov
 *Gitesh, 10 Nov evening (Building chat, on the spec `docs/specs/2026-11-10-unattended-capture.md`): "Why cant this one do
 the scan and market pages alteast? I think twice a day is ok", then "b" (brief

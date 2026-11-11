@@ -352,7 +352,7 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   flown by that evening's capture).
   *Since 20 Oct:* Home's warnings moved to Today, and the Systems board to the Systems screen; Check went. (Home's
   attention cards came back 23 Oct as summary cards.)
-  *Changed 10 Nov (Gitesh, Audit chat; decided, not yet built):* an unattended capture runs as a GitHub job (twice a
+  *Changed 10 Nov (Gitesh, Audit chat; built 11 Nov, `Equinox` #146 and `equinox-backups` #8):* an unattended capture runs as a GitHub job (twice a
   day with the world scan and the market pages, the same evening, brief `docs/briefs/2026-11-10-unattended-capture-scope.md`),
   and GitHub's email on a failed run is the first alert outside the planner. Why: the game keeps the loads and
   the bank statement for 24 hours only (this entry's brief assumed 3 days for the money), so a late or missed press
@@ -367,7 +367,7 @@ short summary. Decide once the #13 builds are done. Until then Opus is used for 
   (6 Oct) because it wasn't anyone's step. Brief: `docs/briefs/2026-10-14-scheduled-jobs.md`.
   *Changed 21 Oct:* the world scan runs with the evening capture when one is due (manual §7); `gscan.py` by hand only
   when the Systems board shows it old.
-  *Changed 10 Nov (Gitesh, Audit chat; decided, not yet built):* the capture goes on a schedule, twice a day, 09:30
+  *Changed 10 Nov (Gitesh, Audit chat; built 11 Nov, `Equinox` #146 and `equinox-backups` #8):* the capture goes on a schedule, twice a day, 09:30
   and 21:30 UTC, with the world scan and the market pages when due (#21, above; first every 6 hours, changed the same
   evening). The database's scheduler starts each run, because GitHub's own timer has started the nightly backup 4 to 10
   hours late every night since 9 Oct. Brief: `docs/briefs/2026-11-10-unattended-capture.md`.

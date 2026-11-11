@@ -33,15 +33,6 @@ Until each is built and merged, the rules below stand as they are.
   partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **The unattended capture (§7, decided 10 Nov):** a GitHub job in `equinox-backups` runs the capture twice a day
-  (09:30 and 21:30 UTC) with its own capture key, each run started by the database's scheduler and not by GitHub's
-  timer. It reads our airlines' pages and fleets, and the world scan and the market pages when they're due; it never
-  sets salaries (a setting) and never changes fares. Briefs `docs/briefs/2026-11-10-unattended-capture.md`, option C,
-  and `docs/briefs/2026-11-10-unattended-capture-scope.md`, option B; spec `docs/specs/2026-11-10-unattended-capture.md`.
-  **Until it's built, Gitesh's own press is the only capture and §7's every evening stands as it is.** Once built, his
-  press stays for the salaries. *(since 10 Nov; twice a day with the scan and market since the same evening; history:
-  rule-history.md)*
-
 
 Details and open points: `docs/decisions.md`.
 
@@ -648,10 +639,21 @@ Details and open points: `docs/decisions.md`.
   #3 competitor, signed). *(since 2 Nov; two-week check since 3 Nov)*
 
 ## 7. Recurring work
-- **Every evening:** Gitesh presses "Capture all airlines" in the game. It captures loads, finances and payments straight
-  into the tables, then runs the world scan when one is due (below) (`game_flights` and the rest); a day's loads count as complete once every
-  active airline has been captured for it. Loads are typed in by hand (Systems → Manual entry) only if a capture fails.
-  *(since 7–8 Oct; history: rule-history.md)*
+- **The capture, twice a day by itself and whenever Gitesh presses:** at **09:30 and 21:30 UTC** (15:00 and 03:00 in
+  India) the database's scheduler asks GitHub to start the **unattended capture** in `equinox-backups`
+  (`private.capture_dispatch()`), which signs in to the game in a hidden browser (Gander's own **Play** button only,
+  never a world that costs credits), presses "Capture all airlines" with its own capture key, and signs out. It
+  captures loads, finances and payments straight into the tables, then the world scan and the market pages when they're
+  due (below) (`game_flights` and the rest); for its key it never sets salaries (`settings.unattended_salaries`, false;
+  `unattended_scan` and `unattended_market` true) and is refused by the fares and the aircraft evaluation. A run that
+  doesn't end with every airline "all good" fails, and GitHub emails Gitesh; Today warns when there has been no good
+  run for `settings.capture_unattended_warn_h` (14) hours, and the Systems board has its line. A run is skipped while a
+  capture is running. **Gitesh's own press** works as before and is what sets salaries (below); whichever capture comes
+  first after the scan or the market pages fall due does them. A day's loads count as complete once every active
+  airline has been captured for it. Loads are typed in by hand (Systems → Manual entry) only if a capture fails.
+  *(the press since 7–8 Oct; the unattended capture since 11 Nov, decided 10 Nov, briefs
+  `docs/briefs/2026-11-10-unattended-capture.md`, option C, and `docs/briefs/2026-11-10-unattended-capture-scope.md`,
+  option B, spec `docs/specs/2026-11-10-unattended-capture.md`; history: rule-history.md)*
   - **Then the world scan, when one is due:** after the last airline, the capture scans the world if the latest finished
     scan is at least `settings.scan_every_days` capture days old (1: every evening). It reads the same pages as
     `gscan.py`, at its pace (every airline in Gander with its schedule, then the airport pages for our bases, the big
