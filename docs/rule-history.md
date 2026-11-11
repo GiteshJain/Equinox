@@ -296,6 +296,13 @@ The old planner, its way back at `/planner/old/` (which now goes to `/planner/`)
 
 *The new look's exception since 22 Oct (Gitesh: "keep merging if all is good") · why: the redesign runs in four steps over several days, and waiting for a "merge" between each added days for no review he needed beyond the checks and the screenshots. It ended with step 4: the four steps were merged on 22 Oct (#71 to #74), and the exception was taken out of the manual the same day.*
 
+*The glass look's exception since 12 Nov (Gitesh, Main chat, with #154's checks running: "Keep building and merging
+if you can? Can you get the entire planner done in like 6-7 hours?") · why: the glass look is six pull requests behind a
+switch that is off for everyone until the last (brief `docs/briefs/2026-11-11-glass-look.md`, decision 1, option A), he
+had seen step 1's preview ("Previews looks good"), and waiting for a "merge" between steps added hours for no review he
+needed beyond the checks. Before it, every pull request needed his "merge" (#153 was merged on his word the same
+morning). It ends with step 6, when the sentence comes out of the manual.*
+
 #### Hosting
 *Since 8 Oct (#7) · why: free, with unlimited deploys and previews; our own address survives any future change of host.*
 

@@ -46,6 +46,9 @@ Details and open points: `docs/decisions.md`.
   before raising the next. No building on Claude's initiative. *(since 7 Oct; history: rule-history.md)*
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh
   approves by saying "merge"; merging is what makes it live. *(since 8 Oct; history: rule-history.md)*
+  **The glass look's steps are the exception** (to-do 225; Gitesh, 12 Nov: "Keep building and merging if you can"): the
+  Main chat merges each of its pull requests (#154 and steps 3 to 6) without asking, once every check is green and it
+  reads right against the spec. It ends with step 6. *(since 12 Nov; history: rule-history.md)*
 - **Hosting:** the website and planner are on Cloudflare Pages (free plan) at `equinox-alliance.com`, our own domain,
   registered at Cloudflare at cost and renewing automatically each October. `equinox-alliance.pages.dev` also works.
   Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
