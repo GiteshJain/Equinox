@@ -1047,6 +1047,11 @@ async def cabin_charges(s, pl, now):
         return
     fid = int(pick["id"])
     as_test(f"update public.spending_log set amount = amount + 1000 where id = {fid}")
+    # the board reads the stored figures (since 11 Nov): a new set, as the job stores one after a change, so the fit made
+    # to differ shows (pn.store_figures() works it out at the moment, as planner_next_test does before the planner opens)
+    _, stored = pn.store_figures(now)
+    if stored:
+        raise RuntimeError("the stored figures weren't worked out again: " + "; ".join(stored))
     try:
         await reload(pl)
         await to_screen(pl, "systems", "/systems")
@@ -1056,6 +1061,7 @@ async def cabin_charges(s, pl, now):
         await s.act("systems: Use the game's amount (a cabin fit made to differ for the test)", lambda: pg.click(f"[data-cabin-use='{fid}']"))
     finally:
         quietly(f"update public.spending_log set amount = :'a'::numeric where id = {fid} and amount <> :'a'::numeric", a=str(pick["amount"]))
+        pn.store_figures(now)   # the set as it was, for the steps after
 
 
 # ---------- Interline, Reference and Photos
