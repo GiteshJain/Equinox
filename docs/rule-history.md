@@ -38,6 +38,24 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The database rehearsal runs only what a change can affect, and every night on main: 11 Nov
+*Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-faster-checks.md`, option E of five: A leave as is, B only the
+parts a change can affect, C B with the slow parts side by side, D B with the whole rehearsal every night on `main`, E C
+and D together, in two pull requests) · why: "I heard from a software engineer friend that they dont run all these
+database rehearsel and stuff and do different type of testing that is much much faster". Measured on four runs of 11
+Nov: 20 to 31 minutes on every pull request, documents ones included, half of it database tests that a planner change
+can't affect; the glass look's six look-only pull requests were waiting on it. Built in E's first pull request (to-do
+233); the side by side split is the second.* In §1 *Automatic checks* this sentence was replaced, word for word: "When
+the database, the planner or the library changes, the *Database rehearsal* also generates the planner's types again from
+the copy (they must match the committed `app/planner/src/db/types.ts`), has the planner sign in, read and save on the
+copy, open every screen at a frozen moment at 1280 and 380 px wide with no errors and no sideways scroll, and save
+through every kind of save each screen has, each checked against the rows recorded for it; reads a saved evening of each
+capture page kind and replays every kept capture page, each evening judged ok (#21); and when there are database
+changes, it backs the copy up and restores it as the nightly job does." The new wording also names the airline briefing
+and the map's guide, which the rehearsal has run since #24 without the manual saying so; no rule changed by that. The
+nightly run's sentence is new; where a failed night shows is GitHub's failure email for now, since a row in `job_runs`
+(§7) would need a new key in this repository.
+
 ### The planner's figures stored after every capture: built 11 Nov (#150, #151)
 *Built by the Building chat with Gitesh's go-ahead to build and merge without checking in (11 Nov: "Start building and
 merging when done. Don't disturb and complete."). #150, the database, applied to live at 10:52 UTC: the first set, 87

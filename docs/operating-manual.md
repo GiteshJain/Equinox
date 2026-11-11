@@ -79,13 +79,18 @@ Details and open points: `docs/decisions.md`.
   saved pages; the capture's fleet pages on a saved fleet page; the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails,
   the planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its
   optimiser against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures;
-  every website page, the planner's sign-in at `/planner/` and the planner's addresses). When the database, the planner
-  or the library changes, the *Database rehearsal* also generates the planner's types again from the copy (they must
-  match the committed `app/planner/src/db/types.ts`), has the planner sign in, read and save on the copy, open every
-  screen at a frozen moment at 1280 and 380 px wide with no errors and no sideways scroll, and save through every kind
-  of save each screen has, each checked against the rows recorded for it; reads a saved evening of each capture page
-  kind and replays every kept capture page, each evening judged ok (#21); and when there are database changes, it backs
-  the copy up and restores it as the nightly job does.
+  every website page, the planner's sign-in at `/planner/` and the planner's addresses). On a pull request the
+  *Database rehearsal* runs only the parts its change can affect. When the planner or the library changes, it
+  generates the planner's types again from the copy (they must match the committed `app/planner/src/db/types.ts`), has
+  the planner sign in, read and save on the copy, open every screen at a frozen moment at 1280 and 380 px wide with no
+  errors and no sideways scroll, and save through every kind of save each screen has, each checked against the rows
+  recorded for it; when the library or the airline briefing changes, it runs the briefing for every airline and every
+  example in the map's guide on the copy; when the database changes, it does all of that, runs the database tests,
+  reads a saved evening of each capture page kind and replays every kept capture page, each evening judged ok (#21),
+  and when there are changes to apply it backs the copy up and restores it as the nightly job does; a change to
+  documents only runs none of it. *(since 11 Nov; history: rule-history.md)* Every night the whole rehearsal, every
+  part, runs on `main` on the latest backup, and GitHub emails when it fails. *(since 11 Nov; history:
+  rule-history.md)*
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *(since 8 Oct; history: rule-history.md)*

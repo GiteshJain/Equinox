@@ -41,6 +41,7 @@ run "Weekly report: end to end on the report sample, its money from the figures"
 run "Airline briefing: every airline on the briefing sample, each section its own" python3 tests/briefing_test.py
 run "Market definitions: scan_markets.py and nl_analyze.py on the report sample" python3 tests/market_definitions_test.py
 run "Rehearsal: storage tables the copy lacks are left out of the restore" python3 tests/storage_data_filter_test.py
+run "Rehearsal: each pull request runs only the parts its changed paths can affect" python3 tests/rehearsal_parts_test.py
 run "Website" python3 tests/site_test.py
 echo "=== Summary"
 printf '%s\n' "${summary[@]}"
