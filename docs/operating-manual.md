@@ -33,14 +33,6 @@ Until each is built and merged, the rules below stand as they are.
   partners by §6 and adds a country to that list when it first gets one. *(since 2 Nov)*
 - **Not tracked yet:** a frequency taken away (the fare ladder's capacity hold, §5, covers frequencies gained).
   *(since 21 Oct; history: rule-history.md)*
-- **The planner's figures stored after every capture (decided 11 Nov, to-do 223):** after each capture (the unattended
-  runs and Gitesh's press) the database works every figure out once and stores it; opening the planner shows a landing
-  page while it loads them all, and then no screen asks the database to work anything out until the next capture.
-  **While a capture runs and until its new answers are stored and loaded, the planner shows the landing page** (about
-  3 minutes at the 09:30 UTC run, about 8 with the world scan, up to about 20 with the market pages), never for good:
-  a run that stalls or a refresh that fails lets the planner open on the last answers. A save that changes figures
-  still updates its board at once. Until it's built, the planner works its figures out on each screen as now. *(brief
-  `docs/briefs/2026-11-11-instant-planner.md`, option B; history: rule-history.md)*
 
 Details and open points: `docs/decisions.md`.
 
@@ -134,6 +126,16 @@ Details and open points: `docs/decisions.md`.
   has one) and `world_rules` (Gander's house rules, game settings and #12's permissions). The figures in §3, §4, §5 and
   §9 name their row; a rule change updates the row and this manual together, and nothing else holds a copy (the
   planner and the library read the tables). *(since 10 Oct; history: rule-history.md)*
+- **The planner reads stored figures:** after every capture (the unattended runs and Gitesh's press, with their world
+  scan and market pages) the database works out every figure the planner shows once and stores it (`planner_figures`,
+  the job below, §7). While a capture runs, and until its new answers are stored and loaded, the planner shows its
+  landing page (about 3 minutes at the 09:30 UTC run, about 8 with the world scan, up to about 20 with the market
+  pages); opening it shows the same page while it loads every stored answer, and then no screen asks the database to
+  work a figure out until the next capture. It never stays there for good: a capture running over
+  `settings.figures_landing_max_min` (30) minutes, no new set 10 minutes after a capture ends, or three failed status
+  calls open the planner on the last answers with a line saying why. A save that changes figures still updates its
+  board at once (read live until the next set). *(since 11 Nov, #150 and #151; brief
+  `docs/briefs/2026-11-11-instant-planner.md`, option B; history: rule-history.md)*
 - **To-do board, the one list of open work:** anything Gitesh needs to check or do goes on the planner's To-do board
   (on Today); Claude marks it resolved when he reports back. Anything a chat leaves open goes there too, whichever chat
   found it: a bug, something to watch, something to raise with Gitesh. Its title starts with the chat that owns it
@@ -770,6 +772,11 @@ Details and open points: `docs/decisions.md`.
     don't fill while the owner's do is a frequency to take away, not a price to cut.
 
   *(since 5–8 Oct)*
+- **Every minute, the stored figures** (`pg_cron` job `equinox-figures`, `private.figures_refresh()`): when no capture
+  is running and a capture, world scan or market run has landed (or a planner save is over a minute old), every figure
+  the planner shows is worked out again at one moment and stored as a new set (about 30 s; one `job_runs` row, job
+  `figures`); then the route pages, a few each minute (419 in about 30 minutes). A figure that fails keeps its previous
+  answer. *(since 11 Nov; spec `docs/specs/2026-11-11-stored-figures.md`)*
 - **Every night, after the capture:** an automatic backup copies the database and the site's files, restores the copy
   to prove it works, uploads it to Cloudflare R2 and reports the result. Each night's copy is kept 30 days. The
   month's first is kept for good, in R2 and as a file on a GitHub release in the private repository `equinox-backups`,

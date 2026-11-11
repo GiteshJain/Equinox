@@ -38,6 +38,14 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The planner's figures stored after every capture: built 11 Nov (#150, #151)
+*Built by the Building chat with Gitesh's go-ahead to build and merge without checking in (11 Nov: "Start building and
+merging when done. Don't disturb and complete."). #150, the database, applied to live at 10:52 UTC: the first set, 87
+figures in 31.4 s, every stored answer equal to the live function; all 419 route pages stored within the hour. #151, the
+planner: on the rehearsal's copy the first opening took 2.3 s and screen changes 0.04 to 0.87 s, with no stored figure
+asked of the database after the landing page.* The item moved from *Decided, not yet built* into §1 (the planner reads
+stored figures) and §7 (the job). The item as it stood, word for word: "**The planner's figures stored after every capture (decided 11 Nov, to-do 223):** after each capture (the unattended runs and Gitesh's press) the database works every figure out once and stores it; opening the planner shows a landing page while it loads them all, and then no screen asks the database to work anything out until the next capture. **While a capture runs and until its new answers are stored and loaded, the planner shows the landing page** (about 3 minutes at the 09:30 UTC run, about 8 with the world scan, up to about 20 with the market pages), never for good: a run that stalls or a refresh that fails lets the planner open on the last answers. A save that changes figures still updates its board at once. Until it's built, the planner works its figures out on each screen as now. *(brief `docs/briefs/2026-11-11-instant-planner.md`, option B; history: rule-history.md)*"
+
 ### The planner's figures stored after every capture: decided 11 Nov
 *Gitesh, 11 Nov (Building chat, brief `docs/briefs/2026-11-11-instant-planner.md`, option B of four: A the landing page
 only while the new answers load, B for the whole capture, C everything loaded live at opening, D only the duplicate
