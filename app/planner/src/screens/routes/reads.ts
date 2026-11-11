@@ -9,9 +9,10 @@
 //   screen's moment.
 // A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts its answer into them and reads them
 // again. The database functions that only read are called with GET, so a preview reads them too.
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { limited } from "../../data/limit";
 import { tableKey } from "../../data/query";
+import { growthSignalsQuery, routeLoadsQuery } from "../../data/sharedFigures";
 import { supabase } from "../../data/supabase";
 import {
   LEG_COLUMNS, MARKET_ROW_COLUMNS, ROTATION_COLUMNS, ROUTE_COLUMNS,
@@ -36,13 +37,14 @@ async function pages<T>(what: string, page: (from: number, to: number) => Promis
 }
 
 /** One airline's routes that aren't removed, in the research's order (by id). */
-export function useAirlineRoutes(worldId: number | undefined, airlineId: number | undefined) {
-  return useQuery({
+export const airlineRoutesQuery = (worldId: number | undefined, airlineId: number | undefined) => queryOptions({
     queryKey: tableKey("routes", "airline", worldId, airlineId),
     enabled: worldId !== undefined && airlineId !== undefined,
     queryFn: () => pages<RouteRow>("the routes", (from, to) => supabase.from("routes").select(ROUTE_COLUMNS)
       .eq("world_id", worldId ?? 0).eq("airline_id", airlineId ?? 0).eq("removed", false).order("id").range(from, to) as unknown as PromiseLike<{ data: RouteRow[] | null; error: { message: string } | null }>),
-  });
+});
+export function useAirlineRoutes(worldId: number | undefined, airlineId: number | undefined) {
+  return useQuery(airlineRoutesQuery(worldId, airlineId));
 }
 
 /** One route of an airline by its airports, removed or not (Add route brings a removed one back); null when there's none. */
@@ -70,20 +72,20 @@ export interface AllRouteRow extends RouteRow { cabin_choice: string | null }
 
 /** Every route that isn't removed, of every airline, in the routes' order (Performance's growth lists from the load
  *  reports; Check's until 20 Oct, and Systems' cabins until 21 Oct). */
-export function useAllRoutes(worldId: number | undefined) {
-  return useQuery({
+export const allRoutesQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("routes", "check", worldId),
     enabled: worldId !== undefined,
     queryFn: () => pages<AllRouteRow>("the routes", (from, to) => supabase.from("routes").select(ROUTE_COLUMNS)
       .eq("world_id", worldId ?? 0).eq("removed", false).order("id").range(from, to) as unknown as PromiseLike<{ data: AllRouteRow[] | null; error: { message: string } | null }>),
-  });
+});
+export function useAllRoutes(worldId: number | undefined) {
+  return useQuery(allRoutesQuery(worldId));
 }
 
 /** The shared pairs of the world (the view shared_pairs, since 5 Nov; spec docs/specs/2026-11-05-shared-pairs.md §1): each
  *  base-to-base pair of two of our airlines, its owner and joiner and their flights a week. Keyed under routes, so a join
  *  (a new routes row) reads it again. */
-export function useSharedPairs(worldId: number | undefined) {
-  return useQuery({
+export const sharedPairsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("routes", "shared_pairs", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -91,7 +93,9 @@ export function useSharedPairs(worldId: number | undefined) {
       if (error) return fail("the shared pairs", error.message);
       return (data ?? []) as SharedPairRow[];
     },
-  });
+});
+export function useSharedPairs(worldId: number | undefined) {
+  return useQuery(sharedPairsQuery(worldId));
 }
 
 /** Joins a shared pair (join_pair(), manual §2): adds the joiner's route row. Refused by the database for a pair that isn't
@@ -104,8 +108,7 @@ export async function joinPair(ownerRouteId: number): Promise<{ route_id: number
 
 /** Every airline's markets in the world: name and, since 21 Oct, only its layout (its default aircraft, cabin and fares
  *  went; spec docs/specs/2026-10-21-cabins-new-rule.md §2). */
-export function useMarkets(worldId: number | undefined) {
-  return useQuery({
+export const marketsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("markets", "routes", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -114,14 +117,15 @@ export function useMarkets(worldId: number | undefined) {
       if (error) return fail("the markets", error.message);
       return data as MarketRow[];
     },
-  });
+});
+export function useMarkets(worldId: number | undefined) {
+  return useQuery(marketsQuery(worldId));
 }
 
 export interface ServiceRow { id: number; code: string; airline_id: number | null; up_to_km: number | null }
 
 /** The service profiles (Reference → service profiles). */
-export function useServiceProfiles(worldId: number | undefined) {
-  return useQuery({
+export const serviceProfilesQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("service_profiles", "routes", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -129,12 +133,13 @@ export function useServiceProfiles(worldId: number | undefined) {
       if (error) return fail("the service profiles", error.message);
       return data as ServiceRow[];
     },
-  });
+});
+export function useServiceProfiles(worldId: number | undefined) {
+  return useQuery(serviceProfilesQuery(worldId));
 }
 
 /** Our aircraft: registration, type and status, in the order they were added. */
-export function useRoutesAircraft(worldId: number | undefined) {
-  return useQuery({
+export const routesAircraftQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("aircraft", "routes", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -144,26 +149,30 @@ export function useRoutesAircraft(worldId: number | undefined) {
       if (error) return fail("the aircraft", error.message);
       return data as AircraftRow[];
     },
-  });
+});
+export function useRoutesAircraft(worldId: number | undefined) {
+  return useQuery(routesAircraftQuery(worldId));
 }
 
 /** One airline's rotations, and their legs. */
-export function useAirlineRotations(worldId: number | undefined, airlineId: number | undefined) {
-  return useQuery({
+export const airlineRotationsQuery = (worldId: number | undefined, airlineId: number | undefined) => queryOptions({
     queryKey: tableKey("rotations", "airline", worldId, airlineId),
     enabled: worldId !== undefined && airlineId !== undefined,
     queryFn: () => pages<RotationRow>("the rotations", (from, to) => supabase.from("rotations").select(ROTATION_COLUMNS)
       .eq("world_id", worldId ?? 0).eq("airline_id", airlineId ?? 0).order("id").range(from, to) as unknown as PromiseLike<{ data: RotationRow[] | null; error: { message: string } | null }>),
-  });
+});
+export function useAirlineRotations(worldId: number | undefined, airlineId: number | undefined) {
+  return useQuery(airlineRotationsQuery(worldId, airlineId));
 }
 
-export function useAirlineLegs(worldId: number | undefined, airlineId: number | undefined) {
-  return useQuery({
+export const airlineLegsQuery = (worldId: number | undefined, airlineId: number | undefined) => queryOptions({
     queryKey: tableKey("flight_legs", "airline", worldId, airlineId),
     enabled: worldId !== undefined && airlineId !== undefined,
     queryFn: () => pages<LegRow>("the flight legs", (from, to) => supabase.from("flight_legs").select(LEG_COLUMNS)
       .eq("world_id", worldId ?? 0).eq("airline_id", airlineId ?? 0).order("rotation_id").order("leg_no").range(from, to) as unknown as PromiseLike<{ data: LegRow[] | null; error: { message: string } | null }>),
-  });
+});
+export function useAirlineLegs(worldId: number | undefined, airlineId: number | undefined) {
+  return useQuery(airlineLegsQuery(worldId, airlineId));
 }
 
 /** Airports by their codes: the game's offset and the world's correction (with its row), place, city and country. */
@@ -215,31 +224,22 @@ export async function legsAt(worldId: number, code: string): Promise<{ legs: Leg
 export interface RouteLoadRow extends Load { airline_id: number; route_id: number; average: number }
 export interface FlightLoadRow extends Load { airline_id: number; flight_no: number; average: number }
 
-/** Each route's and each flight's economy loads over the last 7 days (route_loads()), at the screen's moment. */
+function toLoads(data: unknown) {
+  const d = data as { routes?: RouteLoadRow[]; flights?: FlightLoadRow[] };
+  return { routes: d.routes ?? [], flights: d.flights ?? [] };
+}
+
+/** Each route's and each flight's economy loads over the last 7 days (route_loads(): one read with Home's since 11 Nov). */
 export function useLoads(worldId: number | undefined) {
-  return useQuery({
-    queryKey: ["figures", "route_loads", "routes and flights", worldId],
-    enabled: worldId !== undefined,
-    queryFn: async () => {
-      const { data, error } = await limited(() => supabase.rpc("route_loads", { p_world_id: worldId ?? 0, p_as_of: new Date().toISOString() }, { get: true }));
-      if (error) return fail("the loads", error.message);
-      const d = data as { routes?: RouteLoadRow[]; flights?: FlightLoadRow[] };
-      return { routes: d.routes ?? [], flights: d.flights ?? [] };
-    },
-  });
+  return useQuery({ ...routeLoadsQuery(worldId), select: toLoads });
 }
 
 export interface PatternRow { airline_id: number; route_id: number; mark: "cut" | "watch" | "add" | "hold"; why: string }
 
-/** The load patterns over the load window (growth_signals()), for the route pop-up's signal. */
+const toPatterns = (data: unknown): PatternRow[] => (data as { load_patterns?: PatternRow[] }).load_patterns ?? [];
+
+/** The load patterns over the load window (growth_signals(): one read with Home's and Performance's since 11 Nov), for the
+ *  route pop-up's signal. */
 export function usePatterns(worldId: number | undefined, enabled = true) {
-  return useQuery({
-    queryKey: ["figures", "growth_signals", "patterns", worldId],
-    enabled: worldId !== undefined && enabled,
-    queryFn: async () => {
-      const { data, error } = await limited(() => supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: new Date().toISOString() }, { get: true }));
-      if (error) return fail("the load patterns", error.message);
-      return ((data as { load_patterns?: PatternRow[] }).load_patterns ?? []);
-    },
-  });
+  return useQuery({ ...growthSignalsQuery(worldId, enabled), select: toPatterns });
 }

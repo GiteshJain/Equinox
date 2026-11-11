@@ -6,7 +6,7 @@
 // changing it); what still uses a type, a layout or a market (the adapter kept such a row); the website's connection
 // times (site_content.mct, which the old adapter fell back on); the airports' cities; and the counts the Storage line
 // gives. The bank windows and next free numbers are the planning library's, on the start's rules input.
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
@@ -40,8 +40,8 @@ function paged<T>(page: (from: number, to: number) => Answer<T[]>): Answer<T[]> 
   })();
 }
 
-function useRows<T>(table: string, part: string, worldId: number | undefined, what: string, read: (w: number) => Answer<T[]>, map?: (r: T) => T) {
-  return useQuery({
+function rowsQuery<T>(table: string, part: string, worldId: number | undefined, what: string, read: (w: number) => Answer<T[]>, map?: (r: T) => T) {
+  return queryOptions({
     queryKey: tableKey(table, "reference", part, worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -50,15 +50,20 @@ function useRows<T>(table: string, part: string, worldId: number | undefined, wh
     },
   });
 }
+function useRows<T>(table: string, part: string, worldId: number | undefined, what: string, read: (w: number) => Answer<T[]>, map?: (r: T) => T) {
+  return useQuery(rowsQuery(table, part, worldId, what, read, map));
+}
 
 export const useBases = (w: number | undefined) =>
   useRows<BaseRow>("airline_bases", "bases", w, "the bases", (id) => sel("airline_bases", BASE_COLUMNS, id).order("position").order("id") as unknown as Answer<BaseRow[]>);
-export const useWorldAirports = (w: number | undefined) =>
-  useRows<WorldAirportRow>("world_airports", "all", w, "what the world says about its airports",
+export const worldAirportsQuery = (w: number | undefined) =>
+  rowsQuery<WorldAirportRow>("world_airports", "all", w, "what the world says about its airports",
     (id) => paged((from, to) => sel("world_airports", WORLD_AIRPORT_COLUMNS, id).order("airport_code").range(from, to) as unknown as Answer<WorldAirportRow[]>),
     (r) => ({ ...r, mct_min: num(r.mct_min), utc_offset_override: num(r.utc_offset_override) }));
-export const useSettings = (w: number | undefined) =>
-  useRows<SettingRow>("settings", "world", w, "the settings", (id) => sel("settings", "id, key, value, updated_at", id).is("airline_id", null) as unknown as Answer<SettingRow[]>);
+export const useWorldAirports = (w: number | undefined) => useQuery(worldAirportsQuery(w));
+export const settingsQuery = (w: number | undefined) =>
+  rowsQuery<SettingRow>("settings", "world", w, "the settings", (id) => sel("settings", "id, key, value, updated_at", id).is("airline_id", null) as unknown as Answer<SettingRow[]>);
+export const useSettings = (w: number | undefined) => useQuery(settingsQuery(w));
 export const useWorldRules = (w: number | undefined) =>
   useRows<WorldRuleRow>("world_rules", "all", w, "the world's rules", (id) => sel("world_rules", "id, key, value, updated_at", id) as unknown as Answer<WorldRuleRow[]>);
 export const useTypes = (w: number | undefined) =>

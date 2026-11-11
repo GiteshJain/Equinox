@@ -4,9 +4,11 @@ import { useSyncExternalStore } from "react";
 import type { QueryKey } from "@tanstack/react-query";
 import type { Json } from "../db/types";
 import { showMessage } from "../ui/messages";
+import { kindsForTables } from "./figures";
 import { PREVIEW } from "./preview";
 import { queryClient, tableKey } from "./query";
 import { createSaver, sameKey, type Change, type Key, type PlannerTable, type Row, type SaveCache, type SaveResult, type SaveState } from "./save";
+import { figures } from "./storedFigures";
 import { supabase } from "./supabase";
 
 /** This tab's ID, made once per page load; planner_save() writes it into the change log (decision #15). */
@@ -35,6 +37,9 @@ const cache: SaveCache = {
     for (const [key, data] of snapshot as [QueryKey, unknown][]) queryClient.setQueryData(key, data);
   },
   refresh(tables) {
+    // the figures read under these tables' keys (the fare plan's, the cash log) are read live until the next stored set
+    // (since 11 Nov), so the board the save changes shows the database's answer at once
+    figures.markLive(kindsForTables(tables));
     for (const t of tables) void queryClient.invalidateQueries({ queryKey: tableKey(t) });
   },
 };
@@ -80,6 +85,9 @@ export type PlannerCheckHook = {
   retry(): Promise<void>;
   /** Moves the planner to one of its addresses without loading the page again (main.tsx sets it once the router exists). */
   go?: (to: string) => void;
+  /** The stored figures (since 11 Nov): the generation in memory, how long the first opening took (ms) and whether the
+   *  landing page shows (main.tsx sets it). */
+  figures?: () => { generation: number | null; openedMs: number | null; showing: boolean };
 };
 
 declare global {

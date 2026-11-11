@@ -39,7 +39,9 @@
 #    in TYPES_DIR (the run's planner-types artifact) and any difference is printed. Then the planner is built (npm ci,
 #    npm run build), and tests/planner_next_test.py opens it at its live address on the copy (/planner/), signs in, reads
 #    and saves through planner_save(), opens every screen at a frozen moment at 1280 and 380 px (screenshots in
-#    PLANNER_SCREENS_DIR, the run's planner-screens artifact) and checks the addresses web/_redirects gives.
+#    PLANNER_SCREENS_DIR, the run's planner-screens artifact) and checks the addresses web/_redirects gives. Since 11 Nov it
+#    first stores the planner's figures on the copy at that moment (private.figures_refresh(), the job being paused), so
+#    the planner opens through its landing page on the stored set.
 #    Then the airline briefing (#24), read only: tests/briefing_copy_test.py runs scripts/briefing/brief.py for every one
 #    of our airlines through the copy's data API with its local keys and a throwaway ingest secret, checks each section
 #    against the copy's tables, and runs every example in the map's guide (docs/architecture.md, "Which call answers

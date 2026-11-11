@@ -20,8 +20,10 @@ function hasWebGL(): boolean {
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function Hero({ figures, hello, routes, planes, now }: {
+export function Hero({ figures, hello, routes, planes, now, asOf = null }: {
   figures: HeroFigures | null; hello: string; routes: readonly HeroRoute[]; planes: readonly HeroPlane[]; now: Date;
+  /** "Figures as of 11 Nov, 15:02 UTC": the stored figures' moment (since 11 Nov), or null when they're read live. */
+  asOf?: string | null;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [webgl] = useState(hasWebGL);
@@ -61,6 +63,7 @@ export function Hero({ figures, hello, routes, planes, now }: {
       <div className="eqh-shade" />
       <div className="eqh-in">
         <p className="eqh-hi" id="eqh-hi">{hello}</p>
+        {asOf ? <p className="eqh-asof" data-figures-as-of>{asOf}</p> : null}
         <h1 className="eqh-t"><span id="eqh-air" data-hero-air>{figures?.in_air ?? 0}</span> aircraft in the air.</h1>
         <span className="eqh-line" />
         <div className="eqh-tiles" data-figure="home: the network now">

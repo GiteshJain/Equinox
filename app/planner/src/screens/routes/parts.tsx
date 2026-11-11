@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Wave } from "@rules";
 import { PREVIEW } from "../../data/preview";
 import { queryClient, tableKey } from "../../data/query";
+import { refreshStored } from "../../data/storedFigures";
 import { showMessage } from "../../ui/messages";
 import { PREVIEW_WORDS } from "../photos/model";
 import { joinPair } from "./reads";
@@ -66,6 +67,8 @@ export function JoinPair({ mark }: { mark: PairMark }) {
       showMessage(`${join.joiner} joined the pair: its route is on its list now (${r.joined} pair${r.joined === 1 ? "" : "s"} joined). Its fares follow this airline's ladder.`);
       void queryClient.invalidateQueries({ queryKey: tableKey("routes") });
       void queryClient.invalidateQueries({ queryKey: ["rules"] });
+      // every figure live until the next stored set (since 11 Nov), and the light live ones read again too
+      refreshStored("all");
       void queryClient.invalidateQueries({ queryKey: ["figures"] });
     } catch (e) {
       showMessage(`Couldn't join the pair: ${e instanceof Error ? e.message : String(e)}`);

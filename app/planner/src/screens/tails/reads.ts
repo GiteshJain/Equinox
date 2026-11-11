@@ -12,7 +12,7 @@
 // Every figure is the planning library's, on the start's rules (rules_input(world, 'flown'), src/data/rules.ts), which
 // carry every aircraft, rotation and leg. A table's rows are keyed ["table", <table>, ...] (data/query.ts), so a save puts
 // its answer into them and reads them again.
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { tableKey } from "../../data/query";
 import { supabase } from "../../data/supabase";
 import { MARKET_ROW_COLUMNS, ROUTE_COLUMNS, type MarketRow, type RouteRow } from "../routes/model";
@@ -33,78 +33,85 @@ async function rows<T>(what: string, q: Answer<T[]>): Promise<T[]> {
 }
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
 
-export function useTailsAircraft(worldId: number | undefined) {
-  return useQuery({
+export const tailsAircraftQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("aircraft", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<TailAircraft>("the aircraft", supabase.from("aircraft").select(AIRCRAFT_COLUMNS).eq("world_id", worldId ?? 0).order("id") as unknown as Answer<TailAircraft[]>),
-  });
+});
+export function useTailsAircraft(worldId: number | undefined) {
+  return useQuery(tailsAircraftQuery(worldId));
 }
 
-export function useConfigs(worldId: number | undefined) {
-  return useQuery({
+export const configsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("cabin_configs", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => (await rows<ConfigRow>("the cabin layouts", supabase.from("cabin_configs").select("id, code, aircraft_type_id, cabin, cost")
       .eq("world_id", worldId ?? 0).order("id") as unknown as Answer<ConfigRow[]>)).map((c) => ({ ...c, cost: num(c.cost) })),
-  });
+});
+export function useConfigs(worldId: number | undefined) {
+  return useQuery(configsQuery(worldId));
 }
 
-export function useBuyTypes(worldId: number | undefined) {
-  return useQuery({
+export const buyTypesQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("airline_aircraft_types", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<BuyTypeRow>("the types each airline may have", supabase.from("airline_aircraft_types").select("airline_id, aircraft_type_id")
       .eq("world_id", worldId ?? 0) as unknown as Answer<BuyTypeRow[]>),
-  });
+});
+export function useBuyTypes(worldId: number | undefined) {
+  return useQuery(buyTypesQuery(worldId));
 }
 
-export function usePlanCards(worldId: number | undefined) {
-  return useQuery({
+export const planCardsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("plan_cards", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<PlanCardRow>("the plan cards", supabase.from("plan_cards").select(PLAN_CARD_COLUMNS).eq("world_id", worldId ?? 0).order("id") as unknown as Answer<PlanCardRow[]>),
-  });
+});
+export function usePlanCards(worldId: number | undefined) {
+  return useQuery(planCardsQuery(worldId));
 }
 
-export function usePlanLegs(worldId: number | undefined) {
-  return useQuery({
+export const planLegsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("plan_card_legs", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<PlanLegRow>("the plan cards' legs", supabase.from("plan_card_legs").select(PLAN_LEG_COLUMNS).eq("world_id", worldId ?? 0)
       .order("plan_card_id").order("position") as unknown as Answer<PlanLegRow[]>),
-  });
+});
+export function usePlanLegs(worldId: number | undefined) {
+  return useQuery(planLegsQuery(worldId));
 }
 
 /** The 7-day lines (plan_lines) and their legs (plan_line_legs), since 28 Oct: the deliveries board's lines. */
-export function usePlanLines(worldId: number | undefined) {
-  return useQuery({
+export const planLinesQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("plan_lines", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<PlanLineRow>("the lines", supabase.from("plan_lines").select(PLAN_LINE_COLUMNS).eq("world_id", worldId ?? 0).order("id") as unknown as Answer<PlanLineRow[]>),
-  });
+});
+export function usePlanLines(worldId: number | undefined) {
+  return useQuery(planLinesQuery(worldId));
 }
-export function usePlanLineLegs(worldId: number | undefined) {
-  return useQuery({
+export const planLineLegsQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("plan_line_legs", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<PlanLineLegRow>("the lines' legs", supabase.from("plan_line_legs").select(PLAN_LINE_LEG_COLUMNS).eq("world_id", worldId ?? 0)
       .order("line_id").order("position") as unknown as Answer<PlanLineLegRow[]>),
-  });
+});
+export function usePlanLineLegs(worldId: number | undefined) {
+  return useQuery(planLineLegsQuery(worldId));
 }
 
 export interface LaunchRow { id: number; launched_on: string | null; updated_at: string }
-export function useLaunches(worldId: number | undefined) {
-  return useQuery({
+export const launchesQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("rotations", "tails", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<LaunchRow>("the rotations", supabase.from("rotations").select("id, launched_on, updated_at").eq("world_id", worldId ?? 0) as unknown as Answer<LaunchRow[]>),
-  });
+});
+export function useLaunches(worldId: number | undefined) {
+  return useQuery(launchesQuery(worldId));
 }
 
 /** The world's game address (worlds.game_host), for an airline's public schedule. */
-export function useGameHost(worldId: number | undefined) {
-  return useQuery({
+export const gameHostQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("worlds", "game_host", worldId),
     enabled: worldId !== undefined,
     queryFn: async () => {
@@ -112,16 +119,19 @@ export function useGameHost(worldId: number | undefined) {
       if (error) return fail("the world's game address", error.message);
       return data?.game_host ?? null;
     },
-  });
+});
+export function useGameHost(worldId: number | undefined) {
+  return useQuery(gameHostQuery(worldId));
 }
 
 /** Low cost or not, for each airline (its cabins). */
-export function useLowCost(worldId: number | undefined) {
-  return useQuery({
+export const lowCostQuery = (worldId: number | undefined) => queryOptions({
     queryKey: tableKey("airlines", "low cost", worldId),
     enabled: worldId !== undefined,
     queryFn: () => rows<{ id: number; is_lcc: boolean | null }>("the airlines", supabase.from("airlines").select("id, is_lcc").eq("world_id", worldId ?? 0) as unknown as Answer<{ id: number; is_lcc: boolean | null }[]>),
-  });
+});
+export function useLowCost(worldId: number | undefined) {
+  return useQuery(lowCostQuery(worldId));
 }
 
 // ---------- read fresh when filing or deleting

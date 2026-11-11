@@ -15,12 +15,13 @@
 //   against the same day last week; staff read it);
 // - for Flights by day, one day's captured loads (game_loads, the old planner's CAP.loads, which held the last 9 days)
 //   and the loads typed by hand that day (load_entries, load_days).
-// The figures are asked for through a queue (data/limit.ts: at most four at a time), so opening the screen doesn't run
-// twenty at once. The functions that only read are called with GET, so a preview (decision #8) reads them too. The fare plan is keyed
+// Every figure is read through data/storedFigures.ts (since 11 Nov): from the stored set when it holds it, else from the
+// database through a queue (data/limit.ts: at most four at a time), so opening the screen doesn't run twenty at once. The functions that only read are called with GET, so a preview (decision #8) reads them too. The fare plan is keyed
 // under its table (["table", "fare_plan", ...]), so a save to it reads it again.
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { limited } from "../../data/limit";
-import { queryClient, tableKey } from "../../data/query";
+import { tableKey } from "../../data/query";
+import { airlineCardsQuery, growthSignalsQuery } from "../../data/sharedFigures";
+import { readFigure, refreshStored, storedOptions } from "../../data/storedFigures";
 import { supabase } from "../../data/supabase";
 import type { Json } from "../../db/types";
 import { markOf, type AircraftRow, type CardsAnswer, type DayRow, type FareChange, type FarePlanAnswer, type FareResultsAnswer, type Forecast, type LadderAnswer, type ProfitAnswer, type RouteDayRow, type RouteProfitAnswer, type RouteStory, type SharedPairsAnswer } from "./model";
@@ -43,24 +44,18 @@ async function pages<T>(what: string, page: (from: number, to: number) => Answer
   }
 }
 
-async function rpc<T>(what: string, fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await limited(() => supabase.rpc(fn as never, args as never, { get: true }));
-  if (error) return fail(what, error.message);
-  return data as unknown as T;
-}
+const rpc = readFigure;
 
-/** After a save that changes cash or the fare plan, the figures that build on them are read again. */
+/** After a save that changes cash or the fare plan, the figures that build on them are read again, live until the next
+ *  stored set (since 11 Nov). */
 export function refreshFigures() {
-  for (const k of ["airline_cards", "airline_profit", "cash_forecast", "route_profit"]) void queryClient.invalidateQueries({ queryKey: ["figures", k] });
+  refreshStored(["airline_cards", "airline_profit", "cash_forecast", "route_profit"]);
 }
 
-/** The scorecards for every airline, and the group today (airline_cards()). */
+const asCards = (d: unknown) => d as CardsAnswer;
+/** The scorecards for every airline, and the group today (airline_cards(): Home's read, one key since 11 Nov). */
 export function useReviewCards(worldId: number | undefined) {
-  return useQuery({
-    queryKey: ["figures", "airline_cards", "review", worldId],
-    enabled: worldId !== undefined,
-    queryFn: () => rpc<CardsAnswer>("the airlines' cards", "airline_cards", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
-  });
+  return useQuery({ ...airlineCardsQuery(worldId), select: asCards });
 }
 
 /** Each airline's profit by day (airline_profit()), for the scorecards' sparklines and the airline page. */
@@ -68,6 +63,7 @@ export function useProfits(airlineIds: readonly number[]) {
   return useQueries({
     queries: airlineIds.map((id) => ({
       queryKey: ["figures", "airline_profit", id],
+      ...storedOptions("airline_profit", { p_airline_id: id }),
       queryFn: () => rpc<ProfitAnswer>("the profit by day", "airline_profit", { p_airline_id: id, p_as_of: asOf() }),
     })),
   });
@@ -78,6 +74,7 @@ export function useForecast(airlineId: number | undefined) {
   return useQuery({
     queryKey: ["figures", "cash_forecast", airlineId],
     enabled: airlineId !== undefined,
+    ...storedOptions("cash_forecast", { p_airline_id: airlineId ?? 0 }),
     queryFn: () => rpc<Forecast>("the cash forecast", "cash_forecast", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
   });
 }
@@ -87,6 +84,7 @@ export function useForecasts(airlineIds: readonly number[]) {
   return useQueries({
     queries: airlineIds.map((id) => ({
       queryKey: ["figures", "cash_forecast", id],
+      ...storedOptions("cash_forecast", { p_airline_id: id }),
       queryFn: () => rpc<Forecast>("the cash forecast", "cash_forecast", { p_airline_id: id, p_as_of: asOf() }),
     })),
   });
@@ -97,6 +95,7 @@ export function useRouteProfit(airlineId: number | undefined, days: number) {
   return useQuery({
     queryKey: ["figures", "route_profit", airlineId, days],
     enabled: airlineId !== undefined,
+    ...storedOptions("route_profit", { p_airline_id: airlineId ?? 0, p_days: days }),
     // each route's mark as the planner reads it (markOf: raise from a database before 31 Oct's change reads sold_out)
     queryFn: async () => {
       const r = await rpc<RouteProfitAnswer>("the route profit", "route_profit", { p_airline_id: airlineId ?? 0, p_days: days, p_as_of: asOf() });
@@ -110,6 +109,7 @@ export function useAircraftProfit(airlineId: number | undefined, days: number) {
   return useQuery({
     queryKey: ["figures", "aircraft_profit", airlineId, days],
     enabled: airlineId !== undefined,
+    ...storedOptions("aircraft_profit", { p_airline_id: airlineId ?? 0, p_days: days }),
     queryFn: async () => (await rpc<{ aircraft: AircraftRow[] }>("the aircraft's profit", "aircraft_profit", { p_airline_id: airlineId ?? 0, p_days: days, p_as_of: asOf() })).aircraft ?? [],
   });
 }
@@ -119,6 +119,7 @@ export function useFareChanges(airlineId: number | undefined) {
   return useQuery({
     queryKey: ["figures", "fare_changes", airlineId],
     enabled: airlineId !== undefined,
+    ...storedOptions("fare_changes", { p_airline_id: airlineId ?? 0 }),
     queryFn: async () => (await rpc<{ changes: FareChange[] }>("the fare changes", "fare_changes", { p_airline_id: airlineId ?? 0, p_as_of: asOf() })).changes ?? [],
   });
 }
@@ -128,6 +129,7 @@ export function useFarePlan(airlineId: number | undefined) {
   return useQuery({
     queryKey: tableKey("fare_plan", "status", airlineId),
     enabled: airlineId !== undefined,
+    ...storedOptions("fare_plan_status", { p_airline_id: airlineId ?? 0 }),
     queryFn: () => rpc<FarePlanAnswer>("the fare plan", "fare_plan_status", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
   });
 }
@@ -141,6 +143,7 @@ export function useFareLadder(airlineId: number | undefined) {
   return useQuery({
     queryKey: tableKey("fare_plan", "ladder", airlineId),
     enabled: airlineId !== undefined,
+    ...storedOptions("fare_ladder", { p_airline_id: airlineId ?? 0 }),
     queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
   });
 }
@@ -151,6 +154,7 @@ export function useFareLadders(airlineIds: readonly number[]) {
   return useQueries({
     queries: airlineIds.map((id) => ({
       queryKey: tableKey("fare_plan", "ladder", id),
+      ...storedOptions("fare_ladder", { p_airline_id: id }),
       queryFn: () => rpc<LadderAnswer>("the fare ladder", "fare_ladder", { p_airline_id: id, p_as_of: asOf() }),
     })),
   });
@@ -163,6 +167,7 @@ export function useFareResults(airlineId: number | undefined) {
   return useQuery({
     queryKey: tableKey("fare_plan", "results", airlineId),
     enabled: airlineId !== undefined,
+    ...storedOptions("fare_results", { p_airline_id: airlineId ?? 0 }),
     queryFn: () => rpc<FareResultsAnswer>("the fare results", "fare_results", { p_airline_id: airlineId ?? 0, p_as_of: asOf() }),
   });
 }
@@ -173,6 +178,7 @@ export function useAllFareResults(airlineIds: readonly number[]) {
   return useQueries({
     queries: airlineIds.map((id) => ({
       queryKey: tableKey("fare_plan", "results", id),
+      ...storedOptions("fare_results", { p_airline_id: id }),
       queryFn: () => rpc<FareResultsAnswer>("the fare results", "fare_results", { p_airline_id: id, p_as_of: asOf() }),
     })),
   });
@@ -216,6 +222,7 @@ export function useRouteStory(routeId: number | undefined) {
   return useQuery({
     queryKey: tableKey("fare_plan", "route story", routeId),
     enabled: routeId !== undefined,
+    ...storedOptions("route_story", { p_route_id: routeId ?? 0 }),
     queryFn: () => rpc<RouteStory>("the route's story", "route_story", { p_route_id: routeId ?? 0, p_as_of: asOf() }),
   });
 }
@@ -285,26 +292,24 @@ const signal = (r: SignalRoute): SignalRoute => ({
   economy_fare: num(r.economy_fare as Json), flights: Number(r.flights), sold_out: Number(r.sold_out ?? 0), with_loads: Number(r.with_loads ?? 0),
 });
 
-/** The growth lists across our airlines and the load patterns, at the moment (growth_signals()). */
+/** Performance's reading of growth_signals(): the growth lists across our airlines and the load patterns. */
+function toGrowthRead(data: unknown): GrowthRead {
+  const d = data as Partial<GrowthRead>;
+  return {
+    days: Number(d.days ?? 0), profit_captured: d.profit_captured ?? true,
+    ready_for_another_flight: (d.ready_for_another_flight ?? []).map(signal),
+    // raise_fares: a database from before 31 Oct's change
+    sold_out: (d.sold_out ?? (d as { raise_fares?: SignalRoute[] }).raise_fares ?? []).map(signal),
+    fix_or_reduce: (d.fix_or_reduce ?? []).map(signal),
+    aircraft_losing_after_lease: (d.aircraft_losing_after_lease ?? []).map((a) => ({ ...a, net_day: num(a.net_day as Json), routes: a.routes ?? [] })),
+    load_patterns: (d.load_patterns ?? []).map((p) => ({ ...p, departures: Number(p.departures), full: Number(p.full) })),
+  };
+}
+
+/** The growth lists across our airlines and the load patterns, at the moment (growth_signals(): one read with Home's and
+ *  Routes', since 11 Nov). */
 export function useGrowthSignals(worldId: number | undefined) {
-  return useQuery({
-    queryKey: ["figures", "growth_signals", "check", worldId],
-    enabled: worldId !== undefined,
-    queryFn: async (): Promise<GrowthRead> => {
-      const { data, error } = await limited(() => supabase.rpc("growth_signals", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
-      if (error) return fail("the growth signals", error.message);
-      const d = data as unknown as Partial<GrowthRead>;
-      return {
-        days: Number(d.days ?? 0), profit_captured: d.profit_captured ?? true,
-        ready_for_another_flight: (d.ready_for_another_flight ?? []).map(signal),
-        // raise_fares: a database from before 31 Oct's change
-        sold_out: (d.sold_out ?? (d as { raise_fares?: SignalRoute[] }).raise_fares ?? []).map(signal),
-        fix_or_reduce: (d.fix_or_reduce ?? []).map(signal),
-        aircraft_losing_after_lease: (d.aircraft_losing_after_lease ?? []).map((a) => ({ ...a, net_day: num(a.net_day as Json), routes: a.routes ?? [] })),
-        load_patterns: (d.load_patterns ?? []).map((p) => ({ ...p, departures: Number(p.departures), full: Number(p.full) })),
-      };
-    },
-  });
+  return useQuery({ ...growthSignalsQuery(worldId), select: toGrowthRead });
 }
 
 export interface HubProgressAirline {
@@ -324,9 +329,9 @@ export function useHubProgress(worldId: number | undefined) {
   return useQuery({
     queryKey: ["figures", "hub_progress", "check", worldId],
     enabled: worldId !== undefined,
+    ...storedOptions("hub_progress", { p_world_id: worldId ?? 0 }),
     queryFn: async (): Promise<HubProgressAirline[]> => {
-      const { data, error } = await limited(() => supabase.rpc("hub_progress", { p_world_id: worldId ?? 0, p_as_of: asOf() }, { get: true }));
-      if (error) return fail("the main hubs' progress", error.message);
+      const data = await readFigure<unknown>("the main hubs' progress", "hub_progress", { p_world_id: worldId ?? 0, p_as_of: asOf() });
       return ((data as unknown as { airlines?: HubProgressAirline[] }).airlines ?? []).map((a) => ({
         ...a, target: Number(a.target), departures: num(a.departures as Json), planned: num(a.planned as Json), percent: num(a.percent as Json), exempt: !!a.exempt,
       }));
@@ -388,6 +393,7 @@ export function useSharedPairsStatus(worldId: number | undefined) {
   return useQuery({
     queryKey: ["figures", "shared_pairs_status", worldId],
     enabled: worldId !== undefined,
+    ...storedOptions("shared_pairs_status", { p_world_id: worldId ?? 0 }),
     queryFn: () => rpc<SharedPairsAnswer>("the shared pairs", "shared_pairs_status", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
   });
 }

@@ -36,6 +36,7 @@ import {
 } from "./model";
 import { WeekTiles, useStoryBoards } from "./RouteStory";
 import { useRouteAt, useRouteStory } from "./reads";
+import { FiguresAsOf } from "../../ui/FiguresAsOf";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -140,6 +141,7 @@ export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse
             title={svc.off ? "the service check finds this route set differently in the game, the distance or the planner: see Today's needs attention" : undefined}>{svc.text}</span></> : null}</p>
         <p className="rpline">{h.launched} · {h.departures}{h.types ? ` · ${h.types}` : ""}{s.route.removed ? " · removed from the list" : ""}</p>
         {h.fares.length ? <p className="rpline" data-fares>{h.fares.join("; ")}</p> : null}
+        <FiguresAsOf />
       </div>
       {pairMark && (pairMark.join || pairMark.text) ? (
         <div className="pairbar" data-pair-bar={pairMark.role}><PairPill mark={pairMark} />{pairMark.join ? <JoinPair mark={pairMark} /> : null}</div>
