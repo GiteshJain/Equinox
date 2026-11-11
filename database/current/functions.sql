@@ -3189,7 +3189,10 @@ begin
       insert into public.game_statement (world_id, airline_id, airline, ts, descr, amount, side, route, pax, occ, blk, captured_at)
       values (r.world_id, r.airline_id, r.airline, tsv, v_descr, amt, v_side, substring(v_descr from '\(([A-Z]{3}-[A-Z]{3})\)'),
               (substring(v_descr from 'of (\d+) passengers'))::int, o, b, v_at)
-      on conflict on constraint game_statement_pkey do update set blk = excluded.blk;
+      -- a line already kept is written again only when its block changed (since 11 Nov, spec
+      -- docs/specs/2026-11-11-statement-no-rewrite.md: before, every line of every page was updated, changed or not)
+      on conflict on constraint game_statement_pkey do update set blk = excluded.blk
+      where game_statement.blk is distinct from excluded.blk;
       n := n + 1;
       v_minutes := v_minutes || tsv;
     end loop;
@@ -7887,9 +7890,22 @@ begin
   if p_minutes is null or cardinality(p_minutes) = 0 then return 0; end if;
   select a.world_id into v_world from public.airlines a where a.id = p_airline_id;
 
-  -- 1. these minutes' lines let go of their flights; they are tied again in 4
-  update public.game_statement set flight_id = null
-   where airline_id = p_airline_id and ts = any (p_minutes) and flight_id is not null;
+  -- 1. a line of these minutes lets go of its flight only when that flight won't stay as it is: 2 is about to delete it
+  --    or take its money off (the same test 2 makes, on the same blocks), the line's own block no longer matches the
+  --    flight's, or the line is now a payment line. A line whose flight stays keeps its flight_id untouched, which 4
+  --    would only set to the same flight again (since 11 Nov, spec docs/specs/2026-11-11-statement-no-rewrite.md;
+  --    before, every line of the minutes let go and 4 tied it again). The foreign key to game_flights has no cascade,
+  --    so no line is ever kept on a flight 2 deletes. Nothing reads flight_id between here and 4.
+  with b as materialized (select * from private.statement_blocks(p_airline_id, p_minutes) x where x.is_flight)
+  update public.game_statement s set flight_id = null
+    from public.game_flights f
+   where s.airline_id = p_airline_id and s.ts = any (p_minutes) and s.flight_id is not null
+     and f.id = s.flight_id and f.airline_id = s.airline_id
+     and not coalesce(f.posted_at = s.ts and f.statement_blk = s.blk and not private.is_payment_line(s.descr, s.blk)
+                      and exists (select 1 from b where b.ts = s.ts and b.blk = s.blk
+                                     and (f.flight_no is null
+                                          or (b.routes_n = 1 and b.route = f.origin_code || '-' || f.dest_code))),
+                      false);
 
   -- 2. money whose block is gone or changed: a money-only row goes; a flight already matched to its loads keeps them and
   --    loses the money, which 3 puts back as a money-only row to be matched again
@@ -7935,11 +7951,12 @@ begin
                                  is distinct from (excluded.origin_code, excluded.dest_code, excluded.dep_at));
   get diagnostics v_n = row_count;
 
-  -- 4. each flight line points at its flight
+  -- 4. each flight line points at its flight; a line already pointing at it isn't written again (since 11 Nov)
   update public.game_statement s set flight_id = f.id
     from public.game_flights f
    where s.airline_id = p_airline_id and s.ts = any (p_minutes) and not private.is_payment_line(s.descr, s.blk)
-     and f.airline_id = p_airline_id and f.posted_at = s.ts and f.statement_blk = s.blk;
+     and f.airline_id = p_airline_id and f.posted_at = s.ts and f.statement_blk = s.blk
+     and s.flight_id is distinct from f.id;
 
   -- 5. every other line is a payment, one row per statement line; a cabin installation names its aircraft (since 22 Oct,
   --    spec docs/specs/2026-10-21-tidy-ups.md §3: the cabin charge check), and one found once stays
