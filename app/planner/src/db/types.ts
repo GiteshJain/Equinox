@@ -1413,6 +1413,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"planner_figures": {
+                  Row: {
+                    "answer": NonNullable<Json>,"as_of": string,"generation": number,"key": string,"kind": string,"worked_ms": number,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "answer": NonNullable<Json>,"as_of": string,"generation": number,"key": string,"kind": string,"worked_ms": number,"world_id": number
+                  }
+                  Update: {
+                    "answer"?: NonNullable<Json>,"as_of"?: string,"generation"?: number,"key"?: string,"kind"?: string,"worked_ms"?: number,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "planner_figures_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"planner_figures_state": {
+                  Row: {
+                    "generation": number,"last_error": string | null,"last_error_at": string | null,"ready_at": string | null,"refreshing_since": string | null,"routes_done": number,"routes_total": number,"sources": Json | null,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "generation"?: number,"last_error"?: string | null,"last_error_at"?: string | null,"ready_at"?: string | null,"refreshing_since"?: string | null,"routes_done"?: number,"routes_total"?: number,"sources"?: Json | null,"world_id": number
+                  }
+                  Update: {
+                    "generation"?: number,"last_error"?: string | null,"last_error_at"?: string | null,"ready_at"?: string | null,"refreshing_since"?: string | null,"routes_done"?: number,"routes_total"?: number,"sources"?: Json | null,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "planner_figures_state_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: true
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"planner_scripts": {
                   Row: {
                     "content": string,"name": string,"updated_at": string
@@ -2244,6 +2284,9 @@ isOneToOne: false
                            },
 "planner_data_set":
 { Args: { "p_key": string,"p_secret": string,"p_value": Json }; Returns: Json
+                           },
+"planner_figures_status":
+{ Args: { "p_world"?: number }; Returns: Json
                            },
 "planner_save":
 { Args: { "p_changes": Json,"p_client": string }; Returns: Json

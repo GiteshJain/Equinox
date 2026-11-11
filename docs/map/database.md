@@ -12,6 +12,17 @@ Supabase project `ulecwsyedvwcxgdzmhoq` (free plan): 74 tables, 8 views and 54 f
 
 **Shared pairs** (since 5 Nov, spec `docs/specs/2026-11-05-shared-pairs.md` §1, built in #137 and #138; in force, manual §2): a joiner's `routes` row names the owner's in `routes.shares_route_id` (same world by its foreign key, same two airports and another airline by the trigger `private.check_route_share()`, one level of joining, one joiner an owner); `join_pair()` adds it (staff only, the planner's save lock, actor-logged with detail join_pair), refusing a pair that isn't base to base, Ryanair (`settings.shared_pairs_excluded_airlines`), a second joiner and, for `shared_pairs_limit_days` (14) from `shared_pairs_from`, more than `shared_pairs_limit` (6) joined pairs; the view `shared_pairs` lists every base-to-base pair of two of our airlines with its owner (the airline whose row exists, else the country rule's, a values list in the view), joiner, routes and flights a week. The fare ladder (`private.fig_fare_ladder()`) judges a joined pair once, on the owner's rows, counting the joiner's captured flights; the joiner's rows follow the owner's level and list only set-backs. Since 30 Oct (part 2, spec `docs/specs/2026-10-30-market-pages-planner.md`) the planner reads them through `route_story()`, `competition()` and `market_service_checks()`, and the weekly report through `export_for_report('figures')`. Nothing signed out can read any table or view; the website, the investor page, the capture, the fares userscript, the aircraft evaluation userscript and the scripts go through functions.
 
+**The stored figures** (since 11 Nov, spec `docs/specs/2026-11-11-stored-figures.md` §1; to-do 223): `planner_figures`
+(one row per stored answer: world, kind (the function), key, the answer, its moment, its generation, how long it took)
+and `planner_figures_state` (one row per world: the generation the planner should load, when it was ready, what it was
+worked out from, the route pages done of the routes flown, the last error). RLS on, staff read only, nothing for anon;
+written only by `private.figures_refresh()` and `private.figures_routes()`, run by a fifth job on `pg_cron`,
+`equinox-figures`, every minute (the others: the 10:00 UTC snapshot fallback, the 10:20 UTC clean-ups, and the
+unattended capture's start and its answer). Only the latest set is kept, replaced in place: about 5 MB of figures and 21
+MB of route pages before compression, up to about twice that with the dead rows autovacuum hasn't reused yet;
+`system_status()`'s usage lists the table's size (amber from 50 MB). Settings `figures_capture_quiet_min` (5),
+`figures_route_budget_s` (40) and `figures_landing_max_min` (30, for the planner's landing page in part 2).
+
 ## Where
 
 supabase.com; tables in `docs/data.md`; every change in `database/migrations/` Since 22 Oct `airline_bases.role` may be `station` (`airline_bases_role_kinds`, `airline_bases_station_shape`: no banks, block or parent, never the main hub; the old hub-or-focus rule went in a removals file Gitesh ran); every read that means "our hubs and focus cities" leaves stations out: `competition()`'s trunks, contested bases and hubs first (a station opening waits for the main hub's 750, "hubs first: stations wait for <MAIN>'s 750"), `hub_progress()` and `site_public()`'s hubs.
