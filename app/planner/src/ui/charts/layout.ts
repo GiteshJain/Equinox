@@ -9,6 +9,24 @@ export const TONE = { ok: "#1A7F55", warn: "#E39B21", bad: "#B4234B", mute: "#9A
 /** A run of quiet colours for series with no colour of their own (the rivals, the rest). */
 export const SERIES = ["#4B3BA8", "#E86A92", "#1A7F55", "#E39B21", "#3B8FD8", "#8C94AD", "#B4234B", "#0E1630"] as const;
 
+/** Each of TONE's and SERIES' colours to its named colour in styles.css (--chart-ok, --chart-1 …), so a chart drawn with
+ *  paint(colour) takes the look's own colours: today's in the light look (the same values), ones made for dark glass in
+ *  the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md). The SVG keeps its fill attribute as well. */
+const CHART_VAR: ReadonlyMap<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const [k, c] of Object.entries(TONE)) m.set(c.toUpperCase(), k === "violet" ? "--chart-1" : `--chart-${k}`);
+  SERIES.forEach((c, i) => { if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${i + 1}`); });
+  return m;
+})();
+/** A chart colour as CSS: its named colour (with the colour itself as the fallback) when it's one of the kit's, else
+ *  the colour as given (an airline's livery, a screen's own). A mark with no colour stays without one, as it was before
+ *  paint() (Competition's donut gives none to a rival that leads a market we don't fly; pull request 153's rehearsal, 11 Nov). */
+export function paint<C extends string | null | undefined>(color: C): C | string {
+  if (typeof color !== "string") return color;
+  const v = CHART_VAR.get(color.toUpperCase());
+  return v ? `var(${v}, ${color})` : color;
+}
+
 /** The next "nice" number at or above v (1, 2, 2.5 or 5 times a power of ten); 1 for 0 or less. */
 export function niceCeil(v: number): number {
   if (!(v > 0) || !Number.isFinite(v)) return 1;

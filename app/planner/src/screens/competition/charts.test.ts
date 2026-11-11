@@ -46,6 +46,12 @@ describe("Market share: a donut per market", () => {
     expect(html).toContain("Air China 100 a week (50%)");
     expect(renderToString(createElement(MarketDonut, { m: market({ total: 0 }) }))).toBe("");
   });
+  it("a market we fly nothing in draws, its leading rival first (it crashed the screen with paint(), pull request 153's rehearsal, 11 Nov)", () => {
+    const m = market({ ours: 0, total: 160, share: 0 });
+    expect(marketDonut(m).map((p) => p.label)).toEqual(["Air China", "ANA", "others"]);
+    expect(() => renderToString(createElement(MarketDonut, { m }))).not.toThrow();
+    expect(renderToString(createElement(MarketDonut, { m }))).toContain("Air China 100 a week");
+  });
 });
 
 describe("Threats: a timeline by scan day", () => {

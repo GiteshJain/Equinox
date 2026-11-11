@@ -51,6 +51,10 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
    Since 28 Oct a sample 7-day line (made for the test on the airline Tails opens on, removed after) is on Tails'
    deliveries board with its slots at both widths, and among Today's Orders' open lines (1 of 7) with its link to Tails.
+   Since 11 Nov (the glass look, step 1; spec docs/specs/2026-11-11-glass-look.md) the same again at 1280 and 380 px with
+   the glass look's switch on (screens_glass): <html> has data-look glass and the period of the frozen moment's hour, the
+   airline rail lists All and our airlines with the right one lit, and every screen's link is in the header once;
+   screenshots end in -glass.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -399,6 +403,17 @@ async def home_opens(pl):
             f"({boards['clocks']} time zones)"), problems
 
 
+def set_moment_sql():
+    """The stored set's own moment on the copy, as SQL: the as_of private.figures_refresh() wrote into
+    planner_figures_state.sources when store_figures() stored the set (now() when there is no set, as the screens then
+    read live). A screen that reads the stored set shows its figures as of that moment, so a check that compares it with a
+    database call must make the call at the same moment: competition()'s threats come from the scans of the 7 days before
+    it, and a call at now() drifts (pull request 153's rehearsal: a 4 Nov scan inside the window at the set's 11 Nov
+    10:32, outside it at 21:54)."""
+    return (f"coalesce((select (s.sources ->> 'as_of')::timestamptz from public.planner_figures_state s "
+            f"where s.world_id = {WORLD}), now())")
+
+
 async def today_opens(pl):
     """Today (20 Oct, spec docs/specs/2026-10-20-today-performance-systems.md): its answer at the top (All clear or what's
     waiting) with the capture in one line linking to Systems; then every board open, in order: Orders with a card for each
@@ -442,7 +457,7 @@ async def today_opens(pl):
         problems.append(f"Today's orders timeline has {chart['rows']} rows, the table {got['lines']} delivery lines")
     # the rivals' moves the latest scan showed (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): as many as
     # competition() gives with latest true, none dismissed on the copy, each linking to its airline's Competition page
-    latest = int(psql(f"""select coalesce(sum((select count(*) from jsonb_array_elements(public.competition(al.airline_id) -> 'threats') t
+    latest = int(psql(f"""select coalesce(sum((select count(*) from jsonb_array_elements(public.competition(al.airline_id, {set_moment_sql()}) -> 'threats') t
                                                    where (t ->> 'latest')::boolean)), 0)
                           from private.fig_airlines({WORLD}) al""").strip() or 0)
     dismissed = int(psql("select count(*) from public.dismissals where alert_key like 'threat|%'").strip() or 0)
@@ -517,7 +532,7 @@ async def competition_opens(pl):
         problems.append("Competition has no Order books board")
     books = json.loads(psql(f"""select coalesce(json_agg(distinct f ->> 'airline_id'), '[]') from public.airlines a
                                   join public.groups g on g.id = a.group_id and g.world_id = a.world_id
-                                  cross join lateral jsonb_array_elements(coalesce(public.competition(a.id) -> 'order_flags', '[]')) f
+                                  cross join lateral jsonb_array_elements(coalesce(public.competition(a.id, {set_moment_sql()}) -> 'order_flags', '[]')) f
                                   where g.kind = 'ours' and a.world_id = {WORLD} and a.active""").strip())
     if len(group["bookRows"]) != len(books):
         problems.append(f"Competition's Order books show {len(group['bookRows'])} rivals; competition() flags {len(books)}")
@@ -565,7 +580,7 @@ async def competition_opens(pl):
                                  'pconn', (select count(*) from jsonb_array_elements(d -> 'profiles') p where p ? 'connecting_weekly'),
                                  'oconn', (select coalesce(json_agg((o ->> 'connecting_weekly')::int order by (o ->> 'rank')::int), '[]') from jsonb_array_elements(d -> 'openings') o
                                            where (o ->> 'rank')::int <= 10))
-                            from (select public.competition({int(aid)}) as d) x""").strip())
+                            from (select public.competition({int(aid)}, {set_moment_sql()}) as d) x""").strip())
     if got["markets"] != db["markets"] or got["threats"] != db["threats"] or got["profiles"] != db["profiles"]:
         problems.append(f"{code}: {got['markets']} markets, {got['threats']} threats and {got['profiles']} profiles shown; competition() gives "
                         f"{db['markets']}, {db['threats']} and {db['profiles']}")
@@ -1528,7 +1543,34 @@ async def charts_readable_and_open(pg, where):
     return problems
 
 
-async def screens(p, port, env, facts, staff, seen, moment):
+# the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md, step 1): its switch, kept in the browser, turned on
+# before the planner's own script runs; the period follows the frozen moment's hour (the browser runs in UTC)
+GLASS_INIT = "try { localStorage.setItem('equinox-planner-look', 'glass'); } catch (e) {}"
+GLASS_JS = """(() => ({ look: document.documentElement.dataset.look || '', period: document.documentElement.dataset.period || '',
+    rail: [...document.querySelectorAll('nav.eq-rail .eq-railbtn')].map(b => b.dataset.rail),
+    lit: (document.querySelector('nav.eq-rail [aria-current]') || { dataset: {} }).dataset.rail || '',
+    links: [...document.querySelectorAll('header [data-screen-link]')].map(a => a.dataset.screenLink) }))()"""
+
+
+def period_of(hour):
+    """The planner's periodOf (src/ui/look/look.ts): Day 07-16, Dusk 17-19 and 05-06, Night 20-04."""
+    return "day" if 7 <= hour < 17 else "dusk" if 17 <= hour < 20 or 5 <= hour < 7 else "night"
+
+
+def rail_codes():
+    """Our airlines' codes as the rail lists them (useOurAirlines: every one of ours, by position, nulls last, then id)."""
+    out = psql(f"""select coalesce(string_agg(a.iata_code, ',' order by a.position nulls last, a.id), '') from public.airlines a
+                   join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+                   where g.kind = 'ours' and a.world_id = {WORLD} and a.iata_code is not null""").strip()
+    return [c for c in out.split(",") if c]
+
+
+async def screens_glass(p, port, env, facts, staff, seen, moment):
+    """The same screens with the glass look's switch on (step 1 of the glass look), at 1280 and 380 px."""
+    return await screens(p, port, env, facts, staff, seen, moment, glass=True)
+
+
+async def screens(p, port, env, facts, staff, seen, moment, glass=False):
     """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
     staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Systems with every
     board open, Reference with every section open), and no link into the old planner, to /planner/next/ or to a screen
@@ -1539,6 +1581,10 @@ async def screens(p, port, env, facts, staff, seen, moment):
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
     links = shots = 0
     code = first_airline()
+    # the glass run (since 11 Nov): its own names, and what the rail and the attributes must show
+    tag = "-glass" if glass else ""
+    rail = ["all"] + rail_codes() if glass else []
+    want_period = period_of(int(moment[11:13])) if glass else ""
     # the route page (22 Oct): a busy legacy route (any of our airlines but Ryanair) and a busy Ryanair route, each the one
     # with the most days with flights, so the since-launch chart is drawn where any route has 14
     route_pages = [r for r in (busiest_route(not_code="FR"), busiest_route(code="FR")) if r]
@@ -1552,12 +1598,12 @@ async def screens(p, port, env, facts, staff, seen, moment):
         # since 30 Oct (spec docs/specs/2026-10-30-route-story-on-routes.md) also 1700 px, for Routes' route detail only: the
         # route's story in a third column from 1,600 px; and 2000 px (spec docs/specs/2026-10-30-charts-everywhere.md, wide
         # screens): the route detail uses the full width, the story about 55% of what the list leaves
-        for width, height in ((1280, 900), (380, 800), (1700, 1000), (2000, 1100)):
+        for width, height in ((1280, 900), (380, 800)) if glass else ((1280, 900), (380, 800), (1700, 1000), (2000, 1100)):
             only_routes = width >= 1700
             ph = Planner(p, port, env, facts, width=width, height=height)
             seen.append(ph)
             try:
-                await ph.open(moment=moment)
+                await ph.open(moment=moment, init=GLASS_INIT if glass else None)
                 await ph.pg.emulate_media(reduced_motion="reduce")   # the globe holds still, so two screenshots of a moment are the same
                 await ph.sign_in(*staff)
                 if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
@@ -1645,8 +1691,23 @@ async def screens(p, port, env, facts, staff, seen, moment):
                     if await ph.pg.evaluate(SHOW_CHARTS_JS.replace("forEach(b => b.click())", "length")):
                         await ph.pg.evaluate(SHOW_CHARTS_JS)   # the charts again, as a viewer sees them, for the screenshot and the next page
                         await settle(ph.pg, 300)
+                    if glass:
+                        g = await ph.pg.evaluate(GLASS_JS)
+                        lit = (code if name in ("performance-airline", "competition-airline") else name[6:] if name.startswith("route-")
+                               else route_pages[0]["code"] if name == "routes-detail" and route_pages
+                               else (rail[1] if len(rail) > 1 else "all") if sid in ("routes", "tails") else "all")
+                        if g["look"] != "glass":
+                            problems.append(f"{name} at {width} px (glass): <html> has data-look {g['look']!r}")
+                        if g["period"] != want_period:
+                            problems.append(f"{name} at {width} px (glass): the period is {g['period']!r}, expected {want_period!r} at {moment}")
+                        if g["rail"] != rail:
+                            problems.append(f"{name} at {width} px (glass): the rail shows {g['rail']}, expected {rail}")
+                        if g["lit"] != lit:
+                            problems.append(f"{name} at {width} px (glass): the rail lights {g['lit']!r}, expected {lit!r}")
+                        if sorted(g["links"]) != sorted(s for s, _ in SCREENS):
+                            problems.append(f"{name} at {width} px (glass): the header's screen links are {g['links']}")
                     if SCREENS_DIR:
-                        await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-{width}.png"), full_page=True, timeout=90000)
+                        await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-{width}{tag}.png"), full_page=True, timeout=90000)
                         shots += 1
 
                 for sid, href in ([] if only_routes else SCREENS):
@@ -1744,6 +1805,10 @@ async def screens(p, port, env, facts, staff, seen, moment):
     finally:
         remove_line()
     routes_words = " and ".join(f"{r['code']} {r['hub']}–{r['dest']}" for r in route_pages) or "no route with flights"
+    if glass:
+        return (f"with the glass look's switch on: every screen ({len(SCREENS)}), {code}'s Performance and Competition pages and the route pages of {routes_words} open on the copy at the moment ({moment}), at 1280 and 380 px wide: "
+                f"ready, no errors, no sideways scroll, every chart's text 11 px or more, data-look glass and the {want_period} period, the rail's {len(rail)} buttons with the right one lit, every screen's link in the header once"
+                + (f"; {shots} screenshots kept" if shots else "")), problems
     return (f"every screen ({len(SCREENS)}), {code}'s Performance and Competition pages and the route pages of {routes_words} open on the copy at the moment ({moment}), at 1280 and 380 px wide (and Routes' route detail at 1700 and 2000, with the route's story in its third column, at 2000 using the "
             f"whole width): ready, no errors, no sideways scroll, every chart's text 11 px or more and a chart opening full size (Systems with every board open, Reference with every section open), and none of their {links} "
             f"links goes into the old planner, to /planner/next/ or to Hubs, Check or Review" + (f"; {shots} screenshots kept" if shots else "")), problems
@@ -2199,9 +2264,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, stored_figures, screens, systems_board, short_page, unattended_capture, addresses):
+            for check in (two_tabs, preview, stored_figures, screens, screens_glass, systems_board, short_page, unattended_capture, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (stored_figures, screens, systems_board, short_page, unattended_capture) else []))
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (stored_figures, screens, screens_glass, systems_board, short_page, unattended_capture) else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)

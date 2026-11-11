@@ -296,3 +296,11 @@ doesn't carry them.
   coordinates.
 - **`land110.geojson`:** Natural Earth's public 1:110m land outline, for the newsletter map.
 - **`game_stats.json`:** the game's statistics pages, saved by hand. No script makes it yet.
+
+## The planner's backdrop pictures (Building chat)
+`look/draw_backdrops.py` draws the glass look's three skies (to-do 225, spec `docs/specs/2026-11-11-glass-look.md`,
+step 1): Day, Dusk and Night, from gradients, soft cloud and stars in the planner's own colours, no photographs or
+downloaded images. Run from the repository root: `python3 scripts/look/draw_backdrops.py`. It writes
+`app/planner/src/ui/look/backdrop-{day,dusk,night}.jpg` (1920 × 1200, JPEG, about 33–42 KB each) and prints their
+sizes; fixed seeds, so running it again gives the same files. Needs Pillow and NumPy. After a redraw, run
+`python3 tests/glass_contrast_test.py`: never darken Day to make it pass (Gitesh, 11 Nov).

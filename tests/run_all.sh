@@ -35,6 +35,8 @@ run "Capture's salaries: a minimal Employee overview page read, below the averag
 run "Capture's bank statement: every line kept in parts of at most 500, never splitting a minute, each part's page named" node tests/capture_statement_test.mjs
 run "Planner and planning library: types, lint, unit tests and cases, build" new_planner
 run "Planner: the screens' figures on the 12 Oct sample against saved answers" node tests/planner_figures.mjs
+run "Planner's glass look: text against the glass over the brightest part of each picture" python3 tests/glass_contrast_test.py
+run "Planner's look: typed-in colours don't grow" python3 tests/look_colours_test.py
 run "Planning library: the optimiser against plan.py's saved answer" python3 tests/optimiser_saved_answer_test.py
 run "Planning library: the line optimiser against its saved answer on the A350 sample" python3 tests/line_saved_answer_test.py
 run "Weekly report: end to end on the report sample, its money from the figures" python3 tests/report_test.py
