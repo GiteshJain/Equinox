@@ -4,6 +4,8 @@
 // round account button opening the save state, the local/UTC toggle, the Website link and Sign out. Under the bar, the
 // website's twilight line. On a phone the nav goes into a menu button and the search box is hidden, as before; nothing
 // scrolls sideways. Every screen's link stays in the header (data-screen-link), shut menus included.
+// Since step 1 of the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md) the account menu has the Glass look
+// switch; under [data-look="glass"] styles.css shows More's screens as pills in the row, so all ten show at once.
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { time } from "@rules";
@@ -13,6 +15,7 @@ import { signOut } from "../data/session";
 import { useTimeMode } from "../data/timeMode";
 import { SCREENS, screenRoute, type ScreenId } from "../screens/screens";
 import { Clocks } from "./Clocks";
+import { useLook } from "./look/look";
 import { Search } from "./Search";
 
 /** The screens in the bar itself; every other screen goes under More. */
@@ -23,6 +26,7 @@ type Menu = "nav" | "more" | "clocks" | "account" | null;
 export function Header() {
   const save = useSaveState();
   const [mode, toggle] = useTimeMode();
+  const [glass, flipLook] = useLook();
   const now = useNow();
   const [open, setOpen] = useState<Menu>(null);
   const root = useRef<HTMLElement>(null);
@@ -95,6 +99,8 @@ export function Header() {
               )}
               <button type="button" className="tm" id="timemode" data-time-mode={mode} onClick={toggle}
                 title="Switch between local and UTC times">{mode === "utc" ? "Times in UTC" : "Times in Local"}<span className="tmv">{mode === "utc" ? "UTC" : "Local"}</span></button>
+              <button type="button" className="tm" id="lookmode" data-look-mode={glass ? "glass" : "light"} onClick={flipLook}
+                title="The new glass look, while it's built: kept in this browser only">Glass look<span className="tmv">{glass ? "On" : "Off"}</span></button>
               <a className="eqsite" href="/" title="Open the public website">Website</a>
               <button type="button" className="tm" id="signout" onClick={() => void signOut()}>Sign out</button>
             </div>

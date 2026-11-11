@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import type {
   DonutLayout, GaugeLayout, HBarLayout, HeatLayout, SizedScatterLayout, SparkLayout, StackLayout, StepLayout, TimelineLayout,
 } from "./layout";
+import { paint } from "./layout";
 
 /** The smallest text a chart shows, in screen px. */
 export const MIN_TEXT_PX = 11;
@@ -180,7 +181,7 @@ export interface LegendItem { label: string; color: string; dashed?: boolean }
 /** A legend in the page's own type, so it's never scaled down with a chart (nothing for a single series). */
 export function Legend({ items }: { items: readonly LegendItem[] }) {
   return items.length > 1 ? (
-    <ul className="kcl">{items.map((l) => <li key={l.label}><i className={l.dashed ? "dash" : undefined} style={{ background: l.dashed ? undefined : l.color, borderColor: l.color }} />{l.label}</li>)}</ul>
+    <ul className="kcl">{items.map((l) => <li key={l.label}><i className={l.dashed ? "dash" : undefined} style={{ background: l.dashed ? undefined : paint(l.color), borderColor: paint(l.color) }} />{l.label}</li>)}</ul>
   ) : null;
 }
 /** A chart's frame: its title and one-line note (as the boards have), its legend, and its empty state in words. */
@@ -211,7 +212,7 @@ export function HBars({ layout, figure, label = "bar chart", onPick }: { layout:
             {g.bars.map((b) => (
               <g key={b.key} data-bar={b.key}>
                 <text x={g.L - 6} y={b.y + b.h / 2 + 4} textAnchor="end" className="klab">{fitText(b.label, g.L - 10)}</text>
-                <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" fill={b.color} data-tip={b.tip}
+                <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" fill={b.color} style={{ fill: paint(b.color) }} data-tip={b.tip}
                   className={onPick ? "kpick" : undefined} onClick={onPick ? () => onPick(b.key) : undefined} />
                 <text x={b.textX} y={b.y + b.h / 2 + 4} textAnchor={b.neg ? "end" : "start"} className="kval">{b.text}</text>
               </g>
@@ -241,7 +242,7 @@ export function StackedBars({ layout, figure, onPick, label = "bar chart" }: { l
               <g key={r.key} data-stack-row={r.key}>
                 <text x={g.L - 6} y={r.y + r.h / 2 + 4} textAnchor="end" className="klab">{fitText(r.label, g.L - 10)}</text>
                 {r.segs.map((s) => (
-                  <rect key={s.key} x={s.x} y={r.y} width={s.w} height={r.h} fill={s.color} data-tip={s.tip} data-seg={`${r.key}|${s.key}`}
+                  <rect key={s.key} x={s.x} y={r.y} width={s.w} height={r.h} fill={s.color} style={{ fill: paint(s.color) }} data-tip={s.tip} data-seg={`${r.key}|${s.key}`}
                     className={onPick ? "kpick" : undefined} onClick={onPick ? () => onPick(r.key, s.key) : undefined} />
                 ))}
                 {r.total ? <text x={r.totalX} y={r.y + r.h / 2 + 4} className="kval">{r.total}</text> : <text x={g.L + 4} y={r.y + r.h / 2 + 4} className="kval dim">none</text>}
@@ -259,7 +260,7 @@ export function Donut({ g, middle, figure, label = "share" }: { g: DonutLayout; 
   return (
     <ChartTip className="chartwrap kdonutw" label={label}>
       <svg className="kchart kdonut" viewBox={`0 0 ${g.size} ${g.size}`} role="img" aria-label={label} data-figure={figure} style={{ maxWidth: g.size }}>
-        {g.arcs.map((a) => <path key={a.key} d={a.d} fill={a.color} data-tip={a.tip} />)}
+        {g.arcs.map((a) => <path key={a.key} d={a.d} fill={a.color} style={{ fill: paint(a.color) }} data-tip={a.tip} />)}
         {middle ? <text x={g.size / 2} y={g.size / 2 + 5} style={{ textAnchor: "middle" }} className="kmid">{middle}</text> : null}
       </svg>
     </ChartTip>
@@ -336,7 +337,7 @@ export function SizedScatter({ layout, figure, xLabel, yLabel }: { layout: (W: n
             {g.xTicks.map((t, i) => <text key={i} x={t.x} y={g.H - g.B + 16} textAnchor="middle">{t.label}</text>)}
             <text x={g.W - 16} y={g.H - 2} style={{ textAnchor: "end" }} className="kax">{xLabel}</text>
             <text x={4} y={10} className="kax">{yLabel}</text>
-            {g.points.map((p) => <circle key={p.key} cx={p.cx} cy={p.cy} r={p.r} fill={p.color} className={p.ring ? "kring" : undefined} data-tip={p.tip} />)}
+            {g.points.map((p) => <circle key={p.key} cx={p.cx} cy={p.cy} r={p.r} fill={p.color} style={{ fill: paint(p.color) }} className={p.ring ? "kring" : undefined} data-tip={p.tip} />)}
           </svg>
         );
       }}</Sized>

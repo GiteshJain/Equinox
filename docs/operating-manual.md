@@ -77,13 +77,17 @@ Details and open points: `docs/decisions.md`.
 - **Automatic checks:** every pull request runs *Checks* (no keys or passwords; the schedule check on a saved game page;
   the fares userscript on the saved fares form and answer; the aircraft evaluation userscript on the tool's saved pages; the capture's world scan against `gscan.py` on the same
   saved pages; the capture's fleet pages on a saved fleet page; the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails,
-  the planning library's schedule checks) on a dated sample against saved answers; the planning library's cases and its
+  the planning library's schedule checks) on a dated sample against saved answers; the planner's glass look, its text
+  against the glass over the brightest part of each backdrop picture, and its typed-in colours never more than their
+  ceiling *(since 11 Nov; history: rule-history.md)*; the planning library's cases and its
   optimiser against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures;
   every website page, the planner's sign-in at `/planner/` and the planner's addresses). On a pull request the
   *Database rehearsal* runs only the parts its change can affect. When the planner or the library changes, it
   generates the planner's types again from the copy (they must match the committed `app/planner/src/db/types.ts`), has
   the planner sign in, read and save on the copy, open every screen at a frozen moment at 1280 and 380 px wide with no
-  errors and no sideways scroll, and save through every kind of save each screen has, each checked against the rows
+  errors and no sideways scroll, and again at 1280 and 380 px with the glass look's switch on (its period, the airline
+  rail and every screen's link in the header checked; *since 11 Nov; history: rule-history.md*), and save through every
+  kind of save each screen has, each checked against the rows
   recorded for it; when the library or the airline briefing changes, it runs the briefing for every airline and every
   example in the map's guide on the copy; when the database changes, it does all of that, runs the database tests,
   reads a saved evening of each capture page kind and replays every kept capture page, each evening judged ok (#21),

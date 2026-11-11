@@ -38,6 +38,17 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The glass look's checks: 11 Nov
+*Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-glass-look.md`, decisions 1 and 2, option A each; spec
+`docs/specs/2026-11-11-glass-look.md`, step 1) · why: the glass look is built behind a switch in six pull requests, so
+every screen must still open with it off and on; text must keep 4.5:1 against the glass on every backdrop, the light Day
+one included; and each step replaces typed-in colours with named ones, so their count must only fall.* In §1 *Automatic
+checks* two clauses were replaced, word for word: "the planner's screen figures (Home, Tails, the planning library's
+schedule checks) on a dated sample against saved answers; the planning library's cases" became the same with the glass
+look's two checks after the saved answers; and "open every screen at a frozen moment at 1280 and 380 px wide with no
+errors and no sideways scroll, and save through every kind of save" became the same with the second, glass, run at 1280
+and 380 px before "and save". Built in the glass look's step 1 (to-do 225).
+
 ### The database rehearsal runs only what a change can affect, and every night on main: 11 Nov
 *Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-faster-checks.md`, option E of five: A leave as is, B only the
 parts a change can affect, C B with the slow parts side by side, D B with the whole rehearsal every night on `main`, E C

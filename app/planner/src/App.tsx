@@ -23,6 +23,9 @@ import { Today } from "./screens/today/Today";
 import { ErrorBox } from "./ui/ErrorBox";
 import { Landing, StaleFigures } from "./ui/landing/Landing";
 import { Header } from "./ui/Header";
+import { AirlineRail } from "./ui/look/AirlineRail";
+import { Backdrop } from "./ui/look/Backdrop";
+import { useLook } from "./ui/look/look";
 import { Messages } from "./ui/Messages";
 import { SignIn } from "./ui/SignIn";
 
@@ -58,12 +61,16 @@ function Shell() {
 /** Staff in: the landing page, or the screens (with the line at their top when they show the previous capture's figures). */
 function Opened() {
   const figures = useStoredFigures();
+  const [glass] = useLook();
   if (figures.show) return <Landing line={figures.line} detail={figures.detail} />;
   return (
     <div data-shell>
       <Header />
       {figures.note ? <StaleFigures note={figures.note} /> : null}
-      <Outlet />
+      {glass ? (
+        // the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md): the airline rail beside the screen
+        <div className="eq-body"><AirlineRail /><div className="eq-screen"><Outlet /></div></div>
+      ) : <Outlet />}
     </div>
   );
 }
@@ -71,6 +78,7 @@ function Opened() {
 function Root() {
   return (
     <>
+      <Backdrop />
       <Shell />
       <Messages />
       <PreviewNotice />

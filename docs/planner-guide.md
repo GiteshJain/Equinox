@@ -35,7 +35,8 @@ as you make it. On a preview address the planner saves nothing and says **previe
     a dot for day or night and the bases' codes. They're no longer under the bar on every screen, and the hidden band of
     the UTC day went with them.
   - **The account button** opens the save state, **Times in Local** / **Times in UTC** (it starts as the planner's
-    setting and remembers your choice on this device), **Website** (the public site) and **Sign out**. Its dot shows the
+    setting and remembers your choice on this device), **Glass look** (On/Off, while the new look is built; below),
+    **Website** (the public site) and **Sign out**. Its dot shows the
     save state: green saved, amber saving or preview, red not saved.
 - **Each screen's head:** a small uppercase line saying where you are, the screen's title in large type on the light
   ground, and its one-line description. (Each screen opened with a dark banner until 22 Oct.) Home keeps its globe.
@@ -49,6 +50,23 @@ as you make it. On a preview address the planner saves nothing and says **previe
 - **Saving:** each change is saved on its own. If someone changed the same thing since you opened it, nothing in that
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing.
+
+## The glass look (being built, since 11 Nov)
+The planner is getting a new look, one screen at a time (to-do 225, spec `docs/specs/2026-11-11-glass-look.md`). Until
+every screen has it, it shows only when you turn it on: **account button → Glass look → On**. It's kept in this browser
+only (as Times in Local/UTC is), so another computer or a private window shows today's look. **Glass look → Off** goes
+back at once.
+- **Done so far (step 1 of 6):** the top bar, the airline rail, Home, the landing page, sign-in, and the charts' colours
+  everywhere. The other screens sit in the new frame with only their shared parts (cards, tables, pills, buttons) in the
+  new look until their own step.
+- **The picture behind** follows this computer's clock: **Day** 07:00–17:00, **Dusk** 17:00–20:00 and 05:00–07:00,
+  **Night** 20:00–05:00. Cards are dark glass, a little thicker by day so the text stays readable; tables and charts sit
+  on a nearly solid panel.
+- **The top bar** shows all ten screens as pills (two rows on a laptop), with the search, the clock and the account
+  button as before. On a narrow window the screens are in the menu button, as before.
+- **The airline rail** on the left (a row at the top on a phone): **All** and the six airlines. On Performance and
+  Competition it picks the airline (All is the group page); on Routes and Tails it picks the airline (All isn't
+  clickable there, as they always show one); on every other screen All is lit and an airline opens its Performance page.
 
 ## The landing page (since 11 Nov)
 After every capture the database works out every figure the planner shows once and stores them. The planner loads that

@@ -16,6 +16,8 @@ export const LIVE_HOSTS: readonly string[] = ["equinox-alliance.com", "www.equin
 export const BASENAME = "/planner";
 
 // Kept on this device: the sign-in (its own key, so the old planner's sign-in, under gander-auth, is left alone) and the
-// local/UTC choice. Nothing else is kept on the device (design §14, choice 3).
+// local/UTC choice. Nothing else is kept on the device (design §14, choice 3), apart from the charts' "show as table" and,
+// while the glass look is built (to-do 225, spec docs/specs/2026-11-11-glass-look.md), whether it is on in this browser.
 export const AUTH_STORAGE_KEY = "equinox-planner-auth";
 export const TIME_MODE_STORAGE_KEY = "equinox-planner-time-mode";
+export const LOOK_STORAGE_KEY = "equinox-planner-look";
