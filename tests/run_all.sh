@@ -24,6 +24,7 @@ new_planner() {
   echo "ok    new planner and planning library: npm ci, typecheck, lint, test (the library's cases included) and build all passed"
 }
 run "No keys or passwords" python3 tests/check_secrets.py
+run "The map stays slim: its size and each part's row capped, every part's file linked" python3 tests/map_size_test.py
 run "Schedule check" node tests/schedule_test.mjs
 run "Fares userscript: the game's fares form and answer, on dated samples" node tests/fares_userscript_test.mjs
 run "Aircraft evaluation userscript: the tool's saved pages read, whole runs against a stand-in for the game" node tests/aircraft_eval_userscript_test.mjs

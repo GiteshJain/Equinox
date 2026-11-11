@@ -5,6 +5,8 @@ everything; builds follow a spec from the Building chat in the Equinox project.
 
 ## Read first
 1. `docs/architecture.md`: the map of the parts, how data moves, what runs when, where keys live and how to recover.
+   Each part's row is short; its detail is in its own file under `docs/map/`. Read only the files for the parts your
+   spec touches.
 2. `docs/operating-manual.md`: the rules in force. Where it disagrees with anything else, including memory, it wins.
 3. The spec you were given. `docs/decisions.md` and `docs/briefs/` say why things are the way they are.
 
@@ -22,7 +24,9 @@ everything; builds follow a spec from the Building chat in the Equinox project.
 - **For database work, read `.claude/skills/supabase-postgres-best-practices/SKILL.md`** and the rule files it points
   to. Supabase's skills are in `.claude/skills/`; where they differ from these rules, these rules win
   (`.claude/skills/README.md`).
-- **Update the docs in the same pull request** when how something works changes (the list is in the manual, §1).
+- **Update the docs in the same pull request** when how something works changes (the list is in the manual, §1). A
+  build's dated note about a part goes in that part's file, `docs/map/<part>.md`, not in the map; the map's row changes
+  only when the part's short description does. `tests/map_size_test.py` caps the map's size.
 - **Never commit keys, passwords or live game data.** Placeholders like `__CAPTURE_KEY__` mark where keys go. Small,
   dated samples in `tests/fixtures/` are the one exception.
 - **The planner is the app in `app/planner/`** (React and TypeScript, served at `/planner/` since 14 Oct; each screen in

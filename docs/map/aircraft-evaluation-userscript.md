@@ -1,0 +1,11 @@
+# Aircraft evaluation userscript
+
+One part of the map, `docs/architecture.md`, in full. The map has the short version; a build that changes this part adds its dated note here, not in the map.
+
+## What it is
+
+A third userscript in Gitesh's browser in the game (since 27 Oct; spec `docs/specs/2026-10-27-aircraft-evaluation-script.md`, the Building chat's design), on the game's aircraft evaluation tool (`/app/aircraft/evaluation`) only. One button, **Aircraft evaluation**: it reads the run list with the capture key (`capture_eval_runs()`: the runs of the key's world without a result, in pass and seq order, and the types every run compares, `settings.aircraft_eval_types`, 17 by the tool's names), asks once in its panel ("212 runs left of 520, about 15 minutes…", Go ahead or Cancel; no browser dialogs), then runs the tool route by route, all by `fetch` with the session's cookies and no page loads, the tab staying where it is. Each run: the route form with the two codes (the answer must name both airports), the add form for any of the 17 not in the table (matched by text in that page's add list: its values are positions that shift), the settings form when the page isn't on age 0, Economy, 100% and the run's seat (values read by their option text), then the table read (each type either cannot operate or 17 cells that read as numbers) and sent to `capture_eval_result()`. The tool is a stateful page (Wicket): every POST uses the form actions of the latest page fetched. 2 seconds between runs, half a second between the POSTs in a run. It stops at the first problem and says which run and why (a route the tool didn't take, a type it can't add, settings that didn't take, a result that didn't read, the session lost, the database refusing). Stop is there throughout; run again, it carries on from the first run without a result, and a reload carries on via `sessionStorage` unless it was idle over 3 minutes. Read only: it sends only the tool's three forms, never opens another page and changes nothing in the game. The Scheduling chat writes the run list (`aircraft_eval_runs`) with plain SQL and reads the results (`aircraft_eval_results`) as postgres; nothing in the planner or the website reads them.
+
+## Where
+
+`capture/aircraft_eval.user.js` (the key is a placeholder in the repository; its logic tested in `tests/aircraft_eval_userscript_test.mjs`)
