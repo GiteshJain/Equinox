@@ -54,7 +54,9 @@ main chat with fable and other chats which do the actual work on opus but so dec
 per kind of work*, and "Opus for everything" and the three chats stand until the trial is judged on 18 Nov (to-do 229)
 · why: Gitesh carried things between the chats, each chat read the rulebook before it started, and the Building chat
 already gave its builds to helpers. On Fable: "We stopped using fable before because of usage because we were building
-everything fresh. I know we are still rebuilding again but i have s few resets now." If it is kept, §1's *One chat per
+everything fresh. I know we are still rebuilding again but i have s few resets now." Added the same day: "i think new
+schedules should come from fable too", so a scheduling job goes to a worker on Fable, and builds and review jobs to
+workers on Opus. If it is kept, §1's *One chat per
 kind of work* and *Opus for everything*, the project instructions and the handover notes are rewritten then, with
 their old wording logged here. If not, the trial line comes out.
 

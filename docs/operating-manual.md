@@ -177,8 +177,9 @@ Details and open points: `docs/decisions.md`.
 
   **On trial from 11 Nov, judged on 18 Nov** (brief `docs/briefs/2026-11-11-main-chat.md`; to-do 229): one **Main**
   chat, on Fable, is the only chat Gitesh talks to. It holds the decisions, the To-do board, rule changes and "merge",
-  and gives each sizeable job to a worker on Opus with a written brief. A worker never decides and never talks to
-  Gitesh. While the trial runs, the Main chat answers any question itself or through a worker, and the three chats
+  and gives each sizeable job to a worker with a written brief: a scheduling job (a new aircraft's schedule, a plan
+  card, a retime) to a worker on Fable, a build or a review job to a worker on Opus. A worker never decides and never
+  talks to Gitesh. While the trial runs, the Main chat answers any question itself or through a worker, and the three chats
   above stay as they are for going back to.
 - **Each airline is its own business:** no group totals; finance looks at each airline's profit and growth.
   *(since early Oct)*
