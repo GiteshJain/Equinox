@@ -2187,6 +2187,11 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .eq-body{display:flex;align-items:flex-start;gap:24px;max-width:var(--maxw);margin:0 auto;padding:0 var(--side)}
 .eq-screen{flex:1 1 0;min-width:0}
 .eq-screen > .view{padding-left:0;padding-right:0;max-width:none}
+/* wide screens (since 30 Oct, above): where Routes' route detail and Tails use the whole width up to 2,560 px, the frame
+   with the rail does too (12 Nov: it held them at 1,440 px in glass) */
+@media (min-width:1600px){
+  .eq-body:has(> .eq-screen > .view.routes.has-detail),.eq-body:has(> .eq-screen > .view.tails){max-width:2560px}
+}
 .eq-rail{position:sticky;top:136px;flex:none;display:flex;flex-direction:column;gap:8px;margin-top:40px;padding:8px;border-radius:30px;
   background:var(--bar-bg);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur);border:1px solid var(--card-edge);
   box-shadow:var(--bar-shadow)}
