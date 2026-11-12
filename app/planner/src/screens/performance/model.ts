@@ -11,7 +11,7 @@
 import { block, card, connections, setting, time, type Rules, type TimedLeg } from "@rules";
 import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
-import { SERIES, TONE, type DonutPart } from "../../ui/charts";
+import { SERIES, STORY, TONE, type DonutPart } from "../../ui/charts";
 
 // ---------- the database's answers
 export interface NextOrder { when: "needs" | "now" | "later" | "not within 14 days"; missing?: string; types?: string[]; type?: string; safe_from?: string; up_to?: number | string | null }
@@ -1637,7 +1637,7 @@ export function shareDonut(d: ShareDir, ours: string = TONE.violet): (DonutPart 
   let k = 0;
   return d.bar.map((p, i) => {
     const others = p.label === "others" && i === d.bar.length - 1;
-    const color = p.ours ? ours : others ? "#C9CEDB" : (SERIES.slice(1)[k++ % (SERIES.length - 1)] as string);
+    const color = p.ours ? ours : others ? STORY.others : (SERIES.slice(1)[k++ % (SERIES.length - 1)] as string);
     return { key: p.ours ? "ours" : others ? "others" : `r${i}`, label: p.label, value: p.pct, pct: p.pct, color };
   });
 }

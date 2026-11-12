@@ -4,7 +4,7 @@
 // the tip is the chart kit's (src/ui/charts), where the new charts are drawn: so a click opens each chart full size, and
 // its text stays 11 px on screen however small the chart is drawn. The route charts' legends are in the page's type
 // (Legend), under the chart, so they're never scaled down with it.
-import { ChartTip, HBars, Legend, Sized, fitText, hbarLayout } from "../../ui/charts";
+import { ChartTip, HBars, Legend, SERIES, STORY, Sized, TONE, fitText, hbarLayout } from "../../ui/charts";
 import { tailItems } from "./charts";
 import {
   barLayout, costParts, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, type AircraftRow, type AverageFlight, type BarUnit,
@@ -164,10 +164,10 @@ export function StoryChart({ g }: { g: StoryChartLayout }) {
         {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
       </svg>
       <Legend items={[
-        { label: "economy load", color: "var(--ink)" },
-        ...(g.bus ? [{ label: "business load", color: "#8C94AD" }] : []),
-        ...(g.level ? [{ label: "fare level (right)", color: "#3B3FD8", dashed: true }] : []),
-        ...(g.markers.length ? [{ label: "an event", color: "var(--ink)" }] : []),
+        { label: "economy load", color: TONE.ink },
+        ...(g.bus ? [{ label: "business load", color: SERIES[5] }] : []),
+        ...(g.level ? [{ label: "fare level (right)", color: STORY.level, dashed: true }] : []),
+        ...(g.markers.length ? [{ label: "an event", color: TONE.ink }] : []),
       ]} />
     </ChartWrap>
   );
@@ -239,9 +239,9 @@ export function DirChart({ g, out, back }: { g: DirChartLayout; out: string; bac
         {g.cols.map((c, i) => <rect key={"c" + i} x={c.x.toFixed(1)} y={g.T} width={c.w.toFixed(1)} height={g.H - g.T - g.B} className="hitc" data-tip={c.tip} />)}
       </svg>
       <Legend items={[
-        { label: out, color: "var(--ink)" },
-        { label: back, color: "#D9752B" },
-        ...(g.levelOut || g.levelBack ? [{ label: "fare level (right)", color: "#3B3FD8", dashed: true }] : []),
+        { label: out, color: TONE.ink },
+        { label: back, color: STORY.back },
+        ...(g.levelOut || g.levelBack ? [{ label: "fare level (right)", color: STORY.level, dashed: true }] : []),
       ]} />
     </ChartWrap>
   );

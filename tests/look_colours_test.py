@@ -19,8 +19,8 @@ CODE = ROOT / "app/planner/src"
 
 # The ceilings, with the date each was set. Started at a0be3d4 (11 Nov): 412 in the stylesheet (the spec says 413: it counted
 # one inside a comment), 113 in the code.
-CEILING_SHEET = 316   # 12 Nov, glass look step 2 (Today and Tails; step 1: 350)
-CEILING_CODE = 104    # 12 Nov, glass look step 2 (Today's and Tails' legends on the kit's TONE; step 1: 113)
+CEILING_SHEET = 227   # 12 Nov, glass look step 3 (Routes and the route story; step 2: 316, step 1: 350)
+CEILING_CODE = 101    # 12 Nov, glass look step 3 (the route story through the kit: STORY, SERIES, TONE; step 2: 104, step 1: 113)
 
 COLOUR = re.compile(r"#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3,4}\b|rgba?\(\s*[0-9][^)]*\)")
 

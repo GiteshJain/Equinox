@@ -10,7 +10,7 @@ import type { Rules } from "@rules";
 import { niceDate } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
 import { itemRoute } from "../screens";
-import { Donut, donutLayout } from "../../ui/charts";
+import { Donut, STORY, donutLayout, paint } from "../../ui/charts";
 import { BarChart, DirChart, HistoryChart, ShareLine, StoryChart, WeeksChart } from "./Charts";
 import {
   NO_MARKET_READ, STORY_MIN_DAYS, dirChartLayout, eventWords, shareDonut, flightLoads, historyLayout, listCut, marketShareView, rivalFares, rivalLines,
@@ -137,14 +137,14 @@ export function useStoryBoards(s: RouteStory, x: { flights?: readonly FlightLoad
                       {d.before != null ? <span className="dim">{` (from ${Math.round(d.before * 10) / 10}%)`}</span> : null}</div>
                     {(() => {
                       const parts = shareDonut(d, color), dot = new Map(parts.map((p) => [p.label, p.color]));
-                      const grey = dot.get("others") ?? "#C9CEDB";
+                      const grey = dot.get("others") ?? STORY.others;
                       return (
                         <div className={"cpdonut" + (parts.length ? "" : " none")} data-share-donut={d.direction}>
                           {parts.length ? <Donut g={donutLayout(parts, { size: 120, ring: 20, fmt: (v) => `${Math.round(v * 10) / 10}% of passengers` })}
                             middle={d.ours == null ? "—" : `${Math.round(d.ours)}%`} label={`${d.label}: the game's passenger share`} figure="performance route: market share donut" /> : null}
                           <ul className="cprv rpmsl">
                             {d.rows.slice(0, 5).map((r) => (
-                              <li key={r.name}><i className="cpdot" style={{ background: dot.get(r.name) ?? grey }} />{r.ours ? <b>{r.name}</b> : r.name} <span className="num">{r.share}</span> <span className="dim">{r.change}</span></li>
+                              <li key={r.name}><i className="cpdot" style={{ background: paint(dot.get(r.name) ?? grey) }} />{r.ours ? <b>{r.name}</b> : r.name} <span className="num">{r.share}</span> <span className="dim">{r.change}</span></li>
                             ))}
                           </ul>
                         </div>

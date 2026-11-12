@@ -41,6 +41,19 @@
   --tail-hover:rgba(0,0,0,.022); --sel-mark:var(--violet); --chart-span:#C2C8D7; --tile-bg:var(--porcelain);
   --count-ok:var(--ok); --count-warn:var(--warn); --count-bad:var(--bad); --dot-ok:var(--ok); --dot-warn:var(--amber); --dot-bad:var(--bad);
   --scrim:rgba(10,18,48,.42); --pop-shadow:0 24px 64px rgba(10,18,48,.32);
+  /* the glass look, step 3 (Routes, its pop-ups and the route's story it shows): the named colours their own parts need,
+     today's values here (the old planner's cascade on Routes keeps some that later rules cover: named all the same) */
+  --trunk-fill-0:#E8EEF9; --trunk-text-0:#2A3C63; --chip-hover-edge:#B9C4D2; --chip-on-text:#FFFFFF; --chip-bg:#E8ECF4;
+  --seg-bg-0:#E1E7EF; --seg-bg:#E4E8F1; --seg-text:#3A3A3C; --seg-on-bg-0:#1C2536; --seg-on-shadow-0:rgba(16,27,51,.12);
+  --seg-on-shadow-1:rgba(0,0,0,.08); --seg-on-shadow-2:rgba(0,0,0,.12); --list-hover-0:#F6F8FB; --row-sel:#F0EEFB;
+  --stars-on:#F6B44B; --stars-off:#D5DCE5; --orange-fill-0:#FCE7D6; --orange-text-0:#A6500B; --orange-fill:rgba(255,149,0,.17);
+  --orange-text:#A85000; --lf-ok-text:#156B47; --lf-orange-text:#A84A00; --load-85:#E07B2F; --inset-bg:#FAFBFD; --chev:#AEAEB2;
+  --scrim-0:rgba(16,27,51,.55); --scrim-1:rgba(0,0,0,.28); --modal-bg:#FFFFFF; --modal-rule-0:#E6EAF2; --modal-ring:rgba(0,0,0,.05);
+  --modal-shadow-0:rgba(16,27,51,.35); --modal-shadow-1:rgba(0,0,0,.45); --mx-hover-bg:#F1F4F9; --mx-hover-text:#1C2536;
+  --panel-shadow-1:rgba(14,22,48,.03); --panel-shadow-2:rgba(14,22,48,.35); --danger-fill:rgba(255,59,48,.09); --danger-fill-2:rgba(255,59,48,.15);
+  --svc-off-text:#9A5B00; --svc-off-fill:#FFF4DE;
+  --chart-level:#3B3FD8; --chart-back:#D9752B; --chart-back-2:#E8A26B; --chart-others:#C9CEDB; --chart-others-2:#A9B0C4;
+  --chart-good:#1E9E6A; --chart-dot-bg:#FFFFFF; --chart-zero-2:#E1E6EE;
   /* type: display Unbounded, text Manrope; one small scale, nothing under 13px */
   --font:"Manrope",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-d:"Unbounded",ui-sans-serif,system-ui,sans-serif;
@@ -87,6 +100,13 @@
      is the brightest behind any glass: the white tints and the pills' own text colours fell under 4.5:1 there) */
   --tile-bg:rgba(10,18,48,.38); --count-ok:#DDFDEE; --count-warn:#FFF0D4; --count-bad:#FFF0F4;
   --dot-ok:#A8F0CF; --dot-warn:#FFDA94; --dot-bad:#FFC2D0;
+  /* step 3 (Routes, its pop-ups, the route's story), each checked by tests/glass_contrast_test.py's step 3 cases. The load
+     pills and big load figures on the same dark tints as the status pills; the story's lines lighter for dark glass */
+  --orange-fill:rgba(104,46,0,.62); --orange-text:#FFE3C7; --lf-ok-text:#DDFDEE; --lf-orange-text:#FFE3C7;
+  --load-85:#FFA25C; --stars-on:#F6B44B; --stars-off:rgba(255,255,255,.4); --inset-bg:var(--row-group); --row-sel:var(--sel-bg);
+  --danger-fill:rgba(98,18,46,.62); --danger-fill-2:rgba(128,26,62,.72); --svc-off-text:#FFE7BA; --svc-off-fill:rgba(92,56,0,.62);
+  --chart-level:#A9ABFF; --chart-back:#FFB27A; --chart-back-2:#FFD2AE; --chart-others:#8D96B5; --chart-others-2:#A9B0C4;
+  --chart-good:#7FE3B5; --chart-dot-bg:#0A1230; --chart-zero-2:rgba(255,255,255,.35);
 }
 :root[data-look="glass"][data-period="day"]{
   --card-bg:rgba(10,18,48,.66); --bar-bg:rgba(10,18,48,.74);
@@ -477,19 +497,19 @@ svg.wmap .hub text,svg.wmap .al{font-family:var(--font);fill:var(--ink);stroke:r
    sheets) in their order, media queries included, keeping only the selectors that name these parts, so each ends as the
    old planner's cascade leaves it. ---------- */
 .fctag{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-left:5px;opacity:.75}
-.pill.trunk{background:#E8EEF9;color:#2A3C63}
+.pill.trunk{background:var(--trunk-fill-0);color:var(--trunk-text-0)}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
 .toolbar .count{margin-left:auto;color:var(--muted);font-size:13px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
 .chiplbl{color:var(--muted);font-size:13px;margin-right:4px;min-width:62px}
 .chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 11px;font:inherit;font-size:13px;cursor:pointer;line-height:1.3}
-.chip:hover{border-color:#B9C4D2}
-.chip.on{background:var(--night);border-color:var(--night);color:#fff}
-.seg{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:#E1E7EF;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.chip:hover{border-color:var(--chip-hover-edge)}
+.chip.on{background:var(--night);border-color:var(--night);color:var(--chip-on-text)}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:var(--seg-bg-0);max-width:100%;overflow-x:auto;scrollbar-width:none}
 .seg::-webkit-scrollbar{display:none}
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font:inherit;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .seg button:hover{color:var(--ink)}
-.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(16,27,51,.12)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px var(--seg-on-shadow-0)}
 label.check{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px}   /* the old .check, kept to labels here: in the old sheet it comes before .evt, so Home's .evt.check isn't touched */
 label.check input{accent-color:var(--night)}
 .split{display:grid;grid-template-columns:minmax(320px,1fr) minmax(380px,1.35fr);gap:18px;align-items:start}
@@ -499,7 +519,7 @@ label.check input{accent-color:var(--night)}
 .row .rm{grid-column:1;grid-row:2}
 .rs{grid-column:2;grid-row:1 / span 2}
 .row:last-child{border-bottom:0}
-.row:hover{background:#F6F8FB}
+.row:hover{background:var(--list-hover-0)}
 .row.sel{background:var(--sel);box-shadow:inset 3px 0 0 var(--amber)}
 .rk b{font-weight:650;font-size:14.5px;letter-spacing:.01em}
 .city{color:var(--muted);font-weight:400;font-size:13px}
@@ -507,24 +527,24 @@ label.check input{accent-color:var(--night)}
 .rs{text-align:right;font-size:13px}
 .meta{color:var(--muted);margin-left:6px}
 .stars{color:var(--amber);letter-spacing:-1px;font-size:13px}
-.stars .off{color:#D5DCE5}
+.stars .off{color:var(--stars-off)}
 .detail{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-panel);padding:20px 22px;position:sticky;top:calc(118px + env(safe-area-inset-top,0px));box-shadow:var(--shadow);max-height:calc(100vh - 100px);overflow:auto}
 .dhead h2{margin:2px 0 6px;font-stretch:112%;font-size:22px;font-weight:720;letter-spacing:-.005em;color:var(--night)}
 .dsub{color:var(--muted);font-size:13px;margin-bottom:3px;line-height:1.55}
 .back{display:none;background:none;border:0;color:var(--sky);font:inherit;font-weight:500;padding:0;cursor:pointer}
 .empty{color:var(--muted);padding:28px;text-align:center;font-size:13.5px}
-.pill.orange{background:#FCE7D6;color:#A6500B}
+.pill.orange{background:var(--orange-fill-0);color:var(--orange-text-0)}
 .pill.lfc{font-weight:650}
 .pill.lfc .lfn{font-weight:400;opacity:.7;font-size:13px}
 .rs .pill.lfc{margin-left:0;margin-right:2px}
-.lfs{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;margin:14px 0 4px;background:#FAFBFD}
+.lfs{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;margin:14px 0 4px;background:var(--inset-bg)}
 .lfsh{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:13.5px}
 .lfsh .pill{margin-left:6px}
 .lfbar{display:flex;height:9px;border-radius:5px;overflow:hidden;margin:9px 0 7px;background:var(--line-2);gap:2px}
 .lfbar i,.lfleg i{display:block}
 .lfbar i.l0,.lfleg i.l0{background:var(--ok)}
 .lfbar i.l95,.lfleg i.l95{background:var(--amber)}
-.lfbar i.l85,.lfleg i.l85{background:#E07B2F}
+.lfbar i.l85,.lfleg i.l85{background:var(--load-85)}
 .lfbar i.l70,.lfleg i.l70{background:var(--bad)}
 .lfleg{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
 .lfleg span{display:inline-flex;align-items:center;gap:6px}
@@ -545,20 +565,20 @@ input.tiny{width:58px;padding:3px 7px;font-size:13px}
 .mstats>div{display:flex;flex-direction:column;gap:3px;min-width:96px}
 .mstats>div>span{font-size:13px}
 .mstats b{font-size:14px}
-.mback{position:fixed;inset:0;z-index:50;background:rgba(16,27,51,.55);display:flex;align-items:center;justify-content:center;padding:24px;animation:mfade .12s ease-out}
-.modal{background:var(--card,#fff);border-radius:14px;box-shadow:0 24px 60px rgba(16,27,51,.35);width:min(880px,100%);max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;animation:mpop .14s ease-out}
-.mhead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line,#E6EAF2)}
+.mback{position:fixed;inset:0;z-index:50;background:var(--scrim-0);display:flex;align-items:center;justify-content:center;padding:24px;animation:mfade .12s ease-out}
+.modal{background:var(--card,var(--modal-bg));border-radius:14px;box-shadow:0 24px 60px var(--modal-shadow-0);width:min(880px,100%);max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;animation:mpop .14s ease-out}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line,var(--modal-rule-0))}
 .mhead b{font-size:16px}
 .mx{border:0;background:transparent;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px}
-.mx:hover{background:#F1F4F9;color:var(--ink,#1c2536)}
+.mx:hover{background:var(--mx-hover-bg);color:var(--ink,var(--mx-hover-text))}
 .mbody{padding:16px 18px;overflow:auto}
-.mfoot{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line,#E6EAF2)}
+.mfoot{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line,var(--modal-rule-0))}
 @keyframes mfade{from{opacity:0}to{opacity:1}}
 @keyframes mpop{from{transform:translateY(8px) scale(.985);opacity:.6}to{transform:none;opacity:1}}
 body.mopen{overflow:hidden}
-.seg{display:inline-flex;border:1px solid var(--line,#E6EAF2);border-radius:8px;overflow:hidden}
+.seg{display:inline-flex;border:1px solid var(--line,var(--modal-rule-0));border-radius:8px;overflow:hidden}
 .seg button{border:0;background:transparent;padding:6px 12px;font:600 13px/1 "Archivo",sans-serif;color:var(--muted);cursor:pointer}
-.seg button.on{background:#1C2536;color:#fff}
+.seg button.on{background:var(--seg-on-bg-0);color:var(--chip-on-text)}
 .cxw{margin:8px 0 2px;display:flex;flex-direction:column;gap:4px}
 details.cx{border:1px solid var(--line-2);border-radius:10px;background:var(--surface)}
 details.cx summary{cursor:pointer;list-style:none;padding:8px 12px;font-size:13px;color:var(--ink)}
@@ -572,7 +592,7 @@ details.cx > :not(summary){margin-left:12px;margin-right:12px}
 .tbl.cxt{font-size:13px;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;width:calc(100% - 24px)}
 .tbl.cxt td,.tbl.cxt th{padding:5px 10px}
 .tbl.cxt td .lv{display:inline-block;margin-right:6px;vertical-align:0}
-.addform{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 16px;border-top:1px solid var(--line-2);background:#FAFBFD}
+.addform{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 16px;border-top:1px solid var(--line-2);background:var(--inset-bg)}
 @media (max-width: 860px){
   .split{grid-template-columns:1fr}
   .detail{position:static;max-height:none;box-shadow:none;padding:16px}
@@ -593,22 +613,22 @@ details.cx > :not(summary){margin-left:12px;margin-right:12px}
 .freq{padding:14px 16px}
 .list{overflow:hidden}
 .row{padding:12px 18px;border-bottom:1px solid var(--line-2)}
-.row:hover{background:rgba(0,0,0,.022)}
+.row:hover{background:var(--tail-hover)}
 .row.sel{background:var(--sel);box-shadow:inset 3px 0 0 var(--sky)}
 .rk b{font-weight:600;letter-spacing:-.01em}
-.pill.orange{background:rgba(255,149,0,.17);color:#A85000}
+.pill.orange{background:var(--orange-fill);color:var(--orange-text)}
 .pill.trunk{background:var(--sky-soft);color:var(--sky-ink)}
 .chip{border:0;background:var(--fill);color:var(--ink);border-radius:980px;padding:5px 12px;font:500 13px/1.25 var(--font)}
 .chip:hover{background:var(--fill-2);border:0}
-.chip.on{background:var(--ink);color:#fff}
-.stars{color:#F6B44B}
+.chip.on{background:var(--ink);color:var(--chip-on-text)}
+.stars{color:var(--stars-on)}
 .seg{display:inline-flex;gap:2px;padding:2px;border:0;border-radius:10px;background:var(--fill);overflow:visible}
-.seg button{border:0;border-radius:8px;padding:6px 13px;font:500 13px/1.1 var(--font);color:#3A3A3C;background:transparent}
-.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 3px 8px -3px rgba(0,0,0,.12)}
-details.cx summary::before{border-top-color:#AEAEB2;border-left-color:#AEAEB2}
+.seg button{border:0;border-radius:8px;padding:6px 13px;font:500 13px/1.1 var(--font);color:var(--seg-text);background:transparent}
+.seg button.on{background:var(--chip-on-text);color:var(--ink);box-shadow:0 1px 2px var(--seg-on-shadow-1),0 3px 8px -3px var(--seg-on-shadow-2)}
+details.cx summary::before{border-top-color:var(--chev);border-left-color:var(--chev)}
 .detail{top:calc(86px + env(safe-area-inset-top,0px));padding:24px 26px}
-.mback{background:rgba(0,0,0,.28);-webkit-backdrop-filter:blur(10px) saturate(140%);backdrop-filter:blur(10px) saturate(140%)}
-.modal{border-radius:24px;box-shadow:0 40px 100px -20px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.05)}
+.mback{background:var(--scrim-1);-webkit-backdrop-filter:blur(10px) saturate(140%);backdrop-filter:blur(10px) saturate(140%)}
+.modal{border-radius:24px;box-shadow:0 40px 100px -20px var(--modal-shadow-1),0 0 0 1px var(--modal-ring)}
 .mhead{padding:18px 22px;border-bottom:1px solid var(--line-2)}
 .mhead b{font:650 18px/1.2 var(--font-d);letter-spacing:-.015em}
 .mbody{padding:20px 22px}
@@ -639,23 +659,23 @@ details.cx[open] summary::before{transform:rotate(90deg)}
 .dhead h2{font:400 26px/1.1 var(--font-d);letter-spacing:-.045em}
 .list,.detail{border-radius:var(--r-panel);box-shadow:var(--shadow);border:1px solid var(--line-2)}
 .freq,details.cx,.lfs{background:var(--group);border-radius:var(--r-card)}
-.row.sel{background:#F0EEFB}
+.row.sel{background:var(--row-sel)}
 .row.sel{box-shadow:inset 3px 0 0 var(--violet)}
-.chip{background:#E8ECF4;border-radius:999px;font:600 13px/1.25 var(--font)}
-.chip.on{background:var(--night);color:#fff}
-.seg{background:#E4E8F1;border-radius:999px}
+.chip{background:var(--chip-bg);border-radius:999px;font:600 13px/1.25 var(--font)}
+.chip.on{background:var(--night);color:var(--chip-on-text)}
+.seg{background:var(--seg-bg);border-radius:999px}
 .seg button{border-radius:999px;font:600 13px/1.1 var(--font)}
-.seg button.on{background:#fff;color:var(--ink)}
+.seg button.on{background:var(--chip-on-text);color:var(--ink)}
 .modal{border-radius:26px}
 .mhead b{font:500 18px/1.2 var(--font-d);letter-spacing:-.03em}
-.mback{background:rgba(10,18,48,.42)}
-.list,.detail{border-radius:24px;border:1px solid rgba(14,22,48,.06);box-shadow:0 1px 0 rgba(14,22,48,.03),0 24px 48px -32px rgba(14,22,48,.35)}
+.mback{background:var(--scrim)}
+.list,.detail{border-radius:24px;border:1px solid var(--card-edge-2);box-shadow:0 1px 0 var(--panel-shadow-1),0 24px 48px -32px var(--panel-shadow-2)}
 /* The old planner's own buttons on Routes (button.primary, button.danger as its cascade leaves them); the shared ones in
    this sheet are the sign-in's and the in-page question's, so these are kept to Routes and its pop-up */
-.view.routes button.primary,.view.tails button.primary,.modal button.primary{background:var(--night);color:#fff;border:0;border-radius:999px;padding:9px 18px;font:700 13px/1.1 var(--font);letter-spacing:-.01em;cursor:pointer;margin-top:8px}
+.view.routes button.primary,.view.tails button.primary,.modal button.primary{background:var(--night);color:var(--chip-on-text);border:0;border-radius:999px;padding:9px 18px;font:700 13px/1.1 var(--font);letter-spacing:-.01em;cursor:pointer;margin-top:8px}
 .view.routes button.primary:hover,.view.tails button.primary:hover,.modal button.primary:hover{background:var(--violet)}
-.view.routes button.danger:not(.sm),.view.tails button.danger:not(.sm){background:rgba(255,59,48,.09);color:#C4141C;border:0;border-radius:980px;padding:8px 13px;font:inherit;font-size:13px;cursor:pointer;align-self:end}
-.view.routes button.danger:not(.sm):hover,.view.tails button.danger:not(.sm):hover{background:rgba(255,59,48,.15)}
+.view.routes button.danger:not(.sm),.view.tails button.danger:not(.sm){background:var(--danger-fill);color:var(--late-text);border:0;border-radius:980px;padding:8px 13px;font:inherit;font-size:13px;cursor:pointer;align-self:end}
+.view.routes button.danger:not(.sm):hover,.view.tails button.danger:not(.sm):hover{background:var(--danger-fill-2)}
 .view.routes .toolbar button.danger{font-size:13px;padding:7px 13px}
 /* the in-page questions Routes asks (removing routes, an offset change) and the list of what an offset change moves */
 .qpanel{margin:10px 0;padding:12px 14px;border-radius:var(--r-card);background:var(--bad-soft);color:var(--ink);font-size:13px;overflow-wrap:anywhere}
@@ -1015,17 +1035,17 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .rpw{background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:10px 12px;min-width:0;font-size:13px}
 .rpwv{font-size:15px;margin:2px 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .rpwv .wow{font-size:13px;color:var(--muted);white-space:nowrap}
-.rpwv .wow.up,.rpwv .wow.down{color:var(--ink);font-weight:600}
+.rpwv .wow.up,.rpwv .wow.down{color:var(--text);font-weight:600}
 .rpwt{font-size:13px;min-height:1em}
 .storychart path{fill:none;stroke-linejoin:round}
-.storychart path.eco,.storychart .lgd line.eco{stroke:var(--ink);stroke-width:2}
-.storychart path.bus,.storychart .lgd line.bus{stroke:#8C94AD;stroke-width:1.6}
-.storychart path.lvl,.storychart .lgd line.lvl{stroke:#3B3FD8;stroke-width:1.4;stroke-dasharray:5 4}
-.storychart path.lvl.bus{stroke:#9AA4C4}
-.storychart .lvt{fill:#3B3FD8}
-.storychart circle.mk{fill:#fff;stroke:var(--ink);stroke-width:1.6;cursor:default}
-.storychart circle.mk.rival{fill:var(--ink)}
-.storychart .lgd text{font:500 11px/1 var(--font);fill:#5B647E}
+.storychart path.eco,.storychart .lgd line.eco{stroke:var(--chart-ink);stroke-width:2}
+.storychart path.bus,.storychart .lgd line.bus{stroke:var(--chart-6);stroke-width:1.6}
+.storychart path.lvl,.storychart .lgd line.lvl{stroke:var(--chart-level);stroke-width:1.4;stroke-dasharray:5 4}
+.storychart path.lvl.bus{stroke:var(--chart-mute)}
+.storychart .lvt{fill:var(--chart-level)}
+.storychart circle.mk{fill:var(--chart-dot-bg);stroke:var(--chart-ink);stroke-width:1.6;cursor:default}
+.storychart circle.mk.rival{fill:var(--chart-ink)}
+.storychart .lgd text{font:500 11px/1 var(--font);fill:var(--chart-ax2)}
 .rpevents{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:13px}
 .rpevents li{overflow-wrap:anywhere}
 .rprivals{display:grid;gap:8px;min-width:0;font-size:13px}
@@ -1035,7 +1055,7 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .rpshare{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:13px}
 .sharewrap{margin:0}
 .shareline{width:160px;height:40px;display:block}
-.shareline path{fill:none;stroke:var(--ink);stroke-width:1.6} .shareline circle{fill:var(--ink)} .shareline .zero{stroke:#E1E6EE}
+.shareline path{fill:none;stroke:var(--chart-ink);stroke-width:1.6} .shareline circle{fill:var(--chart-ink)} .shareline .zero{stroke:var(--chart-zero-2)}
 .rpconns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 18px;min-width:0}
 .rpend{min-width:0}
 .rpendh{margin:0 0 6px;font-size:13.5px;overflow-wrap:anywhere}
@@ -1045,31 +1065,31 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
   .rpboards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
   .rpboards > .board.rcol{align-self:start}
 }
-.dirchart path.dback{stroke:#D9752B;stroke-width:2}
-.dirchart path.lvl.dback{stroke:#E8A26B}
-.dirchart circle.dot.eco{fill:var(--ink)} .dirchart circle.dot.dback{fill:#D9752B}
-.rpsvc{white-space:nowrap} .rpsvc.off{color:#9A5B00;background:#FFF4DE;border-radius:6px;padding:0 5px;font-weight:600}
+.dirchart path.dback{stroke:var(--chart-back);stroke-width:2}
+.dirchart path.lvl.dback{stroke:var(--chart-back-2)}
+.dirchart circle.dot.eco{fill:var(--chart-ink)} .dirchart circle.dot.dback{fill:var(--chart-back)}
+.rpsvc{white-space:nowrap} .rpsvc.off{color:var(--svc-off-text);background:var(--svc-off-fill);border-radius:6px;padding:0 5px;font-weight:600}
 .rpbar{display:inline-block;vertical-align:middle;width:90px;height:8px;border-radius:4px;background:var(--mute-soft);overflow:hidden}
-.rpbar i{display:block;height:100%;background:var(--ink)}
+.rpbar i{display:block;height:100%;background:var(--chart-ink)}
 .rpflights td{white-space:nowrap}
 .rpfares,.rpmshare,.rphist{display:grid;gap:10px;min-width:0;font-size:13px}
 .rpfdir,.rpmsd{min-width:0} .rptbl tr.ours td{font-weight:600} .rpvs{margin-top:4px;overflow-wrap:anywhere}
 .rpmsv{margin:0 0 6px;font-size:13.5px} .rpmsv b{font-size:18px}
 .rpmsl{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:3px}
 .histchart path{fill:none;stroke-width:1.6;stroke-linejoin:round} .histchart circle{cursor:default}
-.histchart .hs path{stroke:#A9B0C4} .histchart .hs circle{fill:#A9B0C4}
-.histchart .hs.ours path{stroke:var(--ink);stroke-width:2.4} .histchart .hs.ours circle{fill:var(--ink)}
-.histchart .hs.r1 path{stroke:#D9752B} .histchart .hs.r1 circle{fill:#D9752B}
-.histchart .hs.r2 path{stroke:#3B3FD8} .histchart .hs.r2 circle{fill:#3B3FD8}
-.histchart .hs.r3 path{stroke:#1E9E6A} .histchart .hs.r3 circle{fill:#1E9E6A}
-.histchart .hs.r4 path{stroke:#B4234B} .histchart .hs.r4 circle{fill:#B4234B}
-.histchart .hs.r5 path{stroke:#8C94AD} .histchart .hs.r5 circle{fill:#8C94AD}
+.histchart .hs path{stroke:var(--chart-others-2)} .histchart .hs circle{fill:var(--chart-others-2)}
+.histchart .hs.ours path{stroke:var(--chart-ink);stroke-width:2.4} .histchart .hs.ours circle{fill:var(--chart-ink)}
+.histchart .hs.r1 path{stroke:var(--chart-back)} .histchart .hs.r1 circle{fill:var(--chart-back)}
+.histchart .hs.r2 path{stroke:var(--chart-level)} .histchart .hs.r2 circle{fill:var(--chart-level)}
+.histchart .hs.r3 path{stroke:var(--chart-good)} .histchart .hs.r3 circle{fill:var(--chart-good)}
+.histchart .hs.r4 path{stroke:var(--chart-bad)} .histchart .hs.r4 circle{fill:var(--chart-bad)}
+.histchart .hs.r5 path{stroke:var(--chart-6)} .histchart .hs.r5 circle{fill:var(--chart-6)}
 .rphkey{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px}
-.rphkey li i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle;background:#A9B0C4}
-.rphkey li.ours i{background:var(--ink)} .rphkey li.r1 i{background:#D9752B} .rphkey li.r2 i{background:#3B3FD8} .rphkey li.r3 i{background:#1E9E6A}
-.rphkey li.r4 i{background:#B4234B} .rphkey li.r5 i{background:#8C94AD}
+.rphkey li i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle;background:var(--chart-others-2)}
+.rphkey li.ours i{background:var(--chart-ink)} .rphkey li.r1 i{background:var(--chart-back)} .rphkey li.r2 i{background:var(--chart-level)} .rphkey li.r3 i{background:var(--chart-good)}
+.rphkey li.r4 i{background:var(--chart-bad)} .rphkey li.r5 i{background:var(--chart-6)}
 .rpwks{display:grid;gap:4px;min-width:0}
-.weekschart .wbar{fill:#C2C8D7} .weekschart .wprice{fill:none;stroke:#3B3FD8;stroke-width:1.6} .weekschart .lvt{fill:#3B3FD8}
+.weekschart .wbar{fill:var(--chart-span)} .weekschart .wprice{fill:none;stroke:var(--chart-level);stroke-width:1.6} .weekschart .lvt{fill:var(--chart-level)}
 
 /* ---------- the foundation (22 Oct, spec docs/specs/2026-10-22-planner-look-foundation.md): the website's look on the
    shared classes, last so it wins over the copied layers above. Shapes: cards 24px, inner blocks 16px, pills round;
@@ -1315,7 +1335,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .rttl .radd{grid-column:3;grid-row:1}
 .view.routes button.radd{padding:0 16px}
 .view.routes > .rwrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:var(--gap-card)}
-.rlist,.rdetail{min-height:0;min-width:0;background:var(--paper);border:1px solid rgba(14,22,48,.06);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.rlist,.rdetail{min-height:0;min-width:0;background:var(--paper);border:1px solid var(--card-edge-2);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 .rlist{display:flex;flex-direction:column;overflow:hidden}
 .rlist > *{flex:none}
 .rtools{display:flex;gap:8px;padding:20px 20px 0;min-width:0}
@@ -1323,7 +1343,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .rtools #f-base{flex:0 0 132px;width:132px;min-width:0;min-height:44px;padding:0 10px;font-weight:700}
 .view.routes button.rfbtn{flex:none;padding:0 16px}
 .view.routes button.rfbtn.on{box-shadow:inset 0 0 0 1.5px var(--night)}
-.rfn{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--night);color:#fff;font:700 13px/1 var(--font)}
+.rfn{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--night);color:var(--chip-on-text);font:700 13px/1 var(--font)}
 .rcount{margin:10px 20px 12px;color:var(--muted);font:600 13px/1.3 var(--font)}
 .rlist > .rscroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--line)}
 .rfilters{display:grid;gap:12px;padding:16px 20px 18px;background:var(--group);border-bottom:1px solid var(--line)}
@@ -1363,7 +1383,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .rfig{display:flex;flex-direction:column;gap:4px;min-width:0;padding:16px 18px;border-radius:var(--r-md);background:var(--porcelain)}
 .rfl{font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .rfig b{font:500 32px/1.1 var(--font-d);letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.rfig b.lf.ok{color:#156B47} .rfig b.lf.warn{color:var(--warn)} .rfig b.lf.orange{color:#A84A00} .rfig b.lf.bad{color:var(--bad)}
+.rfig b.lf.ok{color:var(--lf-ok-text)} .rfig b.lf.warn{color:var(--warn)} .rfig b.lf.orange{color:var(--lf-orange-text)} .rfig b.lf.bad{color:var(--bad)}
 .rfs{font:500 13px/1.35 var(--font);color:var(--muted);overflow-wrap:anywhere}
 .racts{display:flex;flex-wrap:wrap;gap:4px 20px;margin:6px 0 0}
 .racts .link{min-height:32px}
@@ -1376,7 +1396,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .fdays{font-size:13px}
 .rdetail .lfs{margin-top:24px}
 .rstory{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;margin-top:20px;padding:0 22px;border-radius:var(--r-md);
-  background:var(--night);color:#fff;font:700 var(--t-body)/1.2 var(--font);text-decoration:none}
+  background:var(--night);color:var(--chip-on-text);font:700 var(--t-body)/1.2 var(--font);text-decoration:none}
 .rstory:hover{background:var(--night-3)}
 .rpick{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:100%;text-align:center}
 .rpick b{font:500 22px/1.2 var(--font-d);letter-spacing:-.02em;color:var(--ink)}
@@ -1394,7 +1414,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
    1,600 px and wider, its own scroll; under the frequencies from 1,100 to 1,600 px (Routes.tsx renders none below) */
 .view.routes > .rwrap.has-story{grid-template-columns:minmax(320px,400px) minmax(0,1fr) minmax(0,1fr)}
 .rstorycol{min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:24px;background:var(--paper);
-  border:1px solid rgba(14,22,48,.06);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+  border:1px solid var(--card-edge-2);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 .rstorybelow{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
 .rstoryin{min-width:0}
 .rsth{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 12px;font-size:var(--t-body)}
@@ -2496,3 +2516,77 @@ a.eq-railbtn:hover{background:var(--row-hover);box-shadow:inset 0 0 0 1px var(--
 [data-look="glass"] .kbigp{color:var(--text);border:1px solid var(--card-edge);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
 [data-look="glass"] .kbigh{border-bottom-color:var(--rule)}
 [data-look="glass"] .kbigx:hover{background:var(--tile-hover)}
+
+/* ---------- the glass look, step 3 (to-do 225, spec docs/specs/2026-11-11-glass-look.md): Routes, its list and its route,
+   the frequencies, the loads, the filters and the questions, the route's story it shows (beside or under the route), the
+   aircraft pop-up it opens and the route pop-up Home's map opens. As steps 1 and 2: every rule hangs off
+   [data-look="glass"] and uses only named colours; the list, the route and the story hold tables and charts, so they are
+   on the panel. ---------- */
+/* Routes' own airline buttons go (the rail picks the airline, decision 4) */
+[data-look="glass"] .view.routes .rttl > .rseg{display:none}
+/* the list, the route and the story column on the panel */
+[data-look="glass"] .view.routes :is(.rlist,.rdetail,.rstorycol){background:var(--panel-bg);color:var(--text);border:1px solid var(--card-edge);
+  border-radius:22px;box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.routes .rlist > .rscroll,[data-look="glass"] .view.routes .rstorybelow,[data-look="glass"] .view.routes .fhead{border-color:var(--rule)}
+[data-look="glass"] .view.routes :is(.rfilters,.addform){background:var(--row-group);border-color:var(--rule)}
+[data-look="glass"] .view.routes :is(.rcount,.rcode,.rdh .rcodes,.rm,.city,.rfl,.rfs,.dsub,.blk,.alt,.meta,.fdays,.chiplbl,label.check,.cxh,.lfleg){color:var(--text-2)}
+[data-look="glass"] .view.routes .fg label{color:var(--text-2)}
+[data-look="glass"] .view.routes :is(.no,.cxap,.rsh,.rpick b,.rk b,.ftail,.fnos){color:var(--text)}
+[data-look="glass"] .view.routes label.check input{accent-color:var(--on-bg)}
+[data-look="glass"] .view.routes .row{border-bottom-color:var(--rule-2)}
+[data-look="glass"] .view.routes .row:hover{background:var(--row-hover)}
+[data-look="glass"] .view.routes .row.sel{background:var(--sel-bg);box-shadow:inset 4px 0 0 var(--sel-mark)}
+[data-look="glass"] .view.routes .offbank{color:var(--bad-text)}
+[data-look="glass"] .view.routes button.rfbtn.on{box-shadow:inset 0 0 0 1.5px var(--on-bg)}
+[data-look="glass"] .view.routes .rfn{background:var(--on-bg);color:var(--on-text)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .stars .off{color:var(--stars-off)}
+/* the load pills (95%+ ok, 85 warn, 70 orange, under that bad) and the route's big figures on their tiles */
+[data-look="glass"] .pill.orange:not(.ok):not(.warn):not(.bad){background:var(--orange-fill);color:var(--orange-text)}
+[data-look="glass"] .view.routes .rfig{background:var(--tile-bg);box-shadow:inset 0 0 0 1px var(--card-edge)}
+[data-look="glass"] .view.routes .rfig b{color:var(--text)}
+[data-look="glass"] .view.routes .rfig b.lf.ok{color:var(--lf-ok-text)}
+[data-look="glass"] .view.routes .rfig b.lf.warn{color:var(--count-warn)}
+[data-look="glass"] .view.routes .rfig b.lf.orange{color:var(--lf-orange-text)}
+[data-look="glass"] .view.routes .rfig b.lf.bad{color:var(--count-bad)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .lfbar{background:var(--rule)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) :is(.lfbar,.lfleg) i.l0{background:var(--chart-ok)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) :is(.lfbar,.lfleg) i.l95{background:var(--chart-warn)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) :is(.lfbar,.lfleg) i.l85{background:var(--load-85)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) :is(.lfbar,.lfleg) i.l70{background:var(--chart-bad)}
+/* a frequency, its connections, the loads box and the empty boxes: group rows on the panel */
+[data-look="glass"] .view.routes :is(.freq,details.cx,.lfs,.rdetail .empty[data-figure]){background:var(--row-group);color:var(--text);box-shadow:inset 0 0 0 1px var(--rule)}
+[data-look="glass"] .view.routes .lfs.dim{background:transparent;border-color:var(--rule);color:var(--text-2)}
+[data-look="glass"] .view.routes details.cx summary{color:var(--text)}
+[data-look="glass"] .view.routes .tbl.cxt{border-color:var(--rule)}
+/* the buttons: the old planner's Add and Remove, the route's story link, "← Routes" on a phone */
+[data-look="glass"] .view.routes button.primary,[data-look="glass"] :is(.view.routes,[data-route-popup]) .modal button.primary{background:var(--on-bg);color:var(--on-text)}
+[data-look="glass"] .view.routes button.primary:hover,[data-look="glass"] :is(.view.routes,[data-route-popup]) .modal button.primary:hover{background:var(--on-bg);box-shadow:0 0 0 3px var(--card-edge)}
+[data-look="glass"] .view.routes button.danger:not(.sm){background:var(--danger-fill);color:var(--late-text)}
+[data-look="glass"] .view.routes button.danger:not(.sm):hover{background:var(--danger-fill-2)}
+[data-look="glass"] .view.routes .rstory{background:var(--on-bg);color:var(--on-text)}
+[data-look="glass"] .view.routes .rstory:hover{background:var(--on-bg);box-shadow:0 0 0 3px var(--card-edge)}
+[data-look="glass"] .view.routes .qpanel{background:var(--bad-fill);color:var(--text)}
+[data-look="glass"] .view.routes .qpanel .cq{color:var(--late-text)}
+@media (max-width:759px){
+  [data-look="glass"] .view.routes .rdetail .back{background:var(--sel-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge)}
+}
+/* the route's story on Routes (and the same parts on the route page): its tiles, boards and charts */
+[data-look="glass"] :is(.view.routes,.rpweek) .rpw{background:var(--tile-bg);border-color:var(--card-edge);color:var(--text)}
+[data-look="glass"] .rpwv .wow{color:var(--text-2)}
+[data-look="glass"] .view.routes .rstoryin .board.rsboard{background:transparent;border-color:var(--rule);box-shadow:none}
+[data-look="glass"] .rpsvc.off{background:var(--svc-off-fill);color:var(--svc-off-text)}
+[data-look="glass"] .rpbar{background:var(--rule)}
+[data-look="glass"] .storychart .lgd text{fill:var(--chart-ax2)}
+/* the pop-ups Routes opens (an aircraft) and the route pop-up Home's map opens: one panel on a dark scrim, as step 2's */
+[data-look="glass"] :is(.view.routes,[data-route-popup]).mback,[data-look="glass"] .view.routes .mback{background:var(--scrim)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .modal{background:var(--panel-bg);color:var(--text);
+  border:1px solid var(--card-edge);box-shadow:var(--pop-shadow);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) :is(.mhead,.mfoot){border-color:var(--rule)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .mhead b{color:var(--text)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .mx{background:var(--sel-bg);color:var(--text)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .mx:hover{background:var(--tile-hover)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .mstats > div > span{color:var(--text-2)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .mbody .tbl th{color:var(--text-2)}
+[data-look="glass"] :is(.view.routes,[data-route-popup]) .mbody .tbl td{color:var(--text)}
+[data-look="glass"] .view.routes :is(.tfgroup,.pcard,.tdel .tlslot){background:var(--row-group)}
+[data-look="glass"] .view.routes .mbody .pcard{background:transparent}
