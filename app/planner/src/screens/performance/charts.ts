@@ -5,7 +5,7 @@
 // growth_signals()'s, and the flights of a day the planning library's with their captured loads. Here they're only put in
 // order, coloured and given their tips; the unit tests (charts.test.ts) check each layout's figures.
 import type { DayFlight } from "@rules";
-import { SERIES, TONE, ticks, type HBarItem, type HeatRow, type StackRow, type StackSeries, type StepMarker, type StepPoint, type TimelineRow } from "../../ui/charts";
+import { PERF, SERIES, STORY, TONE, ticks, type HBarItem, type HeatRow, type StackRow, type StackSeries, type StepMarker, type StepPoint, type TimelineRow } from "../../ui/charts";
 import type { OurAirline } from "../../data/airlines";
 import {
   MARKS, chartIntervals, fcDay, fcWhat, ms, sg, DAY_MS,
@@ -64,7 +64,7 @@ export function forecastSteps(fc: Forecast, cushion: number): {
 export type WeekKind = "up" | "hold" | "down" | "jump" | "decide" | "set back";
 export const WEEK_SERIES: readonly StackSeries[] = [
   { key: "up", label: "up", color: TONE.ok }, { key: "hold", label: "hold", color: TONE.mute }, { key: "down", label: "down", color: TONE.warn },
-  { key: "jump", label: "jump under launch", color: "#E86A92" }, { key: "decide", label: "cut or keep?", color: TONE.bad }, { key: "set back", label: "set back to its level", color: TONE.violet },
+  { key: "jump", label: "jump under launch", color: SERIES[1] }, { key: "decide", label: "cut or keep?", color: TONE.bad }, { key: "set back", label: "set back to its level", color: TONE.violet },
 ];
 /** A ladder row's kind this Saturday, one each: a cut-or-keep decision first, then a set-back (off its level), a jump
  *  under launch, else its move. */
@@ -143,7 +143,7 @@ export function scoreMultiples(airlines: readonly { airline_id: number; name: st
 
 // ---------- growth signals: a stacked bar per airline
 export const GROWTH_SERIES: readonly StackSeries[] = [
-  { key: "ready", label: "ready for another flight", color: TONE.ok }, { key: "sold_out", label: "sold out · fares climbing", color: "#3B3FD8" },
+  { key: "ready", label: "ready for another flight", color: TONE.ok }, { key: "sold_out", label: "sold out · fares climbing", color: STORY.level },
   { key: "fix", label: "fix or reduce", color: TONE.warn }, { key: "losing", label: "aircraft losing after lease", color: TONE.bad },
 ];
 /** Each airline's growth signals by kind: from the capture (growth_signals()'s four lists), or without profit captured,
@@ -199,7 +199,7 @@ export const colorFor = (color: string | null | undefined, i: number): string =>
 export function tailItems(rows: readonly AircraftRow[]): HBarItem[] {
   return rows.map((t) => {
     const k = (t.net_day != null ? t.net_day : t.flight_profit_day) * 1000;
-    return { key: t.registration, label: t.registration, value: k, color: k >= 0 ? "#1E9E6A" : "#B4234B",
+    return { key: t.registration, label: t.registration, value: k, color: k >= 0 ? PERF.good : TONE.bad,
       text: (k >= 0 ? "+" : "−") + Math.abs(Math.round(k)) + "k", tip: `${t.registration}: ${Math.round(k)}k a day${t.net_day != null ? " after lease" : ""}` };
   });
 }

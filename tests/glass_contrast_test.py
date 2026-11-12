@@ -174,11 +174,46 @@ def step3_cases(t, s):
     return out
 
 
+def step3p_cases(t, s):
+    """Step 3 of the glass look, Performance (the group, an airline's page, the route page's own parts; spec
+    docs/specs/2026-11-11-glass-look.md): (what, colour, surface, the least ratio). The rows that open, the fare ladder's
+    changes, the last 14 days and shared pairs are on the panel, a group of growth signals and a small multiple group rows
+    on it, route profit's two charts on their own light tint of it; the scorecards, the fare ladder's cards, the links and
+    lines and an airline's four figures are on the card glass, the ladder's moves tiles on it."""
+    panel, card = s["panel"], s["card"]
+    on = lambda name, under: over(t[name], under)
+    group, rpc, tile = on("--row-group", panel), on("--rpc-bg", panel), on("--tile-bg", card)
+    out = []
+    for where, under in (("a row's content (panel)", panel), ("a growth group or small multiple (group row)", group),
+                         ("route profit's charts (their tint)", rpc), ("a scorecard, a ladder card, a link (card)", card)):
+        out += [(f"{where}: text", t["--text"], under, TEXT_MIN), (f"{where}: lesser text", t["--text-2"], under, TEXT_MIN),
+                (f"{where}: money down", t["--neg-text"], under, TEXT_MIN), (f"{where}: money up", t["--pos-text"], under, TEXT_MIN)]
+    for where, under in (("on the panel", panel), ("on the card glass", card)):
+        out += [(f"a shared pill {where}", t["--shared-text"], on("--shared-fill", under), TEXT_MIN),
+                (f"a joiner's pill {where}", t["--joiner-text"], on("--joiner-fill", under), TEXT_MIN)]
+    out += [("a ladder move (tile): its count", t["--text"], tile, TEXT_MIN), ("a ladder move (tile): its label", t["--text-2"], tile, TEXT_MIN),
+            ("a step down (tile): its count", t["--warn-text"], on("--warn-fill", card), TEXT_MIN),
+            ("chart text: the group's net", t["--chart-label"], panel, TEXT_MIN), ("chart text: a net loss, the cushion", t["--chart-bad"], panel, TEXT_MIN),
+            ("chart text: the profit's average", t["--chart-avg"], panel, TEXT_MIN), ("chart text: the lowest point", t["--chart-ink"], panel, TEXT_MIN),
+            ("chart text: a scatter label", t["--chart-label"], rpc, TEXT_MIN)]
+    for k in ("--chart-pos", "--chart-neg", "--chart-good", "--chart-lease", "--chart-cargo", "--chart-landing", "--chart-slate",
+              "--chart-load85", "--chart-load70", "--chart-none", "--chart-low", "--chart-level", "--chart-1", "--chart-warn", "--chart-ok",
+              "--chart-midline", "--hp-pend"):
+        out.append((f"mark: {k[2:]} on the panel", t[k], panel, MARK_MIN))
+    for k in ("--chart-good", "--chart-level", "--chart-warn", "--chart-bad", "--chart-mute"):
+        out.append((f"mark: a route's dot, {k[8:]} (route profit's tint)", t[k], rpc, MARK_MIN))
+    for k in ("--chart-good", "--chart-bad", "--chart-ink"):
+        out.append((f"mark: a small multiple's {k[8:]} (group row)", t[k], group, MARK_MIN))
+    out += [(f"mark: an average flight's {k[8:]} (route profit's tint)", t[k], rpc, MARK_MIN)
+            for k in ("--chart-level", "--chart-cargo", "--chart-bad", "--chart-lease", "--chart-warn", "--chart-landing", "--chart-mute", "--chart-slate")]
+    return out
+
+
 def main():
     css = SHEET.read_text(encoding="utf-8")
     base = block(css, ':root[data-look="glass"]')
     day = {**base, **block(css, ':root[data-look="glass"][data-period="day"]')}
-    problems, lines, q3, s2, s3 = [], [], [], {}, {}
+    problems, lines, q3, s2, s3, s3p = [], [], [], {}, {}, {}
     for period in PERIODS:
         t = day if period == "day" else base
         pic = LOOK / f"backdrop-{period}.jpg"
@@ -234,6 +269,12 @@ def main():
                 s3.setdefault(period, []).append((r, label, w))
                 if r < need:
                     problems.append(f"{where}: step 3, {label} {r:.2f}:1, under {need}")
+            # step 3, Performance (the group, an airline, the route page's own parts)
+            for label, fg, surface, need in step3p_cases(t, surfaces):
+                r = ratio(over(fg, surface), surface)
+                s3p.setdefault(period, []).append((r, label, w))
+                if r < need:
+                    problems.append(f"{where}: step 3 (Performance), {label} {r:.2f}:1, under {need}")
             low = min(worst.items(), key=lambda kv: kv[1])
             lines.append(f"{where}: card text {worst[('card', 'text')]:.1f}, labels {worst[('card', 'lesser text')]:.1f}, "
                          f"pills {min(v for k, v in worst.items() if k[0] == 'card' and k[1].endswith('pill')):.1f}; "
@@ -254,6 +295,12 @@ def main():
             rt, lt, wt = min(x for x in s3[period] if not x[1].startswith("mark"))
             rm, lm, wm = min(x for x in s3[period] if x[1].startswith("mark"))
             print(f"step 3 (Routes), {period}: {len(s3[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
+                  f"lowest mark {lm} {rm:.2f} ({wm} px)")
+    for period in PERIODS:
+        if s3p.get(period):
+            rt, lt, wt = min(x for x in s3p[period] if not x[1].startswith("mark"))
+            rm, lm, wm = min(x for x in s3p[period] if x[1].startswith("mark"))
+            print(f"step 3 (Performance), {period}: {len(s3p[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
                   f"lowest mark {lm} {rm:.2f} ({wm} px)")
     if q3:
         print("question 3, the chart colours on the card glass by day (not required): " + "; ".join(

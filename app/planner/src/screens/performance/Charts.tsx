@@ -4,7 +4,7 @@
 // the tip is the chart kit's (src/ui/charts), where the new charts are drawn: so a click opens each chart full size, and
 // its text stays 11 px on screen however small the chart is drawn. The route charts' legends are in the page's type
 // (Legend), under the chart, so they're never scaled down with it.
-import { ChartTip, HBars, Legend, SERIES, STORY, Sized, TONE, fitText, hbarLayout } from "../../ui/charts";
+import { ChartTip, HBars, Legend, PERF, SERIES, STORY, Sized, TONE, fitText, hbarLayout, paint } from "../../ui/charts";
 import { tailItems } from "./charts";
 import {
   barLayout, costParts, groupLayout, loadSparkBars, scatterLayout, sparkBars, sparkWords, type AircraftRow, type AverageFlight, type BarUnit,
@@ -93,10 +93,10 @@ export function Scatter({ routes }: { routes: readonly RouteRow[] }) {
               </g>
             ))}
             {g.xTicks.map((t, i) => <text key={"x" + i} x={t.x} y={g.H - g.pb + 16} textAnchor={i === g.xTicks.length - 1 ? "end" : "middle"}>{t.label}</text>)}
-            {g.zeroY != null ? <line x1={g.pl} x2={g.W - g.pr} y1={g.zeroY} y2={g.zeroY} stroke="#B4234B" strokeDasharray="3 3" /> : null}
+            {g.zeroY != null ? <line x1={g.pl} x2={g.W - g.pr} y1={g.zeroY} y2={g.zeroY} stroke={TONE.bad} style={{ stroke: paint(TONE.bad) }} strokeDasharray="3 3" /> : null}
             <text x={g.xTitle.x} y={g.xTitle.y} style={{ textAnchor: "end" }} className="kax">{g.xTitle.text}</text>
             {g.dots.map((d, i) => (
-              <circle key={"d" + i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r={d.r.toFixed(1)} fill={d.color} fillOpacity=".55" stroke={d.color} data-tip={d.title} />
+              <circle key={"d" + i} cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r={d.r.toFixed(1)} fill={d.color} fillOpacity=".55" stroke={d.color} style={{ fill: paint(d.color), stroke: paint(d.color) }} data-tip={d.title} />
             ))}
             {g.labels.map((l, i) => <text key={"l" + i} x={l.x.toFixed(1)} y={l.y.toFixed(1)} style={{ textAnchor: l.anchor }} className="rplab">{l.text}</text>)}
           </svg>
@@ -117,7 +117,7 @@ export function CostChart({ avg }: { avg: AverageFlight | null }) {
     <div className="cfrow">
       <span className="cfl">{label}</span>
       <span className="cfbar" role="img" aria-label={`${label}: ${parts.map((p) => `${p.name} ${p.k.toFixed(1)}k`).join(", ")}`}>
-        {parts.map((p) => <i key={p.name} style={{ width: `${Math.max(0, p.k / R * 100).toFixed(2)}%`, background: p.color }} title={`${p.name}: ${p.k.toFixed(1)}k`} />)}
+        {parts.map((p) => <i key={p.name} style={{ width: `${Math.max(0, p.k / R * 100).toFixed(2)}%`, background: paint(p.color) }} title={`${p.name}: ${p.k.toFixed(1)}k`} />)}
       </span>
     </div>
   );
@@ -127,7 +127,7 @@ export function CostChart({ avg }: { avg: AverageFlight | null }) {
         <span>profit a flight · {c.marginPct}% margin</span></div>
       <div className="cfbars">{bar("Income", c.income)}{bar("Costs", c.costs)}</div>
       <ul className="cfkey">
-        {[...c.income, ...c.costs].map((p) => <li key={p.name}><i style={{ background: p.color }} />{p.name}<b>{p.k.toFixed(1)}k</b></li>)}
+        {[...c.income, ...c.costs].map((p) => <li key={p.name}><i style={{ background: paint(p.color) }} />{p.name}<b>{p.k.toFixed(1)}k</b></li>)}
       </ul>
     </div>
   );
@@ -198,12 +198,12 @@ export function GroupChart({ rows }: { rows: readonly GroupRow[] }) {
             {g.rows.map((x) => (
               <g key={x.r.airline_id} data-group-row={x.r.code ?? x.r.name}>
                 <text x="0" y={x.y + 16} className="klab">{fitText(x.r.name, g.x0 - 8)}</text>
-                <rect x={g.c} y={x.y + 3} width={x.profitW.toFixed(1)} height="16" rx="3" fill="#1E9E6A" data-tip={x.profitTitle} />
-                <rect x={(g.c - x.leaseW).toFixed(1)} y={x.y + 3} width={x.leaseW.toFixed(1)} height="16" rx="3" fill="#E0557A" data-tip={x.leaseTitle} />
-                <text x={g.W - 4} y={x.y + 16} style={{ textAnchor: "end", fill: x.neg ? "#B4234B" : "#0A1230", fontWeight: 700 }}>{x.net}</text>
+                <rect x={g.c} y={x.y + 3} width={x.profitW.toFixed(1)} height="16" rx="3" fill={PERF.good} style={{ fill: paint(PERF.good) }} data-tip={x.profitTitle} />
+                <rect x={(g.c - x.leaseW).toFixed(1)} y={x.y + 3} width={x.leaseW.toFixed(1)} height="16" rx="3" fill={PERF.lease} style={{ fill: paint(PERF.lease) }} data-tip={x.leaseTitle} />
+                <text x={g.W - 4} y={x.y + 16} style={{ textAnchor: "end", fill: paint(x.neg ? TONE.bad : PERF.label), fontWeight: 700 }}>{x.net}</text>
               </g>
             ))}
-            <line x1={g.c} x2={g.c} y1="0" y2={g.axisY} stroke="#C3C9D9" />
+            <line x1={g.c} x2={g.c} y1="0" y2={g.axisY} stroke={PERF.midline} style={{ stroke: paint(PERF.midline) }} />
             <text x={g.c - 6} y={g.labelY} style={{ textAnchor: "end" }} className="kax">← leases and closing</text>
             <text x={g.c + 6} y={g.labelY} className="kax">flight profit →</text>
             <text x={g.W - 4} y={g.netY} style={{ textAnchor: "end" }} className="kax">net a day</text>

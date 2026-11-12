@@ -371,7 +371,7 @@ export function HeatStrip({ layout, figure, label = "heat strip" }: { layout: (W
               <g key={r.key} data-heat-row={r.key}>
                 <text x={g.L - 6} y={r.y + g.row / 2 + 4} textAnchor="end" className="klab">{fitText(r.label, g.L - 10)}</text>
                 {r.cells.map((c, i) => (c.empty ? <rect key={i} x={c.x + 1} y={r.y + 2} width={Math.max(0, g.cw - 2)} height={g.row - 4} className="kcell0" />
-                  : <rect key={i} x={c.x + 1} y={r.y + 2} width={Math.max(0, g.cw - 2)} height={g.row - 4} rx="2" fill={c.fill} data-tip={c.tip} />))}
+                  : <rect key={i} x={c.x + 1} y={r.y + 2} width={Math.max(0, g.cw - 2)} height={g.row - 4} rx="2" fill={c.fill} style={{ fill: paint(c.fill) }} data-tip={c.tip} />))}
               </g>
             ))}
             {g.cols.map((c, i) => <text key={i} x={c.x} y={g.H - 4} textAnchor="middle">{c.label}</text>)}

@@ -54,6 +54,14 @@
   --svc-off-text:#9A5B00; --svc-off-fill:#FFF4DE;
   --chart-level:#3B3FD8; --chart-back:#D9752B; --chart-back-2:#E8A26B; --chart-others:#C9CEDB; --chart-others-2:#A9B0C4;
   --chart-good:#1E9E6A; --chart-dot-bg:#FFFFFF; --chart-zero-2:#E1E6EE;
+  /* the glass look, step 3 (Performance: the group, an airline, the route page's own parts): the named colours their own
+     parts need, today's values here; the --chart-* ones also reach Performance's charts through paint() (layout.ts's PERF) */
+  --fcard-hover-1:rgba(0,0,0,.04); --fcard-hover-2:rgba(0,0,0,.18); --spark-zero:#D5DDE8; --kspark-zero:#D3D8E3;
+  --chart-pos:#3DBE84; --chart-neg:#E5486F; --neg-text:#D70015; --pos-text:#1A7F37; --hit:#000; --chart-avg:#1C2536;
+  --rpc-bg:#F9FAFC; --chart-halo:#F9FAFC; --chart-low:#C9CFDD; --hp-track:#EEF1F7; --hp-pend:#A9ACF0;
+  --shared-fill:#EEEAFB; --shared-text:#4B3BA8; --joiner-fill:#FCE8EF; --joiner-text:#9C2A55;
+  --chart-slate:#5B647E; --chart-label:#0A1230; --chart-lease:#E0557A; --chart-cargo:#8D90F2; --chart-landing:#F2C14E;
+  --chart-load85:#E3B341; --chart-load70:#E3812B; --chart-none:#D9DDE7; --chart-midline:#C3C9D9;
   /* type: display Unbounded, text Manrope; one small scale, nothing under 13px */
   --font:"Manrope",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-d:"Unbounded",ui-sans-serif,system-ui,sans-serif;
@@ -107,6 +115,14 @@
   --danger-fill:rgba(98,18,46,.62); --danger-fill-2:rgba(128,26,62,.72); --svc-off-text:#FFE7BA; --svc-off-fill:rgba(92,56,0,.62);
   --chart-level:#A9ABFF; --chart-back:#FFB27A; --chart-back-2:#FFD2AE; --chart-others:#8D96B5; --chart-others-2:#A9B0C4;
   --chart-good:#7FE3B5; --chart-dot-bg:#0A1230; --chart-zero-2:rgba(255,255,255,.35);
+  /* step 3, Performance (the group, an airline, the route page's own parts), each checked by tests/glass_contrast_test.py's
+     Performance cases: money up and down, the shared pills and the charts' own colours lighter for dark glass */
+  --fcard-hover-1:rgba(4,7,24,.2); --fcard-hover-2:rgba(4,7,24,.45); --spark-zero:rgba(255,255,255,.35); --kspark-zero:rgba(255,255,255,.35);
+  --chart-pos:#7FE3B5; --chart-neg:#FF8FA8; --neg-text:#FFECF2; --pos-text:#C9FBE4; --hit:#000; --chart-avg:#FFFFFF;
+  --rpc-bg:rgba(255,255,255,.05); --chart-halo:#0A1230; --chart-low:#8D96B5; --hp-track:rgba(255,255,255,.12); --hp-pend:#8C8FE8;
+  --shared-fill:rgba(56,34,120,.62); --shared-text:#EDE5FF; --joiner-fill:rgba(110,22,66,.62); --joiner-text:#FFE0EC;
+  --chart-slate:#E3E7F2; --chart-label:#FFFFFF; --chart-lease:#FFB0D0; --chart-cargo:#C9CBFF; --chart-landing:#FFE08A;
+  --chart-load85:#FFDF80; --chart-load70:#FFA25C; --chart-none:#7F88A6; --chart-midline:rgba(255,255,255,.5);
 }
 :root[data-look="glass"][data-period="day"]{
   --card-bg:rgba(10,18,48,.66); --bar-bg:rgba(10,18,48,.74);
@@ -711,7 +727,6 @@ tr[data-tail]:hover td{background:var(--tail-hover)}
 .ckb{margin:8px 0 2px;display:flex;flex-wrap:wrap;gap:6px}
 .ckb .pill{margin-left:0}
 .modal .ckb{margin:0 0 12px}
-.planrow td{background:#FAFBFD;padding:6px 10px 12px}
 .pcard{border:0;border-radius:var(--r-card);padding:10px 14px;background:var(--group)}
 .mbody .pcard{margin:0;padding:0;box-shadow:none;background:transparent}
 .pch{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
@@ -752,30 +767,14 @@ h3.rch .chev{display:inline-block;flex:none;width:9px;height:9px;border:0!import
 .board.rcol > h3.rch .chev{transform:none}
 .board.rcol > :not(h3){display:none!important}
 .board.rcol > h3.rch{margin-bottom:0}
-.gptr{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:2px 0 6px}
-.gptr .pill{margin-left:0}
 .gh{font:600 14px/1.3 var(--font);letter-spacing:-.01em;color:var(--ink);margin:20px 0 8px}
 .gh .note{font:400 13px var(--font);margin-left:6px}
 .hubprog{display:grid;gap:8px;margin:6px 0 14px;max-width:860px}
 .hp{display:grid;grid-template-columns:230px 1fr 150px;gap:12px;align-items:center;font-size:13px}
-.hpbar{height:10px;border-radius:6px;background:#EEF1F7;display:flex;overflow:hidden}
-.hpbar i{display:block;height:100%;background:#3B3FD8} .hpbar i.pend{background:#A9ACF0}
+.hpbar{height:10px;border-radius:6px;background:var(--hp-track);display:flex;overflow:hidden}
+.hpbar i{display:block;height:100%;background:var(--chart-level)} .hpbar i.pend{background:var(--hp-pend)}
 .hpv{text-align:right;font-variant-numeric:tabular-nums}
-.nmv td{vertical-align:middle;padding-top:12px;padding-bottom:12px}
-.nmv td:nth-child(4){white-space:normal;line-height:1.6}
-.nmv .opt{display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:4px 10px;border-radius:980px;background:var(--fill);font-size:13px;white-space:nowrap}
-.nmv .opt .link{font-weight:600;color:var(--ink)} .nmv .opt .stars{font-size:13px;letter-spacing:-.5px} .nmv .opt .sz{color:var(--muted)}
-.nmv .logseg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:var(--fill)}
-.nmv .logseg button{border:0;background:transparent;border-radius:7px;padding:4px 9px;font:500 13px/1 var(--font);color:#3A3A3C;cursor:pointer}
-.nmv .logseg button:hover{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.nmv .logseg button:disabled{opacity:.55;cursor:default}
 .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
-.ck{border:0;border-radius:var(--r-card);padding:12px 16px 12px 20px;margin:8px 0;background:var(--group);box-shadow:none;position:relative}
-.ck::before{content:"";position:absolute;left:8px;top:14px;bottom:14px;width:3px;border-radius:2px;background:#F6B44B}
-.ckh{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.ckh b{font-stretch:108%;font-size:15px;font-weight:650;letter-spacing:-.01em}
-.ckh .primary.sm{margin:0 0 0 auto;padding:6px 12px;font-size:13px}
-.ck .primary.sm{background:var(--fill);color:var(--ink);font-weight:550} .ck .primary.sm:hover{background:var(--fill-2)}
 details.gsub>summary{cursor:pointer;padding:6px 12px;font-size:13px;list-style:none;display:flex;align-items:center}
 details.gsub>summary::-webkit-details-marker{display:none}
 details.gsub>summary::before{content:"";display:inline-block;flex:none;width:9px;height:9px;border:0;margin:0 6px 0 0;
@@ -794,14 +793,13 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
 .qh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px} .qh .alogo{height:18px}
 .qfl{margin-left:auto} .qfl summary{cursor:pointer;color:var(--sky);font-size:13px;list-style:none} .qfl summary::-webkit-details-marker{display:none}
 .qlist{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);padding:8px 0 2px;max-width:900px}
-.capl{color:var(--ink,#0A1230);font-variant-numeric:tabular-nums;opacity:.8} .capl.low{color:#B4234B;opacity:1;font-weight:600}
+.capl{color:var(--ink);font-variant-numeric:tabular-nums;opacity:.8} .capl.low{color:var(--bad);opacity:1;font-weight:600}
 @media (max-width:860px){ .qfl{margin-left:0} }
 /* phones (design §9): nothing scrolls sideways at 380 px; the old main hubs' rows (230 px, the bar, 150 px) and the can-order
    pills were wider than a phone, so the bar takes a line of its own and the pills wrap; wide tables scroll in their box */
 @media (max-width:560px){
   .hp{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
   .hp .hpbar{grid-column:1 / -1;grid-row:2}
-  .gptr .pill{white-space:normal}
   .gch .pill{margin-left:0}
 }
 
@@ -809,37 +807,37 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
    the cash forecast, route profit (its filters, charts and tables), the fare plan, and manual entry (cash boxes, the
    nightly log, loads by hand), as the old planner's cascade leaves them (web/planner/index.html, both style sheets) ---------- */
 .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}
-.fcard{text-align:left;background:var(--surface);border:1px solid rgba(14,22,48,.06);border-radius:24px;padding:18px 20px;cursor:pointer;font:inherit;color:inherit;
-  box-shadow:0 1px 0 rgba(14,22,48,.03),0 24px 48px -32px rgba(14,22,48,.35);transition:box-shadow .15s;min-width:0}
-.fcard:hover{box-shadow:0 1px 2px rgba(0,0,0,.04),0 14px 34px -14px rgba(0,0,0,.18)}
+.fcard{text-align:left;background:var(--surface);border:1px solid var(--card-edge-2);border-radius:24px;padding:18px 20px;cursor:pointer;font:inherit;color:inherit;
+  box-shadow:0 1px 0 var(--panel-shadow-1),0 24px 48px -32px var(--panel-shadow-2);transition:box-shadow .15s;min-width:0}
+.fcard:hover{box-shadow:0 1px 2px var(--fcard-hover-1),0 14px 34px -14px var(--fcard-hover-2)}
 .fcard.on{box-shadow:0 0 0 2px var(--ink),var(--shadow)}
 .fch{display:flex;align-items:center;gap:6px} .fch b{flex:1;min-width:0}
 .fbig{font:400 28px/1.1 var(--font-d);letter-spacing:-.05em;margin-top:10px;color:var(--ink)} .fbig .fu{font:500 13px var(--font);letter-spacing:0;color:var(--muted)}
 .fsub{color:var(--muted);font-size:13px;margin:2px 0 10px}
 .fcard dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:13px} .fcard dt{color:var(--muted)} .fcard dd{margin:0;text-align:right}
-.spark{width:120px;height:30px;flex:none} .spark .zero{stroke:#D5DDE8}
-.bpos{fill:#3DBE84} .bneg{fill:#E5486F}
-.neg,.kv.neg{color:#D70015} .pos{color:#1A7F37} b.neg{color:#D70015}
+.spark{width:120px;height:30px;flex:none} .spark .zero{stroke:var(--spark-zero)}
+.bpos{fill:var(--chart-pos)} .bneg{fill:var(--chart-neg)}
+.neg,.kv.neg{color:var(--neg-text)} .pos{color:var(--pos-text)} b.neg{color:var(--neg-text)}
 .chartwrap{position:relative;margin:6px 0 4px}
-.lchart{width:100%;height:auto;display:block} .lchart text{font:500 11px/1 var(--font);fill:#8C94AD} .lchart .grid{stroke:#EDEDF0} .lchart .zero{stroke:#B8C3D3}
-.lchart .hitc{fill:#000;fill-opacity:0;cursor:default} .lchart .avgl{stroke:#1C2536;stroke-dasharray:5 4;stroke-width:1.4} .lchart .avgt{fill:#1C2536;font-weight:600}
+.lchart{width:100%;height:auto;display:block} .lchart text{font:500 11px/1 var(--font);fill:var(--chart-axis)} .lchart .grid{stroke:var(--chart-grid)} .lchart .zero{stroke:var(--chart-zero)}
+.lchart .hitc{fill:var(--hit);fill-opacity:0;cursor:default} .lchart .avgl{stroke:var(--chart-avg);stroke-dasharray:5 4;stroke-width:1.4} .lchart .avgt{fill:var(--chart-avg);font-weight:600}
 .chartwrap .maptip,.rpc .maptip{display:none;position:absolute;z-index:3;pointer-events:none}
 .ftbl td{white-space:nowrap} .flog td,.flog th{white-space:nowrap}
 .fcchart{width:100%;height:auto;display:block;margin:6px 0 4px}
-.fcfacts{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13px;margin:4px 0 8px} .fcfacts b.neg{color:#B4234B}
+.fcfacts{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13px;margin:4px 0 8px} .fcfacts b.neg{color:var(--bad)}
 .fcsafe{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px} .fcsafe .pill{white-space:normal}
-.rptbl td.neg,.rptbl td.neg b{color:#B4234B}
+.rptbl td.neg,.rptbl td.neg b{color:var(--bad)}
 .rpf{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 8px}
 .rpl{font-size:13px;color:var(--muted);margin:0 2px 0 8px} .rpl:first-child{margin-left:0}
 .sd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
-.rpq{margin-left:auto;min-width:220px;padding:7px 10px;border-radius:9px;border:1px solid var(--line,#E4E8F2);font:inherit;font-size:13px}
+.rpq{margin-left:auto;min-width:220px;padding:7px 10px;border-radius:9px;border:1px solid var(--line);font:inherit;font-size:13px}
 .rpcharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px;margin:6px 0 12px}
-.rpc{background:#F9FAFC;border-radius:12px;padding:10px 12px;min-width:0} .rpct{font-size:13px;font-weight:700;margin-bottom:4px}
+.rpc{background:var(--rpc-bg);border-radius:12px;padding:10px 12px;min-width:0} .rpct{font-size:13px;font-weight:700;margin-bottom:4px}
 .rpsvg{width:100%;height:auto;display:block}
 .cashrow{margin:10px 0;padding:10px 12px;border:0;border-radius:var(--r-card);background:var(--group)}
 .cashin{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;align-items:flex-end}
 .cashin label{display:flex;flex-direction:column;font-size:13px;gap:3px;color:var(--muted)} .cashin input{width:92px}
-.cashal{display:flex;align-items:flex-end;gap:8px;padding:6px 10px;border:1px solid var(--line,#E6EAF2);border-radius:8px;flex-wrap:wrap} .cashal>b{align-self:center;min-width:72px}
+.cashal{display:flex;align-items:flex-end;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;flex-wrap:wrap} .cashal>b{align-self:center;min-width:72px}
 .qman-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:8px 16px;margin:8px 0}
 .qone{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500} .qone input{width:100%}
 .qfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px} .qfoot .note{margin:0;flex:1 1 300px}
@@ -986,8 +984,8 @@ button.link.gmore{display:inline-block;margin:6px 0 2px}
 .fltbl td,.fltbl th{white-space:nowrap}
 .fltbl td:last-child{white-space:normal;min-width:12em}
 .flnotes{margin-top:8px}
-.lspark{width:56px;height:16px;display:block} .lspark .zero{stroke:#E1E6EE}
-.lspark rect,.lspark rect.bpos{fill:#8C94AD} .lspark rect.blow{fill:#C9CFDD}
+.lspark{width:56px;height:16px;display:block} .lspark .zero{stroke:var(--chart-zero-2)}
+.lspark rect,.lspark rect.bpos{fill:var(--chart-6)} .lspark rect.blow{fill:var(--chart-low)}
 
 /* ---------- Competition (21 Oct, spec docs/specs/2026-10-21-competition-analysis.md §3): the scans and the group line on
    top, one card per market with our share, its arrow and the top rivals as a bar, the threats, the openings table (its own
@@ -1482,7 +1480,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .syscap .sysdet{color:var(--ink)}
 
 .sysrows{margin-top:var(--gap-card);padding:12px var(--pad-card) 4px;border-radius:var(--r-lg);background:var(--paper);
-  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);min-width:0}
+  border:1px solid var(--card-edge-2);box-shadow:var(--shadow);min-width:0}
 .sysrowsh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;padding:8px 0 10px}
 .sysrowsh .tph{margin:0}
 .sysrowsh .revtools{margin:0}
@@ -1558,7 +1556,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .flgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-flow:row dense;gap:var(--gap-card)}
 .flgrid > .flair{display:contents}
 .flcard{display:flex;flex-direction:column;gap:14px;min-width:0;padding:24px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);
-  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow)}
+  border:1px solid var(--card-edge-2);box-shadow:var(--shadow)}
 .flcard.on{box-shadow:0 0 0 2px var(--night),var(--shadow)}
 .view .flh{display:flex;align-items:center;gap:8px;margin:0;font:800 var(--t-h3)/1.3 var(--font);color:var(--ink);overflow-wrap:anywhere}
 .flmoves{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -1571,12 +1569,12 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .flcard .fltools .primary.sm,.flcard .fltools .secondary.sm{margin:0}
 .flnote{font-size:var(--t-small);overflow-wrap:anywhere;margin-top:-6px}
 .flpanel{grid-column:1 / -1;min-width:0;padding:24px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);
-  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow)}
+  border:1px solid var(--card-edge-2);box-shadow:var(--shadow)}
 .flpanel > .tph{display:flex;align-items:center;gap:8px}
 .perfal + .perfladder{margin-top:var(--gap-card)}
 .fllinks{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .fllink{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 16px;border-radius:var(--r-md);background:var(--paper);
-  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);font:700 var(--t-body)/1.3 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
+  border:1px solid var(--card-edge-2);box-shadow:var(--shadow);font:700 var(--t-body)/1.3 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
 .fllink:hover,.fllink:focus-visible{box-shadow:0 0 0 2px var(--night),var(--shadow)}
 .fllink .fla{margin-left:auto;color:var(--muted)}
 /* Fare results (since 3 Nov; spec docs/specs/2026-11-03-fare-results.md §2): the airline page's row under the fare ladder,
@@ -1586,13 +1584,13 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .frh{margin:18px 0 8px}
 .frlines{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .frline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-height:44px;padding:10px 16px;border-radius:var(--r-md);background:var(--paper);
-  border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);font:500 var(--t-body)/1.4 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
+  border:1px solid var(--card-edge-2);box-shadow:var(--shadow);font:500 var(--t-body)/1.4 var(--font);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
 .frline:hover,.frline:focus-visible{box-shadow:0 0 0 2px var(--night),var(--shadow)}
 .frline b{font-weight:700}
 .frf{margin-bottom:10px}
 .frtbl td .pill{margin:0 4px 2px 0}
 .pill.plain{background:none;border:1px solid var(--line);color:var(--ink)}
-.frdots .frrest{stroke:#5B647E;stroke-dasharray:4 3}
+.frdots .frrest{stroke:var(--chart-slate);stroke-dasharray:4 3}
 .frnotes{margin-top:10px;max-width:120ch}
 
 .perfrows{margin-top:var(--gap-sec)}
@@ -1616,7 +1614,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 
 .view.performance .rpcharts{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);align-items:stretch;gap:var(--gap-card);margin:12px 0 20px}
 .view.performance .rpc{display:flex;flex-direction:column;padding:16px 18px}
-.rplab{paint-order:stroke;stroke:#F9FAFC;stroke-width:3px;stroke-linejoin:round}
+.rplab{paint-order:stroke;stroke:var(--chart-halo);stroke-width:3px;stroke-linejoin:round}
 .cflight{flex:1 1 auto;display:flex;flex-direction:column;justify-content:space-between;gap:18px;min-width:0;padding-top:8px}
 .cfbig{display:flex;flex-direction:column;gap:4px}
 .cfbig b{font:500 40px/1.05 var(--font-d);letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -2154,12 +2152,12 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .kref.cushion line{stroke:var(--bad)} .kref.cushion text{fill:var(--bad)}
 .kpick{cursor:pointer} .kpick:hover{opacity:.82}
 .kstep .kline{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
-.kstep .kmark{fill:var(--violet);stroke:var(--paper);stroke-width:1.5} .kstep .kmark.closing{fill:#E39B21} .kstep .kmark.expected{fill:var(--paper);stroke:var(--violet)}
+.kstep .kmark{fill:var(--violet);stroke:var(--paper);stroke-width:1.5} .kstep .kmark.closing{fill:var(--chart-warn)} .kstep .kmark.expected{fill:var(--paper);stroke:var(--violet)}
 .kstep .klow circle{fill:none;stroke:var(--ink);stroke-width:2} .kstep .klow text{fill:var(--ink);font-weight:700}
 .kstep .klow.bad circle{stroke:var(--bad)} .kstep .klow.bad text{fill:var(--bad)}
 .ktime .kspan{stroke:var(--chart-span);stroke-width:2} .ktime .know{stroke:var(--chart-ink);stroke-dasharray:3 3}
 .ktime .kmark{stroke:var(--paper);stroke-width:1.5;fill:var(--muted)} .ktime .kmark.planned{fill:var(--violet)} .ktime .kmark.seen{fill:var(--ok)}
-.ktime .kmark.waiting{fill:var(--paper);stroke:#E39B21;stroke-width:2}
+.ktime .kmark.waiting{fill:var(--paper);stroke:var(--chart-warn);stroke-width:2}
 .kscatter circle{fill-opacity:.8;stroke:var(--paper);stroke-width:1} .kscatter circle.kring{stroke:var(--ink);stroke-width:2}
 .kdonutw{display:inline-block} .kdonut .kmid,.kgauge .kmid{font:700 16px/1 var(--font);fill:var(--ink)}
 .kgauge{display:inline-flex;flex-direction:column;align-items:center;min-width:0;max-width:160px}
@@ -2168,7 +2166,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .kgauge .kgl{font-size:12px;text-align:center;color:var(--muted)}
 .kheat .kcell0{fill:transparent}
 .kspark{width:100%;max-width:140px;height:34px;display:block}
-.kspark path{fill:none;stroke:var(--ink);stroke-width:1.6} .kspark rect.pos{fill:#1E9E6A} .kspark rect.neg{fill:var(--bad)} .kspark .zero{stroke:#D3D8E3}
+.kspark path{fill:none;stroke:var(--ink);stroke-width:1.6} .kspark rect.pos{fill:var(--chart-good)} .kspark rect.neg{fill:var(--bad)} .kspark .zero{stroke:var(--kspark-zero)}
 .kmults{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;min-width:0}
 .kmult{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-md);padding:12px 14px;min-width:0;font-size:13px}
 .kmh{display:flex;align-items:center;gap:6px;margin:0 0 6px}
@@ -2227,7 +2225,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .cpfleet .chartwrap{margin:2px 0 0}
 .kbig .kdonut{max-width:min(70vh,100%) !important;margin:0 auto}
 .kbig .kdonutw{display:block}
-.kchart .rplab{fill:#0A1230;font-weight:600}
+.kchart .rplab{fill:var(--chart-label);font-weight:600}
 @media (max-width:420px){ .cpdonut{grid-template-columns:96px minmax(0,1fr);gap:10px} }
 
 /* part C's charts (since 30 Oct, spec docs/specs/2026-10-30-charts-everywhere.md): Today's delivery lines (each aircraft,
@@ -2244,16 +2242,16 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .kgauges .kgauge{max-width:150px}
 .kbig .kgauges{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))} .kbig .kgauges .kgauge{max-width:260px}
 /* shared pairs (since 5 Nov): the row's pill, the detail's bar with Join this pair, the route page's pair board */
-.pill.shared{background:#EEEAFB;color:#4B3BA8;white-space:normal}
-.pill.shared.joiner{background:#FCE8EF;color:#9C2A55}
+.pill.shared{background:var(--shared-fill);color:var(--shared-text);white-space:normal}
+.pill.shared.joiner{background:var(--joiner-fill);color:var(--joiner-text)}
 .pairbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;font-size:13px}
 .pairbar .dim{min-width:0;overflow-wrap:anywhere}
 .joinpair{margin:0}
 .pairtable{width:100%;border-collapse:collapse;font-size:13px}
-.pairtable th,.pairtable td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line, #E3E7F0)}
+.pairtable th,.pairtable td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line)}
 .pairtable th:first-child,.pairtable td:first-child{text-align:left}
 .pairwrap{overflow-x:auto;max-width:100%}
-.sharedpairs .sprow{display:flex;flex-wrap:wrap;gap:4px 10px;padding:6px 0;border-bottom:1px solid var(--line, #E3E7F0);font-size:13px}
+.sharedpairs .sprow{display:flex;flex-wrap:wrap;gap:4px 10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
 .sharedpairs .sprow b{min-width:0;overflow-wrap:anywhere}
 
 /* ---------- the glass look, step 1 (to-do 225, spec docs/specs/2026-11-11-glass-look.md): the frame, the rail, the shared
@@ -2590,3 +2588,99 @@ a.eq-railbtn:hover{background:var(--row-hover);box-shadow:inset 0 0 0 1px var(--
 [data-look="glass"] :is(.view.routes,[data-route-popup]) .mbody .tbl td{color:var(--text)}
 [data-look="glass"] .view.routes :is(.tfgroup,.pcard,.tdel .tlslot){background:var(--row-group)}
 [data-look="glass"] .view.routes .mbody .pcard{background:transparent}
+
+/* ---------- the glass look, step 3 (to-do 225, spec docs/specs/2026-11-11-glass-look.md), Performance: the group page (the
+   scorecards, the last 14 days, the fare ladder's links and Fare results lines, shared pairs, the rows), an airline's page
+   (its head, the fare ladder and its changes, Fare results, profit, cash, route profit, aircraft, fare changes, the fare
+   plan) and the route page's own parts (its header, its links, the shared pair board). As before: every rule hangs off
+   [data-look="glass"] and uses only named colours; the rows and anything holding a table or a chart sit on the panel,
+   cards on the card glass. ---------- */
+/* the airline's own buttons go (the rail picks the airline, decision 4) */
+[data-look="glass"] .view.performance .perfseg{display:none}
+/* the rows that open (the details): one panel, each row flat on it with a rule between */
+[data-look="glass"] .view.performance .sysrows{background:var(--panel-bg);color:var(--text);border:1px solid var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.performance .sysrows > .board,[data-look="glass"] .view.performance .sysrows > .board:has(table,.kchart,.lchart){
+  background:none;border:0;border-top:1px solid var(--rule);border-radius:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+[data-look="glass"] .view.performance .sysrows > .board > h3.rch .fbname{color:var(--text)}
+[data-look="glass"] .view.performance .sysrows > .board > h3.rch:hover .fbname{color:var(--text);text-decoration:underline}
+[data-look="glass"] .view.performance :is(.sysrows > .board > h3.rch > .note,.sysrows > .board > h3.rch .fbaside,.sysrows .fblead,.revtools){color:var(--text-2)}
+/* the scorecards (the airline cards' glass is step 1's) */
+[data-look="glass"] .view.performance :is(.fchead,.ffoot){border-color:var(--rule)}
+[data-look="glass"] .view.performance :is(.fbig,.fcard dl.wowl dd,.fch b){color:var(--text)}
+[data-look="glass"] .view.performance :is(.fbig .fu,.fsub,.ffl,.fcard .wow,.fwow){color:var(--text-2)}
+[data-look="glass"] .view.performance .fcard.on{box-shadow:0 0 0 2px var(--on-bg),var(--card-shadow)}
+/* money up and down, wherever it is on the screen */
+[data-look="glass"] .view.performance :is(.neg,b.neg,.kv.neg,.fcfacts b.neg,.rptbl td.neg,.rptbl td.neg b,.pfigs .rfig b.neg,.cfbig b.neg,.capl.low){color:var(--neg-text)}
+[data-look="glass"] .view.performance .pos{color:var(--pos-text)}
+/* an airline's head: four figures as tiles on the picture, the line under them */
+[data-look="glass"] .view.performance .pfigs .rfig{background:var(--card-bg);border:1px solid var(--card-edge);box-shadow:var(--card-shadow);
+  -webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.performance .pfigs .rfig :is(.rfl,.rfs){color:var(--text-2)}
+[data-look="glass"] .view.performance .pfigs .rfig b{color:var(--text)}
+[data-look="glass"] .view.performance .vh .perfline{color:var(--text)}
+[data-look="glass"] .view.performance .perfline .wow{color:var(--text-2)}
+/* section heads on the picture, and the group page's links and lines as cards */
+[data-look="glass"] .view.performance :is(.perfh,.flh,.flchg,.flup,.gh){color:var(--text)}
+[data-look="glass"] .view.performance :is(.fllink,.frline){background:var(--card-bg);color:var(--text);border:1px solid var(--card-edge);
+  box-shadow:var(--card-shadow);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.performance :is(.fllink,.frline):is(:hover,:focus-visible){box-shadow:0 0 0 2px var(--on-bg),var(--card-shadow)}
+[data-look="glass"] .view.performance .fllink .fla{color:var(--text-2)}
+/* the last 14 days and shared pairs: their charts on the panel */
+[data-look="glass"] .view.performance :is(.perfmult,.sharedpairs){padding:20px var(--pad-card);background:var(--panel-bg);color:var(--text);
+  border:1px solid var(--card-edge);border-radius:22px;box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.performance .kmult{background:var(--row-group);border-color:var(--rule)}
+[data-look="glass"] .view.performance .sharedpairs .sprow,[data-look="glass"] .view.performance .pairtable :is(th,td){border-bottom-color:var(--rule)}
+[data-look="glass"] .pill.shared:not(.ok):not(.warn):not(.bad){background:var(--shared-fill);color:var(--shared-text)}
+[data-look="glass"] .pill.shared.joiner:not(.ok):not(.warn):not(.bad){background:var(--joiner-fill);color:var(--joiner-text)}
+[data-look="glass"] .pill.plain:not(.ok):not(.warn):not(.bad){background:none;border-color:var(--card-edge);color:var(--text)}
+/* the fare ladder: a card per airline, its moves as tiles, its changes on the panel */
+[data-look="glass"] .view.performance .flcard{background:var(--card-bg);color:var(--text);border:1px solid var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.performance .flcard.on{box-shadow:0 0 0 2px var(--on-bg),var(--card-shadow)}
+[data-look="glass"] .view.performance .flpanel{background:var(--panel-bg);color:var(--text);border:1px solid var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.performance .flc{background:var(--tile-bg);color:var(--text-2);box-shadow:inset 0 0 0 1px var(--card-edge)}
+[data-look="glass"] .view.performance .flc b{color:var(--text)}
+[data-look="glass"] .view.performance .flc.down{background:var(--warn-fill);color:var(--warn-text)}
+[data-look="glass"] .view.performance .flc.down b{color:var(--warn-text)}
+[data-look="glass"] .view.performance .flair{border-top-color:var(--rule)}
+/* route profit, cash and an average flight */
+[data-look="glass"] .view.performance :is(.rpl,.cfbig span,.qlist){color:var(--text-2)}
+[data-look="glass"] .view.performance :is(.cfbig b,.cfrow,.cfkey,.rpct){color:var(--text)}
+[data-look="glass"] .view.performance .rpc{background:var(--rpc-bg);box-shadow:inset 0 0 0 1px var(--rule)}
+[data-look="glass"] .view.performance .cfbar{background:var(--rule)}
+[data-look="glass"] .view.performance .rpq{border-color:var(--card-edge)}
+[data-look="glass"] .view.performance .lchart .avgl{stroke:var(--chart-avg)}
+[data-look="glass"] .view.performance .lchart .avgt{fill:var(--chart-avg)}
+/* the growth signals, the main hubs and flights by day */
+[data-look="glass"] .view.performance :is(.qcard,.gc,.imp){background:var(--row-group);color:var(--text)}
+[data-look="glass"] .view.performance .qfl summary{color:var(--link);text-decoration:underline}
+[data-look="glass"] .view.performance :is(.tbl.gct,.impr){border-color:var(--rule)}
+[data-look="glass"] .view.performance .capl{color:var(--text)}
+/* the chart kit's marks on Performance's charts (Cash's step line, the fare plan's timeline, the scatter's rings) */
+[data-look="glass"] .view.performance .kstep .kline{stroke:var(--chart-ink)}
+[data-look="glass"] .view.performance :is(.kstep,.ktime) .kmark{stroke:var(--chart-dot-bg)}
+[data-look="glass"] .view.performance .kstep .kmark{fill:var(--chart-1)}
+[data-look="glass"] .view.performance .kstep .kmark.closing{fill:var(--chart-warn)}
+[data-look="glass"] .view.performance .kstep .kmark.expected{fill:var(--chart-dot-bg);stroke:var(--chart-1)}
+[data-look="glass"] .view.performance .kstep .klow circle{stroke:var(--chart-ink)}
+[data-look="glass"] .view.performance .kstep .klow text{fill:var(--chart-ink)}
+[data-look="glass"] .view.performance .kstep .klow.bad circle{stroke:var(--chart-bad)}
+[data-look="glass"] .view.performance .kstep .klow.bad text{fill:var(--chart-bad)}
+[data-look="glass"] .view.performance .kref.cushion line{stroke:var(--chart-bad)}
+[data-look="glass"] .view.performance .kref.cushion text{fill:var(--chart-bad)}
+[data-look="glass"] .view.performance .ktime .kmark{fill:var(--chart-mute)}
+[data-look="glass"] .view.performance .ktime .kmark.planned{fill:var(--chart-1)}
+[data-look="glass"] .view.performance .ktime .kmark.seen{fill:var(--chart-ok)}
+[data-look="glass"] .view.performance .ktime .kmark.waiting{fill:var(--chart-dot-bg);stroke:var(--chart-warn)}
+[data-look="glass"] .view.performance .kscatter circle{stroke:var(--chart-dot-bg)}
+[data-look="glass"] .view.performance .kscatter circle.kring{stroke:var(--chart-ink)}
+[data-look="glass"] .view.performance .kchart .klab{fill:var(--chart-val)}
+[data-look="glass"] .view.performance .kspark rect.neg{fill:var(--chart-bad)}
+[data-look="glass"] .view.performance .kspark rect.pos{fill:var(--chart-good)}
+/* the route page's own parts: its links, its header, the shared pair board (the story's parts are Routes' half's) */
+[data-look="glass"] .view.performance .rphead h1 .city{color:var(--text-2)}
+[data-look="glass"] .view.performance .stars .off{color:var(--stars-off)}
+[data-look="glass"] .view.performance .perfnav .mf{background:var(--card-bg);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.performance .pairtable th{color:var(--text-2)}

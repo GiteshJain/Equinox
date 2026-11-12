@@ -56,7 +56,7 @@ import { useAirports, useAllRoutes, useLoads, useMarkets } from "../routes/reads
 import { itemRoute } from "../screens";
 import { rulesLegs, typeName, type PlanLegRow } from "../tails/model";
 import { useLaunches, usePlanCards, usePlanLegs, useTailsAircraft } from "../tails/reads";
-import { ChartFrame, ChartOrTable, StackedBars, stackLayout } from "../../ui/charts";
+import { ChartFrame, ChartOrTable, StackedBars, paint, stackLayout } from "../../ui/charts";
 import { colorFor } from "./charts";
 import { BarChart, CostChart, GroupChart, LoadSpark, Scatter, Spark, TailChart } from "./Charts";
 import { CashSteps, Multiples, PlanTimeline, RouteHourChart } from "./PerfCharts";
@@ -611,7 +611,7 @@ function RouteProfitBody({ airline, r, plan, ladder, routeDays, today, days, onD
         <button type="button" className={"mf" + (!mark ? " on" : "")} data-rpsig="" onClick={() => setMark("")}>All {r.routes.length}</button>
         {MARK_ORDER.filter((x) => cnt[x]).map((x) => (
           <button type="button" key={x} className={"mf" + (mark === x ? " on" : "")} data-rpsig={x} onClick={() => setMark(x)}>
-            <i className="sd" style={{ background: MARKS[x].color }} />{MARKS[x].label} {cnt[x]}
+            <i className="sd" style={{ background: paint(MARKS[x].color) }} />{MARKS[x].label} {cnt[x]}
           </button>
         ))}
         <span className="rpl">Sort</span>
