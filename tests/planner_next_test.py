@@ -1990,11 +1990,16 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=True):
                     if where:
                         problems += [f"{addr} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, where)]
                     if width >= 2000:
-                        # wide screens (30 Oct): the whole width, the list 320-380 px, the story wider than the detail
+                        # wide screens (30 Oct): the whole width, the list 320-380 px, the story wider than the detail. In the glass
+                        # look (one look since 12 Nov) the side padding and the rail sit outside the screen, in the frame
+                        # (.eq-body), so the whole width is the frame's: at least the width less 40 px. The screen itself must
+                        # still fill the frame: at least the width less 170 px (the frame's 80 px of padding, the 62 px rail
+                        # and the 24 px gap, with 4 px to spare), so a wide frame round a narrow screen fails.
                         wd = await ph.pg.evaluate("""(() => { const w = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().width : 0; };
-                            const list = document.querySelector('.view.routes > .rwrap > *'); return { view: w('main.view.routes'),
+                            const list = document.querySelector('.view.routes > .rwrap > *'); return { frame: w('.eq-body'), view: w('main.view.routes'),
                             list: list ? list.getBoundingClientRect().width : 0, story: w('[data-story-column]'), detail: w('.view.routes .rdetail') }; })()""")
-                        if wd["view"] < width - 40 or not 320 <= wd["list"] <= 381 or (wd["story"] and wd["story"] <= wd["detail"]):
+                        if (wd["frame"] < width - 40 or wd["view"] < width - 170 or not 320 <= wd["list"] <= 381
+                                or (wd["story"] and wd["story"] <= wd["detail"])):
                             problems.append(f"{addr} at {width} px: the route detail doesn't use the wide screen ({wd})")
                     await look("routes", "routes-detail")
                     problems += [f"{addr} at {width} px: {e}" for e in ph.errors[e0:]]
