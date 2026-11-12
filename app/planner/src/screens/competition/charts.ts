@@ -2,7 +2,9 @@
 // (src/ui/charts) from competition()'s figures, unchanged: each market's share as a donut, the threats as a timeline by
 // scan day, the openings as a scatter (stars against rivals' departures a week, sized by distance, coloured by variant
 // family, hubs-first allowed ringed), each rival's fleet and orders by type, and the order books against the flag.
-import { SERIES, TONE, type DonutPart, type HBarItem, type SizedPoint, type StackRow, type StackSeries, type TimelineRow } from "../../ui/charts";
+// Every colour is one of the chart kit's (TONE, SERIES, STORY), so paint() gives each the glass look's own (the glass
+// look, step 4); the light look's values are the same as before.
+import { SERIES, STORY, TONE, type DonutPart, type HBarItem, type SizedPoint, type StackRow, type StackSeries, type TimelineRow } from "../../ui/charts";
 import { dayWords, kmWords, n0, pctWords, shareBar, starsWords, variantWords, type Fleet, type Market, type Opening, type OrderFlag, type Threat } from "./model";
 
 const DAY_MS = 86_400_000;
@@ -18,7 +20,7 @@ export function marketDonut(m: Market, ours: string = OURS): (DonutPart & { pct:
   return parts.map((p, i) => ({
     key: p.ours ? "ours" : p.label === "others" && i === parts.length - 1 ? "others" : `r${i}`,
     label: p.label, value: Math.round(p.pct * m.total) / 100, pct: p.pct,
-    color: p.ours ? ours : p.label === "others" && i === parts.length - 1 ? "#C9CEDB" : (RIVALS[(i - 1) % RIVALS.length] as string),
+    color: p.ours ? ours : p.label === "others" && i === parts.length - 1 ? STORY.others : (RIVALS[(i - 1) % RIVALS.length] as string),
   }));
 }
 
@@ -59,9 +61,9 @@ export function openingPoints(openings: readonly Opening[]): { points: SizedPoin
   const count = new Map<string, number>();
   for (const o of openings) { const f = variantFamily(o.variant.type); count.set(f, (count.get(f) ?? 0) + 1); }
   const named = [...count.entries()].filter(([f]) => f !== "other").sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5).map(([f]) => f);
-  const colorOf = (f: string) => { const i = named.indexOf(f); return i < 0 ? "#9AA4C4" : (SERIES[i] as string); };
+  const colorOf = (f: string) => { const i = named.indexOf(f); return i < 0 ? TONE.mute : (SERIES[i] as string); };
   const families = named.map((f) => ({ label: f, color: colorOf(f) }));
-  if ([...count.keys()].some((f) => !named.includes(f))) families.push({ label: "other", color: "#9AA4C4" });
+  if ([...count.keys()].some((f) => !named.includes(f))) families.push({ label: "other", color: TONE.mute });
   return {
     families,
     points: openings.map((o) => ({
@@ -73,7 +75,7 @@ export function openingPoints(openings: readonly Opening[]): { points: SizedPoin
 }
 
 /** A rival's fleet by type: a bar per type of its aircraft, then those on order. */
-export const FLEET_SERIES: StackSeries[] = [{ key: "fleet", label: "in its fleet", color: TONE.ink }, { key: "order", label: "on order", color: "#E39B21" }];
+export const FLEET_SERIES: StackSeries[] = [{ key: "fleet", label: "in its fleet", color: TONE.ink }, { key: "order", label: "on order", color: TONE.warn }];
 export function fleetRows(f: Fleet | null | undefined): StackRow[] {
   return (f?.types ?? []).map((t) => ({
     key: t.type, label: t.type, parts: { fleet: t.overall ?? 0, order: t.on_order ?? 0 },

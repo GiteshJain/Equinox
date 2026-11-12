@@ -35,7 +35,7 @@ import { ourAirlines, type OurAirline } from "../../data/airlines";
 import { useOurAirlines, useWorld } from "../../data/reads";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { ErrorBox } from "../../ui/ErrorBox";
-import { ChartOrTable } from "../../ui/charts";
+import { ChartOrTable, STORY, paint } from "../../ui/charts";
 import { FoldBoard, FoldTools } from "../../ui/FoldBoard";
 import { useSettings } from "../reference/reads";
 import { listCut } from "../performance/model";
@@ -262,7 +262,7 @@ function AirlinePage({ airline, a }: { airline: OurAirline; a: CompetitionAnswer
 }
 
 /** A market's tile: our share with its arrow, the top rivals as a donut (since 30 Oct; a bar until then) and a list, each
- *  rival with its colour in the donut. */
+ *  rival with its colour in the donut (through paint(), so the list's dots take the glass look's colours as the donut does). */
 function MarketCard({ m, color }: { m: Market; color?: string | null }) {
   const bar = shareBar(m);
   const colors = donutColors(m, color);
@@ -288,10 +288,10 @@ function MarketCard({ m, color }: { m: Market; color?: string | null }) {
         {m.top.length ? (
           <ol className="cprv">
             {m.top.map((r) => (
-              <li key={r.airline_id}><i className="cpdot" style={{ background: colors.get(r.name) ?? "#C9CEDB" }} /><span className="cpname">{r.name}</span> <span className="num">{n0(r.weekly)}</span> <span className="dim">{pctWords(r.share)}</span>{" "}
+              <li key={r.airline_id}><i className="cpdot" style={{ background: paint(colors.get(r.name) ?? STORY.others) }} /><span className="cpname">{r.name}</span> <span className="num">{n0(r.weekly)}</span> <span className="dim">{pctWords(r.share)}</span>{" "}
                 <Change v={r.change} k={"rival " + r.name} /></li>
             ))}
-            {colors.has("others") ? <li className="dim"><i className="cpdot" style={{ background: colors.get("others") }} />the other rivals</li> : null}
+            {colors.has("others") ? <li className="dim"><i className="cpdot" style={{ background: paint(colors.get("others")) }} />the other rivals</li> : null}
           </ol>
         ) : <div className="dim cpnone">No rival on its pairs.</div>}
       </div>

@@ -3,7 +3,7 @@
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { SERIES, TONE, donutLayout, hbarLayout, sizedScatterLayout, timelineLayout } from "../../ui/charts";
+import { SERIES, STORY, TONE, donutLayout, hbarLayout, paint, sizedScatterLayout, timelineLayout } from "../../ui/charts";
 import { FLEET_SERIES, OURS, fleetRows, marketDonut, openingPoints, orderBookBars, threatTimeline, variantFamily } from "./charts";
 import { MarketDonut, OrderBooksChart } from "./CompCharts";
 import type { Fleet, Market, Opening, OrderFlag, Threat } from "./model";
@@ -125,5 +125,27 @@ describe("Order books: orders against fleet, the flag drawn", () => {
     expect(html).toContain("flag 25%");
     expect(html).toContain('data-figure="competition: order books bars"');
     expect(renderToString(createElement(OrderBooksChart, { books: [], flagPct: 25 }))).toContain("No rival has a big order book");
+  });
+});
+
+describe("the glass look, step 4: Competition's colours are the chart kit's", () => {
+  it("today's values, each a named colour through paint() (ours, the airline's own, stays its own)", () => {
+    const d = marketDonut(market(), "#C8102E");
+    expect(d.map((p) => p.color)).toEqual(["#C8102E", "#E86A92", "#1A7F55", "#C9CEDB"]);
+    expect(d.map((p) => paint(p.color))).toEqual(["#C8102E", "var(--chart-2, #E86A92)", "var(--chart-ok, #1A7F55)", "var(--chart-others, #C9CEDB)"]);
+    expect(STORY.others).toBe("#C9CEDB");
+    expect(FLEET_SERIES.map((s) => paint(s.color))).toEqual(["var(--chart-ink, #0E1630)", "var(--chart-warn, #E39B21)"]);
+    const o = openingPoints([opening(), opening({ rank: 2, route_id: 6, variant: { type_id: null, type: null, seats: null, range_km: null, size: null, for_reach: false } })]);
+    expect(o.families.map((f) => paint(f.color))).toEqual(["var(--chart-1, #4B3BA8)", "var(--chart-mute, #9AA4C4)"]);
+  });
+  it("the order books' legend and bars draw in the named colours", () => {
+    const html = renderToString(createElement(OrderBooksChart, { books: [flag(), flag({ airline_id: 2, name: "Quiet Air", meets: false, meets_codes: [] })], flagPct: 25 }));
+    expect(html).toContain("var(--chart-bad, #B4234B)");
+    expect(html).toContain("var(--chart-mute, #9AA4C4)");
+  });
+  it("a rival with no colour (a market we don't fly, to-do 234) still has none, and paint() passes it through", () => {
+    const m = market({ ours: 0, total: 160, share: 0 });
+    expect(marketDonut(m)[0]?.color).toBeUndefined();
+    expect(paint(marketDonut(m)[0]?.color)).toBeUndefined();
   });
 });
