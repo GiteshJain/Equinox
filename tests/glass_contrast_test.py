@@ -136,11 +136,49 @@ def step2_cases(t, s):
     return out
 
 
+def step3_cases(t, s):
+    """Step 3 of the glass look (Routes, its pop-ups and the route's story it shows, spec docs/specs/2026-11-11-glass-look.md):
+    (what, colour, surface, the least ratio). Routes' list, route and story are on the panel; a frequency, a connection and
+    the loads box are group rows on it, the route's figures tiles on it; the pop-ups a panel over a darker scrim, so the
+    panel is their worst case. The story's tiles also sit on a route page's card glass, so both are checked."""
+    panel, card = s["panel"], s["card"]
+    on = lambda name, under: over(t[name], under)
+    group, tile, sel, hover = on("--row-group", panel), on("--tile-bg", panel), on("--sel-bg", panel), on("--row-hover", panel)
+    tile_card = on("--tile-bg", card)
+    out = []
+    for where, under in (("the list, the route, a pop-up (panel)", panel), ("a frequency or connection (group row)", group),
+                         ("a chosen route in the list", sel), ("a route under the pointer", hover)):
+        out += [(f"{where}: text", t["--text"], under, TEXT_MIN), (f"{where}: lesser text", t["--text-2"], under, TEXT_MIN)]
+        for k in ("ok", "warn", "bad", "mute"):
+            out.append((f"{where}: a {k} pill", t[f"--{k}-text"], on(f"--{k}-fill", under), TEXT_MIN))
+        out.append((f"{where}: an orange load pill", t["--orange-text"], on("--orange-fill", under), TEXT_MIN))
+    for where, under in (("the route's figure tiles (panel)", tile), ("the story's tiles (a route page's glass)", tile_card)):
+        out += [(f"{where}: label", t["--text-2"], under, TEXT_MIN), (f"{where}: figure", t["--text"], under, TEXT_MIN)]
+    out += [(f"the route's load figure, {k}", t[v], tile, TEXT_MIN) for k, v in
+            (("ok", "--lf-ok-text"), ("warn", "--count-warn"), ("orange", "--lf-orange-text"), ("bad", "--count-bad"))]
+    out += [("an offbank frequency", t["--bad-text"], panel, TEXT_MIN), ("an offbank frequency in a group row", t["--bad-text"], group, TEXT_MIN),
+            ("Remove (danger button)", t["--late-text"], on("--danger-fill", panel), TEXT_MIN),
+            ("Remove under the pointer", t["--late-text"], on("--danger-fill-2", panel), TEXT_MIN),
+            ("a remove question", t["--text"], on("--bad-fill", panel), TEXT_MIN),
+            ("a remove question's line", t["--late-text"], on("--bad-fill", panel), TEXT_MIN),
+            ("the filters' count, the story link (the page you're on)", t["--on-text"], on("--on-bg", panel), TEXT_MIN),
+            ("a route page's flight not served", t["--svc-off-text"], on("--svc-off-fill", panel), TEXT_MIN),
+            ("mark: a star", t["--stars-on"], panel, MARK_MIN),
+            ("mark: the chosen route's edge", t["--sel-mark"], sel, MARK_MIN)]
+    out += [(f"mark: the loads bar, {k}", t[v], panel, MARK_MIN) for k, v in
+            (("95%+", "--chart-ok"), ("under 95", "--chart-warn"), ("under 85", "--load-85"), ("under 70", "--chart-bad"))]
+    out += [(f"mark: the story's {k}", t[v], panel, MARK_MIN) for k, v in
+            (("economy line", "--chart-ink"), ("business line", "--chart-6"), ("fare level", "--chart-level"), ("way back", "--chart-back"),
+             ("way back's fare level", "--chart-back-2"), ("rivals' grey", "--chart-others-2"), ("rest of the market", "--chart-others"),
+             ("third rival", "--chart-good"), ("fourth rival", "--chart-bad"), ("weeks' bars", "--chart-span"))]
+    return out
+
+
 def main():
     css = SHEET.read_text(encoding="utf-8")
     base = block(css, ':root[data-look="glass"]')
     day = {**base, **block(css, ':root[data-look="glass"][data-period="day"]')}
-    problems, lines, q3, s2 = [], [], [], {}
+    problems, lines, q3, s2, s3 = [], [], [], {}, {}
     for period in PERIODS:
         t = day if period == "day" else base
         pic = LOOK / f"backdrop-{period}.jpg"
@@ -190,6 +228,12 @@ def main():
                 s2.setdefault(period, []).append((r, label, w))
                 if r < need:
                     problems.append(f"{where}: step 2, {label} {r:.2f}:1, under {need}")
+            # step 3 (Routes, its pop-ups, the route's story)
+            for label, fg, surface, need in step3_cases(t, surfaces):
+                r = ratio(over(fg, surface), surface)
+                s3.setdefault(period, []).append((r, label, w))
+                if r < need:
+                    problems.append(f"{where}: step 3, {label} {r:.2f}:1, under {need}")
             low = min(worst.items(), key=lambda kv: kv[1])
             lines.append(f"{where}: card text {worst[('card', 'text')]:.1f}, labels {worst[('card', 'lesser text')]:.1f}, "
                          f"pills {min(v for k, v in worst.items() if k[0] == 'card' and k[1].endswith('pill')):.1f}; "
@@ -204,6 +248,13 @@ def main():
             rt, lt, wt = min(texts)
             print(f"step 2 (Today and Tails), {period}: {len(s2[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
                   f"lowest overall {label} {r:.2f} ({w} px)")
+    for period in PERIODS:
+        if s3.get(period):
+            r, label, w = min(s3[period])
+            rt, lt, wt = min(x for x in s3[period] if not x[1].startswith("mark"))
+            rm, lm, wm = min(x for x in s3[period] if x[1].startswith("mark"))
+            print(f"step 3 (Routes), {period}: {len(s3[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
+                  f"lowest mark {lm} {rm:.2f} ({wm} px)")
     if q3:
         print("question 3, the chart colours on the card glass by day (not required): " + "; ".join(
             f"{w} px " + ", ".join(f"{c[8:]} {r:.2f}" for ww, c, r in q3 if ww == w) for w in sorted({x[0] for x in q3})))

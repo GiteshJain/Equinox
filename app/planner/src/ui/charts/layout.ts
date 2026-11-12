@@ -8,6 +8,10 @@
 export const TONE = { ok: "#1A7F55", warn: "#E39B21", bad: "#B4234B", mute: "#9AA4C4", ink: "#0E1630", violet: "#4B3BA8" } as const;
 /** A run of quiet colours for series with no colour of their own (the rivals, the rest). */
 export const SERIES = ["#4B3BA8", "#E86A92", "#1A7F55", "#E39B21", "#3B8FD8", "#8C94AD", "#B4234B", "#0E1630"] as const;
+/** The route story's own chart colours (the route page and Routes' story since 30 Oct): the fare level, the way back, and
+ *  every other airline together (grey). Named too (--chart-level, --chart-back, --chart-others), so paint() gives them the
+ *  glass look's colours (the glass look, step 3). */
+export const STORY = { level: "#3B3FD8", back: "#D9752B", others: "#C9CEDB" } as const;
 
 /** Each of TONE's and SERIES' colours to its named colour in styles.css (--chart-ok, --chart-1 …), so a chart drawn with
  *  paint(colour) takes the look's own colours: today's in the light look (the same values), ones made for dark glass in
@@ -16,6 +20,7 @@ const CHART_VAR: ReadonlyMap<string, string> = (() => {
   const m = new Map<string, string>();
   for (const [k, c] of Object.entries(TONE)) m.set(c.toUpperCase(), k === "violet" ? "--chart-1" : `--chart-${k}`);
   SERIES.forEach((c, i) => { if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${i + 1}`); });
+  for (const [k, c] of Object.entries(STORY)) m.set(c.toUpperCase(), `--chart-${k}`);
   return m;
 })();
 /** A chart colour as CSS: its named colour (with the colour itself as the fallback) when it's one of the kit's, else

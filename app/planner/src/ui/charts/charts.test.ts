@@ -6,7 +6,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ChartFrame, ChartOrTable, donutLayout, gaugeLayout, hbarLayout, heatLayout, loadFill, niceCeil, sizedScatterLayout, sparkLayout, stackLayout, stepLayout, ticks, timelineLayout,
-  fitText, paint, SERIES, TONE,
+  fitText, paint, SERIES, STORY, TONE,
 } from "./index";
 
 describe("paint(): the kit's colours as the look's named colours", () => {
@@ -19,6 +19,15 @@ describe("paint(): the kit's colours as the look's named colours", () => {
     expect(paint(undefined)).toBeUndefined();
     expect(paint(null)).toBeNull();
     expect(paint("")).toBe("");
+  });
+  it("names the route story's own colours too, at today's values (the glass look, step 3)", () => {
+    expect(STORY).toEqual({ level: "#3B3FD8", back: "#D9752B", others: "#C9CEDB" });
+    expect(paint(STORY.level)).toBe("var(--chart-level, #3B3FD8)");
+    expect(paint(STORY.back)).toBe("var(--chart-back, #D9752B)");
+    expect(paint(STORY.others)).toBe("var(--chart-others, #C9CEDB)");
+    // the kit's own colours keep their names: no story colour is one of TONE's or SERIES'
+    expect(paint(SERIES[5])).toBe(`var(--chart-6, ${SERIES[5]})`);
+    expect(paint("var(--ink)")).toBe("var(--ink)");
   });
 });
 

@@ -56,7 +56,9 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    airline rail lists All and our airlines with the right one lit, and every screen's link is in the header once;
    screenshots end in -glass. Since 12 Nov (step 2) Tails' own airline buttons are hidden under glass and all shown with
    the switch off, and the glass run also opens the first aircraft on Tails' list as its page and as Today's pop-up, and
-   a plan card when the deliveries have one (no errors, no sideways scroll, a screenshot of each).
+   a plan card when the deliveries have one (no errors, no sideways scroll, a screenshot of each). Since 12 Nov (step 3)
+   Routes' own airline buttons the same, and the glass run opens the busy legacy route's aircraft pop-up on Routes and a
+   route's pop-up from Home's map, each dialog on the glass panel (no errors, no sideways scroll, a screenshot of each).
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1558,6 +1560,13 @@ TAILS_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main
     return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
 
 
+# Routes' own airline buttons (its title's), how many there are and how many are shown (the glass look, step 3)
+ROUTES_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=routes] .rttl > .rseg [data-al]')];
+    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
+# a pop-up's dialog under glass: on the panel (the glass look's rgba(10,18,48,.82)), not today's white (step 3)
+POPUP_BG_JS = "(s) => { const m = document.querySelector(s); return m ? getComputedStyle(m).backgroundColor : ''; }"
+
+
 def period_of(hour):
     """The planner's periodOf (src/ui/look/look.ts): Day 07-16, Dusk 17-19 and 05-06, Night 20-04."""
     return "day" if 7 <= hour < 17 else "dusk" if 17 <= hour < 20 or 5 <= hour < 7 else "night"
@@ -1660,6 +1669,16 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             problems.append(f"tails at {width} px (glass): {own['shown']} of Tails' own airline buttons are shown, expected none (the rail picks the airline)")
                         if not glass and own["total"] and own["shown"] != own["total"]:
                             problems.append(f"tails at {width} px: {own['shown']} of Tails' {own['total']} airline buttons are shown, expected all")
+                    if sid == "routes" and name == "routes":
+                        # the glass look, step 3 (decision 4): Routes' own airline buttons hidden under glass, all shown with the
+                        # switch off (the list's page; on a phone a route's page hides the title and its buttons anyway)
+                        own = await ph.pg.evaluate(ROUTES_OWN_BUTTONS_JS)
+                        if glass and own["shown"]:
+                            problems.append(f"routes at {width} px (glass): {own['shown']} of Routes' own airline buttons are shown, expected none (the rail picks the airline)")
+                        if not glass and own["total"] and own["shown"] != own["total"]:
+                            problems.append(f"routes at {width} px: {own['shown']} of Routes' {own['total']} airline buttons are shown, expected all")
+                        if not own["total"]:
+                            problems.append(f"routes at {width} px: no airline buttons in its title")
                     if sid == "tails" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"tails: lines\"] [data-line-slot]')"):
                         problems.append(f"tails at {width} px: the sample line's slots aren't on the deliveries board")
                     if sid == "today" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"today: open lines\"] [data-open-line] a[data-line-link]')"):
@@ -1776,6 +1795,51 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{pname}-{width}{tag}.png"), timeout=90000)
                             shots += 1
                     problems += [f"tails' pop-ups at {width} px (glass): {e}" for e in ph.errors[e0:]]
+                # the glass look, step 3: the pop-ups of Routes under glass, each on the panel, ready, no errors, no sideways
+                # scroll, a screenshot of each: the aircraft pop-up a route's frequency opens (the busy legacy route's first
+                # aircraft) and the route pop-up a route on Home's map opens
+                if glass and not only_routes:
+                    e0 = len(ph.errors)
+                    pops = []
+                    for r in route_pages[:1]:
+                        addr = f"/planner/routes/{r['code']}/{r['hub']}-{r['dest']}"
+                        await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                        try:
+                            await ph.pg.wait_for_selector(f"{READY['routes']} [data-route-detail='{r['hub']}-{r['dest']}']", timeout=90000)
+                            await settle(ph.pg, 300)
+                            reg = await ph.pg.evaluate("(document.querySelector('main[data-screen=routes] [data-tailm]') || { dataset: {} }).dataset.tailm || ''")
+                            if reg:
+                                pops.append(("routes-aircraft", f"{addr}?aircraft={reg}", f"main[data-screen=routes] [data-aircraft-popup={json.dumps(reg)}]", None))
+                        except Exception:
+                            problems.append(f"{addr} at {width} px (glass): its route isn't open for its pop-up")
+                    pops.append(("home-route-popup", "/planner/", "[data-route-popup]",
+                                 "(() => { const h = document.querySelector('main[data-screen=home] [data-route-id]'); if (!h) return false;"
+                                 " h.dispatchEvent(new MouseEvent('click', { bubbles: true })); return true; })()"))
+                    for pname, addr, sel, act in pops:
+                        await ph.pg.goto(f"http://{LIVE_HOST}:{port}{addr}")
+                        try:
+                            if act:
+                                await ph.pg.wait_for_selector(READY["home"], timeout=90000)
+                                await ph.pg.wait_for_selector("main[data-screen=home] [data-route-id]", timeout=30000)
+                                await settle(ph.pg, 300)
+                                if not await ph.pg.evaluate(act):
+                                    problems.append(f"{pname} at {width} px (glass): no route on Home's map to open")
+                                    continue
+                            await ph.pg.wait_for_selector(sel, timeout=90000)
+                            await settle(ph.pg, 400)
+                        except Exception:
+                            problems.append(f"{pname} at {width} px (glass): it doesn't open")
+                            continue
+                        bg = await ph.pg.evaluate(POPUP_BG_JS, f"{sel} .modal" if pname == "home-route-popup" else f"{sel} .modal, {sel}.mback > .modal")
+                        if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                            problems.append(f"{pname} at {width} px (glass): its dialog is {bg!r}, not on the glass look's panel")
+                        over = await ph.pg.evaluate(scroll)
+                        if over > 0:
+                            problems.append(f"{pname} at {width} px (glass): the page scrolls sideways by {over} px")
+                        if SCREENS_DIR:
+                            await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{pname}-{width}{tag}.png"), timeout=90000)
+                            shots += 1
+                    problems += [f"routes' pop-ups at {width} px (glass): {e}" for e in ph.errors[e0:]]
                 # one airline's Performance page, opened directly by its address
                 if not only_routes:
                     e0 = len(ph.errors)
