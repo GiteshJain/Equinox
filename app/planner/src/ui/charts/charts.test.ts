@@ -6,7 +6,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ChartFrame, ChartOrTable, donutLayout, gaugeLayout, hbarLayout, heatLayout, loadFill, niceCeil, sizedScatterLayout, sparkLayout, stackLayout, stepLayout, ticks, timelineLayout,
-  fitText, paint, SERIES, STORY, TONE,
+  fitText, HeatStrip, paint, PERF, SERIES, STORY, TONE,
 } from "./index";
 
 describe("paint(): the kit's colours as the look's named colours", () => {
@@ -28,6 +28,24 @@ describe("paint(): the kit's colours as the look's named colours", () => {
     // the kit's own colours keep their names: no story colour is one of TONE's or SERIES'
     expect(paint(SERIES[5])).toBe(`var(--chart-6, ${SERIES[5]})`);
     expect(paint("var(--ink)")).toBe("var(--ink)");
+  });
+  it("names Performance's own chart colours too, at today's values, without taking the kit's names (the glass look, step 3)", () => {
+    expect(PERF).toEqual({
+      good: "#1E9E6A", lease: "#E0557A", cargo: "#8D90F2", landing: "#F2C14E", slate: "#5B647E",
+      load85: "#E3B341", load70: "#E3812B", none: "#D9DDE7", midline: "#C3C9D9", label: "#0A1230",
+    });
+    for (const [k, c] of Object.entries(PERF)) expect(paint(c)).toBe(`var(--chart-${k}, ${c})`);
+    expect(paint(PERF.good.toLowerCase())).toBe("var(--chart-good, #1e9e6a)");
+    // the kit's and the story's keep theirs
+    expect(paint(TONE.bad)).toBe(`var(--chart-bad, ${TONE.bad})`);
+    expect(paint(STORY.level)).toBe(`var(--chart-level, ${STORY.level})`);
+  });
+  it("a heat strip's cells take the look's colours through paint(), an empty cell none (Flights by day; the glass look, step 3)", () => {
+    const g = heatLayout([{ key: "PA", label: "PA", cells: [{ value: 96, tip: "t" }, null, { value: null, tip: "n" }] }], ["00", "01", "02"], { W: 130, L: 40 });
+    const html = renderToString(createElement(HeatStrip, { layout: () => g, label: "loads by hour" }));
+    expect(html).toContain("fill:var(--chart-good, #1E9E6A)");
+    expect(html).toContain("fill:var(--chart-none, #D9DDE7)");
+    expect(html).toContain('fill="#1E9E6A"');
   });
 });
 

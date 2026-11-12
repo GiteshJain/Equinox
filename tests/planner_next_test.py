@@ -59,6 +59,9 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    a plan card when the deliveries have one (no errors, no sideways scroll, a screenshot of each). Since 12 Nov (step 3)
    Routes' own airline buttons the same, and the glass run opens the busy legacy route's aircraft pop-up on Routes and a
    route's pop-up from Home's map, each dialog on the glass panel (no errors, no sideways scroll, a screenshot of each).
+   Since 12 Nov (step 3, Performance) an airline page's own airline buttons the same; under glass its rows are on the
+   panel, and on the group page, the airline's page and each route page the first chart opens full size on the panel
+   (a screenshot of each, then Esc).
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1565,6 +1568,9 @@ ROUTES_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('mai
     return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
 # a pop-up's dialog under glass: on the panel (the glass look's rgba(10,18,48,.82)), not today's white (step 3)
 POPUP_BG_JS = "(s) => { const m = document.querySelector(s); return m ? getComputedStyle(m).backgroundColor : ''; }"
+# Performance's own airline buttons (an airline page's switch), how many there are and how many are shown (step 3)
+PERF_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=performance] .perfseg [data-al]')];
+    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
 
 
 def period_of(hour):
@@ -1679,6 +1685,37 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             problems.append(f"routes at {width} px: {own['shown']} of Routes' {own['total']} airline buttons are shown, expected all")
                         if not own["total"]:
                             problems.append(f"routes at {width} px: no airline buttons in its title")
+                    if name == "performance-airline":
+                        # the glass look, step 3 (decision 4): the airline page's own airline buttons hidden under glass, all
+                        # shown with the switch off; under glass its rows on the panel
+                        own = await ph.pg.evaluate(PERF_OWN_BUTTONS_JS)
+                        if glass and own["shown"]:
+                            problems.append(f"performance/{code} at {width} px (glass): {own['shown']} of Performance's own airline buttons are shown, expected none (the rail picks the airline)")
+                        if not glass and own["total"] and own["shown"] != own["total"]:
+                            problems.append(f"performance/{code} at {width} px: {own['shown']} of Performance's {own['total']} airline buttons are shown, expected all")
+                        if not own["total"]:
+                            problems.append(f"performance/{code} at {width} px: no airline buttons under its title")
+                        if glass:
+                            bg = await ph.pg.evaluate(POPUP_BG_JS, "main[data-screen=performance] .sysrows")
+                            if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                                problems.append(f"performance/{code} at {width} px (glass): its rows are {bg!r}, not on the glass look's panel")
+                    if glass and sid == "performance" and await ph.pg.evaluate("!!document.querySelector('main [data-chart-open]')"):
+                        # the glass look, step 3: the pop-up Performance's pages open (a chart full size) on the panel, with a
+                        # screenshot; Esc closes it again
+                        await ph.pg.evaluate("document.querySelector('main [data-chart-open]').click()")
+                        try:
+                            await ph.pg.wait_for_selector("[data-chart-big] svg", timeout=10000)
+                            await settle(ph.pg, 300)
+                            bg = await ph.pg.evaluate(POPUP_BG_JS, "[data-chart-big] [role=dialog]")
+                            if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                                problems.append(f"{name} at {width} px (glass): a chart's large view is {bg!r}, not on the glass look's panel")
+                            if SCREENS_DIR:
+                                await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-chart-{width}{tag}.png"), timeout=90000)
+                                shots += 1
+                            await ph.pg.keyboard.press("Escape")
+                            await settle(ph.pg, 200)
+                        except Exception:
+                            problems.append(f"{name} at {width} px (glass): a chart doesn't open full size")
                     if sid == "tails" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"tails: lines\"] [data-line-slot]')"):
                         problems.append(f"tails at {width} px: the sample line's slots aren't on the deliveries board")
                     if sid == "today" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"today: open lines\"] [data-open-line] a[data-line-link]')"):

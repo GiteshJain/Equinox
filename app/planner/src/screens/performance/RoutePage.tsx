@@ -21,7 +21,7 @@ import { useOurAirlines, useWorld } from "../../data/reads";
 import { useLoads, useSharedPairs } from "../routes/reads";
 import { pairMarks, type PairMark } from "../routes/model";
 import { JoinPair, PairPill } from "../routes/parts";
-import { ChartFrame, StackedBars, stackLayout } from "../../ui/charts";
+import { ChartFrame, SERIES, StackedBars, TONE, stackLayout } from "../../ui/charts";
 import { colorFor } from "./charts";
 import { useServiceChecks } from "../systems/reads";
 import { useRules } from "../../data/rules";
@@ -162,7 +162,7 @@ export function RouteStoryView({ s, code, back, conns, board, layout, onCollapse
 export function PairBoard({ s, colors }: { s: RouteStory; colors: Record<string, string> }) {
   const v = pairStoryView(s, (m) => `${m < 0 ? "−" : ""}${Math.abs(m) >= 1 ? Math.abs(m).toFixed(2) + "M" : Math.round(Math.abs(m) * 1000) + "k"}`);
   if (!v) return null;
-  const series = v.series.map((x, i) => ({ key: x.key, label: x.label, color: colors[x.key] ?? (i ? "#E86A92" : "#4B3BA8") }));
+  const series = v.series.map((x, i) => ({ key: x.key, label: x.label, color: colors[x.key] ?? (i ? SERIES[1] : TONE.violet) }));
   return (
     <section className="board pairboard" data-figure="performance route: shared pair" data-pair-role={s.pair?.role}>
       <h2>{`Shared pair · ${v.title}`}</h2>

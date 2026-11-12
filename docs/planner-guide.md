@@ -60,11 +60,13 @@ back at once.
   everywhere (step 1); **Today** and **Tails**, with their tiles, lists, charts and pop-ups (the game check, an aircraft,
   filing, a plan card), and a chart opened full size on any screen (step 2); **Routes**: its list, filters, a route with
   its figures, frequencies, connections and loads, the route's story beside or under it, the aircraft pop-up it opens,
-  and the route pop-up Home's map opens (step 3). The other screens sit in the new frame with only their shared parts
-  (cards, tables, pills, buttons) in the new look until their own step; a route page on Performance already shows the
-  story's tiles and chart colours.
-- **On Routes and Tails** the rail picks the airline; their own row of airline buttons is hidden while the glass look is
-  on (with it off, they're there as before).
+  and the route pop-up Home's map opens (step 3); **Performance**: the group page (the scorecards, the last 14 days, the
+  fare ladder's links and Fare results lines, shared pairs and the rows that open), each airline's page (its four
+  figures, the fare ladder and its changes, Fare results, profit, cash, route profit, aircraft, fare changes and the fare
+  plan), a route page, and every chart there opened full size (step 3). The other screens sit in the new frame with only
+  their shared parts (cards, tables, pills, buttons) in the new look until their own step.
+- **On Routes, Tails and Performance** the rail picks the airline; their own row of airline buttons is hidden while the
+  glass look is on (with it off, they're there as before). On Performance, All is the group page.
 - **The picture behind** follows this computer's clock: **Day** 07:00–17:00, **Dusk** 17:00–20:00 and 05:00–07:00,
   **Night** 20:00–05:00. Cards are dark glass, a little thicker by day so the text stays readable; tables and charts sit
   on a nearly solid panel.

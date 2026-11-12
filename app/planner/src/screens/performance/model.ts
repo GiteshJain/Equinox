@@ -11,7 +11,7 @@
 import { block, card, connections, setting, time, type Rules, type TimedLeg } from "@rules";
 import type { Change } from "../../data/save";
 import { shortType } from "../../ui/aircraftNames";
-import { SERIES, STORY, TONE, type DonutPart } from "../../ui/charts";
+import { PERF, SERIES, STORY, TONE, type DonutPart } from "../../ui/charts";
 
 // ---------- the database's answers
 export interface NextOrder { when: "needs" | "now" | "later" | "not within 14 days"; missing?: string; types?: string[]; type?: string; safe_from?: string; up_to?: number | string | null }
@@ -317,11 +317,11 @@ export function safeWords(t: ForecastType): { kind: "ok" | "mute" | "warn"; text
 
 // ---------- route profit (routeProfitBoard, rpScatter, rpCost, rpTailChart)
 export const MARKS: Record<Mark, { label: string; cls: "ok" | "warn" | "bad" | "mute"; color: string }> = {
-  add: { label: "add a flight", cls: "ok", color: "#1E9E6A" },
-  sold_out: { label: "sold out · fares climbing", cls: "ok", color: "#3B3FD8" },
-  fix: { label: "fix or reduce", cls: "warn", color: "#E39B21" },
-  losing: { label: "losing money", cls: "bad", color: "#B4234B" },
-  hold: { label: "hold", cls: "mute", color: "#9AA4C4" },
+  add: { label: "add a flight", cls: "ok", color: PERF.good },
+  sold_out: { label: "sold out · fares climbing", cls: "ok", color: STORY.level },
+  fix: { label: "fix or reduce", cls: "warn", color: TONE.warn },
+  losing: { label: "losing money", cls: "bad", color: TONE.bad },
+  hold: { label: "hold", cls: "mute", color: TONE.mute },
 };
 export const MARK_ORDER: readonly Mark[] = ["add", "sold_out", "fix", "losing", "hold"];
 export type RouteSort = "pwk" | "ppf" | "margin" | "eco";
@@ -436,10 +436,10 @@ export interface CostPart { name: string; k: number; color: string }
 export function costParts(a: AverageFlight | null): { income: CostPart[]; costs: CostPart[]; profitK: number; marginPct: number } | null {
   if (!a || !a.income) return null;
   return {
-    income: [{ name: "Passengers", k: a.passengers * 1000, color: "#3B3FD8" }, { name: "Cargo", k: a.cargo * 1000, color: "#8D90F2" }],
-    costs: [{ name: "Fuel", k: a.fuel * 1000, color: "#B4234B" }, { name: "Handling", k: a.handling * 1000, color: "#E0557A" },
-      { name: "On-board", k: a.onboard * 1000, color: "#E39B21" }, { name: "Landing", k: a.landing * 1000, color: "#F2C14E" },
-      { name: "Air traffic", k: a.air_traffic * 1000, color: "#9AA4C4" }, { name: "Maintenance", k: a.maintenance * 1000, color: "#5B647E" }],
+    income: [{ name: "Passengers", k: a.passengers * 1000, color: STORY.level }, { name: "Cargo", k: a.cargo * 1000, color: PERF.cargo }],
+    costs: [{ name: "Fuel", k: a.fuel * 1000, color: TONE.bad }, { name: "Handling", k: a.handling * 1000, color: PERF.lease },
+      { name: "On-board", k: a.onboard * 1000, color: TONE.warn }, { name: "Landing", k: a.landing * 1000, color: PERF.landing },
+      { name: "Air traffic", k: a.air_traffic * 1000, color: TONE.mute }, { name: "Maintenance", k: a.maintenance * 1000, color: PERF.slate }],
     profitK: a.profit * 1000,
     marginPct: Math.round((a.margin ?? 0) * 100),
   };

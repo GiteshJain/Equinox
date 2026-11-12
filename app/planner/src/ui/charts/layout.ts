@@ -12,6 +12,14 @@ export const SERIES = ["#4B3BA8", "#E86A92", "#1A7F55", "#E39B21", "#3B8FD8", "#
  *  every other airline together (grey). Named too (--chart-level, --chart-back, --chart-others), so paint() gives them the
  *  glass look's colours (the glass look, step 3). */
 export const STORY = { level: "#3B3FD8", back: "#D9752B", others: "#C9CEDB" } as const;
+/** Performance's own chart colours (the glass look, step 3): money made (good) and the lease against it, an average
+ *  flight's cargo and landing fees, the quiet slate line, the loads' amber and orange and "not captured" (loadFill), the
+ *  group chart's middle line and its ink label. Named too (--chart-good, --chart-lease …), so paint() gives them the glass
+ *  look's colours. */
+export const PERF = {
+  good: "#1E9E6A", lease: "#E0557A", cargo: "#8D90F2", landing: "#F2C14E", slate: "#5B647E",
+  load85: "#E3B341", load70: "#E3812B", none: "#D9DDE7", midline: "#C3C9D9", label: "#0A1230",
+} as const;
 
 /** Each of TONE's and SERIES' colours to its named colour in styles.css (--chart-ok, --chart-1 …), so a chart drawn with
  *  paint(colour) takes the look's own colours: today's in the light look (the same values), ones made for dark glass in
@@ -21,6 +29,7 @@ const CHART_VAR: ReadonlyMap<string, string> = (() => {
   for (const [k, c] of Object.entries(TONE)) m.set(c.toUpperCase(), k === "violet" ? "--chart-1" : `--chart-${k}`);
   SERIES.forEach((c, i) => { if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${i + 1}`); });
   for (const [k, c] of Object.entries(STORY)) m.set(c.toUpperCase(), `--chart-${k}`);
+  for (const [k, c] of Object.entries(PERF)) if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${k}`);
   return m;
 })();
 /** A chart colour as CSS: its named colour (with the colour itself as the fallback) when it's one of the kit's, else
@@ -267,8 +276,8 @@ export interface HeatLayout {
 /** A load's colour as the planner marks loads: 95% and up green, 85 amber, 70 orange, under that red; grey with no
  *  figure (a cell with flights and no load), nothing for an empty cell. */
 export function loadFill(v: number | null): string {
-  if (v == null) return "#D9DDE7";
-  return v >= 95 ? "#1E9E6A" : v >= 85 ? "#E3B341" : v >= 70 ? "#E3812B" : "#B4234B";
+  if (v == null) return PERF.none;
+  return v >= 95 ? PERF.good : v >= 85 ? PERF.load85 : v >= 70 ? PERF.load70 : TONE.bad;
 }
 /** Each row's cells left to right, one column per label, coloured by fill (loadFill unless given). */
 export function heatLayout(rows: readonly HeatRow[], cols: readonly string[], opts: { W?: number; row?: number; L?: number; fill?: (v: number | null) => string; every?: number } = {}): HeatLayout {

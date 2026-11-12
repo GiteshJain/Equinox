@@ -7,7 +7,7 @@ import type { DayFlight } from "@rules";
 import type { OurAirline } from "../../data/airlines";
 import { AirlineMark } from "../../ui/AirlineMark";
 import {
-  ChartFrame, ChartTip, HBars, HeatStrip, Sized, Spark, StackedBars, StepLine, Timeline, hbarLayout, heatLayout, sparkLayout, stackLayout, stepLayout, timelineLayout,
+  ChartFrame, ChartTip, HBars, HeatStrip, PERF, Sized, Spark, StackedBars, StepLine, TONE, Timeline, hbarLayout, heatLayout, paint, sparkLayout, stackLayout, stepLayout, timelineLayout,
 } from "../../ui/charts";
 import {
   GROWTH_SERIES, WEEK_SERIES, fareDotLayout, fareResultDots, flightsHeat, forecastSteps, growthList, growthStack, kHour, ladderWeek, planTimeline, routeHourBars, scoreMultiples, type Multiple,
@@ -34,7 +34,7 @@ export function CashSteps({ fc, cushion }: { fc: Forecast; cushion: number }) {
   const layout = (W: number, H?: number) => (x ? stepLayout(x.points, { t0: x.t0, t1: x.t1, fmt: (v) => `${v.toFixed(1)}M`, refs: x.refs, markers: x.markers, low: x.low, xTicks: x.xTicks, W, H }) : null);
   return (
     <ChartFrame title="Cash in hand" note="each step a payment · the dashed line is the cushion an order must leave" figure="performance: cash step line"
-      legend={[{ label: "cash", color: "#0E1630" }, { label: "cushion", color: "#B4234B", dashed: true }, { label: "lease", color: "#4B3BA8" }, { label: "week-end closing", color: "#E39B21" }]}
+      legend={[{ label: "cash", color: TONE.ink }, { label: "cushion", color: TONE.bad, dashed: true }, { label: "lease", color: TONE.violet }, { label: "week-end closing", color: TONE.warn }]}
       empty={x && x.points.length ? null : "No forecast points yet."}>
       <StepLine layout={layout} label="cash for the next 14 days" figure="performance: cash forecast" />
     </ChartFrame>
@@ -58,7 +58,7 @@ export function PlanTimeline({ plan, today }: { plan: readonly PlanRow[]; today:
   const t = planTimeline(plan, today);
   return (
     <ChartFrame title="Planned and seen" note="each change on the fare plan: when it was planned, and when the captures saw it in the game"
-      legend={[{ label: "planned", color: "#4B3BA8" }, { label: "seen in the game", color: "#1A7F55" }, { label: "not seen yet", color: "#E39B21" }]} figure="performance: fare plan timeline">
+      legend={[{ label: "planned", color: TONE.violet }, { label: "seen in the game", color: TONE.ok }, { label: "not seen yet", color: TONE.warn }]} figure="performance: fare plan timeline">
       <Timeline layout={(W) => timelineLayout(t.rows, { t0: t.t0, t1: t.t1, ticks: t.ticks, now: t.now, L: 170, W })} figure="performance: fare plan chart" label="fare plan, planned and seen" />
     </ChartFrame>
   );
@@ -118,7 +118,7 @@ export function FlightsHeat({ flights, loadOf, airlines }: { flights: readonly D
   const h = flightsHeat(flights, loadOf, airlines);
   return (
     <ChartFrame title="Loads by hour" note="each airline's departures by local hour, coloured by their average economy load"
-      legend={[{ label: "95%+", color: "#1E9E6A" }, { label: "85–94%", color: "#E3B341" }, { label: "70–84%", color: "#E3812B" }, { label: "under 70%", color: "#B4234B" }, { label: "not captured", color: "#D9DDE7" }]}
+      legend={[{ label: "95%+", color: PERF.good }, { label: "85–94%", color: PERF.load85 }, { label: "70–84%", color: PERF.load70 }, { label: "under 70%", color: TONE.bad }, { label: "not captured", color: PERF.none }]}
       figure="performance: flights heat" empty={h.rows.length ? null : "No flights scheduled that day."}>
       <HeatStrip layout={(W) => heatLayout(h.rows, h.cols, { L: 44, every: W < 520 ? 6 : 3, W })} figure="performance: loads by hour" label="loads by hour" />
     </ChartFrame>
@@ -133,7 +133,7 @@ export function FareResultsChart({ rows, baselinePct, onPick }: { rows: readonly
   const cut = dots.filter((d) => d.cut).length;
   return (
     <ChartFrame title="Level against profit" note={`each repriced direction: its economy level now across, its profit a flight against the week before its first change up · the line is the airline's other directions over the same days · tap a dot for its route${cut ? ` · ${cut} beyond ±100% drawn at the edge` : ""}`}
-      legend={[{ label: "repriced", color: "#4B3BA8" }, { label: "load fell", color: "#E39B21" }, { label: "too soon", color: "#9AA4C4" }, { label: "the rest", color: "#5B647E", dashed: true }]}
+      legend={[{ label: "repriced", color: TONE.violet }, { label: "load fell", color: TONE.warn }, { label: "too soon", color: TONE.mute }, { label: "the rest", color: PERF.slate, dashed: true }]}
       figure="performance: fare results chart" empty={dots.length ? null : "No direction to draw yet: each needs a level and a week either side of its first change."}>
       <ChartTip label="economy level against profit a flight change">
         <Sized>{(w) => {
@@ -146,7 +146,7 @@ export function FareResultsChart({ rows, baselinePct, onPick }: { rows: readonly
               {g.ref ? <g data-fare-rest><line x1={g.L} x2={g.W - g.R} y1={g.ref.y} y2={g.ref.y} className="frrest" /><text x={g.W - g.R} y={g.ref.y - 4} style={{ textAnchor: "end" }} className="kax">{g.ref.label}</text></g> : null}
               <text x={g.W - g.R} y={g.H - 2} style={{ textAnchor: "end" }} className="kax">economy level now</text>
               <text x={4} y={10} className="kax">profit a flight</text>
-              {g.dots.map((d) => <circle key={d.key} cx={d.cx} cy={d.cy} r={5} fill={d.color} className="kpick" data-tip={d.tip} data-fare-dot={d.key}
+              {g.dots.map((d) => <circle key={d.key} cx={d.cx} cy={d.cy} r={5} fill={d.color} style={{ fill: paint(d.color) }} className="kpick" data-tip={d.tip} data-fare-dot={d.key}
                 onClick={() => onPick(d.hub, d.dest)} />)}
             </svg>
           );
