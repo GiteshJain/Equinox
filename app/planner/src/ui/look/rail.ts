@@ -2,9 +2,9 @@
 // On the screens that show one airline at a time the rail picks the airline: Performance (/performance/<code>, "All" its
 // group page), Competition (/competition/<code>, the same), Routes (/routes/<code>) and Tails (?airline=<code>, none for
 // the first airline, as Tails' own buttons do); Routes and Tails have no all-airline view, so "All" is shown there but
-// not clickable. On every other screen (Home, Today, Interline, Photos, Systems, and Reference: question 1, treated like
-// Home until Gitesh answers) "All" is lit and an airline opens its Performance page. Addresses are the router's own
-// (without /planner).
+// not clickable. On every other screen (Home, Today, Interline, Photos, Systems, and Reference: the spec's question 1,
+// settled 12 Nov as Home, since Reference shows all six airlines at once) "All" is lit and an airline opens its
+// Performance page. Addresses are the router's own (without /planner).
 
 export type RailPick = string | "all";
 

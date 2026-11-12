@@ -65,6 +65,11 @@
   /* the glass look, step 4 (Competition and Interline): the named colours their own parts need, today's values here (the
      old Interline's signed tint is covered by a later rule: named all the same) */
   --il-signed-0:rgba(52,199,89,.06); --signed-row:var(--ok-soft);
+  /* the glass look, step 5 (Photos, Reference and Systems): the named colours their own parts need, today's values here
+     (the old Reference's focus row is covered by a later rule: named all the same) */
+  --ph-card-bg:#FFFFFF; --ph-img-1:#4B3BA8; --ph-img-2:#0A1230; --ph-img-text:#FFFFFF; --ph-tag-bg:rgba(10,18,48,.7);
+  --ph-tag-text:#FFFFFF; --ph-tag-live:#1A7F55; --ph-btn-text:#FFFFFF; --focus-row-0:#FAFBFD;
+  --sys-ok-text:#156B47; --sys-warn-edge:rgba(154,91,0,.22); --sys-bad-edge:rgba(180,35,75,.25); --chart-nocapture:#ECEFF4;
   /* type: display Unbounded, text Manrope; one small scale, nothing under 13px */
   --font:"Manrope",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-d:"Unbounded",ui-sans-serif,system-ui,sans-serif;
@@ -129,6 +134,9 @@
   /* step 4 (Competition and Interline), each checked by tests/glass_contrast_test.py's step 4 cases: a signed agreement's
      row on a dark green tint, lighter than the pills' so its fields still read */
   --signed-row:rgba(10,72,52,.38);
+  /* step 5 (Photos, Reference and Systems), each checked by tests/glass_contrast_test.py's step 5 cases: a night with no
+     capture a faint cell on the panel, as the pale one is on white */
+  --chart-nocapture:rgba(255,255,255,.1);
 }
 :root[data-look="glass"][data-period="day"]{
   --card-bg:rgba(10,18,48,.66); --bar-bg:rgba(10,18,48,.74);
@@ -886,19 +894,19 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
 /* ---------- Photos (#18 build pull request 12): the logo and photo cards, as the old .ph-* ---------- */
 .ph-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
 .ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
-.ph-card{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--line-2);display:flex;flex-direction:column}
-.ph-img{aspect-ratio:4/3;background:radial-gradient(120% 90% at 20% 0%,#4B3BA8 0%,#0A1230 70%);position:relative;display:grid;place-items:center;
-  color:#fff;font:400 34px/1 var(--font-d);letter-spacing:-.05em}
+.ph-card{background:var(--ph-card-bg);border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--line-2);display:flex;flex-direction:column}
+.ph-img{aspect-ratio:4/3;background:radial-gradient(120% 90% at 20% 0%,var(--ph-img-1) 0%,var(--ph-img-2) 70%);position:relative;display:grid;place-items:center;
+  color:var(--ph-img-text);font:400 34px/1 var(--font-d);letter-spacing:-.05em}
 .ph-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.ph-img .tag{position:absolute;left:10px;top:10px;font:700 13px/1 var(--font);padding:5px 8px;border-radius:999px;background:rgba(10,18,48,.7);
-  color:#fff;letter-spacing:0}
-.ph-img .tag.live{background:#1A7F55}
+.ph-img .tag{position:absolute;left:10px;top:10px;font:700 13px/1 var(--font);padding:5px 8px;border-radius:999px;background:var(--ph-tag-bg);
+  color:var(--ph-tag-text);letter-spacing:0}
+.ph-img .tag.live{background:var(--ph-tag-live)}
 .ph-body{padding:12px 14px 14px;display:grid;gap:8px}
 .ph-body b{font:600 14.5px/1.2 var(--font)}
 .ph-body .small{color:var(--muted);font-size:13px}
 .ph-body input[type=text]{width:100%;font-size:13px;padding:7px 10px}
 .ph-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.ph-acts label.primary{cursor:pointer;display:inline-flex;align-items:center;padding:7px 14px;border-radius:999px;background:var(--night);color:#fff;
+.ph-acts label.primary{cursor:pointer;display:inline-flex;align-items:center;padding:7px 14px;border-radius:999px;background:var(--night);color:var(--ph-btn-text);
   font:700 13px/1 var(--font)}
 .ph-acts label.primary:hover{background:var(--violet)}
 .ph-busy{opacity:.55;pointer-events:none}
@@ -906,8 +914,8 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
 
 /* ---------- Reference (#18 build pull request 12): the folding sections and their tables, as the old details.rsec,
    .ref and .tbl.edit as its cascade leaves them ---------- */
-details.rsec{background:var(--surface);margin:0 0 10px;border-radius:24px;border:1px solid rgba(14,22,48,.06);
-  box-shadow:0 1px 0 rgba(14,22,48,.03),0 24px 48px -32px rgba(14,22,48,.35)}
+details.rsec{background:var(--surface);margin:0 0 10px;border-radius:24px;border:1px solid var(--card-edge-2);
+  box-shadow:0 1px 0 var(--panel-shadow-1),0 24px 48px -32px var(--panel-shadow-2)}
 details.rsec summary{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 details.rsec summary::-webkit-details-marker{display:none}
 details.rsec summary::before{content:"";display:inline-block;flex:none;width:9px;height:9px;border:0;margin:0 6px 0 0;
@@ -921,7 +929,7 @@ details.rsec summary .note{margin:0;font-size:13px}
 .ref .tbl td{vertical-align:middle}
 .ref .tbl{background:var(--surface);overflow:hidden;border-radius:var(--r-panel);box-shadow:var(--shadow);border:1px solid var(--line-2)}
 .tbl.edit input,.tbl.edit select{width:100%;min-width:60px;padding:5px 8px}
-tr.focusrow td{background:#FAFBFD}
+tr.focusrow td{background:var(--focus-row-0)}
 tr.focusrow input:disabled{opacity:.35}
 .ref .rsb > .secondary{margin-top:10px}
 /* Routes: a frequency's aircraft opens its pop-up (build pull request 12) */
@@ -1119,7 +1127,7 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .acard{padding:24px}
 .detail{padding:var(--pad-card);top:calc(82px + env(safe-area-inset-top,0px))}
 .fgrid,.agrid,.hgrid{gap:var(--gap-card)}
-.freq,details.cx,.lfs,.ck,.gc,.qcard,.imp,.cashrow,.cpm,.rpw,.pcard,.rpc,details.gsec,.zc{border-radius:var(--r-md)}
+.freq,details.cx,.lfs,.gc,.qcard,.imp,.cashrow,.cpm,.rpw,.pcard,.rpc,details.gsec,.zc{border-radius:var(--r-md)}
 .board + .board,.view > section + section{margin-top:var(--gap-card)}
 /* card heads: Manrope 800; section heads: Unbounded */
 .rh,.rst{font:800 var(--t-h3)/1.3 var(--font);letter-spacing:-.01em;color:var(--ink)}
@@ -1140,17 +1148,17 @@ a.rpgo{font:600 13px/1.3 var(--font);letter-spacing:0;white-space:nowrap}
 .primary.now,button.now{background:var(--amber);color:var(--night)} .primary.now:hover,button.now:hover{background:#FFC769}
 button.secondary{background:var(--porcelain);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)} button.secondary:hover{background:#E1E6EF}
 .primary.sm,.secondary.sm,.danger.sm,.ckh .primary.sm,.fltools .primary.sm,.toolbar button.danger,.view.routes .toolbar button.danger{min-height:44px;padding:0 16px;font-size:14px}
-.board .tbl button.primary.sm,.ck .primary.sm{background:var(--porcelain);color:var(--ink)}
-.board .tbl button.primary.sm:hover,.ck .primary.sm:hover{background:#E1E6EF}
+.board .tbl button.primary.sm{background:var(--porcelain);color:var(--ink)}
+.board .tbl button.primary.sm:hover{background:#E1E6EF}
 button.link,a.link{font-size:inherit;font-weight:700}
 /* pills that pick something: 44px, round, selected on night */
-.mf,.chip,.seg button,.nmv .logseg button{min-height:44px;padding:0 16px;border-radius:999px;font:600 14px/1.1 var(--font)}
+.mf,.chip,.seg button{min-height:44px;padding:0 16px;border-radius:999px;font:600 14px/1.1 var(--font)}
 .mf,.chip{background:var(--porcelain);color:var(--ink);border:0;box-shadow:inset 0 0 0 1px var(--line)}
 .mf:hover,.chip:hover{background:#E1E6EF}
 .mf.on,.chip.on{background:var(--night);color:#fff;box-shadow:none}
-.seg,.nmv .logseg{display:inline-flex;gap:2px;padding:3px;border:0;border-radius:999px;background:var(--porcelain);box-shadow:inset 0 0 0 1px var(--line)}
-.seg button,.nmv .logseg button{min-height:40px;color:var(--muted);background:transparent;box-shadow:none}
-.seg button:hover,.nmv .logseg button:hover{color:var(--ink);background:rgba(14,22,48,.05);box-shadow:none}
+.seg{display:inline-flex;gap:2px;padding:3px;border:0;border-radius:999px;background:var(--porcelain);box-shadow:inset 0 0 0 1px var(--line)}
+.seg button{min-height:40px;color:var(--muted);background:transparent;box-shadow:none}
+.seg button:hover{color:var(--ink);background:rgba(14,22,48,.05);box-shadow:none}
 .seg button.on{background:var(--night);color:#fff;box-shadow:none}
 .mapopt button.on{background:var(--night);border-color:var(--night);color:#fff}
 .dismiss{width:44px;height:44px}
@@ -1464,10 +1472,10 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .systiles{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .systile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0;padding:18px 20px;border-radius:var(--r-md);
   background:var(--porcelain);box-shadow:inset 0 0 0 1px var(--line)}
-.systile.warn{background:var(--warn-soft);box-shadow:inset 0 0 0 1px rgba(154,91,0,.22)}
-.systile.bad{background:var(--bad-soft);box-shadow:inset 0 0 0 1px rgba(180,35,75,.25)}
+.systile.warn{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--sys-warn-edge)}
+.systile.bad{background:var(--bad-soft);box-shadow:inset 0 0 0 1px var(--sys-bad-edge)}
 .sysst{display:inline-flex;align-items:center;gap:8px;font:700 13px/1.3 var(--font);letter-spacing:.08em;text-transform:uppercase}
-.sysst.ok{color:#156B47} .sysst.warn{color:var(--warn)} .sysst.bad{color:var(--bad)}
+.sysst.ok{color:var(--sys-ok-text)} .sysst.warn{color:var(--warn)} .sysst.bad{color:var(--bad)}
 .systile .syslabel{font:800 15px/1.3 var(--font);color:var(--ink);overflow-wrap:anywhere}
 .systile .systext{font:500 var(--t-small)/1.45 var(--font);color:var(--ink);overflow-wrap:anywhere;min-width:0;max-width:100%}
 .systile .syswhen{margin-top:auto;padding-top:2px;font:600 var(--t-small)/1.3 var(--font);color:var(--muted);font-variant-numeric:tabular-nums}
@@ -1839,7 +1847,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .rref{display:flex;flex-direction:column;gap:var(--gap-sec);min-width:0}
 .rref .rgroup{min-width:0}
 .rref .rgh{margin:0 0 12px;font:700 13px/1.3 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.rref .rrows{padding:4px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);min-width:0}
+.rref .rrows{padding:4px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);border:1px solid var(--card-edge-2);box-shadow:var(--shadow);min-width:0}
 .rref details.rsec{margin:0;padding:0;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;background:none;min-width:0}
 .rref .rrows > details.rsec:first-child{border-top:0}
 .rref details.rsec > summary{display:grid;grid-template-columns:minmax(0,1fr) auto 18px;grid-template-areas:"name aside chev" "note aside chev";
@@ -2039,7 +2047,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .phvh .phcount{margin:0 0 8px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);font-size:var(--t-small);white-space:normal}
 .view.photos .phsec:first-of-type{margin-top:0}
 .view.photos .ph-note{margin:0 0 var(--gap-card);border-radius:var(--r-md);font-size:var(--t-small)}
-.view.photos .ph-card{border-radius:var(--r-lg);border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);min-width:0}
+.view.photos .ph-card{border-radius:var(--r-lg);border:1px solid var(--card-edge-2);box-shadow:var(--shadow);min-width:0}
 .view.photos .ph-body{padding:16px 20px 20px;gap:10px}
 .view.photos .ph-body .phname{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;font:800 var(--t-body)/1.3 var(--font);overflow-wrap:anywhere;min-width:0}
 .view.photos .ph-body .phname .note{font-weight:600;color:var(--muted)}
@@ -2168,7 +2176,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .kdonutw{display:inline-block} .kdonut .kmid,.kgauge .kmid{font:700 16px/1 var(--font);fill:var(--ink)}
 .kgauge{display:inline-flex;flex-direction:column;align-items:center;min-width:0;max-width:160px}
 .kgauge svg{width:100%;height:auto} .kgauge .ktrack{fill:none;stroke:var(--mute-soft);stroke-width:12;stroke-linecap:round}
-.kgauge .karc{fill:none;stroke-width:12;stroke-linecap:round} .kgauge .karc.ok{stroke:var(--ok)} .kgauge .karc.warn{stroke:#E39B21} .kgauge .karc.bad{stroke:var(--bad)}
+.kgauge .karc{fill:none;stroke-width:12;stroke-linecap:round} .kgauge .karc.ok{stroke:var(--ok)} .kgauge .karc.warn{stroke:var(--chart-warn)} .kgauge .karc.bad{stroke:var(--bad)}
 .kgauge .kgl{font-size:12px;text-align:center;color:var(--muted)}
 .kheat .kcell0{fill:transparent}
 .kspark{width:100%;max-width:140px;height:34px;display:block}
@@ -2771,3 +2779,107 @@ a.eq-railbtn:hover{background:var(--row-hover);box-shadow:inset 0 0 0 1px var(--
   [data-look="glass"] .view.interline .iltap .chev{border-color:var(--text-2)}
   [data-look="glass"] .view.interline .tbl.il tr[data-il-row][data-open=yes] > td:not(.ilh){border-top-color:var(--rule)}
 }
+
+/* ---------- the glass look, step 5 (to-do 225, spec docs/specs/2026-11-11-glass-look.md): Photos (the logos and the
+   destinations, their cards, the filter and the questions they ask), Reference (the three groups of sections, their eight
+   tables of boxes and the question a time-zone change asks) and Systems (the Systems board with its tiles, the evening
+   capture's table, the last 14 nights and the usage gauges, the rows that open: Capture, Fleet, Cabin charges and Manual
+   entry with the load report pop-up). As before: every rule hangs off [data-look="glass"] and uses only named colours;
+   anything holding a table or a chart sits on the panel, cards on the card glass. The three show every airline: All stays
+   lit on the rail and an airline opens its Performance page (rail.ts, as Home); none has airline buttons of its own. ---------- */
+/* the three heads: the small pill beside the title on the card glass (it sits on the picture) */
+[data-look="glass"] :is(.view.photos .phvh .phcount,.view.systems .sysvh .syschk){background:var(--card-bg);color:var(--text);
+  box-shadow:inset 0 0 0 1px var(--card-edge),var(--card-shadow);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+
+/* Photos: the photographs and logos keep their own colours (a logo keeps its white plate, as the website shows it); their
+   cards, captions and controls take the glass */
+[data-look="glass"] .view.photos .perfh{color:var(--text)}
+[data-look="glass"] .view.photos .ph-note{background:var(--card-bg);color:var(--count-ok);box-shadow:inset 0 0 0 1px var(--ok-text),var(--card-shadow);
+  -webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.photos .ph-card{background:var(--card-bg);color:var(--text);border-color:var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.photos .phlogo .phlimg{border-bottom-color:var(--card-edge)}
+[data-look="glass"] .view.photos .ph-body :is(.phname .note,.small){color:var(--text-2)}
+[data-look="glass"] .view.photos .ph-acts label.primary{background:var(--on-bg);color:var(--on-text)}
+[data-look="glass"] .view.photos .ph-acts label.primary:hover{background:var(--on-bg);box-shadow:0 0 0 3px var(--card-edge)}
+[data-look="glass"] .view.photos :is(.ph-acts label.primary,.ph-tools .phpill):focus-within{outline-color:var(--focus)}
+[data-look="glass"] .view.photos .confirm .cq{color:var(--late-text)}
+/* the filter beside the count: a chip on the card glass, white when on */
+[data-look="glass"] .view.photos .ph-tools .phpill{background:var(--card-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge);
+  -webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.photos .ph-tools .phpill:hover{background:var(--bar-bg)}
+[data-look="glass"] .view.photos .ph-tools .phpill.on{background:var(--on-bg);color:var(--on-text);box-shadow:none}
+
+/* Reference: each group's sections one panel (they open on tables of boxes), each section flat on it with a rule between */
+[data-look="glass"] .view.ref-view .rref .rgh{color:var(--text-2)}
+[data-look="glass"] .view.ref-view .rref .rrows{background:var(--panel-bg);color:var(--text);border-color:var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.ref-view .rref details.rsec{border-top-color:var(--rule)}
+[data-look="glass"] .view.ref-view .rref details.rsec > summary .rst{color:var(--text)}
+[data-look="glass"] .view.ref-view .rref details.rsec > summary:hover .rst{color:var(--text);text-decoration:underline}
+[data-look="glass"] .view.ref-view .rref :is(details.rsec > summary .rshort,details.rsec > summary .raside,.rsb > .rlead){color:var(--text-2)}
+[data-look="glass"] .view.ref-view .rref .tblwrap{box-shadow:inset 0 0 0 1px var(--rule)}
+[data-look="glass"] .view.ref-view .rref tr.focusrow td{background:var(--row-group)}
+[data-look="glass"] .view.ref-view :is(.fg label,.chiplbl,label.check,.toolbar .count){color:var(--text-2)}
+[data-look="glass"] .view.ref-view label.check input{accent-color:var(--on-bg)}
+/* the question a time-zone change asks, above the groups on the picture: the bad tint over the panel */
+[data-look="glass"] .view.ref-view .qpanel{background:linear-gradient(var(--bad-fill),var(--bad-fill)),var(--panel-bg);color:var(--text);
+  border:1px solid var(--card-edge);box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.ref-view .qpanel .cq{color:var(--late-text)}
+
+/* Systems: the board (step 1's panel, as it holds a table); its tiles on the panel, amber and red on their tints */
+[data-look="glass"] .view.systems .systile{background:var(--tile-bg);box-shadow:inset 0 0 0 1px var(--card-edge)}
+[data-look="glass"] .view.systems .systile.warn{background:var(--warn-fill);box-shadow:inset 0 0 0 1px var(--warn-text)}
+[data-look="glass"] .view.systems .systile.bad{background:var(--bad-fill);box-shadow:inset 0 0 0 1px var(--bad-text)}
+[data-look="glass"] .view.systems .sysst.ok{color:var(--count-ok)}
+[data-look="glass"] .view.systems .sysst.warn{color:var(--count-warn)}
+[data-look="glass"] .view.systems .sysst.bad{color:var(--count-bad)}
+[data-look="glass"] .view.systems .sysmark{background:var(--text-2)}
+[data-look="glass"] .view.systems .sysmark.ok{background:var(--dot-ok)}
+[data-look="glass"] .view.systems .sysmark.warn{background:var(--dot-warn)}
+[data-look="glass"] .view.systems .sysmark.bad{background:var(--dot-bad)}
+[data-look="glass"] .view.systems :is(.systile .syslabel,.systile .systext,.syscap .sysdet,.tph){color:var(--text)}
+[data-look="glass"] .view.systems :is(.systile .syswhen,.syscap .syswhen,.toolbar .count,.fg label,.chiplbl,label.check,.cashin label,.qone){color:var(--text-2)}
+/* the evening capture's table: an amber or red airline's row on its tint (on a phone each row is a card) */
+[data-look="glass"] .view.systems .syscap tr.warn td{background:var(--warn-fill)}
+[data-look="glass"] .view.systems .syscap tr.bad td{background:var(--bad-fill)}
+@media (max-width:640px){
+  [data-look="glass"] .view.systems .syscap tr.sysline{border-bottom-color:var(--rule)}
+  [data-look="glass"] .view.systems .syscap tr.warn{background:var(--warn-fill)}
+  [data-look="glass"] .view.systems .syscap tr.bad{background:var(--bad-fill)}
+  [data-look="glass"] .view.systems .syscap tr:is(.warn,.bad) td{background:none}
+}
+/* the usage gauges (only Systems has them; by their figure, so they hold in the large view too): the glass chart tones, a
+   faint track, the figure white */
+[data-look="glass"] .kgauge[data-figure^="systems:"] .ktrack{stroke:var(--rule)}
+[data-look="glass"] .kgauge[data-figure^="systems:"] .karc.ok{stroke:var(--chart-ok)}
+[data-look="glass"] .kgauge[data-figure^="systems:"] .karc.warn{stroke:var(--chart-warn)}
+[data-look="glass"] .kgauge[data-figure^="systems:"] .karc.bad{stroke:var(--chart-bad)}
+[data-look="glass"] .kgauge[data-figure^="systems:"] .kmid{fill:var(--chart-val)}
+[data-look="glass"] .kgauge[data-figure^="systems:"] .kgl{color:var(--text-2)}
+[data-look="glass"] .kgauge[data-figure^="systems:"] .kgl b{color:var(--text)}
+/* the rows that open (Capture, Fleet, Cabin charges, Manual entry): one panel, each row flat on it with a rule between,
+   even the rows that hold a table (step 1's panel rule for boards would give each its own) */
+[data-look="glass"] .view.systems .sysrows{background:var(--panel-bg);color:var(--text);border:1px solid var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.systems .sysrows > .board,[data-look="glass"] .view.systems .sysrows > .board:has(table,.kchart,.lchart){
+  background:none;border:0;border-top:1px solid var(--rule);border-radius:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+[data-look="glass"] .view.systems .sysrows > .board > h3.rch .fbname{color:var(--text)}
+[data-look="glass"] .view.systems .sysrows > .board > h3.rch:hover .fbname{color:var(--text);text-decoration:underline}
+[data-look="glass"] .view.systems :is(.sysrows > .board > h3.rch > .note,.sysrows > .board > h3.rch .fbaside,.sysrows .fblead,.revtools){color:var(--text-2)}
+/* inside them: Cabin charges' button in its table, Manual entry's cash boxes as a group row */
+[data-look="glass"] .view.systems .board .tbl button.primary.sm{background:var(--sel-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge)}
+[data-look="glass"] .view.systems .board .tbl button.primary.sm:hover{background:var(--tile-hover)}
+[data-look="glass"] .view.systems .cashrow{background:var(--row-group);color:var(--text)}
+[data-look="glass"] .view.systems .cashal{border-color:var(--rule)}
+[data-look="glass"] .view.systems label.check input{accent-color:var(--on-bg)}
+[data-look="glass"] .view.systems .modal button.primary{background:var(--on-bg);color:var(--on-text)}
+[data-look="glass"] .view.systems .modal button.primary:hover{background:var(--on-bg);box-shadow:0 0 0 3px var(--card-edge)}
+/* the pop-up Manual entry opens (the load report, after Read paste): one panel on a dark scrim, as step 2's */
+[data-look="glass"] .view.systems .mback{background:var(--scrim)}
+[data-look="glass"] .view.systems .modal{background:var(--panel-bg);color:var(--text);border:1px solid var(--card-edge);
+  box-shadow:var(--pop-shadow);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.systems :is(.mhead,.mfoot){border-color:var(--rule)}
+[data-look="glass"] .view.systems .mhead b{color:var(--text)}
+[data-look="glass"] .view.systems .mx{background:var(--sel-bg);color:var(--text)}
+[data-look="glass"] .view.systems .mx:hover{background:var(--tile-hover)}

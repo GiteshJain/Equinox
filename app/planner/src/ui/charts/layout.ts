@@ -20,6 +20,9 @@ export const PERF = {
   good: "#1E9E6A", lease: "#E0557A", cargo: "#8D90F2", landing: "#F2C14E", slate: "#5B647E",
   load85: "#E3B341", load70: "#E3812B", none: "#D9DDE7", midline: "#C3C9D9", label: "#0A1230",
 } as const;
+/** Systems' own chart colour (the glass look, step 5): a night with no capture in the capture's last 14 nights. Named too
+ *  (--chart-nocapture), so paint() gives it the glass look's colour. */
+export const SYS = { nocapture: "#ECEFF4" } as const;
 
 /** Each of TONE's and SERIES' colours to its named colour in styles.css (--chart-ok, --chart-1 …), so a chart drawn with
  *  paint(colour) takes the look's own colours: today's in the light look (the same values), ones made for dark glass in
@@ -30,6 +33,7 @@ const CHART_VAR: ReadonlyMap<string, string> = (() => {
   SERIES.forEach((c, i) => { if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${i + 1}`); });
   for (const [k, c] of Object.entries(STORY)) m.set(c.toUpperCase(), `--chart-${k}`);
   for (const [k, c] of Object.entries(PERF)) if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${k}`);
+  for (const [k, c] of Object.entries(SYS)) if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${k}`);
   return m;
 })();
 /** A chart colour as CSS: its named colour (with the colour itself as the fallback) when it's one of the kit's, else

@@ -2,7 +2,7 @@
 // size, report PDFs, the website's data: system_status()'s usage) as gauges against their triggers, and each airline's
 // capture verdicts over the last 14 nights as a small history (capture_status() asked as of each of those nights). The
 // figures are the board's, unchanged: the tiles and the capture table stay.
-import { gaugeLayout, type GaugeLayout, type HeatRow } from "../../ui/charts";
+import { SYS, TONE, gaugeLayout, type GaugeLayout, type HeatRow } from "../../ui/charts";
 import { USAGE_WARN_SHARE, sizeWords, type SystemStatus } from "./systems";
 
 /** Each usage figure as a gauge: its share of its trigger, amber from 70% (the board's usageMark), red at it. */
@@ -55,7 +55,14 @@ export function verdictHistory(answers: readonly (readonly CaptureAt[])[], today
     })),
   };
 }
-/** A night's colour: all good green, short amber, broken red, not checked grey; no capture a pale cell. */
+/** A night's colour: all good green, short amber, broken red, not checked grey; no capture a pale cell. The kit's colours
+ *  (TONE, and SYS for no capture), the same values as before, so the heat strip and its legend draw them through paint()
+ *  in either look (the glass look, step 5). */
 export function verdictFill(v: number | null): string {
-  return v == null ? "#ECEFF4" : v >= 3 ? "#1A7F55" : v >= 2 ? "#E39B21" : v >= 1 ? "#B4234B" : "#9AA4C4";
+  return v == null ? SYS.nocapture : v >= 3 ? TONE.ok : v >= 2 ? TONE.warn : v >= 1 ? TONE.bad : TONE.mute;
 }
+/** The capture history's legend: each verdict's words and its colour (verdictFill's). */
+export const VERDICT_LEGEND: readonly { label: string; color: string }[] = [
+  { label: "all good", color: verdictFill(3) }, { label: "short", color: verdictFill(2) }, { label: "broken", color: verdictFill(1) },
+  { label: "not checked", color: verdictFill(0) }, { label: "no capture", color: verdictFill(null) },
+];
