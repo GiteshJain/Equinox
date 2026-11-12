@@ -3,46 +3,39 @@
 // colours and the words of each tip, so the unit tests can check a chart's figures without drawing it. The figures
 // themselves come from the screens' own model functions, unchanged. Charts.tsx (beside this) draws them.
 
-/** The planner's good, warn and bad colours (styles.css's --ok, --warn and --bad, as SVG fills need them), and its quiet
- *  grey and ink. */
-export const TONE = { ok: "#1A7F55", warn: "#E39B21", bad: "#B4234B", mute: "#9AA4C4", ink: "#0E1630", violet: "#4B3BA8" } as const;
-/** A run of quiet colours for series with no colour of their own (the rivals, the rest). */
-export const SERIES = ["#4B3BA8", "#E86A92", "#1A7F55", "#E39B21", "#3B8FD8", "#8C94AD", "#B4234B", "#0E1630"] as const;
-/** The route story's own chart colours (the route page and Routes' story since 30 Oct): the fare level, the way back, and
- *  every other airline together (grey). Named too (--chart-level, --chart-back, --chart-others), so paint() gives them the
- *  glass look's colours (the glass look, step 3). */
-export const STORY = { level: "#3B3FD8", back: "#D9752B", others: "#C9CEDB" } as const;
-/** Performance's own chart colours (the glass look, step 3): money made (good) and the lease against it, an average
- *  flight's cargo and landing fees, the quiet slate line, the loads' amber and orange and "not captured" (loadFill), the
- *  group chart's middle line and its ink label. Named too (--chart-good, --chart-lease …), so paint() gives them the glass
- *  look's colours. */
-export const PERF = {
-  good: "#1E9E6A", lease: "#E0557A", cargo: "#8D90F2", landing: "#F2C14E", slate: "#5B647E",
-  load85: "#E3B341", load70: "#E3812B", none: "#D9DDE7", midline: "#C3C9D9", label: "#0A1230",
+/** The chart kit's colours: named colours in styles.css (the --chart-* ones, made for dark glass), so a chart takes them
+ *  through its style (SVG presentation attributes can't read a named colour). Since step 6 of the glass look (glass for
+ *  everyone, 12 Nov) these are the only values: there's no light set behind them any more.
+ *  TONE: the planner's good, warn and bad colours, and its quiet grey, ink and violet. */
+export const TONE = {
+  ok: "var(--chart-ok)", warn: "var(--chart-warn)", bad: "var(--chart-bad)", mute: "var(--chart-mute)", ink: "var(--chart-ink)",
+  violet: "var(--chart-1)",
 } as const;
-/** Systems' own chart colour (the glass look, step 5): a night with no capture in the capture's last 14 nights. Named too
- *  (--chart-nocapture), so paint() gives it the glass look's colour. */
-export const SYS = { nocapture: "#ECEFF4" } as const;
+/** A run of quiet colours for series with no colour of their own (the rivals, the rest). */
+export const SERIES = [
+  "var(--chart-1)", "var(--chart-2)", "var(--chart-ok)", "var(--chart-warn)", "var(--chart-5)", "var(--chart-6)", "var(--chart-bad)", "var(--chart-ink)",
+] as const;
+/** The route story's own chart colours (the route page and Routes' story since 30 Oct): the fare level, the way back, and
+ *  every other airline together (grey). */
+export const STORY = { level: "var(--chart-level)", back: "var(--chart-back)", others: "var(--chart-others)" } as const;
+/** Performance's own chart colours: money made (good) and the lease against it, an average flight's cargo and landing
+ *  fees, the quiet slate line, the loads' amber and orange and "not captured" (loadFill), the group chart's middle line
+ *  and its ink label. */
+export const PERF = {
+  good: "var(--chart-good)", lease: "var(--chart-lease)", cargo: "var(--chart-cargo)", landing: "var(--chart-landing)",
+  slate: "var(--chart-slate)", load85: "var(--chart-load85)", load70: "var(--chart-load70)", none: "var(--chart-none)",
+  midline: "var(--chart-midline)", label: "var(--chart-label)",
+} as const;
+/** Systems' own chart colour: a night with no capture in the capture's last 14 nights. */
+export const SYS = { nocapture: "var(--chart-nocapture)" } as const;
 
-/** Each of TONE's and SERIES' colours to its named colour in styles.css (--chart-ok, --chart-1 …), so a chart drawn with
- *  paint(colour) takes the look's own colours: today's in the light look (the same values), ones made for dark glass in
- *  the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md). The SVG keeps its fill attribute as well. */
-const CHART_VAR: ReadonlyMap<string, string> = (() => {
-  const m = new Map<string, string>();
-  for (const [k, c] of Object.entries(TONE)) m.set(c.toUpperCase(), k === "violet" ? "--chart-1" : `--chart-${k}`);
-  SERIES.forEach((c, i) => { if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${i + 1}`); });
-  for (const [k, c] of Object.entries(STORY)) m.set(c.toUpperCase(), `--chart-${k}`);
-  for (const [k, c] of Object.entries(PERF)) if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${k}`);
-  for (const [k, c] of Object.entries(SYS)) if (!m.has(c.toUpperCase())) m.set(c.toUpperCase(), `--chart-${k}`);
-  return m;
-})();
-/** A chart colour as CSS: its named colour (with the colour itself as the fallback) when it's one of the kit's, else
- *  the colour as given (an airline's livery, a screen's own). A mark with no colour stays without one, as it was before
- *  paint() (Competition's donut gives none to a rival that leads a market we don't fly; pull request 153's rehearsal, 11 Nov). */
+/** A chart colour as CSS, for a mark's style. The kit's colours are named colours already, and an airline's livery or a
+ *  screen's own colour goes as given. A mark with no colour stays without one, as it was before paint() (Competition's
+ *  donut gives none to a rival that leads a market we don't fly; pull request 153's rehearsal, 11 Nov). Until step 6 this
+ *  turned the kit's typed-in light colours into their named ones; the call sites keep it so a mark's colour always goes
+ *  into its style. */
 export function paint<C extends string | null | undefined>(color: C): C | string {
-  if (typeof color !== "string") return color;
-  const v = CHART_VAR.get(color.toUpperCase());
-  return v ? `var(${v}, ${color})` : color;
+  return color;
 }
 
 /** The next "nice" number at or above v (1, 2, 2.5 or 5 times a power of ten); 1 for 0 or less. */

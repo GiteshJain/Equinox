@@ -116,13 +116,6 @@ export function Competition() {
         )}
         {isAirline && sel ? (
           <>
-            <div className="seg rseg perfseg cpseg" role="group" aria-label="Airline" data-airlines>
-              {airlines.map((a) => (
-                <button type="button" key={a.id} className={a.id === sel.id ? "on" : ""} aria-pressed={a.id === sel.id} data-al={a.code ?? ""} onClick={() => pick(a)}>
-                  <AirlineMark color={a.color} />{a.code ?? a.name}
-                </button>
-              ))}
-            </div>
             <Link className="link perfback cpback" to="/competition" data-back>‹ All airlines</Link>
           </>
         ) : null}

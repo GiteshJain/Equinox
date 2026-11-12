@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LOOK_STORAGE_KEY } from "../../data/config";
-import { applyLook, applyPeriod, periodOf, readLook, setLook } from "./look";
-
-function store(initial: Record<string, string> = {}) {
-  const m = new Map(Object.entries(initial));
-  return {
-    m,
-    getItem: (k: string) => m.get(k) ?? null,
-    setItem: (k: string, v: string) => void m.set(k, v),
-    removeItem: (k: string) => void m.delete(k),
-  };
-}
+import { readFileSync } from "node:fs";
+import { applyPeriod, periodOf } from "./look";
 
 describe("the period by this computer's clock (to-do 225, item 6)", () => {
   it("changes at 05:00, 07:00, 17:00 and 20:00", () => {
@@ -24,33 +14,20 @@ describe("the period by this computer's clock (to-do 225, item 6)", () => {
   });
 });
 
-describe("the switch, kept in this browser", () => {
-  it("is on only for the exact value glass", () => {
-    expect(readLook(store())).toBe(false);
-    expect(readLook(store({ [LOOK_STORAGE_KEY]: "glass" }))).toBe(true);
-    expect(readLook(store({ [LOOK_STORAGE_KEY]: "GLASS" }))).toBe(false);
-    expect(readLook(store({ [LOOK_STORAGE_KEY]: "1" }))).toBe(false);
-    expect(readLook({ getItem: () => { throw new Error("blocked"); } })).toBe(false);
-    expect(readLook(null)).toBe(false);
+describe("one look for everyone (step 6)", () => {
+  it("is on the page from its first byte, with no stored setting", () => {
+    const html = readFileSync(new URL("../../../index.html", import.meta.url), "utf8");
+    expect(html).toMatch(/<html lang="en" data-look="glass">/);
+    const code = ["../../main.tsx", "../../App.tsx", "../Header.tsx", "../../data/config.ts", "./look.ts"]
+      .map((f) => readFileSync(new URL(f, import.meta.url), "utf8")).join("\n");
+    expect(code).not.toMatch(/localStorage[^\n]*look|LOOK_STORAGE_KEY|lookmode/);
   });
 
-  it("writes and removes its key, and storage that throws doesn't stop it", () => {
-    const s = store();
-    setLook(true, s);
-    expect(s.m.get(LOOK_STORAGE_KEY)).toBe("glass");
-    setLook(false, s);
-    expect(s.m.has(LOOK_STORAGE_KEY)).toBe(false);
-    expect(() => setLook(true, { setItem: () => { throw new Error("blocked"); }, removeItem: () => undefined })).not.toThrow();
-    setLook(false, s);
-  });
-
-  it("sets and removes the attributes on the root", () => {
+  it("sets the period on the root, and only when it changes", () => {
     const root = { dataset: {} as Record<string, string> } as unknown as HTMLElement;
-    applyLook(true, root);
-    expect(root.dataset.look).toBe("glass");
-    applyLook(false, root);
-    expect(root.dataset.look).toBeUndefined();
     applyPeriod("dusk", root);
     expect(root.dataset.period).toBe("dusk");
+    applyPeriod("night", root);
+    expect(root.dataset.period).toBe("night");
   });
 });

@@ -7,14 +7,13 @@ import { createPlannerRouter } from "./App";
 import { queryClient } from "./data/query";
 import { exposeForChecks } from "./data/saving";
 import { openingFacts } from "./data/useStoredFigures";
-import { applyLook, readLook } from "./ui/look/look";
 import "./ui/styles.css";
 
 // Cloudflare sends /planner to /planner/ (web/_redirects); this does the same anywhere else, before the router reads
 // the address.
 if (location.pathname === BASENAME) history.replaceState(history.state, "", BASENAME + "/" + location.search + location.hash);
-// the glass look (to-do 225), on <html> before the first render, so sign-in and the landing page open in it too
-applyLook(readLook());
+// the glass look (to-do 225) is the planner's only look: <html data-look="glass"> is in index.html, so sign-in and the
+// landing page open in it too
 exposeForChecks();
 const router = createPlannerRouter();
 // the checks move between screens and routes as a click would (tests/routes_side_by_side_test.py), not by reloading

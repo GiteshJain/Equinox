@@ -32,7 +32,6 @@ import { useOurAirlines, useWorld } from "../../data/reads";
 import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
 import { saver } from "../../data/saving";
-import { AirlineMark } from "../../ui/AirlineMark";
 import { ChartOrTable } from "../../ui/charts";
 import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
@@ -302,14 +301,6 @@ export function Tails() {
       {loadError ? <ErrorBox error={loadError} /> : null}
       {airlinesQ.data && !airline ? <ErrorBox error={`There's no airline ${filters.airline} among ours.`} /> : null}
       <div className="toolbar">
-        <div className="seg">
-          {airlines.map((a) => (
-            <button type="button" key={a.id} data-al={a.code ?? ""} className={a.id === airline?.id ? "on" : ""}
-              onClick={() => navigate("/tails" + filtersQuery({ airline: a === airlines[0] ? null : a.code, base: "", type: "", status: "", del: "", card: "", file: "" }))}>
-              <AirlineMark color={a.color} />{a.name}
-            </button>
-          ))}
-        </div>
         <span className="count" data-figure="tails: count">{mine.length} tails</span>
       </div>
       {counts && ready ? (

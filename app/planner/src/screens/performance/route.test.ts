@@ -488,9 +488,9 @@ describe("Market share (30 Oct)", () => {
   it("each direction as a donut: ours in the airline's colour, the top rivals in the kit's colours, the rest grey", () => {
     const d = marketShareView(story({ market: market() })).dirs[0]!;
     expect(shareDonut(d, "#123456").map((p) => [p.key, p.label, p.value, p.color])).toEqual([
-      ["ours", "Pan Am", 30, "#123456"], ["r1", "Air China", 55, "#E86A92"], ["r2", "United", 8, "#1A7F55"], ["r3", "Delta", 4, "#E39B21"],
-      ["others", "others", 3, "#C9CEDB"]]);
-    expect(shareDonut(d)[0]?.color).toBe("#4B3BA8");
+      ["ours", "Pan Am", 30, "#123456"], ["r1", "Air China", 55, "var(--chart-2)"], ["r2", "United", 8, "var(--chart-ok)"], ["r3", "Delta", 4, "var(--chart-warn)"],
+      ["others", "others", 3, "var(--chart-others)"]]);
+    expect(shareDonut(d)[0]?.color).toBe("var(--chart-1)");
   });
 });
 

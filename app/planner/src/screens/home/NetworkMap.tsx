@@ -16,7 +16,7 @@ import { AirlineMark } from "../../ui/AirlineMark";
 import { loadWorld } from "../../ui/siteFiles";
 import type { HomeAirline } from "./reads";
 import {
-  MAPH, MAPW, arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, toMap, zoomView, type LatLon, type MapView,
+  HUB_OFF, MAPH, MAPW, NO_LIVERY, arcWidth, clampView, focusView, gcPath, loadColor, mapPoint, nightPolygon, perDayWords, toMap, zoomView, type LatLon, type MapView,
 } from "./map";
 import { usePlannedLegs, useRouteLoads, type AircraftRow } from "./reads";
 
@@ -45,7 +45,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
   }, []);
 
   const nameOf = (id: number) => airlines.find((a) => a.id === id)?.name ?? "";
-  const colorOf = (id: number) => airlines.find((a) => a.id === id)?.color || "#8B96A8";
+  const colorOf = (id: number) => airlines.find((a) => a.id === id)?.color || NO_LIVERY;
 
   // airports: the rules' (flown routes, legs, bases), and for planned routes the ones their legs use
   const places = useMemo(() => {
@@ -191,7 +191,7 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
     const [x, y] = toMap(c.at), fcm = h.role === "focus";
     dots.push(
       <g key={"h" + h.id} className={`hub ${live ? "live" : ""} ${fcm ? "focus" : ""}`} data-hub={h.airport_code}>
-        <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r={fcm ? (live ? 3 : 2.2) : (live ? 4.5 : 3)} fill={live ? colorOf(h.airline_id) : "#B7C4D8"} />
+        <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r={fcm ? (live ? 3 : 2.2) : (live ? 4.5 : 3)} fill={live ? colorOf(h.airline_id) : HUB_OFF} />
         <circle className="hitc" cx={x.toFixed(1)} cy={y.toFixed(1)} r="7"
           data-tip={`${h.airport_code} · ${c.name} · ${nameOf(h.airline_id)} ${fcm ? "focus city" : "hub"}${live ? " · " + (aps.get(h.airport_code) ?? 0) + " routes" : " · not flying yet"}`} />
         <text x={x.toFixed(1)} y={y.toFixed(1)} dx="0.72em" dy="0.36em">{h.airport_code}</text>
@@ -242,8 +242,8 @@ export function NetworkMap({ rules, airlines, now, worldId, aircraft, onOpenRout
         </div>
         {only != null ? (
           <div className="mapkey">
-            <span className="dim">loads, 7 days:</span><span><i style={{ background: "#3FB37F" }} />95%+</span><span><i style={{ background: "#E0B341" }} />85–95</span>
-            <span><i style={{ background: "#E8853A" }} />70–85</span><span><i style={{ background: "#E0524B" }} />under 70</span><span><i style={{ background: "#7E8BA3" }} />no data</span>
+            <span className="dim">loads, 7 days:</span><span><i style={{ background: loadColor(95) }} />95%+</span><span><i style={{ background: loadColor(85) }} />85–95</span>
+            <span><i style={{ background: loadColor(70) }} />70–85</span><span><i style={{ background: loadColor(0) }} />under 70</span><span><i style={{ background: loadColor(null) }} />no data</span>
           </div>
         ) : null}
         <svg ref={svgRef} className="wmap" viewBox={`${v.x.toFixed(1)} ${v.y.toFixed(1)} ${v.w.toFixed(1)} ${v.h.toFixed(1)}`} style={{ "--k": k } as CSSProperties}

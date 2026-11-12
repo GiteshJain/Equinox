@@ -42,7 +42,7 @@ export function AirlineCards({ cards, airlines, photos, rules, game, profitOf }:
         const c = cards.find((x) => x.airline_id === a.id);
         if (!c) return null;
         const photo = a.photo ? photos?.[a.photo]?.url : undefined;
-        const style = { "--lv": a.color || "#8B96A8", ...(photo ? { "--ph": `url("${photo}")` } : {}) } as CSSProperties;
+        const style = { "--lv": a.color || "var(--livery-none)", ...(photo ? { "--ph": `url("${photo}")` } : {}) } as CSSProperties;
         const m = lowestMaintenance(rules, a.id, game);
         return (
           <div key={a.id} className="acard" style={style} data-acard={a.name}>
@@ -51,7 +51,7 @@ export function AirlineCards({ cards, airlines, photos, rules, game, profitOf }:
             </div>
             <div className="fchead">
               <div className="fch ach">
-                <i className="lv" style={{ "--lv": a.color || "#8B96A8" } as CSSProperties} /><b>{a.name}</b>
+                <i className="lv" style={{ "--lv": a.color || "var(--livery-none)" } as CSSProperties} /><b>{a.name}</b>
                 {c.flying ? <Pill kind="ok">flying</Pill> : <Pill kind="mute">not launched</Pill>}
               </div>
             </div>

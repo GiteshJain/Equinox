@@ -29,12 +29,12 @@ describe("the capture's last 14 nights", () => {
   });
   it("ends on a later capture day when an answer has one; the colours", () => {
     expect(verdictHistory([[at(1, "ok", "2026-10-31")]], "2026-10-30").days[13]).toBe("2026-10-31");
-    expect([3, 2, 1, 0, null].map(verdictFill)).toEqual(["#1A7F55", "#E39B21", "#B4234B", "#9AA4C4", "#ECEFF4"]);
+    expect([3, 2, 1, 0, null].map(verdictFill)).toEqual(["var(--chart-ok)", "var(--chart-warn)", "var(--chart-bad)", "var(--chart-mute)", "var(--chart-nocapture)"]);
   });
   it("the colours and the legend are the kit's, each drawn through a named colour (the glass look, step 5)", () => {
-    expect([3, 2, 1, 0, null].map((v) => paint(verdictFill(v)))).toEqual(["var(--chart-ok, #1A7F55)", "var(--chart-warn, #E39B21)",
-      "var(--chart-bad, #B4234B)", "var(--chart-mute, #9AA4C4)", "var(--chart-nocapture, #ECEFF4)"]);
-    expect(VERDICT_LEGEND).toEqual([{ label: "all good", color: "#1A7F55" }, { label: "short", color: "#E39B21" }, { label: "broken", color: "#B4234B" },
-      { label: "not checked", color: "#9AA4C4" }, { label: "no capture", color: "#ECEFF4" }]);
+    expect([3, 2, 1, 0, null].map((v) => paint(verdictFill(v)))).toEqual(["var(--chart-ok)", "var(--chart-warn)",
+      "var(--chart-bad)", "var(--chart-mute)", "var(--chart-nocapture)"]);
+    expect(VERDICT_LEGEND).toEqual([{ label: "all good", color: "var(--chart-ok)" }, { label: "short", color: "var(--chart-warn)" }, { label: "broken", color: "var(--chart-bad)" },
+      { label: "not checked", color: "var(--chart-mute)" }, { label: "no capture", color: "var(--chart-nocapture)" }]);
   });
 });

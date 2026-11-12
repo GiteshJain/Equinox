@@ -25,7 +25,6 @@ import { useRules } from "../../data/rules";
 import type { Change } from "../../data/save";
 import { saver } from "../../data/saving";
 import { useTimeMode } from "../../data/timeMode";
-import { AirlineMark } from "../../ui/AirlineMark";
 import { ConfirmPanel } from "../../ui/Confirm";
 import { todayAt } from "../../ui/dates";
 import { ErrorBox } from "../../ui/ErrorBox";
@@ -314,14 +313,6 @@ export function Routes() {
         <p className="vk">The network</p>
         <div className="rttl">
           <h1>Routes</h1>
-          <div className="seg rseg" role="group" aria-label="Airline">
-            {airlines.map((a) => (
-              <button type="button" key={a.id} data-al={a.code ?? ""} className={a.id === airline?.id ? "on" : ""} aria-pressed={a.id === airline?.id}
-                onClick={() => navigate(listHref({ ...filters, airline: a === airlines[0] ? null : a.code, bases: null, markets: [] }))}>
-                <AirlineMark color={a.color} />{a.name}
-              </button>
-            ))}
-          </div>
           <button type="button" className="secondary radd" id="add-route-btn" aria-expanded={adding} onClick={() => setAdding((x) => !x)}>Add route</button>
         </div>
       </div>

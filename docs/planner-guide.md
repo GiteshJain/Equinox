@@ -26,20 +26,20 @@ as you make it. On a preview address the planner saves nothing and says **previe
 ## Signing in and the header
 - **Signing in:** the same email and password as before. An account that isn't staff is signed out with **This account
   doesn't have access to the planner.**
-- **The top bar** (since 22 Oct, the website's look): one slim bar on night with **equinox. planner**, the screens
-  **Home**, **Today**, **Routes**, **Tails**, **Performance** and **Competition**, and **More** (a menu with
-  **Interline**, **Photos**, **Reference** and **Systems**); the **search** box; the **clock button**, showing UTC now;
-  and the round **account button**. Under the bar, the website's twilight line. On a narrow window or a phone the
-  screens go into the menu button at the left, all ten in one list; nothing scrolls sideways.
+- **The top bar** (in the glass look since 12 Nov): one glass strip with **equinox. planner**, all ten screens as pills
+  (**Home**, **Today**, **Routes**, **Tails**, **Performance**, **Competition**, then **Interline**, **Photos**,
+  **Reference** and **Systems**; two rows on a laptop); the **search** box; the **clock button**, showing UTC now; and
+  the round **account button**. On a narrow window or a phone the screens go into the menu button at the left, all ten
+  in one list (the last four under a rule); nothing scrolls sideways. (Until 12 Nov the last four were in a **More**
+  menu, and a twilight line ran under the bar.)
   - **The clock button** opens the **game clocks**: one per time zone of our bases, west to east, with the time there,
     a dot for day or night and the bases' codes. They're no longer under the bar on every screen, and the hidden band of
     the UTC day went with them.
   - **The account button** opens the save state, **Times in Local** / **Times in UTC** (it starts as the planner's
-    setting and remembers your choice on this device), **Glass look** (On/Off, while the new look is built; below),
-    **Website** (the public site) and **Sign out**. Its dot shows the
+    setting and remembers your choice on this device), **Website** (the public site) and **Sign out**. Its dot shows the
     save state: green saved, amber saving or preview, red not saved.
-- **Each screen's head:** a small uppercase line saying where you are, the screen's title in large type on the light
-  ground, and its one-line description. (Each screen opened with a dark banner until 22 Oct.) Home keeps its globe.
+- **Each screen's head:** a small uppercase line saying where you are, the screen's title in large type on the picture,
+  and its one-line description. (Each screen opened with a dark banner until 22 Oct.) Home keeps its globe.
 - **The save state:** **saved**, **saving**, **not saved · retry** (in the account menu: tap it to send again; nothing is kept on the device,
   so closing the tab loses an unsaved change) or **preview · not saved**.
 - **The search** (press **/** to jump to it): type a flight number, with or without the airline's code (**1008**,
@@ -51,37 +51,22 @@ as you make it. On a preview address the planner saves nothing and says **previe
   change is saved; the screen shows what's there now and says what changed.
 - Every screen works at phone width, with no sideways scrolling. Previews save nothing.
 
-## The glass look (being built, since 11 Nov)
-The planner is getting a new look, one screen at a time (to-do 225, spec `docs/specs/2026-11-11-glass-look.md`). Until
-every screen has it, it shows only when you turn it on: **account button → Glass look → On**. It's kept in this browser
-only (as Times in Local/UTC is), so another computer or a private window shows today's look. **Glass look → Off** goes
-back at once.
-- **Done so far (step 5 of 6, every screen):** the top bar, the airline rail, Home, the landing page, sign-in and the charts' colours
-  everywhere (step 1); **Today** and **Tails**, with their tiles, lists, charts and pop-ups (the game check, an aircraft,
-  filing, a plan card), and a chart opened full size on any screen (step 2); **Routes**: its list, filters, a route with
-  its figures, frequencies, connections and loads, the route's story beside or under it, the aircraft pop-up it opens,
-  and the route pop-up Home's map opens (step 3); **Performance**: the group page (the scorecards, the last 14 days, the
-  fare ladder's links and Fare results lines, shared pairs and the rows that open), each airline's page (its four
-  figures, the fare ladder and its changes, Fare results, profit, cash, route profit, aircraft, fare changes and the fare
-  plan), a route page, and every chart there opened full size (step 3); **Competition**: the group page (the scans, each
-  airline's card, the threats and the order books) and each airline's page (market share with its donuts, threats,
-  openings with their chart, rival profiles with their fleets), and every chart there opened full size; **Interline**:
-  its filters, Waiting for a reply, the tiles by status, the agreements table (on a phone, each row's card) and the rules
-  (step 4); **Photos**: the logos and destinations as glass cards (the photographs and logos keep their own colours, a
-  logo on its white plate), the filter, the buttons and the questions they ask; **Reference**: its three groups of
-  sections and their tables of boxes, and the question a time-zone change asks; **Systems**: the Systems board (its
-  green, amber and red tiles, the evening capture, the last 14 nights and the usage gauges), the rows that open (Capture,
-  Fleet, Cabin charges, Manual entry) and Manual entry's load report pop-up (step 5). Step 6 turns the look on for
-  everyone.
-- **On Routes, Tails, Performance and Competition** the rail picks the airline; their own row of airline buttons is hidden
-  while the glass look is on (with it off, they're there as before). On Performance and Competition, All is the group
-  page. Interline, Photos, Reference and Systems show every airline: All stays lit, and an airline on the rail opens its
+## The glass look (everyone's since 12 Nov)
+The planner's look (to-do 225, spec `docs/specs/2026-11-11-glass-look.md`): a picture behind everything that follows
+the computer's clock, cards of dark glass, tables and charts on a nearly solid panel, the ten screens as pills across the
+top and the six airlines as a rail on the left. It was built in six steps from 11 Nov behind a **Glass look** switch in
+the account menu; since step 6 (12 Nov) it's the only look and the switch is gone. A browser that had the switch on or off
+shows the same planner (the setting it kept is never read).
+- **Every screen, the landing page and sign-in** are in it, with their pop-ups and every chart opened full size. The
+  photographs and logos on Photos keep their own colours (a logo on its white plate); the globe on Home keeps its own.
+- **Picking an airline:** on Routes, Tails, Performance and Competition the rail picks the airline (their own rows of
+  airline buttons went on 12 Nov). An address still picks one too: /planner/routes/FR, /planner/tails?airline=FR,
+  /planner/performance/FR and /planner/competition/FR open Ryanair, and the rail lights it. On Performance and
+  Competition, All is the group page. Interline, Photos, Reference and Systems show every airline: All stays lit, and an airline on the rail opens its
   Performance page.
 - **The picture behind** follows this computer's clock: **Day** 07:00–17:00, **Dusk** 17:00–20:00 and 05:00–07:00,
   **Night** 20:00–05:00. Cards are dark glass, a little thicker by day so the text stays readable; tables and charts sit
   on a nearly solid panel.
-- **The top bar** shows all ten screens as pills (two rows on a laptop), with the search, the clock and the account
-  button as before. On a narrow window the screens are in the menu button, as before.
 - **The airline rail** on the left (a row at the top on a phone): **All** and the six airlines. On Performance and
   Competition it picks the airline (All is the group page); on Routes and Tails it picks the airline (All isn't
   clickable there, as they always show one); on every other screen All is lit and an airline opens its Performance page.
@@ -274,8 +259,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 
 ## Routes
 *Every route in the network. Pick one to schedule its flights.*
-- **The layout** (since 22 Oct, spec `docs/specs/2026-10-22-planner-look-routes.md`): the title with the airline switch
-  beside it (each airline's colour dot and name; under 1100 px wide it sits under the title) and **Add route**; then the
+- **The layout** (since 22 Oct, spec `docs/specs/2026-10-22-planner-look-routes.md`): the title with **Add route** beside
+  it (the airline is picked on the rail since 12 Nov; the title's own airline switch went); then the
   list (about 440 px) beside the open route, each scrolling inside its own panel, so the page itself stays the height
   of the window. The open route is marked in the list with a violet bar. On a phone (under 760 px) the list fills the
   screen; tapping a route opens it full screen, with **← Routes** at the top (the browser's back button does the same).
@@ -615,8 +600,8 @@ fold them, and a row's title opens or closes it.
     on a narrow screen some axis labels are left out instead.
   - A board opens as its chart unless you chose its table in this browser. Load against profit, Aircraft and The group
     today are drawn the same way, so their text stays readable on a phone.
-- **The airline's page:** its name as the title with **‹ All airlines**, the airline switch (one segmented control, as
-  on Routes), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
+- **The airline's page:** its name as the title with **‹ All airlines** (the rail picks the airline: its own airline
+  switch went on 12 Nov), and its scorecard as four big numbers: profit a day, per aircraft (with when an aircraft pays back),
   return on fleet (with how often it funds a new aircraft) and next order; the fleet, flights a day and average load
   with their changes in a line under them. Then (since 26 Oct) **the fare ladder** for this airline, open (above), and its
   boards as rows that open, Route profit open on arrival:
@@ -757,7 +742,8 @@ flight's days, as *gscan.py* counts them, passenger flights only: freighters (a 
   per rival of its aircraft on order as a share of its fleet, red when it meets our airlines, grey when it doesn't, a
   starting rival drawn full ("12 on order, no flights yet"), and the flag (*rival_orders_flag_pct*) as a dashed line;
   **show as table** for the list.
-- **An airline** (/planner/competition/MU), with the airline switch under the title and **‹ All airlines**. Its four
+- **An airline** (/planner/competition/MU), with **‹ All airlines** under the title (the rail picks the airline: its own
+  airline switch went on 12 Nov). Its four
   sections are rows that open, each with its count (**Expand all** and **Collapse all** open or close every one);
   **Openings** is open on arrival:
   - **Market share:** a tile per market (the airline's routes, flown or not, either direction): our share with its

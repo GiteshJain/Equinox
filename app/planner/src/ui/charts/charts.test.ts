@@ -1,51 +1,39 @@
 // The chart kit's layouts (spec docs/specs/2026-10-30-charts-everywhere.md, "Common to all three"): each places what it's
 // given, in order, on its scale, with its tips; nothing is worked out but positions. And "show as table" renders the
 // chart or the table, with its switch.
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ChartFrame, ChartOrTable, donutLayout, gaugeLayout, hbarLayout, heatLayout, loadFill, niceCeil, sizedScatterLayout, sparkLayout, stackLayout, stepLayout, ticks, timelineLayout,
-  fitText, HeatStrip, paint, PERF, SERIES, STORY, TONE,
+  fitText, HeatStrip, paint, PERF, SERIES, STORY, SYS, TONE,
 } from "./index";
 
-describe("paint(): the kit's colours as the look's named colours", () => {
-  it("names the kit's own colours, keeps the rest, and leaves a missing colour missing instead of throwing", () => {
-    expect(paint(TONE.ok)).toBe(`var(--chart-ok, ${TONE.ok})`);
-    expect(paint(TONE.violet)).toBe(`var(--chart-1, ${TONE.violet})`);
-    expect(paint(SERIES[1])).toBe(`var(--chart-2, ${SERIES[1]})`);
-    expect(paint(TONE.ok.toLowerCase())).toBe(`var(--chart-ok, ${TONE.ok.toLowerCase()})`);
+describe("the kit's colours are named colours (the glass look; one look since step 6)", () => {
+  it("each colour is a --chart-* name, and paint() keeps every colour as given, a missing one missing", () => {
+    for (const c of [...Object.values(TONE), ...SERIES, ...Object.values(STORY), ...Object.values(PERF)]) expect(c).toMatch(/^var\(--chart-[a-z0-9-]+\)$/);
+    expect(TONE).toMatchObject({ ok: "var(--chart-ok)", violet: "var(--chart-1)" });
+    // the series reuse the tones' names where they were the same colour
+    expect(SERIES).toEqual(["var(--chart-1)", "var(--chart-2)", "var(--chart-ok)", "var(--chart-warn)", "var(--chart-5)", "var(--chart-6)", "var(--chart-bad)", "var(--chart-ink)"]);
+    expect(STORY).toEqual({ level: "var(--chart-level)", back: "var(--chart-back)", others: "var(--chart-others)" });
+    for (const [k, c] of Object.entries(PERF)) expect(c).toBe(`var(--chart-${k})`);
+    expect(paint(TONE.ok)).toBe("var(--chart-ok)");
     expect(paint("#C8102E")).toBe("#C8102E");
     expect(paint(undefined)).toBeUndefined();
     expect(paint(null)).toBeNull();
     expect(paint("")).toBe("");
   });
-  it("names the route story's own colours too, at today's values (the glass look, step 3)", () => {
-    expect(STORY).toEqual({ level: "#3B3FD8", back: "#D9752B", others: "#C9CEDB" });
-    expect(paint(STORY.level)).toBe("var(--chart-level, #3B3FD8)");
-    expect(paint(STORY.back)).toBe("var(--chart-back, #D9752B)");
-    expect(paint(STORY.others)).toBe("var(--chart-others, #C9CEDB)");
-    // the kit's own colours keep their names: no story colour is one of TONE's or SERIES'
-    expect(paint(SERIES[5])).toBe(`var(--chart-6, ${SERIES[5]})`);
-    expect(paint("var(--ink)")).toBe("var(--ink)");
+  it("every --chart-* name the kit uses is defined in the stylesheet's palette", () => {
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    const names = [...Object.values(TONE), ...SERIES, ...Object.values(STORY), ...Object.values(PERF), ...Object.values(SYS)].map((c) => c.slice(4, -1));
+    for (const n of names) expect(css, n).toMatch(new RegExp(`${n}:`));
   });
-  it("names Performance's own chart colours too, at today's values, without taking the kit's names (the glass look, step 3)", () => {
-    expect(PERF).toEqual({
-      good: "#1E9E6A", lease: "#E0557A", cargo: "#8D90F2", landing: "#F2C14E", slate: "#5B647E",
-      load85: "#E3B341", load70: "#E3812B", none: "#D9DDE7", midline: "#C3C9D9", label: "#0A1230",
-    });
-    for (const [k, c] of Object.entries(PERF)) expect(paint(c)).toBe(`var(--chart-${k}, ${c})`);
-    expect(paint(PERF.good.toLowerCase())).toBe("var(--chart-good, #1e9e6a)");
-    // the kit's and the story's keep theirs
-    expect(paint(TONE.bad)).toBe(`var(--chart-bad, ${TONE.bad})`);
-    expect(paint(STORY.level)).toBe(`var(--chart-level, ${STORY.level})`);
-  });
-  it("a heat strip's cells take the look's colours through paint(), an empty cell none (Flights by day; the glass look, step 3)", () => {
+  it("a heat strip's cells take the colours in their style, an empty cell none (Flights by day)", () => {
     const g = heatLayout([{ key: "PA", label: "PA", cells: [{ value: 96, tip: "t" }, null, { value: null, tip: "n" }] }], ["00", "01", "02"], { W: 130, L: 40 });
     const html = renderToString(createElement(HeatStrip, { layout: () => g, label: "loads by hour" }));
-    expect(html).toContain("fill:var(--chart-good, #1E9E6A)");
-    expect(html).toContain("fill:var(--chart-none, #D9DDE7)");
-    expect(html).toContain('fill="#1E9E6A"');
+    expect(html).toContain("fill:var(--chart-good)");
+    expect(html).toContain("fill:var(--chart-none)");
   });
 });
 
@@ -66,7 +54,7 @@ describe("horizontal bars", () => {
     expect(g.bars.map((b) => [b.key, b.y, b.neg, b.text])).toEqual([["a", 19, false, "10"], ["b", 39, true, "-5"]]);
     // 300 wide, bars from 50 + 46 = 96, 52 right: −5 to 10 over 152 px; zero at 96 + 5/15 × 152 = 146.7
     expect(g.zeroX).toBe(146.7);
-    expect(g.bars[0]).toMatchObject({ x: 146.7, w: 101.3, color: "#4B3BA8" });
+    expect(g.bars[0]).toMatchObject({ x: 146.7, w: 101.3, color: "var(--chart-1)" });
     expect(g.bars[1]).toMatchObject({ x: 96, w: 50.7, color: "#f00", textX: 92 });
     expect(g.ref).toEqual({ x: 197.3, label: "mid" });
     // with no losing bar and no reference line, the bars start at the labels' edge, the rows at the top
@@ -133,9 +121,9 @@ describe("a scatter, a gauge, a heat strip and a spark", () => {
     expect(gaugeLayout(0, 100).arc).toBe("");
   });
   it("a heat strip's cells coloured as loads are marked, grey with no figure, nothing for an empty hour", () => {
-    expect([loadFill(98), loadFill(90), loadFill(75), loadFill(50), loadFill(null)]).toEqual(["#1E9E6A", "#E3B341", "#E3812B", "#B4234B", "#D9DDE7"]);
+    expect([loadFill(98), loadFill(90), loadFill(75), loadFill(50), loadFill(null)]).toEqual(["var(--chart-good)", "var(--chart-load85)", "var(--chart-load70)", "var(--chart-bad)", "var(--chart-none)"]);
     const g = heatLayout([{ key: "PA", label: "PA", cells: [{ value: 96, tip: "t" }, null, { value: null, tip: "n" }] }], ["00", "01", "02"], { W: 130, L: 40 });
-    expect(g.rows[0]?.cells.map((c) => [c.x, c.fill, c.empty])).toEqual([[40, "#1E9E6A", false], [70, "none", true], [100, "#D9DDE7", false]]);
+    expect(g.rows[0]?.cells.map((c) => [c.x, c.fill, c.empty])).toEqual([[40, "var(--chart-good)", false], [70, "none", true], [100, "var(--chart-none)", false]]);
   });
   it("a spark breaks its line at a null and draws bars from zero", () => {
     expect(sparkLayout([1, null, 3], "line", { W: 66, H: 26 }).path).toBe("M13,23 M53,3");

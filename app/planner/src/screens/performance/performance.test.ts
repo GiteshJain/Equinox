@@ -162,11 +162,11 @@ describe("route profit", () => {
   });
   it("the marks' and an average flight's colours are today's, now from the chart kit's names (the glass look, step 3)", () => {
     expect(Object.fromEntries(Object.entries(MARKS).map(([k, m]) => [k, m.color])))
-      .toEqual({ add: "#1E9E6A", sold_out: "#3B3FD8", fix: "#E39B21", losing: "#B4234B", hold: "#9AA4C4" });
+      .toEqual({ add: "var(--chart-good)", sold_out: "var(--chart-level)", fix: "var(--chart-warn)", losing: "var(--chart-bad)", hold: "var(--chart-mute)" });
     const a = { passengers: 0.05, cargo: 0.002, fuel: 0.02, handling: 0.003, onboard: 0.001, landing: 0.002, air_traffic: 0.001, maintenance: 0.004, income: 0.052, costs: 0.031, profit: 0.021, margin: 0.4038 };
     const c = costParts(a);
     expect([...(c?.income ?? []), ...(c?.costs ?? [])].map((x) => x.color))
-      .toEqual(["#3B3FD8", "#8D90F2", "#B4234B", "#E0557A", "#E39B21", "#F2C14E", "#9AA4C4", "#5B647E"]);
+      .toEqual(["var(--chart-level)", "var(--chart-cargo)", "var(--chart-bad)", "var(--chart-lease)", "var(--chart-warn)", "var(--chart-landing)", "var(--chart-mute)", "var(--chart-slate)"]);
   });
 });
 
