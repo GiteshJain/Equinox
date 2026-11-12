@@ -66,6 +66,9 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    with the switch off); under glass the first chart on the group page and on the airline's page opens full size on the
    panel (a screenshot of each, then Esc), the group page's threats and order books and the airline page's rows are on
    the panel, and Interline's agreements and rules' rows are on the panel.
+   Since 12 Nov (step 5) under glass Photos' cards are on the card glass, Reference's sections and Systems' board and rows
+   on the panel; Systems' first chart opens full size on the panel, and Manual entry's load report (after Read paste of a
+   line it doesn't recognise) opens on the panel, is screenshot and is closed and cleared again: nothing is saved.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1580,6 +1583,34 @@ COMP_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[
     return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
 
 
+async def manual_entry_popup_glass(pg, width, tag):
+    """The glass look, step 5: Systems' Manual entry (already open: Expand all) opens its pop-up, the load report, after a
+    paste is read; on the glass look's panel, screenshot, then closed and the paste cleared with the board's own clear.
+    Nothing is saved (Save is never pressed). Returns the problems."""
+    out = []
+    board = "main[data-screen=systems] [data-board='Manual entry']"
+    try:
+        await pg.evaluate(f"""(() => {{ const d = document.querySelector("{board} details[data-loads-by-hand]"); d.open = true;
+            const p = d.querySelector('details.lfpaste'); if (p) p.open = true; }})()""")
+        await settle(pg, 300)
+        await pg.fill(f"{board} details.lfpaste textarea", "nothing to read here")
+        await pg.click(f"{board} #lfpaste-read")
+        await pg.wait_for_selector(f"{board} [data-paste-preview] .modal", timeout=10000)
+        await settle(pg, 300)
+        bg = await pg.evaluate(POPUP_BG_JS, f"{board} [data-paste-preview] .modal")
+        if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+            out.append(f"Manual entry's load report is {bg!r}, not on the glass look's panel")
+        if SCREENS_DIR:
+            await pg.screenshot(path=str(Path(SCREENS_DIR) / f"systems-load-report-{width}{tag}.png"), timeout=90000)
+        await pg.evaluate(f"document.querySelector(\"{board} #lfpaste-clear\").click()")
+        await settle(pg, 300)
+        if await pg.evaluate(f"!!document.querySelector(\"{board} [data-paste-preview]\")"):
+            out.append("Manual entry's load report doesn't close")
+    except Exception as e:
+        out.append(f"Manual entry's load report doesn't open ({str(e).splitlines()[0][:120]})")
+    return out
+
+
 def period_of(hour):
     """The planner's periodOf (src/ui/look/look.ts): Day 07-16, Dusk 17-19 and 05-06, Night 20-04."""
     return "day" if 7 <= hour < 17 else "dusk" if 17 <= hour < 20 or 5 <= hour < 7 else "night"
@@ -1731,6 +1762,21 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             problems.append(f"competition/{code} at {width} px: {own['shown']} of Competition's {own['total']} airline buttons are shown, expected all")
                         if not own["total"]:
                             problems.append(f"competition/{code} at {width} px: no airline buttons under its title")
+                    if glass and sid in ("photos", "reference", "systems"):
+                        # the glass look, step 5: Photos' cards on the card glass, Reference's sections and Systems' board and
+                        # rows on the panel (all three keep All lit on the rail, checked below); Systems' first chart opens full
+                        # size on the panel, and Manual entry's pop-up (the load report, after Read paste) opens on the panel,
+                        # is screenshot and is closed and cleared again, saving nothing
+                        boxes = {"photos": ("main[data-screen=photos] .ph-card",), "reference": ("main[data-screen=reference] .rrows",),
+                                 "systems": ("main[data-screen=systems] .sysboard", "main[data-screen=systems] .sysrows")}[sid]
+                        for box in boxes:
+                            bg = await ph.pg.evaluate(POPUP_BG_JS, box)
+                            if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                                problems.append(f"{sid} at {width} px (glass): {box.split(' ', 1)[1]} is {bg!r}, not on the glass look")
+                        if sid == "systems":
+                            await chart_big_glass(name)
+                            problems.extend(f"systems at {width} px (glass): {x}" for x in await manual_entry_popup_glass(ph.pg, width, tag))
+                            shots += 1 if SCREENS_DIR else 0
                     if glass and sid == "interline":
                         # the glass look, step 4: Interline shows every airline (All lit on the rail, checked below); its
                         # agreements table and the rules' rows on the panel

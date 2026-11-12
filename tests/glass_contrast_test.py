@@ -244,11 +244,67 @@ def step4_cases(t, s):
     return out
 
 
+def step5_cases(t, s):
+    """Step 5 of the glass look (Photos, Reference and Systems, spec docs/specs/2026-11-11-glass-look.md): (what, colour,
+    surface, the least ratio). Photos: the count pill, the note, each logo's and destination's card on the card glass, with
+    its caption, a credit box, the kind pill, the buttons, the question it asks and the filter chip. Reference: each group's
+    sections on the panel, a focus city's row a group row on it, the boxes on both, the chips, and the time-zone question on
+    the bad tint over the panel. Systems: the board on the panel, its tiles (amber and red on their tints), the evening
+    capture's rows (an amber or red one on its tint, with its pill), the gauges and the last 14 nights, the rows that open on
+    the panel with the cash boxes a group row, every pill a table there holds, and the load report pop-up on the panel."""
+    panel, card = s["panel"], s["card"]
+    on = lambda name, under: over(t[name], under)
+    group, tile = on("--row-group", panel), on("--tile-bg", panel)
+    warn_tile, bad_tile = on("--warn-fill", panel), on("--bad-fill", panel)
+    question = on("--bad-fill", panel)
+    out = []
+    # Photos, on the card glass
+    out += [("Photos' card: its name, the count pill", t["--text"], card, TEXT_MIN), ("Photos' card: its caption and the destination's code", t["--text-2"], card, TEXT_MIN),
+            ("Photos' note (an upload gone live)", t["--count-ok"], card, TEXT_MIN), ("Photos' card: Use the in-game logo, Remove", t["--link"], card, TEXT_MIN),
+            ("Photos' card: the question it asks", t["--late-text"], card, TEXT_MIN),
+            ("Photos' card: Upload, Replace, the filter when on", t["--on-text"], on("--on-bg", card), TEXT_MIN),
+            ("Photos' filter under the pointer", t["--text"], s["bar"], TEXT_MIN),
+            ("Photos' credit box: its text", t["--text"], on("--field-bg", card), TEXT_MIN), ("Photos' credit box: its placeholder", t["--text-2"], on("--field-bg", card), TEXT_MIN)]
+    for k in ("ok", "mute"):
+        out.append((f"Photos' card: the {k} kind pill", t[f"--{k}-text"], on(f"--{k}-fill", card), TEXT_MIN))
+    # Reference, on the panel
+    for where, under in (("Reference's sections (panel)", panel), ("a focus city's or a station's row (group row)", group)):
+        out += [(f"{where}: text", t["--text"], under, TEXT_MIN), (f"{where}: lesser text", t["--text-2"], under, TEXT_MIN),
+                (f"{where}: a link", t["--link"], under, TEXT_MIN),
+                (f"{where}: a box's text", t["--text"], on("--field-bg", under), TEXT_MIN), (f"{where}: a box's placeholder", t["--text-2"], on("--field-bg", under), TEXT_MIN)]
+    out += [("Reference's market chips: a chip", t["--text"], on("--sel-bg", panel), TEXT_MIN), ("Reference's market chips: the chosen one", t["--on-text"], on("--on-bg", panel), TEXT_MIN),
+            ("the time-zone question: its words", t["--text"], question, TEXT_MIN), ("the time-zone question: the question", t["--late-text"], question, TEXT_MIN),
+            ("the time-zone question: nothing moves", t["--text-2"], question, TEXT_MIN)]
+    # Systems: the board's tiles and the evening capture's rows, on the panel
+    for where, under, count in (("a green tile", tile, "--count-ok"), ("an amber tile", warn_tile, "--count-warn"), ("a red tile", bad_tile, "--count-bad")):
+        out += [(f"Systems, {where}: its label and words", t["--text"], under, TEXT_MIN), (f"Systems, {where}: when", t["--text-2"], under, TEXT_MIN),
+                (f"Systems, {where}: its state", t[count], under, TEXT_MIN)]
+    for where, under in (("an amber capture row", warn_tile), ("a red capture row", bad_tile)):
+        out += [(f"Systems, {where}: its name and detail", t["--text"], under, TEXT_MIN), (f"Systems, {where}: when", t["--text-2"], under, TEXT_MIN)]
+        for k in ("ok", "warn", "bad", "mute"):
+            out.append((f"Systems, {where}: a {k} verdict pill", t[f"--{k}-text"], on(f"--{k}-fill", under), TEXT_MIN))
+    for where, under in (("Systems' rows, the board, the load report (panel)", panel), ("Manual entry's cash boxes (group row)", group)):
+        out += [(f"{where}: text", t["--text"], under, TEXT_MIN), (f"{where}: lesser text", t["--text-2"], under, TEXT_MIN),
+                (f"{where}: a box's text", t["--text"], on("--field-bg", under), TEXT_MIN), (f"{where}: a box's placeholder", t["--text-2"], on("--field-bg", under), TEXT_MIN)]
+    for k in ("ok", "warn", "bad", "mute", "orange"):
+        out.append((f"Systems' tables and the load report: a {k} pill", t[f"--{k}-text"], on(f"--{k}-fill", panel), TEXT_MIN))
+    out += [("Systems: Use the game's amount, Close", t["--text"], on("--sel-bg", panel), TEXT_MIN),
+            ("Systems: Save the loads (the load report)", t["--on-text"], on("--on-bg", panel), TEXT_MIN),
+            ("Systems: a gauge's figure", t["--chart-val"], panel, TEXT_MIN), ("Systems: a gauge's words", t["--text-2"], panel, TEXT_MIN)]
+    for k, under, where in (("--dot-ok", tile, "a green tile"), ("--dot-warn", warn_tile, "an amber tile or row"), ("--dot-bad", bad_tile, "a red tile or row"),
+                            ("--dot-ok", panel, "a green capture row")):
+        out.append((f"mark: the {k[6:]} dot on {where}", t[k], under, MARK_MIN))
+    for k in ("--chart-ok", "--chart-warn", "--chart-bad", "--chart-mute"):
+        out.append((f"mark: {k[8:]} on the panel (a night in the last 14, a gauge's arc)", t[k], panel, MARK_MIN))
+    out += [("mark: an amber tile's edge", t["--warn-text"], panel, MARK_MIN), ("mark: a red tile's edge", t["--bad-text"], panel, MARK_MIN)]
+    return out
+
+
 def main():
     css = SHEET.read_text(encoding="utf-8")
     base = block(css, ':root[data-look="glass"]')
     day = {**base, **block(css, ':root[data-look="glass"][data-period="day"]')}
-    problems, lines, q3, s2, s3, s3p, s4 = [], [], [], {}, {}, {}, {}
+    problems, lines, q3, s2, s3, s3p, s4, s5 = [], [], [], {}, {}, {}, {}, {}
     for period in PERIODS:
         t = day if period == "day" else base
         pic = LOOK / f"backdrop-{period}.jpg"
@@ -316,6 +372,12 @@ def main():
                 s4.setdefault(period, []).append((r, label, w))
                 if r < need:
                     problems.append(f"{where}: step 4, {label} {r:.2f}:1, under {need}")
+            # step 5 (Photos, Reference and Systems)
+            for label, fg, surface, need in step5_cases(t, surfaces):
+                r = ratio(over(fg, surface), surface)
+                s5.setdefault(period, []).append((r, label, w))
+                if r < need:
+                    problems.append(f"{where}: step 5, {label} {r:.2f}:1, under {need}")
             low = min(worst.items(), key=lambda kv: kv[1])
             lines.append(f"{where}: card text {worst[('card', 'text')]:.1f}, labels {worst[('card', 'lesser text')]:.1f}, "
                          f"pills {min(v for k, v in worst.items() if k[0] == 'card' and k[1].endswith('pill')):.1f}; "
@@ -348,6 +410,12 @@ def main():
             rt, lt, wt = min(x for x in s4[period] if not x[1].startswith("mark"))
             rm, lm, wm = min(x for x in s4[period] if x[1].startswith("mark"))
             print(f"step 4 (Competition and Interline), {period}: {len(s4[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
+                  f"lowest mark {lm} {rm:.2f} ({wm} px)")
+    for period in PERIODS:
+        if s5.get(period):
+            rt, lt, wt = min(x for x in s5[period] if not x[1].startswith("mark"))
+            rm, lm, wm = min(x for x in s5[period] if x[1].startswith("mark"))
+            print(f"step 5 (Photos, Reference and Systems), {period}: {len(s5[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
                   f"lowest mark {lm} {rm:.2f} ({wm} px)")
     if q3:
         print("question 3, the chart colours on the card glass by day (not required): " + "; ".join(

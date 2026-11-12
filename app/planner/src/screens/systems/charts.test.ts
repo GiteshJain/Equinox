@@ -1,7 +1,8 @@
 // Systems' charts (spec docs/specs/2026-10-30-charts-everywhere.md, part C): the usage gauges against their triggers, and
 // each airline's capture verdicts over the last 14 nights from capture_status() asked at several moments.
 import { describe, expect, it } from "vitest";
-import { usageGauges, verdictFill, verdictHistory, type CaptureAt } from "./charts";
+import { paint } from "../../ui/charts";
+import { VERDICT_LEGEND, usageGauges, verdictFill, verdictHistory, type CaptureAt } from "./charts";
 
 describe("usage as gauges", () => {
   it("each figure's share of its trigger, amber from 70%, red at it, with its words", () => {
@@ -29,5 +30,11 @@ describe("the capture's last 14 nights", () => {
   it("ends on a later capture day when an answer has one; the colours", () => {
     expect(verdictHistory([[at(1, "ok", "2026-10-31")]], "2026-10-30").days[13]).toBe("2026-10-31");
     expect([3, 2, 1, 0, null].map(verdictFill)).toEqual(["#1A7F55", "#E39B21", "#B4234B", "#9AA4C4", "#ECEFF4"]);
+  });
+  it("the colours and the legend are the kit's, each drawn through a named colour (the glass look, step 5)", () => {
+    expect([3, 2, 1, 0, null].map((v) => paint(verdictFill(v)))).toEqual(["var(--chart-ok, #1A7F55)", "var(--chart-warn, #E39B21)",
+      "var(--chart-bad, #B4234B)", "var(--chart-mute, #9AA4C4)", "var(--chart-nocapture, #ECEFF4)"]);
+    expect(VERDICT_LEGEND).toEqual([{ label: "all good", color: "#1A7F55" }, { label: "short", color: "#E39B21" }, { label: "broken", color: "#B4234B" },
+      { label: "not checked", color: "#9AA4C4" }, { label: "no capture", color: "#ECEFF4" }]);
   });
 });

@@ -2,7 +2,7 @@
 // figures as gauges against their triggers, and each airline's capture verdicts over the last 14 nights. The board's
 // tiles and the capture table stay; Manual entry and Cabin charges stay tables.
 import { ChartFrame, ChartTip, Gauge, HeatStrip, heatLayout } from "../../ui/charts";
-import { usageGauges, verdictFill, verdictHistory, type CaptureAt } from "./charts";
+import { VERDICT_LEGEND, usageGauges, verdictFill, verdictHistory, type CaptureAt } from "./charts";
 import type { SystemStatus } from "./systems";
 
 export function UsageGauges({ usage }: { usage: SystemStatus["usage"] }) {
@@ -23,7 +23,7 @@ export function CaptureHistory({ history }: { history: { today: string; answers:
   const h = history ? verdictHistory(history.answers, history.today) : null;
   return (
     <ChartFrame title="The last 14 nights" note="each airline's capture verdict each night (UTC capture days)"
-      legend={[{ label: "all good", color: "#1A7F55" }, { label: "short", color: "#E39B21" }, { label: "broken", color: "#B4234B" }, { label: "not checked", color: "#9AA4C4" }, { label: "no capture", color: "#ECEFF4" }]}
+      legend={VERDICT_LEGEND}
       figure="systems: capture history" empty={!h ? "Reading the last 14 nights…" : h.rows.length ? null : "No airline captured yet."}>
       {h ? <HeatStrip layout={(W) => heatLayout(h.rows, h.cols, { W, L: 44, row: 22, fill: verdictFill, every: W < 520 ? 3 : 1 })} label="capture verdicts, last 14 nights" figure="systems: capture nights" /> : null}
     </ChartFrame>

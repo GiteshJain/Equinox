@@ -56,7 +56,7 @@ The planner is getting a new look, one screen at a time (to-do 225, spec `docs/s
 every screen has it, it shows only when you turn it on: **account button → Glass look → On**. It's kept in this browser
 only (as Times in Local/UTC is), so another computer or a private window shows today's look. **Glass look → Off** goes
 back at once.
-- **Done so far (step 4 of 6):** the top bar, the airline rail, Home, the landing page, sign-in and the charts' colours
+- **Done so far (step 5 of 6, every screen):** the top bar, the airline rail, Home, the landing page, sign-in and the charts' colours
   everywhere (step 1); **Today** and **Tails**, with their tiles, lists, charts and pop-ups (the game check, an aircraft,
   filing, a plan card), and a chart opened full size on any screen (step 2); **Routes**: its list, filters, a route with
   its figures, frequencies, connections and loads, the route's story beside or under it, the aircraft pop-up it opens,
@@ -67,11 +67,16 @@ back at once.
   airline's card, the threats and the order books) and each airline's page (market share with its donuts, threats,
   openings with their chart, rival profiles with their fleets), and every chart there opened full size; **Interline**:
   its filters, Waiting for a reply, the tiles by status, the agreements table (on a phone, each row's card) and the rules
-  (step 4). The other screens sit in the new frame with only their shared parts (cards, tables, pills, buttons) in the new
-  look until their own step.
+  (step 4); **Photos**: the logos and destinations as glass cards (the photographs and logos keep their own colours, a
+  logo on its white plate), the filter, the buttons and the questions they ask; **Reference**: its three groups of
+  sections and their tables of boxes, and the question a time-zone change asks; **Systems**: the Systems board (its
+  green, amber and red tiles, the evening capture, the last 14 nights and the usage gauges), the rows that open (Capture,
+  Fleet, Cabin charges, Manual entry) and Manual entry's load report pop-up (step 5). Step 6 turns the look on for
+  everyone.
 - **On Routes, Tails, Performance and Competition** the rail picks the airline; their own row of airline buttons is hidden
   while the glass look is on (with it off, they're there as before). On Performance and Competition, All is the group
-  page. Interline shows every airline: All stays lit, and an airline on the rail opens its Performance page.
+  page. Interline, Photos, Reference and Systems show every airline: All stays lit, and an airline on the rail opens its
+  Performance page.
 - **The picture behind** follows this computer's clock: **Day** 07:00–17:00, **Dusk** 17:00–20:00 and 05:00–07:00,
   **Night** 20:00–05:00. Cards are dark glass, a little thicker by day so the text stays readable; tables and charts sit
   on a nearly solid panel.
