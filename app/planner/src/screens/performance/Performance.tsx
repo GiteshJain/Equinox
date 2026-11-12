@@ -322,14 +322,6 @@ function PerformanceScreen() {
             <h1 data-perf-name={sel.code ?? ""}><AirlineMark color={colorOf(sel.airline_id)} size={18} />{sel.name}</h1>
             <Link className="link perfback" to="/performance" data-back>‹ All airlines</Link>
           </div>
-          <div className="seg rseg perfseg" role="group" aria-label="Airline" data-airlines>
-            {cards.map((c) => (
-              <button type="button" key={c.airline_id} className={c.airline_id === selId ? "on" : ""} aria-pressed={c.airline_id === selId} data-al={c.code ?? ""}
-                onClick={() => navigate(itemRoute("performance", { airline: c.code ?? String(c.airline_id) }))}>
-                <AirlineMark color={colorOf(c.airline_id)} />{c.code ?? c.name}
-              </button>
-            ))}
-          </div>
           <HeadFigures c={sel} wow={wowOf.get(sel.airline_id)} />
           <FiguresAsOf />
         </div>

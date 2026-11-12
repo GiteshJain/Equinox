@@ -156,7 +156,7 @@ describe("the older charts drawn with the kit (part B): Aircraft, Load against p
   it("Aircraft: each one's profit a day after lease (before, without one) in thousands, green or red", () => {
     const rows = [{ registration: "N001", net_day: 0.012, flight_profit_day: 0.03 }, { registration: "N002", net_day: null, flight_profit_day: -0.004 }] as unknown as AircraftRow[];
     expect(tailItems(rows).map((x) => [x.label, x.value, x.text, x.color, x.tip])).toEqual([
-      ["N001", 12, "+12k", "#1E9E6A", "N001: 12k a day after lease"], ["N002", -4, "−4k", "#B4234B", "N002: -4k a day"]]);
+      ["N001", 12, "+12k", "var(--chart-good)", "N001: 12k a day after lease"], ["N002", -4, "−4k", "var(--chart-bad)", "N002: -4k a day"]]);
   });
   it("Load against profit is laid out at the width shown, its labels kept apart at 11 px", () => {
     const rs = [route("HUB", "AAA", { economy: 92, profit_week: 3 }), route("HUB", "BBB", { economy: 81, profit_week: 2 })];
@@ -184,7 +184,7 @@ describe("Fare results: a dot per repriced direction", () => {
   it("each direction with a level and a change, coloured by its flags, the far ones drawn at the edge", () => {
     const d = fareResultDots(rows);
     expect(d.map((x) => [x.key, x.level, x.pct, x.cut])).toEqual([["HUB-AAA", 110, 12, false], ["AAA-HUB", 105, -4, false], ["HUB-BBB", 120, FARE_DOT_CLAMP, true]]);
-    expect(d.map((x) => x.color)).toEqual(["#4B3BA8", "#E39B21", "#9AA4C4"]);
+    expect(d.map((x) => x.color)).toEqual(["var(--chart-1)", "var(--chart-warn)", "var(--chart-mute)"]);
     expect(d[0]?.tip).toBe("HUB → AAA · economy at 110% · profit a flight +12% · +42,000 AS$ a week");
     expect(d[2]?.tip).toContain("profit a flight +300% · +1,000 AS$ a week · at cap, too soon");
     expect([d[0]?.hub, d[0]?.dest, d[1]?.dest]).toEqual(["HUB", "AAA", "AAA"]);

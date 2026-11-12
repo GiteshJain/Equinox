@@ -38,6 +38,22 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The glass look for everyone, its checks in their final form: 12 Nov
+*Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-glass-look.md`, decision 1, option A: the last step switches
+the look on for everyone and removes the old one; spec `docs/specs/2026-11-11-glass-look.md`, step 6) · why: with one
+look there is no switch to run the screens with, and every colour is a named one, so the ceiling becomes a rule.* In §1
+*Automatic checks* two clauses were replaced, word for word: "the planner's glass look, its text against the glass over
+the brightest part of each backdrop picture, and its typed-in colours never more than their ceiling *(since 11 Nov;
+history: rule-history.md)*;" became "the planner's glass look, its text against the glass over the brightest part of
+each backdrop picture, and no colour typed into the planner outside its named colours but the globe's and the network
+map's *(since 11 Nov, final since 12 Nov; history: rule-history.md)*;"; and "open every screen at a frozen moment at
+1280 and 380 px wide with no errors and no sideways scroll, and again at 1280 and 380 px with the glass look's switch on
+(its period, the airline rail and every screen's link in the header checked; *since 11 Nov; history:
+rule-history.md*), and save through every" became "open every screen at a frozen moment at 1280 and 380 px wide, in the
+glass look, with no errors and no sideways scroll (its period, the airline rail and every screen's link in the header
+checked, and an address naming an airline opening it where the rail picks one; *since 11 Nov, one run since 12 Nov;
+history: rule-history.md*), and save through every". Built in the glass look's step 6 (to-do 225).
+
 ### The glass look's checks: 11 Nov
 *Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-glass-look.md`, decisions 1 and 2, option A each; spec
 `docs/specs/2026-11-11-glass-look.md`, step 1) · why: the glass look is built behind a switch in six pull requests, so
@@ -302,6 +318,12 @@ switch that is off for everyone until the last (brief `docs/briefs/2026-11-11-gl
 had seen step 1's preview ("Previews looks good"), and waiting for a "merge" between steps added hours for no review he
 needed beyond the checks. Before it, every pull request needed his "merge" (#153 was merged on his word the same
 morning). It ends with step 6, when the sentence comes out of the manual.*
+
+*The glass look's exception ended with step 6's merge (12 Nov): its pull request took the sentence out of the manual.
+The sentence was, word for word: "**The glass look's steps are the exception** (to-do 225; Gitesh, 12 Nov: "Keep
+building and merging if you can"): the Main chat merges each of its pull requests (#154 and steps 3 to 6) without asking,
+once every check is green and it reads right against the spec. It ends with step 6. *(since 12 Nov; history:
+rule-history.md)*"*
 
 #### Hosting
 *Since 8 Oct (#7) · why: free, with unlimited deploys and previews; our own address survives any future change of host.*

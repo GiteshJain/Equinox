@@ -10,6 +10,8 @@ a field's text, the header's buttons, the page you're on) and every chart colour
 sit on (question 3's default). It names any pair that fails, with its ratio, picture and surface, and prints question
 3's figures: the chart colours on the card glass by day, which the spec doesn't require.
 
+Since step 6 (glass for everyone, 12 Nov) the glass look is the planner's only look: these blocks hold all its colours.
+
 Never darken a picture to make this pass: Day must look like day (Gitesh, 11 Nov).
 
 Run from the repository root: python3 tests/glass_contrast_test.py   (needs Pillow and NumPy, installed with matplotlib)

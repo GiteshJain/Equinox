@@ -16,7 +16,7 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    cards, our airlines in their position order and colours on the network's buttons; needs attention's lists, coming up,
    the to-do board and, since 23 Oct, aircraft on order no longer there); Today, its answer at the top (All clear or what's waiting) with the capture in one line, then Orders
    with a card for each of our airlines, Aircraft to file, Needs attention, Game check, the to-do board and Coming up, all
-   open, with no Collapse all; Routes on its list, with our airlines on its buttons in their order; Tails, its list and
+   open, with no Collapse all; Routes on its list, with our airlines on the rail in their order; Tails, its list and
    the deliveries board, and (21 Oct) the plan cards' cabins: every plan card not yet filed with the cabin its routes call
    for (the library's card.cabinFor), printed, and one opened on Tails suggesting the same, with Use the suggestion and
    its amber as its cabin calls for; Performance, a scorecard for each of the copy's airlines in their order, the fare
@@ -51,23 +51,20 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    screenshot of each at each width goes to PLANNER_SCREENS_DIR (the run's planner-screens artifact), when it's set.
    Since 28 Oct a sample 7-day line (made for the test on the airline Tails opens on, removed after) is on Tails'
    deliveries board with its slots at both widths, and among Today's Orders' open lines (1 of 7) with its link to Tails.
-   Since 11 Nov (the glass look, step 1; spec docs/specs/2026-11-11-glass-look.md) the same again at 1280 and 380 px with
-   the glass look's switch on (screens_glass): <html> has data-look glass and the period of the frozen moment's hour, the
-   airline rail lists All and our airlines with the right one lit, and every screen's link is in the header once;
-   screenshots end in -glass. Since 12 Nov (step 2) Tails' own airline buttons are hidden under glass and all shown with
-   the switch off, and the glass run also opens the first aircraft on Tails' list as its page and as Today's pop-up, and
-   a plan card when the deliveries have one (no errors, no sideways scroll, a screenshot of each). Since 12 Nov (step 3)
-   Routes' own airline buttons the same, and the glass run opens the busy legacy route's aircraft pop-up on Routes and a
-   route's pop-up from Home's map, each dialog on the glass panel (no errors, no sideways scroll, a screenshot of each).
-   Since 12 Nov (step 3, Performance) an airline page's own airline buttons the same; under glass its rows are on the
-   panel, and on the group page, the airline's page and each route page the first chart opens full size on the panel
-   (a screenshot of each, then Esc).
-   Since 12 Nov (step 4) Competition's own airline buttons on an airline's page the same (hidden under glass, all shown
-   with the switch off); under glass the first chart on the group page and on the airline's page opens full size on the
-   panel (a screenshot of each, then Esc), the group page's threats and order books and the airline page's rows are on
-   the panel, and Interline's agreements and rules' rows are on the panel.
-   Since 12 Nov (step 5) under glass Photos' cards are on the card glass, Reference's sections and Systems' board and rows
-   on the panel; Systems' first chart opens full size on the panel, and Manual entry's load report (after Read paste of a
+   In the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md), the planner's only look since its step 6 (12
+   Nov; until then this ran twice, with its switch off and on): <html> has data-look glass and the period of the frozen
+   moment's hour, the airline rail lists All and our airlines with the right one lit, and every screen's link is in the
+   header once. The four screens that show one airline at a time have no airline buttons of their own (the rail picks
+   the airline), and an address that names an airline opens that airline on each of them (/routes/<code>,
+   /tails?airline=<code>, /performance/<code>, /competition/<code>, with the rail lit on it). It also opens the first
+   aircraft on Tails' list as its page and as Today's pop-up, and a plan card when the deliveries have one; the busy
+   legacy route's aircraft pop-up on Routes and a route's pop-up from Home's map; each dialog on the glass panel (no
+   errors, no sideways scroll, a screenshot of each). Performance's airline page has its rows on the panel, and on the
+   group page, the airline's page and each route page the first chart opens full size on the panel (a screenshot of
+   each, then Esc). Competition's first chart on the group page and on the airline's page opens full size on the panel,
+   the group page's threats and order books and the airline page's rows are on the panel, and Interline's agreements and
+   rules' rows are on the panel. Photos' cards are on the card glass, Reference's sections and Systems' board and rows on
+   the panel; Systems' first chart opens full size on the panel, and Manual entry's load report (after Read paste of a
    line it doesn't recognise) opens on the panel, is screenshot and is closed and cleared again: nothing is saved.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
@@ -629,7 +626,7 @@ async def competition_opens(pl):
 
 async def routes_opens(pl):
     """Routes is rebuilt (build pull request 6): no placeholder; it opens on its list (the first airline's routes with
-    its first base picked) with our airlines on its buttons in their order. Its figures are compared with the old
+    its first base picked) with our airlines on the rail in their order (its own buttons until the glass look's step 6). Its figures are compared with the old
     Routes' by tests/routes_side_by_side_test.py. Since 22 Oct (spec docs/specs/2026-10-22-planner-look-routes.md) the
     airline switch sits in the page head and the count under the list's tools, so they're found there."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
@@ -638,24 +635,24 @@ async def routes_opens(pl):
     await pl.pg.wait_for_selector("main[data-screen=routes][data-routes-ready=yes]", timeout=60000)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=routes] [data-not-built]'),
-        airlines: [...document.querySelectorAll('main[data-screen=routes] .rseg [data-al]')].map(b => b.dataset.al),
+        airlines: [...document.querySelectorAll('nav.eq-rail [data-rail]:not([data-rail=all])')].map(b => b.dataset.rail),
         rows: document.querySelectorAll('#routelist .row').length,
         count: (document.querySelector('main[data-screen=routes] [data-figure="routes: count"]') || {}).textContent || '' })""")
     problems = []
     if got["notBuilt"]:
         problems.append("Routes still shows the placeholder's line to the old planner")
     if got["airlines"] != want:
-        problems.append(f"airlines on Routes' buttons {got['airlines']}, the copy has {want}")
+        problems.append(f"airlines on the rail on Routes {got['airlines']}, the copy has {want}")
     if not got["rows"]:
         problems.append("Routes lists no route")
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
-    return f"Routes is rebuilt, not a placeholder: it opens on its list ({got['count']}) with the copy's {len(want)} airlines on its buttons in their order", problems
+    return f"Routes is rebuilt, not a placeholder: it opens on its list ({got['count']}) with the copy's {len(want)} airlines on the rail in their order", problems
 
 
 async def tails_opens(pl):
     """Tails is rebuilt (build pull request 7): no placeholder; it opens on its list (the first airline's aircraft in
-    service) and the deliveries board, with our airlines on its buttons in their order. Its figures are compared with the
+    service) and the deliveries board, with our airlines on the rail in their order (its own buttons until the glass look's step 6). Its figures are compared with the
     old Tails' by tests/tails_side_by_side_test.py."""
     want = [r for r in psql(f"""select a.iata_code from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                                  where g.kind = 'ours' and a.world_id = {WORLD} order by a.position nulls last, a.id""").splitlines() if r]
@@ -668,7 +665,7 @@ async def tails_opens(pl):
     await pl.pg.evaluate(SHOW_TABLES_JS)
     await settle(pl.pg, 300)
     got = await pl.pg.evaluate("""({ notBuilt: !!document.querySelector('main[data-screen=tails] [data-not-built]'),
-        airlines: [...document.querySelectorAll('.toolbar .seg [data-al]')].map(b => b.dataset.al),
+        airlines: [...document.querySelectorAll('nav.eq-rail [data-rail]:not([data-rail=all])')].map(b => b.dataset.rail),
         rows: document.querySelectorAll('#taillist tr[data-tail]').length, count: (document.querySelector('.toolbar .count') || {}).textContent || '',
         board: !!document.querySelector('[data-figure="tails: deliveries"]') })""")
     problems = []
@@ -694,7 +691,7 @@ async def tails_opens(pl):
     if got["notBuilt"]:
         problems.append("Tails still shows the placeholder's line to the old planner")
     if got["airlines"] != want:
-        problems.append(f"airlines on Tails' buttons {got['airlines']}, the copy has {want}")
+        problems.append(f"airlines on the rail on Tails {got['airlines']}, the copy has {want}")
     if not got["rows"]:
         problems.append("Tails lists no aircraft")
     if not got["board"]:
@@ -702,7 +699,7 @@ async def tails_opens(pl):
     await open_screen(pl.pg, 'home')
     await pl.pg.wait_for_selector("main[data-screen=home][data-home-ready=yes]", timeout=60000)
     return (f"Tails is rebuilt, not a placeholder: it opens on its list ({got['count']}, as bars of block hours by base, a bar opening its aircraft, the table "
-            f"one tap away) and the deliveries, with the copy's {len(want)} airlines on its buttons"), problems
+            f"one tap away) and the deliveries, with the copy's {len(want)} airlines on the rail"), problems
 
 
 async def plan_card_cabins(pl):
@@ -1557,30 +1554,22 @@ async def charts_readable_and_open(pg, where):
     return problems
 
 
-# the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md, step 1): its switch, kept in the browser, turned on
-# before the planner's own script runs; the period follows the frozen moment's hour (the browser runs in UTC)
-GLASS_INIT = "try { localStorage.setItem('equinox-planner-look', 'glass'); } catch (e) {}"
+# the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md), the planner's only look since its step 6: the
+# period follows the frozen moment's hour (the browser runs in UTC)
 GLASS_JS = """(() => ({ look: document.documentElement.dataset.look || '', period: document.documentElement.dataset.period || '',
     rail: [...document.querySelectorAll('nav.eq-rail .eq-railbtn')].map(b => b.dataset.rail),
     lit: (document.querySelector('nav.eq-rail [aria-current]') || { dataset: {} }).dataset.rail || '',
     links: [...document.querySelectorAll('header [data-screen-link]')].map(a => a.dataset.screenLink) }))()"""
 
-# Tails' own airline buttons (the toolbar's), how many there are and how many are shown (the glass look, step 2)
-TAILS_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=tails] > .toolbar [data-al]')];
-    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
-
-
-# Routes' own airline buttons (its title's), how many there are and how many are shown (the glass look, step 3)
-ROUTES_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=routes] .rttl > .rseg [data-al]')];
-    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
+# a screen's own airline buttons, which went with the glass look's step 6 (the rail picks the airline): how many a screen
+# still has (any button carrying an airline's code, or a group named Airline, inside the screen)
+OWN_BUTTONS_JS = """(sid) => document.querySelectorAll(`main[data-screen=${sid}] [data-al], main[data-screen=${sid}] [role=group][aria-label=Airline]`).length"""
 # a pop-up's dialog under glass: on the panel (the glass look's rgba(10,18,48,.82)), not today's white (step 3)
 POPUP_BG_JS = "(s) => { const m = document.querySelector(s); return m ? getComputedStyle(m).backgroundColor : ''; }"
-# Performance's own airline buttons (an airline page's switch), how many there are and how many are shown (step 3)
-PERF_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=performance] .perfseg [data-al]')];
-    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
-# Competition's own airline buttons (an airline page's switch), how many there are and how many are shown (step 4)
-COMP_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=competition] .cpseg [data-al]')];
-    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
+# an address that names an airline, on each screen that shows one airline at a time: (screen, address, what the screen
+# says it shows); the rail must light the same airline (step 6: the rail is the only other way to pick one)
+AIRLINE_ADDRESSES = (("routes", "/planner/routes/{c}", "data-routes-airline"), ("tails", "/planner/tails?airline={c}", "data-tails-airline"),
+                     ("performance", "/planner/performance/{c}", "data-airline"), ("competition", "/planner/competition/{c}", "data-airline"))
 
 
 async def manual_entry_popup_glass(pg, width, tag):
@@ -1624,26 +1613,23 @@ def rail_codes():
     return [c for c in out.split(",") if c]
 
 
-async def screens_glass(p, port, env, facts, staff, seen, moment):
-    """The same screens with the glass look's switch on (step 1 of the glass look), at 1280 and 380 px."""
-    return await screens(p, port, env, facts, staff, seen, moment, glass=True)
-
-
-async def screens(p, port, env, facts, staff, seen, moment, glass=False):
+async def screens(p, port, env, facts, staff, seen, moment, glass=True):
     """Every screen opens on the copy at the frozen moment (the copy's latest capture plus one hour), signed in as test
     staff, at 1280 and at 380 px wide: ready (it has read everything), no errors, no sideways scroll (Systems with every
     board open, Reference with every section open), and no link into the old planner, to /planner/next/ or to a screen
     that went on 20 Oct (Hubs, Check, Review); then one airline's Performance page the same way. With PLANNER_SCREENS_DIR
     set, a screenshot of each at each width goes there (the run's planner-screens artifact): Today, Performance (the group
-    and one airline) and Systems among them. What replaced the side by sides' screen checks (build pull request 14)."""
+    and one airline) and Systems among them. What replaced the side by sides' screen checks (build pull request 14). In the
+    glass look, the planner's only look since its step 6 (12 Nov): until then this ran a second time with the look's
+    switch on (screens_glass, at 1280 and 380 px), and every check that run made is made here, at every width."""
     problems = []
     scroll = "(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth)()"
     links = shots = 0
     code = first_airline()
-    # the glass run (since 11 Nov): its own names, and what the rail and the attributes must show
-    tag = "-glass" if glass else ""
-    rail = ["all"] + rail_codes() if glass else []
-    want_period = period_of(int(moment[11:13])) if glass else ""
+    # the glass look (since 11 Nov; the only look since step 6): what the rail and the attributes must show
+    tag = ""
+    rail = ["all"] + rail_codes()
+    want_period = period_of(int(moment[11:13]))
     # the route page (22 Oct): a busy legacy route (any of our airlines but Ryanair) and a busy Ryanair route, each the one
     # with the most days with flights, so the since-launch chart is drawn where any route has 14
     route_pages = [r for r in (busiest_route(not_code="FR"), busiest_route(code="FR")) if r]
@@ -1657,12 +1643,12 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
         # since 30 Oct (spec docs/specs/2026-10-30-route-story-on-routes.md) also 1700 px, for Routes' route detail only: the
         # route's story in a third column from 1,600 px; and 2000 px (spec docs/specs/2026-10-30-charts-everywhere.md, wide
         # screens): the route detail uses the full width, the story about 55% of what the list leaves
-        for width, height in ((1280, 900), (380, 800)) if glass else ((1280, 900), (380, 800), (1700, 1000), (2000, 1100)):
+        for width, height in ((1280, 900), (380, 800), (1700, 1000), (2000, 1100)):
             only_routes = width >= 1700
             ph = Planner(p, port, env, facts, width=width, height=height)
             seen.append(ph)
             try:
-                await ph.open(moment=moment, init=GLASS_INIT if glass else None)
+                await ph.open(moment=moment)
                 await ph.pg.emulate_media(reduced_motion="reduce")   # the globe holds still, so two screenshots of a moment are the same
                 await ph.sign_in(*staff)
                 if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
@@ -1734,34 +1720,11 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                     if sid == "reference":
                         await ph.pg.evaluate("document.querySelectorAll('main[data-screen=reference] details.rsec').forEach(d => { d.open = true; })")
                         await settle(ph.pg, 400)
-                    if sid == "tails":
-                        # the glass look, step 2 (decision 4): under glass the rail picks the airline and Tails' own airline
-                        # buttons are hidden; with the switch off they are shown, one per airline, as before
-                        own = await ph.pg.evaluate(TAILS_OWN_BUTTONS_JS)
-                        if glass and own["shown"]:
-                            problems.append(f"tails at {width} px (glass): {own['shown']} of Tails' own airline buttons are shown, expected none (the rail picks the airline)")
-                        if not glass and own["total"] and own["shown"] != own["total"]:
-                            problems.append(f"tails at {width} px: {own['shown']} of Tails' {own['total']} airline buttons are shown, expected all")
-                    if sid == "routes" and name == "routes":
-                        # the glass look, step 3 (decision 4): Routes' own airline buttons hidden under glass, all shown with the
-                        # switch off (the list's page; on a phone a route's page hides the title and its buttons anyway)
-                        own = await ph.pg.evaluate(ROUTES_OWN_BUTTONS_JS)
-                        if glass and own["shown"]:
-                            problems.append(f"routes at {width} px (glass): {own['shown']} of Routes' own airline buttons are shown, expected none (the rail picks the airline)")
-                        if not glass and own["total"] and own["shown"] != own["total"]:
-                            problems.append(f"routes at {width} px: {own['shown']} of Routes' {own['total']} airline buttons are shown, expected all")
-                        if not own["total"]:
-                            problems.append(f"routes at {width} px: no airline buttons in its title")
-                    if name == "competition-airline":
-                        # the glass look, step 4 (decision 4): the airline page's own airline buttons hidden under glass, all
-                        # shown with the switch off
-                        own = await ph.pg.evaluate(COMP_OWN_BUTTONS_JS)
-                        if glass and own["shown"]:
-                            problems.append(f"competition/{code} at {width} px (glass): {own['shown']} of Competition's own airline buttons are shown, expected none (the rail picks the airline)")
-                        if not glass and own["total"] and own["shown"] != own["total"]:
-                            problems.append(f"competition/{code} at {width} px: {own['shown']} of Competition's {own['total']} airline buttons are shown, expected all")
-                        if not own["total"]:
-                            problems.append(f"competition/{code} at {width} px: no airline buttons under its title")
+                    if sid in ("tails", "routes", "performance", "competition"):
+                        # the glass look, decision 4 (step 6): the rail picks the airline; the screen has no buttons of its own
+                        own = await ph.pg.evaluate(OWN_BUTTONS_JS, sid)
+                        if own:
+                            problems.append(f"{name} at {width} px: {own} airline button(s) of the screen's own, expected none (the rail picks the airline)")
                     if glass and sid in ("photos", "reference", "systems"):
                         # the glass look, step 5: Photos' cards on the card glass, Reference's sections and Systems' board and
                         # rows on the panel (all three keep All lit on the rail, checked below); Systems' first chart opens full
@@ -1785,15 +1748,7 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             if not bg.replace(" ", "").startswith("rgba(10,18,48"):
                                 problems.append(f"interline at {width} px (glass): {box.split(' ', 1)[1]} is {bg!r}, not on the glass look's panel")
                     if name == "performance-airline":
-                        # the glass look, step 3 (decision 4): the airline page's own airline buttons hidden under glass, all
-                        # shown with the switch off; under glass its rows on the panel
-                        own = await ph.pg.evaluate(PERF_OWN_BUTTONS_JS)
-                        if glass and own["shown"]:
-                            problems.append(f"performance/{code} at {width} px (glass): {own['shown']} of Performance's own airline buttons are shown, expected none (the rail picks the airline)")
-                        if not glass and own["total"] and own["shown"] != own["total"]:
-                            problems.append(f"performance/{code} at {width} px: {own['shown']} of Performance's {own['total']} airline buttons are shown, expected all")
-                        if not own["total"]:
-                            problems.append(f"performance/{code} at {width} px: no airline buttons under its title")
+                        # the glass look, step 3: an airline page's rows on the panel
                         if glass:
                             bg = await ph.pg.evaluate(POPUP_BG_JS, "main[data-screen=performance] .sysrows")
                             if not bg.replace(" ", "").startswith("rgba(10,18,48"):
@@ -1878,6 +1833,27 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                         problems.append(f"{sid}: it isn't ready at {width} px wide")
                     await look(sid, sid)
                     problems += [f"{sid} at {width} px: {e}" for e in ph.errors[e0:]]
+                # the glass look, step 6: an address naming an airline opens that airline on each screen that shows one
+                # airline at a time, and the rail lights it (the screens' own airline buttons went; the rail is the only
+                # other way to pick one). Our second airline, so it's never the one a screen opens on by itself.
+                if not only_routes and len(rail) > 2:
+                    pick = rail[2]
+                    for sid, addr, attr in AIRLINE_ADDRESSES:
+                        e0, url = len(ph.errors), addr.format(c=pick)
+                        await ph.pg.goto(f"http://{LIVE_HOST}:{port}{url}")
+                        try:
+                            await ph.pg.wait_for_selector(READY[sid], timeout=90000)
+                            await settle(ph.pg, 300)
+                        except Exception:
+                            problems.append(f"{url} at {width} px: {sid} isn't ready")
+                            continue
+                        shows, lit = await ph.pg.evaluate("""(a) => [(document.querySelector('main[' + a + ']') || { getAttribute: () => '' }).getAttribute(a) || '',
+                            (document.querySelector('nav.eq-rail [aria-current]') || { dataset: {} }).dataset.rail || '']""", attr)
+                        if shows != pick:
+                            problems.append(f"{url} at {width} px: {sid} shows airline {shows!r}, expected {pick!r}")
+                        if lit != pick:
+                            problems.append(f"{url} at {width} px: the rail lights {lit!r}, expected {pick!r}")
+                        problems += [f"{url} at {width} px: {e}" for e in ph.errors[e0:]]
                 # the glass look, step 2: Today's and Tails' pop-ups and an aircraft's page under glass (the first aircraft
                 # on Tails' list: its page, the aircraft pop-up on Today, and a plan card when the deliveries have one),
                 # ready, no errors, no sideways scroll, a screenshot of each
@@ -2501,9 +2477,9 @@ async def main():
                         label, problems = check.__name__.replace("_", " "), [why(e)]
                     step(not problems, label, problems + pl.errors[e0:])
             await pl.close()
-            for check in (two_tabs, preview, stored_figures, screens, screens_glass, systems_board, short_page, unattended_capture, addresses):
+            for check in (two_tabs, preview, stored_figures, screens, systems_board, short_page, unattended_capture, addresses):
                 try:
-                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (stored_figures, screens, screens_glass, systems_board, short_page, unattended_capture) else []))
+                    label, problems = await check(p, port, env, facts, staff, seen, *([moment()] if check in (stored_figures, screens, systems_board, short_page, unattended_capture) else []))
                 except Exception as e:
                     label, problems = check.__name__.replace("_", " "), [why(e)]
                 step(not problems, label, problems)

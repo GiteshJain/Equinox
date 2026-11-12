@@ -82,6 +82,11 @@ export function focusView(hub: LatLon | undefined, points: readonly LatLon[]): M
   return clampView({ x: cx - w / 2, y: cy - w / 4, w, h: w / 2 });
 }
 
+/** The map's own colours (the globe's and the network map's are the only colours typed into the planner's code, as SVG
+ *  attributes need them): an airline with no livery colour (styles.css's --livery-none, the same), and a hub not flown. */
+export const NO_LIVERY = "#8B96A8";
+export const HUB_OFF = "#B7C4D8";
+
 /** A route's colour by its economy load over 7 days, with one airline picked (the old networkMap's loadCol). */
 export const loadColor = (avg: number | null | undefined): string =>
   avg == null ? "#7E8BA3" : avg >= 95 ? "#3FB37F" : avg >= 85 ? "#E0B341" : avg >= 70 ? "#E8853A" : "#E0524B";

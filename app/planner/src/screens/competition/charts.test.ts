@@ -34,7 +34,7 @@ describe("Market share: a donut per market", () => {
   it("ours in the airline's colour, each top rival, then the other rivals, as shareBar orders them", () => {
     const d = marketDonut(market(), "#C8102E");
     expect(d.map((p) => [p.key, p.label, p.value, p.pct, p.color])).toEqual([
-      ["ours", "ours", 40, 20, "#C8102E"], ["r1", "Air China", 100, 50, SERIES[1]], ["r2", "ANA", 40, 20, SERIES[2]], ["others", "others", 20, 10, "#C9CEDB"]]);
+      ["ours", "ours", 40, 20, "#C8102E"], ["r1", "Air China", 100, 50, SERIES[1]], ["r2", "ANA", 40, 20, SERIES[2]], ["others", "others", 20, 10, "var(--chart-others)"]]);
     expect(marketDonut(market())[0]?.color).toBe(OURS);
     const g = donutLayout(d, { size: 120, ring: 20 });
     expect(g.arcs.map((a) => a.pct)).toEqual([20, 50, 20, 10]);
@@ -86,9 +86,9 @@ describe("Openings: stars against rivals", () => {
     const os = [opening(), opening({ rank: 2, route_id: 6, route: "PVG–XIY", stars: 4, rivals_weekly: 10, distance_km: 1300, allowed: false, reason: "main hub under 750",
       variant: { type_id: 4, type: "737-9 HGW", seats: 190, range_km: 3500, size: "mid", for_reach: false } }), opening({ rank: 3, route_id: 7, variant: { type_id: null, type: null, seats: null, range_km: null, size: null, for_reach: false } })];
     const o = openingPoints(os);
-    expect(o.families).toEqual([{ label: "737", color: SERIES[0] }, { label: "A320", color: SERIES[1] }, { label: "other", color: "#9AA4C4" }]);
+    expect(o.families).toEqual([{ label: "737", color: SERIES[0] }, { label: "A320", color: SERIES[1] }, { label: "other", color: "var(--chart-mute)" }]);
     expect(o.points.map((p) => [p.x, p.y, p.size, p.color, p.ring])).toEqual([
-      [63, 5 - 0.06, 1690, SERIES[1], true], [10, 4, 1300, SERIES[0], false], [63, 5 + 0.06, 1690, "#9AA4C4", true]]);
+      [63, 5 - 0.06, 1690, SERIES[1], true], [10, 4, 1300, SERIES[0], false], [63, 5 + 0.06, 1690, "var(--chart-mute)", true]]);
     expect(o.points[1]?.tip).toBe("#2 PVG–XIY · 4★ · 1,300 km · rivals 10 a week · 737-9 HGW · not yet: main hub under 750");
     const g = sizedScatterLayout(o.points, { W: 560, y: { lo: 0.5, hi: 5.5, ticks: [1, 2, 3, 4, 5] } });
     expect(g.points.filter((p) => p.ring).length).toBe(2);
@@ -131,17 +131,17 @@ describe("Order books: orders against fleet, the flag drawn", () => {
 describe("the glass look, step 4: Competition's colours are the chart kit's", () => {
   it("today's values, each a named colour through paint() (ours, the airline's own, stays its own)", () => {
     const d = marketDonut(market(), "#C8102E");
-    expect(d.map((p) => p.color)).toEqual(["#C8102E", "#E86A92", "#1A7F55", "#C9CEDB"]);
-    expect(d.map((p) => paint(p.color))).toEqual(["#C8102E", "var(--chart-2, #E86A92)", "var(--chart-ok, #1A7F55)", "var(--chart-others, #C9CEDB)"]);
-    expect(STORY.others).toBe("#C9CEDB");
-    expect(FLEET_SERIES.map((s) => paint(s.color))).toEqual(["var(--chart-ink, #0E1630)", "var(--chart-warn, #E39B21)"]);
+    expect(d.map((p) => p.color)).toEqual(["#C8102E", "var(--chart-2)", "var(--chart-ok)", "var(--chart-others)"]);
+    expect(d.map((p) => paint(p.color))).toEqual(["#C8102E", "var(--chart-2)", "var(--chart-ok)", "var(--chart-others)"]);
+    expect(STORY.others).toBe("var(--chart-others)");
+    expect(FLEET_SERIES.map((s) => paint(s.color))).toEqual(["var(--chart-ink)", "var(--chart-warn)"]);
     const o = openingPoints([opening(), opening({ rank: 2, route_id: 6, variant: { type_id: null, type: null, seats: null, range_km: null, size: null, for_reach: false } })]);
-    expect(o.families.map((f) => paint(f.color))).toEqual(["var(--chart-1, #4B3BA8)", "var(--chart-mute, #9AA4C4)"]);
+    expect(o.families.map((f) => paint(f.color))).toEqual(["var(--chart-1)", "var(--chart-mute)"]);
   });
   it("the order books' legend and bars draw in the named colours", () => {
     const html = renderToString(createElement(OrderBooksChart, { books: [flag(), flag({ airline_id: 2, name: "Quiet Air", meets: false, meets_codes: [] })], flagPct: 25 }));
-    expect(html).toContain("var(--chart-bad, #B4234B)");
-    expect(html).toContain("var(--chart-mute, #9AA4C4)");
+    expect(html).toContain("var(--chart-bad)");
+    expect(html).toContain("var(--chart-mute)");
   });
   it("a rival with no colour (a market we don't fly, to-do 234) still has none, and paint() passes it through", () => {
     const m = market({ ours: 0, total: 160, share: 0 });

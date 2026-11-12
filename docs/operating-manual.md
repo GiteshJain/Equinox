@@ -46,9 +46,6 @@ Details and open points: `docs/decisions.md`.
   before raising the next. No building on Claude's initiative. *(since 7 Oct; history: rule-history.md)*
 - **Code changes are pull requests.** Each on its own branch, saying what changed, why and how it was tested. Gitesh
   approves by saying "merge"; merging is what makes it live. *(since 8 Oct; history: rule-history.md)*
-  **The glass look's steps are the exception** (to-do 225; Gitesh, 12 Nov: "Keep building and merging if you can"): the
-  Main chat merges each of its pull requests (#154 and steps 3 to 6) without asking, once every check is green and it
-  reads right against the spec. It ends with step 6. *(since 12 Nov; history: rule-history.md)*
 - **Hosting:** the website and planner are on Cloudflare Pages (free plan) at `equinox-alliance.com`, our own domain,
   registered at Cloudflare at cost and renewing automatically each October. `equinox-alliance.pages.dev` also works.
   Merging to `main` publishes them, and Cloudflare builds a preview of every pull request at a `pages.dev` address.
@@ -81,15 +78,16 @@ Details and open points: `docs/decisions.md`.
   the fares userscript on the saved fares form and answer; the aircraft evaluation userscript on the tool's saved pages; the capture's world scan against `gscan.py` on the same
   saved pages; the capture's fleet pages on a saved fleet page; the planner's install, type check, lint, unit tests and build; the planner's screen figures (Home, Tails,
   the planning library's schedule checks) on a dated sample against saved answers; the planner's glass look, its text
-  against the glass over the brightest part of each backdrop picture, and its typed-in colours never more than their
-  ceiling *(since 11 Nov; history: rule-history.md)*; the planning library's cases and its
+  against the glass over the brightest part of each backdrop picture, and no colour typed into the planner outside its
+  named colours but the globe's and the network map's *(since 11 Nov, final since 12 Nov; history: rule-history.md)*; the planning library's cases and its
   optimiser against plan.py's saved answer; the weekly report end to end on a small sample, its money from the figures;
   every website page, the planner's sign-in at `/planner/` and the planner's addresses). On a pull request the
   *Database rehearsal* runs only the parts its change can affect. When the planner or the library changes, it
   generates the planner's types again from the copy (they must match the committed `app/planner/src/db/types.ts`), has
-  the planner sign in, read and save on the copy, open every screen at a frozen moment at 1280 and 380 px wide with no
-  errors and no sideways scroll, and again at 1280 and 380 px with the glass look's switch on (its period, the airline
-  rail and every screen's link in the header checked; *since 11 Nov; history: rule-history.md*), and save through every
+  the planner sign in, read and save on the copy, open every screen at a frozen moment at 1280 and 380 px wide, in the glass
+  look, with no errors and no sideways scroll (its period, the airline rail and every screen's link in the header
+  checked, and an address naming an airline opening it where the rail picks one; *since 11 Nov, one run since 12 Nov;
+  history: rule-history.md*), and save through every
   kind of save each screen has, each checked against the rows
   recorded for it; when the library or the airline briefing changes, it runs the briefing for every airline and every
   example in the map's guide on the copy; when the database changes, it does all of that, runs the database tests,

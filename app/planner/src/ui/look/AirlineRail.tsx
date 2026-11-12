@@ -1,5 +1,5 @@
-// The six airlines as a rail on the left, in the glass look only (to-do 225, decision 4; spec
-// docs/specs/2026-11-11-glass-look.md, step 1). Where each button goes and which is lit is rail.ts's. A vertical bar
+// The six airlines as a rail on the left (to-do 225, decision 4; spec docs/specs/2026-11-11-glass-look.md, step 1): since
+// step 6 the only way to pick an airline on Routes, Tails, Performance and Competition. Where each button goes and which is lit is rail.ts's. A vertical bar
 // from 761 px wide, a row above the screen below that (styles.css).
 import { Link, useLocation } from "react-router";
 import { useOurAirlines, useWorld } from "../../data/reads";

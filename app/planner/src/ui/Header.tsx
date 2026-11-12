@@ -1,11 +1,10 @@
-// The top bar (spec docs/specs/2026-10-22-planner-look-foundation.md, "The shell"): one slim bar on night, as the
-// website's. The wordmark with "planner"; the nav (Home, Today, Routes, Tails, Performance, Competition, and More, a menu
-// with every other screen the router has); the search box; the clock button (UTC now, opening the game clocks); one
-// round account button opening the save state, the local/UTC toggle, the Website link and Sign out. Under the bar, the
-// website's twilight line. On a phone the nav goes into a menu button and the search box is hidden, as before; nothing
-// scrolls sideways. Every screen's link stays in the header (data-screen-link), shut menus included.
-// Since step 1 of the glass look (to-do 225, spec docs/specs/2026-11-11-glass-look.md) the account menu has the Glass look
-// switch; under [data-look="glass"] styles.css shows More's screens as pills in the row, so all ten show at once.
+// The top bar (spec docs/specs/2026-10-22-planner-look-foundation.md, "The shell", in the glass look since to-do 225,
+// spec docs/specs/2026-11-11-glass-look.md): one glass strip. The wordmark with "planner"; the ten screens as pills (the
+// six main ones, then the rest in their own group, which on a phone sits under a rule in the menu); the search box; the
+// clock button (UTC now, opening the game clocks); one round account button opening the save state, the local/UTC
+// toggle, the Website link and Sign out. Narrow windows and phones put the screens in a menu button and hide the search
+// box; nothing scrolls sideways. Every screen's link is in the header once (data-screen-link), a shut menu included.
+// More's menu and the look's switch went with step 6 of the glass look (glass for everyone, 12 Nov).
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { time } from "@rules";
@@ -15,18 +14,16 @@ import { signOut } from "../data/session";
 import { useTimeMode } from "../data/timeMode";
 import { SCREENS, screenRoute, type ScreenId } from "../screens/screens";
 import { Clocks } from "./Clocks";
-import { useLook } from "./look/look";
 import { Search } from "./Search";
 
-/** The screens in the bar itself; every other screen goes under More. */
+/** The six main screens, first in the bar; every other screen follows them in its own group. */
 export const BAR_SCREENS: readonly ScreenId[] = ["home", "today", "routes", "tails", "performance", "competition"];
 
-type Menu = "nav" | "more" | "clocks" | "account" | null;
+type Menu = "nav" | "clocks" | "account" | null;
 
 export function Header() {
   const save = useSaveState();
   const [mode, toggle] = useTimeMode();
-  const [glass, flipLook] = useLook();
   const now = useNow();
   const [open, setOpen] = useState<Menu>(null);
   const root = useRef<HTMLElement>(null);
@@ -46,8 +43,7 @@ export function Header() {
   const flip = (m: Exclude<Menu, null>) => setOpen((o) => (o === m ? null : m));
 
   const bar = SCREENS.filter((s) => BAR_SCREENS.includes(s.id));
-  const more = SCREENS.filter((s) => !BAR_SCREENS.includes(s.id));
-  const moreOn = more.some((s) => loc.pathname === screenRoute(s) || loc.pathname.startsWith(screenRoute(s) + "/"));
+  const rest = SCREENS.filter((s) => !BAR_SCREENS.includes(s.id));
   const utc = time.clock(now.getUTCHours() * 60 + now.getUTCMinutes());
 
   return (
@@ -62,14 +58,10 @@ export function Header() {
           {bar.map((s) => (
             <NavLink key={s.id} to={screenRoute(s)} end={s.id === "home"} data-screen-link={s.id} onClick={() => setOpen(null)}>{s.name}</NavLink>
           ))}
-          <div className={"eq-more" + (open === "more" ? " open" : "")}>
-            <button type="button" className={"eq-morebtn" + (moreOn ? " active" : "")} data-menu="more" aria-expanded={open === "more"}
-              onClick={() => flip("more")}>More</button>
-            <div className="eq-menu eq-moremenu" role="menu">
-              {more.map((s) => (
-                <NavLink key={s.id} to={screenRoute(s)} data-screen-link={s.id} role="menuitem" onClick={() => setOpen(null)}>{s.name}</NavLink>
-              ))}
-            </div>
+          <div className="eq-navrest">
+            {rest.map((s) => (
+              <NavLink key={s.id} to={screenRoute(s)} data-screen-link={s.id} onClick={() => setOpen(null)}>{s.name}</NavLink>
+            ))}
           </div>
         </nav>
         <Search />
@@ -99,15 +91,12 @@ export function Header() {
               )}
               <button type="button" className="tm" id="timemode" data-time-mode={mode} onClick={toggle}
                 title="Switch between local and UTC times">{mode === "utc" ? "Times in UTC" : "Times in Local"}<span className="tmv">{mode === "utc" ? "UTC" : "Local"}</span></button>
-              <button type="button" className="tm" id="lookmode" data-look-mode={glass ? "glass" : "light"} onClick={flipLook}
-                title="The new glass look, while it's built: kept in this browser only">Glass look<span className="tmv">{glass ? "On" : "Off"}</span></button>
               <a className="eqsite" href="/" title="Open the public website">Website</a>
               <button type="button" className="tm" id="signout" onClick={() => void signOut()}>Sign out</button>
             </div>
           </div>
         </div>
       </div>
-      <div className="eq-twilight" aria-hidden="true" />
     </header>
   );
 }
