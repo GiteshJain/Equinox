@@ -209,11 +209,46 @@ def step3p_cases(t, s):
     return out
 
 
+def step4_cases(t, s):
+    """Step 4 of the glass look (Competition and Interline, spec docs/specs/2026-11-11-glass-look.md): (what, colour,
+    surface, the least ratio). Competition's group page: the scans' pill and each airline's card on the card glass, the
+    threats and the order books on the panel; an airline's page: the rows on the panel, a market's or a rival's card a group
+    row on it, the openings and their scatter on it, the donuts and the fleet bars on the group row. Interline: the filter
+    chips and Waiting for a reply on the card glass (a request past the mark on the warn tint), the tiles as Today's, the
+    agreements on the panel (a signed row on its green tint, a phone's row a group row), the fields on all three."""
+    panel, card = s["panel"], s["card"]
+    on = lambda name, under: over(t[name], under)
+    group, tile, field = on("--row-group", panel), on("--tile-bg", card), on("--field-bg", panel)
+    signed = on("--signed-row", panel)
+    late = on("--warn-fill", card)
+    out = []
+    for where, under in (("Competition's card, the scans' pill, a chip, Waiting (card)", card), ("the threats, order books, rows, agreements (panel)", panel),
+                         ("a market's or rival's card, a phone's agreement (group row)", group), ("a waiting request (tile)", tile),
+                         ("a request past the mark (warn tint)", late), ("a signed agreement (its tint)", signed)):
+        out += [(f"{where}: text", t["--text"], under, TEXT_MIN), (f"{where}: lesser text", t["--text-2"], under, TEXT_MIN),
+                (f"{where}: a warn line or count", t["--count-warn"], under, TEXT_MIN)]
+        for k in ("ok", "warn", "mute"):
+            out.append((f"{where}: a {k} pill", t[f"--{k}-text"], on(f"--{k}-fill", under), TEXT_MIN))
+    for where, under in (("a field on the panel", field), ("a field on a signed row", on("--field-bg", signed)), ("a field on a phone's row", on("--field-bg", group))):
+        out += [(f"{where}: its text", t["--text"], under, TEXT_MIN), (f"{where}: its placeholder", t["--text-2"], under, TEXT_MIN)]
+    out += [("an airport tag on a signed row", t["--mute-text"], on("--mute-fill", signed), TEXT_MIN),
+            ("the chosen chip or tile (on the card glass)", t["--on-text"], on("--on-bg", card), TEXT_MIN),
+            ("the chosen tile's line", t["--on-text-2"], on("--on-bg", card), TEXT_MIN),
+            ("a tile's ok count", t["--count-ok"], tile, TEXT_MIN),
+            ("a chip under the pointer", t["--text"], s["bar"], TEXT_MIN)]
+    for k in ("--chart-bad", "--chart-warn", "--chart-mute", "--chart-ink", "--chart-1", "--chart-2", "--chart-ok", "--chart-5", "--chart-6", "--chart-others"):
+        out.append((f"mark: {k[8:]} on the panel (threats, order books, the openings' scatter)", t[k], panel, MARK_MIN))
+    for k in ("--chart-2", "--chart-ok", "--chart-warn", "--chart-5", "--chart-6", "--chart-bad", "--chart-ink", "--chart-others"):
+        out.append((f"mark: a rival's {k[8:]} in a market's donut and its list (group row)", t[k], group, MARK_MIN))
+    out += [("mark: a request's edge past the mark", t["--warn-text"], card, MARK_MIN)]
+    return out
+
+
 def main():
     css = SHEET.read_text(encoding="utf-8")
     base = block(css, ':root[data-look="glass"]')
     day = {**base, **block(css, ':root[data-look="glass"][data-period="day"]')}
-    problems, lines, q3, s2, s3, s3p = [], [], [], {}, {}, {}
+    problems, lines, q3, s2, s3, s3p, s4 = [], [], [], {}, {}, {}, {}
     for period in PERIODS:
         t = day if period == "day" else base
         pic = LOOK / f"backdrop-{period}.jpg"
@@ -275,6 +310,12 @@ def main():
                 s3p.setdefault(period, []).append((r, label, w))
                 if r < need:
                     problems.append(f"{where}: step 3 (Performance), {label} {r:.2f}:1, under {need}")
+            # step 4 (Competition and Interline)
+            for label, fg, surface, need in step4_cases(t, surfaces):
+                r = ratio(over(fg, surface), surface)
+                s4.setdefault(period, []).append((r, label, w))
+                if r < need:
+                    problems.append(f"{where}: step 4, {label} {r:.2f}:1, under {need}")
             low = min(worst.items(), key=lambda kv: kv[1])
             lines.append(f"{where}: card text {worst[('card', 'text')]:.1f}, labels {worst[('card', 'lesser text')]:.1f}, "
                          f"pills {min(v for k, v in worst.items() if k[0] == 'card' and k[1].endswith('pill')):.1f}; "
@@ -301,6 +342,12 @@ def main():
             rt, lt, wt = min(x for x in s3p[period] if not x[1].startswith("mark"))
             rm, lm, wm = min(x for x in s3p[period] if x[1].startswith("mark"))
             print(f"step 3 (Performance), {period}: {len(s3p[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
+                  f"lowest mark {lm} {rm:.2f} ({wm} px)")
+    for period in PERIODS:
+        if s4.get(period):
+            rt, lt, wt = min(x for x in s4[period] if not x[1].startswith("mark"))
+            rm, lm, wm = min(x for x in s4[period] if x[1].startswith("mark"))
+            print(f"step 4 (Competition and Interline), {period}: {len(s4[period]) // len(WINDOWS)} cases, lowest text {lt} {rt:.2f} ({wt} px), "
                   f"lowest mark {lm} {rm:.2f} ({wm} px)")
     if q3:
         print("question 3, the chart colours on the card glass by day (not required): " + "; ".join(

@@ -62,6 +62,9 @@
   --shared-fill:#EEEAFB; --shared-text:#4B3BA8; --joiner-fill:#FCE8EF; --joiner-text:#9C2A55;
   --chart-slate:#5B647E; --chart-label:#0A1230; --chart-lease:#E0557A; --chart-cargo:#8D90F2; --chart-landing:#F2C14E;
   --chart-load85:#E3B341; --chart-load70:#E3812B; --chart-none:#D9DDE7; --chart-midline:#C3C9D9;
+  /* the glass look, step 4 (Competition and Interline): the named colours their own parts need, today's values here (the
+     old Interline's signed tint is covered by a later rule: named all the same) */
+  --il-signed-0:rgba(52,199,89,.06); --signed-row:var(--ok-soft);
   /* type: display Unbounded, text Manrope; one small scale, nothing under 13px */
   --font:"Manrope",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-d:"Unbounded",ui-sans-serif,system-ui,sans-serif;
@@ -123,6 +126,9 @@
   --shared-fill:rgba(56,34,120,.62); --shared-text:#EDE5FF; --joiner-fill:rgba(110,22,66,.62); --joiner-text:#FFE0EC;
   --chart-slate:#E3E7F2; --chart-label:#FFFFFF; --chart-lease:#FFB0D0; --chart-cargo:#C9CBFF; --chart-landing:#FFE08A;
   --chart-load85:#FFDF80; --chart-load70:#FFA25C; --chart-none:#7F88A6; --chart-midline:rgba(255,255,255,.5);
+  /* step 4 (Competition and Interline), each checked by tests/glass_contrast_test.py's step 4 cases: a signed agreement's
+     row on a dark green tint, lighter than the pills' so its fields still read */
+  --signed-row:rgba(10,72,52,.38);
 }
 :root[data-look="glass"][data-period="day"]{
   --card-bg:rgba(10,18,48,.66); --bar-bg:rgba(10,18,48,.74);
@@ -872,7 +878,7 @@ details.gsub[open]>summary::before{transform:rotate(90deg)}
 .il td{vertical-align:middle}
 .il input{width:100%;min-width:90px;padding:5px 8px}
 .il select{padding:5px 8px}
-.il tr.signed td{background:rgba(52,199,89,.06)}
+.il tr.signed td{background:var(--il-signed-0)}
 .il tr.declined td{color:var(--muted)}
 .il .hubtag{margin-bottom:0}
 .il .alogo{vertical-align:middle}
@@ -1682,7 +1688,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .cptile .cpline.warn{color:var(--warn);font-weight:700}
 .cptile.ffoot{margin-top:12px}
 .cptile .cptopo{color:var(--ink);font-weight:700}
-.cpsec .cpcardbox{padding:20px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);border:1px solid rgba(14,22,48,.06);box-shadow:var(--shadow);min-width:0}
+.cpsec .cpcardbox{padding:20px var(--pad-card);border-radius:var(--r-lg);background:var(--paper);border:1px solid var(--card-edge-2);box-shadow:var(--shadow);min-width:0}
 .cpthr{font-size:var(--t-body)}
 .cpthr th{font:700 13px/1.3 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .cpthr td{vertical-align:top}
@@ -1748,7 +1754,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 
 .ilcounts > h3.rh{display:flex;flex-direction:column;gap:4px}
 .ilcounts > h3.rh .note{margin:0}
-.iltiles .tile.on .tname{color:#fff}
+.iltiles .tile.on .tname{color:var(--on-text)}
 
 .ilboard .tblwrap{margin:0 0 6px}
 .tbl.il{border-collapse:separate}
@@ -2220,7 +2226,7 @@ select,.toolbar input,.fg input,.fg select,.gbox input,.tadd input{min-height:44
 .cpdonut .chartwrap{margin:0}
 .cprv .cpdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:0}
 .cpdonut .cprv{padding-left:0;list-style:none}
-.ktime .kmark.started{fill:var(--bad)} .ktime .kmark.added{fill:#E39B21}
+.ktime .kmark.started{fill:var(--chart-bad)} .ktime .kmark.added{fill:var(--chart-warn)}
 .cpfleet{min-width:0}
 .cpfleet .chartwrap{margin:2px 0 0}
 .kbig .kdonut{max-width:min(70vh,100%) !important;margin:0 auto}
@@ -2684,3 +2690,84 @@ a.eq-railbtn:hover{background:var(--row-hover);box-shadow:inset 0 0 0 1px var(--
 [data-look="glass"] .view.performance .stars .off{color:var(--stars-off)}
 [data-look="glass"] .view.performance .perfnav .mf{background:var(--card-bg);-webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
 [data-look="glass"] .view.performance .pairtable th{color:var(--text-2)}
+
+/* ---------- the glass look, step 4 (to-do 225, spec docs/specs/2026-11-11-glass-look.md): Competition (the group page: the
+   scans' pill, the airline cards, the threats and the order books; an airline's page: the rows that open with market share,
+   threats, openings and rival profiles; their charts, here and opened full size) and Interline (its filters, Waiting for a
+   reply, the tiles by status, the agreements table and the rules' rows). As before: every rule hangs off [data-look="glass"]
+   and uses only named colours; the rows and anything holding a table or a chart sit on the panel, cards on the card glass.
+   Interline opens no pop-up of its own; Competition's only pop-up is a chart opened full size (step 2's panel). ---------- */
+/* Competition: an airline page's own airline buttons go (the rail picks the airline, decision 4) */
+[data-look="glass"] .view.competition .cpseg{display:none}
+/* the head: the scans' pill on the card glass (it sits on the picture), the changes' arrows */
+[data-look="glass"] .view.competition .cpvh .cpscans{background:var(--card-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge),var(--card-shadow);
+  -webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.competition .cpch{color:var(--text-2)}
+[data-look="glass"] .view.competition :is(.cpch.up,.cpch.down,.cpvh h1.ansh .cpch,.cpown,.cptile .cptopo){color:var(--text)}
+[data-look="glass"] .view.competition .cpvh h1.ansh .cpch.flat{color:var(--text-2)}
+[data-look="glass"] .view.competition :is(.cpline.warn,.cptile .cpline.warn){color:var(--count-warn)}
+/* the group page: an airline's card (step 1's card glass), the threats and the order books on the panel */
+[data-look="glass"] .view.competition :is(.fchead,.ffoot){border-color:var(--rule)}
+[data-look="glass"] .view.competition :is(.fbig,.fch b){color:var(--text)}
+[data-look="glass"] .view.competition :is(.fbig .fu,.fsub,.ffl){color:var(--text-2)}
+[data-look="glass"] .view.competition .cpsec .cpcardbox{background:var(--panel-bg);color:var(--text);border-color:var(--card-edge);border-radius:22px;
+  box-shadow:var(--card-shadow)}
+[data-look="glass"] .view.competition :is(.cpthr,.cpbooks) .cpday{color:var(--text-2)}
+[data-look="glass"] .view.competition :is(.cpthr,.cpbooks) tr{border-bottom-color:var(--rule)}
+/* the rows that open (an airline's details on Competition, the rules on Interline): one panel, each row flat on it */
+[data-look="glass"] :is(.view.competition,.view.interline) .sysrows{background:var(--panel-bg);color:var(--text);border:1px solid var(--card-edge);
+  border-radius:22px;box-shadow:var(--card-shadow)}
+[data-look="glass"] :is(.view.competition,.view.interline) .sysrows > .board,
+[data-look="glass"] :is(.view.competition,.view.interline) .sysrows > .board:has(table,.kchart,.lchart){
+  background:none;border:0;border-top:1px solid var(--rule);border-radius:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+[data-look="glass"] :is(.view.competition,.view.interline) .sysrows > .board > h3.rch .fbname{color:var(--text)}
+[data-look="glass"] :is(.view.competition,.view.interline) .sysrows > .board > h3.rch:hover .fbname{color:var(--text);text-decoration:underline}
+[data-look="glass"] :is(.view.competition,.view.interline) :is(.sysrows > .board > h3.rch > .note,.sysrows > .board > h3.rch .fbaside,.sysrows .fblead,.revtools){color:var(--text-2)}
+[data-look="glass"] :is(.view.competition,.view.interline) .sysrowsh .tph{color:var(--text)}
+/* a market's and a rival's card: group rows on the panel; the openings' rows hubs first doesn't allow yet */
+[data-look="glass"] .view.competition .cprows .cpm{background:var(--row-group);box-shadow:inset 0 0 0 1px var(--rule)}
+[data-look="glass"] .view.competition .cpopen tr.cpno td{color:var(--text-2)}
+/* Competition's charts, here and opened full size (by their figure, since the large view sits outside the screen): the
+   threats' marks and the openings' dots edged in the panel's night, hubs first's ring white, a thin night gap between a
+   donut's slices so ours (the airline's own colour) and the rivals' stay apart */
+[data-look="glass"] svg[data-figure^="competition:"] .kmark{stroke:var(--chart-dot-bg)}
+[data-look="glass"] svg[data-figure^="competition:"].kscatter circle{stroke:var(--chart-dot-bg)}
+[data-look="glass"] svg[data-figure^="competition:"].kscatter circle.kring{stroke:var(--chart-ink)}
+[data-look="glass"] svg[data-figure="competition: market donut"] path{stroke:var(--chart-dot-bg);stroke-width:1.5}
+
+/* Interline: the filters beside the title (chips on the card glass, as they sit on the picture) */
+[data-look="glass"] .view.interline .ilchips .chiplbl{color:var(--text-2)}
+[data-look="glass"] .view.interline .ilchips .chip{background:var(--card-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge);
+  -webkit-backdrop-filter:var(--card-blur);backdrop-filter:var(--card-blur)}
+[data-look="glass"] .view.interline .ilchips .chip:hover{background:var(--bar-bg)}
+[data-look="glass"] .view.interline .ilchips .chip.on{background:var(--on-bg);color:var(--on-text);box-shadow:none}
+/* Waiting for a reply: each request a row on the card glass, the ones past the mark on the warn tint */
+[data-look="glass"] .view.interline .ilw{background:var(--tile-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge)}
+[data-look="glass"] .view.interline .ilw.over{background:var(--warn-fill);box-shadow:inset 0 0 0 1px var(--warn-text)}
+[data-look="glass"] .view.interline :is(.ilwal,.ilwwhen){color:var(--text-2)}
+[data-look="glass"] .view.interline .ilwdays{color:var(--text)}
+[data-look="glass"] .view.interline :is(.ilw.over .ilwdays,.ilwait > h3.rh .note.ilwover){color:var(--count-warn)}
+/* the tiles by status (as Today's) */
+[data-look="glass"] .view.interline .tile{background:var(--tile-bg);color:var(--text);box-shadow:inset 0 0 0 1px var(--card-edge)}
+[data-look="glass"] .view.interline .tile:hover{background:var(--tile-hover)}
+[data-look="glass"] .view.interline .tile .tline{color:var(--text-2)}
+[data-look="glass"] .view.interline .tile.ok .tn{color:var(--count-ok)}
+[data-look="glass"] .view.interline .tile.warn .tn{color:var(--count-warn)}
+[data-look="glass"] .view.interline .tile.on,[data-look="glass"] .view.interline .tile.on:hover{background:var(--on-bg);color:var(--on-text);box-shadow:none}
+[data-look="glass"] .view.interline .tile.on .tn{color:var(--on-text)}
+[data-look="glass"] .view.interline .tile.on .tline{color:var(--on-text-2)}
+/* the agreements table on the panel: each airline's head, a signed row on its green tint, a declined one quieter */
+[data-look="glass"] .view.interline .tbl.il tr.ilgrp th{color:var(--text);border-bottom-color:var(--rule)}
+[data-look="glass"] .view.interline .ilgnote{color:var(--text-2)}
+[data-look="glass"] .view.interline .tbl.il tbody tr:last-child td{border-bottom-color:var(--rule)}
+[data-look="glass"] .view.interline .tbl.il tr.signed td{background:var(--signed-row)}
+[data-look="glass"] .view.interline .tbl.il tr.declined td{color:var(--text-2)}
+[data-look="glass"] .view.interline .ilrows :is(.ilguide,.ilcovered){color:var(--text)}
+@media (max-width:640px){
+  [data-look="glass"] .view.interline .tbl.il tr[data-il-row]{background:var(--row-group);box-shadow:inset 0 0 0 1px var(--rule)}
+  [data-look="glass"] .view.interline .tbl.il tr[data-il-row].signed{background:var(--signed-row)}
+  [data-look="glass"] .view.interline .tbl.il tr[data-il-row].signed td{background:none}
+  [data-look="glass"] .view.interline .tbl.il td[data-l]::before,[data-look="glass"] .view.interline .iltap .ilal{color:var(--text-2)}
+  [data-look="glass"] .view.interline .iltap .chev{border-color:var(--text-2)}
+  [data-look="glass"] .view.interline .tbl.il tr[data-il-row][data-open=yes] > td:not(.ilh){border-top-color:var(--rule)}
+}

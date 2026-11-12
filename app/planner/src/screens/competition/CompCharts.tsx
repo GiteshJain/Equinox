@@ -4,7 +4,7 @@
 // state in words; the tables they stand in front of stay one tap away (ChartOrTable, in Competition.tsx).
 import { useNavigate } from "react-router";
 import {
-  ChartFrame, Donut, HBars, Legend, SizedScatter, StackedBars, Timeline, donutLayout, hbarLayout, sizedScatterLayout, stackLayout, timelineLayout,
+  ChartFrame, Donut, HBars, Legend, SizedScatter, StackedBars, TONE, Timeline, donutLayout, hbarLayout, sizedScatterLayout, stackLayout, timelineLayout,
 } from "../../ui/charts";
 import { FLEET_SERIES, fleetRows, marketDonut, openingPoints, orderBookBars, threatTimeline } from "./charts";
 import { n0, pctWords, type Fleet, type Market, type Opening, type OrderFlag, type Threat } from "./model";
@@ -26,7 +26,7 @@ export function ThreatsChart<T extends Threat & { al?: { code: string | null; na
   const t = threatTimeline(items, by, href, today);
   return (
     <ChartFrame title="By scan day" note={`each threat on the day its scan saw it, a row per ${by === "rival" ? "rival" : "airline"} · tap one for its route's page`}
-      legend={[{ label: "started on a pair", color: "#B4234B" }, { label: "added a daily flight or more", color: "#E39B21" }]}
+      legend={[{ label: "started on a pair", color: TONE.bad }, { label: "added a daily flight or more", color: TONE.warn }]}
       figure="competition: threats chart" empty={t ? null : "No rival moves in the last 7 days."}>
       {t ? <Timeline layout={(W) => timelineLayout(t.rows, { t0: t.t0, t1: t.t1, ticks: t.ticks, W, L: by === "rival" ? 140 : 60 })}
         label="threats by scan day" figure="competition: threats timeline" onPick={(h) => navigate(h.replace(/^\/planner/, ""))} /> : null}
@@ -63,7 +63,7 @@ export function FleetChart({ f, name }: { f: Fleet | null | undefined; name: str
 export function OrderBooksChart({ books, flagPct }: { books: readonly (OrderFlag & { meets_codes: string[] })[]; flagPct: number }) {
   return (
     <ChartFrame title="On order against fleet" note={`each rival's aircraft on order as a share of its fleet · the line is the flag, ${flagPct}%`}
-      legend={[{ label: "meets our airlines", color: "#B4234B" }, { label: "meets none", color: "#9AA4C4" }]} figure="competition: order books chart"
+      legend={[{ label: "meets our airlines", color: TONE.bad }, { label: "meets none", color: TONE.mute }]} figure="competition: order books chart"
       empty={books.length ? null : "No rival has a big order book or orders without flights in the latest scan."}>
       <HBars layout={(W) => { const b = orderBookBars(books, flagPct, W < 520); return hbarLayout(b.items, { fmt: (v) => `${Math.round(v)}%`, ref: b.ref, W, L: W < 520 ? 100 : 150, R: W < 520 ? 70 : 150 }); }}
         label="order books against the flag" figure="competition: order books bars" />

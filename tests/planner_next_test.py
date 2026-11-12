@@ -62,6 +62,10 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    Since 12 Nov (step 3, Performance) an airline page's own airline buttons the same; under glass its rows are on the
    panel, and on the group page, the airline's page and each route page the first chart opens full size on the panel
    (a screenshot of each, then Esc).
+   Since 12 Nov (step 4) Competition's own airline buttons on an airline's page the same (hidden under glass, all shown
+   with the switch off); under glass the first chart on the group page and on the airline's page opens full size on the
+   panel (a screenshot of each, then Esc), the group page's threats and order books and the airline page's rows are on
+   the panel, and Interline's agreements and rules' rows are on the panel.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
    capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
@@ -1571,6 +1575,9 @@ POPUP_BG_JS = "(s) => { const m = document.querySelector(s); return m ? getCompu
 # Performance's own airline buttons (an airline page's switch), how many there are and how many are shown (step 3)
 PERF_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=performance] .perfseg [data-al]')];
     return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
+# Competition's own airline buttons (an airline page's switch), how many there are and how many are shown (step 4)
+COMP_OWN_BUTTONS_JS = """(() => { const b = [...document.querySelectorAll('main[data-screen=competition] .cpseg [data-al]')];
+    return { total: b.length, shown: b.filter(x => x.getClientRects().length > 0).length }; })()"""
 
 
 def period_of(hour):
@@ -1630,6 +1637,27 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                 if abs(await ph.pg.evaluate("Date.now()") - ms(moment)) > 1000:
                     problems.append(f"{width} px: the planner's clock isn't frozen at the moment")
 
+                async def chart_big_glass(name):
+                    # the glass look, step 3 (Performance) and step 4 (Competition): the pop-up their pages open (a chart full
+                    # size) on the panel, with a screenshot; Esc closes it again
+                    nonlocal shots
+                    if not await ph.pg.evaluate("!!document.querySelector('main [data-chart-open]')"):
+                        return
+                    await ph.pg.evaluate("document.querySelector('main [data-chart-open]').click()")
+                    try:
+                        await ph.pg.wait_for_selector("[data-chart-big] svg", timeout=10000)
+                        await settle(ph.pg, 300)
+                        bg = await ph.pg.evaluate(POPUP_BG_JS, "[data-chart-big] [role=dialog]")
+                        if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                            problems.append(f"{name} at {width} px (glass): a chart's large view is {bg!r}, not on the glass look's panel")
+                        if SCREENS_DIR:
+                            await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-chart-{width}{tag}.png"), timeout=90000)
+                            shots += 1
+                        await ph.pg.keyboard.press("Escape")
+                        await settle(ph.pg, 200)
+                    except Exception:
+                        problems.append(f"{name} at {width} px (glass): a chart doesn't open full size")
+
                 async def look(sid, name):
                     nonlocal links, shots
                     if sid == "systems":
@@ -1651,6 +1679,14 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             problems.append(f"{name} at {width} px: {shown} open as tables, not charts")
                     if sid == "competition":
                         problems.extend(f"{name} at {width} px: {x}" for x in await charts_readable_and_open(ph.pg, "main"))
+                        if glass:
+                            # the glass look, step 4: a chart opened full size on the panel; the group page's threats and
+                            # order books, and an airline page's rows, on the panel
+                            await chart_big_glass(name)
+                            for box in ("main[data-screen=competition] .cpsec .cpcardbox",) if name == "competition" else ("main[data-screen=competition] .sysrows",):
+                                bg = await ph.pg.evaluate(POPUP_BG_JS, box)
+                                if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                                    problems.append(f"{name} at {width} px (glass): {box.split(' ', 1)[1]} is {bg!r}, not on the glass look's panel")
                         await ph.pg.evaluate(SHOW_TABLES_JS)   # the widest the page gets
                         await settle(ph.pg, 300)
                     if sid == "performance":
@@ -1685,6 +1721,23 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             problems.append(f"routes at {width} px: {own['shown']} of Routes' {own['total']} airline buttons are shown, expected all")
                         if not own["total"]:
                             problems.append(f"routes at {width} px: no airline buttons in its title")
+                    if name == "competition-airline":
+                        # the glass look, step 4 (decision 4): the airline page's own airline buttons hidden under glass, all
+                        # shown with the switch off
+                        own = await ph.pg.evaluate(COMP_OWN_BUTTONS_JS)
+                        if glass and own["shown"]:
+                            problems.append(f"competition/{code} at {width} px (glass): {own['shown']} of Competition's own airline buttons are shown, expected none (the rail picks the airline)")
+                        if not glass and own["total"] and own["shown"] != own["total"]:
+                            problems.append(f"competition/{code} at {width} px: {own['shown']} of Competition's {own['total']} airline buttons are shown, expected all")
+                        if not own["total"]:
+                            problems.append(f"competition/{code} at {width} px: no airline buttons under its title")
+                    if glass and sid == "interline":
+                        # the glass look, step 4: Interline shows every airline (All lit on the rail, checked below); its
+                        # agreements table and the rules' rows on the panel
+                        for box in ("main[data-screen=interline] .ilboard", "main[data-screen=interline] .ilrows"):
+                            bg = await ph.pg.evaluate(POPUP_BG_JS, box)
+                            if not bg.replace(" ", "").startswith("rgba(10,18,48"):
+                                problems.append(f"interline at {width} px (glass): {box.split(' ', 1)[1]} is {bg!r}, not on the glass look's panel")
                     if name == "performance-airline":
                         # the glass look, step 3 (decision 4): the airline page's own airline buttons hidden under glass, all
                         # shown with the switch off; under glass its rows on the panel
@@ -1699,23 +1752,8 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=False):
                             bg = await ph.pg.evaluate(POPUP_BG_JS, "main[data-screen=performance] .sysrows")
                             if not bg.replace(" ", "").startswith("rgba(10,18,48"):
                                 problems.append(f"performance/{code} at {width} px (glass): its rows are {bg!r}, not on the glass look's panel")
-                    if glass and sid == "performance" and await ph.pg.evaluate("!!document.querySelector('main [data-chart-open]')"):
-                        # the glass look, step 3: the pop-up Performance's pages open (a chart full size) on the panel, with a
-                        # screenshot; Esc closes it again
-                        await ph.pg.evaluate("document.querySelector('main [data-chart-open]').click()")
-                        try:
-                            await ph.pg.wait_for_selector("[data-chart-big] svg", timeout=10000)
-                            await settle(ph.pg, 300)
-                            bg = await ph.pg.evaluate(POPUP_BG_JS, "[data-chart-big] [role=dialog]")
-                            if not bg.replace(" ", "").startswith("rgba(10,18,48"):
-                                problems.append(f"{name} at {width} px (glass): a chart's large view is {bg!r}, not on the glass look's panel")
-                            if SCREENS_DIR:
-                                await ph.pg.screenshot(path=str(Path(SCREENS_DIR) / f"{name}-chart-{width}{tag}.png"), timeout=90000)
-                                shots += 1
-                            await ph.pg.keyboard.press("Escape")
-                            await settle(ph.pg, 200)
-                        except Exception:
-                            problems.append(f"{name} at {width} px (glass): a chart doesn't open full size")
+                    if glass and sid == "performance":
+                        await chart_big_glass(name)
                     if sid == "tails" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"tails: lines\"] [data-line-slot]')"):
                         problems.append(f"tails at {width} px: the sample line's slots aren't on the deliveries board")
                     if sid == "today" and tails_code and not await ph.pg.evaluate("!!document.querySelector('[data-figure=\"today: open lines\"] [data-open-line] a[data-line-link]')"):
