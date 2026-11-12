@@ -8,6 +8,10 @@
 # and database/rehearsal_parts.py names the parts (a path on no list starts every part; documents start none, and then
 # the rehearsal doesn't run at all). Every night on main (08:43 UTC, after the nightly backup at 07:17) it runs every
 # part. GitHub emails the person who last changed the schedule below when a nightly run fails.
+# Since 12 Nov (to-do 235, spec §2) the parts run side by side: the jobs rehearsal_parts.py names (the planner and the
+# saves; the capture replay; the briefing with its database test; the other database tests with the descriptions, the
+# reference file and the samples), each restoring its own copy, then one last job, result, gathers what they found,
+# fails if any failed or left no result, and posts the one comment.
 # The copy comes from Cloudflare R2, read with a read-only
 # key (decision #16), and is restored into a full local Supabase (database, data API and sign-in) on the runner. The
 # result is posted on the pull request; Claude applies a change to the live database only after it passes here and
@@ -36,6 +40,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       parts: ${{ steps.parts.outputs.parts }}
+      jobs: ${{ steps.parts.outputs.jobs }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,11 +53,10 @@ jobs:
           if [ "${{ github.event_name }}" = pull_request ]; then
             python3 database/rehearsal_parts.py --base "origin/${{ github.base_ref }}" > "$RUNNER_TEMP/parts.txt"
           else
-            echo "the nightly run on main: every part" > "$RUNNER_TEMP/parts.txt"
-            echo "parts=all" >> "$RUNNER_TEMP/parts.txt"
+            python3 database/rehearsal_parts.py --all > "$RUNNER_TEMP/parts.txt"
           fi
           cat "$RUNNER_TEMP/parts.txt"
-          tail -n 1 "$RUNNER_TEMP/parts.txt" >> "$GITHUB_OUTPUT"
+          tail -n 2 "$RUNNER_TEMP/parts.txt" >> "$GITHUB_OUTPUT"   # jobs=... and parts=...
           {
             echo "### Database rehearsal: the parts this change needs"
             echo '```'
@@ -61,18 +65,30 @@ jobs:
             if [ "$(tail -n 1 "$RUNNER_TEMP/parts.txt")" = "parts=" ]; then echo "Nothing to rehearse: no changed path can affect what it checks."; fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # The parts side by side (to-do 235): one job for each entry rehearsal_parts.py gives, each restoring its own copy and
+  # running its share (REHEARSE_PARTS and the settings database/rehearse.sh explains at its top). fail-fast is off, so a
+  # red job never stops the others: the comment then says what each found.
   rehearse:
     needs: parts
     if: needs.parts.outputs.parts != ''
+    name: rehearse (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.parts.outputs.jobs) }}
     runs-on: ubuntu-latest
-    # 45 since 26 Oct: runs take 15 to 27 minutes, and with several pull requests at once some passed 30 and were cancelled
+    # 45 since 26 Oct: runs took 15 to 27 minutes in one job, and with several pull requests at once some passed 30 and were cancelled
     timeout-minutes: 45
     defaults:
       run:
         shell: bash   # bash -eo pipefail: a failing script fails its step even though its output goes through tee
     env:
       LOG: ${{ github.workspace }}/../rehearsal.log
-      REHEARSE_PARTS: ${{ needs.parts.outputs.parts }}
+      REHEARSE_PARTS: ${{ matrix.parts }}
+      REHEARSE_JOB: ${{ matrix.name }}
+      REHEARSE_DB_TESTS: ${{ matrix.db_tests }}
+      REHEARSE_DB_SAVED: ${{ matrix.db_saved }}
+      REHEARSE_BACKUP: ${{ matrix.backup }}
       REHEARSE_NIGHTLY: ${{ github.event_name == 'pull_request' && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
@@ -111,11 +127,15 @@ jobs:
           python-version: "3.12"
 
       - uses: actions/setup-node@v4
+        if: matrix.node
         with:
           node-version: "22"
 
-      # Pinned, the same as checks.yml: the oldest Playwright that installs on Ubuntu 26.04 (tests/README.md, "The test browser")
+      # Pinned, the same as checks.yml: the oldest Playwright that installs on Ubuntu 26.04 (tests/README.md, "The test browser").
+      # Only in the job whose tests open the planner (the planner and the saves): a job that needs no browser doesn't
+      # install one, so the network trouble of 11 Nov (security.ubuntu.com not found) can't stop it.
       - name: Install the test browser
+        if: matrix.browser
         run: |
           pip install -q playwright==1.61.0
           python -m playwright install --with-deps chromium > /dev/null
@@ -161,7 +181,7 @@ jobs:
           bash database/rehearse.sh .backup "${{ github.base_ref }}" 2>&1 | tee -a "$LOG"
 
       - name: Keep the planner's types generated from the copy
-        if: always()
+        if: always() && matrix.key == 'planner'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -172,7 +192,7 @@ jobs:
 
       # docs/data.md as the copy gives it, to commit when the descriptions change (decision #10)
       - name: Keep the table guide made from the copy
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -184,7 +204,7 @@ jobs:
       # Every screen on the copy at the frozen moment, at 1280 and 380 px (tests/planner_next_test.py), for review: it
       # shows live data, so it's kept three days only, like the types, and never committed
       - name: Keep the screenshots of every screen
-        if: always()
+        if: always() && matrix.key == 'planner'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -196,7 +216,7 @@ jobs:
       # every save's answer as this run found it (tests/planner_saves_test.py): what tests/fixtures/planner_saves.expected.json
       # is made from, when a pull request means to change what a save writes
       - name: Keep the saves' answers
-        if: always()
+        if: always() && matrix.key == 'planner'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -208,7 +228,7 @@ jobs:
       # every captured figure the changes moved, before and after (database/figures_moved.py), for the pull request to
       # say which moved and by how much: live figures, so kept three days only and never committed
       - name: Keep the figures the changes moved
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -220,7 +240,7 @@ jobs:
       # every function as the copy defines it, in database/current/functions.sql's format (database/reference.py): what to
       # copy an entry from when the reference check finds the file missing one or out of step
       - name: Keep the copy's functions
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -230,7 +250,7 @@ jobs:
           retention-days: 3
 
       - name: Keep the new test sample
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -242,7 +262,7 @@ jobs:
       # one airline's capture pages of one evening, with what to expect of them and the rows they give (#21), when a pull
       # request changes how it is made: checked and committed as tests/fixtures/capture_pages_<capture day>.json.gz
       - name: Keep the new capture sample
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -252,7 +272,7 @@ jobs:
           retention-days: 1
 
       - name: Keep the new report sample
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -264,7 +284,7 @@ jobs:
       # what scripts/briefing/brief.py reads for every one of our airlines (#24), when a pull request changes how it is
       # made: checked and committed as tests/fixtures/briefing_<date>.json.gz
       - name: Keep the new briefing sample
-        if: always()
+        if: always() && matrix.key == 'database'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -273,17 +293,66 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+      # This job's result for the last job, result: its status and its log with addresses taken out, as the comment shows
+      # them (kept a day)
+      - name: Keep this job's result
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          echo "${{ job.status }}" > "$RUNNER_TEMP/result/status"
+          grep -vE '^\s*$' "$LOG" 2>/dev/null | sed -E 's#postgres(ql)?://[^[:space:]]*#[database]#g; s#(https?://)?[[:alnum:].-]*\.r2\.cloudflarestorage\.com#[R2]#g' > "$RUNNER_TEMP/result/log.txt" || echo "no output: see the run's log" > "$RUNNER_TEMP/result/log.txt"
+
+      - name: Upload this job's result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-result-${{ matrix.key }}
+          path: ${{ runner.temp }}/result/
+          retention-days: 1
+
+  # The one result: fails if any job side by side failed or left no result, so a red part always fails the check, and
+  # posts the one comment saying what ran, in which job, and what each found. Not when the run was cancelled (a newer
+  # push replaced it); a red parts job fails it too.
+  result:
+    needs: [parts, rehearse]
+    if: ${{ !cancelled() && (needs.parts.result != 'success' || needs.parts.outputs.parts != '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: The parts job must have passed
+        if: needs.parts.result != 'success'
+        run: |
+          echo "the parts job didn't pass (${{ needs.parts.result }}), so nothing was rehearsed"
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: database/rehearsal_parts.py
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rehearsal-result-*
+          path: ${{ runner.temp }}/results
+
+      - name: Gather the jobs' results
+        env:
+          JOBS: ${{ needs.parts.outputs.jobs }}
+          PARTS: ${{ needs.parts.outputs.parts }}
+          REHEARSE_RESULT: ${{ needs.rehearse.result }}
+        run: |
+          rc=0
+          python3 database/rehearsal_parts.py --gather "$RUNNER_TEMP/results" "$JOBS" "$PARTS" "$RUNNER_TEMP/comment.md" || rc=$?
+          cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "the jobs side by side: $REHEARSE_RESULT"
+          if [ "$REHEARSE_RESULT" != success ]; then rc=1; fi
+          exit $rc
+
       - name: Post the result on the pull request
         if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          {
-            if [ "${{ job.status }}" = "success" ]; then echo "**Database rehearsal: passed**"; else echo "**Database rehearsal: failed**"; fi
-            echo
-            echo '```'
-            grep -vE '^\s*$' "$LOG" 2>/dev/null | sed -E 's#postgres(ql)?://[^[:space:]]*#[database]#g; s#(https?://)?[[:alnum:].-]*\.r2\.cloudflarestorage\.com#[R2]#g' | tail -n 60 || echo "no output: see the run's log"
-            echo '```'
-          } > "$RUNNER_TEMP/comment.md"
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file "$RUNNER_TEMP/comment.md"
+          [ -s "$RUNNER_TEMP/comment.md" ] || echo "**Database rehearsal: failed** (no result gathered: see the run's log)" > "$RUNNER_TEMP/comment.md"
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file "$RUNNER_TEMP/comment.md"

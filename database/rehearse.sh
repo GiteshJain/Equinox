@@ -11,6 +11,13 @@
 # so the planner meets the database as live will have it. db is 2's outputs saved before, 5, the figures moved and 9;
 # reference is 6; types is 7's types; planner is the rest of 7; briefing is 7b; saves is 8. With REHEARSE_NIGHTLY=1 (the
 # nightly run on main) the figures moved and 9 run even with no changes to apply.
+# Since 12 Nov (to-do 235, spec §2) the workflow runs the parts side by side as separate jobs, each on its own copy and
+# each with these, set by database/rehearsal_parts.py; unset, each does what it always did, so a local run is as before:
+#   REHEARSE_JOB       the job's name, for the log's first heading
+#   REHEARSE_DB_TESTS  which tests in database/tests/ the db part runs: "all" (unset), "only:a.sql,b.sql" or
+#                      "except:a.sql,b.sql"; a name in the list that isn't a file there fails the run
+#   REHEARSE_DB_SAVED  0: the db part leaves out the outputs saved before and the figures moved (unset: 1)
+#   REHEARSE_BACKUP    1: this job runs 9 even without the db part; 0: it doesn't run 9; unset: with the db part
 #
 # 1. Restores the backup into an empty local Supabase (Docker): the database, the data API and sign-in, with nothing
 #    else started (#17). The database is restored the same way the nightly restore check does.
@@ -84,6 +91,26 @@ parts=${REHEARSE_PARTS:-all}
 [ "$parts" = all ] && parts=$ALL_PARTS
 nightly=${REHEARSE_NIGHTLY:-0}
 want() { [[ ",$parts," == *",$1,"* ]]; }
+# a job's share of the db part and of 9, when the workflow runs the parts side by side (see the top)
+db_tests=${REHEARSE_DB_TESTS:-all}
+db_saved=${REHEARSE_DB_SAVED:-1}
+backup_here=${REHEARSE_BACKUP:-}
+case "$db_tests" in
+  all) ;;
+  only:?*|except:?*)
+    for n in $(tr ',' ' ' <<< "${db_tests#*:}"); do
+      [ -f "database/tests/$n" ] || { echo "FAIL  REHEARSE_DB_TESTS names $n, which isn't in database/tests/"; exit 1; }
+    done ;;
+  *) echo "FAIL  REHEARSE_DB_TESTS must be all, only:<files> or except:<files>, not $db_tests"; exit 1 ;;
+esac
+test_wanted() {
+  local n; n=$(basename "$1")
+  case "$db_tests" in
+    all) return 0 ;;
+    only:*) [[ ",${db_tests#only:}," == *",$n,"* ]] ;;
+    except:*) [[ ",${db_tests#except:}," != *",$n,"* ]] ;;
+  esac
+}
 
 # which night the copy is from: latest.json, saved beside the copy when it was downloaded from R2
 made="unknown date"; ran_at=""
@@ -339,7 +366,12 @@ backup_restore() {
 
 status=0
 skipped=$(tr ',' '\n' <<< "$ALL_PARTS" | while read -r p; do want "$p" || echo "$p"; done | paste -sd, -)
-echo "== parts: ${parts}${skipped:+ (not run: $skipped)}$([ "$nightly" = 1 ] && echo ", the nightly run on main")"
+if [ -n "${REHEARSE_JOB:-}" ]; then
+  # one of the jobs side by side: the parts it doesn't run are another job's, or not needed (the workflow's comment says which)
+  echo "== job: ${REHEARSE_JOB}; parts here: ${parts}$([ "$db_tests" != all ] && want db && echo "; database tests: $db_tests")$([ "$nightly" = 1 ] && echo ", the nightly run on main")"
+else
+  echo "== parts: ${parts}${skipped:+ (not run: $skipped)}$([ "$nightly" = 1 ] && echo ", the nightly run on main")"
+fi
 echo "== restoring last night's backup ($made)"
 restore_copy || exit 1
 count > "$work/before.txt"
@@ -363,7 +395,7 @@ fi
 # sound: the copy is as the changes left it and fit for the steps after (1 to 5 passed, as far as they ran)
 sound=yes
 saved=(database/tests/before/*.sql)
-if want db && [ -e "${saved[0]}" ]; then
+if want db && [ "$db_saved" = 1 ] && [ -e "${saved[0]}" ]; then
   echo "== saving outputs before the changes (into rehearsal_before)"
   psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c 'drop schema if exists rehearsal_before cascade' \
     -c 'create schema rehearsal_before' > /dev/null
@@ -468,10 +500,12 @@ if [ "$sound" = yes ] && want samples && [ -n "${CAPTURE_SAMPLE_DIR:-}" ]; then
 fi
 
 if [ "$sound" = yes ] && want db; then
-  tests=(database/tests/*.sql)
-  if [ -e "${tests[0]}" ]; then echo "== database tests (each rolled back afterwards)"; fi
+  tests=()
+  for t in database/tests/*.sql; do [ -e "$t" ] && test_wanted "$t" && tests+=("$t"); done
+  if [ ${#tests[@]} -gt 0 ]; then
+    echo "== database tests (each rolled back afterwards)$([ "$db_tests" != all ] && echo ": ${#tests[@]} of $(ls database/tests/*.sql | wc -l) here, the rest in the other jobs")"
+  fi
   for t in "${tests[@]}"; do
-    [ -e "$t" ] || continue
     if out=$(psql "$LOCAL" -X -q -v ON_ERROR_STOP=1 -c 'begin' -f "$t" -c 'rollback' 2>&1); then
       echo "ok    $(basename "$t")"
       # what the test says it checked (counts only, never rows), for the pull request
@@ -489,8 +523,18 @@ fi
 copy_ok=$sound
 # the figures moved and the backup and restore: with the database tests, when there are changes to apply (every night on
 # main whatever there is)
+# (side by side, since 12 Nov: the figures moved go with the outputs saved before, REHEARSE_DB_SAVED, and 9 with the job
+# REHEARSE_BACKUP names)
+changes=no
+if [ ${#pending[@]} -gt 0 ] || [ "$nightly" = 1 ]; then changes=yes; fi
 db_after=no
-if want db && { [ ${#pending[@]} -gt 0 ] || [ "$nightly" = 1 ]; }; then db_after=yes; fi
+if want db && [ "$db_saved" = 1 ] && [ "$changes" = yes ]; then db_after=yes; fi
+backup_after=no
+case "$backup_here" in
+  1) [ "$changes" = yes ] && backup_after=yes ;;
+  0) ;;
+  *) want db && [ "$changes" = yes ] && backup_after=yes ;;
+esac
 
 # What the changes moved in the captured figures (spec 2026-10-15 small fixes §1), on the copy as the changes left it
 # (the tests above were rolled back): the amounts go to the artifact only, since this log is posted on the pull request.
@@ -519,7 +563,7 @@ if [ "$copy_ok" = yes ] && want saves; then
   planner_saves || status=1   # last on the copy: its saves change it
 fi
 
-if [ "$copy_ok" = yes ] && [ "$db_after" = yes ]; then
+if [ "$copy_ok" = yes ] && [ "$backup_after" = yes ]; then
   backup_restore || status=1   # stops the copy
 fi
 exit $status

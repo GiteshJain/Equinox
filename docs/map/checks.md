@@ -22,6 +22,16 @@ nothing to apply; no samples, no comment); a failed night shows as GitHub's fail
 now runs on a pull request only with the briefing (the briefing, the library or the database), and every night.
 `tests/rehearsal_parts_test.py` (in `run_all.sh`) proves the grouping.
 
+**12 Nov: the slow parts side by side** (to-do 235; the same decision, second pull request; spec §2). Measured first: a
+look-only planner change was already one job's work (10 to 13 minutes), and the database tests (8 to 15, the capture
+replay half of it) waited behind it in a whole run (now about 22 to 34). The rehearsal now runs as up to four jobs at
+once, each restoring its own copy, as `database/rehearsal_parts.py` plans them: the planner and the saves (one job: the
+saves import the planner's test; the backup and restore last when the database changed); the capture replay; the
+briefing with `briefing_test.sql`; the other database tests with the descriptions, the reference file and the samples.
+Only the planner's job installs the test browser. A last job, `result`, fails if any failed or left no result and posts
+the one comment. Expected: a database change and the nightly run about 11 to 15 minutes; a look-only change as before.
+A red database test no longer stops the planner's checks, which run on their own copy.
+
 ## Where
 
 `.github/workflows/`, `tests/`, `database/rehearse.sh`, `database/backup/`
