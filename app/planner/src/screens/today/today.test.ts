@@ -426,6 +426,23 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
         text: "Unattended capture: the last run failed (Tue, Oct 13 11:00 UTC): Pan Am: loads 12 of 78 flights" },
     ]);
   });
+  it("the nightly rehearsal (15 Nov): no row, nothing; a good night, nothing; a failed night, the failed-job item; no result for 36 hours, amber", () => {
+    const at = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+    const run = (job: string, status: string, h: number, note: string | null = null) => ({ job, status, started_at: at(h), for_month: null, note, details: null });
+    const jobs = (...runs: ReturnType<typeof run>[]) => ({ archiveLast: { started_at: "2026-10-01T07:30:00Z" }, runs: [...runs, run("snapshot_fallback", "ok", 2)] });
+    expect(homeAttention(input({ jobs: jobs() }))).toEqual([]);
+    expect(homeAttention(input({ jobs: jobs(run("rehearsal", "ok", 20, "passed: every part on the latest backup, in 13 min")) }))).toEqual([]);
+    expect(homeAttention(input({ jobs: jobs(run("rehearsal", "ok", 36)) }))).toEqual([]);
+    const failed = homeAttention(input({ jobs: jobs(run("rehearsal", "failed", 3, "failed (failure) after 21 min: the log is on GitHub's Actions page, run 43700000000"),
+      run("rehearsal", "ok", 27)) }));
+    expect(failed).toEqual([{ key: `jobs|failed|rehearsal|${at(3)}`, cls: "bad", screen: "systems",
+      text: "Nightly database rehearsal (main): the last run failed (Tue, Oct 13 09:00 UTC): failed (failure) after 21 min: the log is on GitHub's Actions page, run 43700000000" }]);
+    expect(attKind(failed[0] as AttItem)).toBe(attKind({ key: `jobs|failed|cleanup|${at(2)}`, cls: "bad", text: "" } as AttItem));
+    // a good night after a failed one: nothing
+    expect(homeAttention(input({ jobs: jobs(run("rehearsal", "ok", 2), run("rehearsal", "failed", 26, "failed")) }))).toEqual([]);
+    expect(homeAttention(input({ jobs: jobs(run("rehearsal", "ok", 40)) }))).toEqual([{ key: "jobs|rehearsal|2026-10-13", cls: "warn", screen: "systems",
+      text: "Nightly database rehearsal: no result from main for 40 hours (the run didn't start, or the database couldn't read GitHub: see Systems)" }]);
+  });
   const patterns = [
     { airline_id: 1, route_id: 3, hub: "HUB", dest: "CCC", mark: "cut" as const, why: "under 85% on most departures — reduce frequency or downgauge" },
     { airline_id: 1, route_id: 1, hub: "HUB", dest: "AAA", mark: "watch" as const, why: "a third of departures under 85%" },

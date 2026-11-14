@@ -395,7 +395,7 @@ Run in the **Saturday review chat**, after the usual Saturday work (manual §7, 
 |---|---|---|---|
 | Every evening | The capture panel | Every airline "all good" | Capture that airline again tonight; Manual entry if it keeps failing |
 | Every evening | Today | **All clear**, and the capture line "all good" | Work down Today; each item links to where it's fixed |
-| Every evening | Systems → the Systems board | "all good": capture, unattended capture, snapshot, backup, archive, clean-ups, scan, build, usage | Section 11 |
+| Every evening | Systems → the Systems board | "all good": capture, unattended capture, snapshot, backup, archive, clean-ups, nightly rehearsal, scan, build, usage | Section 11 |
 | After filing an aircraft | The filing comparison | Every flight **same** | Fix the game or file with the game's times |
 | The evening after filing | The capture | The new flights appear | Today → Game check |
 | After a merge | Systems → the Systems board → Planner build | Its time moved within minutes | Cloudflare's build failed; the last good version stays live (section 11) |

@@ -1,11 +1,12 @@
 // The Systems board's marks at each limit (decision #23, spec part 2 and "Checks"): the capture at 26 and 48 hours and
 // with #21's verdicts, the snapshot and backup at 30 hours (red at 54, as Home), the archive by the 3rd, a failed run,
 // the world scan at 8 and 15 days (and amber for a scan that stopped part-way, 22 Oct), usage at 70% and at the trigger,
-// the planner's build stamp, and since 10 Nov the unattended capture with no row, an old ok row and a failed row.
+// the planner's build stamp, since 10 Nov the unattended capture with no row, an old ok row and a failed row, and since
+// 15 Nov the nightly database rehearsal on main with no result, a good night, a late one and a failed one.
 import { describe, expect, it } from "vitest";
 import {
   ageMark, archiveLine, backupLine, boardSummary, boardTitle, buildLine, captureLine, captureVerdict, cleanupLine, fleetPagesWords, marketLine, scanEveryWords, scanLine, sizeWords, snapshotLine, stoppedWords, systemLines,
-  unattendedLine, usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
+  rehearsalLine, unattendedLine, usageLine, usageMark, worstFirst, type ScanStopped, type SysCapture, type SystemStatus,
 } from "./systems";
 
 const now = new Date("2026-10-15T12:00:00Z");
@@ -158,11 +159,12 @@ describe("the planner's build and the usage", () => {
       cleanup: { at: ago(2), status: "ok", note: null }, scan: { taken_at: ago(24), week: "41", status: "done" },
       market: { id: 3, started_at: ago(30), finished_at: ago(29), age_days: 1.2, pages_read: 686, pages_failed: 2, note: null },
       unattended: { warn_h: 14, last: { at: ago(4), status: "ok", note: "6 airlines all good" }, last_ok: { at: ago(4), status: "ok", note: "6 airlines all good" }, dispatch: null },
+      rehearsal: { last: { at: ago(20), status: "ok", note: "passed: every part on the latest backup, in 13 min" }, last_ok: { at: ago(20) }, read: { at: ago(1), status: "ok", note: null } },
       usage: [{ key: "database", label: "Database size", bytes: 1, trigger_bytes: 10 }],
     };
     const lines = systemLines(s, { at: ago(3), commit: "abc1234", subject: "" }, now, null, 0);
     expect(lines.map((l) => [l.key, l.mark])).toEqual([
-      ["capture|1", "ok"], ["capture|2", "warn"], ["unattended", "ok"], ["snapshot", "ok"], ["backup", "ok"], ["archive", "ok"], ["cleanup", "ok"], ["scan", "ok"], ["market", "ok"], ["build", "ok"],
+      ["capture|1", "ok"], ["capture|2", "warn"], ["unattended", "ok"], ["snapshot", "ok"], ["backup", "ok"], ["archive", "ok"], ["cleanup", "ok"], ["rehearsal", "ok"], ["scan", "ok"], ["market", "ok"], ["build", "ok"],
       ["usage|database", "ok"],
     ]);
     expect(boardSummary(lines)).toEqual({ mark: "warn", text: "1 amber" });
@@ -251,5 +253,33 @@ describe("the unattended capture's line (10 Nov, spec docs/specs/2026-11-10-unat
   it("a failed start adds amber to a good run", () => {
     expect(unattendedLine({ warn_h: 14, last: ok(3), last_ok: ok(3), dispatch: { at: ago(0.5), status: "failed", note: "GitHub answered 401: Bad credentials" } }, now))
       .toMatchObject({ mark: "warn", text: "6 airlines all good · world scan done · 12 min 40 s · last good run 3 hours ago · the start at 15 Oct 11:30 UTC failed: GitHub answered 401: Bad credentials" });
+  });
+});
+
+describe("the nightly rehearsal's line (15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md)", () => {
+  const passed = (h: number) => ({ at: ago(h), status: "ok", note: "passed: every part on the latest backup, in 13 min" });
+  const failed = (h: number) => ({ at: ago(h), status: "failed", note: "failed (failure) after 21 min: the log is on GitHub's Actions page, run 43700000000" });
+  const readOk = { at: ago(0.2), status: "ok", note: "read GitHub: 4 nightly run(s) listed, 0 new, 0 changed" };
+  const readBad = { at: ago(0.2), status: "failed", note: "GitHub answered 403" };
+  it("no result yet: amber, saying how it comes, with a failed read's words", () => {
+    expect(rehearsalLine(undefined, now)).toEqual({ key: "rehearsal", label: "Nightly rehearsal (main)", mark: "warn", when: null,
+      text: "no result yet: GitHub starts it every night (08:43 UTC, often hours late) and the database reads it every hour" });
+    expect(rehearsalLine({ last: null, last_ok: null, read: readBad }, now).text)
+      .toBe("no result yet: GitHub starts it every night (08:43 UTC, often hours late) and the database reads it every hour · the last read of GitHub (15 Oct 11:48 UTC) failed: GitHub answered 403");
+  });
+  it("a good night: green under 36 hours, amber to 60, red beyond", () => {
+    expect(rehearsalLine({ last: passed(20), last_ok: { at: ago(20) }, read: readOk }, now))
+      .toEqual({ key: "rehearsal", label: "Nightly rehearsal (main)", mark: "ok", when: "14 Oct 16:00 UTC",
+        text: "passed: every part on the latest backup, in 13 min · 20 hours ago" });
+    expect(rehearsalLine({ last: passed(36), last_ok: { at: ago(36) }, read: readOk }, now).mark).toBe("ok");
+    expect(rehearsalLine({ last: passed(40), last_ok: { at: ago(40) }, read: readBad }, now)).toMatchObject({ mark: "warn",
+      text: "passed: every part on the latest backup, in 13 min · 40 hours ago · no newer result: the run didn't start, or the database couldn't read GitHub · the last read of GitHub (15 Oct 11:48 UTC) failed: GitHub answered 403" });
+    expect(rehearsalLine({ last: passed(61), last_ok: { at: ago(61) }, read: readOk }, now).mark).toBe("bad");
+  });
+  it("a failed night: red with its note and the last good run", () => {
+    expect(rehearsalLine({ last: failed(20), last_ok: { at: ago(44) }, read: readOk }, now))
+      .toEqual({ key: "rehearsal", label: "Nightly rehearsal (main)", mark: "bad", when: "14 Oct 16:00 UTC",
+        text: "failed (failure) after 21 min: the log is on GitHub's Actions page, run 43700000000 · last good run 44 hours ago" });
+    expect(rehearsalLine({ last: failed(2), last_ok: null, read: null }, now).text).toBe("failed (failure) after 21 min: the log is on GitHub's Actions page, run 43700000000 · no good run yet");
   });
 });

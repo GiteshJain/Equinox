@@ -55,6 +55,20 @@ city it names, and that a city already flown to is never "opened". The task's pr
 wording that varies between airlines and weeks (all six followed one pattern). The task runs on Sonnet 5.5 (its own
 setting, read on 15 Nov), not on the model of the chat that made it, as the 11 Nov handover said.
 
+### A failed nightly rehearsal shows on Today: 15 Nov
+*Gitesh, 15 Nov (Main chat, brief `docs/briefs/2026-11-15-nightly-rehearsal-failure.md`, option B of three: A leave as
+is, B a failed night shows on Today, C start it from the database too; spec `docs/specs/2026-11-15-rehearsal-on-today.md`)
+· why: a failed night reached only GitHub's email, which can be missed, while manual §7 says every job writes a row to
+`job_runs` and Today warns when any job's last run failed. The timer stays GitHub's (to-do 234 step 11: late but
+daily). The database reads the result from GitHub's public API every hour, so Gitesh adds no key and nobody can post a
+result.* Three sentences were replaced, word for word. In §1 *Automatic checks*: "Every night the whole rehearsal, every
+part, runs on `main` on the latest backup, and GitHub emails when it fails. *(since 11 Nov; history: rule-history.md)*"
+In §7 *Every job writes a row to `job_runs`*: "the month's archive hasn't run by the 3rd, or any job's last run failed.
+*(since 11 Oct; history: rule-history.md)*" became the same with "the nightly database rehearsal on `main` has no result
+for 36 hours" before "or any job's last run failed" (36 hours: the timer starts it 6 to 9 hours late, so a day's
+variation never warns, and a missed night does). In §7 *The Systems board*: "the clean-ups, the world scan's age" became
+the same with the nightly rehearsal's line between them. Built in to-do 239.
+
 ### The glass look for everyone, its checks in their final form: 12 Nov
 *Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-glass-look.md`, decision 1, option A: the last step switches
 the look on for everyone and removes the old one; spec `docs/specs/2026-11-11-glass-look.md`, step 6) · why: with one

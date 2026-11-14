@@ -81,6 +81,7 @@ export function useSystemStatus(worldId: number | undefined) {
         // since 10 Nov (spec docs/specs/2026-11-10-unattended-capture.md §3); left out until 11 Nov, so the board always
         // said "no unattended run yet" (found by the rehearsal's planner step)
         unattended: d.unattended ?? null,
+        rehearsal: d.rehearsal ?? null,   // since 15 Nov (spec docs/specs/2026-11-15-rehearsal-on-today.md)
       };
     },
   });

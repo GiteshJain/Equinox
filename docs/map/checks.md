@@ -32,6 +32,15 @@ Only the planner's job installs the test browser. A last job, `result`, fails if
 the one comment. Expected: a database change and the nightly run about 11 to 15 minutes; a look-only change as before.
 A red database test no longer stops the planner's checks, which run on their own copy.
 
+**15 Nov: a failed night shows on Today** (to-do 239; brief `docs/briefs/2026-11-15-nightly-rehearsal-failure.md`,
+option B; spec `docs/specs/2026-11-15-rehearsal-on-today.md`). The database reads the nightly run's result from
+GitHub's public API every hour at :50 (`private.rehearsal_read()`, `pg_cron` `equinox-rehearsal-read`, no key: the
+repository is public) and writes each finished night on `main` (timer or by hand) as a `job_runs` row, job `rehearsal`,
+ok or failed with the run's address; a pull request's run is never recorded, and nothing outside GitHub can write one.
+Each read is a `rehearsal_read` row, kept 14 days. Today lists a failed night with the nightly jobs, and warns in amber
+after 36 hours with no result; the Systems board's *Nightly rehearsal (main)* line is green under 36 hours, amber to 60,
+red beyond or when it failed. The workflow and its timer are unchanged, and GitHub still emails.
+
 ## Where
 
 `.github/workflows/`, `tests/`, `database/rehearse.sh`, `database/backup/`

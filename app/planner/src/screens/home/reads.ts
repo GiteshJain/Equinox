@@ -169,7 +169,7 @@ export const jobsQuery = () => queryOptions({
     queryFn: async (): Promise<JobsRead> => {
       const [j, a] = await Promise.all([
         supabase.from("job_runs").select("job, status, started_at, for_month, note, details")
-          .in("job", ["snapshot", "snapshot_fallback", "cleanup", "archive", "capture_unattended", "capture_dispatch"]).gte("started_at", asOf(40 * 86_400_000))
+          .in("job", ["snapshot", "snapshot_fallback", "cleanup", "archive", "capture_unattended", "capture_dispatch", "rehearsal"]).gte("started_at", asOf(40 * 86_400_000))
           .order("started_at", { ascending: false }).limit(500),
         supabase.from("job_runs").select("started_at").eq("job", "archive").order("started_at", { ascending: false }).limit(1),
       ]);

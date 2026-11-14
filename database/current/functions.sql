@@ -1841,7 +1841,7 @@ CREATE OR REPLACE FUNCTION public.system_status(p_world_id bigint DEFAULT NULL::
 AS $function$
 declare w bigint; v_at timestamptz := coalesce(p_as_of, now()); v_month timestamptz; v_snap jsonb; v_job jsonb; v_fb timestamptz;
   v_backup jsonb; v_good jsonb; v_arch jsonb; v_clean jsonb; v_scan jsonb; v_stopped jsonb; v_market jsonb; v_un jsonb; v_db bigint; v_pdf bigint; v_site bigint;
-  v_figs bigint;
+  v_figs bigint; v_reh jsonb;
 begin
   if not private.caller_is_staff() then raise exception 'only planner staff can read the systems board' using errcode = '42501'; end if;
   w := private.fig_world(p_world_id);
@@ -1944,6 +1944,24 @@ begin
                          order by j.started_at desc, j.id desc limit 1))
     into v_un;
 
+  -- the nightly database rehearsal on main (since 15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md): its last run
+  -- and last good run (job_runs, rehearsal, read from GitHub by private.rehearsal_read()) and the last read of GitHub
+  select jsonb_build_object(
+           'last', (select jsonb_build_object('at', private.fig_ts(j.started_at), 'status', j.status, 'note', left(j.note, 300),
+                                              'url', j.details ->> 'url')
+                      from public.job_runs j
+                     where j.job = 'rehearsal' and j.started_at <= v_at and j.status <> 'running'
+                     order by j.started_at desc, j.id desc limit 1),
+           'last_ok', (select jsonb_build_object('at', private.fig_ts(j.started_at))
+                         from public.job_runs j
+                        where j.job = 'rehearsal' and j.started_at <= v_at and j.status = 'ok'
+                        order by j.started_at desc, j.id desc limit 1),
+           'read', (select jsonb_build_object('at', private.fig_ts(j.started_at), 'status', j.status, 'note', left(j.note, 300))
+                      from public.job_runs j
+                     where j.job = 'rehearsal_read' and j.started_at <= v_at and j.details ? 'answer'
+                     order by j.started_at desc, j.id desc limit 1))
+    into v_reh;
+
   -- usage the database can measure, each against its trigger (manual §1; #16, #17, #20): now, whatever the moment
   v_db := pg_database_size(current_database());
   select coalesce(sum(octet_length(r.pdf_b64)), 0) * 3 / 4 into v_pdf from public.site_reports r where r.pdf_b64 is not null;
@@ -1963,6 +1981,7 @@ begin
     'scan_stopped', v_stopped,
     'market', v_market,
     'unattended', v_un,
+    'rehearsal', v_reh,
     'usage', jsonb_build_array(
       jsonb_build_object('key', 'database', 'label', 'Database size', 'bytes', v_db, 'trigger_bytes', 350 * 1024 * 1024::bigint),
       jsonb_build_object('key', 'report_pdfs', 'label', 'Report PDFs', 'bytes', v_pdf, 'trigger_bytes', 50 * 1024 * 1024::bigint),
@@ -9335,6 +9354,149 @@ $function$
 
 ;
 
+-- private.rehearsal_read(p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.rehearsal_read(p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  c_url constant text := 'https://api.github.com/repos/GiteshJain/Equinox/actions/workflows/database-rehearsal.yml/runs';
+  v_at timestamptz := coalesce(p_at, now());
+  r record; v_resp record; v_res jsonb; v_words text; v_ok boolean; v_req bigint; v_noted int := 0; v_waiting int := 0;
+  v_status text := 'ok'; v_note text; v_new int := 0;
+begin
+  -- 1. the answers to earlier reads (pg_net keeps an answer 6 hours)
+  for r in select j.id, (j.details ->> 'request_id')::bigint as request_id, j.started_at
+             from public.job_runs j
+            where j.job = 'rehearsal_read' and j.details ? 'request_id' and not j.details ? 'answer'
+              and j.started_at > v_at - interval '2 days'
+            order by j.started_at, j.id
+  loop
+    select x.status_code, x.content, x.timed_out, x.error_msg into v_resp from net._http_response x where x.id = r.request_id;
+    if not found then
+      if r.started_at < v_at - interval '6 hours' then
+        update public.job_runs j
+           set status = 'failed', note = 'GitHub''s answer was no longer kept (pg_net keeps 6 hours)',
+               details = j.details || jsonb_build_object('answer', null)
+         where j.id = r.id;
+        v_noted := v_noted + 1;
+      else
+        v_waiting := v_waiting + 1;
+      end if;
+      continue;
+    end if;
+    v_ok := false;
+    if v_resp.status_code = 200 then
+      begin
+        v_res := private.rehearsal_record(v_resp.content::jsonb);
+        v_ok := true;
+        v_new := v_new + (v_res ->> 'added')::int + (v_res ->> 'changed')::int;
+        v_words := 'read GitHub: ' || (v_res ->> 'seen') || ' nightly run(s) listed, ' || (v_res ->> 'added') || ' new, '
+                   || (v_res ->> 'changed') || ' changed';
+      exception when others then
+        v_words := 'GitHub''s answer didn''t read: ' || left(sqlerrm, 200);
+      end;
+    else
+      v_words := case when v_resp.status_code is not null then 'GitHub answered ' || v_resp.status_code
+                      when coalesce(v_resp.timed_out, false) then 'GitHub didn''t answer in time'
+                      else 'GitHub couldn''t be reached: ' || left(coalesce(v_resp.error_msg, 'no answer'), 200) end;
+    end if;
+    update public.job_runs j
+       set status = case when v_ok then 'ok' else 'failed' end, note = v_words,
+           details = j.details || jsonb_build_object('answer', v_resp.status_code) || coalesce(v_res, '{}'::jsonb)
+     where j.id = r.id;
+    v_res := null;
+    v_noted := v_noted + 1;
+  end loop;
+
+  -- 2. ask again: the workflow's latest runs on main, from GitHub's public API, with no key
+  begin
+    v_req := net.http_get(
+      url := c_url,
+      params := jsonb_build_object('branch', 'main', 'per_page', '10', 'exclude_pull_requests', 'true'),
+      headers := jsonb_build_object('Accept', 'application/vnd.github+json', 'X-GitHub-Api-Version', '2022-11-28',
+                                    'User-Agent', 'equinox-rehearsal-read'),
+      timeout_milliseconds := 10000);
+    v_note := 'asked GitHub for the nightly rehearsal''s runs (request ' || v_req || '); its answer is noted at the next read';
+  exception when others then
+    v_status := 'failed'; v_note := 'the read failed: ' || left(sqlerrm, 200); v_req := null;
+  end;
+  perform private.job_run_add('rehearsal_read', null, v_at, v_status, v_note,
+                              case when v_req is not null then jsonb_build_object('request_id', v_req) else '{}'::jsonb end);
+
+  -- 3. the read rows older than 14 days go (the nightly runs' rows stay)
+  delete from public.job_runs j where j.job = 'rehearsal_read' and j.started_at < v_at - interval '14 days';
+
+  return jsonb_build_object('status', v_status, 'request_id', v_req, 'noted', v_noted, 'waiting', v_waiting, 'recorded', v_new);
+end
+$function$
+
+;
+
+-- private.rehearsal_record(p_answer jsonb)
+CREATE OR REPLACE FUNCTION private.rehearsal_record(p_answer jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  c_path constant text := '.github/workflows/database-rehearsal.yml';
+  c_repo constant text := 'giteshjain/equinox';
+  c_runs constant text := 'https://github.com/GiteshJain/Equinox/actions/runs/';
+  r jsonb; v_id bigint; v_attempt int; v_conclusion text; v_status text; v_started timestamptz; v_finished timestamptz;
+  v_min int; v_note text; v_details jsonb; v_row record; v_added int := 0; v_changed int := 0; v_seen int := 0;
+begin
+  if jsonb_typeof(p_answer -> 'workflow_runs') is distinct from 'array' then
+    raise exception 'GitHub''s answer has no list of runs';
+  end if;
+  for r in select x from jsonb_array_elements(p_answer -> 'workflow_runs') x loop
+    -- only the nightly run on main, in this repository: a pull request's run (or a fork's) is never recorded
+    continue when coalesce(r ->> 'path', '') <> c_path
+               or lower(coalesce(r #>> '{repository,full_name}', '')) <> c_repo
+               or lower(coalesce(r #>> '{head_repository,full_name}', '')) <> c_repo
+               or coalesce(r ->> 'head_branch', '') <> 'main'
+               or coalesce(r ->> 'event', '') not in ('schedule', 'workflow_dispatch')
+               or coalesce(r ->> 'status', '') <> 'completed'
+               or coalesce(r ->> 'id', '') !~ '^[0-9]{1,20}$';
+    v_seen := v_seen + 1;
+    v_conclusion := r ->> 'conclusion';
+    v_status := case when v_conclusion = 'success' then 'ok'
+                     when v_conclusion in ('failure', 'timed_out', 'startup_failure', 'action_required') then 'failed' end;
+    -- cancelled (a newer run replaced it), skipped, neutral or stale: nothing to record
+    continue when v_status is null;
+    v_id := (r ->> 'id')::bigint;
+    v_attempt := case when coalesce(r ->> 'run_attempt', '') ~ '^[0-9]{1,6}$' then (r ->> 'run_attempt')::int else 1 end;
+    v_started := coalesce((r ->> 'run_started_at')::timestamptz, (r ->> 'created_at')::timestamptz);
+    v_finished := (r ->> 'updated_at')::timestamptz;
+    v_min := greatest(0, round(extract(epoch from (v_finished - v_started)) / 60))::int;
+    v_note := case when v_status = 'ok' then 'passed: every part on the latest backup, in ' || v_min || ' min'
+                   else 'failed (' || replace(v_conclusion, '_', ' ') || ') after ' || v_min || ' min: the log is on GitHub''s Actions page, run ' || v_id end
+              || case when r ->> 'event' = 'workflow_dispatch' then ' (started by hand)' else '' end
+              || case when v_attempt > 1 then ' (attempt ' || v_attempt || ')' else '' end;
+    v_details := jsonb_build_object('run_id', v_id, 'attempt', v_attempt, 'event', r ->> 'event', 'conclusion', v_conclusion,
+                                    'url', c_runs || v_id,
+                                    'head_sha', case when coalesce(r ->> 'head_sha', '') ~ '^[0-9a-f]{40}$' then r ->> 'head_sha' end);
+    select j.id, j.status, j.details into v_row from public.job_runs j
+     where j.job = 'rehearsal' and j.details ->> 'run_id' = v_id::text
+     order by j.id desc limit 1;
+    if not found then
+      insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
+      values ('rehearsal', null, v_started, v_finished, v_status, (v_started at time zone 'UTC')::date, v_note, v_details);
+      v_added := v_added + 1;
+    elsif v_attempt > coalesce((v_row.details ->> 'attempt')::int, 1) or v_conclusion is distinct from v_row.details ->> 'conclusion' then
+      update public.job_runs j
+         set started_at = v_started, finished_at = v_finished, status = v_status, note = v_note, details = v_details
+       where j.id = v_row.id;
+      v_changed := v_changed + 1;
+    end if;
+  end loop;
+  return jsonb_build_object('seen', v_seen, 'added', v_added, 'changed', v_changed);
+end
+$function$
+
+;
+
 -- private.research_apply(p_world_id bigint, p_doc jsonb)
 CREATE OR REPLACE FUNCTION private.research_apply(p_world_id bigint, p_doc jsonb)
  RETURNS jsonb
@@ -10274,6 +10436,9 @@ begin
   -- the planner's figures stored after every capture (since 11 Nov, spec docs/specs/2026-11-11-stored-figures.md §1):
   -- every minute; most minutes it finds nothing to do
   perform cron.schedule('equinox-figures', '* * * * *', 'select private.figures_refresh()');
+  -- the nightly rehearsal's result read from GitHub (since 15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md):
+  -- every hour at :50
+  perform cron.schedule('equinox-rehearsal-read', '50 * * * *', 'select private.rehearsal_read()');
   return (select jsonb_agg(jsonb_build_object('job', j.jobname, 'schedule', j.schedule, 'command', j.command, 'active', j.active)
                            order by j.jobname)
             from cron.job j where j.jobname like 'equinox-%');
