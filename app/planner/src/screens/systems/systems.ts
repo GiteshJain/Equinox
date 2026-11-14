@@ -9,13 +9,16 @@
 // §3) as the scan, amber over 8 days and red over 15, with the service check's mismatches; usage amber from 70% and red
 // at the trigger; since 10 Nov (spec docs/specs/2026-11-10-unattended-capture.md §3) the unattended capture, green under
 // settings.capture_unattended_warn_h (14) hours since its last good run, amber to 26, red beyond or when its last run
-// failed. Home keeps flagging problems; the
+// failed; since 15 Nov (spec docs/specs/2026-11-15-rehearsal-on-today.md) the nightly database rehearsal on main, green
+// under 36 hours since its last run, amber to 60, red beyond or when its last run failed. Home keeps flagging problems; the
 // board is where "all good" shows.
 import type { BuildStamp } from "../../data/build";
-import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H, unattendedWarnH } from "../today/attention";
+import { ARCHIVE_BY_DAY, BACKUP_BAD_H, BACKUP_LATE_H, CAPTURE_BAD_H, CAPTURE_LATE_H, REHEARSAL_LATE_H, SCHEDULER_LATE_H, SNAPSHOT_BAD_H, SNAPSHOT_LATE_H, unattendedWarnH } from "../today/attention";
 
 export type Mark = "ok" | "warn" | "bad";
 
+/** The nightly rehearsal: red when its last run is this many hours old (amber from REHEARSAL_LATE_H, 36). */
+export const REHEARSAL_BAD_H = 60;
 /** The world scan's age, in days: amber over 8, red over 15. */
 export const SCAN_LATE_D = 8;
 export const SCAN_BAD_D = 15;
@@ -76,12 +79,19 @@ export interface SystemStatus {
   /** The unattended capture (since 10 Nov, spec docs/specs/2026-11-10-unattended-capture.md §3): absent from an older
    *  database. */
   unattended?: SysUnattended | null;
+  /** The nightly database rehearsal on main (since 15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md): absent from
+   *  an older database. */
+  rehearsal?: SysRehearsal | null;
   usage: { key: string; label: string; bytes: number; trigger_bytes: number }[];
 }
 /** The unattended capture as system_status() gives it: Today's setting (settings.capture_unattended_warn_h), its last run
  *  and last good run (job_runs, capture_unattended, written by the GitHub job) and the database's last start of it
  *  (capture_dispatch); each null when there's none. */
 export interface SysUnattended { warn_h?: number | string | null; last: SysJob | null; last_ok: SysJob | null; dispatch?: SysJob | null }
+/** The nightly database rehearsal on main as system_status() gives it: its last run (job_runs, rehearsal, read from GitHub
+ *  every hour) with the run's address, its last good run, and the last read of GitHub (rehearsal_read); each null when
+ *  there's none. */
+export interface SysRehearsal { last: (SysJob & { url?: string | null }) | null; last_ok: { at: string } | null; read: SysJob | null }
 export interface SysMarket { id: number; started_at: string; finished_at: string | null; age_days: number | null; pages_read: number; pages_failed: number; note: string | null }
 /** A stopped scan as system_status() gives it: how far it got against the finished scan before it (private.scan_progress()). */
 export interface ScanStopped {
@@ -262,6 +272,32 @@ export function cleanupLine(c: SysJob | null, now: Date): SysLine {
 }
 
 /** How often the evening capture scans the world, from settings.scan_every_days: "every evening", "every 3 capture days". */
+/** The nightly database rehearsal on main (since 15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md): its last run,
+ *  passed or failed with its note: green under 36 hours, amber to 60, red beyond or when the last run failed; a failed read
+ *  of GitHub adds its words, in amber once the result is late. Before the first result it says so in amber. */
+export function rehearsalLine(r: SysRehearsal | null | undefined, now: Date): SysLine {
+  const label = "Nightly rehearsal (main)";
+  const read = r?.read && r.read.status === "failed" ? `the last read of GitHub (${whenWords(r.read.at)}) failed: ${r.read.note ?? "no note"}` : "";
+  if (!r?.last) {
+    return { key: "rehearsal", label, mark: "warn", when: whenWords(r?.read?.at),
+      text: ["no result yet: GitHub starts it every night (08:43 UTC, often hours late) and the database reads it every hour", read].filter(Boolean).join(" · ") };
+  }
+  const h = hoursSince(r.last.at, now);
+  let mark = ageMark(h, REHEARSAL_LATE_H, REHEARSAL_BAD_H);
+  const parts: string[] = [];
+  if (r.last.status === "failed") {
+    mark = "bad";
+    parts.push(r.last.note ?? "failed");
+    const okH = hoursSince(r.last_ok?.at, now);
+    parts.push(okH == null ? "no good run yet" : `last good run ${agoWords(okH)}`);
+  } else {
+    parts.push(`${r.last.note ?? "passed"} · ${agoWords(h)}`);
+  }
+  if (h != null && h > REHEARSAL_LATE_H) parts.push("no newer result: the run didn't start, or the database couldn't read GitHub");
+  if (read) parts.push(read);
+  return { key: "rehearsal", label, mark, when: whenWords(r.last.at), text: parts.join(" · ") };
+}
+
 export function scanEveryWords(everyDays: number | null | undefined): string {
   const n = everyDays == null || !Number.isFinite(Number(everyDays)) ? null : Number(everyDays);
   if (n == null) return "when one is due (scan_every_days)";
@@ -346,6 +382,7 @@ export function systemLines(s: SystemStatus, build: BuildStamp | null, now: Date
     backupLine(s.backup ?? { last: null, last_good: null }, now),
     archiveLine(s.archive, now),
     cleanupLine(s.cleanup, now),
+    rehearsalLine(s.rehearsal, now),
     scanLine(s.scan, now, scanEveryDays, s.scan_stopped),
     marketLine(s.market, now, serviceMismatches),
     buildLine(build),

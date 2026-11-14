@@ -67,7 +67,7 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    the panel; Systems' first chart opens full size on the panel, and Manual entry's load report (after Read paste of a
    line it doesn't recognise) opens on the panel, is screenshot and is closed and cleared again: nothing is saved.
 6b. The Systems board (#23) at the frozen moment: the first board on Systems, a line for each of our airlines' evening
-   capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, world scan, the planner's build (stamped) and the
+   capture and one each for the unattended capture (since 10 Nov), the snapshot, backup, archive, clean-ups, the nightly rehearsal (since 15 Nov), world scan, the planner's build (stamped) and the
    three usage figures, every one marked green, amber or red (printed). Then a short page made on purpose (#21): half of
    an airline's latest loads page, stored just after the latest capture and judged short, is listed on Today's needs
    attention in the Capture group linking to Systems, Today's capture line says it came in short, and the board marks
@@ -2033,7 +2033,7 @@ async def screens(p, port, env, facts, staff, seen, moment, glass=True):
 
 
 # ---------- 6b. the Systems board, and a short page on Today (decisions #21, #23) ----------
-SYS_FIXED = ["unattended", "snapshot", "backup", "archive", "cleanup", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public", "usage|planner_figures"]
+SYS_FIXED = ["unattended", "snapshot", "backup", "archive", "cleanup", "rehearsal", "scan", "market", "build", "usage|database", "usage|report_pdfs", "usage|site_public", "usage|planner_figures"]
 SYS_LINES = """[...document.querySelectorAll('[data-figure="systems: board"] .sysline')].map(li => ({ key: li.dataset.sys, mark: li.dataset.mark,
     label: (li.querySelector('.syslabel') || {}).textContent || '', when: (li.querySelector('.syswhen') || {}).textContent || '',
     text: (li.querySelector('.systext') || {}).textContent || '', dot: !!li.querySelector('.sysmark.' + li.dataset.mark) }))"""
@@ -2048,7 +2048,7 @@ async def open_systems(ph):
 
 async def systems_board(p, port, env, facts, staff, seen, moment):
     """The Systems board (#23) on the copy at the frozen moment: at the top of Systems, open, one line for each of our
-    airlines' evening capture and one each for (since 10 Nov) the unattended capture, the snapshot, the backup, the archive, the clean-ups, the world scan, (since
+    airlines' evening capture and one each for (since 10 Nov) the unattended capture, the snapshot, the backup, the archive, the clean-ups, (since 15 Nov) the nightly rehearsal, the world scan, (since
     30 Oct) the market pages, the planner's build (stamped by the build) and the three usage figures, every one with a green, amber or red mark. The
     lines and their marks are printed (names, marks, dates and sizes only). Since 22 Oct the fixed lines are tiles, worst
     first, and the captures a table under them."""

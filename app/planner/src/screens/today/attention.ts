@@ -19,7 +19,9 @@
 // code, then against the planner's), each linking to the route's page; and since 10 Nov (spec
 // docs/specs/2026-11-10-unattended-capture.md §3) the unattended capture: its last good run more than
 // settings.capture_unattended_warn_h (14) hours old, in the Capture group (nothing before its first good run, so nothing
-// nags while it's set up), and its failed run or failed start with the other jobs (the start's only once it has run well).
+// nags while it's set up), and its failed run or failed start with the other jobs (the start's only once it has run well);
+// and since 15 Nov (spec docs/specs/2026-11-15-rehearsal-on-today.md) the nightly database rehearsal on main, read from
+// GitHub into job_runs (rehearsal): a failed night with the other jobs, and no result for 36 hours (nothing before its first).
 // This file only words them. Monthly checks have none since 8 Oct, as
 // in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
@@ -76,6 +78,10 @@ export function unattendedWarnH(value: unknown): number {
   const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
   return typeof n === "number" && Number.isFinite(n) && n > 0 ? n : UNATTENDED_WARN_H;
 }
+/** The nightly database rehearsal on main (since 15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md): GitHub's timer
+ *  starts it 6 to 9 hours late but daily, so no result for this many hours means a night was missed (or the database
+ *  couldn't read GitHub: the Systems board says which). */
+export const REHEARSAL_LATE_H = 36;
 /** The day of the month by which the archive should have run. */
 export const ARCHIVE_BY_DAY = 3;
 /** A route-profit mark as the old planner words it (RP_SIG). */
@@ -84,6 +90,7 @@ export const MARK_WORDS: Record<FixRoute["mark"], string> = { losing: "losing mo
 const JOB_NAME: Record<string, string> = {
   snapshot: "Daily snapshot", snapshot_fallback: "10:00 UTC snapshot job", cleanup: "Clean-up (10:20 UTC)", archive: "Monthly archive",
   capture_unattended: "Unattended capture", capture_dispatch: "Unattended capture's start (09:30 and 21:30 UTC)",
+  rehearsal: "Nightly database rehearsal (main)",
 };
 
 /** Needs attention's words for an airline's capture judged short or broken (#21): what came in short, from the database's
@@ -276,6 +283,12 @@ export function homeAttention(x: AttentionInput): AttItem[] {
       const h = ago(unattendedOk.started_at);
       items.push({ key: "capture|unattended|" + today, cls: h > CAPTURE_LATE_H ? "bad" : "warn", screen: "systems",
         text: `Unattended capture: last good run ${Math.round(h)} hours ago` });
+    }
+    // the nightly rehearsal on main (since 15 Nov): no result for 36 hours; nothing before its first (a failed one is below)
+    const rehearsal = J.find((j) => j.job === "rehearsal" && j.status !== "running");
+    if (rehearsal && ago(rehearsal.started_at) > REHEARSAL_LATE_H) {
+      items.push({ key: "jobs|rehearsal|" + today, cls: "warn", screen: "systems",
+        text: `Nightly database rehearsal: no result from main for ${Math.round(ago(rehearsal.started_at))} hours (the run didn't start, or the database couldn't read GitHub: see Systems)` });
     }
     const last = new Map<string, JobRun>();   // each job's last run; the archive's per table and month
     for (const j of J) {

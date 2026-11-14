@@ -202,7 +202,9 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   - **Nightly jobs** (#13): the daily snapshot more than 30 hours old, the 10:00 UTC job not run for 30 hours (the
     database's scheduler may have stopped), the month's archive not run by the 3rd, or any job whose last run failed,
     with its note; since 10 Nov that includes the unattended capture's run, and its start (the database asking GitHub)
-    once it has run well;
+    once it has run well; since 15 Nov the nightly database rehearsal on `main` too: a failed night ("Nightly database
+    rehearsal (main): the last run failed …", with the run's number), and, in amber, no result for 36 hours (the run
+    didn't start, or the database couldn't read GitHub);
   - to-dos due or overdue (the one-week aircraft checks went on 22 Oct: manual §1 has none since 15 Oct);
   - maintenance, turns and positions, night bans, flight numbers used twice. Since 23 Oct maintenance follows the same
     source as Tails and Home's airline cards: an aircraft on last night's fleet pages is judged on the game's figure, so
@@ -926,6 +928,11 @@ Each button is saved on its own, as one change.
     54 or when the last run failed.
   - **Monthly archive:** whether it ran this month; amber from the 3rd if it hasn't, red if a table and month failed.
   - **Clean-ups (10:20 UTC):** the last run; amber after 30 hours, red after 54 or when it failed.
+  - **Nightly rehearsal (main)** (since 15 Nov, spec docs/specs/2026-11-15-rehearsal-on-today.md): the last nightly
+    database rehearsal on `main`, as the database reads it from GitHub every hour: passed ("passed: every part on the
+    latest backup, in 13 min · 20 hours ago") or failed with the run's number (its log is on GitHub's Actions page) and
+    the last good run; green under 36 hours, amber to 60, red beyond or when it failed. A failed read of GitHub adds its
+    words. Before the first result it says "no result yet", in amber.
   - **World scan:** its age, and that it runs with the evening capture when one is due ("every evening
     (scan_every_days 1)", since 21 Oct; Reference → Constants changes it); amber over 8 days, red over 15, when it
     adds "capture again while it's due, or gscan.py by hand". Since 22 Oct, when a scan stopped part-way (the phone

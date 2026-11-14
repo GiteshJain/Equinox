@@ -94,8 +94,9 @@ Details and open points: `docs/decisions.md`.
   reads a saved evening of each capture page kind and replays every kept capture page, each evening judged ok (#21),
   and when there are changes to apply it backs the copy up and restores it as the nightly job does; a change to
   documents only runs none of it. *(since 11 Nov; history: rule-history.md)* Every night the whole rehearsal, every
-  part, runs on `main` on the latest backup, and GitHub emails when it fails. *(since 11 Nov; history:
-  rule-history.md)*
+  part, runs on `main` on the latest backup; the database reads each night's result from GitHub every hour into
+  `job_runs`, so a failed night shows on Today and the Systems board (§7), and GitHub also emails when it fails.
+  *(since 11 Nov; on Today since 15 Nov; history: rule-history.md)*
   **Claude never asks for, or makes, a merge while any check is red.** Every bug fixed gets a test. When a change is
   meant to move a number, the pull request updates the saved answers and says which moved and why. How to run and
   update them: `tests/README.md`. *(since 8 Oct; history: rule-history.md)*
@@ -818,12 +819,14 @@ Details and open points: `docs/decisions.md`.
   before).
 - **Every job writes a row to `job_runs`,** and the planner's Today warns when the last good backup is more than 30 hours
   old, the latest snapshot is more than 30 hours old (or the 10:00 UTC job hasn't run for 30 hours: the scheduler may
-  have stopped; restart it from Supabase's settings), the month's archive hasn't run by the 3rd, or any job's last run
-  failed. *(since 11 Oct; history: rule-history.md)*
+  have stopped; restart it from Supabase's settings), the month's archive hasn't run by the 3rd, the nightly database
+  rehearsal on `main` has no result for 36 hours, or any job's last run failed. *(since 11 Oct; the rehearsal since
+  15 Nov; history: rule-history.md)*
 - **The Systems board, at the top of Systems** (#23), is where "all good" shows: one line each, green, amber or red, for
   each airline's evening capture (when, and its verdict), the daily snapshot (taken by the capture, or by the fallback
   and so incomplete), the nightly backup (last good copy, restore check, size), the monthly archive (this month's
-  state, due by the 3rd), the clean-ups, the world scan's age (amber over 8 days, red over 15), the planner's own build
+  state, due by the 3rd), the clean-ups, the nightly database rehearsal on `main` (green under 36 hours, amber to 60,
+  red beyond or when it failed; *since 15 Nov*), the world scan's age (amber over 8 days, red over 15), the planner's own build
   (the time and change it was built from: after a merge, a time that hasn't moved means the deploy failed), and the
   usage the database can measure against its triggers (§1): database size (350 MB), the report PDFs in `site_reports`
   (50 MB) and the size of `site_public()` (500 KB), amber from 70%, red at the trigger. The marks use needs attention's

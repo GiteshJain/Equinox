@@ -18,7 +18,8 @@ and `planner_figures_state` (one row per world: the generation the planner shoul
 worked out from, the route pages done of the routes flown, the last error). RLS on, staff read only, nothing for anon;
 written only by `private.figures_refresh()` and `private.figures_routes()`, run by a fifth job on `pg_cron`,
 `equinox-figures`, every minute (the others: the 10:00 UTC snapshot fallback, the 10:20 UTC clean-ups, and the
-unattended capture's start and its answer). Only the latest set is kept, replaced in place: about 5 MB of figures and 21
+unattended capture's start and its answer; since 15 Nov also `equinox-rehearsal-read`, every hour at :50, the
+nightly rehearsal's result read from GitHub: `docs/map/checks.md`). Only the latest set is kept, replaced in place: about 5 MB of figures and 21
 MB of route pages before compression, up to about twice that with the dead rows autovacuum hasn't reused yet;
 `system_status()`'s usage lists the table's size (amber from 50 MB). Settings `figures_capture_quiet_min` (5),
 `figures_route_budget_s` (40) and `figures_landing_max_min` (30, for the planner's landing page in part 2).
