@@ -41,8 +41,22 @@ Nothing breaks. Salaries are checked only when he presses.
 If the salary step has been watched working on many presses, B is a reasonable shortcut.
 
 ## Outcome
-**C** (Gitesh, 15 Nov, Main chat): "I think it can read the average salaries of a country from the countries page".
-The limit is a cross-check: a salary is set only when the country page's average for that position agrees with the
-Employee overview's, and never above the country page's average plus the setting's 5%. Then
-`settings.unattended_salaries` goes to true. The build is to-do 244; manual §7 changes with its pull request, not
-before.
+**Not C as first recorded.** The Main chat took Gitesh's "I think it can read the average salaries of a country from the
+countries page" (15 Nov) as a check before a salary is set, and recorded C that way (to-do 244). He corrected it the
+same sitting: "Capture sets the salaries like it normally does but stores what the salary [is] for each employee for
+each airline. The capture also reads the average salaries from country page. Then we have a table or something which
+compares both and if numbers differ by [more] than 1% on either direction it [shows] in the [planner]".
+
+**Decided (Gitesh, 15 Nov, Main chat):**
+- **A salary table in the planner.** The capture stores each airline's salary for each position and the country page's
+  average for each position. The planner compares our salary with the target (the country page's average plus
+  `settings.salary_above_average_pct`, 5%) and flags a position more than 1% under or over it. The build is to-do 245.
+- **The capture does not lower salaries yet** ("A1"). He lowers the ones above target by hand (to-do 246). Why not
+  automatic: our own staff are part of each country's average, so always moving to the average plus 5% feeds itself
+  where we are a big employer (at half a country's staff in a position it settles about 10.5% above the others), and
+  the nightly "everyone to 10% above" was stopped on 10 Oct on that suspicion (rule history).
+- **Still open,** to bring back once the table has run about a week: whether the unattended runs set salaries too
+  (this brief's first question), and whether the capture may lower.
+
+Nothing is in force until to-do 245 is built: manual §7's salary rule, "Nothing about salaries is stored" included,
+stands until its pull request.
