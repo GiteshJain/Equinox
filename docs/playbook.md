@@ -332,9 +332,8 @@ fares). Fare moves are only ever reviewed here, never as Needs attention.
    Saturday of the month it adds a page on the month just ended.
 3. **The connection audit** across all hubs: valid connections, near misses, and the small retimes that would make
    more connect (how small: manual §7).
-4. **The newsroom roundups:** one post per airline of its new routes and extra flights since the last one, written by
-   the newsroom rules (manual §8, newsroom posts read like a real airline's; what the newsroom posts). No posts for new
-   aircraft.
+4. **The newsroom roundups** are not a step of the session: the scheduled task publishes them that morning (manual
+   §7, §8). Read them in the website's newsroom; tell Claude if one reads wrong.
 5. **The weekly review together** (the fare plan is done already, above):
    - **Competition** (since 21 Oct): each airline's market share against last week's scan, the threats of the week
      (Today listed each evening's), and the top openings the evening proposals are working down (Competition → the

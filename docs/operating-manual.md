@@ -184,7 +184,7 @@ Details and open points: `docs/decisions.md`.
   | Chat | Covers |
   |---|---|
   | Scheduling | Aircraft that have arrived, plan cards, retimes, route choices, what and when to order, interline requests |
-  | Saturday review | Every Saturday: the world scan's age (the scan runs with the evening capture; `gscan.py` by hand if it's old), weekly report, connection audit, the airlines' newsroom roundups, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
+  | Saturday review | Every Saturday: the world scan's age (the scan runs with the evening capture; `gscan.py` by hand if it's old), weekly report, connection audit, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 
   **On trial from 11 Nov, judged on 18 Nov** (brief `docs/briefs/2026-11-11-main-chat.md`; to-do 229): one **Main**
@@ -775,13 +775,18 @@ Details and open points: `docs/decisions.md`.
     month's decisions). *(since 5–8 Oct; from scratch each week since 11 Nov; history: rule-history.md)*
   - the connection audit across all hubs (valid connections, near misses, and retimes of 30 minutes or less;
     *since 27 Oct, brief `docs/briefs/2026-10-27-connection-waits.md`*);
-  - one newsroom roundup per airline of its new routes and extra flights (§8);
   - the weekly review together: aircraft under 12 block hours a day (§4), orders and
     hubs first, interline partners (§6: any that became a top-3 competitor or hub carrier, airports without one), and
     the shared pairs (§2; Performance's Shared pairs row): both airlines' flights, loads and level together, and a joiner whose flights
     don't fill while the owner's do is a frequency to take away, not a price to cut.
 
   *(since 5–8 Oct)*
+- **Every Saturday at 03:43 UTC (09:13 in India), the newsroom roundups, by themselves:** a scheduled task in Gitesh's
+  Claude account ("Newsroom roundups"; not in the database or on GitHub) reads what each airline has added since its
+  last roundup, writes one post per airline by the newsroom rules (§8) and publishes it (`site_admin()`; `site_posts`
+  with `auto` true), with nobody watching. It changes nothing else. A Saturday it misses is made up by the next run,
+  which takes everything since the airline's last roundup. Its instructions are the task's own prompt, so a change to
+  the newsroom rules is made there too. *(on trial 14 Nov, kept 15 Nov, Gitesh; history: rule-history.md)*
 - **Every minute, the stored figures** (`pg_cron` job `equinox-figures`, `private.figures_refresh()`): when no capture
   is running and a capture, world scan or market run has landed (or a planner save is over a minute old), every figure
   the planner shows is worked out again at one moment and stored as a new set (about 30 s; one `job_runs` row, job
@@ -835,8 +840,10 @@ Details and open points: `docs/decisions.md`.
 - **Newsroom posts read like a real airline's:** no cabins, bank timings or other internal detail, and no references to
   the game. *(since 5 Oct)*
 - **What the newsroom posts:** one roundup per airline each Saturday, covering its new routes and extra flights since
-  the last one (Saturday review chat). No post for an airline with nothing new. No posts for new aircraft. *(since
-  17 Oct; history: rule-history.md)*
+  the last one, written and published by the scheduled task (§7). A number in a headline counts only the routes from
+  the city it names. A city the airline already flew to is never "opened": when it starts routes from there, it opens
+  a base in the city. No post for an airline with nothing new. No posts for new aircraft. *(since 17 Oct; by the
+  scheduled task, and the two headline rules, since 15 Nov; history: rule-history.md)*
 - **gander monthly** covers the whole Gander world impartially, without claiming to be impartial. It is marked as made
   by AI and published openly on the website. *(since 5–6 Oct)*
 - **Brand:** "equinox." — lowercase, with the full stop. Real airline names and logos, with a fan-project disclaimer in

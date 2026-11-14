@@ -38,6 +38,23 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The newsroom roundups by a scheduled task: kept 15 Nov
+*Gitesh, 15 Nov (Main chat), after the first six went out on Sat 14 Nov, 03:44 UTC: "keep it with the fix".* On trial
+since 11 Nov (to-do 227). §8's *What the newsroom posts* read, word for word: "one roundup per airline each Saturday,
+covering its new routes and extra flights since the last one (Saturday review chat). No post for an airline with
+nothing new. No posts for new aircraft." §7's Saturday list had the step "one newsroom roundup per airline of its new
+routes and extra flights (§8);", and §1's chat table gave the Saturday review "the airlines' newsroom roundups". The
+task now writes and publishes them, §7 has a line of its own for it, and the Saturday list and the chat table no longer
+name them · why: the Saturday work was done on a Saturday once in five weeks (below), and the roundups waited with it.
+The first six passed the newsroom rule, and all 33 new routes they named were flying (first flights 4 to 11 Nov,
+`game_flights`; the extra flights they named were not checked). The fix: two headlines overclaimed. "Pan Am opens
+Dallas-Fort Worth with six new routes" had three of the six from Dallas, and "Kingfisher opens Kolkata and Hyderabad
+with 10 new routes" had six of the ten from those two; Pan Am had flown to Dallas since 17 Oct and Kingfisher to both
+cities since 7 Oct, so each was new only as a base. §8 now says a headline's number counts only the routes from the
+city it names, and that a city already flown to is never "opened". The task's prompt says the same, and asks for
+wording that varies between airlines and weeks (all six followed one pattern). The task runs on Sonnet 5.5 (its own
+setting, read on 15 Nov), not on the model of the chat that made it, as the 11 Nov handover said.
+
 ### The glass look for everyone, its checks in their final form: 12 Nov
 *Gitesh, 11 Nov (Main chat, brief `docs/briefs/2026-11-11-glass-look.md`, decision 1, option A: the last step switches
 the look on for everyone and removes the old one; spec `docs/specs/2026-11-11-glass-look.md`, step 6) · why: with one
@@ -1072,7 +1089,7 @@ The Systems board, at the top of Systems (#23; of Check until 20 Oct). The world
 ### 8. Writing, website and newsroom
 
 #### What the newsroom posts
-*Roundups per airline since 17 Oct · why (Gitesh): one post per airline reads like each airline's own news. No delivery posts since 20 Oct (Gitesh).*
+*Roundups per airline since 17 Oct · why (Gitesh): one post per airline reads like each airline's own news. No delivery posts since 20 Oct (Gitesh). Written by the scheduled task since 15 Nov (above).*
 
 ### 9. Game rules and mechanics (Gander)
 
@@ -1175,6 +1192,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 15 Nov | The Saturday review chat writes each airline's newsroom roundup, as a step of the Saturday session | A scheduled task writes and publishes them by itself every Saturday at 03:43 UTC (§7, §8). Why: Gitesh, 15 Nov, after the trial's first six; the Saturday session often slipped and the roundups waited with it |
 | 5 Nov | A separate salary script, "Salaries: this airline" (`capture/salary_adjust.user.js`), run by hand on one airline at a time, setting every position to 10% above the country average | The evening capture checks every position of each airline: below its country average it is set to `salary_above_average_pct` (5%) above it, at or above it is left alone, never lowered (§7). Why: Gitesh, 4 Nov, positions could sit below the average between presses; brief `docs/briefs/2026-11-04-salaries-in-capture.md` |
 | 4 Nov | A direction's captured fares read against its fare on 21 Oct (or a later route's first fare), taken as its launch level, for the fare index and the set-back; the market pages read by nothing in the fare ladder | Against the game's default price where the market pages have read the direction (each week), the first captured fare only where they haven't yet; the levels and moves unchanged (§5, §7). Why: Gitesh, a direction first captured at another price had every level after it wrong (Ryanair's CDG–Hamburg read 72% against 85%); spec `docs/specs/2026-11-04-fare-default-from-market.md` |
 | 29 Oct | The trunk month from 1 to 30 November (`trunk_month_from` 2026-11-01) | From 29 Oct to 30 Nov (§4). Why: Gitesh, start the trunks now; brief `docs/briefs/2026-10-29-trunk-month-today.md` |
