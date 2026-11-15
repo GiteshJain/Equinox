@@ -89,7 +89,8 @@ begin
   -- 20261105000000 (shared pairs: shared_pairs_excluded_airlines, shared_pairs_from, shared_pairs_limit,
   -- shared_pairs_limit_days) adds and the four 20261110040000 (the unattended capture: unattended_salaries,
   -- unattended_scan, unattended_market, capture_unattended_warn_h) adds and the three 20261111020000 (the stored figures:
-  -- figures_capture_quiet_min, figures_route_budget_s, figures_landing_max_min) adds, which
+  -- figures_capture_quiet_min, figures_route_budget_s, figures_landing_max_min) adds and the one 20261115140000 (the
+  -- world scans' clean-up: scan_keep_days) adds, which
   -- are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
@@ -115,7 +116,7 @@ begin
                              'interline_reply_wait_days', 'shared_pairs_excluded_airlines', 'shared_pairs_from',
                              'shared_pairs_limit', 'shared_pairs_limit_days', 'salary_above_average_pct',
                              'unattended_salaries', 'unattended_scan', 'unattended_market', 'capture_unattended_warn_h',
-                             'figures_capture_quiet_min', 'figures_route_budget_s', 'figures_landing_max_min'] loop
+                             'figures_capture_quiet_min', 'figures_route_budget_s', 'figures_landing_max_min', 'scan_keep_days'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

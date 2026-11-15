@@ -7669,9 +7669,11 @@ begin
   tot as (select coalesce(sum(lt.weekly), 0)::int as rivals from lt),
   -- each rival's one-stop departures on the pair at each scan read (since 23 Oct, spec
   -- docs/specs/2026-10-23-rival-connections.md §3), both ways, by connecting airport; shown beside direct, never added.
-  -- Only the scans they were worked out for (a row in scan_rival_connections_week)
+  -- Only the scans they were worked out for (a row in scan_rival_connections_week) that still have their detail (since
+  -- 15 Nov the nightly clean-up deletes it after settings.scan_keep_days, keeping the week's kept scan's by-week rows)
   cs as (select s.scan_id from (select unnest(coalesce(v_ids, '{}'::bigint[])) as scan_id) s
           where exists (select 1 from public.scan_rival_connections_week c where c.scan_id = s.scan_id)
+            and exists (select 1 from public.scan_rival_connections c where c.scan_id = s.scan_id)
             and not exists (select 1 from wk where wk.scan_id = s.scan_id)),
   cn as materialized (
     select c.scan_id, c.airline_id, coalesce(ra.public_name, ra.game_name, ra.planner_name, 'airline ' || c.airline_id) as name,
@@ -8668,7 +8670,7 @@ AS $function$
 declare
   v_at timestamptz := coalesce(p_at, now()); v_cut timestamptz := coalesce(p_at, now()) - interval '14 days'; w record;
   t0 timestamptz; n_raw int; v_on boolean; n_old bigint; n_tied bigint; n_paid bigint; n_del int; v_status text;
-  v_note text; v_details jsonb; v_out jsonb := '[]'::jsonb;
+  v_note text; v_details jsonb; v_scan jsonb; v_out jsonb := '[]'::jsonb;
 begin
   perform set_config('equinox.actor', 'job', true), set_config('equinox.actor_detail', 'cleanup', true);
   for w in select x.id from public.worlds x
@@ -8710,9 +8712,18 @@ begin
         v_note := format('statement lines: %s deleted (older than 14 days; %s in game_flights, %s in game_payments)', n_del, n_tied, n_paid);
       end if;
       v_note := format('raw pages: %s deleted (older than 14 days); ', n_raw) || v_note;
+      -- the world scans (since 15 Nov, spec docs/specs/2026-11-15-scan-cleanup.md): in a block of its own, so a failure
+      -- there undoes only its own deletes, fails the run and says so
+      begin
+        v_scan := private.scan_cleanup(w.id, v_at);
+      exception when others then
+        v_status := 'failed';
+        v_scan := jsonb_build_object('scan_enabled', null, 'note', 'world scans: failed, nothing deleted: ' || sqlerrm);
+      end;
+      v_note := v_note || '; ' || (v_scan ->> 'note');
       v_details := jsonb_build_object('before', v_cut, 'raw_deleted', n_raw, 'statement_enabled', v_on,
                                       'statement_old', n_old, 'statement_in_flights', n_tied, 'statement_in_payments', n_paid,
-                                      'statement_deleted', n_del);
+                                      'statement_deleted', n_del) || (v_scan - 'note');
       insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
       values ('cleanup', w.id, t0, clock_timestamp(), v_status, private.capture_day(w.id, v_at), v_note, v_details);
       v_out := v_out || jsonb_build_object('world_id', w.id, 'status', v_status, 'note', v_note) || v_details;
@@ -9840,6 +9851,56 @@ begin
        and not exists (select 1 from public.groups g where g.id = a.group_id and g.kind = 'ours');
   end if;
   return v_id;
+end
+$function$
+
+;
+
+-- private.scan_cleanup(p_world_id bigint, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.scan_cleanup(p_world_id bigint, p_at timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare
+  v_at timestamptz := coalesce(p_at, now()); v_days int; v_cut timestamptz; v_latest timestamptz; v_before timestamptz;
+  v_kept bigint[]; n_conn int := 0; n_week int := 0; n_airports int := 0;
+begin
+  select (s.value #>> '{}')::numeric::int into v_days from public.settings s
+   where s.world_id = p_world_id and s.airline_id is null and s.key = 'scan_keep_days' and jsonb_typeof(s.value) = 'number';
+  if v_days is null or v_days < 1 then
+    return jsonb_build_object('scan_enabled', false,
+                              'note', 'world scans: switched off (no settings.scan_keep_days), nothing deleted');
+  end if;
+  v_cut := v_at - make_interval(days => v_days);
+  -- the latest finished scan, and every scan after it, are never touched whatever their age
+  select max(s.taken_at) into v_latest from public.game_scans s where s.world_id = p_world_id and s.status = 'done';
+  v_before := least(v_cut, coalesce(v_latest, v_cut));
+  -- the week's kept scans among those older: rows in scan_pair_airlines (private.scan_pairs_keep()), or the first
+  -- finished scan of its week (on or after its Saturday, private.scan_week()), in case that keep never ran
+  select coalesce(array_agg(s.id order by s.id), '{}') into v_kept
+    from public.game_scans s
+   where s.world_id = p_world_id and s.taken_at < v_before
+     and (exists (select 1 from public.scan_pair_airlines k where k.scan_id = s.id)
+          or (s.status = 'done'
+              and not exists (select 1 from public.game_scans g
+                               where g.world_id = p_world_id and g.status = 'done'
+                                 and private.scan_week(g.taken_at) = private.scan_week(s.taken_at)
+                                 and (g.taken_at < s.taken_at or (g.taken_at = s.taken_at and g.id < s.id)))));
+  delete from public.scan_rival_connections c using public.game_scans s
+   where s.id = c.scan_id and s.world_id = p_world_id and s.taken_at < v_before;
+  get diagnostics n_conn = row_count;
+  delete from public.scan_rival_connections_week c using public.game_scans s
+   where s.id = c.scan_id and s.world_id = p_world_id and s.taken_at < v_before and s.id <> all (v_kept);
+  get diagnostics n_week = row_count;
+  delete from public.scan_airline_airports c using public.game_scans s
+   where s.id = c.scan_id and s.world_id = p_world_id and s.taken_at < v_before and s.id <> all (v_kept);
+  get diagnostics n_airports = row_count;
+  return jsonb_build_object(
+    'scan_enabled', true, 'scan_keep_days', v_days, 'scan_before', v_before, 'scan_kept', to_jsonb(v_kept),
+    'scan_connections_deleted', n_conn, 'scan_week_deleted', n_week, 'scan_airports_deleted', n_airports,
+    'note', format('world scans older than %s days: %s connection, %s by-week and %s airport rows deleted (the weeks'' kept scans keep their summaries)',
+                   v_days, n_conn, n_week, n_airports));
 end
 $function$
 

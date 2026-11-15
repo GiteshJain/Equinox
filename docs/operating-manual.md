@@ -807,13 +807,18 @@ Details and open points: `docs/decisions.md`.
   - **10:20 UTC, the clean-ups:** raw capture pages older than 14 days are deleted. Statement lines older than 14 days
     are deleted only while `settings.statement_cleanup_enabled` is true, and only once every one is in `game_flights`
     or `game_payments`. Switched on 5 Nov, after the Building chat checked the per-flight backfill on live (every line
-    older than 14 days was in one of them).
+    older than 14 days was in one of them). Since 15 Nov the world scans too: a scan older than
+    `settings.scan_keep_days` (14) days loses its rivals' connections (`scan_rival_connections`), and its rows in the
+    two summary tables (`scan_rival_connections_week`, `scan_airline_airports`) unless it is the week's kept scan (the
+    first finished scan on or after each Saturday). The latest finished scan is never touched, whatever its age. The
+    note gives each count. *(since 15 Nov; history: rule-history.md)*
 - **Every night, after the backup: the monthly archive.** Detail more than one full calendar month old (each flight,
   payments ahead, world-scan schedules and airport pages; the change log after 12 months) is exported to R2 and to
   that month's release in `equinox-backups`, both copies are read back and checked, and only then deleted, through a
   guarded database function that refuses anything else. Only the first night on or after the 1st has work to do
   (October leaves on 1 December); a month that fails is tried again the next night. The daily history (`airline_days`,
-  `route_days`) and the scan summaries stay for good, and so do each week's rivals by pair: from the first finished scan
+  `route_days`) stays for good, and so do the week's kept scan's summaries (the clean-ups above) and each week's
+  rivals by pair: from the first finished scan
   on or after each Saturday, every airline's weekly departures on every pair (`scan_pair_airlines`, since 23 Oct), so a
   route's *Rivals on the pair* reaches back past the archive (every evening's scan for the last month, weekly points
   before).
