@@ -344,8 +344,8 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
 - **The list as a table:** registration and base, type, cabin, legs a week, block hours a day, maintenance and the
   routes it flies (cut short; the full list on hover). On a phone each aircraft is a compact row (registration and
   base, block hours, maintenance); the arrow opens the rest and **remove**.
-- **Deliveries:** tap a row to open its plan card (or **card**). The card's head shows the type, cabin and number of
-  flights as pills.
+- **Deliveries:** tap a row to open its plan card (or **card**). The card's head shows the tail and hub, the type as
+  a pill and the cabin.
 - **An aircraft's page:** its registration as the title, its figures as pills, its fields in two groups (the aircraft;
   notes), then Issues, The week and Flights.
 - **The list:** one airline at a time; filters for **Base**, **Type** and **Flying**, **No flights** or **Needs a look**
@@ -371,15 +371,21 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   may have (Reference), and the cabins its kind of airline's.
 - **Deliveries:** every aircraft with a delivery, for the airline and the base and type picked above: **Open** (on
   order, or arrived and not scheduled), **On order**, **Arrived** or **Flying**, each with its date and time (UTC),
-  base, plan and status; **card** opens its plan card in its own window, the rest of the screen dimmed (title, base,
-  its cabin, each flight's number, route, times, block and service; × or Escape closes it). An airport where the
+  base, plan and status; **card** opens its plan card in its own window, the rest of the screen dimmed (× or Escape
+  closes it). Since 15 Nov (to-do 242) the card shows only what you set an aircraft up with: the tail, hub, type and
+  cabin, and each flight's number, route, days (a line's card), departure, arrival and service code, with the **Cabin**
+  box and **File into planner**. Everything else is under its one **More** line, closed: the plan's title and flight
+  count, the line, the note, the cabin's suggestion with **Use the suggestion**, block times and the **Fare level**
+  column. When something under **More** needs a look (a cabin that differs from the suggestion), the line says so,
+  **1 to check**, so a card with no count has nothing to fix. A wrong service code and **no cabin chosen** stay on the
+  card in red. An airport where the
   airline has no station yet is highlighted on the card: any airport the airline has no active route to (since 22 Oct its bases and point-to-point stations don't count until it flies there). The card's cabin is chosen with its routes: until the aircraft is filed, the card's **Cabin** box sets
-  it, and the card says **no cabin chosen** while neither the card nor the order names one. Beside the box (since
+  it, and the card says **no cabin chosen** while neither the card nor the order names one. Under **More** (since
   21 Oct, manual §5) the card says which cabin the rule calls for, **suggested: 321-LP**, with the reason (since 26 Oct
   by distance: "3,500–6,500 km is 72% of block time: Leisure Plus", or "no distance range over 65%: the most seats";
   Ryanair Standard only), and **Use the
-  suggestion** sets it in one tap; a cabin that differs from the suggestion shows in amber. Since 21 Oct (manual §5)
-  the card's **Fare level** column gives the fare level of each route it flies, from the fare ladder; since 26 Oct
+  suggestion** sets it in one tap; a cabin that differs from the suggestion shows in amber there and is counted on the
+  **More** line. Since 21 Oct (manual §5) the card's **Fare level** column (under **More** since 15 Nov) gives the fare level of each route it flies, from the fare ladder; since 26 Oct
   once per direction, on the first leg that way, each its own direction's level (out from the route's hub, back to it): "economy +10%, business +5% of the default price" for a route the airline flies (this week's new
   level once the move is on the fare plan), "launch (+0% of the default price)" for one it doesn't yet (Ryanair
   −15%). Since 4 Nov a cabin whose default price the market pages have read also shows its level in AS$: "economy +5%
