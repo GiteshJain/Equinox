@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.16
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Since 1.16 it reads the whole bank statement (every page of the game's last 24 hours) and sends it in parts of at most 500 lines. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
+// @version      1.17
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Since 1.16 it reads the whole bank statement (every page of the game's last 24 hours) and sends it in parts of at most 500 lines. Since 1.17 it takes new versions from its update address (GitHub, main) and keeps the capture key in the userscript app's own storage, asked for once; an out-of-date copy stops before doing anything. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
+// @updateURL    https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js
+// @downloadURL  https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js
 // @match        https://gander.airlinesim.aero/*
-// @grant        none
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @grant        GM.deleteValue
 // ==/UserScript==
 // The capture (manual §7) is as it was in 1.4: the same pages, sent the same way, with the same verdicts. Since 1.5 (spec
 // docs/specs/2026-10-21-scan-in-capture.md) it also scans the world after our airlines when capture_airlines() says a
@@ -41,6 +45,12 @@
 // no clicking: every salary box on the game's page is named "amount", so 1.12–1.14 found the first row's box for every
 // position and set the E-jet pilots' salary three times while the two positions below (A320 pilots, flight attendants)
 // were never touched. Tested on the real page Gitesh saved (tests/fixtures/employee_overview_KF_2026-11-09.html).
+// 1.17 (15 Nov, to-do 247, spec docs/specs/2026-11-15-self-updating-scripts.md): the script updates from its @updateURL
+// (the raw file on main; Tampermonkey on the Mac installs it by itself, the Userscripts app on a tap), and the key is no
+// longer in the text on Gitesh's Mac: the first press asks for it in prompt() and keeps it with GM.setValue, so the
+// script now runs in the app's own sandbox (@grant) where the game's page can't read it. Each press first checks the
+// update address and stops, doing nothing, when a newer version is out; a run started by another version stops on its
+// next page. The unattended run fills the placeholder as before and never touches GM. tests/userscript_key_test.mjs.
 // 1.16 (10 Nov, spec docs/specs/2026-11-10-whole-statement.md): the bank statement is read to its last page (the date stop
 // at 26 hours before the capture, was 3 days; a safety stop at 60 pages, said in the panel), where 1.4 to 1.15 stopped at
 // 15 pages, 1,500 lines (Ryanair's runs to page 24). It is sent in parts of at most 500 lines, a part ending only between
@@ -62,8 +72,97 @@
 (function (root) {
   "use strict";
 
+  // ---------------------------------------------------------------- the key and the version (shared block)
+  // The same lines in capture_all.user.js and fares_apply.user.js (tests/userscript_key_test.mjs checks they match; since
+  // capture 1.17 and fares 1.5, 15 Nov, to-do 247, spec docs/specs/2026-11-15-self-updating-scripts.md §3 and §4).
+  // The key: the KEY line below keeps the placeholder in the repository. The unattended run (equinox-backups) fills it
+  // in its own copy, and then that key is used and the app's storage is never touched. Unfilled, as on Gitesh's Mac, the
+  // key is read from the userscript app's own storage (GM.getValue, Tampermonkey's and the Userscripts app's), which the
+  // game's page can't reach; the first press asks for it once in the browser's own prompt() box (Gitesh, 15 Nov, choice 3
+  // B) and keeps it there (GM.setValue). A key the database refuses ("bad key") is forgotten and asked for once more.
+  // It is never put in the page, sessionStorage, localStorage, the panel or the console.
+  // The guard: on a device, each press first reads the newest version from the update address; a script behind it stops
+  // before doing anything and says to update; an address that doesn't answer is a line and the press goes on. A run whose
+  // state was started by another version stops too ("updated during the run").
+  const KEY_NAME = "capture_key", GUARD_TIMEOUT_MS = 5000;
+  const unfilled = k => typeof k !== "string" || !k.trim() || /^__[A-Z_]+__$/.test(k.trim());
+  const versionOf = text => { const m = String(text == null ? "" : text).match(/^\/\/\s*@version\s+(\S+)\s*$/m); return m ? m[1] : null; };
+  // whether version b is newer than a, number by number (1.10 is newer than 1.9), as the userscript apps compare them
+  function isNewer(a, b) {
+    const x = String(a).split("."), y = String(b).split(".");
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+      const p = parseInt(x[i] || "0", 10) || 0, q = parseInt(y[i] || "0", 10) || 0;
+      if (p !== q) return q > p;
+    }
+    return false;
+  }
+  const behindWords = (name, own, latest) => `equinox. ${name}: this is version ${own}, and ${latest} is out, so nothing was done. `
+    + "Update it (Tampermonkey's menu → Check for userscript updates; in the Userscripts app, its popup → Update), reload the page and press again.";
+  const midRunWords = (name, was, now) => `equinox. ${name}: the script was updated during the run (started on ${was || "an older version"}, now ${now}), so it stopped here. `
+    + "What's done stays done: press again.";
+  const keyAskWords = name => `equinox. ${name}: paste the capture key once. It is kept in this browser's userscript storage, not in the script or the page.`;
+  const againWords = name => `equinox. ${name}: the database didn't accept the key kept in this browser. Paste the capture key again.`;
+  const isBadKey = r => !!r && r.ok === false && r.error === "bad key";
+  // the newest version at the update address: ok, behind (with the newest) or unknown (with why); fetchText(url) gives
+  // the file's text or throws
+  async function versionCheck(fetchText, own, url) {
+    let text, timer;
+    try { text = await Promise.race([fetchText(url), new Promise((_, no) => { timer = setTimeout(() => no(new Error("no answer in " + GUARD_TIMEOUT_MS / 1000 + " s")), GUARD_TIMEOUT_MS); })]); }
+    catch (e) { return { state: "unknown", why: e && e.message ? e.message : String(e) }; }
+    finally { clearTimeout(timer); }
+    const latest = versionOf(text);
+    if (!latest) return { state: "unknown", why: "no @version at the update address" };
+    return isNewer(own, latest) ? { state: "behind", latest } : { state: "ok", latest };
+  }
+  // the key: the filled-in placeholder (from text), the one kept in storage (stored), or asked for and kept (asked);
+  // store is the app's GM object or null, ask(words) the prompt() box (null when nothing was typed)
+  async function keyOf(baked, store, ask, words) {
+    if (!unfilled(baked)) return { key: baked, from: "text" };
+    if (!store) return { error: "the userscript app gives this script no storage (GM.getValue)" };
+    const kept = await store.getValue(KEY_NAME, null);
+    if (typeof kept === "string" && kept.trim()) return { key: kept.trim(), from: "stored" };
+    if (!ask) return { error: "no key kept in this browser" };
+    const typed = ask(words);
+    if (typeof typed !== "string" || !typed.trim()) return { error: "no key typed" };
+    await store.setValue(KEY_NAME, typed.trim());
+    return { key: typed.trim(), from: "asked" };
+  }
+  // before a press does anything: the guard (only on a device), then the key. io: { name, own, url, baked, store, ask,
+  // fetchText }. Answers { key, from, lines } or { stop: the words to show }.
+  async function prepare(io) {
+    const lines = [];
+    if (unfilled(io.baked)) {
+      const v = await versionCheck(io.fetchText, io.own, io.url);
+      if (v.state === "behind") return { stop: behindWords(io.name, io.own, v.latest) };
+      if (v.state === "unknown") lines.push(`couldn't check for a newer version (${v.why}); going on with ${io.own}`);
+    }
+    const k = await keyOf(io.baked, io.store, io.ask, keyAskWords(io.name));
+    if (k.error) return { stop: `equinox. ${io.name}: no capture key (${k.error}). Press again and paste the key when asked.` };
+    return { key: k.key, from: k.from, lines };
+  }
+  // the first call with the key, call(key) → the database's answer; a "bad key" answer to a kept or typed key forgets it
+  // and asks once more. Answers { answer, key } (key null when nothing more was typed).
+  async function withKey(io, prep, call) {
+    let answer = await call(prep.key);
+    if (!isBadKey(answer) || prep.from === "text") return { answer, key: prep.key };
+    if (io.store) await io.store.deleteValue(KEY_NAME);
+    const k = await keyOf(io.baked, io.store, io.ask, againWords(io.name));
+    if (k.error) return { answer, key: null };
+    answer = await call(k.key);
+    if (isBadKey(answer) && io.store) await io.store.deleteValue(KEY_NAME);
+    return { answer, key: k.key };
+  }
+  // a run carried on after a page load: stopped when another version started it; else the key, without asking
+  async function resumeKey(io, state) {
+    if (unfilled(io.baked) && state && state.version !== io.own) return { stop: midRunWords(io.name, state.version, io.own) };
+    const k = await keyOf(io.baked, io.store, null);
+    return k.error ? { stop: `equinox. ${io.name}: the run can't carry on (${k.error}).` } : { key: k.key, from: k.from };
+  }
+  const keyLib = { KEY_NAME, GUARD_TIMEOUT_MS, unfilled, versionOf, isNewer, behindWords, midRunWords, keyAskWords, againWords, isBadKey, versionCheck, keyOf, prepare, withKey, resumeKey };
+  // ---------------------------------------------------------------- end of the shared block
+
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.16";                                      // the @version above, in the scan's notes
+  const VERSION = "1.17";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -792,10 +891,18 @@
                 marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken, readPricing,
                 SALARY_PACE, SALARY_MAX_CHANGES, salaryPctOf, salaryFormBody, salaryFormUrl, salaryTarget, isSalaryPage, salaryLinkOf, readSalaryPage, salariesBelow, salaryWords, runSalaries,
                 STATEMENT_URL, STATEMENT_PART_LINES, STATEMENT_MAX_PAGES, STATEMENT_HOURS, statementParts, statementPage, statementWords, statementStopWords };
+  Object.assign(lib, keyLib);
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
 
   // ---------------------------------------------------------------- in the game: the capture, as in 1.4, and the fleets (1.6)
   const KEY = "__CAPTURE_KEY__", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZWN3c3llZHZ3Y3hnZHptaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTg5MzcsImV4cCI6MjEwNTc5NDkzN30.tC56dOgmPeYB3m58aDy4ADnnaZ3613P6MFp2pVXUj_Y", RPC = "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/";
+  // the key in use (since 1.17): the filled-in placeholder in the unattended run, else the one kept in the app's storage,
+  // set by the press (prepare, withKey) or, for a run carried on after a page load, by resumeKey
+  let key = unfilled(KEY) ? null : KEY;
+  const UPDATE_URL = "https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js";
+  const store = typeof GM !== "undefined" && GM && typeof GM.getValue === "function" ? GM : null;
+  const io = { name: "capture", own: VERSION, url: UPDATE_URL, baked: KEY, store, ask: words => root.prompt(words),
+               fetchText: async u => { const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); } };
   // the airlines to capture come from the database (capture_airlines, with the key), as [game ID, name, the game's name]
   const airlinesOf = s => (s && s.airlines) || [];
   const ST = "eq_capture_all"; const get = () => { try { return JSON.parse(sessionStorage.getItem(ST) || "null"); } catch (e) { return null; } }; const set = s => sessionStorage.setItem(ST, JSON.stringify(s)); const clear = () => sessionStorage.removeItem(ST);
@@ -805,8 +912,8 @@
   const rpc = async (fn, body) => { const r = await fetch(RPC + fn, { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" }, body: JSON.stringify(body) }); return r.json(); };
   // a page the database didn't store and read counts as a failed capture: no world scan that evening (1.5)
   const failed = () => { const t = get(); if (t) { t.failed = (t.failed || 0) + 1; set(t); } };
-  const send = async (gameId, kind, rows, page) => { const r = await rpc("capture_ingest", { p_key: KEY, p_airline: String(gameId), p_kind: kind, p_page: page, p_rows: rows }); if (!r || r.ok !== true) failed(); return r; };   // the airline by its game ID
-  const loadAirlines = async () => { const r = await rpc("capture_airlines", { p_key: KEY }); if (!r || !r.ok || !Array.isArray(r.airlines) || !r.airlines.length) throw new Error((r && (r.error || r.message)) || "no airlines"); return { list: r.airlines.map(a => [a.game_id, a.name, a.game_name || a.name]), scan: planOf(r), markets: marketPlanOf(r), salaryPct: salaryPctOf(r), salaryRaw: r.salary_above_average_pct ?? null }; };   // 1.9: and the market pages; 1.12: the salary setting
+  const send = async (gameId, kind, rows, page) => { const r = await rpc("capture_ingest", { p_key: key, p_airline: String(gameId), p_kind: kind, p_page: page, p_rows: rows }); if (!r || r.ok !== true) failed(); return r; };   // the airline by its game ID
+  const loadAirlines = async () => { const r = await rpc("capture_airlines", { p_key: key }); if (!r || !r.ok || !Array.isArray(r.airlines) || !r.airlines.length) throw new Error((r && (r.error || r.message)) || "no airlines"); return { list: r.airlines.map(a => [a.game_id, a.name, a.game_name || a.name]), scan: planOf(r), markets: marketPlanOf(r), salaryPct: salaryPctOf(r), salaryRaw: r.salary_above_average_pct ?? null }; };   // 1.9: and the market pages; 1.12: the salary setting
   // the panel: its lines, the live progress line under them, and a Stop button while the world scan runs. Since 1.7 it
   // never grows past the window: its lines scroll, and follow the newest one unless Gitesh has scrolled up to read
   const panel = () => { let b = document.getElementById("eq-cap-panel"); if (!b) { b = document.createElement("div"); b.id = "eq-cap-panel"; b.style.cssText = "position:fixed;top:12px;right:12px;z-index:999999;background:#0A1230;color:#fff;font:14px/1.5 system-ui,sans-serif;padding:14px 18px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4);max-width:380px;max-height:calc(100vh - 24px);box-sizing:border-box;display:flex;flex-direction:column;white-space:pre-line"; const t = document.createElement("div"); t.className = "eq-cap-text"; t.style.cssText = "overflow-y:auto;flex:1 1 auto;min-height:0;overscroll-behavior:contain"; const k = document.createElement("div"); k.className = "eq-cap-buttons"; k.style.cssText = "margin-top:10px;display:flex;gap:8px"; b.append(t, k); document.body.appendChild(b); } return b; };
@@ -845,7 +952,7 @@
   // page at a time at FLEET_PACE, each sent as page kind fleet. A page that doesn't read is still sent, with its error, so
   // the database judges it broken (#21). The fleet pages don't hold back the world scan: the evening's other pages decide
   // that, as in 1.5.
-  const sendFleet = async (gameId, rows, url) => { try { return await rpc("capture_ingest", { p_key: KEY, p_airline: String(gameId), p_kind: "fleet", p_page: url, p_rows: rows }); } catch (e) { return { ok: false, error: e.message }; } };
+  const sendFleet = async (gameId, rows, url) => { try { return await rpc("capture_ingest", { p_key: key, p_airline: String(gameId), p_kind: "fleet", p_page: url, p_rows: rows }); } catch (e) { return { ok: false, error: e.message }; } };
   const progress = t => { const s = get(); if (s) { s.progress = t; set(s); show(lines(s)); } };
   async function captureFleets(id, name) {
     const run = new Date().toISOString();
@@ -947,7 +1054,7 @@
   async function scanSend(kind, payload) {
     let last = null;
     for (let a = 0; a < 3; a++) {
-      try { const r = await fetch(RPC + "capture_scan", { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" }, body: JSON.stringify({ p_key: KEY, p_kind: kind, p_payload: payload }) });
+      try { const r = await fetch(RPC + "capture_scan", { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" }, body: JSON.stringify({ p_key: key, p_kind: kind, p_payload: payload }) });
         const body = await r.json().catch(() => null); if (r.ok) return body || { ok: false, error: "no answer" }; last = body || { ok: false, error: "HTTP " + r.status }; }
       catch (e) { last = { ok: false, error: e.message }; }
       if (a < 2) await sleep(3000);
@@ -1037,7 +1144,7 @@
   async function marketSend(kind, payload) {
     let last = null;
     for (let a = 0; a < 3; a++) {
-      try { const r = await fetch(RPC + "capture_market", { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" }, body: JSON.stringify({ p_key: KEY, p_kind: kind, p_payload: payload }) });
+      try { const r = await fetch(RPC + "capture_market", { method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" }, body: JSON.stringify({ p_key: key, p_kind: kind, p_payload: payload }) });
         const body = await r.json().catch(() => null); if (r.ok) return body || { ok: false, error: "no answer" }; last = body || { ok: false, error: "HTTP " + r.status }; }
       catch (e) { last = { ok: false, error: e.message }; }
       if (a < 2) await sleep(3000);
@@ -1091,11 +1198,19 @@
 
   function addButton() {
     if (document.getElementById("eq-cap-btn")) return; const b = document.createElement("button"); b.id = "eq-cap-btn"; b.textContent = "Capture all airlines"; b.style.cssText = "position:fixed;bottom:16px;left:16px;z-index:999998;background:#F6B44B;color:#0A1230;border:0;border-radius:999px;padding:10px 16px;font:700 13px system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer";
-    b.onclick = async () => { b.disabled = true; let got;
-      try { got = await loadAirlines(); } catch (e) { show("equinox. capture: couldn't get the airlines to capture (" + e.message + "). Check the capture key."); b.disabled = false; return; }
+    b.onclick = async () => { b.disabled = true; let got, prep;
+      // 1.17: first the guard (an out-of-date script stops here) and the key (asked for once, then kept in the app's storage)
+      try { prep = await prepare(io); } catch (e) { prep = { stop: "equinox. capture: couldn't read the key or the version (" + e.message + ")." }; }
+      if (prep.stop) { show(prep.stop); b.disabled = false; return; }
+      const first = await withKey(io, prep, async k => { key = k; try { return await loadAirlines(); } catch (e) { return { ok: false, error: e.message }; } });
+      key = first.key; got = first.answer;
+      if (!key || !got || got.ok === false) { show("equinox. capture: couldn't get the airlines to capture (" + ((got && got.error) || "no answer") + "). Check the capture key."); b.disabled = false; return; }
       const list = got.list, start = (await currentId(list)) || list[0][0];
-      set({ i: 0, phase: "switch", start, airlines: list, scan: got.scan, markets: got.markets, salaryPct: got.salaryPct, salaryRaw: got.salaryRaw, failed: 0, log: ["equinox. capture, all airlines…"] }); log("Starting: " + list.map(a => a[1]).join(", ")); step(); };
+      set({ i: 0, phase: "switch", start, version: VERSION, airlines: list, scan: got.scan, markets: got.markets, salaryPct: got.salaryPct, salaryRaw: got.salaryRaw, failed: 0, log: ["equinox. capture, all airlines…"].concat(prep.lines) }); log("Starting: " + list.map(a => a[1]).join(", ")); step(); };
     document.body.appendChild(b);
   }
-  addButton(); const s = get(); if (s) { show(lines(s)); setTimeout(step, 800); }
+  addButton(); const s = get();
+  // a run carried on after a page load: the key again (1.17), and it stops if another version started it
+  if (s) { show(lines(s)); resumeKey(io, s).then(r => { if (r.stop) { show(lines(s) + "\n" + r.stop); closable(); clear(); return; } key = r.key; setTimeout(step, 800); },
+                                                e => { show(lines(s) + "\nequinox. capture: the run can't carry on (" + e.message + ")."); closable(); clear(); }); }
 })(typeof window !== "undefined" ? window : globalThis);

@@ -38,6 +38,26 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The scripts update themselves on the Mac, and the fares script has its own limit: 15 Nov
+*Gitesh, 15 Nov (Main chat; to-do 247, option B of two, "the scripts update themselves"; the limit from to-do 218 step
+3, option B; the spec's choices decided 08:46 to 08:51 India time; spec `docs/specs/2026-11-15-self-updating-scripts.md`)
+· why: the capture reached version 1.16 in about five weeks, each a paste with the key on the Mac and the iPhone, and an
+old copy left on a device ran old code on his own presses (salaries, Apply fare plan). He moves to Tampermonkey on the
+Mac ("Tampermonkey worked ok with our scripts on windows"), whose automatic installation takes each version by itself,
+with a guard as the net; no scripts on the iPhone ("I'll only do it on Mac since captures run automatically anyways").
+The limit is a last check that doesn't trust the ladder: just outside what it can produce today (floor 60%; cap 120%,
+Pan Am and China Eastern 128%).* Three sentences changed, word for word.
+§7 read "**Gitesh's own press** works as before and is what sets salaries (below);" and now says his press is on his
+Mac only, in Tampermonkey, and that the scripts there (the capture, the fares and, Gitesh 15 Nov 09:09 India time, "Yes
+it should be the same method no ?", the aircraft evaluation) update themselves from `main`, keep the key in
+Tampermonkey's storage and stop when out of date.
+§5's fares paragraph read "…and stops at the first problem, saying which change and why; run again, it reads only
+what's still unseen." and now adds the limit (`settings.fares_script_min_pct` 55, `fares_script_max_pct` 135) before
+"run again".
+§5's cap read "…the cap is lifted only once loads and image show it's safe." and now adds that the fares script's limit
+moves in the same rule change when the cap or floor would reach it (`database/tests/fares_script_limit_test.sql` turns
+red until it does).
+
 ### The world scans' connections and summaries cleaned after 14 days: 15 Nov
 *Gitesh, 15 Nov (Main chat, brief `docs/briefs/2026-11-15-scan-connections-growth.md`, option C of four: A leave as is,
 B the monthly archive thins the summaries, C a nightly clean-up, D store less; spec `docs/specs/2026-11-15-scan-cleanup.md`)

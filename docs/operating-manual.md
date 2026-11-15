@@ -609,7 +609,8 @@ Details and open points: `docs/decisions.md`.
   Otherwise the level never goes under launch, nor under the 60% floor where another player flies
   the route. **For now it goes
   at most 20 points above launch** (120%, Ryanair 105%; **Pan Am and China Eastern 28 points, 128%**, since 22 Oct); the cap is lifted
-  only once loads and image show it's safe. Their step and cap are their own `settings` rows.
+  only once loads and image show it's safe, and the fares script's limit (below) moves in the same rule change when the
+  cap or floor would reach it (a check turns red until it does). Their step and cap are their own `settings` rows.
   **A rival starting on the pair pauses that route for a week:** when a world scan of the last 7 days shows a rival
   that started on the pair (none in the scan before it) or added at least `settings.competition_threat_min_weekly` (7)
   departures a week, the route holds until 7 days after that scan ("rival Air China started here on 22 Oct: paused
@@ -625,7 +626,10 @@ Details and open points: `docs/decisions.md`.
   Gitesh presses **Apply fare plan** in the game and watches. It reads this week's planned changes the captures haven't
   seen yet (`capture_fare_actions_by_airline()`, one airline at a time, with the capture key), shows each airline's count and asks once, then makes them
   for every airline, one at a time, 2 seconds apart, changing prices only, and stops at the first problem, saying which
-  change and why; run again, it reads only what's still unseen. Never on a schedule or without him watching. The
+  change and why; **before making anything it refuses every change whose level is under `settings.fares_script_min_pct`
+  (55) or over `fares_script_max_pct` (135) % of the default price**, its own limit just outside what the ladder can
+  reach, saying which change and why; run again, it reads only what's still unseen. *(the limit since 15 Nov, to-do 218
+  step 3, option B, and to-do 247; spec `docs/specs/2026-11-15-self-updating-scripts.md`)* Never on a schedule or without him watching. The
   simulogics terms (§5.3) forbid scripts in general, but Gander is an exclusive world whose owner sets the rules (§9):
   every script Gitesh chooses to use is allowed there; no need to ask the owner.
   **Shared pairs have one ladder** (§2): the owner's ladder judges each direction and cabin on both
@@ -683,8 +687,12 @@ Details and open points: `docs/decisions.md`.
   `unattended_scan` and `unattended_market` true) and is refused by the fares and the aircraft evaluation. A run that
   doesn't end with every airline "all good" fails, and GitHub emails Gitesh; Today warns when there has been no good
   run for `settings.capture_unattended_warn_h` (14) hours, and the Systems board has its line. A run is skipped while a
-  capture is running. **Gitesh's own press** works as before and is what sets salaries (below); whichever capture comes
-  first after the scan or the market pages fall due does them. A day's loads count as complete once every active
+  capture is running. **Gitesh's own press**, on his Mac only (Tampermonkey in Safari; no scripts on the iPhone since
+  15 Nov), is what sets salaries (below); whichever capture comes first after the scan or the market pages fall due
+  does them. The capture, fares and aircraft evaluation scripts on the Mac take each new version from the raw file on `main` by themselves,
+  so a merge reaches the Mac without him looking; each keeps the capture key in Tampermonkey's own storage (typed
+  once), and stops before doing anything when a newer version is out (since 15 Nov, to-do 247, spec
+  `docs/specs/2026-11-15-self-updating-scripts.md`). A day's loads count as complete once every active
   airline has been captured for it. Loads are typed in by hand (Systems → Manual entry) only if a capture fails.
   *(the press since 7–8 Oct; the unattended capture since 11 Nov, decided 10 Nov, briefs
   `docs/briefs/2026-11-10-unattended-capture.md`, option C, and `docs/briefs/2026-11-10-unattended-capture-scope.md`,

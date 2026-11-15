@@ -60,9 +60,9 @@ full stop; manual §8, brand). Website and planner: **equinox-alliance.com** (pl
 | Tool | What it's for | Where |
 |---|---|---|
 | **The game** | Everything that actually happens: orders, routes, schedules, cabins, fares, interlines, salaries (the capture sets them, manual §7) | gander.airlinesim.aero, one account with all six airlines |
-| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct); then, when a world scan is due, scans the world (every airline's schedule, its overview page and the airport pages; since 21 Oct); then, once a week, the market pages of every pair we fly (since 30 Oct); each airline's salaries are checked with its pages and any below the country average raised (since 5 Nov; version 1.12, manual §7) | `capture/capture_all.user.js`, installed in the Userscripts app on the Mac or iPhone, with your capture key in place of `__CAPTURE_KEY__` |
+| **Capture userscript** | One button, *Capture all airlines*, sends each airline's loads, bank statement, income statement, balance sheet and events to the database; then each airline's fleet pages (each aircraft's condition, maintenance, seats and pilots; since 22 Oct); then, when a world scan is due, scans the world (every airline's schedule, its overview page and the airport pages; since 21 Oct); then, once a week, the market pages of every pair we fly (since 30 Oct); each airline's salaries are checked with its pages and any below the country average raised (since 5 Nov; version 1.12, manual §7) | `capture/capture_all.user.js`, installed from its raw address in Tampermonkey on the Mac (Safari), which takes each new version by itself; the capture key is typed once into its prompt and kept in Tampermonkey's storage (since 15 Nov; no scripts on the iPhone) |
 | **Unattended capture** | The same capture, run by itself twice a day: the database asks GitHub to start it, and a hidden browser signs in to the game and presses the button with its own key. It never sets salaries; only your own press does (manual §7, the capture) | The job is in `equinox-backups`; its line is on the Systems board and on Today |
-| **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one at a time, while you watch (section 7; rule: manual §5, the fare ladder) | `capture/fares_apply.user.js`, installed the same way (the Userscripts app on the Mac or iPhone), with the same capture key in place of `__CAPTURE_KEY__` |
+| **Fares userscript** | One button, *Apply fare plan*, makes the week's fare plan changes in the game for every airline, one at a time, while you watch (section 7; rule: manual §5, the fare ladder) | `capture/fares_apply.user.js`, installed the same way (Tampermonkey on the Mac), with the same capture key typed once into its own prompt; it refuses any change outside its own limit (manual §5) |
 | **The planner** | The staff tool: the network, aircraft, plan cards, checks, money and to-dos | equinox-alliance.com/planner/ |
 | **The website** | The public airline site: flights, destinations, live network, newsroom, investors, gander monthly | equinox-alliance.com |
 | **Claude (Equinox project)** | Three chats: **Scheduling**, **Saturday review**, **Building** (rule: manual §1, one chat per kind of work, which says what each covers). The manual, decisions, map and this guide are in its files | claude.ai |
@@ -166,7 +166,8 @@ capture late or failed (section 11). The steps below are for your own press.
 **Steps:**
 1. Sign in to the game.
 2. Press **Capture all airlines** (the userscript's panel). It works through every airline in the world's list. Leave
-   the tab open until it finishes. Since 22 Oct each airline ends with its fleet pages, one more page kind ("Pan Am:
+   the tab open until it finishes. If the panel says a newer version is out, nothing was done: Tampermonkey's menu →
+   Check for userscript updates, reload the page and press again (since 15 Nov). Since 22 Oct each airline ends with its fleet pages, one more page kind ("Pan Am:
    fleet 2 of 3"), about a minute more in all (what they're checked for: manual §7), then its salaries (since 5 Nov:
    the rule is manual §7, salaries; the percentage is Reference → Constants, `salary_above_average_pct`). A position
    below the average is raised in the background: no page opens and nothing is clicked. **When a world scan is due it then scans the world** (how often: manual §7, the
@@ -424,7 +425,7 @@ Run in the **Saturday review chat**, after the usual Saturday work (manual §7, 
 | A planner row was changed or deleted by mistake | One row can be put back from the change log; many from last night's backup. Ask the Building chat |
 | The planner and the game disagree | Today → Game check; the game is the truth (manual §4, the planner mirrors the game) |
 | The whole database is lost | Restore from R2 (or the month's GitHub copy) into a new Supabase project, then issue new keys and schedule the jobs again. The steps are in `equinox-backups`' README |
-| A key may have leaked | Issue a new one and replace it where it lives (the map's key table); for the capture key, update the userscript |
+| A key may have leaked | Issue a new one and replace it where it lives (the map's key table); for the capture key, the capture, fares and aircraft evaluation userscripts ask for the new one on their next press |
 | A check on a pull request is red | Don't merge. The pull request says which check and why (manual §1, automatic checks) |
 
 ---

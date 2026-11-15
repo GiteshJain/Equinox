@@ -1,4 +1,4 @@
-// The whole bank statement, sent in parts (capture/capture_all.user.js 1.16; spec docs/specs/2026-11-10-whole-statement.md
+// The whole bank statement, sent in parts (capture/capture_all.user.js 1.16 and later; spec docs/specs/2026-11-10-whole-statement.md
 // §1), with no browser and no game: the script's own file runs in Node, where (with no page) it only hands over its logic
 // (eqScan), as tests/capture_scan_test.mjs runs it.
 //   1. statementParts(rows, max): a minute is never split across two parts; every line is kept, in order; a minute bigger
@@ -9,7 +9,7 @@
 //      private.statement_run() reads back.
 //   3. The panel's words: "Ryanair · statement 2,412 lines, 24 pages, 5 parts", the first failed part's error, and the
 //      safety stop's "stopped at 60 pages, 6,000 lines".
-//   4. The file: version 1.16; the date stop at 26 hours and the safety stop at 60 pages (no 15-page stop); the run's time
+//   4. The file: version 1.17; the date stop at 26 hours and the safety stop at 60 pages (no 15-page stop); the run's time
 //      taken once; each part sent in order with its page.
 // Usage: node tests/capture_statement_test.mjs
 import { readFileSync, readdirSync } from "node:fs";
@@ -121,9 +121,9 @@ await check("the panel: \"Ryanair · statement 2,412 lines, 24 pages, 5 parts\",
 });
 
 // ---------------------------------------------------------------- 4. the file
-await check("the file: version 1.16; every page to the date stop (26 hours) or the safety stop (60 pages), no 15-page stop; the run's time once; each part in order with its page", () => {
-  assert.match(source, /^\/\/ @version\s+1\.16$/m);
-  assert.equal(S.VERSION, "1.16");
+await check("the file: version 1.17; every page to the date stop (26 hours) or the safety stop (60 pages), no 15-page stop; the run's time once; each part in order with its page", () => {
+  assert.match(source, /^\/\/ @version\s+1\.17$/m);
+  assert.equal(S.VERSION, "1.17");
   const body = source.slice(source.indexOf("async function captureCurrent("), source.indexOf("// 1.6 (spec docs/specs/2026-10-22-fleet-capture.md §1): the airline's fleet list"));
   assert.ok(!/pages < 15|3 \* 864e5/.test(body), "the old 15-page or 3-day stop is still there");
   assert.match(body, /const run = new Date\(\)\.toISOString\(\), since = Date\.now\(\) - STATEMENT_HOURS \* 36e5;/);

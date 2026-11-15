@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         equinox. apply fare plan
 // @namespace    equinox
-// @version      1.4
-// @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, one airline at a time since 1.3: capture_fare_actions_by_airline), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
+// @version      1.5
+// @description  One button, Apply fare plan: makes every fare change on this week's fare plan that the captures haven't seen yet, and sets back every route whose captured fares are off its level, for every airline (the database lists them, one airline at a time since 1.3: capture_fare_actions_by_airline), in the game's Ticket price adjustment: route by route, each direction on its own, baseline default price. One change at a time, 2 seconds apart, while you watch; it stops at the first problem. It changes prices only, and refuses any change outside its own limit (settings fares_script_min_pct and fares_script_max_pct, 55% to 135% of the default price). Since 1.5 it takes new versions from its update address and keeps the capture key in the userscript app's own storage, asked for once. The next capture ticks the changes off on the fare plan, and shows the routes set back at their level. Install it as the capture script, with your capture key in place of the placeholder.
+// @updateURL    https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/fares_apply.user.js
+// @downloadURL  https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/fares_apply.user.js
 // @match        https://gander.airlinesim.aero/*
-// @grant        none
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @grant        GM.deleteValue
 // ==/UserScript==
 // Spec docs/specs/2026-10-21-fares-userscript.md; manual §5. Since 1.1 (spec docs/specs/2026-10-21-frequencies-and-fares.md
 // §3) the list also holds set-back changes (fix: a route whose captured fares don't match its level, with no fare plan
@@ -12,8 +16,104 @@
 // building a change's address, checking the game's answer) is plain functions over the pages' HTML, without the page,
 // so tests/fares_userscript_test.mjs runs this same file in Node: there, with no page, it only hands those functions over
 // (as eqFares) and does nothing else.
+// Since 1.5 (15 Nov, to-do 247 with to-do 218 step 3, spec docs/specs/2026-11-15-self-updating-scripts.md): it updates from
+// its @updateURL, keeps the key in the userscript app's own storage (asked for once in prompt(), the one browser dialog),
+// stops before anything when a newer version is out, and refuses, before making anything, any change whose level is
+// under settings.fares_script_min_pct (55) or over fares_script_max_pct (135) % of the default price, or disagrees with
+// its own level; capture_fare_actions_by_airline()'s list gives the two numbers, and without them nothing is made.
 (function (root) {
   "use strict";
+
+  // ---------------------------------------------------------------- the key and the version (shared block)
+  // The same lines in capture_all.user.js and fares_apply.user.js (tests/userscript_key_test.mjs checks they match; since
+  // capture 1.17 and fares 1.5, 15 Nov, to-do 247, spec docs/specs/2026-11-15-self-updating-scripts.md §3 and §4).
+  // The key: the KEY line below keeps the placeholder in the repository. The unattended run (equinox-backups) fills it
+  // in its own copy, and then that key is used and the app's storage is never touched. Unfilled, as on Gitesh's Mac, the
+  // key is read from the userscript app's own storage (GM.getValue, Tampermonkey's and the Userscripts app's), which the
+  // game's page can't reach; the first press asks for it once in the browser's own prompt() box (Gitesh, 15 Nov, choice 3
+  // B) and keeps it there (GM.setValue). A key the database refuses ("bad key") is forgotten and asked for once more.
+  // It is never put in the page, sessionStorage, localStorage, the panel or the console.
+  // The guard: on a device, each press first reads the newest version from the update address; a script behind it stops
+  // before doing anything and says to update; an address that doesn't answer is a line and the press goes on. A run whose
+  // state was started by another version stops too ("updated during the run").
+  const KEY_NAME = "capture_key", GUARD_TIMEOUT_MS = 5000;
+  const unfilled = k => typeof k !== "string" || !k.trim() || /^__[A-Z_]+__$/.test(k.trim());
+  const versionOf = text => { const m = String(text == null ? "" : text).match(/^\/\/\s*@version\s+(\S+)\s*$/m); return m ? m[1] : null; };
+  // whether version b is newer than a, number by number (1.10 is newer than 1.9), as the userscript apps compare them
+  function isNewer(a, b) {
+    const x = String(a).split("."), y = String(b).split(".");
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+      const p = parseInt(x[i] || "0", 10) || 0, q = parseInt(y[i] || "0", 10) || 0;
+      if (p !== q) return q > p;
+    }
+    return false;
+  }
+  const behindWords = (name, own, latest) => `equinox. ${name}: this is version ${own}, and ${latest} is out, so nothing was done. `
+    + "Update it (Tampermonkey's menu → Check for userscript updates; in the Userscripts app, its popup → Update), reload the page and press again.";
+  const midRunWords = (name, was, now) => `equinox. ${name}: the script was updated during the run (started on ${was || "an older version"}, now ${now}), so it stopped here. `
+    + "What's done stays done: press again.";
+  const keyAskWords = name => `equinox. ${name}: paste the capture key once. It is kept in this browser's userscript storage, not in the script or the page.`;
+  const againWords = name => `equinox. ${name}: the database didn't accept the key kept in this browser. Paste the capture key again.`;
+  const isBadKey = r => !!r && r.ok === false && r.error === "bad key";
+  // the newest version at the update address: ok, behind (with the newest) or unknown (with why); fetchText(url) gives
+  // the file's text or throws
+  async function versionCheck(fetchText, own, url) {
+    let text, timer;
+    try { text = await Promise.race([fetchText(url), new Promise((_, no) => { timer = setTimeout(() => no(new Error("no answer in " + GUARD_TIMEOUT_MS / 1000 + " s")), GUARD_TIMEOUT_MS); })]); }
+    catch (e) { return { state: "unknown", why: e && e.message ? e.message : String(e) }; }
+    finally { clearTimeout(timer); }
+    const latest = versionOf(text);
+    if (!latest) return { state: "unknown", why: "no @version at the update address" };
+    return isNewer(own, latest) ? { state: "behind", latest } : { state: "ok", latest };
+  }
+  // the key: the filled-in placeholder (from text), the one kept in storage (stored), or asked for and kept (asked);
+  // store is the app's GM object or null, ask(words) the prompt() box (null when nothing was typed)
+  async function keyOf(baked, store, ask, words) {
+    if (!unfilled(baked)) return { key: baked, from: "text" };
+    if (!store) return { error: "the userscript app gives this script no storage (GM.getValue)" };
+    const kept = await store.getValue(KEY_NAME, null);
+    if (typeof kept === "string" && kept.trim()) return { key: kept.trim(), from: "stored" };
+    if (!ask) return { error: "no key kept in this browser" };
+    const typed = ask(words);
+    if (typeof typed !== "string" || !typed.trim()) return { error: "no key typed" };
+    await store.setValue(KEY_NAME, typed.trim());
+    return { key: typed.trim(), from: "asked" };
+  }
+  // before a press does anything: the guard (only on a device), then the key. io: { name, own, url, baked, store, ask,
+  // fetchText }. Answers { key, from, lines } or { stop: the words to show }.
+  async function prepare(io) {
+    const lines = [];
+    if (unfilled(io.baked)) {
+      const v = await versionCheck(io.fetchText, io.own, io.url);
+      if (v.state === "behind") return { stop: behindWords(io.name, io.own, v.latest) };
+      if (v.state === "unknown") lines.push(`couldn't check for a newer version (${v.why}); going on with ${io.own}`);
+    }
+    const k = await keyOf(io.baked, io.store, io.ask, keyAskWords(io.name));
+    if (k.error) return { stop: `equinox. ${io.name}: no capture key (${k.error}). Press again and paste the key when asked.` };
+    return { key: k.key, from: k.from, lines };
+  }
+  // the first call with the key, call(key) → the database's answer; a "bad key" answer to a kept or typed key forgets it
+  // and asks once more. Answers { answer, key } (key null when nothing more was typed).
+  async function withKey(io, prep, call) {
+    let answer = await call(prep.key);
+    if (!isBadKey(answer) || prep.from === "text") return { answer, key: prep.key };
+    if (io.store) await io.store.deleteValue(KEY_NAME);
+    const k = await keyOf(io.baked, io.store, io.ask, againWords(io.name));
+    if (k.error) return { answer, key: null };
+    answer = await call(k.key);
+    if (isBadKey(answer) && io.store) await io.store.deleteValue(KEY_NAME);
+    return { answer, key: k.key };
+  }
+  // a run carried on after a page load: stopped when another version started it; else the key, without asking
+  async function resumeKey(io, state) {
+    if (unfilled(io.baked) && state && state.version !== io.own) return { stop: midRunWords(io.name, state.version, io.own) };
+    const k = await keyOf(io.baked, io.store, null);
+    return k.error ? { stop: `equinox. ${io.name}: the run can't carry on (${k.error}).` } : { key: k.key, from: k.from };
+  }
+  const keyLib = { KEY_NAME, GUARD_TIMEOUT_MS, unfilled, versionOf, isNewer, behindWords, midRunWords, keyAskWords, againWords, isBadKey, versionCheck, keyOf, prepare, withKey, resumeKey };
+  // ---------------------------------------------------------------- end of the shared block
+
+  const VERSION = "1.5";                              // the @version above
   const FORM = "/action/enterprise/flightsPrices";   // the game's Ticket price adjustment, for the airline active in the session
   const PAUSE_MS = 2000;                              // between one change and the next
   const CLASSES = ["economy", "business"];            // the classes the fare plan changes, in the form's order
@@ -54,7 +154,7 @@
   }
 
   // a change from the database, checked before anything is sent: null when it can be made, else why not
-  function actionProblem(a) {
+  function actionProblem(a, limits) {
     if (!a || typeof a !== "object") return "no change";
     if (!/^\d+$/.test(String(a.game_id ?? ""))) return "no airline game ID";
     for (const end of ["from", "to"]) if (!/^[A-Z0-9]{3}$/.test(String(a[end] ?? ""))) return "no airport code for " + end;
@@ -64,8 +164,21 @@
     if (a.pct === null || a.pct === "" || !Number.isInteger(pct) || pct < 0 || pct > 100) return "the game takes a whole percent from 0 to 100, not " + a.pct;
     if (!Array.isArray(a.classes) || !a.classes.length || a.classes.some(c => !CLASSES.includes(c)) || new Set(a.classes).size !== a.classes.length)
       return "classes must be economy and/or business, not " + JSON.stringify(a.classes);
+    // the script's own limit (since 1.5, 15 Nov, manual §5): the level the change sets, baseline default price, is 100 − pct
+    // for − and 100 + pct for +; it must agree with the change's own level, and stay inside the settings' limits
+    const level = a.sign === "-" ? 100 - pct : 100 + pct;
+    if (a.level !== undefined && a.level !== null && Number(a.level) !== level)
+      return `its level is ${a.level}% but the change says ${a.sign === "-" ? "−" : "+"}${pct}% (${level}% of the default price)`;
+    if (limits) {
+      if (level < limits.min_pct) return `its level, ${level}% of the default price, is under the fares script's limit of ${limits.min_pct}% (settings.fares_script_min_pct)`;
+      if (level > limits.max_pct) return `its level, ${level}% of the default price, is over the fares script's limit of ${limits.max_pct}% (settings.fares_script_max_pct)`;
+    }
     return null;
   }
+  // the limits the database gives (capture_fare_actions_by_airline()'s list, since 15 Nov), or null when they aren't two numbers
+  const limitsOf = l => l && typeof l === "object" && Number.isFinite(Number(l.min_pct)) && Number.isFinite(Number(l.max_pct))
+    && l.min_pct !== null && l.max_pct !== null && l.min_pct !== "" && l.max_pct !== "" && Number(l.min_pct) < Number(l.max_pct)
+    ? { min_pct: Number(l.min_pct), max_pct: Number(l.max_pct) } : null;
 
   // the form's ids for a change's two airports, or why it can't be made on this form
   function idsFor(airports, a) {
@@ -136,13 +249,16 @@
   function planOf(doc) {
     if (!doc || doc.ok !== true || !Array.isArray(doc.airlines) || !Array.isArray(doc.actions))
       return { error: (doc && (doc.error || doc.message || doc.hint)) || "no answer" };
+    // since 1.5: no plan without the fares script's own limit
+    const limits = limitsOf(doc.limits);
+    if (!limits) return { error: "the database didn't give the fares script's limits (settings.fares_script_min_pct and fares_script_max_pct)" };
     const airlines = doc.airlines.map(al => ({ game_id: String(al.game_id), name: al.name || al.game_name || String(al.game_id),
                                               actions: doc.actions.filter(x => String(x.game_id) === String(al.game_id)) }));
     for (const al of airlines) al.fixes = al.actions.filter(a => a.fix === true).length;
     const problems = [];
-    for (const al of airlines) for (const a of al.actions) { const p = actionProblem(a); if (p) problems.push({ airline: al.name, action: a, why: p }); }
+    for (const al of airlines) for (const a of al.actions) { const p = actionProblem(a, limits); if (p) problems.push({ airline: al.name, action: a, why: p }); }
     for (const a of doc.actions) if (!airlines.some(al => al.game_id === String(a.game_id))) problems.push({ airline: String(a.game_id), action: a, why: "an airline the list doesn't name" });
-    return { week_of: doc.week_of || null, airlines, total: airlines.reduce((n, al) => n + al.actions.length, 0),
+    return { week_of: doc.week_of || null, limits, airlines, total: airlines.reduce((n, al) => n + al.actions.length, 0),
              fixes: airlines.reduce((n, al) => n + al.fixes, 0), problems };
   }
 
@@ -155,7 +271,7 @@
     const FN = "capture_fare_actions_by_airline";
     const list = await call(FN, { p_key: key, p_game_id: null });
     if (!list || list.ok !== true || !Array.isArray(list.airlines)) return list;
-    const doc = { ok: true, world: list.world, week_of: null, as_of: list.as_of, airlines: [], actions: [] };
+    const doc = { ok: true, world: list.world, week_of: null, as_of: list.as_of, limits: list.limits === undefined ? null : list.limits, airlines: [], actions: [] };
     for (let i = 0; i < list.airlines.length; i++) {
       const al = list.airlines[i], name = al.name || al.game_name || String(al.game_id);
       if (progress) progress(name, i + 1, list.airlines.length);
@@ -176,11 +292,17 @@
   const progressWords = (name, done, total) => `${name}: ${done} of ${total}`;
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
-  const lib = { FORM, PAUSE_MS, selectOptions, airportsOf, actionProblem, idsFor, changeUrl, changedPairs, checkAnswer, planOf, readPlan, changeWords, countWords, progressWords };
+  const lib = { VERSION, FORM, PAUSE_MS, selectOptions, airportsOf, actionProblem, limitsOf, idsFor, changeUrl, changedPairs, checkAnswer, planOf, readPlan, changeWords, countWords, progressWords };
+  Object.assign(lib, keyLib);
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqFares = lib; return; }
 
   // ---------------------------------------------------------------- in the game
   const KEY = "__CAPTURE_KEY__", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZWN3c3llZHZ3Y3hnZHptaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTg5MzcsImV4cCI6MjEwNTc5NDkzN30.tC56dOgmPeYB3m58aDy4ADnnaZ3613P6MFp2pVXUj_Y", RPC = "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/";
+  // the key (since 1.5): the filled-in placeholder, else the one kept in the app's storage (prepare, withKey)
+  const UPDATE_URL = "https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/fares_apply.user.js";
+  const store = typeof GM !== "undefined" && GM && typeof GM.getValue === "function" ? GM : null;
+  const io = { name: "fares", own: VERSION, url: UPDATE_URL, baked: KEY, store, ask: words => root.prompt(words),
+               fetchText: async u => { const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); } };
   const ST = "eq_fares_apply", STALE_MS = 3 * 60 * 1000;   // a run untouched for 3 minutes isn't picked up again by itself
   const get = () => { try { return JSON.parse(sessionStorage.getItem(ST) || "null"); } catch (e) { return null; } };
   const set = s => { s.at = Date.now(); sessionStorage.setItem(ST, JSON.stringify(s)); };
@@ -199,7 +321,7 @@
     return v && /^\d+$/.test(v) ? v : null;
   }
 
-  // the panel, like the capture's, with its buttons in the page (no browser dialogs)
+  // the panel, like the capture's, with its buttons in the page (no browser dialogs but the key's prompt, once)
   function panel() {
     let b = document.getElementById("eq-fares-panel");
     if (!b) {
@@ -294,9 +416,17 @@
   async function begin(btn) {
     const s = get();
     if (s) { show(lines(s), [stopButton]); return; }
-    btn.disabled = true; show("equinox. fares: reading this week's fare plan…");
+    btn.disabled = true;
+    // since 1.5: first the guard (an out-of-date script stops here) and the key (asked for once, then kept in the app's storage)
+    let prep;
+    try { prep = await prepare(io); } catch (e) { prep = { stop: "equinox. fares: couldn't read the key or the version (" + e.message + ")." }; }
+    if (prep.stop) { btn.disabled = false; return show(prep.stop, [["Close", close, true]]); }
+    show("equinox. fares: reading this week's fare plan…");
     let plan;
-    try { plan = planOf(await readPlan(rpc, KEY, (name, i, n) => show(`equinox. fares: reading this week's fare plan… ${name} (${i} of ${n})`))); } catch (e) { plan = { error: e.message }; }
+    try {
+      const got = await withKey(io, prep, k => readPlan(rpc, k, (name, i, n) => show(`equinox. fares: reading this week's fare plan… ${name} (${i} of ${n})`)));
+      plan = planOf(got.answer);
+    } catch (e) { plan = { error: e.message }; }
     btn.disabled = false;
     if (plan.error) return show("equinox. fares: couldn't read the fare plan (" + plan.error + "). Check the capture key.", [["Close", close, true]]);
     if (plan.problems.length) {
@@ -309,7 +439,7 @@
       + `\n\n${plural(plan.total, "change", "changes")} in all${plan.fixes ? `, ${plan.fixes} of them setting a route back to its level` : ""}, one every 2 seconds: about ${plural(minutes, "minute", "minutes")}. Leave this tab open and watch; Stop is here throughout. It changes prices only.`,
       [["Go ahead", () => {
         const first = plan.airlines.findIndex(al => al.actions.length);
-        const t = { phase: "switch", i: first, j: 0, airlines: plan.airlines, made: {}, names: null, stop: false, log: [] };
+        const t = { phase: "switch", version: VERSION, i: first, j: 0, airlines: plan.airlines, made: {}, names: null, stop: false, log: [] };
         note(t, "Applying the fare plan…"); set(t); show(lines(t), [stopButton]); step();
       }, true], ["Cancel", close]]);
   }
@@ -328,6 +458,7 @@
     // a run carries on across the page loads it makes (switching airline, opening the fares page); one left for minutes
     // (the tab closed, the session lost and signed in again) isn't picked up by itself
     if (Date.now() - (s.at || 0) > STALE_MS) finish(s, "The run was interrupted (nothing happened for over 3 minutes)" + (s.airlines[s.i] ? `, at ${progressWords(s.airlines[s.i].name, s.j, s.airlines[s.i].actions.length)}` : "") + ".");
+    else if (unfilled(KEY) && s.version !== VERSION) finish(s, midRunWords("fares", s.version, VERSION).replace(/^equinox\. fares: /, ""));   // since 1.5
     else { show(lines(s), [stopButton]); setTimeout(step, 800); }
   }
 })(typeof window !== "undefined" ? window : globalThis);

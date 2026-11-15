@@ -27,6 +27,8 @@ vm.runInContext(source, sandbox, { filename: "capture/fares_apply.user.js" });
 const F = sandbox.eqFares;
 // values made inside the script's own context compare by their JSON
 const plain = v => JSON.parse(JSON.stringify(v));
+// the fares script's own limit as capture_fare_actions_by_airline()'s list gives it (settings, since 15 Nov)
+const LIMITS = { min_pct: 55, max_pct: 135 };
 
 let failures = 0;
 const check = async (name, fn) => { try { await fn(); console.log("ok    " + name); } catch (e) { failures++; console.log("FAIL  " + name + "\n      " + String(e.message).split("\n").join("\n      ")); } };
@@ -163,7 +165,7 @@ await check("a change that can't be made is refused before anything is sent", ()
   assert.match(F.actionProblem(action("JFK", "LHR", "+", 5, ["economy"], { game_id: null })), /game ID/);
 });
 await check("capture_fare_actions()'s answer grouped by airline, in its order, with the total; a bad key's answer an error", () => {
-  const doc = { ok: true, world: "Gander", week_of: "2026-10-17",
+  const doc = { ok: true, world: "Gander", week_of: "2026-10-17", limits: LIMITS,
     airlines: [{ game_id: 112, name: "Pan Am", count: 2 }, { game_id: 113, name: "Kingfisher", count: 0 }, { game_id: 114, name: "Ryanair", count: 1 }],
     actions: [action("JFK", "LHR", "+", 5, ["economy"]), action("LHR", "JFK", "+", 5, ["economy"]), action("CDG", "DUB", "-", 10, ["economy"], { game_id: 114, airline: "Ryanair" })] };
   const p = plain(F.planOf(doc));
@@ -178,7 +180,7 @@ await check("capture_fare_actions()'s answer grouped by airline, in its order, w
 await check("the fare plan read one airline at a time (1.3): the list, then each airline, put together as one answer", async () => {
   const calls = [], told = [];
   const answers = {
-    "null": { ok: true, world: "Gander", as_of: "2026-11-02T22:00:00.000Z", airlines: [{ game_id: 112, name: "Pan Am" }, { game_id: 113, name: "Kingfisher" }, { game_id: 114, name: "Ryanair" }] },
+    "null": { ok: true, world: "Gander", as_of: "2026-11-02T22:00:00.000Z", limits: LIMITS, airlines: [{ game_id: 112, name: "Pan Am" }, { game_id: 113, name: "Kingfisher" }, { game_id: 114, name: "Ryanair" }] },
     "112": { ok: true, world: "Gander", week_of: "2026-10-31", airlines: [{ game_id: 112, name: "Pan Am", count: 2, fixes: 0 }], actions: [action("JFK", "LHR", "+", 5, ["economy"]), action("LHR", "JFK", "+", 5, ["economy"])] },
     "113": { ok: true, world: "Gander", week_of: "2026-10-31", airlines: [{ game_id: 113, name: "Kingfisher", count: 0, fixes: 0 }], actions: [] },
     "114": { ok: true, world: "Gander", week_of: "2026-10-31", airlines: [{ game_id: 114, name: "Ryanair", count: 1, fixes: 0 }], actions: [action("CDG", "DUB", "-", 10, ["economy"], { game_id: 114, airline: "Ryanair" })] },
@@ -219,7 +221,7 @@ await check("a set-back change (fix) builds the same GET as any other change, an
     "/action/enterprise/flightsPrices?adjust=true&fromCode=a%3A3551&toCode=a%3A1054&serviceProfileId=0&factor=1&percent=10&base=standard&economy=true");
 });
 await check("set-back changes in the panel: counted per airline and in all, and said in words (\"set back\")", () => {
-  const doc = { ok: true, world: "Gander", week_of: "2026-10-24",
+  const doc = { ok: true, world: "Gander", week_of: "2026-10-24", limits: LIMITS,
     airlines: [{ game_id: 112, name: "Pan Am", count: 4, fixes: 2 }, { game_id: 114, name: "Ryanair", count: 1, fixes: 0 }],
     actions: [fix("JFK", "LHR", "+", 10, ["economy"]), fix("LHR", "JFK", "+", 10, ["economy"]), action("JFK", "ORD", "+", 5, ["economy"]),
               action("ORD", "JFK", "+", 5, ["economy"]), action("CDG", "DUB", "-", 10, ["economy"], { game_id: 114, airline: "Ryanair" })] };
@@ -233,18 +235,67 @@ await check("set-back changes in the panel: counted per airline and in all, and 
   assert.equal(F.changeWords(doc.actions[2]), "From JFK to ORD: +5% of the default price, economy");
 });
 
+// ---------------------------------------------------------------- the script's own limit (1.5; spec docs/specs/2026-11-15-self-updating-scripts.md §8)
+await check("the limit (1.5): 55% and 135% pass, 54% and 136% are refused, with the level and the setting in words", () => {
+  assert.equal(F.actionProblem(action("PVG", "CCU", "-", 45, ["economy"], { level: 55 }), LIMITS), null);
+  assert.equal(F.actionProblem(action("JFK", "LHR", "+", 35, ["economy"], { level: 135 }), LIMITS), null);
+  assert.equal(F.actionProblem(action("JFK", "LHR", "+", 28, ["economy"], { level: 128 }), LIMITS), null);   // Pan Am's cap today
+  assert.equal(F.actionProblem(action("PVG", "CCU", "-", 46, ["economy"]), LIMITS),
+    "its level, 54% of the default price, is under the fares script's limit of 55% (settings.fares_script_min_pct)");
+  assert.equal(F.actionProblem(action("JFK", "LHR", "+", 36, ["economy"]), LIMITS),
+    "its level, 136% of the default price, is over the fares script's limit of 135% (settings.fares_script_max_pct)");
+  // without limits (the old one-argument call) only the change's own shape is checked
+  assert.equal(F.actionProblem(action("JFK", "LHR", "+", 36, ["economy"])), null);
+});
+await check("the limit (1.5): a change whose level disagrees with its sign and percent is refused", () => {
+  assert.equal(F.actionProblem(action("JFK", "LHR", "+", 25, ["economy"], { level: 120 }), LIMITS), "its level is 120% but the change says +25% (125% of the default price)");
+  assert.equal(F.actionProblem(action("JFK", "LHR", "-", 20, ["economy"], { level: 80 }), LIMITS), null);
+});
+await check("the limit (1.5): one change outside it stops the whole plan before anything is made, naming the airline and the change", () => {
+  const doc = { ok: true, world: "Gander", week_of: "2026-11-21", limits: LIMITS,
+    airlines: [{ game_id: 112, name: "Pan Am" }, { game_id: 114, name: "Ryanair" }],
+    actions: [action("JFK", "LHR", "+", 5, ["economy"]), action("LHR", "JFK", "+", 40, ["economy"], { text: "From LHR to JFK: +40% of the default price, economy" }),
+              action("CDG", "DUB", "-", 10, ["economy"], { game_id: 114, airline: "Ryanair" })] };
+  const p = plain(F.planOf(doc));
+  assert.equal(p.problems.length, 1);
+  assert.equal(p.problems[0].airline, "Pan Am");
+  assert.equal(F.changeWords(p.problems[0].action), "From LHR to JFK: +40% of the default price, economy");
+  assert.match(p.problems[0].why, /140% of the default price, is over the fares script's limit of 135%/);
+  // the page makes nothing when planOf has a problem: begin() returns before the ask
+  const begin = source.slice(source.indexOf("async function begin(btn)"));
+  assert.ok(begin.indexOf("if (plan.problems.length)") < begin.indexOf("Go ahead"), "the problems aren't checked before the ask");
+});
+await check("the limit (1.5): no limits from the database, or limits that aren't two numbers, refuse the whole plan", () => {
+  const base = { ok: true, world: "Gander", week_of: "2026-11-21", airlines: [{ game_id: 112, name: "Pan Am" }], actions: [action("JFK", "LHR", "+", 5, ["economy"])] };
+  for (const limits of [undefined, null, {}, { min_pct: 55 }, { min_pct: "x", max_pct: 135 }, { min_pct: 135, max_pct: 55 }, { min_pct: null, max_pct: 135 }])
+    assert.match(plain(F.planOf({ ...base, limits })).error, /didn't give the fares script's limits/, JSON.stringify(limits));
+  assert.deepEqual(plain(F.planOf({ ...base, limits: { min_pct: "55", max_pct: "135" } })).limits, LIMITS);
+});
+await check("the limit (1.5): readPlan carries the list's limits into the plan", async () => {
+  const call = async (fn, body) => body.p_game_id === null
+    ? { ok: true, world: "Gander", limits: LIMITS, airlines: [{ game_id: 112, name: "Pan Am" }] }
+    : { ok: true, world: "Gander", week_of: "2026-11-21", airlines: [{ game_id: 112, name: "Pan Am" }], actions: [action("JFK", "LHR", "+", 40, ["economy"])] };
+  const p = plain(F.planOf(await F.readPlan(call, "k")));
+  assert.deepEqual(p.limits, LIMITS);
+  assert.match(p.problems[0].why, /over the fares script's limit/);
+  const none = async (fn, body) => body.p_game_id === null ? { ok: true, world: "Gander", airlines: [{ game_id: 112, name: "Pan Am" }] } : call(fn, body);
+  assert.match(plain(F.planOf(await F.readPlan(none, "k"))).error, /didn't give the fares script's limits/);
+});
+
 // ---------------------------------------------------------------- the file itself
 await check("the file: a userscript for the game with a version, the key a placeholder, the public key only", () => {
   assert.match(source, /^\/\/ ==UserScript==/);
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/\*$/m);
   assert.match(source, /^\/\/ @version\s+\d+\.\d+$/m);
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
-  assert.match(source, /readPlan\(rpc, KEY,/);
+  assert.match(source, /withKey\(io, prep, k => readPlan\(rpc, k,/);
   assert.match(source, /^\/\/ @version\s+1\.(?:[3-9]|\d\d)$/m);
 });
-await check("the file: 2 seconds between changes, no browser dialogs, prices only", () => {
+await check("the file: 2 seconds between changes, no browser dialogs but the key's one prompt (1.5), prices only", () => {
   assert.equal(F.PAUSE_MS, 2000);
-  assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(source.replace(/^\s*\/\/.*$/gm, "")), "alert, confirm or prompt used");
+  const code = source.replace(/^\s*\/\/.*$/gm, "");
+  assert.equal(code.split("ask: words => root.prompt(words)").length, 2, "the key's prompt isn't there exactly once");
+  assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(code.replace("ask: words => root.prompt(words)", "")), "alert, confirm or prompt used");
   // the only game addresses it opens or calls: the airline switch, the fares page and its changes
   const paths = [...source.matchAll(/["'`](\/(?:app|action)\/[^"'`?$]*)/g)].map(m => m[1]);
   assert.deepEqual([...new Set(paths)].sort(), ["/action/enterprise/flightsPrices", "/app/enterprise/dashboard"]);
