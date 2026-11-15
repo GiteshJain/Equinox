@@ -6,16 +6,26 @@ itself. Read `CLAUDE.md`, the map's rows for the capture, the fares userscript a
 files in `docs/map/`), manual §5 (the fares userscript, the ladder's floor and caps) and §7 (the capture), and the two
 scripts' headers first.
 
-**Status: draft. Five choices below are Gitesh's and are marked "to decide". Nothing is built until they are.**
+**Status: decided and built.** Gitesh decided every choice on 15 Nov, 08:46 to 08:51 India time (in the Main chat; the
+outcomes are at the bottom, each under its choice). Built in one pull request on branch
+`build-247-self-updating-scripts`: capture 1.17, fares 1.5, migration `20261115170000_fares_script_limit.sql`.
+
+**A new fact since the draft:** Gitesh moves from the Userscripts app to **Tampermonkey in Safari on the Mac**, which has an
+"Automatic installation" setting (Tampermonkey's changelog, 5.6.6240/6241, July 2026, as the Main chat reported it), so
+updates arrive there by themselves and the guard (§4) is the net. His words: "Tampermonkey worked ok with our scripts on
+windows". Tampermonkey in Mac Safari is the target; the scripts use only the async `GM.*` calls that both apps have, so
+they still work in the Userscripts app at no extra cost. No scripts on the iPhone.
 
 ## What it does, in one paragraph
-Gitesh pastes each script (capture and fares) one last time on the Mac and on the iPhone. From then on the script's
-text never holds the key: the first time he presses its button on a device, the script asks for the key once and keeps
-it in the Userscripts app's own storage, which the game's page can't reach. Each script names an address where its
-newest version lives; a merge to `main` puts a new version there, and the device takes it from there (how, and whether
-a tap is needed, is choice 1: the Userscripts app does not install updates by itself). The unattended run keeps working
-unchanged. The fares script also gets a limit of its own: it refuses any change whose level is under 55% or over 135% of
-the default price, stops before making anything and says which change and why.
+Gitesh installs each script (capture and fares) one last time, on his Mac only, in Tampermonkey in Safari, from its raw
+address on `main`. From then on the script's text never holds the key: the first time he presses its button, the script
+asks for the key once in the browser's own box and keeps it in Tampermonkey's own storage, which the game's page can't
+reach. A merge to `main` that raises a script's version reaches the Mac by itself (Tampermonkey's automatic
+installation); a copy that is still behind stops before doing anything and says to update. The unattended run keeps
+working unchanged: the file keeps the key placeholder, which the job fills. The fares script also gets a limit of its
+own: it refuses any change whose level is under 55% or over 135% of the default price, stops before making anything and
+says which change and why. (Drafted first for the Userscripts app on the Mac and the iPhone; §1 is that research, kept
+because the scripts still run there.)
 
 ## 1. What the Userscripts app really does (researched 15 Nov)
 Source read: the app's own repository, `github.com/quoid/userscripts`, branch `main` at commit `8b743e3` (10 May 2026):
@@ -71,6 +81,20 @@ the game's page (choice 3). It must never go into `sessionStorage` or `localStor
    cookies, and their calls to Supabase. Other Safari extensions do this routinely, but this spec could not test it;
 4. that `prompt()` works from the content world on the iPhone (only if choice 3 picks it).
 
+### Tampermonkey in Safari (added 15 Nov, after the decisions)
+Not researched from its source here (it isn't open source); what this build relies on, and what the Main chat should
+check with Gitesh after the merge:
+- **Relied on, standard in Tampermonkey:** `@updateURL` and `@downloadURL`, a higher `@version` offered as an update,
+  `@grant GM.getValue`, `GM.setValue` and `GM.deleteValue` (the async forms), and with any `@grant` the script running
+  in Tampermonkey's own sandbox rather than the page's (the game's JavaScript can't read the key there); `prompt()`
+  from the script.
+- **Not confirmed without his Mac:** how often Tampermonkey in Safari checks for updates (its "Check interval"
+  setting; the build asks him to set it to the shortest he's happy with); whether "Automatic installation" really
+  installs with no tap in Safari (the changelog's word; the guard stops an old copy either way); whether the scripts'
+  `fetch` calls to the game (with its cookies) and to Supabase and raw.githubusercontent.com work from Tampermonkey's
+  sandbox in Safari as they did on Windows with `@grant none`; and whether the fares script can still read the game's
+  `frontendSettings` from the sandbox (if not, it uses the cookie's usual name, as it always could).
+
 ## 2. The update address (choice 2)
 Each script gets, in its header:
 ```
@@ -122,25 +146,34 @@ script into each page with Playwright, where there is no `GM`. How it keeps work
 - the header's new lines don't matter to the job (it ignores the header except `@version`);
 - the first scheduled run after the merge (09:30 or 21:30 UTC) is the proof; a broken one fails and GitHub emails him.
 
-## 6. The one last paste on each device
-Steps for Gitesh, one at a time, after the merge (the Building chat sends them):
-1. **Mac, in Safari:** open the Userscripts editor, select "equinox. capture all airlines", replace all its text with
-   the file from the address and Save; the same for "equinox. apply fare plan". (Pasting over the same script keeps
-   its file name, so there's no second copy.)
-2. **iPhone, in Safari:** open the capture's address; open the Userscripts popup and install from its prompt; the same
-   for the fares script, if he uses it there (choice 5). Then the popup's all-scripts view should list each once.
-3. **Each device:** Userscripts settings → Scripts Update Check Interval → 1 day (only if choice 1 is A or C).
-4. **Each device, first press:** the script asks for the key (choice 3); he pastes it from where he keeps it. Then the
-   capture runs as usual; the fares script reads the plan and asks before changing anything, so its first press can be
-   stopped at the ask.
-5. Report back to the to-do: both scripts show the new version in the popup, and the next merge's update arrived.
+## 6. The one last install, on the Mac only (rewritten 15 Nov for the decisions)
+Steps for Gitesh, one at a time, after the merge (the Main chat sends them; no key is ever typed in a chat):
+1. **Install Tampermonkey** for Safari on the Mac (App Store), and switch it on in Safari's settings → Extensions, allowed
+   on `gander.airlinesim.aero` (and raw.githubusercontent.com, for the install pages).
+2. **Tampermonkey's settings** (its menu → Dashboard → Settings, config mode Advanced if the options are hidden): under
+   Script Update, switch on **automatic installation** and set the **check interval** (every 6 hours, or the shortest
+   offered).
+3. **Install each script from its raw address**, in Safari:
+   `https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js`, then
+   `https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/fares_apply.user.js`; Tampermonkey shows its
+   install page for each: Install.
+4. **Remove the old copies in the Userscripts app on the Mac:** in its editor, select "equinox. capture all airlines" and
+   "equinox. apply fare plan" and trash each (or switch the app off for the game). Two copies of a script would both
+   draw their buttons and both run. Leave the aircraft evaluation userscript where it is (outside this to-do).
+5. **First press of each, in the game:** Capture all airlines asks for the key once in a browser box: paste it from where
+   he keeps it. The capture then runs as usual. Apply fare plan asks for it once too, then reads the plan and asks before
+   changing anything, so its first press can be stopped at "Cancel".
+6. **The iPhone:** open the Userscripts app's all-scripts view and delete the old capture script (it has the key in its
+   text and no guard), and the fares script if it is there. Then no equinox. script is left on the phone.
+7. Report back on the to-do: the version each script shows in Tampermonkey (1.17 and 1.5), and, after the next merge
+   that raises a version, whether it arrived without a tap.
 
 ## 7. Rolling back a bad version
 - The app only offers a higher version (§1), so a rollback is a pull request that puts back the last good code **with
   a new, higher version** (bad 1.18 → 1.19 holding 1.17's code), merged on "merge" as any change. The guard (§4) then
   stops the bad one on its next press.
-- Until then, on a device: switch the script off in the Userscripts popup (tap it in the list), or paste an older file
-  over it in the editor; the stored key stays (same file name).
+- Until then, on the Mac: switch the script off in Tampermonkey's menu (its switch beside the script), or edit it there
+  and paste an older file over it; the stored key stays (the same script).
 - A version number is never lowered or reused; a check guards it (§8).
 
 ## 8. The fares script's own limit
@@ -202,9 +235,9 @@ Steps for Gitesh, one at a time, after the merge (the Building chat sends them):
 
 ---
 
-## Choices for Gitesh (to decide)
+## Choices for Gitesh, and his decisions (15 Nov, 08:46 to 08:51 India time)
 
-### Choice 1: the app only updates on a tap (to decide)
+### Choice 1: the app only updates on a tap (decided)
 The app checks for a newer version only when its popup opens, and installs it only when he taps Update (§1). "The
 scripts update themselves" isn't possible in the app as it is.
 
@@ -217,7 +250,11 @@ scripts update themselves" isn't possible in the app as it is.
 **Recommendation (only):** A. It keeps every update visible as a tap, and the guard removes the old-code risk, which is
 the reason for 247.
 
-### Choice 2: where the update address is served from (to decide)
+**Outcome (Gitesh, 15 Nov): A.** The update address plus a guard on each press that stops an out-of-date script before
+it does anything and says to update; no loader. On the Mac he moves to Tampermonkey, whose automatic installation takes
+updates by itself ("Tampermonkey worked ok with our scripts on windows"); the guard is the net.
+
+### Choice 2: where the update address is served from (decided)
 
 | Option | What it gives | Cost | Risk | Easy to undo? |
 |---|---|---|---|---|
@@ -226,7 +263,9 @@ the reason for 247.
 
 **Recommendation (only):** A, while the repository is public.
 
-### Choice 3: where the key is entered (to decide)
+**Outcome (Gitesh, 15 Nov): A.** GitHub's raw file on `main`.
+
+### Choice 3: where the key is entered (decided)
 
 | Option | What it gives | Cost | Risk | Easy to undo? |
 |---|---|---|---|---|
@@ -236,7 +275,9 @@ the reason for 247.
 **Recommendation (only):** B, since it's the only one that meets "the game's page can't read it"; fall back to A if it
 doesn't work on the iPhone.
 
-### Choice 4: how the unattended run gets its key (to decide)
+**Outcome (Gitesh, 15 Nov): B.** Typed once into the browser's own `prompt()` box.
+
+### Choice 4: how the unattended run gets its key (decided)
 
 | Option | What it gives | Cost | Risk | Easy to undo? |
 |---|---|---|---|---|
@@ -245,7 +286,10 @@ doesn't work on the iPhone.
 
 **Recommendation (only):** A.
 
-### Choice 5: the limit's two numbers, and the iPhone (to decide)
+**Outcome (Gitesh, 15 Nov): A.** The job is left as it is: the script keeps the placeholder for the job to fill;
+`equinox-backups` unchanged; with the placeholder unfilled the script reads the key from the app's storage.
+
+### Choice 5: the limit's two numbers, and the iPhone (decided)
 
 **5a. How the limit moves with the cap**
 
@@ -255,6 +299,9 @@ doesn't work on the iPhone.
 | B. Worked out: the ladder's highest reach plus a margin row (7 points), its lowest floor minus one (5) | Moves by itself when the cap is lifted | Nothing at rule changes | A wrong cap row widens the limit with it, so the limit no longer catches it | Yes |
 
 **Recommendation (only):** A.
+
+**Outcome (Gitesh, 15 Nov): A.** Two fixed `settings` rows, 55 and 135, with a check that goes red if a cap change
+reaches them.
 
 **5b. The iPhone's capture.** Memory (not this repository) says that on 30 Oct Gitesh installed capture 1.9 (the
 market pages) only on the Mac and kept an older capture on the iPhone on purpose. With updates (and the guard), the
@@ -267,3 +314,10 @@ iPhone either takes every version or refuses to run.
 | C. No capture on the iPhone (the unattended run covers it); fares there or not as he likes | Nothing to keep up on the phone | One script less | None new | Yes, paste it back |
 
 **Recommendation (only):** C if he no longer presses capture on the phone since the unattended run started, else A.
+
+**Outcome (Gitesh, 15 Nov): C, Mac only.** No scripts on the iPhone: "I'll only do it on Mac since captures run
+automatically anyways". The rollout (§6) deletes the old capture script from the iPhone's Userscripts app and removes
+the old copies from the Userscripts app on the Mac.
+
+**The aircraft evaluation userscript** stays out of this build (the Main chat is asking Gitesh); it keeps its key in its
+text and its `@grant none`.

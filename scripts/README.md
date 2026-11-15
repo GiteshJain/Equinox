@@ -91,6 +91,21 @@ on a small dated sample on every pull request and keep the PDF (`tests/report_te
 | 1 | `newsletter/nl_analyze.py` | The market numbers for the issue: biggest airlines, airports and routes, market leaders, fleets | `airlines3.json` and `airports3.json` (a world scan, pulled as in the weekly report's step 1 and renamed), `game_stats.json` (the game's own statistics pages, saved by hand), `airports_oa.csv`; the market definitions are read from the repository's `report/analyze.py` (its market block, as `scan_markets.py` reads it; since 15 Oct, not a copy in the working folder) | `nl.json` |
 | 2 | `newsletter/nl_build.py` | Lays out the issue with its map | `nl.json`, `land110.geojson` (Natural Earth's public 1:110m land outline) | `nl_map.png`, `~/report/Gander_Monthly_Issue1_Oct2026.pdf`. The issue name (`Gander_Monthly_Issue1_Oct2026`) is written into `nl_build.py` and must change for each issue. |
 
+## The userscripts on Gitesh's Mac
+
+**Since 15 Nov the capture and fares userscripts update themselves** (capture 1.17, fares 1.5; to-do 247, spec
+`docs/specs/2026-11-15-self-updating-scripts.md`; manual §7). Gitesh runs them in Tampermonkey in Safari on his Mac only.
+Each is installed once from its raw address on `main`
+(`https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js` and
+`…/capture/fares_apply.user.js`), which is also its `@updateURL` and `@downloadURL`: with Tampermonkey's automatic
+installation on, each merge that raises a script's `@version` reaches the Mac by itself, so **every change to either
+file must raise its `@version`** (`tests/userscript_key_test.mjs` checks it against `main` where it can), and never lower
+or reuse one (the apps offer only a higher version). The capture key is never in the text: the first press asks for it
+once in the browser's own prompt and keeps it in Tampermonkey's storage (`GM.setValue`). Each press first checks the
+version at the address and stops when a newer one is out. The repository's files keep the key placeholder for the
+unattended run, which fills it in its own copy. To roll back a bad version, merge the last good code with a higher
+version number. The aircraft evaluation userscript is unchanged: installed by hand, with the key pasted in.
+
 ## The world scan
 
 **Since 21 Oct the evening capture scans the world** (`capture/capture_all.user.js` 1.5, manual §7; spec

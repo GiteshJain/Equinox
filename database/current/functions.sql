@@ -316,7 +316,7 @@ CREATE OR REPLACE FUNCTION public.capture_fare_actions_by_airline(p_key text, p_
  SET statement_timeout TO '30s'
  SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
-declare v_world bigint; v_doc jsonb;
+declare v_world bigint; v_doc jsonb; v_min jsonb; v_max jsonb;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
@@ -324,9 +324,15 @@ begin
   -- never changed on a schedule (manual §5), so it is refused as a wrong key is
   if private.capture_key_unattended(p_key) then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
   if p_game_id is null then
+    -- the fares script's own limit (since 15 Nov, spec docs/specs/2026-11-15-self-updating-scripts.md §8): the world's two
+    -- rows, or null when either is missing or not a number (the script then refuses the plan)
+    select s.value into v_min from public.settings s where s.world_id = v_world and s.airline_id is null and s.key = 'fares_script_min_pct';
+    select s.value into v_max from public.settings s where s.world_id = v_world and s.airline_id is null and s.key = 'fares_script_max_pct';
     -- the list: our active airlines of the world in display order, with no fare ladder worked out (it answers at once)
     return jsonb_build_object('ok', true, 'world', (select w.name from public.worlds w where w.id = v_world),
              'as_of', private.fig_ts(now()),
+             'limits', case when jsonb_typeof(v_min) = 'number' and jsonb_typeof(v_max) = 'number'
+                            then jsonb_build_object('min_pct', v_min, 'max_pct', v_max) end,
              'airlines', coalesce((select jsonb_agg(jsonb_build_object('game_id', a.game_id, 'name', coalesce(a.public_name, a.planner_name, a.game_name),
                                                                        'game_name', a.game_name, 'code', a.iata_code)
                                                     order by a.position nulls last, a.id)
