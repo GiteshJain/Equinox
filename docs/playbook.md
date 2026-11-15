@@ -263,10 +263,11 @@ to step 5. The planner checks each card against them.
 1. Create the routes and schedule the aircraft **exactly as the card says**: flight numbers, days, times. A line's
    aircraft: the schedule editor's copy of the line with the card's offset, so each flies its own days. Aircraft fly
    to their first departure on their own (manual §9, mechanics).
-2. **Cabin:** the plan card's cabin. The card shows it (**suggested: …**, with **Use the suggestion**), and the card
+2. **Cabin:** the plan card's cabin. The card shows it (**suggested: …**, with **Use the suggestion**, under the card's
+   **More** line, which counts a cabin that differs), and the card
    check flags a card whose cabin is missing or differs (rule: manual §5, the cabin is chosen with each order).
-3. **Fares:** a new route's launch fare is set by hand from the card (Tails → Deliveries → **card**, its **Fare level**
-   column: **Ticket price adjustment**, baseline **default price**) when it differs from the game's default (Ryanair's
+3. **Fares:** a new route's launch fare is set by hand from the card (Tails → Deliveries → **card** → **More**, its
+   **Fare level** column: **Ticket price adjustment**, baseline **default price**) when it differs from the game's default (Ryanair's
    launch level). The fares userscript never sets back a new route; it sets back only an existing route's new flight,
    after a capture has seen it (rules: manual §5, fares; the fare ladder; manual §9, house rules, the fare floor).
 
@@ -279,7 +280,7 @@ File it as soon as it arrives (rule: manual §4, how it runs).
      File with **the game's times** if the game is right, or fix the game and file with **the plan card's times**.
 3. Filing puts the aircraft in service, fits the plan card's cabin (else the order's) and logs its first fit at that
    cabin's price, and adds each flight with its return as a round trip, launched today. With no cabin on the card or the
-   order it sets none and says so: choose it on the card (**Cabin**, or **Use the suggestion**) before filing.
+   order it sets none and says so: choose it on the card (**Cabin**, or **Use the suggestion** under **More**) before filing.
 
 ### Step 7: Interline, if the route opens a new foreign airport
 - The plan card names the airport's partner, picked by the rules (manual §6: one outside partner per foreign airport;

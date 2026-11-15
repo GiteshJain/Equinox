@@ -708,7 +708,8 @@ async def plan_card_cabins(pl):
     planning library (tests/plan_card_cabins.mjs: card.cabinFor on rules_input(world, 'all')), printed one line each
     (registration, the card's cabin, the suggestion and its reason, and whether it differs: codes only), the cards that
     differ counted. Then the first such card with legs, opened on Tails, says "suggested: <the library's code>" beside its
-    Cabin box, with Use the suggestion when the card's own cabin isn't it, and a card cabin that differs in amber; and
+    Cabin box, with Use the suggestion when the card's own cabin isn't it, and a card cabin that differs in amber (since 15
+    Nov all under the card's closed "More" line, which counts the difference: spec docs/specs/2026-11-15-cleaner-plan-card.md); and
     (21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §2) the fare level of each route it flies, once per
     route, since 26 Oct once per direction (spec docs/specs/2026-10-26-fare-ladder-per-direction.md §3), in the game's
     words, printed."""
@@ -753,7 +754,9 @@ async def plan_card_cabins(pl):
         shown = await pl.pg.evaluate("""sel => { const c = document.querySelector(sel); if (!c) return null;
             const s = c.querySelector('[data-card-suggest]'), cab = c.querySelector('[data-card-cabin]');
             return { code: s ? s.dataset.cardSuggest : null, text: s ? s.textContent : '', use: !!c.querySelector('[data-card-suggest-use]'),
-                     cabin: cab ? cab.dataset.cardCabin : null, amber: !!c.querySelector('[data-card-cabin-differs]') }; }""", card)
+                     cabin: cab ? cab.dataset.cardCabin : null, amber: !!c.querySelector('[data-card-cabin-differs]'),
+                     more: !!c.querySelector('details[data-card-more]'), moreOpen: !!c.querySelector('details[data-card-more][open]'),
+                     moreCount: !!c.querySelector('details[data-card-more] > summary [data-card-more-count]') }; }""", card)
         if shown is None:
             problems.append(f"{c['registration']}'s plan card didn't open on Tails")
         elif shown["code"] is not None:
@@ -764,6 +767,12 @@ async def plan_card_cabins(pl):
             differs = bool(shown["cabin"]) and shown["cabin"] != x["suggested"]
             if shown["amber"] != differs:
                 problems.append(f"{c['registration']}'s cabin {shown['cabin'] or 'none'} {'is' if shown['amber'] else 'is not'} amber against {x['suggested']}")
+            # since 15 Nov (spec docs/specs/2026-11-15-cleaner-plan-card.md) the suggestion, its amber and the fare levels
+            # fold under the card's one "More" line, closed, which counts the difference so a closed card still shows it
+            if not shown["more"] or shown["moreOpen"]:
+                problems.append(f"{c['registration']}'s plan card has {'no' if not shown['more'] else 'an open'} More line")
+            elif shown["moreCount"] != differs:
+                problems.append(f"{c['registration']}'s closed More line {'counts' if shown['moreCount'] else 'does not count'} a cabin difference, the cabin {shown['cabin'] or 'none'} against {x['suggested']}")
         # the fare level of each route it flies (21 Oct, spec docs/specs/2026-10-21-frequencies-and-fares.md §2): since 26
         # Oct once per direction, on the direction's first leg, once fare_ladder() for the airline is read; printed (codes
         # and levels only)

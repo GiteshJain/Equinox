@@ -22,12 +22,18 @@
 // docs/specs/2026-10-27-long-haul-lines.md §2) the board shows the airline's 7-day lines over the deliveries (Lines.tsx:
 // each line's slots, its check and Write the next card), and a card on a line says which line, its offset and its slot's
 // state, with each leg's local weekdays (a line's card flies each leg on one day).
+// Since 15 Nov (to-do 242, spec docs/specs/2026-11-15-cleaner-plan-card.md) the card itself shows only the tail, type and
+// hub, the cabin's name (red "no cabin chosen" without one), each flight's number, route, days, times and service code
+// (a wrong code in red, a new station highlighted), the Cabin box and File into planner; the rest folds under one
+// "More" line, closed by default (model.ts's cardMore): the plan's title and flight count, the line, the note, the
+// cabin's suggestion with its reason and Use the suggestion, block times and the fare levels. When something under it
+// needs a look (a cabin that differs from the suggestion) the "More" line says so with a count. Nothing saved changes.
 import { useEffect } from "react";
 import type { CabinSuggestion } from "@rules";
 import { AirlineMark } from "../../ui/AirlineMark";
 import { niceDate } from "../../ui/dates";
 import { CardLine, Lines, type LineView } from "./Lines";
-import { cabinDiffers, comingIn, daysLabel, suggestionWords, type CardLeg, type DeliveryRow, type DeliveryStatus, type PlanCardRow, type TailAircraft, type TailAirline } from "./model";
+import { cardMore, comingIn, daysLabel, suggestionWords, type CardLeg, type DeliveryRow, type DeliveryStatus, type PlanCardRow, type TailAircraft, type TailAirline } from "./model";
 
 const STATUS: readonly [DeliveryStatus, string][] = [["", "Open"], ["on order", "On order"], ["unscheduled", "Arrived"], ["flying", "Flying"]];
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -64,25 +70,28 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
   // a line's card flies each leg on its own weekday: the legs show their local days (since 28 Oct)
   const byDay = legs.some((l) => l.days !== "1234567");
   const sw = filed ? null : suggestionWords(suggestion ?? null);
-  const differs = !filed && cabinDiffers(suggestion ?? null, config);
+  const shownTitle = card.title || title;
+  // since 15 Nov (spec docs/specs/2026-11-15-cleaner-plan-card.md) the rest folds under one "More" line, which says when
+  // something under it needs a look
+  const more = cardMore({
+    title: shownTitle, flights: legs.length, onLine: !!line && card.line_day_offset != null, note: card.note ?? "", filed, suggestion: suggestion ?? null,
+    shown: config, block: legs.some((l) => !!l.block), fares: fares?.size ?? 0,
+  });
+  const differs = more.problems.find((p) => p.key === "cabin-differs");
   return (
     <div className="pcard" data-plan-card={reg}>
-      <div className="pch"><b>{reg} · {card.base_code || base} — <StnText text={card.title || title} stations={stations} /></b><span className="pchtags"><span className="pill mute sm">{type}</span> {config
-        ? <span className={differs ? "pill warn sm" : undefined} data-card-cabin={config} data-card-cabin-differs={differs ? "yes" : undefined}
-          title={differs && suggestion?.code ? `the rule calls for ${suggestion.code}` : undefined}>{config}</span>
-        : <span className="pill warn sm" data-card-cabin="">no cabin chosen</span>}{legs.length ? <> <span className="pill mute sm">{legs.length} flight{legs.length === 1 ? "" : "s"}</span></> : null}</span></div>
-      <CardLine v={line} offset={card.line_day_offset} />
+      <div className="pch"><b>{reg} · {card.base_code || base}</b><span className="pchtags"><span className="pill mute sm">{type}</span> {config
+        ? <span data-card-cabin={config}>{config}</span>
+        : <span className="pill bad sm" data-card-cabin="">no cabin chosen</span>}</span></div>
       <div className="tblwrap">
         <table className="tbl pt">
           <tbody>
-            <tr><th>Flight</th><th>Route</th>{byDay ? <th>Day</th> : null}<th>Departs</th><th>Arrives</th><th>Block</th><th>Service</th>{fares?.size ? <th>Fare level</th> : null}</tr>
+            <tr><th>Flight</th><th>Route</th>{byDay ? <th>Day</th> : null}<th>Departs</th><th>Arrives</th><th>Service</th></tr>
             {legs.map((l) => {
-              const issue = service?.get(l.row.id), fare = fares?.get(l.row.id);
+              const issue = service?.get(l.row.id);
               return (
-                <tr key={l.row.id} data-card-leg><td><b>{l.no}</b></td><td><Stn code={l.from} stations={stations} />–<Stn code={l.to} stations={stations} /></td>{byDay ? <td data-card-leg-days={l.days}>{daysLabel(l.days)}</td> : null}<td>{l.dep}</td><td>{l.arr}</td><td>{l.block}</td>
-                  <td>{l.svc}{issue ? <> <span className="pill bad sm" data-service-issue title="the service code its route's distance calls for">{issue}</span></> : null}</td>
-                  {fares?.size ? <td className="dim" data-card-fare={fare ? `${l.from}-${l.to}` : undefined}
-                    title={fare ? "set each new flight's fare to this in the game: Ticket price adjustment, default price" : undefined}>{fare ?? ""}</td> : null}</tr>
+                <tr key={l.row.id} data-card-leg><td><b>{l.no}</b></td><td><Stn code={l.from} stations={stations} />–<Stn code={l.to} stations={stations} /></td>{byDay ? <td data-card-leg-days={l.days}>{daysLabel(l.days)}</td> : null}<td>{l.dep}</td><td>{l.arr}</td>
+                  <td>{l.svc}{issue ? <> <span className="pill bad sm" data-service-issue title="the service code its route's distance calls for">{issue}</span></> : null}</td></tr>
               );
             })}
           </tbody>
@@ -97,17 +106,46 @@ export function PlanCard({ reg, base, title, type, config, card, legs, service, 
             </select>{" "}
           </label>
         ) : null}
-        {sw && suggestion?.code ? (
-          <span className="cabsug" data-card-suggest={suggestion.code}>
-            <b>{sw.text}</b> <span className="dim">{sw.reason}</span>
-            {onCabin && cardCabin !== suggestion.code ? <>{" "}
-              <button type="button" className="secondary sm" data-card-suggest-use={reg} disabled={busy} onClick={() => onCabin(suggestion.code ?? "")}>Use the suggestion</button></> : null}
-          </span>
-        ) : null}
-        {card.note ? <span className="pnote">{card.note}</span> : null}
         {filed ? <> <span className="pill ok">in the planner</span></>
           : canFile ? <> <button type="button" className="primary sm" data-planfile={reg} disabled={busy} onClick={onFile}>File into planner</button></> : null}
       </div>
+      {more.items.length || more.problems.length ? (
+        <details className="gsub pcmore" data-card-more={more.count ? more.level : "clean"}>
+          <summary className="dim"><b>More</b>{more.words ? <>&nbsp;· {more.words}</> : null}
+            {more.count ? <> <span className={"pill sm " + more.level} data-card-more-count={more.problems.length}
+              title={more.problems.map((p) => p.text).join("\n")}>{more.count}</span></> : null}</summary>
+          <div className="pcmbody">
+            {differs ? <div><span className={"pill sm " + differs.level} data-card-cabin-differs="yes">{differs.text}</span></div> : null}
+            {shownTitle ? <div data-card-title>Plan: <StnText text={shownTitle} stations={stations} />{legs.length ? <span className="dim"> · {legs.length} flight{legs.length === 1 ? "" : "s"}</span> : null}</div> : null}
+            <CardLine v={line} offset={card.line_day_offset} />
+            {card.note ? <div className="pnote">{card.note}</div> : null}
+            {sw && suggestion?.code ? (
+              <div><span className="cabsug" data-card-suggest={suggestion.code}>
+                <b>{sw.text}</b> <span className="dim">{sw.reason}</span>
+                {onCabin && cardCabin !== suggestion.code ? <>{" "}
+                  <button type="button" className="secondary sm" data-card-suggest-use={reg} disabled={busy} onClick={() => onCabin(suggestion.code ?? "")}>Use the suggestion</button></> : null}
+              </span></div>
+            ) : null}
+            {more.items.includes("block") || more.items.includes("fares") ? (
+              <div className="tblwrap">
+                <table className="tbl pt">
+                  <tbody>
+                    <tr><th>Flight</th><th>Route</th><th>Block</th>{fares?.size ? <th>Fare level</th> : null}</tr>
+                    {legs.map((l) => {
+                      const fare = fares?.get(l.row.id);
+                      return (
+                        <tr key={l.row.id} data-card-more-leg><td><b>{l.no}</b></td><td>{l.from}–{l.to}</td><td>{l.block}</td>
+                          {fares?.size ? <td className="dim" data-card-fare={fare ? `${l.from}-${l.to}` : undefined}
+                            title={fare ? "set each new flight's fare to this in the game: Ticket price adjustment, default price" : undefined}>{fare ?? ""}</td> : null}</tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

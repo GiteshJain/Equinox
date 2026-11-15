@@ -660,6 +660,51 @@ export function suggestionWords(s: CabinSuggestion | null): { text: string; reas
 }
 /** Whether a cabin shown on the card (its own, else its order's: a code, "" for none) differs from the suggestion. */
 export const cabinDiffers = (s: CabinSuggestion | null, shown: string): boolean => !!s?.code && !!shown && shown !== s.code;
+// ---------- the cleaner plan card (15 Nov, to-do 242, spec docs/specs/2026-11-15-cleaner-plan-card.md): the card itself
+// shows what Gitesh uses while he sets an aircraft up in the game; the rest folds under one "More" line, closed by
+// default, which says when something under it needs a look
+/** What stays on the card itself: the tail, the type and the hub in its head, the cabin's name, and the schedule. */
+export const CARD_FACE = ["tail", "type", "hub", "cabin", "schedule"] as const;
+/** The schedule's columns on the card itself (Day only when a leg doesn't fly daily, a line's card). */
+export const CARD_SCHEDULE = ["Flight", "Route", "Day", "Departs", "Arrives", "Service"] as const;
+/** What can fold under "More", in its order. */
+export type MoreItem = "title" | "flights" | "line" | "note" | "suggestion" | "block" | "fares";
+const MORE_WORDS: Record<MoreItem, string> = {
+  title: "plan", flights: "flight count", line: "line", note: "note", suggestion: "cabin suggestion", block: "block times", fares: "fare levels",
+};
+/** One thing under "More" that needs a look; its level is the pill's (warn amber, bad red). */
+export interface MoreProblem { key: "cabin-differs"; level: "warn" | "bad"; text: string }
+export interface CardMore {
+  /** What is under "More", in its order. */
+  items: MoreItem[];
+  /** The "More" line's words after "More": "plan · block times · fare levels". */
+  words: string;
+  /** What under "More" needs a look; empty when nothing does. */
+  problems: MoreProblem[];
+  /** The count on the "More" line ("1 to check"), "" when nothing needs a look. */
+  count: string;
+  /** The count's pill: the worst problem's level, "" when there is none. */
+  level: "" | "warn" | "bad";
+}
+/** What a plan card folds under "More", and what of it needs a look. shown: the cabin on the card (its own, else its
+ *  order's; "" for none); suggestion only before filing, as the card shows it. */
+export function cardMore(o: {
+  title: string; flights: number; onLine: boolean; note: string; filed: boolean; suggestion: CabinSuggestion | null; shown: string; block: boolean; fares: number;
+}): CardMore {
+  const sug = o.filed ? null : o.suggestion;
+  const items: MoreItem[] = [];
+  if (o.title) items.push("title");
+  if (o.flights) items.push("flights");
+  if (o.onLine) items.push("line");
+  if (o.note) items.push("note");
+  if (sug?.code) items.push("suggestion");
+  if (o.block) items.push("block");
+  if (o.fares) items.push("fares");
+  const problems: MoreProblem[] = [];
+  if (!o.filed && cabinDiffers(sug, o.shown)) problems.push({ key: "cabin-differs", level: "warn", text: `cabin ${o.shown} differs from the suggested ${sug?.code ?? ""}` });
+  const level = problems.some((p) => p.level === "bad") ? "bad" : problems.length ? "warn" : "";
+  return { items, words: items.map((i) => MORE_WORDS[i]).join(" · "), problems, count: problems.length ? `${problems.length} to check` : "", level };
+}
 /** Each card leg's service issue (the code given against the code wanted), by the leg's row id; empty when all are right. */
 export function cardServiceIssues(rules: Rules, airlineId: number, legs: readonly CardLeg[]): Map<number, string> {
   const check = service.checkLegs(rules, airlineId, legs.map((L) => ({ flight_no: L.row.flight_no, origin_code: L.from, dest_code: L.to, service_code: L.row.service_code })));
