@@ -307,19 +307,24 @@ await check("the file: a userscript for the tool's page with a version, the key 
   assert.match(source, /^\/\/ @match\s+https:\/\/gander\.airlinesim\.aero\/app\/aircraft\/evaluation\*$/m);
   assert.match(source, /^\/\/ @version\s+\d+\.\d+$/m);
   assert.match(source, /const KEY = "__CAPTURE_KEY__"/);
-  assert.match(source, /rpc\("capture_eval_runs", \{ p_key: KEY \}\)/);
-  assert.match(source, /rpc\("capture_eval_result", \{ p_key: KEY, p_run: run\.id, p_doc: doc \}\)/);
+  assert.match(source, /withKey\(keyIo, prep, k => rpc\("capture_eval_runs", \{ p_key: k \}\)\)/);
+  assert.match(source, /rpc\("capture_eval_result", \{ p_key: key, p_run: run\.id, p_doc: doc \}\)/);
 });
-await check("the file: 2 seconds between runs, half a second between POSTs, no browser dialogs", () => {
+await check("the file: 2 seconds between runs, half a second between POSTs, no browser dialogs but the key's one prompt (1.2)", () => {
   assert.equal(E.PAUSE_MS, 2000); assert.equal(E.POST_PAUSE_MS, 500);
-  assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(code), "alert, confirm or prompt used");
+  assert.equal(code.split("ask: words => root.prompt(words)").length, 2, "the key's prompt isn't there exactly once");
+  assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(code.replace("ask: words => root.prompt(words)", "")), "alert, confirm or prompt used");
 });
 await check("the file: read only: no other page of the game, no page loads, the only game requests the tool's form POSTs", () => {
   const paths = [...code.matchAll(/["'`](\/(?:app|action)\/[^"'`?$]*)/g)].map(m => m[1]);
   assert.deepEqual([...new Set(paths)], ["/app/aircraft/evaluation"]);
   assert.ok(!/location\.(?:href\s*=|assign|replace)|\.submit\(\)|window\.open/.test(code), "a page load or a form submitted by the page");
   const fetches = [...code.matchAll(/fetch\(([^,)]+)/g)].map(m => m[1].trim());
-  assert.deepEqual(fetches.sort(), ["RPC + fn", "url"], "fetch called with something else: " + fetches.join(", "));
+  // since 1.2 the third is the update address only (the guard reads its version; the raw file on main, not the game)
+  assert.deepEqual(fetches.sort(), ["RPC + fn", "u", "url"], "fetch called with something else: " + fetches.join(", "));
+  assert.match(code, /fetchText: async u => \{ const r = await fetch\(u, \{ cache: "no-store" \}\);/);
+  assert.match(code, /url: UPDATE_URL,/);
+  assert.match(code, /const UPDATE_URL = "https:\/\/raw\.githubusercontent\.com\/GiteshJain\/Equinox\/main\/capture\/aircraft_eval\.user\.js";/);
   assert.ok(/const url = actionUrl\(action, page\.url\);\s*if \(!url\) throw/.test(code), "a form is sent without checking it posts back to the tool");
 });
 

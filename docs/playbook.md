@@ -425,7 +425,7 @@ Run in the **Saturday review chat**, after the usual Saturday work (manual §7, 
 | A planner row was changed or deleted by mistake | One row can be put back from the change log; many from last night's backup. Ask the Building chat |
 | The planner and the game disagree | Today → Game check; the game is the truth (manual §4, the planner mirrors the game) |
 | The whole database is lost | Restore from R2 (or the month's GitHub copy) into a new Supabase project, then issue new keys and schedule the jobs again. The steps are in `equinox-backups`' README |
-| A key may have leaked | Issue a new one and replace it where it lives (the map's key table); for the capture key, the capture and fares userscripts ask for the new one on their next press, and the aircraft evaluation userscript needs it pasted in |
+| A key may have leaked | Issue a new one and replace it where it lives (the map's key table); for the capture key, the capture, fares and aircraft evaluation userscripts ask for the new one on their next press |
 | A check on a pull request is red | Don't merge. The pull request says which check and why (manual §1, automatic checks) |
 
 ---

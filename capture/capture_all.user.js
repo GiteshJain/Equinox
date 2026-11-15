@@ -100,7 +100,7 @@
     + "Update it (Tampermonkey's menu → Check for userscript updates; in the Userscripts app, its popup → Update), reload the page and press again.";
   const midRunWords = (name, was, now) => `equinox. ${name}: the script was updated during the run (started on ${was || "an older version"}, now ${now}), so it stopped here. `
     + "What's done stays done: press again.";
-  const askWords = name => `equinox. ${name}: paste the capture key once. It is kept in this browser's userscript storage, not in the script or the page.`;
+  const keyAskWords = name => `equinox. ${name}: paste the capture key once. It is kept in this browser's userscript storage, not in the script or the page.`;
   const againWords = name => `equinox. ${name}: the database didn't accept the key kept in this browser. Paste the capture key again.`;
   const isBadKey = r => !!r && r.ok === false && r.error === "bad key";
   // the newest version at the update address: ok, behind (with the newest) or unknown (with why); fetchText(url) gives
@@ -136,7 +136,7 @@
       if (v.state === "behind") return { stop: behindWords(io.name, io.own, v.latest) };
       if (v.state === "unknown") lines.push(`couldn't check for a newer version (${v.why}); going on with ${io.own}`);
     }
-    const k = await keyOf(io.baked, io.store, io.ask, askWords(io.name));
+    const k = await keyOf(io.baked, io.store, io.ask, keyAskWords(io.name));
     if (k.error) return { stop: `equinox. ${io.name}: no capture key (${k.error}). Press again and paste the key when asked.` };
     return { key: k.key, from: k.from, lines };
   }
@@ -158,7 +158,7 @@
     const k = await keyOf(io.baked, io.store, null);
     return k.error ? { stop: `equinox. ${io.name}: the run can't carry on (${k.error}).` } : { key: k.key, from: k.from };
   }
-  const keyLib = { KEY_NAME, GUARD_TIMEOUT_MS, unfilled, versionOf, isNewer, behindWords, midRunWords, askWords, againWords, isBadKey, versionCheck, keyOf, prepare, withKey, resumeKey };
+  const keyLib = { KEY_NAME, GUARD_TIMEOUT_MS, unfilled, versionOf, isNewer, behindWords, midRunWords, keyAskWords, againWords, isBadKey, versionCheck, keyOf, prepare, withKey, resumeKey };
   // ---------------------------------------------------------------- end of the shared block
 
   // ---------------------------------------------------------------- the world scan's logic, without the page

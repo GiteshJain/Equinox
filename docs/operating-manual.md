@@ -689,7 +689,7 @@ Details and open points: `docs/decisions.md`.
   run for `settings.capture_unattended_warn_h` (14) hours, and the Systems board has its line. A run is skipped while a
   capture is running. **Gitesh's own press**, on his Mac only (Tampermonkey in Safari; no scripts on the iPhone since
   15 Nov), is what sets salaries (below); whichever capture comes first after the scan or the market pages fall due
-  does them. The capture and fares scripts on the Mac take each new version from the raw file on `main` by themselves,
+  does them. The capture, fares and aircraft evaluation scripts on the Mac take each new version from the raw file on `main` by themselves,
   so a merge reaches the Mac without him looking; each keeps the capture key in Tampermonkey's own storage (typed
   once), and stops before doing anything when a newer version is out (since 15 Nov, to-do 247, spec
   `docs/specs/2026-11-15-self-updating-scripts.md`). A day's loads count as complete once every active

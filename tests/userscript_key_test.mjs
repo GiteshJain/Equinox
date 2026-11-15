@@ -1,9 +1,9 @@
-// The capture and fares userscripts' key and version (capture 1.17, fares 1.5; to-do 247, spec
+// The capture, fares and aircraft evaluation userscripts' key and version (capture 1.17, fares 1.5, aircraft evaluation 1.2; to-do 247, spec
 // docs/specs/2026-11-15-self-updating-scripts.md §2 to §5), with no browser and no game: each file runs in Node, where
 // (with no page) it only hands over its logic, with stand-ins for the userscript app's storage (GM), the prompt() box
 // and the update address.
 // Checks:
-//   1. The shared block is the same in both files.
+//   1. The shared block is the same in all three files.
 //   2. The key: the filled-in placeholder (the unattended run) is used and GM never touched, even with no GM at all; a
 //      kept key is used; none kept is asked for once and kept; nothing typed keeps nothing; a "bad key" answer forgets a
 //      kept or typed key and asks once more, never for the filled-in one.
@@ -24,6 +24,7 @@ const here = new URL(".", import.meta.url);
 const FILES = {
   capture: { path: "capture/capture_all.user.js", name: "equinox. capture all airlines", lib: "eqScan" },
   fares: { path: "capture/fares_apply.user.js", name: "equinox. apply fare plan", lib: "eqFares" },
+  eval: { path: "capture/aircraft_eval.user.js", name: "equinox. aircraft evaluation", lib: "eqEval" },   // since 1.2 (Gitesh, 15 Nov)
 };
 const RAW = "https://raw.githubusercontent.com/GiteshJain/Equinox/main/";
 for (const f of Object.values(FILES)) {
@@ -56,10 +57,11 @@ const PLACEHOLDER = "__CAPTURE" + "_KEY__";   // written in two parts, so this f
 const device = (extra = {}) => ({ name: "capture", own: "1.17", url: RAW + "capture/capture_all.user.js", baked: PLACEHOLDER, ...extra });
 
 // ---------------------------------------------------------------- 1. the shared block
-await check("the shared block (the key and the version) is the same in both files, and both hand it over", () => {
+await check("the shared block (the key and the version) is the same in all three files, and each hands it over", () => {
   const blockOf = s => { const a = s.indexOf("  // ---------------------------------------------------------------- the key and the version (shared block)"),
     b = s.indexOf("  // ---------------------------------------------------------------- end of the shared block"); assert.ok(a > 0 && b > a, "no shared block"); return s.slice(a, b); };
   assert.equal(blockOf(FILES.capture.source), blockOf(FILES.fares.source));
+  assert.equal(blockOf(FILES.capture.source), blockOf(FILES.eval.source));
   for (const f of Object.values(FILES)) for (const fn of ["prepare", "withKey", "resumeKey", "keyOf", "versionCheck", "isNewer", "unfilled"]) assert.equal(typeof f.L[fn], "function", f.path + " " + fn);
 });
 
@@ -173,7 +175,7 @@ await check("a run carried on after a page load: stopped when another version st
   // the unattended run: its own key, whatever the state's version
   assert.deepEqual(plain(await C.resumeKey(device({ baked: "job-key", store: null }), { version: "1.16" })), { key: "job-key", from: "text" });
 });
-await check("the pages use them: the capture's press and carried-on run, the fares script's press and carried-on run", () => {
+await check("the pages use them: each script's press and its carried-on run (capture, fares, aircraft evaluation)", () => {
   const cap = FILES.capture.source, far = FILES.fares.source;
   assert.match(cap, /prep = await prepare\(io\)[\s\S]{0,200}if \(prep\.stop\) \{ show\(prep\.stop\); b\.disabled = false; return; \}[\s\S]{0,200}withKey\(io, prep,/);
   assert.match(cap, /set\(\{ i: 0, phase: "switch", start, version: VERSION,/);
@@ -181,8 +183,12 @@ await check("the pages use them: the capture's press and carried-on run, the far
   assert.match(far, /prep = await prepare\(io\)[\s\S]{0,200}if \(prep\.stop\) \{ btn\.disabled = false; return show\(prep\.stop/);
   assert.match(far, /const t = \{ phase: "switch", version: VERSION,/);
   assert.match(far, /else if \(unfilled\(KEY\) && s\.version !== VERSION\) finish\(s, midRunWords/);
+  const ev = FILES.eval.source;
+  assert.match(ev, /prep = await prepare\(keyIo\)[\s\S]{0,200}if \(prep\.stop\) \{ btn\.disabled = false; return show\(prep\.stop/);
+  assert.match(ev, /const t = \{ version: VERSION, runs: plan\.runs,/);
+  assert.match(ev, /else resumeKey\(keyIo, s\)\.then\(r => \{ if \(r\.stop\) return finish\(s,/);
   // the store is the app's GM only where the app gives it: the unattended run's page has none
-  for (const s of [cap, far]) assert.match(s, /const store = typeof GM !== "undefined" && GM && typeof GM\.getValue === "function" \? GM : null;/);
+  for (const s of [cap, far, ev]) assert.match(s, /const store = typeof GM !== "undefined" && GM && typeof GM\.getValue === "function" \? GM : null;/);
 });
 
 // ---------------------------------------------------------------- 4. the files
@@ -201,7 +207,7 @@ for (const [kind, f] of Object.entries(FILES)) {
   });
   await check(`${f.path}: the placeholder once, as the unattended run fills it, and the key kept out of the page's storage, the console and the run's state`, () => {
     assert.equal(f.source.split(PLACEHOLDER).length, 2, "the placeholder isn't there exactly once");
-    assert.ok(f.source.includes(`const KEY = "${PLACEHOLDER}"`));
+    assert.ok(f.source.includes("const KEY" + " = \"" + PLACEHOLDER + "\""), "the placeholder line the unattended run fills has changed");
     const code = f.source.replace(/^\s*\/\/.*$/gm, "");
     assert.ok(!/(?:sessionStorage|localStorage)\.setItem\([^)]*\bkey\b/.test(code), "the key written to the page's storage");
     assert.ok(!/console\.\w+\([^)]*\bkey\b/i.test(code), "the key written to the console");

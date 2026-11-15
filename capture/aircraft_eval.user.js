@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         equinox. aircraft evaluation
 // @namespace    equinox
-// @version      1.1
+// @version      1.2
 // @description  One button on the game's aircraft evaluation tool, Aircraft evaluation: runs the tool over every route on the run list the database keeps (capture_eval_runs) that has no result yet, one route after another, and saves what the tool shows for each aircraft type (capture_eval_result). It only reads the tool: it sends nothing but the tool's own three forms (the route, add aircraft and settings), never opens another page and changes nothing in the game. 2 seconds between runs, while you watch; it stops at the first problem. Install it as the capture script, with your capture key in place of the placeholder.
+// @updateURL    https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/aircraft_eval.user.js
+// @downloadURL  https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/aircraft_eval.user.js
 // @match        https://gander.airlinesim.aero/app/aircraft/evaluation*
-// @grant        none
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @grant        GM.deleteValue
 // ==/UserScript==
 // Spec docs/specs/2026-10-27-aircraft-evaluation-script.md (the Building chat's design). The tool is a stateful page: its
 // address carries a page version (?134) and each form's action is tied to it, so every POST uses the actions of the
@@ -13,8 +17,102 @@
 // form's body, reading the table) is plain functions over the page's HTML, without the page, so
 // tests/aircraft_eval_userscript_test.mjs runs this same file in Node: there, with no page, it only hands those
 // functions over (as eqEval) and does nothing else.
+// Since 1.2 (15 Nov, to-do 247, spec docs/specs/2026-11-15-self-updating-scripts.md; Gitesh 09:09 India time, "Yes it
+// should be the same method no ?"): as the capture and fares scripts, it updates from its @updateURL, keeps the key in
+// the userscript app's own storage (asked for once in prompt()), and stops before anything when a newer version is out.
 (function (root) {
   "use strict";
+
+  // ---------------------------------------------------------------- the key and the version (shared block)
+  // The same lines in capture_all.user.js and fares_apply.user.js (tests/userscript_key_test.mjs checks they match; since
+  // capture 1.17 and fares 1.5, 15 Nov, to-do 247, spec docs/specs/2026-11-15-self-updating-scripts.md §3 and §4).
+  // The key: the KEY line below keeps the placeholder in the repository. The unattended run (equinox-backups) fills it
+  // in its own copy, and then that key is used and the app's storage is never touched. Unfilled, as on Gitesh's Mac, the
+  // key is read from the userscript app's own storage (GM.getValue, Tampermonkey's and the Userscripts app's), which the
+  // game's page can't reach; the first press asks for it once in the browser's own prompt() box (Gitesh, 15 Nov, choice 3
+  // B) and keeps it there (GM.setValue). A key the database refuses ("bad key") is forgotten and asked for once more.
+  // It is never put in the page, sessionStorage, localStorage, the panel or the console.
+  // The guard: on a device, each press first reads the newest version from the update address; a script behind it stops
+  // before doing anything and says to update; an address that doesn't answer is a line and the press goes on. A run whose
+  // state was started by another version stops too ("updated during the run").
+  const KEY_NAME = "capture_key", GUARD_TIMEOUT_MS = 5000;
+  const unfilled = k => typeof k !== "string" || !k.trim() || /^__[A-Z_]+__$/.test(k.trim());
+  const versionOf = text => { const m = String(text == null ? "" : text).match(/^\/\/\s*@version\s+(\S+)\s*$/m); return m ? m[1] : null; };
+  // whether version b is newer than a, number by number (1.10 is newer than 1.9), as the userscript apps compare them
+  function isNewer(a, b) {
+    const x = String(a).split("."), y = String(b).split(".");
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+      const p = parseInt(x[i] || "0", 10) || 0, q = parseInt(y[i] || "0", 10) || 0;
+      if (p !== q) return q > p;
+    }
+    return false;
+  }
+  const behindWords = (name, own, latest) => `equinox. ${name}: this is version ${own}, and ${latest} is out, so nothing was done. `
+    + "Update it (Tampermonkey's menu → Check for userscript updates; in the Userscripts app, its popup → Update), reload the page and press again.";
+  const midRunWords = (name, was, now) => `equinox. ${name}: the script was updated during the run (started on ${was || "an older version"}, now ${now}), so it stopped here. `
+    + "What's done stays done: press again.";
+  const keyAskWords = name => `equinox. ${name}: paste the capture key once. It is kept in this browser's userscript storage, not in the script or the page.`;
+  const againWords = name => `equinox. ${name}: the database didn't accept the key kept in this browser. Paste the capture key again.`;
+  const isBadKey = r => !!r && r.ok === false && r.error === "bad key";
+  // the newest version at the update address: ok, behind (with the newest) or unknown (with why); fetchText(url) gives
+  // the file's text or throws
+  async function versionCheck(fetchText, own, url) {
+    let text, timer;
+    try { text = await Promise.race([fetchText(url), new Promise((_, no) => { timer = setTimeout(() => no(new Error("no answer in " + GUARD_TIMEOUT_MS / 1000 + " s")), GUARD_TIMEOUT_MS); })]); }
+    catch (e) { return { state: "unknown", why: e && e.message ? e.message : String(e) }; }
+    finally { clearTimeout(timer); }
+    const latest = versionOf(text);
+    if (!latest) return { state: "unknown", why: "no @version at the update address" };
+    return isNewer(own, latest) ? { state: "behind", latest } : { state: "ok", latest };
+  }
+  // the key: the filled-in placeholder (from text), the one kept in storage (stored), or asked for and kept (asked);
+  // store is the app's GM object or null, ask(words) the prompt() box (null when nothing was typed)
+  async function keyOf(baked, store, ask, words) {
+    if (!unfilled(baked)) return { key: baked, from: "text" };
+    if (!store) return { error: "the userscript app gives this script no storage (GM.getValue)" };
+    const kept = await store.getValue(KEY_NAME, null);
+    if (typeof kept === "string" && kept.trim()) return { key: kept.trim(), from: "stored" };
+    if (!ask) return { error: "no key kept in this browser" };
+    const typed = ask(words);
+    if (typeof typed !== "string" || !typed.trim()) return { error: "no key typed" };
+    await store.setValue(KEY_NAME, typed.trim());
+    return { key: typed.trim(), from: "asked" };
+  }
+  // before a press does anything: the guard (only on a device), then the key. io: { name, own, url, baked, store, ask,
+  // fetchText }. Answers { key, from, lines } or { stop: the words to show }.
+  async function prepare(io) {
+    const lines = [];
+    if (unfilled(io.baked)) {
+      const v = await versionCheck(io.fetchText, io.own, io.url);
+      if (v.state === "behind") return { stop: behindWords(io.name, io.own, v.latest) };
+      if (v.state === "unknown") lines.push(`couldn't check for a newer version (${v.why}); going on with ${io.own}`);
+    }
+    const k = await keyOf(io.baked, io.store, io.ask, keyAskWords(io.name));
+    if (k.error) return { stop: `equinox. ${io.name}: no capture key (${k.error}). Press again and paste the key when asked.` };
+    return { key: k.key, from: k.from, lines };
+  }
+  // the first call with the key, call(key) → the database's answer; a "bad key" answer to a kept or typed key forgets it
+  // and asks once more. Answers { answer, key } (key null when nothing more was typed).
+  async function withKey(io, prep, call) {
+    let answer = await call(prep.key);
+    if (!isBadKey(answer) || prep.from === "text") return { answer, key: prep.key };
+    if (io.store) await io.store.deleteValue(KEY_NAME);
+    const k = await keyOf(io.baked, io.store, io.ask, againWords(io.name));
+    if (k.error) return { answer, key: null };
+    answer = await call(k.key);
+    if (isBadKey(answer) && io.store) await io.store.deleteValue(KEY_NAME);
+    return { answer, key: k.key };
+  }
+  // a run carried on after a page load: stopped when another version started it; else the key, without asking
+  async function resumeKey(io, state) {
+    if (unfilled(io.baked) && state && state.version !== io.own) return { stop: midRunWords(io.name, state.version, io.own) };
+    const k = await keyOf(io.baked, io.store, null);
+    return k.error ? { stop: `equinox. ${io.name}: the run can't carry on (${k.error}).` } : { key: k.key, from: k.from };
+  }
+  const keyLib = { KEY_NAME, GUARD_TIMEOUT_MS, unfilled, versionOf, isNewer, behindWords, midRunWords, keyAskWords, againWords, isBadKey, versionCheck, keyOf, prepare, withKey, resumeKey };
+  // ---------------------------------------------------------------- end of the shared block
+
+  const VERSION = "1.2";                              // the @version above
   const TOOL = "/app/aircraft/evaluation";   // the tool's page; every form posts back to it
   const PAUSE_MS = 2000;                     // between one run and the next
   const POST_PAUSE_MS = 500;                 // between the POSTs inside a run
@@ -291,12 +389,19 @@
     ? `Stopped. ${plural(saved, "run", "runs")} saved.` + (at ? `\nAt run ${at.i} of ${at.n}: ${runWords(at.run)}.` : "") + `\nWhy: ${why}.\n\nWhat's saved stays saved: press Aircraft evaluation again to carry on from the first run without a result.`
     : `Done: ${plural(saved, "run", "runs")} saved` + (left ? `, ${left} still without a result.` : ". Every run on the list has its result.");
 
-  const lib = { TOOL, PAUSE_MS, POST_PAUSE_MS, SEATS, COLUMNS, num, profit, formsOf, routeOf, routeProblem, tableOf, missingTypes, addValues,
+  const lib = { VERSION, TOOL, PAUSE_MS, POST_PAUSE_MS, SEATS, COLUMNS, num, profit, formsOf, routeOf, routeProblem, tableOf, missingTypes, addValues,
                 settingsOf, settingsFor, routeBody, addBody, settingsBody, actionUrl, resultOf, runOne, planOf, askWords, progressWords, endWords };
+  Object.assign(lib, keyLib);
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqEval = lib; return; }
 
   // ---------------------------------------------------------------- in the game
   const KEY = "__CAPTURE_KEY__", ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsZWN3c3llZHZ3Y3hnZHptaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTg5MzcsImV4cCI6MjEwNTc5NDkzN30.tC56dOgmPeYB3m58aDy4ADnnaZ3613P6MFp2pVXUj_Y", RPC = "https://ulecwsyedvwcxgdzmhoq.supabase.co/rest/v1/rpc/";
+  // the key (since 1.2): the filled-in placeholder, else the one kept in the app's storage (prepare, withKey, resumeKey)
+  let key = unfilled(KEY) ? null : KEY;
+  const UPDATE_URL = "https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/aircraft_eval.user.js";
+  const store = typeof GM !== "undefined" && GM && typeof GM.getValue === "function" ? GM : null;
+  const keyIo = { name: "aircraft evaluation", own: VERSION, url: UPDATE_URL, baked: KEY, store, ask: words => root.prompt(words),
+                  fetchText: async u => { const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); } };
   const ST = "eq_aircraft_eval", STALE_MS = 3 * 60 * 1000;   // a run untouched for 3 minutes isn't picked up again by itself
   const get = () => { try { return JSON.parse(sessionStorage.getItem(ST) || "null"); } catch (e) { return null; } };
   const set = s => { s.at = Date.now(); sessionStorage.setItem(ST, JSON.stringify(s)); };
@@ -360,7 +465,7 @@
       if (s.stop || stopping) return finish(s, "you pressed Stop");
       const run = s.runs[s.i];
       try {
-        const r = await runOne(run, s.types, page, Object.assign({}, io, { save: doc => rpc("capture_eval_result", { p_key: KEY, p_run: run.id, p_doc: doc }) }));
+        const r = await runOne(run, s.types, page, Object.assign({}, io, { save: doc => rpc("capture_eval_result", { p_key: key, p_run: run.id, p_doc: doc }) }));
         page = r.page;
         s = get() || s;
         s.saved += 1; s.i += 1;
@@ -379,16 +484,24 @@
   async function begin(btn) {
     if (get()) { show(lines(get()), [stopButton]); return; }
     if (!formsOf(document.documentElement.outerHTML).route) return show("equinox. aircraft evaluation: the tool's route form isn't on this page. Open the aircraft evaluation tool and try again.", [["Close", close, true]]);
-    btn.disabled = true; show("equinox. aircraft evaluation: reading the run list…");
+    btn.disabled = true;
+    // since 1.2: first the guard (an out-of-date script stops here) and the key (asked for once, then kept in the app's storage)
+    let prep;
+    try { prep = await prepare(keyIo); } catch (e) { prep = { stop: "equinox. aircraft evaluation: couldn't read the key or the version (" + e.message + ")." }; }
+    if (prep.stop) { btn.disabled = false; return show(prep.stop, [["Close", close, true]]); }
+    show("equinox. aircraft evaluation: reading the run list…");
     let plan;
-    try { plan = planOf(await rpc("capture_eval_runs", { p_key: KEY })); } catch (e) { plan = { error: e.message }; }
+    try {
+      const got = await withKey(keyIo, prep, k => rpc("capture_eval_runs", { p_key: k }));
+      key = got.key; plan = planOf(got.answer);
+    } catch (e) { plan = { error: e.message }; }
     btn.disabled = false;
     if (plan.error) return show("equinox. aircraft evaluation: couldn't read the run list (" + plan.error + "). Check the capture key.", [["Close", close, true]]);
     if (plan.problems.length) return show(`equinox. aircraft evaluation: a run on the list can't be made as it stands, so nothing was run.\nWhy: ${plan.problems[0].why}.`, [["Close", close, true]]);
     if (!plan.runs.length) return show(`equinox. aircraft evaluation: nothing to run. Every one of the ${plan.total} runs on the list has its result.`, [["Close", close, true]]);
     show("Aircraft evaluation\n\n" + askWords(plan.runs.length, plan.total), [["Go ahead", () => {
       stopping = false; page = thisPage();
-      const t = { runs: plan.runs, types: plan.types, i: 0, saved: 0, stop: false, log: [] };
+      const t = { version: VERSION, runs: plan.runs, types: plan.types, i: 0, saved: 0, stop: false, log: [] };
       note(t, "Running the aircraft evaluation…"); set(t); go();
     }, true], ["Cancel", close]]);
   }
@@ -407,6 +520,8 @@
     // a reload carries on from the run it was on, with this page as the latest; a run left for minutes (the tab closed,
     // the session lost and signed in again) isn't picked up by itself
     if (Date.now() - (s.at || 0) > STALE_MS) finish(s, "the run was interrupted (nothing happened for over 3 minutes)");
-    else { page = thisPage(); show(lines(s), [stopButton]); setTimeout(go, 800); }
+    // since 1.2: the key again, and a run another version started stops here
+    else resumeKey(keyIo, s).then(r => { if (r.stop) return finish(s, r.stop.replace(/^equinox\. aircraft evaluation: /, "")); key = r.key; page = thisPage(); show(lines(s), [stopButton]); setTimeout(go, 800); },
+                                  e => finish(s, "the run can't carry on (" + e.message + ")"));
   }
 })(typeof window !== "undefined" ? window : globalThis);

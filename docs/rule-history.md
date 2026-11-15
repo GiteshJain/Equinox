@@ -48,8 +48,9 @@ with a guard as the net; no scripts on the iPhone ("I'll only do it on Mac since
 The limit is a last check that doesn't trust the ladder: just outside what it can produce today (floor 60%; cap 120%,
 Pan Am and China Eastern 128%).* Three sentences changed, word for word.
 §7 read "**Gitesh's own press** works as before and is what sets salaries (below);" and now says his press is on his
-Mac only, in Tampermonkey, and that the scripts there update themselves from `main`, keep the key in Tampermonkey's
-storage and stop when out of date.
+Mac only, in Tampermonkey, and that the scripts there (the capture, the fares and, Gitesh 15 Nov 09:09 India time, "Yes
+it should be the same method no ?", the aircraft evaluation) update themselves from `main`, keep the key in
+Tampermonkey's storage and stop when out of date.
 §5's fares paragraph read "…and stops at the first problem, saying which change and why; run again, it reads only
 what's still unseen." and now adds the limit (`settings.fares_script_min_pct` 55, `fares_script_max_pct` 135) before
 "run again".

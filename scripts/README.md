@@ -93,18 +93,18 @@ on a small dated sample on every pull request and keep the PDF (`tests/report_te
 
 ## The userscripts on Gitesh's Mac
 
-**Since 15 Nov the capture and fares userscripts update themselves** (capture 1.17, fares 1.5; to-do 247, spec
+**Since 15 Nov the capture, fares and aircraft evaluation userscripts update themselves** (capture 1.17, fares 1.5, aircraft evaluation 1.2; to-do 247, spec
 `docs/specs/2026-11-15-self-updating-scripts.md`; manual §7). Gitesh runs them in Tampermonkey in Safari on his Mac only.
 Each is installed once from its raw address on `main`
 (`https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js` and
-`…/capture/fares_apply.user.js`), which is also its `@updateURL` and `@downloadURL`: with Tampermonkey's automatic
-installation on, each merge that raises a script's `@version` reaches the Mac by itself, so **every change to either
-file must raise its `@version`** (`tests/userscript_key_test.mjs` checks it against `main` where it can), and never lower
+`…/capture/fares_apply.user.js` and `…/capture/aircraft_eval.user.js`), which is also its `@updateURL` and `@downloadURL`: with Tampermonkey's automatic
+installation on, each merge that raises a script's `@version` reaches the Mac by itself, so **every change to any of
+the three files must raise its `@version`** (`tests/userscript_key_test.mjs` checks it against `main` where it can), and never lower
 or reuse one (the apps offer only a higher version). The capture key is never in the text: the first press asks for it
 once in the browser's own prompt and keeps it in Tampermonkey's storage (`GM.setValue`). Each press first checks the
 version at the address and stops when a newer one is out. The repository's files keep the key placeholder for the
-unattended run, which fills it in its own copy. To roll back a bad version, merge the last good code with a higher
-version number. The aircraft evaluation userscript is unchanged: installed by hand, with the key pasted in.
+unattended run, which fills it in the capture's copy (nothing fills the aircraft evaluation's or the fares'). To roll back a
+bad version, merge the last good code with a higher version number.
 
 ## The world scan
 

@@ -8,7 +8,7 @@ scripts' headers first.
 
 **Status: decided and built.** Gitesh decided every choice on 15 Nov, 08:46 to 08:51 India time (in the Main chat; the
 outcomes are at the bottom, each under its choice). Built in one pull request on branch
-`build-247-self-updating-scripts`: capture 1.17, fares 1.5, migration `20261115170000_fares_script_limit.sql`.
+`build-247-self-updating-scripts`: capture 1.17, fares 1.5, aircraft evaluation 1.2 (added 15 Nov, below), migration `20261115170000_fares_script_limit.sql`.
 
 **A new fact since the draft:** Gitesh moves from the Userscripts app to **Tampermonkey in Safari on the Mac**, which has an
 "Automatic installation" setting (Tampermonkey's changelog, 5.6.6240/6241, July 2026, as the Main chat reported it), so
@@ -155,17 +155,20 @@ Steps for Gitesh, one at a time, after the merge (the Main chat sends them; no k
    offered).
 3. **Install each script from its raw address**, in Safari:
    `https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js`, then
-   `https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/fares_apply.user.js`; Tampermonkey shows its
+   `https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/fares_apply.user.js`, then
+   `https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/aircraft_eval.user.js`; Tampermonkey shows its
    install page for each: Install.
-4. **Remove the old copies in the Userscripts app on the Mac:** in its editor, select "equinox. capture all airlines" and
-   "equinox. apply fare plan" and trash each (or switch the app off for the game). Two copies of a script would both
-   draw their buttons and both run. Leave the aircraft evaluation userscript where it is (outside this to-do).
+4. **Remove the old copies in the Userscripts app on the Mac:** in its editor, select "equinox. capture all airlines",
+   "equinox. apply fare plan" and "equinox. aircraft evaluation" and trash each (or switch the app off for the game).
+   Two copies of a script would both draw their buttons and both run.
 5. **First press of each, in the game:** Capture all airlines asks for the key once in a browser box: paste it from where
    he keeps it. The capture then runs as usual. Apply fare plan asks for it once too, then reads the plan and asks before
-   changing anything, so its first press can be stopped at "Cancel".
+   changing anything, so its first press can be stopped at "Cancel". Aircraft evaluation (on the game's aircraft
+   evaluation tool) asks once the same way and also asks before its first run.
 6. **The iPhone:** open the Userscripts app's all-scripts view and delete the old capture script (it has the key in its
-   text and no guard), and the fares script if it is there. Then no equinox. script is left on the phone.
-7. Report back on the to-do: the version each script shows in Tampermonkey (1.17 and 1.5), and, after the next merge
+   text and no guard), and the fares and aircraft evaluation scripts if they are there. Then no equinox. script is
+   left on the phone.
+7. Report back on the to-do: the version each script shows in Tampermonkey (1.17, 1.5 and 1.2), and, after the next merge
    that raises a version, whether it arrived without a tap.
 
 ## 7. Rolling back a bad version
@@ -319,5 +322,10 @@ iPhone either takes every version or refuses to run.
 automatically anyways". The rollout (§6) deletes the old capture script from the iPhone's Userscripts app and removes
 the old copies from the Userscripts app on the Mac.
 
-**The aircraft evaluation userscript** stays out of this build (the Main chat is asking Gitesh); it keeps its key in its
-text and its `@grant none`.
+**The aircraft evaluation userscript (decided 15 Nov, 09:09 India time):** the same method ("Yes it should be the same
+method no ?"). Version 1.2 has the same update and download addresses (`…/capture/aircraft_eval.user.js`), the three
+`@grant` lines, the key typed once into `prompt()` and read from the app's storage, and the same guard on each press and
+on a run carried on after a reload. Nothing fills its key placeholder (the unattended run loads only the capture, and
+the database refuses the unattended key for the evaluation's calls); the placeholder path is kept anyway, as the shared
+block has it. Its saved-pages test (`tests/aircraft_eval_userscript_test.mjs`) is kept, with the one prompt and the
+update address's fetch allowed.
