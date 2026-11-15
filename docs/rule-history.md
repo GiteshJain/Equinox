@@ -38,6 +38,19 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### The world scans' connections and summaries cleaned after 14 days: 15 Nov
+*Gitesh, 15 Nov (Main chat, brief `docs/briefs/2026-11-15-scan-connections-growth.md`, option C of four: A leave as is,
+B the monthly archive thins the summaries, C a nightly clean-up, D store less; spec `docs/specs/2026-11-15-scan-cleanup.md`)
+· why: each evening's scan added about 3 MB to these three tables, with the database at 218 MB and 350 MB bringing the
+paid-plan brief (§1). Nothing reads their history beyond the latest scan and the week-before scan, so after 14 days
+only the week's kept scan's summaries are worth keeping, as `scan_pair_airlines` already does for rivals by pair. On
+the brief's model the database stays under 350 MB through March.* Two sentences changed in §7, word for word. *The
+clean-ups* ended "…Switched on 5 Nov, after the Building chat checked the per-flight backfill on live (every line older
+than 14 days was in one of them)." and now goes on with the world scans' clean-up (14 days, `settings.scan_keep_days`).
+*The monthly archive* read "The daily history (`airline_days`, `route_days`) and the scan summaries stay for good, and
+so do each week's rivals by pair:" and now keeps for good only the week's kept scan's summaries. The archive's list is
+unchanged: it still names the connection detail, which the clean-up now empties first. Built in to-do 240.
+
 ### The newsroom roundups by a scheduled task: kept 15 Nov
 *Gitesh, 15 Nov (Main chat), after the first six went out on Sat 14 Nov, 03:44 UTC: "keep it with the fix".* On trial
 since 11 Nov (to-do 227). §8's *What the newsroom posts* read, word for word: "one roundup per airline each Saturday,
@@ -1206,6 +1219,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 15 Nov | The scan summaries (`scan_airline_airports`, `scan_rival_connections_week`) stay for good, every scan; the rivals' connections (`scan_rival_connections`) go only with the monthly archive, after a full calendar month | Every scan kept in full 14 days (`settings.scan_keep_days`); after that the 10:20 UTC clean-ups delete its connections, and its summaries unless it is the week's kept scan; the latest finished scan never (§7). Why: about 3 MB a night that nothing reads (brief `docs/briefs/2026-11-15-scan-connections-growth.md`, option C) |
 | 15 Nov | The Saturday review chat writes each airline's newsroom roundup, as a step of the Saturday session | A scheduled task writes and publishes them by itself every Saturday at 03:43 UTC (§7, §8). Why: Gitesh, 15 Nov, after the trial's first six; the Saturday session often slipped and the roundups waited with it |
 | 5 Nov | A separate salary script, "Salaries: this airline" (`capture/salary_adjust.user.js`), run by hand on one airline at a time, setting every position to 10% above the country average | The evening capture checks every position of each airline: below its country average it is set to `salary_above_average_pct` (5%) above it, at or above it is left alone, never lowered (§7). Why: Gitesh, 4 Nov, positions could sit below the average between presses; brief `docs/briefs/2026-11-04-salaries-in-capture.md` |
 | 4 Nov | A direction's captured fares read against its fare on 21 Oct (or a later route's first fare), taken as its launch level, for the fare index and the set-back; the market pages read by nothing in the fare ladder | Against the game's default price where the market pages have read the direction (each week), the first captured fare only where they haven't yet; the levels and moves unchanged (§5, §7). Why: Gitesh, a direction first captured at another price had every level after it wrong (Ryanair's CDG–Hamburg read 72% against 85%); spec `docs/specs/2026-11-04-fare-default-from-market.md` |
