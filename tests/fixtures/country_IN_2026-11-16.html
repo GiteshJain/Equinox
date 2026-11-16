@@ -1,0 +1,742 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+
+
+
+ 
+
+
+<!DOCTYPE html
+PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="de" data-theme="dark" data-generation="gen2">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AirlineSim - the online airline management simulation game for pros.">
+    <meta name="author" content="simulogics GmbH">
+
+    <link rel="shortcut icon" href="../../favicon.ico"/>
+    <link rel="search" type="application/opensearchdescription+xml" title="AirlineSim Search"
+          href="../../app/openSearchDescription.xml"/>
+
+    <title>AirlineSim</title>
+
+    <link rel="stylesheet" type="text/css" href="../../assets/css/jquery-ui.theme.min.css"/>
+
+    <script type="text/javascript" src="../../assets/js/jquery.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/jquery-checkboxes.js"></script>
+    <script type="text/javascript" src="../../assets/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/select2/select2.min.js"></script>
+    <script type="text/javascript" src="../../assets/js/d3.min.js"></script>
+
+    
+    
+        
+            <script type="module" id="frontend-settings">
+                window.frontendSettings = {"hub":{"hubUrl":"https://airlinesim.aero/account","loginUrlTemplate":"https://airlinesim.aero/auth/login?od=RETURN_URL","logoutUrl":"https://airlinesim.aero/auth/logout?url=https://gander.airlinesim.aero"},"server":{"name":"gander","time":"2026-11-16T02:59:51.195Z","end":null},"sessionCookieName":"as-sid","selectedEnterpriseCookieName":"airlinesim-selectedEnterpriseId-gander","impersonatedUserIdCookieName":"impersonated-user-id","theme":"dark","currentVersionNumber":"6.13.20","versionCookieDomain":"airlinesim.aero","versionCookieName":"seen-version","language":{"currentLanguageTag":"en","officialLanguageTags":["de","en"],"communityLanguageTags":["es","fr","hu","nl","pl","zh-TW","ja"],"languageCookieName":"GAME_LOCALE"},"themeCssPaths":{"classic":"/dist/assets/theme-classic-D9Z4Zyv1.css","light":"/dist/assets/theme-light-mSvOuXvf.css","dark":"/dist/assets/theme-dark-CTDzM9kR.css"},"features":["distribution_system","return_traffic_distribution","ground_networks"],"distribution":{"flightInstancingWindowHours":72,"maxStops":2},"fixedEnterpriseId":null};
+
+            </script>
+        
+        
+        
+    
+
+    
+        
+        
+            <script type="module" src="/dist/assets/index-01wM-ZaF.js" id="main-js"></script>
+        
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/vendor-CKRTiAqP.css" id=""/>
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/PathsMap-DqxhmqBv.css" id=""/>
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/index-DqEWMDjf.css" id=""/>
+        
+    
+
+    
+        
+        
+        
+            <link rel="stylesheet" type="text/css" href="/dist/assets/theme-dark-CTDzM9kR.css" id="theme-css"/>
+        
+    
+
+
+    
+</head>
+<body>
+<div class="root">
+
+    
+
+    
+
+    
+    <nav class="bootstrap navbar navbar-default as-navbar-meta" role="navigation">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse"
+                        data-target="#as-navbar-meta-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="fa fa-cog"></span>
+                </button>
+                <a class="navbar-brand" href="../portal/index">AirlineSim</a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="as-navbar-meta-collapse">
+                
+                <form class="navbar-form navbar-left" role="search" method="get" action="../../app/info/search">
+                    <div class="form-group">
+                        <div class="input-group">
+                            <input type="text" name="query" class="form-control" placeholder="Search">
+                            <span class="input-group-btn">
+                            <button type="submit" class="btn btn-default">
+                                <span class="fa fa-search"></span>
+                            </button>
+                        </span>
+                        </div>
+                    </div>
+                </form>
+                <ul class="nav navbar-nav navbar-right">
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                           title="Database">
+                            <span class="fa fa-database fa-lg"></span>
+                            <span class="as-icon-label">Database</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li class="dropdown-header">Directories</li>
+                            <li><a href="../info/countries">Countries</a></li>
+                            <li><a href="../../app/info/enterprises">Enterprises</a></li>
+                            <li><a href="../../app/info/alliances">Alliances</a></li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Other Resources</li>
+                            <li><a href="../info/fleets">Fleet Lists</a></li>
+                            <li><a href="../info/stats">Statistics</a></li>
+                            <li><a href="../../app/info/ors">Online Reservation System</a></li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                           title="Help">
+                            <span class="fa fa-lightbulb-o fa-lg"></span>
+                            <span class="as-icon-label">Help</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a href="https://handbook.airlinesim.aero/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Handbook
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../app/portal/support" title="Support">
+                                    <span class="fa fa-question"></span>
+                                    <span class="as-icon-label">Support</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../app/info/about">
+                                    <span class="fa fa-info"></span>
+                                    <span class="as-icon-label">About AirlineSim</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="../../app/info/status">
+                                    <span class="fa fa-heartbeat"></span>
+                                    <span class="as-icon-label">Simulation Status</span>
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Game Rules</li>
+                            <li><a href="../../app/info/rules/general">General Rules</a>
+                            </li>
+                            <li><a href="../../app/info/rules/naming">Naming Rules</a>
+                            </li>
+                            <li><a href="../../app/info/rules/routes">Forbidden Routes</a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Legal</li>
+                            <li>
+                                <a href="https://simulogics.games/terms/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Terms & Conditions
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/privacy/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Privacy Statement
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://simulogics.games/impressum/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Impressum
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                           title="Community">
+                            <span class="fa fa-users"></span>
+                            <span class="as-icon-label">Community</span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li>
+                                <a href="https://www.airlinesim.aero/blog/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Blog
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://forums.airlinesim.aero" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Forums
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://discord.gg/5K2Axks" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Discord Chat
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">Follow AirlineSim</li>
+                            <li>
+                                <a href="https://facebook.com/airlinesim" target="_blank">
+                                    <span class="fa fa-fw fa-facebook"></span>
+                                    Facebook
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://twitter.com/airlinesim" target="_blank">
+                                    <span class="fa fa-fw fa-twitter"></span>
+                                    Twitter
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://youtube.com/airlinesimofficial" target="_blank">
+                                    <span class="fa fa-fw fa-youtube"></span>
+                                    YouTube
+                                </a>
+                            </li>
+                            <li class="divider"></li>
+                            <li class="dropdown-header">More simulogics games</li>
+                            <li>
+                                <a href="https://prosperousuniverse.com/" target="_blank">
+                                    <span class="fa fa-external-link"></span>
+                                    Prosperous Universe
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    
+                    
+                    
+                        <li>
+                            <a class="logout" href="">
+                                <span class="fa fa-power-off fa-lg"></span>
+                                Login
+                            </a>
+                        </li>
+                    
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container-fluid -->
+    </nav>
+
+    <nav class="bootstrap navbar navbar-default as-navbar-main" role="navigation">
+        
+    </nav>
+    
+
+    <div class="bootstrap container-fluid">
+
+        
+            <a href="../../app/enterprise/new" class="as-no-enterprise">
+                <p>
+                    <strong>No airline yet?</strong><br/>
+                    Click here to found your new enterprise now!
+                </p>
+            </a>
+        
+
+        
+
+        
+
+        
+
+
+
+
+ 
+
+<h1>Countries</h1>
+<ul class="as-panel as-action-bar">
+    <li>
+        <a href="countries" class="btn btn-default">
+            back to overview
+        </a>
+    </li>
+</ul>
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+<h2>
+	
+		
+		
+	Country information for India (IN)
+</h2>
+
+    <div class="row">
+        <div class="col-md-8">
+            <h3>News</h3>
+            <div class="as-panel">
+                <div class="as-table-well">
+                    <table class="table table-striped table-hover">
+                        <tbody>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-12 01:40</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/164">Thai Airways</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1172">Chennai</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-10 17:15</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/97">US Airways</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1143">Delhi</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-10 14:40</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/99">Cathay Pacific</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1172">Chennai</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-10 14:38</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/99">Cathay Pacific</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1154">Hyderabad</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-10 10:04</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/163">Etihad Airways</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1180">Pune</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-10 10:03</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/163">Etihad Airways</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1154">Hyderabad</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-10 05:22</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/222">AirAsia India</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/2937">Bangkok</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-06 10:14</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/49">Qantas</a> have shut down their station at <a href="https://gander.airlinesim.aero/app/info/airports/1143">Delhi</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-06 06:00</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/163">Etihad Airways</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1132">Bengaluru</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-06 05:37</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/163">Etihad Airways</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1164">Kolkata</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-04 14:17</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/113">Kingfisher Airlines</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/649">Hong Kong International</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-03 21:12</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/222">AirAsia India</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/2999">Istanbul New</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-03 16:06</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/113">Kingfisher Airlines</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1139">Chandigarh</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-03 16:06</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/113">Kingfisher Airlines</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/2939">Chiang Mai</a>.</td>
+                            </tr>
+                        
+                            <tr>
+                                <td class="text-right">2026-11-03 05:50</td>
+                                <td><a href="https://gander.airlinesim.aero/app/info/enterprises/222">AirAsia India</a> has opened a new station at <a href="https://gander.airlinesim.aero/app/info/airports/1184">Ranchi</a>.</td>
+                            </tr>
+                        
+                        
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+                <h3>Regions</h3>
+                <div class="as-panel">
+                    <div class="as-table-well">
+                        <table class="table table-striped table-hover">
+                            <tbody>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=151">Andaman and Nikobar Islands</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=123">Andhra Pradesh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=124">Arunachal Pradesh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=125">Assam</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=126">Bihar</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=152">Chandigarh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=127">Chhattisgarh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=153">Dadra and Nagar Haveli</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=154">Daman and Diu</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=128">Goa</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=129">Gujarat</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=130">Haryana</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=131">Himachal Pradesh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=132">Jammu and Kashmir</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=133">Jharkhand</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=134">Karnataka</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=135">Kerala</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=156">Lakshadweep</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=136">Madhya Pradesh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=137">Maharashtra</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=138">Manipur</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=139">Meghalaya</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=140">Mizoram</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=141">Nagaland</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=155">National Capital Territory of Delhi</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=142">Orissa</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=157">Puducherry</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=143">Punjab</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=144">Rajasthan</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=145">Sikkim</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=146">Tamil Nadu</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=210">Telangana</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=147">Tripura</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=149">Uttar Pradesh</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=148">Uttarakhand</a></td>
+                                </tr>
+                            
+                                <tr>
+                                    <td><a href="../info/county?id=150">West Bengal</a></td>
+                                </tr>
+                            
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            
+
+            
+        </div>
+        <div class="col-md-4">
+            <h3>Political Information</h3>
+            <div class="as-panel">
+                <div class="as-table-well">
+                    <table class="table table-striped table-hover">
+                        <tbody>
+                        <tr>
+                            <th>Unrestricted market access</th>
+                            <td>
+                                
+                                
+                                    <span class="bad">no</span>
+                                
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Treaties</th>
+                            <td>
+                                
+                                not a member of any treaty
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h3>Average Salaries</h3>
+            <div class="as-panel">
+                <div class="as-table-well">
+                    <table class="table table-striped table-hover">
+                        <tbody>
+                        
+                        
+                            <tr>
+                                <td>Regional Jet pilots</td>
+                                <td class="number" style="text-align:right;">1,220 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Narrow-body pilots</td>
+                                <td class="number" style="text-align:right;">1,794 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Wide-body Pilots</td>
+                                <td class="number" style="text-align:right;">1,610 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Pursers</td>
+                                <td class="number" style="text-align:right;">603 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Flight attendants</td>
+                                <td class="number" style="text-align:right;">492 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Station Managers</td>
+                                <td class="number" style="text-align:right;">1,400 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Check-in agents</td>
+                                <td class="number" style="text-align:right;">860 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Ramp agents</td>
+                                <td class="number" style="text-align:right;">914 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Cargo controllers</td>
+                                <td class="number" style="text-align:right;">641 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Fleet management</td>
+                                <td class="number" style="text-align:right;">938 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Flight planning</td>
+                                <td class="number" style="text-align:right;">984 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Customer service</td>
+                                <td class="number" style="text-align:right;">514 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Administration</td>
+                                <td class="number" style="text-align:right;">817 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Network Planning</td>
+                                <td class="number" style="text-align:right;">1,073 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Ground handling</td>
+                                <td class="number" style="text-align:right;">720 AS$</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>Logistics</td>
+                                <td class="number" style="text-align:right;">720 AS$</td>
+                            </tr>
+                        
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+        </div>
+    </div>
+
+
+
+
+
+    </div>
+
+    
+    <nav id="footer" class="bootstrap navbar navbar-default navbar-fixed-bottom as-navbar-bottom"
+         role="navigation"></nav>
+    
+</div>
+
+<script>
+    $(document).ready(function() {
+        // Unread news.
+        $("#unread-news-hide").click(function(e) {
+            e.preventDefault();
+            $.get("../user/news-read", function() {
+                $('#unread-news').hide();
+            });
+        });
+        $("#unread-news-view").click(function(e) {
+            $.get("../user/news-read", function() {
+                window.location = "https://www.airlinesim.aero/blog/";
+            });
+        });
+    });
+</script>
+
+<script type="application/javascript">
+    function stc(e){var n="_sl_";function t(t,o){return!(!o||function(e){return document.cookie.split(";").some(function(t){return 0===t.trim().indexOf(n+e+"=")})}(t))&&(function(t,o){var i=new Date;i.setTime(Date.now()+62208e6),document.cookie=n+t+"="+encodeURIComponent(o)+"; expires="+i.toUTCString()+"; path=/; domain="+e+"; SameSite=Lax"}(t,o),!0)}t("lp",document.location)&&t("ref",document.referrer)}
+</script>
+<script type="application/javascript">
+    stc('airlinesim.aero');
+</script>
+
+</body>
+</html>
