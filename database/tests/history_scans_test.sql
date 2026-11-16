@@ -8,8 +8,10 @@
 --      change).
 --   2. The stored scans in the new tables: each with its world; every airline a scan saw (scanned, or stationed at a
 --      scanned airport) is an airlines row by game ID, and each scan's airline rows point at it; each has its schedule,
---      whose weekdays add up to its departures a week; every scan has its airport summaries, equal to a count made here
---      from its schedules. Their size is measured: what a scan adds for good, and a year of weekly scans.
+--      whose weekdays add up to its departures a week; every scan whose summaries the nightly clean-up keeps (younger
+--      than settings.scan_keep_days, the week's kept scan, the latest finished scan; private.scan_cleanup() is asked)
+--      has its airport summaries, equal to a count made here from its schedules, and a scan it cleans has either none or
+--      all of them, never some. Their size is measured: what a scan adds for good, and a year of weekly scans.
 --   3. ingest_snapshot(), signed out with the ingest secret as the scanner calls it: a hand-made small scan (start, two
 --      airlines, one airport, finish) lands in game_scans, game_scan_airlines, game_scan_schedules and game_scan_airports
 --      and builds its airport summaries; the airlines it saw are added (logged as script), ours left as they are; the
@@ -51,6 +53,7 @@ $test$;
 -- ---------------------------------------------------------------- 2. the stored scans in the new tables
 do $test$
 declare bad text; n_scans int; n_rows bigint; v_bytes numeric; v_last bigint; v_last_rows bigint; v_last_bytes numeric;
+  v_world record; r jsonb; v_cleaned bigint[] := '{}'; n_emptied int;
 begin
   select count(*) into n_scans from public.game_scans;
   assert not exists (select 1 from public.game_scans s left join public.worlds w on w.id = s.world_id where w.id is null),
@@ -75,7 +78,27 @@ begin
       or a.n_flights is distinct from jsonb_array_length(sc.flights)
       or a.n_weekly is distinct from (select coalesce(sum(length(f ->> 4)), 0)::int from jsonb_array_elements(sc.flights) f);
   assert bad is null, 'scanned airlines whose schedule is missing or doesn''t add up (scan/game ID): ' || left(bad, 300);
-  -- every scan has its airport summaries, equal to a count made here from its schedules
+  -- every scan whose summaries the clean-up keeps has its airport summaries, equal to a count made here from its
+  -- schedules. Since 15 Nov the nightly clean-up (private.scan_cleanup(), manual §7) empties the airport summaries of a
+  -- scan older than settings.scan_keep_days that isn't the week's kept scan, while its schedules stay until the monthly
+  -- archive: such a scan may have no summary rows at all, or (not cleaned yet) all of them, but never some of them. Which
+  -- scans those are is asked of private.scan_cleanup() itself, at now, in a block whose deletes are undone at once, so
+  -- this test and the clean-up can't disagree.
+  for v_world in select x.id from public.worlds x order by x.id loop
+    begin
+      r := private.scan_cleanup(v_world.id, now());
+      raise exception using errcode = 'EQT01', message = 'undo the scan clean-up';
+    exception when sqlstate 'EQT01' then null;
+    end;
+    if coalesce((r ->> 'scan_enabled')::boolean, false) then
+      v_cleaned := v_cleaned || array(
+        select s.id from public.game_scans s
+         where s.world_id = v_world.id and s.taken_at < (r ->> 'scan_before')::timestamptz
+           and s.id not in (select k::bigint from jsonb_array_elements_text(coalesce(r -> 'scan_kept', '[]')) k));
+    end if;
+  end loop;
+  select count(*) into n_emptied from unnest(v_cleaned) c(id)
+   where not exists (select 1 from public.scan_airline_airports y where y.scan_id = c.id);
   select string_agg(distinct coalesce(x.scan_id, y.scan_id)::text, ', ') into bad
     from (select sc.scan_id, sc.airline_id, f ->> 2 as airport_code,
                  sum(length(regexp_replace(coalesce(f ->> 4, ''), '[^1-7]', '', 'g')))::int as weekly_departures,
@@ -85,18 +108,22 @@ begin
            group by 1, 2, 3) x
     full join (select * from public.scan_airline_airports z
                 where exists (select 1 from public.game_scan_schedules sc where sc.scan_id = z.scan_id)) y using (scan_id, airline_id, airport_code)
-   where (x.weekly_departures, x.destinations) is distinct from (y.weekly_departures, y.destinations);
+   where (x.weekly_departures, x.destinations) is distinct from (y.weekly_departures, y.destinations)
+     -- a scan the clean-up has emptied: no summary rows at all is right (some rows left but not all still fails)
+     and not (coalesce(x.scan_id, y.scan_id) = any (v_cleaned)
+              and not exists (select 1 from public.scan_airline_airports z where z.scan_id = coalesce(x.scan_id, y.scan_id)));
   assert bad is null, 'airport summaries that don''t match their scan''s schedules (scans): ' || bad;
   select string_agg(s.id::text, ', ') into bad from public.game_scans s
    where exists (select 1 from public.game_scan_schedules sc where sc.scan_id = s.id)
-     and not exists (select 1 from public.scan_airline_airports y where y.scan_id = s.id);
+     and not exists (select 1 from public.scan_airline_airports y where y.scan_id = s.id)
+     and s.id <> all (v_cleaned);
   assert bad is null, 'scans with no airport summaries: ' || bad;
   -- what a scan keeps for good: its totals and summaries (the schedules and airport pages are archived after a month)
   select max(id) into v_last from public.game_scans where exists (select 1 from public.scan_airline_airports y where y.scan_id = game_scans.id);
   select count(*), coalesce(sum(pg_column_size(y.*)), 0) into v_last_rows, v_last_bytes from public.scan_airline_airports y where y.scan_id = v_last;
   select count(*), coalesce(sum(pg_column_size(y.*)), 0) into n_rows, v_bytes from public.scan_airline_airports y;
-  raise notice 'stored scans: %, each with its world; every airline they saw has an airlines row; every scanned airline has its schedule, adding up; the airport summaries match (% rows). Scan %: % summary rows, about % KB of data (with its indexes perhaps twice that), so about % MB a year with weekly scans, plus the market summaries',
-    n_scans, n_rows, v_last, v_last_rows, round(v_last_bytes / 1024), round(v_last_bytes * 2 * 52 / 1048576.0, 1);
+  raise notice 'stored scans: %, each with its world; every airline they saw has an airlines row; every scanned airline has its schedule, adding up; the airport summaries match (% rows) for every scan the clean-up keeps, and % scans it cleans have none (% it cleans still have all theirs). Scan %: % summary rows, about % KB of data (with its indexes perhaps twice that), so about % MB a year with weekly scans, plus the market summaries',
+    n_scans, n_rows, n_emptied, cardinality(v_cleaned) - n_emptied, v_last, v_last_rows, round(v_last_bytes / 1024), round(v_last_bytes * 2 * 52 / 1048576.0, 1);
 end
 $test$;
 
