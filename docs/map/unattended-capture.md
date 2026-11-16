@@ -20,6 +20,8 @@ The same capture, run twice a day without Gitesh's laptop (since 10 Nov, to-do 2
 
 **The job** (`equinox-backups` #8): signs in to the game in a hidden browser, loads the capture script with the unattended key, presses Capture all airlines, checks every airline came in all good and writes its row, failing (and so emailing Gitesh) when not.
 
+*16 Nov (to-do 245, spec `docs/specs/2026-11-16-salary-table.md`): it reads salaries.* With `settings.unattended_salary_read` (true) `capture_airlines()` answers `salary_read` true for the unattended key, so the run reads each airline's Employee overview and country page and sends them for the salary table (page kind salaries); it still never sets a salary (`unattended_salaries` false, `salary_above_average_pct` null). A salaries page is judged apart and never enters the airline's verdict, which is what the job's check reads (`capture_status()`), so a salary page that fails can't fail the run. `capture_ingest()` refuses the unattended key's salaries page while the setting is false.
+
 ## Where
 
 Database: migration `20261110040000_unattended_capture.sql`; planner: Today (`app/planner/src/screens/today/attention.ts`) and Systems (`app/planner/src/screens/systems/systems.ts`); the job: GitHub `GiteshJain/equinox-backups` (#8, `.github/workflows/capture.yml`)

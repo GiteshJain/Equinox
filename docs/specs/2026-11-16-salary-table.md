@@ -5,8 +5,16 @@ its Outcome). Lowering by hand is to-do 246. Read `CLAUDE.md`, the map's rows fo
 the captured figures and the planner (and their files in `docs/map/`), manual §1 (new tables, stored figures, rule
 numbers) and §7 (the capture; salaries), and the salary step in `capture/capture_all.user.js` first.
 
-**Status: draft, with four choices for Gitesh (at the bottom, marked "to decide").** Nothing is built. Manual §7's
-salary rule stands as it is until this build's pull request merges.
+**Status: decided and built.** Gitesh decided every choice on 16 Nov, 08:59 to 09:04 India time (in the Main chat; the
+outcomes are at the bottom, each under its choice). Built in one pull request on branch `build-245-salary-table`:
+capture 1.18, migration `20261116100000_salary_table.sql`, the Salaries board on Systems and one item on Today. Manual
+§7's salary rule is replaced in the same pull request.
+
+**Built differently from the draft, and why:** the four tables give staff no access (the draft had staff read, and
+staff write on `salary_positions`): the planner reads only the stored `salary_table` answer, so nothing needs more
+(manual §1, "exactly what the planner needs"), and no screen edits the mapping yet. Reads older than 90 days are deleted
+by the capture's own salaries call, not by the clean-ups job, so the job and its test are unchanged. The salary table
+is not added to `export_for_report()`: no report section reads it yet.
 
 ## What it does, in one paragraph
 The capture keeps setting salaries exactly as manual §7 says (a position below its country average goes to the
@@ -81,10 +89,13 @@ under or over its target is flagged. The capture never lowers a salary; Gitesh l
 
 ## 3. Each airline's country id
 - **Kept on `airlines`:** a new column `game_country_id integer` ("The game's country id for the airline's country,
-  the id in `/action/info/country?id=`; the salary table's country page, spec 2026-11-16-salary-table"), filled by the
-  migration for our six airlines from their `country_code`: US 182, IN 61, GB 54, CN 30, MY 97, and Ryanair's from its
-  code when the Main chat confirms it (IE 65, FR 47, DE 35, IT 68, NL 118 or ES 154). A per-world column, since the
-  game's ids were checked in Gander only.
+  the id in `/action/info/country?id=`; the salary table's country page, spec 2026-11-16-salary-table"). A per-world
+  column, since the game's ids were checked in Gander only.
+- **Filled by the migration** by a stable key: the world whose `game_host` is `gander.airlinesim.aero` and each
+  airline's `game_id`: Pan Am 114 → USA 182, Kingfisher 113 → India 61, Ryanair 112 → Ireland 65 (Gitesh, 16 Nov),
+  Virgin Atlantic 203 → United Kingdom 54, China Eastern 208 → China 30, Malaysia Airlines 210 → Malaysia 97.
+  `airlines.country_code` is null for all six (the live database, read by the Main chat 16 Nov), so it couldn't be the
+  key; whether to fill it is outside this build.
 - `capture_airlines()` gives it with each airline (`country_id`); null means "no country page" and the table says so.
 - Not chosen: reading the id from a game page each run. The airline's own pages need signing in to check from here,
   and the id never changes.
@@ -125,14 +136,14 @@ limit as the others, listed in `figures_timeout_test.sql`): for each of our acti
 before the moment, and per position: the name, group, employed, salary, next week's salary, the overview's average, the
 country page's average, the target (`round(country avg × (1 + salary_above_average_pct/100))`, the capture's own
 rounding), the difference in AS$ and per cent of the target, and `flag`: `under`, `over`, or null within the band, or
-`no_average` (unmapped or not on the country page). Positions with no staff are listed but never flagged (to decide,
+`no_average` (unmapped or not on the country page). Positions with no staff are listed but never flagged (decided,
 choice 4). Also per airline: the read's time, its verdict, the count flagged, and `averages_differ`: positions where
 the overview's and the country page's averages differ by more than 0.5% (the two sources, §1). **Stored** after each
 capture in `planner_figures` (kind `salary_table`, world key), never read live by the planner (manual §1); added to
 `private.figures_refresh()`'s list and `stored_figures_test.sql`, and to `export_for_report('figures')` so the weekly
 report can use it.
 
-## 5. The planner (to decide, choice 1)
+## 5. The planner (choice 1: A, a Salaries board on Systems and one Today item)
 The screen part depends on choice 1. Common to every option: the table's words and marks in a `model.ts` with unit
 tests; numbers as the planner writes AS$ elsewhere; under rows red, over rows amber (over costs money, under risks
 staff); the read's time at the top ("Salaries read 16 Nov, 21:34 UTC"); a position with no average says why. A table,
@@ -187,17 +198,16 @@ as Gitesh asked (not a chart).
   spec's commit).
 - Documents: §6.
 
-## 10. Needed before building (from the live database, by the Main chat)
-- Each of our six airlines' `country_code` (Ryanair's above all), to fill `game_country_id`.
-- Each airline's aircraft families in the game (or one saved Employee overview page per airline), to seed
-  `salary_positions` beyond Kingfisher's three rows. Without it the build seeds the three and the first evening's
-  stored reads show the rest as unmapped, to be added then.
+## 10. Read from the live database before building (by the Main chat, 16 Nov)
+- `airlines.country_code` is null for our six airlines; the ids are set by game id (§3).
+- The aircraft in service: every airline flies the A320 family and the E-jet E2 family, and Pan Am also the A350, so
+  Kingfisher's three pilot rows cover all six. A pilot row with no mapping still shows as unmapped, never guessed.
 
 ---
 
-## Choices for Gitesh (to decide)
+## Choices for Gitesh, and his decisions (16 Nov, 08:59 to 09:04 India time)
 
-### Choice 1: where the table shows (to decide)
+### Choice 1: where the table shows (decided)
 | Option | What it gives | Cost | Risk | Easy to undo? |
 |---|---|---|---|---|
 | A. A **Salaries** board on Systems (one table per airline, folded; flagged rows marked) and **one item** in Today's Needs attention ("Salaries: 5 positions off target in 3 airlines") linking to it, the way Cabin charges works | Today shows only that something needs a look; the whole table is one click away | Small: one board, one attention item | Systems is the plumbing screen; the table sits beside the capture boards rather than the money | Yes |
@@ -208,11 +218,15 @@ as Gitesh asked (not a chart).
 Systems board and one Today item), and keeps Today short while to-do 246's first round of lowering clears many rows at
 once.
 
-### Choice 2: Ryanair's country (a fact, not a choice, if the database has it)
-If `airlines.country_code` for Ryanair is set, the build uses it. If it is not, Gitesh says which country the game
-registers Ryanair in (its Employee overview's average shows it: the overview's averages match one country page).
+**Outcome (Gitesh, 16 Nov): A.** A Salaries board on Systems with all six airlines, and one Today item when anything is
+flagged, linking to it, as Cabin charges works.
 
-### Choice 3: whether the unattended run reads and stores salaries (to decide)
+### Choice 2: Ryanair's country (decided)
+`airlines.country_code` is null for all six airlines, so Gitesh said which country.
+
+**Outcome (Gitesh, 16 Nov): Ireland**, the game's country id 65.
+
+### Choice 3: whether the unattended run reads and stores salaries (decided)
 Today the unattended key never reaches the salary step (§1). The 15 Nov brief settled that it doesn't **set** them; it
 did not settle reading.
 
@@ -224,7 +238,11 @@ did not settle reading.
 **Recommendation (only):** B. Reading changes nothing in the game, and the brief's next decision (about a week of the
 table) needs fresh rows, which only twice-a-day reads give when he is away.
 
-### Choice 4: which salary is compared, and positions with no staff (to decide)
+**Outcome (Gitesh, 16 Nov): B.** The unattended run also reads and stores salaries and the averages, behind
+`settings.unattended_salary_read` (true); it never sets a salary (`unattended_salaries` stays false), and a salary page
+that fails to read never fails the run or changes an airline's verdict.
+
+### Choice 4: which salary is compared, and positions with no staff (decided)
 | Option | What it gives | Cost | Risk | Easy to undo? |
 |---|---|---|---|---|
 | A. **Next week's salary** (the box the capture and Gitesh set); positions with no staff listed, never flagged | Compares what will be paid, and shows a change the moment it is made (the capture's own raise, or his lowering) | None | This week's figure, which is still being paid, isn't the one flagged (it is shown beside it) | Yes |
@@ -233,3 +251,6 @@ table) needs fresh rows, which only twice-a-day reads give when he is away.
 
 **Recommendation (only):** A. It matches what the capture sets and what he changes by hand, and leaves out rows that
 cost nothing.
+
+**Outcome (Gitesh, 16 Nov): A.** Next week's salary against the target, this week's shown beside it; a position with no
+staff is listed but never flagged.

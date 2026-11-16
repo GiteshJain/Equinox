@@ -13,7 +13,7 @@ import { FIGURES_STALE_MS } from "./query";
 
 /** Every kind the database stores in the set the planner loads (spec §1, "What is stored"); route_story is stored row by
  *  row and read one route at a time. */
-export const WORLD_KINDS = ["airline_cards", "growth_signals", "hub_progress", "route_loads", "fleet_checks", "cash_log", "shared_pairs_status"] as const;
+export const WORLD_KINDS = ["airline_cards", "growth_signals", "hub_progress", "route_loads", "fleet_checks", "cash_log", "shared_pairs_status", "salary_table"] as const;
 /** Stored once, in the default world: these take no world. */
 export const NO_WORLD_KINDS = ["cabin_charges", "market_service_checks"] as const;
 export const AIRLINE_KINDS = ["airline_profit", "cash_forecast", "fare_changes", "fare_plan_status", "fare_ladder", "fare_results", "competition"] as const;

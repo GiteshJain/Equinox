@@ -10,6 +10,8 @@
 // - Cabin charges (since 22 Oct): cabin_charges(), each first cabin fit logged against the game's charge;
 // - Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): fleet_checks(), the latest night's fleet as the
 //   game showed it and its problems, which Today's needs attention and the Tails pop-up read too;
+// - the salary table (since 16 Nov, spec docs/specs/2026-11-16-salary-table.md): salary_table(), each airline's salaries
+//   against the country page's average plus 5%, which Systems' Salaries board and Today's needs attention read;
 // - the service check (since 30 Oct, spec docs/specs/2026-10-30-market-pages-planner.md §3): market_service_checks(), the
 //   pairs whose service profile in the game differs from the distance's code or the planner's, which the Systems board's
 //   market line, Today's needs attention and the route page's header read.
@@ -24,6 +26,7 @@ import type { ServiceChecks } from "../performance/model";
 import type { CabinCharges, CashLog, FleetChecks, LoadsDay } from "./model";
 import type { SystemStatus } from "./systems";
 import type { CaptureAt } from "./charts";
+import type { SalaryTable } from "./salaries";
 
 const fail = (what: string, message: string): never => {
   throw new Error(`Couldn't read ${what}: ${message}`);
@@ -95,6 +98,17 @@ export function useCabinCharges(enabled = true) {
     enabled,
     ...storedOptions("cabin_charges", {}),
     queryFn: () => rpc<CabinCharges>("the cabin charges", "cabin_charges", { p_as_of: asOf() }),
+  });
+}
+
+/** The salary table (since 16 Nov, spec docs/specs/2026-11-16-salary-table.md): salary_table(), one staff call that only
+ *  reads, stored after every capture; Systems' Salaries board and Today's one item read it. */
+export function useSalaryTable(worldId: number | undefined) {
+  return useQuery({
+    queryKey: ["figures", "salary_table", worldId],
+    enabled: worldId !== undefined,
+    ...storedOptions("salary_table", { p_world_id: worldId ?? 0 }),
+    queryFn: () => rpc<SalaryTable>("the salary table", "salary_table", { p_world_id: worldId ?? 0, p_as_of: asOf() }),
   });
 }
 

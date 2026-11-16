@@ -177,8 +177,10 @@ capture late or failed (section 11). The steps below are for your own press.
    follows a capture page that failed: capture again, and the scan follows.
 3. **Read the panel.** Each airline ends with **all good**, or with what came in short or broken (for example "short:
    loads 12 of 78 flights"). What counts as short or broken is in manual §7, each page is checked as it arrives. Each
-   airline also has a salaries line ("salaries: all at or above the average", or how many were raised); a position
-   named as still below, or a salary page that didn't read, is worth a look on the game's Employee overview. The
+   airline also has a salaries line ("salaries: all at or above the average", or how many were raised, then since 16 Nov
+   what was stored: "16 positions stored, 2 off target"); a position named as still below, or a salary page that didn't
+   read, is worth a look on the game's Employee overview. Positions off target are on Systems → **Salaries** (and one
+   item on Today); lower the ones over target by hand in the game (the rule: manual §7, salaries). The
    last line says whether the world scan ran ("World scan done"), wasn't due, or why it didn't finish.
 4. **If a page is short or broken, capture that airline again** the same evening, while the game still holds the loads
    (manual §7). If it keeps failing, enter that night's cash and loads by hand in Systems → **Manual entry** (or paste

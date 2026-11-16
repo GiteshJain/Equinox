@@ -22,6 +22,8 @@
 // nags while it's set up), and its failed run or failed start with the other jobs (the start's only once it has run well);
 // and since 15 Nov (spec docs/specs/2026-11-15-rehearsal-on-today.md) the nightly database rehearsal on main, read from
 // GitHub into job_runs (rehearsal): a failed night with the other jobs, and no result for 36 hours (nothing before its first).
+// And since 16 Nov (spec docs/specs/2026-11-16-salary-table.md) one item when the salary table (salary_table()) has any
+// position more than 1% under or over its target, linking to Systems' Salaries board.
 // This file only words them. Monthly checks have none since 8 Oct, as
 // in the old planner, and the one-week checks went on 22 Oct (spec docs/specs/2026-10-22-remove-aircraft-checks.md).
 import { aircraftWeek, block, maintenance, schedule, type Rules } from "@rules";
@@ -32,6 +34,7 @@ import type { AirlineCard, BackupRun, CaptureRead, FixRoute, GrowthRead, HomeAir
 import { threatItemWords, threatKey, type ThreatItem } from "../competition/model";
 import type { ServiceChecks, ServiceMismatch } from "../performance/model";
 import { cabinAttention, fleetAttention, gameMaintenance, type CabinCharges, type FleetChecks } from "../systems/model";
+import { salaryAttention, type SalaryTable } from "../systems/salaries";
 
 /** One of our airlines as Home names it (home/reads.ts): needs attention words and keys it by the old planner's name. */
 export type { HomeAirline };
@@ -59,6 +62,8 @@ export interface AttentionInput {
   fleet?: FleetChecks | null;
   /** The service check (market_service_checks(), since 30 Oct), or null until read. */
   service?: ServiceChecks | null;
+  /** The salary table (salary_table(), since 16 Nov), or null until read. */
+  salaries?: SalaryTable | null;
   /** For the tests only: the language dates and numbers are written in (the device's own otherwise). */
   locale?: string;
 }
@@ -239,6 +244,11 @@ export function homeAttention(x: AttentionInput): AttItem[] {
   // match the game's charge, linking to Systems' Cabin charges board
   const cab = cabinAttention(x.cabins);
   if (cab) items.push({ key: cab.key, cls: "warn", screen: "systems", text: cab.text });
+
+  // the salary table (since 16 Nov, spec docs/specs/2026-11-16-salary-table.md): one item when any position is more than
+  // salary_flag_pct under or over its target, linking to Systems' Salaries board
+  const sal = salaryAttention(x.salaries);
+  if (sal) items.push(sal);
 
   // the backup: no good copy for 30 hours, or the last run failed
   if (x.backups) {

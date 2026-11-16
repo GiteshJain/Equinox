@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         equinox. capture all airlines
 // @namespace    equinox
-// @version      1.17
-// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Since 1.16 it reads the whole bank statement (every page of the game's last 24 hours) and sends it in parts of at most 500 lines. Since 1.17 it takes new versions from its update address (GitHub, main) and keeps the capture key in the userscript app's own storage, asked for once; an out-of-date copy stops before doing anything. Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
+// @version      1.18
+// @description  One button: for each of the world's airlines (the database lists them), captures loads, finances and payments for the planner, then the airline's fleet pages (each aircraft's condition, maintenance, seats and pilots). Then, when a world scan is due (the setting scan_every_days), scans the world as scripts/scanner/gscan.py does: every airline's schedule and overview page (its fleet and aircraft on order) and the airport pages, sent with the capture key. Then, once a week (the setting market_every_days), reads the Market Analysis page of both directions of every pair our airlines fly, airline by airline, and sends only the figures (rivals' fares by class, market shares, weekly seats and prices, and our current and default price by class); it sets the page's listing filters if they differ and never sends the page's Pricing or settings forms. Since 1.12 each airline's capture also checks its salaries on the Employee overview page: a position below its country average is set to the setting salary_above_average_pct (5%) above it; one at or above is left alone; none is ever lowered. Since 1.16 it reads the whole bank statement (every page of the game's last 24 hours) and sends it in parts of at most 500 lines. Since 1.17 it takes new versions from its update address (GitHub, main) and keeps the capture key in the userscript app's own storage, asked for once; an out-of-date copy stops before doing anything. Since 1.18 it also sends each airline's salaries and its country page's average salaries to the database for the planner's salary table (read only on the unattended run, which never sets a salary). Keep the tab open; a scan evening takes about 5 minutes longer, a market evening 10 to 15 more.
 // @updateURL    https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js
 // @downloadURL  https://raw.githubusercontent.com/GiteshJain/Equinox/main/capture/capture_all.user.js
 // @match        https://gander.airlinesim.aero/*
@@ -45,6 +45,18 @@
 // no clicking: every salary box on the game's page is named "amount", so 1.12–1.14 found the first row's box for every
 // position and set the E-jet pilots' salary three times while the two positions below (A320 pilots, flight attendants)
 // were never touched. Tested on the real page Gitesh saved (tests/fixtures/employee_overview_KF_2026-11-09.html).
+// 1.18 (16 Nov, to-do 245, spec docs/specs/2026-11-16-salary-table.md): the salary table. After each airline's salary step
+// (which sets salaries exactly as before) the script reads the airline's country page (/action/info/country?id=<the id
+// capture_airlines() gives>, half a second after the Employee overview) and sends both to capture_ingest() as page kind
+// salaries: every position's staff, this week's and next week's salary, the page's own country average and what the
+// step raised, and the country page's average for each position. The database stores them and judges the read apart
+// from the airline's verdict; the panel's line adds what it said ("stored, 2 off target"). capture_airlines()'s
+// salary_read says whether to read: always on a press; on the unattended run (settings.unattended_salary_read) it reads
+// and sends but never sets, because salary_above_average_pct stays null for that key. A salary or country page that
+// doesn't read is sent with its error and is a line in the panel; nothing here ever counts as a failed page. When the
+// loads page has no link to the Employee overview and none is remembered, the game's own address is used
+// (/app/enterprise/staffOverview). tests/capture_salary_test.mjs runs it on the saved Employee overview and India's
+// country page (tests/fixtures/country_IN_2026-11-16.html).
 // 1.17 (15 Nov, to-do 247, spec docs/specs/2026-11-15-self-updating-scripts.md): the script updates from its @updateURL
 // (the raw file on main; Tampermonkey on the Mac installs it by itself, the Userscripts app on a tap), and the key is no
 // longer in the text on Gitesh's Mac: the first press asks for it in prompt() and keeps it with GM.setValue, so the
@@ -67,7 +79,7 @@
 // settings.salary_above_average_pct (5, from capture_airlines()) per cent, one at a time, as the retired "Salaries: this
 // airline" script (capture/salary_adjust.user.js) did; at or above the average it is left alone, and no salary is ever
 // lowered. A salary page that doesn't read is a line in the panel and never a failed capture page. Nothing about
-// salaries goes to the database. tests/capture_salary_test.mjs reads a minimal page built from the old script's
+// salaries went to the database until 1.18. tests/capture_salary_test.mjs reads a minimal page built from the old script's
 // selectors and runs whole runs against a stand-in.
 (function (root) {
   "use strict";
@@ -162,7 +174,7 @@
   // ---------------------------------------------------------------- end of the shared block
 
   // ---------------------------------------------------------------- the world scan's logic, without the page
-  const VERSION = "1.17";                                      // the @version above, in the scan's notes
+  const VERSION = "1.18";                                      // the @version above, in the scan's notes
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const PACE = { letter: 400, airline: 500, fleet: 500, airport: 250 };   // ms between pages, gscan.py's own (1.8: fleet, the overview page)
   const MAX_FAILED_SHARE = 0.1;                                // more airline pages failed than this: the scan isn't finished
@@ -757,8 +769,9 @@
   // alone; one below it is set to the average plus settings.salary_above_average_pct (5) per cent, rounded to a whole AS$
   // (Math.round(average × 1.05)), by sending that position's own form as the game's adjust button does (POST to the form's
   // action, staffOverview: action=salary, the position's hidden id, amount; since 1.15). It never lowers a salary. The page
-  // is read again for the count. Nothing about salaries goes to the database; a salary page that doesn't read is a line in
-  // the panel, never a failed capture page. tests/capture_salary_test.mjs runs on the real page (Kingfisher, 9 Nov).
+  // is read again for the count. A salary page that doesn't read is a line in the panel, never a failed capture page.
+  // tests/capture_salary_test.mjs runs on the real page (Kingfisher, 9 Nov). Since 1.18 what was read is sent to the
+  // database for the salary table, with the airline's country page (runSalaryStore(), below).
   const SALARY_PACE = 500;                                     // 1.15: ms between two positions' forms
   const SALARY_MAX_CHANGES = 40;                               // the old script's guard
   const SALARY_URL_KEY = "eq_salary_url";                      // the old script's remembered Employee overview address
@@ -778,15 +791,19 @@
     try { return new URL(a.href, new URL(base || "/", "https://gander.airlinesim.aero/")).href.replace(/\?\d+$/, ""); } catch (e) { return null; }
   }
   // the Employee overview page: each position as { n (its order among the salary rows), key (its first cell's text, made
-  // unique), position, id (its form's hidden id, 1.15), action (its form's action), current (next week's salary in its box), avg }; or an error when it isn't the page or has no rows
+  // unique), position, id (its form's hidden id, 1.15), action (its form's action), current (next week's salary in its box), avg,
+  // and since 1.18 group (Flight crew, Cabin crew or Ground crew: the heading row above it), employed, active, required
+  // (its staff) and salary (this week's salary per employee) }; or an error when it isn't the page or has no rows
   function readSalaryPage(html) {
     html = String(html).replace(/<script[\s\S]*?<\/script>/g, "");
     if (!isSalaryPage(html)) return { rows: [], error: "not the Employee overview page (no \"Employee overview\" and \"Country average\" on it)" };
     const rows = [], keys = new Set();
+    let group = null;
     for (const tr of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
       const cells = [...tr[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map(c => c[1]);
       const input = (tr[1].match(/<input\b[^>]*>/gi) || []).find(t => { const ty = attrOf(t, "type"); return ty == null || /^(text|number)$/i.test(ty); });
-      if (!input) continue;
+      // 1.18: a heading row (one cell: Flight crew, Cabin crew, Ground crew) names the group of the rows under it
+      if (!input) { const one = cells.map(text).filter(Boolean); if (one.length === 1 && /crew$/i.test(one[0])) group = one[0]; continue; }
       const isAdjust = cell => [...cell.matchAll(/<(button|a)\b[^>]*>([\s\S]*?)<\/\1>/gi)].some(m => /^\s*adjust\s*$/i.test(text(m[2])))
         || (cell.match(/<input\b[^>]*>/gi) || []).some(t => /^(submit|button)$/i.test(attrOf(t, "type") || "") && /^\s*adjust\s*$/i.test(attrOf(t, "value") || ""));
       const i = cells.findIndex(isAdjust);
@@ -802,8 +819,12 @@
       // 1.15: the row's own form, which the capture sends: its action (staffOverview) and the hidden id of the position
       const form = (tr[1].match(/<form\b[^>]*>/i) || [""])[0];
       const idTag = (tr[1].match(/<input\b[^>]*>/gi) || []).find(t => (attrOf(t, "type") || "").toLowerCase() === "hidden" && attrOf(t, "name") === "id");
+      // 1.18: its staff (the three counts after its name) and this week's salary per employee (the first AS$ figure)
+      const count = k => { const t = cells[k] == null ? "" : text(cells[k]); return /^[\d,.]+$/.test(t) ? +t.replace(/[^\d]/g, "") : null; };
+      const payCell = cells.slice(1, i).find(c => /^\s*[\d,.]+\s*AS\$\s*$/.test(text(c)));
       rows.push({ n: rows.length, key, position, id: idTag ? attrOf(idTag, "value") : null, action: form ? attrOf(form, "action") : null,
-                  current: +String(attrOf(input, "value") || "").replace(/[^\d]/g, ""), avg });
+                  current: +String(attrOf(input, "value") || "").replace(/[^\d]/g, ""), avg,
+                  group, employed: count(1), active: count(2), required: count(3), salary: payCell ? +text(payCell).replace(/[^\d]/g, "") : null });
     }
     if (!rows.length) return { rows, error: "no salary rows on the page (a salary box, its adjust and the country average)" };
     return { rows };
@@ -826,18 +847,74 @@
   // sends that row's form (throws when the game refuses it). st: { name, pct }. Answers { words, raised, stuck, error? }.
   async function runSalaries(st, io) {
     let read = readSalaryPage(await io.read());
-    if (read.error) return { words: `${st.name} · salaries: the Employee overview page didn't read (${read.error}); skipped`, error: true };
-    const below = salariesBelow(read.rows), sent = [], problems = [];
+    if (read.error) return { words: `${st.name} · salaries: the Employee overview page didn't read (${read.error}); skipped`, error: true, why: read.error };
+    const below = salariesBelow(read.rows), sent = [], problems = [], raisedTo = {};
     for (const row of below.slice(0, SALARY_MAX_CHANGES)) {
       const target = salaryTarget(row.avg, st.pct);
       if (!(target > row.current)) continue;   // never lowers: below the average, the target is always above the salary
       if (!row.id) { problems.push(row.key + " (no form id on the page)"); continue; }
-      try { await io.post(row, target); sent.push(row.key); } catch (e) { problems.push(row.key + " (" + e.message + ")"); }
+      try { await io.post(row, target); sent.push(row.key); raisedTo[row.key] = target; } catch (e) { problems.push(row.key + " (" + e.message + ")"); }
     }
     if (sent.length) { try { const again = readSalaryPage(await io.read()); if (!again.error) read = again; } catch (e) { /* counted as sent */ } }
     const still = new Set(salariesBelow(read.rows).map(r => r.key));
     const stuck = [...sent.filter(k => still.has(k)), ...problems], raised = sent.filter(k => !still.has(k)).length;
-    return { words: salaryWords(st.name, st.pct, raised, stuck, below.length > SALARY_MAX_CHANGES), raised, stuck };
+    return { words: salaryWords(st.name, st.pct, raised, stuck, below.length > SALARY_MAX_CHANGES), raised, stuck, rows: read.rows, raisedTo };
+  }
+
+  // ---------------------------------------------------------------- the salary table (1.18)
+  // Spec docs/specs/2026-11-16-salary-table.md: after the salary step, the airline's country page (public, no sign-in
+  // needed) and both pages' figures to capture_ingest() as kind salaries. Reading changes nothing in the game.
+  const SALARY_PAGE = "/app/enterprise/staffOverview";        // the game's Employee overview, when no link to it is found
+  const countryUrl = id => "/action/info/country?id=" + encodeURIComponent(String(id));
+  // the country page: its name and ISO code from its heading ("Country information for India (IN)") and each position's
+  // average salary (a row of two cells, the position and "1,794 AS$"); or an error when it isn't a country page or has none
+  function readCountryPage(html) {
+    html = String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, "");
+    const head = text(html).match(/Country information for (.+?) \(([A-Z]{2,3})\)/);
+    if (!head) return { averages: [], error: "not a country page (no \"Country information for\")" };
+    const averages = [];
+    for (const tr of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+      const cells = [...tr[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map(c => text(c[1]));
+      if (cells.length === 2 && cells[0] && /^[\d,.]+\s*AS\$$/.test(cells[1])) averages.push({ position: cells[0], avg: +cells[1].replace(/[^\d]/g, "") });
+    }
+    if (!averages.length) return { name: head[1], code: head[2], averages, error: "no average salaries on the country page" };
+    return { name: head[1], code: head[2], averages };
+  }
+  // what capture_ingest() takes as a salaries page: the Employee overview's positions (or its error), the country page's
+  // averages (or its error), and the script's version
+  function salaryPayload(rows, overviewError, raisedTo, country, version) {
+    const overview = overviewError ? { error: String(overviewError).slice(0, 300) }
+      : { rows: (rows || []).map(r => ({ position: r.position || r.key, group: r.group ?? null, employed: r.employed ?? null, active: r.active ?? null,
+                                          required: r.required ?? null, salary: r.salary ?? null, salary_next: r.current ?? null, avg: r.avg ?? null,
+                                          raised_to: raisedTo && raisedTo[r.key] != null ? raisedTo[r.key] : null })) };
+    const c = country || {};
+    const out = { id: c.id ?? null };
+    if (c.error) out.error = String(c.error).slice(0, 300);
+    else Object.assign(out, { name: c.name ?? null, code: c.code ?? null, averages: (c.averages || []).map(a => ({ position: a.position, avg: a.avg })) });
+    return { version, overview, country: out };
+  }
+  // One airline's salaries (1.18): the salary step as before when pct is set (runSalaries()), or only the page read when
+  // it is null (the unattended run: salaries are never set there); then, when st.read, the country page and the send.
+  // io: read() → the Employee overview's HTML, post(row, amount), country(id) → the country page read (readCountryPage()'s
+  // answer), send(payload) → capture_ingest()'s reply. st: { name, pct, read, countryId, version }. Answers { words, … }.
+  async function runSalaryStore(st, io) {
+    let res, rows = [], overviewError = null, raisedTo = {};
+    if (st.pct != null) {
+      res = await runSalaries(st, io);
+      if (res.error) overviewError = res.why || "didn't read"; else { rows = res.rows; raisedTo = res.raisedTo; }
+    } else {
+      try { const r = readSalaryPage(await io.read()); if (r.error) overviewError = r.error; else rows = r.rows; } catch (e) { overviewError = e.message; }
+      res = { words: overviewError ? `${st.name} · salaries: the Employee overview page didn't read (${overviewError})` : `${st.name} · salaries: read only (this capture never sets them)`, error: !!overviewError };
+    }
+    if (!st.read) return res;
+    let country;
+    if (st.countryId == null) country = { id: null, error: "no country id for the airline (airlines.game_country_id)" };
+    else { try { country = Object.assign({ id: st.countryId }, await io.country(st.countryId)); } catch (e) { country = { id: st.countryId, error: e.message }; } }
+    const payload = salaryPayload(rows, overviewError, raisedTo, country, st.version);
+    let reply;
+    try { reply = await io.send(payload); } catch (e) { reply = { ok: false, error: e.message }; }
+    const stored = reply && reply.ok === true ? String(reply.words || "stored").replace(/^salaries: /, "") : `not stored (${(reply && (reply.error || reply.message)) || "no answer"})`;
+    return Object.assign({}, res, { words: res.words + "; " + stored, payload, reply });
   }
 
   // ---------------------------------------------------------------- the bank statement's logic, without the page (1.16)
@@ -890,6 +967,7 @@
                 filterBody, wicketBase, openAirlineOf, openProblem, readMarketPage, fareSummary, marketPagePayload, marketPlanOf, noMarketWords,
                 marketProgress, runMarkets, marketState, hasGroupedTable, pageWhat, serviceToken, readPricing,
                 SALARY_PACE, SALARY_MAX_CHANGES, salaryPctOf, salaryFormBody, salaryFormUrl, salaryTarget, isSalaryPage, salaryLinkOf, readSalaryPage, salariesBelow, salaryWords, runSalaries,
+                SALARY_PAGE, countryUrl, readCountryPage, salaryPayload, runSalaryStore,
                 STATEMENT_URL, STATEMENT_PART_LINES, STATEMENT_MAX_PAGES, STATEMENT_HOURS, statementParts, statementPage, statementWords, statementStopWords };
   Object.assign(lib, keyLib);
   if (typeof document === "undefined" || !root.location || !root.sessionStorage) { root.eqScan = lib; return; }
@@ -913,7 +991,7 @@
   // a page the database didn't store and read counts as a failed capture: no world scan that evening (1.5)
   const failed = () => { const t = get(); if (t) { t.failed = (t.failed || 0) + 1; set(t); } };
   const send = async (gameId, kind, rows, page) => { const r = await rpc("capture_ingest", { p_key: key, p_airline: String(gameId), p_kind: kind, p_page: page, p_rows: rows }); if (!r || r.ok !== true) failed(); return r; };   // the airline by its game ID
-  const loadAirlines = async () => { const r = await rpc("capture_airlines", { p_key: key }); if (!r || !r.ok || !Array.isArray(r.airlines) || !r.airlines.length) throw new Error((r && (r.error || r.message)) || "no airlines"); return { list: r.airlines.map(a => [a.game_id, a.name, a.game_name || a.name]), scan: planOf(r), markets: marketPlanOf(r), salaryPct: salaryPctOf(r), salaryRaw: r.salary_above_average_pct ?? null }; };   // 1.9: and the market pages; 1.12: the salary setting
+  const loadAirlines = async () => { const r = await rpc("capture_airlines", { p_key: key }); if (!r || !r.ok || !Array.isArray(r.airlines) || !r.airlines.length) throw new Error((r && (r.error || r.message)) || "no airlines"); return { list: r.airlines.map(a => [a.game_id, a.name, a.game_name || a.name, a.country_id ?? null]), scan: planOf(r), markets: marketPlanOf(r), salaryPct: salaryPctOf(r), salaryRaw: r.salary_above_average_pct ?? null, salaryRead: r.salary_read === true }; };   // 1.9: and the market pages; 1.12: the salary setting; 1.18: each airline's country and whether to read salaries
   // the panel: its lines, the live progress line under them, and a Stop button while the world scan runs. Since 1.7 it
   // never grows past the window: its lines scroll, and follow the newest one unless Gitesh has scrolled up to read
   const panel = () => { let b = document.getElementById("eq-cap-panel"); if (!b) { b = document.createElement("div"); b.id = "eq-cap-panel"; b.style.cssText = "position:fixed;top:12px;right:12px;z-index:999999;background:#0A1230;color:#fff;font:14px/1.5 system-ui,sans-serif;padding:14px 18px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4);max-width:380px;max-height:calc(100vh - 24px);box-sizing:border-box;display:flex;flex-direction:column;white-space:pre-line"; const t = document.createElement("div"); t.className = "eq-cap-text"; t.style.cssText = "overflow-y:auto;flex:1 1 auto;min-height:0;overscroll-behavior:contain"; const k = document.createElement("div"); k.className = "eq-cap-buttons"; k.style.cssText = "margin-top:10px;display:flex;gap:8px"; b.append(t, k); document.body.appendChild(b); } return b; };
@@ -1011,8 +1089,9 @@
 
   // ---------------------------------------------------------------- in the game: salaries (1.12, 1.15)
   // After each airline's fleet pages: runSalaries() on the page fetched, each position below sent as its own form by
-  // fetch (no page opened, nothing clicked, 0.5 s apart). Whatever happens here is a line in the panel: it never calls
-  // failed() and never stops the capture.
+  // fetch (no page opened, nothing clicked, 0.5 s apart). Since 1.18 (the salary table) then the airline's country page and
+  // both pages' figures to capture_ingest() as kind salaries (runSalaryStore()); on the unattended run only that, never a
+  // form. Whatever happens here is a line in the panel: it never calls failed() and never stops the capture.
   const remembered = () => { try { return localStorage.getItem(SALARY_URL_KEY); } catch (e) { return null; } };
   const remember = u => { try { localStorage.setItem(SALARY_URL_KEY, String(u).replace(/\?\d+$/, "")); } catch (e) { /* not kept */ } };
   async function postSalary(name, url, row, amount) {
@@ -1022,17 +1101,31 @@
     if (!r.ok) throw new Error("the game answered " + r.status);
     await sleep(SALARY_PACE);
   }
+  // 1.18: the country page, read once a run for each country (kept in the run's state)
+  async function countryOf(cid) {
+    const t = get(); const kept = t && t.countries && t.countries[cid];
+    if (kept) return kept;
+    await sleep(SALARY_PACE);
+    const r = readCountryPage(await page(countryUrl(cid)));
+    if (!r.error) { const x = get(); if (x) { x.countries = Object.assign({}, x.countries, { [cid]: r }); set(x); } }
+    return r;
+  }
+  // 1.18: the one call the salary step makes to the database: the airline's salaries page (never failed())
+  const storeSalaries = async (gameId, url, payload) => rpc("capture_ingest", { p_key: key, p_airline: String(gameId), p_kind: "salaries", p_page: url, p_rows: payload });
   async function salaries(id, name) {
     try {
       const t = get(); if (!t) return;
-      const pct = t.salaryPct;
-      if (pct == null) { log(`${name} · salaries: left alone (salary_above_average_pct is ${t.salaryRaw == null ? "not set" : JSON.stringify(t.salaryRaw) + ", not 0 to 50"})`); return nextAirline(); }
-      const url = t.salaryUrl || salaryLinkOf(document.documentElement.outerHTML, location.href) || remembered();
-      if (!url) { log(`${name} · salaries: couldn't find the Employee overview page (no link to it on the loads page); skipped`); return nextAirline(); }
+      const pct = t.salaryPct, reading = t.salaryRead === true;
+      if (pct == null && !reading) { log(`${name} · salaries: left alone (salary_above_average_pct is ${t.salaryRaw == null ? "not set" : JSON.stringify(t.salaryRaw) + ", not 0 to 50"})`); return nextAirline(); }
+      const url = t.salaryUrl || salaryLinkOf(document.documentElement.outerHTML, location.href) || remembered() || new URL(SALARY_PAGE, location.href).href;
       const x = get(); if (!x) return; x.salaryUrl = url; set(x);
+      const countryId = (airlinesOf(t).find(a => String(a[0]) === String(id)) || [])[3] ?? null;
       let res;
-      try { res = await runSalaries({ name, pct }, { read: () => page(url), post: (row, amount) => postSalary(name, url, row, amount) }); }
-      catch (e) { res = { words: `${name} · salaries: the Employee overview page didn't read (${e.message}); skipped` }; }
+      try {
+        res = await runSalaryStore({ name, pct, read: reading, countryId, version: VERSION },
+          { read: () => page(url), post: (row, amount) => postSalary(name, url, row, amount), country: cid => countryOf(cid),
+            send: payload => storeSalaries(id, url, payload) });
+      } catch (e) { res = { words: `${name} · salaries: the Employee overview page didn't read (${e.message}); skipped`, error: true }; }
       if (!res.error) remember(url);
       const y = get(); if (y) { y.progress = null; set(y); }
       log(res.words);
@@ -1206,7 +1299,7 @@
       key = first.key; got = first.answer;
       if (!key || !got || got.ok === false) { show("equinox. capture: couldn't get the airlines to capture (" + ((got && got.error) || "no answer") + "). Check the capture key."); b.disabled = false; return; }
       const list = got.list, start = (await currentId(list)) || list[0][0];
-      set({ i: 0, phase: "switch", start, version: VERSION, airlines: list, scan: got.scan, markets: got.markets, salaryPct: got.salaryPct, salaryRaw: got.salaryRaw, failed: 0, log: ["equinox. capture, all airlines…"].concat(prep.lines) }); log("Starting: " + list.map(a => a[1]).join(", ")); step(); };
+      set({ i: 0, phase: "switch", start, version: VERSION, airlines: list, scan: got.scan, markets: got.markets, salaryPct: got.salaryPct, salaryRaw: got.salaryRaw, salaryRead: got.salaryRead, failed: 0, log: ["equinox. capture, all airlines…"].concat(prep.lines) }); log("Starting: " + list.map(a => a[1]).join(", ")); step(); };
     document.body.appendChild(b);
   }
   addButton(); const s = get();

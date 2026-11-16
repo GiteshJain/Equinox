@@ -38,6 +38,25 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### Salaries stored, and the salary table: 16 Nov
+*Gitesh, 15 Nov (Main chat; brief `docs/briefs/2026-11-15-salaries-unattended.md`, Outcome: "Capture sets the salaries
+like it normally does but stores what the salary [is] for each employee for each airline. The capture also reads the
+average salaries from country page. Then we have a table or something which compares both and if numbers differ by
+[more] than 1% on either direction it [shows] in the [planner]"; our salary against the country page's average plus 5%;
+no lowering by the capture yet, "A1"), and 16 Nov (the spec's choices, 08:59 to 09:04 India time: the table on Systems
+with one Today item, A; the unattended run reads and stores, never sets, B; next week's salary compared and no-staff
+positions never flagged, A; Ryanair's country Ireland; spec `docs/specs/2026-11-16-salary-table.md`, to-do 245) · why:
+nothing showed where each salary stood against the average, so neither the capture's raises nor a salary above target
+could be checked; the capture still doesn't lower, because our staff are part of each country's average and always
+moving to the average plus 5% feeds itself where we are a big employer.* Two sentences changed, word for word.
+§7's salary rule read "A salary page that doesn't read is said in the panel and skipped: it never stops the capture or
+counts as a failed page. Nothing about salaries is stored. There is no separate salary script." and now says what each
+capture that reads salaries stores, that the planner's salary table flags a position more than
+`settings.salary_flag_pct` (1%) off its target (no-staff positions never), and that Gitesh lowers by hand.
+§7's capture paragraph read "…for its key it never sets salaries (`settings.unattended_salaries`, false;
+`unattended_scan` and `unattended_market` true) and is refused by the fares and the aircraft evaluation." and now adds
+that it reads and stores them for the salary table (`settings.unattended_salary_read`, true).
+
 ### The scripts update themselves on the Mac, and the fares script has its own limit: 15 Nov
 *Gitesh, 15 Nov (Main chat; to-do 247, option B of two, "the scripts update themselves"; the limit from to-do 218 step
 3, option B; the spec's choices decided 08:46 to 08:51 India time; spec `docs/specs/2026-11-15-self-updating-scripts.md`)

@@ -224,6 +224,9 @@ docs/specs/2026-10-23-attention-on-home.md); each card's button opens its sectio
   - **Cabin charges** (since 22 Oct): one amber item when a cabin charge on the game's bank statement doesn't match the
     first fit filing logged ("2 cabin charges don't match what we logged"), linking to Systems' Cabin charges board,
     which opens on arrival. Dismissed, it comes back when a new one appears.
+  - **Salaries** (since 16 Nov): one amber item when any position is more than 1% under or over its target ("Salaries:
+    3 positions more than 1% off target in 2 airlines"), linking to Systems' Salaries board, which opens on arrival.
+    Dismissed, it comes back when another position is marked.
   - **Fleet** (since 22 Oct): what the evening capture's fleet pages showed on the latest night (*fleet_checks()*),
     one item per aircraft, worst first: the game's maintenance under the limit, with its condition, and no pilots (red),
     then seats that don't match the aircraft's cabin in the planner or no cabin in the planner, an aircraft in the game
@@ -911,10 +914,10 @@ out since 22 Oct short and answer-first, as Today (spec docs/specs/2026-10-22-pl
   capture, each with its words on hover or tap.
 - **Usage against the triggers** (since 30 Oct): the database's size, the report PDFs and the website's data as gauges,
   each its share of its trigger, amber from 70% and red at it.
-- **The details** under them, as large rows: Capture, Fleet, Cabin charges and Manual entry, each with a one-line note and
-  its count or state ("all 6 complete", "27 fits, no problems", "2 to look at"). Tap a
-  row to open its board right below it; all start closed, except Cabin charges or Fleet when Today's item sent you
-  (#cabin-charges, #fleet). **Expand all** and **Collapse all** open or close every one.
+- **The details** under them, as large rows: Capture, Fleet, Cabin charges, Salaries (since 16 Nov) and Manual entry, each
+  with a one-line note and its count or state ("all 6 complete", "27 fits, no problems", "2 to look at", "3 off target").
+  Tap a row to open its board right below it; all start closed, except Cabin charges, Fleet or Salaries when Today's
+  item sent you (#cabin-charges, #fleet, #salaries). **Expand all** and **Collapse all** open or close every one.
 
 Each button is saved on its own, as one change.
 - **Systems** (#23): one look says whether everything worked. One line each with a green, amber or red mark and when:
@@ -979,6 +982,18 @@ Each button is saved on its own, as one change.
   (more than one line), **not charged yet** (no line, and the airline's latest statement more than 2 days after the
   fit was logged; until then it's waiting) and **not logged** (the game charged a cabin for an aircraft with no first
   fit logged). Today's needs attention has one item while any is there, and opens this board.
+- **Salaries** (since 16 Nov; manual §7, salaries; spec docs/specs/2026-11-16-salary-table.md): each airline's salaries
+  as the capture last read them (*salary_table()*: every press, and the unattended runs, which read but never set). Its
+  title says how many positions are more than 1% off target (*salary_flag_pct*) and in how many airlines, or that every
+  position with staff is within it. Per airline, when it was read and the country; then a row per position: staff,
+  this week's salary, **next week's** (the one compared: the box the capture and you set), the country page's average
+  (with the Employee overview's own under it when the two differ), the **target** (the country average plus 5%,
+  *salary_above_average_pct*) and the difference in AS$ and per cent. A position more than 1% under is marked red
+  (**under target**), over amber (**over target**); one with no staff is dimmed and never marked; a pilot family the
+  table can't match to the country page says **no country average**. A read the database judged short (the country
+  page didn't read, or a position with staff has no country average) or broken (the Employee overview didn't read) says
+  why. Lower a salary over target by hand in the game; the capture only raises. Today's needs attention has one item
+  while any position is marked, and opens this board.
 - **Manual entry:** only if a night's capture failed. Cash and fixed costs for today (**Save** keeps a figure only
   where it differs from the capture's), the nightly log, and **Loads by hand**: type each airline's flights under 95%,
   or paste the game's load table, **Read paste**, check it and save, ticking each day that is complete. Loads typed or

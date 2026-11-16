@@ -287,16 +287,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"airlines": {
+                },"airline_salaries": {
                   Row: {
-                    "active": boolean,"blurb": string | null,"country_code": string | null,"created_at": string,"founded_on": string | null,"game_id": number,"game_name": string | null,"group_id": number | null,"home_airport_code": string | null,"iata_code": string | null,"id": number,"is_lcc": boolean,"livery_color": string | null,"low_demand": boolean,"photo_city": string | null,"planner_name": string | null,"position": number | null,"public_name": string | null,"region_text": string | null,"role_text": string | null,"slug": string | null,"updated_at": string,"world_id": number
+                    "active": number | null,"crew_group": string | null,"employed": number | null,"n": number,"overview_avg": number | null,"position": string,"raised_to": number | null,"read_id": number,"required": number | null,"salary": number | null,"salary_next": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"blurb"?: string | null,"country_code"?: string | null,"created_at"?: string,"founded_on"?: string | null,"game_id": number,"game_name"?: string | null,"group_id"?: number | null,"home_airport_code"?: string | null,"iata_code"?: string | null,"id"?: never,"is_lcc"?: boolean,"livery_color"?: string | null,"low_demand"?: boolean,"photo_city"?: string | null,"planner_name"?: string | null,"position"?: number | null,"public_name"?: string | null,"region_text"?: string | null,"role_text"?: string | null,"slug"?: string | null,"updated_at"?: string,"world_id": number
+                    "active"?: number | null,"crew_group"?: string | null,"employed"?: number | null,"n": number,"overview_avg"?: number | null,"position": string,"raised_to"?: number | null,"read_id": number,"required"?: number | null,"salary"?: number | null,"salary_next"?: number | null
                   }
                   Update: {
-                    "active"?: boolean,"blurb"?: string | null,"country_code"?: string | null,"created_at"?: string,"founded_on"?: string | null,"game_id"?: number,"game_name"?: string | null,"group_id"?: number | null,"home_airport_code"?: string | null,"iata_code"?: string | null,"id"?: never,"is_lcc"?: boolean,"livery_color"?: string | null,"low_demand"?: boolean,"photo_city"?: string | null,"planner_name"?: string | null,"position"?: number | null,"public_name"?: string | null,"region_text"?: string | null,"role_text"?: string | null,"slug"?: string | null,"updated_at"?: string,"world_id"?: number
+                    "active"?: number | null,"crew_group"?: string | null,"employed"?: number | null,"n"?: number,"overview_avg"?: number | null,"position"?: string,"raised_to"?: number | null,"read_id"?: number,"required"?: number | null,"salary"?: number | null,"salary_next"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "airline_salaries_read_id_fkey"
+      columns: ["read_id"]
+isOneToOne: false
+      referencedRelation: "salary_reads"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"airlines": {
+                  Row: {
+                    "active": boolean,"blurb": string | null,"country_code": string | null,"created_at": string,"founded_on": string | null,"game_country_id": number | null,"game_id": number,"game_name": string | null,"group_id": number | null,"home_airport_code": string | null,"iata_code": string | null,"id": number,"is_lcc": boolean,"livery_color": string | null,"low_demand": boolean,"photo_city": string | null,"planner_name": string | null,"position": number | null,"public_name": string | null,"region_text": string | null,"role_text": string | null,"slug": string | null,"updated_at": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"blurb"?: string | null,"country_code"?: string | null,"created_at"?: string,"founded_on"?: string | null,"game_country_id"?: number | null,"game_id": number,"game_name"?: string | null,"group_id"?: number | null,"home_airport_code"?: string | null,"iata_code"?: string | null,"id"?: never,"is_lcc"?: boolean,"livery_color"?: string | null,"low_demand"?: boolean,"photo_city"?: string | null,"planner_name"?: string | null,"position"?: number | null,"public_name"?: string | null,"region_text"?: string | null,"role_text"?: string | null,"slug"?: string | null,"updated_at"?: string,"world_id": number
+                  }
+                  Update: {
+                    "active"?: boolean,"blurb"?: string | null,"country_code"?: string | null,"created_at"?: string,"founded_on"?: string | null,"game_country_id"?: number | null,"game_id"?: number,"game_name"?: string | null,"group_id"?: number | null,"home_airport_code"?: string | null,"iata_code"?: string | null,"id"?: never,"is_lcc"?: boolean,"livery_color"?: string | null,"low_demand"?: boolean,"photo_city"?: string | null,"planner_name"?: string | null,"position"?: number | null,"public_name"?: string | null,"region_text"?: string | null,"role_text"?: string | null,"slug"?: string | null,"updated_at"?: string,"world_id"?: number
                   }
                   Relationships: [
                     {
@@ -444,6 +464,26 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"country_salaries": {
+                  Row: {
+                    "avg": number,"country_id": number | null,"n": number,"position": string,"read_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "avg": number,"country_id"?: number | null,"n": number,"position": string,"read_id": number
+                  }
+                  Update: {
+                    "avg"?: number,"country_id"?: number | null,"n"?: number,"position"?: string,"read_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "country_salaries_read_id_fkey"
+      columns: ["read_id"]
+isOneToOne: false
+      referencedRelation: "salary_reads"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"dismissals": {
                   Row: {
@@ -1615,6 +1655,58 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"salary_positions": {
+                  Row: {
+                    "country_name": string,"created_at": string,"id": number,"note": string | null,"overview_name": string,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "country_name": string,"created_at"?: string,"id"?: never,"note"?: string | null,"overview_name": string,"world_id": number
+                  }
+                  Update: {
+                    "country_name"?: string,"created_at"?: string,"id"?: never,"note"?: string | null,"overview_name"?: string,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "salary_positions_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"salary_reads": {
+                  Row: {
+                    "airline_id": number,"country_code": string | null,"country_error": string | null,"country_id": number | null,"country_name": string | null,"country_ok": boolean,"created_at": string,"id": number,"note": string | null,"overview_error": string | null,"overview_ok": boolean,"raw_id": number | null,"read_at": string,"unattended": boolean,"verdict": string,"version": string | null,"world_id": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "airline_id": number,"country_code"?: string | null,"country_error"?: string | null,"country_id"?: number | null,"country_name"?: string | null,"country_ok": boolean,"created_at"?: string,"id"?: never,"note"?: string | null,"overview_error"?: string | null,"overview_ok": boolean,"raw_id"?: number | null,"read_at": string,"unattended"?: boolean,"verdict": string,"version"?: string | null,"world_id": number
+                  }
+                  Update: {
+                    "airline_id"?: number,"country_code"?: string | null,"country_error"?: string | null,"country_id"?: number | null,"country_name"?: string | null,"country_ok"?: boolean,"created_at"?: string,"id"?: never,"note"?: string | null,"overview_error"?: string | null,"overview_ok"?: boolean,"raw_id"?: number | null,"read_at"?: string,"unattended"?: boolean,"verdict"?: string,"version"?: string | null,"world_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "salary_reads_airline_id_fkey"
+      columns: ["airline_id"]
+isOneToOne: false
+      referencedRelation: "airlines"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "salary_reads_raw_id_fkey"
+      columns: ["raw_id"]
+isOneToOne: false
+      referencedRelation: "game_capture_raw"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "salary_reads_world_id_fkey"
+      columns: ["world_id"]
+isOneToOne: false
+      referencedRelation: "worlds"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"scan_airline_airports": {
                   Row: {
                     "airline_id": number,"airport_code": string,"destinations": number,"scan_id": number,"weekly_departures": number,"world_id": number
@@ -2302,6 +2394,9 @@ isOneToOne: false
                            },
 "rules_input":
 { Args: { "p_routes"?: string,"p_world_id"?: number }; Returns: Json
+                           },
+"salary_table":
+{ Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
                            },
 "save_script":
 { Args: { "p_content": string,"p_name": string,"p_secret": string }; Returns: Json

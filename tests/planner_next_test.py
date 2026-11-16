@@ -28,8 +28,8 @@ Supabase address answered by the copy (its public key swapped for the copy's), a
    Routes (which links back, "The route's story ›") and to the airline's page, and Competition's threats each linking to
    their route's page; then each airline's page (since 26 Oct) has its own fare ladder under its scorecard, one card,
    its lists opened with See the changes, its moves in one line, its count of changes in the game matching its game
-   actions (route by route since 21 Oct), its game actions and its routes table each cut to 10 rows with "show all N"; Systems, the Systems board first, then its four boards folded (Capture with the copy's
-   airlines, Fleet and Cabin charges since 22 Oct, Manual entry; Cabins went on 21 Oct, Aircraft checks with the one-week checks
+   actions (route by route since 21 Oct), its game actions and its routes table each cut to 10 rows with "show all N"; Systems, the Systems board first, then its five boards folded (Capture with the copy's
+   airlines, Fleet and Cabin charges since 22 Oct, Salaries since 16 Nov, Manual entry; Cabins went on 21 Oct, Aircraft checks with the one-week checks
    on 22 Oct); Interline with its agreements, the interline countries and (since 3 Nov) Waiting for a reply as its first board, Photos with a logo for each
    of our airlines, Reference with its sections folded. The header has the search box and the Website button, and no
    Hubs, Check or Review. (Each screen was compared with the old planner's by a side by side until the clean-up, build
@@ -813,7 +813,7 @@ async def no_hubs(pl):
 
 async def systems_opens(pl):
     """Systems (20 Oct; Check's boards and Review's Manual entry until then): the Systems board first and open, then its
-    four boards folded on arrival, in order (Capture, Fleet and Cabin charges since 22 Oct, Manual entry; the Cabins board went on
+    five boards folded on arrival, in order (Capture, Fleet and Cabin charges since 22 Oct, Salaries since 16 Nov, Manual entry; the Cabins board went on
     21 Oct, spec docs/specs/2026-10-21-cabins-new-rule.md §1, and Aircraft checks on 22 Oct, spec
     docs/specs/2026-10-22-remove-aircraft-checks.md), the Capture board listing our airlines the capture covers, in their
     order."""
@@ -832,7 +832,7 @@ async def systems_opens(pl):
     problems = []
     if got["first"] != "systems":
         problems.append(f"the Systems board isn't the first board on Systems (the first is {got['first'] or 'none'})")
-    order = ["Capture", "Fleet", "Cabin charges", "Manual entry"]
+    order = ["Capture", "Fleet", "Cabin charges", "Salaries", "Manual entry"]
     if got["boards"] != order:
         problems.append(f"Systems' boards are {got['boards']}, not {order}")
     if not got["folded"]:
@@ -2243,7 +2243,7 @@ async def unattended_capture(p, port, env, facts, staff, seen, moment):
 # ---------- 6d. the stored figures (since 11 Nov, spec docs/specs/2026-11-11-stored-figures.md §3) ----------
 # What the database stores after each capture (planner_figures, kinds as the migration writes them); a route's page is read
 # from its own row, never through /rpc/, when it's stored
-STORED = {"airline_cards", "growth_signals", "hub_progress", "route_loads", "fleet_checks", "cash_log", "shared_pairs_status", "cabin_charges",
+STORED = {"airline_cards", "growth_signals", "hub_progress", "route_loads", "fleet_checks", "cash_log", "shared_pairs_status", "salary_table", "cabin_charges",
           "market_service_checks", "airline_profit", "cash_forecast", "fare_changes", "fare_plan_status", "fare_ladder", "fare_results", "competition",
           "route_profit", "aircraft_profit"}
 # Records every line the landing page shows, from before the planner starts (null when none shows)

@@ -9,7 +9,8 @@
 --      it answers the setting as salary_above_average_pct beside the airlines, the scan and the market plan; a world
 --      without the setting answers null; a wrong key is refused as before.
 --      world_rules.capture_salary_step kept, true, its description no longer the separate script's.
---   3. Nothing about salaries is stored: no table or column named for salaries came with the migration.
+--   3. Since 16 Nov (migration 20261116100000, the salary table) salaries are stored: the tables named for salaries are
+--      exactly the four that migration made, and no view; salary_table_test.sql checks them.
 
 create temporary table t_sal (k text primary key, v jsonb) on commit drop;
 grant select, insert on t_sal to anon;
@@ -89,13 +90,14 @@ begin
 end
 $test$;
 
--- ---------------------------------------------------------------- 3. nothing about salaries stored
+-- ---------------------------------------------------------------- 3. what is stored about salaries (since 16 Nov)
 do $test$
 declare bad text;
 begin
-  select string_agg(c.relname, ', ') into bad from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname in ('public', 'private') and c.relkind in ('r', 'p', 'v', 'm') and c.relname ~* 'salar';
-  assert bad is null, 'a table or view named for salaries exists: ' || bad;
-  raise notice 'no table or view about salaries';
+  select string_agg(c.relname, ', ' order by c.relname) into bad from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('public', 'private') and c.relkind in ('r', 'p', 'v', 'm') and c.relname ~* 'salar'
+     and c.relname not in ('salary_reads', 'airline_salaries', 'country_salaries', 'salary_positions');
+  assert bad is null, 'a table or view named for salaries other than the salary table''s four exists: ' || bad;
+  raise notice 'about salaries, only the salary table''s four tables (salary_table_test.sql checks them)';
 end
 $test$;

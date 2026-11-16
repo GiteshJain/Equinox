@@ -29,6 +29,8 @@ figure live, so the stored answers can be compared with the live ones on real ca
 statement's time limit from a function's own `statement_timeout` (tried on Postgres 16, 11 Nov): the refresh's 5 minutes
 and the figures' 30 s are written on the functions, but the job runs under the limit of the role it runs as (postgres).
 
+*16 Nov: the salary table* (to-do 245, spec `docs/specs/2026-11-16-salary-table.md`). `salary_table()` (builder `private.fig_salary_table()`): for each of our active airlines its latest salary read by the moment (`salary_reads`, written by the capture's page kind salaries) and each position on its Employee overview with this week's and next week's salary, the page's own average, the country page's average (through `salary_positions` for pilots, named by aircraft family on one page and by class on the other; a family with no row is never guessed), the target (the country average plus `salary_above_average_pct`, rounded as the capture rounds), the difference, and `flag`: under or over when next week's salary is more than `settings.salary_flag_pct` (1%) off the target, `no_average` for a position with staff and no country average, never for a position with no staff; `averages_differ` when the two averages are more than 0.5% apart. Stored with each world's figures (`planner_figures`, kind `salary_table`). Not in `export_for_report()` yet.
+
 ## Where
 
 `database/migrations/20261012210000_captured_figures.sql`; what each answers in `docs/data.md`; the stored figures in `database/migrations/20261111020000_stored_figures.sql`
