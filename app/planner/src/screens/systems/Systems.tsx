@@ -11,6 +11,9 @@
 //   - Cabin charges (since 22 Oct, spec docs/specs/2026-10-21-tidy-ups.md §3): each first cabin fit logged against the
 //     game's charge (cabin_charges()), the problems listed with Use the game's amount on a differing one; open on arrival
 //     when Today's item sent you (#cabin-charges);
+//   - Salaries (since 16 Nov, spec docs/specs/2026-11-16-salary-table.md): each airline's salaries as the capture last read
+//     them (salary_table()), next week's against the target (the country page's average plus 5%), a position more than
+//     1% under or over marked; open on arrival when Today's item sent you (#salaries);
 //   - Fleet (since 22 Oct, spec docs/specs/2026-10-22-fleet-capture.md §3): the latest night's fleet as the game showed it
 //     (fleet_checks()), a table per airline (registration and base, type, location, condition, maintenance, seats,
 //     pilots), each problem marked; open on arrival when Today's item sent you (#fleet). Since 22 Oct (spec
@@ -46,7 +49,8 @@ import {
   captureStatus, fleetCountsWords, fleetPagesWords, fleetWhere, gameAmountChange, nightWords, pctWords, replaceAtWords, seatWords, signedAsd, yearsWords, type BoardKey,
   type CabinCharges, type CabinProblem, type FleetChecks,
 } from "./model";
-import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useServiceChecks, useSystemStatus, useCaptureHistory } from "./reads";
+import { useBackupLine, useCabinCharges, useCapture, useCashLog, useFleetChecks, useSalaryTable, useServiceChecks, useSystemStatus, useCaptureHistory } from "./reads";
+import { SALARY_FLAG_WORDS, airlineReadWords, asWords, diffWords, salaryCountsWords, type SalaryTable } from "./salaries";
 import { SystemsBoard } from "./SystemsBoard";
 import { boardSummary, boardTitle, systemLines } from "./systems";
 
@@ -55,20 +59,23 @@ const SHORT: Record<BoardKey, string> = {
   "Capture": "What the capture collected from the game, per airline",
   "Fleet": "Each aircraft as the game showed it last night",
   "Cabin charges": "Each first cabin fit logged, against the game's charge",
+  "Salaries": "Each airline's salaries against the country average plus 5%",
   "Manual entry": "Only needed if a night's capture failed",
 };
 const NOTES: Record<BoardKey, string> = {
   "Capture": "what the one-click capture collected from the game, per airline · times in UTC · cash and fixed costs go straight into Performance",
   "Fleet": "the evening capture's fleet pages: each aircraft's condition, maintenance, seats and pilots as the game showed them, against the planner",
   "Cabin charges": "each first cabin fit filing logged, against the game's \"Installation of cabin interior\" line on the bank statement",
+  "Salaries": "next week's salary from each airline's Employee overview page, against the target: the country page's average plus 5%",
   "Manual entry": "only needed if a night's capture failed · cash, fixed costs and loads normally come from the capture",
 };
 const FIGURE: Record<BoardKey, string> = {
-  "Capture": "systems: capture", "Fleet": "systems: fleet", "Cabin charges": "systems: cabin charges", "Manual entry": "systems: manual entry",
+  "Capture": "systems: capture", "Fleet": "systems: fleet", "Cabin charges": "systems: cabin charges", "Salaries": "systems: salaries", "Manual entry": "systems: manual entry",
 };
-/** The boards Today's items open (/planner/systems#cabin-charges, /planner/systems#fleet). */
+/** The boards Today's items open (/planner/systems#cabin-charges, /planner/systems#fleet, /planner/systems#salaries). */
 const CABIN_HASH = "#cabin-charges";
 const FLEET_HASH = "#fleet";
+const SALARY_HASH = "#salaries";
 
 const firstError = (...qs: { error: unknown }[]) => qs.find((q) => q.error)?.error;
 
@@ -89,9 +96,11 @@ export function Systems() {
   const fleetQ = useFleetChecks(w);
   // the service check (since 30 Oct): its mismatches on the market pages' line
   const checksQ = useServiceChecks(w !== undefined);
-  // every board folded on arrival, but Cabin charges or Fleet open when Today's item sent you here
+  // the salary table (since 16 Nov): not waited for, so the screen opens even before the database has it
+  const salaryQ = useSalaryTable(w);
+  // every board folded on arrival, but Cabin charges, Fleet or Salaries open when Today's item sent you here
   const [folded, setFolded] = useState<ReadonlySet<BoardKey>>(() => new Set(BOARDS.filter((k) => !(k === "Cabin charges" && loc.hash === CABIN_HASH)
-    && !(k === "Fleet" && loc.hash === FLEET_HASH))));
+    && !(k === "Fleet" && loc.hash === FLEET_HASH) && !(k === "Salaries" && loc.hash === SALARY_HASH))));
   const [busy, setBusy] = useState(false);
 
   const rules = rulesQ.data?.rules;
@@ -138,6 +147,10 @@ export function Systems() {
   const cabinAside = !cabins ? null : cabins.counts.problems
     ? <span className="pill warn sm" data-cabin-problems={cabins.counts.problems}>{cabins.counts.problems} to look at</span>
     : <span>{cabins.check_from ? `${cabins.counts.checked} fit${cabins.counts.checked === 1 ? "" : "s"}, no problems` : "nothing checked"}</span>;
+  const salaries = salaryQ.data;
+  const salaryAside = salaryQ.error ? <span className="pill bad sm">couldn't read</span> : !salaries ? null : salaries.counts.flagged
+    ? <span className="pill warn sm" data-salary-flagged={salaries.counts.flagged}>{salaries.counts.flagged} off target</span>
+    : <span>{salaries.airlines.some((a) => a.read_at) ? "all within target" : "nothing read yet"}</span>;
   const fleet = fleetQ.data;
   const fleetAside = !fleet ? null : fleet.counts.problems
     ? <span className={"pill sm " + (fleet.counts.maintenance || fleet.counts.crew ? "bad" : "warn")} data-fleet-problems={fleet.counts.problems}>{fleet.counts.problems} to look at</span>
@@ -195,6 +208,9 @@ export function Systems() {
           {fleet ? board("Fleet", <FleetBody f={fleet} airline={airline} />, fleetAside, "fleet", <>{fleetCountsWords(fleet)} · {NOTES.Fleet}</>) : null}
           {cabinsQ.data ? board("Cabin charges", <CabinChargesBody c={cabinsQ.data} airline={airline} busy={busy}
             onUse={(p) => void save(gameAmountChange(p))} />, cabinAside, "cabin-charges", <>{cabinCountsWords(cabinsQ.data)} · {NOTES["Cabin charges"]}</>) : null}
+          {board("Salaries", salaries ? <SalariesBody t={salaries} airline={airline} />
+            : salaryQ.error ? <ErrorBox error={salaryQ.error} /> : <div className="dim">Loading…</div>,
+            salaryAside, "salaries", salaries ? <>{salaryCountsWords(salaries)} · {NOTES.Salaries}</> : NOTES.Salaries)}
           {board("Manual entry", <ManualEntry worldId={w} rules={rules} log={{ ...logQ.data, airlines: logQ.data.airlines.map((a) => ({ ...a, name: airline(a.airline_id)?.name ?? a.name })) }}
             airlines={airlines} busy={busy} now={now} onSave={save} />)}
         </>
@@ -245,6 +261,52 @@ function FleetBody({ f, airline }: { f: FleetChecks; airline: (id: number) => Ou
         );
       })}
       <div className="note">The game's figures from the evening capture. Maintenance under the airline's limit (the manual's 100%) lets the condition fall; a cabin is marked when the seats don't match the planner's; an aircraft in the planner is listed missing only when every fleet page of its airline came in ok. An aircraft is replaced at 3 years if it came new, 10 if used (manual §3), marked from 60 days before; one marked new that is older in the game than its time with us looks used.</div>
+    </>
+  );
+}
+
+/** Salaries (since 16 Nov, spec docs/specs/2026-11-16-salary-table.md): a table per airline as the capture last read it,
+ *  each position's staff, this week's and next week's salary, the country page's average, the target and the difference;
+ *  a position more than salary_flag_pct off its target marked (under red, over amber), one with no staff dimmed and never
+ *  marked, one with no country average said so. Next week's salary is the one compared. */
+function SalariesBody({ t, airline }: { t: SalaryTable; airline: (id: number) => OurAirline | undefined }) {
+  return (
+    <>
+      {t.airlines.map((al) => {
+        const a = airline(al.airline_id);
+        return (
+          <div className="fleetal" key={al.airline_id} data-salary-airline={al.code ?? ""} data-salary-verdict={al.verdict ?? ""}>
+            <h4 className="tph"><AirlineMark color={a?.color} />{a?.name ?? al.name} <span className="note">{airlineReadWords(al)}</span></h4>
+            {al.verdict && al.verdict !== "ok" && al.note ? <div className="note"><span className={"pill sm " + (al.verdict === "broken" ? "bad" : "warn")}>{al.verdict}</span> {al.note}</div> : null}
+            {al.rows.length ? (
+              <div className="tblwrap">
+                <table className="tbl" data-figure="systems: salaries table">
+                  <tbody>
+                    <tr><th>Position</th><th className="num">Staff</th><th className="num">This week</th><th className="num">Next week</th><th className="num">Country average</th><th className="num">Target</th><th className="num">Difference</th><th></th></tr>
+                    {al.rows.map((r) => {
+                      const none = !r.employed;
+                      return (
+                        <tr key={r.position} data-salary={r.position} data-salary-flag={r.flag ?? ""} className={none ? "dim" : undefined}>
+                          <td><b>{r.position}</b>{r.group ? <span className="dim"> {r.group}</span> : null}</td>
+                          <td className="num">{asWords(r.employed)}</td>
+                          <td className="num">{asWords(r.salary)}</td>
+                          <td className="num">{r.flag === "under" || r.flag === "over" ? <span className={"pill sm " + (r.flag === "under" ? "bad" : "warn")}>{asWords(r.salary_next)}</span> : asWords(r.salary_next)}</td>
+                          <td className="num">{asWords(r.country_avg)}{r.averages_differ ? <div className="dim">page shows {asWords(r.overview_avg)}</div> : null}</td>
+                          <td className="num">{asWords(r.target)}</td>
+                          <td className="num">{diffWords(r)}</td>
+                          <td>{r.flag ? <span className={"pill sm " + (r.flag === "under" ? "bad" : "warn")}>{SALARY_FLAG_WORDS[r.flag]}</span>
+                            : r.raised_to != null ? <span className="dim">raised to {asWords(r.raised_to)}</span> : none ? <span className="dim">no staff</span> : null}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="dim">{al.read_at ? "No positions from that read." : "Not read yet."}</div>}
+          </div>
+        );
+      })}
+      <div className="note">AS$ per employee. The target is the country page's average plus {t.above_pct ?? "—"}%; a position more than {t.flag_pct}% under or over it is marked, under in red and over in amber. A position with no staff is never marked. The capture raises a salary below the average and never lowers one; lowering is by hand in the game. Where the Employee overview page shows a different average from the country page, both are shown.</div>
     </>
   );
 }

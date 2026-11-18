@@ -21,7 +21,7 @@ import { useForecasts, useReviewCards } from "../performance/reads";
 import { typeName } from "../tails/model";
 import { useBuyTypes } from "../tails/reads";
 import { useLatestThreats } from "../competition/reads";
-import { useCabinCharges, useFleetChecks, useServiceChecks } from "../systems/reads";
+import { useCabinCharges, useFleetChecks, useSalaryTable, useServiceChecks } from "../systems/reads";
 import { homeAttention, type HomeAirline } from "./attention";
 import { attentionHref, deliveryLines, lineQueues, nextOrderAt, orderStatus, safeTypes, toFile, typesAt, type OrderRow } from "./model";
 import { onOrder } from "./onOrder";
@@ -63,6 +63,9 @@ export function useAttention(now: Date, today: string) {
   const fleetQ = useFleetChecks(w);
   // the service check (market_service_checks(), since 30 Oct), for needs attention's Service in the game
   const serviceQ = useServiceChecks(w !== undefined);
+  // the salary table (salary_table(), since 16 Nov), for needs attention's one item; not waited for, so needs attention
+  // shows the rest even before the database has it
+  const salaryQ = useSalaryTable(w);
   // dismissed here and not yet back from the database (and, on a preview, dismissed here only, as the old planner does)
   const [dismissedHere, setDismissedHere] = useState<ReadonlySet<string>>(new Set());
 
@@ -77,9 +80,9 @@ export function useAttention(now: Date, today: string) {
   const attention = useMemo(() => (rules && todosQ.data ? homeAttention({
     now, today, airlines: homeAirlines, rules, todos: todosQ.data, capture: captureQ.data ?? null, backups: backupsQ.data ?? null,
     jobs: jobsQ.data ?? null, cards: cardsQ.data?.airlines ?? null, growth: growthQ.data ?? null, interlineOpen, threats, cabins: cabinsQ.data ?? null,
-    fleet: fleetQ.data ?? null, service: serviceQ.data ?? null,
+    fleet: fleetQ.data ?? null, service: serviceQ.data ?? null, salaries: salaryQ.data ?? null,
   }) : null), [now, today, homeAirlines, rules, todosQ.data, captureQ.data, backupsQ.data, jobsQ.data, cardsQ.data, growthQ.data, interlineOpen, threats,
-    cabinsQ.data, fleetQ.data, serviceQ.data]);
+    cabinsQ.data, fleetQ.data, serviceQ.data, salaryQ.data]);
   const dismissed = useMemo(() => new Set([...(dismissalsQ.data ?? []).map((d) => d.alert_key), ...dismissedHere]), [dismissalsQ.data, dismissedHere]);
   const attShown = useMemo(() => (attention ? withoutDismissed(attention, dismissed) : null), [attention, dismissed]);
 

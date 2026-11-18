@@ -684,7 +684,8 @@ Details and open points: `docs/decisions.md`.
   never a world that costs credits), presses "Capture all airlines" with its own capture key, and signs out. It
   captures loads, finances and payments straight into the tables, then the world scan and the market pages when they're
   due (below) (`game_flights` and the rest); for its key it never sets salaries (`settings.unattended_salaries`, false;
-  `unattended_scan` and `unattended_market` true) and is refused by the fares and the aircraft evaluation. A run that
+  `unattended_scan` and `unattended_market` true), but reads and stores them for the salary table (below;
+  `unattended_salary_read`, true), and is refused by the fares and the aircraft evaluation. A run that
   doesn't end with every airline "all good" fails, and GitHub emails Gitesh; Today warns when there has been no good
   run for `settings.capture_unattended_warn_h` (14) hours, and the Systems board has its line. A run is skipped while a
   capture is running. **Gitesh's own press**, on his Mac only (Tampermonkey in Safari; no scripts on the iPhone since
@@ -755,9 +756,15 @@ Details and open points: `docs/decisions.md`.
   the average plus `settings.salary_above_average_pct` (5%), rounded to a whole AS$, with the page's own adjust, one
   position at a time. **A salary is never lowered.** The panel says per airline "salaries: 3 raised to 5% above the
   country average" or "salaries: all at or above the average". A salary page that doesn't read is said in the panel and
-  skipped: it never stops the capture or counts as a failed page. Nothing about salaries is stored. There is no
-  separate salary script. *(since 5 Nov, brief `docs/briefs/2026-11-04-salaries-in-capture.md`; history:
-  rule-history.md)*
+  skipped: it never stops the capture or counts as a failed page. Every capture that reads salaries (each press, and
+  the unattended runs while `settings.unattended_salary_read` is true, which read but never set) stores each airline's
+  positions from the Employee overview page and its country page's averages (the airline's `game_country_id`), and the
+  planner's salary table (Systems → Salaries, and one item on Today) flags a position whose next week's salary is more
+  than `settings.salary_flag_pct` (1%) under or over its target, the country page's average plus 5%; a position with
+  no staff is never flagged. The capture never lowers a salary: Gitesh lowers the ones over target by hand. There is no
+  separate salary script. *(since 5 Nov, brief `docs/briefs/2026-11-04-salaries-in-capture.md`; the salary table since
+  16 Nov, brief `docs/briefs/2026-11-15-salaries-unattended.md`, Outcome, spec `docs/specs/2026-11-16-salary-table.md`;
+  history: rule-history.md)*
 - **Every Saturday:**
   - first, and on its own, the fare plan: the week's moves on the fare ladder (§5), reviewed together and put on. It
     never waits for the rest of this list. When the Saturday session slips, the fare plan is still done on Saturday or

@@ -138,7 +138,7 @@ begin
   -- every figure of the list, at the one moment, in generation 1
   select count(*) into n_air from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
    where a.world_id = w and a.active and g.kind = 'ours';
-  n_exp := 7 + 2 + n_air * (7 + 6);
+  n_exp := 8 + 2 + n_air * (7 + 6);   -- since 16 Nov each world's salary_table too
   select count(*) into n_got from public.planner_figures x where x.world_id = w and x.kind <> 'route_story';
   assert n_got = n_exp, format('%s figures stored, %s expected (%s airlines)', n_got, n_exp, n_air);
   select string_agg(x.kind || ' ' || x.key, ', ') into bad from public.planner_figures x
@@ -146,7 +146,7 @@ begin
   assert bad is null, 'not at the set''s moment or not generation 1: ' || bad;
   select string_agg(e.kind || ' ' || e.key, ', ') into bad
     from (select k.kind, '' as key from unnest(array['airline_cards', 'growth_signals', 'hub_progress', 'route_loads', 'fleet_checks',
-                                                       'cash_log', 'shared_pairs_status', 'cabin_charges', 'market_service_checks']) k(kind)
+                                                       'cash_log', 'shared_pairs_status', 'salary_table', 'cabin_charges', 'market_service_checks']) k(kind)
           union all
           select k.kind, a.id::text from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
            cross join unnest(array['airline_profit', 'cash_forecast', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'fare_results',
@@ -171,6 +171,7 @@ begin
       when 'fleet_checks' then public.fleet_checks(p_world_id => w, p_as_of => fr.as_of)
       when 'cash_log' then public.cash_log(p_world_id => w, p_as_of => fr.as_of)
       when 'shared_pairs_status' then public.shared_pairs_status(p_world_id => w, p_as_of => fr.as_of)
+      when 'salary_table' then public.salary_table(p_world_id => w, p_as_of => fr.as_of)
       when 'cabin_charges' then public.cabin_charges(p_as_of => fr.as_of)
       when 'market_service_checks' then public.market_service_checks(p_as_of => fr.as_of)
       when 'airline_profit' then public.airline_profit(p_airline_id => fr.airline_id, p_as_of => fr.as_of)

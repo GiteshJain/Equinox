@@ -31,7 +31,7 @@ run "Aircraft evaluation userscript: the tool's saved pages read, whole runs aga
 run "Capture's world scan: the same rows as gscan.py from the same saved pages" node tests/capture_scan_test.mjs
 run "Capture's fleet pages: a saved fleet page read as the database keeps it" node tests/capture_fleet_test.mjs
 run "Capture's market pages: the saved page read, the filters set only through their calls, whole runs against a stand-in" node tests/capture_market_test.mjs
-run "Capture's salaries: a minimal Employee overview page read, below the average raised to the setting, whole runs against a stand-in" node tests/capture_salary_test.mjs
+run "Capture's salaries: the saved Employee overview read, below the average raised to the setting, whole runs against a stand-in, and since 1.18 the country page and the salary table's page" node tests/capture_salary_test.mjs
 run "Capture's bank statement: every line kept in parts of at most 500, never splitting a minute, each part's page named" node tests/capture_statement_test.mjs
 run "Capture, fares and aircraft evaluation userscripts: the key kept in the browser (the placeholder kept for the unattended run), the guard against an old version, the update addresses" node tests/userscript_key_test.mjs
 run "Planner and planning library: types, lint, unit tests and cases, build" new_planner

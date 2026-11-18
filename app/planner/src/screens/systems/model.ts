@@ -16,8 +16,9 @@ import type { Change, Values } from "../../data/save";
 import { dayDiff } from "../../ui/dates";
 import type { BackupRun, CaptureAirline, CapturePages } from "./reads";
 
-// ---------- the boards that fold under the Systems board, in their order (Fleet and Cabin charges since 22 Oct)
-export const BOARDS = ["Capture", "Fleet", "Cabin charges", "Manual entry"] as const;
+// ---------- the boards that fold under the Systems board, in their order (Fleet and Cabin charges since 22 Oct, Salaries
+// since 16 Nov)
+export const BOARDS = ["Capture", "Fleet", "Cabin charges", "Salaries", "Manual entry"] as const;
 export type BoardKey = (typeof BOARDS)[number];
 
 // ---------- Capture

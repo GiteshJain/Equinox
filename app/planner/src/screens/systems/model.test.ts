@@ -38,8 +38,8 @@ describe("the boards", () => {
   it("are Capture, Cabin charges and Manual entry, in that order", () => {
     // the Cabins board went on 21 Oct (spec docs/specs/2026-10-21-cabins-new-rule.md §1); Cabin charges came on 22 Oct
     // (spec docs/specs/2026-10-21-tidy-ups.md §3), after Capture; Aircraft checks went on 22 Oct (spec
-    // docs/specs/2026-10-22-remove-aircraft-checks.md)
-    expect(BOARDS).toEqual(["Capture", "Fleet", "Cabin charges", "Manual entry"]);
+    // docs/specs/2026-10-22-remove-aircraft-checks.md); Salaries came on 16 Nov (spec docs/specs/2026-11-16-salary-table.md)
+    expect(BOARDS).toEqual(["Capture", "Fleet", "Cabin charges", "Salaries", "Manual entry"]);
   });
 });
 

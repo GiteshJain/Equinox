@@ -320,6 +320,27 @@ describe("needs attention: the items and their keys (the old renderHome)", () =>
     expect(homeAttention(input({ cabins: cabins([]) }))).toEqual([]);
     expect(homeAttention(input({ cabins: null }))).toEqual([]);
   });
+  it("the salary table (16 Nov): one amber item when a position is off target, grouped as Salaries, opening Systems' Salaries board", () => {
+    const row = (position: string, flag: "under" | "over" | "no_average" | null, employed = 3) => ({
+      position, group: "Ground crew", employed, salary: 1000, salary_next: 1061, overview_avg: 1000, country_avg: 1000, target: 1050, diff: 11, diff_pct: 1.05,
+      flag, averages_differ: false, raised_to: null,
+    });
+    const table = (rows: ReturnType<typeof row>[]) => ({
+      as_of: T0, flag_pct: 1, above_pct: 5, counts: { flagged: 0, under: 0, over: 0, no_average: 0, airlines_flagged: 0, not_read: 0 },
+      airlines: [{ airline_id: 1, code: "TA", name: "Test Air", read_at: T0, unattended: false, verdict: "ok" as const, note: null,
+        country: { id: 61, name: "India", code: "IN", ok: true },
+        counts: { positions: rows.length, flagged: 0, under: 0, over: 0, no_average: 0, averages_differ: 0 }, rows }],
+    });
+    const got = homeAttention(input({ salaries: table([row("Pursers", "over"), row("Ramp agents", "under"), row("Logistics", null, 0)]) }));
+    expect(got.map((a) => [a.key, a.cls, a.screen, a.text])).toEqual([
+      ["salary|TA:Pursers:over,TA:Ramp agents:under", "warn", "systems", "Salaries: 2 positions more than 1% off target in 1 airline"],
+    ]);
+    expect(groupAttention(got).map((g) => g.label)).toEqual(["Salaries"]);
+    expect(attentionHref(got[0] as AttItem, [{ name: "Test Air", code: "TA" }])).toBe("/systems#salaries");
+    // within target, no staff or no country average only, or not read yet: nothing
+    expect(homeAttention(input({ salaries: table([row("Pursers", null), row("B737", "no_average")]) }))).toEqual([]);
+    expect(homeAttention(input({ salaries: null }))).toEqual([]);
+  });
   it("the fleet (22 Oct): one item per problem fleet_checks() finds, in its order, in the Fleet group; none before it's read", () => {
     const fleet: FleetChecks = { night: "2026-10-22", counts: { maintenance: 1, crew: 0, cabin: 0, not_in_planner: 1, not_in_game: 0, replace: 0, age: 0, problems: 2 }, airlines: [],
       problems: [

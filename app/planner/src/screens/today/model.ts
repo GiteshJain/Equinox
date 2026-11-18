@@ -464,6 +464,8 @@ export function attentionHref(a: AttItem, airlines: readonly Pick<OurAirline, "n
   if (a.screen === "systems" && a.key?.startsWith("cabin|")) return itemRoute("systems", { hash: "cabin-charges" });
   // an aircraft in the game the planner doesn't have: Systems' Fleet board, open on arrival
   if (a.screen === "systems" && a.key?.startsWith("fleet|")) return itemRoute("systems", { hash: "fleet" });
+  // a salary off target (since 16 Nov): Systems' Salaries board, open on arrival
+  if (a.screen === "systems" && a.key?.startsWith("salary|")) return itemRoute("systems", { hash: "salaries" });
   return itemRoute(a.screen);
 }
 

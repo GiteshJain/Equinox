@@ -116,8 +116,10 @@ begin
   v_doc := jsonb_build_object(
     'ok', true,
     'world', (select w.name from public.worlds w where w.id = v_world),
+    -- since 16 Nov each airline's country_id: the game's country page the salary table reads (airlines.game_country_id)
     'airlines', (select coalesce(jsonb_agg(jsonb_build_object('game_id', a.game_id, 'name', a.planner_name,
-                                                               'game_name', a.game_name, 'code', a.iata_code)
+                                                               'game_name', a.game_name, 'code', a.iata_code,
+                                                               'country_id', a.game_country_id)
                                            order by a.position nulls last, a.id), '[]'::jsonb)
                    from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                   where a.world_id = v_world and a.active and g.kind = 'ours'),
@@ -125,7 +127,10 @@ begin
     -- (and null for the unattended key while unattended_salaries is false)
     'salary_above_average_pct', case when v_unattended and not private.capture_unattended_allows(v_world, 'salaries') then null
                                      else (select s.value from public.settings s
-                                            where s.world_id = v_world and s.airline_id is null and s.key = 'salary_above_average_pct') end)
+                                            where s.world_id = v_world and s.airline_id is null and s.key = 'salary_above_average_pct') end,
+    -- whether the capture reads and stores salaries for the salary table (since 16 Nov, spec
+    -- docs/specs/2026-11-16-salary-table.md): always for a press; for the unattended key as unattended_salary_read says
+    'salary_read', case when v_unattended then private.capture_unattended_allows(v_world, 'salary_read') else true end)
     -- the world scan (spec docs/specs/2026-10-21-scan-in-capture.md): whether one is due, the open one and the airports
     || private.capture_scan_plan(v_world, now())
     -- the market pages (spec docs/specs/2026-10-30-market-pages.md): whether they're due, the open run and the pages
@@ -356,14 +361,23 @@ CREATE OR REPLACE FUNCTION public.capture_ingest(p_key text, p_airline text, p_k
  SET statement_timeout TO '30s'
  SET plan_cache_mode TO 'force_custom_plan'
 AS $function$
-declare v_world bigint; v_res jsonb;
+declare v_world bigint; v_res jsonb; v_unattended boolean;
 begin
   v_world := private.capture_key_world(p_key);
   if v_world is null then return jsonb_build_object('ok', false, 'error', 'bad key'); end if;
-  if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet', 'html') then
+  if p_kind is null or p_kind not in ('statement', 'events', 'loads', 'pnl', 'balance', 'fleet', 'html', 'salaries') then
     return jsonb_build_object('ok', false, 'error', 'bad kind');
   end if;
   perform set_config('equinox.actor', 'capture', true);
+  -- an airline's salaries page (since 16 Nov, capture 1.18; spec docs/specs/2026-11-16-salary-table.md): stored and judged
+  -- apart, never in the airline's verdict, the day's completeness or the snapshot
+  if p_kind = 'salaries' then
+    v_unattended := private.capture_key_unattended(p_key);
+    if v_unattended and not private.capture_unattended_allows(v_world, 'salary_read') then
+      return jsonb_build_object('ok', false, 'error', 'the unattended capture doesn''t read salaries (settings.unattended_salary_read)');
+    end if;
+    return private.capture_salaries(v_world, p_airline, p_page, p_rows, v_unattended, now());
+  end if;
   v_res := private.capture_store(v_world, p_airline, p_kind, p_page, p_rows, now());
   -- the capture panel prints rows (or error) after "<airline> · loads ": after the loads page, the airline's verdict goes
   -- there (#21), so the userscript needs no change; the count stays under count
@@ -1441,6 +1455,23 @@ begin
     raise exception 'only planner staff can read the planning rules' using errcode = '42501';
   end if;
   return private.rules_input_doc(p_world_id, p_routes);
+end
+$function$
+
+;
+
+-- salary_table(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION public.salary_table(p_world_id bigint DEFAULT NULL::bigint, p_as_of timestamp with time zone DEFAULT now())
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+ SET statement_timeout TO '30s'
+ SET plan_cache_mode TO 'force_custom_plan'
+AS $function$
+begin
+  if not private.caller_is_staff() then raise exception 'only planner staff can read the captured figures' using errcode = '42501'; end if;
+  return private.fig_salary_table(private.fig_world(p_world_id), coalesce(p_as_of, now()));
 end
 $function$
 
@@ -3441,6 +3472,109 @@ begin
   -- then each captured flight still without them gets its route and aircraft (since 22 Oct)
   v_links := private.fill_flight_links(p_world_id);
   return jsonb_build_object('times', v_times, 'due_at', v_due, 'matched', v_matched, 'links', v_links);
+end
+$function$
+
+;
+
+-- private.capture_salaries(p_world_id bigint, p_airline text, p_page text, p_rows jsonb, p_unattended boolean, p_at timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.capture_salaries(p_world_id bigint, p_airline text, p_page text, p_rows jsonb, p_unattended boolean, p_at timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_al bigint; v_name text; v_rid bigint; v_read bigint; v_doc jsonb; v_ov jsonb; v_co jsonb; v_ov_ok boolean;
+  v_co_ok boolean; v_ov_err text; v_co_err text; v_verdict text; v_note text; v_missing text[]; v_n int := 0; v_off int := 0;
+  v_flag numeric; v_above numeric; v_cid integer;
+begin
+  v_al := private.capture_find_airline(p_world_id, p_airline);
+  if v_al is null then
+    return jsonb_build_object('ok', false, 'error', 'not an airline of this capture key''s world: ' || coalesce(p_airline, '(none)'));
+  end if;
+  select coalesce(a.planner_name, a.public_name, a.game_name, a.game_id::text), a.game_country_id into v_name, v_cid
+    from public.airlines a where a.id = v_al;
+  insert into public.game_capture_raw (world_id, airline_id, airline, kind, page_url, rows, captured_at)
+  values (p_world_id, v_al, v_name, 'salaries', p_page, coalesce(p_rows, '{}'::jsonb), p_at)
+  returning id into v_rid;
+
+  v_doc := case when jsonb_typeof(p_rows) = 'object' then p_rows else '{}'::jsonb end;
+  v_ov := case when jsonb_typeof(v_doc -> 'overview') = 'object' then v_doc -> 'overview' else '{}'::jsonb end;
+  v_co := case when jsonb_typeof(v_doc -> 'country') = 'object' then v_doc -> 'country' else '{}'::jsonb end;
+  v_ov_err := case when nullif(btrim(v_ov ->> 'error'), '') is not null then left(v_ov ->> 'error', 300)
+                   when jsonb_typeof(v_ov -> 'rows') <> 'array' or jsonb_array_length(v_ov -> 'rows') = 0 then 'no positions sent' end;
+  v_co_err := case when nullif(btrim(v_co ->> 'error'), '') is not null then left(v_co ->> 'error', 300)
+                   when jsonb_typeof(v_co -> 'averages') <> 'array' or jsonb_array_length(v_co -> 'averages') = 0 then 'no averages sent' end;
+  v_ov_ok := v_ov_err is null; v_co_ok := v_co_err is null;
+
+  insert into public.salary_reads (world_id, airline_id, raw_id, read_at, unattended, version, country_id, country_name, country_code,
+                                   overview_ok, country_ok, overview_error, country_error, verdict, note)
+  values (p_world_id, v_al, v_rid, p_at, coalesce(p_unattended, false), left(v_doc ->> 'version', 20),
+          coalesce(private.salary_int(v_co -> 'id'), v_cid), left(v_co ->> 'name', 80), left(v_co ->> 'code', 8),
+          v_ov_ok, v_co_ok, v_ov_err, v_co_err, 'broken', null)
+  returning id into v_read;
+
+  if v_ov_ok then
+    insert into public.airline_salaries (read_id, n, position, crew_group, employed, active, required, salary, salary_next, overview_avg, raised_to)
+    select v_read, (e.o - 1)::smallint, left(btrim(e.r ->> 'position'), 120), left(nullif(btrim(e.r ->> 'group'), ''), 40),
+           private.salary_int(e.r -> 'employed'), private.salary_int(e.r -> 'active'), private.salary_int(e.r -> 'required'),
+           private.salary_int(e.r -> 'salary'), private.salary_int(e.r -> 'salary_next'), private.salary_int(e.r -> 'avg'),
+           private.salary_int(e.r -> 'raised_to')
+      from jsonb_array_elements(v_ov -> 'rows') with ordinality as e(r, o)
+     where jsonb_typeof(e.r) = 'object' and nullif(btrim(e.r ->> 'position'), '') is not null;
+    get diagnostics v_n = row_count;
+  end if;
+  if v_co_ok then
+    insert into public.country_salaries (read_id, n, country_id, position, avg)
+    select v_read, (e.o - 1)::smallint, coalesce(private.salary_int(v_co -> 'id'), v_cid), left(btrim(e.r ->> 'position'), 120),
+           private.salary_int(e.r -> 'avg')
+      from jsonb_array_elements(v_co -> 'averages') with ordinality as e(r, o)
+     where jsonb_typeof(e.r) = 'object' and nullif(btrim(e.r ->> 'position'), '') is not null and private.salary_int(e.r -> 'avg') is not null;
+  end if;
+
+  -- the positions with staff that have no average on the country page (unmapped, or not on the page)
+  if v_ov_ok and v_co_ok then
+    select coalesce(array_agg(s.position order by s.n), '{}') into v_missing
+      from public.airline_salaries s
+     where s.read_id = v_read and coalesce(s.employed, 0) > 0
+       and not exists (select 1 from public.country_salaries c
+                        where c.read_id = v_read and lower(btrim(c.position)) = lower(private.salary_country_name(p_world_id, s.position)));
+  end if;
+
+  -- off target, for the panel: as salary_table() counts it
+  select coalesce((select (s.value #>> '{}')::numeric from public.settings s
+                    where s.world_id = p_world_id and s.airline_id is null and s.key = 'salary_flag_pct'), 1),
+         (select (s.value #>> '{}')::numeric from public.settings s
+           where s.world_id = p_world_id and s.airline_id is null and s.key = 'salary_above_average_pct')
+    into v_flag, v_above;
+  if v_ov_ok and v_co_ok and v_above is not null then
+    select count(*) into v_off
+      from public.airline_salaries s
+      join public.country_salaries c on c.read_id = s.read_id and lower(btrim(c.position)) = lower(private.salary_country_name(p_world_id, s.position))
+     where s.read_id = v_read and coalesce(s.employed, 0) > 0 and s.salary_next is not null
+       and abs(s.salary_next - round(c.avg * (1 + v_above / 100))) * 100 > v_flag * round(c.avg * (1 + v_above / 100));
+  end if;
+
+  v_verdict := case when not v_ov_ok then 'broken' when not v_co_ok or cardinality(v_missing) > 0 then 'short' else 'ok' end;
+  v_note := case
+    when not v_ov_ok then 'salaries: the Employee overview page didn''t read (' || left(v_ov_err, 160) || ')'
+    when not v_co_ok then format('salaries: %s positions stored; the country page didn''t read (%s)', v_n, left(v_co_err, 160))
+    when cardinality(v_missing) > 0 then format('salaries: %s positions stored; no country average for %s', v_n, array_to_string(v_missing, ', '))
+    when v_above is null then format('salaries: %s positions stored', v_n)
+    when v_off = 0 then format('salaries: %s positions stored, all within %s%% of target', v_n, v_flag)
+    else format('salaries: %s positions stored, %s off target', v_n, v_off) end;
+  update public.salary_reads r set verdict = v_verdict, note = v_note where r.id = v_read;
+  update public.game_capture_raw x
+     set verdict = v_verdict, verdict_note = v_note,
+         verdict_facts = jsonb_build_object('read', v_n, 'off_target', v_off, 'missing', to_jsonb(coalesce(v_missing, '{}')),
+                                            'overview_ok', v_ov_ok, 'country_ok', v_co_ok)
+   where x.id = v_rid;
+
+  -- an airline's reads are kept 90 days
+  delete from public.salary_reads r where r.airline_id = v_al and r.read_at < p_at - interval '90 days';
+
+  return jsonb_build_object('ok', true, 'kind', 'salaries', 'airline', v_name, 'rows', v_n, 'off_target', v_off, 'read_id', v_read,
+                            'verdict', jsonb_build_object('kind', 'salaries', 'verdict', v_verdict, 'note', v_note, 'at', private.fig_ts(p_at)),
+                            'words', v_note);
 end
 $function$
 
@@ -7845,6 +7979,87 @@ $function$
 
 ;
 
+-- private.fig_salary_table(p_world_id bigint, p_as_of timestamp with time zone)
+CREATE OR REPLACE FUNCTION private.fig_salary_table(p_world_id bigint, p_as_of timestamp with time zone)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with cfg as (
+    select coalesce((select (s.value #>> '{}')::numeric from public.settings s
+                      where s.world_id = p_world_id and s.airline_id is null and s.key = 'salary_flag_pct'), 1) as flag_pct,
+           (select (s.value #>> '{}')::numeric from public.settings s
+             where s.world_id = p_world_id and s.airline_id is null and s.key = 'salary_above_average_pct') as above_pct),
+  al as (
+    select a.id, a.iata_code as code, coalesce(a.public_name, a.planner_name, a.game_name) as name, a.game_country_id,
+           row_number() over (order by a.position nulls last, a.id) as pos
+      from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
+     where a.world_id = p_world_id and a.active and g.kind = 'ours'),
+  rd as (
+    select distinct on (r.airline_id) r.*
+      from public.salary_reads r join al on al.id = r.airline_id
+     where r.read_at <= p_as_of
+     order by r.airline_id, r.read_at desc, r.id desc),
+  rows_ as (
+    select s.read_id, s.n, s.position, s.crew_group, s.employed, s.salary, s.salary_next, s.overview_avg, s.raised_to,
+           c.avg as country_avg,
+           case when c.avg is not null and cfg.above_pct is not null then round(c.avg * (1 + cfg.above_pct / 100))::int end as target,
+           cfg.flag_pct
+      from rd join public.airline_salaries s on s.read_id = rd.id
+      cross join cfg
+      left join lateral (select c.avg from public.country_salaries c
+                          where c.read_id = rd.id
+                            and lower(btrim(c.position)) = lower(private.salary_country_name(p_world_id, s.position))
+                          order by c.n limit 1) c on true),
+  judged as (
+    select x.*,
+           case when x.target is not null and x.salary_next is not null then x.salary_next - x.target end as diff,
+           case when x.target > 0 and x.salary_next is not null then round((x.salary_next - x.target) * 100.0 / x.target, 2) end as diff_pct,
+           case when coalesce(x.employed, 0) = 0 then null
+                when x.target is null then 'no_average'
+                when x.salary_next is null then null
+                when abs(x.salary_next - x.target) * 100 > x.flag_pct * x.target
+                  then case when x.salary_next < x.target then 'under' else 'over' end end as flag,
+           (x.overview_avg is not null and x.country_avg is not null
+            and abs(x.overview_avg - x.country_avg) * 1000 > 5 * x.country_avg) as averages_differ
+      from rows_ x)
+  select jsonb_build_object(
+    'as_of', private.fig_ts(p_as_of),
+    'flag_pct', (select flag_pct from cfg),
+    'above_pct', (select above_pct from cfg),
+    'counts', jsonb_build_object(
+       'flagged', (select count(*) from judged j where j.flag in ('under', 'over')),
+       'under', (select count(*) from judged j where j.flag = 'under'),
+       'over', (select count(*) from judged j where j.flag = 'over'),
+       'no_average', (select count(*) from judged j where j.flag = 'no_average'),
+       'airlines_flagged', (select count(distinct j.read_id) from judged j where j.flag in ('under', 'over')),
+       'not_read', (select count(*) from al where not exists (select 1 from rd where rd.airline_id = al.id))),
+    'airlines', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'airline_id', al.id, 'code', al.code, 'name', al.name,
+               'read_at', private.fig_ts(rd.read_at), 'unattended', rd.unattended, 'verdict', rd.verdict, 'note', rd.note,
+               'country', case when rd.id is null then null
+                               else jsonb_build_object('id', rd.country_id, 'name', rd.country_name, 'code', rd.country_code, 'ok', rd.country_ok) end,
+               'counts', jsonb_build_object(
+                  'positions', (select count(*) from judged j where j.read_id = rd.id),
+                  'flagged', (select count(*) from judged j where j.read_id = rd.id and j.flag in ('under', 'over')),
+                  'under', (select count(*) from judged j where j.read_id = rd.id and j.flag = 'under'),
+                  'over', (select count(*) from judged j where j.read_id = rd.id and j.flag = 'over'),
+                  'no_average', (select count(*) from judged j where j.read_id = rd.id and j.flag = 'no_average'),
+                  'averages_differ', (select count(*) from judged j where j.read_id = rd.id and j.averages_differ)),
+               'rows', coalesce((select jsonb_agg(jsonb_build_object(
+                          'position', j.position, 'group', j.crew_group, 'employed', j.employed, 'salary', j.salary,
+                          'salary_next', j.salary_next, 'overview_avg', j.overview_avg, 'country_avg', j.country_avg,
+                          'target', j.target, 'diff', j.diff, 'diff_pct', j.diff_pct, 'flag', j.flag,
+                          'averages_differ', j.averages_differ, 'raised_to', j.raised_to) order by j.n)
+                                   from judged j where j.read_id = rd.id), '[]'::jsonb))
+             order by al.pos)
+        from al left join rd on rd.airline_id = al.id), '[]'::jsonb))
+$function$
+
+;
+
 -- private.fig_ts(p timestamp with time zone)
 CREATE OR REPLACE FUNCTION private.fig_ts(p timestamp with time zone)
  RETURNS text
@@ -8030,10 +8245,10 @@ begin
       v_keys := '{}'; v_failed := '[]'::jsonb; n_all := 0; n_ok := 0;
       for f in
         select x.kind, x.key, x.airline_id, x.days
-          from (-- each world: its figures; cabin_charges() and market_service_checks() take no world (the default world's)
+          from (-- each world: its figures (salary_table since 16 Nov); cabin_charges() and market_service_checks() take no world (the default world's)
                 select k.kind, ''::text as key, null::bigint as airline_id, null::integer as days, 0::bigint as a_pos, k.n as k_pos
                   from unnest(array['airline_cards', 'growth_signals', 'hub_progress', 'route_loads', 'fleet_checks', 'cash_log',
-                                    'shared_pairs_status']) with ordinality as k(kind, n)
+                                    'shared_pairs_status', 'salary_table']) with ordinality as k(kind, n)
                 union all
                 select k.kind, '', null, null, 0, 10 + k.n
                   from unnest(array['cabin_charges', 'market_service_checks']) with ordinality as k(kind, n)
@@ -8071,6 +8286,7 @@ begin
             when 'fleet_checks' then public.fleet_checks(w, v_at)
             when 'cash_log' then public.cash_log(w, v_at)
             when 'shared_pairs_status' then public.shared_pairs_status(w, v_at)
+            when 'salary_table' then public.salary_table(w, v_at)
             when 'cabin_charges' then public.cabin_charges(v_at)
             when 'market_service_checks' then public.market_service_checks(null::bigint, v_at)
             when 'airline_profit' then public.airline_profit(f.airline_id, v_at)
@@ -9830,6 +10046,33 @@ begin
                              from public.service_profiles s where s.world_id = w))
   );
 end
+$function$
+
+;
+
+-- private.salary_country_name(p_world_id bigint, p_position text)
+CREATE OR REPLACE FUNCTION private.salary_country_name(p_world_id bigint, p_position text)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  select coalesce((select m.country_name from public.salary_positions m
+                    where m.world_id = p_world_id and lower(btrim(m.overview_name)) = lower(btrim(p_position))), btrim(p_position))
+$function$
+
+;
+
+-- private.salary_int(p jsonb)
+CREATE OR REPLACE FUNCTION private.salary_int(p jsonb)
+ RETURNS integer
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+  select case when jsonb_typeof(p) = 'number' then round((p #>> '{}')::numeric)::int
+              when jsonb_typeof(p) = 'string' and regexp_replace(p #>> '{}', '[^0-9]', '', 'g') ~ '^[0-9]{1,9}$'
+                then regexp_replace(p #>> '{}', '[^0-9]', '', 'g')::int end
 $function$
 
 ;

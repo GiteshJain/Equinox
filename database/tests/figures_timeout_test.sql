@@ -4,7 +4,7 @@
 --   2. The planner's fourteen figure functions carry the same 30 second limit (migration 20261022050000: Performance reads
 --      about twenty at once and some crossed staff's 8 s; competition() since 20261024000000, Home reading six at once;
 --      market_service_checks() since 20261030180000, the market pages' service check; fare_results() since 20261103020000,
---      the Fare results board, the group page reading six at once),
+--      the Fare results board, the group page reading six at once; salary_table() since 20261116100000, the salary table),
 --      and no other function in public carries a statement limit but
 --      capture_fare_actions() (the fares userscript's list, migration 20261021210000; its own test checks its 30 s),
 --      fleet_checks() (the fleet capture, migration 20261022070000; fleet_capture_test.sql checks its 30 s) and
@@ -25,7 +25,7 @@ begin
 
   select string_agg(f, ', ') into missing from unnest(array['airline_cards', 'airline_profit', 'cash_forecast', 'route_profit',
          'aircraft_profit', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'growth_signals', 'hub_progress', 'route_loads',
-         'route_story', 'competition', 'market_service_checks', 'fare_results', 'shared_pairs_status']) f
+         'route_story', 'competition', 'market_service_checks', 'fare_results', 'shared_pairs_status', 'salary_table']) f
    where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                       where n.nspname = 'public' and p.proname = f and p.proconfig @> array['statement_timeout=30s', 'search_path=""']);
   assert missing is null, 'figure functions without the 30 s limit (or without their empty search_path): ' || missing;
@@ -33,7 +33,8 @@ begin
   select string_agg(p.proname, ', ') into others from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname not in ('export_for_report', 'capture_ingest', 'capture_scan', 'capture_fare_actions', 'capture_fare_actions_by_airline', 'fleet_checks', 'capture_market', 'airline_cards', 'airline_profit',
          'cash_forecast', 'route_profit', 'aircraft_profit', 'fare_changes', 'fare_plan_status', 'fare_ladder', 'growth_signals',
-         'hub_progress', 'route_loads', 'route_story', 'competition', 'market_service_checks', 'fare_results', 'shared_pairs_status')
+         'hub_progress', 'route_loads', 'route_story', 'competition', 'market_service_checks', 'fare_results', 'shared_pairs_status',
+         'salary_table')
      and exists (select 1 from unnest(p.proconfig) c where c like 'statement_timeout=%');
   assert others is null, 'other functions carry a statement limit: ' || others;
 
