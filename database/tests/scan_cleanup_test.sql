@@ -179,10 +179,15 @@ begin
   s6 := pg_temp.sc_scan(w, rv, v_at - interval '13 days', 'done', false);                                          -- young: all stays
   s7 := pg_temp.sc_scan(w, rv, v_at - interval '1 day', 'done', false);                                            -- the latest
 
-  -- a missed night: first a run 16 days back (only the oldest week is due), then today's takes the rest
-  res := private.scan_cleanup(w, v_at - interval '16 days');
-  assert pg_temp.sc_rows(s1) = '0/1/1' and pg_temp.sc_rows(s2) = '0/0/0' and pg_temp.sc_rows(s5) = '2/1/1',
-    format('a run 16 days back: %s %s %s (%s)', pg_temp.sc_rows(s1), pg_temp.sc_rows(s2), pg_temp.sc_rows(s5), res ->> 'note');
+  -- a missed night: first an earlier run whose 14-day cut-off falls on the oldest week's Wednesday (sat + 4), so only
+  -- that week is due, then today's takes the rest. The earlier run is dated from sat, not from today: sat is 35 to 41
+  -- days back by the weekday, and a run "16 days back" (cut-off 30 days back) also took the second week's scans
+  -- (sat + 7, 28 to 34 days back) from Tuesday to Friday, so this test failed on those days (found 18 Nov).
+  res := private.scan_cleanup(w, (sat + 18)::timestamp at time zone 'UTC');
+  assert pg_temp.sc_rows(s1) = '0/1/1' and pg_temp.sc_rows(s2) = '0/0/0' and pg_temp.sc_rows(s3) = '2/1/1'
+     and pg_temp.sc_rows(s4a) = '2/1/1' and pg_temp.sc_rows(s4) = '2/1/1' and pg_temp.sc_rows(s5) = '2/1/1',
+    format('the earlier run (cut-off sat + 4): %s %s %s %s %s %s (%s)', pg_temp.sc_rows(s1), pg_temp.sc_rows(s2), pg_temp.sc_rows(s3),
+           pg_temp.sc_rows(s4a), pg_temp.sc_rows(s4), pg_temp.sc_rows(s5), res ->> 'note');
   res := private.scan_cleanup(w, v_at);
   assert (res ->> 'scan_enabled')::boolean and (res ->> 'scan_keep_days')::int = 14, 'the clean-up ran switched off: ' || (res ->> 'note');
   assert pg_temp.sc_rows(s1) = '0/1/1', 'the week''s first finished scan, older than 14 days: ' || pg_temp.sc_rows(s1);
@@ -197,7 +202,7 @@ begin
     'the clean-up touched scan_pair_airlines or game_scans';
   assert (res ->> 'scan_connections_deleted')::int = 8 and (res ->> 'scan_week_deleted')::int = 2 and (res ->> 'scan_airports_deleted')::int = 2
      and res -> 'scan_kept' = to_jsonb(array[s1, s4a, s4]),
-    'today''s run (after the run 16 days back) counted: ' || res::text;
+    'today''s run (after the earlier run) counted: ' || res::text;
   assert res ->> 'note' = 'world scans older than 14 days: 8 connection, 2 by-week and 2 airport rows deleted (the weeks'' kept scans keep their summaries)',
     'the note: ' || (res ->> 'note');
   -- again: nothing more
