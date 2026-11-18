@@ -188,7 +188,8 @@ Details and open points: `docs/decisions.md`.
   | Saturday review | Every Saturday: the world scan's age (the scan runs with the evening capture; `gscan.py` by hand if it's old), weekly report, connection audit, fare plan and the weekly review. On the first Saturday of the month also the weekly report's month page, gander monthly and strategy (bases, focus cities, holdings, long-term direction). One review chat for both since 15 Oct (Gitesh) |
   | Building | Planner, website, database, capture, repository, foundation decisions, how the tools calculate things |
 
-  **On trial from 11 Nov, judged on 18 Nov** (brief `docs/briefs/2026-11-11-main-chat.md`; to-do 229): one **Main**
+  **On trial from 11 Nov, judged on 28 Nov** (brief `docs/briefs/2026-11-11-main-chat.md`; to-do 251; extended on
+  18 Nov, history: rule-history.md): one **Main**
   chat, on Fable, is the only chat Gitesh talks to. It holds the decisions, the To-do board, rule changes and "merge",
   and gives each sizeable job to a worker with a written brief: a scheduling job (a new aircraft's schedule, a plan
   card, a retime) to a worker on Fable, a build or a review job to a worker on Opus. A worker never decides and never

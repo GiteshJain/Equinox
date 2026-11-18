@@ -183,6 +183,19 @@ minute; a full refresh measured 30.1 s. B over the recommended A: the planner is
 asked ("a landing page after a capture while it's still reading / calculating").* New item in *Decided, not yet built*;
 no rule replaced.
 
+### The Main chat trial extended to 28 Nov: 18 Nov
+*Gitesh, 18 Nov (Main chat, to-do 229; option B of three: A keep it and make it the rule, B keep it and judge again on
+28 Nov, C back to three chats): "Usage looks fine but still b".* §1's trial line began, word for word: "**On trial from
+11 Nov, judged on 18 Nov** (brief `docs/briefs/2026-11-11-main-chat.md`; to-do 229): one **Main**"; it now says judged
+on 28 Nov, to-do 251. Nothing else in §1 changed: "Opus for everything" and the three chats still stand until the trial
+is judged · why: from 11 to 18 Nov the Main chat carried building only. No scheduling job and
+no Saturday review ran through it, and Fable as a scheduling worker's model is still untested, so two of the three kinds
+of work it is meant to carry had not been seen. The week's four things, as told to him: he opened another chat once
+(11 Nov); nothing was lost between jobs, with three slips (the scan clean-up's two tests that pass only on some dates,
+fixed in #166 and #167; a worker standing still for three hours; the capture key not copied before the old scripts were
+removed); the workers used about 1.8 million tokens, all on Opus, and his plan's usage looked fine to him; and each Main
+chat was long after three to four days.
+
 ### One Main chat with workers: on trial from 11 Nov
 *Gitesh, 11 Nov (Audit chat): "Rather than me having separate conversations with 3 chats. I was thinking we have a
 main chat with fable and other chats which do the actual work on opus but so decision making stay with main."* Brief:
