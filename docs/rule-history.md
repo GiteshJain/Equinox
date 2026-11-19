@@ -77,6 +77,20 @@ what's still unseen." and now adds the limit (`settings.fares_script_min_pct` 55
 moves in the same rule change when the cap or floor would reach it (`database/tests/fares_script_limit_test.sql` turns
 red until it does).
 
+### Statement lines kept 3 days, the scheduler's log 7: 19 Nov
+*Gitesh, 19 Nov, 16:34 India time (Main chat, brief `docs/briefs/2026-11-18-database-growth.md`: "keep statement lines
+3 days, trim the scheduler's log, then compact once", the brief's B + D with A once, to-do 252's option C; spec
+`docs/specs/2026-11-19-statement-keep.md`) · why: the database was 246.8 MB (amber 245, trigger 350); the statement's
+primary-key index was 30.4 MB against an 18 MB table of about 110,000 lines and grew 1.9 MB in a day, with about 10,300
+lines a day coming in; the scheduler's log had 11,757 rows and nothing trimmed it. Nothing reads a line once it is in
+`game_flights` or `game_payments`, so 3 days loses nothing any screen, report or job reads; the raw pages keep 14 days
+and the backups 30. Given up: re-linking a flight's money from the table after 3 days.* One sentence of §7's *The
+clean-ups* replaced, word for word: "Statement lines older than 14 days are deleted only while
+`settings.statement_cleanup_enabled` is true, and only once every one is in `game_flights` or `game_payments`.
+Switched on 5 Nov, after the Building chat checked the per-flight backfill on live (every line older than 14 days was
+in one of them)." It now reads 3 days from `settings.statement_keep_days` and adds the scheduler's log, 7 days from
+`settings.cron_log_keep_days`. The note's last sentence adds "and the days used". Built in to-do 252.
+
 ### The world scans' connections and summaries cleaned after 14 days: 15 Nov
 *Gitesh, 15 Nov (Main chat, brief `docs/briefs/2026-11-15-scan-connections-growth.md`, option C of four: A leave as is,
 B the monthly archive thins the summaries, C a nightly clean-up, D store less; spec `docs/specs/2026-11-15-scan-cleanup.md`)
@@ -1271,6 +1285,7 @@ Kept so they don't come back. Newest first.
 
 | Ended | Old rule | Replaced by |
 |---|---|---|
+| 19 Nov | Statement lines kept 14 days (the clean-up's fixed figure, while `statement_cleanup_enabled` is true); the scheduler's log (`cron.job_run_details`) never trimmed | Statement lines kept `settings.statement_keep_days` (3) days, the scheduler's log `settings.cron_log_keep_days` (7) (§7). Why: the database at 246.8 MB with the statement's index growing about 2 MB a day; nothing reads a folded line (brief `docs/briefs/2026-11-18-database-growth.md`, Gitesh 19 Nov) |
 | 15 Nov | The scan summaries (`scan_airline_airports`, `scan_rival_connections_week`) stay for good, every scan; the rivals' connections (`scan_rival_connections`) go only with the monthly archive, after a full calendar month | Every scan kept in full 14 days (`settings.scan_keep_days`); after that the 10:20 UTC clean-ups delete its connections, and its summaries unless it is the week's kept scan; the latest finished scan never (§7). Why: about 3 MB a night that nothing reads (brief `docs/briefs/2026-11-15-scan-connections-growth.md`, option C) |
 | 15 Nov | The Saturday review chat writes each airline's newsroom roundup, as a step of the Saturday session | A scheduled task writes and publishes them by itself every Saturday at 03:43 UTC (§7, §8). Why: Gitesh, 15 Nov, after the trial's first six; the Saturday session often slipped and the roundups waited with it |
 | 5 Nov | A separate salary script, "Salaries: this airline" (`capture/salary_adjust.user.js`), run by hand on one airline at a time, setting every position to 10% above the country average | The evening capture checks every position of each airline: below its country average it is set to `salary_above_average_pct` (5%) above it, at or above it is left alone, never lowered (§7). Why: Gitesh, 4 Nov, positions could sit below the average between presses; brief `docs/briefs/2026-11-04-salaries-in-capture.md` |

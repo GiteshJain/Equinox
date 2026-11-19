@@ -11,9 +11,10 @@
 --     rolled off. On the night this pull request was rehearsed, nothing had: every row is compared.
 --   - The statement, the flights' money and the payments are compared only from the statement clean-up's last cut on
 --     (settings.statement_cleanup_enabled, on since 5 Nov, manual §7). Each run deletes every statement line older than
---     now less 14 days and, with the same cut, every raw page older. The oldest page kept was captured after the cut,
---     but a statement page lists lines from before it was captured, so its replay brings back lines from before the
---     cut that the copy no longer has (5,157 on 9 Nov). And since every line the copy still has does come back, the
+--     its cut (now less 14 days until 19 Nov, with every raw page older; since 19 Nov now less
+--     settings.statement_keep_days, 3, while raw pages keep 14, so the kept pages reach 11 days further back than the
+--     kept lines). A statement page lists lines from before it was captured, so its replay brings back lines from
+--     before the cut that the copy no longer has (5,157 on 9 Nov). And since every line the copy still has does come back, the
 --     first allowance stopped applying, so game_flights' money and game_payments, which the clean-up never touches,
 --     were compared back to 7 Oct against a replay that can't reach that far (8,745 and 465 rows). So once the clean-up
 --     has a cut, these three are compared from the airline's oldest kept statement page on, as the first allowance does
@@ -50,10 +51,13 @@ create temporary table t_was_events on commit drop as select * from public.game_
 create temporary table t_was_balance on commit drop as select * from public.game_balance;
 create temporary table t_was_pnl on commit drop as select * from public.game_pnl;
 -- the statement clean-up's last cut, by world (#140's rehearsal, 9 Nov): since 6 Nov every run switched on deletes the
--- statement lines older than its cut (now less 14 days) and leaves none of them, so every line from the latest such
--- run's cut on is still kept, and lines before it are gone (a run with the clean-up off, or one that failed, deletes none)
+-- statement lines older than its cut and leaves none of them, so every line from the latest such run's cut on is still
+-- kept, and lines before it are gone (a run with the clean-up off, or one that failed, deletes none). The cut was now
+-- less 14 days, the raw pages' cut too (details.before); since 19 Nov it is now less settings.statement_keep_days (3),
+-- given on its own as details.statement_before, while before stays the raw pages' (spec
+-- docs/specs/2026-11-19-statement-keep.md). So the kept raw pages now reach back further than the kept lines.
 create temporary table t_stmt_cut on commit drop as
-  select j.world_id, max((j.details ->> 'before')::timestamptz) as cut
+  select j.world_id, max(coalesce(j.details ->> 'statement_before', j.details ->> 'before')::timestamptz) as cut
     from public.job_runs j
    where j.job = 'cleanup' and j.status = 'ok' and coalesce((j.details ->> 'statement_enabled')::boolean, false)
    group by j.world_id;
@@ -108,9 +112,10 @@ begin
       from public.game_flights where flight_no is not null;
 
   -- from when the statement can be rebuilt: everything, for an airline whose lines all came back; otherwise from its
-  -- oldest kept page. Once the statement clean-up has run (see the header), always from the oldest kept page, which is
-  -- after its last cut: lines older than the cut are gone from the copy, while that page still holds some of them, and
-  -- game_flights and game_payments keep theirs, so "every line came back" no longer means the replay reaches back.
+  -- oldest kept page. Once the statement clean-up has run (see the header), always from the later of the oldest kept page
+  -- and its last cut (since 19 Nov the cut, 3 days, is the later: pages keep 14): lines older than the cut are gone from
+  -- the copy, while the kept pages still hold some of them, and game_flights and game_payments keep theirs, so "every
+  -- line came back" no longer means the replay reaches back.
   create temporary table t_stmt_since on commit drop as
     select k.airline_id,
            greatest(case when not exists (select airline_id, ts, descr, amount, occ from t_was_statement w where w.airline_id = k.airline_id
@@ -248,7 +253,7 @@ begin
   raise notice 'replay: % pages, by name and by game ID, gave the same rows as the backfill (% flights'' money, % loads rows, % payments, % statement lines compared)',
     v_pages, (select count(*) from t_was_money), (select count(*) from t_was_loads), (select count(*) from t_was_payments),
     (select count(*) from t_was_statement);
-  raise notice 'replay: statement, flights'' money and payments compared from each airline''s oldest kept statement page, after the statement clean-up''s last cut: %',
+  raise notice 'replay: statement, flights'' money and payments compared from the later of each airline''s oldest kept statement page and the statement clean-up''s last cut: %',
     coalesce((select string_agg(format('world %s from %s', c.world_id, to_char(c.cut at time zone 'UTC', 'DD Mon HH24:MI "UTC"')), ', ' order by c.world_id) from t_stmt_cut c),
              'no cut yet, from the oldest kept page');
   if v_reread is not null then

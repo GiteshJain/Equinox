@@ -92,7 +92,8 @@ begin
   -- figures_capture_quiet_min, figures_route_budget_s, figures_landing_max_min) adds and the one 20261115140000 (the
   -- world scans' clean-up: scan_keep_days) adds and the two 20261115170000 (the fares script's own limit:
   -- fares_script_min_pct, fares_script_max_pct) adds and the two 20261116100000 (the salary table: salary_flag_pct,
-  -- unattended_salary_read) adds, which
+  -- unattended_salary_read) adds and the two 20261119100000 (statement lines kept 3 days: statement_keep_days,
+  -- cron_log_keep_days) adds, which
   -- are new in it: they're checked, then taken out (from the
   -- world's settings and each airline's) before comparing
   select b.doc into d_before from rehearsal_before.rules_input b;
@@ -119,7 +120,8 @@ begin
                              'shared_pairs_limit', 'shared_pairs_limit_days', 'salary_above_average_pct',
                              'unattended_salaries', 'unattended_scan', 'unattended_market', 'capture_unattended_warn_h',
                              'figures_capture_quiet_min', 'figures_route_budget_s', 'figures_landing_max_min', 'scan_keep_days',
-                             'fares_script_min_pct', 'fares_script_max_pct', 'salary_flag_pct', 'unattended_salary_read'] loop
+                             'fares_script_min_pct', 'fares_script_max_pct', 'salary_flag_pct', 'unattended_salary_read',
+                             'statement_keep_days', 'cron_log_keep_days'] loop
       continue when d_before -> 'settings' ? v;
       assert d_all -> 'settings' ? v, 'all: the new setting ' || v || ' isn''t in the document';
       d_cmp := jsonb_set(d_cmp, '{settings}', (d_cmp -> 'settings') - v);

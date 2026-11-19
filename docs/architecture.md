@@ -250,9 +250,9 @@ for the parts your work touches. The map's size is capped by a check (`tests/map
 6. **Every day, inside the database** (`pg_cron`, as postgres, no key): at 10:00 UTC `private.job_snapshot_fallback()`
    takes the snapshot of the capture day just ended if no complete capture took it (source fallback, marked incomplete,
    cash from the latest balance), and of any earlier day that has none; at 10:20 UTC `private.job_cleanup()` deletes
-   raw pages older than 14 days, and statement lines older than 14 days once each is in `game_flights` or
-   `game_payments`, while `settings.statement_cleanup_enabled` is true (on since 5 Nov), and since 15 Nov world-scan
-   rows older than 14 days ([database](map/database.md)). One `job_runs` row a run. The
+   raw pages older than 14 days, and statement lines older than `settings.statement_keep_days` (3) once each is in
+   `game_flights` or `game_payments`, while `settings.statement_cleanup_enabled` is true (on since 5 Nov), since 15 Nov
+   world-scan rows older than 14 days, and since 19 Nov the scheduler's log after 7 days ([database](map/database.md)). One `job_runs` row a run. The
    planner's Home warns from `job_runs` and `backup_runs`: no good backup for 30 hours or its last run failed, no
    snapshot for 30 hours, the 10:00 UTC job not run for 30 hours, the month's archive not run by the 3rd, or any job's
    last run failed.

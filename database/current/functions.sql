@@ -2137,7 +2137,9 @@ begin
     execute format('select count(*) from public.game_statement s join public.game_flights x on x.id = s.flight_id where %s',
                    private.archive_where(p_month, p_table, 'x')) into n;
     if n > 0 then
-      v_reasons := v_reasons || format('%s statement line(s) still point at these flights (the statement clean-up removes them after 14 days once it is switched on)', n);
+      v_reasons := v_reasons || format('%s statement line(s) still point at these flights (the statement clean-up removes them once older than settings.statement_keep_days, %s days, while it is switched on)',
+                                       n, coalesce((select s.value #>> '{}' from public.settings s join public.worlds w on w.id = s.world_id and w.is_default
+                                                     where s.airline_id is null and s.key = 'statement_keep_days'), 'not set'));
     end if;
   end if;
   if p_table = 'market_reads' then
@@ -8892,46 +8894,59 @@ AS $function$
 declare
   v_at timestamptz := coalesce(p_at, now()); v_cut timestamptz := coalesce(p_at, now()) - interval '14 days'; w record;
   t0 timestamptz; n_raw int; v_on boolean; n_old bigint; n_tied bigint; n_paid bigint; n_del int; v_status text;
-  v_note text; v_details jsonb; v_scan jsonb; v_out jsonb := '[]'::jsonb;
+  v_note text; v_details jsonb; v_scan jsonb; v_out jsonb := '[]'::jsonb; v_keep int; v_stmt_cut timestamptz;
+  v_cron_world bigint; v_cron_days int; v_cron_cut timestamptz; n_cron int; v_cron_note text; v_cron jsonb;
 begin
   perform set_config('equinox.actor', 'job', true), set_config('equinox.actor_detail', 'cleanup', true);
+  -- the scheduler's log is the database's, not a world's: trimmed once a run, in the default world's row (else the first)
+  select x.id into v_cron_world from public.worlds x order by x.is_default desc, x.id limit 1;
   for w in select x.id from public.worlds x
             where exists (select 1 from public.airlines a join public.groups g on g.id = a.group_id and g.world_id = a.world_id
                            where a.world_id = x.id and a.active and g.kind = 'ours')
                or exists (select 1 from public.game_capture_raw r where r.world_id = x.id)
             order by x.id loop
-    t0 := clock_timestamp(); n_del := 0; v_status := 'ok';
+    t0 := clock_timestamp(); n_del := 0; v_status := 'ok'; n_old := 0; n_tied := 0; n_paid := 0; v_cron := '{}'::jsonb;
     begin
       delete from public.game_capture_raw r where r.world_id = w.id and r.captured_at < v_cut;
       get diagnostics n_raw = row_count;
 
+      -- statement lines: kept settings.statement_keep_days (since 19 Nov; 14 days before)
       v_on := coalesce((select (s.value #>> '{}')::boolean from public.settings s
                          where s.world_id = w.id and s.airline_id is null and s.key = 'statement_cleanup_enabled'), false);
-      select count(*), count(*) filter (where s.flight_id is not null),
-             count(*) filter (where s.flight_id is null
-                                and exists (select 1 from public.game_payments p
-                                             where p.airline_id = s.airline_id and p.paid_at = s.ts and p.descr = s.descr
-                                               and p.amount = s.amount and p.occ = s.occ))
-        into n_old, n_tied, n_paid
-        from public.game_statement s
-       where s.world_id = w.id and s.ts < v_cut;
-      if not v_on then
-        v_note := format('statement lines: switched off (settings.statement_cleanup_enabled), %s older than 14 days kept', n_old);
+      v_keep := (select (s.value #>> '{}')::int from public.settings s
+                  where s.world_id = w.id and s.airline_id is null and s.key = 'statement_keep_days'
+                    and jsonb_typeof(s.value) = 'number' and (s.value #>> '{}') ~ '^[0-9]+$' and (s.value #>> '{}')::int >= 1);
+      v_stmt_cut := v_at - make_interval(days => v_keep);
+      if v_keep is not null then
+        select count(*), count(*) filter (where s.flight_id is not null),
+               count(*) filter (where s.flight_id is null
+                                  and exists (select 1 from public.game_payments p
+                                               where p.airline_id = s.airline_id and p.paid_at = s.ts and p.descr = s.descr
+                                                 and p.amount = s.amount and p.occ = s.occ))
+          into n_old, n_tied, n_paid
+          from public.game_statement s
+         where s.world_id = w.id and s.ts < v_stmt_cut;
+      end if;
+      if v_keep is null then
+        v_note := 'statement lines: none deleted (no settings.statement_keep_days of 1 day or more)';
+      elsif not v_on then
+        v_note := format('statement lines: switched off (settings.statement_cleanup_enabled), %s older than %s days kept', n_old, v_keep);
       elsif n_old = 0 then
-        v_note := 'statement lines: none older than 14 days';
+        v_note := format('statement lines: none older than %s days', v_keep);
       elsif n_old <> n_tied + n_paid then
         v_status := 'failed';
-        v_note := format('statement lines: %s of the %s older than 14 days aren''t in game_flights or game_payments, so none were deleted',
-                         n_old - n_tied - n_paid, n_old);
+        v_note := format('statement lines: %s of the %s older than %s days aren''t in game_flights or game_payments, so none were deleted',
+                         n_old - n_tied - n_paid, n_old, v_keep);
       else
+        -- one statement: about 80,000 lines the first night, about 10,300 a night after (spec, "the first run")
         delete from public.game_statement s
-         where s.world_id = w.id and s.ts < v_cut
+         where s.world_id = w.id and s.ts < v_stmt_cut
            and (s.flight_id is not null
                 or exists (select 1 from public.game_payments p
                             where p.airline_id = s.airline_id and p.paid_at = s.ts and p.descr = s.descr
                               and p.amount = s.amount and p.occ = s.occ));
         get diagnostics n_del = row_count;
-        v_note := format('statement lines: %s deleted (older than 14 days; %s in game_flights, %s in game_payments)', n_del, n_tied, n_paid);
+        v_note := format('statement lines: %s deleted (older than %s days; %s in game_flights, %s in game_payments)', n_del, v_keep, n_tied, n_paid);
       end if;
       v_note := format('raw pages: %s deleted (older than 14 days); ', n_raw) || v_note;
       -- the world scans (since 15 Nov, spec docs/specs/2026-11-15-scan-cleanup.md): in a block of its own, so a failure
@@ -8943,16 +8958,39 @@ begin
         v_scan := jsonb_build_object('scan_enabled', null, 'note', 'world scans: failed, nothing deleted: ' || sqlerrm);
       end;
       v_note := v_note || '; ' || (v_scan ->> 'note');
+      -- the scheduler's log (since 19 Nov), once a run: in a block of its own, so a failure (no right to delete there)
+      -- fails the run, says why and undoes only this delete
+      if w.id = v_cron_world then
+        v_cron_days := (select (s.value #>> '{}')::int from public.settings s
+                         where s.world_id = w.id and s.airline_id is null and s.key = 'cron_log_keep_days'
+                           and jsonb_typeof(s.value) = 'number' and (s.value #>> '{}') ~ '^[0-9]+$' and (s.value #>> '{}')::int >= 1);
+        v_cron_cut := v_at - make_interval(days => v_cron_days); n_cron := 0;
+        if v_cron_days is null then
+          v_cron_note := 'scheduler''s log: none deleted (no settings.cron_log_keep_days)';
+        else
+          begin
+            delete from cron.job_run_details d where coalesce(d.end_time, d.start_time) < v_cron_cut;
+            get diagnostics n_cron = row_count;
+            v_cron_note := format('scheduler''s log: %s deleted (older than %s days)', n_cron, v_cron_days);
+          exception when others then
+            v_status := 'failed'; n_cron := null;
+            v_cron_note := 'scheduler''s log: failed, nothing deleted: ' || sqlerrm;
+          end;
+        end if;
+        v_note := v_note || '; ' || v_cron_note;
+        v_cron := jsonb_build_object('cron_log_keep_days', v_cron_days, 'cron_log_before', v_cron_cut, 'cron_log_deleted', n_cron);
+      end if;
       v_details := jsonb_build_object('before', v_cut, 'raw_deleted', n_raw, 'statement_enabled', v_on,
+                                      'statement_keep_days', v_keep, 'statement_before', v_stmt_cut,
                                       'statement_old', n_old, 'statement_in_flights', n_tied, 'statement_in_payments', n_paid,
-                                      'statement_deleted', n_del) || (v_scan - 'note');
+                                      'statement_deleted', n_del) || (v_scan - 'note') || v_cron;
       insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
       values ('cleanup', w.id, t0, clock_timestamp(), v_status, private.capture_day(w.id, v_at), v_note, v_details);
       v_out := v_out || jsonb_build_object('world_id', w.id, 'status', v_status, 'note', v_note) || v_details;
     exception when others then
       insert into public.job_runs (job, world_id, started_at, finished_at, status, for_day, note, details)
       values ('cleanup', w.id, t0, clock_timestamp(), 'failed', private.capture_day(w.id, v_at), 'clean-up: ' || sqlerrm,
-              jsonb_build_object('before', v_cut, 'sqlstate', sqlstate));
+              jsonb_build_object('before', v_cut, 'statement_before', v_stmt_cut, 'sqlstate', sqlstate));
       v_out := v_out || jsonb_build_object('world_id', w.id, 'status', 'failed', 'note', sqlerrm);
     end;
   end loop;
