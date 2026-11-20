@@ -25,6 +25,10 @@
 --     so those rows carry the re-read's time, which no page has. Everything else about them must match.
 -- Each page replayed is also checked as it was when it arrived (#21, private.capture_check()): every kept evening must be
 -- judged ok, page by page (the first pass's verdicts; the second judges the same pages again).
+-- A salaries page (since 16 Nov, pull request 165) is replayed as capture_ingest() takes it: by
+-- private.capture_salaries(), never private.capture_store(), whose check doesn't know the kind and left every one "not
+-- judged" (the rehearsal of 19 Nov). It writes none of the tables compared here; it is judged ok, short or broken as live
+-- judges it, and must be ok like every other page.
 
 -- what the backfill and the capture wrote, by natural keys (ids, row times and flight ids aside)
 create temporary table t_was_loads on commit drop as
@@ -54,8 +58,11 @@ create temporary table t_stmt_cut on commit drop as
    where j.job = 'cleanup' and j.status = 'ok' and coalesce((j.details ->> 'statement_enabled')::boolean, false)
    group by j.world_id;
 -- the pages to replay, oldest first, and from when each airline's pages of each kind are kept
+-- (a salaries page also carries whether the unattended key sent it, from its read, and the verdict it got then)
 create temporary table t_pages on commit drop as
-  select r.id, r.world_id, r.airline_id, r.airline, a.game_id, r.kind, r.page_url, r.rows, r.captured_at
+  select r.id, r.world_id, r.airline_id, r.airline, a.game_id, r.kind, r.page_url, r.rows, r.captured_at,
+         coalesce((select sr.unattended from public.salary_reads sr where sr.raw_id = r.id order by sr.id limit 1), false) as unattended,
+         r.verdict as verdict_then
     from public.game_capture_raw r join public.airlines a on a.id = r.airline_id
    where r.kind <> 'html';
 create temporary table t_kept on commit drop as
@@ -63,7 +70,8 @@ create temporary table t_kept on commit drop as
 -- n: rows that differ; counted: whether a difference fails the test (false only for the re-read times, reported)
 create temporary table t_report (pass text, part text, n bigint, counted boolean not null default true) on commit drop;
 -- each page's verdict as the first pass replayed it (#21)
-create temporary table t_verdicts (world_id bigint, airline_id bigint, airline text, kind text, captured_at timestamptz, v jsonb) on commit drop;
+create temporary table t_verdicts (world_id bigint, airline_id bigint, airline text, kind text, captured_at timestamptz, v jsonb,
+                                   verdict_then text) on commit drop;
 
 -- empties the capture tables, replays every page with the airline named one way, and compares
 create function pg_temp.replay(p_pass text) returns void language plpgsql as $replay$
@@ -72,10 +80,16 @@ begin
   delete from public.game_statement; delete from public.game_flights; delete from public.game_payments;
   delete from public.game_events; delete from public.game_balance; delete from public.game_pnl;
   for pg in select * from t_pages order by captured_at, id loop
-    res := private.capture_store(pg.world_id, case when p_pass = 'game id' then pg.game_id::text else pg.airline end,
-                                 pg.kind, pg.page_url, pg.rows, pg.captured_at, false);
+    -- as capture_ingest() takes the page: a salaries page by private.capture_salaries(), every other kind by capture_store()
+    if pg.kind = 'salaries' then
+      res := private.capture_salaries(pg.world_id, case when p_pass = 'game id' then pg.game_id::text else pg.airline end,
+                                      pg.page_url, pg.rows, pg.unattended, pg.captured_at);
+    else
+      res := private.capture_store(pg.world_id, case when p_pass = 'game id' then pg.game_id::text else pg.airline end,
+                                   pg.kind, pg.page_url, pg.rows, pg.captured_at, false);
+    end if;
     if not coalesce((res ->> 'ok')::boolean, false) then failed := failed + 1; end if;
-    if p_pass = 'name' then insert into t_verdicts values (pg.world_id, pg.airline_id, pg.airline, pg.kind, pg.captured_at, res -> 'verdict'); end if;
+    if p_pass = 'name' then insert into t_verdicts values (pg.world_id, pg.airline_id, pg.airline, pg.kind, pg.captured_at, res -> 'verdict', pg.verdict_then); end if;
   end loop;
   insert into t_report values (p_pass, 'pages that failed', failed);
 
@@ -261,6 +275,10 @@ begin
     case when bad is null then 'every one ok' else (select count(*) from t_verdicts t where t.v ->> 'verdict' is distinct from 'ok') || ' not ok' end,
     coalesce(v_loads, 'no loads judged'), coalesce(v_stmt, 'no statement against a median');
   raise notice 'by evening: %', v_summary;
+  raise notice 'salaries pages: % replayed by capture_salaries(), % ok, % judged as when they arrived',
+    (select count(*) from t_verdicts t where t.kind = 'salaries'),
+    (select count(*) from t_verdicts t where t.kind = 'salaries' and t.v ->> 'verdict' = 'ok'),
+    (select count(*) from t_verdicts t where t.kind = 'salaries' and t.v ->> 'verdict' is not distinct from t.verdict_then);
   if bad is not null then raise notice 'not ok: %', left(bad, 3000); end if;
   raise notice 'loads by evening: %', (select string_agg(format('%s %s %s/%s', private.capture_day(t.world_id, t.captured_at), left(t.airline, 3), t.v ->> 'read', t.v ->> 'scheduled'), ', ' order by t.captured_at)
                                         from t_verdicts t where t.kind = 'loads');
