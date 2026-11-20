@@ -15,8 +15,9 @@
 --   3. The 10:00 UTC fallback: a day with a snapshot is left alone; the day just ended without one, and a missed day
 --      before it, each get one (source fallback, complete as the capture was, at the end of the capture day, cash as
 --      design §7 says); every other day is untouched; one job_runs row a run.
---   4. The 10:20 UTC clean-ups: raw pages older than 14 days go and younger ones stay; the statement clean-up's setting is a
---      boolean for every world (switched on since 5 Nov, manual §7); set off, no statement line goes; switched on, only lines older than 14 days that are in game_flights or
+--   4. The 10:20 UTC clean-ups: raw pages older than 14 days go and younger ones stay (statement lines: older than
+--      settings.statement_keep_days since 19 Nov, below); the statement clean-up's setting is a
+--      boolean for every world (switched on since 5 Nov, manual §7); set off, no statement line goes; switched on, only lines older than statement_keep_days that are in game_flights or
 --      game_payments go, and if any isn't, none does and the run fails; one job_runs row a run.
 
 -- ---------------------------------------------------------------- 1. the scheduler and the catalogue
@@ -270,9 +271,14 @@ do $test$
 declare
   w bigint := (select id from public.worlds where is_default); a record; v_at timestamptz := now(); v_cut timestamptz;
   n_raw_old bigint; v_young bigint; v_old_page bigint; j record; v_flight bigint; n_lines bigint; n_old bigint; v_runs bigint;
-  v_recent_ts timestamptz; v_old_ts timestamptz;
+  v_recent_ts timestamptz; v_old_ts timestamptz; v_keep int; v_stmt_cut timestamptz;
 begin
   v_cut := v_at - interval '14 days';
+  -- statement lines are kept settings.statement_keep_days (3 since 19 Nov; spec docs/specs/2026-11-19-statement-keep.md),
+  -- raw pages 14 days; statement_keep_test.sql checks the setting and the job in a world of its own
+  v_keep := (select (s.value #>> '{}')::int from public.settings s where s.world_id = w and s.airline_id is null and s.key = 'statement_keep_days');
+  assert v_keep >= 1, 'settings.statement_keep_days isn''t set in the default world';
+  v_stmt_cut := v_at - make_interval(days => v_keep);
   select al.id, al.planner_name, al.world_id into a
     from public.airlines al join public.groups g on g.id = al.group_id and g.world_id = al.world_id
    where al.world_id = w and al.active and g.kind = 'ours' order by al.id limit 1;
@@ -305,7 +311,7 @@ begin
   insert into public.game_statement (world_id, airline_id, airline, ts, descr, amount, side, occ, blk, flight_id)
   values (w, a.id, a.planner_name, v_recent_ts, 'jobs-test recent', 3, 'D', 1, 0, null);
   select count(*) into n_lines from public.game_statement where world_id = w;
-  select count(*) into n_old from public.game_statement where world_id = w and ts < v_cut;
+  select count(*) into n_old from public.game_statement where world_id = w and ts < v_stmt_cut;
 
   -- switched off (as it shipped): raw pages go, statement lines stay
   update public.settings set value = 'false' where world_id = w and airline_id is null and key = 'statement_cleanup_enabled';
@@ -324,21 +330,23 @@ begin
   assert not exists (select 1 from public.game_capture_raw where id = v_old_page), 'the raw page 15 days old is still there';
   assert (select count(*) from public.game_statement where world_id = w) = n_lines, 'statement lines went while the clean-up is switched off';
 
-  -- switched on: every line older than 14 days goes, being in game_flights or game_payments; the rest stay
+  -- switched on: every line older than statement_keep_days goes, being in game_flights or game_payments; the rest stay
   update public.settings set value = 'true' where world_id = w and airline_id is null and key = 'statement_cleanup_enabled';
   perform private.job_cleanup(v_at);
   select * into j from public.job_runs where job = 'cleanup' and world_id = w order by id desc limit 1;
   if (j.details ->> 'statement_old')::bigint = (j.details ->> 'statement_in_flights')::bigint + (j.details ->> 'statement_in_payments')::bigint then
     assert j.status = 'ok' and (j.details ->> 'statement_enabled')::boolean and (j.details ->> 'statement_deleted')::bigint = n_old, format('the clean-up, switched on: %s, %s', j.status, j.note);
-    assert not exists (select 1 from public.game_statement where world_id = w and ts < v_cut), 'a statement line older than 14 days is left';
-    assert (select count(*) from public.game_statement where world_id = w) = n_lines - n_old, 'statement lines younger than 14 days went';
+    assert not exists (select 1 from public.game_statement where world_id = w and ts < v_stmt_cut), 'a statement line older than statement_keep_days is left';
+    assert (select count(*) from public.game_statement where world_id = w) = n_lines - n_old, 'statement lines younger than statement_keep_days went';
+    assert (j.details ->> 'statement_before')::timestamptz = v_stmt_cut and (j.details ->> 'before')::timestamptz = v_cut,
+      format('the run''s details don''t give the statement''s cut and the raw pages'' apart: %s', j.details);
     assert exists (select 1 from public.game_flights where id = v_flight) and exists (select 1 from public.game_payments where descr = 'jobs-test payment'),
       'the clean-up touched game_flights or game_payments';
   else
-    raise exception 'the copy has statement lines older than 14 days in neither game_flights nor game_payments (%): the statement clean-up would refuse to run on it', j.note;
+    raise exception 'the copy has statement lines older than % days in neither game_flights nor game_payments (%): the statement clean-up would refuse to run on it', v_keep, j.note;
   end if;
 
-  -- a line older than 14 days in neither: none goes, the run fails and says so
+  -- a line older than statement_keep_days in neither: none goes, the run fails and says so
   insert into public.game_statement (world_id, airline_id, airline, ts, descr, amount, side, occ, blk, flight_id)
   values (w, a.id, a.planner_name, v_old_ts, 'jobs-test unfolded', 5, 'D', 1, 0, null);
   insert into public.game_flights (world_id, airline_id, posted_at, statement_blk, statement_routes, origin_code, dest_code, dep_at,
@@ -348,11 +356,11 @@ begin
   values (w, a.id, a.planner_name, v_old_ts, 'Passenger transport income (ZZA-ZZB) jobs-test 2', 100, 'C', 1, 8, v_flight);
   perform private.job_cleanup(v_at);
   select * into j from public.job_runs where job = 'cleanup' and world_id = w order by id desc limit 1;
-  assert j.status = 'failed' and j.note like '%1 of the 2 older than 14 days aren''t in game_flights or game_payments, so none were deleted%'
-     and (select count(*) from public.game_statement where world_id = w and ts < v_cut) = 2,
+  assert j.status = 'failed' and j.note like format('%%1 of the 2 older than %s days aren''t in game_flights or game_payments, so none were deleted%%', v_keep)
+     and (select count(*) from public.game_statement where world_id = w and ts < v_stmt_cut) = 2,
     format('a line in neither: %s, %s', j.status, j.note);
-  raise notice 'clean-ups: % raw page(s) older than 14 days deleted, one 13 days old kept; the setting there as a boolean for every world; switched off no statement line goes; switched on the % older than 14 days go (in game_flights or game_payments) and younger ones stay; one older line in neither and none goes, the run failed and says so; one job_runs row per world a run',
-    n_raw_old, n_old;
+  raise notice 'clean-ups: % raw page(s) older than 14 days deleted, one 13 days old kept; the setting there as a boolean for every world; switched off no statement line goes; switched on the % older than % days (statement_keep_days) go (in game_flights or game_payments) and younger ones stay; one older line in neither and none goes, the run failed and says so; one job_runs row per world a run',
+    n_raw_old, n_old, v_keep;
 end
 $test$;
 

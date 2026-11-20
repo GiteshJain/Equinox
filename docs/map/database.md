@@ -24,6 +24,13 @@ MB of route pages before compression, up to about twice that with the dead rows 
 `system_status()`'s usage lists the table's size (amber from 50 MB). Settings `figures_capture_quiet_min` (5),
 `figures_route_budget_s` (40) and `figures_landing_max_min` (30, for the planner's landing page in part 2).
 
+**Statement lines kept 3 days** (since 19 Nov, spec `docs/specs/2026-11-19-statement-keep.md`; to-do 252): the 10:20 UTC
+clean-ups (`private.job_cleanup()`) delete `game_statement` lines older than `settings.statement_keep_days` (3; 14
+before), still only once each is in `game_flights` or `game_payments`; raw pages keep 14 days. The same job trims the
+scheduler's log (`cron.job_run_details`) to `settings.cron_log_keep_days` (7), once a run in the default world's
+`job_runs` row. The row's details give each cut apart: `before` (the raw pages'), `statement_before`, `cron_log_before`.
+After the first 3-day run, one `VACUUM FULL` hands the space back (the brief's step A, run by hand).
+
 ## Where
 
 supabase.com; tables in `docs/data.md`; every change in `database/migrations/` Since 22 Oct `airline_bases.role` may be `station` (`airline_bases_role_kinds`, `airline_bases_station_shape`: no banks, block or parent, never the main hub; the old hub-or-focus rule went in a removals file Gitesh ran); every read that means "our hubs and focus cities" leaves stations out: `competition()`'s trunks, contested bases and hubs first (a station opening waits for the main hub's 750, "hubs first: stations wait for <MAIN>'s 750"), `hub_progress()` and `site_public()`'s hubs.
