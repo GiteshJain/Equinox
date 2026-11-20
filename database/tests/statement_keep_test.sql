@@ -152,16 +152,18 @@ declare
   r_old bigint; r_running bigint; r_young bigint; n_before bigint; v_prev bigint;
 begin
   if dw is null then raise notice 'the scheduler''s log: no default world, nothing to check'; return; end if;
+  -- the test's rows carry their own runid (negative, so never a real run's): on Supabase postgres may insert into and
+  -- delete from cron.job_run_details but may not use its sequence, cron.runid_seq (found in pull request 169's rehearsal)
   -- the copy's statement lines aren't this part's business: switched off for this run, so they can't fail it
   update public.settings set value = 'false' where world_id = dw and airline_id is null and key = 'statement_cleanup_enabled';
-  insert into cron.job_run_details (jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
-  values (990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'succeeded', '1 row', v_at - interval '8 days', v_at - interval '8 days' + interval '1 second')
+  insert into cron.job_run_details (runid, jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
+  values (-99025201, 990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'succeeded', '1 row', v_at - interval '8 days', v_at - interval '8 days' + interval '1 second')
   returning runid into r_old;
-  insert into cron.job_run_details (jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
-  values (990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'running', null, v_at - interval '9 days', null)
+  insert into cron.job_run_details (runid, jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
+  values (-99025202, 990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'running', null, v_at - interval '9 days', null)
   returning runid into r_running;
-  insert into cron.job_run_details (jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
-  values (990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'succeeded', '1 row', v_at - interval '6 days', v_at - interval '6 days' + interval '1 second')
+  insert into cron.job_run_details (runid, jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
+  values (-99025203, 990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'succeeded', '1 row', v_at - interval '6 days', v_at - interval '6 days' + interval '1 second')
   returning runid into r_young;
   select count(*) into n_before from cron.job_run_details d where coalesce(d.end_time, d.start_time) < v_at - interval '7 days';
 
@@ -179,8 +181,8 @@ begin
     'another world''s row trims the scheduler''s log too';
 
   -- without the setting none goes
-  insert into cron.job_run_details (jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
-  values (990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'succeeded', '1 row', v_at - interval '8 days', v_at - interval '8 days')
+  insert into cron.job_run_details (runid, jobid, job_pid, database, username, command, status, return_message, start_time, end_time)
+  values (-99025204, 990252, 1, current_database(), 'postgres', 'select 1 -- statement keep test', 'succeeded', '1 row', v_at - interval '8 days', v_at - interval '8 days')
   returning runid into r_old;
   delete from public.settings where world_id = dw and airline_id is null and key = 'cron_log_keep_days';
   perform private.job_cleanup(v_at);
