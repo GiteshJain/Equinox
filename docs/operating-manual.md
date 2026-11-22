@@ -566,10 +566,10 @@ Details and open points: `docs/decisions.md`.
 - **The fare ladder, every Saturday.** Each direction of each cabin of each route has a **level** (A→B and B→A apart:
   "out" from the route's hub, "back" to it): its fare as a % of the game's default price (launch: 100%, Ryanair 85%).
   At the Saturday review, from the week's captured flights in that cabin and direction only:
-  - **up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5 departures that way in the 7
+  - **up 5 points** when every flight sold out (at least 5 departures that way in the 7
     days), then that direction holds the next Saturday (`settings.fare_ladder_up_hold_weeks`, 1);
   - **hold** when 90–99% sold out;
-  - **down 5 points** (Pan Am and China Eastern 7) when under 90% sold out, then that direction holds for 2 weeks
+  - **down 5 points** when under 90% sold out, then that direction holds for 2 weeks
     before climbing again.
 
   The hold after a step up is there because bookings open 3 days ahead (§9): the week after a change mostly flies at
@@ -609,9 +609,10 @@ Details and open points: `docs/decisions.md`.
   or holds (no 5-point cuts). The numbers are the `fare_under_launch_*` settings (Ryanair's levels its own row).
   Otherwise the level never goes under launch, nor under the 60% floor where another player flies
   the route. **For now it goes
-  at most 20 points above launch** (120%, Ryanair 105%; **Pan Am and China Eastern 28 points, 128%**, since 22 Oct); the cap is lifted
+  at most 20 points above launch** (120%, Ryanair 105%), with one step and one cap for every airline *(Pan Am and China
+  Eastern back to them since 22 Nov; history: rule-history.md)*; the cap is lifted
   only once loads and image show it's safe, and the fares script's limit (below) moves in the same rule change when the
-  cap or floor would reach it (a check turns red until it does). Their step and cap are their own `settings` rows.
+  cap or floor would reach it (a check turns red until it does).
   **A rival starting on the pair pauses that route for a week:** when a world scan of the last 7 days shows a rival
   that started on the pair (none in the scan before it) or added at least `settings.competition_threat_min_weekly` (7)
   departures a week, the route holds until 7 days after that scan ("rival Air China started here on 22 Oct: paused

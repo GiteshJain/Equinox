@@ -38,6 +38,30 @@ Every rule in force for the equinox. group, with the date it started and why. De
   monthly, every check and what to do when one fails). Where it and
   this manual differ, the manual wins and the playbook is corrected in the same turn.
 
+### One fare-ladder step and cap for every airline again: decided 22 Nov
+*Gitesh, 22 Nov (Main chat, on to-do 220, "ask Gitesh whether he wants a faster fare ladder"): "i think we should move
+pan am and china eastern back to normal speeds as well", then option B of three (A the normal step and their cap kept,
+B fully normal: step 5 and cap 20 points, C leave as is). So no faster ladder for anyone, and Pan Am and China Eastern
+lose their own step and cap. He gave no reason beyond those words. The Main chat's brief
+(`docs/briefs/2026-11-22-fare-ladder-one-speed.md`) recommended C on the one piece of evidence there was: the
+Scheduling note of 4 Nov, that the 26 Oct step-ups (5 to 7 points) kept loads at 99 to 100% and raised profit a flight
+by 7 to 11%.* Sentences changed, word for word:
+- the up line read: "**up 5 points** (Pan Am and China Eastern 7) when every flight sold out (at least 5 departures
+  that way in the 7 days), then that direction holds the next Saturday (`settings.fare_ladder_up_hold_weeks`, 1);"
+- the down line read: "**down 5 points** (Pan Am and China Eastern 7) when under 90% sold out, then that direction
+  holds for 2 weeks before climbing again."
+- the cap read: "**For now it goes at most 20 points above launch** (120%, Ryanair 105%; **Pan Am and China Eastern
+  28 points, 128%**, since 22 Oct); the cap is lifted only once loads and image show it's safe, and the fares script's
+  limit (below) moves in the same rule change when the cap or floor would reach it (a check turns red until it does).
+  Their step and cap are their own `settings` rows."
+- the planner guide read: "goes **up** a step (5 points; Pan Am and China Eastern 7, manual §5)".
+
+The `settings` rows removed on 22 Nov, so both airlines read the world's rows (step 5, cap 20): Pan Am's and China
+Eastern's `fare_ladder_step_pts` (7) and `fare_ladder_cap_pts` (28), all four since 22 Oct (why they were set: below,
+§5, "Pan Am's step 7 points" and "China Eastern given the same step"). Nothing was stranded: on 22 Nov almost every
+direction of the two stood at 107% (167 of 170 and 240 of 246 in the fare plan's latest rows), none above 120%; from
+107% the next steps are 112%, 117% and 120%. The fares script's limit stays at 55% to 135%.
+
 ### Salaries stored, and the salary table: 16 Nov
 *Gitesh, 15 Nov (Main chat; brief `docs/briefs/2026-11-15-salaries-unattended.md`, Outcome: "Capture sets the salaries
 like it normally does but stores what the salary [is] for each employee for each airline. The capture also reads the

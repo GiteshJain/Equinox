@@ -485,7 +485,7 @@ fold them, and a row's title opens or closes it.
   each direction of each cabin of each route (out from the route's hub, back to it) has its own **level**, its fare as
   a % of the game's default price (the latest the fare plan recorded for that direction, or for both directions if that
   is later, else the launch level: 100%, Ryanair 85%). From the week's captured flights in that cabin and direction it
-  goes **up** a step (5 points; Pan Am and China Eastern 7, manual §5) when every flight sold out (at least 5 departures that way), then that direction holds the next
+  goes **up** a step (5 points, manual §5) when every flight sold out (at least 5 departures that way), then that direction holds the next
   Saturday ("held after a step up on 26 Oct"; since 26 Oct, the setting *fare_ladder_up_hold_weeks*: bookings open 3
   days ahead, so the week after a change mostly flies at the old price), **holds** at 90–99%, and goes **down** a
   step under 90%, then that direction holds 2 weeks ("held after a step down on 12 Oct"). A held direction has no
