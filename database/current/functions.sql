@@ -585,33 +585,6 @@ $function$
 
 ;
 
--- export_capture(p_secret text, p_days integer)
-CREATE OR REPLACE FUNCTION public.export_capture(p_secret text, p_days integer DEFAULT 8)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO ''
-AS $function$
-begin
-  if not exists (select 1 from public.ingest_secret where secret = p_secret) then raise exception 'not allowed'; end if;
-  return jsonb_build_object(
-    'pnl', (select coalesce(jsonb_agg(to_jsonb(f)), '[]'::jsonb) from public.game_flight_pnl f
-             where f.ts >= now() - make_interval(days => p_days)),
-    'loads', (select coalesce(jsonb_agg(to_jsonb(l) - 'captured_at'), '[]'::jsonb) from public.game_loads l
-               where l.flight_date >= current_date - (p_days + 1)),
-    -- the columns #13 added stay out, so the scripts get what they always got
-    'events', (select coalesce(jsonb_agg(to_jsonb(e) - array['captured_at', 'world_id', 'airline_id', 'due_at']), '[]'::jsonb)
-                 from public.game_events e where e.event_date >= current_date - p_days),
-    'balance', (select coalesce(jsonb_agg(to_jsonb(b) - array['world_id', 'airline_id', 'capture_day']), '[]'::jsonb)
-                  from public.game_balance b where b.account like '2800%' and b.captured_on >= current_date - p_days),
-    'ops', (select coalesce(jsonb_agg(to_jsonb(o)), '[]'::jsonb) from public.game_ops_recent o),
-    'runs', (select coalesce(jsonb_agg(jsonb_build_object('airline', r.airline, 'kind', r.kind, 'captured_at', r.captured_at)), '[]'::jsonb)
-               from public.game_capture_raw r where r.captured_at >= now() - make_interval(days => p_days) and r.kind <> 'html'));
-end
-$function$
-
-;
-
 -- export_for_report(p_secret text, p_kind text, p_arg text)
 CREATE OR REPLACE FUNCTION public.export_for_report(p_secret text, p_kind text, p_arg text DEFAULT NULL::text)
  RETURNS jsonb
@@ -674,25 +647,6 @@ begin
   raise exception 'unknown kind';
 end
 $function$
-
-;
-
--- export_repo_bootstrap(p_secret text)
-CREATE OR REPLACE FUNCTION public.export_repo_bootstrap(p_secret text)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'supabase_migrations'
-AS $function$
-begin
-  if not exists (select 1 from public.ingest_secret where secret = p_secret) then raise exception 'not allowed'; end if;
-  return jsonb_build_object(
-    'scripts', (select coalesce(jsonb_agg(jsonb_build_object('name', name, 'content', content) order by name), '[]'::jsonb) from public.planner_scripts),
-    'migrations', (select coalesce(jsonb_agg(jsonb_build_object('version', version, 'name', name, 'statements', statements) order by version), '[]'::jsonb) from supabase_migrations.schema_migrations),
-    'functions', (select coalesce(jsonb_agg(jsonb_build_object('name', p.proname, 'args', pg_get_function_identity_arguments(p.oid), 'def', pg_get_functiondef(p.oid)) order by p.proname), '[]'::jsonb)
-                  from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prokind = 'f'),
-    'views', (select coalesce(jsonb_agg(jsonb_build_object('name', viewname, 'def', definition) order by viewname), '[]'::jsonb) from pg_views where schemaname = 'public'));
-end $function$
 
 ;
 
@@ -1474,22 +1428,6 @@ begin
   return private.fig_salary_table(private.fig_world(p_world_id), coalesce(p_as_of, now()));
 end
 $function$
-
-;
-
--- save_script(p_secret text, p_name text, p_content text)
-CREATE OR REPLACE FUNCTION public.save_script(p_secret text, p_name text, p_content text)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-begin
-  if not exists (select 1 from public.ingest_secret where secret = p_secret) then raise exception 'not allowed'; end if;
-  insert into public.planner_scripts(name, content) values (p_name, p_content)
-  on conflict (name) do update set content = excluded.content, updated_at = now();
-  return jsonb_build_object('ok', true, 'name', p_name, 'bytes', length(p_content));
-end $function$
 
 ;
 

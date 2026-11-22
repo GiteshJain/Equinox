@@ -3,9 +3,8 @@
 -- against the outputs database/tests/before/history_before.sql saved before the migrations ran (rehearsal_before). A
 -- failed check stops with an error that says which (scan ids and counts, never rows).
 --   1. What the scripts get is what they got: export_for_report()'s list of scans, and every scan's airlines and
---      airports, exactly (the same JSON, in the same order); export_repo_bootstrap()'s
---      scripts and migrations exactly (its functions and views are the database's own code, which the pending changes
---      change).
+--      airports, exactly (the same JSON, in the same order). (export_repo_bootstrap()'s scripts and migrations were
+--      compared here too until to-do 248 removed it.)
 --   2. The stored scans in the new tables: each with its world; every airline a scan saw (scanned, or stationed at a
 --      scanned airport) is an airlines row by game ID, and each scan's airline rows point at it; each has its schedule,
 --      whose weekdays add up to its departures a week; every scan whose summaries the nightly clean-up keeps (younger
@@ -37,16 +36,8 @@ begin
     end if;
     n := n + 1;
   end loop;
-  a := public.export_repo_bootstrap(s);
-  b := (select value from rehearsal_before.scan_outputs where name = 'export_repo_bootstrap');
-  assert a -> 'scripts' = b -> 'scripts', 'export_repo_bootstrap()''s scripts differ from before';
-  assert a -> 'migrations' = b -> 'migrations', 'export_repo_bootstrap()''s migrations differ from before';
-  assert jsonb_typeof(a -> 'functions') = 'array' and jsonb_typeof(a -> 'views') = 'array'
-     and exists (select 1 from jsonb_array_elements(a -> 'functions') e where e ->> 'name' = 'ingest_snapshot'),
-    'export_repo_bootstrap() doesn''t list the database''s functions and views';
   delete from public.ingest_secret where secret = s;
-  raise notice 'export_for_report(): the scans and % scan lists (airlines and airports) exactly as before; export_repo_bootstrap()''s scripts and migrations the same (its functions and views are the database''s own code, which the pending changes change)',
-    n;
+  raise notice 'export_for_report(): the scans and % scan lists (airlines and airports) exactly as before', n;
 end
 $test$;
 

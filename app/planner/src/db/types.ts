@@ -1493,20 +1493,6 @@ isOneToOne: true
       referencedColumns: ["id"]
     }
                   ]
-                },"planner_scripts": {
-                  Row: {
-                    "content": string,"name": string,"updated_at": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "content": string,"name": string,"updated_at"?: string
-                  }
-                  Update: {
-                    "content"?: string,"name"?: string,"updated_at"?: string
-                  }
-                  Relationships: [
-                    
-                  ]
                 },"planner_users": {
                   Row: {
                     "email": string
@@ -2323,14 +2309,8 @@ isOneToOne: false
 "default_prices":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
                            },
-"export_capture":
-{ Args: { "p_days"?: number,"p_secret": string }; Returns: Json
-                           },
 "export_for_report":
 { Args: { "p_arg"?: string,"p_kind": string,"p_secret": string }; Returns: Json
-                           },
-"export_repo_bootstrap":
-{ Args: { "p_secret": string }; Returns: Json
                            },
 "fare_changes":
 { Args: { "p_airline_id": number,"p_as_of"?: string }; Returns: Json
@@ -2397,9 +2377,6 @@ isOneToOne: false
                            },
 "salary_table":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
-                           },
-"save_script":
-{ Args: { "p_content": string,"p_name": string,"p_secret": string }; Returns: Json
                            },
 "shared_pairs_status":
 { Args: { "p_as_of"?: string,"p_world_id"?: number }; Returns: Json
