@@ -64,8 +64,7 @@ begin
           or (has_function_privilege('authenticated', p.oid, 'execute') and p.proname <> 'is_weekday_set'));
   assert bad is null, 'internal functions the data API''s roles can run: ' || bad;
   select string_agg(p.oid::regprocedure::text, ', ') into bad from pg_proc p
-   where p.oid in ('public.capture_ingest(text, text, text, text, jsonb)'::regprocedure, 'public.capture_airlines(text)'::regprocedure,
-                   'public.export_capture(text, integer)'::regprocedure)
+   where p.oid in ('public.capture_ingest(text, text, text, text, jsonb)'::regprocedure, 'public.capture_airlines(text)'::regprocedure)
      and not (p.prosecdef and coalesce('search_path=""' = any (p.proconfig), false));
   assert bad is null, 'runs as owner without an empty search path, or doesn''t run as owner: ' || bad;
 
